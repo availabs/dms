@@ -51,7 +51,7 @@ is added via "+ Add Route" — useful as a clean, un-scripted reproduction
 environment when you need to rule out "is this bug specific to some other
 build path" (this is exactly how a genuine AVL Graph rendering bug was
 isolated away from a suspected feature-specific cause — see
-`planning/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
 
 ### The route-picker modal ("+ Add Route" / "+ Add Route Slot")
 
@@ -81,7 +81,7 @@ not a flat catalog list:
 Any report page can be flipped into a **Dynamic Report** — one shared page,
 reused by many viewers, whose routes are filled from a URL param at view time
 rather than stored on the page. Full design record:
-`planning/tasks/current/dynamic-reports-and-route-tags.md` (repo root — an
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` (repo root — an
 NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 
 - The toggle lives **inside the `ReportRouteList` panel itself**, in edit
@@ -103,6 +103,18 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 - Reloading the same `?routes=...` URL directly re-resolves with no gate (the
   URL is the durable/shareable state); a different `?routes=` value on the
   same page renders a different route's real data — the core mechanism.
+
+### `ReportRouteList` is invisible on any real (non-`/edit/`) view, by design
+
+Built 2026-08-05. `ReportRouteList` renders nothing at all to a real viewer — no sidebar, no card, no
+empty box — except the blocking entry-gate modal above when a Dynamic Report still needs a route
+picked. If you're live-verifying a report's **view** route and the RRL sidebar/route list seems to be
+missing entirely, that's expected, not a bug: it only ever renders on the page's own `/edit/...`
+route. This is NOT gated by the generic `hideInView` section flag (deliberately — that flag would also
+hide the entry-gate modal above, breaking Dynamic Reports specifically); it's unconditional, baked
+into the component itself. See `ReportRouteList/README.md`'s "View-mode visibility" section and
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` item 3's "View-mode visibility"
+section for the full history.
 
 ## 5. Report-specific gotchas (check `traversing-dms-pages.md` §4 too)
 

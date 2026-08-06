@@ -164,7 +164,17 @@ export async function update(id, config, options = {}) {
       data = merge(cloneDeep(currentData), data);
     }
 
-    await falcor.call(['dms', 'data', 'edit'], [config.app, numId, data]);
+    // dms.data.edit resolves the split table for a dataset (`:data`-suffixed
+    // type) row only when a 4th `type` arg is given (dms.controller.js's
+    // setDataById: `if (type && app) { resolve split table } else { main table }`).
+    // Without it, an update against a split row's id silently no-ops — the
+    // main data_items table has no row with that id to match. --row-type lets
+    // the caller supply that type (distinct from the global --type/site-type
+    // flag, which is unrelated).
+    const editArgs = options.rowType
+      ? [config.app, numId, data, options.rowType]
+      : [config.app, numId, data];
+    await falcor.call(['dms', 'data', 'edit'], editArgs);
 
     output({ id: numId, updated: data, message: 'Item updated' }, options);
   } catch (error) {

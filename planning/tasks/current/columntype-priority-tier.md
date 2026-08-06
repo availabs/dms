@@ -3,7 +3,7 @@
 **Status:** LIBRARY CODE COMPLETE — awaiting orchestrator live verification + page wiring
 **Topic:** ui (columnTypes)
 **Driver:** MitigateNY Action Prioritize redesign, Phase 3 #1
-(dms-template task `planning/tasks/current/mny-action-prioritize-v2-live-build.md`).
+(dms-template task `planning/mitigateny/tasks/current/mny-action-prioritize-v2-live-build.md`).
 
 ## Objective
 

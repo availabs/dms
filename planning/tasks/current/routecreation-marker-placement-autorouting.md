@@ -5,7 +5,7 @@
 This umbrella plan (and its "Cross-repo note" below) predates a major restructuring: on
 2026-07-29, the `routecreation` plugin (Phase 2's marker mode included) was **ported natively into
 dms-template** via `theme.mapPlugins` — see dms-template's
-`planning/tasks/completed/port-transportny-map-plugins.md`. dms-template's own dev server is now
+`planning/transportny/tasks/completed/port-transportny-map-plugins.md`. dms-template's own dev server is now
 where this plugin is developed and tested; the "Phases 2-3 live in transportNY" framing below is
 historical. Additional feature work also landed in the plugin between this file's last edit
 (2026-07-23) and the port (2026-07-29) — search-to-add-TMC and route_id-aware update/overwrite

@@ -44,7 +44,7 @@ positional red."
 
 ## Origin
 
-Library-side half of the root-level task `planning/tasks/current/report-page-redesign.md`
+Library-side half of the root-level task `planning/transportny/tasks/current/report-page-redesign.md`
 (dms-template repo) — Gap 02 of the report-page-redesign old-tool-vs-new-tool audit. That task lets
 an author assign each `ReportRouteList` route a persistent identity color; this task is what makes
 the chart actually render that color for the matching series, instead of the current pure positional
@@ -320,7 +320,7 @@ swatch list in the sibling task) that merges its own map into the same `colorsBy
 
 ## Cross-references
 
-- `planning/tasks/current/report-page-redesign.md` (dms-template repo root) — the
+- `planning/transportny/tasks/current/report-page-redesign.md` (dms-template repo root) — the
   originating task; owns the theme-side route schema, picker UI, and publish-time threading
 - `patterns/page/components/sections/components/dataWrapper/README.md` / comparison-series docs —
   general comparisonSeries mechanism background

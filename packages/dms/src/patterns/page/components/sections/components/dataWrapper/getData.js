@@ -14,6 +14,7 @@ import {
     legacyStateToBuildInput,
     attributeAccessorStr,
     isJoinComplete,
+    getEffectiveComparisonVariants,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
 import { getPivotValues, isMultiValue, pivotColName } from "./pivotUtils";
@@ -626,7 +627,32 @@ export const getData = async ({
         return newD;
     }) : dataToReturn;
 
-    return { length, data: formattedData, outputSourceInfo };
+    // The `__ANCHOR__(<expr>)` SQL mechanism (query_sets) already treats
+    // "whichever comparison-series variant is FIRST" (getEffectiveComparisonVariants[0])
+    // as the anchor/base when it builds the query — but the server's cross-arm fan-out
+    // union has no ORDER BY (deliberately deferred, see
+    // comparison-series-query-fanout.md's "Piece 6"), so the ROWS come back in whatever
+    // order the union's sub-queries happen to resolve, not necessarily anchor-first. Any
+    // comparisonSeries-driven table/list that assumes "the anchor row renders first"
+    // (e.g. Route Compare Component) was silently at the mercy of that resolution order
+    // — reported live 2026-08-04 ("the anchor route is not sorted to the top ... has
+    // come up a bunch of times"). Stable-partition the anchor's row(s) to the front here,
+    // once, using the SAME effective-variant resolution the SQL itself already used, so
+    // no second "what counts as anchor" definition can drift from it. No-op for every
+    // non-comparison-series section (anchorLabel undefined) or one whose data has no
+    // seriesKey column at all.
+    const seriesKeyName = state.comparisonSeries?.seriesKey || "__series";
+    const anchorLabel = state.comparisonSeries?.enabled
+        ? getEffectiveComparisonVariants(state.comparisonSeries)?.[0]?.label
+        : undefined;
+    const orderedData = anchorLabel != null
+        ? [
+            ...formattedData.filter((r) => r[seriesKeyName] === anchorLabel),
+            ...formattedData.filter((r) => r[seriesKeyName] !== anchorLabel),
+        ]
+        : formattedData;
+
+    return { length, data: orderedData, outputSourceInfo };
 };
 
 export default getData;

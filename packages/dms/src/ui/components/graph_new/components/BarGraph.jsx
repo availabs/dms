@@ -187,8 +187,34 @@ const BarGraphWrapper = props => {
       }
       return buildValueColorScale(dataFromProps.min, dataFromProps.max, colors);
     }
+    // No categorize column (e.g. "Bar Graph Summary": one bar per
+    // comparison-series arm, xAxis IS the arm discriminator) — every bar's
+    // stack `key` is the shared yAxis data-column alias, not the arm/route
+    // label, so getColorFunc's own colorsByKey[key] lookup never matches and
+    // every bar falls through to the SAME positional color (colorRange[0],
+    // since there's only ever one key/stack per bar here) — reported live
+    // 2026-08-04 as "Bar Graph Summary not using the RRL's custom route
+    // colors". Each bar's `index` (BarGraphWrapper's own `{ index }` per
+    // group, read back via avl-graph BarGraph's `d[indexBy]`) IS the arm
+    // label in this shape, so key colorsByKey off that instead. Falls back to
+    // ordinary positional cycling when the index isn't in colorsByKey (BC for
+    // every non-comparison-series categorize-less bar graph, e.g. a plain
+    // day/hour/month bucket chart, where index is a bucket, not a route).
+    if (!categoryColumn && props.colorsByKey) {
+      const baseColors = colors;
+      const colorsByKey = props.colorsByKey;
+      const indexBy = props.indexBy || "index";
+      return (value, i, key, d) => {
+        const seriesKey = d?.[indexBy];
+        if (seriesKey != null && colorsByKey[seriesKey] != null) {
+          return colorsByKey[seriesKey];
+        }
+        return baseColors[i % baseColors.length];
+      };
+    }
     return colors;
-  }, [props.colors, dataFromProps.keys?.length, dataFromProps.min, dataFromProps.max]);
+  }, [props.colors, props.colorsByKey, props.indexBy, categoryColumn,
+      dataFromProps.keys?.length, dataFromProps.min, dataFromProps.max]);
 
 // console.log("BarGraphWrapper::dataFromProps", dataFromProps);
 

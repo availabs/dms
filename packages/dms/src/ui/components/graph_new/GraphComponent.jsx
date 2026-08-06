@@ -108,21 +108,31 @@ export const GraphComponent = props => {
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
       valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
       yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
-      // LineGraph's DefaultHoverComp reads `xFormat`; every other chart type
-      // (Bar/Grid/Pie/Treemap/Sunburst) reads `indexFormat` for the same value —
+      // LineGraph's DefaultHoverComp reads `xFormat`; Bar/Pie/Treemap/Sunburst read
+      // `indexFormat` for the same value (their own "index" IS the x-axis category) —
       // supply both so whichever chart type is active picks up the right one.
-      // Omit the keys entirely when there's no named format (rather than setting
-      // them to `undefined`) — each avl-graph component's `{ ...Defaults, ...hoverComp }`
-      // merge spreads keys regardless of value, so an explicit `undefined` here
-      // clobbers that component's own Identity/no-op default and throws on hover.
-      ...(xFormat ? { xFormat, indexFormat: xFormat } : {}),
+      // GridGraph is the one exception: its "index" means the Y-AXIS ROW (e.g. a TMC
+      // string), a completely different value from the x-axis key, which GridGraph's
+      // own DefaultHoverComp instead reads via `keyFormat` (the tooltip's column
+      // header, `keyFormat(data.key)`). Feeding the x-axis formatter into
+      // `indexFormat` for GridGraph applied `epoch_time`'s `+d` numeric coercion to a
+      // TMC string, silently producing the literal text "NaN:NaN" for every row label
+      // — reported live 2026-08-04 as "the [GridGraph] tooltip says NaN instead of the
+      // real value". Omit the keys entirely when there's no named format (rather than
+      // setting them to `undefined`) — each avl-graph component's
+      // `{ ...Defaults, ...hoverComp }` merge spreads keys regardless of value, so an
+      // explicit `undefined` here clobbers that component's own Identity/no-op default
+      // and throws on hover.
+      ...(xFormat
+        ? (graphType === "GridGraph" ? { xFormat, keyFormat: xFormat } : { xFormat, indexFormat: xFormat })
+        : {}),
       // Per-graph minutes/seconds auto-switch (GridGraph's legend only, see
       // formatMinutesAuto) — a raw boolean, not resolved through
       // getFormatFunc, since the actual formatter needs this graph's own
       // domain max, unknown at this point.
       minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false))
     };
-  }, [graphFormat.tooltip, graphFormat.xAxis]);
+  }, [graphFormat.tooltip, graphFormat.xAxis, graphType]);
 
 // console.log("GraphComponent::actions", props.actions);
 
