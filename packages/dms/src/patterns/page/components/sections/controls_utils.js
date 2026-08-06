@@ -200,6 +200,12 @@ export const addCalculatedColumn = (column, setState) => setState(draft => {
         draft.columns.push(column)
     }
 })
+
+export const addStaticColumn = (column, setState) => setState(draft => {
+    if(column.name && column.origin === 'static'){
+        draft.columns.push(column)
+    }
+})
 export const updateDisplayValue = (key, value, onChange, setState) => {
     setState(draft => {
         if (key?.includes('.')) {

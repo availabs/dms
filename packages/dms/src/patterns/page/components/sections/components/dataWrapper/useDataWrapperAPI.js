@@ -25,6 +25,7 @@ import {
     toggleGlobalVisibility as toggleGlobalVisibilityFn,
     addFormulaColumn as addFormulaColumnFn,
     addCalculatedColumn as addCalculatedColumnFn,
+    addStaticColumn as addStaticColumnFn,
     updateDisplayValue as updateDisplayValueFn,
 } from "../../controls_utils";
 
@@ -129,6 +130,10 @@ export function useDataWrapperAPI({ state, setState }) {
         (column) => addCalculatedColumnFn(column, setState),
         [setState]
     );
+    const addStaticColumn = useCallback(
+        (column) => addStaticColumnFn(column, setState),
+        [setState]
+    );
     const reorderColumns = useCallback(
         (newOrder) => setState(draft => { draft.columns = newOrder; }),
         [setState]
@@ -222,6 +227,7 @@ export function useDataWrapperAPI({ state, setState }) {
         toggleGlobalVisibility,
         addFormulaColumn,
         addCalculatedColumn,
+        addStaticColumn,
         reorderColumns,
 
         // ── Pivot operations ──
@@ -242,7 +248,7 @@ export function useDataWrapperAPI({ state, setState }) {
         updateColumn, updateAllColumns,
         duplicateColumn, resetColumn, resetAllColumns,
         toggleIdFilter, toggleGlobalVisibility,
-        addFormulaColumn, addCalculatedColumn, reorderColumns,
+        addFormulaColumn, addCalculatedColumn, addStaticColumn, reorderColumns,
         setPivot,
         setComparisonSeries,
         reconcileComparisonSeriesColumn,
