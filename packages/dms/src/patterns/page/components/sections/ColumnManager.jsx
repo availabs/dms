@@ -5,6 +5,7 @@ import columnTypes from "../../../../ui/columnTypes";
 import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
 import AddCalculatedColumn from "./AddCalculatedColumn";
+import AddStaticColumn from "./AddStaticColumn";
 import { isEqual, uniqWith } from "lodash-es";
 import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
 
@@ -68,6 +69,7 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
             <div className={'flex gap-1'}>
                 <AddFormulaColumn columns={allColumns} addFormulaColumn={col => dwAPI.addFormulaColumn(col)} />
                 <AddCalculatedColumn columns={allColumns} addCalculatedColumn={col => dwAPI.addCalculatedColumn(col)} />
+                <AddStaticColumn addStaticColumn={col => dwAPI.addStaticColumn(col)} />
             </div>
             <Input
                 placeholder="Search columns to add..."

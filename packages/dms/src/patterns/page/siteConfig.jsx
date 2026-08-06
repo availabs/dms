@@ -214,7 +214,7 @@ const pagesConfig = ({
             filter: {
               attributes: [
                   'title','index','filters','authPermissions','url_slug','parent','published',
-                  'hide_in_nav','sections',  'section_groups',  'sidebar',  'navOptions','theme'
+                  'hide_in_nav','sections',  'section_groups',  'sidebar', 'sidebarHideInView', 'navOptions','theme'
               ]
             },
             action: 'view',
