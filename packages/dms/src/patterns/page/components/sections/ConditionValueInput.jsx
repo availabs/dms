@@ -11,6 +11,7 @@ import {
     isSystemCol,
     parseIfJson
 } from "./components/dataWrapper/components/filters/utils";
+import {resolveFilterGroupsForQuery} from "./components/dataWrapper/buildUdaConfig";
 import {TimePicker} from "./components/dataWrapper/components/filters/TimePicker/TimePicker";
 import {serializeTimeFilterURL} from "./components/dataWrapper/utils/timeFilter";
 import {complexFiltersTheme} from "./ComplexFilters.theme";
@@ -45,7 +46,16 @@ const OPTIONS_COUNT_ATTR = 'count(1) as _count';
 // Fetches unique values for a column (for filter/exclude multiselect).
 // When withCounts=true, also fetches per-value row counts via a grouped query.
 // metaOptions: predefined {label,value} pairs — those missing from server results appear with count 0.
-export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingConditions = [], col_source_id = null, withCounts = false, metaOptions = []) => {
+// `siblingFilterTree`: a filter-tree node (`{op, groups:[...]}`, or null/undefined for
+// none) representing everything else that should narrow this column's options — NOT a
+// flat list. Callers build this from whatever leaves actually apply: ComplexFilters'
+// own leaf editor wraps its immediate-group siblings as `{op:'AND', groups: siblings}`;
+// TableHeaderCell's server filter wraps the merged persisted-tree + tableFilters group
+// (see mergeTableFilters/pruneColumnFromFilterTree/restrictFilterTreeToSource in
+// buildUdaConfig.js). Passing a real tree (instead of a hand-flattened list) means this
+// hook can reuse buildUdaConfig's own leaf-shape handling below instead of a second,
+// independently-drifting reducer.
+export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingFilterTree = null, col_source_id = null, withCounts = false, metaOptions = []) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -59,12 +69,18 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
         : Object.values(join.sources || {}).find((s) => s.source === col_source_id)?.sourceInfo;
     const isDms = sourceInfo?.isDms;
 
-    // Stable dep key — only recompute when sibling values actually change
-    const siblingFilterByKey = useMemo(() => JSON.stringify(
-        siblingConditions
-            .filter(s => s.col && s.value != null && (Array.isArray(s.value) ? s.value.length > 0 : s.value !== ''))
-            .map(s => ({ col: s.col, op: s.op, value: s.value }))
-    ), [siblingConditions]);
+    const getColumnRef = useCallback((name) => columns.find(c => c.name === name), [columns]);
+
+    // Reuse buildUdaConfig's own normalFilter/HAVING-extraction + column-mapping pipeline
+    // on the sibling tree, instead of hand-rolling a filterBy per leaf — see
+    // resolveFilterGroupsForQuery for why (unary/time/multiselect/HAVING leaf shapes all
+    // need the same handling the main query already gets right).
+    const filterGroups = useMemo(
+        () => resolveFilterGroupsForQuery(siblingFilterTree, getColumnRef, isDms),
+        [siblingFilterTree, getColumnRef, isDms]
+    );
+    // Stable dep key — only recompute the query when the resolved filterGroups actually change
+    const filterGroupsKey = useMemo(() => JSON.stringify(filterGroups), [filterGroups]);
 
     const metaOptionsKey = useMemo(() => JSON.stringify((metaOptions || []).map(o => o.value)), [metaOptions]);
 
@@ -85,37 +101,13 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                 const reqName = formattedAttributeStr(columnName, isDms, isCalc);
                 const refName = attributeAccessorStr(columnName, isDms, isCalc, isSys);
 
-                // Build filterBy from sibling conditions with values
-                const siblingFilterBy = siblingConditions.reduce((acc, sibling) => {
-                    const val = sibling.value;
-                    if (!sibling.col || val == null || (Array.isArray(val) ? !val.length : val === '')) return acc;
-                    const sibIsCalc = isCalculatedCol(sibling.col, columns);
-                    const sibIsSys = isSystemCol(sibling.col, columns);
-                    const sibRef = attributeAccessorStr(sibling.col, isDms, sibIsCalc, sibIsSys);
-                    const values = Array.isArray(val) ? val : [val];
-                    // Multiselect columns store JSON arrays — use array_contains so the
-                    // server checks array membership instead of scalar equality (= ANY).
-                    const sibCol = columns.find(c => c.name === sibling.col);
-                    if (sibCol?.type === 'multiselect' && (sibling.op === 'filter' || sibling.op === 'exclude')) {
-                        const arrayOp = sibling.op === 'exclude' ? 'array_not_contains' : 'array_contains';
-                        if (!acc.filterGroups) acc.filterGroups = { op: 'AND', groups: [] };
-                        acc.filterGroups.groups.push({ col: sibRef, op: arrayOp, value: values });
-                    } else if (sibling.op === 'like') {
-                        // flat filterBy.like expects a scalar string with % wildcards already embedded,
-                        // not an array — same format the search path uses: `%${search}%`
-                        const raw = Array.isArray(val) ? val[0] : val;
-                        if (raw != null && raw !== '') {
-                            acc.like = { ...(acc.like || {}), [sibRef]: `%${raw}%` };
-                        }
-                    } else {
-                        acc[sibling.op] = { ...(acc[sibling.op] || {}), [sibRef]: values };
-                    }
-                    return acc;
-                }, {});
-
+                // filterGroups already carries every sibling condition, correctly mapped to
+                // server refs and with unary/time/multiselect/HAVING leaf shapes resolved the
+                // same way the main query resolves them (see resolveFilterGroupsForQuery).
+                const baseFilterBy = filterGroups ? { filterGroups } : {};
                 const filterBy = search
-                    ? { ...siblingFilterBy, like: { ...(siblingFilterBy.like || {}), [refName]: `%${search}%` } }
-                    : siblingFilterBy;
+                    ? { ...baseFilterBy, like: { [refName]: `%${search}%` } }
+                    : baseFilterBy;
 
                 let allOptions;
                 if (withCounts) {
@@ -213,7 +205,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
         load();
         prevSearchRef.current = search;
         return () => { cancelled = true; };
-    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, siblingFilterByKey, withCounts, metaOptionsKey]);
+    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, filterGroupsKey, withCounts, metaOptionsKey]);
 
     return {options, loading};
 };
@@ -233,7 +225,12 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
     // a stable hook-call order across renders. useColumnOptions is a no-op
     // for non-multiselect ops (it short-circuits internally) so running it
     // for the 'time' op costs nothing.
-    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues, siblingConditions, node.source_id);
+    // siblingConditions (this leaf's immediate-group siblings, computed by
+    // ComplexFilters.jsx's renderNode) is wrapped as a tree so useColumnOptions can
+    // run the same leaf-shape pipeline TableHeaderCell's server filters use — the
+    // narrowing SCOPE (same-AND-group siblings only) is unchanged from before.
+    const siblingFilterTree = siblingConditions.length ? { op: 'AND', groups: siblingConditions } : null;
+    const {options, loading} = useColumnOptions(node.col, columns, node.op, search, selectedValues, siblingFilterTree, node.source_id);
 
     const onSearch = useCallback((term) => setSearch(term), []);
 

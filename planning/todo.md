@@ -386,6 +386,26 @@
 
 ### patterns/page
 
+- [x] [Reuse buildUdaConfig's filter-tree pipeline for options queries](./tasks/completed/filter-options-reuse-builduda-pipeline.md) —
+      DONE 2026-08-06. `useColumnOptions` (server filters + ComplexFilters' own value
+      editor) hand-rolled a flat `filterBy` from a curated sibling list instead of going
+      through `buildUdaConfig` at all. New exports `mergeTableFilters`/
+      `pruneColumnFromFilterTree`/`restrictFilterTreeToSource`/`resolveFilterGroupsForQuery`
+      in `buildUdaConfig.js` reuse the main query's own normalFilter/HAVING-extraction +
+      column-mapping pipeline for options too — fixes the same-column collision and
+      isNormalFilter/fn/unary/time leaf-shape gaps. Two deliberate scope reductions
+      (see task file): join-alias resolution not reused (cross-join siblings dropped,
+      not resolved), and isNormalFilter/fn leaves are excluded from narrowing rather than
+      given real HAVING-based narrowing. `TableHeaderCell.jsx`'s interim `treeSiblings`
+      stopgap removed.
+- [ ] [Unify server filters into ComplexFilters via a `showInHeader` leaf toggle](./tasks/current/filter-leaf-show-in-header.md) —
+      replace `state.tableFilters`/`ServerFilterControl` with a leaf-level
+      `showInHeader` flag so an admin places the header-exposed condition
+      wherever they want in the AND/OR tree; per-viewer value overlay
+      (keyed by col+source_id, mirrors `usePageFilters`) instead of a
+      separate merge step. Fixes the OR-root widening bug and gives header
+      filters correct sibling-narrowed options for free. DEFERRED — breaking
+      for sections using `attribute.serverFilter` today, needs migration.
 - [x] [Derived page variable — one control drives a value another binding needs](./tasks/current/derived-page-variable.md) —
       DONE 2026-07-29. A page-filter row gains `derivedFrom: "<other searchKey>"` + `derive: "yyyy"`,
       so e.g. a network-vintage variable follows the Month control instead of being a second thing the
