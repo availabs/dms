@@ -72,6 +72,14 @@ export default {
     "name": 'Map',
     "type": 'Map',
     "variables": [],
+    // Needed for QuickControls' edit-mode gate (isEdit && canEditSection &&
+    // currentComponent?.useDataSource && ...) to render the Routes pill on a
+    // self-bound Map card — see dynamic-report-nongraph-section-binding.md
+    // item 1/7. Map doesn't go through the generic dataWrapper HOC the way
+    // AVL Graph/Spreadsheet do (it manages its own state via useImmer and
+    // calls its own onHandle), so this flag is purely a QuickControls gate
+    // signal here, not a request for dataWrapper wiring.
+    useDataSource: true,
     getData,
     componentFunctions,
     controls: MapControls,

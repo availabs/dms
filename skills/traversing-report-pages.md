@@ -116,6 +116,34 @@ into the component itself. See `ReportRouteList/README.md`'s "View-mode visibili
 `planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` item 3's "View-mode visibility"
 section for the full history.
 
+### RRL row mutation (pencil/reorder/trash/date-edit) needs RRL's OWN `SectionEdit`, not just page-level `/edit/`
+
+Found live 2026-08-07. Being on `/edit/<slug>` is not enough to unlock a route row's pencil/trash/
+reorder/date-edit controls — `RouteRow`'s `canMutateRow` comes from `ReportRouteList`'s own
+`canMutate = isEdit && Boolean(sectionEditorOpen)`, where `sectionEditorOpen` is `props.isEdit` (the
+same per-section `SectionEdit`-vs-`SectionView` signal every custom component has to gate on — see
+`traversing-dms-pages.md`'s "two different edit states" gotcha). Confirmed live via the React fiber
+tree: on a freshly-loaded `/edit/<slug>` page, `ReportRouteList`'s own `isEdit` prop reads `false`
+and its ancestor is `SectionView`, not `SectionEdit` — every row renders with zero mutation
+affordances (no color picker, no name pencil, no reorder arrows, no date-edit pencil) until you
+explicitly enter RRL's *own* edit mode: hover the RRL panel to reveal its Settings kebab (same
+generic per-section trigger every section has, positioned `absolute top-2 right-2` inside the
+section's own padded cell), open Settings, click the pencil-square icon at the top of that dropdown
+— only then does `ADD ROUTE SLOT`/`ADD GRAPH`/the Dynamic Report toggle and every row's mutation
+UI appear. Easy to miss because RRL doesn't look like an ordinary configurable section (no visible
+Dataset/Columns chrome until you're actually in this mode) and its Settings entry only has
+`Type`/`Dataset`/`Layout`/`Delete` before you click the pencil — the mutation UI is genuinely absent
+until then, not just visually subtle.
+
+**A caution learned the hard way in the same session**: once inside this mutation UI, click targets
+shift as soon as anything else changes the layout above them (an open Settings dropdown, a row
+expanding). A coordinate-based click that was correct a moment ago can land on a different row's
+"Move up" reorder button instead of the pencil it was aimed at — on a real, published page, this
+silently reorders `reports_snap_2.routes[]` (no confirm dialog). Prefer a DOM query
+(`element.click()` on the button found by its exact `title`, e.g. `"Edit derived-date relationship"`
+or `"Expand"`) over coordinates once inside this UI, and always re-read the DB after any live-testing
+session here to confirm nothing unintended stuck.
+
 ## 5. Report-specific gotchas (check `traversing-dms-pages.md` §4 too)
 
 The general state-machine/URL gotchas (subdomain routing, edit URL shape,

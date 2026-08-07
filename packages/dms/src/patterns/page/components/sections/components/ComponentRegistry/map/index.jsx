@@ -454,7 +454,14 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                 state: { ...state, interactionOptions },
                 setState,
                 doApiLoad
-            }
+            },
+            // section.jsx reads dwHandle?.dwAPI for sectionMenuExtensions/
+            // sectionHeaderExtensions builders (e.g. QuickControls' Routes
+            // pill) that call dwAPI.setState(draft => ...) — Map's own
+            // immer setState already has that exact producer-callback
+            // contract, so no adapter is needed. See
+            // dynamic-report-nongraph-section-binding.md item 8.
+            dwAPI: { setState }
         });
     }, [onHandle, state, setState, doApiLoad, interactionOptions]);
 

@@ -8,151 +8,106 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-08-04, ROUND 69 COMPLETE: fixed 4 live user-reported bugs found browsing a
-real converted report (`converted_reports/floating_car_average_day`) — day-of-week x-axis showing
-raw ISO integers instead of day names (`graph_new/utils.js` gained a `day_of_week` formatFn,
-mirroring the round-61 `epoch_time` fix; wired into `convert_old_reports.py`'s mint + drift
-detection, and independently into the live `MeasurePicker/composeMeasureConfig.js` picker path);
-GridGraph tooltip showing "NaN" instead of the real TMC/value (`GraphComponent.jsx` was routing the
-x-axis formatter into GridGraph's `indexFormat`, which for GridGraph specifically means the Y-AXIS
-ROW label, not the x-axis value — fixed to route into `keyFormat` for `graphType === "GridGraph"`
-only); Bar Graph Summary not honoring the RRL's per-route custom colors (`graph_new/components/
-BarGraph.jsx`'s categorize-less case colored by the shared yAxis column key instead of the bar's own
-route-label index — fixed with a colorsByKey-by-index fallback); and comparison-series "anchor" row
-not sorting first in Route Compare Component tables (fixed once, generically, in the shared
-`dataWrapper/getData.js` fetch path via a stable anchor-first partition, rather than per-component).
-Surfaced one important, previously-undocumented platform fact along the way: a page's
-`draft_sections` and (published) `sections` arrays reference **entirely different underlying
-component row ids** — patching an already-converted page's rendering config live requires patching
-both. Full detail: Round 69 below. Also flagged, not fixed: this same GridGraph's y-axis itself (not
-the tooltip) shows a single row whose tick literally renders "NaN" — likely a data-shape oddity
-(only one row total), not a formatter bug; not yet root-caused. Round 68 (Bar Graph Summary
-freeflow-byDateRange wired into convert/analyze, `full`/`full_producible` 229/181, converted_pages_total
-35→36), round 67 (Route Line Graph/Route Compare Component resolution-precedence), round 66 (pm3
-2018-2020 backfill), round 65 (epoch-tick regression + slug-stability fix), and earlier rounds
-remain DONE — full detail archived, see ledger below. Next work: decide whether to build the other
-31 newly-mapped-but-not-yet-built freeflow instances (round 68) into pages, root-cause the
-single-row GridGraph y-axis NaN, sweep other already-converted reports for the same weekday-format
-gap, or pick from the "Immediate next steps" backlog below / a new user ask.)
+## Current state (2026-08-07, ROUND 70 DONE, LIVE-VERIFIED: `build_graph_section_data`
+was unconditionally hardcoding a converted graph's `display._measurePick.weekdays/start/end` to the
+empty "all days, all day" default — never backfilling them from the old route_comp(s)' own
+`settings.weekdays`/`startTime`/`endTime` — even though `useGraphPublish.js`'s
+`transformReportRoutes` (post Design push #2, 2026-08-06) reads that window *exclusively* from the
+graph, never from the route. Net effect: every already-converted report that used a weekday mask or
+peak-hour window has been silently querying all days/all hours since Design push #2 shipped — a live
+data-fidelity regression, not just stale architecture. Fixed with a new
+`resolve_measure_pick_window` helper (mirrors the round-9 AADT-override agree-vs-mixed pattern):
+bakes in the window when every comp assigned to a graph agrees, gap-logs
+(`measure_pick_window_mixed`) and leaves the default when they don't. Live-verified: reconverted
+report 1045 with `--replace` (new page `2209156`, `converted_reports/rochester_inner_loop`) and
+read every section's raw `element-data` back — real AM-Peak/PM-Peak/Wed-Thu-Fri windows landed
+correctly on the sections that agreed, 2 real `measure_pick_window_mixed` gaps fired correctly on
+the sections that didn't, including a real `'HH:mm'`-vs-`'HH:mm:ss'` source-format mismatch resolved
+correctly by `_normalize_time`. A related, separate question raised alongside this (whether to
+collapse route_comps that differ only by weekday/time-of-day, now that that facet lives on the
+graph, into shared route entries) was investigated and judged low-severity/cosmetic — deliberately
+deferred, not fixed this round. Full detail: Round 70 above. Round 69 (day-of-week axis labels,
+GridGraph tooltip NaN, Bar Graph Summary colors, comparison-series anchor sort — all 4 DONE and
+live-verified 2026-08-04), round 68 (Bar Graph Summary freeflow-byDateRange wired into
+convert/analyze, `full`/`full_producible` 229/181, converted_pages_total 35→36), round 67 (Route
+Line Graph/Route Compare Component resolution-precedence), round 66 (pm3 2018-2020 backfill), and
+earlier rounds remain DONE — full detail archived, see ledger below. Next work: decide whether to
+build the other 31 newly-mapped-but-not-yet-built freeflow instances (round 68) into pages;
+root-cause the single-row GridGraph y-axis NaN (round 69, still
+open); or pick from the "Immediate next steps" backlog below / a new user ask.)
 
-## Round 69 (2026-08-04) — live user-reported bug sweep on a converted report page: day-of-week axis labels, GridGraph tooltip NaN, Bar Graph Summary colors, comparison-series anchor sort
+## Round 70 (2026-08-07) — converter never backfilled a graph's own `_measurePick.weekdays/start/end`, silently dropping every converted report's weekday mask / peak-hour window
 
-**Context**: Ryan browsed a real converted report (`converted_reports/floating_car_average_day`)
-and reported 4 distinct rendering bugs, flagged as possibly "weirdness from porting over the old
-template." All 4 turned out to be real platform bugs (not report-specific misconfiguration) —
-three in `@availabs/dms` (graph_new), one split across the Python converter + the live Measure
-Picker. Root-caused, fixed, and live-verified against the actual reported page (not a proxy).
+**Context**: Ryan asked whether the routeComp→route 1:1 mapping in the converter still matched the
+new (Design push #2) model, where weekday mask and time-of-day window are graph-owned facets, not
+route-owned. Investigation confirmed the routeComp-dedup question is real but low-severity/cosmetic
+(same class as round 50's "legend renders the same step-ramp three times" note) — comps differing
+only by weekday/time-of-day are redundant as separate route entries now, comps differing by date
+range still need to stay separate (`_measurePick` has no date-range field). Chased down a bigger,
+unrelated finding along the way: `build_graph_section_data`'s Design-push-#2 `_measurePick` write
+(added when the routeIds-inversion bug was fixed, per this file's still-current "routeIds" comment)
+hardcoded `weekdays`/`start`/`end` to the empty "all days, all day" default *unconditionally* —
+never attempted to backfill them from the old route_comp(s)' own `settings.weekdays`/`startTime`/
+`endTime`. Confirmed live via `useGraphPublish.js`'s `transformReportRoutes`: it reads
+`weekdays`/`start`/`end` **exclusively** from the graph's `_measurePick`, never from the route
+object — so every converted graph, on every already-converted report that used a weekday mask or a
+peak-hour window (e.g. round 45's approved gap-coverage pick, report 1045 "Rochester Inner Loop",
+whose comps carry real Tue/Wed/Thu 6-9am and 3-6pm windows), has been silently querying **all
+days, all hours** since Design push #2 shipped (2026-08-06) — a live data-fidelity regression, not
+just architectural debt. (AM/PM/off-peak boolean flags are NOT part of this — already proven
+query-inert in the old client, see "Known functionality gaps" above; only `weekdays`/`startTime`/
+`endTime` have any real effect.)
 
-**1. Day-of-week x-axis showing raw ISO integers (0-6) instead of day names.** Same class of gap
-as the earlier `epoch_time` fix (round 61): the `"weekday"` resolution's xAxis (`toDayOfWeek(ds.date,
-1) as weekday`) had no named formatFn wired anywhere, and no `day_of_week` formatFn even existed in
-`graph_new/utils.js`'s `ValueFormats` registry. Fixed in 3 places:
-- `graph_new/utils.js`: added `dayOfWeekFormat` (ISO 1=Monday..7=Sunday → name) + a `"day_of_week"`
-  `ValueFormats` entry, mirroring `makeEpochTimeFormat`/`"epoch_time"`.
-- `convert_old_reports.py`: mint path now sets `display.xAxis.format="day_of_week"` +
-  `label="Day of Week"` when `spec["xAxis"]` is a dict whose `name === WEEKDAY_EXPR` (mirrors the
-  existing `spec["xAxis"] == "epoch"` branch); added matching `weekday_format_drift`/
-  `weekday_label_drift` checks to the existing template drift-detection loop so already-minted
-  `*_bar_graph_weekday` templates self-heal on next converter run. Ran this manually against all 4
-  affected templates (`tmc_speed_bar_graph_weekday` 2189568, `tmc_delay_bar_graph_weekday` 2188680,
-  `tmc_travel_time_bar_graph_weekday` 2189550, `tmc_avg_delay_bar_graph_weekday` 2189646) via `dms
-  raw update` rather than a full script run (avoided re-running the whole conversion pass for a
-  one-field fix).
-- `MeasurePicker/composeMeasureConfig.js`: the LIVE in-app picker had the same gap independently —
-  `resolutionKey === 'weekday'` fell into the generic "clear stale epoch format" else-branch,
-  meaning an author picking "weekday" resolution via the UI (not the Python converter) would hit
-  the same bug on a freshly-authored graph. Added a dedicated `'weekday'` branch.
+**Fix**: `section_builders.py` gained `resolve_measure_pick_window(assigned, comps_by_id, gaps,
+graph_id)` — mirrors the existing AADT-override agree-vs-mixed pattern (round 9): when every old
+route_comp assigned to a graph agrees on weekdays+startTime+endTime, bake that into the graph's
+`_measurePick`; when they disagree, gap-log (`measure_pick_window_mixed`) and leave the window at
+the empty default rather than guessing at one comp's values over another's. Deliberately computed
+inside `build_graph_section_data` (not `analyze_graph`) and only inside the existing `is_self_bound`
+branch, so graph types that don't consume `_measurePick` yet at all (Route Map — see
+`dynamic-report-nongraph-section-binding.md` item 1) never get a spurious "comps disagree" gap
+logged for a window that was never going to be written anyway. A real corpus wrinkle found and
+handled along the way: `startTime`/`endTime` appear as both `'HH:mm'` and `'HH:mm:ss'` across
+comps for the literal same time-of-day (confirmed on report 1045 itself) — a new `_normalize_time`
+helper reduces both to `'HH:mm'` before comparing, so a format difference alone can't produce a
+false "mixed" gap. `comps_by_id` (already computed at both call sites for other purposes) threaded
+through as a new optional param on `build_graph_section_data`; both `convert_report.py` and
+`convert_template.py` call sites updated.
 
-**Live-page fix, separate from the code fix**: the code changes only affect *future* conversions/
-authoring — the already-converted `floating_car_average_day` report's Bar Graph section needed its
-stored `element-data` patched directly (`dms raw update`) to pick up `format: "day_of_week"`. **This
-surfaced a real, previously-undocumented platform fact**: a page's `draft_sections` and `sections`
-(published) arrays reference **entirely different underlying component row ids** — not two views of
-the same rows. `floating_car_average_day` (page id 2208008)'s `draft_sections` referenced ids
-2208009-2208018; its *published* `sections` (what `/converted_reports/...` view-mode actually
-renders) referenced ids 2208019-2208028, a **structurally identical but numerically disjoint** set
-of component rows. `has_changes: false` on the page row despite this — the two arrays were both
-already populated at conversion time (not an edit-then-forgot-to-publish situation), so this isn't
-a draft/publish workflow gap, just a fact about where to write when patching an already-converted
-page's rendering config directly: **patch both `draft_sections`' and `sections`' referenced rows**
-if the fix needs to be visible in view mode immediately (found the hard way — patched only the
-draft-side row first, spent significant time ruling out HTTP caching, Vite dep pre-bundling,
-localStorage-persisted Falcor cache, and SSR-side caching, before React-fiber-introspecting the
-live component's actual `props.state.display.xAxis` and discovering it simply pointed at a
-different row than the one I'd edited). Patched both 2208013 (draft) and 2208023 (published) for
-this report; live-verified — x-axis now reads "Sunday, Monday, Tuesday, ..., Saturday" with a "Day
-of Week" axis label.
+**Verified, unit-level and live end-to-end (2026-08-07, same day, once the dev server came up)**:
+unit-level against synthetic cases (agree/mixed/no-settings/empty) and real corpus data pulled live
+from `admin2.reports` id 1045. Live: reconverted report 1045 with `--replace` (new page `2209156`,
+`converted_reports/rochester_inner_loop`) and read every draft section's raw `element-data` back via
+`dms raw get`. Confirmed both paths on real data: **agree path** — comp-28 (AM Peak, routeId
+180958) landed `{weekdays: Tue/Wed/Thu-only, start:'06:00', end:'09:00'}` on 6 AVL Graph sections;
+comp-29 (PM Peak, same routeId) landed `start:'15:00', end:'18:00'` on the Map section; comp-5/6/9/10
+(routeId 163185, Wed/Thu/Fri 07:00-19:00, mixed `'HH:mm'`/`'HH:mm:ss'` source formats) landed
+correctly and identically across 4 sections (Info Box, Route Compare, 2 AVL Graphs), confirming
+`_normalize_time` works on real data, not just the synthetic case. **Mixed path** — the Route
+Compare section spanning comp-28+29+30+31 (AM+PM) and the Route Map spanning comp-0+28 (differing
+weekday masks) both correctly fell back to `{weekdays:{}, start:'', end:''}` and gap-logged
+`measure_pick_window_mixed` (2 real occurrences in the gap report, graph-comp-8 and graph-comp-16) —
+no data corruption, no silent wrong guess. Round 70 is DONE.
 
-**2. TMC Grid Graph tooltip showing "NaN" instead of the real value.** Root cause in
-`GraphComponent.jsx`'s `hoverComp` construction: it unconditionally fed the x-axis's named
-formatter into *both* `xFormat`/`indexFormat` and `keyFormat`... actually just `indexFormat`,
-reasoning "every other chart type (Bar/Grid/Pie/Treemap/Sunburst) reads `indexFormat`" — true for
-Bar/Pie/Treemap/Sunburst (whose "index" IS the x-axis category) but **false for GridGraph**, whose
-own `DefaultHoverComp` uses `index`/`indexFormat` for the Y-AXIS ROW (e.g. a TMC identifier string)
-and `key`/`keyFormat` for the x-axis column value. Feeding `epoch_time`'s formatter (`+d` numeric
-coercion) into `indexFormat` for a GridGraph applied it to TMC strings like `"104P11997"`, and
-`+"104P11997"` → `NaN` → the formatter's own template literal renders `"NaN:NaN"` for every single
-row label. Fixed by branching in `GraphComponent.jsx`'s `hoverComp` memo: `graphType === "GridGraph"`
-now routes the x-axis formatter into `keyFormat` instead of `indexFormat` (and added `graphType` to
-the memo's dep array). Pure JS fix, no data patch needed. Live-verified: hovering a cell now shows
-"11:00" (formatted time header) and "104P11997: 49.6" (real TMC id + value) instead of "NaN:NaN".
-**Separate, unresolved finding, not part of the user's original report**: this same GridGraph's
-Y-AXIS itself (not the tooltip) shows a single tick labeled literally "NaN" — the grid has exactly
-one row (`.avl-grid-horizontal` count = 1), and that row's index value renders as "NaN" on the axis
-proper. Not yet root-caused (ruled out the same indexFormat/keyFormat confusion — this is the
-*axis*, driven by `yAxis.format`, not `hoverComp`, and yAxis.format is unset/identity here) — flagged
-for a future pass, likely a data-shape oddity (why does this per-TMC grid only have one row?) rather
-than a formatter bug.
+**routeComp-dedup question (the original ask, not fixed, deliberately deferred)**: whether to
+collapse old route_comps that share `(routeId, startDate, endDate)` and differ only by
+weekday/time-of-day into ONE `reports_snap_2.routes[]` entry (referenced by multiple graphs with
+different `_measurePick` windows) instead of today's 1:1 `route_comp_id`→route-entry mapping. No
+corpus census run yet to quantify how common this pattern actually is; treat as a separate,
+architecturally bigger follow-up from the fidelity fix above, not blocking it.
 
-**3. Bar Graph Summary not using the RRL's custom per-route colors** (all bars rendered in one flat
-color). Root cause in `graph_new/components/BarGraph.jsx`'s `BarGraphWrapper`: "Bar Graph Summary"
-has no `categorize` column by design (round 34 — `xAxis: "__series"` IS the per-route discriminator,
-`categorize: False` explicit) — so `dataFromProps`'s `else` branch (no-categorize case) builds `keys`
-from the **yAxis data column's own key** (e.g. the speed SQL alias), not the route label. Every bar
-ends up with the same single shared `key` and position `ii=0`, so `getColorFunc`'s `colorsByKey[key]`
-lookup (keyed by route label) never matches, and every bar falls to the same positional
-`colorRange[0]`. Fixed: when `!categoryColumn && props.colorsByKey`, `BarGraphWrapper`'s `colors`
-memo now returns a custom color function keyed off each bar's own `index` (which — in this
-xAxis="__series" shape — literally IS the route/arm label) instead of the shared stack `key`,
-falling back to positional cycling when the index isn't a recognized comparisonSeries label (BC for
-ordinary categorize-less bar graphs, e.g. a plain day/hour bucket chart). Pure JS fix. Live-verified:
-the 4 bars now render gray/gold/green/pink, exactly matching each route's own RRL color swatch
-(previously confirmed via `git status`/`git diff` that this fix — and the day_of_week formatFn/
-converter wiring above — had actually been started in an earlier, uncommitted pass this same
-session before the verification rabbit hole above; both were completed and verified in this round).
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py`
+(`resolve_measure_pick_window`/`_window_signature`/`_normalize_time`, `build_graph_section_data`
+signature + `_measurePick` write), `convert_report.py` / `convert_template.py` (pass `comps_by_id`
+through to `build_graph_section_data`).
 
-**4. Comparison-series "anchor" route not sorting to the top of the Route Compare Component
-tables** — Ryan: "this has come up a bunch of times." Root cause: the `__ANCHOR__(<expr>)` SQL
-mechanism already treats "whichever comparison-series variant is FIRST" (`getEffectiveComparisonVariants(...)[0]`)
-as the anchor when *building* the query, but the server's cross-arm fan-out union has no `ORDER BY`
-(deliberately deferred — see `comparison-series-query-fanout.md`'s "Piece 6," a past attempt at a
-client-built `CASE seriesKey WHEN ...` `ORDER BY` was reverted for breaking on quotes/dots in
-labels), so returned ROWS land in whatever order the union's sub-queries happen to resolve — not
-necessarily anchor-first. Fixed at the single shared fetch point instead of per-component:
-`dataWrapper/getData.js`, right before its final return, now stable-partitions `formattedData` so
-rows whose `seriesKey` column value equals `getEffectiveComparisonVariants(state.comparisonSeries)[0].label`
-sort first — using the exact same effective-variant resolution the SQL itself already uses, so there's
-no second, driftable definition of "anchor." No-op (returns data unchanged) for every non-
-comparison-series section. Benefits every current/future comparisonSeries-driven consumer (Spreadsheet
-Route Compare tables, Bar Graph Summary's bar order, legend/key ordering) from one fix, not four
-duplicated ones. Live-verified: both Route Compare tables on the report now show the anchor route
-("2024 - 2024 - Rochester Inner Loop...") first, with "% vs Main" reading "→ 0" in that row, followed
-by the other routes in their existing relative order.
+## Round ledger (rounds 1–69 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 70 is current, full detail above)
 
-**Files changed**: `graph_new/utils.js` (day_of_week formatFn), `GraphComponent.jsx` (GridGraph
-keyFormat/indexFormat routing), `graph_new/components/BarGraph.jsx` (colorsByKey-by-index fallback),
-`dataWrapper/getData.js` (anchor-first stable partition), `MeasurePicker/composeMeasureConfig.js`
-(weekday format branch), `convert_old_reports.py` (weekday format mint + drift detection) — plus
-live `dms raw update` patches to the 4 weekday-xAxis templates and both draft/published copies of
-`floating_car_average_day`'s weekday Bar Graph section.
-
-**Not fixed, flagged above**: the single-row GridGraph y-axis "NaN" tick (separate from the tooltip
-bug the user reported); whether OTHER already-converted reports besides this one need the same
-live-data patch for their own weekday Bar Graph sections (not swept — only this report's sections
-were touched).
-
-## Round ledger (rounds 1–68 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 69 is current, full detail above)
-
+- **R69** (08-04): live user-reported bug sweep on `converted_reports/floating_car_average_day` —
+  day-of-week x-axis raw-integer labels, GridGraph tooltip NaN (indexFormat/keyFormat swap),
+  Bar Graph Summary flat coloring (colorsByKey-by-index fallback), comparison-series anchor-row
+  sort order (stable partition in `dataWrapper/getData.js`). Surfaced the draft_sections/sections
+  disjoint-row-id platform fact. Full detail: [archive, "Round 69"](./old-reports-conversion-archive.md).
 - **R68** (07-20): wired `ensure_bar_graph_summary_pm3_template` (Bar Graph Summary
   `freeflow-byDateRange`, source 1410) into `convert_report`/`census_old_reports.py` — dead code
   since round 38, made actionable by round 66's pm3 backfill. `full`/`full_producible` unchanged at
