@@ -203,7 +203,7 @@ export function pattern2routes (siteData, props) {
         internal.push({
           type: 'internal',
           env: `${app}+${getInstance(dsPattern.type) || dsPattern.doc_type}`,
-          baseUrl: '/forms',
+          baseUrl: '/cenrep',
           label: 'managed',
           isDms: true,
           srcAttributes: ['app', 'name', 'config', 'default_columns'],

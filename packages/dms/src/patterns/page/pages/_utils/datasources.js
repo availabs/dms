@@ -32,7 +32,7 @@ export const getBaseUrlByType = (datasources, type) =>
  */
 export const getBaseUrlFromIsDms = (datasources, isDms) =>
   isDms
-    ? datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms'
+    ? datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/cenrep'
     : datasources?.find(ds => ds.type === 'external')?.baseUrl || '';
 
 /**
