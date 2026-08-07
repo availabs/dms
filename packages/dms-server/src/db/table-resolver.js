@@ -361,6 +361,15 @@ function clearCaches() {
   _seqCache.clear();
 }
 
+/**
+ * Forget a single table's existence-cache entry. Must be called after a
+ * DROP TABLE so a later write to the same name re-runs ensureTable instead
+ * of hitting the stale cache and failing on the missing table.
+ */
+function forgetTable(schema, table) {
+  _tableCache.delete(`${schema}.${table}`);
+}
+
 module.exports = {
   isSplitType,
   parseType,
@@ -374,6 +383,7 @@ module.exports = {
   allocateId,
   buildCreateTableSQL,
   clearCaches,
+  forgetTable,
   // Expose for testing
   UUID_SPLIT_REGEX,
   NAME_SPLIT_REGEX,
