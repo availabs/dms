@@ -87,6 +87,7 @@ export const newPage = async (item, dataItems, user, apiUpdate, template) => {
       }
       if (template.draft_section_groups !== undefined) newItem.draft_section_groups = template.draft_section_groups;
       if (template.sidebar !== undefined) newItem.sidebar = template.sidebar;
+      if (template.sidebarHideInView !== undefined) newItem.sidebarHideInView = template.sidebarHideInView;
     }
 
     await apiUpdate({data:newItem})

@@ -97,6 +97,7 @@ rawCmd
   .description('Update an item')
   .option('--data <json>', 'JSON data (sent as-is for full replacement)')
   .option('--set <key=value>', 'Set a field with read-modify-write (repeatable)', collectSet)
+  .option('--row-type <type>', 'Row type, e.g. "reports_snap_2|2177440:data" — required to update a split (":data") dataset row, otherwise the update silently no-ops')
   .action(async (id, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config);
