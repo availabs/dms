@@ -1,5 +1,9 @@
 # DMS Todo
 
+## cli
+
+- [x] [CLI hangs on every command (Windows) — `findConfigFile` infinite loop](./tasks/completed/cli-config-windows-infinite-loop.md) — `config.js`'s `while (dir !== '/')` never terminated on Windows (`dirname('C:\')==='C:\'`), so every `dms` command spun forever before making a request. Fixed to break on `dirname(dir)===dir` (POSIX `/` + Windows drive roots). Verified: `raw get`/`page list`/`page show` now return promptly; POSIX unchanged.
+
 ## themes
 
 - [x] [Merge mny and mny_admin themes](./tasks/completed/mny-theme-merge.md) — eliminated duplication between `src/themes/mny/theme.js` and `admin.theme.js`. Deleted ~1005 lines of dead orphaned `docs` sample data plus dead `menu`/`select`/`listbox`/`popover` keys (no consumer read them); consolidated `icon` and `tabs` into `mny` only (mny_admin's `tabs.styles[]` was silently missing an entry mny had, a real index-resolution landmine — confirmed unused, merged); confirmed `layout`/`sidenav`/`topnav`/`layoutGroup`/`logo`/`dataCard`/`input`/`field`/`dialog`/`nestable`/`pages.sectionGroup`/`pages.userMenu` are genuine admin-only or public-only customizations that must stay separate. File shrank from 1631 → 597 lines. List of default-matching-but-not-deleted keys recorded in the task file's Final Report.
