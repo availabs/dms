@@ -428,5 +428,18 @@ datasetCmd
     await dataset.query(sourceId, config, { ...getOutputOptions(cmd), ...options });
   });
 
+datasetCmd
+  .command('update <source-id-or-name> <row-id>')
+  .description('Update one data row in a source view (split-table write; shallow-merges data)')
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
+  .option('--view <id>', 'View ID to write to (defaults to latest)')
+  .option('--data <json-or-file>', 'JSON object (or path) of columns to merge into the row')
+  .option('--set <col=val>', 'Set a single column value (repeatable)', collectSet)
+  .action(async (sourceId, rowId, options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app', 'type']);
+    await dataset.update(sourceId, rowId, config, { ...getOutputOptions(cmd), ...options });
+  });
+
 // Parse and run
 program.parse();

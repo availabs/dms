@@ -16,12 +16,19 @@ import { join, dirname } from 'path';
 function findConfigFile(startDir = process.cwd()) {
   let dir = startDir;
 
-  while (dir !== '/') {
+  // Walk up to the filesystem root. Terminate when dirname() reaches a fixed
+  // point — POSIX roots at '/' (dirname('/') === '/') and Windows roots at a
+  // drive (dirname('C:\\') === 'C:\\'). The previous `while (dir !== '/')`
+  // guard never matched the Windows root, so this loop spun forever there and
+  // hung every CLI command before it made a request.
+  while (true) {
     const configPath = join(dir, '.dmsrc');
     if (existsSync(configPath)) {
       return configPath;
     }
-    dir = dirname(dir);
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
   }
 
   return null;
