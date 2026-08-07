@@ -69,7 +69,23 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
         : Object.values(join.sources || {}).find((s) => s.source === col_source_id)?.sourceInfo;
     const isDms = sourceInfo?.isDms;
 
-    const getColumnRef = useCallback((name) => columns.find(c => c.name === name), [columns]);
+    // Mirrors buildUdaConfig's getFilterColumn: `columns` (the section's display config)
+    // first, then fall back to the raw source schema — externalSource.columns plus any
+    // join sources' columns. A filter leaf can reference a real source column that was
+    // never added to (or was mistakenly renamed/removed from) the display config; without
+    // this fallback such a leaf silently fails to resolve (getColumn returns undefined,
+    // mapFilterGroupCols passes the leaf through unmapped — no data->> wrapping, no value
+    // normalization) even though the column genuinely exists on the source.
+    const allSourceColumns = useMemo(() => {
+        const joinCols = Object.values(join?.sources || {})
+            .flatMap((s) => s.sourceInfo?.columns || []);
+        return [...(state?.externalSource?.columns || []), ...joinCols];
+    }, [state?.externalSource, join]);
+
+    const getColumnRef = useCallback(
+        (name) => columns.find(c => c.name === name) || allSourceColumns.find(c => c.name === name),
+        [columns, allSourceColumns]
+    );
 
     // Reuse buildUdaConfig's own normalFilter/HAVING-extraction + column-mapping pipeline
     // on the sibling tree, instead of hand-rolling a filterBy per leaf — see
