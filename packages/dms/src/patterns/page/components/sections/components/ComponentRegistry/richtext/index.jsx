@@ -1,7 +1,7 @@
 import {useContext, useEffect, useRef, useState, useMemo} from "react";
 import {isEqual} from 'lodash-es';
 import { ThemeContext } from "../../../../../../../ui/useTheme";
-import { CMSContext, ComponentContext } from "../../../../../context";
+import { CMSContext, ComponentContext, PageContext } from "../../../../../context";
 
 const isJson = (str)  => {
     try {
@@ -119,6 +119,7 @@ export const RichtextView = ({value}) => {
   const { theme = {} , UI } = useContext(ThemeContext)
   // console.log('richtext view - UI', UI)
   const { ColumnTypes: { lexical: Lexical } } = UI;
+  const { setActionParam } = useContext(PageContext) || {};
     if (!value) return <div className='h-6' />
     let data = typeof value === 'object' ?
         value['element-data'] :
@@ -142,6 +143,7 @@ export const RichtextView = ({value}) => {
                 value={dataOrValue}
                 bgColor={data?.bgColor}
                 styleName={isCard || undefined}
+                onSetPageParam={setActionParam}
             />
             </div>
         </div>
