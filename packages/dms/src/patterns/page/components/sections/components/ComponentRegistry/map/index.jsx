@@ -20,6 +20,7 @@ import { choroplethPaint } from "./utils.js";
 import { ThemeContext, getComponentTheme } from "../../../../../../../ui/useTheme";
 import { damaMapTheme } from "./map.theme";
 import { useComparisonSeriesLayers, isSeriesGeneratedLayer, SERIES_FINGERPRINT_KEY } from "./useComparisonSeriesLayers";
+import { migrateMapState } from "./Map.migrate.js";
 
 import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
 
@@ -356,7 +357,10 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
     const trackingId = trackingIdProp || trackingIdCtx;
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const damaMapT = { ...damaMapTheme, ...getComponentTheme(themeFromContext, 'damaMap') };
-    const cachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
+    const rawCachedData = typeof value === 'object' ? value : value && isJson(value) ? JSON.parse(value) : {};
+    // Upgrades a legacy `Map: Dama Map` section's element-data to this shape
+    // on read; a no-op for anything already map-shaped. See Map.migrate.js.
+    const cachedData = migrateMapState(rawCachedData);
     const cachedDisplay = cachedData.display || {};
     const [state, setState] = useImmer({
         tabs: cachedData.tabs || EMPTY_TABS,

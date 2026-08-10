@@ -16,7 +16,10 @@ import FilterComponent from "./FilterComponent.config";
 // import ValidateComponent from "./ValidateComponent";
 import PDFGenerator from "./ExportPdf.config";
 import Map from "./map/config"
-import MapDama from "./map_dama/config"
+// Kept around for reference — no live element-type resolves to this import
+// anymore. "Map: Dama Map" now points at Map (see below); old sections
+// upgrade automatically at render time via map/Map.migrate.js.
+// import MapDama from "./map_dama/config"
 
 import GraphNew from "./graph_new/config"
 
@@ -43,7 +46,11 @@ const ComponentRegistry = {
         ViewComp: () => <div>Item Component Deprecated.</div>
     },
     Map,
-    "Map: Dama Map": MapDama, //MapDama,
+    // "Map" now resolves to the current implementation — sections saved under
+    // the legacy element-type upgrade automatically. "Map: Dama Map" is kept
+    // for sections already saved under it, but hidden from the "Type" picker
+    // (sectionMenu.jsx) so it doesn't show as a duplicate "Map" entry.
+    "Map: Dama Map": { ...Map, name: 'Map: Dama', hideInSelector: true },
 
     // "Graph" now resolves to the current implementation — sections saved
     // under the legacy element-type upgrade automatically. "AVL Graph" is
