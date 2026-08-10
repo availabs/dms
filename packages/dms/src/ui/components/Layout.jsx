@@ -48,6 +48,10 @@ const Layout = ({
     const {theme: defaultTheme} = React.useContext(ThemeContext);
     const {sideNav = {}, topNav = {}, activeStyle} = cloneDeep(defaultTheme?.layout.options) || {}
     const theme = getComponentTheme(defaultTheme, 'layout', activeStyleForLayout || activeStyle)
+    // A page's "Page Background" setting (settingsPane.jsx) is stored at item.theme.page.container
+    // and merged into defaultTheme.page.container per-page. It overrides the layout style's
+    // outerWrapper, which otherwise only carries the site-wide default background.
+    const outerWrapper = defaultTheme?.page?.container || theme?.outerWrapper;
     //merge(cloneDeep(defaultTheme?.layout?.styles?.[activeStyle || 0] || defaultTheme))
     const widgets = defaultTheme?.widgets || {}
     // console.log('Theme', theme, sideNav, activeStyle)
@@ -63,7 +67,7 @@ const Layout = ({
 
     // console.log('Layout', topNav, navs[topNav?.nav])
     return (
-        <div className={theme?.outerWrapper}>
+        <div className={outerWrapper}>
             {headerChildren}
             <div className={theme?.wrapper}>
                 <div className={theme?.wrapper2}>

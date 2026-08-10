@@ -1,5 +1,9 @@
 # DMS Todo
 
+## cli
+
+- [x] [CLI hangs on every command (Windows) — `findConfigFile` infinite loop](./tasks/completed/cli-config-windows-infinite-loop.md) — `config.js`'s `while (dir !== '/')` never terminated on Windows (`dirname('C:\')==='C:\'`), so every `dms` command spun forever before making a request. Fixed to break on `dirname(dir)===dir` (POSIX `/` + Windows drive roots). Verified: `raw get`/`page list`/`page show` now return promptly; POSIX unchanged.
+
 ## themes
 
 - [x] [Merge mny and mny_admin themes](./tasks/completed/mny-theme-merge.md) — eliminated duplication between `src/themes/mny/theme.js` and `admin.theme.js`. Deleted ~1005 lines of dead orphaned `docs` sample data plus dead `menu`/`select`/`listbox`/`popover` keys (no consumer read them); consolidated `icon` and `tabs` into `mny` only (mny_admin's `tabs.styles[]` was silently missing an entry mny had, a real index-resolution landmine — confirmed unused, merged); confirmed `layout`/`sidenav`/`topnav`/`layoutGroup`/`logo`/`dataCard`/`input`/`field`/`dialog`/`nestable`/`pages.sectionGroup`/`pages.userMenu` are genuine admin-only or public-only customizations that must stay separate. File shrank from 1631 → 597 lines. List of default-matching-but-not-deleted keys recorded in the task file's Final Report.
@@ -393,6 +397,26 @@
 
 ### patterns/page
 
+- [x] [Reuse buildUdaConfig's filter-tree pipeline for options queries](./tasks/completed/filter-options-reuse-builduda-pipeline.md) —
+      DONE 2026-08-06. `useColumnOptions` (server filters + ComplexFilters' own value
+      editor) hand-rolled a flat `filterBy` from a curated sibling list instead of going
+      through `buildUdaConfig` at all. New exports `mergeTableFilters`/
+      `pruneColumnFromFilterTree`/`restrictFilterTreeToSource`/`resolveFilterGroupsForQuery`
+      in `buildUdaConfig.js` reuse the main query's own normalFilter/HAVING-extraction +
+      column-mapping pipeline for options too — fixes the same-column collision and
+      isNormalFilter/fn/unary/time leaf-shape gaps. Two deliberate scope reductions
+      (see task file): join-alias resolution not reused (cross-join siblings dropped,
+      not resolved), and isNormalFilter/fn leaves are excluded from narrowing rather than
+      given real HAVING-based narrowing. `TableHeaderCell.jsx`'s interim `treeSiblings`
+      stopgap removed.
+- [ ] [Unify server filters into ComplexFilters via a `showInHeader` leaf toggle](./tasks/current/filter-leaf-show-in-header.md) —
+      replace `state.tableFilters`/`ServerFilterControl` with a leaf-level
+      `showInHeader` flag so an admin places the header-exposed condition
+      wherever they want in the AND/OR tree; per-viewer value overlay
+      (keyed by col+source_id, mirrors `usePageFilters`) instead of a
+      separate merge step. Fixes the OR-root widening bug and gives header
+      filters correct sibling-narrowed options for free. DEFERRED — breaking
+      for sections using `attribute.serverFilter` today, needs migration.
 - [x] [Derived page variable — one control drives a value another binding needs](./tasks/current/derived-page-variable.md) —
       DONE 2026-07-29. A page-filter row gains `derivedFrom: "<other searchKey>"` + `derive: "yyyy"`,
       so e.g. a network-vintage variable follows the Month control instead of being a second thing the

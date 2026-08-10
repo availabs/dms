@@ -15,6 +15,7 @@ import {
     attributeAccessorStr,
     isJoinComplete,
     getEffectiveComparisonVariants,
+    mergeTableFilters,
 } from "./buildUdaConfig";
 import { calculateIsJoinPresent } from "./utils/joinUtils";
 import { getPivotValues, isMultiValue, pivotColName } from "./pivotUtils";
@@ -224,17 +225,14 @@ export const getData = async ({
     debugTime && console.time('buildUdaConfig')
     let builderInput = state.externalSource ? state : legacyStateToBuildInput(state);
     // Inject ephemeral table-header filters (state.tableFilters) without touching state.filters.
-    // They are ANDed with the persisted filter tree but never saved or shown in the filter editor.
+    // See mergeTableFilters in buildUdaConfig.js: wrapped as its own AND group, ANDed with the
+    // persisted filter tree as a whole unit — not spliced into the tree's root group — so a
+    // section whose root is "Match Any" (OR) still gets narrowed by header filters instead of
+    // having them become OR-alternatives.
     if (state.tableFilters?.length) {
         builderInput = {
             ...builderInput,
-            filters: {
-                op: builderInput.filters?.op || 'AND',
-                groups: [
-                    ...(builderInput.filters?.groups || []),
-                    ...state.tableFilters,
-                ],
-            },
+            filters: mergeTableFilters(builderInput.filters, state.tableFilters),
         };
     }
     const isDms = sourceInfo.isDms;

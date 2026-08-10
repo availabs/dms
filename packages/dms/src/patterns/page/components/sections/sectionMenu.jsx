@@ -621,7 +621,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const columns = [
         {
             name: 'Columns', icon: 'Columns',
-            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            // A component with useDataSource but no per-column controls defined (Filter,
+            // Validate, Upload) has nothing for ColumnManager to configure — showing this
+            // menu for them offers a fully working add/reorder/show/hide UI that implies
+            // control the component doesn't actually have.
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && resolvedControls?.columns?.length,
             value: (state.columns || []).length,
             showValue: true,
             items: [{
