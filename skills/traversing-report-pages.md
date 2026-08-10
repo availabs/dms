@@ -191,6 +191,7 @@ exploratory.
 | Reading/writing DMS content itself (pages, sections, sources) rather than rendered output | `dms` CLI, per repo `CLAUDE.md` — not either browser tool |
 | A read-only DB check (old/new/dama Postgres, ClickHouse) | `dbq.py <old|new|dama|ch>` — never hand-roll a psql/urllib one-off |
 | "Is the stack even up" | `preflight.py` first, always — before any of the above |
+| Confirming a report/graph code change didn't break already-working pages (before/after any change to `report_build.mjs`, `convert_old_reports_lib/*`, RRL/`useGraphPublish.js`, the Report Page template, or graph rendering) | `node scripts/npmrds-reports/probe_corpus.mjs` — see `regression-testing-npmrds-reports.md` |
 
 `claude-in-chrome`'s `javascript_tool` closes the gap when you need
 programmatic DOM inspection but want it against the live, authenticated tab
