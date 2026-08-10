@@ -20,6 +20,7 @@ import { getLexicalTheme, LexicalThemeContext } from '../useLexicalTheme';
 import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '../theme';
 // Import ThemeContext from separate file to avoid circular dependency with defaultTheme
 import { ThemeContext } from '../../../themeContext';
+import { PageActionsContext } from './context/PageActionsContext';
 
 function isLexicalJSON(str) {
     try {
@@ -32,7 +33,7 @@ function isLexicalJSON(str) {
 
 
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo }) {
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo, onSetPageParam }) {
   // Get theme from ThemeContext if not passed as prop
   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
   const theme = themeProp || contextTheme;
@@ -133,13 +134,15 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
   );
 
   return (
-    <LexicalThemeContext.Provider value={theme}>
-      {isCollab ? (
-        <LexicalCollaboration>{inner}</LexicalCollaboration>
-      ) : (
-        inner
-      )}
-    </LexicalThemeContext.Provider>
+    <PageActionsContext onSetPageParam={onSetPageParam}>
+      <LexicalThemeContext.Provider value={theme}>
+        {isCollab ? (
+          <LexicalCollaboration>{inner}</LexicalCollaboration>
+        ) : (
+          inner
+        )}
+      </LexicalThemeContext.Provider>
+    </PageActionsContext>
   );
 }
 

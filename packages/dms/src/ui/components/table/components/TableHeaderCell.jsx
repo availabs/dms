@@ -6,6 +6,11 @@ import { MultiSelectEdit as MultiselectEdit } from "../../MultiSelect"
 import {getComponentTheme, ThemeContext} from "../../../../ui/useTheme";
 import {ComponentContext} from "../../../../patterns/page/context";
 import {useColumnOptions} from "../../../../patterns/page/components/sections/ConditionValueInput";
+import {
+    mergeTableFilters,
+    pruneColumnFromFilterTree,
+    restrictFilterTreeToSource,
+} from "../../../../patterns/page/components/sections/components/dataWrapper/buildUdaConfig";
 
 const getColIdName = col => col.normalName || col.name;
 const Noop = () => {};
@@ -85,15 +90,23 @@ const ServerFilterControl = ({ attribute, className }) => {
     const colDef = cols.find(c => c.name === attribute.name);
     const metaOptions = isSelectType ? (colDef?.options || []) : [];
 
-    // Cascade: when top-level filters are ANDed, narrow this column's options
-    // based on selections already made in other server-filter columns.
-    const topLevelOp = state?.filters?.op ?? 'AND';
-    const siblingConditions = topLevelOp === 'AND'
-        ? (state?.tableFilters || []).filter(f => f.col !== attribute.name)
-        : [];
+    // Narrow this column's options by everything else that will actually apply once
+    // merged into the real query: the persisted filter tree, structure (AND/OR, any
+    // nesting depth) preserved as one unit, ANDed with the other active server filters
+    // — exactly mirroring getData.js's mergeTableFilters for the main query, so there's
+    // no separate/looser notion of "what narrows this dropdown" to keep in sync. This
+    // column's own leaf(ves) are pruned so it doesn't narrow by its own condition;
+    // cross-join leaves are dropped since their table-alias resolution isn't reused
+    // here yet (see filter-options-reuse-builduda-pipeline.md).
+    const siblingFilterTree = useMemo(() => {
+        let tree = mergeTableFilters(state?.filters, state?.tableFilters || []);
+        tree = pruneColumnFromFilterTree(tree, attribute.name, attribute.source_id);
+        tree = restrictFilterTreeToSource(tree, attribute.source_id);
+        return tree;
+    }, [state?.filters, state?.tableFilters, attribute.name, attribute.source_id]);
 
     const { options, loading } = useColumnOptions(
-        attribute.name, cols, op, search, selectedValues, siblingConditions, attribute.source_id,
+        attribute.name, cols, op, search, selectedValues, siblingFilterTree, attribute.source_id,
         isSelectType, // withCounts — only meaningful for multiselect UI
         []
     );

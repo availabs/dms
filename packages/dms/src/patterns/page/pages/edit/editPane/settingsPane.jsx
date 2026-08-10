@@ -285,7 +285,7 @@ function SettingsPane () {
       .map(setting => {
         setting.value = get(item, setting.location, setting.default || '')
         setting.onChange = (e) => {
-          togglePageSetting(item, setting.location, e.target.value,  apiUpdate)
+          togglePageSetting(item, setting.location, e?.target?.value ?? e,  apiUpdate)
         }
         return setting
       }).filter(d => d)

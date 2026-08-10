@@ -257,6 +257,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                     ui: { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
                     dataSource: dataSourceFromRef,
                     pageDataSources: { dataSources, dataSourceId, switchDataSource },
+                    pageState,
                 }) || [];
             } catch (e) {
                 console.error('sectionHeader extension failed', e);
@@ -486,6 +487,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                     ui: { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
                     dataSource: dataSourceFromRef,
                     pageDataSources: {},
+                    pageState,
                 }) || [];
             } catch (e) {
                 console.error('sectionHeader extension failed', e);

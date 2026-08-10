@@ -18,13 +18,20 @@ export const Attribution = () => {
 
     let attribRows = [];
     if(!externalSource) return null;
-    const { source_id, name, view_name, view_id, updated_at, baseUrl } = externalSource;
+    const { source_id, name, view_name, view_id, updated_at, baseUrl, isDms } = externalSource;
     const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
+    // Internal (isDms) sources are always mounted at /cenrep/internal_source,
+    // regardless of whatever baseUrl was persisted on this externalSource
+    // (older saves stored the now-defunct /forms base).
+    // todo this should come from siteconfig
+    const sourceHref = (srcIsDms, srcBaseUrl, id) =>
+        srcIsDms ? `/cenrep/internal_source/${id}` : `${srcBaseUrl || ""}/source/${id}`;
+
     //Always add a link to the "main" data source
     attribRows.push(
-        <Link key="ds_attribution_link" className={`${theme.attribution.link} ${divider}`} to={`${baseUrl || ""}/source/${source_id}`}>
+        <Link key="ds_attribution_link" className={`${theme.attribution.link} ${divider}`} to={sourceHref(isDms, baseUrl, source_id)}>
             {name} ({view_name || view_id}) {updatedTimeString ? `(${updatedTimeString})` : null}
         </Link>,
     );
@@ -48,12 +55,12 @@ export const Attribution = () => {
                 return;
             }
             const attribSource = curJoinSource?.sourceInfo;
-            const { source_id, name, view_name, updated_at, baseUrl } = attribSource;
+            const { source_id, name, view_name, updated_at, baseUrl, isDms } = attribSource;
 
             const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
             const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
             attribRows.push((
-                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} ${divider}`} to={`${baseUrl || ""}/source/${source_id}`}>
+                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} ${divider}`} to={sourceHref(isDms, baseUrl, source_id)}>
                     <span className="capitalize">({mergeStrategy || "Join"})</span> {name} ({view_name || curJoinSource.view}) {updatedTimeString ? `(${updatedTimeString})` : null}
                 </Link>
             ));

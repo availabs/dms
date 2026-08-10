@@ -1591,6 +1591,18 @@ const getJoinFieldLookup = (layerProps, fieldNames = []) => {
 
 const getLayerTileUrl = (tileBase, layerProps) => {
   let newTileUrl = `${tileBase}`;
+  // Capture any `filter=` clause already baked into the tile URL (e.g. a converter-authored
+  // `?cols=tmc&filter=year=2023` network-scoping clause — see route_map.py's GEOMETRY_TILE_VIEWS)
+  // BEFORE the query string is stripped below, so it survives this rebuild instead of silently
+  // vanishing on the next "Change Source" cycle (a comparison-series route pick triggers exactly
+  // this rebuild — see dynamic-report-nongraph-section-binding.md item 2). Distinct from
+  // `serverFilters` further down (author-configured `dynamic-filters`) and from `layerProps.filter`
+  // above (join-filter *columns*, appended to `cols=` rather than as a SQL clause) — this is the
+  // one piece of the ORIGINAL url this function never reconstructs from `layerProps` itself.
+  let bakedFilter = "";
+  if (typeof newTileUrl === "string" && newTileUrl.includes("?")) {
+    bakedFilter = new URLSearchParams(newTileUrl.split("?")[1]).get("filter") || "";
+  }
   if (typeof newTileUrl === "string") {
     newTileUrl = newTileUrl.split("?")[0];
   }
@@ -1672,8 +1684,14 @@ const getLayerTileUrl = (tileBase, layerProps) => {
         ? `${df.column_name} = ${q(df.values[0])}`
         : `${df.column_name} IN (${df.values.map(q).join(",")})`;
     });
-  if (serverFilters.length) {
-    newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}filter=${encodeURIComponent(serverFilters.join(" AND "))}`;
+  // bakedFilter (captured above, before the query string was stripped) always applies alongside
+  // whatever author-configured serverFilters resolve this render — the two are independent
+  // constraints (network-year scoping vs. an author's dynamic filter), never a replacement for
+  // one another.
+  const allFilters = [bakedFilter, ...serverFilters].filter(Boolean);
+  if (allFilters.length) {
+    const combined = allFilters.length > 1 ? allFilters.map((f) => `(${f})`).join(" AND ") : allFilters[0];
+    newTileUrl += `${newTileUrl.includes("?") ? "&" : "?"}filter=${encodeURIComponent(combined)}`;
   }
 
   // if(newTileUrl && newTileUrl?.includes('.pmtiles')){

@@ -365,6 +365,80 @@ export const extractNormalFiltersFromGroups = (node) => {
 
 const isGroup = (node) => node?.groups && Array.isArray(node.groups);
 
+export const hasAnyFilterLeaf = (node) => {
+  if (!node) return false;
+  if (isGroup(node)) return node.groups.some(hasAnyFilterLeaf);
+  return true;
+};
+
+// Merges ephemeral table-header filters (state.tableFilters) with the persisted filter
+// tree as two SIBLING groups under one AND — never spliced into the tree's own root
+// group — so the tree's own op (AND or OR) keeps its original meaning and header
+// filters always narrow rather than risk becoming OR-alternatives. The persisted tree
+// is only included as a sibling when it actually has a leaf; an empty tree would
+// otherwise AND in an empty group, which the SQL builder can't render safely.
+export const mergeTableFilters = (filters, tableFilters) => {
+  if (!tableFilters?.length) return filters;
+  const tableFilterGroup = { op: "AND", groups: tableFilters };
+  return hasAnyFilterLeaf(filters)
+    ? { op: "AND", groups: [filters, tableFilterGroup] }
+    : tableFilterGroup;
+};
+
+const sameSource = (a, b) => (a ?? null) === (b ?? null);
+
+// Removes the leaf(s) for one column (matched by name + source) from a filter tree —
+// e.g. so a column's own condition doesn't narrow its own dropdown options — collapsing
+// any group left empty by the removal, at any depth, so a stripped nested group can't
+// reach the SQL builder as an empty `()`.
+export const pruneColumnFromFilterTree = (node, col, sourceId) => {
+  if (!node) return null;
+  if (isGroup(node)) {
+    const groups = node.groups
+      .map((child) => pruneColumnFromFilterTree(child, col, sourceId))
+      .filter(Boolean);
+    return groups.length ? { ...node, groups } : null;
+  }
+  return node.col === col && sameSource(node.source_id, sourceId) ? null : node;
+};
+
+// Drops leaves whose source doesn't match `sourceId`. A cross-join leaf needs
+// applyTableAliasToJoin's table-alias prefixing to resolve to the right table — an
+// unaliased reference under a join can be ambiguous or silently read the wrong table.
+// That resolution isn't reused here (yet — see filter-options-reuse-builduda-pipeline.md),
+// so cross-source leaves are dropped rather than risk a wrong/invalid reference. Same
+// empty-group collapse as pruneColumnFromFilterTree.
+export const restrictFilterTreeToSource = (node, sourceId) => {
+  if (!node) return null;
+  if (isGroup(node)) {
+    const groups = node.groups
+      .map((child) => restrictFilterTreeToSource(child, sourceId))
+      .filter(Boolean);
+    return groups.length ? { ...node, groups } : null;
+  }
+  return sameSource(node.source_id, sourceId) ? node : null;
+};
+
+// Runs a filter tree through the same normalFilter/HAVING-extraction + column-name
+// mapping passes buildUdaConfig uses for the main query (extractNormalFiltersFromGroups
+// -> mapFilterGroupCols -> extractHavingFromFilterGroups), keeping only the resulting
+// WHERE-clause tree. This is what lets an options/distinct-values query reuse the exact
+// leaf-shape handling the main query already gets right — unary empty/is_null, time,
+// multiselect array_contains, and isNormalFilter/fn (HAVING) leaves are excluded or
+// resolved correctly instead of being misrepresented by a second hand-rolled reducer.
+export const resolveFilterGroupsForQuery = (tree, getColumn, isDms) => {
+  // A bare `{}` (e.g. an unconfigured legacy filters value) is truthy but has neither
+  // `.groups` nor `.col` — hasAnyFilterLeaf would otherwise treat it as a real leaf and
+  // send it straight into mapFilterGroupCols/buildGroupSQL, which assume every non-group
+  // node is a proper `{col, op, value}` leaf.
+  const normalized = tree && !isGroup(tree) && !tree.col ? null : tree;
+  if (!hasAnyFilterLeaf(normalized)) return null;
+  const { cleaned } = extractNormalFiltersFromGroups(normalized);
+  const mapped = mapFilterGroupCols(cleaned, getColumn, isDms);
+  const { filterGroups } = extractHavingFromFilterGroups(mapped);
+  return hasAnyFilterLeaf(filterGroups) ? filterGroups : null;
+};
+
 export const applyTableAliasToJoin = (filterTree, sourceIdToAlias, baseSourceId) => {
     if (!filterTree) return filterTree;
   
@@ -1204,11 +1278,6 @@ export const buildUdaConfig = ({
   // base filter to fall back on: a fully unscoped scan. If a base filter tree exists
   // (any real leaf), skip this guard — that's a legitimate "comparison overlay just
   // isn't active, fetch the base-filtered data" case, not a hazard.
-  const hasAnyFilterLeaf = (node) => {
-    if (!node) return false;
-    if (isGroup(node)) return node.groups.some(hasAnyFilterLeaf);
-    return true;
-  };
   const hasUnscopedComparisonSeries =
     comparisonSeries?.enabled === true &&
     !activeComparisonSeries &&

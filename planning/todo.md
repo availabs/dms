@@ -1,5 +1,9 @@
 # DMS Todo
 
+## cli
+
+- [x] [CLI hangs on every command (Windows) — `findConfigFile` infinite loop](./tasks/completed/cli-config-windows-infinite-loop.md) — `config.js`'s `while (dir !== '/')` never terminated on Windows (`dirname('C:\')==='C:\'`), so every `dms` command spun forever before making a request. Fixed to break on `dirname(dir)===dir` (POSIX `/` + Windows drive roots). Verified: `raw get`/`page list`/`page show` now return promptly; POSIX unchanged.
+
 ## themes
 
 - [x] [Merge mny and mny_admin themes](./tasks/completed/mny-theme-merge.md) — eliminated duplication between `src/themes/mny/theme.js` and `admin.theme.js`. Deleted ~1005 lines of dead orphaned `docs` sample data plus dead `menu`/`select`/`listbox`/`popover` keys (no consumer read them); consolidated `icon` and `tabs` into `mny` only (mny_admin's `tabs.styles[]` was silently missing an entry mny had, a real index-resolution landmine — confirmed unused, merged); confirmed `layout`/`sidenav`/`topnav`/`layoutGroup`/`logo`/`dataCard`/`input`/`field`/`dialog`/`nestable`/`pages.sectionGroup`/`pages.userMenu` are genuine admin-only or public-only customizations that must stay separate. File shrank from 1631 → 597 lines. List of default-matching-but-not-deleted keys recorded in the task file's Final Report.
@@ -393,6 +397,26 @@
 
 ### patterns/page
 
+- [x] [Reuse buildUdaConfig's filter-tree pipeline for options queries](./tasks/completed/filter-options-reuse-builduda-pipeline.md) —
+      DONE 2026-08-06. `useColumnOptions` (server filters + ComplexFilters' own value
+      editor) hand-rolled a flat `filterBy` from a curated sibling list instead of going
+      through `buildUdaConfig` at all. New exports `mergeTableFilters`/
+      `pruneColumnFromFilterTree`/`restrictFilterTreeToSource`/`resolveFilterGroupsForQuery`
+      in `buildUdaConfig.js` reuse the main query's own normalFilter/HAVING-extraction +
+      column-mapping pipeline for options too — fixes the same-column collision and
+      isNormalFilter/fn/unary/time leaf-shape gaps. Two deliberate scope reductions
+      (see task file): join-alias resolution not reused (cross-join siblings dropped,
+      not resolved), and isNormalFilter/fn leaves are excluded from narrowing rather than
+      given real HAVING-based narrowing. `TableHeaderCell.jsx`'s interim `treeSiblings`
+      stopgap removed.
+- [ ] [Unify server filters into ComplexFilters via a `showInHeader` leaf toggle](./tasks/current/filter-leaf-show-in-header.md) —
+      replace `state.tableFilters`/`ServerFilterControl` with a leaf-level
+      `showInHeader` flag so an admin places the header-exposed condition
+      wherever they want in the AND/OR tree; per-viewer value overlay
+      (keyed by col+source_id, mirrors `usePageFilters`) instead of a
+      separate merge step. Fixes the OR-root widening bug and gives header
+      filters correct sibling-narrowed options for free. DEFERRED — breaking
+      for sections using `attribute.serverFilter` today, needs migration.
 - [x] [Derived page variable — one control drives a value another binding needs](./tasks/current/derived-page-variable.md) —
       DONE 2026-07-29. A page-filter row gains `derivedFrom: "<other searchKey>"` + `derive: "yyyy"`,
       so e.g. a network-vintage variable follows the Month control instead of being a second thing the
@@ -467,6 +491,7 @@
 - [ ] [Page templates](./tasks/current/page-templates.md) — template picker when adding a page (5 built-in theme templates + user-saved DB templates per-pattern); "Save as template" in settings pane + template manager tab in pattern editor
 - [ ] [ReportRouteList → page templates + native graph sections](./tasks/current/reportroutelist-page-templates.md) — retire the `graph_comps` + `setItem` graph **injection** in the transportny `ReportRouteList` (the one place that mutates `item.sections` outside the add-component flow; confirmed leak on page 2180280). A **report becomes its own page** created from a generic **Report Page** *page template* (panel + one starter graph), graphs become **ordinary page sections**, and ReportRouteList shrinks to a route editor that **publishes** `transformReportRoutes(routes)` to a `report_routes` page action param. Graphs bind **dynamically** via the existing `comparison_series` subscriber (`usePageFilterSync` → `comparisonSeries.config`, see [comparison-series-query-fanout.md](./tasks/current/comparison-series-query-fanout.md)) or keep a **static** baked-variants snapshot — both first-class. Moves `routes` onto the page (`routes`/`draft_routes` in `page.format.js` + publish promotion) and **deletes the `newItem`/`setItem` page-render fork** from `view.jsx`/`edit/index.jsx`. Plan written in plan mode 2026-06-30. **Follow-up (2026-07-06, done):** replaced the hardcoded `['Spreadsheet', 'Card', 'ReportRouteList'].includes(component.name)` allow-list in `dataWrapper/index.jsx` (both `Edit`/`View`) with a registry-driven `usesItemMutationProps` flag (mirroring `supportsTemplates`) — see task file for details. Not yet live-verified in a browser.
 - [ ] [Old NPMRDS reports → new DMS report pages (automated conversion)](./tasks/current/old-reports-conversion.md) — repeatable script(s) that pull the 868 old reports out of `npmrds_production` `admin2.reports` (+ their `admin2.routes`), transform them, and create equivalent `npmrds_sub` report pages (page + ReportRouteList/AVL Graph sections + `reports_snap_2` row) via the DMS CLI, generating `avl_graph_template` rows per (graph type × resolution × dataColumn) combination as needed. Preserving old data is the priority; authoring-UI ergonomics explicitly deferred. Investigation complete 2026-07-07 (both DB shapes mapped, both DBs reachable, surveys done — see task file); first target: old report 1070 (1 route, 1 line graph).
+- [ ] [Dynamic-Report route binding doesn't reach Map/Spreadsheet section types](./tasks/current/dynamic-report-nongraph-section-binding.md) — Design push #2's self-binding mechanism (`_measurePick` + `comparison_series` subscriber) only actually works end-to-end for AVL Graph sections; Map/Route Compare Component/TMC Info Box each have a distinct gap (root-caused via code reading 2026-08-06, one item needs a live DB check to confirm). Found via the dms-template reports-catalog triage but is a library-level gap, not catalog-specific — isolated here per the ship-shared-platform-changes-isolated rule.
 - [ ] [ReportRouteList: `graphIds` wiped on refresh/publish](./tasks/current/reportroutelist-graphids-wiped-on-refresh.md) — **root cause found and fixed, live-verified 2026-07-20**: `loadReportRow` could never fetch a row's own `id` (missing explicit `id` column + `attributes` forwarding + response remap), so `persistRoutes` always created a new orphaned row instead of updating the existing one; fixed in `ReportRouteList.jsx` + an `api/index.js` `$__path`-filtering bug found along the way. Remaining open: publish-path not separately re-verified (same read path, expected to work), the "ghost routes from another report" symptom still uninvestigated (separate root cause suspected), and ~25+ stray duplicate rows from the bug's active period need cleanup (needs user go-ahead before deleting).
 - [x] [Falcor/UDA query cache collision across sibling sections sharing query state](./tasks/completed/falcor-sibling-query-cache-collision.md) — root-caused as a client-side Falcor cache-key collision (options JSON has no per-section discriminator). Fixed by folding `trackingId || sectionId` into `options` before it's stringified into the Falcor path, in `getData.js`/`useDataLoader.js`/`useColumnOptions.js`/`usePivotDistinctValues.js`/`preloadSectionData.js`. Live-verified on report 1071 (both previously-blank sibling pairs now render correctly). Uncovered a separate, unrelated bug while verifying report 751 (truck CO₂ formula returns NULL) — logged as a new gap in old-reports-conversion.md, not fixed here.
 - [ ] [Section "active selection" interaction](./tasks/current/section-active-selection-interaction.md) — let a section publish a derived value on data **load** to a persistent page action-param (`activeTmcLinear`), and let other sections **filter** on it. Two additive/BC pieces: a `load`-trigger publisher (`load_publish` in spreadsheet/graph config + a `useEffect` in their index that derives first/max/min row and calls `setActionParam`), and **action-param-aware filter leaves** (`{useActionParam, actionParamKey}`) in `usePageFilterSync.js` + `RenderFilters.jsx`. Substrate (action params on PageContext, click/hover providers, page-filter-sync) already exists. Motivated by the TSMO incident-view grid (master-detail by corridor).

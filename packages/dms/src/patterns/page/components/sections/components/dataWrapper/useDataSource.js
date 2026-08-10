@@ -277,7 +277,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                         : "pages";
 
                     // Get baseUrl for internal sources
-                    const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/forms';
+                    const internalBaseUrl = datasources?.find(ds => ds.type === 'internal')?.baseUrl || '/cenrep';
 
                     draft.externalSource = {
                         isDms: true,

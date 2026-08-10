@@ -11,7 +11,7 @@
 
 import {
   makeClient, fetchAll, fetchById, fetchByIds, resolvePattern, findPatternByKind,
-  parseData,
+  parseData, readFileOrJson, parseSetPairs,
 } from '../utils/data.js';
 import { sourceInstance, viewDataTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
@@ -399,4 +399,67 @@ export async function query(sourceIdOrName, config, options = {}) {
   }
 }
 
-export default { list, show, views, dump, query };
+/**
+ * Update a single data row in a source's view (split-table write).
+ *
+ * Writes go through the DMS `edit` call, which routes to the split table only
+ * when it receives the data-row type as its 4th argument (`[app, id, data, type]`).
+ * `raw update` omits that type and silently no-ops against split-table dataset
+ * rows, so this is the write path for internal datasets. `data`/`set` are
+ * shallow-merged into the row's `data` JSONB server-side — pass only the columns
+ * you want to change and the rest are preserved. Pass `--data` as a file path for
+ * large values (lexical columns blow the shell arg-length limit inline).
+ */
+export async function update(sourceIdOrName, rowId, config, options = {}) {
+  try {
+    if (!config.app) {
+      outputError('dataset update requires --app (or DMS_APP / .dmsrc)');
+      return;
+    }
+    const falcor = makeClient(config);
+    const pattern = await resolveDatasetPattern(falcor, config, options.pattern);
+    const { sources } = await loadSourcesViaDmsEnv(falcor, config, pattern);
+    const source = await resolveSource(falcor, config, sources, sourceIdOrName);
+
+    const viewId = pickViewId(source, options.view);
+    if (!viewId) {
+      outputError(`Source ${source.id} has no views — nothing to update.`);
+      return;
+    }
+    const dataType = viewDataTypeFor(source, viewId);
+    const numId = parseInt(rowId, 10);
+
+    let data = {};
+    if (options.data) {
+      try {
+        data = await readFileOrJson(options.data);
+      } catch (e) {
+        outputError(`Invalid JSON data: ${e.message}`);
+        return;
+      }
+    }
+    if (options.set) {
+      data = { ...data, ...parseSetPairs(options.set) };
+    }
+    if (Object.keys(data).length === 0) {
+      outputError('No data to update. Use --data or --set');
+      return;
+    }
+
+    // 4th arg (dataType) triggers split-table routing on the server.
+    const res = await falcor.call(['dms', 'data', 'edit'], [config.app, numId, data, dataType]);
+    const row = res?.json?.dms?.data?.[config.app]?.byId?.[String(numId)];
+    output({
+      id: numId,
+      type: dataType,
+      view_id: viewId,
+      columns: Object.keys(data),
+      ok: !!row,
+      message: 'Dataset row updated',
+    }, options);
+  } catch (error) {
+    outputError(error);
+  }
+}
+
+export default { list, show, views, dump, query, update };

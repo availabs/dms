@@ -71,9 +71,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
 // console.log("getSectionMenuItems::currentComponent", currentComponent)
 
-    /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
+    /**
+     * Use the map API only for the Map component; all other sections continue
+     * to use dwAPI. 'Map: Dama' is the retained legacy display name for the
+     * "Map: Dama Map" registry key, which now resolves to the same MapSection
+     * implementation as 'Map' (see ComponentRegistry/index.jsx) — its sections
+     * must get the map settings menu too, not fall through to dwAPI (which
+     * Map/MapDama never populate, since neither uses dataWrapper).
+     */
     const componentAPI =
-    ['Map'].includes(currentComponent?.name) && mapAPI?.setState
+    ['Map', 'Map: Dama'].includes(currentComponent?.name) && mapAPI?.setState
         ? mapAPI
         : dwAPI;
 
@@ -621,7 +628,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const columns = [
         {
             name: 'Columns', icon: 'Columns',
-            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
+            // A component with useDataSource but no per-column controls defined (Filter,
+            // Validate, Upload) has nothing for ColumnManager to configure — showing this
+            // menu for them offers a fully working add/reorder/show/hide UI that implies
+            // control the component doesn't actually have.
+            cdn: () => isEdit && currentComponent?.useDataSource && canEditSection && resolvedControls?.columns?.length,
             value: (state.columns || []).length,
             showValue: true,
             items: [{
