@@ -433,7 +433,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                     <label className={t.fieldLabel}>Column</label>
                     <MultiSelect
                         singleSelectOnly
-                        searchable={false}
+                        searchable={true}
                         value={JSON.stringify(columns.find(c => c.name === node.col && c.source_id === node.source_id))}
                         options={[
                             { label: 'Please select a column...', value: '' },
