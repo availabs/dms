@@ -16,6 +16,21 @@ import { useEffect } from "react";
 import { isEqual } from "lodash-es";
 import { getData } from "./getData";
 
+// A column's `mapped_options` is meaningful only when it names the columns to
+// look up label/value from. Static `select`/`multiselect` columns often carry
+// a stray `"{}"` (copied from source metadata, never configured) — that's
+// truthy but has no lookup, so treating it as "fetch me" would resolve to an
+// empty result set and clobber the column's real static `options`.
+const hasUsableMappedOptions = (raw) => {
+    if (!raw) return false;
+    try {
+        const parsed = JSON.parse(raw);
+        return !!(parsed && parsed.labelColumn && parsed.valueColumn);
+    } catch {
+        return false;
+    }
+};
+
 export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, enabled, sectionId, trackingId }) {
     useEffect(() => {
         if (!enabled) return;
@@ -23,7 +38,7 @@ export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, e
 
         async function loadOptionsData() {
             try {
-                const columnsToFetch = (state.columns || []).filter(c => c.mapped_options);
+                const columnsToFetch = (state.columns || []).filter(c => hasUsableMappedOptions(c.mapped_options));
                 if (!columnsToFetch.length) return;
 
                 const fetchPromises = columnsToFetch.map(async column => {
@@ -80,7 +95,7 @@ export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, e
                     const responses = Object.fromEntries(results);
                     setState(draft => {
                         draft.columns.forEach(c => {
-                            if (c.mapped_options) {
+                            if (hasUsableMappedOptions(c.mapped_options)) {
                                 const fetchedOptions = responses[c.name] || [];
                                 if (!isEqual(c.options, fetchedOptions)) {
                                     c.options = fetchedOptions;

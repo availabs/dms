@@ -53,12 +53,45 @@ originally planned below. Concretely, this **replaces** the P5 plan in this doc:
   - **Known blind spots**: 8 pages across 4 patterns (`county_template2_copy`,
     `county_data_site`×2, `shmpcopy`) return a pre-existing, unrelated 500
     (`Cannot read properties of null (reading 'from')`) and couldn't be read at all — whatever
-    they contain is unaudited. Also: `Map: Dama Map` is confirmed in use outside mitigat-ny-prod
-    too (spot-checked `npmrdsv5`/`freightatlas2` — 1 page, tab-icon-only, no other features; the
-    other 11 page patterns in that app family weren't audited). Neither blind spot changes the
-    ship decision, since the shim is structural and permanent (no hard delete, no one-shot
-    rewrite) — any section in an unaudited app upgrades identically the first time it's rendered,
-    regardless of when someone gets around to auditing that app.
+    they contain is unaudited. Neither blind spot changes the ship decision, since the shim is
+    structural and permanent (no hard delete, no one-shot rewrite) — any section in an unaudited
+    app upgrades identically the first time it's rendered, regardless of when someone gets around
+    to auditing that app.
+  - **2026-08-10: full exhaustive audit extended to `npmrdsv5` (dev2)** — the earlier "spot-checked
+    1 page, tab-icon-only" note was based on a single sandbox page and undersold real usage.
+    Audited all 13 page patterns / 142 listed pages (131 readable with an admin token; 11 are
+    individually access-gated and excluded) via the DMS CLI against `dmsserver.availabs.org` —
+    **8 pages / 18 `Map: Dama Map` sections found** across `sandbox`, `freightatlas2`, and
+    `transit` patterns:
+    - `filterGroupEnabled`: 0/224 layers true — no real usage, consistent with mitigat-ny-prod.
+    - `viewGroupEnabled`: **2/224 layers show `true`** (sandbox page "NPMRDS Shapefile", id
+      2063932) — but `viewGroup`/`viewGroupName` are both `undefined` on both, i.e. the toggle
+      was flipped with no group ever configured, so there is nothing to switch between. Inert in
+      practice; still 0 *functional* view-group usage.
+    - `dynamic-filter-display`: 0/224 layers — no usage, consistent with mitigat-ny-prod.
+    - **Tab icons: 3 of 8 pages** (not 1) — `page_1423066` (Freight Atlas 2 Figures, sandbox),
+      `page_1423075` (BILD, sandbox), and, materially, **`page_1411761` — "Freight Atlas"**,
+      `published`, live at the `freightatlas2` pattern's `/freight_atlas` route — 7 tabs, each
+      with a real icon (`fad fa-map`, `fa-industry-alt`, `fa-ship`, `fa-subway`, `fa-road`,
+      `fa-layer-group`, `fa-truck`). Corrects the earlier "1-page, low-effort" framing: this is a
+      live production page, not a demo. Icons still aren't stripped by the migration (`tabs[].icon`
+      passes through byte-identical, verified below) so no data is lost, but they won't render
+      anywhere until `LayerLibraryPanel` gets an icon slot — a real, visible (if cosmetic) gap on
+      a live page, not just a deferred non-issue.
+    - **`shareableState: true` found on a live section** — same page 1411761, section `2190241`
+      (the second of its two map_dama sections). This is the exact case `deriveMapShareVariables`'s
+      element-type gate (fixed earlier this session, `pages/_utils/index.js`) needed to handle:
+      confirmed the *unfixed* gate (`=== 'map'`) would NOT have matched `'Map: Dama Map'` for this
+      section, and the fix does. Without that fix, this live page's shareable-map-link (`?layers=`
+      URL state) would have silently stopped auto-registering as a page variable post-migration.
+      This turns that fix from precautionary to load-bearing for a real, currently-published page.
+    - Verified `Map.migrate.js` against all 18 real sections: 0 mismatches — idempotent,
+      `symbologies`/`tabs` byte-identical, `blankBaseMap` logic correct (all 18 had it explicit,
+      already `false`, none needed the new true-default; verified anyway).
+  - **Wider sweep, 2026-08-10**: also exhaustively checked every other app reachable without
+    special auth — `avail` (46 pages), `wcdb` (10 pages), `tessera` (2 pages), `asm`/`b3nson`
+    (15 pages) — **zero `Map: Dama Map` sections** in any of them (real page dumps, not just
+    pattern listings). `landbank` was skipped at the user's instruction.
   - Verified `Map.migrate.js` against all 28 real production `element-data` payloads pulled during
     the audit (`scratchpad/mitigat-ny-prod/raw_hits/`): every one lacks `display`/`basemapStyle`
     (confirming the structural detection is safe across the whole live population, not just the
