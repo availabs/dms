@@ -1,4 +1,4 @@
-import React, {useContext, useEffect, Fragment, useMemo, useState} from "react";
+import React, {useContext, useEffect, Fragment, useMemo, useRef, useState} from "react";
 import {useImmer} from "use-immer";
 import {isEqual, uniqWith} from "lodash-es";
 import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
@@ -51,6 +51,41 @@ const emptyCondition = (columns) => ({
     source_id: columns?.[0]?.source_id ?? null
 });
 
+// Committing a leaf's free-text fields (search key, prior-period step, display name) on
+// every keystroke runs them through updateFilterGroups' immer producer, which re-renders
+// the whole filter tree (every group/condition, every ConditionValueInput's options query)
+// on each character — laggy enough to feel like dropped keystrokes/lost focus. Buffer
+// locally and only call onChange once typing pauses or the field is blurred.
+const DebouncedFieldInput = ({ value, onChange, delay = 400, ...props }) => {
+    const { UI } = useContext(ThemeContext) || {};
+    const { Input } = UI;
+    const [local, setLocal] = useState(value ?? '');
+    // onChange is a fresh closure from the parent on every render — read the latest
+    // one via ref instead of a useEffect dep, so the debounce timer isn't reset by
+    // unrelated parent re-renders (only a real edit to `local` should restart it).
+    const onChangeRef = useRef(onChange);
+    onChangeRef.current = onChange;
+
+    useEffect(() => { setLocal(value ?? ''); }, [value]);
+
+    useEffect(() => {
+        if (local === (value ?? '')) return;
+        const timeoutId = setTimeout(() => onChangeRef.current(local), delay);
+        return () => clearTimeout(timeoutId);
+    }, [local, value, delay]);
+
+    const flush = () => { if (local !== (value ?? '')) onChangeRef.current(local); };
+
+    return (
+        <Input
+            {...props}
+            value={local}
+            onChange={e => setLocal(e.target.value)}
+            onBlur={flush}
+        />
+    );
+};
+
 // only in edit mode.
 // `value` / `onSave` are optional overrides: when provided, the editor seeds from
 // and commits to that tree instead of `state.filters` — used by the comparison-
@@ -59,7 +94,7 @@ const emptyCondition = (columns) => ({
 // behavior is identical to the original `state.filters` read/write.
 export const ComplexFilters = ({ state, setState, value, onSave }) => {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
-    const { Pill, Icon, Popup, Switch, MultiSelect, Input, ColumnTypes: {select} } = UI;
+    const { Pill, Icon, Popup, Switch, MultiSelect, ColumnTypes: {select} } = UI;
     const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
     const { apiLoad } = useContext(PageContext) || {};
     const existingCtx = useContext(ComponentContext);
@@ -314,11 +349,11 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                                 })}
                                                 size={'xs'}
                                         />
-                                        <Input
+                                        <DebouncedFieldInput
                                             disabled={!node.usePageFilters}
                                             value={node.searchParamKey || ''}
                                             placeholder={'search key'}
-                                            onChange={e => updateNodeAtPath(path, n => { n.searchParamKey = e.target.value; })}
+                                            onChange={v => updateNodeAtPath(path, n => { n.searchParamKey = v; })}
                                         />
                                     </div>
                                     {/* Include prior period — expands a single-select page value (e.g.
@@ -334,12 +369,11 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                                 size={'xs'}
                                                 disabled={!node.usePageFilters}
                                         />
-                                        <Input
+                                        <DebouncedFieldInput
                                             disabled={!node.usePageFilters || !node.includePriorPeriod}
                                             value={node.priorPeriodStep ?? ''}
                                             placeholder={'step (1)'}
-                                            onChange={e => updateNodeAtPath(path, n => {
-                                                const v = e.target.value;
+                                            onChange={v => updateNodeAtPath(path, n => {
                                                 n.priorPeriodStep = v === '' ? undefined : Number(v);
                                             })}
                                         />
@@ -357,10 +391,10 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
                                             <label className={t.popupRowLabel}>Display Name:</label>
-                                            <Input
+                                            <DebouncedFieldInput
                                                 value={node.displayName || ''}
                                                 placeholder={node.col || 'label…'}
-                                                onChange={e => updateNodeAtPath(path, n => { n.displayName = e.target.value || undefined; })}
+                                                onChange={v => updateNodeAtPath(path, n => { n.displayName = v || undefined; })}
                                             />
                                         </div>
                                     )}
