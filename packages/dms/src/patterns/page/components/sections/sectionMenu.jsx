@@ -71,9 +71,16 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 
 // console.log("getSectionMenuItems::currentComponent", currentComponent)
 
-    /** Use the map API only for the Map component; all other sections continue to use dwAPI. */
+    /**
+     * Use the map API only for the Map component; all other sections continue
+     * to use dwAPI. 'Map: Dama' is the retained legacy display name for the
+     * "Map: Dama Map" registry key, which now resolves to the same MapSection
+     * implementation as 'Map' (see ComponentRegistry/index.jsx) — its sections
+     * must get the map settings menu too, not fall through to dwAPI (which
+     * Map/MapDama never populate, since neither uses dataWrapper).
+     */
     const componentAPI =
-    ['Map'].includes(currentComponent?.name) && mapAPI?.setState
+    ['Map', 'Map: Dama'].includes(currentComponent?.name) && mapAPI?.setState
         ? mapAPI
         : dwAPI;
 

@@ -31,6 +31,25 @@ function SectionGroupControl({
   );
   //console.log('theme', themeFromContext)
   // const currentStyle = sectionGroupControlTheme.styles[sectionGroupControlTheme.options.activeStyle];
+
+  // Local editing state for the modal param key input — syncs back via
+  // onUpdateAttribute (debounced) instead of firing a save on every keystroke.
+  const [modalParamKey, setModalParamKey] = React.useState(
+    fullGroupData?.modalParamKey || "",
+  );
+
+  React.useEffect(() => {
+    setModalParamKey(fullGroupData?.modalParamKey || "");
+  }, [fullGroupData?.modalParamKey]);
+
+  React.useEffect(() => {
+    if (modalParamKey === (fullGroupData?.modalParamKey || "")) return;
+    const timeout = setTimeout(() => {
+      onUpdateAttribute("modalParamKey", modalParamKey);
+    }, 400);
+    return () => clearTimeout(timeout);
+  }, [modalParamKey]);
+
   // Section headers are not draggable or editable
   if (isSection) {
     return (
@@ -86,14 +105,14 @@ function SectionGroupControl({
     },
     ...(fullGroupData?.isModal ? [{
       name: 'Modal Param Key',
-      value: fullGroupData?.modalParamKey || '',
+      value: modalParamKey,
       showValue: true,
       items: [{
         name: 'Modal Param Key input',
         type: 'input',
         inputType: 'text',
-        value: fullGroupData?.modalParamKey || '',
-        onChange: e => onUpdateAttribute('modalParamKey', e?.target?.value ?? e),
+        value: modalParamKey,
+        onChange: e => setModalParamKey(e?.target?.value ?? e),
       }],
     }] : []),
     { type: "separator" },
