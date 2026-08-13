@@ -385,12 +385,36 @@ any DMS page, not just reports. What's specific to reports:
   (always) and a single-route BarGraph (day/weekday/month breakdown, no real second series) use a
   real `rdylgn` value scale instead of inheriting the LineGraph-style ~20-swatch route palette; it's
   a code fix, not retroactive, so a page needs its own `--update <id> --publish` to pick it up. Only
-  `annual_average_study` had this run as of 2026-08-12 — every other catalog page still shows the
-  old confetti/flat coloring until rebuilt. Same session also fixed a LineGraph tooltip showing
+  `annual_average_study`/`one_week_study` had this run as of 2026-08-13 — every other catalog page
+  still shows the old confetti/flat coloring until rebuilt. Same session also fixed a LineGraph tooltip showing
   15-digit floats (now rounds to 1 decimal, code-only, no rebuild needed) and an always-shown,
   often-nonsensical "(Line Total)" (now hidden unless the measure's vocabulary `fn` is `"sum"`,
   i.e. genuinely additive across time buckets — also needs a rebuild to take effect, since it's the
   same `display.tooltip` field a rebuild writes).
+- **A multi-measure Info Box's `join` is a plain dict `update()` union of each measure's own
+  `join.sources`, last-measure-in-the-list wins on a shared key — a stale join on ANY listed measure
+  silently overrides a correct one from another.** Found live 2026-08-13 building `one_week_study`'s
+  first-ever multi-measure Info Box (`measure: ["speed","travelTime"]`): `speed`'s own template row
+  correctly used `META_JOIN`, but `travelTime`'s pre-existing row was still on the stale
+  `TMC_IDENTIFICATION_JOIN` (missed by the 2026-08-12 join-drift-detection round — only 2 of the 3
+  sibling `ensure_*` functions got it), so the combined row's final `join` silently reverted to the
+  stale one. If a multi-measure Info Box's attribution line shows the old join, don't assume the whole
+  page needs a rebuild — check whether ONE of its measures has a stale template row first (`dms raw
+  list npmrdsv5+npmrds_sub|avl_graph_template` → find `{grain}_info_box_{measure}` → read its
+  `data.stateJson.join`).
+- **A plain-decimal Info Box measure (speed/length/aadt) with no `formatFn` renders full float
+  precision in the cell** (e.g. `20.56702084355448`) — `comma`/`abbreviate` both floor to an integer
+  below their K/M-abbreviation threshold, which is wrong for a sub-1000 rate-like value. Fixed for
+  `speed` 2026-08-13 via a new shared registry entry, `decimal_2`
+  (`dataWrapper/utils/utils.jsx`'s `formatFunctions`) — same file/pattern as `travelTime`'s
+  `minutes_clock`. `length`/`aadt` have the identical gap, not yet fixed (no live consumer had hit it
+  as of this writing).
+- **A "panel looks missing" report is worth verifying by loading BOTH the old and new page in full
+  (scroll to the bottom) before touching any code** — confirmed 2026-08-13 that a suspected 2nd missing
+  Bar Graph Summary on `one_week_study` was actually already present and correct on both pages; the old
+  template's gap log (which DOES reliably tell you what's genuinely dropped, see the entry above) would
+  have shown this too, but a direct side-by-side screenshot comparison is the fastest way to confirm or
+  rule out a suspected gap without first reasoning about it from docs.
 
 ## 6. Which tool to reach for
 
