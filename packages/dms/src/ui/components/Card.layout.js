@@ -34,7 +34,17 @@ export const isLayoutModelV2 = (theme) => theme?.layoutModel === 'v2';
 
 // 'top' = rows content-sized, packed, gap between cards is exactly
 // cardsGridGap. 'stretch' = legacy fill (slack distributed into card rows).
+// 'center' = rows content-sized like 'top', but the block of them sits in the
+// MIDDLE of the box's spare height — for a short card fused beside a taller one
+// (a band's label card next to its controls), where 'top' leaves the label
+// floating at the ceiling and 'stretch' would inflate its rows.
+// 'bottom' = the same content-sized block pinned to the FLOOR of the box — the
+// `mt-auto` footer note a design pins to the bottom of a card whose height is
+// set by a taller sibling. 'stretch' would inflate the note; 'top' would float
+// it directly under the content with all the slack below it.
 export const resolveCardsPackMode = ({ cardsVerticalAlign, layoutModelV2 }) =>
+    cardsVerticalAlign === 'center' ? 'center' :
+    cardsVerticalAlign === 'bottom' ? 'bottom' :
     layoutModelV2
         ? (cardsVerticalAlign === 'stretch' ? 'stretch' : 'top')
         : (cardsVerticalAlign === 'top' ? 'top' : 'stretch');
@@ -42,7 +52,8 @@ export const resolveCardsPackMode = ({ cardsVerticalAlign, layoutModelV2 }) =>
 // Outer cards grid (records spread across the section).
 export function resolveCardsGridStyle({ display = {}, imageTopMargin, layoutModelV2 }) {
     const { cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign } = display;
-    const packCardsTop = resolveCardsPackMode({ cardsVerticalAlign, layoutModelV2 }) === 'top';
+    const packMode = resolveCardsPackMode({ cardsVerticalAlign, layoutModelV2 });
+    const packCardsTop = packMode === 'top';
     return {
         display: 'grid',
         gridTemplateColumns: `repeat(${cardsGridSize || 1}, minmax(0, 1fr))`,
@@ -59,8 +70,10 @@ export function resolveCardsGridStyle({ display = {}, imageTopMargin, layoutMode
         // `minmax(max-content,1fr)` resolves to max-content, so nothing changes.
         flex: '1 1 auto',
         minHeight: 0,
-        gridAutoRows: packCardsTop ? 'max-content' : 'minmax(max-content, 1fr)',
-        ...(packCardsTop ? { alignContent: 'start' } : {}),
+        gridAutoRows: packMode === 'stretch' ? 'minmax(max-content, 1fr)' : 'max-content',
+        ...(packCardsTop ? { alignContent: 'start' } :
+            packMode === 'center' ? { alignContent: 'center' } :
+            packMode === 'bottom' ? { alignContent: 'end' } : {}),
     };
 }
 
@@ -114,6 +127,11 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
     // the bottom of a `height:'fill'` card that sits beside a taller sibling.
     // Default (unset/'top') keeps the legacy top-packed, content-height rows.
     const stretchCells = cellsVerticalAlign === 'stretch';
+    // 'center' = content-height rows sitting in the middle of the card box (the
+    // cells equivalent of the cards grid's 'center'); 'bottom' pins them to its
+    // floor (the cells equivalent of 'bottom' above).
+    const centerCells = cellsVerticalAlign === 'center';
+    const bottomCells = cellsVerticalAlign === 'bottom';
     return {
         display: 'grid',
         gridTemplateColumns,
@@ -129,7 +147,7 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
         // Pack cells to the top: when the card box is taller than its cells,
         // keep content top-aligned with the slack at the bottom (no slack →
         // identical to stretch). `stretch` opts out — rows fill instead.
-        ...(stretchCells ? {} : { alignContent: 'start' }),
+        ...(stretchCells ? {} : { alignContent: centerCells ? 'center' : bottomCells ? 'end' : 'start' }),
         ...(cellsRowHeight ? { gridAutoRows: `${cellsRowHeight}px` } :
             stretchCells ? { gridAutoRows: 'minmax(max-content, 1fr)' } :
             hasRowSpan ? { gridAutoRows: 'minmax(0, auto)' } : {}),

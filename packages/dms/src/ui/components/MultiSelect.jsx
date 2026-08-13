@@ -363,7 +363,11 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                             ) : null
                         }
                         <span className={t.caretWrapper}>
-                            <Icon icon={'ArrowDown'} className={t.caretIcon} />
+                            {/* The caret's icon NAME is themeable (`caretIconName`), like the
+                                clear ×'s `removeIconName` — a brand whose selects draw a
+                                chevron shouldn't need a component change to get one.
+                                Defaults to the historical ArrowDown. */}
+                            <Icon icon={t.caretIconName || 'ArrowDown'} className={t.caretIcon} />
                         </span>
                     </div>
             }

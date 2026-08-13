@@ -486,6 +486,7 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 - `cellsPadding` defaults to undefined → v1: cells fall through to the theme's class gutter (`headerValueWrapper` `p-2`); v2: the theme's `cellGutter` is applied inline.
 - **(v1 only)** Every cell renders `border border-transparent` when not hovered and not in `cellBorder` mode — **+2px on every cell's bounding box**, so `cellsPadding: 0` never yields a fully flush layout. v2 drops this (edit hover is an outline).
 - **(v1 only) The cards grid fills its box by default** (`gridAutoRows: minmax(max-content, 1fr)`): any card that's shorter than its section box — `height:'fill'`, or a section stretched by a taller `rowspan` sibling — gets the slack distributed *between its rows*. Lists want `cardsVerticalAlign: 'top'`. v2 packs by default (`'stretch'` opts back in).
+- **Where the slack goes when a card is shorter than its box** — the four `cardsVerticalAlign` values are the whole vocabulary, and only one of them is ever what a design means: `'top'` puts the slack below the content, `'bottom'` puts it above (the design's `mt-auto` footer note — a tinted "needs attention" strip pinned to a card's floor), `'center'` splits it (a short label card fused beside taller controls), `'stretch'` pours it *into the rows* so the content itself grows. Reach for `'stretch'` only when the card's own frame must reach the bottom; on a bordered/tinted block it inflates the block. `cellsVerticalAlign` takes the same values one level in (cell rows within the card box).
 - `headerValueLayout: 'row'` is the default — header sits *inline left of* value with a `headerWidth`/`valueWidth` split (default 50/50). The split applies only when BOTH header and value render; a `hideHeader` cell gives the value the full width (guarded by `resolveHeaderValueWidths` + tests). Set `headerValueLayout: 'col'` on the section when cells are hidden-header or composite.
 - **A column with no `type` is NOT editable — even with `allowEditInView`.** `Card.jsx` picks the cell renderer as `ColumnTypes[attribute.type]?.[editMode ? 'EditComp' : 'ViewComp'] || DefaultComp`. An undefined `type` misses the registry and falls to `DefaultComp` — a plain read-only `<div>` (`{value}`) with no edit branch — so it renders fine in view and silently refuses to edit. To make a cell editable, give it an explicit editable columnType: `text` (single-line `<input>`), `textarea` (multi-line box — use for prose/multi-paragraph), `status_pill`/`select` (dropdown), etc. `text` vs `textarea` differ *only* in the editor widget, so a "value shows but won't edit" bug is almost always a missing/wrong `type`, not an `allowEditInView` problem.
 
@@ -767,7 +768,7 @@ theme.dataCard.cellGutter  → (v2) the ONE ambient cell gutter, inline, overrid
 display.cardsGridSize      → outer columns of records
 display.cardsGridGap       → outer gap (v2 / pack-to-top: exactly the space between cards)
 display.cardsGridPadding   → padding on the OUTER cards grid (the list's inset)
-display.cardsVerticalAlign → 'top' | 'stretch' (unset = model default: v1 fill, v2 pack)
+display.cardsVerticalAlign → 'top' | 'center' | 'bottom' | 'stretch' (unset = model default: v1 fill, v2 pack)
 display.cardsPadding       → padding *inside the per-card surface* (legacy name)
 display.cardsBgColor       → per-card background (overrides theme)
 display.cardBorder         → toggle theme.cardBorder
@@ -775,6 +776,7 @@ display.cellsGridSize      → inner columns of cells inside one card
 display.cellsGridGap       → inner gap (cellsRowGap / cellsColumnGap per axis)
 display.cellsRowHeight     → fixed pixel row height for cells
 display.cellsPadding       → padding on each cell wrapper (0 is a value and wins)
+display.cellsVerticalAlign → 'center' | 'bottom' | 'stretch' (unset = pack cell rows to the top)
 display.cellBorder         → toggle theme.itemBorder on each cell
 display.cellsTracksTemplate → raw grid-template-columns string (wins over per-column cellWidth)
 

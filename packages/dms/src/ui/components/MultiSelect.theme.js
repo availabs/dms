@@ -49,6 +49,9 @@ export const multiselectTheme = {
             // via `size-5 sm:size-4` and uses zinc stroke for low contrast.
             caretWrapper: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2',
             caretIcon: 'size-5 sm:size-4 stroke-zinc-500 dark:stroke-zinc-400',
+            // Icon NAME (not classes) — a style can swap the glyph, e.g.
+            // 'ChevronDown'. Unset → 'ArrowDown', the historical caret.
+            caretIconName: '',
 
             // Search input inside the open menu. Matches Catalyst Input padding
             // ramp so it feels like an input, not a cramped text field.

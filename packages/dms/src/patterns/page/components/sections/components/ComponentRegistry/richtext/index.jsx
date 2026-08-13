@@ -12,6 +12,15 @@ const isJson = (str)  => {
     return true;
 }
 
+// The rich-text block's own inner padding. `theme.richtext.contentPadding` is the
+// SITE default (historically `p-4`); a section may override it per-instance with
+// `display.contentPadding`, a KEY into `theme.richtext.paddings` — so an author can
+// sit a page title flush with the cards below it (the section's gutter padding
+// already supplies that inset) without the whole site losing its prose padding.
+// Unset → the site default, i.e. byte-identical to before.
+const resolveContentPadding = (theme, key) =>
+    (key && theme?.richtext?.paddings?.[key]) ?? theme?.richtext?.contentPadding ?? 'p-4';
+
 const collabColors = ['#e06c75', '#98c379', '#e5c07b', '#61afef', '#c678dd', '#56b6c2', '#d19a66'];
 function emailToColor(email) {
     let hash = 0;
@@ -43,6 +52,7 @@ export const RichtextEdit = ({value, onChange}) => {
     const isCard = cachedData?.isCard || state?.display?.isCard || '';
     const bgColor = cachedData?.bgColor || state?.display?.bgColor || 'rgba(0,0,0,0)';
     const showToolbar = cachedData?.showToolbar || state?.display?.showToolbar || false;
+    const contentPadding = cachedData?.contentPadding || state?.display?.contentPadding || '';
     const [text, setText] = useState(cachedData?.text || (value?.root ? value : ''));
 
     // Sync state.display changes and text to element-data via onChange
@@ -51,6 +61,7 @@ export const RichtextEdit = ({value, onChange}) => {
             bgColor: state?.display?.bgColor ?? bgColor ?? 'rgba(0,0,0,0)',
             isCard: state?.display?.isCard ?? isCard ?? '',
             showToolbar: state?.display?.showToolbar ?? showToolbar ?? false,
+            contentPadding: state?.display?.contentPadding ?? contentPadding ?? '',
             text
         };
         const currentData = value && isJson(value) ? JSON.parse(value) : {};
@@ -58,13 +69,14 @@ export const RichtextEdit = ({value, onChange}) => {
             bgColor: currentData.bgColor,
             isCard: currentData.isCard,
             showToolbar: currentData.showToolbar,
+            contentPadding: currentData.contentPadding ?? '',
             text: currentData.text
         }
 
         if (!isEqual(newData, oldData)) {
             onChange(JSON.stringify(newData));
         }
-    }, [state?.display?.bgColor, state?.display?.isCard, state?.display?.showToolbar, text]);
+    }, [state?.display?.bgColor, state?.display?.isCard, state?.display?.showToolbar, state?.display?.contentPadding, text]);
 
     // Initialize state.display from saved data on mount
     useEffect(() => {
@@ -80,6 +92,9 @@ export const RichtextEdit = ({value, onChange}) => {
                 if (cachedData.showToolbar !== undefined && !draft.display.showToolbar && cachedData.showToolbar !== draft.display.showToolbar) {
                     draft.display.showToolbar = cachedData.showToolbar;
                 }
+                if (cachedData.contentPadding !== undefined && !draft.display.contentPadding && cachedData.contentPadding !== draft.display.contentPadding) {
+                    draft.display.contentPadding = cachedData.contentPadding;
+                }
             });
         }
     }, []);
@@ -87,7 +102,7 @@ export const RichtextEdit = ({value, onChange}) => {
     return (
         <div className='w-full'>
             <div className='relative'>
-                <div className={`flex ${theme?.richtext?.contentPadding ?? 'p-4'}`}>
+                <div className={`flex ${resolveContentPadding(theme, state?.display?.contentPadding ?? contentPadding)}`}>
                     {isCard === 'Handwritten' && <div className='w-[50px]'> {'<---'} </div>}
                     <div className='flex-1'>
                         <Lexical.EditComp
@@ -135,7 +150,7 @@ export const RichtextView = ({value}) => {
 
 
     return (
-        <div className={`flex ${theme?.richtext?.contentPadding ?? 'p-4'}`}>
+        <div className={`flex ${resolveContentPadding(theme, data?.contentPadding)}`}>
             {['Handwritten', 'Handwritten_1', 'Handwritten_2', 'Handwritten_3'].includes(isCard)  && <div className='pt-2 pr-2'><img src='/themes/mny/handwritten_arrow.svg'/></div>}
             <div className='flex-1'>
             <Lexical.ViewComp

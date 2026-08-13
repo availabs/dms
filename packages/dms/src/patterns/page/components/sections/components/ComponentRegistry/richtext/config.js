@@ -24,6 +24,20 @@ const getStyleOptions = (theme) => {
     ];
 };
 
+/**
+ * Inner-padding options, sourced from `theme.richtext.paddings` so the BRAND owns
+ * the actual values (and a theme that ships none simply offers no override). The
+ * empty value = the site default (`theme.richtext.contentPadding`), which is what
+ * every existing section resolves to.
+ */
+const getPaddingOptions = (theme) => {
+    const paddings = theme?.richtext?.paddings || {};
+    const keys = Object.keys(paddings);
+    if (!keys.length) return [];
+    return [{ label: 'Theme default', value: '' },
+        ...keys.map(k => ({ label: k.charAt(0).toUpperCase() + k.slice(1), value: k }))];
+};
+
 export default {
     name: 'Rich Text',
     EditComp: RichtextEdit,
@@ -54,6 +68,16 @@ export default {
                         state.display.bgColor = 'rgba(0,0,0,0)';
                     }
                 }
+            },
+            {
+                // Per-section inner padding. Lets a page title sit FLUSH with the
+                // cards below it (the section's own gutter padding already supplies
+                // that inset) without changing the site's prose padding.
+                type: 'select',
+                label: 'Padding',
+                key: 'contentPadding',
+                options: getPaddingOptions(theme),
+                displayCdn: () => getPaddingOptions(theme).length > 0
             },
             {
                 type: 'colorpicker',

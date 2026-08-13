@@ -397,6 +397,49 @@
 
 ### patterns/page
 
+- [x] [stacked_bar — key-style legend (`legendLayout: 'rows'`)](./tasks/current/stacked-bar-legend-rows.md) —
+      DONE 2026-08-12. The legend could only be one joined string (`"60 For Sale · 57 …"`), so no
+      theme could reach the entries; a design calling for a swatch/label/count key had nothing to
+      style. `legendLayout: 'rows'` renders one row per segment (reusing the same `fills` resolution
+      as the bar, so a chip can't drift from its segment) with new `legendRows`/`legendItem`/
+      `legendSwatch`/`legendLabel`/`legendValue` keys — the THEME decides stack vs grid. Default
+      unchanged; 213/213.
+- [x] [Rich Text — per-section inner padding (`display.contentPadding`)](./tasks/current/richtext-per-section-content-padding.md) —
+      DONE 2026-08-12. `theme.richtext.contentPadding` was a single site-wide value read straight in
+      `richtext/index.jsx`, so a page-title block could not sit flush with the cards under it (16px
+      inset, measured x=302 vs 286) without flattening every prose section on the site. Now a section
+      may override it with `display.contentPadding`, a KEY into a new brand-owned
+      `theme.richtext.paddings` map, surfaced as a "Padding" select that hides itself when a theme
+      ships no map. Unset resolves to exactly the old value, and the element-data mirror normalizes to
+      `''` so no existing section gets a spurious write. 213/213 tests.
+- [x] [Filter bar — applied (active) state, clear-all in `RenderFilters`, themeable controls](./tasks/current/filter-bar-applied-state-and-controls.md) —
+      DONE 2026-08-12 (landbank scope band). Both filter paths now stamp `data-active` on the
+      condition row so a theme can style an APPLIED filter with `group-data-[active]:` variants (no
+      new theme key, no brand classes in the component); `RenderFilters` gained the `showClearAll`
+      link `ExternalFilters` already had (⚠ collect the page-filter keys BEFORE `setState` — inside
+      the immer recipe they're still empty on the next line and the Reset silently no-ops), with a
+      themeable `clearAllText`; `MultiSelect`'s caret glyph is themeable (`caretIconName`);
+      `theme.input` may now be promoted to `options/styles` (Input resolves the `activeStyle` it
+      already accepted), so a filter design's `controlStyle` styles the text-search box as well as
+      its select triggers; `cardsVerticalAlign`/`cellsVerticalAlign` gained `'center'`. All additive
+      + BC; `cardLayout.test.js` 29/29. Open: empty multi-select renders blank (no `emptyLabel`),
+      and there's no slot for a note inside the filter bar.
+- [x] [Download — exclude value-less chrome columns from the xlsx export](./tasks/current/download-exclude-chrome-columns.md) —
+      DONE 2026-08-13 (landbank table row actions). `triggerDownload` builds the sheet from every
+      `show` column, so a static column that renders an affordance rather than a value (a row-action
+      icon link, a modal trigger) emitted an always-blank column under its header. Now
+      `origin === 'static' && !staticValue` is filtered out; a static column WITH a value is a real
+      constant and still exports. ⚠ Verified by reading the code path, not against a downloaded
+      file — the download control wouldn't fire headless. Worth one manual click.
+- [x] [Card — `'bottom'` vertical alignment (the design's `mt-auto` footer note)](./tasks/current/card-vertical-align-bottom.md) —
+      DONE 2026-08-13 (landbank "Needs attention" inset). A card whose height is set by a taller
+      `rowspan` sibling had no way to pin a footer block to its floor: `'top'` left it under the
+      content with the slack below, `'center'` floated it mid-card, `'stretch'` inflated the block
+      itself. `cardsVerticalAlign`/`cellsVerticalAlign` now also take `'bottom'` → `alignContent:
+      'end'` with content-sized rows, resolved before the v1/v2 branch so it behaves the same on
+      either model. Additive + BC; 215/215 (the two new cases also cover `'center'`, which had
+      none).
+
 - [x] [Reuse buildUdaConfig's filter-tree pipeline for options queries](./tasks/completed/filter-options-reuse-builduda-pipeline.md) —
       DONE 2026-08-06. `useColumnOptions` (server filters + ComplexFilters' own value
       editor) hand-rolled a flat `filterBy` from a curated sibling list instead of going

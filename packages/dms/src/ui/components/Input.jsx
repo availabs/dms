@@ -1,15 +1,19 @@
 import React from 'react'
 import Icon from './Icon'
-import {ThemeContext} from '../useTheme'
+import {ThemeContext, getComponentTheme} from '../useTheme'
 import {inputTheme} from './Input.theme'
 
 // `activeStyle` is a THEMING key (named-style selector) that themed callers (filter controls,
 // column types) pass alongside real input props — destructure it out so it never spreads onto
-// the DOM <input> (React unknown-prop warning). Input doesn't resolve styles[] today; if it
-// grows named styles, wire activeStyle into getComponentTheme here.
+// the DOM <input> (React unknown-prop warning), and resolve it through getComponentTheme so a
+// theme can ship `input` as an options/styles block the same way multiselect does. A flat
+// `input` theme is returned as-is (activeStyle ignored), so this is BC for every theme that
+// hasn't promoted the key. This is what lets a filter's `controlStyle` restyle a TEXT-search
+// filter's box as well as its select triggers — the name is already threaded down through the
+// column type, so no className passthrough is needed.
 export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
-  const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
+  const theme = {...themeFromContext, input: {...inputTheme, ...getComponentTheme(themeFromContext, 'input', activeStyle)}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
       <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
@@ -19,7 +23,7 @@ export default function Input ({ type='text', label, description, value, onChang
 
 export function Textarea ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
-  const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
+  const theme = {...themeFromContext, input: {...inputTheme, ...getComponentTheme(themeFromContext, 'input', activeStyle)}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
       <textarea className={`${theme?.input?.textarea}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>

@@ -498,13 +498,19 @@ const buildControls = (theme) => ({
                     { type: 'input', label: 'Grid Padding', key: 'cardsGridPadding' },
                     // 'Fill height' stretches card rows to the section box (gaps breathe
                     // with the section height); 'Pack to top' keeps rows content-sized so
-                    // the vertical gap is exactly `cardsGridGap`. Model default: v1 themes
-                    // fill, `layoutModel: 'v2'` themes pack — set an explicit value to
-                    // override either way.
+                    // the vertical gap is exactly `cardsGridGap`; 'Center' keeps them
+                    // content-sized and centers the block in the box's spare height (a
+                    // short label card fused beside taller content); 'Pin to bottom' does
+                    // the same against the floor (a footer note under taller content —
+                    // the design's `mt-auto`). Model default: v1 themes fill,
+                    // `layoutModel: 'v2'` themes pack — set an explicit value to override
+                    // either way.
                     { type: 'select', label: 'Vertical Align', key: 'cardsVerticalAlign',
                         options: [
                             { label: 'Model default (v1 fill / v2 pack)', value: undefined },
                             { label: 'Pack to top', value: 'top' },
+                            { label: 'Center', value: 'center' },
+                            { label: 'Pin to bottom', value: 'bottom' },
                             { label: 'Fill height', value: 'stretch' },
                         ],
                     },
@@ -523,11 +529,15 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
                     // 'Fill height' stretches cell rows to the card box (so bordered
                     // cells reach the bottom of a `height:'fill'` card beside a taller
-                    // sibling); 'Pack to top' (default) keeps cells content-sized at the
-                    // top. Mirrors the cards-grid Vertical Align above.
+                    // sibling); 'Center' keeps them content-sized and centers them in the
+                    // card; 'Pin to bottom' keeps them content-sized against its floor;
+                    // 'Pack to top' (default) keeps cells content-sized at the top.
+                    // Mirrors the cards-grid Vertical Align above.
                     { type: 'select', label: 'Vertical Align', key: 'cellsVerticalAlign',
                         options: [
                             { label: 'Pack to top (default)', value: undefined },
+                            { label: 'Center', value: 'center' },
+                            { label: 'Pin to bottom', value: 'bottom' },
                             { label: 'Fill height', value: 'stretch' },
                         ],
                     },
@@ -558,7 +568,17 @@ const buildControls = (theme) => ({
                 }
             },
             { type: 'toggle', label: 'Live Edit', key: 'liveEdit', displayCdn: ({ display }) => display.allowEditInView },
+            // Button wording. All three default to the previous literals, so an
+            // unset section is unchanged; a record editor wants "Save changes",
+            // not "save". (`addItemLabel` was already read by Card.jsx but had no
+            // control, so it was only reachable by editing the data directly.)
+            { type: 'input', inputType: 'text', label: 'Save Button Label', key: 'saveItemLabel',
+                displayCdn: ({ display }) => display.allowEditInView && !display.liveEdit },
+            { type: 'input', inputType: 'text', label: 'Cancel Button Label', key: 'cancelItemLabel',
+                displayCdn: ({ display }) => display.allowEditInView && !display.liveEdit },
             { type: 'toggle', label: 'Allow Add New', key: 'allowAdddNew' },
+            { type: 'input', inputType: 'text', label: 'Add Button Label', key: 'addItemLabel',
+                displayCdn: ({ display }) => display.allowAdddNew },
             { type: 'select', label: 'Add New Behaviour', key: 'addNewBehaviour', displayCdn: ({ display }) => display.allowAdddNew,
                 options: [
                     { label: 'Append Entry', value: 'append' },

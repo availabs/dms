@@ -296,6 +296,53 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
         </Button>
     );
 
+    // A row is ACTIVE when the filter(s) it renders carry a real selection. Published
+    // as `data-active` on the row wrapper (the same convention as the unary toggle
+    // chip's `data-on` in ExternalFilters) so a theme can style the applied state —
+    // row, label and control — with `group-data-[active]:` variants, instead of the
+    // component owning brand classes. Absent (not `false`) when inactive so the
+    // attribute selector simply doesn't match.
+    const rowIsActive = (filterColumn) => (filterColumn.filters || [])
+        .filter(filter => isEdit || filter.type === 'external')
+        .some(filter => Array.isArray(filter.values)
+            ? filter.values.some(v => v !== null && v !== undefined && String(v).length)
+            : filter.values !== null && filter.values !== undefined && String(filter.values).length);
+
+    // Clear-all — opt-in (display.showClearAll), the column-filter twin of
+    // ExternalFilters' clear-all: blank every rendered filter's value in one state
+    // write, then drop all their page filters in a single navigation, so every
+    // subscribing section re-queries once. Label is themeable (`clearAllText`)
+    // because brands name it differently ("Reset" / "Clear all").
+    const showClearAll = state?.display?.showClearAll === true;
+    const clearAllFilters = () => {
+        // Collect the page-filter keys from the CURRENT state, not inside the setState
+        // recipe below — the recipe runs when React processes the update, so anything
+        // it collects is still empty on the next line (which silently made the whole
+        // clear a no-op). Same order as ExternalFilters.clearAllFilters.
+        const removeMap = {};
+        (state.columns || []).forEach(column => {
+            (column.filters || []).forEach(filter => {
+                if (!isEdit && filter.type !== 'external') return;
+                if (filter.usePageFilters) removeMap[filter.searchParamKey || column.name] = true;
+            });
+        });
+        setState(draft => {
+            (draft.columns || []).forEach(column => {
+                (column.filters || []).forEach(filter => {
+                    if (!isEdit && filter.type !== 'external') return;
+                    filter.values = ['filter', 'exclude'].includes(filter.operation) ? [] : [''];
+                });
+            });
+            if (draft.display) draft.display.readyToLoad = true;
+        });
+        if (Object.keys(removeMap).length && typeof updatePageStateFilters === 'function') {
+            const remaining = (pageState?.filters || [])
+                .filter(f => !removeMap[f.searchKey])
+                .map(f => ({ searchKey: f.searchKey, values: f.values }));
+            updatePageStateFilters(remaining, removeMap);
+        }
+    };
+
     if(!open) {
         return (
             <div className={`${theme.filters.filtersWrapper} print:hidden`}>
@@ -309,7 +356,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
             {toggleButton}
             <div className={`${theme.filters.conditionsGrid} ${gridClasses[gridSize]}`}>
                 {filterColumnsToRender.map((filterColumn, i) => (
-                    <div key={i} className={rowClass}>
+                    <div key={i} className={rowClass} data-active={rowIsActive(filterColumn) || undefined}>
                         <div className={labelWrapperClass[placement]}>
                             <span className={theme.filters.filterLabel}>{filterColumn.customName || filterColumn.display_name || filterColumn.name}</span>
                             {/* fixed-size CSS spinner (inherits text color via border-current) instead of
@@ -336,6 +383,15 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                     </div>
                 ))}
             </div>
+            {showClearAll ? (
+                // `activeTokensWrapper` is the shared foot row (an inline filter DESIGN can
+                // theme it `contents` so the link joins the same flex line as the chips).
+                <div className={theme.filters.activeTokensWrapper}>
+                    <span role={'button'} className={theme.filters.clearAll} onClick={clearAllFilters}>
+                        {theme.filters.clearAllText || 'Clear all'}
+                    </span>
+                </div>
+            ) : null}
         </div>
     )
 }

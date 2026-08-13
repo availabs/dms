@@ -111,6 +111,22 @@ describe("cards grid pack mode (vertical rhythm)", () => {
         expect("alignContent" in style).toBe(false);
     });
 
+    it("'center' / 'bottom' keep rows content-sized and place the block in the box's spare height", () => {
+        // Both are model-independent: a footer note pinned with 'bottom' behaves the
+        // same whether the theme style is v1 or v2.
+        for (const layoutModelV2 of [true, false]) {
+            expect(resolveCardsPackMode({ cardsVerticalAlign: "center", layoutModelV2 })).toBe("center");
+            expect(resolveCardsPackMode({ cardsVerticalAlign: "bottom", layoutModelV2 })).toBe("bottom");
+        }
+        const centered = resolveCardsGridStyle({ display: { cardsVerticalAlign: "center" }, layoutModelV2: true });
+        expect(centered.gridAutoRows).toBe("max-content");
+        expect(centered.alignContent).toBe("center");
+
+        const pinned = resolveCardsGridStyle({ display: { cardsVerticalAlign: "bottom" }, layoutModelV2: true });
+        expect(pinned.gridAutoRows).toBe("max-content");
+        expect(pinned.alignContent).toBe("end");
+    });
+
     it("cardsGridPadding: 0 is emitted; unset emits nothing", () => {
         expect(resolveCardsGridStyle({ display: { cardsGridPadding: 0 } }).padding).toBe(0);
         expect("padding" in resolveCardsGridStyle({ display: {} })).toBe(false);
@@ -123,6 +139,15 @@ describe("cells grid", () => {
         expect(style.gap).toBe(8);
         expect(style.rowGap).toBe(0);
         expect("columnGap" in style).toBe(false);
+    });
+
+    it("cellsVerticalAlign places the cell rows; 'stretch' opts out of alignContent entirely", () => {
+        const at = (cellsVerticalAlign) =>
+            resolveCellsGridStyle({ display: { cellsVerticalAlign }, gridTemplateColumns: "1fr" });
+        expect(at(undefined).alignContent).toBe("start");
+        expect(at("center").alignContent).toBe("center");
+        expect(at("bottom").alignContent).toBe("end");
+        expect("alignContent" in at("stretch")).toBe(false);
     });
 
     it("cellsRowHeight wins over the row-span auto rows", () => {

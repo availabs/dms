@@ -19,6 +19,15 @@ export const filterTheme = {
     // Grid wrapper holding the rendered filter / condition rows.
     conditionsGrid: 'grid',
     // Per-row layout, parameterized by display.placement.
+    //
+    // APPLIED (active) STATE: both RenderFilters and ExternalFilters stamp
+    // `data-active` on the row wrapper when that row's filter carries a real
+    // selection (same convention as the unary toggle chip's `data-on` below). There
+    // is no `…InlineActive` key — a theme puts `group` on the row and reaches the
+    // whole row from its own class strings with `group-data-[active]:` variants
+    // (row border/fill AND, from the paired multiselect style, the label + value
+    // color). That keeps brand classes out of the component and lets one style
+    // describe both states. Neutral by default: the library ships no active look.
     conditionRowInline: 'w-full flex flex-row items-center gap-1',
     conditionRowStacked: 'w-full flex flex-col items-center gap-1',
 
@@ -34,13 +43,18 @@ export const filterTheme = {
     toggleTrack: 'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-gray-200 transition-colors group-data-[on]:bg-gray-600',
     toggleKnob: 'inline-block size-4 translate-x-0.5 rounded-full bg-white shadow transition-transform group-data-[on]:translate-x-4',
 
-    // Active-filter TOKENS + clear-all (ExternalFilters, opt-in via
-    // display.showActiveTokens / display.showClearAll). Removable chip per
-    // external filter that carries a selected value; ✕ clears that filter.
+    // Active-filter TOKENS + clear-all (opt-in via display.showActiveTokens /
+    // display.showClearAll). Removable chip per external filter that carries a
+    // selected value; ✕ clears that filter. Tokens are ExternalFilters-only;
+    // clear-all is rendered by BOTH filter paths (RenderFilters clears the
+    // column-level filters, ExternalFilters the filter-tree leaves).
     activeTokensWrapper: 'w-full flex flex-row flex-wrap items-center gap-1 pt-2',
     activeToken: 'inline-flex items-center gap-1 px-2 py-0.5 text-xs rounded-full bg-gray-100 text-gray-700',
     activeTokenRemove: 'cursor-pointer opacity-60 hover:opacity-100 size-3',
     clearAll: 'text-xs text-gray-500 hover:text-gray-700 underline cursor-pointer ml-auto',
+    // The clear-all LABEL (text, not classes) — brands name it differently
+    // ("Reset" on a scope bar, "Clear all" in a panel). Unset → 'Clear all'.
+    clearAllText: '',
 
     // RenderFilterValueSelector — edit-mode value editor for each filter row.
     filterRowWrapper: 'p-1 relative text-xs',

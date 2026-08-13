@@ -22,6 +22,11 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //                Array order = bar left→right = legend order.
 //   showLegend : false → bar only (default true: counts line under the bar, zeros
 //                included so the categories read stably as the data moves).
+//   legendLayout : 'text' (default) → the one-line "3 proposed · 0 design · …"
+//                string. 'rows' → one ROW per segment (colour swatch · label ·
+//                count), themed via legendRows/legendItem/legendSwatch/legendLabel/
+//                legendValue — the theme decides whether those rows stack or sit in
+//                a multi-column grid, so a key-style legend needs no code here.
 //   emptyText  : shown in place of the all-zero legend when the total is 0 (e.g.
 //                "no tickets yet"); the bar renders as a bare track.
 const stackedBarDefault = {
@@ -30,6 +35,12 @@ const stackedBarDefault = {
   segment: "h-full shrink-0",
   legend: "pt-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-slate-400 tabular-nums",
   empty: "pt-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-slate-400",
+  // `legendLayout: 'rows'` keys. legendRows falls back to `legend` so a theme that
+  // only styles the text legend still renders sane rows.
+  legendItem: "flex items-center gap-2",
+  legendSwatch: "size-2.5 rounded-sm shrink-0",
+  legendLabel: "flex-1 truncate",
+  legendValue: "tabular-nums",
   // key → segment colour class for non-literal `color` values. Site themes override
   // these (and may add keys).
   fills: { primary: "bg-blue-700", muted: "bg-slate-400" },
@@ -40,7 +51,7 @@ const stackedBarDefault = {
 const num = (x) => parseFloat(String(x?.value ?? x ?? "").replace(/,/g, ""));
 const isLiteralColor = (c) => /^(#|rgb|hsl)/i.test(c || "");
 
-export const StackedBarView = ({ segments, showLegend = true, emptyText, row }) => {
+export const StackedBarView = ({ segments, showLegend = true, legendLayout = 'text', emptyText, row }) => {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
   const t = { ...stackedBarDefault, ...getComponentTheme(themeFromContext, "stackedBar") };
   const fills = t.fills || {};
@@ -71,7 +82,25 @@ export const StackedBarView = ({ segments, showLegend = true, emptyText, row }) 
       {showLegend ? (
         total === 0 && emptyText
           ? <div className={t.empty}>{emptyText}</div>
-          : <div className={t.legend}>{segs.map((s) => `${s.n} ${s.label ?? s.col}`).join("  ·  ")}</div>
+          : legendLayout === 'rows'
+            ? (
+              <div className={t.legendRows || t.legend}>
+                {segs.map((s, i) => {
+                  const literal = isLiteralColor(s.color);
+                  return (
+                    <div key={i} className={t.legendItem}>
+                      <span
+                        className={`${t.legendSwatch} ${literal ? "" : fills[s.color] || fills.primary || ""}`}
+                        style={literal ? { background: s.color } : undefined}
+                      />
+                      <span className={t.legendLabel}>{s.label ?? s.col}</span>
+                      <span className={t.legendValue}>{s.n}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )
+            : <div className={t.legend}>{segs.map((s) => `${s.n} ${s.label ?? s.col}`).join("  ·  ")}</div>
       ) : null}
     </div>
   );

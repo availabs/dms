@@ -912,6 +912,42 @@ ask "does this look right out of the box?" Don't leave a key
 inherited from the codebase default unless you've verified it
 matches your brand.**
 
+#### Band padding double-counts with section gutters — ship an ADMIN band pair
+
+A `layoutGroup` band's vertical padding and a section's gutter padding
+(`pages.sectionArray.paddings`) both apply, and they stack. A public
+`content` band's `py-12` is right for a marketing page, where a band is a
+full-bleed section with air around it. On a **staff console** page —
+where the bands are just rows of cards and the console chrome is already
+the frame — that same 48px lands on top of every section's 12px gutter
+and pushes each band ~50px from its neighbour, three to four times the
+mockup's gap.
+
+So a brand that ships admin pages wants a **pair** of tight bands, not a
+reused `content`:
+
+```js
+{ name: 'admin_header',  wrapper1: 'w-full lb-paper pt-6' },  // = the mockup's <main class="py-6">
+{ name: 'admin_content', wrapper1: 'w-full lb-paper pb-6' },  // NO top padding — the gutters own the rhythm
+```
+
+Measure before attributing the space: on the landbank dashboard the
+header→next-band gap was **74px vs the mockup's 24px**, and it came from
+*four* different boxes (the `content` band's `py-12`, `admin_header`'s
+`pt-8` vs `pt-6`, the rich-text block's own `p-4`, and a trailing `mb-4`
+under the block's last line). Only one of them was the band. Two more
+lessons from that pass, both theme-side and both reusable:
+
+- **`last:mb-0` on `lexical`'s `paragraph` + `heading_h*`.** A block's
+  bottom margin is spacing *between* blocks; on the last one it is dead
+  space inside the section and reads as the section being over-padded.
+- **A console's page title is usually a step below the public hero.** If
+  `h1 → displayHero` (54px) is right for the public site but the admin
+  mockup draws 38px, ship a sparse **named `lexical` style** (e.g.
+  `admin_title` with `heading_h1: displayXL`) instead of demoting the
+  markup to `h2` — it's selectable from the Rich Text section's existing
+  "Style" dropdown and keeps the semantic `<h1>`.
+
 ### 3.1.56 Edit-mode chrome — the load-bearing structure for hover + add-section
 
 `pages.sectionArray.styles[0]` carries eleven keys that together make
@@ -1279,7 +1315,50 @@ filters: {
 `settingPillsWrapper`, `settingPill`, `settingLabel`, `filtersWrapper`,
 `toggleButton`, `toggleIcon` (set the last two to `"hidden"` to suppress
 the round Filter toggle pill, or set the section's
-`display.hideExternalToggle: true`).
+`display.hideExternalToggle: true`), plus the clear-all row
+(`activeTokensWrapper`, `clearAll`, `clearAllText`) and the
+active-token keys (`activeToken`, `activeTokenRemove`).
+
+**The APPLIED (active) state is a data attribute, not a theme key.** Both
+`RenderFilters` and `ExternalFilters` stamp **`data-active`** on the
+condition-row wrapper when that row's filter carries a real selection
+(absent when it doesn't). There is deliberately no `conditionRowInlineActive`:
+put **`group`** in `conditionRowInline` and describe both states from the
+same class strings —
+
+```js
+conditionRowInline: `group inline-flex items-center gap-1.5 h-9 pl-3 pr-1.5 rounded-md
+  border border-[#16232C]/15 bg-white
+  data-[active]:border-[#0A6E99]/40 data-[active]:bg-[#0AA7E4]/[0.07]`,
+filterLabel: `text-[13px] text-[#8CA0AB] after:content-[':']
+  group-data-[active]:text-[#0A6E99] group-data-[active]:font-semibold`,
+```
+
+…and reach the value + caret the same way from the paired `multiselect`
+style (`singleValue`/`tokenWrapper`/`caretIcon` with
+`group-data-[active]:…`). Same convention as the unary toggle chip's
+`data-on`. Worked example: `src/themes/landbank/theme.js` → `filters`
+style **`scope_bar`** + `multiselect`/`input` style **`filter_trigger`**.
+
+**Two adjacent keys that make a chip bar possible:**
+
+- `theme.multiselect.<style>.caretIconName` — the caret's icon NAME
+  (e.g. `'ChevronDown'`); `caretIcon` is only its classes. Unset →
+  `ArrowDown`.
+- **`theme.input` may be promoted to `options/styles` too.** `Input`
+  resolves `getComponentTheme(theme,'input',activeStyle)`, and a filter
+  design's `controlStyle` is passed to the value control as `activeStyle`
+  — so a `like` (text-search) filter's box adopts the *same named style*
+  as the select triggers. Ship an `input` style with the filter design's
+  name (frameless, `min-w-[9rem]` so it doesn't collapse inside a `w-fit`
+  chip) and the search filter reads as the same chip. An unknown name
+  falls back to `styles[0]`, and a flat `input` theme is returned as-is,
+  so promoting is safe.
+
+**Reset link:** set the section's `display.showClearAll` (toolbar
+toggle "Clear all"), name it in the style with `clearAllText: 'Reset'`,
+and — for an inline design — theme `activeTokensWrapper: 'contents'` so
+the link joins the chips' flex line instead of sitting in a row below.
 
 ### 3.1.57 Leading-zero opacity classes are invalid in Tailwind v4
 

@@ -852,8 +852,11 @@ const RenderItem = memo(function RenderItem ({
             {
                 isFormLikeEditMode && !controls?.clickSaveActive ? (
                     <div className={theme.formEditButtonsWrapper}>
-                        <Button activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
-                        <Button onClick={() => setTmpItem(item)}>cancel</Button>
+                        {/* Labels are author-facing for the same reason `addItemLabel` is:
+                            a record editor says "Save changes", not "save". Defaults are
+                            the previous literals, so existing sections are unchanged. */}
+                        <Button activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>{display?.saveItemLabel || 'save'}</Button>
+                        <Button onClick={() => setTmpItem(item)}>{display?.cancelItemLabel || 'cancel'}</Button>
                     </div>
                 ) : null
             }

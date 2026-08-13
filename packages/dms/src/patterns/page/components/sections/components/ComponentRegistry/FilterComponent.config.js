@@ -21,6 +21,10 @@ const buildControls = (theme) => ({
             options: buildFilterStyleOptions(theme) },
         { type: 'select', label: 'Placement (override)', key: 'placement',
             options: [{ label: '(style default)', value: '' }, { label: 'stacked', value: 'stacked' }, { label: 'inline', value: 'inline' }] },
+        // Reset / clear-all link (both filter paths honour it — see
+        // display.showClearAll in RenderFilters / ExternalFilters). Its label comes
+        // from the filter style (`clearAllText`), so a brand can call it "Reset".
+        { type: 'toggle', label: 'Clear all', key: 'showClearAll' },
         { type: 'toggle', label: 'Attribution', key: 'showAttribution' },
     ],
 });

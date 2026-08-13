@@ -210,8 +210,12 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                     const column = columns.find(c => c.name === node.col);
                     const label = node.displayName || (column ? getColumnLabel(column) : node.col);
 
+                    // `data-active` = this leaf carries a selection (unary leaves report via
+                    // their own `data-on` toggle). Lets a theme style the applied state with
+                    // `group-data-[active]:` variants — see RenderFilters.theme.js.
                     return (
-                        <div key={path.join('.')} className={rowClass}>
+                        <div key={path.join('.')} className={rowClass}
+                             data-active={leafHasValue(node) || undefined}>
                             <div className={labelWrapperClass[placement]}>
                                 <span className={theme.filters.filterLabel}>{label}</span>
                             </div>
@@ -264,7 +268,9 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                         })
                         : null}
                     {showClearAll ? (
-                        <span role={'button'} className={theme.filters.clearAll} onClick={clearAllFilters}>Clear all</span>
+                        <span role={'button'} className={theme.filters.clearAll} onClick={clearAllFilters}>
+                            {theme.filters.clearAllText || 'Clear all'}
+                        </span>
                     ) : null}
                 </div>
             ) : null}

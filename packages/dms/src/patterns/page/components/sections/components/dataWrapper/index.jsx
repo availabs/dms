@@ -45,6 +45,12 @@ const DOWNLOAD_CHUNK_SIZE = 5000;
 // Filter these out of the download column list to avoid duplicates.
 const isDisaggregatingCol = c => typeof c.name === 'string' && c.name.includes('jsonb_array_elements_text');
 
+// Chrome columns — a static column carrying no `staticValue` — render an affordance
+// rather than a value (a row-action icon link, a trigger cell). They have no data by
+// construction, so exporting them can only ever emit a blank column under a header.
+// A static column WITH a value is a real constant and still exports.
+const isValuelessChromeCol = c => c.origin === 'static' && !c.staticValue;
+
 const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoading}) => {
     setLoading(true);
     const needAllCols = loadAllColumns || withId;
@@ -53,9 +59,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoadi
             ...state?.columns,
             ...(state?.externalSource?.columns || []).filter(col => !state?.columns.find(c => c.name === col.name))
           ]
-            .filter(c => !isDisaggregatingCol(c))
+            .filter(c => !isDisaggregatingCol(c) && !isValuelessChromeCol(c))
             .map(c => ({...c, show: true}))
-        : state?.columns?.filter(c => !isDisaggregatingCol(c));
+        : state?.columns?.filter(c => !isDisaggregatingCol(c) && !isValuelessChromeCol(c));
 
     if (withId && !cols.some(c => c.name === 'id')) {
         cols = [{ name: 'id', display_name: 'id', show: true, systemCol: true }, ...cols];
