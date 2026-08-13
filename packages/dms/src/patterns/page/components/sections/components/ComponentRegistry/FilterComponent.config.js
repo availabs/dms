@@ -14,7 +14,7 @@ const buildFilterStyleOptions = (theme) => {
 // controls is a function of the merged theme (same contract as Card.config) so
 // the Filter-style options can be sourced from the live theme.
 const buildControls = (theme) => ({
-    columns: [],
+    // columns: [],
     more: [
         { type: 'input', inputType: 'number', label: 'Grid Size', key: 'gridSize', min: 1, max: 5 },
         { type: 'select', label: 'Filter style', key: 'filterStyle',

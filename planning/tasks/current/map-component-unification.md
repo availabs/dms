@@ -2,6 +2,146 @@
 
 ## Status: P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending) — follow-up to `mapeditor-uda-migration.md`
 
+## 2026-08-07: P5 approach changed — permanent lazy shim, not a one-shot script + delete
+
+Owner instruction: follow the same pattern just used to retire the legacy Graph component
+(`migrate-legacy-graph-to-graph-new.md`) instead of the "one-shot migration script + hard delete"
+originally planned below. Concretely, this **replaces** the P5 plan in this doc:
+
+- `"Map: Dama Map"` in `ComponentRegistry/index.jsx` now resolves to `Map`'s own `EditComp`/`ViewComp`
+  (spread + `name: 'Map: Dama'` + `hideInSelector: true`), the same shape as `"AVL Graph"`. It is
+  **hidden from the Type picker** but stays resolvable forever — `map_dama/` is NOT deleted, matching
+  `legacy_graph`'s treatment (import commented out, directory kept for reference).
+- New `ComponentRegistry/map/Map.migrate.js` (sibling to `graph_new/Graph.migrate.js`) reshapes a
+  legacy map_dama element-data object into `Map`'s shape **on every read**, idempotently. Unlike
+  Graph, this can't gate on `component.type` (`Map` and `Map: Dama Map` share `type: 'Map'`) or on
+  `compName` (`MapSection` renders directly off the raw section `value` prop and never goes through
+  `dataWrapper`/`convertOldState`, so no compName/compType is even available at the call site).
+  Instead it gates structurally: `basemapStyle` / `legendPosition` / `pluginControlPosition` /
+  `zoomToFitBounds` / `display` are fields `Map` has written on every save since before this
+  unification work and `map_dama` never had — their presence means "already map-shaped" regardless
+  of save age; their total absence alongside a populated `symbologies` object means map_dama-origin
+  data. On migration: top-level `shareableState` moves to `display.shareableState`; `display.layerPanel`
+  defaults to `'library'` (map_dama's `MapManager` was always on-map, so this is the closest
+  equivalent panel) — this part matches the original P5 plan's migration-script mapping below.
+- Persistence: exactly like Graph, viewing alone never writes anything back (`MapSection`'s persist
+  effect is edit-mode-only); the upgraded shape is only saved once an author opens the section in
+  edit mode and saves.
+- Found and fixed one more Map-specific name-gated check the Graph migration didn't have to touch:
+  `sectionMenu.jsx`'s `componentAPI` selector (`['Map'].includes(currentComponent?.name)`) decided
+  whether the section's Settings menu wired up `mapAPI` (the map-specific state handle) or fell back
+  to `dwAPI` (which Map/MapDama never populate, since neither uses `dataWrapper`) — without adding
+  `'Map: Dama'` to that array, every migrated section's entire Settings panel (Symbologies, Filters,
+  Display) would have silently gone dead. Swept the rest of `sectionMenu.jsx`/`section.jsx` for other
+  `currentComponent?.name`-gated checks the same way the Graph task did; no other Map-specific ones
+  found (the `Graph`/`AVL Graph` array checks are unrelated to Map).
+- **Feature-parity audit result (2026-08-07, mitigat-ny-prod, near-exhaustive: 2159/2167 pages
+  read, 33 page-bearing patterns, 8 pages blocked by a pre-existing unrelated server 500)**: 28
+  live `Map: Dama Map` sections found across 12 pages / 4 patterns.
+  - **Filter-group selector, view-group selector, dynamic-filter checkbox popup: 0 usages each.**
+    Not ported. `Map.migrate.js` does not touch/strip these layer fields either way — they pass
+    through in the saved `symbologies` object untouched — so if a future consumer needs them the
+    data is intact; only the authoring/runtime UI (`LayerLibraryPanel`, settings) doesn't expose
+    them yet, same as the pre-existing "deferred, no current consumer" status these already had.
+  - **Per-tab icon: 1 page uses it** (`putnamcsc_admin` pattern, page 1626087 `scenario_tools`,
+    tabs "Parcel Maps"/"Hazard Layers" — `fad fa-map` / `fad fa-traffic-cone`). Also not ported:
+    `tabs[].icon` is likewise passed through untouched by the migration (no data loss), and the
+    approved Layer Library panel design (`dms_design_system_v2/pages/freight-atlas-map.html`,
+    locked per this doc's own scope caps) has no icon slot in its category-accordion headers —
+    adding one would mean deviating from the approved mockup for a single page's cosmetic detail.
+    If that page's icons matter to its owner, it's a 1-page, low-effort follow-up, not a blocker.
+  - **Known blind spots**: 8 pages across 4 patterns (`county_template2_copy`,
+    `county_data_site`×2, `shmpcopy`) return a pre-existing, unrelated 500
+    (`Cannot read properties of null (reading 'from')`) and couldn't be read at all — whatever
+    they contain is unaudited. Neither blind spot changes the ship decision, since the shim is
+    structural and permanent (no hard delete, no one-shot rewrite) — any section in an unaudited
+    app upgrades identically the first time it's rendered, regardless of when someone gets around
+    to auditing that app.
+  - **2026-08-10: full exhaustive audit extended to `npmrdsv5` (dev2)** — the earlier "spot-checked
+    1 page, tab-icon-only" note was based on a single sandbox page and undersold real usage.
+    Audited all 13 page patterns / 142 listed pages (131 readable with an admin token; 11 are
+    individually access-gated and excluded) via the DMS CLI against `dmsserver.availabs.org` —
+    **8 pages / 18 `Map: Dama Map` sections found** across `sandbox`, `freightatlas2`, and
+    `transit` patterns:
+    - `filterGroupEnabled`: 0/224 layers true — no real usage, consistent with mitigat-ny-prod.
+    - `viewGroupEnabled`: **2/224 layers show `true`** (sandbox page "NPMRDS Shapefile", id
+      2063932) — but `viewGroup`/`viewGroupName` are both `undefined` on both, i.e. the toggle
+      was flipped with no group ever configured, so there is nothing to switch between. Inert in
+      practice; still 0 *functional* view-group usage.
+    - `dynamic-filter-display`: 0/224 layers — no usage, consistent with mitigat-ny-prod.
+    - **Tab icons: 3 of 8 pages** (not 1) — `page_1423066` (Freight Atlas 2 Figures, sandbox),
+      `page_1423075` (BILD, sandbox), and, materially, **`page_1411761` — "Freight Atlas"**,
+      `published`, live at the `freightatlas2` pattern's `/freight_atlas` route — 7 tabs, each
+      with a real icon (`fad fa-map`, `fa-industry-alt`, `fa-ship`, `fa-subway`, `fa-road`,
+      `fa-layer-group`, `fa-truck`). Corrects the earlier "1-page, low-effort" framing: this is a
+      live production page, not a demo. Icons still aren't stripped by the migration (`tabs[].icon`
+      passes through byte-identical, verified below) so no data is lost, but they won't render
+      anywhere until `LayerLibraryPanel` gets an icon slot — a real, visible (if cosmetic) gap on
+      a live page, not just a deferred non-issue.
+    - **`shareableState: true` found on a live section** — same page 1411761, section `2190241`
+      (the second of its two map_dama sections). This is the exact case `deriveMapShareVariables`'s
+      element-type gate (fixed earlier this session, `pages/_utils/index.js`) needed to handle:
+      confirmed the *unfixed* gate (`=== 'map'`) would NOT have matched `'Map: Dama Map'` for this
+      section, and the fix does. Without that fix, this live page's shareable-map-link (`?layers=`
+      URL state) would have silently stopped auto-registering as a page variable post-migration.
+      This turns that fix from precautionary to load-bearing for a real, currently-published page.
+    - Verified `Map.migrate.js` against all 18 real sections: 0 mismatches — idempotent,
+      `symbologies`/`tabs` byte-identical, `blankBaseMap` logic correct (all 18 had it explicit,
+      already `false`, none needed the new true-default; verified anyway).
+  - **Wider sweep, 2026-08-10**: also exhaustively checked every other app reachable without
+    special auth — `avail` (46 pages), `wcdb` (10 pages), `tessera` (2 pages), `asm`/`b3nson`
+    (15 pages) — **zero `Map: Dama Map` sections** in any of them (real page dumps, not just
+    pattern listings). `landbank` was skipped at the user's instruction.
+  - Verified `Map.migrate.js` against all 28 real production `element-data` payloads pulled during
+    the audit (`scratchpad/mitigat-ny-prod/raw_hits/`): every one lacks `display`/`basemapStyle`
+    (confirming the structural detection is safe across the whole live population, not just the
+    one hand-picked sample), migrates to the expected `display: {shareableState, layerPanel:
+    'library'}` shape, is idempotent on a second pass, and leaves `symbologies`/`tabs` (icons
+    included) byte-identical. A synthetic already-migrated/genuine-`Map` sample and an
+    empty/new-component sample both pass through untouched, confirming the gate doesn't
+    misfire on non-map_dama data.
+
+- **2026-08-10: `blankBaseMap` default change.** Migrated sections that never had an explicit
+  `blankBaseMap` saved now come in with it defaulted to `true` (blank basemap on), rather than the
+  general `false` default `Map`/`MapDama` both used at render time. Sections that *do* have an
+  explicit value (true or false — the author toggled it and saved) keep that value unchanged.
+  Verified against all 28 real production payloads: 22/28 had an explicit value (both true and
+  false present) and are preserved byte-identical; the remaining 6 now default to `true`. Zero
+  mismatches.
+
+- **2026-08-10: filters/legend audit.** Checked every filter mechanism + legend settings for
+  migration safety:
+  - **Dynamic filters** (page filter ↔ layer filter, matched by `searchParamKey` falling back to
+    `column_name`) and **interactive filters** (`interactive-filters`/`selectedInteractiveFilterIndex`)
+    use byte-identical field names/shapes in `map_dama` and `map` — confirmed via grep across both
+    trees. Both pass through `Map.migrate.js` untouched (it never touches `symbologies`), so this
+    data carries over correctly. Dynamic-filter page-binding doesn't depend on element-type at all
+    (`map/index.jsx`'s `usePageFilters` gate fires on `dynamic-filters.length` alone), so it works
+    for migrated sections with zero further changes needed.
+  - **Found and fixed a real bug**: `pages/_utils/index.js`'s `deriveMapShareVariables` (which
+    auto-registers a shareable map's `layers`/searchParamKey vars as page filters) gated on the
+    literal stored `element-type === 'map'`. Migrated sections keep `element-type: "Map: Dama Map"`
+    forever — editing+saving does NOT rewrite it (only explicitly re-picking a Type does, and the
+    alias is `hideInSelector` so that's not possible) — so this check would permanently fail for
+    every migrated section. `map_dama` never had a UI to set `shareableState` (dead field, 0/28 live
+    sections have it set), so there's no live regression today, but the first author to enable
+    "shareable" on a migrated section via Map's now-exposed settings would hit this silently. Fixed
+    by widening the check to `['map', 'map: dama map'].includes(...)`, same pattern as the
+    `sectionMenu.jsx` fix. Swept the rest of `patterns/page/` for other `element-type === 'map'`
+    string gates — none found.
+  - **Legend**: per-layer legend data (`legend-data`, `legend-orientation`) lives inside
+    `symbology.layers[id]` and is untouched by migration — carries over exactly. The panel-position
+    concept (`legendPosition`, e.g. `top-right`) is new in `Map`; `map_dama`'s legend was always
+    rendered flex-right-aligned near the top (`MapDamaEdit`/`View`'s `absolute inset-0 flex` wrapper,
+    `map_dama/index.jsx:277-281`), which visually matches `Map`'s `top-right` default — so defaulting
+    migrated sections to `top-right` is not a placement regression.
+  - `variables: [{name:'geoid', default:'36'}]` on the old `map_dama/config.js` registry entry (lost
+    when the alias inherits `Map`'s `variables: []`) is dead config — confirmed no consumer reads a
+    component config's top-level `variables` field anywhere in `patterns/page/`, and `geoid` doesn't
+    appear anywhere in `map_dama`'s own component code either.
+
+## P5 status: DONE (permanent shim), feature-parity gaps documented above as accepted/deferred
+
 **What shipped 2026-07-10** (verified live on the new Freight Atlas v2 page 2189762, plus
 regression shots of the old map_dama page + tsmo2/npmrds — all unchanged):
 - `map/LayerLibraryPanel/LayerLibraryPanel.jsx` — the approved workbench panel (header + on-count ·

@@ -473,7 +473,14 @@ export const deriveMapShareVariables = (item) => {
     sections.forEach(section => {
         const el = section?.element || section?.data?.element || {};
         // element-type is registered as "Map" (capital); match case-insensitively.
-        if (String(el['element-type'] || '').toLowerCase() !== 'map') return;
+        // "Map: Dama Map" is the legacy alias key (see ComponentRegistry/index.jsx +
+        // map/Map.migrate.js) — it resolves to the same Map component/settings and
+        // its stored element-type NEVER changes to "Map" (element-type is only
+        // rewritten if an author explicitly re-picks a Type, and the alias is
+        // hideInSelector so that can't happen). Without this, a migrated section
+        // that turns on `display.shareableState` would silently never get its
+        // `layers`/searchParamKey page variables auto-registered.
+        if (!['map', 'map: dama map'].includes(String(el['element-type'] || '').toLowerCase())) return;
         const cfg = parseIfJSON(el['element-data'], {});
         if (!cfg?.display?.shareableState) return;
         hasShareableMap = true;

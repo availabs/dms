@@ -41,6 +41,9 @@ export function InsertButtonDialog({
     keepSearchParams: boolean;
     path: string;
     style: string;
+    actionType?: 'navigate' | 'setParam';
+    paramKey?: string;
+    paramValue?: string;
     nodeKey?: string;
   };
 }): JSX.Element {
@@ -69,11 +72,19 @@ export function InsertButtonDialog({
 
   const defaultStyle = styleOptions[0]?.value || 'default';
 
+  const actionTypeOptions = [
+    { label: 'Navigate', value: 'navigate' },
+    { label: 'Set Page Param', value: 'setParam' },
+  ];
+
   const hasModifier = useRef(false);
   const [linkText, setLinkText] = useState(initialValues?.linkText || 'submit');
   const [keepSearchParams, setKeepSearchParams] = useState(initialValues?.keepSearchParams || false);
   const [path, setPath] = useState(initialValues?.path || '#');
   const [style, setStyle] = useState(initialValues?.style || defaultStyle);
+  const [actionType, setActionType] = useState(initialValues?.actionType || 'navigate');
+  const [paramKey, setParamKey] = useState(initialValues?.paramKey || '');
+  const [paramValue, setParamValue] = useState(initialValues?.paramValue || '');
 
   useEffect(() => {
     hasModifier.current = false;
@@ -87,10 +98,10 @@ export function InsertButtonDialog({
   }, [activeEditor]);
 
   const handleOnClick = () => {
-    const payload = {linkText, keepSearchParams, path, style};
+    const payload = {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue};
     activeEditor.update(() => {
       if (initialValues?.nodeKey) {
-        const newNode = $createButtonNode({linkText, keepSearchParams, path, style});
+        const newNode = $createButtonNode(payload);
         const oldNode = $getNodeByKey(initialValues.nodeKey);
         if ($isButtonNode(oldNode)) {
           oldNode.replace(newNode);
@@ -102,7 +113,12 @@ export function InsertButtonDialog({
     onClose();
   };
 
-  const isDisabled = React.useMemo(() => linkText?.length === 0 || path?.length === 0, [linkText,path])
+  const isDisabled = React.useMemo(() => {
+    if (linkText?.length === 0) return true;
+    return actionType === 'setParam'
+      ? paramKey?.length === 0 || paramValue?.length === 0
+      : path?.length === 0;
+  }, [linkText, path, actionType, paramKey, paramValue])
 
   return (
     <div className="flex flex-col gap-4">
@@ -126,22 +142,79 @@ export function InsertButtonDialog({
       </label>
 
       <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">URL</span>
-        {Input ? (
-          <Input
-            value={path}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPath(e.target.value)}
-            placeholder="LinkPath"
+        <span className="text-sm font-medium">Click Action</span>
+        {Select ? (
+          <Select
+            options={actionTypeOptions}
+            value={actionType}
+            onChange={(next: string) => { if (next) setActionType(next); }}
           />
         ) : (
-          <input
-            type="text"
-            value={path}
-            onChange={(e) => setPath(e.target.value)}
-            className="border px-2 py-1"
-          />
+          <select value={actionType} onChange={(e) => setActionType(e.target.value)} className="border px-2 py-1">
+            {actionTypeOptions.map(opt => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
         )}
       </label>
+
+      {actionType === 'navigate' ? (
+        <label className="flex flex-col gap-1.5">
+          <span className="text-sm font-medium">URL</span>
+          {Input ? (
+            <Input
+              value={path}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPath(e.target.value)}
+              placeholder="LinkPath"
+            />
+          ) : (
+            <input
+              type="text"
+              value={path}
+              onChange={(e) => setPath(e.target.value)}
+              className="border px-2 py-1"
+            />
+          )}
+        </label>
+      ) : (
+        <>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Param Key</span>
+            {Input ? (
+              <Input
+                value={paramKey}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParamKey(e.target.value)}
+                placeholder="paramKey"
+              />
+            ) : (
+              <input
+                type="text"
+                value={paramKey}
+                onChange={(e) => setParamKey(e.target.value)}
+                className="border px-2 py-1"
+              />
+            )}
+          </label>
+
+          <label className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium">Param Value</span>
+            {Input ? (
+              <Input
+                value={paramValue}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParamValue(e.target.value)}
+                placeholder="paramValue"
+              />
+            ) : (
+              <input
+                type="text"
+                value={paramValue}
+                onChange={(e) => setParamValue(e.target.value)}
+                className="border px-2 py-1"
+              />
+            )}
+          </label>
+        </>
+      )}
 
       <label className="flex flex-col gap-1.5">
         <span className="text-sm font-medium">Style</span>
@@ -160,21 +233,23 @@ export function InsertButtonDialog({
         )}
       </label>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        {Switch ? (
-          <Switch
-            enabled={keepSearchParams}
-            setEnabled={(checked: boolean) => setKeepSearchParams(checked)}
-          />
-        ) : (
-          <input
-            type="checkbox"
-            checked={keepSearchParams}
-            onChange={(e) => setKeepSearchParams(e.target.checked)}
-          />
-        )}
-        <span className="text-sm">Keep search params</span>
-      </label>
+      {actionType === 'navigate' && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          {Switch ? (
+            <Switch
+              enabled={keepSearchParams}
+              setEnabled={(checked: boolean) => setKeepSearchParams(checked)}
+            />
+          ) : (
+            <input
+              type="checkbox"
+              checked={keepSearchParams}
+              onChange={(e) => setKeepSearchParams(e.target.checked)}
+            />
+          )}
+          <span className="text-sm">Keep search params</span>
+        </label>
+      )}
 
       <DialogActions>
         {Button ? (
