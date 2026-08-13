@@ -131,6 +131,54 @@ Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are requir
 
 If you see "relation `data_manager.sources` does not exist" against a brand-new pgEnv, check that the config has both `"type": "postgres"` and `"role": "dama"` set — `initDama` only runs when `role` resolves to (or contains) `"dama"`.
 
+### Schema migrations belong in init, not in call sites
+
+`initDama` / `initDamaTasks` / `initDamaSchedules` run on every `getDb()` for a
+DAMA pgEnv, so they are the place to reconcile an older database with the
+current schema files. The table-creation block is guarded by `tablesExist` and
+therefore only fires on a fresh database; **idempotent migrations go after that
+guard** so they also reach long-lived databases.
+
+Worked example — `views_etl_ctx_id_fkey`:
+
+`data_manager.views.etl_context_id` historically carried a foreign key into the
+legacy `data_manager.etl_contexts` table. That table is no longer written by
+anything (only `scripts/migrate-dama-tasks.js` reads it, to backfill
+`data_manager.tasks` from it). Task ids now come from `data_manager.tasks`,
+whose id space diverged from `etl_contexts` at the migration boundary — so any
+worker doing the documented thing and passing its `task_id` as
+`etl_context_id` got:
+
+```
+insert or update on table "views" violates foreign key constraint "views_etl_ctx_id_fkey"
+```
+
+`create_dama_core_tables.sql` already declares the column as a plain
+`INTEGER` with no FK, so only pre-migration databases were affected. The fix is
+one idempotent statement in `initDama`:
+
+```sql
+ALTER TABLE data_manager.views DROP CONSTRAINT IF EXISTS views_etl_ctx_id_fkey
+```
+
+**Do not work around a stale schema with defensive code at the call site.** A
+try/catch-and-degrade in `dama/upload/metadata.js` would have hidden the
+mismatch behind per-caller special-case handling and left every other datatype
+plugin to rediscover it. Fix the schema once in init.
+
+Dropping the constraint is a cleanup, not a licence to use the column:
+**`data_manager.views.etl_context_id` is deprecated and nothing should write
+it.** Record the producing task as `metadata.task_id`. Every worker in
+`data-types/` and `dama/upload/workers/` follows this.
+
+Careful — `etl_context_id` names two different things and only the column is
+deprecated:
+
+| Usage | Status |
+|---|---|
+| `data_manager.views.etl_context_id` column | **Deprecated.** Use `metadata.task_id`. |
+| `{ etl_context_id, source_id }` route response, and `GET /events/query?etl_context_id=…` | **Live.** Here `etl_context_id` *is* the new `task_id` — it's the legacy client's polling contract. See `src/dama/CLAUDE.md#Response contract`. |
+
 ### File handling
 
 `*.config.json` files in `src/db/configs/` are gitignored (see `configs/.gitignore`) since they often contain real credentials; only `*.example.config.json` and `*-test*.config.json` are tracked. Copy an example and rename when setting up a new environment.
