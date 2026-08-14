@@ -196,6 +196,15 @@ CALENDAR YEAR the base falls in. `RouteRow.jsx`'s Derive-From UI exposes it as t
   self-correcting across years rather than eliminating the current year's in-progress tail. Before
   treating an "EMPTY SVG" on `monthly_congestion`/`seasonality` as a regression, check
   `SELECT max(date) FROM npmrds.s583_v982_NPMRDS_V6` first — it moves daily.
+  - **The other direction bites `probe_corpus.mjs` specifically: a section that was blank at
+    baseline-capture time can legitimately have real content later**, purely because the cliff
+    advanced past it in the meantime — no code or spec change involved. Hit live 2026-08-14: the
+    `dynamic_report_seasonality`/`dynamic_report_one_week_study` baselines both flagged
+    "blank → has content" findings after an unrelated `useGraphPublish.js` change; confirmed via
+    `SELECT max(date)...` that the cliff had moved from ~2026-07-26 (last capture) to 2026-08-02,
+    and via a clean 0-error re-probe that the newly-visible content was real, not broken. The
+    correct response is `probe_corpus.mjs --capture --only <key>` (a routine re-baseline), never a
+    code fix — there's nothing to fix.
 - Golden-corpus coverage: `dynamic_report_monthly_congestion` (plain month case) and
   `dynamic_report_seasonality` (the year-wrap case, via Winter) — added 2026-08-10, see §6 below.
 
@@ -367,17 +376,38 @@ any DMS page, not just reports. What's specific to reports:
   rebuilt since the fix (`report_build.mjs --update`, or a re-pick through the live Measure
   Picker, will pick up the corrected join — the fix doesn't retroactively change
   already-built sections).
-- **Every route assigned to one graph gets the SAME weekday mask, even if the spec gave them
-  different ones — a real, current limitation, not a display bug.** Design Push #2 moved
-  `weekdays`/`start`/`end` to be graph-level fields; when a graph's assigned routes disagree
-  (e.g. a year-over-year comparison mixing an all-days "Current Year" route with Mon-Fri
-  "N Years Ago" routes), `report_build.mjs` detects the mismatch and leaves weekdays unset for
-  the whole graph (console note: `"...assigned routes have DIFFERENT weekday masks..."`)
-  rather than guessing — so every route in that graph silently gets "every day," regardless of
-  what its own spec entry said. Confirmed live 2026-08-12 on `annual_average_study`'s Line
-  Graph/Map/Route Compare panels. A real architecture fix (per-route-usage overrides living on
-  the graph, keyed by route) is scoped but not built — see
-  `dynamic-reports-and-route-tags.md`'s item 3.
+- **FIXED 2026-08-14 (was a real, current limitation before this): routes assigned to one graph
+  can now genuinely disagree on weekdays/startTime/endTime.** The bullet this replaces described
+  `report_build.mjs` silently leaving the whole graph's weekday mask unset when its assigned
+  routes disagreed (e.g. an all-days "Current Year" mixed with Mon-Fri "N Years Ago" routes on
+  one Line Graph/Map/Route Compare) — that's gone. `weekdays`/`startTime`/`endTime` moved OFF
+  `routes[]` entirely, onto `graphs[]` (a route now carrying either fails the build), and a new
+  `graphs[].routeWindows: { [routes[].id]: [{weekdays, startTime, endTime, color}, ...] }` lets
+  routes on one graph carry genuinely different windows. **Live-verification tell**: a route
+  shown 2+ times on one graph under different filters (an AM bar + a PM bar of the SAME
+  underlying route, instead of two separate route instances) gets an auto-derived label —
+  `"Current Year (6a–10a)"` style, built from the exact wording `RouteRow.jsx`'s weekday-summary
+  line already uses — not a name an author typed. If you see that parenthetical pattern in a
+  legend/table row, it's one route expanded into multiple series, not two different routes. Full
+  field docs in `report-spec.md`; full build record in `dynamic-reports-and-route-tags.md`'s
+  "Per-route window overrides" section. First real application: `snapshot`'s consolidated 4-row
+  Info Box and 2 AM/PM/Off-Peak Bar Graph Summary panels, same session.
+  - **`RouteRow.jsx` has no weekday/peak-hour UI to distrust — checked directly, it was already
+    removed by Design Push #2 itself (2026-08-06), well before `routeWindows` existed.** An
+    initial claim in this doc that it still existed and needed removing was wrong; corrected here
+    rather than left standing. The actual live UI for this (Design Push #2's own replacement) is
+    QuickControls' graph-level "When" pill, which briefly went stale the same day `routeWindows`
+    shipped (it read/wrote `_measurePick`'s bare `weekdays`/`start`/`end` scalar, which
+    `report_build.mjs`/`useGraphPublish.js` had just stopped writing/reading) and was **fixed the
+    same session** — it now reads/writes `routeWindows` directly (one uniform window applied to
+    every route on the graph, matching its original behavior; a genuine per-route control is a
+    separate, unbuilt gap — #18). Live-verified: `_measurePick.routeWindows` correctly held the
+    identical window for 2 routes after one pill click, chart re-rendered with the new window live.
+    Trust the pill again. Full record in `report-route-ui-parity-gaps.md` gap #17.
+  - **No live UI exists yet for setting a PER-ROUTE override within a multi-route graph** — even
+    a fixed QuickControls pill would only ever control one shared default per graph.
+    `report_build.mjs`'s spec format is the only way to author this today, same "missing surface"
+    category as Info Box/Route Compare creation (gap #16). Tracked as gap #18.
 - **A GridGraph with "confetti" coloring (many unrelated hues, no readable gradient) or a BarGraph
   with one flat static color instead of a value scale means that page hasn't been rebuilt since the
   2026-08-12 color-scale fix** (`composeMeasureConfig.js`'s plain-mode colors, `dynamic-reports-
