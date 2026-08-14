@@ -122,6 +122,7 @@ const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
                     <div
                         className="flex items-center cursor-pointer px-2 mx-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md"
                     >
+                        <Icon icon="Reorder" className="size-4 text-gray-400 shrink-0 cursor-grab" />
                         <div key={'icon'} className={'h-4 w-4 m-0.5 cursor-pointer text-gray-800'}>
                             <Icon icon='TouchInteraction' />
                         </div>
@@ -244,9 +245,26 @@ export default function ActionControls({context, isInMenu=false, dwAPI}) {
     const setState = dwAPI?.setState || ctx.setState;
     const columns = state?.columns || [];
     const {UI} = useContext(ThemeContext) || {UI: {}};
-    const {Icon, Button, Popup, Input} = UI;
+    const {Icon, Button, Popup, Input, DraggableList} = UI;
     const [search, setSearch] = useState();
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
+    const filteredActionColumns = actionColumns.filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())));
+
+    // Reorders just the actionType columns, writing each reordered entry back into
+    // the same draft.columns slot the (possibly search-filtered) list occupied —
+    // other columns, and any action not currently visible under the search filter,
+    // keep their existing position.
+    const reorderActions = useCallback((updatedItems) => {
+        setState?.(draft => {
+            const indices = [];
+            draft.columns.forEach((column, idx) => {
+                if (column.actionType && updatedItems.some(a => a.name === column.name)) indices.push(idx);
+            });
+            indices.forEach((columnIdx, i) => {
+                draft.columns[columnIdx] = updatedItems[i];
+            });
+        });
+    }, [setState]);
 
     // takes in one action, adds or updates it.
     const updateAction = useCallback((action={}) => {
@@ -284,14 +302,13 @@ export default function ActionControls({context, isInMenu=false, dwAPI}) {
                        onChange={e => setSearch(e.target.value)} />
                 <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
                 <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                    {
-                        actionColumns
-                            .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
-                            .map((action, i) => (
-                                <RenderAction key={i} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
-                            ))
-                    }
-
+                    <DraggableList
+                        dataItems={filteredActionColumns}
+                        onChange={reorderActions}
+                        renderItem={({item: action}) => (
+                            <RenderAction key={action.name} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
+                        )}
+                    />
                 </div>
             </div>
         )
@@ -315,14 +332,13 @@ export default function ActionControls({context, isInMenu=false, dwAPI}) {
                                    onChange={e => setSearch(e.target.value)}/>
                             <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
                             <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                                {
-                                    actionColumns
-                                        .filter(a => a && (!search || (a.name).toLowerCase().includes(search.toLowerCase())))
-                                        .map((action, i) => (
-                                            <RenderAction key={i} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
-                                        ))
-                                }
-
+                                <DraggableList
+                                    dataItems={filteredActionColumns}
+                                    onChange={reorderActions}
+                                    renderItem={({item: action}) => (
+                                        <RenderAction key={action.name} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
+                                    )}
+                                />
                             </div>
                         </div>
                     )
