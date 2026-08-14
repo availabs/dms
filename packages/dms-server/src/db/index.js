@@ -268,6 +268,19 @@ const initDama = async (dbConnection) => {
       throw error;
     }
   }
+
+  // Migration for pre-existing databases: data_manager.views.etl_context_id
+  // used to carry a FK into the legacy data_manager.etl_contexts table. Task
+  // ids now come from data_manager.tasks, which etl_contexts knows nothing
+  // about, so any worker passing its task_id hit
+  //   views_etl_ctx_id_fkey ... insert or update on table "views" violates ...
+  // create_dama_core_tables.sql already declares the column with no FK; this
+  // brings older databases in line with it.
+  if (dbType !== "sqlite") {
+    await dbConnection.query(
+      `ALTER TABLE data_manager.views DROP CONSTRAINT IF EXISTS views_etl_ctx_id_fkey`
+    );
+  }
 };
 
 /**

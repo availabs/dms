@@ -630,6 +630,11 @@ const graphConfig = {
           name: "Pie Graph Layout",
           displayCdn: ({ display }) => display.graphType === 'PieGraph',
           items: [
+            // Donut hole as a fraction of the slice radius: 0 (default) = solid
+            // pie, ~0.6 = a dashboard ring. Clamped to <0.95 by the component.
+            { type: "input", inputType: "number",
+              label: "Donut Hole (0–0.95)", key: "pieInnerRadius"
+            },
             { type: "toggle",
               label: "Show Axis", key: "pieAxis.showAxis"
             },

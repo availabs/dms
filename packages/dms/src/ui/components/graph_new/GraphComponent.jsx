@@ -253,6 +253,9 @@ export const GraphComponent = props => {
           valueTextSize: get(graphFormat, ["pieAxis", "valueTextSize"], false),
           valueFormat: getFormatFunc(get(graphFormat, ["pieAxis", "valueFormat"]), get(graphFormat, ["pieAxis", "isDollars"], false)),
         } }
+        // Donut hole, as a fraction of each slice's outer radius. 0 (default)
+        // keeps the historical solid pie; Pie only, ignored by other graph types.
+        pieInnerRadius={ get(graphFormat, "pieInnerRadius", 0) }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }
         hoverComp={ hoverComp }

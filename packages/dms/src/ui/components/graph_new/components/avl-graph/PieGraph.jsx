@@ -175,7 +175,11 @@ export const PieGraph = props => {
     onPieLeave = null,
     onSliceEnter = null,
     onSliceLeave = null,
-    highlights = EmptyArray
+    highlights = EmptyArray,
+    // Donut hole as a fraction of the slice's outer radius (0 = solid pie, the
+    // historical hardcoded behaviour; 0.6 ≈ a typical dashboard ring). Clamped
+    // below 1 so the arc always has a drawable band.
+    pieInnerRadius = 0
   } = props;
 
   const Margin = React.useMemo(() => {
@@ -288,8 +292,10 @@ export const PieGraph = props => {
         rowLength = (row + 1) < numRows ? numCols : numPiesInLastRow,
         w = adjustedWidth / rowLength;
 
-      p.innerRadius = 0;
       p.outerRadius = radiusScale(p.total);
+      // Derived from THIS pie's outerRadius (not the shared pieDiameter) so the
+      // ring band stays proportional when radiusScale sizes pies by total.
+      p.innerRadius = Math.max(0, Math.min(0.95, +pieInnerRadius || 0)) * p.outerRadius;
       p.dx = w * col + w * 0.5;
       p.dy = h * row + (h - labelPadding) * 0.5;
       p.ldy = p.outerRadius;
@@ -303,7 +309,7 @@ export const PieGraph = props => {
 
   }, [
     data, keys, width, height, colors, colorsByKey, pieAxis.valueFormat,
-    Margin, indexBy, startAngle, endAngle, padAngle
+    Margin, indexBy, startAngle, endAngle, padAngle, pieInnerRadius
   ]);
 
   React.useEffect(() => {
