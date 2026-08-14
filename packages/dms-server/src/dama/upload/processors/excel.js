@@ -3,12 +3,60 @@
  * Returns layer metadata compatible with DAMA response shape.
  */
 
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
 const { snakeCase } = require('lodash');
 
 const EXCEL_EXTENSIONS = ['.xlsx', '.xls'];
 
+const INLINE_STR_ERROR = /Unsupported "inline string" cell value structure/;
+
 function canHandle(ext) {
   return EXCEL_EXTENSIONS.includes(ext.toLowerCase());
+}
+
+// `read-excel-file@6.0.3` throws instead of returning `null` for a cell that's
+// explicitly typed `t="inlineStr"` but has no `<is>` child — e.g. the non-top-left
+// cells of a merged range, which OOXML leaves empty. Strip the type attribute from
+// exactly those empty cells (leaving cells that do have `<is>` content untouched) so
+// the cell falls back to the default numeric type with no `<v>`, which parses to `null`.
+async function desanitizeInlineStrAndRetry(filePath, read) {
+  const JSZip = require('jszip');
+
+  const buffer = await fs.promises.readFile(filePath);
+  const zip = await JSZip.loadAsync(buffer);
+
+  const sheetPaths = Object.keys(zip.files).filter((name) => /^xl\/worksheets\/sheet\d+\.xml$/.test(name));
+  for (const sheetPath of sheetPaths) {
+    const xml = await zip.file(sheetPath).async('string');
+    const patched = xml.replace(
+      /<c([^>]*?)\st="inlineStr"([^>]*?)(\/>|><\/c>)/g,
+      (match, before, after) => `<c${before}${after}${match.endsWith('/>') ? '/>' : '></c>'}`
+    );
+    if (patched !== xml) {
+      zip.file(sheetPath, patched);
+    }
+  }
+
+  const sanitizedPath = path.join(os.tmpdir(), `dms-excel-sanitized-${Date.now()}-${path.basename(filePath)}`);
+  const sanitizedBuffer = await zip.generateAsync({ type: 'nodebuffer' });
+  await fs.promises.writeFile(sanitizedPath, sanitizedBuffer);
+
+  try {
+    return await read(sanitizedPath);
+  } finally {
+    await fs.promises.unlink(sanitizedPath).catch(() => {});
+  }
+}
+
+async function readXlsxWithInlineStrFallback(filePath, readOnce) {
+  try {
+    return await readOnce(filePath);
+  } catch (err) {
+    if (!INLINE_STR_ERROR.test(err.message)) throw err;
+    return desanitizeInlineStrAndRetry(filePath, readOnce);
+  }
 }
 
 /**
@@ -24,7 +72,7 @@ async function analyze(filePath) {
 
   const layers = [];
   for (const sheetName of sheets) {
-    const rows = await readXlsxFile(filePath, { sheet: sheetName });
+    const rows = await readXlsxWithInlineStrFallback(filePath, (p) => readXlsxFile(p, { sheet: sheetName }));
     if (!rows.length) continue;
 
     // First row is headers
@@ -57,7 +105,7 @@ async function analyze(filePath) {
  */
 async function parseRows(filePath, layerName) {
   const readXlsxFile = require('read-excel-file/node');
-  return readXlsxFile(filePath, { sheet: layerName });
+  return readXlsxWithInlineStrFallback(filePath, (p) => readXlsxFile(p, { sheet: layerName }));
 }
 
 module.exports = { canHandle, analyze, parseRows };
