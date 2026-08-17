@@ -347,6 +347,13 @@ any DMS page, not just reports. What's specific to reports:
   one re-probe, then reappeared on a later probe of the identical page/moment) — map tiles
   are just slow sometimes, independent of anything the page's own build changed; don't
   chase a lone pending-tiles finding as a regression without ruling this out first.
+  `probe_corpus.mjs` now has a permanent fix for this on the one entry that hits it
+  reliably (`dynamic_report_one_week_study`, 9 sections + a Route Map): a manifest entry
+  can carry `"wait": <ms>` to override `report_probe.mjs`'s default 6000ms settle wait for
+  just that entry — set to 20000 there 2026-08-17, confirmed stable across repeated
+  `--capture`/diff runs where the default wait had flagged 4 false "was blank → has
+  content" Blockers. Add the same field to any other entry that turns out to need it
+  rather than re-deriving this fix by hand again.
 - **A Route Compare or Info Box section built by `convert_old_reports.py` (as opposed to
   `report_build.mjs`) is invisible to `--from-page`, silently — not flagged, not
   `_needsReview`, just absent from the reconstructed spec.** `isGraphSectionElement()`
@@ -421,6 +428,19 @@ any DMS page, not just reports. What's specific to reports:
   often-nonsensical "(Line Total)" (now hidden unless the measure's vocabulary `fn` is `"sum"`,
   i.e. genuinely additive across time buckets — also needs a rebuild to take effect, since it's the
   same `display.tooltip` field a rebuild writes).
+  **Same code-only-vs-baked-in split recurred 2026-08-17**: `getTooltipFormatFunc`'s no-explicit-
+  format default (`graph_new/utils.js`) went from a flat 1-decimal round to magnitude-adaptive (2
+  decimals under 10, 1 under 1000, whole above) — this is the SAME live default the "(Line Total)"
+  fix above patches, so it's retroactive on every already-built page with no rebuild, confirmed live
+  on `bi_directional`'s Travel Time BarGraph (two series that both showed "0.3" now show "0.32"/
+  "0.35"). Separately, `travelTime`'s tooltip now defaults to `duration_mmss` ("M:SS" instead of
+  decimal minutes) via `composeMeasureConfig.js`'s `displayPatch.tooltip.valueFormat`/`yFormat` —
+  this ONE is baked into `display.tooltip` at measure-pick time, same as `showTotal` above, so it
+  needs a rebuild or a live re-pick of the same measure to show up on an existing travelTime graph;
+  don't expect it on an unrebuilt page. `hoursOfDelay` deliberately stayed on the adaptive default
+  rather than also getting `duration_mmss` — its raw value is aggregate vehicle-hours (AADT-
+  weighted), not one vehicle's trip duration, so "clock time" doesn't obviously fit; ask before
+  adding it if a report seems to want it.
 - **A multi-measure Info Box's `join` is a plain dict `update()` union of each measure's own
   `join.sources`, last-measure-in-the-list wins on a shared key — a stale join on ANY listed measure
   silently overrides a correct one from another.** Found live 2026-08-13 building `one_week_study`'s
@@ -445,6 +465,51 @@ any DMS page, not just reports. What's specific to reports:
   template's gap log (which DOES reliably tell you what's genuinely dropped, see the entry above) would
   have shown this too, but a direct side-by-side screenshot comparison is the fastest way to confirm or
   rule out a suspected gap without first reasoning about it from docs.
+- **The always-built title-block section (a bare Rich Text section repeating `item.title` as its
+  own heading, with nothing else — see the freestanding "WEEKLY AVERAGE" line that used to sit
+  right under the real page header on every report) was retired 2026-08-17** — `ReportPageHeader`
+  already renders the page's `title` as its `<h1>`, so it was pure duplication; none of the 12
+  catalog templates had ever populated the `intro` body text it also carried. Every report built
+  going forward has one fewer section than before. **This makes a probe-corpus diff run right
+  after reconverting a page LOOK broken when it isn't**: `probe_corpus.mjs` compares
+  `baseline.sections[i]` against `current.sections[i]` by raw array position, not by title — remove
+  one section and EVERY later index now points at a different physical section than it used to, so
+  the diff prints a cascade of "section[N] rendering state changed" lines that are really just
+  "position N used to hold section X, now holds section X+1." Confirmed live 2026-08-17
+  reconverting all 12 templates: every one of these looked like several sections changed, but
+  comparing baseline-vs-current **by title instead of index** on `annual_average_study`/
+  `monthly_congestion`/`seasonality`/`one_week_study` showed the exact same set of sections had
+  content before and after, none dropped. Don't trust a probe-corpus index-diff at face value
+  right after any change that adds/removes a section — re-check by title first, THEN decide
+  whether to `--capture` a new baseline.
+- **`report_build.mjs` gained a `--replace` flag 2026-08-17** — deletes any existing page at the
+  spec's target slug, then builds fresh, same page slug but a NEW id. Use it instead of `--update
+  <id>` whenever a structural change (the title-block retirement above, a renamed framework
+  section) means `--update`'s reconcile path wouldn't clean up what's already on the page and
+  hand-authoring the cleanup isn't worth it. The new id means anything that linked to the OLD
+  numeric id (not the slug) breaks — a manifest's `rebuild` command pinned to `--update <old-id>`
+  goes stale the moment a page is `--replace`d; prefer `--replace --publish` (no id needed at all)
+  in any `rebuild` field that might see this again.
+- **`--replace`'s first implementation only deleted the page row — not its `reports_snap_2` row —
+  and that row is exactly what `/reports`'s catalog cards query, by tag, not by page reference.**
+  `dms page delete` never cascades to a page's own dataset rows (same non-cascade as its sections,
+  already noted elsewhere in this doc as harmless-because-invisible — this one ISN'T invisible).
+  Every `--replace` left the OLD `reports_snap_2` row behind with the OLD `report_id`, still
+  carrying the same `tags`, so it kept matching the catalog's tag filter and rendering as a second
+  card for the same report. Found live 2026-08-17 by Ryan spotting duplicate cards on `/reports`
+  right after all 12 templates were `--replace`d in one session — some templates (`Weekly
+  Average`) had FOUR stale rows once you counted back through every rebuild since before
+  `--replace` existed, not just the one from that session. Fixed in `report_build.mjs`: `--replace`
+  now looks up the target page's snap row (`findSnapRow`, the same helper `--update`'s preflight
+  uses) and deletes it before deleting the page. **If you ever see duplicate cards on `/reports`
+  for a report you know only has one live page, this is almost certainly it** — cross-reference
+  `dms dataset query 2177438 --view 2177440 --limit 2000` (the routes-data source id may differ by
+  env; check `REPORTS_SNAP_SOURCE_ID`/`REPORTS_SNAP_VIEW_ID` in `report_build.mjs`) filtered by
+  `data.name` against the currently-live page id (`dms page list --pattern npmrds_sub`) for that
+  slug — any row whose `report_id` ISN'T the live page's id is an orphan, safe to delete via `dms
+  raw delete npmrdsv5 "reports_snap_2|2177440:data" <row-id>` (needs a fresh auth token; `dms raw
+  get <row-id>` can't address it — split `:data` row, use `dataset query --filter id=<row-id>` to
+  confirm deletion instead).
 
 ## 6. Which tool to reach for
 
