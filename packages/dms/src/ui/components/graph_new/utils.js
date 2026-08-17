@@ -398,6 +398,21 @@ export const dayOfWeekFormat = d => {
     return Number.isFinite(n) ? (DAY_OF_WEEK_NAMES[((n - 1) % 7 + 7) % 7] ?? d) : d;
 };
 
+// A duration measure stored as decimal MINUTES (travelTime's own SQL expression divides by 60 —
+// see vocabulary.json) reads as noise once rounded to 1-2 decimals ("0.3 min"), and two visibly
+// different bars/lines can round to the identical decimal — the exact tooltip-collision bug this
+// format exists to fix. Converts to "M:SS" (seconds always 2 digits, minutes not zero-padded —
+// "0:18", "22:45"), which a human reads as a duration directly and which carries a full extra
+// order of magnitude of precision (whole seconds) versus a decimal-minute round.
+export const durationMinutesFormat = d => {
+    const n = typeof d === "number" ? d : (typeof d === "string" && d.trim() !== "" ? +d : NaN);
+    if (!Number.isFinite(n)) return d;
+    const totalSeconds = Math.round(Math.abs(n) * 60);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${ n < 0 ? "-" : "" }${ minutes }:${ String(seconds).padStart(2, "0") }`;
+};
+
 export const ValueFormats = [
     { label: "Identity", value: "identity",
         func: d => d
@@ -434,6 +449,9 @@ export const ValueFormats = [
     },
     { label: "Day of Week", value: "day_of_week",
         func: dayOfWeekFormat
+    },
+    { label: "Duration, minutes (M:SS)", value: "duration_mmss",
+        func: durationMinutesFormat
     }
 ];
 const ValueFormatsFuncMap = ValueFormats.reduce((a, c) => {
@@ -468,7 +486,17 @@ export const getTooltipFormatFunc = (format, isDollars = false) => {
     const func = d => {
         const n = typeof d === "number" ? d : (typeof d === "string" && d.trim() !== "" ? +d : NaN);
         if (!Number.isFinite(n)) return d;
-        return `${ Math.round(n * 10) / 10 }`;
+        // Adaptive precision, not a flat 1 decimal: a fixed round collapses genuinely
+        // different small values to the same displayed number (e.g. two series at 0.34
+        // and 0.28 both show "0.3" even though the chart clearly draws them apart) —
+        // reported live on Hours of Delay tooltips. Scale decimals to the value's own
+        // magnitude — sub-10 (the common range for a per-epoch minute/hour measure)
+        // gets 2 decimals, sub-1000 gets 1, anything larger falls back to a whole
+        // number, since that's roughly how much precision each range can show before
+        // it's noise rather than signal.
+        const decimals = Math.abs(n) < 10 ? 2 : Math.abs(n) < 1000 ? 1 : 0;
+        const factor = 10 ** decimals;
+        return `${ Math.round(n * factor) / factor }`;
     };
     if (isDollars) {
         return d => `$${ func(d) }`;
