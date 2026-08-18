@@ -446,8 +446,16 @@ export const getData = async ({
     const isEditableExternal = !isDms && Boolean(sourceInfo?.isEditable) && !joinPresent;
     const idRefCol = joinPresent ? "ds.id" : "id";
     const idReq = joinPresent ? "ds.id as id" : "id";
+    // A source's own metadata can legitimately contain a column literally named "id"
+    // (e.g. carried over from a CSV import) — "All Columns" downloads (dataWrapper's
+    // triggerDownload) pull every metadata column in, including that one. Pushing the
+    // synthetic PK attribute on top of it puts two output columns aliased "id" in the
+    // same SELECT, and the ORDER BY id below becomes ambiguous — Postgres throws, and
+    // since apiLoad's error is swallowed into an empty result, the whole download comes
+    // back as a blank sheet. Skip the synthetic column when one's already requested.
+    const alreadyRequestingId = columnsToFetch.some((column) => column.name === "id");
     if ((isDms || isEditableExternal) && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
-        columnsToFetch.push({ name: "id", reqName: idReq });
+        if (!alreadyRequestingId) columnsToFetch.push({ name: "id", reqName: idReq });
         options.orderBy[idRefCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {
         const idx = columnsToFetch.findIndex((column) => column.name === "id");

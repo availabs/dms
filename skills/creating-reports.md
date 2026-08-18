@@ -2,7 +2,7 @@
 
 End-to-end process for the recurring request: "a client wants to see how traffic
 changed on corridor X between period A and period B." As of the report-spec work
-(`planning/transportny/tasks/current/report-spec-and-build-script.md`), the primary path is
+(`planning/transportny/tasks/completed/report-spec-and-build-script.md`), the primary path is
 **write a spec, then build it** — `scripts/npmrds-reports/report_build.mjs` composes graph state
 through the exact same `applyMeasurePick` function the UI's Measure Picker calls, so a
 spec-built report is byte-identical to a hand-built one by construction, and most of
@@ -93,7 +93,7 @@ Concretely, turning intake into a spec:
    at the top of the page — the *only* place `spec.title` is ever visible to a viewer) and,
    for any graph that needs explaining, a per-graph `caption` (renders as a subtitle under
    that chart's own title). Base the voice on the old corpus's caption style — see
-   `planning/transportny/tasks/current/client-request-to-report-skill.md`'s composition-rules section for
+   `planning/transportny/tasks/completed/client-request-to-report-skill.md`'s composition-rules section for
    real examples ("The line graph above displays… This allows the analyst to…").
 7. Run `--summary` (see below) and read it back against the original ask before
    building anything — this is the review step the spec format exists to enable.
@@ -142,7 +142,7 @@ section; `client-request-to-report-skill.md`'s "Next steps" item #11 is closed.
 
 Full analysis (sample sizes, the duplicate-collapse correction behind these numbers, and
 how "purpose" was classified) lives in
-`planning/transportny/tasks/current/client-request-to-report-skill.md`'s "purpose lens" section —
+`planning/transportny/tasks/completed/client-request-to-report-skill.md`'s "purpose lens" section —
 read it before extending this table rather than re-deriving the numbers.
 
 ### Rules (earned corrections)
@@ -222,7 +222,7 @@ dip") arrives as chat, and should turn into a small, reviewable change, not a re
    above.** A correction that keeps getting made by hand is exactly the signal this
    storage design exists to capture — rules distilled from corrections live as prose in
    this file, not as data on any one report (see
-   `planning/transportny/tasks/current/client-request-to-report-skill.md`'s storage-decisions
+   `planning/transportny/tasks/completed/client-request-to-report-skill.md`'s storage-decisions
    table).
 
 **Full field reference:** `research/npmrds-reports/report-spec.md` — every field,

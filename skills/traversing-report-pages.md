@@ -196,6 +196,15 @@ CALENDAR YEAR the base falls in. `RouteRow.jsx`'s Derive-From UI exposes it as t
   self-correcting across years rather than eliminating the current year's in-progress tail. Before
   treating an "EMPTY SVG" on `monthly_congestion`/`seasonality` as a regression, check
   `SELECT max(date) FROM npmrds.s583_v982_NPMRDS_V6` first — it moves daily.
+  - **The other direction bites `probe_corpus.mjs` specifically: a section that was blank at
+    baseline-capture time can legitimately have real content later**, purely because the cliff
+    advanced past it in the meantime — no code or spec change involved. Hit live 2026-08-14: the
+    `dynamic_report_seasonality`/`dynamic_report_one_week_study` baselines both flagged
+    "blank → has content" findings after an unrelated `useGraphPublish.js` change; confirmed via
+    `SELECT max(date)...` that the cliff had moved from ~2026-07-26 (last capture) to 2026-08-02,
+    and via a clean 0-error re-probe that the newly-visible content was real, not broken. The
+    correct response is `probe_corpus.mjs --capture --only <key>` (a routine re-baseline), never a
+    code fix — there's nothing to fix.
 - Golden-corpus coverage: `dynamic_report_monthly_congestion` (plain month case) and
   `dynamic_report_seasonality` (the year-wrap case, via Winter) — added 2026-08-10, see §6 below.
 
@@ -338,6 +347,13 @@ any DMS page, not just reports. What's specific to reports:
   one re-probe, then reappeared on a later probe of the identical page/moment) — map tiles
   are just slow sometimes, independent of anything the page's own build changed; don't
   chase a lone pending-tiles finding as a regression without ruling this out first.
+  `probe_corpus.mjs` now has a permanent fix for this on the one entry that hits it
+  reliably (`dynamic_report_one_week_study`, 9 sections + a Route Map): a manifest entry
+  can carry `"wait": <ms>` to override `report_probe.mjs`'s default 6000ms settle wait for
+  just that entry — set to 20000 there 2026-08-17, confirmed stable across repeated
+  `--capture`/diff runs where the default wait had flagged 4 false "was blank → has
+  content" Blockers. Add the same field to any other entry that turns out to need it
+  rather than re-deriving this fix by hand again.
 - **A Route Compare or Info Box section built by `convert_old_reports.py` (as opposed to
   `report_build.mjs`) is invisible to `--from-page`, silently — not flagged, not
   `_needsReview`, just absent from the reconstructed spec.** `isGraphSectionElement()`
@@ -367,17 +383,38 @@ any DMS page, not just reports. What's specific to reports:
   rebuilt since the fix (`report_build.mjs --update`, or a re-pick through the live Measure
   Picker, will pick up the corrected join — the fix doesn't retroactively change
   already-built sections).
-- **Every route assigned to one graph gets the SAME weekday mask, even if the spec gave them
-  different ones — a real, current limitation, not a display bug.** Design Push #2 moved
-  `weekdays`/`start`/`end` to be graph-level fields; when a graph's assigned routes disagree
-  (e.g. a year-over-year comparison mixing an all-days "Current Year" route with Mon-Fri
-  "N Years Ago" routes), `report_build.mjs` detects the mismatch and leaves weekdays unset for
-  the whole graph (console note: `"...assigned routes have DIFFERENT weekday masks..."`)
-  rather than guessing — so every route in that graph silently gets "every day," regardless of
-  what its own spec entry said. Confirmed live 2026-08-12 on `annual_average_study`'s Line
-  Graph/Map/Route Compare panels. A real architecture fix (per-route-usage overrides living on
-  the graph, keyed by route) is scoped but not built — see
-  `dynamic-reports-and-route-tags.md`'s item 3.
+- **FIXED 2026-08-14 (was a real, current limitation before this): routes assigned to one graph
+  can now genuinely disagree on weekdays/startTime/endTime.** The bullet this replaces described
+  `report_build.mjs` silently leaving the whole graph's weekday mask unset when its assigned
+  routes disagreed (e.g. an all-days "Current Year" mixed with Mon-Fri "N Years Ago" routes on
+  one Line Graph/Map/Route Compare) — that's gone. `weekdays`/`startTime`/`endTime` moved OFF
+  `routes[]` entirely, onto `graphs[]` (a route now carrying either fails the build), and a new
+  `graphs[].routeWindows: { [routes[].id]: [{weekdays, startTime, endTime, color}, ...] }` lets
+  routes on one graph carry genuinely different windows. **Live-verification tell**: a route
+  shown 2+ times on one graph under different filters (an AM bar + a PM bar of the SAME
+  underlying route, instead of two separate route instances) gets an auto-derived label —
+  `"Current Year (6a–10a)"` style, built from the exact wording `RouteRow.jsx`'s weekday-summary
+  line already uses — not a name an author typed. If you see that parenthetical pattern in a
+  legend/table row, it's one route expanded into multiple series, not two different routes. Full
+  field docs in `report-spec.md`; full build record in `dynamic-reports-and-route-tags.md`'s
+  "Per-route window overrides" section. First real application: `snapshot`'s consolidated 4-row
+  Info Box and 2 AM/PM/Off-Peak Bar Graph Summary panels, same session.
+  - **`RouteRow.jsx` has no weekday/peak-hour UI to distrust — checked directly, it was already
+    removed by Design Push #2 itself (2026-08-06), well before `routeWindows` existed.** An
+    initial claim in this doc that it still existed and needed removing was wrong; corrected here
+    rather than left standing. The actual live UI for this (Design Push #2's own replacement) is
+    QuickControls' graph-level "When" pill, which briefly went stale the same day `routeWindows`
+    shipped (it read/wrote `_measurePick`'s bare `weekdays`/`start`/`end` scalar, which
+    `report_build.mjs`/`useGraphPublish.js` had just stopped writing/reading) and was **fixed the
+    same session** — it now reads/writes `routeWindows` directly (one uniform window applied to
+    every route on the graph, matching its original behavior; a genuine per-route control is a
+    separate, unbuilt gap — #18). Live-verified: `_measurePick.routeWindows` correctly held the
+    identical window for 2 routes after one pill click, chart re-rendered with the new window live.
+    Trust the pill again. Full record in `report-route-ui-parity-gaps.md` gap #17.
+  - **No live UI exists yet for setting a PER-ROUTE override within a multi-route graph** — even
+    a fixed QuickControls pill would only ever control one shared default per graph.
+    `report_build.mjs`'s spec format is the only way to author this today, same "missing surface"
+    category as Info Box/Route Compare creation (gap #16). Tracked as gap #18.
 - **A GridGraph with "confetti" coloring (many unrelated hues, no readable gradient) or a BarGraph
   with one flat static color instead of a value scale means that page hasn't been rebuilt since the
   2026-08-12 color-scale fix** (`composeMeasureConfig.js`'s plain-mode colors, `dynamic-reports-
@@ -385,12 +422,94 @@ any DMS page, not just reports. What's specific to reports:
   (always) and a single-route BarGraph (day/weekday/month breakdown, no real second series) use a
   real `rdylgn` value scale instead of inheriting the LineGraph-style ~20-swatch route palette; it's
   a code fix, not retroactive, so a page needs its own `--update <id> --publish` to pick it up. Only
-  `annual_average_study` had this run as of 2026-08-12 — every other catalog page still shows the
-  old confetti/flat coloring until rebuilt. Same session also fixed a LineGraph tooltip showing
+  `annual_average_study`/`one_week_study` had this run as of 2026-08-13 — every other catalog page
+  still shows the old confetti/flat coloring until rebuilt. Same session also fixed a LineGraph tooltip showing
   15-digit floats (now rounds to 1 decimal, code-only, no rebuild needed) and an always-shown,
   often-nonsensical "(Line Total)" (now hidden unless the measure's vocabulary `fn` is `"sum"`,
   i.e. genuinely additive across time buckets — also needs a rebuild to take effect, since it's the
   same `display.tooltip` field a rebuild writes).
+  **Same code-only-vs-baked-in split recurred 2026-08-17**: `getTooltipFormatFunc`'s no-explicit-
+  format default (`graph_new/utils.js`) went from a flat 1-decimal round to magnitude-adaptive (2
+  decimals under 10, 1 under 1000, whole above) — this is the SAME live default the "(Line Total)"
+  fix above patches, so it's retroactive on every already-built page with no rebuild, confirmed live
+  on `bi_directional`'s Travel Time BarGraph (two series that both showed "0.3" now show "0.32"/
+  "0.35"). Separately, `travelTime`'s tooltip now defaults to `duration_mmss` ("M:SS" instead of
+  decimal minutes) via `composeMeasureConfig.js`'s `displayPatch.tooltip.valueFormat`/`yFormat` —
+  this ONE is baked into `display.tooltip` at measure-pick time, same as `showTotal` above, so it
+  needs a rebuild or a live re-pick of the same measure to show up on an existing travelTime graph;
+  don't expect it on an unrebuilt page. `hoursOfDelay` deliberately stayed on the adaptive default
+  rather than also getting `duration_mmss` — its raw value is aggregate vehicle-hours (AADT-
+  weighted), not one vehicle's trip duration, so "clock time" doesn't obviously fit; ask before
+  adding it if a report seems to want it.
+- **A multi-measure Info Box's `join` is a plain dict `update()` union of each measure's own
+  `join.sources`, last-measure-in-the-list wins on a shared key — a stale join on ANY listed measure
+  silently overrides a correct one from another.** Found live 2026-08-13 building `one_week_study`'s
+  first-ever multi-measure Info Box (`measure: ["speed","travelTime"]`): `speed`'s own template row
+  correctly used `META_JOIN`, but `travelTime`'s pre-existing row was still on the stale
+  `TMC_IDENTIFICATION_JOIN` (missed by the 2026-08-12 join-drift-detection round — only 2 of the 3
+  sibling `ensure_*` functions got it), so the combined row's final `join` silently reverted to the
+  stale one. If a multi-measure Info Box's attribution line shows the old join, don't assume the whole
+  page needs a rebuild — check whether ONE of its measures has a stale template row first (`dms raw
+  list npmrdsv5+npmrds_sub|avl_graph_template` → find `{grain}_info_box_{measure}` → read its
+  `data.stateJson.join`).
+- **A plain-decimal Info Box measure (speed/length/aadt) with no `formatFn` renders full float
+  precision in the cell** (e.g. `20.56702084355448`) — `comma`/`abbreviate` both floor to an integer
+  below their K/M-abbreviation threshold, which is wrong for a sub-1000 rate-like value. Fixed for
+  `speed` 2026-08-13 via a new shared registry entry, `decimal_2`
+  (`dataWrapper/utils/utils.jsx`'s `formatFunctions`) — same file/pattern as `travelTime`'s
+  `minutes_clock`. `length`/`aadt` have the identical gap, not yet fixed (no live consumer had hit it
+  as of this writing).
+- **A "panel looks missing" report is worth verifying by loading BOTH the old and new page in full
+  (scroll to the bottom) before touching any code** — confirmed 2026-08-13 that a suspected 2nd missing
+  Bar Graph Summary on `one_week_study` was actually already present and correct on both pages; the old
+  template's gap log (which DOES reliably tell you what's genuinely dropped, see the entry above) would
+  have shown this too, but a direct side-by-side screenshot comparison is the fastest way to confirm or
+  rule out a suspected gap without first reasoning about it from docs.
+- **The always-built title-block section (a bare Rich Text section repeating `item.title` as its
+  own heading, with nothing else — see the freestanding "WEEKLY AVERAGE" line that used to sit
+  right under the real page header on every report) was retired 2026-08-17** — `ReportPageHeader`
+  already renders the page's `title` as its `<h1>`, so it was pure duplication; none of the 12
+  catalog templates had ever populated the `intro` body text it also carried. Every report built
+  going forward has one fewer section than before. **This makes a probe-corpus diff run right
+  after reconverting a page LOOK broken when it isn't**: `probe_corpus.mjs` compares
+  `baseline.sections[i]` against `current.sections[i]` by raw array position, not by title — remove
+  one section and EVERY later index now points at a different physical section than it used to, so
+  the diff prints a cascade of "section[N] rendering state changed" lines that are really just
+  "position N used to hold section X, now holds section X+1." Confirmed live 2026-08-17
+  reconverting all 12 templates: every one of these looked like several sections changed, but
+  comparing baseline-vs-current **by title instead of index** on `annual_average_study`/
+  `monthly_congestion`/`seasonality`/`one_week_study` showed the exact same set of sections had
+  content before and after, none dropped. Don't trust a probe-corpus index-diff at face value
+  right after any change that adds/removes a section — re-check by title first, THEN decide
+  whether to `--capture` a new baseline.
+- **`report_build.mjs` gained a `--replace` flag 2026-08-17** — deletes any existing page at the
+  spec's target slug, then builds fresh, same page slug but a NEW id. Use it instead of `--update
+  <id>` whenever a structural change (the title-block retirement above, a renamed framework
+  section) means `--update`'s reconcile path wouldn't clean up what's already on the page and
+  hand-authoring the cleanup isn't worth it. The new id means anything that linked to the OLD
+  numeric id (not the slug) breaks — a manifest's `rebuild` command pinned to `--update <old-id>`
+  goes stale the moment a page is `--replace`d; prefer `--replace --publish` (no id needed at all)
+  in any `rebuild` field that might see this again.
+- **`--replace`'s first implementation only deleted the page row — not its `reports_snap_2` row —
+  and that row is exactly what `/reports`'s catalog cards query, by tag, not by page reference.**
+  `dms page delete` never cascades to a page's own dataset rows (same non-cascade as its sections,
+  already noted elsewhere in this doc as harmless-because-invisible — this one ISN'T invisible).
+  Every `--replace` left the OLD `reports_snap_2` row behind with the OLD `report_id`, still
+  carrying the same `tags`, so it kept matching the catalog's tag filter and rendering as a second
+  card for the same report. Found live 2026-08-17 by Ryan spotting duplicate cards on `/reports`
+  right after all 12 templates were `--replace`d in one session — some templates (`Weekly
+  Average`) had FOUR stale rows once you counted back through every rebuild since before
+  `--replace` existed, not just the one from that session. Fixed in `report_build.mjs`: `--replace`
+  now looks up the target page's snap row (`findSnapRow`, the same helper `--update`'s preflight
+  uses) and deletes it before deleting the page. **If you ever see duplicate cards on `/reports`
+  for a report you know only has one live page, this is almost certainly it** — cross-reference
+  `dms dataset query 2177438 --view 2177440 --limit 2000` (the routes-data source id may differ by
+  env; check `REPORTS_SNAP_SOURCE_ID`/`REPORTS_SNAP_VIEW_ID` in `report_build.mjs`) filtered by
+  `data.name` against the currently-live page id (`dms page list --pattern npmrds_sub`) for that
+  slug — any row whose `report_id` ISN'T the live page's id is an orphan, safe to delete via `dms
+  raw delete npmrdsv5 "reports_snap_2|2177440:data" <row-id>` (needs a fresh auth token; `dms raw
+  get <row-id>` can't address it — split `:data` row, use `dataset query --filter id=<row-id>` to
+  confirm deletion instead).
 
 ## 6. Which tool to reach for
 

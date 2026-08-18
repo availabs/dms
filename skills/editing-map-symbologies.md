@@ -124,6 +124,29 @@ colors/labels to match, and repeat for every `interactive-filters[i]` snapshot.
 the step expression + `color-range` + `choroplethdata{breaks,max}` + `legend-data` (labels from
 consecutive break pairs, formatted) together.
 
+**Give a choropleth FIXED (author-set) breaks instead of per-view `ckmeans`** — when the ramp must
+mean the same thing across years/columns, or must land a policy number on a colour boundary.
+`colorDomain` is per view, so its edges move whenever the data does; and on a long right tail
+ckmeans buys variance reduction by isolating outliers, which routinely puts 60-90 % of the network
+in one colour (measured across 57 npmrds PM3 columns: mean worst bin **66 %**, max **89 %**,
+32 % of all bins holding under 1 %). Recipe:
+
+1. Author the sets as **data in their own module**, keyed by the finest grain that shares a
+   magnitude (for PM3 delay measures that is `measure × traffic type × unit` — the unit control
+   alone moves the median by 10³). Keep the module import-free so verification scripts can import
+   the same numbers the map paints.
+2. Supply them in the shape the code already expects: **`breaks[0]` is the domain FLOOR, not an
+   edge** — `choroplethPaint` emits `['step', v, colors[0], breaks[0], colors[0], breaks[1],
+   colors[1], …]`, and any bin-count SQL slices `[0]` off to get the interior edges. 7 colours ⇒
+   floor + 6 edges.
+3. **Do not invent a maximum.** `choroplethPaint` only reads `max` for the last legend label; a
+   fixed set should render its top bin as open-ended (`≥ last edge`) rather than quoting a
+   per-year observed max, which would put a moving number back on a fixed scale.
+4. Let the **number format travel with the set**, not with the measure: `,.2~s` is right for decade
+   edges (100000 → "100k") and wrong for a sub-1 family (0.1 → "100m", i.e. 100 milli).
+5. Keep the ckmeans call as the **fallback** for any column the table does not cover, so a new
+   sub-control value renders a defensible ramp instead of a blank map.
+
 **Repoint a layer to a new view/source** (e.g. deprecated → successor): fetch the new view's
 `metadata.tiles` from `data_manager.views`; replace `sources[]` (re-suffix ids `_${layerId}`),
 `view_id`, `source_id`, and each sub-layer's `source`/`source-layer`; verify the styled columns
@@ -148,6 +171,19 @@ name simply doesn't render; the screenshot is the truth.
   legend edit (LegendPanel renders legend-data, not the expression).
 - **interactive-filters snapshots** — each is a FULL layer copy; restyling only the top layer
   reverts styling when the user switches filters. Loop the snapshots.
+- **A plugin that rewrites `layers` from a STALE state snapshot silently reverts paint.**
+  `SymbologyViewLayer` applies paint by diffing `prevLayerProps.layers[i].paint[key]` against the
+  current one, so a write that is undone before that diff runs is invisible — no error, no warning.
+  Measured case (macroview, found 2026-08-18): the plugin's `dataUpdate` hook rebuilt the whole
+  `layers` array from the `state` PluginLayer captured at render time and wrote it back on every
+  `pluginData` change — i.e. exactly when the colour effect had just written a new `line-color`.
+  Result: the PM3 layer's paint was frozen at the expression stored in the section (a
+  `lottr_amp_lottr` step) for EVERY measure, so picking any other measure painted the whole network
+  the no-data colour, while the tile URL correctly asked for the new column. Rules: inside
+  `setState((draft) => …)` read the current value **off the draft**, never off the outer `state`;
+  touch only the fields you mean to (swap `source`/`source-layer`, leave `paint` alone); and prove
+  it by sampling `map.getPaintProperty(layerId, "line-color")` over time, not by eyeballing the map
+  — a stale ramp on the right column still looks plausible.
 - **visibility is a pair** — `isVisible` (wrapper) AND `layers[i].layout.visibility`; the Layer
   Library toggle + flatten effect keep them in sync, but hand edits must too.
 - **`_case` ordering assumption** — editors and legends read fill/line main paint at `layers[1]`;

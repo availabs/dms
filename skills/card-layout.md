@@ -171,6 +171,11 @@ Two gotchas:
 
 - `cellRowSpan` requires the grid to be *row-implicit*, which the renderer sets up only when any visible column has `cellRowSpan > 1` (it switches `gridAutoRows: 'minmax(0, auto)'` on). If you also set `cellsRowHeight`, that wins (fixed pixel rows).
 - When `cellsGridSize` is unset, the divisor is "visible columns without `cellSpan`". The moment one column has a span, the rest get a smaller share. Don't mix spanned and non-spanned columns without setting `cellsGridSize` explicitly.
+- **Never put `cellVAlign` on a row-spanning cell you are also drawing a border on.** `cellVAlign` is
+  `align-self`, so it shrink-wraps the cell inside its (tall) grid area — the cell's `cellBorderBottom`
+  then floats somewhere in the middle of the area instead of on the row's real bottom edge, and the rule
+  visibly fails to meet the sibling column's. Leave the span cell stretched (the default) and align its
+  *content* with **`cellContentVAlign`** instead (see "Filling a row AND placing its content").
 
 ### Sizing tracks (fluid / content / fixed)
 
@@ -226,6 +231,52 @@ display: { cellsTracksTemplate: '64px repeat(10, minmax(0, 1fr)) 52px' }
 
 Author types CSS, the renderer substitutes verbatim. Useful for asymmetric or `subgrid` cases the per-column knob can't express. Default-empty so existing sections stay on the derived path.
 
+**It is an inline style, so it is NOT responsive** — and that is a hard ceiling, not a style preference.
+A mockup that reads `grid-cols-1 sm:grid-cols-2` (change the number of columns at a breakpoint) has no
+Card expression: one template governs every viewport. A 6-track "2 records across × 3 parts" row that
+is right at 1480 will crush its `minmax(0,1fr)` tracks to ~1px at 390 and the text will overlap the
+neighbouring cell. Contrast the lexical `layout-container`, whose `templateColumns` is a Tailwind
+**class** (`grid-cols-1 md:grid-cols-[max-content_1fr]`) and therefore *is* responsive — that
+difference is the real reason a design transcribed into a Card can regress on mobile where the lexical
+version didn't. Two consequences:
+
+- Always use `minmax(0, …)` rather than a bare `max-content`/`1fr` — a bare `max-content` track cannot
+  shrink below its content and overflows the page instead of the cell.
+- Before committing to a multi-record-across track template, check the narrowest viewport you support.
+  If it can't hold the columns, either accept one-across at every width or log the responsive
+  `cellsTracksTemplate` (a breakpoint map, or a class string like the layout-container's) as the
+  enrichment that would close it.
+
+#### Budgeting a track template — the two taxes a shared grid charges
+
+A cells grid is ONE grid: all rows share the track edges. That is the whole point (it is
+what makes a converted row list line up where a per-row lexical `layout-container` never
+could — § "An authored 'list panel'"). It also means the width a `minmax(0,1fr)` text
+column gets is a **residual**, and two things quietly eat it:
+
+1. **A `max-content` track is sized by the widest value in the column, and every row
+   pays.** The mockup's row is usually a flex line with `shrink-0` spans, so each row's
+   fixed part costs only what *that row* needs. Measured on npmrds-home § 01 (8 measures,
+   2 across, `name · description · unit`): the mockup gives the `mph` rows 145px of
+   description and the `tons/yr` row 116px; the Card gives all four rows of that half the
+   same 118px, because `TONS/YR` sizes the shared unit track. **A design whose clipping is
+   driven by a per-row fixed width cannot be reproduced by a shared track at any width** —
+   widen the card and you clip *fewer* rows than the design, never the same ones. Escalate
+   it (a per-row track has no Card expression) rather than tuning until a screenshot matches.
+
+2. **A fixed px track transcribed from the mockup carries the mockup's slack too.** § 01's
+   name track was 76px = the mockup's 64px `w-16` box scaled from 15px type to a 12.5px
+   token, plus padding — for a longest name of 41px. On a 2-across grid that reserved
+   20px twice over. Set a fixed track to `padL + longest value + padR + 1`, and get
+   "longest value" from a measurement (`Range.getBoundingClientRect()` over the text node,
+   or force `white-space:nowrap; width:max-content` and read it back), not from eyeballing
+   the mockup.
+
+Do the arithmetic explicitly before you touch the template — the residual is
+`(gridWidth − Σ fixed tracks − Σ max-content tracks) / (number of fr tracks)`, minus that
+cell's own `cellPaddingRight`. If the number you need is bigger than the number you have,
+the answer is a width escalation, not a smaller font.
+
 ### Per-cell visual overrides
 
 | Key                  | What it does                                                              |
@@ -248,6 +299,7 @@ The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** —
 | `headerWidth`        | (display-level) Percentage of cell width used by header in `row` layout. Default 50. |
 | `valueWidth`         | (display-level) Percentage for value in `row` layout. Default 50. |
 | `cellVAlign` / `cellsVAlign` | **Vertical alignment of a cell within its grid row** → CSS `align-self` (`cellVAlign` per-column wins; `cellsVAlign` is the display-level default). Values: `'top'`\|`'center'`\|`'bottom'`\|`'baseline'`. Cells default to top, so when one cell in a row is **short** (a `data_bar`, a pill) and its neighbors are **tall** (a `col`-layout label-above-value stat), the short one floats at the top and looks misaligned. Put the short + tall cells on one row and set `cellsVAlign:'center'` to line them up. (This is the fix for "a bar/short cell sits above the values next to it".) |
+| `cellContentVAlign` / `cellsContentVAlign` | **Vertical alignment of a cell's CONTENT inside the cell**, with the cell left STRETCHED (`cellContentVAlign` per-column wins; `cellsContentVAlign` is the display-level default). Values: `'top'`\|`'center'`\|`'bottom'`. Use this — not `cellVAlign` — whenever the cells carry borders or the row has grown: it emits no `align-self`, so every `cellBorder*` still draws on the row's real edge. Full recipe + measurements under "Filling a row AND placing its content". |
 
 ### Static columns (labels, eyebrows, chrome) — `origin: 'static'`
 
@@ -273,6 +325,78 @@ showed as a gold box on a `kicker` eyebrow before this fix). **Caveat:** in some
 mixed with normal data columns (as in the header eyebrow above), but if a card blanks, swap the static
 cell for a **SQL-literal calculated column** instead (see the KPI traps under the value-driven column types).
 
+#### An **all-static** card still fires a query — seed it
+
+A card whose columns are *every one* `origin:'static'` is not query-free. `getData` builds the UDA
+request with an **empty attribute list**; falcor then asks for the bare `data` leaf and the server
+compiles `SELECT data AS data FROM <table> LIMIT 0, 1` →
+`Unknown expression identifier 'data' in scope …`. The card usually still **paints** — the error
+payload comes back as one row and a static cell never reads the row — so the only symptom is a
+console error on every page load. Don't rely on that: give the query one real attribute.
+
+```js
+// one `selectOnly` aggregate makes the request legitimate and renders NO cell.
+// Because it carries `fn`, getData's `isRequestingSingleRow` short-circuit still applies
+// (length = 1 with no length round-trip), so this costs one metadata read, not a scan.
+{ name: 'count() as card_seed', origin: 'calculated-column', type: 'calculated',
+  fn: 'exempt', show: true, selectOnly: true, hideHeader: true }
+```
+
+`selectOnly` (not `hideHeader + hideValue`) is the right flag — a hidden-but-visible column still
+occupies a grid slot and shifts every later cell (see "Data-only columns" below).
+
+### Static **lexical** cells — rich text inside one Card cell
+
+`type: 'lexical'` is a registered column type (`ui/columnTypes/index.jsx`), and `Card.jsx` has explicit
+support for it: the Comp invocation passes `hideControls={attribute.type==='lexical' && !attribute.showToolbar}`
+and `showBorder={attribute.type==='lexical' && editMode}`. Paired with `origin:'static'` it gives you a
+cell whose value is an authored rich-text document:
+
+```js
+// one cell of the card = one lexical document. `styled(...)` here is a `styled-paragraph`
+// node carrying a styleKey; the icon is an `icon` node.
+{ name: 'rm_eyebrow', origin: 'static', type: 'lexical', show: true, hideHeader: true,
+  staticValue: JSON.stringify({ root: { type: 'root', version: 1, direction: 'ltr',
+    format: '', indent: 0, children: [ /* styled-paragraph with an icon node + a text node */ ] } }),
+  cellPaddingTop: 14, cellPaddingLeft: 16 }
+```
+
+Five things to know before reaching for it:
+
+1. **`staticValue` must be a BARE `{root:{…}}` document.** A lexical *section*'s `element-data` is
+   `{bgColor, isCard, showToolbar, text:{root:{…}}}` — that envelope is **not** a lexical document.
+   `LexicalView`'s `parseValue()` tests `JSON.parse(value)?.root`; the envelope fails the test and the
+   cell renders the entire JSON string as literal text. Plain text is also accepted (it's wrapped into
+   a one-paragraph doc), so a typo degrades silently and ugly. Guard it in your builder.
+2. **A static lexical cell is always read-only, even on `/edit`.** `CompWrapper` computes
+   `editMode = … && attribute.origin !== 'static'`, so it renders `LexicalView` (`editable:false`) with
+   no toolbar and no border. That also means the view-mode wrapper is `theme.editorViewContainer`
+   (`relative block`) rather than `editorContainer` — so the default lexical theme's `min-h-[50px]`
+   never applies and the cell is content-height.
+3. **`isLink` and `type:'lexical'` are mutually exclusive.** `CompWrapper` early-returns the raw value
+   for a link cell in view mode (`if(!editMode && (attribute.isImg || attribute.isLink || …)) return value`),
+   so the lexical ViewComp never runs and the cell renders its `staticValue` — i.e. the raw JSON — inside
+   a blue underlined `<a>`. If the cell must link, it cannot be lexical (see the recipe below).
+4. **A lexical cell's type comes from `textSettings`; a plain cell's `valueFontStyle` comes from
+   `dataCard`.** A `styled-paragraph`'s `styleKey` resolves against `theme.textSettings` (via the
+   editor's `brandTextStyles`), while `valueFontStyle` resolves against
+   `{...textSettings.styles[0], ...dataCard.styles[activeStyle]}` — i.e. the **dataCard mirror wins**.
+   Themes that carry a mirror of the type ladder inside `dataCard` (transportnyv2 does) can therefore
+   render *the same token name* differently in the two places: there `proseSM` is `text-slate-600` in
+   `textSettings` and `text-slate-500` in `dataCard`, and `metaXS` is `10px` vs `9.5px`. Don't assume a
+   lexical cell and a plain cell with the same token look identical — check.
+5. **Per-column keys reach the editor.** Card.jsx spreads `{...attributeProps}` into the Comp and
+   `LexicalView` forwards `...rest` to the editor, so `styleName` (the named `theme.lexical` style,
+   resolved by `getLexicalTheme(theme, styleName)`) and `showToolbar` are both live on a cell.
+
+**When to use which.** A lexical cell earns its place when the cell needs something a single value
+cannot express — **mixed runs** (an icon node *and* a text run in one cell), an inline chip, two
+paragraphs, or authored links inside prose. When the cell is **one styled run**, a plain static cell
+with `valueFontStyle` is equivalent, cheaper (no `LexicalComposer` instance per cell), and is the only
+form that can also be a link. Splitting a mixed-type design row across *Card cells* — rather than
+keeping it as one lexical paragraph — is what lets each part carry a named theme token instead of an
+inline `style` string, so prefer more cells over richer cells.
+
 ### Image columns
 
 `isImg: true` on a column triggers the renderer's "render an `<img>` here" branch (`Card.jsx` ~360). Keys consumed:
@@ -295,6 +419,53 @@ cell for a **SQL-literal calculated column** instead (see the KPI traps under th
 | `location`        | Base URL. Final href = `${location || valueFormattedForDisplay}${searchParams}`. |
 | `searchParams`    | `'id'`, `'value'`, `'rawValue'`, or unset. Encodes the row's id or this column's value into the URL. |
 | `isLinkExternal`  | Use a plain `<a target="_blank" rel="noopener noreferrer">` instead of React Router's `Link`. |
+
+A link cell's typography comes off the anchor, not the value div: Card.jsx drops
+`theme[valueFontStyle]` from the wrapper for a link cell and puts it on the `<Link>`/`<a>` instead (so a
+box-shaped token can't paint twice). So `{ isLink, location, valueFontStyle: 'labelSM' }` renders
+**exactly** the named token as a client-side link, with no underline and no `text-blue-600` — the
+`theme.linkColValue` fallback only applies when `valueFontStyle` is unset.
+
+#### A design row that is ONE `<a>` — the whole-row link
+
+Mockups often make an entire row a single anchor (`<a class="flex …">name · description · unit</a>`)
+with a row hover tint. A Card's link affordance is **per cell**, so there are three options and only
+one of them holds the design's type:
+
+| Approach | Result |
+|---|---|
+| lexical cell + `isLink` | ✗ broken — the lexical ViewComp is bypassed and the cell prints its `staticValue` JSON inside a blue underlined anchor. |
+| lexical cell + a `button` node inside the document | ~ navigates client-side, but the look comes from `theme.button.styles[]`, so the cell takes a button skin (e.g. a mono uppercase `cardlink`) instead of the design's type. |
+| **plain static cell + `isLink` + `valueFontStyle`, repeated on every cell in the row** | ✓ each part keeps its own named token and the whole row is clickable. |
+
+Take the third. The costs to log: the row becomes *N* anchors instead of one (a11y + tab stops), and
+the mockup's `hover:bg-slate-50` row tint is not expressible — `theme.cellActive` is the only cell tint
+and it is driven by search-param matching, not hover. A true row link would need a Card-level
+affordance (a row-scoped `location` on the display, or a link cell that spans the row and hosts the
+other cells) — that's an enrichment, not a config.
+
+#### ⚠ A BOX-shaped token must carry its own width — the value div shrink-wraps its children
+
+A cell's value div carries the justify class (`theme.justifyTextLeft` =
+`text-start justify-items-start` in transportnyv2). `justify-items` is usually read as a
+grid-only property, but **current Chromium implements CSS Box Alignment in block layout
+too**, so `justify-self: start` reaches every *block-level* child of that div and makes it
+**shrink-to-fit**. Measured on NPMRDS Home 2026-08-14: a bare `<div>` injected into a value
+div comes out **8px** wide inside a 239.3px box, and a full-bleed CTA anchor whose token said
+`flex items-center justify-between h-11 px-5` rendered **152.2px** instead of 241.3.
+
+So any token that is meant to be a *box* — a bar, a pill, a rail, a tinted strip — needs an
+explicit width, exactly as `chip` has long carried `w-full!`:
+
+```js
+// fills the cell's content box
+ctaRail: "flex items-center justify-between h-11 px-5 w-full …",
+// fills the cell's BORDER box (see the full-bleed recipe below)
+ctaRail: "flex items-center justify-between h-11 px-5 w-[calc(100%+2px)] -mx-px -mb-px …",
+```
+
+The symptom is easy to misread as "my flex didn't apply" — check the anchor's computed
+`width` against its parent's before touching the display.
 
 ### Format functions
 
@@ -325,7 +496,87 @@ cell for a **SQL-literal calculated column** instead (see the KPI traps under th
 | `staticValue`          | When `origin: 'static'`, the column has no row data — this is the cell's value. |
 | `usePageParams`        | The cell's value comes from page state (`pageParamKey`) rather than the row. |
 | `blankDefault`         | Synthetic value used when `display.useBlankRowFallback` is on and the query returns 0 rows. |
-| `wrapText`             | Allow long values to wrap inside the cell (otherwise truncates with `truncate`). |
+| `wrapText`             | **Spreadsheet/Table only.** `TableCell.jsx` reads it (`theme.wrapText`) to let a long value wrap instead of truncating. `Card.jsx` never reads it — a Card cell always wraps and a Card has **no truncation knob at all**. A design that ellipsises a long description is reproduced with a **clamping `valueFontStyle` token**; see the next section for the recipe and the two traps in it. |
+
+### Clamping a cell to N lines (the design's `truncate`)
+
+A Card cell wraps, forever. To reproduce a mockup's `truncate` / fixed-line-budget
+row text, add a **new** token to the brand's Card token map
+(`theme.dataCard.styles[0]`) and point the column's `valueFontStyle` at it.
+
+```js
+// themev2.js — dataCard.styles[0], ADDITIVE (see the BC note below)
+proseSMClamp1: `${F_SANS} text-[12.5px]! leading-[1.55]! text-slate-500! line-clamp-1`,
+proseXSClamp2: `${F_SANS} text-[11.5px]! leading-[1.5]!  text-slate-500! line-clamp-2`,
+```
+
+```js
+// the column
+{ name: 'desc', origin: 'static', staticValue: d, valueFontStyle: 'proseSMClamp1', … }
+```
+
+Four things this recipe depends on — each one measured, each one has bitten:
+
+1. **A new token, never `truncate` on the shared one.** `proseSM`/`proseXS` are
+   used by every card in the brand; adding `truncate` there silently starts
+   clipping all of them (`feedback_card_edits_bc`). Clamping is opt-in per column.
+2. **`line-clamp-N`, not `truncate`.** `truncate` carries `white-space: nowrap`,
+   which makes the cell's **min-content** the whole string. The cell wrapper is a
+   **grid item with `min-width: auto`**, so its content-based minimum floors it at
+   that width and a `minmax(0,1fr)` track can no longer contain it — the row blows
+   out sideways instead of ellipsising. `line-clamp` ellipsises in the same place
+   while leaving min-content at the longest *word*.
+3. **Never write `block` next to `line-clamp-N`.** `line-clamp` works by setting
+   `display: -webkit-box`; `display: block` beats it in the compiled sheet and the
+   clamp silently stops clamping. You are left with a cell that still wraps and
+   merely hides its overflow — which reads as "the token didn't apply" and sends
+   you looking in the wrong place. (Symptom: the cell is exactly N+ lines tall and
+   `getComputedStyle(a).display === 'block'`.)
+4. **~~On a LINK cell the token lands on an inline `<a>`…~~ FIXED 2026-08-14.**
+   A link cell used to render `value div → inline <a class={token}> → text`, and an
+   inline box's `line-height` does not size the line box it sits in — the value
+   div's inherited strut (16px/24px in transportnyv2) did, so **every** link-cell
+   line cost 24px whatever the token said. `Card.jsx` now **blockifies the anchor**
+   (`resolveLinkAnchorStyle` in `Card.layout.js`), which makes the token's own
+   leading the strut, exactly as on a non-link cell: a `text-[12.5px]!
+   leading-[1.55]!` link cell measures 19.4px per line, not 24.
+   - The rule is **"the token owns the typography unless it owns the display"**.
+     If the token declares any display utility — `inline-flex`/`flex`/`block`/… or a
+     `line-clamp-*` (which is `-webkit-box` in disguise) — the anchor is left
+     completely alone, because that display *is* the token: a `btnPrimary` box keeps
+     `items-center`, a clamp keeps clamping, and MNY's `flex` `linkColValue` pill
+     keeps its shape.
+   - **You no longer need to bolt `block` onto a text token** to make a link cell
+     honour its leading (`proseRowSM` still carries one; it is now redundant).
+     `inline-block` never worked for this and never will — an inline-block is still
+     inline-level, so the strut still wins (measured: 24 → 24).
+   - Note what this removes: link cells used to *accidentally* share one 24px line
+     box, which silently aligned differently-sized parts of a row. Now each part has
+     its own line box, so a row of `label / description / unit` cells needs real
+     alignment (see the stretched-cell gap below).
+
+5. **For a *single-line* clamp, add `break-all` — that is what makes it read as
+   `truncate`.** `line-clamp` alone breaks at word boundaries, so the ellipsis lands
+   after the last whole word that fits and the rest of the track is left empty:
+   `"Uncongested reference"` in a 118px box renders `"Uncongested…"` and wastes 44px,
+   where the design's `truncate` shows `"Uncongested refer…"`. `word-break: break-all`
+   lets the break fall mid-word, and it does **not** re-introduce failure (2): break-all
+   leaves min-content at one character, where `white-space: nowrap` makes it the whole
+   string. Rows that fit are unaffected — with one line there is no break point until
+   the clip point. Keep it as its own token so callers can choose:
+
+   ```js
+   // clamp = word-granular (right for multi-line prose that must stay readable)
+   proseSMClamp1: `${F_SANS} text-[12.5px]! leading-[1.55]! text-slate-500! line-clamp-1`,
+   // trunc  = the mockup's `truncate`, reproduced (right for a one-line row cell)
+   proseSMTrunc1: `${F_SANS} text-[12.5px]! leading-[1.55]! text-slate-500! line-clamp-1 break-all`,
+   ```
+
+**Detecting a clamp in a probe:** `scrollWidth > clientWidth` does **not** work. A
+clamped box wraps, so its scrollWidth never exceeds its clientWidth; the tell is
+`scrollHeight > clientHeight`. (`truncate`, had it worked, would have been the
+scrollWidth test — which is why probes copied from a `truncate` page report "nothing
+is clipped" on a clamped one.)
 
 ## Column-type-level layout — `cardHints`
 
@@ -459,6 +710,129 @@ figure distributes its width into a max-content track and starves the 1fr
 column. For a right-side chip/badge column, use a fixed track instead
 (`cellWidth: '110px'`).
 
+### `selectOnly` + `normalName` — feeding a column type from a hidden sibling
+
+`target_bar`'s `targetColumn`, `data_bar`'s `barMaxColumn`, `stacked_bar`'s
+`segments[].col` and `delta`'s `deltaYearField` all look their sibling up **on
+the row object**, and getData keys that object by
+`column.normalName || column.name` (`rowWithData[column.normalName || column.name]`).
+A raw calculated column's `name` is the whole SQL string, which is a miserable
+thing to reference — so give the hidden feeder an explicit `normalName` and point
+the consumer at *that*:
+
+```js
+// fetched, never rendered — the applicable target off the joined targets table
+{ name: 'max(t.lottr_interstate_applicable_target) as m1_target', type: 'calculated',
+  show: true, fn: 'exempt', formatFn: ' ', selectOnly: true, normalName: 'm1_target' },
+// …and the bar reads it, so the target MARKER is bound instead of hard-coded
+{ name: '<the metric expression> as m1_bar', type: 'target_bar', fn: 'exempt',
+  targetColumn: 'm1_target', barMin: '0', barMax: '100', barDirection: 'up' },
+```
+
+`normalName` does **not** change the SQL — buildUdaConfig only uses it for row
+keying and duplicate-column filter matching — so this is free. Prefer it to a
+static `targetValue`: a static target silently goes stale the day the agency
+re-sets it, and nothing on the page will say so.
+
+⚠ **Verify the marker actually resolved.** `TargetBarView` does
+`targetColumn && row ? row[targetColumn] : targetValue` — a `targetColumn` that
+misses returns `undefined` → `NaN` → **no marker at all, and `meets` defaults to
+`true` so the fill stays green**. It fails green and silent. Check the DOM for
+the marker element and its `left:` percentage, not the screenshot.
+
+## Recipe — a composite KPI panel: ONE Card that is the whole design box
+
+The pattern this solves: a mockup draws **one bordered box** containing a header
+strip, a 2×N grid of compact metric cells (each with a label row, a bar, and a
+footer line) and a footer link row. The temptation is one section per metric —
+especially when a report page elsewhere already has a card per metric and you
+want the same numbers. **Resist it: N sections can never be one box**, and a
+report card carries far more content than a design's compact cell (a status
+pill, a 44px figure, a captioned bar, a delta *and* a margin sentence).
+
+Clone the report card's **SQL**, not its **presentation**. Lift each expression
+out of the existing card by alias and rename only the alias, so the two surfaces
+provably cannot disagree:
+
+```js
+const kpiSql = (id, alias, newAlias) => {
+  const col = CLONES[id].columns.find(c => c.name.endsWith(` as ${alias}`));
+  if (!col) throw new Error(`card ${id} has no column aliased "${alias}"`);
+  return col.name.slice(0, -(` as ${alias}`).length) + ` as ${newAlias}`;
+};
+```
+
+**The grid.** Two tracks per metric, N metrics across; the cells grid *is* the
+design's metric grid, which is what makes the cells' column edges, their
+`cellBorderRight` seam and their `cellBorderBottom` rules line up:
+
+```js
+display: {
+  cellsGridSize: 4, cellsGridGap: 0, cardsPadding: 0, cardsBgColor: '#ffffff',
+  cardStyle: 'context',        // a named dataCard style whose `value` is '' — see below
+  cellsTracksTemplate: 'minmax(0,1fr) minmax(0,max-content) minmax(0,1fr) minmax(0,max-content)',
+}
+```
+
+Column order = auto-flow order, so emit a *row of the design grid* at a time:
+`name₁ · figure₁ · name₂ · figure₂` → `bar₁ (cellSpan 2) · bar₂ (cellSpan 2)` →
+`caption₁ · delta₁ · caption₂ · delta₂`. The `border-r` between the two halves is
+`cellBorderRight` on **every cell in track 2**; the cell's bottom rule is
+`cellBorderBottom` on the last row of each metric.
+
+**Why the header strip and the footer row are safe to span.** Per CSS Grid
+§ 12.5, a grid item that spans a **flexible** track contributes nothing to
+intrinsic track sizing. So a header cell with `cellSpan: 2` over
+`[minmax(0,1fr), minmax(0,max-content)]`, and a footer cell with `cellSpan: 4`
+over the whole thing, **cannot inflate the figure column** — measured on the
+NPMRDS home § 04 panel, whose figure tracks stay at 79px and 111px, sized only by
+the four figures and four deltas. Without a flexible track in the span they
+would.
+
+Four more things that panel taught, all of which cost a build cycle:
+
+1. **A "no data here" placeholder must be `hideValue: true`, not
+   `staticValue: ''`.** An empty static cell still renders its value div, which
+   carries `min-h-[20px]` — the placeholder was making one bar row 30px against
+   the other's 18. `hideValue` drops the content and keeps the SLOT (which is the
+   whole point of the placeholder: it holds the grid row so the other metrics
+   stay aligned).
+2. **`barShowCaption: false`** when the design puts the target on its own footer
+   line rather than above the bar. The caption is `target_bar`'s only opinion
+   about layout; switch it off and the column type is pure geometry.
+3. **A `delta` with no `deltaYearField` and no `deltaSuffix` renders bare** —
+   which is what you want when the design states the comparison once, in the
+   header strip ("change vs 2024"), instead of on every cell.
+4. **A `lexical` cell's content floor is ~23px.** `LexicalView`'s root carries a
+   `leading-[22.4px]` strut, so a one-line footer link row inside a lexical cell
+   is 23px of content no matter how small the type is. Budget the cell's padding
+   against 23, not against the design's 15px line.
+
+**Two atoms that have no Card expression, so plan around them rather than
+discovering them late:**
+
+- **A standalone verdict dot.** `verdict_dot` always prints its value (an empty
+  value returns an empty div — no dot), and `status_pill` always prints text.
+  There is no cell that renders *just* a coloured dot. If the design's dot is
+  decorative-but-meaningful, the honest substitute is usually `target_bar`'s own
+  emerald/rose fill, which encodes the same verdict. (Smallest enrichment: a
+  `verdictShowValue: false` attribute — `verdictDot.jsx` already owns exactly the
+  `size-1.5 rounded-full bg-emerald-500 / bg-red-500 / bg-slate-300` classes the
+  mockups draw.)
+- **Per-column styling of a value-driven column type.** `target_bar`, `delta`,
+  `verdict_dot` and friends call `getComponentTheme(theme, '<key>')` with **no
+  `activeStyle`**, so their look is one global setting per site. You cannot give
+  one page's bar a 6px track and another's an 8px track, and adding the theme key
+  at all restyles every existing consumer. Check what else uses the column type
+  before touching `theme.targetBar` / `theme.delta`.
+
+**Link audit warning.** A cell cannot be both a link cell and the `lexical`
+column type (`CompWrapper` early-returns the raw value for a link cell, so the
+rich-text renderer never runs). Links inside a lexical cell are therefore
+`button` **decorator** nodes — they navigate, but they render `<button>`, not
+`<a>`, so **they never appear in an `href` sweep and a "dead `#` link" check will
+not see them.** Verify them by clicking.
+
 ## Vertical rhythm (footnote)
 
 Covered by the box model at the top: on v2 the gap between cards IS
@@ -488,6 +862,142 @@ with every `valueFontStyle`/`headerFontStyle` token on Tailwind's
 arbitrary-value order. v2 forbids fonts in structural keys; on v1, keep
 `theme.value` layout-only (`w-full`) or give the token copies `!` importance
 (the transportny approach, above).
+
+### Cells-grid vertical rhythm — three keys with confusingly similar names
+
+| Key | Level | What it actually sets |
+|---|---|---|
+| `display.cardsVerticalAlign` | **cards** grid | How the *records* pack down the section (`resolveCardsGridStyle`). |
+| `display.cellsVerticalAlign` | **cells** grid | Where the card's **leftover height goes**: `'stretch'` → `align-content: stretch` (spread equally across the rows); unset/`'top'` → `align-content: start` (pooled below the last row). Row *sizing* is separate — see below (`Card.layout.js` `resolveCellsGridStyle`). |
+| `display.cellsRowsTemplate` | **cells** grid | Raw **`grid-template-rows`** (peer of `cellsTracksTemplate`). Names the explicit rows, which is how you exempt one from `'stretch'` — see the recipe below. |
+| `attr.cellVAlign` / `display.cellsVAlign` | one cell / all cells | Plain **`align-self`** on the grid item (`top`/`center`/`bottom`/`baseline`). Nothing to do with row sizing. |
+| `attr.cellContentVAlign` / `display.cellsContentVAlign` | one cell / all cells | Where the cell's **content** sits inside the cell (`top`/`center`/`bottom`). Emits `justify-content` or `align-items` depending on the cell's flex direction, and **no `align-self`** — the cell keeps filling its row. This is the one to pair with a distribution below. |
+
+**`cellsVerticalAlign: 'stretch'` — "stretch the cells to fit inside the card".**
+Use it when a `height: 'fill'` card sits beside a taller sibling and its last cell
+(a tinted footer strip, a CTA rail, a bottom rule) has to land on the card's own
+bottom edge instead of stopping short. CSS Grid §12.9 "Stretch auto Tracks"
+divides the leftover space **equally** among tracks whose max sizing function is
+`auto`, which is exactly what the key now emits. Properties worth knowing:
+
+- **Inert without slack.** A card whose rows already fill the box renders
+  byte-identical — so it is safe to set on both siblings and let whichever one is
+  short at a given width absorb.
+- **The card does not grow.** Measured on NPMRDS Home § 02 (2026-08-14): the short
+  card's gap went 43px → 0 at 1440 and 20px → 0 at 1600/1680 with the card height
+  unchanged at every width in the 1280–2048 sweep.
+- **`cellsRowHeight` wins the row size.** With fixed-px rows there is no auto-max
+  track to grow, so `stretch` has nothing to distribute and behaves as `start`.
+  `cellRowSpan`'s `minmax(0, auto)` *does* compose — those rows take their share.
+- **It needs a definite height to have slack at all**, which a `height: 'fill'`
+  section gives it (the cells grid is a stretched item of the cards grid). In an
+  `auto`-height section there is no leftover, so the key is a no-op — that is a
+  section-height problem, not a Card one.
+
+**Why not `gridAutoRows: minmax(max-content, 1fr)`** — the pre-2026-08-14
+implementation of this same key, kept here because the CSS lesson is general: a
+**flexible** track is not stretched, it is *equalized*. The flex fraction resolves
+against the largest track's base size, so every row is sized to the **tallest**
+row's max-content and the card grows instead of the gap closing. Measured on the
+same § 02 card: 395.8 → **751.3px** (all ten rows forced to 75.1px), and on § 01's
+panel the 49px header strip fattened to 56px to match the data rows — at a width
+where there was no slack to distribute at all. Distributing free space is
+`align-content`'s job; the track sizing function only decides how big rows *want*
+to be.
+
+### Filling a row AND placing its content — `cellsContentVAlign` / `cellContentVAlign`
+
+**Two vertical axes, two keys** (the content one shipped 2026-08-14):
+
+```js
+display: { cellsContentVAlign: 'center' }     // every cell in the section
+{ name: 'unit', cellContentVAlign: 'bottom' } // one column wins over it
+```
+
+| key | what moves | how |
+|---|---|---|
+| `cellVAlign` / `cellsVAlign` | the **CELL** inside its grid row | `align-self` — and `center`/`top`/`bottom` all **shrink-wrap** the cell |
+| `cellContentVAlign` / `cellsContentVAlign` | the **CONTENT** inside the cell | emits **no `align-self`**, so the cell keeps the grid default `stretch` |
+
+Values `top` \| `center` \| `bottom` on both. They compose — "cell at the bottom of
+its row, content centred in the cell" is expressible.
+
+**Reach for the CONTENT key by default.** Once a row grows — because a sibling cell
+is taller, or because `cellsVerticalAlign:'stretch'` / `cellsRowsTemplate` gave the
+row a share of the card's slack — a stretched cell top-anchors its text and the row
+looks broken (NPMRDS Home § 01 at 1280: 16.3px of text in an 81.7px row, **15px above
+and 47.4 below**; with `cellsContentVAlign:'center'`, **30.7 / 31.7**). It is inert
+when there is no slack: the same card at 390 has 50.4px rows and the description does
+not move at all.
+
+**Do NOT reach for `cellVAlign:'center'` for this.** `align-self: center` shrink-wraps
+the cell inside its row, so any `cellBorderBottom` floats at the *cell's* bottom edge
+instead of the row's and a `cellBorderRight` divider becomes a dashed stub. Measured
+on the same § 01 row: the three cells collapse 81.7 → 47.3 / 50.4 / 44.5 and the
+panel's rules go from **5 continuous lines to 13 stubs**. With the content key the
+rules are byte-identical to the top-anchored version (5 groups, and the three cells of
+every row share a bottom edge to 0.0px).
+
+**It also aligns parts of a row that carry different tokens.** Three cells in one row
+with `leading` 16.25 / 19.4 / 13.5 do not line up top-anchored (line-box midlines
+−1.6 / 0 / −3.0). Centred, each part's line box is centred in an identical content box,
+so the midlines coincide **exactly** (0.0 / 0 / 0.0) — no per-token padding arithmetic,
+and nothing to recompute when a token changes.
+
+⚠ **Which CSS property it emits depends on the cell's flex direction**, and the
+resolver works that out for you (`resolveCellFlexRow`): `justify-content` for a
+stacked cell, `align-items` for a row cell. The direction is `headerValueLayout` when
+set, and otherwise **whatever the theme's `headerValueWrapper` bakes** — transportnyv2
+and tessera bake `flex flex-col`, the dms default / avail / wcdb / mny wrappers are a
+bare `flex` (⇒ row). If a theme declares `headerValueLayout:'row'` but ships no
+`itemFlexRow`, the DOM stays column and the wrong axis is emitted — that is the same
+theme bug that already breaks the header/value width split; fix the theme.
+
+**"Spread the slack, but NOT into THIS row" — `display.cellsRowsTemplate`**
+(shipped 2026-08-14). `'stretch'` spreads the leftover **equally** over every row,
+which is wrong whenever the rows are not interchangeable — a header strip must not
+grow just because the card has spare height. `cellsRowsTemplate` is the row-axis
+peer of `cellsTracksTemplate` (a raw `grid-template-rows` string) and settles it,
+because `align-content: stretch` only grows tracks whose max sizing function is
+`auto`: name a row in the template and §12.9 skips it.
+
+```js
+// header strip holds its height; every row below it splits the leftover
+display: { cellsVerticalAlign: 'stretch', cellsRowsTemplate: 'max-content' }
+
+// the mockups' `mt-auto`: authored rhythm kept, ONE row eats everything
+display: { cellsRowsTemplate: 'max-content max-content max-content 1fr' }
+```
+
+It names only the **explicit** rows — everything past the template stays implicit,
+so `cellsRowHeight` and the row-span `minmax(0, auto)` still size the rest, and you
+don't have to know how many rows the data will produce. Same ceiling as
+`cellsTracksTemplate`: it is an **inline style**, so one template governs every
+viewport.
+
+Worked example — NPMRDS Home § 01's measures panel, which is exactly the case
+plain `'stretch'` could not serve:
+
+| width | header, `stretch` alone | header, + `cellsRowsTemplate:'max-content'` | measure rows | slack |
+|---|---|---|---|---|
+| 1280 | 60.5 → **83.8** | **60.5** (unmoved) | 79.5 | 0 |
+| 1440 | 49 → **59.7** | **49** | 63.8 | 0 |
+| 1480 | 49 → **52.8** | **49** | 55.2 (mockup: 55.9) | 0 |
+
+⚠ **Adding a display key takes two edits, not one.** `Card.jsx` re-assembles a
+*curated* `display` literal for `resolveCellsGridStyle` rather than passing
+`display` through, so a resolver that reads a new key gets `undefined` forever —
+the data writes fine, the DOM just ignores it, and nothing errors.
+`cellsRowsTemplate` shipped inert once this way. `cardLayout.test.js` now carries a
+source-scan guard that fails if the literal stops covering the destructure.
+
+**Whichever distribution you pick, pair it with `cellsContentVAlign`.** A grown row
+top-anchors its content (§ 01 at 1280: 16.3px of text in an 81.7px row, 15 above /
+47.4 below), so the row that just absorbed the slack is the row that looks wrong.
+Shipped 2026-08-14 and documented above under *"Filling a row AND placing its
+content"* — it keeps `align-self: stretch`, so the rules stay continuous. Do **not**
+reach for `cellVAlign:'center'` instead: that is `align-self`, it shrink-wraps the
+cell, and the per-row rules break into 13 stubs.
 
 ## What a column type receives
 
@@ -570,6 +1080,126 @@ content-width distributes across them rather than fighting the meta (see "max-co
 width" above). When the layoutGroup band already provides the surface (e.g. a `header`/white band), give
 the section a bare extra (`{}` — no `bg`/`border`) so you don't double-box a card on the band. Per-edge
 nudges via `cellPadding*`. This is the canonical way to reproduce a design's spacing from these settings.
+
+### An authored "list panel" — replace a lexical block with an all-static Card
+
+A very common mockup shape: a bordered panel with a header strip and then N rows, each row made of
+2–4 differently-styled parts that must line up **column-wise across every row** (`name · description ·
+unit`, `title/description · chevron`). Authors reach for a lexical section first and it can't do it: a
+paragraph has no columns, and one lexical `layout-container` per row makes each row **its own grid**, so
+any `max-content` part lands at a different x in every row. **One Card whose cells grid holds every
+row's parts is the fix** — one set of track edges, shared by all rows.
+
+Recipe (worked example: `build_npmrds_home.mjs`, § 01 "go straight to a measure"):
+
+```js
+// 6 tracks = 2 records across × 3 parts. minmax(0,…) everywhere so nothing overflows.
+display: {
+  cardStyle: 'context',                 // ← named style whose `value` is '' (see below)
+  cellsGridSize: 6, cellsGridGap: 0,
+  cardsPadding: 0, cardsBgColor: '#ffffff', cellsContentVAlign: 'center',
+  cellsTracksTemplate: '76px minmax(0,1fr) minmax(0,max-content) 76px minmax(0,1fr) minmax(0,max-content)',
+  totalLength: 1, fetchMode: 'force',
+}
+// header strip: two static cells, cellSpan 3 each, cellBorderBottom on both.
+// each row: three static cells, each { isLink, location, valueFontStyle }, and
+//   cellBorderBottom on all three except the last row + cellBorderRight on the
+//   left record's last cell — that reproduces the mockup's row/column rules.
+{ name: 'm0_name', origin: 'static', staticValue: 'LOTTR', valueFontStyle: 'labelSM',
+  show: true, hideHeader: true, isLink: true, location: '/macro', searchParams: 'none',
+  cellBorderBottom: true, cellPaddingTop: 10, cellPaddingBottom: 10,
+  cellPaddingLeft: 16, cellPaddingRight: 8 },
+```
+
+Four things that decide whether this looks right:
+
+- **`theme.value` padding.** The default `dataCard` style bakes `px-3 pb-3` into every cell's value
+  wrapper, *inside* the cell — no `cellPadding*` knob can reach it, so a design's `px-4 py-2.5` row
+  comes out with an extra 12px and the fixed name track loses a third of its width. Fix it the themed
+  way: pick a **named `dataCard` style whose `value` is `''`** via `display.cardStyle` (transportnyv2
+  ships `context`, `ink`, `tile`; `rowaligned` drops only the vertical half). Named styles inherit
+  every other key from `styles[0]`, and any shell the named style carries
+  (`subWrapperCompactView: 'rounded bg-slate-50/60 p-5'`) is overridden by the **inline**
+  `cardsPadding` / `cardsBgColor` on the same element. Never reach for a `className` passthrough.
+- **Track widths must include the padding.** In the mockup the row's `px-4` is on the `<a>` and the
+  name is `w-16` *inside* it; in a Card the cells partition the whole width, so the name track is
+  `16 (left pad) + name width + 8 (half the gap)`.
+- **Row rules are per-cell borders.** `cellBorderBottom` on every cell of a row draws one continuous
+  line only when `cellsGridGap: 0`. Note the class comes from `theme.cellBorderSides` (default
+  `border-b-zinc-950/15`), which a brand `dataCard` inherits from the DMS default style — a mockup's
+  lighter `/05` hairline is a token change, not a config one.
+- **Descriptions wrap, they don't truncate** (Card has no `truncate` knob — see `wrapText` above), so
+  rows are not uniform height when a description is long. Budget the track widths for the *live*
+  column width, which is usually narrower than the mockup's (side nav + rail).
+
+### A "doorway"/product card — pinned, full-bleed CTA rail at the card's bottom edge
+
+The other very common mockup shape, and the one that most often gets built as a lexical
+section and then quietly fails: a card whose footer is a **sibling** of a `flex-1` content
+block, so it is pinned to the bottom edge and runs edge to edge.
+
+```html
+<div class="flex flex-col h-full rounded-[8px] bg-white overflow-hidden">
+  <div class="p-5 pt-7 flex-1">…icon+title · prose · links…</div>   <!-- grows -->
+  <a class="h-11 px-5 flex items-center justify-between" style="background:#1F3F8F">…</a>
+</div>
+```
+
+A lexical section cannot express this at all — its content is ONE top-anchored flow, so the
+rail lands wherever the copy ends (measured 16–96px above the card's bottom edge on the four
+NPMRDS Home doorways) and sits inside the lexical element's own `p-4`. As a Card it is three
+knobs:
+
+```js
+// cells, top → bottom: [badge] [icon+title] [prose] [links] [CTA]
+display: {
+  cardStyle: 'context', cellsGridSize: 1, cellsGridGap: 0,
+  cardsPadding: 0, cardsBgColor: '#ffffff',
+  // the mockup's `mt-auto`: the row ABOVE the CTA eats the leftover height,
+  // the CTA row stays content-sized (h-11). One `1fr`, always second-to-last.
+  cellsRowsTemplate: 'max-content max-content max-content 1fr max-content',
+  totalLength: 1, fetchMode: 'force',
+}
+// the CTA cell — a LINK cell with zero padding; the token is the whole rail
+{ name: 'door_cta', origin: 'static', staticValue: 'Open Macro View',
+  valueFontStyle: 'ctaRailBlue', isLink: true, location: '/macro',
+  searchParams: 'none', show: true, hideHeader: true, cellPadding: 0 }
+```
+
+```js
+// themev2 dataCard token — the rail itself. Additive; the cell peer of a `button` style.
+ctaRailBlue: `${F_DISP} flex items-center justify-between h-11 px-5
+  w-[calc(100%+2px)] -mx-px -mb-px rounded-b-[7px] bg-[#1F3F8F] hover:bg-[#16307A]
+  text-white! uppercase text-[13px]! tracking-wide
+  after:content-['→'] after:text-[#FACC15] after:text-[16px]`,
+```
+
+Why each piece:
+
+- **`w-[calc(100%+2px)] -mx-px -mb-px`** = the full bleed. A v1-layout cell ships an always-on
+  `border border-transparent`, which insets any child by 1px per side; the negative margins
+  bleed back over it (the same trick `rail`'s `-mx-1` uses against section padding), and the
+  **explicit width is mandatory** — see "A BOX-shaped token must carry its own width" above.
+- **`rounded-b-[7px]`** = the card's INNER radius (an `8px`/1px-border section box), because
+  nothing clips: the section's box is `overflow: visible`, so a square-cornered rail paints
+  over the card's rounded corners. Give the rail its own bottom radius instead.
+- **`flex`** also satisfies `resolveLinkAnchorStyle`'s "token declares its own display" guard,
+  so the link-cell blockify fix leaves it alone.
+- **no `h-full`** on the rail, and the `1fr` on the row above it — that pairing is what pins it.
+  (`cellsVerticalAlign: 'stretch'` is the wrong tool here: it would spread the slack over
+  *every* row, growing the prose and title rows too.)
+
+Measured result (NPMRDS Home, four doorways, 2026-08-14): CTA gap to the card's bottom edge
+**0px at every width 390 → 2048**, rail width = the card's full inner width, `overflowsBy: 0`.
+The leftover height now pools **above** the rail (the mockup's `flex-1`) instead of below it.
+
+Two things a Card still can't do here, both worth logging rather than faking:
+
+- **A badge that floats over the card's top edge** (`absolute -top-3`). A cell cannot render
+  outside its grid area; render it as the card's first cell and log the deviation (the smallest
+  enrichment would be a section-level "tab" chrome option, not a Card key).
+- **An inset hairline.** `cellBorderTop` draws on the cell's *border box*, so a rule inside a
+  padded block runs full-bleed where the mockup insets it by its `p-5`.
 
 ### Composed card — fused header + flush table/body (mockup "panel" look)
 
@@ -807,6 +1437,9 @@ display.cellsRowHeight     → fixed pixel row height for cells
 display.cellsPadding       → padding on each cell wrapper (0 is a value and wins)
 display.cellBorder         → toggle theme.itemBorder on each cell
 display.cellsTracksTemplate → raw grid-template-columns string (wins over per-column cellWidth)
+display.cellsRowsTemplate  → raw grid-template-rows string; names the EXPLICIT rows, so
+                             'max-content' + cellsVerticalAlign:'stretch' = "spread the
+                             slack but not into row 1"; '… 1fr' = the mockups' mt-auto
 
 display.headerValueLayout = 'row'|'col'  → header beside or above value
 display.reverse           → swap header/value order in 'col' mode
@@ -830,7 +1463,7 @@ columns[i].combineWith / combineSeparator → for `formatFn: 'combine'`, the sib
 columns[i].isImg + imageSize/imageLocation/imageExtension/imageSrc/imageMargin → image cell
 columns[i].isLink + isLinkExternal/linkText/location/searchParams → link cell
 columns[i].allowEditInView → inline-edit this cell
-columns[i].wrapText      → allow wrapping (default truncates)
+columns[i].wrapText      → Spreadsheet/Table only (Card.jsx ignores it; Card cells always wrap)
 
 ColumnTypes[type].cardHints.fullBleed       → bare wrapper, no chrome
 ColumnTypes[type].cardHints.spanFullColumns → default gridColumn '1 / -1'

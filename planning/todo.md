@@ -14,6 +14,8 @@
 
 ## dama
 
+- [ ] [XLSX upload fails on empty inline-string cell](./tasks/current/xlsx-upload-empty-inlinestr-cell.md) — `read-excel-file@6.0.3` throws `Unsupported "inline string" cell value structure` on a blank cell typed `t="inlineStr"` with no `<is>` child; fix is a catch-and-sanitize retry in `excel.js`, not a library upgrade (v7+ is API-breaking for our usage).
+
 - [x] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script. All 7 phases shipped + production-verified. One non-blocking follow-up split out: [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md).
 - [x] [Datatypes plugin infrastructure](./tasks/completed/datatypes-plugin-infrastructure.md) — `data-types/` + `server/register-datatypes.js` + `DMS_EXTRA_DATATYPES` env-var hook landed; submodule `dms-server/src/index.js` patched; smoke-test `_hello-world` plugin verifies the round-trip end-to-end (POST → events → done).
 - [ ] [Port `enhance_nfip_claims_v2` to the plugin system](./tasks/current/dama-nfip-claims-migration.md) — first concrete plugin built on the infrastructure. Reference implementation for subsequent hazmit ports. Replaces the smoke-test plugin with `enhance-nfip-claims`.
@@ -183,6 +185,38 @@
 
 ## ui
 
+- [x] [Card link cells ignore their font token's `leading` (inline `<a>` strut)](./tasks/completed/card-link-cell-line-height.md) —
+      SHIPPED 2026-08-14. The token sits on the `<a>`/`<Link>` (deliberately — a box token on both
+      painted a phantom second box), and an **inline** box's `line-height` cannot size the line box it
+      sits in, so the value div's inherited 16px/24px strut set every line. `inline-block` (the task's
+      first choice) was measured and rejected — still inline-level, 24 → 24, and it broke `line-clamp`
+      cells. Shipped as a guarded blockify: `resolveLinkAnchorStyle` puts `display:block` on the anchor
+      **unless the token declares its own display** (display utility, `line-clamp-*`, `[display:…]`), so
+      box tokens and clamps are untouched. A `text-[12.5px]! leading-[1.55]!` link cell now measures
+      **19.4px/line, not 24**. Clamp workaround tokens measured and kept (their horizontal job is real).
+- [x] [Card cells grid: absorbing a fill-card's leftover height](./tasks/completed/card-cell-row-slack-absorption.md) —
+      BOTH PHASES SHIPPED 2026-08-14 (BC, opt-in). **Phase 1:** `cellsVerticalAlign:'stretch'` emits
+      `align-content: stretch` (§12.9 spreads slack equally) instead of the old
+      `gridAutoRows: minmax(max-content,1fr)`, which *equalized* rows to the tallest and grew the card
+      (395.8 → 751.3px); § 02's footer gap 43px → ≤1 at every width. **Phase 2:** new
+      `display.cellsRowsTemplate` — the row-axis peer of `cellsTracksTemplate` — because the live case
+      needed "spread the slack but **not** into row 1", which `align-content` cannot express (it grows
+      every `auto`-max track, no per-item opt-out). `'max-content'` + `'stretch'` holds § 01's header
+      strip at 60.5/49px across 1280–1480 (plain stretch inflated it to 83.8/59.7/52.8) while the measure
+      rows land at 55.2 vs the mockup's 55.9, slack 0; `'max-content … 1fr'` is the `mt-auto` shape.
+      § 04's strip proved unreachable — measured: no doorway CTA sits in a section with a Card cells grid.
+- [x] [Card: place a cell's CONTENT inside a stretched cell](./tasks/completed/card-cell-content-valign.md) —
+      SHIPPED 2026-08-14 (signed off by Alex). New per-column `cellContentVAlign` / per-section
+      `cellsContentVAlign` (`top`\|`center`\|`bottom`) — a SEPARATE key from `cellVAlign`, because
+      "where the cell sits in its row" and "where the content sits in the cell" are different axes and
+      an author can set both. Emits **no `align-self`**, so the cell keeps filling its row and every
+      `cellBorder*` still draws on the row's real edge; § 01's rules stayed 5 continuous lines where
+      `cellVAlign:'center'` breaks them into 13 stubs. § 01 at 1280: 15/47.4 above/below → **30.7/31.7**,
+      and the two hand-computed padding bumps are **deleted** (part midlines −1.6/0/−3.0 → 0.0/0/0.0).
+      Design note: the axis is NOT `isRowLayout` — that treats unset as row, while an unset
+      `headerValueLayout` renders in whatever direction the theme's `headerValueWrapper` bakes
+      (transportnyv2 = `flex-col`), so a new resolver `resolveCellFlexRow` decides. Unset ⇒ byte-identical
+      (11/11 cells grids on /edit/home unchanged, measured in and out); 43 → 55 unit tests.
 - [x] [Map filter-bounds: point layers crash the page, arrive unprojected, and can't provide bounds](./tasks/current/map-filter-bounds-point-layers.md) —
       FIXED 2026-07-28. Three defects in one path: a single-feature `ST_Extent` returns a **Point**, so
       `coordinates[0]` was a number and `.reduce` threw — replacing the whole route with "Unable to
@@ -229,6 +263,18 @@
       non-zero mount path and a second app); all BC, two files, no new theme keys. Visible on every DMS
       map in every app (4 call sites). Resolved on owner review 2026-07-29; pending the transportNY
       vendored-dms sync before clients see it.
+- [x] [AvlMap: the map-actions column reserves overlay width, so edge-pinned panels stop short](./tasks/current/map-actions-column-reserves-overlay-width.md) —
+      IMPLEMENTED (opt-in) 2026-08-17. The overlay's actions column is a full-height flex sibling that
+      takes ~176px out of `flex-1` while drawing only in the bottom-right corner, so a plugin panel
+      pinned `right-0` stopped **200px** short of the map edge (measured on npmrds `/macro`: right
+      panel right=1400 vs a 24px inset on the left). New `floatMapActions` prop (**default false**,
+      render byte-identical — asserted by substituting the two class strings back and comparing the
+      full server render) makes the column zero-width and floats the controls in the same corner, so
+      `flex-1` spans the whole overlay. The Map section turns it on from the plugin registry
+      (`PluginLibrary[name].fullWidthOverlay`, declared by transportny's macroview) — no section edit
+      on a published page. Live: gap 200 → **24px** at 1280/1600/1920, nav controls unmoved, and an
+      unrelated Map section still renders the reserving column. 9 new tests. MapEditor/MapViewer/
+      map_dama deliberately not wired.
 
 - [ ] [Duration value format (M:SS) for travel-time axes and tooltips](./tasks/current/duration-value-format-mm-ss.md) —
       travel time is carried in minutes, so short corridors render as `0.9` / `-1.2` on a y-axis. Add a
