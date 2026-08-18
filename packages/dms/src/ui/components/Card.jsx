@@ -13,8 +13,10 @@ import {
     resolveCellTracks,
     resolveCellsGridStyle,
     resolveCellStyle,
+    resolveCellFlexRow,
     resolveHeaderValueWidths,
     resolveCellBorderClass,
+    resolveLinkAnchorStyle,
     describeResolvedPadding,
 } from './Card.layout';
 
@@ -407,17 +409,26 @@ const CardColumnField = ({
         // the absent name key — that rendered aggregate zeros as blank cells.
         : source?.[attr.normalName] ?? source?.[attr.name];
     const id = tmpItem?.id;
+    // Resolve the image src BEFORE rendering, so an unresolvable one renders
+    // nothing instead of a broken-image glyph. An image column over a nullable
+    // field is normal (not every show has a photo, not every track has cover
+    // art), and the old unconditional <img> emitted `src={undefined}` — or
+    // `${imageLocation}/undefined.jpg` — on every such row, which the browser
+    // draws as a broken icon. `imageSrc` alone is still valid: that is a static
+    // image that needs no row value.
+    const imgValue = rawValue?.value ?? rawValue;
+    const hasImgValue = imgValue !== undefined && imgValue !== null && String(imgValue) !== '';
+    const imgSrc = imageLocation
+        ? (hasImgValue ? `${imageLocation}/${imgValue}${imageExtension ? `.${imageExtension}` : ``}` : '')
+        : (imageSrc || (hasImgValue ? imgValue : ''));
     const value =
         isImg ?
-            <img className={theme[imageSize] || theme.imgDefault}
-                 alt={' '}
-                 src={imageLocation ?
-                     `${imageLocation}/${rawValue?.value || rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
-                     (imageSrc || rawValue?.value || rawValue)}
-            /> :
+            (imgSrc
+                ? <img className={theme[imageSize] || theme.imgDefault} alt={' '} src={imgSrc}/>
+                : null) :
             ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
                 <div className={theme.iconAndColorValues}>
-                    {formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon)}
+                    {formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon, attr)}
                 </div> :
                 // `combine` reads a sibling row field, so it needs `source` (the
                 // row) and `attr`. Skip the trailing `.replaceAll(' ', '')` that
@@ -493,9 +504,26 @@ const CardColumnField = ({
     // (side-specific > cellPadding > cellsPadding > v2 theme cellGutter),
     // explicit-zero contract, defined-keys-only emission — lives in
     // Card.layout.js so it's readable and testable in one place.
+    // `cellContentVAlign` centres/pins the cell's CONTENT without moving the cell,
+    // so it emits a FLEX property — and which one means "vertical" depends on the
+    // direction this wrapper actually renders in: `wrapperFlexClass` above when
+    // headerValueLayout is set, otherwise whatever the theme's headerValueWrapper
+    // bakes. resolveCellFlexRow answers exactly that (and is NOT `isRowLayout`
+    // below, which reads "unset ⇒ row" for the header/value width split).
+    const cellFlexRow = resolveCellFlexRow({ headerValueLayout, headerValueWrapper: theme.headerValueWrapper });
+
     const style = resolveCellStyle({
-        attr, hints, display, cellsPadding, layoutModelV2, cellGutter: theme.cellGutter,
+        attr, hints, display, cellsPadding, layoutModelV2, cellGutter: theme.cellGutter, cellFlexRow,
     });
+
+    // Link cells: the token lands on the <a>/<Link> below (see the value div's
+    // comment), where an INLINE box's line-height cannot size its line box.
+    // `resolveLinkAnchorStyle` blockifies the anchor so the token's own leading
+    // becomes the strut — unless the token declares a display of its own, in
+    // which case it is left exactly as it was. See Card.layout.js.
+    const linkClass = (attr.valueFontStyle && attr.valueFontStyle !== 'button')
+        ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '');
+    const linkStyle = resolveLinkAnchorStyle(linkClass);
 
     const hasMenu = isEdit && controls?.inHeader?.length && setState;
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
@@ -582,7 +610,8 @@ const CardColumnField = ({
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
                                 (isLinkExternal ?
-                                <a className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')}
+                                <a className={linkClass}
+                                   style={linkStyle}
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    href={url}
@@ -605,7 +634,7 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </a> :
-                                <Link className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')} to={url}>
+                                <Link className={linkClass} style={linkStyle} to={url}>
                                     <CompWrapper attribute={attr}
                                                  value={linkText || valueFormattedForDisplay}
                                                  rawValue={valueFormattedForEdit}
@@ -696,10 +725,15 @@ const RenderItem = memo(function RenderItem ({
         return paramValue === itemStr;
     }, [highlightedItem, item]);
 
+    // Themable, with the previous literals as the fallback so every existing
+    // consumer renders byte-identically. A brand that wants its own marker —
+    // WCDB tints the on-air row in the station's red — sets `itemHighlight` /
+    // `itemHighlightBorder` on its dataCard style instead of being stuck with
+    // amber.
     const highlightClass = isHighlighted
         ? highlightedItem?.style === 'border'
-            ? 'ring-2 ring-amber-400'
-            : 'bg-amber-100'
+            ? (theme.itemHighlightBorder || 'ring-2 ring-amber-400')
+            : (theme.itemHighlight || 'bg-amber-100')
         : '';
 
     const [isSaving, setIsSaving] = useState(false);
@@ -885,7 +919,7 @@ export default function Card ({
     const {
         cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
         cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
-        cellsVerticalAlign, cellsTracksTemplate,
+        cellsVerticalAlign, cellsTracksTemplate, cellsRowsTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
     } = display;
@@ -929,10 +963,10 @@ export default function Card ({
 
     const subWrapperStyle = useMemo(
         () => resolveCellsGridStyle({
-            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign },
+            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate },
             gridTemplateColumns, hasRowSpan,
         }),
-        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, hasRowSpan]);
+        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, cellsRowsTemplate, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

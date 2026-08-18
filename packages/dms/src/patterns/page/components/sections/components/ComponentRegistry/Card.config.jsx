@@ -22,6 +22,29 @@ const buildFontStyleOptions = (theme) => {
     ];
 };
 
+// Image sizes, built from the resolved `dataCard` style for exactly the same
+// reason as the font styles above — and with exactly the same bug before it.
+// `getImgClass` (ui/columnTypes/image.jsx) resolves the chosen value as
+// `dataCardTheme[size]`, so ANY `img*` key a brand theme defines is already a
+// legal value at render time. The hardcoded eleven-entry list (imgXS…img8XL)
+// meant a theme could ship a size the toolbar refused to offer: WCDB's
+// `imgFill` and `imgOnAir` both worked, but only if a developer wrote them into
+// a seed script — which is precisely the authoring capability this codebase
+// exists to keep in the author's hands.
+//
+// `imgDefault` is the fallback `getImgClass` uses when nothing is chosen, so it
+// is offered as the empty option rather than as a named size.
+const buildImageSizeOptions = (theme) => {
+    const dc = getComponentTheme(theme || {}, 'dataCard') || {};
+    const keys = Object.keys(dc)
+        .filter(k => k.startsWith('img') && k !== 'imgDefault')
+        .sort();
+    return [
+        { label: 'Default', value: '' },
+        ...keys.map(k => ({ label: k.replace(/^img/, '') || k, value: k })),
+    ];
+};
+
 // Per-section "Card style" picker — mirror of FilterComponent's `display.filterStyle`
 // and Spreadsheet's `display.tableStyle`. Options come from `theme.dataCard.styles` so
 // adding a new named style in the brand theme surfaces it in the toolbar with no code
@@ -84,10 +107,11 @@ const handlePaste = async (attribute, setAttribute) => {
     }
 }
 
-// `buildInHeader(fontStyleOptions)` produces the per-column toolbar entries.
-// Wrapped in a function so the font-style options (sourced from theme.textSettings)
-// can be injected at controls() resolution time.
-const buildInHeader = (fontStyleOptions) => [
+// `buildInHeader(fontStyleOptions, imageSizeOptions)` produces the per-column
+// toolbar entries. Wrapped in a function so both option lists — the font styles
+// from `theme.textSettings` and the image sizes from `theme.dataCard` — can be
+// injected at controls() resolution time, when the live theme is known.
+const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
     // settings from in header dropdown are stored in the columns array per column.
     { type: ({ attribute, setAttribute, moveColumn, removeColumn, close }) => {
             const { UI } = useContext(ThemeContext);
@@ -235,6 +259,24 @@ const buildInHeader = (fontStyleOptions) => [
     { type: 'input', inputType: 'number', label: 'Padding Right', key: 'cellPaddingRight', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Padding Below', key: 'cellPaddingBottom', isBatchUpdatable: true },
     { type: 'input', inputType: 'number', label: 'Padding Left', key: 'cellPaddingLeft', isBatchUpdatable: true },
+    // Per-cell margin — same precedence shape as padding (side-specific beats
+    // the `cellMargin` shorthand), but with no section-level ambient: a margin
+    // is always a deliberate local nudge.
+    //
+    // NEGATIVE VALUES ARE THE POINT. A negative margin below a cell lets the
+    // cells after it ride up over it, so a full-bleed image cell can become a
+    // backdrop with its title overlaid — built from ordinary columns, each one
+    // still independently stylable, instead of a composite column type that
+    // would freeze the whole arrangement in code.
+    { type: 'input', inputType: 'number', label: 'Margin', key: 'cellMargin', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Margin Top', key: 'cellMarginTop', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Margin Right', key: 'cellMarginRight', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Margin Below', key: 'cellMarginBottom', isBatchUpdatable: true },
+    { type: 'input', inputType: 'number', label: 'Margin Left', key: 'cellMarginLeft', isBatchUpdatable: true },
+    // Icon cells: the glyph alone, without the value printed beside it. Only
+    // meaningful for `formatFn: 'icon'`.
+    { type: 'toggle', label: 'Hide Icon Label', key: 'hideIconLabel',
+        displayCdn: ({ attribute, isEdit }) => isEdit && attribute.formatFn === 'icon' },
     { type: 'toggle', label: 'Hide Header', key: 'hideHeader', isBatchUpdatable: true },
     // hideValue is DEPRECATED as an authoring surface — one visibility axis:
     // `show` (fetch + render), `selectOnly` (fetch only), `hideHeader`
@@ -252,6 +294,19 @@ const buildInHeader = (fontStyleOptions) => [
     //   '<N>px' / etc → fixed CSS size; first column to claim a track wins it.
     // See src/dms/skills/card-layout.md → "Sizing tracks (fluid / content / fixed)".
     { type: 'input', inputType: 'text', label: 'Cell Width', key: 'cellWidth' },
+    // Content V-Align — where this cell's CONTENT sits inside the cell, with the
+    // cell still filling its row (so every cell border keeps drawing on the row's
+    // real edge and per-row rules stay one line). Overrides the section-level
+    // 'Content V-Align' under Cells Grid. See card-layout.md → "Filling a row AND
+    // placing its content".
+    { type: 'select', label: 'Content V-Align', key: 'cellContentVAlign', isBatchUpdatable: true,
+        options: [
+            { label: 'Section default', value: undefined },
+            { label: 'Top', value: 'top' },
+            { label: 'Center', value: 'center' },
+            { label: 'Bottom', value: 'bottom' },
+        ],
+    },
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // other
     { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
@@ -291,19 +346,7 @@ const buildInHeader = (fontStyleOptions) => [
     // `defaultImage` is shown when the row's value is empty.
     { type: 'input', inputType: 'text', label: 'Default Image URL', key: 'defaultImage', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'image' },
     { type: 'select', label: 'Image Size', key: 'imageSize',
-        options: [
-            { label: 'X-Small', value: 'imgXS' },
-            { label: 'Small', value: 'imgSM' },
-            { label: 'Base', value: 'imgMD' },
-            { label: 'XL', value: 'imgXL' },
-            { label: '2XL', value: 'img2XL' },
-            { label: '3XL', value: 'img3XL' },
-            { label: '4XL', value: 'img4XL' },
-            { label: '5XL', value: 'img5XL' },
-            { label: '6XL', value: 'img6XL' },
-            { label: '7XL', value: 'img7XL' },
-            { label: '8XL', value: 'img8XL' },
-        ],
+        options: imageSizeOptions,
         displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'image'
     },
     { type: 'input', inputType: 'number', label: 'Image Top Margin', key: 'imageMargin', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.type === 'image' },
@@ -521,14 +564,34 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Gap', key: 'cellsRowGap' },
                     { type: 'input', inputType: 'number', label: 'Col Gap', key: 'cellsColumnGap' },
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
-                    // 'Fill height' stretches cell rows to the card box (so bordered
-                    // cells reach the bottom of a `height:'fill'` card beside a taller
-                    // sibling); 'Pack to top' (default) keeps cells content-sized at the
-                    // top. Mirrors the cards-grid Vertical Align above.
+                    // 'Pack to top' (default) keeps cells content-sized at the top and
+                    // pools any leftover height as one blank strip below the last row.
+                    // 'Fill height' spreads that leftover EQUALLY across the rows
+                    // (`align-content: stretch`), so a `height:'fill'` card beside a
+                    // taller sibling still lands its last cell on its own bottom edge.
+                    // Inert when the rows already fill the card; `Row Height` wins the
+                    // row size, and with fixed rows there is nothing left to spread.
+                    // Mirrors the cards-grid Vertical Align above.
                     { type: 'select', label: 'Vertical Align', key: 'cellsVerticalAlign',
                         options: [
                             { label: 'Pack to top (default)', value: undefined },
                             { label: 'Fill height', value: 'stretch' },
+                        ],
+                    },
+                    // Where each cell's CONTENT sits inside the cell — the other
+                    // axis from 'Vertical Align' above (which distributes the
+                    // card's leftover height between the rows). Emits no
+                    // align-self, so the cells keep filling their rows and a row's
+                    // borders stay one continuous line; only the content moves.
+                    // Per-column 'Content V-Align' overrides this.
+                    // ('Top' is not always a no-op: a row-direction cell inherits
+                    //  `items-center` from several themes' headerValueWrapper.)
+                    { type: 'select', label: 'Content V-Align', key: 'cellsContentVAlign',
+                        options: [
+                            { label: 'Theme default', value: undefined },
+                            { label: 'Top', value: 'top' },
+                            { label: 'Center', value: 'center' },
+                            { label: 'Bottom', value: 'bottom' },
                         ],
                     },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
@@ -536,6 +599,14 @@ const buildControls = (theme) => ({
                     // Track Template — raw grid-template-columns string, wins over
                     // per-column `cellWidth`. Power-user escape hatch.
                     { type: 'input', inputType: 'text', label: 'Track Template', key: 'cellsTracksTemplate' },
+                    // Rows Template — the row-axis peer of Track Template (raw
+                    // grid-template-rows). Pairs with 'Fill height' above to say
+                    // "spread the leftover, but NOT into this row": `max-content`
+                    // holds row 1 (a header strip) at its content height and the rows
+                    // below it split the slack. `max-content … 1fr` is the mockups'
+                    // `mt-auto` — one row absorbs everything. Names only the EXPLICIT
+                    // rows; the rest stay implicit (Row Height still applies).
+                    { type: 'input', inputType: 'text', label: 'Rows Template', key: 'cellsRowsTemplate' },
                 ]
             },
             { label: 'Default Column Settings', items: [
@@ -585,8 +656,15 @@ const buildControls = (theme) => ({
             // Default off → existing sections behave exactly as before.
             // See dataWrapper/getData.js tail for the synthesis branch.
             { type: 'toggle', label: 'Render Blank Row When Empty', key: 'useBlankRowFallback' },
+            // Static row highlight — mark the row whose column equals a value
+            // (the on-air line in a schedule, say). Distinct from the
+            // `row_highlight` subscriber, which follows another section's hover.
+            { type: 'input', inputType: 'text', label: 'Highlight Column', key: 'highlightColumn' },
+            { type: 'input', inputType: 'text', label: 'Highlight Value', key: 'highlightValue' },
+            { type: 'select', label: 'Highlight Style', key: 'highlightStyle',
+                options: [{ label: 'Background', value: 'bg' }, { label: 'Border', value: 'border' }] },
         ],
-        inHeader: [...buildInHeader(buildFontStyleOptions(theme)), ...deriveColumnTypeInHeaderEntries()]
+        inHeader: [...buildInHeader(buildFontStyleOptions(theme), buildImageSizeOptions(theme)), ...deriveColumnTypeInHeaderEntries()]
 });
 
 export default {

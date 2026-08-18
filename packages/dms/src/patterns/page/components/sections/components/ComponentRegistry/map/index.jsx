@@ -1107,6 +1107,16 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
 
     const arePluginsLoaded = Object.values((state.symbologies || {})).some(symb => Object.keys((symb?.symbology?.plugins || {})).length > 0);
 
+    // A registered plugin can declare `fullWidthOverlay: true` when its own floating
+    // panels are pinned to the map's edges. Core's map-actions column otherwise reserves
+    // ~176px of the overlay for controls it only draws in the bottom-right corner, so a
+    // panel pinned `right-0` lands ~200px short of the map edge. No plugin flag ⇒ the
+    // prop stays false ⇒ today's layout, unchanged (see avl-map.jsx `floatMapActions`).
+    const floatMapActions = useMemo(() => Object.values(state.symbologies || {})
+        .some(symb => Object.keys(symb?.symbology?.plugins || {})
+            .some(pluginName => Boolean(PluginLibrary[pluginName]?.fullWidthOverlay))
+        ), [state.symbologies]);
+
     useEffect(() => {
         // -----------------------
         // Update map layers on map
@@ -1350,6 +1360,7 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                   }}
                   leftSidebar={ false }
                   rightSidebar={ false }
+                  floatMapActions={ floatMapActions }
                 />
                 {state.display?.layerPanel === 'library' && !state.hideControls ? (
                     <div className={damaMapT.layerLibraryWrapper}>

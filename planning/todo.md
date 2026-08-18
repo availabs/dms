@@ -22,6 +22,9 @@
 - [x] [Port the pattern "duplicate" route to dms-server](./tasks/completed/port-pattern-duplicate-route.md) — DONE 2026-06-10. Added `/dama-admin/dms/:appType/duplicate` + `dama/upload/dms-duplicate.js`: a new-type-model deep clone of `{instance}|page` + `{instance}|component` rows under the new instance (remapping `draft_sections`/`sections` refs, section `parent`, `data.id`; drops history; pattern row still created client-side via `addNewValue`). Client (`patternList.jsx`/`editSite.jsx`) now checks `res.ok` and surfaces failures. Verified: cloned freightatlas2 → 7 pages/195 components, refs remapped, test rows cleaned up. UI end-to-end pending user confirm.
 - [ ] [Port `map21` to the plugin system + 2023 HPMS TTM spec output](./tasks/current/dama-map21-migration.md) — IMPLEMENTED on 2026-04-26: plugin registered, route mounts at `/dama-admin/:pgEnv/map21/publish`, fast-fail path verified against `dama-sqlite-test`, in-process HPMS 2023 validator agrees with the external `validate-hpms-ttm-2023.cjs` (synthesized 2023-shape row passes; 2025 submittal CSV produces identical errors in both). **Pending: controlled smoke test against `npmrds2` ClickHouse + a real prod NPMRDS source, plus client-side route update.**
 - [x] GIS publish: honour dropped columns (`col: ""`) — DONE 2026-07-28. `dama/upload/workers/gis-publish.js` fed `tableDescriptor.columnTypes` straight into its SQL builders, so a column the author DROPPED in the upload wizard (the wizard marks it by blanking the output name) emitted `"" BIGINT` and the publish died on `zero-length delimited identifier at or near ""`. It also had no guard against a descriptor naming `ogc_fid`/`wkb_geometry`, which the worker adds itself. Now filtered once into `dataColumnTypes` and used by every consumer (temp select, CREATE TABLE, casts, INSERT, source `metadata.columns`) — restores the legacy avail-falcor behaviour (`publish.worker.mjs` filtered `Boolean(col)` + `DEFAULT_COLUMNS` in all four builders). Found via QA ticket 2191409, where a corrected MPO upload failed this way and left an orphan view (3577) with no table. **Needs a dms-server redeploy to take effect.** NB `csv-publish.js` has the same unfiltered shape but matches legacy there, so it is left alone — a CSV upload that drops a column would fail the same way.
+- [x] [Schema drift: `create_*.sql` changes never reach existing databases](./tasks/completed/dama-schema-drift-migrations.md) — `auth_permissions` was added to both `create_dama_core_tables*.sql` in a8a68808 and to **neither** migrate file, so every pre-existing pgEnv is missing it and `csv-dataset/publish` 500s on them (hit live on `wcdb-dama`). The `runMigrationFile` mechanism already exists and is wired; the pattern just was not followed, and nothing guards it. Also covers the two migrate files that are *called* but do not exist (`migrate_dms_core`, `migrate_auth_core`) and the absent SQLite variant.
+- [ ] [Setting an object-valued source attribute silently blanks it](./tasks/current/uda-source-attribute-set-blanks-objects.md) — the `uda[env].sources.byId[id][attr]` set route writes whatever the Falcor router leaves at the leaf, so a **plain object** is descended into as a branch, nothing reaches the leaf, and the column is written `{}` while the call reports success. `{$type:'atom'}` persists the envelope as data; only `JSON.stringify` (what the UI's `toWireValue` does) is correct. Destroyed source 11's `metadata.columns` on `wcdb-dama`, rebuilt from `information_schema`. Fix: normalize in the route; same handler shape on `views.byId`.
+- [ ] [PK removal rejects the very constraint it exists to remove](./tasks/current/uda-pk-removal-rejects-ingest-pk.md) — `setPrimaryKeyColumn(…, enable=false)` looks the real constraint up via `pg_constraint` specifically so it can drop an ingest-declared `ogc_fid`, but the column-exists guard ahead of that branch rejects `ogc_fid` (never in `metadata.columns`) — including the exact value `pkeyInfo` reports. Workaround is to name the incoming column and rely on the parameter being ignored. Fix: move the guard inside the `enable` branch.
 - [ ] [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md) — split out from DAMA server port; non-blocking. Migrate the GIS Create wizard to poll UDA tasks via Falcor, then drop the legacy REST endpoints from `dms-server/src/dama/upload/`.
 - [x] [now_playing dataType plugin](./tasks/completed/dama-now-playing-datatype.md) — ACRCloud webhook receiver shipped as a DMS plugin at `data-types/now_playing/` with full client-side UI (Create + Webhook source-view pages), DAMA source/view provisioning with `metadata.columns`, normalize.js, schema.js with idempotent inserts, ACR Console backfill worker, iTunes/MusicBrainz cover-art enrichment, and the existing `Card` page-section bound to a stream's view to render the latest matched track. Live verified against ACR project 16608 stream `s-Z0XwkcHp`.
 
@@ -182,6 +185,38 @@
 
 ## ui
 
+- [x] [Card link cells ignore their font token's `leading` (inline `<a>` strut)](./tasks/completed/card-link-cell-line-height.md) —
+      SHIPPED 2026-08-14. The token sits on the `<a>`/`<Link>` (deliberately — a box token on both
+      painted a phantom second box), and an **inline** box's `line-height` cannot size the line box it
+      sits in, so the value div's inherited 16px/24px strut set every line. `inline-block` (the task's
+      first choice) was measured and rejected — still inline-level, 24 → 24, and it broke `line-clamp`
+      cells. Shipped as a guarded blockify: `resolveLinkAnchorStyle` puts `display:block` on the anchor
+      **unless the token declares its own display** (display utility, `line-clamp-*`, `[display:…]`), so
+      box tokens and clamps are untouched. A `text-[12.5px]! leading-[1.55]!` link cell now measures
+      **19.4px/line, not 24**. Clamp workaround tokens measured and kept (their horizontal job is real).
+- [x] [Card cells grid: absorbing a fill-card's leftover height](./tasks/completed/card-cell-row-slack-absorption.md) —
+      BOTH PHASES SHIPPED 2026-08-14 (BC, opt-in). **Phase 1:** `cellsVerticalAlign:'stretch'` emits
+      `align-content: stretch` (§12.9 spreads slack equally) instead of the old
+      `gridAutoRows: minmax(max-content,1fr)`, which *equalized* rows to the tallest and grew the card
+      (395.8 → 751.3px); § 02's footer gap 43px → ≤1 at every width. **Phase 2:** new
+      `display.cellsRowsTemplate` — the row-axis peer of `cellsTracksTemplate` — because the live case
+      needed "spread the slack but **not** into row 1", which `align-content` cannot express (it grows
+      every `auto`-max track, no per-item opt-out). `'max-content'` + `'stretch'` holds § 01's header
+      strip at 60.5/49px across 1280–1480 (plain stretch inflated it to 83.8/59.7/52.8) while the measure
+      rows land at 55.2 vs the mockup's 55.9, slack 0; `'max-content … 1fr'` is the `mt-auto` shape.
+      § 04's strip proved unreachable — measured: no doorway CTA sits in a section with a Card cells grid.
+- [x] [Card: place a cell's CONTENT inside a stretched cell](./tasks/completed/card-cell-content-valign.md) —
+      SHIPPED 2026-08-14 (signed off by Alex). New per-column `cellContentVAlign` / per-section
+      `cellsContentVAlign` (`top`\|`center`\|`bottom`) — a SEPARATE key from `cellVAlign`, because
+      "where the cell sits in its row" and "where the content sits in the cell" are different axes and
+      an author can set both. Emits **no `align-self`**, so the cell keeps filling its row and every
+      `cellBorder*` still draws on the row's real edge; § 01's rules stayed 5 continuous lines where
+      `cellVAlign:'center'` breaks them into 13 stubs. § 01 at 1280: 15/47.4 above/below → **30.7/31.7**,
+      and the two hand-computed padding bumps are **deleted** (part midlines −1.6/0/−3.0 → 0.0/0/0.0).
+      Design note: the axis is NOT `isRowLayout` — that treats unset as row, while an unset
+      `headerValueLayout` renders in whatever direction the theme's `headerValueWrapper` bakes
+      (transportnyv2 = `flex-col`), so a new resolver `resolveCellFlexRow` decides. Unset ⇒ byte-identical
+      (11/11 cells grids on /edit/home unchanged, measured in and out); 43 → 55 unit tests.
 - [x] [Map filter-bounds: point layers crash the page, arrive unprojected, and can't provide bounds](./tasks/current/map-filter-bounds-point-layers.md) —
       FIXED 2026-07-28. Three defects in one path: a single-feature `ST_Extent` returns a **Point**, so
       `coordinates[0]` was a number and `.reduce` threw — replacing the whole route with "Unable to
@@ -228,6 +263,18 @@
       non-zero mount path and a second app); all BC, two files, no new theme keys. Visible on every DMS
       map in every app (4 call sites). Resolved on owner review 2026-07-29; pending the transportNY
       vendored-dms sync before clients see it.
+- [x] [AvlMap: the map-actions column reserves overlay width, so edge-pinned panels stop short](./tasks/current/map-actions-column-reserves-overlay-width.md) —
+      IMPLEMENTED (opt-in) 2026-08-17. The overlay's actions column is a full-height flex sibling that
+      takes ~176px out of `flex-1` while drawing only in the bottom-right corner, so a plugin panel
+      pinned `right-0` stopped **200px** short of the map edge (measured on npmrds `/macro`: right
+      panel right=1400 vs a 24px inset on the left). New `floatMapActions` prop (**default false**,
+      render byte-identical — asserted by substituting the two class strings back and comparing the
+      full server render) makes the column zero-width and floats the controls in the same corner, so
+      `flex-1` spans the whole overlay. The Map section turns it on from the plugin registry
+      (`PluginLibrary[name].fullWidthOverlay`, declared by transportny's macroview) — no section edit
+      on a published page. Live: gap 200 → **24px** at 1280/1600/1920, nav controls unmoved, and an
+      unrelated Map section still renders the reserving column. 9 new tests. MapEditor/MapViewer/
+      map_dama deliberately not wired.
 
 - [ ] [Duration value format (M:SS) for travel-time axes and tooltips](./tasks/current/duration-value-format-mm-ss.md) —
       travel time is carried in minutes, so short corridors render as `0.9` / `-1.2` on a y-axis. Add a

@@ -155,6 +155,167 @@ you only ever see one direction's color. Offset each to its right, zoom-scaled w
 "line-offset": ["interpolate", ["linear"], ["zoom"], 5, 0.3, 8, 0.6, 11, 1.2, 14, 2.5],
 ```
 
+## 7a. Map plugins and the overlay (edge-pinned panels)
+
+A registered map plugin's `comp` renders **inside AvlMap's overlay**
+(`absolute inset-0 pointer-events-none p-2`), in its `flex-1 relative` child. The overlay's second
+child is core's **map-actions column** — full height, ~176px wide with the four navigation buttons,
+but it only draws in the **bottom-right corner**. So its width comes out of `flex-1`, and anything
+your plugin pins `right-0` lands ~200px inside the map (measured on npmrds `/macro`: right panel
+right=1400 in a 1600 viewport, against a 24px inset on the left).
+
+If your plugin pins panels to the map's edges, declare it on the plugin object:
+
+```js
+export const MyPlugin = { id: "my_plugin", type: "plugin", fullWidthOverlay: true, … };
+```
+
+`ComponentRegistry/map/index.jsx` reads that off `PluginLibrary` and passes AvlMap
+`floatMapActions` (opt-in, **default off** — no flag means today's layout, and no section/page edit
+is needed to get it). The column then takes zero width and its controls float in the same corner.
+
+**Then move your own bottom-right chrome.** Once the overlay is full-width, that corner is core's:
+the nav row occupies the bottom 40px × 160px, and its **basemap menu opens upward, 240 × 144px**
+(x from `controls_left − 104`). A pill sitting bottom-right will be covered when the menu opens —
+macroview's download pill moved into the bottom-**left** bar beside its freshness strip.
+See `src/dms/planning/tasks/current/map-actions-column-reserves-overlay-width.md`. Not wired for
+MapEditor / MapViewer / `map_dama`, so panels still stop short in the author-side map editor.
+
+## 7b. Plugin-owned client-side overlays (and surviving a basemap change)
+
+The map draws its data **only from tiles** — that rule stands. But a plugin sometimes needs a
+handful of extra marks on the canvas that are a *result of a side-query*, not a published view
+(macroview draws the 25 worst segments as circles sized by value and coloured by legend bin). A
+tile route for 25 features would mean a second published view; a maplibre **GeoJSON source +
+layer added through the plugin's own map handle** is the right tool. The plugin gets that handle
+two ways: `mapRegister(map, …)`/`cleanup(map, …)`, and the `map` prop on `comp`
+(`PluginLayer` renders `<RenderComp state setState map={maplibreMap}/>`).
+
+Three things bite, in this order:
+
+1. **A basemap change destroys it.** `MapActions.setMapStyle` calls `maplibreMap.setStyle(...)`,
+   which replaces the whole style — every source and layer not in the new style document is gone.
+   Core re-adds *its* layers (AvlLayer's "CHECK FOR STYLE CHANGE" effect); nothing re-adds yours.
+   Keep a `map.on("styledata", redraw)` listener and re-add when the source is missing.
+2. **Core re-adds its layers *after* that**, off a React dispatch fired from the same `styledata`,
+   so freshly re-added tile layers land **on top of** your overlay. Re-assert z-order on every
+   redraw: `map.getLayersOrder()` is a cheap id-array copy, and `map.moveLayer(id)` with no
+   `beforeId` moves to the top — skip it when the id is already last so the
+   styledata → mutate → styledata loop terminates.
+3. **⚠ Do NOT gate the re-add on `map.isStyleLoaded()`.** This is the trap. maplibre's
+   `Style.loaded()` returns false unless **every tile manager has finished loading**, but
+   `addSource`/`addLayer` only need `style._loaded` (`_checkLoaded` throws *"Style is not done
+   loading."*). After a basemap change the tiles load for the entire window in which `styledata`
+   fires, so an `isStyleLoaded()` gate rejects every attempt — and once the tiles finish,
+   `sourcedata` fires, not `styledata`, so no attempt ever comes back and the overlay never
+   returns. Gate on "is there a style object" and wrap the mutation in try/catch; another
+   `styledata` always follows.
+
+Also: **remove the layer and source in the plugin's `cleanup(map, …)`** — core's AvlLayer teardown
+only removes the layers *it* declared, so a plugin-added overlay outlives the plugin otherwise.
+And if you size marks with `["interpolate", …]`, guard the **zero-width domain** (all values
+equal): maplibre does not throw, it logs *"Input/output pairs for `interpolate` expressions must be
+arranged with input values in strictly ascending order"* and **does not add the layer at all**.
+
+Worked example: `src/themes/transportny/components/macroview/worstPoints.js` + the effect in its
+`comp.jsx`.
+
+## 7c. Plugin-owned URL state (a plugin that persists ITS state through the page)
+
+A plugin with viewer controls (measure, year, chips, toggles) usually wants those in the URL so a
+view can be shared and deep-linked. **The plugin must not touch `useSearchParams`.** The comment
+next to the map's own share-state (`ComponentRegistry/map/index.jsx` ~490-545) states the measured
+reason: *"writing the URL from the map fights the page's URL ownership and, under React Compiler,
+ping-pongs into a reload loop."* The page owns the URL; the plugin READS `pageState.filters` and
+WRITES through `updatePageStateFilters` — both off `PageContext`, which a plugin `comp` can consume
+directly (`React.useContext(PageContext)`; absent in the MapEditor, which is a free feature gate).
+
+**1. The params must be REGISTERED page variables.** `updatePageStateFilters` rebuilds the query
+string from `pageState.filters.filter(f => f.useSearchParams)` and **silently drops any key the page
+does not declare** — a plugin cannot invent a param at runtime. Two ways to register:
+
+- author them on the page: `page update <id> --set 'filters=[{"id":"…","searchKey":"measure","values":[],"useSearchParams":true}, …]'`
+  (this is exactly what the Settings tab's "Filters" panel writes), or
+- have the platform derive them, which is what `display.shareableState` does for `layers` /
+  a layer's `searchParamKey` (`deriveMapShareVariables` in `pages/_utils`).
+
+Registering *is* the opt-in: intersect what you would write with the registered set and no-op when
+it is empty, so the same plugin on a page with no `filters` simply stops persisting instead of
+navigating against a URL nobody owns.
+
+⚠ `values` must be `[]`, **never `""`**. `convertToUrlParams` skips an empty ARRAY but happily emits
+`key=` for `[""]` — the empty-leaf bug class (`reference_dms_page_variable_empty_leaf_bug`).
+
+**2. Read before write, and make the gate STATE not a ref.** Copy the shape core uses: a
+`readReconciled` **state** flag (a remount re-defers), a primed-baseline ref (the first pass after
+reconciliation primes and does not write), and an idempotency check against the page ("never write
+what the page already holds"). The failure this prevents is concrete: a plugin's `mapRegister` runs
+on **every** mount and typically reseeds defaults — and `PluginLayer`'s mount effect runs **after**
+`comp`'s, so it lands second. Writing before the read has reconciled pushes those defaults over the
+viewer's selection and bounces navigate↔remount.
+
+**2a. Make the READ a CONVERGING reconciler, and trigger it on the URL, not on state.** Both halves
+matter and each has a failure mode you will otherwise ship:
+
+- **URL-triggered.** Key the read on a serialized "what the URL means" value and arm it only when
+  that key changes (keep the armed flag in a ref). A viewer's own control change moves state while
+  the reader is disarmed, so it does nothing. A *state*-triggered reader fights the writer: the
+  instant a control changes, the URL still holds the old value and the read puts it straight back.
+  Core does the same thing structurally — its read lives in the `[dataPageFilters]` effect, so it
+  only ever fires on a URL change.
+- **Converging, one step per run.** Apply one difference, return, and let the resulting state change
+  re-trigger the effect. Order the steps by dependency (a "measure" decides which dependent controls
+  exist, and normalizing it resets them, so controls come after). Convergence is also what makes
+  `mapRegister` harmless: step 1 writes the value, `mapRegister` resets it in the same effect phase,
+  the next run writes it again.
+- **A one-shot mount read looks fine and is not.** It passes round-trip, clean-start, no-ping-pong
+  and clearing; what it fails is Back/Forward — the URL moves and the rendered state doesn't. Assert
+  a *rendered* control value across back/back/forward, not just `location.search`.
+- Reset controls **absent** from the URL to their defaults, so the URL is authoritative for the whole
+  group; otherwise Back out of a `?traffic=truck` state leaves the truck filter on.
+
+**3. ⚠ Any page-filter write RESETS every layer dynamic-filter that has no matching page variable.**
+This is the one that will surprise you. The `dataPageFilters` effect syncs *all* layers on *every*
+`pageState.filters` change: for each `dynamic-filters[]` entry it looks up a page variable named
+`searchParamKey || column_name` and, finding none, sets `filter.values` to `defaultValue` or `[]`.
+So if your plugin writes dynamic-filters itself (keyed on source columns), the very first param you
+persist un-filters the map — the chips still show the selection while the tiles, the panels and any
+row counts snap back to unfiltered. Either
+
+- name your page variables **exactly** the filters' `searchParamKey`/`column_name` so the sync
+  *restores* them (the platform's intended path, but one param per column and the value vocabulary
+  becomes the column's), or
+- keep the URL vocabulary separate (readable keys, no collision) and add a **reconciler effect**
+  that re-asserts the layer's `dynamic-filters` from your own state whenever they diverge
+  (`isEqual(actual, desired)` → return, else write). It converges in one pass and cannot ping-pong,
+  because core's sync does not re-run when only layer state changes. Build both writes from ONE
+  shared pure helper or they will drift silently.
+
+**4. Contract hygiene.** Persist only what a viewer can change, only non-default values (a pristine
+page must leave the URL clean), and persist **meanings, not ids** — a human `year=2025` resolved
+against the section's view list, not `viewId=3425`, because viewIds change when data is republished
+and a shared link must not rot. Validate every decoded value against the live vocabulary (the
+select's own list, the control's `domain`, the fetched option list) and DROP what does not resolve,
+so `?measure=nonsense` degrades to the default instead of rendering empty. Re-derive display labels
+(a chip's `name`) from the fetched options rather than storing them — and therefore gate
+reconciliation on those options having arrived, or the write side erases the param it was about to
+read.
+
+**5. Two costs, both measured, neither avoidable without a core change.**
+Registering any URL-bound page variable makes `initNavigateUsingSearchParams` fire once per
+`PageView` mount on a bare page (`url` is `"?"`, `search` is `""`, so it navigates); react-router
+drops the lone `"?"`, so the URL stays clean, but you get same-URL history entries (measured: 3
+pushes + 1 replace on `/macro`, vs 0 on a sibling page with no `filters`). A load that **does** carry
+params costs **0** — `initNavigate` short-circuits on a non-empty `search`.
+Also don't write mid-normalization: if a control change triggers a "normalize the dependent
+controls" effect, writing on that same commit emits a transient wrong URL and costs a second
+navigation. Gate the write on "the driving value did not change this render".
+
+Worked example: `src/themes/transportny/components/macroview/urlState.js` (pure encode/decode) +
+the READ/WRITE effects and the dynamic-filter reconciler in its `comp.jsx`; page 2101931's
+`filters` array is the registry. Instrument ping-pong by wrapping `history.pushState` /
+`replaceState` in a Playwright `addInitScript` and asserting the count settles.
+
 ## 8. Both symbology homes
 
 Embed the symbology in the section (rendering reads only the copy) AND create the mapeditor

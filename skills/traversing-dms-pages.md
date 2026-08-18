@@ -257,6 +257,19 @@ covers the DOM shape you'd query for.
   layers. Do not conclude anything about a map section's UI from an
   un-resized screenshot.
 
+- **A draft page is invisible in the nav in VIEW mode, and marked `*` in edit
+  mode.** `dataItemsNav` filters `published !== 'draft'` unless `edit` is set,
+  and appends `*` to a draft's label. So a freshly seeded pattern's sidenav/
+  topnav looks empty at `/<base>/<slug>` and correct at `/<base>/edit/<slug>` —
+  that is the draft lifecycle, not a broken nav. Verify seeded pages in edit
+  mode until a human publishes them.
+- **A modal section group (`isModal`) renders INLINE in edit mode and reads
+  `item.sections` in view mode.** Both together mean a draft-only page can never
+  show its modal behaving: `/edit` shows the modal's sections as an ordinary
+  band (which is how you author them), and view mode has no published
+  `sections` to render. Check a modal's *content* in edit mode; check its
+  *behaviour* only after publishing (a throwaway page works).
+
 ## 5. Extending this doc
 
 When you learn something new while verifying a DMS page live:

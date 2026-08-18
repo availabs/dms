@@ -307,9 +307,35 @@ Live card: section **2173919** on page **2173915**; mockup atom
 [primitive-gap ledger](../planning/tasks/current/map21-single-page-dms-build.md)
 items; once built and registered, the card is pure cell composition.
 
+## Second worked target — a whole PAGE of atoms (WCDB public, 2026-08-15)
+
+The loop scales down to one card and up to a page set, and skipping it has a
+recognisable signature: **pages that are wired correctly and render wrong**. The
+WCDB public build (`project-planning/wcdb/tasks/current/build-wcdb-public-pages.md`)
+shipped eight pages with correct bindings and no query errors, then measured them
+against the mockups and found the same mistake repeated everywhere — **lists
+built as tables where the design is a card grid**. The executive board came out
+**1465px against the design's 3095** (47%), not from missing content but from
+missing arrangement: the design is six department cards each holding a 2-up grid
+of role tiles.
+
+Two lessons worth carrying:
+
+- **Do Step 1 per SECTION, not per page.** "A list" is not an atom. Whether the
+  design's list is a table or a grid of tiles decides `cardsGridSize`,
+  `cardBorder` and whether it is one section or one-per-group — and that decision
+  is invisible if you only read the data shape.
+- **Height ratio is a cheap progress metric.** `card-shot` prints
+  `live is N% of the design's`; that single number tracks a transcription better
+  than eyeballing, and it is what turned "looks a bit off" into "47%".
+
 ## Source-of-truth files
 
-- `scripts/card-shot.mjs` — the Playwright screenshot/compare helper.
+- `scripts/card-shot.mjs` — the Playwright screenshot/compare helper. (Ported
+  into dms-template 2026-08-15; it had been referenced here but only existed in
+  another checkout. It drives the local Chrome via `--chrome`, defaulting to
+  `/usr/bin/google-chrome`, and writes `<name>.compare.png` plus the height
+  ratio.)
 - `card-layout.md` — every Card display/column knob, the `formatFn` table, `cardHints`.
 - `creating-page-section-components.md` — how to build a column type / section.
 - `src/themes/wcdb/columnTypes/` — `streamPlayer`, `portraitBanner`, `nowIndicator`:

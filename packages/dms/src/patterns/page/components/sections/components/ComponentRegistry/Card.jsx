@@ -92,6 +92,16 @@ export const CardSection = ({
           })()
         : undefined;
 
+    // Static row highlight: mark every row whose `highlightColumn` equals
+    // `highlightValue`. The subscriber above answers "which row is the user
+    // pointing at in ANOTHER section"; this answers "which row is special in
+    // its own right" — the on-air line in a schedule, the current version in a
+    // list — which previously had no expression at all and forced a bespoke
+    // column type. The param-driven form still wins when both are configured.
+    const staticHighlight = state.display?.highlightColumn && state.display?.highlightValue !== undefined
+        ? { column: state.display.highlightColumn, value: state.display.highlightValue, style: state.display.highlightStyle || 'bg' }
+        : undefined;
+
     const onCardMouseEnter = useCallback((item) => {
         if (!providerCfg || !setActionParam) return;
         const value = item?.[providerCfg.args?.column];
@@ -221,7 +231,7 @@ export const CardSection = ({
                      FormulaColumnModal: AddFormulaColumn,
                      CalculatedColumnModal: AddCalculatedColumn,
                      ...(providerCfg ? { onCardMouseEnter, onCardMouseLeave } : {}),
-                     ...(highlightedItem ? { highlightedItem } : {}),
+                     ...((highlightedItem || staticHighlight) ? { highlightedItem: highlightedItem || staticHighlight } : {}),
                      ...(clickPublishCfg ? { onCardColumnClick, clickPublishColumn: clickPublishCfg.args?.column } : {}),
                      ...(saveToken > 0 ? { triggerSaveToken: saveToken } : {}),
                      ...(clickSaveSubCfg ? { clickSaveActive: true } : {}),

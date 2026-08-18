@@ -14,7 +14,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { user } = React.useContext(CMSContext) || {};
 
   const { apiUpdate, item, updateAttribute, pageState, clearActionParam } = React.useContext(PageContext);
-  const { LayoutGroup, Modal } = UI;
+  const { LayoutGroup, Modal, Icon } = UI;
 
   // group.theme also selects this band's `pages.sectionGroup` rail style (in addition
   // to its `layoutGroup` style above) — an unmatched/undefined value safely falls back
@@ -107,17 +107,17 @@ export default function SectionGroup ({group, attributes, edit}) {
       // );
     return (
       <div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
+        className={t.modalOverlay}
         onClick={() => clearActionParam(modalParamKey)}
       >
         <div
-          className={`relative bg-white rounded-lg shadow-xl w-full ${modalWidthClass} mx-4 max-h-[90vh] overflow-y-auto`}
+          className={`${t.modalCard} ${modalWidthClass}`}
           onClick={e => e.stopPropagation()}
         >
           <button
-            className="sticky float-right top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none"
+            className={t.modalClose}
             onClick={() => clearActionParam(modalParamKey)}
-          >✕</button>
+          >{t.modalCloseIcon ? <Icon icon={t.modalCloseIcon} className={t.modalCloseIconClass} /> : t.modalCloseText}</button>
           <SectionArrayComp
             group={group}
             value={item?.['sections'] || [] }

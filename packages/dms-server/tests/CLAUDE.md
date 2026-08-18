@@ -29,6 +29,21 @@ tests/
   test-graph.js         # Graph harness sanity tests (SQLite or PostgreSQL)
   test-workflow.js      # Full DMS workflow via Falcor routes (SQLite or PostgreSQL)
   test-auth.js          # Auth system integration tests - 103 tests via HTTP (SQLite or PostgreSQL)
+  test-schema-drift.js  # Guards create_*.sql against migrate_*.sql (no DB config needed)
+  fixtures/
+    schema-baseline.json  # What a pre-migration database is assumed to have
+```
+
+### Schema drift
+
+`test-schema-drift.js` is the reason a column added to a `create_*.sql` cannot
+silently skip existing databases. It fails with the exact `ALTER TABLE` to add,
+so treat a failure as a to-do rather than a puzzle. Full contract in
+`../CLAUDE.md` under "Schema migrations". Regenerate the baseline only alongside
+the migrations it accounts for:
+
+```bash
+node tests/test-schema-drift.js --update
 ```
 
 ## Running Tests
@@ -42,6 +57,7 @@ npm run test:controller   # Controller tests only (SQLite-specific raw SQL)
 npm run test:graph        # Graph harness tests
 npm run test:workflow     # Full workflow test
 npm run test:auth         # Auth integration tests (103 tests)
+npm run test:schema-drift # create_*.sql vs migrate_*.sql drift guard
 ```
 
 ### PostgreSQL (via Docker)

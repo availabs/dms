@@ -271,6 +271,34 @@ export const formatFunctions = {
     const seconds = totalSeconds % 60;
     return `${isNegative ? "-" : ""}${minutes}:${String(seconds).padStart(2, "0")}`;
   },
+  // `attr` is the column, passed so the cell can drop the label. The name
+  // beside the glyph is right for a legend and wrong for a leading glyph
+  // column — a design that scans by kind (WCDB's schedule rows) wants the
+  // mark alone, and there was previously no way to get it: the label was
+  // unconditional, so the cell always printed `MICROPHONE` next to the mic.
+  // Unset → label shown, exactly as before.
+  icon: (strValue, props, Icon, attr) =>
+    attr?.hideIconLabel ? (
+      <Icon icon={strValue} className={attr?.iconClassName || "size-5"} />
+    ) : (
+      <>
+        <Icon icon={strValue} className={"size-8"} {...props} />{" "}
+        <span>{strValue}</span>
+      </>
+    ),
+  // Plain fixed-precision decimal, no thousands separator/abbreviation/currency
+  // — `comma`/`abbreviate` both floor to an integer below their K/M thresholds
+  // (fnum/fnumIndex), which is wrong for a rate-like value that's normally
+  // well under 1,000 (mph, minutes, miles) and needs its fractional part kept
+  // (e.g. NPMRDS speed, average ~20-40 mph, meaningfully differs at 1 decimal).
+  // Added 2026-08-13: Route Info Box's plain-decimal measures (speed/length/
+  // aadt) had no formatFn at all, so full float precision leaked straight to
+  // the table cell (e.g. "20.56702084355448").
+  decimal_2: (d) => {
+    if (d === null || d === undefined || d === "") return "";
+    const n = Number(d);
+    return Number.isNaN(n) ? "" : n.toFixed(2);
+  },
   icon: (strValue, props, Icon) => (
     <>
       <Icon icon={strValue} className={"size-8"} {...props} />{" "}

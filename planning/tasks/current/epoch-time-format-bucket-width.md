@@ -2,7 +2,7 @@
 
 **Status:** DONE — implemented, module-verified, and **live-confirmed by the user 2026-07-27**
 ("looks good"). Isolated library change, deliberately kept separate
-from the report-spec work that motivated it (`dms-template/planning/transportny/tasks/current/report-spec-and-build-script.md`)
+from the report-spec work that motivated it (`dms-template/planning/transportny/tasks/completed/report-spec-and-build-script.md`)
 per `feedback_isolate_shared_code_changes`.
 
 ## Objective

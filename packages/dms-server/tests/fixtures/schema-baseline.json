@@ -1,0 +1,458 @@
+{
+  "dama/postgres": {
+    "data_manager.sources": [
+      "source_id",
+      "name",
+      "display_name",
+      "type",
+      "update_interval",
+      "category",
+      "description",
+      "statistics",
+      "metadata",
+      "categories",
+      "source_dependencies",
+      "user_id",
+      "_created_timestamp",
+      "_modified_timestamp"
+    ],
+    "data_manager.views": [
+      "view_id",
+      "source_id",
+      "data_type",
+      "interval_version",
+      "geography_version",
+      "version",
+      "source_url",
+      "publisher",
+      "table_schema",
+      "table_name",
+      "data_table",
+      "download_url",
+      "tiles_url",
+      "start_date",
+      "end_date",
+      "last_updated",
+      "statistics",
+      "metadata",
+      "user_id",
+      "etl_context_id",
+      "view_dependencies",
+      "_created_timestamp",
+      "_modified_timestamp"
+    ],
+    "data_manager.tasks": [
+      "task_id",
+      "host_id",
+      "source_id",
+      "worker_path",
+      "status",
+      "progress",
+      "result",
+      "error",
+      "descriptor",
+      "queued_at",
+      "started_at",
+      "completed_at",
+      "worker_pid"
+    ],
+    "data_manager.task_events": [
+      "event_id",
+      "task_id",
+      "type",
+      "message",
+      "payload",
+      "created_at"
+    ],
+    "data_manager.settings": [
+      "key",
+      "value"
+    ],
+    "data_manager.schedules": [
+      "schedule_id",
+      "source_id",
+      "worker_path",
+      "cron",
+      "timezone",
+      "descriptor",
+      "enabled",
+      "max_in_flight",
+      "last_task_id",
+      "last_fired_at",
+      "next_fire_at",
+      "created_by",
+      "created_at",
+      "updated_at"
+    ],
+    "data_manager.schedule_events": [
+      "event_id",
+      "schedule_id",
+      "type",
+      "message",
+      "payload",
+      "created_at"
+    ]
+  },
+  "dama/sqlite": {
+    "sources": [
+      "source_id",
+      "name",
+      "display_name",
+      "type",
+      "update_interval",
+      "category",
+      "description",
+      "statistics",
+      "metadata",
+      "categories",
+      "source_dependencies",
+      "user_id",
+      "_created_timestamp",
+      "_modified_timestamp"
+    ],
+    "views": [
+      "view_id",
+      "source_id",
+      "data_type",
+      "interval_version",
+      "geography_version",
+      "version",
+      "source_url",
+      "publisher",
+      "table_schema",
+      "table_name",
+      "data_table",
+      "download_url",
+      "tiles_url",
+      "start_date",
+      "end_date",
+      "last_updated",
+      "statistics",
+      "metadata",
+      "user_id",
+      "etl_context_id",
+      "view_dependencies",
+      "_created_timestamp",
+      "_modified_timestamp"
+    ],
+    "tasks": [
+      "task_id",
+      "host_id",
+      "source_id",
+      "worker_path",
+      "status",
+      "progress",
+      "result",
+      "error",
+      "descriptor",
+      "queued_at",
+      "started_at",
+      "completed_at",
+      "worker_pid"
+    ],
+    "task_events": [
+      "event_id",
+      "task_id",
+      "type",
+      "message",
+      "payload",
+      "created_at"
+    ],
+    "settings": [
+      "key",
+      "value"
+    ],
+    "schedules": [
+      "schedule_id",
+      "source_id",
+      "worker_path",
+      "cron",
+      "timezone",
+      "descriptor",
+      "enabled",
+      "max_in_flight",
+      "last_task_id",
+      "last_fired_at",
+      "next_fire_at",
+      "created_by",
+      "created_at",
+      "updated_at"
+    ],
+    "schedule_events": [
+      "event_id",
+      "schedule_id",
+      "type",
+      "message",
+      "payload",
+      "created_at"
+    ]
+  },
+  "dms/postgres": {
+    "dms.data_items": [
+      "id",
+      "app",
+      "type",
+      "data",
+      "created_at",
+      "created_by",
+      "updated_at",
+      "updated_by"
+    ],
+    "dms.formats": [
+      "id",
+      "app",
+      "type",
+      "attributes",
+      "created_at",
+      "updated_at"
+    ],
+    "dms.change_log": [
+      "revision",
+      "item_id",
+      "app",
+      "type",
+      "action",
+      "data",
+      "created_at",
+      "created_by"
+    ],
+    "dms.yjs_states": [
+      "item_id",
+      "state",
+      "updated_at"
+    ],
+    "dms.tasks": [
+      "task_id",
+      "host_id",
+      "app",
+      "source_id",
+      "worker_path",
+      "status",
+      "progress",
+      "result",
+      "error",
+      "descriptor",
+      "queued_at",
+      "started_at",
+      "completed_at",
+      "worker_pid"
+    ],
+    "dms.task_events": [
+      "event_id",
+      "task_id",
+      "type",
+      "message",
+      "payload",
+      "created_at"
+    ],
+    "dms.settings": [
+      "key",
+      "value"
+    ]
+  },
+  "dms/sqlite": {
+    "data_items": [
+      "id",
+      "app",
+      "type",
+      "data",
+      "created_at",
+      "created_by",
+      "updated_at",
+      "updated_by"
+    ],
+    "formats": [
+      "id",
+      "app",
+      "type",
+      "attributes",
+      "created_at",
+      "updated_at"
+    ],
+    "change_log": [
+      "revision",
+      "item_id",
+      "app",
+      "type",
+      "action",
+      "data",
+      "created_at",
+      "created_by"
+    ],
+    "yjs_states": [
+      "item_id",
+      "state",
+      "updated_at"
+    ],
+    "dms_tasks": [
+      "task_id",
+      "host_id",
+      "app",
+      "source_id",
+      "worker_path",
+      "status",
+      "progress",
+      "result",
+      "error",
+      "descriptor",
+      "queued_at",
+      "started_at",
+      "completed_at",
+      "worker_pid"
+    ],
+    "dms_task_events": [
+      "event_id",
+      "task_id",
+      "type",
+      "message",
+      "payload",
+      "created_at"
+    ],
+    "dms_settings": [
+      "key",
+      "value"
+    ]
+  },
+  "auth/postgres": {
+    "public.groups": [
+      "name",
+      "meta",
+      "created_at",
+      "created_by",
+      "id"
+    ],
+    "public.groups_in_projects": [
+      "project_name",
+      "group_name",
+      "auth_level",
+      "created_at",
+      "created_by"
+    ],
+    "public.logins": [
+      "user_email",
+      "project_name",
+      "created_at"
+    ],
+    "public.messages": [
+      "message",
+      "heading",
+      "user_email",
+      "viewed",
+      "created_at",
+      "created_by",
+      "id"
+    ],
+    "public.messages_new": [
+      "heading",
+      "message",
+      "sent_by",
+      "sent_to",
+      "sent_at",
+      "project_name",
+      "viewed",
+      "id",
+      "deleted"
+    ],
+    "public.projects": [
+      "name",
+      "created_at",
+      "created_by"
+    ],
+    "public.signup_requests": [
+      "user_email",
+      "project_name",
+      "state",
+      "created_at",
+      "resolved_at",
+      "resolved_by"
+    ],
+    "public.user_preferences": [
+      "user_email",
+      "project_name",
+      "preferences"
+    ],
+    "public.users": [
+      "email",
+      "password",
+      "created_at",
+      "id"
+    ],
+    "public.users_in_groups": [
+      "user_email",
+      "group_name",
+      "created_at",
+      "created_by"
+    ]
+  },
+  "auth/sqlite": {
+    "users": [
+      "id",
+      "email",
+      "password",
+      "created_at"
+    ],
+    "groups": [
+      "id",
+      "name",
+      "meta",
+      "created_at",
+      "created_by"
+    ],
+    "projects": [
+      "name",
+      "created_at",
+      "created_by"
+    ],
+    "groups_in_projects": [
+      "project_name",
+      "group_name",
+      "auth_level",
+      "created_at",
+      "created_by"
+    ],
+    "users_in_groups": [
+      "user_email",
+      "group_name",
+      "created_at",
+      "created_by"
+    ],
+    "logins": [
+      "user_email",
+      "project_name",
+      "created_at"
+    ],
+    "signup_requests": [
+      "user_email",
+      "project_name",
+      "state",
+      "created_at",
+      "resolved_at",
+      "resolved_by"
+    ],
+    "user_preferences": [
+      "user_email",
+      "project_name",
+      "preferences"
+    ],
+    "messages": [
+      "id",
+      "message",
+      "heading",
+      "user_email",
+      "viewed",
+      "created_at",
+      "created_by"
+    ],
+    "messages_new": [
+      "id",
+      "heading",
+      "message",
+      "sent_by",
+      "sent_to",
+      "sent_at",
+      "project_name",
+      "viewed",
+      "deleted"
+    ]
+  }
+}

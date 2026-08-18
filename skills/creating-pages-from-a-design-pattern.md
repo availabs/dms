@@ -72,7 +72,10 @@ a real Card-bound source later.
    they land in the page's `draft_sections` automatically.
 6. **Verify.** Run `dms site tree`, dump a representative page
    (`dms page dump <slug> --sections`), and open the page in the
-   admin UI for a human-eyes pass.
+   admin UI for a human-eyes pass. Then run the **vertical-rhythm
+   parity gate** — measure the mockup's band heights and the live
+   ones and compare the numbers, don't eyeball them.
+   **See [§8.1](#81-the-vertical-rhythm-parity-gate).**
 
 [**Draft sections only** — see [§6](#6-draft-only-discipline)] is
 non-negotiable for this skill.
@@ -563,6 +566,56 @@ drive `cellsTracksTemplate` (content-width `max-content` tracks + a trailing `1f
 and a small `cellsGridGap` — see the **"Tight inline meta / header row"** recipe in
 [`card-layout.md`](./card-layout.md#recipes). When the layoutGroup band already provides the surface
 (e.g. a `header` band), give the section a bare extra (`{}`, no `bg`/`border`) so you don't double-box.
+
+#### 5.3.1 Getting the small details right — spacing and type
+
+**This is the step everyone skips, and it is the step that decides whether the page
+looks like the design.** A page can have every section present, every source bound and
+every column mapped, and still read as obviously-not-the-design. Every time that has
+happened on a real build, the cause was the same short list:
+
+| Symptom | Actual cause |
+|---|---|
+| Everything is airier than the mockup; the page is 1.5–3× too tall | Card cells defaulted to equal fractions + theme cell padding; nothing set `cellsTracksTemplate` / `cellsPadding` / `cellsGridGap` |
+| Type is *close* but wrong — weight, tracking, case, or size off by a step | Column left on the theme's ambient default instead of naming a `valueFontStyle` / `headerFontStyle` token |
+| A list renders as rows where the design has a **grid of cards** | `cardsGridSize` left at 1; the mockup's repeated unit was read as "a row" rather than "a card" |
+| The mockup's number-above-label stat renders label-above-number | `display.reverse` not set |
+| Two adjacent cards read as one box, or one box reads as two | Section-level border/radius/bg not coordinated across the fused sides |
+
+None of these are visible from a config diff. They are only visible **side by side**,
+which is why the fidelity step is a measurement, not a reading.
+
+**Do this before declaring a page done:**
+
+1. **Shoot the mockup and the live page side by side** with
+   [`scripts/card-shot.mjs`](../../../scripts/card-shot.mjs) — it prints
+   `height: live is N% of the design's`. That single number is the fastest
+   fidelity signal there is: anything outside roughly 90–110% means a
+   structural miss (usually rows-vs-grid or distributed slack), not a
+   nudge. Fix structure first; never tune padding to close a 50% gap.
+2. **Work the per-atom inventory table** in
+   [`transcribing-a-design-card-to-dms.md`](./transcribing-a-design-card-to-dms.md).
+   That skill is the authority for this layer: it walks design atom → Card
+   setting → column type, one row per visual element, and its decision ladder
+   (configure the Card → add a column type → enrich the theme → only then a
+   component) keeps the fix at the lowest rung that works.
+3. **Name the type token explicitly.** A design's card typography is a spec, not
+   an accident — mono-uppercase eyebrow at one size, title at another, meta at a
+   third. Set `valueFontStyle` / `headerFontStyle` per column to a `textSettings`
+   token rather than inheriting whatever the theme's structural keys happen to
+   carry. Ambient typography on structural keys collides with per-column tokens
+   and resolves by *stylesheet order, not author intent*.
+4. **Check the theme is on the v2 card layout model** (`layoutModel: 'v2'` +
+   `cellGutter`) before spending time on spacing. Under v1 the grid distributes
+   slack between card rows and every cell carries a transparent border, so a
+   mockup cannot be reproduced faithfully however carefully you configure the
+   section — see the two-model table in [`card-layout.md`](./card-layout.md).
+   If the theme is still v1, that is the finding; migrate the theme rather than
+   compensating page-by-page.
+
+Budget for this. On a multi-page build the fidelity pass is comparable in size to
+the wiring pass, and it is much cheaper to do per-page while the design is fresh
+than as one sweep at the end.
 
 ### 5.4 Lexical content — the minimum viable JSON
 
@@ -1265,6 +1318,346 @@ After running the seed script:
    for the reviewer with: which pages exist as drafts, what
    each represents, and the publish command they should run when
    ready.
+
+### 8.1 The vertical-rhythm parity gate
+
+**A band's height is a design decision, not a by-product.** In a good mockup the
+components sitting side by side in a band are natural-height-matched *by
+construction* — the designer sized the copy, the padding and the row count until
+the tall one and the short one land within a few pixels of each other. On the
+NPMRDS home page's § 01 the doorway card is 265px and the measures panel beside
+it is 261px: that is deliberate, and it is why neither shows a seam.
+
+Transcribe that band into DMS and **one extra wrapped line silently destroys it.**
+The taller sibling grows, the shorter one is stretched to match, and 100% of the
+new slack surfaces as a blank strip at the bottom of whichever component cannot
+absorb it. It never looks like "the text wrapped"; it looks like "this section has
+a lot of white space at the bottom".
+
+So: after transcribing a band, **measure both, compare the numbers, and hold a
+tolerance.** Do not judge it by screenshot — a 60px drift on a 265px band is easy
+to miss and impossible to un-see once someone else spots it.
+
+#### The probe
+
+Read the same three things from the mockup (`file://`) and the live page, at the
+same viewport, for the same band:
+
+```js
+// probe_vspace.mjs — node probe_vspace.mjs <design|live> <width>
+import { chromium } from "playwright";
+const mode = process.argv[2], width = +process.argv[3];
+const URL = mode === "design"
+  ? "file:///…/dms_design_system_v2/pages/<page>.html"
+  : "http://<sub>.localhost:<port>/edit/<slug>";       // draft ⇒ /edit, and auth
+
+const b = await chromium.launch();
+const ctx = await b.newContext({ viewport: { width, height: 1200 },
+  ...(mode === "live" ? { storageState: "auth.json" } : {}) });
+const p = await ctx.newPage();
+await p.goto(URL, { waitUntil: "networkidle" });
+await p.waitForTimeout(mode === "live" ? 14000 : 2500);   // live sections fetch
+
+console.log(JSON.stringify(await p.evaluate(mode => {
+  const H = el => Math.round(el.getBoundingClientRect().height * 10) / 10;
+  const T = el => (el.textContent || "").replace(/\s+/g, " ").trim();
+  // 1. the band: the mockup's `data-dms-section` wrapper vs the live band grid
+  const band = mode === "design"
+    ? document.querySelector('[data-dms-section="macro-body"]')
+    : (() => { let s = [...document.querySelectorAll("div")]
+                 .filter(d => /^go straight to a measure/i.test(T(d))).pop();
+               while (s && !/col-span-\d/.test(s.className || "")) s = s.parentElement;
+               return s.parentElement; })();
+  const cols = [...band.children];
+  // 2. every sibling's height — they should all be equal AND equal to the mockup's
+  const heights = cols.map(H);
+  // 3. the row template of the repeating grid inside the tall sibling
+  const grid = [...band.querySelectorAll("div")]
+    .filter(d => getComputedStyle(d).display === "grid")
+    .sort((a, b) => b.children.length - a.children.length)[0];
+  const cs = getComputedStyle(grid);
+  return { heights, rows: cs.gridTemplateRows, autoRows: cs.gridAutoRows,
+           alignContent: cs.alignContent,
+           // 4. the blank strip: card bottom − last painted content bottom
+           slack: Math.round(grid.getBoundingClientRect().bottom
+                  - [...grid.children].pop().getBoundingClientRect().bottom) };
+}, mode)));
+await ctx.close(); await b.close();
+```
+
+Run it at **1480 and 390** (the two viewports the mockups are composed for), and
+**on `/edit/<slug>`** — a draft page renders the *published* sections in view mode,
+so view mode measures the wrong content until someone publishes.
+
+#### What to compare, and the tolerance
+
+| Measure | Why | Tolerance |
+|---|---|---|
+| **Band height** (each sibling's box) | The composition. All siblings should be equal to each other AND to the mockup's. | **±10px** |
+| **Repeating row height** (`grid-template-rows`) | Where a wrapped line hides. One row 13px over × 8 rows = 60px on the band. | **±3px per row** |
+| **Blank strip** (card bottom − last content bottom) | The symptom a reader actually reports. | **≤24px**; above that, fix or escalate |
+| **Position of a pinned rail/CTA** | Mockups pin these to the card's bottom edge with `mt-auto`. | flush ±4px |
+
+Subtract the live band gutter before comparing: in a `gap-0` band the per-section
+padding *is* the gutter, so the live **card box** is `section height − 2 × padding`.
+Compare card box to mockup column, not section to column.
+
+#### ⚠ Correct the mockup's LINE COUNT before you compare heights
+
+§ 8.2's font-substitution warning is not only a width story: one prose block that
+takes 4 lines in the mockup's substitute font and 5 in the real one **is a 19px band
+difference that the mockup will never show you**. So before recording a vertical
+delta, measure the mockup's own natural text width and re-derive its line count in
+the live font:
+
+```js
+// on the mockup page: natural (unwrapped) width of the block, in the SUBSTITUTE font
+const clone = p.cloneNode(true);
+clone.style.cssText = "width:auto;white-space:nowrap;display:inline-block";
+probe.appendChild(clone);
+const natural = clone.getBoundingClientRect().width;
+// live-font line count in the mockup's OWN box (1.066 = the measured Proxima/Source Sans ratio)
+Math.ceil(natural * 1.066 / mockupBoxWidth)
+```
+
+Worked example — NPMRDS Home § 01's doorway prose (2026-08-14): natural **890px** in
+the mockup (Source Sans 3) vs **940px** live (Proxima Nova). In the mockup's own
+227.3px box that is `ceil(948.7/227.3)` = **5 lines**, not the 4 it draws, so the
+mockup's card is really **283.9px**, not the 264.5 it measures — and the identical
+§ 03 doorway beside it, whose copy is 5 lines in both fonts, draws exactly 283.9.
+Live measured 281.7: **−2.2 against the corrected baseline, +17.2 against the
+as-drawn one.** Quote the corrected number *and* show the derivation; "the mockup
+says 264.5" is not a fact about the design, it is a fact about a missing font.
+
+#### Worked example — NPMRDS home, § 01 / § 02 (2026-08-13)
+
+| | mockup | live before | live after |
+|---|---|---|---|
+| § 01 band (card box) | 264.5 | **328** (+63.5) | **273.7** (+9.2) |
+| § 01 measure row | 55.9 | **69** | 55 / 56 |
+| § 01 blank strip under the doorway CTA | 0 | **71** | 16.7 (= the card's own bottom padding) |
+| § 02 band (card box) | 408.4 | **528** (+120) | **443** (+34.6) |
+| § 02 report-row height | 75 | **119.9** | 77 |
+| § 02 blank strip under the doorway CTA | 22 | **172** | 87 |
+
+Both regressions were the same failure: the mockup's row description is one line
+(`flex-1 min-w-0 truncate`) or two, and live it wrapped to two or four, because
+**a link cell's text is laid out at the value div's inherited 24px strut, not at
+the token's `leading`** (see `card-layout.md` → "Clamping a cell to N lines"). The
+fix was a clamping `valueFontStyle` token, not a layout change. Note the § 02
+residual: once the wrapping was fixed, the remaining +34.6 was **horizontal** —
+the live card is 24px narrower than the mockup's column, so the eyebrow, one
+description and the footer each still pick up a line. Vertical drift is often a
+width bug wearing a height costume; decompose before you "fix" the height.
+
+### 8.2 The horizontal-parity gate
+
+§ 8.1's last line — *"vertical drift is often a width bug wearing a height costume"* —
+is the reason this section exists. Once the wrapping is fixed, what is left is a
+**width** problem, and width has its own failure modes, its own probe and its own
+tolerance. Run this gate on any band whose components are columnar (a row list, a
+link row, anything with a `max-content` track).
+
+#### The three width failures, in the order they bite
+
+**1. The min-content blowout.** A grid item's automatic minimum size is its
+*min-content*, so a bare `max-content` (or `auto`) track **cannot shrink below its
+longest child** — and the whole grid, and everything wrapping it, inherits that width.
+It does not clip and it does not wrap: it *overflows*, silently, out through the card's
+border and into the band gutter. Measured on npmrds-home § 01: a doorway card's two
+deep-links in `md:grid-cols-[max-content_max-content_1fr]` had a 269px min-content
+inside a **209px** content box, so the card's prose was cut off at the card edge and the
+CTA rail hung 30px into the grey. **Always `minmax(0,max-content)`, never bare
+`max-content`** — in a lexical `layout-container` template and in a Card's
+`cellsTracksTemplate` alike. This is also the default *mobile* overflow bug on these
+pages (§ 5.6.5).
+
+**2. The shared-`max-content`-track tax.** A Card's cells grid is ONE grid: every row
+shares the same track edges. That is exactly why you convert a row list to a Card
+(§ 5.6.5) — but it means a `max-content` track is sized by the **widest** value in the
+column and every other row pays for it. The mockup usually does the opposite: its row
+is a flex line, so each row's fixed-width span (`shrink-0`) costs only what *that* row
+needs. On npmrds-home § 01 the unit column is `ratio / veh-hr / mph / tons/yr`; the
+mockup gives the `mph` rows 145px of description and the `tons/yr` row 116px, while the
+Card gives all four the same 118px because `TONS/YR` sizes the shared track.
+**Consequence to internalise: a design whose clipping is unit-width-driven cannot be
+reproduced by a shared track at any width.** Measure it, state it, escalate it — do not
+tune the track until one screenshot happens to match.
+
+**3. The reserved-slack tax.** A fixed px track transcribed from the mockup carries the
+mockup's *slack* as well as its content. § 01's name track was 76px — the mockup's 64px
+`w-16` box scaled from 15px type to the live 12.5px token — for a longest name of 41px.
+Every reserved pixel is a pixel the `1fr` beside it does not get, doubled if the grid is
+2-across. Set the fixed track to `padding + longest value + 1`, and check the longest
+value by measurement, not by eye.
+
+#### The probe
+
+`probe_vspace.mjs` (§ 8.1) answers "how tall"; this answers "how wide, and what got
+clipped". Three things it must do that a naive probe gets wrong:
+
+```js
+// 1. THE SHELL — where the content column's width actually comes from.
+//    live:   contentCol = row − rail − gap   (pages.sectionGroup contentRow)
+//    design: contentCol = the mockup's own col-span-N of its outer grid
+// 2. RESOLVED TRACKS, not element widths — getComputedStyle(grid).gridTemplateColumns
+//    is the only place the tax above is visible.
+// 3. "DID IT CLIP" — and this is the trap:
+//      · `truncate`      → white-space:nowrap ⇒ scrollWidth > clientWidth
+//      · `line-clamp-N`  → the text WRAPS and lines are hidden ⇒ scrollWidth NEVER
+//        exceeds clientWidth. Test scrollHeight > clientHeight instead.
+//    And for "how much width would it have needed", neither works: measure the
+//    natural single-line width by forcing it, then putting it back.
+const natural = el => {
+  const prev = { ws: el.style.whiteSpace, d: el.style.display, w: el.style.width };
+  el.style.whiteSpace = "nowrap"; el.style.display = "inline-block"; el.style.width = "max-content";
+  const w = el.getBoundingClientRect().width;
+  Object.assign(el.style, { whiteSpace: prev.ws, display: prev.d, width: prev.w });
+  return w;
+};
+```
+
+#### ⚠ The mockup's font is probably not the live font
+
+Before you conclude "live wraps and the design doesn't", check which font each one
+actually loaded. A `file://` mockup that names a licensed family first
+(`"Proxima Nova", "Source Sans 3", …`) renders in the **substitute**; the live app
+loads the real one. Measured on npmrds-home: the same eight strings at the same
+12.5px are **~6.6% wider live** than in the mockup, purely from that substitution.
+Read `document.fonts` on both surfaces. It does not change what you should build —
+the mockup's *intent* is the real family, and re-measuring the mockup's own
+allocations against the real font is the honest comparison — but it does explain a
+systematic few-percent drift that otherwise looks like a bug.
+
+#### What to compare, and the tolerance
+
+| Measure | Why | Tolerance |
+|---|---|---|
+| **Content column** (band grid width) | Sets every span. Decompose it: `row − rail − gutter`. | report exactly; ±0 if you can |
+| **Card box per span** | `section width − 2 × section padding` in a `gap-0` band | ±12px (one gutter) |
+| **Resolved track widths** | Where the two taxes above show up | name/unit tracks ≤ content + padding + 1 |
+| **Overflow** | `scrollWidth > clientWidth` anywhere in the card | **must be 0** |
+| **Clip count** | "N of M values ellipsise", vs the mockup's N | report the *function*, see below |
+
+Report the clip count as a **function of the track width**, not a single number —
+it is the only form that survives review. For § 01: `≥131px → 1 of 8 · [130,131) →
+2 · [125,130) → 3 · [118,125) → 4 · <115 → 7`. A target that lives inside a 1px
+window is not a target, it is a coin flip; say so and pick the stable side.
+
+#### Worked example — NPMRDS home § 01 (2026-08-14)
+
+| | mockup | live before | live after |
+|---|---|---|---|
+| content column | 850 | 802 | 802 (structural — see below) |
+| description track (text box) | 116–145 (per row) | 105.5 | **118** |
+| descriptions ellipsised | 2 of 8 | 7 of 8 | **4 of 8** |
+| doorway lexical content vs its box | fits | **269 in 209 → overflows** | **209 in 209** |
+| § 01 band (card box) | 264.5 | 273.7 | **272.7** |
+
+The 48px of content column is **not** recoverable from the page: it is
+`pages.sectionGroup` styles[0] — rail `w-[302px]` + `contentRow gap-10` where every
+mockup with a rail draws `260–262px` + `gap-8`. One line, but a line shared by every
+rail page in the brand ⇒ its own task, not a page-local override. Chasing it page-locally
+would also make one page's chrome different from its five siblings.
+
+### 8.3 The structural-fidelity gate — run it BEFORE 8.1 and 8.2
+
+§ 8.1 and § 8.2 assume the band is built out of the right *pieces* and only its
+pixels are off. Sometimes it isn't, and then tuning heights and tracks is
+polishing the wrong object. The tell, in a reader's words, is:
+
+> *"the cards have much more content than the design and are not combined the way
+> they are in the design."*
+
+Two distinct failures hide in that sentence, and they usually arrive together.
+
+#### Failure 1 — one box in the design became N sections
+
+**Count the boxes in the mockup, then count the sections.** A `rounded-… border
+bg-white` wrapper in the design is ONE box. If it became four sections, no
+amount of `rowspan` / spacer / gap work will make them read as one: sections are
+siblings in the band grid, each with its own padding and its own border, and
+there is no primitive that fuses four of them into a single bordered surface
+with internal rules.
+
+The fix is almost always **one Card whose cells grid IS the design's inner
+grid** (see `card-layout.md` → "Recipe — a composite KPI panel"). Symptoms that
+you are in this case:
+
+- the band needs a `rowspan` **and** an empty spacer section **and** a trailing
+  full-width section to line anything up;
+- the design draws internal hairlines (`border-r`, `border-b`) *between* the
+  things you built as separate sections — a section cannot draw a rule shared
+  with its neighbour;
+- the design has a `mt-auto` footer strip *inside* the box.
+
+#### Failure 2 — a card was cloned for its DATA and kept its PRESENTATION
+
+Cloning a live card from another page is the right instinct when two surfaces
+must not disagree about a number — and the wrong unit of reuse. A report page's
+card is sized for a report: a status pill, a 44px figure, a captioned bar, a
+delta **and** a margin sentence. A front-door mockup's cell is a name, a figure,
+a bar and one footer line. Clone the **SQL**, not the card:
+
+```js
+// lift each expression out of the clone BY ALIAS and rename only the alias, so the
+// two surfaces provably cannot disagree — then re-house it in the design's own cell
+const kpiSql = (id, alias, newAlias) => { … };   // full helper in card-layout.md
+```
+
+Then re-derive every atom from the mockup, and for each one either bind it or
+escalate it. **Re-examine the atoms the previous pass gave up on** — a "cannot
+be bound" verdict is often about the *source card*, not about the data. On
+NPMRDS home § 04, one measure's year-over-year delta had been recorded as
+impossible because the report card carried no delta column; it was computable
+from the same aggregate with the same `lag()` shape the sibling measures used,
+and "the report page doesn't show it" is not the same as "the two pages would
+disagree".
+
+And where an atom genuinely has no data behind it, **fix the mockup**. That same
+band drew a target bar and a target tick for a measure whose target table has no
+column for it at all — the design was asserting a target that does not exist.
+Removing it from the mockup is not a deviation, it is the mockup catching up.
+
+#### The check
+
+```js
+// mockup: how many bordered boxes does this band actually contain?
+[...document.querySelectorAll('[data-dms-section="<band>"] div')]
+  .filter(d => /rounded-\[?\d/.test(d.className) && /border/.test(d.className)).length
+// live: how many sections are in the band row?
+bandRow.children.length
+```
+
+Then diff, per box, what the mockup's cell contains against what your section
+renders — element by element, not by screenshot.
+
+⚠ That selector counts **every** rounded+bordered box, including chrome that is not
+a section: a floating tab badge (`absolute -top-3 … rounded-[4px] shadow-md`) reads
+as a box and makes the mockup look like it has one more component than it does. On
+NPMRDS Home the four doorway bands count `3 · 4 · 3 · 3` boxes against `2 · 3 · 2 · 2`
+live sections — the difference is the badge in each, which lives *inside* the live
+card (a Card cell cannot render outside its grid area). Subtract the chrome, then
+compare; and log the badge as a deviation with the enrichment that would close it
+(a section-level "tab" chrome option on `pages.sectionArray`).
+
+#### Worked example — NPMRDS home § 04 (2026-08-14)
+
+| | mockup | live before | live after |
+|---|---|---|---|
+| sections in the band | 2 boxes (doorway + panel) | **8** (head · doorway `rowspan:2` · 4 KPI cards · spacer · "go to") | **3** (head · doorway · one Card panel) |
+| band height, card box | 258 | 767 + 4 × 383 + 2 × 92 | **260.6** (+2.6) |
+| header strip / footer row | 36 / 35 | did not exist / own section | **36 / 35** — exact |
+| doorway vs panel | equal | — | **equal (260.6)** |
+| resolved figure tracks | — | — | 79 / 111 (unaffected by the spanning header + footer cells) |
+
+The whole +2.6px: **+8** for the 1px transparent border every Card cell ships top
+and bottom (v1 layout model, 4 rows), **+6** for `target_bar`'s theme-global 8px
+track against the mockup's 6px, **−11.4** because the mockup pays for a two-line
+caption that the live track fits differently. Note the shape of that
+decomposition — after a structural fix the residual is made of *primitive
+constants*, not of wrapped lines. That is what "the structure is now right" looks
+like in numbers.
 
 ### Common failures and how to spot them
 

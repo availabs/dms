@@ -131,13 +131,94 @@ Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are requir
 
 If you see "relation `data_manager.sources` does not exist" against a brand-new pgEnv, check that the config has both `"type": "postgres"` and `"role": "dama"` set — `initDama` only runs when `role` resolves to (or contains) `"dama"`.
 
-### Schema migrations belong in init, not in call sites
+### Schema migrations: `migrate_*.sql`, one set per role
 
-`initDama` / `initDamaTasks` / `initDamaSchedules` run on every `getDb()` for a
-DAMA pgEnv, so they are the place to reconcile an older database with the
-current schema files. The table-creation block is guarded by `tablesExist` and
-therefore only fires on a fresh database; **idempotent migrations go after that
-guard** so they also reach long-lived databases.
+The `create_*` SQL scripts all sit behind a `tablesExist` guard, so they only
+ever run on a **fresh** database. Anything that has to reach an **existing**
+database goes in a migration file instead.
+
+Migrations live in the same `sql/` tree as the create scripts and follow the
+same conventions — organised by role, with the `.sqlite.sql` suffix selecting
+the dialect:
+
+```
+src/db/sql/
+  auth/  migrate_auth_core.sql   (+ .sqlite.sql)   ← neither exists: no drift to migrate
+  dama/  migrate_dama_core.sql   + migrate_dama_core.sqlite.sql
+  dms/   migrate_dms_core.sql    + migrate_dms_core.sqlite.sql
+```
+
+A missing file is not an error — it just means that role/dialect has no
+migrations yet. `runMigrationFile()` in `src/db/index.js` resolves the variant,
+skips on `ENOENT`, and executes it. `sql/auth` has no migrate file because
+`auth_tables.sql` and `auth_tables.sqlite.sql` have not changed since they were
+created; that is an audited fact, not an oversight (see the drift guard below).
+
+Roles map to **physically separate databases**, so each role's migrations run
+only for that role, from `initSequence()` in `getDb()`, **after** every
+`init*` step for that role. That ordering matters: `sql/dms/migrate_dms_core.sql`
+can `ALTER TABLE dms.change_log` because `initSync` has already created it.
+
+### The drift guard: `npm run test:schema-drift`
+
+Keeping the two in sync is not left to memory. `tests/test-schema-drift.js`
+runs as part of `npm test` and fails the build when a create script gains a
+table or column that no migration supplies. It reports the exact statement to
+add:
+
+```
+✗ dama/postgres: 1 unmigrated change(s) in sql/dama (postgres).
+  Existing databases will never get:
+        ALTER TABLE data_manager.sources ADD COLUMN IF NOT EXISTS auth_permissions …;
+```
+
+It works against `tests/fixtures/schema-baseline.json`, which records what a
+database predating every migration is assumed to have — deliberately defined as
+**the create-script schema minus everything the migrations supply**. Because a
+migrated column is subtracted out, it stays outside the baseline permanently and
+its migration stays permanently required; deleting a migration is caught just
+like forgetting to write one. Regenerate with
+
+```bash
+node tests/test-schema-drift.js --update
+```
+
+and only in the same commit as the migrations it accounts for — the fixture's
+value is that defeating it shows up as a reviewable diff.
+
+The test also boots real SQLite databases, rewinds them to their pre-migration
+shape, and asserts they come back column-for-column identical to a fresh one
+(twice, to prove idempotency). Columns handled by a JS-level retrofit rather
+than a migrate file — see the known exception below — are declared in the
+`retrofitted` list in that file, so every exemption is explicit.
+
+Rules:
+
+- **Every statement must be safe to re-run** — these execute on every init.
+  Use `IF EXISTS` / `IF NOT EXISTS`.
+- SQLite has no `ADD COLUMN IF NOT EXISTS`, so a plain
+  `ALTER TABLE … ADD COLUMN` is what you write. `runMigrationFile` makes that
+  idempotent by checking `pragma_table_info` before issuing it, with a
+  `duplicate column name` catch behind that as a backstop; every other error
+  still surfaces. (The pre-check is not just tidiness — relying on the catch
+  alone meant every server start logged red `Query error: duplicate column
+  name` lines that were not errors, which is how a real failure in this file
+  would have gone unnoticed.)
+- **Don't put a `;` inside a comment** in a `.sqlite.sql` file. Statements are
+  split on `;`; whole-line `--` comments are stripped first, but an inline
+  trailing comment with a semicolon will still split mid-statement.
+- **Postgres runs the whole file as one implicit transaction.** A statement that
+  can legitimately fail — `CREATE EXTENSION` without the privileges to do it,
+  say — must carry its own `EXCEPTION` handler, or it takes every other
+  migration in the file down with it.
+
+**Known exception.** The tasks-column retrofit in `initDamaSchedules`
+(`attempt` / `max_attempts` / `schedule_id`) stays inline in JS. It cannot move
+to `migrate_dama_core.sql` because `create_dama_schedule_tables.sql` ends with
+`CREATE INDEX … ON data_manager.tasks (schedule_id)` — the retrofit is a
+*prerequisite* of a create script, so it must run before it, whereas migrations
+run after. Moving it would break schedule-table creation on any database
+predating the scheduler.
 
 Worked example — `views_etl_ctx_id_fkey`:
 
@@ -153,12 +234,12 @@ worker doing the documented thing and passing its `task_id` as
 insert or update on table "views" violates foreign key constraint "views_etl_ctx_id_fkey"
 ```
 
-`create_dama_core_tables.sql` already declares the column as a plain
-`INTEGER` with no FK, so only pre-migration databases were affected. The fix is
-one idempotent statement in `initDama`:
+`create_dama_core_tables.sql` already declares the column as a plain `INTEGER`
+with no FK, so only pre-migration databases were affected. The fix is one
+idempotent statement in `sql/dama/migrate_dama_core.sql`:
 
 ```sql
-ALTER TABLE data_manager.views DROP CONSTRAINT IF EXISTS views_etl_ctx_id_fkey
+ALTER TABLE data_manager.views DROP CONSTRAINT IF EXISTS views_etl_ctx_id_fkey;
 ```
 
 **Do not work around a stale schema with defensive code at the call site.** A

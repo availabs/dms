@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "dev": "nodemon --ignore var/ --ignore '*.sqlite' --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
-    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js",
+    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-schema-drift.js",
     "test:delete-cascade": "node tests/test-delete-cascade.js",
     "test:sqlite": "node tests/test-sqlite.js",
     "test:controller": "node tests/test-controller.js",
@@ -40,7 +40,8 @@
     "db:cleanup": "node src/scripts/cleanup-db.js",
     "db:cleanup-stale-dmsenv-refs": "node src/scripts/cleanup-stale-dmsenv-refs.js",
     "db:extract-images": "node src/scripts/extract-images.js",
-    "db:consolidate-history": "node src/scripts/consolidate-page-history.js"
+    "db:consolidate-history": "node src/scripts/consolidate-page-history.js",
+    "test:schema-drift": "node tests/test-schema-drift.js"
   },
   "imports": {
     "#db/*.js": "./src/db/*.js",
