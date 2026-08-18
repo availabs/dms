@@ -7,11 +7,11 @@ const {
 
 const {
 	S3Client,
-	PutObjectCommand,
 	GetObjectCommand,
 	ListObjectsV2Command,
 	DeleteObjectsCommand
 } = require("@aws-sdk/client-s3");
+const { Upload } = require("@aws-sdk/lib-storage");
 
 const getAwsInfo = async awsInfoFile => {
 	if (extname(awsInfoFile) === ".mjs") {
@@ -48,8 +48,11 @@ const putObject = async (s3client, awsInfo, filepath, filename) => {
 	};
 
 	try {
-		const command = new PutObjectCommand(putObjectParams);
-		await s3client.send(command);
+		const upload = new Upload({
+			client: s3client,
+			params: putObjectParams
+		});
+		await upload.done();
 		return filename;
 	}
 	catch (e) {
