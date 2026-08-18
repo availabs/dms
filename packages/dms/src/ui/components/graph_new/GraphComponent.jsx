@@ -107,7 +107,14 @@ export const GraphComponent = props => {
       // map config `showTotal` → avl-graph DefaultHoverComp `showTotals` (default true = BC)
       showTotals: get(graphFormat, ["tooltip", "showTotal"], true),
       valueFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "valueFormat"]), isDollars),
-      yFormat: getFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
+      // LineGraph's DefaultHoverComp reads yFormat (not valueFormat) for both the
+      // per-line value and the Line Total — this was still going through the raw
+      // getFormatFunc (bare identity default), so an unformatted measure leaked
+      // full floating-point noise into the tooltip (e.g. "21.66106715604913")
+      // instead of getTooltipFormatFunc's documented 1-decimal-rounding default,
+      // which `valueFormat` above already correctly uses for every other chart
+      // type's tooltip. Reported live 2026-08-12 on a Route Line Graph.
+      yFormat: getTooltipFormatFunc(get(graphFormat, ["tooltip", "yFormat"]), isDollars),
       // LineGraph's DefaultHoverComp reads `xFormat`; Bar/Pie/Treemap/Sunburst read
       // `indexFormat` for the same value (their own "index" IS the x-axis category) —
       // supply both so whichever chart type is active picks up the right one.
@@ -246,6 +253,9 @@ export const GraphComponent = props => {
           valueTextSize: get(graphFormat, ["pieAxis", "valueTextSize"], false),
           valueFormat: getFormatFunc(get(graphFormat, ["pieAxis", "valueFormat"]), get(graphFormat, ["pieAxis", "isDollars"], false)),
         } }
+        // Donut hole, as a fraction of each slice's outer radius. 0 (default)
+        // keeps the historical solid pie; Pie only, ignored by other graph types.
+        pieInnerRadius={ get(graphFormat, "pieInnerRadius", 0) }
         margin={ margin }
         legend={ get(graphFormat, "legend", {}) }
         hoverComp={ hoverComp }

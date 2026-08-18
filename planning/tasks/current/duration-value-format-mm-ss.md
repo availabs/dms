@@ -1,8 +1,18 @@
 # Duration value format (M:SS) for travel-time axes and tooltips
 
 **Status:** NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work
-(`dms-template/planning/transportny/tasks/current/report-spec-and-build-script.md`), since the vocabulary is
+(`dms-template/planning/transportny/tasks/completed/report-spec-and-build-script.md`), since the vocabulary is
 where the per-measure format choice belongs.
+
+**Reusable building block landed 2026-08-17** (found while auditing dms-template's planning docs,
+not built for this task): `durationMinutesFormat`/`duration_mmss` (`packages/dms/src/ui/components/graph_new/utils.js`,
+commit `b785b82e` "graph tooltip fixes") produces exactly this file's target `M:SS` output
+(`0:54`, `-1:12`, confirmed by reading the implementation). It's already a real, registered
+`ValueFormat` — not tooltip-specific code, so it's usable anywhere any `formatFn`/ValueFormat is
+selectable, including `display.yAxis.format`. **It does not resolve this task** — it's currently
+only wired to `composeMeasureConfig.js`'s travelTime tooltip config
+(`display.tooltip.valueFormat`/`yFormat`), not `display.yAxis.format` — but whoever picks this up
+can reuse `durationMinutesFormat` directly instead of writing a new formatter from scratch.
 
 ## Objective
 

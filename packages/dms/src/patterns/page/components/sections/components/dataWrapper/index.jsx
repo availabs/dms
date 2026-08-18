@@ -45,6 +45,13 @@ const DOWNLOAD_CHUNK_SIZE = 5000;
 // Filter these out of the download column list to avoid duplicates.
 const isDisaggregatingCol = c => typeof c.name === 'string' && c.name.includes('jsonb_array_elements_text');
 
+// View/Edit/Delete-style Card columns render as action buttons, not data — they carry
+// no real attribute to fetch (buildUdaConfig excludes them via the same check), so
+// including them here only produces an empty, header-only column in the export.
+const isActionCol = c => Boolean(c.actionType);
+
+const excludeFromDownload = c => isDisaggregatingCol(c) || isActionCol(c);
+
 const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoading}) => {
     setLoading(true);
     const needAllCols = loadAllColumns || withId;
@@ -53,9 +60,9 @@ const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoadi
             ...state?.columns,
             ...(state?.externalSource?.columns || []).filter(col => !state?.columns.find(c => c.name === col.name))
           ]
-            .filter(c => !isDisaggregatingCol(c))
+            .filter(c => !excludeFromDownload(c))
             .map(c => ({...c, show: true}))
-        : state?.columns?.filter(c => !isDisaggregatingCol(c));
+        : state?.columns?.filter(c => !excludeFromDownload(c));
 
     if (withId && !cols.some(c => c.name === 'id')) {
         cols = [{ name: 'id', display_name: 'id', show: true, systemCol: true }, ...cols];

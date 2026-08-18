@@ -14,6 +14,8 @@
 
 ## dama
 
+- [ ] [XLSX upload fails on empty inline-string cell](./tasks/current/xlsx-upload-empty-inlinestr-cell.md) — `read-excel-file@6.0.3` throws `Unsupported "inline string" cell value structure` on a blank cell typed `t="inlineStr"` with no `<is>` child; fix is a catch-and-sanitize retry in `excel.js`, not a library upgrade (v7+ is API-breaking for our usage).
+
 - [x] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script. All 7 phases shipped + production-verified. One non-blocking follow-up split out: [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md).
 - [x] [Datatypes plugin infrastructure](./tasks/completed/datatypes-plugin-infrastructure.md) — `data-types/` + `server/register-datatypes.js` + `DMS_EXTRA_DATATYPES` env-var hook landed; submodule `dms-server/src/index.js` patched; smoke-test `_hello-world` plugin verifies the round-trip end-to-end (POST → events → done).
 - [ ] [Port `enhance_nfip_claims_v2` to the plugin system](./tasks/current/dama-nfip-claims-migration.md) — first concrete plugin built on the infrastructure. Reference implementation for subsequent hazmit ports. Replaces the smoke-test plugin with `enhance-nfip-claims`.
