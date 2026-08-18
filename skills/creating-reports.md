@@ -2,7 +2,7 @@
 
 End-to-end process for the recurring request: "a client wants to see how traffic
 changed on corridor X between period A and period B." As of the report-spec work
-(`planning/transportny/tasks/current/report-spec-and-build-script.md`), the primary path is
+(`planning/transportny/tasks/completed/report-spec-and-build-script.md`), the primary path is
 **write a spec, then build it** — `scripts/npmrds-reports/report_build.mjs` composes graph state
 through the exact same `applyMeasurePick` function the UI's Measure Picker calls, so a
 spec-built report is byte-identical to a hand-built one by construction, and most of
