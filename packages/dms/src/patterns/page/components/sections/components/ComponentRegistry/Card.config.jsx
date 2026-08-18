@@ -252,6 +252,19 @@ const buildInHeader = (fontStyleOptions) => [
     //   '<N>px' / etc → fixed CSS size; first column to claim a track wins it.
     // See src/dms/skills/card-layout.md → "Sizing tracks (fluid / content / fixed)".
     { type: 'input', inputType: 'text', label: 'Cell Width', key: 'cellWidth' },
+    // Content V-Align — where this cell's CONTENT sits inside the cell, with the
+    // cell still filling its row (so every cell border keeps drawing on the row's
+    // real edge and per-row rules stay one line). Overrides the section-level
+    // 'Content V-Align' under Cells Grid. See card-layout.md → "Filling a row AND
+    // placing its content".
+    { type: 'select', label: 'Content V-Align', key: 'cellContentVAlign', isBatchUpdatable: true,
+        options: [
+            { label: 'Section default', value: undefined },
+            { label: 'Top', value: 'top' },
+            { label: 'Center', value: 'center' },
+            { label: 'Bottom', value: 'bottom' },
+        ],
+    },
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // other
     { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView', displayCdn: ({ isEdit }) => isEdit },
@@ -521,14 +534,34 @@ const buildControls = (theme) => ({
                     { type: 'input', inputType: 'number', label: 'Row Gap', key: 'cellsRowGap' },
                     { type: 'input', inputType: 'number', label: 'Col Gap', key: 'cellsColumnGap' },
                     { type: 'input', inputType: 'number', label: 'Row Height', key: 'cellsRowHeight' },
-                    // 'Fill height' stretches cell rows to the card box (so bordered
-                    // cells reach the bottom of a `height:'fill'` card beside a taller
-                    // sibling); 'Pack to top' (default) keeps cells content-sized at the
-                    // top. Mirrors the cards-grid Vertical Align above.
+                    // 'Pack to top' (default) keeps cells content-sized at the top and
+                    // pools any leftover height as one blank strip below the last row.
+                    // 'Fill height' spreads that leftover EQUALLY across the rows
+                    // (`align-content: stretch`), so a `height:'fill'` card beside a
+                    // taller sibling still lands its last cell on its own bottom edge.
+                    // Inert when the rows already fill the card; `Row Height` wins the
+                    // row size, and with fixed rows there is nothing left to spread.
+                    // Mirrors the cards-grid Vertical Align above.
                     { type: 'select', label: 'Vertical Align', key: 'cellsVerticalAlign',
                         options: [
                             { label: 'Pack to top (default)', value: undefined },
                             { label: 'Fill height', value: 'stretch' },
+                        ],
+                    },
+                    // Where each cell's CONTENT sits inside the cell — the other
+                    // axis from 'Vertical Align' above (which distributes the
+                    // card's leftover height between the rows). Emits no
+                    // align-self, so the cells keep filling their rows and a row's
+                    // borders stay one continuous line; only the content moves.
+                    // Per-column 'Content V-Align' overrides this.
+                    // ('Top' is not always a no-op: a row-direction cell inherits
+                    //  `items-center` from several themes' headerValueWrapper.)
+                    { type: 'select', label: 'Content V-Align', key: 'cellsContentVAlign',
+                        options: [
+                            { label: 'Theme default', value: undefined },
+                            { label: 'Top', value: 'top' },
+                            { label: 'Center', value: 'center' },
+                            { label: 'Bottom', value: 'bottom' },
                         ],
                     },
                     { type: 'input', inputType: 'number', label: 'Cell Padding', key: 'cellsPadding' },
@@ -536,6 +569,14 @@ const buildControls = (theme) => ({
                     // Track Template — raw grid-template-columns string, wins over
                     // per-column `cellWidth`. Power-user escape hatch.
                     { type: 'input', inputType: 'text', label: 'Track Template', key: 'cellsTracksTemplate' },
+                    // Rows Template — the row-axis peer of Track Template (raw
+                    // grid-template-rows). Pairs with 'Fill height' above to say
+                    // "spread the leftover, but NOT into this row": `max-content`
+                    // holds row 1 (a header strip) at its content height and the rows
+                    // below it split the slack. `max-content … 1fr` is the mockups'
+                    // `mt-auto` — one row absorbs everything. Names only the EXPLICIT
+                    // rows; the rest stay implicit (Row Height still applies).
+                    { type: 'input', inputType: 'text', label: 'Rows Template', key: 'cellsRowsTemplate' },
                 ]
             },
             { label: 'Default Column Settings', items: [

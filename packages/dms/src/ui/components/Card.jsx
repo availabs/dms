@@ -13,8 +13,10 @@ import {
     resolveCellTracks,
     resolveCellsGridStyle,
     resolveCellStyle,
+    resolveCellFlexRow,
     resolveHeaderValueWidths,
     resolveCellBorderClass,
+    resolveLinkAnchorStyle,
     describeResolvedPadding,
 } from './Card.layout';
 
@@ -493,9 +495,26 @@ const CardColumnField = ({
     // (side-specific > cellPadding > cellsPadding > v2 theme cellGutter),
     // explicit-zero contract, defined-keys-only emission — lives in
     // Card.layout.js so it's readable and testable in one place.
+    // `cellContentVAlign` centres/pins the cell's CONTENT without moving the cell,
+    // so it emits a FLEX property — and which one means "vertical" depends on the
+    // direction this wrapper actually renders in: `wrapperFlexClass` above when
+    // headerValueLayout is set, otherwise whatever the theme's headerValueWrapper
+    // bakes. resolveCellFlexRow answers exactly that (and is NOT `isRowLayout`
+    // below, which reads "unset ⇒ row" for the header/value width split).
+    const cellFlexRow = resolveCellFlexRow({ headerValueLayout, headerValueWrapper: theme.headerValueWrapper });
+
     const style = resolveCellStyle({
-        attr, hints, display, cellsPadding, layoutModelV2, cellGutter: theme.cellGutter,
+        attr, hints, display, cellsPadding, layoutModelV2, cellGutter: theme.cellGutter, cellFlexRow,
     });
+
+    // Link cells: the token lands on the <a>/<Link> below (see the value div's
+    // comment), where an INLINE box's line-height cannot size its line box.
+    // `resolveLinkAnchorStyle` blockifies the anchor so the token's own leading
+    // becomes the strut — unless the token declares a display of its own, in
+    // which case it is left exactly as it was. See Card.layout.js.
+    const linkClass = (attr.valueFontStyle && attr.valueFontStyle !== 'button')
+        ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '');
+    const linkStyle = resolveLinkAnchorStyle(linkClass);
 
     const hasMenu = isEdit && controls?.inHeader?.length && setState;
     const isRowLayout = !headerValueLayout || headerValueLayout === 'row';
@@ -582,7 +601,8 @@ const CardColumnField = ({
                         {
                             isLink && !(allowEdit || attr.allowEditInView) ?
                                 (isLinkExternal ?
-                                <a className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')}
+                                <a className={linkClass}
+                                   style={linkStyle}
                                    target="_blank"
                                    rel="noopener noreferrer"
                                    href={url}
@@ -605,7 +625,7 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </a> :
-                                <Link className={(attr.valueFontStyle && attr.valueFontStyle !== 'button') ? (theme[attr.valueFontStyle] || '') : (theme.linkColValue || '')} to={url}>
+                                <Link className={linkClass} style={linkStyle} to={url}>
                                     <CompWrapper attribute={attr}
                                                  value={linkText || valueFormattedForDisplay}
                                                  rawValue={valueFormattedForEdit}
@@ -885,7 +905,7 @@ export default function Card ({
     const {
         cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
         cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
-        cellsVerticalAlign, cellsTracksTemplate,
+        cellsVerticalAlign, cellsTracksTemplate, cellsRowsTemplate,
         cardBorder, cellBorder,
         allowAdddNew,
     } = display;
@@ -929,10 +949,10 @@ export default function Card ({
 
     const subWrapperStyle = useMemo(
         () => resolveCellsGridStyle({
-            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign },
+            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate },
             gridTemplateColumns, hasRowSpan,
         }),
-        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, hasRowSpan]);
+        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, cellsRowsTemplate, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

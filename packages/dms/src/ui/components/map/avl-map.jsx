@@ -570,7 +570,11 @@ const Reducer = (state, action) => {
   }
 }
 
-const AvlMapInner = ({
+// Exported for tests only — AvlMap lazy-imports maplibre-gl in an effect and renders a
+// spinner until it lands, so a server render of AvlMap can never reach the overlay
+// markup. Consumers keep using AvlMap. (Additive export; both exports are components,
+// so the file stays a Fast-Refresh boundary.)
+export const AvlMapInner = ({
   maplibre,
   mapOptions = EmptyObject,
   id,
@@ -581,6 +585,14 @@ const AvlMapInner = ({
   showLayerSelect = false,
   onMapStyleSelect = () => {},
   mapActions = ["navigation-controls"],
+  // OPT-IN, default false — see the map-actions column in the overlay below.
+  // false: the actions column is a flex sibling that RESERVES its width (~176px with
+  //        the four navigation buttons), which is what every map has always rendered.
+  // true:  the column takes zero width and floats its controls in the same
+  //        bottom-right corner, so the overlay's `flex-1` box (layer render comps and
+  //        plugin panels) spans the full map width and a panel pinned `right-0`
+  //        reaches the map's right edge.
+  floatMapActions = false,
   ...props
 }) => {
 
@@ -970,8 +982,19 @@ const AvlMapInner = ({
         </div>
 
         { !Actions.length ? null :
-          <div className="relative pl-4">
-            <div className="flex flex-col h-full justify-end flex-end">
+          // In the default layout this column is a full-height flex sibling, so its
+          // width comes out of the `flex-1` box above it — a plugin panel pinned
+          // `right-0` then stops ~200px short of the map's right edge. With
+          // `floatMapActions` the column is zero-width and the controls are floated in
+          // the same bottom-right corner (same right/bottom edges, since a zero-width
+          // flex item sits exactly at the content box's right edge), so `flex-1` spans
+          // the whole overlay. Anything already bottom-right inside `flex-1` (e.g. a
+          // plugin's own dock pill) must offset itself out of the controls' corner.
+          <div className={ floatMapActions ? "relative w-0" : "relative pl-4" }>
+            <div className={ floatMapActions
+                  ? "absolute bottom-0 right-0 flex flex-col justify-end"
+                  : "flex flex-col h-full justify-end flex-end"
+                }>
               { Actions.map(({ Component, ...action }, i) => (
                   <Component key={ i } { ...action }
                     mapIcons={ mapIcons }
