@@ -271,7 +271,6 @@ export const formatFunctions = {
     const seconds = totalSeconds % 60;
     return `${isNegative ? "-" : ""}${minutes}:${String(seconds).padStart(2, "0")}`;
   },
-<<<<<<< HEAD
   // `attr` is the column, passed so the cell can drop the label. The name
   // beside the glyph is right for a legend and wrong for a leading glyph
   // column — a design that scans by kind (WCDB's schedule rows) wants the
@@ -287,7 +286,6 @@ export const formatFunctions = {
         <span>{strValue}</span>
       </>
     ),
-=======
   // Plain fixed-precision decimal, no thousands separator/abbreviation/currency
   // — `comma`/`abbreviate` both floor to an integer below their K/M thresholds
   // (fnum/fnumIndex), which is wrong for a rate-like value that's normally
@@ -307,7 +305,6 @@ export const formatFunctions = {
       <span>{strValue}</span>
     </>
   ),
->>>>>>> 6ec4b6ed868c015027bac7d0fd7ceae5818ee807
   color: (strValue, map) => (
     <>
       <div
