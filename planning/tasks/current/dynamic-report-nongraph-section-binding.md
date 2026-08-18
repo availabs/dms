@@ -29,7 +29,7 @@ end-to-end for AVL Graph. Map, Route Compare Component, and TMC Info Box need to
 
 On `converted_reports/rochester_inner_loop_0` (a `--template-id`-converted Dynamic Report page,
 the actual page the reports catalog's "Snapshot" card links to — see
-`planning/transportny/tasks/current/catalog-page-slug-naming-fix.md` in the OTHER planning tree,
+`planning/transportny/tasks/completed/catalog-page-slug-naming-fix.md` in the OTHER planning tree,
 at the repo root, for why that URL looks wrong), opened the page fresh, filled
 the "Add Routes" entry-gate modal with 3 arbitrary real routes (Queens/Richmond, unrelated to the
 original Rochester content), clicked "Add 3 Routes":
