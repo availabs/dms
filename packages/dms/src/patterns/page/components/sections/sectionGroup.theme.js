@@ -25,6 +25,22 @@ export const sectionGroupTheme = {
     sideNavContainer2: 'sticky top-[60px] h-[calc(100vh_-_68px)] overflow-y-auto pr-2',
     sideNavContainer3: 'flex flex-col gap-4 h-full',
 
+    // ── Modal band chrome (`isModal` groups, view mode) ──
+    // A modal group's overlay/card/close button used to be hardcoded here in
+    // sectionGroup.jsx, which put every brand's modals on a white card with a
+    // grey ✕ — unusable on a dark admin surface. These are the previous literals
+    // verbatim, so an unthemed brand is unchanged; a brand overrides them under
+    // its own `pages.sectionGroup`. `modalWidth` is still picked by the group's
+    // `modalSize` (a whitelist, because Tailwind only emits literal classes).
+    modalOverlay: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50',
+    modalCard:    'relative bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto',
+    modalClose:   'sticky float-right top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none',
+    // The close affordance. A brand that ships an icon registry can name a glyph
+    // (`modalCloseIcon: 'XMark'`) instead of drawing one in text.
+    modalCloseText: '✕',
+    modalCloseIcon: '',
+    modalCloseIconClass: 'w-5 h-5',
+
     // ── In-page nav (InPageNav.jsx) ──
     // Minimal neutral defaults so legacy `item.sidebar` docs pages render ~unchanged
     // (a plain list of jump links, no card, no label). Brands opt into the card look

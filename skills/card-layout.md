@@ -43,13 +43,43 @@ The resolved `dataCard` theme style selects the model via `layoutModel: 'v2'`:
 | Cards-grid rows | fill the box (`minmax(max-content,1fr)`) — slack is distributed BETWEEN card rows; `cardsVerticalAlign: 'top'` opts into packing | content-sized, packed to top — the gap between cards is EXACTLY `cardsGridGap`; `cardsVerticalAlign: 'stretch'` opts into fill |
 | Cell chrome | every cell carries `border border-transparent` (+2px, always) | none; edit-mode hover is an `outline` (`theme.itemEditOutline`) — no layout space |
 | Ambient cell gutter | whatever padding class the theme bakes into `headerValueWrapper` (e.g. `p-2`) | the theme's single `cellGutter` number, emitted INLINE — a theme class can never beat an explicit knob |
-| Theme structural keys | may carry fonts/min-heights (collisions possible) | `value`/`header`/`valueWrapper`/`headerValueWrapper` are layout-only; typography comes exclusively from `valueFontStyle`/`headerFontStyle` tokens |
+| Theme structural keys | may carry fonts/min-heights (collisions possible) | layout-only; typography comes from `valueFontStyle`/`headerFontStyle` tokens — but see the precision note below, the four keys are NOT equivalent |
 
 **Opting in:** per section — pick the `v2` entry in the toolbar's **Card
 style** control (the default theme ships one); site-wide — put
 `layoutModel: 'v2'` + `cellGutter` + layout-only structural keys on the brand
 theme's `dataCard.styles[0]` (landbank does this; see its theme.js for the
 worked example).
+
+**Which structural keys are actually load-bearing — read from `Card.jsx`, not
+from the table above** (settled during the WCDB migration, 2026-08-15, because
+landbank's own v2 theme keeps typography on `header` and the table made that
+look like a violation):
+
+- **`value` is the real collision.** `Card.jsx:580` puts `theme.value` and the
+  column's `valueFontStyle` token on the **same element**. Two arbitrary-value
+  Tailwind classes on one element resolve by *stylesheet order, not author
+  intent*, so any font spec here can silently beat a column's chosen token.
+  Keep `value` strictly layout-only.
+- **`header` is not a collision.** `Card.jsx:563-567` puts `theme.header` on a
+  wrapper `<div>` whose child `<span>` always carries a token
+  (`attr.headerFontStyle`, defaulting to `textXS`). Typography on `header` is an
+  **inherited fallback** — and it is load-bearing, because the renderer offers
+  no theme-level default `headerFontStyle`. A brand whose column headers have a
+  distinct voice (mono uppercase eyebrow, say) must keep it here, or every
+  untagged header falls back to the generic `textXS`.
+- **`subWrapper` / `subWrapperCompactView` are the cards-grid container**
+  (`Card.jsx:753`) — ancestors of every cell, so a body baseline there is
+  inheritance, not collision. Legitimate for giving custom column types that
+  draw their own chrome a default rhythm.
+- **`valueWrapper` / `headerValueWrapper`**: the v2 rule that bites is the
+  *padding* one, not the font one — an ambient padding class here cannot be
+  beaten from the section, which is exactly what `cellGutter` exists to fix.
+  Strip padding and min-heights; a font here is merely inherited.
+
+The one-line version: **v2 forbids ambient typography where it would land on the
+same element as a token (`value`), and ambient padding anywhere in the cell
+chrome. Ancestor-level typography is a fallback layer and is fine.**
 
 ### Introspection (edit mode)
 

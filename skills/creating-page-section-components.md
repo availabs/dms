@@ -26,18 +26,32 @@ Look at `Card.jsx` + `Card.config.jsx` for a worked example with controls, defau
 
 ## The component contract
 
-The component is a React function that receives the standard section props from the dataWrapper. Two variants:
+⚠ **`state` arrives through `ComponentContext`, NOT as a prop.** This is the
+single most expensive thing to get wrong here: a `state` prop is always
+`undefined`, and a data section written against it renders as *bound but empty*
+— no error, no warning, just a component that looks like its query returned
+nothing. (Worked example of the failure: the WCDB ScheduleGrid shipped a full
+7×24 grid where every hour read as open and the version bar said "unbound".)
+`Card.jsx` is the model to copy:
 
 ```jsx
 // Foo.jsx
-export const FooEdit = ({ state, setState, controls, dwAPI, ... }) => { ... };
-export const FooView = ({ state, ... }) => { ... };
+export const FooView = ({ isEdit, allowEdit, updateItem, addItem, newItem, setNewItem }) => {
+  const { state, setState, controls = {}, activeStyle } = useContext(ComponentContext);
+  const { pageState, setActionParam, clearActionParam } = useContext(PageContext) || {};
+  // …
+};
+export const FooEdit = FooView;   // or a separate component when the divergence is structural
 ```
 
+From **`ComponentContext`**:
 - **`state`** — the section's persisted state (columns, filters, display config, fetched data).
 - **`setState`** — Immer-style mutator. Use this rather than reaching into the parent.
 - **`controls`** — the assembled inline controls (rendered into the section header in edit mode).
-- **`dwAPI`** — the dataWrapper API (`refetch`, etc.) for components that need to imperatively poke the data layer.
+- **`activeStyle`** — the section's chosen theme style.
+
+As **props**: the edit-mode/data-edit flags and row helpers — `isEdit`,
+`allowEdit`, `updateItem`, `addItem`, `newItem`/`setNewItem`.
 
 Many components keep `EditComp === ViewComp` if the only differences are conditional on `isEdit` inside the component — that's the Card pattern. Split into two when the divergence is structural (different layout, different state shape).
 

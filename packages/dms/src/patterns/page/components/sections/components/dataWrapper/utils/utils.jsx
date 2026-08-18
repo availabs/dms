@@ -271,12 +271,21 @@ export const formatFunctions = {
     const seconds = totalSeconds % 60;
     return `${isNegative ? "-" : ""}${minutes}:${String(seconds).padStart(2, "0")}`;
   },
-  icon: (strValue, props, Icon) => (
-    <>
-      <Icon icon={strValue} className={"size-8"} {...props} />{" "}
-      <span>{strValue}</span>
-    </>
-  ),
+  // `attr` is the column, passed so the cell can drop the label. The name
+  // beside the glyph is right for a legend and wrong for a leading glyph
+  // column — a design that scans by kind (WCDB's schedule rows) wants the
+  // mark alone, and there was previously no way to get it: the label was
+  // unconditional, so the cell always printed `MICROPHONE` next to the mic.
+  // Unset → label shown, exactly as before.
+  icon: (strValue, props, Icon, attr) =>
+    attr?.hideIconLabel ? (
+      <Icon icon={strValue} className={attr?.iconClassName || "size-5"} />
+    ) : (
+      <>
+        <Icon icon={strValue} className={"size-8"} {...props} />{" "}
+        <span>{strValue}</span>
+      </>
+    ),
   color: (strValue, map) => (
     <>
       <div

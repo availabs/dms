@@ -564,6 +564,56 @@ and a small `cellsGridGap` — see the **"Tight inline meta / header row"** reci
 [`card-layout.md`](./card-layout.md#recipes). When the layoutGroup band already provides the surface
 (e.g. a `header` band), give the section a bare extra (`{}`, no `bg`/`border`) so you don't double-box.
 
+#### 5.3.1 Getting the small details right — spacing and type
+
+**This is the step everyone skips, and it is the step that decides whether the page
+looks like the design.** A page can have every section present, every source bound and
+every column mapped, and still read as obviously-not-the-design. Every time that has
+happened on a real build, the cause was the same short list:
+
+| Symptom | Actual cause |
+|---|---|
+| Everything is airier than the mockup; the page is 1.5–3× too tall | Card cells defaulted to equal fractions + theme cell padding; nothing set `cellsTracksTemplate` / `cellsPadding` / `cellsGridGap` |
+| Type is *close* but wrong — weight, tracking, case, or size off by a step | Column left on the theme's ambient default instead of naming a `valueFontStyle` / `headerFontStyle` token |
+| A list renders as rows where the design has a **grid of cards** | `cardsGridSize` left at 1; the mockup's repeated unit was read as "a row" rather than "a card" |
+| The mockup's number-above-label stat renders label-above-number | `display.reverse` not set |
+| Two adjacent cards read as one box, or one box reads as two | Section-level border/radius/bg not coordinated across the fused sides |
+
+None of these are visible from a config diff. They are only visible **side by side**,
+which is why the fidelity step is a measurement, not a reading.
+
+**Do this before declaring a page done:**
+
+1. **Shoot the mockup and the live page side by side** with
+   [`scripts/card-shot.mjs`](../../../scripts/card-shot.mjs) — it prints
+   `height: live is N% of the design's`. That single number is the fastest
+   fidelity signal there is: anything outside roughly 90–110% means a
+   structural miss (usually rows-vs-grid or distributed slack), not a
+   nudge. Fix structure first; never tune padding to close a 50% gap.
+2. **Work the per-atom inventory table** in
+   [`transcribing-a-design-card-to-dms.md`](./transcribing-a-design-card-to-dms.md).
+   That skill is the authority for this layer: it walks design atom → Card
+   setting → column type, one row per visual element, and its decision ladder
+   (configure the Card → add a column type → enrich the theme → only then a
+   component) keeps the fix at the lowest rung that works.
+3. **Name the type token explicitly.** A design's card typography is a spec, not
+   an accident — mono-uppercase eyebrow at one size, title at another, meta at a
+   third. Set `valueFontStyle` / `headerFontStyle` per column to a `textSettings`
+   token rather than inheriting whatever the theme's structural keys happen to
+   carry. Ambient typography on structural keys collides with per-column tokens
+   and resolves by *stylesheet order, not author intent*.
+4. **Check the theme is on the v2 card layout model** (`layoutModel: 'v2'` +
+   `cellGutter`) before spending time on spacing. Under v1 the grid distributes
+   slack between card rows and every cell carries a transparent border, so a
+   mockup cannot be reproduced faithfully however carefully you configure the
+   section — see the two-model table in [`card-layout.md`](./card-layout.md).
+   If the theme is still v1, that is the finding; migrate the theme rather than
+   compensating page-by-page.
+
+Budget for this. On a multi-page build the fidelity pass is comparable in size to
+the wiring pass, and it is much cheaper to do per-page while the design is fresh
+than as one sweep at the end.
+
 ### 5.4 Lexical content — the minimum viable JSON
 
 The Lexical editor stores its state as a node tree under

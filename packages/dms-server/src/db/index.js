@@ -13,6 +13,77 @@ const clients = {};
 const initPromises = [];
 
 /**
+ * Run an idempotent migration file from the sql/ tree, if one exists for this
+ * database type.
+ *
+ * The create_*.sql scripts only run on a fresh database (they sit behind a
+ * `tablesExist` guard), so schema changes that must reach EXISTING databases
+ * belong in a migrate_*.sql file instead. These run on every init, so every
+ * statement must be safe to re-run — `IF EXISTS` / `IF NOT EXISTS`, never bare
+ * DDL.
+ *
+ * Variant selection follows the same filename convention as the create
+ * scripts: `<baseName>.sqlite.sql` for SQLite, `<baseName>.sql` otherwise. A
+ * missing file is not an error — it just means that database type has no
+ * migrations yet.
+ *
+ * @param {Object} dbConnection - Database adapter instance
+ * @param {string} sqlDir - Directory under src/db (e.g. "sql/dama")
+ * @param {string} baseName - File base name (e.g. "migrate_dama_core")
+ */
+const runMigrationFile = async (dbConnection, sqlDir, baseName) => {
+  const dbType = dbConnection.type;
+  const sqlFile = dbType === "sqlite" ? `${baseName}.sqlite.sql` : `${baseName}.sql`;
+
+  let sql;
+  try {
+    sql = await readFileAsync(join(__dirname, sqlDir, sqlFile), { encoding: "utf8" });
+  } catch (error) {
+    if (error.code === "ENOENT") return;
+    throw error;
+  }
+
+  if (dbType === "sqlite") {
+    // better-sqlite3 runs one statement per call, so split on ";". Strip
+    // whole-line `--` comments FIRST: a semicolon inside a comment would
+    // otherwise split mid-sentence and leave prose as a bogus statement.
+    const statements = sql
+      .split("\n")
+      .filter(line => !line.trim().startsWith("--"))
+      .join("\n")
+      .split(";")
+      .filter(stmt => stmt.trim());
+    for (const stmt of statements) {
+      // SQLite has no `ADD COLUMN IF NOT EXISTS`, and an already-applied
+      // ADD COLUMN is the steady state, not a failure — every boot after the
+      // first re-runs the whole file. Check first rather than letting it throw:
+      // the adapter logs a red "Query error" before this function ever sees the
+      // exception, so relying on the catch alone means every server start
+      // prints failures that aren't failures, which is how real errors in this
+      // file get overlooked.
+      const addColumn = stmt.match(
+        /ALTER\s+TABLE\s+([\w".]+)\s+ADD\s+COLUMN\s+(?:IF\s+NOT\s+EXISTS\s+)?([\w"]+)/i
+      );
+      if (addColumn) {
+        const table = addColumn[1].replace(/"/g, "");
+        const column = addColumn[2].replace(/"/g, "").toLowerCase();
+        const { rows } = await dbConnection.query(`SELECT name FROM pragma_table_info('${table}')`);
+        if (rows.some((r) => String(r.name).toLowerCase() === column)) continue;
+      }
+
+      try {
+        await dbConnection.query(stmt + ";");
+      } catch (error) {
+        // Backstop for anything the pre-check above doesn't recognise.
+        if (!error.message?.includes("duplicate column name")) throw error;
+      }
+    }
+  } else {
+    await dbConnection.query(sql);
+  }
+};
+
+/**
  * Initialize auth tables for the database
  * @param {Object} dbConnection - Database adapter instance
  */
@@ -52,6 +123,7 @@ const initAuth = async (dbConnection) => {
       throw error;
     }
   }
+
 };
 
 /**
@@ -103,6 +175,7 @@ const initDms = async (dbConnection) => {
       throw error;
     }
   }
+
 };
 
 /**
@@ -145,75 +218,6 @@ const initSync = async (dbConnection) => {
     }
   }
 
-  // Migration: add audit columns to change_log for existing databases.
-  // Postgres: ADD COLUMN IF NOT EXISTS is idempotent.
-  // SQLite: try each ADD COLUMN and ignore "duplicate column name" errors.
-  const changeLogTbl = dbType === "postgres" ? "dms.change_log" : "change_log";
-  if (dbType === "postgres") {
-    await dbConnection.query(`
-      ALTER TABLE ${changeLogTbl}
-        ADD COLUMN IF NOT EXISTS ip         TEXT,
-        ADD COLUMN IF NOT EXISTS user_agent TEXT,
-        ADD COLUMN IF NOT EXISTS auth_state TEXT;
-    `);
-  } else {
-    for (const colDef of ["ip TEXT", "user_agent TEXT", "auth_state TEXT"]) {
-      try {
-        await dbConnection.query(`ALTER TABLE change_log ADD COLUMN ${colDef};`);
-      } catch (e) {
-        if (!e.message?.includes("duplicate column name")) throw e;
-      }
-    }
-  }
-
-  // Migration: create page_visits table for existing databases (idempotent via IF NOT EXISTS).
-  if (dbType === "postgres") {
-    await dbConnection.query(`
-      CREATE TABLE IF NOT EXISTS dms.page_visits (
-        id          BIGSERIAL PRIMARY KEY,
-        app         TEXT        NOT NULL,
-        page_id     BIGINT,
-        url         TEXT,
-        action      TEXT,
-        ip          TEXT,
-        user_agent  TEXT,
-        user_id     INTEGER,
-        created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_page_visits_app_created
-        ON dms.page_visits (app, created_at DESC);
-      CREATE INDEX IF NOT EXISTS idx_page_visits_page_id
-        ON dms.page_visits (page_id);
-    `);
-    await dbConnection.query(`
-      ALTER TABLE dms.page_visits ADD COLUMN IF NOT EXISTS action TEXT;
-    `);
-  } else {
-    await dbConnection.query(`
-      CREATE TABLE IF NOT EXISTS page_visits (
-        id         INTEGER PRIMARY KEY AUTOINCREMENT,
-        app        TEXT    NOT NULL,
-        page_id    INTEGER,
-        url        TEXT,
-        action     TEXT,
-        ip         TEXT,
-        user_agent TEXT,
-        user_id    INTEGER,
-        created_at TEXT    NOT NULL DEFAULT (datetime('now'))
-      );
-    `);
-    await dbConnection.query(`
-      CREATE INDEX IF NOT EXISTS idx_page_visits_app_created ON page_visits (app, created_at);
-    `);
-    await dbConnection.query(`
-      CREATE INDEX IF NOT EXISTS idx_page_visits_page_id ON page_visits (page_id);
-    `);
-    try {
-      await dbConnection.query(`ALTER TABLE page_visits ADD COLUMN action TEXT;`);
-    } catch (e) {
-      if (!e.message?.includes("duplicate column name")) throw e;
-    }
-  }
 };
 
 /**
@@ -267,19 +271,6 @@ const initDama = async (dbConnection) => {
       await dbConnection.rollbackTransaction();
       throw error;
     }
-  }
-
-  // Migration for pre-existing databases: data_manager.views.etl_context_id
-  // used to carry a FK into the legacy data_manager.etl_contexts table. Task
-  // ids now come from data_manager.tasks, which etl_contexts knows nothing
-  // about, so any worker passing its task_id hit
-  //   views_etl_ctx_id_fkey ... insert or update on table "views" violates ...
-  // create_dama_core_tables.sql already declares the column with no FK; this
-  // brings older databases in line with it.
-  if (dbType !== "sqlite") {
-    await dbConnection.query(
-      `ALTER TABLE data_manager.views DROP CONSTRAINT IF EXISTS views_etl_ctx_id_fkey`
-    );
   }
 };
 
@@ -510,6 +501,12 @@ function getDb(pgEnv) {
       } catch (err) {
         console.error("dama schedules init failed:", err.message);
       }
+      // Migrations run last so every table this role creates already exists.
+      try {
+        await runMigrationFile(databases[pgEnv], "sql/dama", "migrate_dama_core");
+      } catch (err) {
+        console.error("dama migrations failed:", err.message);
+      }
     }
 
     if (roles.includes("auth")) {
@@ -518,6 +515,11 @@ function getDb(pgEnv) {
         console.log("auth init", pgEnv);
       } catch (err) {
         console.error("auth init failed:", err.message);
+      }
+      try {
+        await runMigrationFile(databases[pgEnv], "sql/auth", "migrate_auth_core");
+      } catch (err) {
+        console.error("auth migrations failed:", err.message);
       }
     }
 
@@ -541,6 +543,11 @@ function getDb(pgEnv) {
         console.log("dms tasks init", pgEnv);
       } catch (err) {
         console.error("dms tasks init failed:", err.message);
+      }
+      try {
+        await runMigrationFile(databases[pgEnv], "sql/dms", "migrate_dms_core");
+      } catch (err) {
+        console.error("dms migrations failed:", err.message);
       }
     }
   };
@@ -651,5 +658,8 @@ module.exports = {
   getClient,
   query,
   getPostgresCredentials,
-  loadConfig
+  loadConfig,
+  // Exported for tests/test-schema-drift.js, which applies migrations to a
+  // deliberately out-of-date database and checks it catches up.
+  runMigrationFile
 };

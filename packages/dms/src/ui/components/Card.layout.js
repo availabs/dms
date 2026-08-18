@@ -172,6 +172,29 @@ export function resolveCellStyle({ attr = {}, hints = {}, display = {}, cellsPad
         return definedOr(attr[key], fallback);
     };
 
+    // Per-cell MARGIN, mirroring the padding set above: side-specific wins over
+    // the `cellMargin` shorthand. Unlike padding there is no section-level
+    // ambient and no theme gutter — a margin is always a deliberate, local
+    // nudge, so an unset key emits nothing at all.
+    //
+    // Negative values are the point of this knob, not an abuse of it. A cell
+    // with a negative bottom margin lets the cells AFTER it ride up over it,
+    // which is how a full-bleed image cell becomes a backdrop with its
+    // caption/title overlaid — the design's "photo with the identity pinned to
+    // its lower third" — using ordinary Card columns instead of a composite
+    // column type that would hard-code the whole arrangement. Grid items paint
+    // in DOM order, so the later cells land on top without needing a z-index.
+    //
+    // NB `imageMargin` (a marginTop, image columns only) predates this and
+    // still works; an explicit `cellMarginTop`/`cellMargin` wins over it.
+    // Emitted as four longhands rather than a `margin` shorthand plus
+    // overrides: the explicit-zero contract noted above bites the same way for
+    // margin, and `cellMargin` is fully expressed by feeding all four sides.
+    const marginSide = (key) => {
+        const v = definedOr(attr[key], definedOr(attr.cellMargin, undefined));
+        return v === undefined ? undefined : `${v}px`;
+    };
+
     return {
         // cardHints provide a column type's *default* positioning; an
         // author-supplied `cellSpan` / `cellRowSpan` is explicit intent and
@@ -184,8 +207,21 @@ export function resolveCellStyle({ attr = {}, hints = {}, display = {}, cellsPad
         ...definedStyle('paddingRight', padOverride('cellPaddingRight', undefined)),
         ...definedStyle('paddingBottom', padOverride('cellPaddingBottom', undefined)),
         ...definedStyle('paddingLeft', padOverride('cellPaddingLeft', undefined)),
+        // Legacy image-only top margin, kept so existing cards are unchanged.
         ...(imageMargin !== undefined && !isNaN(imageMargin) ? { marginTop: `${imageMargin}px` } : {}),
-        ...definedStyle('backgroundColor', attr.cellBgColor),
+        // …and the general set, which wins where it is set.
+        ...definedStyle('marginTop', marginSide('cellMarginTop')),
+        ...definedStyle('marginRight', marginSide('cellMarginRight')),
+        ...definedStyle('marginBottom', marginSide('cellMarginBottom')),
+        ...definedStyle('marginLeft', marginSide('cellMarginLeft')),
+        // `background`, not `backgroundColor`: a plain colour behaves
+        // identically through the shorthand, and it additionally lets a cell
+        // take a GRADIENT. That is what turns "a cell with a negative margin
+        // over an image cell" into a usable scrim — dark at the bottom, clear
+        // at the top — so type can be set over a photograph without a bespoke
+        // component. The colour picker still writes plain colours here; a
+        // gradient is typed in by an author who wants one.
+        ...definedStyle('background', attr.cellBgColor),
         // Per-cell accent border — a coloured LEFT rule (the stat-strip
         // `border-l-4 border-<color>` look). Sibling of cellBgColor: an inline
         // style from the author-supplied colour, applied right here where the

@@ -102,8 +102,27 @@ const resolveShadow = (shadow, theme) =>
 // The section's card chrome — rendered on an INNER box (inside the gutter padding).
 // Content padding INSIDE the card is the COMPONENT's concern (e.g. the lexical
 // component's own default padding), not the section.
-const sectionChrome = (v, theme) =>
-    `${resolveBorder(v?.border, theme)} ${resolveRadius(v?.radius, theme)} ${resolveBg(v?.bg, theme)} ${resolveShadow(v?.shadow, theme)}`.trim();
+//
+// CLIPPING: a section whose chrome box is ROUNDED also gets `overflow-hidden`.
+// A rounded box that does not clip is broken by definition — square content
+// (an image, a full-bleed cell, a coloured row) pokes out through the corner
+// arcs, and the section reads as if its content escaped the card. Found on
+// WCDB's on-air panel, where the photo's corners sat outside the rail card's
+// 18px radius.
+//
+// Deliberately gated on there BEING a radius rather than applied to every
+// section: an un-rounded section has nothing to clip against, and blanket
+// clipping would trap content that is meant to escape (a dropdown, a tooltip,
+// a negative-margin overlay reaching past its own box). Sections that opt into
+// rounded chrome have already declared themselves a card.
+const sectionChrome = (v, theme) => {
+    const radius = resolveRadius(v?.radius, theme);
+    const border = resolveBorder(v?.border, theme);
+    // `border` presets bake their own radius in (see resolveBorder), so a
+    // section using one is rounded too even with no `radius` key.
+    const isRounded = !!radius || /rounded/.test(border);
+    return `${border} ${radius} ${resolveBg(v?.bg, theme)} ${resolveShadow(v?.shadow, theme)}${isRounded ? ' overflow-hidden' : ''}`.trim();
+};
 
 // Section height. The band is a CSS grid, so a section's cell already stretches
 // to its row height; the chrome box inside it is content-height by default,
@@ -124,7 +143,14 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
     const { theme:fullTheme = { sectionArray: sectionArrayTheme}, UI } = React.useContext(ThemeContext) || {}
-    const theme = getComponentTheme(fullTheme, 'pages.sectionArray')
+    // `group.theme` selects this band's `pages.sectionArray` style as well as its
+    // layoutGroup style — the same convention sectionGroup.jsx already uses for
+    // `pages.sectionGroup`. An unmatched/undefined name resolves to styles[0]
+    // (getComponentTheme falls back and inherits missing keys), so this is a
+    // strict no-op for every band that doesn't opt into a named style. It exists
+    // so a brand can give ONE band a different section grid — e.g. an admin band
+    // that fills its column while the public bands keep the centered measure.
+    const theme = getComponentTheme(fullTheme, 'pages.sectionArray', group?.theme)
     const [ values, setValues ] = useImmer(value);
     const [edit, setEdit] = React.useState({
         index: -1,
@@ -401,7 +427,14 @@ const View = ({value, attr, group, siteType}) => {
     const { format  } =  React.useContext(PageContext) || {}
     const [active, setActive] = useState();
     const { theme:fullTheme = {sectionArray: sectionArrayTheme} } = React.useContext(ThemeContext);
-    const theme = getComponentTheme(fullTheme,'pages.sectionArray')
+    // `group.theme` selects this band's `pages.sectionArray` style as well as its
+    // layoutGroup style — the same convention sectionGroup.jsx already uses for
+    // `pages.sectionGroup`. An unmatched/undefined name resolves to styles[0]
+    // (getComponentTheme falls back and inherits missing keys), so this is a
+    // strict no-op for every band that doesn't opt into a named style. It exists
+    // so a brand can give ONE band a different section grid — e.g. an admin band
+    // that fills its column while the public bands keep the centered measure.
+    const theme = getComponentTheme(fullTheme,'pages.sectionArray', group?.theme)
 
     const hideSectionCondition = section => {
         //console.log('hideSectionCondition', section?.element?.['element-data'] || '{}')

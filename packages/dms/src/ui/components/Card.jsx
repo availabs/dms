@@ -407,17 +407,26 @@ const CardColumnField = ({
         // the absent name key — that rendered aggregate zeros as blank cells.
         : source?.[attr.normalName] ?? source?.[attr.name];
     const id = tmpItem?.id;
+    // Resolve the image src BEFORE rendering, so an unresolvable one renders
+    // nothing instead of a broken-image glyph. An image column over a nullable
+    // field is normal (not every show has a photo, not every track has cover
+    // art), and the old unconditional <img> emitted `src={undefined}` — or
+    // `${imageLocation}/undefined.jpg` — on every such row, which the browser
+    // draws as a broken icon. `imageSrc` alone is still valid: that is a static
+    // image that needs no row value.
+    const imgValue = rawValue?.value ?? rawValue;
+    const hasImgValue = imgValue !== undefined && imgValue !== null && String(imgValue) !== '';
+    const imgSrc = imageLocation
+        ? (hasImgValue ? `${imageLocation}/${imgValue}${imageExtension ? `.${imageExtension}` : ``}` : '')
+        : (imageSrc || (hasImgValue ? imgValue : ''));
     const value =
         isImg ?
-            <img className={theme[imageSize] || theme.imgDefault}
-                 alt={' '}
-                 src={imageLocation ?
-                     `${imageLocation}/${rawValue?.value || rawValue}${imageExtension ? `.${imageExtension}` : ``}` :
-                     (imageSrc || rawValue?.value || rawValue)}
-            /> :
+            (imgSrc
+                ? <img className={theme[imageSize] || theme.imgDefault} alt={' '} src={imgSrc}/>
+                : null) :
             ['icon', 'color'].includes(attr.formatFn) && formatFunctions[attr.formatFn] ?
                 <div className={theme.iconAndColorValues}>
-                    {formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon)}
+                    {formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar, Icon, attr)}
                 </div> :
                 // `combine` reads a sibling row field, so it needs `source` (the
                 // row) and `attr`. Skip the trailing `.replaceAll(' ', '')` that
@@ -696,10 +705,15 @@ const RenderItem = memo(function RenderItem ({
         return paramValue === itemStr;
     }, [highlightedItem, item]);
 
+    // Themable, with the previous literals as the fallback so every existing
+    // consumer renders byte-identically. A brand that wants its own marker —
+    // WCDB tints the on-air row in the station's red — sets `itemHighlight` /
+    // `itemHighlightBorder` on its dataCard style instead of being stuck with
+    // amber.
     const highlightClass = isHighlighted
         ? highlightedItem?.style === 'border'
-            ? 'ring-2 ring-amber-400'
-            : 'bg-amber-100'
+            ? (theme.itemHighlightBorder || 'ring-2 ring-amber-400')
+            : (theme.itemHighlight || 'bg-amber-100')
         : '';
 
     const [isSaving, setIsSaving] = useState(false);

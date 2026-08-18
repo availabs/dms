@@ -24,12 +24,39 @@ The card needs `start_at` and `end_at` as `timestamptz` so the time-filter primi
 
 Add two **section-level** calculated columns to the Card section. The `name` carries the SQL with an `as <alias>` suffix; `display: 'calculated'` marks it as calc; `type: 'timestamp'` makes `isTimeColumnType` accept it for the picker; `show: false` keeps them out of the visible card UI.
 
+> ⚠ **Anchor the week on the day your `day` column calls 0 — and check which
+> day that is.** Two bugs lived in this one line on WCDB, both found 2026-08-16.
+>
+> 1. `date_trunc('week', …) - interval '1 day'`, to force a Sunday anchor.
+>    **Postgres weeks start on MONDAY**, so on a *Sunday* `date_trunc('week')`
+>    returns the Monday before it (Sunday is the last day of the ISO week) and
+>    subtracting a day lands on the **previous** Sunday. Every airing then sits
+>    a week in the past, nothing contains `now()`, and the card is blank — all
+>    day Sunday and correct the other six, which is why it survived months of
+>    testing.
+> 2. Anchoring on Sunday *at all*, when WCDB's `day` is **0 = Monday** (chosen
+>    to match an admin week grid that starts Monday). Day 0 then projected onto
+>    Sunday and the card showed **Monday's lineup on a Sunday**, mislabelled to
+>    match — a bug that looks like bad data, not bad SQL.
+>
+> **Postgres `extract(dow …)` is 0 = Sunday. Your dataset may not be.** Check
+> the migration, not your intuition. If `day` is 0 = Monday, `date_trunc('week')`
+> is already the right anchor and needs no arithmetic; if it is 0 = Sunday,
+> subtract `dow` days from local midnight instead. And convert explicitly
+> wherever you compare the two — `((extract(dow …)::int + 6) % 7)` maps
+> Postgres's dow onto a Monday-zero column.
+>
+> Worked through in
+> `project-planning/wcdb/tasks/current/build-wcdb-public-pages.md`, Phase 6.
+
 ```js
-const SUNDAY_ANCHOR =
-  `(date_trunc('week', now() AT TIME ZONE 'America/New_York') - interval '1 day') AT TIME ZONE 'America/New_York'`;
+// WCDB: `day` is 0 = Monday, so the anchor is Monday — which is what
+// date_trunc('week') already returns.
+const LOCAL_NOW = `(now() AT TIME ZONE 'America/New_York')`;
+const WEEK_ANCHOR = `date_trunc('week', ${LOCAL_NOW}) AT TIME ZONE 'America/New_York'`;
 
 const PROJECTED_START =
-  `(${SUNDAY_ANCHOR} + (NULLIF(data->>'show_day_start','')::int * interval '1 day') + NULLIF(data->>'show_start','')::interval)`;
+  `(${WEEK_ANCHOR} + (NULLIF(data->>'show_day_start','')::int * interval '1 day') + NULLIF(data->>'show_start','')::interval)`;
 
 // "Most recent occurrence" — if the projection lands in the future, subtract
 // 7 days. `(bool)::int` is 0 or 1 in Postgres.
@@ -173,3 +200,25 @@ For one-off events with absolute timestamps, you don't need any of this — `op:
 - Picker UI: `packages/dms/src/patterns/page/components/sections/components/dataWrapper/components/filters/TimePicker/InstantRow.jsx`.
 - Phase-by-phase task that built the primitive: `planning/tasks/completed/datawrapper-time-filters.md`.
 - Section build helper used to create the WCDB card: `references/wcdb/build-now-airing-section.cjs` (if present in the repo; otherwise check the task notes for the inlined version).
+
+## The off-air state
+
+A weekly schedule has gaps — unscheduled hours, overnights — and a now-airing
+card matches **zero rows** in them. Left alone the section vanishes, and the
+page loses its largest element to a stub.
+
+Use the Card's empty-result fallback rather than a second query:
+
+```js
+display: { useBlankRowFallback: true }        // on the section
+{ name: 'shows.name', /* … */ blankDefault: '90.9 FM' }   // …and per column
+```
+
+When the query returns nothing, `getData.js` synthesizes a single row from each
+column's `blankDefault`, keyed exactly as real rows are, so the renderer needs
+no special case. An `image` column needs nothing — its `defaultImage` already
+covers both "this row has no picture" and "there is no row".
+
+Write that copy **with** the station, not for them: what a broadcaster does
+off-schedule — automation, a rotation, a sustaining service — is a fact about
+that station, not something to infer.
