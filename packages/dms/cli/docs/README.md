@@ -163,6 +163,15 @@ dms section update <section-id> --set element-type=Card
 dms section delete <section-id> [--page <page-id-or-slug>]
 ```
 
+**Always pass `--pattern <name>` explicitly on a multi-pattern site.** Without it, `section
+create`/`update`/`delete` resolve the page's pattern via `findPatternByKind(..., 'page')`, which
+silently picks WHATEVER page-kind pattern comes first for the app — not necessarily the one the
+page id/slug you gave actually belongs to. On a site with several page patterns (dev/sandbox
+patterns included), this can create/attach a section under the wrong pattern's type string (e.g.
+`sandbox|component` instead of `npmrds_sub|component`) with no error — the command reports success,
+but the section won't resolve correctly when the real page renders. Confirmed live 2026-08-19; caught
+via `dms raw get` on the newly created row, not from any CLI-reported failure.
+
 ### Dataset
 
 ```bash
