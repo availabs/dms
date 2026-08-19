@@ -82,7 +82,7 @@ export function nav2Level(items, level = 1, path, baseUrl = '', navTitle = '') {
     let matches = matchRoutes(matchItems, { pathname: levelPath })
     output = matches?.[0]?.route?.subMenus || []
     if (navTitle && matches?.[0]?.route?.name) {
-      output = [{ name: matches?.[0]?.route?.name, className: navTitle }, ...output]
+      output = [{ name: matches?.[0]?.route?.name, path: matches?.[0]?.route?.path, className: navTitle }, ...output]
     }
   }
   return output || items
