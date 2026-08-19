@@ -612,13 +612,15 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         const [app, type] = key.split("+");
         const tbl = await mainTable(app);
 
+        // Page rows are typed `{pattern_instance}|page` (legacy pre-split-table
+        // databases used the bare instance name with no suffix) — match both.
         const sql = searchType === 'byTag' ? `
           with t as (
             SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title,
               ${jsonArrayExpr} section_id
             FROM ${tbl} di${jsonArrayFrom}
-            WHERE app = $1
-            AND type = $2
+            WHERE di.app = $1
+            AND (di.type = $2 || '|page' OR di.type = $2)
           )
 
           select t.*, ${jsonField('data', 'title')} section_title, ${jsonField('data', 'tags')} tags
@@ -633,7 +635,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         `SELECT di.id page_id, di.type, ${jsonField('di.data', 'url_slug')} url_slug, ${jsonField('di.data', 'title')} page_title
           FROM ${tbl} di
           WHERE app = $1
-          AND type = $2
+          AND (type = $2 || '|page' OR type = $2)
           AND lower(${jsonField('data', 'title')}) like '%' || lower($3) || '%'`;
 
         return dms_db.promise(sql, [app, type, tag])
@@ -685,7 +687,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         `SELECT DISTINCT ${jsonField('data', 'title')} page_title
           FROM ${tbl}
           WHERE app = $1
-          AND type = $2`;
+          AND (type = $2 || '|page' OR type = $2)`;
 
         const rows = await dms_db.promise(sql, [app, type]);
         _tagsCache.set(cacheKey, { data: rows, ts: Date.now() });
