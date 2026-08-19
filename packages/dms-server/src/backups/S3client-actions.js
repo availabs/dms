@@ -50,7 +50,10 @@ const putObject = async (s3client, awsInfo, filepath, filename) => {
 	try {
 		const upload = new Upload({
 			client: s3client,
-			params: putObjectParams
+			params: putObjectParams,
+			// Match Garage's block_size (see garage.toml) so multipart chunks land
+			// on exact block boundaries instead of forcing extra small blocks.
+			partSize: 16 * 1024 * 1024
 		});
 		await upload.done();
 		return filename;
