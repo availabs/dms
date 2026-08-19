@@ -299,12 +299,7 @@ export const formatFunctions = {
     const n = Number(d);
     return Number.isNaN(n) ? "" : n.toFixed(2);
   },
-  icon: (strValue, props, Icon) => (
-    <>
-      <Icon icon={strValue} className={"size-8"} {...props} />{" "}
-      <span>{strValue}</span>
-    </>
-  ),
+
   color: (strValue, map) => (
     <>
       <div

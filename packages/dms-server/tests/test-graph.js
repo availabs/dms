@@ -372,6 +372,81 @@ async function testGetTags() {
   console.log('  Cleaned up test sections\n');
 }
 
+async function testSearchByTagFindsPages() {
+  console.log('--- Test: searchByTag / getTags(pageTitles) match current page type ---');
+  console.log('  Regression: page rows are typed `{instance}|page`, not the bare instance name');
+
+  const DOC_TYPE = 'search-page-test';
+  const PAGE_TYPE = DOC_TYPE + '|page';
+  const SECTION_TYPE = DOC_TYPE + '|component';
+
+  const sec = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, SECTION_TYPE, { tags: 'onboarding,setup', title: 'Getting Started' }]
+  );
+  const sectionId = Object.keys(sec.jsonGraph.dms.data.byId)[0];
+
+  const page = await graph.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, PAGE_TYPE, {
+      title: 'Welcome Home',
+      url_slug: 'welcome-home',
+      sections: [{ id: +sectionId }]
+    }]
+  );
+  const pageId = Object.keys(page.jsonGraph.dms.data.byId)[0];
+
+  // byTag: search should find the page via its section's tags
+  const byTagResult = await graph.getAsync([
+    ['dms', 'search', `${TEST_APP}+${DOC_TYPE}`, 'byTag', 'onboarding']
+  ]);
+  const byTagRows = byTagResult.jsonGraph?.dms?.search?.[`${TEST_APP}+${DOC_TYPE}`]?.byTag?.onboarding?.value;
+  console.log(`  byTag('onboarding') rows: ${JSON.stringify(byTagRows)}`);
+
+  if (!Array.isArray(byTagRows) || byTagRows.length === 0) {
+    throw new Error(`Expected byTag search to find the page, got ${JSON.stringify(byTagRows)}`);
+  }
+  if (String(byTagRows[0].page_id) !== String(pageId)) {
+    throw new Error(`Expected page_id ${pageId}, got ${byTagRows[0].page_id}`);
+  }
+
+  console.log('  ✓ byTag search finds page by current `{instance}|page` type\n');
+
+  // byPageTitle: search should find the page by title
+  const byTitleResult = await graph.getAsync([
+    ['dms', 'search', `${TEST_APP}+${DOC_TYPE}`, 'byPageTitle', 'Welcome']
+  ]);
+  const byTitleRows = byTitleResult.jsonGraph?.dms?.search?.[`${TEST_APP}+${DOC_TYPE}`]?.byPageTitle?.Welcome?.value;
+  console.log(`  byPageTitle('Welcome') rows: ${JSON.stringify(byTitleRows)}`);
+
+  if (!Array.isArray(byTitleRows) || byTitleRows.length === 0) {
+    throw new Error(`Expected byPageTitle search to find the page, got ${JSON.stringify(byTitleRows)}`);
+  }
+  if (String(byTitleRows[0].page_id) !== String(pageId)) {
+    throw new Error(`Expected page_id ${pageId}, got ${byTitleRows[0].page_id}`);
+  }
+
+  console.log('  ✓ byPageTitle search finds page by current `{instance}|page` type\n');
+
+  // getTags(pageTitles) should also resolve the page by its current type
+  const pageTitlesResult = await graph.getAsync([
+    ['dms', 'search', `${TEST_APP}+${DOC_TYPE}`, 'pageTitles']
+  ]);
+  const pageTitles = pageTitlesResult.jsonGraph?.dms?.search?.[`${TEST_APP}+${DOC_TYPE}`]?.pageTitles?.value;
+  console.log(`  pageTitles: ${JSON.stringify(pageTitles)}`);
+
+  if (!Array.isArray(pageTitles) || !pageTitles.some(r => r.page_title === 'Welcome Home')) {
+    throw new Error(`Expected pageTitles to include 'Welcome Home', got ${JSON.stringify(pageTitles)}`);
+  }
+
+  console.log('  ✓ getTags(pageTitles) resolves page by current `{instance}|page` type\n');
+
+  // Cleanup
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, PAGE_TYPE, pageId]);
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, SECTION_TYPE, sectionId]);
+  console.log('  Cleaned up test page/section\n');
+}
+
 async function testRespondInterface() {
   console.log('--- Test: respond() interface ---');
 
@@ -422,6 +497,7 @@ async function runTests() {
     await testCreateWithData();  // Regression test for createData with data argument
     await testSearchOneWithIntegerIndex();  // Regression test for searchOne with index: 0
     await testGetTags();  // Tags query optimization test
+    await testSearchByTagFindsPages();  // Regression test for stale page-type matching
     await testRespondInterface();
 
     console.log('=== All Graph Harness Tests Passed! ===');

@@ -46,7 +46,13 @@ if (require.main === module) {
 		const s3client = await getS3Client(awsInfo);
 
 		const filename = await putBackup(s3client, awsInfo, pgDumpFile);
-	console.log("PG dump file uploaded to S3 storage as:", filename);
+
+		if (!filename) {
+			console.error("PG dump file upload to S3 storage FAILED. Local dump file will be preserved.");
+			process.exit(1);
+		}
+
+		console.log("PG dump file uploaded to S3 storage as:", filename);
 
 		const backups = await getBackups(s3client, awsInfo);
 
