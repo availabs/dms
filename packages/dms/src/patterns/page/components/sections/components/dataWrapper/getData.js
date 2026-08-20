@@ -448,14 +448,24 @@ export const getData = async ({
     const idReq = joinPresent ? "ds.id as id" : "id";
     // A source's own metadata can legitimately contain a column literally named "id"
     // (e.g. carried over from a CSV import) — "All Columns" downloads (dataWrapper's
-    // triggerDownload) pull every metadata column in, including that one. Pushing the
-    // synthetic PK attribute on top of it puts two output columns aliased "id" in the
-    // same SELECT, and the ORDER BY id below becomes ambiguous — Postgres throws, and
-    // since apiLoad's error is swallowed into an empty result, the whole download comes
-    // back as a blank sheet. Skip the synthetic column when one's already requested.
+    // triggerDownload) pull every metadata column in, including that one. Pushing a
+    // second synthetic PK attribute on top of it would put two output columns aliased
+    // "id" in the same SELECT, making the ORDER BY id below ambiguous — Postgres would
+    // throw, and since apiLoad's error is swallowed into an empty result, the whole
+    // download would come back as a blank sheet. So instead of adding a second column,
+    // repoint the existing one at the real PK: buildUdaConfig already resolved its
+    // reqName by the time we get here (to the JSONB accessor data->>'id', since the
+    // metadata column carries no systemCol flag), so setting systemCol alone would be a
+    // no-op — overwrite reqName directly.
     const alreadyRequestingId = columnsToFetch.some((column) => column.name === "id");
     if ((isDms || isEditableExternal) && !isPivotMode && !options.groupBy.length && !fnColumnsExists) {
-        if (!alreadyRequestingId) columnsToFetch.push({ name: "id", reqName: idReq });
+        if (!alreadyRequestingId) {
+            columnsToFetch.push({ name: "id", reqName: idReq, systemCol: true });
+        } else {
+            const existingIdCol = columnsToFetch.find((column) => column.name === "id");
+            existingIdCol.reqName = idReq;
+            existingIdCol.systemCol = true;
+        }
         options.orderBy[idRefCol] = Object.values(options.orderBy || {})?.[0] || "asc";
     } else {
         const idx = columnsToFetch.findIndex((column) => column.name === "id");
