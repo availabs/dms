@@ -122,6 +122,27 @@ lives in local draft state until you click the floppy-disk **Save** pill —
 navigating away, or clicking the orange **Cancel** pill, discards it without
 persisting anything.
 
+**A section NOT in true edit mode is not read-only for persistence purposes — it just has a
+different write channel, easy to miss.** `SectionView` still receives a real, working `onChange`
+prop (`sectionArray.jsx`'s `saveIndex`, wired at `sectionArray.jsx:403`) — this is how the reduced
+Settings menu's Layout/Delete/hide-in-view controls, and drag-reorder (`moveItem`), already mutate
+`draft_sections` without ever entering `SectionEdit`. The header-extension builder ctx
+(`section.jsx`'s `getSectionHeaderExtensions(...).flatMap(build => build({...}))` call, both the
+`SectionEdit` version ~line 251 and the `SectionView` version ~line 481) hands every builder this
+same `actions.updateAttribute`/`sectionState.value` — a theme's header-extension component can call
+`actions.updateAttribute('element', {...value.element, 'element-data': JSON.stringify(nextState)})`
+and have it persist through this exact channel while mounted under `SectionView`, with zero
+pencil-click. What does **not** work under `SectionView` is `dwAPI.setState` — `dataWrapper`'s `View`
+variant hardcodes its own internal `isEdit = false`, and its Save-effect (`dataWrapper/index.jsx`'s
+only `onChange(serialized)` call) is gated `if (!isEdit) return` — dead code in `View` regardless of
+what real `onChange` prop was passed in from above. A component reading `props.isEdit`/
+`Boolean(onChange)` to gate whether it can mutate AT ALL is a separate, valid design choice (see e.g.
+`ReportRouteList/README.md`'s `sectionEditorOpen`) — but if a component wants live-editable
+header-extension controls that work whenever the PAGE is in edit mode, independent of this section's
+own pencil, `actions.updateAttribute` is the channel that makes that possible with zero `dms`-core
+change. Found 2026-08-19 triaging NPMRDS's QuickControls pill row (`planning/transportny/`, report-
+authoring UX overhaul).
+
 **Distinguish this from Publish/Discard at the bottom of the page.** Even
 after clicking "Save" on one section, that section's config change is only
 written to `draft_sections` — it isn't visible to a viewer of the published
