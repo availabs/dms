@@ -131,7 +131,8 @@ export function VirtualList({
         rowCount,
         columnCount,
         increaseViewportBy,
-        virtualizeColumns
+        virtualizeColumns,
+        endReached
     ]);
 
     useEffect(() => {
