@@ -93,7 +93,7 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
     )
 }
 
-function NonDataViewComp({ value, onChange, component, siteType, pageFormat, editPageMode, sectionId, trackingId, activeStyle }) {
+function NonDataViewComp({ value, onChange, component, siteType, pageFormat, editPageMode, onHandle: parentOnHandle, sectionId, trackingId, activeStyle }) {
     const updateAttribute = (k, v) => {
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
@@ -106,6 +106,39 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
     const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name));
     const { apiLoad, apiUpdate } = React.useContext(PageContext) || {};
 
+    // Same onHandle threading as NonDataEditComp's own (mirrored deliberately — a non-dataWrapper
+    // component's live state must reach section.jsx's `dwHandle` under SectionView too, not just
+    // SectionEdit, or sectionHeaderExtensions/sectionMenuExtensions builders that read `state`
+    // (e.g. QuickControls' isSelfBound check) silently see `undefined` and never render at all
+    // whenever a page is open at /edit/... without this section's own pencil clicked — found live
+    // 2026-08-20 via a self-bound Map section: report-authoring-ux-overhaul.md Tier 5's "QuickControls
+    // never mounts on Map" investigation. Before this fix, `onHandle` was never even passed to this
+    // component, let alone forwarded.
+    const mapAPIRef = useRef(null);
+    const onHandle = React.useCallback((nextHandle) => {
+        if (nextHandle?.mapAPI) {
+            mapAPIRef.current = nextHandle.mapAPI;
+        }
+        parentOnHandle?.(nextHandle);
+    }, [parentOnHandle]);
+
+    useEffect(() => {
+        if (!parentOnHandle) return;
+        const setDisplay = (key, value, onChangeCb) => {
+            setState(draft => {
+                if (!draft.display) draft.display = {};
+                draft.display[key] = value;
+            });
+            onChangeCb?.({ key, value, state });
+        };
+        parentOnHandle({
+            state,
+            setState,
+            dwAPI: { state, setState, setDisplay },
+            mapAPI: mapAPIRef.current ?? null,
+        });
+    }, [parentOnHandle, setState, state]);
+
     return (
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, sectionId, trackingId, activeStyle}}>
             <Comp
@@ -114,6 +147,7 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
                 siteType={siteType}
                 pageFormat={pageFormat}
                 editPageMode={editPageMode}
+                onHandle={onHandle}
             />
         </ComponentContext.Provider>
     )
@@ -228,6 +262,7 @@ const ViewComp = forwardRef(({value, onChange, siteType, pageFormat, refreshData
             siteType={siteType}
             pageFormat={pageFormat}
             editPageMode={editPageMode}
+            onHandle={onHandle}
             sectionId={sectionId}
             trackingId={trackingId}
             activeStyle={activeStyle}
