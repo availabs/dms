@@ -75,6 +75,47 @@ not a flat catalog list:
   (normal "+ Add Route" — 1 or more) and `selectionMode="exact"` +
   `requiredCount=N` (Dynamic Reports' entry gate, below — exactly N required
   before the confirm button enables).
+- **Root view's layout, top to bottom: name-search box, then "Browse by tag"
+  tiles, then the default/recent route list.** Moved the tag browser above
+  the route list 2026-08-20 (`RouteTagBrowserModal.jsx`) — a novice author
+  had no reason to think the tag browser existed below a route list that
+  already looked complete, so it would never get scrolled to. If you're
+  navigating this modal via DOM query, don't assume the first
+  `t.routeList`-shaped block you find is the route list — the category pill
+  row now comes first in `view === 'root'`.
+
+### QuickControls (the header pill row): layout controls, Table's multi-measure Measure pill, Difference-mode gating
+
+Built/extended 2026-08-20 — full design record in
+`planning/transportny/tasks/current/report-authoring-ux-overhaul.md` Tier
+5A/5D/5E. The pill row above a self-bound AVL Graph/Spreadsheet/Map section
+now splits into two independently-aligned groups sharing one row (a
+`rowWrapper` with two flex-sibling children, not one `justify-end` list):
+
+- **Left-aligned "layout" group** (`reorderGroup` in the theme, pinned to the
+  row's left edge, outside the responsive fit/overflow system entirely): two
+  Move Up/Down icon buttons (`actions.moveItem` — the identical array-splice
+  `sectionArray.jsx`'s own Settings-drawer toolbar already uses, gated on the
+  page-layout permission in addition to section-edit) plus a **Width** pill
+  (a popover listing all 12 col-span options, writing via
+  `actions.updateAttribute('size', ...)` — the exact same field/mechanism as
+  that section's own Settings-drawer Width control; either surface you change
+  it from, the other reflects it immediately on next open).
+- **Right-aligned "data" pill cluster** (Routes/Measure/When/Aggregate/Mode +
+  "⋯" overflow) is where the row's own width-based fit/collapse logic still
+  lives, unchanged in spirit from Design Push #2, except:
+  - **On a Table section, the Measure pill is a multi-select checklist**
+    (toggles membership in `_measurePick.measures`, one column per entry)
+    instead of the single-pick list every chart type still gets — a table has
+    no one-measure ceiling. Pill label reads "N measures", not a measure
+    name. `AddGraphModal`'s own Measures field mirrors this (a checklist
+    instead of a `<select>`) only when the Table shape card is selected.
+  - **The Mode pill's "Difference" option is genuinely `disabled` (not just a
+    warning) whenever the card doesn't have exactly 2 routes** — EXCEPT when
+    Difference is already the active selection, so an author whose route
+    count drifted away from 2 after the fact can still switch back to Plain
+    rather than being trapped. The Routes popover's pre-existing warning note
+    about this mismatch is now mirrored onto the Mode popover too.
 
 ### Dynamic Reports: the toggle, and the no-param entry gate
 
@@ -368,13 +409,16 @@ any DMS page, not just reports. What's specific to reports:
   was actually built, don't trust a from-page-reconstructed spec's absence of it as proof it
   isn't real** — check the live page's own sections directly (`dms page dump <id> --sections`)
   before concluding the panel never existed.
-- **A Spreadsheet section's title tells you which of 3 things it is, but the DOM/table shape
-  tells you more precisely.** Route Compare and Info Box (and the page's own Add-a-Route
+- **A Spreadsheet section's title tells you which of now 4 things it is, but the DOM/table
+  shape tells you more precisely.** Route Compare and Info Box (and the page's own Add-a-Route
   section) all share element-type `Spreadsheet`. A single-measure Info Box is one value
   column; a multi-measure Info Box (added 2026-08-12 — `measure` can be an array) is N value
   columns, one per measure, no delta columns. Route Compare (single- or multi-measure) always
   has a `% vs Main` delta column after every value column — that's the one reliable visual
-  tell if the title alone doesn't say "Compare."
+  tell if the title alone doesn't say "Compare." The 4th, added 2026-08-20: a genuine
+  multi-measure **Table** (see the dedicated bullet below) — N value columns like a
+  multi-measure Info Box, but a real paginated data grid, not a Card, and its own QuickControls
+  Measure pill is a checklist instead of a single pick.
 - **The report's own attribution line (bottom of each AVL Graph/Info Box/Route Compare panel)
   names which join it's actually using — a real, live way to confirm the 2026-08-12
   metadata-join fix landed on a given page.** Before the fix: `... | (Join) NPMRDS TMC
@@ -441,6 +485,39 @@ any DMS page, not just reports. What's specific to reports:
   rather than also getting `duration_mmss` — its raw value is aggregate vehicle-hours (AADT-
   weighted), not one vehicle's trip duration, so "clock time" doesn't obviously fit; ask before
   adding it if a report seems to want it.
+- **The same code-only-vs-baked-in split recurred again 2026-08-20, sharply enough to cost real
+  debugging time twice in one session — generalize it: a fix to `composeMeasureConfig.js` or
+  `vocabulary.json` changes what a FUTURE compose produces; it does nothing to a section whose
+  `state.columns`/`state.join` were already composed and persisted before the fix landed.** Those
+  are frozen literal strings sitting in `draft_sections` — nothing re-reads the vocabulary for them
+  until something re-triggers `applyMeasurePickToState` (a live re-pick through QuickControls or the
+  Settings-drawer Measure Picker; `report_build.mjs --update`/`--replace` for a built page). Reloading
+  the page, or even ADDING A ROUTE to the section (route assignment never touches `state.columns` at
+  all), does NOT re-trigger it. Two concrete bugs hit this exact trap in the Tier 5D/5G work
+  (`report-authoring-ux-overhaul.md`): a `travelTime` join-qualification fix and a
+  `speed`/`speedTruck`/CO2-variant alias-collision fix each looked "not fixed" on an already-existing
+  section that predated the fix, purely because reloading it re-ran the SAME already-broken query —
+  toggling ANY measure off/on via QuickControls (which forces a real recompose) is what actually
+  "fixed" it, not the reload. **Before concluding a vocabulary/compose fix "didn't work," check
+  whether the specific failing section predates the fix** — if so, force a recompose (any QuickControls
+  measure toggle) rather than re-diagnosing a working fix as broken. If a GENUINELY FRESH section
+  (built via Add Graph or a live pick, after the fix) still fails, that's the real signal.
+- **`scratchpad/npmrds-sub/dms-server.log` (a `tee`'d nodemon log, already running) is the fastest way
+  to get the ACTUAL ClickHouse error text for a blank/broken report section** — the browser console
+  only ever shows a generic "Error fetching data Array(N)" with no SQL detail. `grep -n
+  "ClickHouseError" scratchpad/npmrds-sub/dms-server.log | tail` (or grep a specific error `type`,
+  e.g. `AMBIGUOUS_IDENTIFIER`/`UNKNOWN_IDENTIFIER`/`MULTIPLE_EXPRESSIONS_FOR_ALIAS`) finds the exact
+  failing SQL, including which table alias exists in scope and which columns collided — root-caused
+  three separate composeMeasureConfig bugs this way in one session (2026-08-20) that would have taken
+  far longer to diagnose from the frontend alone. Check the log's own timestamp against wall-clock
+  time before trusting a `tail` — a `grep`/`tail -c` on this file can just as easily surface an OLD
+  error from a stale, never-recomposed section (see the bullet above) as a fresh one; when in doubt,
+  reload with `read_console_messages` tracking freshly attached, note the exact wall-clock moment, then
+  `tail` the log for entries at or after that moment.
+- **The Table shape's own compose function is `MeasurePicker/composeMeasureConfig.js`'s
+  `composeTableMeasuresConfig`** (built 2026-08-20) — N measures -> N yAxis-target columns +
+  one xAxis (resolution) column + one unioned `join` across whatever the selected measures each
+  need. See the "4 things" bullet above for how it reads on-page.
 - **A multi-measure Info Box's `join` is a plain dict `update()` union of each measure's own
   `join.sources`, last-measure-in-the-list wins on a shared key — a stale join on ANY listed measure
   silently overrides a correct one from another.** Found live 2026-08-13 building `one_week_study`'s
@@ -534,6 +611,7 @@ exploratory.
 | A read-only DB check (old/new/dama Postgres, ClickHouse) | `dbq.py <old|new|dama|ch>` — never hand-roll a psql/urllib one-off |
 | "Is the stack even up" | `preflight.py` first, always — before any of the above |
 | Confirming a report/graph code change didn't break already-working pages (before/after any change to `report_build.mjs`, `convert_old_reports_lib/*`, RRL/`useGraphPublish.js`, the Report Page template, or graph rendering) | `node scripts/npmrds-reports/probe_corpus.mjs` — see `regression-testing-npmrds-reports.md` |
+| A section is blank and the browser console only shows a generic "Error fetching data" with no SQL detail | `grep -n "ClickHouseError" scratchpad/npmrds-sub/dms-server.log \| tail` — the dev server's own log has the exact failing query and ClickHouse error `type` (`AMBIGUOUS_IDENTIFIER`, `MULTIPLE_EXPRESSIONS_FOR_ALIAS`, etc.); check the log's own timestamp against wall-clock time — it can just as easily surface an old, never-recomposed section's error as a fresh one |
 
 `claude-in-chrome`'s `javascript_tool` closes the gap when you need
 programmatic DOM inspection but want it against the live, authenticated tab

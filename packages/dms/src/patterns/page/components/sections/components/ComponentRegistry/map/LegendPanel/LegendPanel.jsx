@@ -372,7 +372,12 @@ const LegendPanel = (props) => {
    * Default to showing legends when no plugin explicitly opts out. Missing or
    * empty `pluginData` should not suppress the entire legend panel.
    */
-  const legendRows = layersBySymbology
+  // Built as {symb, rows} pairs (rather than JSX directly) so `visibleLayerCount` below can count
+  // actual rendered legend ROWS, not qualifying symbologies — a report-authoring-ux-overhaul.md
+  // Tier 6B (2026-08-20) fix: a Map card assigned N routes materializes N per-route legend rows
+  // under ONE symbology (route_map's own managed slot), so counting symbologies always read "1
+  // layer" regardless of how many rows actually rendered underneath.
+  const legendSections = layersBySymbology
     .filter(
       (symb) =>
         // Default to showing the legend when there is no plugin override.
@@ -385,25 +390,29 @@ const LegendPanel = (props) => {
           (layer) => layer?.["legend-orientation"] !== "none",
         ),
     )
-    .map((symb) => (
-      <div key={symb.id} className={legendTheme.section}>
-        {Object.values(symb.layers)
-          .sort((a, b) => b.order - a.order)
-          //these condtionals filter out the layers themselves that do not have a legend enabled
-          .filter((layer) => layer?.["legend-orientation"] !== "none")
-          .map((layer, i) => (
-            <LegendRow
-              key={layer.id}
-              baseUrl={sourcesBaseUrl}
-              layer={layer}
-              i={i}
-              id={symb.id}
-            />
-          ))}
-      </div>
-    ));
+    .map((symb) => ({
+      symb,
+      //these conditionals filter out the layers themselves that do not have a legend enabled
+      rows: Object.values(symb.layers)
+        .sort((a, b) => b.order - a.order)
+        .filter((layer) => layer?.["legend-orientation"] !== "none"),
+    }));
 
-  const visibleLayerCount = legendRows.length;
+  const legendRows = legendSections.map(({ symb, rows }) => (
+    <div key={symb.id} className={legendTheme.section}>
+      {rows.map((layer, i) => (
+        <LegendRow
+          key={layer.id}
+          baseUrl={sourcesBaseUrl}
+          layer={layer}
+          i={i}
+          id={symb.id}
+        />
+      ))}
+    </div>
+  ));
+
+  const visibleLayerCount = legendSections.reduce((sum, { rows }) => sum + rows.length, 0);
 
   return (legendRows.length > 0 &&
     <>
