@@ -14,6 +14,9 @@ const DEFAULT_SCHEMA = 'gis_datasets';
 // us comfortably under 63.
 const MAX_NAME_SLUG_LEN = 40;
 
+// Plain-identifier guard for anything interpolated into DDL (see cloneViewTable).
+const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
 /**
  * Create a new source record.
  * @param {Object} values - { name, display_name, type, description, user_id, ... }
@@ -162,6 +165,83 @@ async function createDamaView(values, pgEnv) {
 }
 
 /**
+ * Create a view's physical table by cloning another view's table.
+ *
+ * This is what makes "new version of an existing dataset" possible without an
+ * upload: `createDamaView` registers the view row and names its table, but
+ * nothing creates the table itself — every existing caller is an ETL worker
+ * that builds it as a side effect of ingesting a file.
+ *
+ * `LIKE ... INCLUDING ALL` is the whole trick: it copies column types, NOT NULLs,
+ * defaults, indexes, constraints and comments, and Postgres auto-generates fresh
+ * names for the copied indexes/constraints so nothing collides with the source
+ * table's `pk_s10_v10_…`.
+ *
+ * The one thing INCLUDING ALL gets wrong for our purposes is SERIAL columns: it
+ * copies the `nextval('…_source_table_seq')` default VERBATIM, so the clone
+ * shares the source table's sequence. Legal, but it makes the new version
+ * silently depend on the old one — drop the source view and the clone's inserts
+ * start failing. So every sequence-backed default is rewired to a fresh sequence
+ * owned by the new table.
+ *
+ * @param {Object} db - db handle from getDb(pgEnv)
+ * @param {Object} spec - { fromSchema, fromTable, toSchema, toTable, withData }
+ * @returns {Object} { rowsCopied }
+ */
+async function cloneViewTable(db, { fromSchema, fromTable, toSchema, toTable, withData = false }) {
+  if (db.type !== 'postgres') {
+    throw new Error('Cloning a view table is only supported on PostgreSQL sources');
+  }
+  // Identifiers are interpolated into DDL below. They come from data_manager.views
+  // and from buildViewTableName (never from request input), but refusing anything
+  // that isn't a plain identifier costs nothing.
+  for (const ident of [fromSchema, fromTable, toSchema, toTable]) {
+    if (!SAFE_IDENTIFIER.test(ident || '')) throw new Error(`Unsupported identifier: ${ident}`);
+  }
+
+  await ensureSchema(db, toSchema);
+
+  const src = `"${fromSchema}"."${fromTable}"`;
+  const dst = `"${toSchema}"."${toTable}"`;
+
+  await db.query(`CREATE TABLE ${dst} (LIKE ${src} INCLUDING ALL)`);
+
+  // Rewire inherited sequence defaults onto fresh, clone-owned sequences.
+  const { rows: seqCols } = await db.query(`
+    SELECT column_name, column_default
+    FROM information_schema.columns
+    WHERE table_schema = $1 AND table_name = $2
+      AND column_default LIKE 'nextval(%'
+  `, [toSchema, toTable]);
+
+  for (const { column_name } of seqCols) {
+    if (!SAFE_IDENTIFIER.test(column_name)) continue;
+    // Postgres truncates over-long sequence names on its own, and OWNED BY ties the
+    // sequence's lifetime to the column so dropping the view's table cleans it up.
+    const seq = `"${toSchema}"."${toTable}_${column_name}_seq"`;
+    await db.query(`CREATE SEQUENCE ${seq}`);
+    await db.query(`ALTER TABLE ${dst} ALTER COLUMN "${column_name}" SET DEFAULT nextval('${toSchema}.${toTable}_${column_name}_seq'::regclass)`);
+    await db.query(`ALTER SEQUENCE ${seq} OWNED BY ${dst}."${column_name}"`);
+  }
+
+  let rowsCopied = 0;
+  if (withData) {
+    const res = await db.query(`INSERT INTO ${dst} SELECT * FROM ${src}`);
+    rowsCopied = res.rowCount || 0;
+    // Advance each fresh sequence past the copied values, or the first insert into
+    // the duplicate collides with row 1 on its own primary key.
+    for (const { column_name } of seqCols) {
+      if (!SAFE_IDENTIFIER.test(column_name)) continue;
+      await db.query(
+        `SELECT setval('${toSchema}.${toTable}_${column_name}_seq', COALESCE((SELECT MAX("${column_name}") FROM ${dst}), 0) + 1, false)`
+      );
+    }
+  }
+
+  return { rowsCopied };
+}
+
+/**
  * Ensure a PostgreSQL schema exists. No-op for SQLite.
  */
 async function ensureSchema(db, schemaName) {
@@ -173,6 +253,7 @@ async function ensureSchema(db, schemaName) {
 module.exports = {
   createDamaSource,
   createDamaView,
+  cloneViewTable,
   ensureSchema,
   buildViewTableName,
   DEFAULT_SCHEMA,

@@ -583,9 +583,71 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 	return output
 }
 
+/**
+ * List the versions (DAMA views) of an external source, newest first.
+ *
+ * Falcor's `sources.byId[id].views` collection is a ref list, so the length has to
+ * be fetched before the members — the same two-step `useDataSource#getViews` does.
+ * Kept here rather than in a component because falcor belongs to the api layer.
+ *
+ * @returns {Array} [{ view_id, version, table_name, _created_timestamp }]
+ */
+export async function udaListViews(falcor, { env, source_id }) {
+	if (!falcor || !env || !source_id) return [];
+	const base = ["uda", env, "sources", "byId", +source_id, "views"];
+	const lenRes = await falcor.get([...base, "length"]);
+	const len = get(lenRes, ["json", ...base, "length"], 0);
+	if (!len) return [];
+
+	const attrs = ["view_id", "version", "table_name", "_created_timestamp"];
+	const res = await falcor.get([...base, "byIndex", { from: 0, to: len - 1 }, attrs]);
+	const rows = [];
+	for (let i = 0; i < len; i++) {
+		const at = ["json", ...base, "byIndex", i];
+		// The ref's own path segment is the authoritative view_id; the attribute is a
+		// fallback for servers that don't populate $__path on the client.
+		const view_id = get(res, [...at, "$__path", 4]) ?? +get(res, [...at, "view_id"], NaN);
+		if (!Number.isInteger(view_id)) continue;
+		rows.push({
+			view_id,
+			version: get(res, [...at, "version"], null),
+			table_name: get(res, [...at, "table_name"], null),
+			created_at: get(res, [...at, "_created_timestamp"], null),
+		});
+	}
+	return rows.sort((a, b) => b.view_id - a.view_id);
+}
+
+/**
+ * Create a new version of an external source — blank, or a row-for-row duplicate of
+ * an existing version (`copy_from_view_id`).
+ *
+ * Invalidates the source's view list so the next `udaListViews` sees the new version;
+ * the server marks the same path invalidated, but the client cache is only cleared
+ * when we ask it to.
+ *
+ * @returns {number|null} the new view_id
+ */
+export async function udaCreateView(falcor, { env, source_id, version, copy_from_view_id = null }) {
+	if (!falcor) throw new Error("No falcor client");
+	if (!env || !source_id) throw new Error("A source env and source_id are required");
+
+	const res = await falcor.call(
+		["uda", "views", "create"],
+		[env, +source_id, version ?? null, copy_from_view_id ? +copy_from_view_id : null]
+	);
+	await falcor.invalidate(["uda", env, "sources", "byId", +source_id, "views"]);
+
+	const byId = get(res, ["json", "uda", env, "views", "byId"], {});
+	const created = Object.keys(byId).map(Number).filter(Number.isInteger);
+	return created.length ? Math.max(...created) : null;
+}
+
 const api = {
   dmsDataLoader,
-  dmsDataEditor
+  dmsDataEditor,
+  udaListViews,
+  udaCreateView
 }
 
 export default api
