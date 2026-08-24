@@ -91,6 +91,32 @@ the **same** OR group on every section that should react (the table, a result-co
 > single "Hazard" picker matching primary/secondary/tertiary hazard columns): an `OR` group of
 > `op:"filter"` leaves sharing one `searchParamKey`. Same shape, `filter` instead of `like`.
 
+### ⚠ Do NOT reach for a `notempty` + `usePageFilters` leaf as a default-OFF facet chip
+
+A `like` leaf with an empty value is dropped by a **value-based** guard in `mapFilterGroupCols`, so
+an untouched search box adds no constraint (above). A unary `empty`/`notempty` leaf **carries no
+value**, so it has no such guard: the only thing that turns it off is `applyPageFilters` setting
+`disabled: true`, and that pass **early-returns when the page-variable map is empty**
+(`buildUdaConfig.js:475`: `if (!filterTree || !pageFilters || !Object.keys(pageFilters).length)`).
+
+Consequence: a "rebuilt"/"described"-style gap-filter chip that nobody has switched on is emitted
+**ENABLED**, and it narrows the section silently. Measured on the NPMRDS Reports finder
+(2026-08-19): two off chips cut a 1,574-row library to **19 rows** — the section looked like it was
+working, the count was simply wrong. It is not the search's `OR` group that fails, it is every
+sibling leaf in the same tree.
+
+- **A STATIC `notempty` leaf is fine** — no `usePageFilters`, so it is meant to be always-on. Use it
+  for the "don't show rows that can't be found" predicates (`{ col: "name", op: "notempty" }`).
+- **A viewer-toggled one needs the fix**, not a workaround: move the unary default-disable into
+  `mapFilterGroupCols` (a `usePageFilters` `empty`/`notempty` leaf with no resolved page value is
+  dropped) so correctness stops depending on the page map being non-empty.
+- Separately, `operation: "notempty"` on a **`Filter` control column** renders a **number input**
+  ("Please enter a number…"), not the needs-value toggle the chip wants —
+  `RenderFilterValueSelector` has no unary branch.
+- Verify by reading the emitted `filterGroups` off the wire, not by eyeballing the list: a leaf that
+  `applyPageFilters` processed carries a `disabled` key. **No `disabled` key at all means the pass
+  never ran.**
+
 ## Why it works (verified in source)
 
 `buildUdaConfig.js` (`patterns/page/components/sections/components/dataWrapper/`):
