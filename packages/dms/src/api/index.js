@@ -643,11 +643,48 @@ export async function udaCreateView(falcor, { env, source_id, version, copy_from
 	return created.length ? Math.max(...created) : null;
 }
 
+/**
+ * Read a DAMA source's `metadata`, apply `mutate` to it, write it back.
+ *
+ * READ-MODIFY-WRITE, not a patch: `metadata` is one jsonb blob carrying `columns`
+ * (which DataWrapper, the Table page and every column picker read), `isEditable`, and
+ * whatever else a dataType put there. Writing a fresh object would silently drop all
+ * of it.
+ *
+ * The value is `JSON.stringify`d because the `sources.byId[id][attr]` set route writes
+ * whatever the Falcor router leaves at the leaf: a plain object is descended into as a
+ * BRANCH, nothing reaches the leaf, and the column is written `{}` while the call
+ * reports success. (`{$type:'atom'}` persists the envelope itself as data.) A JSON
+ * string is the only shape that survives — see the uda-source-attribute-set-blanks
+ * task. Postgres casts it back to jsonb on assignment.
+ *
+ * @param {Function} mutate - (metadata) => metadata, applied to a fresh read
+ * @returns {Object} the metadata that was written
+ */
+export async function udaUpdateSourceMetadata(falcor, { env, source_id, mutate }) {
+	if (!falcor) throw new Error("No falcor client");
+	if (!env || !source_id) throw new Error("A source env and source_id are required");
+	if (typeof mutate !== "function") throw new Error("mutate must be a function");
+
+	const path = ["uda", env, "sources", "byId", +source_id, "metadata"];
+	const res = await falcor.get(path);
+	const raw = get(res, ["json", ...path]);
+	const current = typeof raw === "string" ? JSON.parse(raw || "{}") : (raw || {});
+
+	const next = mutate({ ...current }) || current;
+	await falcor.set({ json: { uda: { [env]: { sources: { byId: { [+source_id]: {
+		metadata: JSON.stringify(next),
+	} } } } } } });
+	await falcor.invalidate(path);
+	return next;
+}
+
 const api = {
   dmsDataLoader,
   dmsDataEditor,
   udaListViews,
-  udaCreateView
+  udaCreateView,
+  udaUpdateSourceMetadata
 }
 
 export default api

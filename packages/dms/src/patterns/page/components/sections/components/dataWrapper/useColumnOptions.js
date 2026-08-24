@@ -16,6 +16,26 @@ import { useEffect } from "react";
 import { isEqual } from "lodash-es";
 import { getData } from "./getData";
 
+// The label side of a lookup: either a single `labelColumn` or an ordered
+// `labelColumns` array joined by `labelSeparator`. A composite label is what makes
+// a lookup usable when the label column alone is not unique — WCDB has three shows
+// literally named "2101 The Penthouse", so a name-only dropdown offers three
+// identical options and the author cannot tell which show_id they picked.
+const labelColumnsOf = (parsed) => {
+    const many = Array.isArray(parsed?.labelColumns) ? parsed.labelColumns.filter(Boolean) : [];
+    if (many.length) return many;
+    return parsed?.labelColumn ? [parsed.labelColumn] : [];
+};
+
+// Build one option label from a row. Blank parts are dropped rather than leaving
+// dangling separators ("Untitled · " for a show with no department).
+const buildLabel = (row, labelCols, separator) => {
+    const parts = labelCols
+        .map(c => row?.[c])
+        .filter(v => v !== null && v !== undefined && String(v).trim() !== '');
+    return parts.length ? parts.join(separator ?? ' · ') : 'N/A';
+};
+
 // A column's `mapped_options` is meaningful only when it names the columns to
 // look up label/value from. Static `select`/`multiselect` columns often carry
 // a stray `"{}"` (copied from source metadata, never configured) — that's
@@ -25,7 +45,7 @@ const hasUsableMappedOptions = (raw) => {
     if (!raw) return false;
     try {
         const parsed = JSON.parse(raw);
-        return !!(parsed && parsed.labelColumn && parsed.valueColumn);
+        return !!(labelColumnsOf(parsed).length && parsed.valueColumn);
     } catch {
         return false;
     }
@@ -50,7 +70,8 @@ export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, e
                         return [column.name, column.options || []];
                     }
 
-                    const columns = [...new Set([mapped_options.labelColumn, mapped_options.valueColumn])].filter(Boolean);
+                    const labelCols = labelColumnsOf(mapped_options);
+                    const columns = [...new Set([...labelCols, mapped_options.valueColumn])].filter(Boolean);
 
                     try {
                         const { data } = await getData({
@@ -79,7 +100,7 @@ export function useColumnOptions({ state, setState, apiLoad, component, pgEnv, e
                         return [
                             column.name,
                             data.map(d => ({
-                                label: d[mapped_options.labelColumn] || 'N/A',
+                                label: buildLabel(d, labelCols, mapped_options.labelSeparator),
                                 value: d[mapped_options.valueColumn]
                             }))
                         ];

@@ -9,12 +9,16 @@ export const sectionTheme = {
       wrapperHidden: 'hidden',
       topBar: 'flex',
       topBarSpacer: 'flex-1',
-      topBarButtonsEdit: 'flex gap-1 z-10',
-      topBarButtonsView: 'z-10',
-      // z-40: the menu is absolutely positioned with no stacking context of its own, so
-      // WITHOUT a z-index any section content that raises itself (a sticky toolbar, a
-      // pinned header) paints over the Settings button and the section becomes
-      // uneditable. Below sectionGroup's modalOverlay (z-50) so a modal still wins.
+      // z-40 on the BUTTON ROWS, not just on menuPosition below. These are flex items of
+      // `topBar` ('flex'), and z-index applies to a flex item even though it is
+      // position:static — so each one creates a STACKING CONTEXT. At the old z-10 the
+      // whole menu subtree was trapped at layer 10 no matter what z-index the menu
+      // itself carried, and any section content that raised itself (a sticky toolbar, a
+      // pinned header) painted over the Settings button, leaving the section uneditable.
+      // Raising the child alone does nothing; the context has to move.
+      // Below sectionGroup's modalOverlay (z-50) so a modal still wins.
+      topBarButtonsEdit: 'flex gap-1 z-40',
+      topBarButtonsView: 'z-40',
       menuPosition: 'absolute top-[5px] right-[5px] items-center flex gap-0.5 z-40',
       editIcon: 'hover:text-blue-500 size-6',
       contentWrapper: 'h-full',
