@@ -29,17 +29,14 @@ function _getSyncAPI() { return globalThis.__dmsSyncAPI || null; }
  */
 async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeConfigs, path) {
   const t0 = _DEV ? performance.now() : 0;
-  const result = await sync.exec(
-    'SELECT * FROM data_items WHERE app = ? AND type = ? ORDER BY id',
-    [app, type]
-  );
+  const rows = await sync.getItemsByAppType(app, type);
 
-  if (result.rows.length === 0) {
+  if (rows.length === 0) {
     if (_DEV) console.log(`[sync:load] ${app}+${type} — no local data, falling through to Falcor`);
     return null;
   }
 
-  const items = result.rows.map(row => {
+  const items = rows.map(row => {
     const parsed = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
     return {
       ...parsed,
@@ -93,12 +90,19 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
         // Array of refs
         const childIds = Array.from(item[key]).map(ref => ref.id || ref).filter(Boolean);
         if (childIds.length > 0) {
-          const placeholders = childIds.map(() => '?').join(',');
-          const children = await sync.exec(
-            `SELECT * FROM data_items WHERE id IN (${placeholders})`,
-            childIds
-          );
-          const childMap = new Map(children.rows.map(r => [String(r.id), r]));
+          // IndexedDB keys are strictly typed. Every server-synced row (the
+          // vast majority — bootstrap/delta/WS-applied items, and localCreate's
+          // server-assigned id) is written keyed by whatever type its `id` field
+          // has in the server's JSON response, which is a STRING (confirmed live:
+          // getItem('54035') finds the row, getItem(54035) does not). Only the
+          // rare offline-create fallback (createItemOffline's autoIncrement) ever
+          // produces a genuinely numeric key. Coercing to Number here — as this
+          // used to do — made every ref lookup miss for any row sourced from the
+          // server, silently leaving refs unresolved (a bare {id, ref} stub with
+          // no content), which is what rendered as a permanently blank page after
+          // the first edit of a session. Pass childIds through as-is.
+          const childRows = await sync.getItemsByIds(childIds);
+          const childMap = new Map(childRows.map(r => [String(r.id), r]));
           if (_DEV) {
             const missing = childIds.filter(id => !childMap.has(String(id)));
             if (missing.length > 0) {
@@ -123,13 +127,10 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
           });
         }
       } else if (item[key]?.id) {
-        // Single ref
-        const children = await sync.exec(
-          'SELECT * FROM data_items WHERE id = ?',
-          [item[key].id]
-        );
-        if (children.rows.length > 0) {
-          const child = children.rows[0];
+        // Single ref — see the array-ref case above for why this must NOT
+        // coerce to Number.
+        const child = await sync.getItem(item[key].id);
+        if (child) {
           const parsed = typeof child.data === 'string'
             ? JSON.parse(child.data) : (child.data || {});
           item[key] = {

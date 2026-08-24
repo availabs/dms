@@ -10,7 +10,16 @@
  *   - WebSocket subscribes per-app
  */
 
-import { exec, execBatch } from './db-client.js';
+import {
+  getState, setState,
+  getItem, getItemsByAppType,
+  getDistinctAppTypesByApp, getDistinctAppTypesByAppAndPatternPrefix,
+  upsertItemNow, upsertItemsFromServer, applyChangeBatch,
+  deleteItem, deleteItemsByIds, updateItemData, createItemOffline,
+  reassignItemId, sqliteNow, resetDB,
+  addPendingMutation, deletePendingMutationById, findFirstPendingMutation,
+  countPendingMutationsForItem, countAllPendingMutations, getAllPendingMutationsOrdered,
+} from './idb-store.js';
 import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
 import { addToScope, clearScope } from './sync-scope.js';
 
@@ -62,68 +71,40 @@ function apiUrl(path) {
 
 async function getLastRevision(scope = null) {
   const key = scope ? `rev:${scope}` : 'last_revision';
-  const result = await exec(
-    "SELECT value FROM sync_state WHERE key = ?",
-    [key]
-  );
-  return result.rows.length > 0 ? parseInt(result.rows[0].value, 10) : null;
+  const value = await getState(key);
+  return value !== null ? parseInt(value, 10) : null;
 }
 
 async function setLastRevision(rev, scope = null) {
   const key = scope ? `rev:${scope}` : 'last_revision';
-  await exec(
-    "INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)",
-    [key, String(rev)]
-  );
+  await setState(key, String(rev));
 }
 
 async function applyChanges(changes) {
-  const statements = [];
+  const ops = [];
   for (const change of changes) {
     if (pendingItemIds.has(change.item_id)) continue;
 
     if (change.action === 'I' || change.action === 'U') {
       const dataStr = typeof change.data === 'string' ? change.data : JSON.stringify(change.data || {});
-      statements.push({
-        sql: `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           app = excluded.app, type = excluded.type,
-           data = excluded.data, updated_at = datetime('now')`,
-        params: [change.item_id, change.app, change.type, dataStr]
-      });
+      ops.push({ action: 'upsert', id: change.item_id, app: change.app, type: change.type, data: dataStr });
     } else if (change.action === 'D') {
-      statements.push({
-        sql: 'DELETE FROM data_items WHERE id = ?',
-        params: [change.item_id]
-      });
+      ops.push({ action: 'delete', id: change.item_id });
     }
   }
-  if (statements.length > 0) {
-    await execBatch(statements);
+  if (ops.length > 0) {
+    await applyChangeBatch(ops);
   }
 }
 
 async function applyItems(items) {
-  // Batch all inserts into a single worker round-trip (transaction)
-  const UPSERT_SQL = `INSERT INTO data_items (id, app, type, data, created_at, created_by, updated_at, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         app = excluded.app, type = excluded.type,
-         data = excluded.data, updated_at = excluded.updated_at`;
-
-  // Chunk into batches to avoid oversized postMessages
-  const CHUNK = 500;
-  for (let i = 0; i < items.length; i += CHUNK) {
-    const chunk = items.slice(i, i + CHUNK);
-    const statements = chunk.map(item => ({
-      sql: UPSERT_SQL,
-      params: [item.id, item.app, item.type,
-        typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {}),
-        item.created_at, item.created_by, item.updated_at, item.updated_by]
-    }));
-    await execBatch(statements);
-  }
+  const normalized = items.map(item => ({
+    id: item.id, app: item.app, type: item.type,
+    data: typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {}),
+    created_at: item.created_at, created_by: item.created_by,
+    updated_at: item.updated_at, updated_by: item.updated_by,
+  }));
+  await upsertItemsFromServer(normalized);
 
   // Register types in sync scope + init Yjs docs (these are cheap in-memory ops)
   for (const item of items) {
@@ -167,11 +148,8 @@ export async function bootstrapSkeleton() {
     // stale local items that belong to the skeleton scope but aren't in the
     // response (e.g., site row or pattern children from a previous database).
     const serverIds = new Set(items.map(i => i.id));
-    const localSite = await exec(
-      "SELECT id, data FROM data_items WHERE app = ? AND type = ?",
-      [_app, _siteType]
-    );
-    for (const row of localSite.rows) {
+    const localSite = await getItemsByAppType(_app, _siteType);
+    for (const row of localSite) {
       // Collect stale IDs: the site row itself + any ref children it points to
       const staleIds = [];
       if (!serverIds.has(row.id)) staleIds.push(row.id);
@@ -180,14 +158,20 @@ export async function bootstrapSkeleton() {
         for (const value of Object.values(data)) {
           if (!Array.isArray(value)) continue;
           for (const item of value) {
-            const refId = item?.id != null ? Number(item.id) : (typeof item === 'number' ? item : null);
+            // Match serverIds' actual type (String — see api/index.js's ref
+            // resolution for the full explanation). This used to coerce to
+            // Number, which meant this check could never match anything —
+            // every ref looked "stale" here, and the resulting delete was
+            // itself a silent no-op for the same reason (deleteItemsByIds
+            // querying a numeric key against a string-keyed row also misses).
+            // Net effect was inert rather than destructive, but still wrong.
+            const refId = item?.id != null ? String(item.id) : (typeof item === 'number' ? String(item) : null);
             if (refId != null && !serverIds.has(refId)) staleIds.push(refId);
           }
         }
       } catch { /* ignore parse errors */ }
       if (staleIds.length > 0) {
-        const placeholders = staleIds.map(() => '?').join(',');
-        await exec(`DELETE FROM data_items WHERE id IN (${placeholders})`, staleIds);
+        await deleteItemsByIds(staleIds);
         if (_DEV) console.log(`[sync]     skeleton: deleted ${staleIds.length} stale local items`);
       }
     }
@@ -200,13 +184,10 @@ export async function bootstrapSkeleton() {
     console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
   } catch (err) {
     console.warn('[sync] skeleton bootstrap failed (offline?):', err.message);
-    // Offline: seed scope from whatever is in local SQLite
+    // Offline: seed scope from whatever is in local storage
     try {
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ?",
-        [_app]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
+      const local = await getDistinctAppTypesByApp(_app);
+      for (const row of local) addToScope(row.app, row.type);
     } catch { /* ignore */ }
   }
 
@@ -289,20 +270,14 @@ async function _bootstrapPatternImpl(patternType) {
       await setLastRevision(revision, scope);
 
       // Re-seed scope from local data for this pattern
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type LIKE ? || '|%')",
-        [_app, patternType, patternType]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
+      const local = await getDistinctAppTypesByAppAndPatternPrefix(_app, patternType);
+      for (const row of local) addToScope(row.app, row.type);
     }
   } catch (err) {
     console.warn(`[sync] pattern '${patternType}' bootstrap failed (offline?):`, err.message);
     try {
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type LIKE ? || '|%')",
-        [_app, patternType, patternType]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
+      const local = await getDistinctAppTypesByAppAndPatternPrefix(_app, patternType);
+      for (const row of local) addToScope(row.app, row.type);
     } catch { /* ignore */ }
   }
 
@@ -365,22 +340,22 @@ async function bootstrapFull() {
       await setLastRevision(revision);
 
       // Re-seed sync scope from local data (warm start)
-      const local = await exec('SELECT DISTINCT app, type FROM data_items WHERE app = ?', [_app]);
-      for (const row of local.rows) {
+      const local = await getDistinctAppTypesByApp(_app);
+      for (const row of local) {
         addToScope(row.app, row.type);
       }
-      if (_DEV) console.log(`[sync]     scope seeded: ${local.rows.length} types from local data`);
+      if (_DEV) console.log(`[sync]     scope seeded: ${local.length} types from local data`);
     }
   } catch (err) {
     console.warn('[sync] bootstrap/delta failed (offline?):', err.message);
 
     // Still seed scope from existing local data if we're offline
     try {
-      const local = await exec('SELECT DISTINCT app, type FROM data_items WHERE app = ?', [_app]);
-      for (const row of local.rows) {
+      const local = await getDistinctAppTypesByApp(_app);
+      for (const row of local) {
         addToScope(row.app, row.type);
       }
-      if (_DEV) console.log(`[sync]     offline — scope seeded from ${local.rows.length} local types`);
+      if (_DEV) console.log(`[sync]     offline — scope seeded from ${local.length} local types`);
     } catch { /* ignore */ }
   }
 
@@ -430,19 +405,12 @@ export function connectWS() {
           const merged = applyRemote(msg.item.id, remoteData);
           const mergedStr = JSON.stringify(merged);
 
-          await exec(
-            `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
-             VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-             ON CONFLICT(id) DO UPDATE SET
-               app = excluded.app, type = excluded.type,
-               data = excluded.data, updated_at = datetime('now')`,
-            [msg.item.id, msg.item.app, msg.item.type, mergedStr]
-          );
+          await upsertItemNow({ id: msg.item.id, app: msg.item.app, type: msg.item.type, data: mergedStr });
 
           // Ensure type is in scope
           addToScope(msg.item.app, msg.item.type);
         } else if (msg.action === 'D') {
-          await exec('DELETE FROM data_items WHERE id = ?', [msg.item.id]);
+          await deleteItem(msg.item.id);
         }
 
         await setLastRevision(msg.revision);
@@ -530,14 +498,7 @@ export async function localCreate(app, type, data) {
       // Store locally with the server-assigned ID
       const serverDataStr = typeof serverItem.data === 'string'
         ? serverItem.data : JSON.stringify(serverItem.data || {});
-      await exec(
-        `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           app = excluded.app, type = excluded.type,
-           data = excluded.data, updated_at = datetime('now')`,
-        [serverId, app, type, serverDataStr]
-      );
+      await upsertItemNow({ id: serverId, app, type, data: serverDataStr });
 
       await setLastRevision(revision);
       pendingItemIds.add(serverId);
@@ -563,18 +524,12 @@ export async function localCreate(app, type, data) {
   }
 
   // Offline fallback: optimistic local write with temp ID
-  await exec(
-    `INSERT INTO data_items (app, type, data, created_at, updated_at)
-     VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
-    [app, type, dataStr]
-  );
-  const lastRow = await exec('SELECT last_insert_rowid() AS id');
-  const tempId = lastRow.rows[0].id;
+  const now = sqliteNow();
+  const tempId = await createItemOffline({
+    app, type, data: dataStr, created_at: now, updated_at: now, created_by: null, updated_by: null,
+  });
 
-  await exec(
-    "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'I', ?, ?, ?)",
-    [tempId, app, type, dataStr]
-  );
+  await addPendingMutation({ item_id: tempId, action: 'I', app, type, data: dataStr });
 
   pendingItemIds.add(tempId);
   invalidate('data_items');
@@ -587,16 +542,16 @@ export async function localCreate(app, type, data) {
 
 export async function localUpdate(id, data) {
   // Get existing row (needed for app/type and to seed Yjs if not initialized)
-  const existing = await exec('SELECT app, type, data FROM data_items WHERE id = ?', [id]);
-  const app = existing.rows[0]?.app || _app;
-  const type = existing.rows[0]?.type || '';
+  const existing = await getItem(id);
+  const app = existing?.app || _app;
+  const type = existing?.type || '';
 
-  // Seed Yjs doc from SQLite if not already initialized — prevents partial
-  // updates from wiping fields when the in-memory doc was lost (e.g. page refresh)
-  if (!getData(id) && existing.rows[0]?.data) {
+  // Seed Yjs doc from local storage if not already initialized — prevents
+  // partial updates from wiping fields when the in-memory doc was lost (e.g. page refresh)
+  if (!getData(id) && existing?.data) {
     try {
-      const existingData = typeof existing.rows[0].data === 'string'
-        ? JSON.parse(existing.rows[0].data) : existing.rows[0].data;
+      const existingData = typeof existing.data === 'string'
+        ? JSON.parse(existing.data) : existing.data;
       initFromData(id, existingData);
     } catch { /* ignore parse errors */ }
   }
@@ -606,15 +561,9 @@ export async function localUpdate(id, data) {
   const dataStr = JSON.stringify(merged);
   if (_DEV) console.log(`[sync] localUpdate id=${id} app=${app} type=${type} keys=${Object.keys(data).join(',')}`);
 
-  await exec(
-    "UPDATE data_items SET data = ?, updated_at = datetime('now') WHERE id = ?",
-    [dataStr, id]
-  );
+  await updateItemData(id, dataStr, sqliteNow());
 
-  await exec(
-    "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'U', ?, ?, ?)",
-    [id, app, type, dataStr]
-  );
+  await addPendingMutation({ item_id: id, action: 'U', app, type, data: dataStr });
 
   pendingItemIds.add(id);
   invalidate('data_items');
@@ -625,16 +574,13 @@ export async function localUpdate(id, data) {
 }
 
 export async function localDelete(id) {
-  const existing = await exec('SELECT app, type FROM data_items WHERE id = ?', [id]);
-  const app = existing.rows[0]?.app || _app;
-  const type = existing.rows[0]?.type || '';
+  const existing = await getItem(id);
+  const app = existing?.app || _app;
+  const type = existing?.type || '';
 
-  await exec('DELETE FROM data_items WHERE id = ?', [id]);
+  await deleteItem(id);
 
-  await exec(
-    "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'D', ?, ?, NULL)",
-    [id, app, type]
-  );
+  await addPendingMutation({ item_id: id, action: 'D', app, type, data: null });
 
   pendingItemIds.add(id);
   invalidate('data_items');
@@ -665,17 +611,14 @@ async function pushMutation(action, item) {
 
     // If the server assigned a different ID (create), update local
     if (action === 'I' && serverItem.id !== item.id) {
-      await exec(
-        'UPDATE data_items SET id = ? WHERE id = ?',
-        [serverItem.id, item.id]
-      );
+      // ADR 2: IndexedDB can't change a record's key via put(), so this is
+      // delete-old + add-new under the hood — done as one cross-store
+      // transaction with the matching pending_mutations rewrite (see
+      // idb-store.js's reassignItemId), which is actually a small
+      // correctness improvement over the original two independent UPDATEs.
+      await reassignItemId(item.id, serverItem.id);
       pendingItemIds.delete(item.id);
       pendingItemIds.add(serverItem.id);
-      // Update the pending mutation's item_id too
-      await exec(
-        'UPDATE pending_mutations SET item_id = ? WHERE item_id = ? AND action = ?',
-        [serverItem.id, item.id, action]
-      );
     }
 
     await setLastRevision(revision);
@@ -687,25 +630,19 @@ async function pushMutation(action, item) {
 }
 
 async function removePending(itemId, action) {
-  const result = await exec(
-    'SELECT id FROM pending_mutations WHERE item_id = ? AND action = ? ORDER BY id ASC LIMIT 1',
-    [itemId, action]
-  );
-  if (result.rows.length > 0) {
-    await exec('DELETE FROM pending_mutations WHERE id = ?', [result.rows[0].id]);
+  const match = await findFirstPendingMutation(itemId, action);
+  if (match) {
+    await deletePendingMutationById(match.id);
   }
 
   // Only clear echo suppression when ALL pending mutations for this item are done
-  const remaining = await exec(
-    'SELECT COUNT(*) as count FROM pending_mutations WHERE item_id = ?',
-    [itemId]
-  );
-  if (remaining.rows[0].count === 0) {
+  const remaining = await countPendingMutationsForItem(itemId);
+  if (remaining === 0) {
     pendingItemIds.delete(itemId);
   }
 
-  const total = await exec('SELECT COUNT(*) as count FROM pending_mutations');
-  if (total.rows[0].count === 0) {
+  const total = await countAllPendingMutations();
+  if (total === 0) {
     updateStatus('connected');
   }
 }
@@ -720,9 +657,9 @@ function retryFlush() {
 }
 
 async function flushPending() {
-  const result = await exec('SELECT * FROM pending_mutations ORDER BY id ASC');
-  if (_DEV && result.rows.length > 0) console.log(`[sync] flushPending: ${result.rows.length} pending mutations`);
-  for (const row of result.rows) {
+  const rows = await getAllPendingMutationsOrdered();
+  if (_DEV && rows.length > 0) console.log(`[sync] flushPending: ${rows.length} pending mutations`);
+  for (const row of rows) {
     pendingItemIds.add(row.item_id);
     await pushMutation(row.action, {
       id: row.item_id,
@@ -826,7 +763,6 @@ export async function resetAndRebootstrap() {
   updateStatus('recovering');
 
   try {
-    const { resetDB } = await import('./db-client.js');
     await resetDB();
 
     // Clear in-memory state
@@ -849,6 +785,5 @@ export async function resetAndRebootstrap() {
 // --- Pending count ---
 
 export async function getPendingCount() {
-  const result = await exec('SELECT COUNT(*) as count FROM pending_mutations');
-  return result.rows[0]?.count || 0;
+  return countAllPendingMutations();
 }

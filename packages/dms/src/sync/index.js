@@ -9,7 +9,7 @@
  *   await initSync('myapp', 'http://localhost:3001');
  */
 
-import { initDB, exec } from './db-client.js';
+import { initDB, getItem, getItemsByIds, getItemsByAppType, dumpAll } from './idb-store.js';
 import { configure, bootstrapSkeleton, bootstrapPattern, isPatternLoaded,
          connectWS, localCreate, localUpdate, localDelete,
          beginBatch, endBatch,
@@ -18,7 +18,6 @@ import { configure, bootstrapSkeleton, bootstrapPattern, isPatternLoaded,
          registerCollabRoom, unregisterCollabRoom, updateCollabPeers, getCollabInfo, onCollabChange,
          resetAndRebootstrap } from './sync-manager.js';
 import { isLocal, addToScope, getSyncedTypes, clearScope } from './sync-scope.js';
-import { useQuery } from './use-query.js';
 
 let _ready = false;
 let _initPromise = null;
@@ -46,10 +45,14 @@ export async function initSync(app, apiHost = '', siteType = '') {
     configure(app, apiHost, siteType);
 
     const t1 = performance.now();
-    if (_DEV) console.log('[sync]   initDB (SQLite WASM worker)...');
+    if (_DEV) console.log('[sync]   initDB (IndexedDB)...');
     await initDB();
     const t2 = performance.now();
     if (_DEV) console.log(`[sync]   initDB done (${(t2 - t1).toFixed(0)}ms)`);
+
+    if (_DEV && typeof globalThis !== 'undefined') {
+      globalThis.__dmsSyncDump = dumpAll;
+    }
 
     if (_DEV) console.log('[sync]   skeleton bootstrap...');
     await bootstrapSkeleton();
@@ -84,7 +87,9 @@ export function isReady() {
  */
 export function getSyncAPI() {
   return {
-    exec,
+    getItem,
+    getItemsByIds,
+    getItemsByAppType,
     localCreate,
     localUpdate,
     localDelete,
@@ -99,7 +104,6 @@ export function getSyncAPI() {
     getWS,
     onWSChange,
     getPendingCount,
-    useQuery,
     bootstrapPattern,
     isPatternLoaded,
     isCollabReady,
@@ -109,7 +113,9 @@ export function getSyncAPI() {
 
 // Re-export key functions for direct import
 export {
-  exec,
+  getItem,
+  getItemsByIds,
+  getItemsByAppType,
   localCreate,
   localUpdate,
   localDelete,
@@ -124,7 +130,6 @@ export {
   getWS,
   onWSChange,
   getPendingCount,
-  useQuery,
   bootstrapPattern,
   isPatternLoaded,
   isCollabReady,
