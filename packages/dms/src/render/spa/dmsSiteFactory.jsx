@@ -74,7 +74,13 @@ export function DmsSite (config) {
             // subset of routes (e.g., SSR pre-rendered one pattern but the
             // site has others). The fetch fills in any missing routes.
             // console.time('dmsSite - loading Dynamic Routes', )
-            const routes = await dmsSiteFactory(routeProps);
+            const routes = await dmsSiteFactory({
+                ...routeProps,
+                // Single-tenant: fires with the same value resolvedSyncApp already
+                // had (no-op re-render). Multi-tenant: this is the first time the
+                // correct (tenant) app is known — see resolvedSyncApp's init below.
+                onResolvedSyncApp: setResolvedSyncApp,
+            });
             if (!isStale) {
                 setDynamicRoutes(routes);
                 setLoading(false);
@@ -89,6 +95,20 @@ export function DmsSite (config) {
     // --- Sync state (effects run after router is defined below) ---
     const [syncActive, setSyncActive] = useState(false);
     const [syncAPI, setSyncAPIState] = useState(null);
+    // The app to sync against. Single-tenant deployments know this synchronously
+    // (dmsConfig never changes) so sync can start immediately, in parallel with
+    // route loading. Multi-tenant deployments don't know the real app — the
+    // master app vs. the subdomain-resolved tenant app — until dmsSiteFactory's
+    // async subdomain→tenant lookup resolves above, so this starts null and is
+    // filled in by the load() effect. Previously this used dmsConfig.app
+    // unconditionally and fired on mount regardless of isMultiTenant, which
+    // meant sync always initialized against the *master* app on a tenant
+    // subdomain — sync.isLocal() checks against the tenant's app would then
+    // always miss the (wrongly-scoped) local registry and silently fall
+    // through to Falcor. See sync-bring-up-to-date.md Phase 2.
+    const [resolvedSyncApp, setResolvedSyncApp] = useState(
+        () => isMultiTenant ? null : (dmsConfig?.format?.app || dmsConfig?.app)
+    );
 
 
     const routesWithErrorBoundary = React.useMemo(() => routes.filter(c => !c.isLink).map(c => {
@@ -130,8 +150,12 @@ export function DmsSite (config) {
     // --- Sync initialization (after router is defined) ---
     useEffect(() => {
         if (!DMS_SYNC_ENABLED) return;
-        const app = dmsConfig?.format?.app || dmsConfig?.app;
-        if (!app) return;
+        // Null on mount in multi-tenant mode until the load() effect resolves
+        // the subdomain → tenant app mapping (see resolvedSyncApp above) — this
+        // effect re-runs once that lands. Single-tenant: resolvedSyncApp is
+        // already correct on the first run.
+        if (!resolvedSyncApp) return;
+        const app = resolvedSyncApp;
 
         const siteType = dmsConfig?.format?.type || dmsConfig?.type;
         const t0 = performance.now();
@@ -146,7 +170,7 @@ export function DmsSite (config) {
         }).catch(err =>
             console.warn('[dms] sync init failed:', err.message)
         );
-    }, []);
+    }, [resolvedSyncApp]);
 
     // Revalidate routes when sync receives remote changes (debounced to avoid storm)
     useEffect(() => {
@@ -187,7 +211,15 @@ export function DmsSite (config) {
 }
 
 export default async function dmsSiteFactory(config) {
-    let { dmsConfig, falcor, API_HOST, isMultiTenant, host } = config
+    // onResolvedSyncApp (optional): reports the app the caller should scope
+    // client-side sync to — the master app normally, or the subdomain-resolved
+    // tenant app in multi-tenant mode. Purely additive: dmsSiteFactory is a
+    // documented public export (see CLAUDE.md "Key Exports") and its return
+    // value (the routes array) is unchanged for any existing caller that
+    // doesn't pass this. See sync-bring-up-to-date.md Phase 2 for why this
+    // exists — sync used to always initialize against the master app, even on
+    // a tenant subdomain.
+    let { dmsConfig, falcor, API_HOST, isMultiTenant, host, onResolvedSyncApp } = config
 
     // Step 1 — always load the master site
     let dmsConfigUpdated = cloneDeep(dmsConfig);
@@ -207,6 +239,7 @@ export default async function dmsSiteFactory(config) {
     )
 
     if (!isMultiTenant) {
+        onResolvedSyncApp?.(dmsConfig.app);
         return pattern2routes(data, config)
     }
 
@@ -217,6 +250,7 @@ export default async function dmsSiteFactory(config) {
     if (!subdomain) {
         // Platform admin (root domain) — serve master site routes.
         // Phase 3 will render TenantList inside editSite when !subdomain && isMultiTenant.
+        onResolvedSyncApp?.(dmsConfig.app);
         return pattern2routes(data, config)
     }
 
@@ -225,6 +259,9 @@ export default async function dmsSiteFactory(config) {
     const matchedTenant = tenants.find(t => t.subdomain === subdomain);
 
     if (!matchedTenant) {
+        // No resolved app — sync-init in DmsSite skips entirely when app is falsy,
+        // which is correct here: there's no tenant data to sync against.
+        onResolvedSyncApp?.(null);
         return [{
             path: '/*',
             Component: () => React.createElement(
@@ -262,5 +299,6 @@ export default async function dmsSiteFactory(config) {
     )
 
     // Step 5 — build routes scoped to the tenant
+    onResolvedSyncApp?.(tenantApp);
     return pattern2routes(tenantData, { ...config, dmsConfig: tenantDmsConfig })
 }

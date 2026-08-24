@@ -321,6 +321,50 @@ async function testDeltaWithZeroReturnsAll() {
   console.log('  \u2713 delta with since=0 returns all changes\n');
 }
 
+async function testPatternBootstrapSiblingTypes() {
+  console.log('--- Test: pattern-scoped bootstrap/delta include sibling types ---');
+
+  // Regression test for the "sync bootstrap sibling types" bug fixed during the
+  // type-system refactor (routes/sync/sync.js, production migration fixes,
+  // 2026-03-20): under the {parent}:{instance}|{rowKind} scheme, a pattern's
+  // page and component rows share an instance prefix (e.g. 'my_docs|page',
+  // 'my_docs|component') rather than one type extending another. The client
+  // calls bootstrapPattern(type) with a child's own full type (e.g. a page's
+  // 'my_docs|page'), so the server must derive the instance prefix and match
+  // ALL sibling types, not just the exact type passed in. TEST_TYPE elsewhere
+  // in this file has no '|' in it at all, so this path had zero coverage until
+  // now despite being the exact mechanism the new type scheme depends on for
+  // every page/component pair in the app.
+  const instance = 'sibtest_' + Date.now();
+  const pageType = `${instance}|page`;
+  const componentType = `${instance}|component`;
+
+  const pageRes = await graph.callAsync(['dms', 'data', 'create'], [TEST_APP, pageType, { title: 'A Page' }]);
+  const pageId = Number(Object.keys(pageRes.jsonGraph.dms.data.byId)[0]);
+  const compRes = await graph.callAsync(['dms', 'data', 'create'], [TEST_APP, componentType, { title: 'A Component' }]);
+  const compId = Number(Object.keys(compRes.jsonGraph.dms.data.byId)[0]);
+
+  try {
+    // Bootstrap scoped by the page's own type must also return the sibling component.
+    const { status, body } = await httpGet(`/sync/bootstrap?app=${TEST_APP}&pattern=${encodeURIComponent(pageType)}`);
+    assert(status === 200, `Status 200 (got ${status})`);
+    assert(body.items.some(i => i.id === pageId && i.type === pageType), 'pattern bootstrap includes the page itself');
+    assert(body.items.some(i => i.id === compId && i.type === componentType), 'pattern bootstrap includes the sibling component type (instance-prefix match)');
+
+    // Delta scoped the same way must also pick up sibling-type changes.
+    const sinceRev = body.revision;
+    await graph.callAsync(['dms', 'data', 'edit'], [TEST_APP, compId, { title: 'Edited Component' }]);
+    const { body: deltaBody } = await httpGet(`/sync/delta?app=${TEST_APP}&pattern=${encodeURIComponent(pageType)}&since=${sinceRev}`);
+    assert(deltaBody.changes.some(c => Number(c.item_id) === compId && c.action === 'U'), 'pattern delta includes the sibling component edit');
+
+    console.log(`  Bootstrap+delta correctly matched sibling types under instance '${instance}'`);
+    console.log('  \u2713 pattern-scoped bootstrap/delta include sibling types\n');
+  } finally {
+    await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, pageType, pageId]);
+    await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, componentType, compId]);
+  }
+}
+
 async function testPushCreate() {
   console.log('--- Test: push create ---');
 
@@ -550,7 +594,12 @@ async function testCollabJoinRoomSendsSync() {
   console.log('--- Test: join-room sends yjs-sync-step1 ---');
 
   const { ws, messages } = await createWSClient();
-  const roomId = 'collab-test-' + Date.now();
+  // yjs_states.item_id is declared INTEGER PRIMARY KEY (SQLite) — a non-numeric
+  // room id throws "datatype mismatch" on flush (silently swallowed by
+  // flushYjsState's catch), which was masking every collab persistence write in
+  // this file until this was tracked down. Real production item ids are always
+  // numeric data_items.id values, so keep test room ids numeric-only too.
+  const roomId = String(Date.now());
 
   ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
 
@@ -577,7 +626,7 @@ async function testCollabTwoClientSync() {
 
   const client1 = await createWSClient();
   const client2 = await createWSClient();
-  const roomId = 'collab-sync-' + Date.now();
+  const roomId = String(Date.now()); // must be numeric — see testCollabJoinRoomSendsSync
 
   // Client 1 joins
   client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
@@ -637,7 +686,7 @@ async function testCollabPeerCountUpdates() {
   const client1 = await createWSClient();
   const client2 = await createWSClient();
   const client3 = await createWSClient();
-  const roomId = 'collab-peers-' + Date.now();
+  const roomId = String(Date.now()); // must be numeric — see testCollabJoinRoomSendsSync
 
   // Client 1 joins
   client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
@@ -806,7 +855,7 @@ async function testCollabUpdateNotSentBackToSender() {
   const Y = require('yjs');
   const client1 = await createWSClient();
   const client2 = await createWSClient();
-  const roomId = 'collab-echo-' + Date.now();
+  const roomId = String(Date.now()); // must be numeric — see testCollabJoinRoomSendsSync
 
   client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
   client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
@@ -858,7 +907,7 @@ async function testCollabAwarenessRelay() {
 
   const client1 = await createWSClient();
   const client2 = await createWSClient();
-  const roomId = 'collab-awareness-' + Date.now();
+  const roomId = String(Date.now()); // must be numeric — see testCollabJoinRoomSendsSync
 
   client1.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
   client2.ws.send(JSON.stringify({ type: 'join-room', itemId: roomId }));
@@ -910,6 +959,7 @@ const tests = [
   testBootstrapExcludesSplitTypes,
   testDeltaReturnsChangesSinceRevision,
   testDeltaWithZeroReturnsAll,
+  testPatternBootstrapSiblingTypes,
   testPushCreate,
   testPushUpdate,
   testPushDelete,

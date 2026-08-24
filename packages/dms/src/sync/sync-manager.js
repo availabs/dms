@@ -217,63 +217,69 @@ export async function bootstrapSkeleton() {
  * Bootstrap a specific pattern's data (pages, sections, sources, views).
  * Called on-demand when the user navigates to a pattern.
  *
- * @param {string} docType - The pattern's doc_type
+ * @param {string} patternType - The full DB `type` of the item being loaded
+ *   (e.g. 'my_docs|page'), as passed by api/index.js's dmsDataLoader. This is
+ *   NOT the bare pattern instance name — the server (`/sync/bootstrap`,
+ *   `/sync/delta`) derives the instance prefix itself (everything before the
+ *   first '|') and matches all sibling types under it. This parameter was
+ *   named `docType` before the type-system refactor removed `data.doc_type`
+ *   entirely; renamed here for accuracy — see sync-bring-up-to-date.md Phase 1.
  * @returns {Promise<void>}
  */
-export function bootstrapPattern(docType) {
-  if (!docType) return Promise.resolve();
-  if (_loadedPatterns.has(docType)) {
-    if (_DEV) console.log(`[sync]     pattern '${docType}' already loaded, skipping`);
+export function bootstrapPattern(patternType) {
+  if (!patternType) return Promise.resolve();
+  if (_loadedPatterns.has(patternType)) {
+    if (_DEV) console.log(`[sync]     pattern '${patternType}' already loaded, skipping`);
     return Promise.resolve();
   }
   // Deduplicate concurrent calls — return existing inflight promise if one exists
-  if (_inflightBootstraps.has(docType)) {
-    if (_DEV) console.log(`[sync]     pattern '${docType}' bootstrap already inflight, waiting...`);
-    return _inflightBootstraps.get(docType);
+  if (_inflightBootstraps.has(patternType)) {
+    if (_DEV) console.log(`[sync]     pattern '${patternType}' bootstrap already inflight, waiting...`);
+    return _inflightBootstraps.get(patternType);
   }
-  const promise = _bootstrapPatternImpl(docType);
-  _inflightBootstraps.set(docType, promise);
-  promise.finally(() => _inflightBootstraps.delete(docType));
+  const promise = _bootstrapPatternImpl(patternType);
+  _inflightBootstraps.set(patternType, promise);
+  promise.finally(() => _inflightBootstraps.delete(patternType));
   return promise;
 }
 
-async function _bootstrapPatternImpl(docType) {
-  const scope = `pattern:${docType}`;
+async function _bootstrapPatternImpl(patternType) {
+  const scope = `pattern:${patternType}`;
   const lastRev = await getLastRevision(scope);
-  if (_DEV) console.log(`[sync]     pattern '${docType}' lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
+  if (_DEV) console.log(`[sync]     pattern '${patternType}' lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
 
   try {
     if (lastRev === null) {
       const t0 = performance.now();
-      let url = `/sync/bootstrap?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(docType)}`;
+      let url = `/sync/bootstrap?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}`;
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
       const res = await fetch(apiUrl(url));
       if (!res.ok) throw new Error(`pattern bootstrap failed: ${res.status}`);
       const { items, revision } = await res.json();
       const tFetch = performance.now();
-      if (_DEV) console.log(`[sync]     pattern '${docType}': ${items.length} items (${(tFetch - t0).toFixed(0)}ms)`);
+      if (_DEV) console.log(`[sync]     pattern '${patternType}': ${items.length} items (${(tFetch - t0).toFixed(0)}ms)`);
       await applyItems(items);
       // Always add the pattern type to scope — even with 0 items, creates should go through sync
-      addToScope(_app, docType);
+      addToScope(_app, patternType);
       await setLastRevision(revision, scope);
       invalidate('data_items');
-      console.log(`[sync] pattern '${docType}' bootstrapped: ${items.length} items, rev=${revision}`);
+      console.log(`[sync] pattern '${patternType}' bootstrapped: ${items.length} items, rev=${revision}`);
     } else {
       // Warm start: delta for this pattern
       const t0 = performance.now();
-      let url = `/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(docType)}&since=${lastRev}`;
+      let url = `/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}&since=${lastRev}`;
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
       const res = await fetch(apiUrl(url));
       if (!res.ok) throw new Error(`pattern delta failed: ${res.status}`);
       const { changes, revision } = await res.json();
-      if (_DEV) console.log(`[sync]     pattern '${docType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
+      if (_DEV) console.log(`[sync]     pattern '${patternType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
 
       // Stale delta — too many changes, fall back to full re-bootstrap
       if (changes.length > STALE_DELTA_THRESHOLD) {
-        console.warn(`[sync] pattern '${docType}' delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+        console.warn(`[sync] pattern '${patternType}' delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
         await setLastRevision(null, scope);
-        _loadedPatterns.delete(docType);
-        return bootstrapPattern(docType);
+        _loadedPatterns.delete(patternType);
+        return bootstrapPattern(patternType);
       }
 
       if (changes.length > 0) {
@@ -285,34 +291,34 @@ async function _bootstrapPatternImpl(docType) {
       // Re-seed scope from local data for this pattern
       const local = await exec(
         "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type LIKE ? || '|%')",
-        [_app, docType, docType]
+        [_app, patternType, patternType]
       );
       for (const row of local.rows) addToScope(row.app, row.type);
     }
   } catch (err) {
-    console.warn(`[sync] pattern '${docType}' bootstrap failed (offline?):`, err.message);
+    console.warn(`[sync] pattern '${patternType}' bootstrap failed (offline?):`, err.message);
     try {
       const local = await exec(
         "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type LIKE ? || '|%')",
-        [_app, docType, docType]
+        [_app, patternType, patternType]
       );
       for (const row of local.rows) addToScope(row.app, row.type);
     } catch { /* ignore */ }
   }
 
-  _loadedPatterns.add(docType);
+  _loadedPatterns.add(patternType);
 
   // Subscribe WebSocket to this pattern
   if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: docType }));
+    ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: patternType }));
   }
 }
 
 /**
  * Check if a pattern has been bootstrapped.
  */
-export function isPatternLoaded(docType) {
-  return _loadedPatterns.has(docType);
+export function isPatternLoaded(patternType) {
+  return _loadedPatterns.has(patternType);
 }
 
 /**
@@ -399,8 +405,8 @@ export function connectWS() {
     ws.send(JSON.stringify({ type: 'subscribe', app: _app }));
 
     // Re-subscribe to all loaded patterns
-    for (const docType of _loadedPatterns) {
-      ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: docType }));
+    for (const patternType of _loadedPatterns) {
+      ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: patternType }));
     }
 
     catchUp();
