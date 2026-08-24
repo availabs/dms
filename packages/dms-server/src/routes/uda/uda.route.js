@@ -15,6 +15,7 @@ const {
   getViewById,
   updateView,
   getViewBySrcCategories,
+  createSourceView,
 
   simpleFilterLength,
   simpleFilter,
@@ -468,6 +469,54 @@ module.exports = [
         ];
       } catch (err) {
         console.error('[uda] sources.setPrimaryKey error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- views.create (call) ---------------------------------
+  // Args: [env, source_id, version, copy_from_view_id]
+  //
+  // Creates a new VERSION of an external source: a data_manager.views row plus its own
+  // physical table, cloned (structure only, or structure + rows) from an existing version.
+  // `copy_from_view_id` null/absent → a blank version whose schema comes from the source's
+  // newest view; set → a duplicate of that view, rows included.
+  //
+  // Gated on `update-source` for the source, the same permission an attribute write needs:
+  // adding a version is a modification of the dataset, not a read of it.
+  {
+    route: `uda.views.create`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to create a version');
+        const [env, source_id, version, copy_from_view_id] = args;
+        const { db } = await getEssentials({ env });
+        const authed = await isUserAuthedForSource({
+          db, sourceId: +source_id, reqPermissions: ['update-source'], user: this.user,
+        });
+        if (!authed) {
+          console.log('uda: UNAUTHORIZED version create', source_id, this.user && this.user.email);
+          throw new Error(`User not authorized to modify source id(s): ${source_id}`);
+        }
+
+        const view = await createSourceView(env, {
+          source_id: +source_id,
+          version,
+          copy_from_view_id: copy_from_view_id ? +copy_from_view_id : null,
+          user_id: this.user.id || this.user.user_id || null,
+        });
+
+        // The version LIST is derived from sources.byId[...].views — invalidate it or the
+        // selector keeps showing the pre-create set until a reload.
+        return [
+          { path: ['uda', env, 'sources', 'byId', +source_id, 'views'], invalidated: true },
+          { path: ['uda', env, 'views', 'byId', view.view_id, 'view_id'], value: view.view_id },
+          { path: ['uda', env, 'views', 'byId', view.view_id, 'version'], value: view.version },
+          { path: ['uda', env, 'views', 'byId', view.view_id, 'table_name'], value: view.table_name },
+          { path: ['uda', env, 'views', 'byId', view.view_id, 'rowsCopied'], value: view.rowsCopied },
+        ];
+      } catch (err) {
+        console.error('[uda] views.create error:', err.message);
         throw err;
       }
     },

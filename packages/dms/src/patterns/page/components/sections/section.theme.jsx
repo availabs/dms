@@ -11,7 +11,11 @@ export const sectionTheme = {
       topBarSpacer: 'flex-1',
       topBarButtonsEdit: 'flex gap-1 z-10',
       topBarButtonsView: 'z-10',
-      menuPosition: 'absolute top-[5px] right-[5px] items-center flex gap-0.5',
+      // z-40: the menu is absolutely positioned with no stacking context of its own, so
+      // WITHOUT a z-index any section content that raises itself (a sticky toolbar, a
+      // pinned header) paints over the Settings button and the section becomes
+      // uneditable. Below sectionGroup's modalOverlay (z-50) so a modal still wins.
+      menuPosition: 'absolute top-[5px] right-[5px] items-center flex gap-0.5 z-40',
       editIcon: 'hover:text-blue-500 size-6',
       contentWrapper: 'h-full',
 

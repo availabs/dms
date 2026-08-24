@@ -12,6 +12,7 @@ const { resolveTable, sanitize } = require('#db/table-resolver.js');
 const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
+const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -281,6 +282,88 @@ async function updateView(env, viewId, updates) {
     [...values, viewId]
   );
   return rows;
+}
+
+// ============================================= View creation ======================================================
+
+/**
+ * Create a new VERSION of an external (DAMA) source — a new `data_manager.views`
+ * row plus its own physical table, either empty or a copy of another version's rows.
+ *
+ * WHY THIS EXISTS. Versions were previously only ever born as a side effect of
+ * ingesting a file: `createDamaView` registers the row and names the table, and the
+ * ETL worker that called it builds the table while loading data into it. There was
+ * no way to say "give me another version of what I already have" — which is what an
+ * editing UI needs before it can offer a draft to work in. This is that verb.
+ *
+ * The new table is always cloned from an EXISTING view's table rather than built
+ * from `metadata.columns`, because the physical table is the only place the real
+ * schema lives: types, NOT NULLs, the primary key and its indexes. `metadata.columns`
+ * is a display contract that drifts (see add-shows-image-column.mjs), so building
+ * from it would silently produce a version the CRUD path can't write to.
+ *
+ * @param {string} env - pgEnv config name (external sources only)
+ * @param {Object} args - { source_id, version, copy_from_view_id, user_id }
+ * @returns {Object} the created view row + { rowsCopied, copied_from }
+ */
+async function createSourceView(env, { source_id, version, copy_from_view_id, user_id } = {}) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) throw new Error('View creation is only supported for external (DAMA) sources');
+  if (db.type !== 'postgres') throw new Error('View creation is only supported on PostgreSQL sources');
+  const sourceId = Number(source_id);
+  if (!Number.isInteger(sourceId)) throw new Error('source_id is required');
+
+  const { rows: srcRows } = await db.query(
+    `SELECT source_id, name FROM data_manager.sources WHERE source_id = $1`, [sourceId]
+  );
+  if (!srcRows.length) throw new Error(`Source ${sourceId} not found`);
+
+  // The template: the named view when copying, otherwise the source's newest view.
+  // A blank version still needs a template — the schema has to come from somewhere.
+  const { rows: tplRows } = copy_from_view_id
+    ? await db.query(
+        `SELECT view_id, table_schema, table_name FROM data_manager.views
+         WHERE view_id = $1 AND source_id = $2`, [Number(copy_from_view_id), sourceId])
+    : await db.query(
+        `SELECT view_id, table_schema, table_name FROM data_manager.views
+         WHERE source_id = $1 AND table_name IS NOT NULL
+         ORDER BY view_id DESC LIMIT 1`, [sourceId]);
+
+  const template = tplRows[0];
+  if (!template) {
+    throw new Error(copy_from_view_id
+      ? `View ${copy_from_view_id} is not a version of source ${sourceId}`
+      : `Source ${sourceId} has no existing version to derive a schema from`);
+  }
+  if (!template.table_name) throw new Error(`View ${template.view_id} has no backing table`);
+
+  const view = await createDamaView({
+    source_id: sourceId,
+    user_id: user_id || null,
+    metadata: { created_from_view_id: template.view_id, created_by: 'uda.views.create' },
+  }, env);
+
+  // `version` is the human label the version selector shows. Default to the new
+  // view_id so it is never blank and never collides.
+  const label = (version == null || String(version).trim() === '') ? String(view.view_id) : String(version).trim();
+  await db.query(`UPDATE data_manager.views SET version = $1 WHERE view_id = $2`, [label, view.view_id]);
+  view.version = label;
+
+  try {
+    const { rowsCopied } = await cloneViewTable(db, {
+      fromSchema: template.table_schema,
+      fromTable: template.table_name,
+      toSchema: view.table_schema,
+      toTable: view.table_name,
+      withData: Boolean(copy_from_view_id),
+    });
+    return { ...view, rowsCopied, copied_from: copy_from_view_id ? template.view_id : null };
+  } catch (err) {
+    // A view row with no table is worse than no view row at all: it shows up in
+    // every version list and fails on read. Roll it back.
+    await db.query(`DELETE FROM data_manager.views WHERE view_id = $1`, [view.view_id]).catch(() => {});
+    throw err;
+  }
 }
 
 // ============================================= Data Query Functions ================================================
@@ -868,6 +951,7 @@ module.exports = {
   getViewById,
   updateView,
   getViewBySrcCategories,
+  createSourceView,
 
   // Data queries
   simpleFilterLength,
