@@ -49,7 +49,7 @@ fresh scratch site (`stress-test-app`), `splitMode: "per-app"`,
 see "What's actually been tested" for why the other 7 combinations are
 still open.
 
-### Bug 1 — Concurrent section creation silently loses sections
+### Bug 1 — Concurrent section creation silently loses sections — FIXED (see below for the fix and its own live-testing writeup, after the original repro)
 
 **Reproduction**: 4 independent browser contexts (same user, simulating 4
 tabs/devices), all with the same page open in edit mode. All 4 click
@@ -566,9 +566,14 @@ whoever runs the remaining cells):
 
 *(none yet beyond C6, documented above)*
 
-## Proposed fix approaches (not yet implemented — needs a decision before starting)
+## Proposed fix approaches
 
-### For Bug 1 (structural array race)
+### For Bug 1 (structural array race) — option 3 chosen and implemented
+
+See "Bug 1 implementation — DONE, live-verified" below the fix design for
+the actual implementation and its live-testing results. Options 1/2 below
+are kept for reference in case sync=off protection is ever wanted (option
+3's `Y.Array` fix only covers sync=on — see its own scope note).
 
 Options, roughly in order of how much they change:
 
@@ -586,8 +591,8 @@ Options, roughly in order of how much they change:
 2. **Optimistic concurrency check**: `UPDATE ... WHERE id = $x AND updated_at = $expected`, client resends on conflict (re-read, reapply its own delta, retry). Simpler to reason about than JSON-path surgery, but requires every structural mutation site to handle the retry, and doesn't eliminate the underlying "whose delta wins" UX question — just makes losses loud (an error/retry) instead of silent.
 3. **Move `draft_sections` into the Yjs-managed surface**, matching the original design doc's stated intent (see Root Cause Analysis) — a `Y.Array` of section refs instead of a plain array field, giving the same automatic, lossless concurrent-insert semantics section *content* already has. Biggest lift (touches the client data model, the server's `yjs_states` persistence, and every place that reads `draft_sections`/`sections`), but the most correct fix and the one the original design doc arguably already promised. **Fleshed out in full below — "Fix design: `Y.Array`-backed page-structure collab."**
 
-Recommend deciding between (1)/(2) as a near-term mitigation vs. (3) as the
-real fix, rather than picking in isolation — needs a decision, not made here.
+**Decided and implemented: option 3.** (1)/(2) remain available as a future
+sync=off mitigation if that's ever prioritized — not started.
 
 ## Fix design: `Y.Array`-backed page-structure collab (Bug 1 option 3, fleshed out)
 
@@ -818,13 +823,127 @@ Bug 3 no longer needs an independent repro or fix; the mechanism that fixes
 Bug 1 fixes Bug 3 by construction (for sync=on configurations — same
 scope limitation as above applies).
 
-### Files this design would touch
+## Bug 1 implementation — DONE, live-verified (2026-08-24)
 
-- **New**: `packages/dms/src/sync/page-structure-provider.js` (or similar name) — the `Y.Array` room-joining provider described in point 1
-- `packages/dms/src/patterns/page/components/sections/sectionArray.jsx` — `save()`, `remove()`, `moveItem()` rewired per point 4; room join/leave wired into the component's mount lifecycle per point 2
-- Wherever the page-level edit container currently mounts `sectionArray.jsx` — needs to pass down (or the array component itself needs to derive) the page's own `item_id` to join the correct room
-- `packages/dms/src/sync/sync-manager.js` — likely needs to expose the page's own item id cleanly to the new provider (may already be available via existing props/context — check `PageContext`)
-- **No server changes** — `packages/dms-server/src/routes/sync/ws.js` and the `yjs_states` schema are reused as-is
+Implemented and tested against the real `shaun-test-app` site (the same
+Postgres-backed, multi-tenant deployment Bug 4 was found and fixed on).
+Confirms the "Files this design would touch" list above was close but not
+exact, and surfaced two additional bugs the design didn't anticipate — both
+fixed as part of this same pass. Final diff: 1 new file
+(`page-structure-provider.js`, ~210 lines including comments) + 1 file
+meaningfully touched (`sectionArray.jsx`, ~180 lines changed/added across
+`save()`/`remove()`/`moveItem()` plus the room-join effect). No server
+changes, no `sync-manager.js` changes — `item.id` was already available via
+`PageContext`, so the file didn't need touching after all.
+
+### Bug found during implementation #1 — sharing unresolved content caused duplicate row creation
+
+The first working version put the "new section" placeholder — the same
+id-less object the old code always built (title/element/group/etc., no `id`
+yet) — directly into the shared `Y.Array`. This is wrong: once relayed to
+peers, **every peer's own `onChange` call (which sends the full merged array
+through the existing `apiUpdate`/`dmsAttrsData` "no id → create a row" path)
+independently tried to create a row for that same still-unresolved
+placeholder.** Live-tested with 4 concurrent adds: instead of losing 3 of 4
+sections (the original bug), it now *duplicated* every section — up to 2
+rows per client's single add (8 rows for 4 adds in one run, 11 in another,
+each pair carrying identical content/`trackingId`), because each peer's
+`arr.toArray()` read (after `settle()`, see below) included every other
+peer's not-yet-resolved placeholder and dutifully asked the server to create
+a row for it too.
+
+**Fix**: the shared array must only ever hold *resolved* `{id, ref}` stubs —
+the same shape every other `draft_sections` entry already has, never raw
+content. `save()`'s add-branch now calls `globalThis.__dmsSyncAPI.localCreate(app, componentType, data)`
+directly to mint the real row and get a real id **before** touching the
+array, then inserts only `{id, ref}`. The update-branch similarly calls
+`localUpdate(targetId, strippedData)` directly rather than putting a
+`_dirty: true` full-content object in the array. The room's *seed* step
+(seeding a still-empty array from the page's already-known `draft_sections`)
+had the identical latent bug — `value` as received by `sectionArray.jsx` is
+the *enriched* form (ref + the child's own content merged in for display, by
+`api/index.js`'s `loadFromLocalDB`) — fixed by stripping each seed entry
+down to `{id, ref}` before pushing.
+
+### Bug found during implementation #2 — even resolved-content ops needed a settle delay
+
+With the duplication bug fixed but *before* adding any delay, a 4-concurrent-add
+test still lost data — only 1 of 4 survived, same symptom as the original
+bug. Cause: `save()` was reading `arr.toArray()` and sending immediately
+after applying its own local insert, with no time for the WS relay to
+deliver the other 3 clients' near-simultaneous inserts first — each client's
+snapshot only reflected its own op, and last-write-wins at the server
+reproduced the exact original race one layer up. **Fix**: added
+`waitForQuiet()`/`room.settle()` — resolves once no remote update has
+arrived for 300ms (capped at 1500ms total), so near-simultaneous peer ops
+get a real chance to relay in before the array is read and sent. No-ops
+(near-instant) when nobody else is concurrently editing. `save()`,
+`remove()`, and `moveItem()` all `await room.settle()` after their own op
+and before reading the array back.
+
+### Bug found during implementation #3 — wrong type-utils function for the sibling component type
+
+`localCreate` needs the section's *type* string (`"{patternInstance}|component"`,
+sibling to the page's own `"{patternInstance}|page"`). First attempt used
+`getInstance(item.type)` — wrong: a page has no *instance* name (`getInstance`
+returns `null` for `"pages|page"`; instance is for named things like
+patterns, e.g. `instance="my_docs"` in `"prod|my_docs:pattern"`). The
+correct call is `getParent(item.type)`, since `"pages"` in `"pages|page"` is
+the *parent* segment per `type-utils.js`'s `{parent}|{kind}` scheme. Caught
+by checking the created rows' own `type` column, which read `"null|component"`
+literally — the page's ref inside `draft_sections` looked fine only because
+the *downstream* `dmsAttrsData` loop reconstructs that ref string from its
+own (correct) format config, ignoring whatever ref string this code
+supplied — masking the bug there while leaving the actual created row
+mistyped.
+
+### Live verification
+
+All three bugs above were caught and fixed through this same live-testing
+loop, each confirmed via a real 4-concurrent-client Playwright test against
+the real site, reading actual server state after each run (never trusted
+"no thrown error" alone):
+
+- **4 concurrent adds, final corrected code, on a dedicated fresh test page**
+  (to guarantee a clean Yjs room — see the operational note below for why
+  that matters): all 4 sections survived, `draft_sections` has exactly 4
+  entries, each row's `type` is correctly `pages|component`, each has its
+  own distinct content, zero duplicates. Repeated on a second fresh page
+  after the `getParent` fix specifically, with the same clean result.
+- **Single-client delete, same page, no concurrency**: removed the correct
+  section, three others untouched, no reload needed, server state matches.
+- Not yet independently tested: concurrent delete-vs-add, concurrent
+  reorder, and the documented reorder-under-concurrency limitation. These
+  remain open items (see Testing checklist).
+
+**Operational lesson, worth recording**: the Yjs room's server-side state
+(`yjs_states` table, keyed by item id) is **entirely separate from
+`data_items.draft_sections`** and does not get touched by CLI-level data
+cleanup (`dms section delete`, `dms page update`). Testing against the same
+real page across multiple runs let stale room state accumulate independently
+of the (separately-cleaned) `draft_sections` field — confirmed concretely
+when a later test on the same page rendered a mix of very old and very new
+content that didn't match the (already-clean) server data at all. Clearing
+a polluted room mid-session by deleting its `yjs_states` row is also not
+fully safe on its own: any other client that happens to join the
+now-empty room at close to the same moment will *also* try to seed it from
+whatever `draft_sections` snapshot *that* client's own tab currently has
+cached, and two different-vintage snapshots seeding concurrently produces
+exactly the kind of duplicate-mixed-content mess this fix exists to
+prevent — the known "two clients joining a cold room simultaneously" edge
+case in `page-structure-provider.js`'s own doc comment, just triggered
+deliberately by a mid-session reset rather than a true cold start. Safe
+recovery sequence used here: fix `data_items.draft_sections` back to correct
+first (via CLI, bypassing the room entirely), *then* clear the room's
+`yjs_states` row, and avoid further automated joins against that same page
+immediately afterward. For real testing going forward, prefer a dedicated
+disposable page over reusing one across many runs.
+
+### Files actually touched
+
+- **New**: `packages/dms/src/sync/page-structure-provider.js` — the `Y.Array` room-joining provider, ref-counted per page id, exposes `{ sectionsArray, doc, ready, settle(), disconnect() }`
+- `packages/dms/src/patterns/page/components/sections/sectionArray.jsx` — imports `joinPageStructureRoom` and `getParent`; new `roomRef`/join-effect; `save()`, `remove()`, `moveItem()` each gained a `room`-active branch (CRDT path) alongside the original unchanged plain-array branch (sync-inactive fallback)
+- **Not touched, contrary to the original design's guess**: `sync/sync-manager.js` (item id was already available via `PageContext`) and the server (`ws.js`/`yjs_states` schema reused exactly as-is, zero changes)
 
 ### For Bug 2 (Yjs character loss)
 
@@ -858,13 +977,80 @@ narrower file list if that's the direction chosen:
 - `packages/dms/src/ui/components/lexical/editor/collaboration.js` — `DmsCollabProvider`, Bug 2's root cause lives here
 - `packages/dms-server/src/routes/sync/` — if Bug 1's fix needs a new atomic-op sync endpoint alongside the existing bootstrap/delta/push (options 1/2 only)
 
+## Bug 5 — sync push requests never sent an auth header, so delete always 401'd for every logged-in user — FIXED (2026-08-24)
+
+Found live: deleting a page produced `[sync] push D FAILED id=X: push failed: 401
+{"error":"Authentication required to delete items"}` despite the user being
+genuinely logged in in the browser. Traced to `sync-manager.js`'s `pushMutation`
+and `localCreate` — their `fetch()` calls to `/sync/push` sent
+`headers: { 'Content-Type': 'application/json' }` only, no `Authorization`
+header at all, ever. Server-side (`routes/sync/sync.js`), general
+create/update requests are only auth-gated when `DMS_SYNC_AUTH=1` (off by
+default, so the missing header was invisible there), but delete has its own
+unconditional check —
+`if (action === 'D' && !req.availAuthContext?.user) return res.status(401)`
+— regardless of `DMS_SYNC_AUTH`. Since no sync request ever carried a token,
+`req.availAuthContext.user` was always `null`, and every delete through the
+sync path 401'd for every user, logged in or not.
+
+**Fix**: added an `authHeaders()` helper to `sync-manager.js`, reading
+`localStorage.getItem('userToken')` and sending it as a bare `Authorization`
+header — matching the exact convention already used elsewhere in this
+client (`patterns/page/pages/edit/index.jsx`'s `Authorization: user?.token`;
+the server's `jwtAuth` middleware explicitly accepts both a bare token and
+`"Bearer <token>"`). Applied to **all 8** `fetch()` calls in the file
+(bootstrap ×3, delta ×3, push ×2) — not just delete's — since bootstrap/delta
+have the identical `requireAuth`-gated check that's silent today only
+because `DMS_SYNC_AUTH` is off; leaving those unfixed would have been a
+latent identical bug waiting for someone to turn that flag on.
+
+**Verified live**: `globalThis.__dmsSyncAPI.localDelete(id)` against a real
+test page — console showed `[sync] push D id=X → server id=X rev=N`
+(success), no 401, on code that would have failed before the fix.
+
+### Bug 6 — found while verifying Bug 5: a malformed ref (`{id: null, ...}`) crashed the whole page load — FIXED (2026-08-24)
+
+Surfaced as a repeated `DataError: Failed to execute 'get' on
+'IDBObjectStore': The parameter is not a valid key` from `idb-store.js`'s
+`getItemsByIds`, thrown during ordinary page load (not an edit action) —
+severe enough to be Bug-4-shaped (silently breaks page rendering) if left
+alone, just via a different trigger. Root cause: `api/index.js`'s
+array-ref resolution —
+
+```js
+const childIds = Array.from(item[key]).map(ref => ref.id || ref).filter(Boolean);
+```
+
+— extracts `ref.id`, falling back to `ref` itself for legacy data (bare id
+primitives instead of `{id, ref}` objects). But if `ref` is an *object*
+whose `id` is explicitly `null`/missing (a malformed or incomplete ref,
+distinct from legacy-format data), `ref.id || ref` evaluates to the **whole
+ref object**, which isn't filtered out by `.filter(Boolean)` (a non-null
+object is truthy) — so a full object, not a primitive id, ends up in
+`childIds` and gets handed to `s.get()`, which IndexedDB rejects outright
+rather than just failing to find a row.
+
+**Fix**: only fall back to treating `ref` as a bare legacy id when it's
+actually a primitive (`typeof ref !== 'object'`); an object with no usable
+`id` has nothing to resolve and is correctly filtered out instead of passed
+through malformed. **Verified live**: recreated the exact navigation that
+crashed, zero errors after the fix, page renders cleanly.
+
+Not fully root-caused *which* specific ref/page had the `{id: null}` shape
+in the first place (the fix is correct and defensive regardless, but the
+data-quality question — how did a null-id ref get into the dataset — is
+still open; worth a quick audit if it recurs).
+
 ## Testing checklist
 
+- [x] **Bug 5 — sync push missing auth header, delete always 401'd — fixed.** All 8 `fetch()` calls in `sync-manager.js` now send `authHeaders()`. Verified live via `localDelete`.
+- [x] **Bug 6 — malformed `{id: null}` ref crashed page load — fixed.** `api/index.js`'s `childIds` extraction no longer falls through to the whole ref object when an object ref has no usable id. Verified live, zero errors on the exact navigation that crashed before.
+- [ ] Bug 6 follow-up: root-cause *which* page/field actually had a null-id ref and how it got there (data-quality question, not a code-correctness one — the fix is safe regardless)
 - [ ] Fill in all 8 rows × 9 columns of the test matrix above (56 remaining cells; C6's row is partially done)
+- [x] **Bug 1 — implemented and live-verified.** `Y.Array`-backed page-structure collab (option 3), see "Bug 1 implementation — DONE, live-verified" above for the full writeup, including 3 bugs found and fixed during implementation (duplicate row creation from sharing unresolved content; missing settle/debounce letting the same race resurface one layer up; wrong `type-utils` function for the sibling component type). Verified live: 4 concurrent adds on a real Postgres-backed multi-tenant site, all 4 survive with correct types and no duplicates (2 separate clean runs); single-client delete confirmed working, no reload needed.
+- [ ] Bug 1 follow-up: concurrent delete-vs-add and concurrent reorder not yet independently tested against the new code (the design predicts both are protected the same way as add — reorder with the documented CRDT-move caveat — but neither has been run)
+- [ ] Bug 1 follow-up: decide whether sync=off configurations (C1/C3/C5/C7) need a separate mitigation (fix option 1 or 2) — the `Y.Array` fix only protects sync=on, unchanged from the original design's documented scope limitation
 - [ ] Root-cause the exact trigger for `Invalid access: Add Yjs type to a document before reading data`
-- [ ] Independently reproduce (or rule out) Bug 3 (concurrent delete-vs-add) rather than relying on the shared-code-path inference — note the `Y.Array` design above fixes this for free if/when it's built, so this repro matters most if option (1)/(2) is chosen instead
-- [ ] Decide and document a fix approach for Bug 1 (see "Proposed fix approaches" and the fleshed-out "Fix design" section)
-- [ ] If the `Y.Array` design (option 3) is chosen: decide how sync=off configurations (C1/C3/C5/C7) are handled — accept as an unprotected known limitation, or build option (1)/(2) as a parallel mitigation for that mode specifically. Record the decision in this file.
 - [ ] Decide and document a fix approach for Bug 2
 - [x] **Bug 4 — root-caused and fixed.** `api/index.js`'s `Number(...)` coercion on ref-lookup ids was the defect (IndexedDB rows from every server-sourced write path are string-keyed, not numeric) — confirmed via direct `getItem('54035')` vs `getItem(54035)` A/B test, fixed at both call sites plus the matching defect in `sync-manager.js`'s skeleton stale-cleanup, verified live (add + delete, no reload, on the real page that originally reported it).
 - [ ] Bug 4 follow-up: `sync-manager.js`'s skeleton stale-cleanup logic was previously an inert no-op (its own `Number`/`Set-of-strings` mismatch meant it never actually deleted anything, regardless of whether items were genuinely stale). The fix makes it functional for the first time — do a regression pass specifically on skeleton bootstrap (site/pattern/tenant rows) to confirm it now correctly prunes genuinely-stale local rows without over-deleting anything still valid.

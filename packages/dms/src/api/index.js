@@ -87,8 +87,18 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
       }
 
       if (item[key] && typeof item[key]?.[Symbol.iterator] === 'function') {
-        // Array of refs
-        const childIds = Array.from(item[key]).map(ref => ref.id || ref).filter(Boolean);
+        // Array of refs. `ref` is normally either a resolved-ref object
+        // ({id, ref, ...}) or, for legacy data, a bare id primitive — hence
+        // extracting `.id` with a fallback to `ref` itself. But `ref.id || ref`
+        // breaks when `ref` is an object whose `id` is explicitly null/missing
+        // (a malformed/incomplete ref): `null || ref` falls through to the
+        // whole REF OBJECT, not a primitive, which IndexedDB's `s.get()`
+        // rejects outright ("not a valid key") — a real crash, not a no-op.
+        // Only fall back to treating `ref` as a bare id when it's actually a
+        // primitive; an object with no usable id has nothing to resolve.
+        const childIds = Array.from(item[key])
+          .map(ref => (ref && typeof ref === 'object') ? ref.id : ref)
+          .filter(Boolean);
         if (childIds.length > 0) {
           // IndexedDB keys are strictly typed. Every server-synced row (the
           // vast majority — bootstrap/delta/WS-applied items, and localCreate's

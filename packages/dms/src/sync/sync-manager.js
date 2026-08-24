@@ -67,6 +67,24 @@ function apiUrl(path) {
   return `${_apiHost}${path}`;
 }
 
+// Matches the Authorization convention used everywhere else in this client
+// (e.g. patterns/page/pages/edit/index.jsx's `Authorization: user?.token` —
+// a bare token, not "Bearer "-prefixed; the server's jwtAuth middleware
+// accepts both forms). /sync/push's fetch calls previously sent no auth
+// header at all, so req.availAuthContext.user was always null server-side —
+// invisible for create/update (only enforced when DMS_SYNC_AUTH=1) but a
+// guaranteed 401 for every delete, which checks auth unconditionally
+// regardless of DMS_SYNC_AUTH, even for an actually-logged-in user.
+function authHeaders() {
+  let token = '';
+  try {
+    token = (typeof window !== 'undefined' && window.localStorage.getItem('userToken')) || '';
+  } catch { /* localStorage unavailable (SSR, privacy mode) */ }
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: token }
+    : { 'Content-Type': 'application/json' };
+}
+
 // --- Bootstrap / Delta ---
 
 async function getLastRevision(scope = null) {
@@ -139,7 +157,7 @@ export async function bootstrapSkeleton() {
     // on every load. The server follows refs from the site row to discover
     // children (pattern items, etc.) rather than using hardcoded type conventions.
     const t0 = performance.now();
-    const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`));
+    const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`), { headers: authHeaders() });
     if (!res.ok) throw new Error(`skeleton bootstrap failed: ${res.status}`);
     const { items, revision } = await res.json();
     if (_DEV) console.log(`[sync]     skeleton: ${items.length} items (${(performance.now() - t0).toFixed(0)}ms)`);
@@ -234,7 +252,7 @@ async function _bootstrapPatternImpl(patternType) {
       const t0 = performance.now();
       let url = `/sync/bootstrap?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}`;
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
-      const res = await fetch(apiUrl(url));
+      const res = await fetch(apiUrl(url), { headers: authHeaders() });
       if (!res.ok) throw new Error(`pattern bootstrap failed: ${res.status}`);
       const { items, revision } = await res.json();
       const tFetch = performance.now();
@@ -250,7 +268,7 @@ async function _bootstrapPatternImpl(patternType) {
       const t0 = performance.now();
       let url = `/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}&since=${lastRev}`;
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
-      const res = await fetch(apiUrl(url));
+      const res = await fetch(apiUrl(url), { headers: authHeaders() });
       if (!res.ok) throw new Error(`pattern delta failed: ${res.status}`);
       const { changes, revision } = await res.json();
       if (_DEV) console.log(`[sync]     pattern '${patternType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
@@ -306,7 +324,7 @@ async function bootstrapFull() {
   try {
     if (lastRev === null) {
       const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}`));
+      const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}`), { headers: authHeaders() });
       if (!res.ok) throw new Error(`bootstrap failed: ${res.status}`);
       const { items, revision } = await res.json();
       const tFetch = performance.now();
@@ -319,7 +337,7 @@ async function bootstrapFull() {
       console.log(`[sync] bootstrapped ${items.length} items, revision=${revision}`);
     } else {
       const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`));
+      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`), { headers: authHeaders() });
       if (!res.ok) throw new Error(`delta failed: ${res.status}`);
       const { changes, revision } = await res.json();
       const tFetch = performance.now();
@@ -442,7 +460,7 @@ async function catchUp() {
   try {
     const lastRev = await getLastRevision();
     if (lastRev !== null) {
-      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`));
+      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`), { headers: authHeaders() });
       if (res.ok) {
         const { changes, revision } = await res.json();
 
@@ -486,7 +504,7 @@ export async function localCreate(app, type, data) {
     if (_DEV) console.log(`[sync] localCreate ${app}+${type} → pushing to server first`);
     const res = await fetch(pushUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ action: 'I', item: { app, type, data: dataStr } }),
     });
 
@@ -598,7 +616,7 @@ async function pushMutation(action, item) {
   try {
     const res = await fetch(pushUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ action, item }),
     });
 

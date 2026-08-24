@@ -9,6 +9,8 @@ import { SectionEdit, SectionView } from './section'
 import { isJson } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
+import { joinPageStructureRoom } from '../../../../sync/page-structure-provider.js'
+import { getParent } from '../../../../utils/type-utils.js'
 
 // ── Per-section chrome (border / radius / margin) ────────────────────────────
 // Compound-card layout model (see
@@ -161,6 +163,29 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
     const { Icon } = UI;
 
+    // Shared Y.Array room for this page's section list (see
+    // sync/page-structure-provider.js for why: concurrent add/delete/reorder
+    // used to compute a new array from whatever `value` this component last
+    // rendered with, so two clients editing the same page at once could
+    // silently drop each other's changes — see "Bug 1" in
+    // planning/tasks/current/concurrent-page-editing-data-loss.md). Only
+    // joined when sync is actually active — a page with multiple section
+    // groups mounts one of these per group, all sharing the same room via
+    // the provider's own ref-counting. `null` when sync is off, which is the
+    // signal save/remove/moveItem below use to fall back to the original
+    // plain-array behavior unchanged.
+    const roomRef = React.useRef(null);
+    React.useEffect(() => {
+        if (!item?.id || !globalThis.__dmsSyncAPI) return;
+        const room = joinPageStructureRoom(item.id, value);
+        roomRef.current = room;
+        return () => {
+            room.disconnect();
+            roomRef.current = null;
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- join once per page, not on every `value` change
+    }, [item?.id]);
+
     React.useEffect(() => {
         // if page changes while a section is being edited, reset.
         if(edit?.index >= 0) {
@@ -207,11 +232,81 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         })
     }
 
-    const save = /* async */ () => {
-
-        let cloneValue = cloneDeep(value || [])
+    const save = async () => {
         const trackingId = crypto.randomUUID();
         let action = ''
+        const room = roomRef.current;
+
+        // --- sync active: apply as a real Y.Array op, merges losslessly with
+        // any concurrent peer op instead of overwriting them. See
+        // sync/page-structure-provider.js.
+        //
+        // Important: the shared array holds ONLY resolved {id, ref} stubs —
+        // same shape as every other entry already in draft_sections — never
+        // raw unresolved content. An earlier version of this fix put the
+        // id-less "new section" placeholder straight into the shared array;
+        // once relayed to peers, EACH peer's own onChange (which sends the
+        // full merged array through the existing apiUpdate/dmsAttrsData
+        // "no id → create a row" path) would independently try to create a
+        // row for that same still-id-less placeholder — one section typed
+        // by one user came out as up to N duplicate rows across N
+        // concurrently-open clients. Resolving to a real id ourselves first
+        // (sync.localCreate/localUpdate, same calls dmsAttrsData would have
+        // made) and only ever sharing the resolved reference avoids that
+        // category of bug entirely — every entry in the array is always
+        // safe for any peer to read and re-send.
+        if (room) {
+            await room.ready;
+            const arr = room.sectionsArray;
+            // A page's own type is "{patternInstance}|page" — its sibling
+            // component type is "{patternInstance}|component", i.e. the same
+            // PARENT segment (per utils/type-utils.js's {parent}|{kind}
+            // scheme), not the page's own instance (pages have no instance
+            // name — getInstance("pages|page") is null, not "pages").
+            const componentType = `${getParent(item.type)}|component`;
+            const syncAPI = globalThis.__dmsSyncAPI;
+            if (edit.type === 'update') {
+                const targetId = edit.value?.id;
+                const stripped = { ...edit.value };
+                for (const k of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) delete stripped[k];
+                if (targetId != null) {
+                    await syncAPI.localUpdate(targetId, stripped);
+                }
+                action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
+                // Membership doesn't change on an update — nothing to insert/delete
+                // in the array, just re-send the current (unchanged) membership so
+                // this client's `has_changes`/history bookkeeping still fires below.
+            } else {
+                const newSectionData = {
+                    ...(edit.value || {}),
+                    trackingId,
+                    group: group?.name,
+                    is_draft: true,
+                    parent: JSON.stringify({
+                        id: item.id,
+                        ref: `${item.app}+${item.type}`
+                    })
+                };
+                const newId = await syncAPI.localCreate(item.app, componentType, newSectionData);
+                room.doc.transact(() => {
+                    const insertAt = Math.min(Math.max(edit.index, 0), arr.length);
+                    arr.insert(insertAt, [{ id: newId, ref: `${item.app}+${componentType}` }]);
+                });
+                action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
+            }
+            // Give any near-simultaneous peer op a chance to relay in before
+            // reading back and sending — see page-structure-provider.js's
+            // waitForQuiet for why this is load-bearing, not cosmetic.
+            await room.settle();
+            const merged = arr.toArray();
+            cancel()
+            setValues([...merged, ''])
+            onChange(merged, action)
+            return;
+        }
+
+        // --- sync inactive: original plain-array behavior, unchanged ---
+        let cloneValue = cloneDeep(value || [])
         if(edit.type === 'update') {
             cloneValue[edit.index] = { ...edit.value, _dirty: true }
 
@@ -237,7 +332,27 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
     }
 
-    const remove = (i) => {
+    const remove = async (i) => {
+        const action = `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
+        const room = roomRef.current;
+
+        if (room) {
+            await room.ready;
+            const arr = room.sectionsArray;
+            const targetId = edit.type === 'update' ? edit.value?.id : value?.[i]?.id;
+            const idx = targetId != null
+                ? arr.toArray().findIndex(r => String(r?.id) === String(targetId))
+                : (edit.type === 'update' ? edit.index : i);
+            room.doc.transact(() => {
+                if (idx >= 0 && idx < arr.length) arr.delete(idx, 1);
+            });
+            await room.settle();
+            const merged = arr.toArray();
+            cancel()
+            onChange(merged, action)
+            return;
+        }
+
         let cloneValue = cloneDeep(value)
 
         if(edit.type === 'update') {
@@ -245,7 +360,6 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         } else {
            cloneValue.splice(i, 1)
         }
-        const action = `removed section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         //console.log('remove', value, cloneValue)
         // console.log('edit on remove', edit)
         cancel()
@@ -256,10 +370,35 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         setEdit({index: i, value:value[i],type:'update'})
     }
 
-    function moveItem(from, dir) {
+    async function moveItem(from, dir) {
+        const room = roomRef.current;
+        let to = from + dir
+
+        // Known limitation (documented in the fix design in
+        // planning/tasks/current/concurrent-page-editing-data-loss.md):
+        // Y.Array has no native "move" primitive — this is delete+insert,
+        // same as the non-CRDT path below, just applied as one Yjs
+        // transaction. Safe for a single mover; two clients concurrently
+        // reordering overlapping items can still surprise (a well-known hard
+        // case for array CRDTs generally, not specific to this codebase).
+        if (room) {
+            await room.ready;
+            const arr = room.sectionsArray;
+            if(to < 0 || to >= arr.length){
+                return
+            }
+            room.doc.transact(() => {
+                const moved = arr.get(from);
+                arr.delete(from, 1);
+                arr.insert(to, [moved]);
+            });
+            await room.settle();
+            onChange(arr.toArray())
+            return;
+        }
+
         let cloneValue = cloneDeep(value)
         // remove `from` item and store it
-        let to = from + dir
 
         if(to < 0 || to >= cloneValue.length){
             return
