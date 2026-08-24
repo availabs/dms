@@ -44,7 +44,18 @@ class ClickHouseAdapter {
       password,
       database,
       request_timeout: 1_200_000,
-      max_open_connections: 10,
+      // Raised 10 -> 24 for the pm3 publish worker, which runs 16 concurrent per-TMC pipelines and
+      // would otherwise queue on sockets here rather than in its own pool. This is a CAP, not a
+      // preallocation, so it costs nothing when idle. ClickHouse's server-side
+      // `max_concurrent_queries` is 100 and is not the constraint.
+      max_open_connections: 24,
+      // ClickHouse's `keep_alive_timeout` on this host is 3s. The client's default idle socket TTL is
+      // 2500ms, which leaves only 500ms of margin — and a socket the server has already closed gives
+      // ECONNRESET ("socket hang up") when the client reuses it. Widening the pool above made sockets
+      // idle longer and drew exactly that on pm3 task 7160. Halving the TTL gives a comfortable
+      // margin; pm3 also retries transient resets, so this reduces the RATE rather than being the
+      // only defence.
+      keep_alive: { enabled: true, idle_socket_ttl: 1500 },
       clickhouse_settings: {
         async_insert: 1,
         wait_for_async_insert: 1,

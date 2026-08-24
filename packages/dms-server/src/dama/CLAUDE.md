@@ -68,7 +68,23 @@ One row per **versioned snapshot** of a source. Most plugins create exactly one 
 
 Each view has its own physical table at `{table_schema}.{table_name}`. The schema is whatever the producing worker decided — DAMA doesn't constrain it.
 
-For DAMA's column-aware UI to work against a view, the **source's** `metadata.columns` must accurately describe the columns the view's table actually has. (DAMA assumes one schema across all views of a source. If a future migration changes columns, write a new source.)
+For DAMA's column-aware UI to work against a view, the **source's** `metadata.columns` must accurately describe the columns the view's table actually has.
+
+#### ⚠ One schema per source — ALL views of a source must have exactly the same columns
+
+`metadata.columns` is a property of the SOURCE, so one list describes every view. This is a hard
+constraint, and the consequence is the part worth internalising:
+
+**Changing a dataType's column structure requires a NEW SOURCE** — not a new view, not an `ALTER`.
+There is nowhere else for the new column list to live. Two views of one source with different columns
+is a broken source, not a versioned one: the column-aware surfaces apply the source's list to
+whichever view is bound, so a mismatch renders columns empty or drops them **silently, with no error**.
+
+Put the other way round: **a source is the unit of schema; a view is the unit of vintage.** Reruns,
+per-year snapshots and republished versions are views. Anything that adds, removes or renames a column
+is a source.
+
+This was previously a parenthetical here and was read past — hence the promotion.
 
 ### `data_manager.tasks` and `data_manager.task_events`
 

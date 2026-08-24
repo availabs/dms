@@ -420,6 +420,33 @@ inline `style` string, so prefer more cells over richer cells.
 | `searchParams`    | `'id'`, `'value'`, `'rawValue'`, or unset. Encodes the row's id or this column's value into the URL. |
 | `isLinkExternal`  | Use a plain `<a target="_blank" rel="noopener noreferrer">` instead of React Router's `Link`. |
 
+#### ⚠ An `isLink` cell ALWAYS renders its anchor — including on rows where the value is null
+
+There is no empty-value guard: `Card.jsx` takes the `isLink` branch for every row and builds
+`url = ${location || valueFormattedForDisplay}${searchParams}`. On a column that is populated for
+only some rows, `location` unset + a missing value gives the literal string **`undefined`** in the
+href — e.g. `/edit/converted_reports/undefined` on 1,560 of 1,574 rows of a report library whose
+`page_path` is only filled in for the converted ones (measured 2026-08-19). It renders as a normal
+link, so it passes a visual review and fails a dead-link sweep.
+
+Two fixes, in preference order:
+
+1. **Bind the anchor to a calc that is `''` when there is no destination**, and drop `linkText` so
+   the cell's own value is both href and label:
+   ```js
+   // isDms ⇒ the column lives in the `data` JSONB; NO COMMAS in the expression, and no " as "
+   // inside a string literal either — the alias parser splits on the LAST " as ".
+   rowCalc("case when (data->>'page_path') is null or (data->>'page_path') = '' then '' else (data->>'page_path') end as open_path",
+           { normalName: "open_path", isLink: true, valueFontStyle: "metaXSLink" })
+   ```
+   An empty value renders an empty anchor — nothing to see, nothing to click — and a sibling
+   `case when … then 'legacy · not rebuilt' else 'rebuilt' end` cell says *why* the row has no link.
+2. Filter the rows that have no destination out of the section entirely, when that is honest for
+   the surface (it usually isn't for a search result list).
+
+Do **not** "fix" it with `location: '#'` or a fallback path: a link labelled `open →` that goes
+nowhere, or somewhere wrong, is worse than no link.
+
 A link cell's typography comes off the anchor, not the value div: Card.jsx drops
 `theme[valueFontStyle]` from the wrapper for a link cell and puts it on the `<Link>`/`<a>` instead (so a
 box-shaped token can't paint twice). So `{ isLink, location, valueFontStyle: 'labelSM' }` renders
