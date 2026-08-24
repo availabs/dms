@@ -419,6 +419,13 @@ any DMS page, not just reports. What's specific to reports:
   multi-measure **Table** (see the dedicated bullet below) — N value columns like a
   multi-measure Info Box, but a real paginated data grid, not a Card, and its own QuickControls
   Measure pill is a checklist instead of a single pick.
+  **2026-08-21: Route Compare and Info Box's reliability measures both now have a real live
+  authoring path** (gap #16, `report-authoring-ux-overhaul.md` Tier 8) — a Table's Measure pill
+  (QuickControls or AddGraphModal) has "Route Compare — add a '% vs Main' column per measure" and
+  "Reliability — add LOTTR/TTTR/Freeflow columns" toggles, both Table+Summary-only (see that
+  file's own gating rationale). The Python converter is no longer the only way to build either
+  shape — a live-authored Table with these toggles on is now structurally identical to what the
+  converter used to build by hand.
 - **The report's own attribution line (bottom of each AVL Graph/Info Box/Route Compare panel)
   names which join it's actually using — a real, live way to confirm the 2026-08-12
   metadata-join fix landed on a given page.** Before the fix: `... | (Join) NPMRDS TMC
@@ -502,6 +509,28 @@ any DMS page, not just reports. What's specific to reports:
   whether the specific failing section predates the fix** — if so, force a recompose (any QuickControls
   measure toggle) rather than re-diagnosing a working fix as broken. If a GENUINELY FRESH section
   (built via Add Graph or a live pick, after the fix) still fails, that's the real signal.
+- **One real exception to "force a recompose to fix a stale section," found 2026-08-21 building
+  Route Compare's delta column**: forcing a recompose only cleans up a column that ALREADY carries
+  a `target` in `MeasurePicker/index.js`'s `MANAGED_TARGETS` list (`xAxis`/`yAxis`/`color`/`delta`).
+  A picker-owned column shipped WITHOUT a `target` (the delta column's first cut had none) is
+  invisible to that replace-on-re-pick filter forever — no amount of re-picking removes it, since
+  the filter only ever matches on `target`, never on `origin` or column type. If a section has an
+  extra/duplicate column that a toggle-off should have removed and didn't, check whether that
+  column type is actually in `MANAGED_TARGETS` before assuming the toggle logic itself is broken —
+  confirmed live via a genuine `ClickHouseError: Unknown expression or function identifier
+  'ds.tmc'` (an orphaned, join-qualified delta column survived a re-pick that dropped the join).
+  Any NEW picker-owned column type added to `composeMeasureConfig.js` going forward needs a
+  `target` tag added to `MANAGED_TARGETS` at the same time, or it will hit this exact trap.
+- **`pgFederated` (a live Postgres table joined into a ClickHouse query via ClickHouse's own
+  `postgresql()` table function) is already a fully generic, tested dms-server join type** —
+  `dms-server/src/routes/uda/utils.js`'s `buildJoin` and the client-side `buildUdaConfig.js` both
+  already handle it, with its own dedicated test coverage (`tests/test-uda.js`'s "buildJoin
+  pgFederated branch"). Don't assume a measure that needs a Postgres-hosted join (like source
+  1410's LOTTR/TTTR/Freeflow reliability data) needs new dms-core/server work — it almost certainly
+  just needs a new `vocabulary.json` join entry + measure definitions, the same class of change as
+  adding `META_JOIN` originally was. Confirmed 2026-08-21 building Reliability
+  (`report-authoring-ux-overhaul.md` Tier 8B): zero dms-core changes, all the work was in
+  `src/themes/transportny/`.
 - **`scratchpad/npmrds-sub/dms-server.log` (a `tee`'d nodemon log, already running) is the fastest way
   to get the ACTUAL ClickHouse error text for a blank/broken report section** — the browser console
   only ever shows a generic "Error fetching data Array(N)" with no SQL detail. `grep -n
