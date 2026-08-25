@@ -118,7 +118,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
               <span className={menuTheme.syncStatusLabel}>{syncLabel}</span>
               {syncCollab.rooms > 0 && (
                 <div className={menuTheme.syncCollabWrapper}>
-                  <Icon icon={'Users'} className={menuTheme.syncCollabIcon} />
+                  <Icon icon={'UserCircle'} className={menuTheme.syncCollabIcon} />
                   <span>{syncCollab.peers > 1 ? syncCollab.peers : syncCollab.rooms}</span>
                 </div>
               )}
