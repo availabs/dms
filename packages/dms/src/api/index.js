@@ -464,6 +464,26 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 
 		// --- Sync intercept: write locally first ---
 		const sync = _getSyncAPI();
+
+		// An update to an EXISTING item is only sync-eligible once its type is
+		// locally scoped (isLocal). On a page's first structural edit in a
+		// session, isLocal is still false — it only flips true once the
+		// reactive bootstrapPattern() fired by the read side (dmsDataLoader,
+		// above) finishes, tens to hundreds of ms later. Without waiting here,
+		// this write (and any dms-format children it carries, e.g. `history`)
+		// falls through to plain Falcor: it persists correctly server-side but
+		// never touches local IndexedDB and never echoes back over WebSocket
+		// the way a sync.localUpdate/push does. The concurrent bootstrap then
+		// completes, flips isLocal permanently true, and every subsequent read
+		// switches to the local-first path — which never received this write —
+		// so the page renders as if the edit vanished until a hard reload
+		// forces a fresh bootstrap/delta. Awaiting bootstrapPattern (idempotent
+		// — a no-op if already loaded or already in flight) closes that race by
+		// making sure isLocal reflects reality before the write path is chosen.
+		if (sync && id && requestType !== 'updateType' && !sync.isLocal(app, type) && sync.bootstrapPattern && type) {
+			await sync.bootstrapPattern(type);
+		}
+
 		// Use sync for: updates/deletes of known types, AND creates (type may not be in scope yet)
 		const isSyncEligible = sync && requestType !== 'updateType' && (sync.isLocal(app, type) || (!id && attributeKeys.length > 0));
 		if (_DEV) {
