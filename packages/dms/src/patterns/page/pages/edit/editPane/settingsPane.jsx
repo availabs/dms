@@ -301,7 +301,7 @@ function SettingsPane () {
                   value: item.title,
                   onChange: (val) => {
                       console.log('Change page Name', val)
-                      updateTitle ( item, dataItems, val, user, apiUpdate)
+                      updateTitle ( item, dataItems, val, user, apiUpdate, baseUrl)
                   }
               },
               {

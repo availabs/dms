@@ -195,7 +195,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
               if (site) {
                   const rawPatterns = site.patterns || [];
                   await apiUpdate({
-                      data: { id: site.id, patterns: [...rawPatterns, { ref: `${app}+${siteInstance}|pattern`, id: +newId }] },
+                      data: { id: site.id, patterns: [...rawPatterns, { ref: `${app}+${patternType}`, id: +newId }] },
                       config: { format: siteFormat },
                       skipNavigate: true
                   });
@@ -410,7 +410,7 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
         if (site) {
           const existing = site.dms_envs || [];
           await apiUpdate({
-            data: { id: site.id, dms_envs: [...existing, { ref: `${app}+${siteInstance}|dmsenv`, id: +newId }] },
+            data: { id: site.id, dms_envs: [...existing, { ref: `${app}+${envType}`, id: +newId }] },
             config: { format: { app, type: siteType, attributes: [] } },
             skipNavigate: true
           });

@@ -513,10 +513,10 @@ multi-tenant (`off` / `on`), **Sync** = local-first sync (`off` / `on`).
 
 | # | SM | MT | Sync | Create page | Add section (single) | Add section (concurrent 3-4x) | Update section content (single) | Update section content (concurrent, same section) | Delete section (single) | Delete section (concurrent vs. add) | Delete page (single) | Delete page (concurrent, e.g. vs. edit-in-progress) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **C1** | legacy | off | off | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **C2** | legacy | off | on | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **C3** | legacy | on | off | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **C4** | legacy | on | on | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
+| **C1** | legacy | off | off | ✅ | ✅ | ❌⁴ **Bug 1** | ✅ | ✅⁵ | ✅ | ❌ **Bug 3** | ✅ | ✅⁶ |
+| **C2** | legacy | off | on | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ |
+| **C3** | legacy | on | off | ✅⁸ | ✅⁸ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅⁹ | ✅ | ✅ |
+| **C4** | legacy | on | on | ❌¹⁰ **new bug** | ❌¹⁰ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ |
 | **C5** | per-app | off | off | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
 | **C6** | per-app | off | **on** | ⚠️¹ | ✅ | ❌ **Bug 1** | ✅ | ❌ **Bug 2** | ✅ | ⏳ | ⏳ | ⏳ |
 | **C7** | per-app | on | off | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
@@ -539,6 +539,324 @@ yet tested.
 `sync.localCreate` correctly (confirmed in prior session), but was never
 tested under concurrency (e.g., two admins both running first-time setup)
 or as a repeated single-client regression check in this task.
+
+⁴ 4 concurrent adds (API-level, mirroring `sectionArray.jsx`'s sync-inactive
+fallback path exactly — see C1 findings below): 3 of 4 survived, 1 lost, plus
+one id appearing twice in the final array — a slightly different-shaped
+symptom than Bug 1's original "N adds, only 1 survives" (SQLite/legacy here
+vs. per-app/Postgres originally), but the same root cause: no CRDT, plain
+last-write-wins on the whole `draft_sections` array. Confirms the "Scope
+limitation" note in `page-structure-provider.js` (Bug 1's Y.Array fix is
+sync-only) is real, not just theoretical, for `sync=off`.
+
+⁵ Concurrent same-section content update (two `title` writes to one
+component row) correctly resolved last-write-wins with no corruption — this
+is expected and fine: a component's own scalar fields aren't a structural
+membership array, so there's nothing for a CRDT to protect here regardless
+of sync state.
+
+⁶ Concurrent page-delete vs. an in-flight section-create on that same page:
+the delete won the race; the section-create correctly failed with a clean
+`No item found with slug` error — no crash, no orphaned row, no corrupted
+state. A reasonable outcome for this combination.
+
+⁷ **Not a Yjs/CRDT bug at all** — a server-side SQLite id-allocation race,
+independent of sync on/off. See "C2 findings" below for the full mechanism;
+likely also the true explanation for C1's footnote ⁴ "one id appearing
+twice" (C1's create path and C2's create path both call the same
+`allocateId()` in `table-resolver.js`), which that footnote currently
+attributes to "no CRDT, last-write-wins" — worth double-checking/revising.
+
+⁸ Dual-path coverage: exercised on **both** the platform-admin root domain
+(app = master site, no subdomain) and an actual tenant subdomain (app = the
+tenant's own app) — multi-tenant's two materially different code paths per
+`dmsSiteFactory.jsx`. Both passed identically for create-page and
+add-section-single; remaining 7 columns were run tenant-subdomain-only (the
+more representative real-content path). See "C3 findings" below.
+
+⁹ Passed cleanly both times run: the delete won, the new add landed, no
+duplicate ids, no orphan. Differs from C1's footnote ⁶ scenario (that was
+page-delete vs. a section-create *racing to fail cleanly*) — this is
+section-delete vs. section-add on the *same still-alive* page, i.e. exactly
+Bug 3's inferred scenario. It did **not** reproduce data loss here, on
+`legacy`/SQLite — worth noting since Bug 1 (add vs. add) *does* reproduce on
+this exact combination (see the concurrent-add cell). Plain LWW on the same
+array can still coincidentally preserve both a delete and an unrelated add
+depending on ordering; this isn't a guarantee it's safe, just that this run
+didn't catch a loss. See "C3 findings" below.
+
+¹⁰ **New critical bug, distinct from footnote ⁷'s (C2's) finding, though the
+same root defect.** A **single client, zero concurrency**, doing nothing but
+the ordinary "create a page" action on a fresh multi-tenant + sync site,
+reproducibly and deterministically **silently destroys and replaces an
+unrelated, already-existing row** (observed: it overwrote the tenant's own
+auto-provisioned "Page 1" with the new page's content, in place, same id, no
+error surfaced to the user) — worse than footnote ⁷'s "id appears twice"
+symptom, and needs no timing race at all. Multi-tenant's *extra* provisioning
+(a second full site+auth-pattern+pages-pattern+page for the tenant, on top of
+the master's own) is what pushes this from "usually survives by luck on the
+first single-client write" (as C2 observed) to "collides on literally the
+first write, every time" — same `allocateId()`/`dms_id_seq` defect footnote ⁷
+documents, just guaranteed to trigger sooner because MT setups leave more
+pre-existing legacy-path rows below wherever the independent sync sequence
+happens to be. See "C4 findings" below for the full mechanism and evidence.
+
+¹¹ Blocked, not independently tested: once the very first single-client
+create silently corrupts an existing row (footnote ¹⁰), every subsequent
+stage in the same environment operates against already-corrupted state, so
+any result recorded past that point would not be a clean read on that stage
+specifically. Needs footnote ¹⁰'s bug fixed (or at minimum, an environment
+where the collision doesn't hit on the very first write) before these columns
+can be meaningfully exercised.
+
+### C1 findings (2026-08-25, legacy/off/off, SQLite scratch DB)
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c1.sqlite`,
+ports 4101/5301), fully isolated from the real dev servers. All 9 lifecycle
+columns exercised — 7 clean, 2 confirm already-documented sync=off
+limitations (Bug 1, Bug 3) rather than surfacing anything new.
+
+**Setup gotcha, not an app bug — worth recording so the next combination
+doesn't repeat it**: Vite merges `.env.<mode>` on top of the repo-root
+`.env` rather than replacing it, so a scratch mode file that simply *omits*
+`VITE_DMS_SYNC`/`VITE_DMS_MULTI_TENANT` still inherits `=1` from the real
+`.env` — the first attempt at this cell was silently testing sync=on/MT=on,
+not C1 at all (caught via `window.__dmsSyncAPI` unexpectedly being defined,
+and a sync-status "connected" badge rendering on a page that should have no
+sync UI at all). Fixed by setting both explicitly to `0` in the mode file.
+**Every other combination's runbook needs the same explicit-`0` treatment**,
+not just an omitted var.
+
+**Separate CLI tool bug found (not a matrix/app bug) — `dms page update
+--set`** (`packages/dms/cli/src/commands/page.js`'s `update()`) read-modify-
+writes via plain lodash `merge(cloneDeep(currentData), data)`, which merges
+arrays by index — the exact defect class Bug 12 already fixed in the app's
+own `wrapper.jsx` (`mergeWith` + array-replace customizer), just never
+applied to the CLI. Reproduced directly: setting `draft_sections` to a
+1-element array via `--set` against a page whose current `draft_sections`
+had 2 elements produced a 2-element array with the new value duplicated
+(target's surviving trailing index kept the OLD length, index-merged with
+the new single-element source). **Workaround used for all matrix testing**:
+use `--data` (full JSON, sent as-is, no client-side merge) for any
+`draft_sections`/array-valued field instead of `--set`. Not fixed as part of
+this task — flagging for a follow-up CLI fix (same `mergeWith` treatment).
+
+### C2 findings (2026-08-25, legacy/off/on, SQLite scratch DB) — new bug found: concurrent `/sync/push` creates can be assigned duplicate ids
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c2.sqlite`, ports 4102/5302), fully isolated from the real dev servers, driving the real sync API (`joinPageStructureRoom`, `localCreate`/`localUpdate`/`localDelete`) directly — same method already used to verify Bug 12/13. 7 of 9 lifecycle stages passed cleanly (including the Bug-13-adjacent "delete section, single" and "update section, concurrent same-section" cases). Both failures are the SAME underlying bug, not a Yjs/room issue:
+
+**Symptom.** 4 concurrent `localCreate` calls (2 from each of 2 tabs) for new sections produced only 3 distinct ids, with `id=6` and `id=7` each written twice — server log shows two separate `/sync/push` INSERT requests both resolving to `id=6` (revisions 11 and 13) and both resolving to `id=7` (revisions 12 and 14). The second push for each id landed via `ON CONFLICT(id) DO UPDATE`, silently overwriting the first push's row — one of the two logically distinct "add section" operations lost its data entirely, with no error surfaced anywhere in the final state (only visible via server log correlation). The same mechanism reproduced identically in the later "delete section (concurrent vs. add)" stage (final array `["6","7","7","8"]` — a literal duplicate id, Bug-13-shaped but NOT Bug 13's mechanism).
+
+**Root cause — not the Yjs room at all.** `packages/dms-server/src/db/adapters/sqlite.js`'s `beginTransaction()`/`commitTransaction()`/`rollbackTransaction()` (~line 308-323) are three unguarded `this.db.exec("BEGIN"/"COMMIT"/"ROLLBACK")` calls against ONE shared `better-sqlite3` connection, with no per-request locking or queueing. `/sync/push`'s handler (`sync.js` ~line 378) calls `allocateId()` (`table-resolver.js` ~line 341) between its own `beginTransaction()`/`commitTransaction()`, which for SQLite legacy mode does `INSERT INTO dms_id_seq DEFAULT VALUES RETURNING id` — an `AUTOINCREMENT` table meant to act as a shared sequence. Direct inspection of the scratch DB after the test confirms the mismatch: `dms_id_seq` (and `sqlite_sequence`) show only **1** row/counter value ever persisted, while `data_items` has real rows up through id **8** — the sequence-table allocation path is not reliably surviving concurrent request interleaving, so it keeps handing out ids that collide with rows already committed via a different path. This produced repeated `UNIQUE constraint failed: data_items.id` errors in the server log (surfacing to the browser as 500s — visible on nearly every mutating stage in this run, not just the two that ultimately failed), which then drove `sync-manager.js`'s `localCreate` into its offline-fallback retry path; that retry pushes a **client-generated temp id** via the same `ON CONFLICT DO UPDATE` insert, and when that temp id happens to coincide with a different concurrently-created row's real id, the retry's data silently overwrites it instead of erroring — which is the second half of how two distinct creates end up collapsed into one row.
+
+**Scope.** This is a `dms-server` SQLite-adapter concurrency bug, unrelated to sync being on/off and unrelated to `splitMode`. It does **not** affect the real Postgres-backed site (`shaun-test-app`/`mercury.availabs.org`) — Postgres's `nextval()` sequence path (also in `allocateId()`) is server-side-atomic and doesn't share this connection-transaction-nesting problem. It does very plausibly explain C1's footnote ⁴ ("one id appearing twice" under sync=off) — C1's create path (`dms.controller.js` line 959) calls the exact same `allocateId()`. Likely affects any SQLite-backed combination under real concurrent load: C1, C2 (confirmed), and by inference C5/C6/C7 whenever they use a SQLite scratch DB rather than Postgres.
+
+**Not fixed as part of this fork's directive** (test-matrix execution, not a fix task) — flagging for a dedicated follow-up. A fix likely needs either: (a) genuinely serializing `beginTransaction`/`commitTransaction` per-connection (a request queue/mutex around the SQLite adapter's transaction lifecycle), and/or (b) making `allocateId`'s SQLite path atomic without depending on transaction boundaries at all (e.g., `INSERT ... RETURNING id` on `dms_id_seq` in its own auto-committing statement, outside the caller's transaction).
+
+### C3 findings (2026-08-25, legacy/MT-on/sync-off, SQLite scratch DB)
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c3.sqlite`,
+ports 4103/5303), fully isolated from the real dev servers and from C1/C2's
+servers. First matrix cell requiring multi-tenant setup — see "Multi-tenant
+setup, worked out live" below for the mechanism, since the runbook's step 4
+didn't yet document the concrete steps.
+
+**Method.** Since `sync=off` means there is no `globalThis.__dmsSyncAPI` and
+no Yjs room to drive, mutations were issued via `falcor.call(['dms','data',
+'create'|'edit'|'delete'], [...])` — the **exact function** (`falcorGraph()`
+from `@availabs/avl-falcor`) the app's own `FalcorProvider`/`App.jsx` uses,
+dynamically imported in-browser via Vite's `@fs/` (same technique already
+used for `page-structure-provider.js` in C2's script), not a hand-rolled HTTP
+request. Auth flows through `window.localStorage.userToken`, matching
+`CustomSource.onBeforeRequest`'s real lookup. This is genuinely
+"`sectionArray.jsx`'s sync-inactive fallback path," matching C1's footnote ⁴
+description, just invoked directly instead of through UI clicks — concurrent
+`draft_sections` adds/deletes were done as real client-computed
+read-current-full-array → write-new-full-array pairs, mirroring the actual
+non-sync code path exactly (no Yjs anywhere in this cell).
+
+**Verification pitfall hit and fixed, worth recording**: reading server state
+back via a **shared/reused** `falcorGraph()` Model instance across
+create→edit→get calls on the same simulated client returns **locally
+cached, pre-edit data** — Falcor's own client-side graph cache serves `.get()`
+straight from memory without a network round-trip when the same path was
+already populated by an earlier `.create()`/`.get()` response, and the
+`edit`/`delete` calls used here didn't reliably invalidate that local cache.
+This produced several false "still stale" failures on the first attempt (`add
+section (single)` and others reading back `draft_sections: []` immediately
+after a successfully-persisted edit — confirmed via `dms raw get` that the
+server row was actually correct the whole time). **Fix**: every
+verification read constructs a **brand-new** `falcorGraph()` Model with no
+shared cache, forcing a real network round-trip. Second pitfall: a
+missing/deleted id's `.get()` resolves to a real object `{id: null}` (Falcor's
+not-found sentinel), not an absent path — checking the object's truthiness
+instead of `.id !== null` reads a deleted row as "still present." Both were
+script bugs in this run's test harness, not app defects — noted here so the
+next SQLite-scratch cell (C5/C7) doesn't waste time rediscovering them.
+
+**Multi-tenant setup, worked out live** (the runbook's step 4 said "creating
+the master site alone isn't enough," but not the concrete mechanism — now
+documented): a "tenant" is its own full DMS site living under its own `app`
+value, referenced from the master site's `tenants` array. The signup page
+(`AuthSignup`'s `isTenantSignup` branch, `patterns/auth/pages/authSignup.jsx`)
+detects "multi-tenant + root domain, no subdomain" and, instead of a normal
+login form, shows an Organization Name / Subdomain / Email / Password form.
+Submitting it (1) creates an auth project + first user via `/init/setup`
+(project = the subdomain slug, not the master app), (2) creates a
+`{siteInstance}|{slug}:tenant` row on the **master** app with
+`{name, subdomain, app: slug}`, (3) appends a ref to it onto the master
+site's own `tenants` array, (4) creates the tenant's **own** `{siteInstance}
+:site` row under `app = slug`, (5) creates the tenant's own auth pattern, (6)
+provisions the selected site template's patterns/pages under the tenant's
+app (`provisionTemplatePatterns` in `utils/tenantProvisioning.js`), (7) does
+a **full-page redirect** (different origin, can't use client-side `navigate`)
+to `${protocol}//${slug}.${host}${baseUrl}/login`. Requests against
+`<subdomain>.localhost:<port>` resolve out of the box (standard `*.localhost`
+behavior, no `/etc/hosts` edit needed) — `dmsSiteFactory.jsx` reads the
+subdomain, matches it against the master site's `tenants[].subdomain`, and
+swaps every app reference to the matched tenant's own `app` for the rest of
+that request's routing (`tenantApp`/`tenantDmsConfig` substitution — a
+materially different code path from the single-tenant/root-domain one, not
+just a flag, confirming the task file's existing note about this).
+
+**Master vs. tenant path, both tested (dual-path, footnote ⁸)**: create-page
+and add-section-single were run identically against both the **root domain**
+(platform-admin, `app = matrix-c3`, the master site itself) and the
+**tenant subdomain** (`acmec4.localhost:5303`, `app = acmec3`) — both passed
+cleanly, confirming the write path itself doesn't differ between master and
+tenant once past `dmsSiteFactory`'s app-resolution step. The remaining 7
+lifecycle columns were run tenant-subdomain-only.
+
+**Bug 1 reproduces here too (concurrent add)**: 4 concurrent adds (2 tabs ×
+2 each) — 2 of 5 expected ids survived into the final `draft_sections`
+(`sec1Id` and the last writer's id), 3 silently lost. Identical mechanism to
+C1's footnote ⁴ and the original Bug 1 repro: plain client-computed
+read-modify-write on the whole array, last write wins, no per-element merge —
+`sync=off` has no Yjs `Y.Array` protection regardless of `splitMode`/`MT`.
+Reproduced identically across 2 full runs (not a fluke). **This confirms Bug
+1 is unconditional on the multi-tenant axis**, matching the existing
+"predates sync entirely, sync on/off both affected" root-cause conclusion.
+
+**Everything else passed cleanly**, including the scenario Bug 3 predicted
+would likely also lose data (delete-vs-add on the same page, footnote ⁹) —
+it did not, in this run. Not a guarantee the race is safe in general (LWW on
+a shared array can still coincidentally preserve both writers depending on
+timing/ordering), but worth recording precisely rather than over-claiming
+Bug 3 as confirmed here.
+
+### C4 findings (2026-08-25, legacy/MT-on/sync-on, SQLite scratch DB) — new critical bug: single-client sync create silently destroys an unrelated existing row
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c4.sqlite`,
+ports 4104/5304), fully isolated from the real dev servers and from
+C1/C2/C3's servers. Setup mirrored C3's (see its write-up for the tenant
+mechanism) but drove mutations through the real sync API
+(`globalThis.__dmsSyncAPI`, `joinPageStructureRoom`) exactly like C2's
+script, since sync is on for this cell.
+
+**Symptom, found on the very first single-client action — no concurrency
+involved at all.** The dual-path root-domain `create page (single)` call
+(`api.localCreate('matrix-c4', 'pages|page', {...})`, one client, one call)
+came back from the server as HTTP 500. The client reported success anyway
+(sync's own offline/retry-with-fallback path silently absorbed the error)
+with `id: 6` — but `id: 6` on the server was **not** a new page. It was the
+tenant (`acmec4`)'s own **site row** (`type: test:site`). Reading it back
+directly from the SQLite file confirmed the site row's `data` column had
+been **completely overwritten** with the new page's content
+(`{"title":"C4 Root Test Page", "draft_sections":[...], ...}`), destroying
+the tenant's actual site definition (its `patterns`/`tenants`/`dms_envs`
+refs — everything) in place.
+
+**Clean, deterministic, single-client reproduction (isolated from any prior
+corrupted state)**: wiped `matrix-c4.sqlite`, restarted the server fresh,
+recreated the master site and one tenant via the real signup wizard (9 rows
+total: master's site/auth-pattern/pages-pattern/page = ids 1–4, tenant's
+tenant-row/site/auth-pattern/pages-pattern/page = ids 5–9), then — as the
+tenant, one browser context, one call, zero concurrency —
+`api.localCreate('acmec4', 'pages|page', {title: 'Solo Test Page', ...})`.
+Client reported success with `id: 9`. Server log:
+
+```
+<SqliteAdapter> Query error: UNIQUE constraint failed: data_items.id
+  Original values: [2, 'acmec4', 'pages|page', '{"title":"Solo Test Page",...}', 3]
+[sync/push] error: UNIQUE constraint failed: data_items.id
+[sync/push] I app=acmec4 type=pages|page id=9 0.2KB rev=16
+```
+
+Reading `data_items` row 9 directly afterward: `data` = `{"title":"Solo Test
+Page",...}` — **the tenant's own auto-provisioned "Page 1" (the Simple Site
+template's page, id 9, created moments earlier by the signup wizard) is
+gone, silently replaced in place.** No error reached the user; the app
+believes it created a new page and shows it as such.
+
+**Root cause — same underlying defect footnote ⁷/C2 already documented,
+but MT setup makes it fire on the very first write instead of eventually
+under concurrent load.** `allocateId()`'s SQLite path (`dms_id_seq`
+sequence table, `table-resolver.js`) is completely independent of, and
+oblivious to, ids already consumed by the **non-sync** `falcor.call`
+path — which is what every site/tenant/pattern/template-page row goes
+through during setup (the signup wizard and `provisionTemplatePatterns`
+never touch sync; confirmed directly in C3's investigation of the same
+wizard code). C2 already showed `allocateId()`'s own sequence table
+persists unreliably under the SQLite adapter's unguarded shared-connection
+transaction handling (`beginTransaction`/`commitTransaction`/
+`rollbackTransaction` racing on one connection, no per-request lock) — in
+C2's single-tenant setup (~4 pre-existing rows) this usually didn't collide
+on the *first* single-client write, only surfacing under real concurrent
+load. **Multi-tenant setup roughly doubles the pre-existing row count**
+(a second full site+auth-pattern+pages-pattern+page for the tenant, on top
+of the master's own) — pushing the collision from "usually survives the
+first quiet write" to "collides deterministically on literally the first
+write" in this run. When `allocateId()` returns an id that collides
+(observed: `id=2`, already taken by an unrelated row), the insert fails
+server-side, and **sync-manager.js's client-side retry/offline-fallback
+path silently absorbs the failure and retries with a different id** — which
+in this reproduction landed on `id=9`, the *tenant's own already-existing
+page*, and the retry's `INSERT ... ON CONFLICT(id) DO UPDATE` insert
+overwrote it wholesale rather than erroring. The exact algorithm the client
+uses to pick the retry id (why 9, specifically, and not some other in-use
+id) was not traced to source in this pass — flagged as the next step for
+whoever picks up a fix, since footnote ⁷'s "temp id coincides with a
+different row's real id" description already anticipated this exact
+failure shape, just not yet with a live, deterministic, single-client demo.
+
+**Severity**: worse than footnote ⁷'s original C2 finding. That required
+concurrent requests to observe (an id "appearing twice," an interleaved
+insert getting clobbered). This reproduces with **one client, one action,
+zero timing dependency** — the very first "Add Page" or "Add Section" a
+real admin performs on a fresh multi-tenant + sync SQLite site can silently
+destroy an arbitrary already-existing row, with no error surfaced anywhere
+in the UI. Given every multi-tenant site's setup wizard leaves several rows
+already consumed before any sync write happens, this is very plausibly
+**the default, not an edge case**, for this specific combination
+(`legacy` split mode, SQLite backend, multi-tenant on, sync on).
+
+**Scope**: SQLite-adapter-specific, same as footnote ⁷ — the task file's
+existing scope note ("does not affect the real Postgres-backed site... likely
+affects any SQLite-backed combination under real concurrent load: C1, C2
+(confirmed), and by inference C5/C6/C7") should be revised to note that for
+**multi-tenant** SQLite combinations specifically (C4 confirmed, C7 by
+inference), this isn't only a concurrent-load risk — it can hit on the very
+first single-client write.
+
+**Remaining lifecycle columns not independently tested.** Once the first
+create silently corrupts existing state, every subsequent stage in the same
+environment runs against already-corrupted data, so results recorded past
+that point (an earlier, since-discarded run did reach as far as "add section
+concurrent" before crashing on a script-side null-check, produced by
+`getServerItem` not yet having the C3-discovered fix) wouldn't be a clean
+read on those specific stages. Marked ⏳ in the matrix rather than reporting
+numbers that would misattribute this bug's damage to a different column.
+**Not fixed as part of this fork's directive** (test-matrix execution, not a
+fix task) — flagging for the same follow-up that should address footnote ⁷,
+since it's the identical underlying defect.
+
+**Scripts**: `scratchpad/matrix-c3-full.mjs` (falcor.call-direct technique,
+dual-path), `scratchpad/matrix-c4-full.mjs` (sync-API technique, dual-path;
+note this script's run reflects the corrupted-environment run described
+above — rerunning it against a fresh DB will very likely reproduce the
+footnote ¹⁰ bug again on its very first stage rather than reaching the later
+columns), `scratchpad/matrix-c3-setup.mjs` / `matrix-c3-tenant-setup.mjs`
+(master + tenant creation, reusable for C5/C7's multi-tenant setup).
 
 ### How to execute an untested cell
 
@@ -564,7 +882,10 @@ whoever runs the remaining cells):
 
 ### Findings by combination (append here as cells are filled in)
 
-*(none yet beyond C6, documented above)*
+See the dated "### C_ findings" subsections above the "How to execute"
+runbook for C1, C2, C3, and C4 (each with its own root-cause writeup), plus
+Bugs 1–4's original write-ups earlier in this file for C6/C8. C5 and C7
+remain untested.
 
 ## Proposed fix approaches
 

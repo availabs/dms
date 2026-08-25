@@ -54,7 +54,7 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
 }
 
-export const newPage = async (item, dataItems, user, apiUpdate, template) => {
+export const newPage = async (item, dataItems, user, apiUpdate, template, baseUrl = '') => {
     // Siblings under the SAME parent the new page is about to be created under —
     // not top-level pages. Comparing against `!d.parent` regardless of where the
     // new page actually lands meant every "Add Page" click from inside a nested
@@ -91,10 +91,10 @@ export const newPage = async (item, dataItems, user, apiUpdate, template) => {
       if (template.theme !== undefined) newItem.theme = template.theme;
     }
 
-    await apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
+    await apiUpdate({data:newItem, newPath: `${baseUrl}/edit/${newItem.url_slug}`})
   }
 
-export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {
+export const updateTitle = async ( item, dataItems, value='', user, apiUpdate, baseUrl = '') => {
     if(!item.id) return;
     if(value !== item.title) {
       const newItem = {
@@ -105,7 +105,7 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
-      apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
+      apiUpdate({data:newItem, newPath: `${baseUrl}/edit/${newItem.url_slug}`})
     }
   }
 

@@ -18,7 +18,7 @@ function AddPageButton () {
 
     const handleSelect = async (template) => {
         setLoading(true);
-        await newPage(item, dataItems, user, apiUpdate, template);
+        await newPage(item, dataItems, user, apiUpdate, template, baseUrl);
         setLoading(false);
     };
 

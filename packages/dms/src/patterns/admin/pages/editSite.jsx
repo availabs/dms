@@ -268,7 +268,7 @@ function PatternList({
 			.filter(d => d !== '$__path')?.[0];
 
 		if (newId) {
-			const newData = [...value, { ref: `${app}+${siteInstance}|pattern`, id: +newId }];
+			const newData = [...value, { ref: `${app}+${patternType}`, id: +newId }];
 			onChange(newData);
 			onSubmit(newData);
 		}
@@ -279,6 +279,7 @@ function PatternList({
 			const pageType = `${slug}|page`;
 			await falcor.call(['dms', 'data', 'create'], [app, pageType, {
 				title: tmpl?.name ?? data.name,
+				url_slug: nameToSlug(tmpl?.name ?? data.name),
 				index: 0,
 				published: 'draft',
 				...(tmpl?.draft_sections !== undefined          ? { draft_sections: tmpl.draft_sections }             : {}),
@@ -574,7 +575,7 @@ function TenantList({
 			if (!newId) throw new Error('Failed to create tenant row');
 
 			// 3. Append tenant ref to master site
-			const newData = [...value, { ref: `${app}+${siteInstance}|tenant`, id: +newId }];
+			const newData = [...value, { ref: `${app}+${tenantType}`, id: +newId }];
 			onChange(newData);
 			onSubmit(newData);
 
@@ -587,9 +588,10 @@ function TenantList({
 			if (!tenantSiteId) throw new Error('Failed to create tenant site');
 
 			// 5. Create tenant's auth pattern
+			const authPatternType = `${siteInstance}|auth:pattern`;
 			const authPatternRes = await falcor.call(
 				['dms', 'data', 'create'],
-				[slug, `${siteInstance}|auth:pattern`, {
+				[slug, authPatternType, {
 					pattern_type: 'auth',
 					name: 'Auth',
 					base_url: 'auth',
@@ -613,7 +615,7 @@ function TenantList({
 				adminGroupName: slug,
 				subdomain: slug,
 			});
-			const allPatternRefs = [{ ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId }, ...templateRefs];
+			const allPatternRefs = [{ ref: `${slug}+${authPatternType}`, id: +authPatternId }, ...templateRefs];
 			const siteUpdate = { patterns: allPatternRefs };
 			if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
 			await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);
