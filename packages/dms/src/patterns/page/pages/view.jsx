@@ -53,14 +53,6 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       hasTrackedVisitRef.current = item.id;
     }, [item?.id, user?.isAuthenticating, search]);
 
-    if(isViewDenied){
-        if (user?.isAuthenticating) return null;
-        if (!user?.authed) {
-            return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
-        }
-        return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
-    }
-
     const menuItems = React.useMemo(() => {
         let items = dataItemsNav(dataItems,baseUrl,false)
         return items
@@ -175,7 +167,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       createDataSource: () => {},
   }), [item.dataSources]);
 
-    if (item?.id === 'no-access') {
+    if (isViewDenied || item?.id === 'no-access') {
         if (user?.isAuthenticating) return null;
         if (!user?.authed) {
             return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;

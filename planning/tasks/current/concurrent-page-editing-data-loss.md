@@ -517,10 +517,10 @@ multi-tenant (`off` / `on`), **Sync** = local-first sync (`off` / `on`).
 | **C2** | legacy | off | on | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ |
 | **C3** | legacy | on | off | ✅⁸ | ✅⁸ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅⁹ | ✅ | ✅ |
 | **C4** | legacy | on | on | ❌¹⁰ **new bug** | ❌¹⁰ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ |
-| **C5** | per-app | off | off | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **C6** | per-app | off | **on** | ⚠️¹ | ✅ | ❌ **Bug 1** | ✅ | ❌ **Bug 2** | ✅ | ⏳ | ⏳ | ⏳ |
-| **C7** | per-app | on | off | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ | ⏳ |
-| **C8** | per-app | on | **on** | ⏳ | ✅³ | ⏳ | ⏳ | ⏳ | ✅³ | ⏳ | ⏳ | ⏳ |
+| **C5** | per-app | off | off | ✅ | ✅ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅¹² | ✅ | ✅ |
+| **C6** | per-app | off | **on** | ⚠️¹ | ✅ | ✅¹⁶ (was ❌ Bug 1, stale pre-fix result) | ✅ | ❌ **Bug 2** | ✅ | ✅¹⁵ | ✅ | ✅ |
+| **C7** | per-app | on | off | ✅¹³ | ✅¹³ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅¹⁴ | ✅ | ✅ |
+| **C8** | per-app | on | **on** | ✅ | ✅³ | ✅ | ✅ | ✅ | ✅³ | ✅ | ✅ | ✅ |
 
 ³ Was ❌ **Bug 4** (page blanks permanently, needs hard reload) before the
 fix — both add and delete were re-verified live, post-fix, on this exact
@@ -609,6 +609,90 @@ specifically. Needs footnote ¹⁰'s bug fixed (or at minimum, an environment
 where the collision doesn't hit on the very first write) before these columns
 can be meaningfully exercised.
 
+¹² Passed cleanly: the delete won, the new add landed, no duplicate ids, no
+orphan — same outcome as C3's footnote ⁹ scenario (delete-vs-add on the same
+still-alive page), not a guarantee this cell is safe under real timing
+pressure, just that this run didn't catch a loss. Bug 1 (add-vs-add) *does*
+reproduce on this exact combination (see the concurrent-add cell) — see C5
+findings below.
+
+¹³ Dual-path coverage: exercised on **both** the platform-admin root domain
+and an actual tenant subdomain — multi-tenant's two materially different
+code paths per `dmsSiteFactory.jsx`. Both passed identically for create-page
+and add-section-single, **and neither showed any `allocateId()`/`dms_id_seq`-
+class id collision** (footnote ⁷/C2, footnote ¹⁰/C4) — every pre-existing row
+on both hosts (site, both patterns, template page, plus the tenant ref on
+ROOT) was verified byte-for-byte intact immediately after the new page's
+create call. This directly answers the open question C5's findings raised
+("worth checking explicitly if C7 (per-app + MT) reproduces C4's... severity
+or not") — **it does not reproduce at all here**, and the root cause is
+structural, not incidental: see C7 findings below for why `per-app` split
+mode's per-app sequence tables (`seq__<app>`) make this bug's mechanism
+impossible by construction, not just less likely. Remaining 7 columns run
+tenant-subdomain-only, the more representative real-content path, per the
+same convention as C3/C4.
+
+¹⁴ Passed cleanly: the delete won, the new add landed, no duplicate ids, no
+orphan — same outcome as C3's footnote ⁹ and C5's footnote ¹² (delete-vs-add
+on the same still-alive page), not a guarantee this cell is safe under real
+timing pressure, just that this run didn't catch a loss.
+
+¹⁵ Filled in 2026-08-25, completing C6's remaining 3 cells against a fresh
+`per-app`/MT-off/sync-on scratch environment (`matrix-c6.sqlite`, ports
+4106/5306). All three passed cleanly:
+- **Delete section (concurrent vs. add)**: one client deleted an existing
+  section while another concurrently added a new one, via the same
+  `Y.Array`-backed `page-structure-provider.js` room used for Bug 1's fix
+  (`sectionsArray`/`localUpdate`). Final `draft_sections` correctly reflected
+  both operations — the delete's target gone, the concurrent add present, no
+  duplicate ids. Consistent with C3/C5/C7's identical "delete-vs-add" result
+  on other combinations.
+- **Delete page (single)**: `localDelete` on a page correctly removed it
+  server-side, verified via `/sync/bootstrap` re-fetch (not just client-
+  reported success).
+- **Delete page (concurrent vs. in-progress edit)**: one client deleted a
+  page while another concurrently pushed a title update to that same page.
+  The delete won the race; the losing update's `pushMutation` failed cleanly
+  with a `404 Item not found` (logged to the browser console, not thrown
+  uncaught) — no crash, no corrupted/partial row, no orphan. Matches C1's
+  footnote ⁶ outcome (a clean race loss is an acceptable result here; LWW
+  between "edit" and "delete" isn't a data-loss bug the way `draft_sections`
+  membership races are).
+
+Session gotcha worth recording for future cells: the site-creation wizard's
+`app`/`type` identifiers come from `AdminContext` (ultimately
+`import.meta.env.VITE_DMS_APP`/`VITE_DMS_TYPE` in `App.jsx`), **not** from
+whatever is typed into the wizard's "Site Name" field — that field only sets
+the site row's `data.site_name`. A scratch `.env.matrix-cN` file that omits
+`VITE_DMS_APP`/`VITE_DMS_TYPE` silently inherits the real repo-root `.env`'s
+values (`shaun-test-app`/`test`, the user's actual dev site) instead of a
+fresh per-cell app name — the exact same "Vite merges `.env.<mode>` on top of
+the real `.env`" gotcha already documented for `VITE_DMS_SYNC`/
+`VITE_DMS_MULTI_TENANT`, just for a different pair of vars. Caught before any
+real data was touched (the scratch SQLite file is fully isolated regardless
+of which `app` string ends up in it — no cross-contamination risk with the
+real Postgres site — but the *test* would have silently been invalid,
+labeled as testing `matrix-c6` while actually exercising an unrelated app
+name). C5's and C7's `.env` files already set these two vars correctly; make
+sure every future scratch `.env.matrix-cN` file explicitly sets
+`VITE_DMS_APP`/`VITE_DMS_TYPE` too, not just the sync/MT flags.
+
+¹⁶ **Re-verified 2026-08-25, superseding the original ❌ Bug 1 result.** C6's
+"add section concurrent" cell originally carried the ❌ Bug 1 result from the
+*original pre-fix bug discovery* (against `stress-test-app`, before the
+`Y.Array` fix — see "Bug 1 implementation," ~line 1524 — even existed). That
+was stale: C8 (per-app/MT-**on**/sync-on, structurally identical to C6 except
+MT) already showed the fix protects this exact scenario. Re-ran against a
+fresh `per-app`/MT-off/sync-on scratch environment (`matrix-c6-rerun.sqlite`,
+ports 4106/5306) using the current, fully-patched code: 4 concurrent
+`localCreate` + `Y.Array` inserts (via `joinPageStructureRoom`) all survived,
+zero loss, zero duplicates (`draft_sections` ended with exactly 4 distinct
+ids). Confirms the Y.Array fix protects `per-app`/MT-off/sync-on, not just
+the MT-on combination C8 already verified — closes the "carried-forward
+stale result" gap for this cell. See "C6 re-verification + reorder test
+(sync=on)" below for the full write-up, including a concurrent-reorder test
+on the same environment.
+
 ### C1 findings (2026-08-25, legacy/off/off, SQLite scratch DB)
 
 Full run against a throwaway SQLite server/frontend pair (`matrix-c1.sqlite`,
@@ -652,6 +736,18 @@ Full run against a throwaway SQLite server/frontend pair (`matrix-c2.sqlite`, po
 **Scope.** This is a `dms-server` SQLite-adapter concurrency bug, unrelated to sync being on/off and unrelated to `splitMode`. It does **not** affect the real Postgres-backed site (`shaun-test-app`/`mercury.availabs.org`) — Postgres's `nextval()` sequence path (also in `allocateId()`) is server-side-atomic and doesn't share this connection-transaction-nesting problem. It does very plausibly explain C1's footnote ⁴ ("one id appearing twice" under sync=off) — C1's create path (`dms.controller.js` line 959) calls the exact same `allocateId()`. Likely affects any SQLite-backed combination under real concurrent load: C1, C2 (confirmed), and by inference C5/C6/C7 whenever they use a SQLite scratch DB rather than Postgres.
 
 **Not fixed as part of this fork's directive** (test-matrix execution, not a fix task) — flagging for a dedicated follow-up. A fix likely needs either: (a) genuinely serializing `beginTransaction`/`commitTransaction` per-connection (a request queue/mutex around the SQLite adapter's transaction lifecycle), and/or (b) making `allocateId`'s SQLite path atomic without depending on transaction boundaries at all (e.g., `INSERT ... RETURNING id` on `dms_id_seq` in its own auto-committing statement, outside the caller's transaction).
+
+### C2 re-verification (2026-08-25, against fully-patched code) — original diagnosis holds unchanged
+
+**Why this rerun happened.** C2's original run above predates (or its ordering relative to was never established against) eight sync-layer bugs found and fixed later in this same investigation — Bug 5 (sync push missing auth header), Bug 6 (malformed ref crash), Bug 7 (revision watermark race), Bug 8/9/10 (cross-tab reflection / echo suppression / WS broadcast filter), Bug 12 (room-seeding race), Bug 13 (server-side concurrent-join race duplicating a page's whole section list — mechanistically the closest thing to C2's own symptom). Since C2 exercises exactly the machinery those bugs touch (`joinPageStructureRoom`, `localCreate`, `/sync/push`), the original id-collision diagnosis needed confirming against the current code rather than being carried forward on trust.
+
+**Method.** Entirely fresh throwaway environment (`matrix-c2-rerun.sqlite`, ports 4102/5302, distinct DB file from the original `matrix-c2.sqlite`), same sync-API-direct technique, full 9-stage run.
+
+**Result: identical failure, down to the specific ids.** 7/9 passed. The same two stages failed with the same shape: "add section (concurrent 3-4x)" produced only 3 unique ids from 4 concurrent creates, and "delete section (concurrent vs. add)" produced final array `["6","7","7","8"]` — a literal duplicate id, matching the *exact same pattern* (not just the same category of failure) as the original run. Server log showed the identical `UNIQUE constraint failed: data_items.id` / `[sync/push] error` sequence. Direct DB inspection post-run confirmed the identical mechanism: `dms_id_seq` had only 1 row while `data_items` had rows up through id 8 — the sequence-table allocation path still isn't surviving concurrent request interleaving.
+
+**Conclusion.** None of Bugs 5–13 touch this failure mode — confirmed, not just inferred. It lives entirely in `sqlite.js`'s unguarded shared-connection transaction handling and `allocateId()`'s `dms_id_seq` path, a layer completely orthogonal to the Yjs room/WebSocket machinery those eight bugs fixed. The original C2 diagnosis and matrix row stand as correct and current — no changes needed to the matrix table or the original findings above. This rerun's value is confidence, not correction: it rules out "stale pre-fix result" as an explanation for C2's ❌ cells.
+
+**Scripts**: `scratchpad/matrix-c2-rerun-setup.mjs` (site creation), `scratchpad/matrix-c2-rerun-full.mjs` (full 9-stage run) — kept alongside the original `matrix-c2-*.mjs` scripts for history, not overwritten.
 
 ### C3 findings (2026-08-25, legacy/MT-on/sync-off, SQLite scratch DB)
 
@@ -834,9 +930,29 @@ already consumed before any sync write happens, this is very plausibly
 existing scope note ("does not affect the real Postgres-backed site... likely
 affects any SQLite-backed combination under real concurrent load: C1, C2
 (confirmed), and by inference C5/C6/C7") should be revised to note that for
-**multi-tenant** SQLite combinations specifically (C4 confirmed, C7 by
-inference), this isn't only a concurrent-load risk — it can hit on the very
-first single-client write.
+**multi-tenant** SQLite combinations specifically **in `legacy` split mode**
+(C4 confirmed), this isn't only a concurrent-load risk — it can hit on the
+very first single-client write. **Revised further, now that C7 has actually
+run**: the "C7 by inference" guess above was wrong — C7 (`per-app` + MT-on +
+sync-off) does **not** reproduce this bug at all, confirmed live (see "C7
+findings" below). The mechanism is specific to `legacy` mode's single shared
+`dms_id_seq`/`data_items` table across every app on the server; `per-app`
+mode gives each app (master and every tenant) its own table and its own id
+sequence, so there is no shared counter for multi-tenant provisioning to
+collide against in the first place. This narrows this bug's confirmed/
+inferred scope to **`legacy` split mode specifically** (C2 confirmed under
+concurrency, C4 confirmed on a single write under MT) — `per-app` mode
+(C5, C7 confirmed) is structurally unaffected, independent of multi-tenant
+or sync state.
+
+**Related but distinct — see Bug 14 below.** Reading the Postgres adapter for
+comparison (to confirm the "doesn't affect Postgres" claim) surfaced a
+separate, likely more severe defect in how `beginTransaction`/
+`commitTransaction`/`rollbackTransaction` acquire connections from the pool —
+not the same bug, not SQLite-specific, and would affect the real production
+Postgres backend. Code-level finding only, not yet live-verified (no Postgres
+server was available in this session) — see Bug 14's full write-up further
+down this file.
 
 **Remaining lifecycle columns not independently tested.** Once the first
 create silently corrupts existing state, every subsequent stage in the same
@@ -857,6 +973,335 @@ above — rerunning it against a fresh DB will very likely reproduce the
 footnote ¹⁰ bug again on its very first stage rather than reaching the later
 columns), `scratchpad/matrix-c3-setup.mjs` / `matrix-c3-tenant-setup.mjs`
 (master + tenant creation, reusable for C5/C7's multi-tenant setup).
+
+### C5 findings (2026-08-25, per-app/off/off, SQLite scratch DB)
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c5.sqlite`,
+ports 4105/5305), fully isolated from the real dev servers and from
+C1-C4's servers. First matrix cell to exercise `per-app` split mode.
+Method: same falcor.call-direct technique as C1/C3 (sync=off means there's no
+`__dmsSyncAPI`/Yjs room to drive) — single app, single host, no multi-tenant
+complexity (that's C7's job).
+
+**`per-app` is a genuinely different code path for SQLite too, not just
+Postgres.** `table-resolver.js`'s `resolveTable()`/`getSequenceName()` route
+a per-app SQLite app to its own table (`data_items__matrix_c5`, confirmed via
+direct DB inspection — the legacy `data_items` table stayed empty throughout
+this run) and its own id-allocation sequence table (`seq__matrix_c5`, distinct
+from legacy mode's shared `dms_id_seq`). One consequence worth noting for
+whoever picks up the `allocateId()` id-collision bug (footnote ⁷/C2, footnote
+¹⁰/C4): **`getServerItem`-style verification must use the app-namespaced
+Falcor route** (`dms.data[app].byId[id][attrs]`, per `dms.route.js` lines
+389-404 and the dms-server `CLAUDE.md`'s "per-app... tests use the
+app-namespaced route" note) — the legacy `dms.data.byId[id][attrs]` route
+only reads the shared/legacy table, which is empty for a per-app-only app, so
+every lookup silently returns nothing. Hit this directly while adapting C3's
+script for C5 (first run: 8 of 9 stages appeared to fail with
+`draft_sections=undefined`, purely a verification-script bug, not a product
+bug — fixed by switching `getServerItem` to the app-namespaced path; see
+`scratchpad/matrix-c5-full.mjs`).
+
+**Bug 1 reproduces on this combination, identically to C1/C3.** 4 concurrent
+`draft_sections` adds (client-computed full-array read-modify-write, mirroring
+`sectionArray.jsx`'s sync-inactive path): expected 5 unique section ids
+(1 prior + 4 concurrent) in the final array, got 2 (`["6","10"]`) — sections
+7, 8, 9 were created as fully-saved, correct, permanently orphaned rows (
+confirmed via direct DB read of `data_items__matrix_c5`), never referenced by
+the page. Same root cause as documented for C1/C2/C3/C6 (plain LWW on the
+whole array, no per-element merge, sync=off has no Yjs protection at all).
+
+**No `allocateId()`/`dms_id_seq`-class id collision observed in this run** —
+all 13 allocated ids (`seq__matrix_c5` table, 13 rows after the full 9-stage
+run) were unique, no `UNIQUE constraint failed` errors in the server log, no
+silently-overwritten unrelated row. Consistent with C2's finding that this
+bug needs either real concurrent *creates* (not just concurrent edits of an
+already-created row) or enough pre-existing rows to make a collision likely —
+this run's concurrent stage only ran section *creates* sequentially (4 calls
+in a plain loop) and made only the `draft_sections` *edit* concurrent, so it
+did not specifically stress-test the create-time race. `per-app` mode's
+separate per-app sequence table means a per-app site's total row count before
+any given write stays low (this run: 13 total, similar order to C1's
+low-collision-risk regime) unless multi-tenant provisioning inflates it the
+way it does in `legacy` mode (see C4) — worth checking explicitly if C7
+(per-app + MT) reproduces C4's "collides on the very first write" severity or
+not, since the per-app isolation might change that calculus.
+
+**All other 7 of 9 lifecycle stages passed cleanly**: create page, add
+section (single), update section content (single and concurrent-different-
+fields), delete section (single), delete section vs. add (concurrent — same
+outcome as C3's footnote ⁹, no loss this run), delete page (single), delete
+page vs. in-progress edit (concurrent — no crash, delete won).
+
+**Scripts**: `scratchpad/matrix-c5-setup.mjs` (site creation via the real
+`/list/create` wizard, single master site, no tenant), `scratchpad/matrix-c5-full.mjs`
+(full 9-stage falcor.call-direct run, adapted from `matrix-c3-full.mjs` with
+the app-namespaced byId fix above and MT/tenant-subdomain logic stripped out).
+
+### C7 findings (2026-08-25, per-app/MT-on/sync-off, SQLite scratch DB) — answers C5's open question: the C4 collision bug does NOT reproduce under `per-app` split mode, and the reason is structural
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c7.sqlite`,
+ports 4107/5307), fully isolated from the real dev servers and every other
+matrix cell's scratch environment. Combines C5's `per-app` technique with
+C3/C4's multi-tenant setup (real signup wizard, root-domain master +
+`acmec7.localhost` tenant subdomain). Method: falcor.call-direct (sync=off,
+no `__dmsSyncAPI`/Yjs room), using the app-namespaced `getServerItem` fix
+C5 already found necessary for `per-app` mode.
+
+**Headline result: the C4 critical bug (single-client, zero-concurrency
+create silently overwriting an unrelated existing row) does not reproduce
+here, on either the ROOT/platform-admin host or the TENANT host.** Verified
+directly, not just inferred from "no error surfaced": before each host's
+`create page` call, every existing row on that host (ROOT: site, auth
+pattern, pages pattern, template page, tenant ref — 5 rows; TENANT: site,
+auth pattern, pages pattern, template page — 4 rows) was read back via the
+app-namespaced byId route and recorded; immediately after the create call,
+the same set was re-read and diffed byte-for-byte against the recording.
+Zero rows changed type or title on either host, and the new page's
+server-assigned id (`6` on ROOT, `5` on TENANT) did not collide with any
+pre-existing row's id.
+
+**Why — this is structural, not a smaller/luckier version of the same race.**
+`table-resolver.js` routes `per-app` mode to a **separate table and a
+separate id sequence per app** (confirmed via direct DB inspection of
+`matrix-c7.sqlite`: `data_items__matrix_c7`/`seq__matrix_c7` for the master,
+`data_items__acmec7`/`seq__acmec7` for the tenant — the shared legacy
+`data_items`/`dms_id_seq` tables stayed completely empty, `0` rows, for the
+whole run). Footnote ¹⁰/C4's bug depends entirely on a **shared** sequence
+(`dms_id_seq`) whose next value can collide with a row from a *different*
+app's non-sync-path provisioning (master's rows and the tenant's rows both
+drew from the same counter in `legacy` mode). In `per-app` mode there is no
+shared counter to collide against in the first place — the master's 5
+pre-existing rows and the tenant's 4 pre-existing rows live in entirely
+separate tables with entirely separate sequences, so a fresh `per-app`
+create can only possibly collide with rows in its *own* app's table, and
+each app's own sequence correctly tracks its own next-free id (`seq__matrix_c7`
+had exactly 5 rows before the test, handing out `6` next; `seq__acmec7` had
+exactly 4, handing out `5` next — no gap, no reuse). **Multi-tenant
+provisioning still roughly doubles total row count across the whole SQLite
+file, same as it does in `legacy` mode** — the difference is that in
+`per-app` mode those extra rows land in a table the new write's own sequence
+never shares, so the "MT inflates pre-existing row count" mechanism that
+made C4 deterministic simply has nothing to inflate *into*. This confirms
+`per-app` mode is not just "the same bug, less likely to fire here" — for
+this specific defect class, it is architecturally immune. (This does not
+mean `per-app`/SQLite is immune to *all* concurrency issues — see the next
+paragraph, and C4's Bug 14/Postgres-pooling write-up remains orthogonal and
+unverified either way.)
+
+**Bug 1 (concurrent add loses sections) reproduces identically to
+C1/C3/C5/C6**, confirming it is unconditional on split mode, multi-tenant, or
+sync state (as already established) — this is the first time it's been
+confirmed on the `per-app` + multi-tenant combination specifically. 4
+concurrent `draft_sections` adds on the tenant page: expected 5 unique
+section ids in the final array (1 prior + 4 concurrent), got 2
+(`["6","10"]`) — sections 7, 8, 9 were created as fully-saved, correct,
+permanently orphaned rows in `data_items__acmec7`, never referenced by the
+page. Identical shape and root cause to every prior sync=off cell: plain
+last-write-wins on the whole array, no per-element merge, no Yjs protection
+because sync is off.
+
+**All other 7 of 9 lifecycle stages passed cleanly** on the tenant host (the
+representative MT path, per the runbook's convention): update section
+content (single and concurrent-different-fields), delete section (single),
+delete section vs. add (concurrent — delete won, new add landed, no dupes,
+no orphan — same outcome as C3's footnote ⁹ and C5's footnote ¹²), delete
+page (single), delete page vs. in-progress edit (concurrent — no crash,
+delete won). Dual-path create-page and add-section-single also passed
+cleanly on the ROOT/platform-admin host (see footnote ¹³).
+
+**Session gotcha, worth recording**: this cell's first setup attempt used a
+wrong relative path for the scratch-DB wipe (`data/matrix-c7.sqlite*` from
+`packages/dms-server/`, when the actual path is `src/db/data/matrix-c7.sqlite`
+per the server's own startup log) — the `rm` silently no-opped (file not
+found at that path) rather than erroring, so a "fresh" server restart
+actually reloaded a partially-corrupted prior run's data untouched. Caught
+via the browser signup flow reporting "Project already initialized" on what
+was assumed to be a virgin DB. **Always verify a scratch-DB wipe actually
+removed the real file** (`ls` the exact path the server logs on init, not an
+assumed path) before trusting a "clean run."
+
+**Scripts**: `scratchpad/matrix-c7-setup.mjs` (master site via the real
+`/list/create` wizard), `scratchpad/matrix-c7-tenant-setup.mjs` (tenant via
+`/auth/signup`, subdomain `acmec7`), `scratchpad/matrix-c7-full.mjs` (full
+9-stage falcor.call-direct run, dual-path root+tenant, adapted from
+`matrix-c3-full.mjs` with C5's app-namespaced `getServerItem` fix, plus an
+explicit pre/post row snapshot-and-diff on both hosts to directly verify the
+no-collision result above rather than just inferring it from clean create
+responses).
+
+### C8 findings (2026-08-25, per-app/MT-on/sync-on, SQLite scratch DB) — 11/11 passed; confirms Bug 1's Y.Array fix protects this combination, and per-app mode's no-collision result (C7) holds with sync on too
+
+Full run against a throwaway SQLite server/frontend pair (`matrix-c8.sqlite`,
+ports 4108/5308), fully isolated from the real dev servers and from every
+other matrix cell's scratch environment. **Distinct from C8's pre-existing
+real-Postgres-verified cells**: add-section-single and delete-section-single
+were already independently confirmed against the user's real dev site
+(`shaun-test-app`/`mercury.availabs.org`) post-Bug-4-fix (footnote ³, kept
+as-is, not re-touched here) — everything in this write-up is against fresh
+scratch SQLite instead, run for methodology consistency with C1-C7 and to
+fill the remaining ⏳ columns without touching real data. Setup mirrored
+C7's (master site via `/list/create`, tenant `acmec8` via `/auth/signup`),
+mutations driven through the real sync API (`globalThis.__dmsSyncAPI`,
+`joinPageStructureRoom`) exactly like C4's script, adapted to this cell's
+ports/app names (`scratchpad/matrix-c8-full.mjs`).
+
+**All 11 checks passed** (9 lifecycle columns plus the dual-path
+root/platform-admin re-checks of create-page and add-section-single,
+matching C3/C4/C7's dual-path convention): create page (root + tenant), add
+section single (root + tenant), add section concurrent 3-4x, update section
+content (single + concurrent different-fields), delete section (single),
+delete section vs. add (concurrent), delete page (single), delete page vs.
+in-progress edit (concurrent). Every result was cross-checked directly
+against the raw sqlite file (`data_items__acmec8`), not just the script's
+own server-fetch assertions — e.g. the tenant test page's final
+`draft_sections` read back as `["8","9","10","11"]` directly from the
+database, matching the script's reported state exactly.
+
+**Two things this cell specifically confirms, closing open questions from
+earlier cells:**
+
+1. **Bug 1's Y.Array fix (see "Bug 1 implementation," ~line 1156) does
+   protect concurrent structural edits on this combination.** The "Scope
+   limitation" note (~line 1284) predicted this: sync=on combinations (C2,
+   C4, C6, C8) should get the fix's protection, since it depends on a live
+   WebSocket room. This is the first sync=on, MT=on cell where "add section
+   concurrent" was actually exercised end-to-end without an environment bug
+   blocking it first (C4 never got this far — its create-page collision
+   corrupted state before this column could be tested; C6 tested this
+   column but under MT=off) — 4 concurrent adds landed as 4 distinct ids,
+   zero lost, zero duplicated. Confirms the fix generalizes to `per-app`
+   split mode, not just the `legacy`-mode environment it was originally
+   verified against.
+
+2. **The C4 id-collision bug does not reproduce here either**, extending
+   C7's finding (sync=off) to sync=on: `per-app` split mode's per-app/per-
+   tenant table and sequence isolation (`seq__matrix_c8`, `seq__acmec8`)
+   means multi-tenant provisioning never shares a counter with anything
+   else, regardless of whether sync is on or off. Between C7 and C8, the
+   collision bug is now confirmed **specific to `legacy` split mode**, not a
+   general "multi-tenant + SQLite" or "multi-tenant + sync" hazard — C4
+   remains the only cell where it's been observed, and both axes that
+   distinguish C4 from a clean cell (MT and sync) have now each been tested
+   independently in `per-app` mode (C7: MT-on/sync-off; C8: MT-on/sync-on)
+   without reproducing it. The task file's C4 "Scope" paragraph already
+   reflects the split-mode-specific framing after C7; this is corroborating
+   evidence, not a new revision needed.
+
+**Scripts**: `scratchpad/matrix-c8-setup.mjs` (master site via `/list/create`),
+`scratchpad/matrix-c8-tenant-setup.mjs` (tenant via `/auth/signup`, subdomain
+`acmec8`), `scratchpad/matrix-c8-full.mjs` (full dual-path sync-API run,
+adapted from `matrix-c4-full.mjs`).
+
+### Concurrent reorder test, sync=off (2026-08-25) — first-ever test of reorder under concurrency, closes half of the Bug 1 follow-up gap
+
+Concurrent reorder had never been independently tested anywhere in this task
+(flagged as an open item in the Testing checklist). Tested here against a
+lightweight, single-purpose scratch environment — `legacy` split mode, no
+multi-tenant, sync off (the C1 baseline combo) — since the point was to
+characterize the reorder mechanism itself, not repeat a full 9-column matrix
+cell. Server/frontend on ports 4109/5309, config `matrix-reorder-off`,
+isolated from every other scratch environment. Method: the same
+falcor.call-direct technique as C1/C3/C5/C7 (`falcor.call(['dms','data','edit'],
+...)`, dynamically imported via Vite's `@fs/`, no `__dmsSyncAPI` since sync is
+off) — i.e. exactly `sectionArray.jsx`'s `moveItem()` sync-inactive
+read-modify-write path: read the full `draft_sections` array, compute a new
+full array locally, write the new full array back.
+
+**Setup**: a page with 5 sections created sequentially (ids 5-9, `[5,6,7,8,9]`
+= `[ONE,TWO,THREE,FOUR,FIVE]`). Two clients (A, B) both read this same
+baseline, each computes a different, overlapping reorder:
+- Client A: move `ONE` (index 0) to after `THREE` → `[TWO,THREE,ONE,FOUR,FIVE]`
+  = `[6,7,5,8,9]`
+- Client B: move `FOUR` (index 3) to the front → `[FOUR,ONE,TWO,THREE,FIVE]`
+  = `[8,5,6,7,9]`
+
+Both writes fired via `Promise.all` near-simultaneously.
+
+**Result: plain last-write-wins, exactly as predicted by Bug 1's documented
+mechanism — but *not* as destructive as Bug 1's add case.** Final
+`draft_sections`: `["8","5","6","7","9"]` — client B's write landed last and
+won outright; client A's reorder was silently and completely discarded, no
+trace, no error, no partial application. Critically, unlike Bug 1's
+concurrent-add scenario: **all 5 original section ids are still present, in
+a valid (if not either client's intended) order, and there are zero
+duplicates.** Reorder doesn't create new rows the way add does, so there's
+nothing to end up permanently orphaned — the failure mode here is strictly
+"one user's reordering work vanishes without any indication," not "content is
+destroyed or duplicated." Still a real, user-visible correctness bug (client
+A would see their own reorder silently reverted, exactly the same
+"vanishes live, no reload needed" character Bug 1's original write-up
+documented for adds, since sync=off doesn't have this specific live-echo
+behavior — client A would only discover the loss on next read/reload) and
+falls under the same root cause and same open fix decision (Bug 1 follow-up:
+"decide whether sync=off configurations need a separate mitigation").
+
+**Scripts**: `scratchpad/matrix-reorder-off-setup.mjs` (site creation via
+`/list/create`), `scratchpad/matrix-reorder-off-run.mjs` (the reorder test
+itself).
+
+### C6 re-verification + reorder test, sync=on (2026-08-25) — closes the other half of the Bug 1 follow-up gap, and clears a stale pre-fix matrix result
+
+Two pieces of work against one fresh scratch environment (`per-app`/MT-off/
+sync-on, `matrix-c6-rerun.sqlite`, ports 4106/5306, config `matrix-c6-rerun`
+— a distinct DB/app name from the original `matrix-c6`, kept alongside it for
+history): re-verifying C6's "add section concurrent" cell against the
+current code, and testing concurrent reorder under sync=on as the
+counterpart to the sync=off reorder test directly above.
+
+**Part 1 — why C6's Bug 1 cell needed re-verification.** C6's matrix row
+carried a ❌ Bug 1 result for "add section concurrent" from the *original*
+live bug discovery (see "Bug 1," ~line 52, and "What's actually been
+tested," ~line 475, both against a scratch site called `stress-test-app`) —
+which predates the `Y.Array` fix ("Bug 1 implementation," ~line 1524)
+entirely; the matrix row was never updated after the fix landed. Meanwhile
+C8 (per-app/MT-**on**/sync-on — identical to C6 except multi-tenant is on)
+was freshly tested this session in the standardized scratch-environment
+methodology and found the fix works cleanly. Carrying forward C6's pre-fix
+result as current matrix truth was an oversight worth correcting rather than
+assuming "C8 passed, C6 probably would too."
+
+**Method and result.** Real sync API (`globalThis.__dmsSyncAPI`,
+`joinPageStructureRoom`), 4 browser contexts all joining the same fresh
+page's structure room, each doing one `localCreate` + `Y.Array` insert
+concurrently (mirroring the original Bug 1 repro and C8's methodology
+exactly). Result: **all 4 sections survived** — `draft_sections` ended with
+exactly 4 distinct ids (`["16","17","18","19"]` in one run), zero loss, zero
+duplicates. **The matrix's C6 cell is updated from ❌ Bug 1 to ✅¹⁶** (see
+footnote 16 above) — the Y.Array fix protects this combination too, closing
+the gap between "fix implemented and verified once, informally" and "fix
+confirmed via the same rigorous methodology used for every other matrix
+cell." C6's other cell involving Bug 2 (Yjs character-loss, "update section
+concurrent") was deliberately **not** re-run — that bug remains unfixed (see
+"For Bug 2," ~line 1646), so a re-run would be expected to reproduce
+identically and wouldn't change the matrix.
+
+**Part 2 — concurrent reorder, sync=on.** Same environment. Built a page
+with 4 sequentially-created sections (`ONE, TWO, THREE, FOUR`), then two
+fresh clients each joined the room and performed an overlapping move
+concurrently: client E moved `ONE` from the front to the end; client F moved
+`FOUR` from the end to the front — deliberately chosen so the two moves
+don't just undo each other. **Result: both moves merged correctly, no data
+loss, no duplication.** Final `draft_sections`: `["31","29","30","28"]`
+(`FOUR, TWO, THREE, ONE`) — `FOUR` (F's move) landed at the front and `ONE`
+(E's move) landed at the end, i.e. **both concurrent reorders were
+independently and correctly reflected in the final merged order**, not just
+"no corruption" but the actually-intended outcome of both operations. This
+is a materially better result than the sync=off reorder test directly above
+(which found *plain last-write-wins*, one client's reorder silently and
+completely discarded) — confirming the design doc's claim (`Bug 3
+(delete-vs-add) falls out of this design for free,` ~line 1512, which
+predicted `Y.Array`'s CRDT/RGA-family semantics protect move operations too,
+not just insert/delete) actually holds for reorder specifically, not just
+add/delete. **Together, the two reorder tests (this one + the sync=off one
+above) close the "Bug 1 follow-up: concurrent reorder not yet independently
+tested" checklist item** for the two combinations that most clearly bracket
+the mechanism (sync=on with the fix vs. sync=off without it); the remaining
+6 matrix cells' reorder behavior is inferred from the same shared code path,
+not independently run.
+
+**Scripts**: `scratchpad/matrix-c6-rerun-setup.mjs` (site creation),
+`scratchpad/matrix-c6-rerun-full.mjs` (both parts — concurrent add
+re-verification + concurrent reorder — in one run).
 
 ### How to execute an untested cell
 
@@ -883,9 +1328,21 @@ whoever runs the remaining cells):
 ### Findings by combination (append here as cells are filled in)
 
 See the dated "### C_ findings" subsections above the "How to execute"
-runbook for C1, C2, C3, and C4 (each with its own root-cause writeup), plus
-Bugs 1–4's original write-ups earlier in this file for C6/C8. C5 and C7
-remain untested.
+runbook for C1, C2, C3, C4, C5, C7, and C8 (each with its own root-cause
+writeup), plus Bugs 1–4's original write-ups earlier in this file for C6's
+original partial run and footnote ¹⁵ for C6's 3 remaining cells (filled in
+2026-08-25). **All 8 combinations are now fully filled in — the matrix is
+complete.** Remaining known failures are the already-characterized Bug 1
+(concurrent add, LWW loses sections — every sync=off cell plus C6's sync=on
+cell, since the Y.Array fix only protects sync=on paths that actually invoke
+it) and Bug 2 (concurrent same-position rich-text edit drops characters —
+C6 only, the one cell that exercised true simultaneous Lexical typing). No
+cell reproduced Bug 3 (inferred, never independently confirmed as a distinct
+failure — delete-vs-add passed cleanly everywhere it was tested: C1
+footnote⁶, C3 footnote⁹, C5 footnote¹², C6 footnote¹⁵, C7 footnote¹⁴) or
+Bug 4 (fixed before this matrix work began). The C4 id-collision bug is
+confirmed `legacy`-split-mode-specific (C7 footnote¹³ shows `per-app`
+structurally can't hit it).
 
 ## Proposed fix approaches
 
@@ -1571,8 +2028,85 @@ Found live from a direct user report on the real `page_1` (`54278`) site: *"now 
 
 **Files touched**: `packages/dms-server/src/routes/sync/ws.js` (`getOrCreateYDoc`'s `yjsDocLoads` single-flight fix); `packages/dms/src/patterns/page/components/sections/sectionArray.jsx` (`healRoomDuplicates` helper, wired into `save`/`remove`/`moveItem`).
 
+## Bug 14 — Postgres `beginTransaction`/`commitTransaction`/`rollbackTransaction` likely run on different pooled connections than the work they wrap, giving zero real atomicity — found via code review while investigating C4, **NOT YET LIVE-VERIFIED**
+
+**Status: code-level finding only.** Everything below is from reading `packages/dms-server/src/db/adapters/postgres.js` and its call sites, not from an observed failure or a live reproduction. No Postgres server was available in this environment to test against (only client tools — `psql`, `pgadmin4` — are installed; Docker's socket isn't accessible; a real server needs to be provisioned before this can move from "plausible" to "confirmed"). Do not treat this as fixed, disproven, or scheduled — it's a flag for someone with Postgres access to verify.
+
+**How this was found.** While exploring C4's SQLite id-collision bug (`allocateId()`'s `dms_id_seq` table racing under `sqlite.js`'s unguarded shared-connection `beginTransaction`/`commitTransaction`/`rollbackTransaction`, see C2/C4 findings above), the equivalent Postgres adapter code (`postgres.js`) was read for comparison — expecting it to be immune, per the existing scope note that Postgres's `nextval()` is server-side-atomic. **The `nextval()`-specific claim still holds** (Postgres sequences are genuinely non-transactional, so id allocation itself stays safe even under everything below) — but reading `beginTransaction`/`commitTransaction`/`rollbackTransaction` themselves surfaced a separate, likely more severe defect underneath.
+
+**The mechanism.** `PostgresAdapter.beginTransaction()` → `this.query("BEGIN;")` → `this.pool.query("BEGIN;")`. `commitTransaction()`/`rollbackTransaction()` are identical. Critically, `dms_db.promise(sql, values)` — used for the actual wrapped work in every transaction block in `dms.controller.js`/`sync.js` (e.g. `dms.controller.js` line ~813) — **also** goes through `this.pool.query(...)`. This is `node-postgres`'s own documented pitfall: `pool.query()` checks out an arbitrary idle connection, runs one statement, and immediately releases it back to the pool — it does not hold a connection across calls the way `pool.connect()` + `client.query()` does. So a `beginTransaction()` → work → `commitTransaction()` sequence has no guarantee any two of those three calls land on the same physical connection. `getConnection()` (which correctly does `this.pool.connect()`) exists on the adapter but is **not** what `beginTransaction`/`commitTransaction`/`rollbackTransaction`/`promise` use — those go through the pool directly. Confirmed via `grep`: every real call site (`dms.controller.js` lines 802/819/823, 871/888/891, 953/983/993, 1002/1034/1038; `sync.js` lines 379/428/439/459/480) calls `dms_db.beginTransaction()`/`commitTransaction()`/`rollbackTransaction()` directly on the adapter — the broken path, not the dedicated-connection one.
+
+**Why this would hide during normal single-user testing.** `pg.Pool`'s idle-connection reuse tends to behave like a stack — a just-released connection is often the next one handed out if nothing else claims it first. For one person acting alone with no overlapping requests, `BEGIN`/work/`COMMIT` will frequently land on the same connection by accident, masking the bug entirely. It should only become visible under **concurrent write traffic** — which is exactly the condition this whole task's matrix work is about, and which ordinary single-client manual testing (most of C1–C8 so far) wouldn't surface.
+
+**Plausible real-world consequences, if confirmed:**
+1. A write that throws mid-transaction may not actually roll back — the real `ROLLBACK` can land on an unrelated idle connection (Postgres treats it as a no-op / "no transaction in progress" warning) while whatever already executed on a *different* connection stays committed. Partial, non-atomic writes persisting instead of cleanly failing.
+2. The connection that ran `BEGIN` and gets released without ever seeing its own `COMMIT`/`ROLLBACK` is left by Postgres, from its own session's perspective, sitting inside an open transaction indefinitely. The next unrelated request that happens to draw that same pooled connection has its queries silently executing inside this stray leftover transaction.
+3. Under sustained concurrent load this could progressively reduce effective pool availability (stray "idle in transaction" connections), producing intermittent slowness/timeouts with no obvious correlation to the request that's actually failing.
+4. If `idle_in_transaction_session_timeout` is configured on the Postgres server, Postgres itself will eventually kill a stray connection — which can abort whichever *unrelated* request happened to inherit it next, surfacing as a random failed save disconnected from anything that user actually did.
+
+This failure profile — intermittent, not obviously tied to the affected user's own action, hard to reproduce on demand — is exactly the shape of bug report that tends to get dismissed as "network hiccup." Worth keeping in mind if there's any history of unexplained save failures or site sluggishness on the real Postgres-backed sites.
+
+**Scope**: affects every `dms_db.beginTransaction()`/`commitTransaction()`/`rollbackTransaction()` call site on the Postgres adapter — i.e., the real production backend (`mercury.availabs.org`/`dms3`, per `dms-sqlite.config.json`'s naming despite pointing at Postgres), not the SQLite scratch environments this task's matrix has mostly been testing against. Independent of split mode / multi-tenant / sync-on-off — it's in the adapter's connection handling, underneath all three axes.
+
+**Next step, blocked on environment access**: reproduce against a real (throwaway, not `mercury.availabs.org/dms3`) Postgres instance — fire concurrent writes via the same `Promise.all` technique used for C1–C4, then inspect `pg_stat_activity` directly for a connection sitting in `state = 'idle in transaction'` after its originating request has completed. That's the direct, unambiguous confirmation. No Postgres server was available in this session (client tools only; Docker inaccessible) — needs either a local install, Docker access, or a pointer to an existing scratch instance before this can be verified. **Not fixed, not scheduled — flagged for whoever picks this up next.**
+
+## Bug 15 — `PageView`'s Rules-of-Hooks violation intermittently blanks the page with "Unable to complete your request" — FOUND, ROOT-CAUSED, AND FIXED (2026-08-25)
+
+**Not part of the C1–C8 matrix or any of Bugs 1–14** — found live from a direct user report on a real multi-tenant/sync-on tenant (`test_bug_2`, on the same real dev server/Postgres backend as Bug 4/C8, `http://test_bug_2.localhost:5173/edit/page_1_1`): *"after adding a section page goes blank."* Investigated by a dedicated fork after two false starts (see "Investigation false starts" below) — the actual cause is a plain React correctness bug, unrelated to sync, CRDTs, or id allocation.
+
+**Root cause.** `packages/dms/src/patterns/page/pages/view.jsx`'s `PageView` component had a conditional early return (`if (isViewDenied) { ... return ...}`, originally ~line 56) positioned **between** two groups of hooks: several hooks above it (`useNavigate`, `useSearchParams`, `useLocation`, `useRef`, `useContext` ×2, `useImmer`, another `useRef`, one `useEffect`) always ran, but several more hooks below it (`useMemo` ×2 for `menuItems`/`menuItemsSecondNav`, `useCallback` for `resolveNav`/`setActionParam`/`clearActionParam`, two more `useEffect`s, and a `useMemo` for `dataSourceActions`) only ran when `isViewDenied` was false. `isViewDenied` is computed from `isUserAuthed(...)` and `pageState?.authPermissions` — both can legitimately evaluate differently between two renders of the *same mounted* `PageView` instance whenever auth state resolves asynchronously after initial mount (exactly the kind of timing multi-tenant + local-first sync introduces — see "Addressing the coordinator's `bootstrapPattern` lead" below for the specific window found). When that happens mid-session, React throws **"Rendered more hooks than during the previous render"**, which `RenderErrorBoundary` catches and renders as **"Unable to complete your request at the moment. Please try again later."** — page chrome/toolbar intact, content area empty. This is indistinguishable from "the page went blank" to a user, despite having nothing to do with `draft_sections`, IndexedDB, or any of Bugs 1–14's mechanisms.
+
+A second, textually similar early-return block later in the same component (`if (item?.id === 'no-access') {...}`, ~line 178, right before the main `return`) is **not** a Rules-of-Hooks violation — no hooks are called after it, so branching there doesn't change the hook count between renders. Only the first block (interleaved between two groups of hooks) was the defect.
+
+**Live-confirmed, repeatedly, on plain page loads — no click needed.** Across ~10 fresh navigations to the affected page in the investigating fork's session, the crash fired intermittently (~1 in 4–5 loads), always with an identical stack trace rooted at the `useMemo` calls in `view.jsx`. This matches a classic async-race-triggered Rules-of-Hooks bug: intermittent, not deterministic on every load, exactly as reported.
+
+**Fix** (`packages/dms/src/patterns/page/pages/view.jsx`): moved the `isViewDenied` early-return block down to immediately before the existing `if (item?.id === 'no-access')` block (merging into a single `if (isViewDenied || item?.id === 'no-access') {...}` guard right before the main `return`), so every hook in the component now runs unconditionally on every render regardless of denial state — only the final JSX differs. This is the standard fix for this bug class: compute all hooks unconditionally, branch only in what gets *returned*, never in *whether a hook executes*.
+
+**Verified live, post-fix**: 12 consecutive fresh navigations to `http://test_bug_2.localhost:5173/edit/page_1_1` (a full new browser context each time, matching how the intermittent failure was originally observed) — 0/12 crashed, versus the pre-fix ~1-in-4–5 rate. `eslint` on the file shows no new errors introduced (pre-existing `react/prop-types`/`no-unused-vars` noise on this file is unrelated and untouched).
+
+**Investigation false starts, worth recording.** Two earlier attempts in this session did not find the real bug, for instructive reasons:
+1. A first diagnostic script drove the sync API directly (`api.getItem(pageId)` to read the page's current `draft_sections` before appending a new section, then `api.localUpdate`) rather than going through the real UI or component state. Because the page's `pages|page` type wasn't yet in local sync scope at that exact moment, `getItem()` legitimately returned nothing, and the script's own fallback (`current?.draft_sections || []`) silently treated that as "page has zero existing sections" — overwriting the page's real `draft_sections` down to just the one new section, discarding (not deleting — the underlying rows were untouched) the references to 3 pre-existing sections. **This was a bug in the diagnostic script, not a product bug** — a useful reminder that `getItem()`/local-scope state should never be treated as authoritative for a "what does this page currently have" check without confirming `isLocal()` first, exactly the kind of gotcha `traversing-dms-pages.md` exists to accumulate.
+2. Manual native-DOM-click attempts to reproduce via literal Add→type→Save repeatedly landed on the page-level rearrange Settings popup instead of a section's true edit mode, per the already-documented hover-gated-button flakiness in `traversing-dms-pages.md`. This didn't produce a false finding, just consumed time before the investigation was delegated to a fork with a larger budget to work through the DOM-automation flakiness and pivot to reading the component source directly once a live crash was captured.
+
+**Addressing a live lead surfaced mid-investigation**: the user shared a real console-log excerpt from their own browser during their own reproduction attempt, showing `sync-manager.js`'s `bootstrapPattern` deduping a second concurrent call for `pages|page` while a warm delta (`lastRev=726048`, 2 changes) was still resolving. Reading `_bootstrapPatternImpl`'s delta branch (`sync-manager.js` ~line 295-322) confirms a real, if narrow, timing window: `invalidate('data_items')` fires *before* `addToScope()`/`_loadedPatterns.add()`, with an awaited `getDistinctAppTypesByAppAndPatternPrefix` call in between — long enough for a 150ms-debounced `router.revalidate()` (`dmsSiteFactory.jsx`) to re-run the loader and serve a differently-shaped `item`/`pageState` on one render pass than the render immediately before or after it. This is a very plausible explanation for *why* `isViewDenied` (which depends on `pageState?.authPermissions`, itself seeded from `item`) could flip transiently mid-session in exactly this multi-tenant+sync combination — not conclusively traced end-to-end within the investigating fork's time budget, but consistent with every observed fact. **Not a second bug requiring its own fix** — Bug 15's fix (hooks-unconditional) closes the crash regardless of what causes `isViewDenied` to flip, the same way a Rules-of-Hooks fix always should. Worth keeping in mind as context for *why* this bug was more visible on multi-tenant+sync than it might be elsewhere, if anyone investigates further.
+
+**Scope**: `PageView` is core `@availabs/dms` code (`patterns/page/pages/view.jsx`), used by every page pattern on every theme/site — not specific to `test_bug_2`, multi-tenant, or sync. Any site where `isUserAuthed`/`pageState?.authPermissions` can resolve asynchronously after a `PageView` instance's initial mount was equally exposed; multi-tenant + sync's extra async timing just made the window easier to hit in this investigation.
+
+**Files touched**: `packages/dms/src/patterns/page/pages/view.jsx` only.
+
+## Bug 16 (OPEN, NOT YET ROOT-CAUSED) — a page rename pushed an update to a server item id that doesn't exist (`404 Item not found`), and the same tenant's `change_log` shows a duplicate-delete of that same id 21 minutes after it was first deleted
+
+**Found by the user live, same investigation session as Bug 15, same tenant (`test_bug_2`)** — a separate console-log excerpt shared mid-session:
+
+```
+sync-manager.js:644  POST http://localhost:3001/sync/push 404 (Not Found)
+[sync] push U FAILED id=8: push failed: 404 {"error":"Item not found"}
+    at pushMutation (sync-manager.js:652:13)
+    at async flushPending (sync-manager.js:701:5)
+```
+
+triggered by a page-rename action. Investigated by reading `dms.change_log` directly (real Postgres, `mercury.availabs.org`/`dms3`, per-app schema `dms_test_bug_2` — **per-app split mode on Postgres uses one schema per app, `dms_<app>.data_items`, not a table-name suffix the way the SQLite scratch adapter does; this is a fact worth adding to the CLI/skills docs, it wasn't previously written down anywhere in this task and cost real time to discover via `information_schema.tables`**). The revision history for `app='test_bug_2'` shows item id **8** (`type: pages|page`) was:
+
+| revision | action | time |
+|---|---|---|
+| 726030 | Insert | 19:13:19.99 |
+| 726031 | Delete | 19:13:25.03 |
+| 726115 | Delete | 19:34:49.64 |
+| 726116 | Delete | 19:34:49.81 |
+
+Id 8 was created and deleted normally at 19:13. **21 minutes later, at 19:34:49, two more delete actions for the same already-gone id landed 163ms apart** — and the rename-triggered 404 happened around this same window. This strongly suggests a **stale client-side reference to a deleted item persisting well past its deletion** — something in local state (IndexedDB, an in-memory cache, or a ref embedded in another item, e.g. a page's `history` ref per `patterns/utils.js`'s `appendHistoryEntry` — worth checking first, since it's the one place a page item keeps a direct `{id, ref}` pointer to another row that isn't part of `draft_sections`) kept item 8 "alive" from the client's perspective long after the server correctly forgot it, and something eventually tried to act on it again (a delete retry, and/or the rename's own update targeting a stale id).
+
+**Not yet root-caused.** Candidate mechanisms, none confirmed:
+- `appendHistoryEntry` (`patterns/utils.js`) already has a defensive check for exactly this shape of bug (*"Only reuse existing row ID when entries are present — proof the DB row actually exists"*) — but the observed failure still happened, meaning either this guard doesn't cover the actual path being hit (e.g. the rename doesn't go through `appendHistoryEntry` at all for the id in question), or the guard's precondition (`existingHistory?.id && existingEntries.length > 0`) was satisfied with stale-but-populated data (the client's local cache had `id: 8` AND non-empty `entries`, i.e. genuinely believed it was a live, previously-used row).
+- The double-delete 163ms apart (726115/726116) is reminiscent of Bug 13's shape (two near-simultaneous operations for the same item landing separately) but for a *delete*, not a room-seed — could be a duplicate mutation queued twice client-side (e.g. sync retry logic re-sending a pending delete that already succeeded, if the local pending-queue wasn't cleared correctly on first success) rather than a server-side race.
+- Possibly connected to Bug 14 (Postgres connection-pooling/transaction defect) if the original 19:13 delete's transaction outcome was ambiguous to the client (e.g., it received a timeout/error despite the delete actually committing, then treated the item as "still exists, delete failed, retry later" — which would explain a stale local reference surviving a real server-side delete). Not verified — same Postgres-access blocker as Bug 14 itself.
+
+**Next steps for whoever picks this up**: (1) grep `patterns/page/pages/edit/editFunctions.jsx` and any "duplicate page"/rename call sites for what item ids get read from local vs. server state during a rename, specifically whether a stale `history` ref or a stale pending-mutation-queue entry could reference id 8; (2) check `sync-manager.js`'s pending-mutation queue (`flushPending`, the queue this failing `pushMutation` was flushed from) for whether a failed push is correctly removed from the queue vs. potentially retried indefinitely against a since-deleted id; (3) if reproducible, capture the exact client-side state (IndexedDB dump) at the moment of the 404 to see what item 8 looks like locally right before the failing push. **Status: reported, evidence gathered, root cause NOT identified — flagged for follow-up, not fixed.**
+
 ## Testing checklist
 
+- [x] **Bug 15 — `PageView`'s Rules-of-Hooks violation intermittently blanked the page with "Unable to complete your request" — fixed.** `view.jsx`'s `isViewDenied` early return sat between two groups of hooks; moved it down to merge with the existing `item?.id === 'no-access'` guard right before the final `return`, so every hook now runs unconditionally. Verified live: pre-fix ~1-in-4–5 fresh page loads crashed on `test_bug_2/page_1_1`; post-fix, 0/12 consecutive fresh loads crashed.
+- [ ] **Bug 16 (OPEN) — a page rename 404'd pushing an update to item id 8, and the same id shows a duplicate delete 21 minutes after its real deletion, on `test_bug_2`.** Root cause not identified — candidates are a stale `history` ref, a stale pending-mutation-queue retry, or an interaction with Bug 14's Postgres transaction-pooling defect. See Bug 16's write-up above for the full evidence and next-step leads.
 - [x] **Bug 9 — client-side echo suppression keyed by item id (not revision) permanently dropped a different client's concurrent edit — fixed.** Replaced `pendingItemIds` with revision-keyed `myRevisions` in `sync-manager.js`'s `ws.onmessage` and `applyChanges()`; removed the now-dead `pendingItemIds`/`countPendingMutationsForItem`. Verified live: pre-fix, a concurrent update was lost both live AND after reload (permanent); post-fix, correct in both cases.
 - [x] **Bug 10 — WS broadcast pattern filter didn't match sibling types, so section edits were never live-delivered to a client only subscribed to the page pattern — fixed.** `ws.js`'s `typeMatchesPattern` now also matches the pattern's own instance-prefix siblings, mirroring `sync.js`'s existing bootstrap/delta logic. Verified live: pre-fix, a concurrent section update recovered on reload but never appeared live; post-fix, appears live with no reload needed. Likely the dominant real-world cause of Bug 8's "flaky cross-tab reflection" — a hard miss on every section edit to a passively-watched page, not a timing race.
 - [x] **Bug 12 — page-structure room seeding raced a slow-but-real `yjs-sync-step2`, resurrecting a concurrently-deleted section (and, mid-fix, a related data-loss regression) — fixed.** `page-structure-provider.js`'s room-join used a blind 1s timeout to decide "room is empty, safe to seed from my own stale draft_sections" — under real WebSocket contention a genuinely non-empty room's real sync could arrive later than that, so seeding fired anyway and reintroduced (or duplicated) content another client had already correctly deleted. Fixed by deciding from `yjs-sync-step1`'s state vector (server always sends it immediately; empty ⇒ safe now, non-empty ⇒ a real `step2` is guaranteed and must be waited for) instead of a guess. Also fixed a related `lodash.merge`-on-arrays corruption in `wrapper.jsx`'s optimistic `apiUpdate` re-sync (real defect, `mergeWith` + array-replace customizer now used) — confirmed via isolated test but NOT the actual trigger for the reported symptom once live-verified against the real room-driven flow. Verified live with a temporary, deterministic 1500ms server-side join delay (added and fully removed after use): pre-fix reproduced both resurrection and duplication; fixing only the seed decision surfaced a new regression (mutations proceeding before real content arrived silently dropped other sections); the final fix (seed decision + `ready` itself waiting for confirmed content) reproduces neither failure mode — final state exactly matches expected membership, re-verified on two fresh disposable pages.
@@ -1586,14 +2120,15 @@ Found live from a direct user report on the real `page_1` (`54278`) site: *"now 
 - [ ] Bug 6 follow-up: root-cause *which* page/field actually had a null-id ref and how it got there (data-quality question, not a code-correctness one — the fix is safe regardless)
 - [ ] Fill in all 8 rows × 9 columns of the test matrix above (56 remaining cells; C6's row is partially done)
 - [x] **Bug 1 — implemented and live-verified.** `Y.Array`-backed page-structure collab (option 3), see "Bug 1 implementation — DONE, live-verified" above for the full writeup, including 3 bugs found and fixed during implementation (duplicate row creation from sharing unresolved content; missing settle/debounce letting the same race resurface one layer up; wrong `type-utils` function for the sibling component type). Verified live: 4 concurrent adds on a real Postgres-backed multi-tenant site, all 4 survive with correct types and no duplicates (2 separate clean runs); single-client delete confirmed working, no reload needed.
-- [ ] Bug 1 follow-up: concurrent delete-vs-add and concurrent reorder not yet independently tested against the new code (the design predicts both are protected the same way as add — reorder with the documented CRDT-move caveat — but neither has been run)
+- [x] Bug 1 follow-up: **concurrent delete-vs-add** — now independently confirmed protected under sync=on (C6 and C8 both tested this cell directly post-fix, both clean: both operations landed, no orphan, no duplicate). **Concurrent reorder, sync=off** — tested 2026-08-25 (see "Concurrent reorder test, sync=off" findings subsection above): confirmed unprotected, plain LWW, one client's reorder is silently discarded — but notably *not* destructive the way concurrent-add is (no orphaned rows, no lost section identities, just a discarded reorder). **Concurrent reorder, sync=on** — tested 2026-08-25 (see "C6 re-verification + reorder test, sync=on" findings subsection above): confirmed protected, both clients' overlapping moves merged correctly into the final order, no loss, no duplication — a materially better result than sync=off's plain LWW, matching the design's CRDT-move prediction. Both halves of this follow-up item are now closed.
 - [ ] Bug 1 follow-up: decide whether sync=off configurations (C1/C3/C5/C7) need a separate mitigation (fix option 1 or 2) — the `Y.Array` fix only protects sync=on, unchanged from the original design's documented scope limitation
 - [ ] Root-cause the exact trigger for `Invalid access: Add Yjs type to a document before reading data`
 - [ ] Decide and document a fix approach for Bug 2
 - [x] **Bug 4 — root-caused and fixed.** `api/index.js`'s `Number(...)` coercion on ref-lookup ids was the defect (IndexedDB rows from every server-sourced write path are string-keyed, not numeric) — confirmed via direct `getItem('54035')` vs `getItem(54035)` A/B test, fixed at both call sites plus the matching defect in `sync-manager.js`'s skeleton stale-cleanup, verified live (add + delete, no reload, on the real page that originally reported it).
 - [ ] Bug 4 follow-up: `sync-manager.js`'s skeleton stale-cleanup logic was previously an inert no-op (its own `Number`/`Set-of-strings` mismatch meant it never actually deleted anything, regardless of whether items were genuinely stale). The fix makes it functional for the first time — do a regression pass specifically on skeleton bootstrap (site/pattern/tenant rows) to confirm it now correctly prunes genuinely-stale local rows without over-deleting anything still valid.
 - [ ] Bug 4 follow-up: separately from the type bug, `sync.md`'s documented claim ("`bootstrapPattern()` fires when the user navigates to a pattern for the first time") still doesn't match observed behavior on the real site — bootstrap only fired reactively, triggered by the user's own edit, never proactively on navigation. Decide whether that's a real gap worth fixing (proactive bootstrap on navigation would mean fewer users ever hit the "first sync-eligible edit is slow/triggers a cold fetch" experience) or whether the docs should be corrected to describe the reactive-only behavior as intended.
-- [ ] Re-run the C1-C7 matrix cells with the fixed code for general regression coverage — none are expected to change (Bug 4's defect was independent of split mode/multi-tenant/sync-on-off), but this hasn't been explicitly re-verified outside of C6 and C8
+- [x] Re-run matrix cells that predate the sync-layer bug fixes (Bugs 5-13) for regression coverage. **C2** (legacy/off/on) re-run 2026-08-25 against fresh scratch code: identical result, confirms the id-collision bug is unrelated to Bugs 5-13 (see "C2 re-verification" findings above). **C6**'s "add section concurrent" cell was carried forward from a genuinely pre-fix (pre-Bug-1-implementation) result and has now been corrected from ❌ to ✅ after re-running against current code (see "C6 re-verification + reorder test, sync=on" above) — this was a real stale-result gap, not just a confidence check like C2's. **C1, C3, C5, C7** were not re-run: all four use the falcor-direct technique with no `__dmsSyncAPI`/room involvement at all, so Bugs 5-13 (all inside the sync/room machinery) are structurally inapplicable to them regardless of test timing — re-running would exercise the exact same code path already covered. **C4** was not re-run: its blocked columns fail deterministically on the very first write via a defect (`allocateId()`/`dms_id_seq`) unrelated to Bugs 5-13, so a re-run would reproduce the identical block.
 - [x] Grepped all of `packages/dms/src` for other `.map(Number)`/`Number(id)` coercions on an id that might hit an IndexedDB lookup — one more instance found, `api/index.js:643`'s `udaCreateView`, but it operates on a plain Falcor JSON-graph response's object keys (always strings by JS object-key convention) to compute a `Math.max()`, unrelated to `idb-store.js`/IndexedDB entirely — not the same bug family, left as-is. The type-coercion defect is fully contained to the 3 fixed call sites.
 - [ ] After Bugs 1/2/3 get a fix direction and land, re-run the specific matrix cells each targets, plus a regression pass on the cells that already passed (✅) to confirm no new breakage
+- [ ] **Bug 14 — Postgres `beginTransaction`/`commitTransaction`/`rollbackTransaction` likely run on different pooled connections than the work they wrap (code-level finding, NOT live-verified).** Needs a real (throwaway, not `mercury.availabs.org/dms3`) Postgres instance — none was available in this session (client tools only, no server binary, Docker socket inaccessible). Verify via concurrent writes + `pg_stat_activity` showing a stray `idle in transaction` connection. See Bug 14 write-up above for the full mechanism.
 - [ ] Once this task is closed out, evaluate whether any part of the concurrent-testing harness (multi-context Playwright helpers, the native-DOM-click workarounds for hover-gated buttons) is worth extracting into `src/dms/skills/` per `planning-rules.md`'s "When to extract a skill" — the hover-gated Settings-button click workaround in particular came up repeatedly this session and is already partially documented in `traversing-dms-pages.md`
