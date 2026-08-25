@@ -332,19 +332,26 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                                 return <span className={t.singleValue}>{text}</span>;
                             })() :
                             displayDetailedValues ?
-                                typeSafeValue
-                                    .filter(d => d)
-                                    .map((v, i) =>
-                                        <RenderToken
-                                            key={i}
-                                            token={v}
-                                            meta={meta}
-                                            value={typeSafeValue}
-                                            onChange={onChange}
-                                            isSearching={isSearching}
-                                            setIsSearching={setIsSearching}
-                                            t={t}
-                                        />) :
+                                (typeSafeValue.filter(d => d).length
+                                    ? typeSafeValue
+                                        .filter(d => d)
+                                        .map((v, i) =>
+                                            <RenderToken
+                                                key={i}
+                                                token={v}
+                                                meta={meta}
+                                                value={typeSafeValue}
+                                                onChange={onChange}
+                                                isSearching={isSearching}
+                                                setIsSearching={setIsSearching}
+                                                t={t}
+                                            />)
+                                    // Empty multi trigger: show a placeholder ONLY when the caller
+                                    // provided one (filter leaves author theirs, e.g. "All") —
+                                    // callers that pass none keep the previous blank trigger.
+                                    : (placeholder
+                                        ? <span className={t.singlePlaceholder}>{placeholder}</span>
+                                        : null)) :
                                 <div className={t.statusWrapper}>
                                     {typeSafeValue.length} selected
                                 </div>
