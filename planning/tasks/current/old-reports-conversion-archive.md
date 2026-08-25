@@ -18,6 +18,211 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 71 (2026-08-25) — pre-reconversion audit: census-based clean/needs-attention/junk classification of the full old-report corpus, plus tooling verification against the current (post-08-14) `_measurePick.routeWindows` model
+
+**Context**: Ryan wants to re-run bulk conversion but first wants (a) confirmation the converter's
+OUTPUT SHAPE still matches what the current report-rendering code expects — the data model kept
+moving after round 70 — and (b) a categorized clean/needs-attention/junk inventory of the full
+870-report old corpus, derived ONLY from signals `census_old_reports.py` already produces.
+Explicitly descoped, per Ryan: building new detection for whether a route-collapse changed a
+graph's semantics (e.g. whether a difference graph's arms merged) — only a binary-ish "did this
+convert cleanly" signal is wanted. Read-only/analysis-only round; no bulk conversion run, no code
+fixes (findings below are flagged, not fixed).
+
+**Finding 1 — `_measurePick` is stale again, 2 days after round 70 fixed it.** Round 70
+(2026-08-07) taught `section_builders.py`'s `build_graph_section_data` to write
+`display._measurePick = {weekdays, start, end, routeIds}` — one FLAT window applying uniformly to
+every route on a graph. But commit `cff5318` ("fix / change reports to store peak/dow on the
+graph, support for same route multiple times on one graph", 2026-08-14 — 2 days after
+`section_builders.py`'s own last touch, commit `5e595c3`, 2026-08-12) migrated the live rendering
+contract to a PER-ROUTE shape: `_measurePick.routeWindows`, `{[route_comp_id]: [{weekdays, start,
+end, color}, ...]}`. Confirmed directly in the current source:
+- `src/themes/transportny/components/ReportRouteList/useGraphPublish.js:188-189`
+  (`findSelfBoundGraphs`) reads `routeIds`/`routeWindows` off `_measurePick` — never
+  `weekdays`/`start`/`end`.
+- `useGraphPublish.js:84-98` (`transformReportRoutes`) resolves each route's window strictly via
+  `routeWindows?.[route_comp_id]`, defaulting to `[{}]` (unrestricted, all days/all hours)
+  whenever that id has no entry.
+- The sibling Dynamic Report catalog builder, `scripts/npmrds-reports/report_build.mjs:1410-1428`,
+  WAS migrated to this shape as part of the same 2026-08-14 change ("Every assigned route gets its
+  own `_measurePick.routeWindows` entry now — no uniform-check...").
+- `convert_old_reports_lib/section_builders.py:797-800` (unchanged since round 70) never writes a
+  `routeWindows` key at all.
+
+Net effect: because `pick.routeWindows` is always absent on every graph `convert_old_reports.py`
+builds, `transformReportRoutes` falls back to the unrestricted default for every route on every
+old-reports-converted graph, regardless of what `resolve_measure_pick_window` computes into the
+now-dead `weekdays`/`start`/`end` fields. Identical bug class to the one round 70 fixed,
+reintroduced by an unrelated migration 2 days later on a component that migration never touched.
+`routeIds` itself (route→graph assignment) is unaffected — still correctly read/written on both
+sides — and the converter's `$self` `comparison_series` subscriber wiring (`section_builders.py`,
+`route_map.py`, `route_compare_template.py`, `info_box_templates.py` — all still write
+`{functionId:"comparison_series", enabled:true, paramKey:"$self", ...}`) still matches
+`ensureSelfBoundSubscriber` (`composeMeasureConfig.js:124-137`) exactly. **Not fixed this round**
+— the fix is a straightforward port of `report_build.mjs`'s already-working `routeWindows`
+composition into `section_builders.py`, held for a follow-up round since this pass is read-only
+verification.
+
+**Finding 2 — a real crash bug, unrelated to finding 1.** `convert_report.py:449`
+(`comp_years = range(int(min(years)), int(max(years)) + 1)`) throws an unhandled `ValueError:
+invalid literal for int() with base 10: '{rec'` whenever a route_comp's `settings.startDate` holds
+the literal corrupted value `"{recent-NaN}..."` (a garbled old relativeDate placeholder — confirmed
+via direct query, `admin2.reports` id 435 has a comp with `startDate = "{recent-NaN}ent-NaN}"`)
+instead of a real `YYYYMMDD` date. `years = {str(s.get(k))[:4] ...}` takes the string's first 4
+characters assuming a numeric date; on this value that's the literal string `"{rec"`, which `int()`
+then rejects. Corpus-wide scope: 13/870 reports (1.5%) have a `startDate` matching this
+non-numeric pattern (0 for `endDate`) — narrow but real; a bulk-conversion run would hard-crash on
+any of these 13 instead of gap-logging and continuing past them. Reproduced live via `--dry-run
+--report-id 435`. Not fixed this round (same reason as finding 1).
+
+**Finding 3 — `census_old_reports.py` never computes `route_comps_merged` corpus-wide; the exact
+"route collapse" signal Ryan asked to census for isn't in its output today.** Confirmed 0/870
+reports carry `route_comps_merged` in `census.json`'s `gap_kinds`, and the term appears nowhere in
+`census_summary.md`'s gap-kind table (13 kinds tracked: `unmapped_graph`,
+`extra_measures_dropped`, `color_range`, `relative_date`, `mixed_data_columns_on_graph`,
+`mixed_resolutions_on_graph`, `overrides`, `malformed_state_resolution`, `route_group_flattened`,
+`route_difference_no_pair`, `station_comps`, `weekday_mask_without_date_range`,
+`cost_per_hour_not_applied`). Root cause: `route_comps_merged` is only ever emitted inside the
+REAL/dry-run `convert_report()` (`convert_report.py:498`) and `convert_template()`
+(`convert_template.py:383`), both via `group_route_comps`/`route_comp_merge_key`
+(`transforms.py:129,158`) keyed off each route's RESOLVED `tmc_array` — which for point-drawn
+routes needs a live old-falcor TMC lookup. `census_old_reports.py`'s own docstring is explicit
+that it does "NO falcor point-route resolution" (for corpus-wide speed), so it never runs the
+merge pass at all — not a bug in the aggregation code itself (generic over whatever gap kinds
+appear), just a pass the analyze-only path never invokes. This is real and does fire in practice:
+3 of the 9 reports dry-run-verified this round (856, 859, 1045) show real `route_comps_merged`
+gaps. Per Ryan's explicit scope ("don't build new detection... using signals the tooling ALREADY
+produces"), no corpus-wide route-collapse census was built to fill this gap — that would require
+either the falcor-resolution cost across the 613 point-drawn-route reports, or restricting the
+pass to the 33 already-resolved reports (both scoped-out build decisions, not done). The
+classification below substitutes the census's already-computed `class`/`route_validity` coverage
+signals for "needs attention" instead, per Ryan's own "and/or poor graph-mapping coverage"
+fallback wording.
+
+**Finding 4 — the existing/already-converted corpus is currently EMPTY in the target dev DB**,
+which reframes the original "how does the existing corpus fare" framing. `census_old_reports.py`'s
+own output states "Converted pages live in the new DB: 0" (`converted_pages_total: 0`,
+`fetch_converted_pages()` keyed off the durable `_converted_from_old_report_id` marker
+`convert_report.py:623` writes — confirmed independently via a direct query of
+`dms_npmrdsv5.data_items__s2177438_v2177440_reports_snap_2`: 953 rows, 0 with that marker set).
+Spot-checked concretely: round 70's own live-verified page (`2209156`,
+`converted_reports/rochester_inner_loop`) no longer exists; none of the 37 `npmrds_sub|*page` rows
+currently in the dev DB came from `convert_old_reports.py` — they're all Dynamic Report catalog
+pages (`report_build.mjs`/`dynamic_report_specs/*.json`: "Golden Corpus - Bar Graph", "Weekly
+Average", "Annual Average Study", etc.). The dev DB was evidently reset/cleared for the Dynamic
+Report catalog work sometime between round 70 (2026-08-07) and now; every prior round's conversion
+output is gone. Doesn't affect the classification below (computed purely from `admin2.reports`,
+the old-side source of truth, independent of what's currently converted) but means a bulk
+reconversion run starts from a genuinely clean new-DB slate — no stale duplicate/`--replace`
+bookkeeping to worry about.
+
+**Dry-run verification sample** (9 reports: 8 random + 1045, the known weekday/peak-window
+bearer; `preflight.py` all-green beforehand): all ran to completion except 435 (finding 2's
+crash). No writes performed in any case — `--dry-run` respects the flag at every `dms(...)` call
+site checked (`pages.py:ensure_parent_page`/`ensure_route_in_catalog`,
+`graph_templates.py:ensure_graph_templates`). Confirms `census_old_reports.py`'s static
+`route_validity: no_valid_routes` classification is a reliable predictor: every sampled report the
+census flagged `no_valid_routes` (856, 540, 859, 731, 678, 691) dry-run-confirmed as "no route in
+this report has real TMC data, page not created"; every sampled report with real/resolvable routes
+(323, 1045, and 435 up to its crash) successfully resolved TMCs and would have produced a page.
+
+**Classification (870 reports, full `census_old_reports.py` run today, 2026-08-25)** — derived
+only from existing per-report census fields (`class`, `route_validity`, `pre_2017_only`,
+`gap_kinds`), composed by a small one-off aggregation script over `census.json`
+(not checked in — logic below is the full definition):
+- **Clean — 184 reports**: `class=='full'` AND page-producible (`route_validity !=
+  'no_valid_routes'` and not `pre_2017_only`) — this is exactly census's own pre-existing
+  `full_producible` metric, an exact-match sanity check on the logic. Caveat: 176/184 (95.7%) have
+  `route_validity: hinges_on_point_resolution` — "clean" here means 100%
+  graph-type/measure/resolution mapping coverage AND at least a chance the routes resolve; real
+  TMC resolution only happens at actual (non-census) conversion time, so this bucket is not a hard
+  guarantee. Only 8/184 have already-resolved (`ok`) routes.
+  Sample ids: 960, 200, 98, 514, 474, 454, 209, 193, 1044, 777.
+- **Needs attention — 328 reports**: page-producible but `class` is `partial` (310) or `none`
+  (18) — incomplete graph-type/measure/resolution mapping coverage. 303/328 also hinge on point
+  resolution. Route-collapse (`route_comps_merged`, finding 3) is a real sub-signal here too, but
+  not corpus-counted — spot-check evidence only (856, 859, 1045 in the dry-run sample above).
+  Sample ids: 317, 1026, 816, 191, 182, 321, 435, 443, 942, 1039.
+- **Junk/incomplete — 358 reports**: not page-producible, or structurally empty —
+  `no_valid_routes` 213 (every route missing from `admin2.routes` entirely, static fact, no falcor
+  needed), `pre_2017_only` 133 (every route_comp predates the 2017 data-source start, permanent),
+  `no_graphs` 14 (zero graph_comps — route-list-only shells), `no_route_comps` 11 (zero route_comps
+  at all). A report can hit more than one reason (371 reason-hits over 358 reports).
+  Sample ids: 18, 793, 146, 915, 749, 576, 196, 658, 860, 384.
+- Sanity check: 184 + 328 + 358 = 870.
+
+**Files changed**: none — read-only/analysis-only round. Full census re-run and the classification
+artifacts are in `scratchpad/npmrds-sub/old-reports/census/` (`census.json`/`census_summary.md`
+regenerated 2026-08-25; new `conversion_outcome_classification.json` holds the clean/needs_attention
+/junk id lists for all 870 reports). (moved verbatim to archive on 2026-08-25, round 72 start)
+
+## Round 70 (2026-08-07) — converter never backfilled a graph's own `_measurePick.weekdays/start/end`, silently dropping every converted report's weekday mask / peak-hour window (moved verbatim to archive on 2026-08-25, round 71 start)
+
+**Context**: Ryan asked whether the routeComp→route 1:1 mapping in the converter still matched the
+new (Design push #2) model, where weekday mask and time-of-day window are graph-owned facets, not
+route-owned. Investigation confirmed the routeComp-dedup question is real but low-severity/cosmetic
+(same class as round 50's "legend renders the same step-ramp three times" note) — comps differing
+only by weekday/time-of-day are redundant as separate route entries now, comps differing by date
+range still need to stay separate (`_measurePick` has no date-range field). Chased down a bigger,
+unrelated finding along the way: `build_graph_section_data`'s Design-push-#2 `_measurePick` write
+(added when the routeIds-inversion bug was fixed, per this file's still-current "routeIds" comment)
+hardcoded `weekdays`/`start`/`end` to the empty "all days, all day" default *unconditionally* —
+never attempted to backfill them from the old route_comp(s)' own `settings.weekdays`/`startTime`/
+`endTime`. Confirmed live via `useGraphPublish.js`'s `transformReportRoutes`: it reads
+`weekdays`/`start`/`end` **exclusively** from the graph's `_measurePick`, never from the route
+object — so every converted graph, on every already-converted report that used a weekday mask or a
+peak-hour window (e.g. round 45's approved gap-coverage pick, report 1045 "Rochester Inner Loop",
+whose comps carry real Tue/Wed/Thu 6-9am and 3-6pm windows), has been silently querying **all
+days, all hours** since Design push #2 shipped (2026-08-06) — a live data-fidelity regression, not
+just architectural debt. (AM/PM/off-peak boolean flags are NOT part of this — already proven
+query-inert in the old client, see "Known functionality gaps" above; only `weekdays`/`startTime`/
+`endTime` have any real effect.)
+
+**Fix**: `section_builders.py` gained `resolve_measure_pick_window(assigned, comps_by_id, gaps,
+graph_id)` — mirrors the existing AADT-override agree-vs-mixed pattern (round 9): when every old
+route_comp assigned to a graph agrees on weekdays+startTime+endTime, bake that into the graph's
+`_measurePick`; when they disagree, gap-log (`measure_pick_window_mixed`) and leave the window at
+the empty default rather than guessing at one comp's values over another's. Deliberately computed
+inside `build_graph_section_data` (not `analyze_graph`) and only inside the existing `is_self_bound`
+branch, so graph types that don't consume `_measurePick` yet at all (Route Map — see
+`dynamic-report-nongraph-section-binding.md` item 1) never get a spurious "comps disagree" gap
+logged for a window that was never going to be written anyway. A real corpus wrinkle found and
+handled along the way: `startTime`/`endTime` appear as both `'HH:mm'` and `'HH:mm:ss'` across
+comps for the literal same time-of-day (confirmed on report 1045 itself) — a new `_normalize_time`
+helper reduces both to `'HH:mm'` before comparing, so a format difference alone can't produce a
+false "mixed" gap. `comps_by_id` (already computed at both call sites for other purposes) threaded
+through as a new optional param on `build_graph_section_data`; both `convert_report.py` and
+`convert_template.py` call sites updated.
+
+**Verified, unit-level and live end-to-end (2026-08-07, same day, once the dev server came up)**:
+unit-level against synthetic cases (agree/mixed/no-settings/empty) and real corpus data pulled live
+from `admin2.reports` id 1045. Live: reconverted report 1045 with `--replace` (new page `2209156`,
+`converted_reports/rochester_inner_loop`) and read every draft section's raw `element-data` back via
+`dms raw get`. Confirmed both paths on real data: **agree path** — comp-28 (AM Peak, routeId
+180958) landed `{weekdays: Tue/Wed/Thu-only, start:'06:00', end:'09:00'}` on 6 AVL Graph sections;
+comp-29 (PM Peak, same routeId) landed `start:'15:00', end:'18:00'` on the Map section; comp-5/6/9/10
+(routeId 163185, Wed/Thu/Fri 07:00-19:00, mixed `'HH:mm'`/`'HH:mm:ss'` source formats) landed
+correctly and identically across 4 sections (Info Box, Route Compare, 2 AVL Graphs), confirming
+`_normalize_time` works on real data, not just the synthetic case. **Mixed path** — the Route
+Compare section spanning comp-28+29+30+31 (AM+PM) and the Route Map spanning comp-0+28 (differing
+weekday masks) both correctly fell back to `{weekdays:{}, start:'', end:''}` and gap-logged
+`measure_pick_window_mixed` (2 real occurrences in the gap report, graph-comp-8 and graph-comp-16) —
+no data corruption, no silent wrong guess. Round 70 is DONE.
+
+**routeComp-dedup question (the original ask, not fixed, deliberately deferred)**: whether to
+collapse old route_comps that share `(routeId, startDate, endDate)` and differ only by
+weekday/time-of-day into ONE `reports_snap_2.routes[]` entry (referenced by multiple graphs with
+different `_measurePick` windows) instead of today's 1:1 `route_comp_id`→route-entry mapping. No
+corpus census run yet to quantify how common this pattern actually is; treat as a separate,
+architecturally bigger follow-up from the fidelity fix above, not blocking it.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py`
+(`resolve_measure_pick_window`/`_window_signature`/`_normalize_time`, `build_graph_section_data`
+signature + `_measurePick` write), `convert_report.py` / `convert_template.py` (pass `comps_by_id`
+through to `build_graph_section_data`).
+
+---
+
 ## Round 69 (2026-08-04) — live user-reported bug sweep on a converted report page: day-of-week axis labels, GridGraph tooltip NaN, Bar Graph Summary colors, comparison-series anchor sort (moved verbatim to archive on 2026-08-07, round 70 start)
 
 **Context**: Ryan browsed a real converted report (`converted_reports/floating_car_average_day`)
