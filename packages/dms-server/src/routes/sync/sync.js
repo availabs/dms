@@ -140,6 +140,33 @@ function createSyncRoutes(dbName) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      // Compute the revision watermark BEFORE fetching items, not after.
+      // These are two separate, non-transactional queries — if a write
+      // commits in the gap between them, whichever runs second sees it and
+      // whichever runs first doesn't. Reading revision first means a
+      // concurrent write can only make `items` MORE current than the
+      // reported `revision` (safe: the client's next delta re-fetches that
+      // change, redundant but harmless). Reading revision last — the
+      // previous order — meant a concurrent write could leave `items`
+      // STALE relative to the reported `revision`: the client records
+      // itself as caught up through a revision whose actual data it never
+      // received, and since every future delta filters on
+      // `revision > sinceRev`, that specific change is never re-delivered —
+      // a silent, permanent gap. Found live: two browser tabs on the same
+      // page, one edited, the other's cold bootstrap reported a revision
+      // number newer than the edit but its own local copy of that exact
+      // row never picked up the edit, with no further trigger that would
+      // ever correct it short of a hard reload or another later edit to
+      // the same row.
+      let revision = 0;
+      if (await hasChangeLog()) {
+        const maxRevRow = await dms_db.promise(
+          `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
+          [app]
+        );
+        revision = maxRevRow[0]?.max_rev || 0;
+      }
+
       let items;
 
       if (skeleton) {
@@ -186,15 +213,6 @@ function createSyncRoutes(dbName) {
           [app]
         );
         items = allItems.filter(item => !isSyncExcluded(item.type));
-      }
-
-      let revision = 0;
-      if (await hasChangeLog()) {
-        const maxRevRow = await dms_db.promise(
-          `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
-          [app]
-        );
-        revision = maxRevRow[0]?.max_rev || 0;
       }
 
       const scope = skeleton ? `skeleton=${skeleton}` : pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
@@ -249,6 +267,21 @@ function createSyncRoutes(dbName) {
         return res.json({ changes: [], revision: sinceRev });
       }
 
+      // Compute the revision watermark BEFORE fetching changes, not after —
+      // same race as /sync/bootstrap (see its comment for the full
+      // explanation): reading revision last let a write that commits in the
+      // gap leave `changes` missing that write while `revision` already
+      // reflects it, permanently skipping it (every future delta filters on
+      // `revision > sinceRev`, which is already past the missed one).
+      // Reading revision first means a concurrent write can only make
+      // `changes` include MORE than the reported revision implies — the
+      // client's next delta harmlessly re-fetches that same change.
+      const maxRevRow = await dms_db.promise(
+        `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
+        [app]
+      );
+      const revision = maxRevRow[0]?.max_rev || sinceRev;
+
       let changes;
       if (pattern) {
         // Pattern-scoped delta: changes for types matching the pattern's doc_type
@@ -301,12 +334,6 @@ function createSyncRoutes(dbName) {
         );
         changes = allChanges.filter(c => !isSyncExcluded(c.type));
       }
-
-      const maxRevRow = await dms_db.promise(
-        `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
-        [app]
-      );
-      const revision = maxRevRow[0]?.max_rev || sinceRev;
 
       const response = { changes, revision: Number(revision) };
       const payload = JSON.stringify(response);

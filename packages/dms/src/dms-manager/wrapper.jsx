@@ -3,7 +3,7 @@ import { useLoaderData, useActionData,useSubmit, useLocation, useNavigate, useRe
 import { getAttributes,filterParams, json2DmsForm } from './_utils'
 import { dmsDataEditor, dmsDataLoader } from '../index'
 import { useImmer } from 'use-immer';
-import { isEqual, merge } from "lodash-es"
+import { isEqual, mergeWith } from "lodash-es"
 
 
 //import { get } from "lodash-es"
@@ -103,7 +103,28 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		// -- testing on update set item
 		// -- this adds updateAttribute call to apiUpdate
 		if(dataSnapshot) {
-			try { setItem(draft => { merge(draft, dataSnapshot) }) }
+			try {
+				// Array-valued fields (draft_sections, sections, draft_section_groups,
+				// …) are REPLACEMENT values — a set of {id,ref} membership stubs, not
+				// a nested structure meant to be deep-merged. Plain lodash `merge`
+				// merges arrays BY INDEX: if this tab's own `item` (the merge target)
+				// happens to still have MORE elements than `dataSnapshot` at this
+				// exact moment (its own state simply hadn't caught up yet to a
+				// concurrent edit from another client), every trailing element
+				// beyond dataSnapshot's length is left untouched — i.e. resurrected
+				// verbatim into the "merged" result, even though it was correctly
+				// absent from what was just sent to the server. Found live
+				// 2026-08-24: tab A removes a section (correctly reflected in both
+				// tabs); tab B then adds a section, and the removed one reappears in
+				// both tabs — traced to exactly this merge corrupting tab B's own
+				// optimistic `item` state, which the very next `draft_sections` write
+				// from tab B then persists. `mergeWith`'s array customizer replaces
+				// any array wholesale with the source's array instead of index-
+				// merging it, while still deep-merging plain-object fields normally
+				// (preserving this snapshot's original purpose — see the comment
+				// above `dataSnapshot`).
+				setItem(draft => { mergeWith(draft, dataSnapshot, (_objValue, srcValue) => Array.isArray(srcValue) ? srcValue : undefined) })
+			}
 			catch(e) { /* Immer may reject deep merge of arrays — revalidate will reload */ }
 		}
 

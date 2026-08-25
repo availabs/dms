@@ -141,6 +141,43 @@ const resolveHeight = (v, theme) => {
     return theme?.heights?.[h]?.className ?? (h === 'fill' ? 'h-full flex flex-col' : '');
 };
 
+// Defense-in-depth against the shared Y.Array ever holding two stubs with the
+// same `id` — found live 2026-08-25 (concurrent-page-editing-data-loss.md
+// "Bug 13"): several concurrent-join edge cases around a dev-server restart
+// (a server-side one already fixed in ws.js's getOrCreateYDoc, and at least
+// one more still not fully root-caused in a real multi-tab reconnect) can
+// each independently conclude a room is "empty" and re-seed it from a
+// client's own last-known draft_sections, so entries with matching ids end
+// up literally duplicated inside the CRDT itself — not just in one client's
+// read of it. Rather than keep chasing every possible race window (some are
+// inherent to "N clients decide something independently before any of them
+// hear from each other" and can't be fully closed without server-side seed
+// coordination), this closes the same class of bug at its one true
+// choke point: every write this component ever makes to `draft_sections`
+// passes through here first. If a duplicate ever does get in — from ANY
+// mechanism, present or future — it's stripped before it's ever persisted or
+// shown to a user, and the excess entries are deleted from the shared array
+// itself (not just filtered locally), so the fix is visible to every other
+// client sharing the room, and future joins don't reseed from `stale
+// duplicated content either. Keeps first-occurrence order; never touches an
+// array with no duplicates (the by-far-common case).
+function healRoomDuplicates(room) {
+    const arr = room.sectionsArray;
+    const current = arr.toArray();
+    const seen = new Set();
+    const dupIndexes = [];
+    current.forEach((entry, i) => {
+        const key = String(entry?.id);
+        if (seen.has(key)) dupIndexes.push(i);
+        else seen.add(key);
+    });
+    if (dupIndexes.length === 0) return current;
+    room.doc.transact(() => {
+        for (let i = dupIndexes.length - 1; i >= 0; i--) arr.delete(dupIndexes[i], 1);
+    });
+    return arr.toArray();
+}
+
 const Edit = ({ value, onChange, attr, group, siteType }) => {
     const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
@@ -298,7 +335,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
             // reading back and sending — see page-structure-provider.js's
             // waitForQuiet for why this is load-bearing, not cosmetic.
             await room.settle();
-            const merged = arr.toArray();
+            const merged = healRoomDuplicates(room);
             cancel()
             setValues([...merged, ''])
             onChange(merged, action)
@@ -347,7 +384,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 if (idx >= 0 && idx < arr.length) arr.delete(idx, 1);
             });
             await room.settle();
-            const merged = arr.toArray();
+            const merged = healRoomDuplicates(room);
             cancel()
             onChange(merged, action)
             return;
@@ -393,7 +430,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 arr.insert(to, [moved]);
             });
             await room.settle();
-            onChange(arr.toArray())
+            onChange(healRoomDuplicates(room))
             return;
         }
 

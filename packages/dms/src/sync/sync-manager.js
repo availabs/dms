@@ -18,7 +18,7 @@ import {
   deleteItem, deleteItemsByIds, updateItemData, createItemOffline,
   reassignItemId, sqliteNow, resetDB,
   addPendingMutation, deletePendingMutationById, findFirstPendingMutation,
-  countPendingMutationsForItem, countAllPendingMutations, getAllPendingMutationsOrdered,
+  countAllPendingMutations, getAllPendingMutationsOrdered,
 } from './idb-store.js';
 import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
 import { addToScope, clearScope } from './sync-scope.js';
@@ -39,8 +39,38 @@ function invalidate(scope) {
   for (const fn of listeners) fn(scope);
 }
 
-// Track pending item IDs for echo suppression
-const pendingItemIds = new Set();
+// Track this tab's OWN push revisions, for echo suppression.
+//
+// Echo suppression cannot be keyed by item id: a WS `change` message (or a
+// delta row) for an item this tab also has a mutation in flight for is NOT
+// necessarily this tab's own echo — it can just as easily be a genuinely
+// different client's concurrent edit to the same item, arriving while this
+// tab's own push is still in flight. Item-id keying suppressed that message
+// unconditionally (and still advanced the persisted revision watermark past
+// it), which silently and PERMANENTLY dropped the other client's write from
+// this tab's local mirror — confirmed live 2026-08-24 (see
+// concurrent-page-editing-data-loss.md, Bug 9): a hard reload did not
+// recover it, because `revision > sinceRev` delta filtering never re-serves
+// a revision this tab already claimed to be caught up through.
+//
+// A revision number is a safe key: change_log.revision is a per-app
+// monotonic serial, so the exact revision returned by THIS tab's own
+// `/sync/push` response can only ever appear once, on the WS
+// broadcast/delta row for that exact write — never on any other client's
+// write. If the WS echo happens to arrive before the push's own HTTP
+// response resolves (so myRevisions doesn't have it yet), the message is
+// just applied as if remote — harmless, since it's this tab's own data
+// (yjs-store's applyRemote no-ops on unchanged keys) — which fails open
+// (redundant apply) instead of the old failure mode (silent, permanent
+// drop of someone else's write).
+const myRevisions = new Set();
+function markMyRevision(revision) {
+  if (revision == null) return;
+  myRevisions.add(revision);
+  // Safety net in case the echo never arrives (e.g. this exact revision
+  // gets superseded by a stale-delta re-bootstrap before it's ever seen).
+  setTimeout(() => myRevisions.delete(revision), 60000);
+}
 
 let ws = null;
 let wsRetryDelay = 500;
@@ -101,7 +131,7 @@ async function setLastRevision(rev, scope = null) {
 async function applyChanges(changes) {
   const ops = [];
   for (const change of changes) {
-    if (pendingItemIds.has(change.item_id)) continue;
+    if (myRevisions.has(change.revision)) { myRevisions.delete(change.revision); continue; }
 
     if (change.action === 'I' || change.action === 'U') {
       const dataStr = typeof change.data === 'string' ? change.data : JSON.stringify(change.data || {});
@@ -411,8 +441,10 @@ export function connectWS() {
     try {
       const msg = JSON.parse(e.data);
       if (msg.type === 'change') {
-        // Skip echoes
-        if (msg.item && pendingItemIds.has(msg.item.id)) {
+        // Skip echoes — see myRevisions' doc comment for why this must be
+        // keyed by revision, not item id.
+        if (myRevisions.has(msg.revision)) {
+          myRevisions.delete(msg.revision);
           await setLastRevision(msg.revision);
           return;
         }
@@ -519,9 +551,7 @@ export async function localCreate(app, type, data) {
       await upsertItemNow({ id: serverId, app, type, data: serverDataStr });
 
       await setLastRevision(revision);
-      pendingItemIds.add(serverId);
-      // Clear echo suppression after a short delay (server WS broadcast will arrive)
-      setTimeout(() => pendingItemIds.delete(serverId), 2000);
+      markMyRevision(revision);
 
       // Initialize Yjs doc for this new item
       try {
@@ -549,7 +579,6 @@ export async function localCreate(app, type, data) {
 
   await addPendingMutation({ item_id: tempId, action: 'I', app, type, data: dataStr });
 
-  pendingItemIds.add(tempId);
   invalidate('data_items');
   invalidate(`data_items:${app}+${type}`);
   updateStatus('syncing');
@@ -583,7 +612,6 @@ export async function localUpdate(id, data) {
 
   await addPendingMutation({ item_id: id, action: 'U', app, type, data: dataStr });
 
-  pendingItemIds.add(id);
   invalidate('data_items');
   invalidate(`data_items:${app}+${type}`);
   updateStatus('syncing');
@@ -600,7 +628,6 @@ export async function localDelete(id) {
 
   await addPendingMutation({ item_id: id, action: 'D', app, type, data: null });
 
-  pendingItemIds.add(id);
   invalidate('data_items');
   invalidate(`data_items:${app}+${type}`);
   updateStatus('syncing');
@@ -635,11 +662,10 @@ async function pushMutation(action, item) {
       // idb-store.js's reassignItemId), which is actually a small
       // correctness improvement over the original two independent UPDATEs.
       await reassignItemId(item.id, serverItem.id);
-      pendingItemIds.delete(item.id);
-      pendingItemIds.add(serverItem.id);
     }
 
     await setLastRevision(revision);
+    markMyRevision(revision);
     await removePending(serverItem.id || item.id, action);
   } catch (err) {
     console.error(`[sync] push ${action} FAILED id=${item.id}:`, err.message, err);
@@ -651,12 +677,6 @@ async function removePending(itemId, action) {
   const match = await findFirstPendingMutation(itemId, action);
   if (match) {
     await deletePendingMutationById(match.id);
-  }
-
-  // Only clear echo suppression when ALL pending mutations for this item are done
-  const remaining = await countPendingMutationsForItem(itemId);
-  if (remaining === 0) {
-    pendingItemIds.delete(itemId);
   }
 
   const total = await countAllPendingMutations();
@@ -678,7 +698,6 @@ async function flushPending() {
   const rows = await getAllPendingMutationsOrdered();
   if (_DEV && rows.length > 0) console.log(`[sync] flushPending: ${rows.length} pending mutations`);
   for (const row of rows) {
-    pendingItemIds.add(row.item_id);
     await pushMutation(row.action, {
       id: row.item_id,
       app: row.app,
@@ -785,7 +804,7 @@ export async function resetAndRebootstrap() {
 
     // Clear in-memory state
     _loadedPatterns.clear();
-    pendingItemIds.clear();
+    myRevisions.clear();
     clearScope();
 
     // Re-bootstrap

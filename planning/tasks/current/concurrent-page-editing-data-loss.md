@@ -1041,10 +1041,227 @@ in the first place (the fix is correct and defensive regardless, but the
 data-quality question — how did a null-id ref get into the dataset — is
 still open; worth a quick audit if it recurs).
 
+## Bug 7 — `/sync/bootstrap` and `/sync/delta` reported a revision watermark newer than the data they actually returned — FIXED (2026-08-24)
+
+Found live investigating a user report: two browser tabs on the same page
+(one regular, one incognito), edits in one tab weren't showing up in the
+other even after the section-array fix (Bug 1) and waiting well past any
+debounce. Root-caused via direct WebSocket frame sniffing and local
+IndexedDB inspection — a real, previously-undiscovered server bug, distinct
+from Bug 1.
+
+**Mechanism**: both `/sync/bootstrap` and `/sync/delta` computed their
+response in two separate, non-transactional queries — fetch the actual data
+first, then separately `SELECT MAX(revision) FROM change_log` to report as
+the response's watermark. If a write commits in the gap between those two
+queries, the **data** query (run first) misses it, but the **revision**
+query (run second) already reflects it. The client receives a response
+whose `revision` number is genuinely newer than what its own `items`/
+`changes` payload contains for whichever row changed in that window. Since
+the client trusts "I'm caught up through revision N" and every future delta
+filters strictly on `revision > sinceRev`, that specific missed change is
+never re-delivered by any later request — a **silent, permanent** gap for
+that one row, until something else (a *different* later edit to the same
+row, or a fresh cold bootstrap) happens to correct it. Confirmed exactly
+this shape live: client B's cold bootstrap reported a revision equal to or
+newer than a concurrent edit's own revision, yet B's local copy of that
+exact page row never picked up the edit — no error, no retry, nothing to
+signal it was wrong.
+
+**Fix**: swapped the order in both endpoints — compute the revision
+watermark first, then fetch the data. This flips which side of the race is
+safe: a write landing in the gap now makes the returned data *more* current
+than the reported revision (the client's next delta call harmlessly
+re-fetches that same change — redundant, not lossy) instead of the reverse.
+
+**Verified live**: after the fix, a client's local IndexedDB copy of an
+edited page row reliably contained the edit (confirmed via direct
+`getItem()` inspection), where before the fix it reliably did not, across
+repeated trials. This is a correctness fix independent of Bug 1 — it can
+manifest with a single structural edit and only two connected clients, no
+concurrency-heavy scenario required.
+
+## Bug 8 — a `useMemo` with the wrong dependency silently blocked context propagation, so even correctly-synced local data never reached the screen — FIXED, but live cross-tab reflection is still not fully reliable (2026-08-24, OPEN follow-up)
+
+Found immediately after Bug 7: fixing the bootstrap/delta race made local
+IndexedDB reliably correct, but the *screen* still didn't update in a
+passive/watching tab. Traced the full chain live with temporary
+instrumentation (all removed before finishing) through every layer —
+`onInvalidate` firing, `router.revalidate()` being called, `shouldRevalidate`
+returning `true`, the route `loader()` actually re-running, `EditWrapper`'s
+own `item` state correctly updating (confirmed via `isEqual` returning
+`false` against fresh data) — every one of those layers works correctly.
+
+**Root cause**: `patterns/page/pages/edit/index.jsx`'s `PageEdit` component
+renders its sections via:
+
+```js
+{React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups])}
+```
+
+`draft_section_groups` is the page's *layout* (which named groups exist and
+where) — it essentially never changes on an ordinary section add/delete/edit,
+which touches `draft_sections` (the actual section list) instead. Because
+the memo's dependency never changed, React kept returning the *exact same
+cached React element* for that subtree on every render — and when a
+`useMemo` returns the identical element reference from a prior render,
+React's reconciler bails out of re-rendering that subtree at all, as a
+performance optimization. This bailout happens **before** context-change
+detection would otherwise force affected consumers to re-render — so
+`SectionGroup`/`sectionArray.jsx` deep inside, both `useContext(PageContext)`
+consumers, never got invoked again, never saw the fresh `item` sitting right
+there in the (correctly updated) context value. This is a well-known but
+easy-to-miss React gotcha: memoizing a subtree that contains context
+consumers on the wrong dependency silently freezes those consumers even
+though the context itself is updating correctly one level up.
+
+**Fix**: added `item?.draft_sections` to the dependency arrays of all three
+`useMemo` calls (`top`/`bottom`/`content` section groups).
+
+**Verified working in isolation**: with full render-chain tracing in place,
+watched `PageEdit` → `SectionGroup` → `sectionArray.jsx`'s `Edit` all
+correctly re-render with fresh `draft_sections.length` after this fix, and
+the new section's text appeared in a passive tab with zero action taken on
+it — confirmed on a live Postgres-backed multi-tenant page.
+
+**Not fully resolved — live cross-tab reflection remains inconsistent even
+after this fix.** Repeated the same passive-tab test multiple times after
+removing the tracing instrumentation: it worked cleanly once, then failed
+across three separate follow-up rounds (waited up to 8 seconds — not a pure
+timing/debounce issue). In every failing case, **the underlying data was
+still correct** — confirmed via reload, every section from every round was
+present with no loss, on the already-warmed page used for these specific
+runs. So this remaining gap is strictly about *when the screen updates
+without a reload*, not about data safety. Leading unconfirmed suspicion:
+React Router's own handling of multiple `router.revalidate()` calls firing
+in quick succession (bootstrap completion, WS change receipt, and the
+client's own prior edits can all trigger one within a short window) may
+coalesce or short-circuit in a way that leaves a *later*-arriving change
+without its own dedicated re-render — not verified, needs its own focused
+trace session (the kind used to find Bug 8 itself) rather than continued
+ad hoc testing.
+
+**Separately, and NOT the same bug**: one test run against a **brand-new,
+never-before-synced page** lost a section's *page-level reference*
+permanently (the component row itself was created correctly, confirmed via
+`dms raw get`, but never made it into `draft_sections`, even after reload).
+This matches the *already-documented* known limitation in Bug 1's fix design
+("two clients joining a cold room at the exact same instant can both see
+'empty' and both seed... narrow, not solved here") rather than a new defect
+— flagged for the same follow-up work already listed under Bug 1, not
+duplicated here.
+
+## Bug 9 — client-side echo suppression keyed by item id, not revision, silently and PERMANENTLY dropped a genuinely different client's concurrent edit — FIXED (2026-08-24)
+
+Found investigating Bug 8's follow-up (flaky cross-tab reflection), after the user flagged mid-session that **data itself, not just the screen refresh, was sometimes actually lost in cross-tab testing** — a materially more severe claim than Bug 8's "data is fine, only the re-render is flaky," so it needed independent root-causing rather than being folded into Bug 8.
+
+**Root cause**: `sync-manager.js` used a single `pendingItemIds` Set, keyed by item id, for echo suppression in two places — `ws.onmessage`'s `change` handler (line ~415) and `applyChanges()`, the delta-application function used by `catchUp()`/warm `bootstrapPattern()` (line ~104). Both treated *any* WS message or delta row for an item this tab had *any* mutation in flight for as "my own echo" and discarded it outright — but that's the wrong test. A WS message for item X arriving while this tab also has a pending mutation for item X is not necessarily this tab's own echo; it can just as easily be a **different client's own genuinely concurrent edit** to the same item, landing in the same narrow window. Item-id keying can't tell the two apart, and picked the wrong one: it discarded the message *and* still advanced the persisted revision watermark (`setLastRevision(msg.revision)`) as if it had been applied. Since every future delta filters on `revision > sinceRev`, that specific change was never re-delivered by any later request — permanent, not recoverable by reload, exactly the shape of Bug 7 (fixed earlier this session) but caused independently, client-side.
+
+The most easily-hit trigger is `localCreate`'s own suppression window: after any create, `pendingItemIds.add(serverId)` stayed set for a **hard-coded 2 seconds** (`setTimeout(() => pendingItemIds.delete(serverId), 2000)`), regardless of whether the actual round trip was much faster. Any other client editing that same newly-created item within that 2-second window — a very realistic scenario right after a section is created — had its edit silently eaten.
+
+**Live repro** (Playwright against the real `shaun-test-app` site, port 5173, dms-server on 3001 — the same Postgres-backed multi-tenant environment used for Bugs 4/5/6/7/8): one real browser tab (Tab A) calls `sync.localCreate()` on a fresh item; a raw authenticated `fetch` to `/sync/push` (playing "Tab B", a second client) pushes a concurrent update to the exact same item id inside the 2-second window. Confirmed, pre-fix:
+- **Live, no reload**: Tab A's local IndexedDB copy still showed the original create-time value — Tab B's edit never applied.
+- **After a hard reload**: **still** showed the original value — the loss was permanent, not a rendering lag. Server's own copy was correct the whole time (confirmed via a direct `/sync/bootstrap` fetch) — the data was never lost server-side, only in this client's local mirror, which is what the client trusts for rendering and for the base state of its own next edit.
+
+**Fix**: replaced `pendingItemIds` (item-id keyed) with `myRevisions` (revision-number keyed). `change_log.revision` is a per-app monotonic serial, so the exact revision number returned by *this tab's own* `/sync/push` response can only ever appear once, on the WS broadcast/delta row for that exact write — never on any other client's write. `markMyRevision(revision)` records it (with a 60s safety-net expiry in case the echo never arrives); `ws.onmessage` and `applyChanges()` both check `myRevisions.has(revision)` instead of `pendingItemIds.has(itemId)`. If the echo happens to arrive before this tab's own push response resolves (so `myRevisions` doesn't have it yet), the message is just applied as if remote — harmless, since it's this tab's own data and `yjs-store.js`'s `applyRemote` no-ops on unchanged keys — so the fix fails *open* (redundant apply) instead of the old failure mode (silent, permanent drop of someone else's write). `pendingItemIds` had no other consumers (confirmed by grep) and was removed entirely, along with its now-dead `idb-store.js` helper `countPendingMutationsForItem`.
+
+**Files touched**: `packages/dms/src/sync/sync-manager.js` (the `myRevisions` mechanism + all 5 read/write sites), `packages/dms/src/sync/idb-store.js` (removed the now-unused `countPendingMutationsForItem`), `packages/dms/src/sync/CLAUDE.md` (echo-suppression doc updated to describe the new mechanism and why the old one was wrong). No server changes.
+
+**Verified live**: reran the identical repro against the fixed code — live (no reload) now correctly shows Tab B's injected value, and it's still correct after reload. See also Bug 10 below, found while isolating this repro from a confound in the same test.
+
+## Bug 10 — WS broadcast pattern filter didn't match sibling types, so a section edit was never live-delivered to a client only subscribed to the page's own pattern type — FIXED (2026-08-24)
+
+Found as a confound while building Bug 9's repro: with Bug 9's fix alone, a controlled test (Tab A fully subscribed and warm on the `pages|page` pattern, then a concurrent update pushed to one of that page's own `pages|component` rows) *still* failed to deliver live — but **did** recover correctly on reload, a different signature than Bug 9 (which failed even after reload). That signature — wrong live delivery, correct after reload — pointed at the WS subscription/broadcast layer rather than the local echo-suppression logic Bug 9 lives in.
+
+**Root cause**: `packages/dms-server/src/routes/sync/ws.js`'s `notifyChange()` filters each broadcast recipient by their subscribed pattern(s) via `typeMatchesPattern(itemType, pattern)`:
+
+```js
+// ws.js — BEFORE
+function typeMatchesPattern(itemType, pattern) {
+  return itemType === pattern || itemType.startsWith(pattern + '|');
+}
+```
+
+This only matches an exact type or a **child** of the pattern (`pattern + '|' + anything`). It does not match a **sibling** type under the same instance prefix. But `pages|page` and `pages|component` are siblings — both prefixed by `pages|`, neither a child of the other — and a page's sections are *always* `{instance}|component` rows. A client subscribed to `pages|page` (which is what every caller passes to `bootstrapPattern()` — see its own doc comment) has `typeMatchesPattern('pages|component', 'pages|page')` evaluate `'pages|component' === 'pages|page'` (false) and `'pages|component'.startsWith('pages|page|')` (false) — never matches. Every broadcast for a section edit on that page was silently filtered out server-side (`_stats.broadcastSkipped++`) and never even reached the client's WS `onmessage` handler, for **every** client whose only subscription is the page's own pattern — i.e., the normal case for anyone with that page open.
+
+This is a real inconsistency, not a novel design: `sync.js`'s REST `/sync/bootstrap` and `/sync/delta` endpoints already handle exactly this sibling relationship correctly, via an `instancePrefix` (the pattern's segment before its first `|`) matched with a third `OR type LIKE instancePrefix || '|%'` clause. `ws.js`'s filter never had the equivalent clause — the REST snapshot/delta paths and the live WS path silently disagreed about which types belong to a subscribed pattern.
+
+Because the message never reaches `ws.onmessage` at all (server-side filtered, not client-side discarded), the client's persisted revision watermark is never wrongly advanced the way Bug 9's discard path did — so this bug's damage is scoped to "no live update without a reload," not permanent loss. It's very likely the dominant real-world cause behind the flaky cross-tab reflection reported in Bug 8's follow-up: any time the *changed* item is a page's section (the overwhelmingly common edit) rather than the page row itself, a passively-watching client subscribed only to the page pattern would never see it live, full stop, regardless of any debounce/coalescing timing — not a race, a hard miss every time.
+
+**Fix**: `typeMatchesPattern` now also matches when `itemType` starts with the pattern's own instance prefix + `'|'`, mirroring `sync.js`'s existing logic exactly:
+
+```js
+function typeMatchesPattern(itemType, pattern) {
+  if (itemType === pattern || itemType.startsWith(pattern + '|')) return true;
+  const pipeIdx = pattern.indexOf('|');
+  if (pipeIdx !== -1) {
+    const instancePrefix = pattern.substring(0, pipeIdx);
+    if (itemType.startsWith(instancePrefix + '|')) return true;
+  }
+  return false;
+}
+```
+
+**Files touched**: `packages/dms-server/src/routes/sync/ws.js` only.
+
+**Verified live**: same Playwright repro as Bug 9, this time with Tab A pre-warmed and fully subscribed to `pages|page` before the concurrent push. Pre-fix (Bug 9 fixed, Bug 10 not yet): live check still showed the stale value, reload recovered it (confirming server-side filtering, not client-side loss). Post-fix (both fixed): live check (no reload) correctly shows the injected value, and it's still correct after reload. Re-verified via the dms-server's own nodemon auto-restart picking up the fix live against the same running site.
+
+## Bug 12 — page-structure room seeding raced a slow (not lost) sync-step2, resurrecting a concurrently-deleted section — FIXED (2026-08-24)
+
+Found live from a direct user report during this same investigation: *"if i remove a section from tab a, it reflects in both tabs a and b. then if i add a section in tab b, the removed section is added again and synced in both tabs."* A deliberate divergence from Bug 9/10: this report specifically named the Bug-1 `Y.Array` room mechanism's own failure mode (a section coming back with its own identity, not just a display lag), so it needed independent root-causing rather than being folded into either fix.
+
+**First hypothesis (lodash `merge`) — real bug, fixed, but not the actual trigger.** `dms-manager/wrapper.jsx`'s `apiUpdate` does an optimistic `setItem(draft => merge(draft, dataSnapshot))` after every write, to reflect the just-sent payload into this tab's own `item` state immediately (before the next loader revalidate lands). Lodash `merge` merges arrays **by index**: if the merge target (this tab's own current `item.draft_sections`) has more elements at some position than the source (`dataSnapshot`, the array just sent), every trailing target element beyond the source's length survives untouched — confirmed with an isolated `lodash-es` test (`merge([S1,S2,S3], {x:[S2,S3]})` → `[S2,S3,S3]`, keeping a stale trailing element). This is a real defect (arrays of `{id,ref}` membership stubs are replacement values, not something safe to deep-merge) and was fixed by switching to `mergeWith` with an array customizer that replaces arrays wholesale (`(_o, s) => Array.isArray(s) ? s : undefined`) instead of index-merging them. **However**, a live Playwright repro driving the real UI (Settings → Delete in tab A, + Add → Save in tab B, on a disposable 3-section test page) did not reproduce resurrection through this path once the room mechanism (Bug 1) was in the loop — the room always supplied a correct, already-merged array as the `apiUpdate` payload's source, which starves this specific corruption of the "target longer than source" precondition in ordinary sequential (non-racing) use. Kept as a genuine fix regardless — it removes a real footgun for any other array-valued dms-format field, not just `draft_sections` — but it is not what produced the reported symptom.
+
+**Actual root cause — a blind timeout let this tab seed the room from its own stale data while a real, merely-late sync-step2 was still in flight.** `page-structure-provider.js`'s `joinPageStructureRoom` seeds the shared `Y.Array` from this tab's own currently-known `draft_sections`, but *only* if the array is still empty once the room connection is considered "ready." `ready` resolved via either a real `yjs-sync-step2` from the server, or a flat 1000ms fallback timeout (so a genuinely-empty, never-touched room doesn't hang callers forever). The fallback did not distinguish "genuinely empty, nothing coming" from "has real content, step2 is just running late" — and under real load (a competing ~900ms `pages|page` pattern bootstrap sharing the same WebSocket's message queue, both routinely observed in this session's own test logs), a real, non-empty step2 can easily take longer than 1000ms to arrive. When the fallback fired first, this tab treated the room as empty and seeded it from its own `draft_sections` snapshot — which, if that snapshot predates a concurrent peer's delete (a very ordinary case: this tab's *room* had never synced yet, independent of whether its plain `item.draft_sections` field had already been corrected via the — now fixed — Bug 9/10 path), reintroduced the deleted section's `{id,ref}` stub as a **fresh Yjs insert operation**. Yjs has no way to recognize that insert as "the same logical item, already deleted elsewhere" — it just merges it in and relays it to every other room member, including the tab that originally deleted it. Confirmed the server-side half of the mechanism by reading `ws.js`'s `join-room` handler: it sends `yjs-sync-step1` unconditionally and immediately, but only sends `yjs-sync-step2` when `Y.encodeStateAsUpdate(ydoc).length > 2` — i.e. **the client's fallback timeout is the *only* signal for "genuinely empty" in the common case**, not a rare edge case.
+
+**Live repro.** Direct-room-API tests (bypassing the UI, driving `joinPageStructureRoom` exactly as `sectionArray.jsx` does) against a real disposable 3-section page reproduced two distinct corrupted outcomes depending on exact timing, both via a server-side test hook (`DMS_TEST_ROOM_JOIN_DELAY_MS`, temporary, removed after verification) that deterministically delayed `join-room`'s step1/step2 response by 1500ms — forcing the race instead of hoping to catch it:
+- Tab B's stale seed snapshot still containing the deleted section → the deleted section came back in the final, server-persisted `draft_sections`, visible to both tabs (exactly the reported symptom).
+- Tab B's seed snapshot already correct (loaded after the delete) → the room ended up with duplicate entries once the real, correct room state later merged in with the wrongly-seeded copy — a different corruption, same root defect.
+
+**Fix — two parts, both required (verified independently and together):**
+1. **Seed decision uses `yjs-sync-step1`'s state vector, not a timeout guess.** The server always sends step1 synchronously on join, so its state vector is a fast, definitive signal: `Y.decodeStateVector(serverSV).size === 0` means genuinely empty (nothing has ever been written; safe to seed immediately, no need to wait for anything). A non-empty vector means real content exists and a real step2 is *guaranteed* to follow (per the server's own `update.length > 2` gate) — seeding must never happen in that case, no matter how long step2 takes.
+2. **`ready` itself must wait for the real content when step1 says it exists — not just resolve on a blind timeout.** Fixing (1) alone surfaced a second, related bug live: with seeding correctly suppressed, `save()`/`remove()`/`moveItem()` still proceeded as soon as the OLD flat 1s `ready` timeout fired, before the real (merely delayed) step2 arrived — so a mutation's own `sectionsArray.toArray()` read (sent straight to the server) silently **dropped every section that hadn't synced in yet**, a data-loss failure mode at least as bad as resurrection. Fixed by unifying the two signals: `ready` now resolves immediately when step1 confirms the room is empty, waits specifically for the real step2 when step1 confirms content exists (with its own generous 5000ms fail-safe for a genuine transport failure, not ordinary latency), and only falls back to an unconfirmed-empty state if step1 itself never arrives at all within 5000ms (narrowed from the original 1000ms, which was found live to fire even for *step1* under the same kind of contention that used to only threaten step2).
+
+**Files touched**: `packages/dms/src/sync/page-structure-provider.js` (the `knownEmpty`/`markReady` redesign in `connect()`, and the seed call site in `joinPageStructureRoom`) — no server changes; `packages/dms/src/dms-manager/wrapper.jsx` (the `mergeWith` fix, real but not the trigger for this specific report — see above).
+
+**Verified live**, all against the real Postgres-backed multi-tenant `shaun-test-app` site with the forced 1500ms server-side delay active:
+- Pre-fix: reproduced both corrupted outcomes described above (resurrection and duplication) via the direct-room-API test.
+- Fix part (1) alone: no more resurrection/duplication, but a fresh regression — the add's own write correctly excluded the deleted section but also dropped the two *other*, still-live sections (server truth ended up as `[new-section]` only).
+- Fix parts (1)+(2) together: tab A's room correctly seeds and reflects its own delete; tab B's room correctly stays empty (no premature seed) through the full 1500ms delay, `room.ready` correctly blocks for ~1485ms (waiting for the real step2) before tab B's add proceeds, and the final server-persisted `draft_sections` is exactly `[ALPHA, BETA, tab-B's-new-section]` — no resurrection, no duplication, no data loss. Re-verified twice on fresh disposable pages.
+- Test hook (`DMS_TEST_ROOM_JOIN_DELAY_MS` in `ws.js`) was temporary, used only to force the race deterministically, and has been fully removed — confirmed via `git diff` showing only the `typeMatchesPattern` (Bug 10) change remaining in that file.
+
+## Bug 13 — a second, server-side concurrent-join race duplicated a page's whole section list on real-world dev-server restarts — FIXED, plus a client-side dedupe safety net (2026-08-25)
+
+Found live from a direct user report on the real `page_1` (`54278`) site: *"now when i delete a section, draft sections duplicate."* Confirmed this was not the display-only Bug 8 pattern and not Bug 12's room-seed race (already fixed 2026-08-24) — the corruption was already present in the room's persisted Yjs state itself (not just one tab's local read of it), and the exact same 9–10 unique component ids kept appearing in whole repeated copies.
+
+**Root cause — `getOrCreateYDoc(itemId)` in `ws.js` registered its new `Y.Doc` into the shared `yjsDocs` map *before* awaiting the `yjs_states` DB load.** Confirmed via `change_log`: the last known-good state (10 unique entries, `revision 721526`, 2026-08-24 22:38:08) exactly matched the deduped content of a corrupted write at `revision 721703` (2026-08-25 12:58:55) that jumped the same array to 59 entries — six duplicate copies of the same content, written in one shot with no intervening edit. The real dms-server process serving the site had itself been restarted that morning (confirmed via `ps`), and the corruption's timing lines up with that restart: several `join-room` messages for the same item, arriving close together while the DB load for the *first* one was still in flight, each independently saw an empty (not-yet-loaded) `Y.Doc` and computed an empty state vector for their own `yjs-sync-step1` — so each concluded (correctly, per the already-fixed Bug 12 client logic) that the room was genuinely empty and safe to seed, and each pushed its own last-known-good local copy. Yjs has no identity linking a fresh seed-insert to already-persisted content, so every racing copy landed in the merged array as distinct entries. This is exactly the "known remaining edge case" the Bug 12 write-up flagged as needing server-side coordination to close, now hit for real (not synthetically).
+
+**Fix.** `getOrCreateYDoc` now tracks in-flight loads in a `yjsDocLoads` map keyed by `itemId`; a concurrent call for the same item awaits the *same* load promise instead of starting its own, and the doc is only published to `yjsDocs` (so any `join-room` handler can compute a state vector / send step1) once the load has actually finished — no caller can ever observe a not-yet-loaded doc as empty.
+
+**Isolated live verification (raw `ws` connections against a throwaway server instance, not the real dev server on :3001, so the fix could be proven both ways without touching the user's live session):** seeded a real room with 3 persisted entries via a genuine `yjs-update` (flushed to the shared Postgres `yjs_states` table), then fired 5 simultaneous `join-room` requests at an instance with a 1500ms artificial delay inserted into the DB-load path (temporary `DMS_TEST_YDOC_LOAD_DELAY_MS` hook, added and fully removed after use).
+- Pre-fix (`git stash` of the `ws.js` change, delay hook re-added by hand to the old code): 4 of 5 clients saw an empty state vector — bug reproduced deterministically.
+- Post-fix: 0 of 5 clients saw an empty state vector — race closed.
+
+**A second duplication was still observed after the fix, from real (not artificial) reconnect timing.** During this same investigation, repeated dev-server restarts (nodemon auto-restarting on file edits, including this session's own temp test-script churn under the nodemon-watched `dms-server` directory) still produced one further 9→18 duplication event on the real site, with the server-side fix already active the whole time. This was not independently root-caused to a second, distinct mechanism — plausible candidates include multiple real browser tabs' reconnect-backoff timers landing close enough together across many restart cycles, or a client-side `room.knownEmpty` still being `null` (never resolved) on one tab at the moment of a restart. Rather than keep chasing every possible race window by forcing more real restarts against the user's live session (each one itself disruptive), this was closed with defense-in-depth instead of further root-causing.
+
+**Defense-in-depth: `healRoomDuplicates(room)` in `sectionArray.jsx`.** Every write this component makes to `draft_sections` (`save`, `remove`, `moveItem`) already funnels through one `arr.toArray()` read right before calling `onChange`. That's the one true choke point regardless of which race put a duplicate `{id,ref}` stub into the shared `Y.Array` — so `healRoomDuplicates` is now called there instead of a bare `arr.toArray()`: it finds any id that appears more than once (keeping first-occurrence order), and — if any are found — deletes the extras via a real `doc.transact` (not just a local filter), so the fix is visible to every other client sharing the room and future joins don't reseed from stale duplicated content either. A no-op (returns the array unchanged) on the by-far-common case of no duplicates. This does not replace the server-side fix (which closes the proven, isolated race directly) — it's a backstop that makes any remaining or future race harmless at the point where it would otherwise become user-visible, rather than requiring every possible concurrent-join interleaving to be individually proven closed.
+
+**Cleanup.** `page_1`'s real corrupted `draft_sections` (accumulated from the pre-fix restart this morning, then again during this session's own restart-testing) was repaired twice via the legitimate client path — joining the room directly and deleting the duplicate entries as real `Y.Array` ops, then `localUpdate`, never a raw DB write (attempted once via direct SQL and correctly blocked by the environment's safety classifier) — restoring it to exactly the content the user's own real edits had established.
+
+**Files touched**: `packages/dms-server/src/routes/sync/ws.js` (`getOrCreateYDoc`'s `yjsDocLoads` single-flight fix); `packages/dms/src/patterns/page/components/sections/sectionArray.jsx` (`healRoomDuplicates` helper, wired into `save`/`remove`/`moveItem`).
+
 ## Testing checklist
 
+- [x] **Bug 9 — client-side echo suppression keyed by item id (not revision) permanently dropped a different client's concurrent edit — fixed.** Replaced `pendingItemIds` with revision-keyed `myRevisions` in `sync-manager.js`'s `ws.onmessage` and `applyChanges()`; removed the now-dead `pendingItemIds`/`countPendingMutationsForItem`. Verified live: pre-fix, a concurrent update was lost both live AND after reload (permanent); post-fix, correct in both cases.
+- [x] **Bug 10 — WS broadcast pattern filter didn't match sibling types, so section edits were never live-delivered to a client only subscribed to the page pattern — fixed.** `ws.js`'s `typeMatchesPattern` now also matches the pattern's own instance-prefix siblings, mirroring `sync.js`'s existing bootstrap/delta logic. Verified live: pre-fix, a concurrent section update recovered on reload but never appeared live; post-fix, appears live with no reload needed. Likely the dominant real-world cause of Bug 8's "flaky cross-tab reflection" — a hard miss on every section edit to a passively-watched page, not a timing race.
+- [x] **Bug 12 — page-structure room seeding raced a slow-but-real `yjs-sync-step2`, resurrecting a concurrently-deleted section (and, mid-fix, a related data-loss regression) — fixed.** `page-structure-provider.js`'s room-join used a blind 1s timeout to decide "room is empty, safe to seed from my own stale draft_sections" — under real WebSocket contention a genuinely non-empty room's real sync could arrive later than that, so seeding fired anyway and reintroduced (or duplicated) content another client had already correctly deleted. Fixed by deciding from `yjs-sync-step1`'s state vector (server always sends it immediately; empty ⇒ safe now, non-empty ⇒ a real `step2` is guaranteed and must be waited for) instead of a guess. Also fixed a related `lodash.merge`-on-arrays corruption in `wrapper.jsx`'s optimistic `apiUpdate` re-sync (real defect, `mergeWith` + array-replace customizer now used) — confirmed via isolated test but NOT the actual trigger for the reported symptom once live-verified against the real room-driven flow. Verified live with a temporary, deterministic 1500ms server-side join delay (added and fully removed after use): pre-fix reproduced both resurrection and duplication; fixing only the seed decision surfaced a new regression (mutations proceeding before real content arrived silently dropped other sections); the final fix (seed decision + `ready` itself waiting for confirmed content) reproduces neither failure mode — final state exactly matches expected membership, re-verified on two fresh disposable pages.
+- [x] **Bug 13 — server-side `getOrCreateYDoc` concurrent-join race duplicated a page's whole section list on real dev-server restarts, plus a client-side dedupe safety net — fixed.** `ws.js` registered a new `Y.Doc` into `yjsDocs` before its DB load resolved, so simultaneous `join-room` messages for the same item (e.g. several stale tabs reconnecting on a server restart) could each see an empty doc and each independently reseed — live-reproduced on the real `page_1` (10 entries → 59, six duplicate copies, in one write with no intervening edit). Fixed with a `yjsDocLoads` single-flight map so concurrent callers await the same load instead of racing it; isolated-verified both ways (4/5 clients saw a false-empty state vector pre-fix, 0/5 post-fix) against a throwaway server instance under an artificial delay. A further duplication still occurred from real (not artificial) reconnect timing during this session's own repeated restarts, not independently root-caused to a second mechanism — closed instead with a `healRoomDuplicates` safety net in `sectionArray.jsx` that dedupes the shared array (as real `Y.Array` deletes, not just a local filter) at the one choke point every `draft_sections` write already passes through, so any remaining or future race becomes harmless rather than user-visible. `page_1`'s real corrupted data was repaired via the legitimate client path (room ops + `localUpdate`), not a raw DB write.
 - [x] **Bug 5 — sync push missing auth header, delete always 401'd — fixed.** All 8 `fetch()` calls in `sync-manager.js` now send `authHeaders()`. Verified live via `localDelete`.
 - [x] **Bug 6 — malformed `{id: null}` ref crashed page load — fixed.** `api/index.js`'s `childIds` extraction no longer falls through to the whole ref object when an object ref has no usable id. Verified live, zero errors on the exact navigation that crashed before.
+- [x] **Bug 7 — `/sync/bootstrap`/`/sync/delta` revision-watermark race — fixed.** Revision computed before data fetch in both endpoints, not after. Verified live via direct `getItem()` inspection of a passive client's local IndexedDB.
+- [x] **Bug 8 — `useMemo` blocking context propagation for section re-renders — fixed.** Added `item?.draft_sections` to the three section-group `useMemo` dependency arrays in `patterns/page/pages/edit/index.jsx`. Verified working via full render-chain tracing (temporary, removed).
+- [ ] **Bug 8 follow-up (RE-SCOPED 2026-08-24, needs a fresh pass) — live cross-tab reflection was inconsistent even after the Bug 8 fix.** Investigating this directly (per user report that data was *sometimes actually lost*, not just slow to render) found and fixed two independent, more fundamental bugs instead: Bug 9 (client echo suppression permanently dropping a concurrent edit) and Bug 10 (WS broadcast pattern filter never delivering a section edit to a page-pattern-only subscriber — a hard miss on every section edit, not a race, and the strongest candidate for what most of Bug 8's flakiness actually was). Both are now fixed and live-verified. The original React-Router-`revalidate()`-coalescing suspicion was never confirmed and may not be a real, separate mechanism at all — it's very plausible the "worked once, failed 3 times" pattern observed at the time was actually Bug 10 (a section edit deterministically never delivered live) rather than a coalescing race. **Re-run the original passive-tab test now that Bugs 9 and 10 are fixed before spending more effort on the coalescing theory** — only chase it further if reflection is still inconsistent after this.
+- [ ] Separately (not Bug 8): one run against a brand-new never-before-synced page lost a section's page-level reference permanently — matches Bug 1's already-documented "simultaneous cold-room-join" edge case, not a new defect. Tracked under Bug 1's existing follow-up items, not duplicated here.
 - [ ] Bug 6 follow-up: root-cause *which* page/field actually had a null-id ref and how it got there (data-quality question, not a code-correctness one — the fix is safe regardless)
 - [ ] Fill in all 8 rows × 9 columns of the test matrix above (56 remaining cells; C6's row is partially done)
 - [x] **Bug 1 — implemented and live-verified.** `Y.Array`-backed page-structure collab (option 3), see "Bug 1 implementation — DONE, live-verified" above for the full writeup, including 3 bugs found and fixed during implementation (duplicate row creation from sharing unresolved content; missing settle/debounce letting the same race resurface one layer up; wrong `type-utils` function for the sibling component type). Verified live: 4 concurrent adds on a real Postgres-backed multi-tenant site, all 4 survive with correct types and no duplicates (2 separate clean runs); single-client delete confirmed working, no reload needed.

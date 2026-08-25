@@ -63,22 +63,49 @@ function base64ToUint8(base64) {
 // one per mounted group) keeps every group's view of the same array
 // consistent within a single tab, not just eventually-consistent via the
 // server relay.
-const rooms = new Map(); // pageItemId -> { doc, sectionsArray, refCount, synced, readyPromise, resolveReady, ... }
+const rooms = new Map(); // pageItemId -> { doc, sectionsArray, refCount, readyPromise, knownEmpty, ... }
 
 function connect(pageItemId) {
   const doc = new Y.Doc();
   const sectionsArray = doc.getArray('draft_sections');
-  let synced = false;
   let resolveReady;
+  let readySettled = false;
   const readyPromise = new Promise((resolve) => { resolveReady = resolve; });
-  // Fallback so a brand-new/never-persisted room doesn't hang callers forever
-  // waiting on a sync-step2 that will never come (nothing to sync yet) —
-  // mirrors DmsCollabProvider's identical 1000ms fallback.
-  const syncTimeout = setTimeout(() => {
-    if (!synced) { synced = true; resolveReady(); }
-  }, 1000);
+  function markReady() {
+    if (readySettled) return;
+    readySettled = true;
+    clearTimeout(room.step1Timeout);
+    clearTimeout(room.step2Timeout);
+    resolveReady();
+  }
+  // Fail-safe for step1 itself never arriving. NOT a short/"expected fast
+  // path" timeout — found live (2026-08-24) that step1 can be delayed just
+  // as much as step2 under real contention (e.g. a competing pattern
+  // bootstrap sharing the same WebSocket's message queue): step1 being tiny
+  // only means its OWN payload is small, not that it skips the same queue
+  // step2 sits behind. An earlier version of this used 1000ms here on the
+  // assumption step1 is always near-instant, which reintroduced exactly the
+  // bug this file exists to fix, one layer up — `ready` resolving before
+  // step1 ever arrived left `knownEmpty` at `null` (correctly blocking the
+  // seed, since the seed strictly requires `knownEmpty === true`) but a
+  // MUTATION (save/remove/moveItem) still proceeded on the unconfirmed doc,
+  // so a page with real content could still get its `sectionsArray.toArray()`
+  // read back empty and overwrite draft_sections with just the new op. This
+  // long a timeout should essentially never fire under real conditions
+  // (step1 is the very first thing the server sends on join); if it does,
+  // `ready` resolves with the doc unconfirmed, same residual risk this
+  // provider always had for a genuine total connection failure.
+  const step1Timeout = setTimeout(markReady, 5000);
 
-  const room = { doc, sectionsArray, refCount: 0, synced, readyPromise, resolveReady, syncTimeout, lastRemoteAt: 0 };
+  // `knownEmpty` — null until step1 arrives, then true/false based on its
+  // decoded state vector. Read by joinPageStructureRoom to decide whether
+  // seeding is safe — see the seed call site's doc comment for the bug this
+  // exists to fix (found live 2026-08-24, resurrecting a concurrently-
+  // deleted section — concurrent-page-editing-data-loss.md "Bug 12").
+  const room = {
+    doc, sectionsArray, refCount: 0, readyPromise, lastRemoteAt: 0,
+    knownEmpty: null, step1Timeout, step2Timeout: null,
+  };
 
   const docUpdateHandler = (update, origin) => {
     if (origin === 'remote') return;
@@ -101,11 +128,44 @@ function connect(pageItemId) {
         if (ws && ws.readyState === 1) {
           ws.send(JSON.stringify({ type: 'yjs-sync-response', itemId: pageItemId, update: uint8ToBase64(update) }));
         }
+        if (room.knownEmpty === null) {
+          clearTimeout(room.step1Timeout);
+          room.knownEmpty = Y.decodeStateVector(serverSV).size === 0;
+          if (room.knownEmpty) {
+            // Nothing to wait for — no client has ever written to this
+            // room, so there's no step2 coming and it's already safe to
+            // seed/mutate.
+            markReady();
+          } else {
+            // Real content confirmed to exist — `ready` must wait for the
+            // ACTUAL step2 payload, not a blind guess. The old design
+            // resolved `ready` (and, worse, let seeding proceed) off a
+            // flat 1s timeout regardless of what step1 said, which caused
+            // two distinct live bugs under real load (e.g. a competing
+            // pattern bootstrap sharing the same WebSocket's message
+            // queue and delaying step2 past 1s): (1) seeding this tab's
+            // own stale draft_sections into a room that actually already
+            // had different, correct content — reintroducing a section
+            // another client had just deleted, or duplicating entries
+            // once the real content later merged in; (2) a mutation
+            // (save/remove/moveItem) proceeding against a doc it
+            // incorrectly believed was empty, so its own
+            // `sectionsArray.toArray()` read — and thus the resulting
+            // draft_sections WRITE — silently dropped every other
+            // section that hadn't synced in yet. The server always sends
+            // step2 immediately after step1 whenever content exists, so
+            // this should resolve almost instantly in practice; the
+            // longer timeout below is a fail-safe for a genuine
+            // transport failure (step2 specifically lost), not ordinary
+            // latency.
+            room.step2Timeout = setTimeout(markReady, 5000);
+          }
+        }
       }
 
       if (msg.type === 'yjs-sync-step2') {
         Y.applyUpdate(doc, base64ToUint8(msg.update), 'remote');
-        if (!room.synced) { room.synced = true; clearTimeout(room.syncTimeout); room.resolveReady(); }
+        markReady();
       }
 
       if (msg.type === 'yjs-update') {
@@ -135,7 +195,8 @@ function connect(pageItemId) {
     doc.off('update', docUpdateHandler);
     if (currentWS) currentWS.removeEventListener('message', wsHandler);
     unsubWSChange();
-    clearTimeout(room.syncTimeout);
+    clearTimeout(room.step1Timeout);
+    clearTimeout(room.step2Timeout);
     const ws = currentWS || getWS();
     if (ws && ws.readyState === 1) {
       ws.send(JSON.stringify({ type: 'leave-room', itemId: pageItemId }));
@@ -181,13 +242,36 @@ function waitForQuiet(room, quietMs = 300, maxWaitMs = 1500) {
  *
  * @param {string|number} pageItemId
  * @param {Array} seedSections - the page's currently-known draft_sections,
- *   used to seed the shared array ONLY if it's still empty after this join's
- *   first sync (i.e. nobody has ever written to this room before). Known
- *   edge case: two clients joining a cold room at the exact same instant can
- *   both see "empty" and both seed, producing duplicate entries — narrow
- *   (first-ever join after a server restart / yjs_states eviction, near-
- *   simultaneous), not solved here; would need server-side seed coordination
- *   to close entirely.
+ *   used to seed the shared array ONLY once `ready` resolves AND
+ *   `room.knownEmpty === true` — i.e. the server's `yjs-sync-step1` state
+ *   vector confirmed no client has ever written to this room, not a timeout
+ *   guess. A timeout-based decision was tried first and found live to be
+ *   wrong in TWO ways (both reproduced 2026-08-24 under a real, forced
+ *   network delay — see "Bug 12" in concurrent-page-editing-data-loss.md):
+ *   (1) seeding could fire from a blind 1s fallback before a real, non-empty
+ *   `yjs-sync-step2` had simply arrived late (e.g. a competing pattern
+ *   bootstrap sharing the same WebSocket's message queue) — reintroducing a
+ *   section another client had JUST deleted (Yjs has no way to recognize a
+ *   seed-insert as "the same logical item, already deleted elsewhere" — it's
+ *   just a fresh insert op) or duplicating entries once the real content
+ *   later merged in; (2) even after gating seeding correctly, a mutation
+ *   (save/remove/moveItem) proceeding on the SAME blind 1s `ready` signal
+ *   could run before the real content arrived, and its own
+ *   `sectionsArray.toArray()` read — sent straight to the server — would
+ *   then silently DROP every section that hadn't synced in yet. Both are
+ *   fixed together by making `ready` itself wait for the real step2
+ *   whenever step1 confirms content exists (see `connect()`'s
+ *   `markReady`/`knownEmpty`), rather than treating "don't hang forever" and
+ *   "safe to trust this doc's current state" as the same signal. The server
+ *   always sends step1 synchronously on join (a tiny payload, unlike step2
+ *   which it only sends when the room has content — ws.js's
+ *   `update.length > 2` guard), so its state vector is a fast, reliable,
+ *   definitive signal instead of a guess. Known remaining edge case: two
+ *   clients joining a cold room at the exact same instant can both see
+ *   "empty" and both seed, producing duplicate entries — narrow (first-ever
+ *   join after a server restart / yjs_states eviction, near-simultaneous),
+ *   not solved here; would need server-side seed coordination to close
+ *   entirely.
  * @returns {{ sectionsArray: Y.Array, doc: Y.Doc, ready: Promise<void>, settle: (quietMs?, maxWaitMs?) => Promise<void>, disconnect: () => void }}
  *   `doc` is exposed so callers can wrap multi-step mutations in
  *   `doc.transact(() => { ... })` — a single Yjs-level transaction, so e.g.
@@ -206,7 +290,7 @@ export function joinPageStructureRoom(pageItemId, seedSections) {
   room.refCount += 1;
 
   room.readyPromise.then(() => {
-    if (room.sectionsArray.length === 0 && Array.isArray(seedSections) && seedSections.length > 0) {
+    if (room.knownEmpty === true && room.sectionsArray.length === 0 && Array.isArray(seedSections) && seedSections.length > 0) {
       room.doc.transact(() => {
         if (room.sectionsArray.length === 0) { // re-check inside transact: still racy across clients, not across this doc's own ticks
           // seedSections is the page's already-*resolved* draft_sections (ref +

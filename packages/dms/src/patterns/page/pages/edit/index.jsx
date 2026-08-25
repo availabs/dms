@@ -266,10 +266,25 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               navItems={menuItems}
               resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
-              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
-              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
+              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups, item?.draft_sections])}
+              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups, item?.draft_sections])}
           >
-            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
+            {/* Was memoized on item?.draft_section_groups alone — the group
+                LAYOUT (names/positions), which almost never changes independent
+                of item?.draft_sections (the actual section CONTENT, which does
+                change on every add/delete/edit). When only draft_sections
+                changed, this useMemo returned the exact same cached React
+                element tree, and React's reconciler bails out of re-rendering
+                an unchanged memoized subtree entirely — so SectionGroup/
+                sectionArray.jsx, nested inside, never re-rendered to read the
+                fresh PageContext value, even though item itself was already
+                correctly up to date one level up. This is why a remote edit's
+                data would land correctly in local IndexedDB and even in this
+                component's own `item` state, yet never appear on screen
+                without a hard reload (which remounts everything fresh instead
+                of relying on this memo). See
+                planning/tasks/current/concurrent-page-editing-data-loss.md. */}
+            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups, item?.draft_sections])}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>

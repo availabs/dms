@@ -64,8 +64,10 @@ Connects to `/sync/subscribe` (WS). Subscribes per-app and per-loaded-pattern. R
 
 ## Key Design Decisions
 
-### Echo Suppression (`pendingItemIds`)
-When a local write is pushed to the server, the server broadcasts it back via WebSocket. The `pendingItemIds` Set tracks IDs with in-flight mutations. WS messages for these IDs are skipped to prevent double-application. Cleared when all pending mutations for an item are flushed, or after a 2-second timeout for server-first creates.
+### Echo Suppression (`myRevisions`)
+When a local write is pushed to the server, the server broadcasts it back via WebSocket (and it can also reappear in a later `/sync/delta` response). That echo must be skipped — applying it again is at best redundant. The suppression key is the **exact revision number** returned by this tab's own `/sync/push` response (`change_log.revision` is a per-app monotonic serial, so that number can only ever appear once, on this exact write). `markMyRevision(revision)` records it in the `myRevisions` Set; `ws.onmessage` and `applyChanges()` (the delta-application path) both check `myRevisions.has(revision)` before applying.
+
+This used to be keyed by item id (`pendingItemIds`) instead, which was wrong: a WS/delta message for an item this tab also has a mutation in flight for is not necessarily this tab's own echo — it can just as easily be a different client's genuinely concurrent edit to the same item, arriving mid-flight. Item-id keying suppressed that message unconditionally and still advanced the persisted revision watermark past it, which silently and **permanently** dropped the other client's write from this tab's local mirror (a hard reload did not recover it, since `revision > sinceRev` delta filtering never re-serves a revision this tab already claimed to be caught up through) — found live 2026-08-24, see `concurrent-page-editing-data-loss.md` Bug 9. Revision-keying can't have this failure mode: if the echo happens to arrive before this tab's own push response resolves (so `myRevisions` doesn't have it yet), the message is just applied as if remote — harmless, since it's this tab's own data (`yjs-store.js`'s `applyRemote` no-ops on unchanged keys) — which fails open (redundant apply) instead of failing closed (silently dropping someone else's write).
 
 ### `_dirty` Flag
 In `api/index.js`, dms-format child items carry a `_dirty` flag. During sync writes, only children marked `_dirty: true` trigger `localUpdate()`; clean children are skipped. The flag is stripped before writing.
