@@ -44,8 +44,8 @@ Registry of `(app, type)` pairs that are synced locally. Seeded at bootstrap fro
 ### `yjs-store.js`
 Per-item Yjs document store for field-level merge. Each DMS item gets a `Y.Doc` with a `YMap('data')`. `applyLocal(id, newData)` merges local edits, `applyRemote(id, remoteData)` merges server/WS changes (adds new keys, updates changed keys, deletes removed keys). `initFromData(id, data)` seeds a doc from existing data (only if empty). `getData(id)` materializes current state. Pure in-memory — has no storage dependency of its own; `sync-manager.js` is what persists its merged output.
 
-### `SyncStatus.jsx`
-Floating UI indicator (bottom-right corner) showing connection status (green/yellow/red dot), pending mutation count, and active collab peer count.
+### Status UI
+No dedicated component in this module — the connection status is surfaced through the page pattern's user menu instead: `patterns/page/components/userMenu.jsx` subscribes to `onStatusChange`/`getPendingCount`/`onCollabChange`/`getCollabInfo` (dynamic `import('../../../sync/sync-manager.js')`, gated on `VITE_DMS_SYNC`) and renders a status ring around the avatar plus a status row (dot, label, pending count, collab peer count) inside the user dropdown. Ring/dot colors per status live in `userMenu.theme.jsx` (`syncRing*`/`syncDot*` keys).
 
 ## Architecture
 
@@ -98,7 +98,6 @@ The old SQLite-backed storage exposed a generic `useQuery(sql, params, deps, sco
 - The `app` passed is resolved via an `onResolvedSyncApp` callback threaded through the async `dmsSiteFactory()` loader — on a multi-tenant subdomain this is the tenant's own app, not the master/platform app (fixed in `sync-bring-up-to-date.md`; single-tenant deployments resolve this synchronously on mount, so there's no added latency for the common case).
 - Wires sync API into `api/index.js` via `_setSyncAPI()`.
 - Subscribes to `onInvalidate` to revalidate React Router (debounced 150ms).
-- Lazy-loads `SyncStatus.jsx` when sync is active.
 
 ### Collaborative Editing (`ui/components/lexical/editor/collaboration.js`)
 - `DmsCollabProvider` class bridges Lexical's `CollaborationPlugin` to the DMS sync WebSocket.

@@ -9,16 +9,22 @@ import { isUserAuthed } from "../../../utils/auth";
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
 
-const UserMenu = ({activeStyle}) => {
+const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
+  && import.meta.env?.VITE_DMS_SYNC === '1';
+
+const syncStatusKey = (status) => status ? `${status.charAt(0).toUpperCase()}${status.slice(1)}` : null
+
+const UserMenu = ({activeStyle, syncStatus}) => {
     const { theme, UI } = useContext(ThemeContext)
     const { user } = useContext(AuthContext)
     const { Icon } = UI;
     const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
+    const ringKey = syncStatus ? `syncRing${syncStatusKey(syncStatus)}` : null
 
     return (
       <div className={menuTheme.userMenuContainer}>
         <div className={menuTheme.avatarWrapper}>
-          <div className={menuTheme.avatar}>
+          <div className={`${menuTheme.avatar} ${ringKey ? `${menuTheme.syncRing} ${menuTheme[ringKey] || ''}` : ''}`}>
               <Icon icon={'User'} className={menuTheme.avatarIcon} />
           </div>
         </div>
@@ -76,6 +82,51 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
       || isUserAuthed({ user, authPermissions, reqPermissions: ['view-as'] }),
     [user?.groups, app, authPermissions]
   );
+
+  const [syncStatus, setSyncStatus] = React.useState(null);
+  const [syncPending, setSyncPending] = React.useState(0);
+  const [syncCollab, setSyncCollab] = React.useState({ rooms: 0, peers: 0 });
+
+  React.useEffect(() => {
+    if (!DMS_SYNC_ENABLED) return;
+    let cancelled = false;
+    let unsubStatus = () => {};
+    let unsubCollab = () => {};
+    import('../../../sync/sync-manager.js').then(({ onStatusChange, getPendingCount, onCollabChange, getCollabInfo }) => {
+      if (cancelled) return;
+      setSyncCollab(getCollabInfo());
+      unsubStatus = onStatusChange(async (s) => {
+        setSyncStatus(s);
+        setSyncPending(await getPendingCount());
+      });
+      unsubCollab = onCollabChange(setSyncCollab);
+    });
+    return () => { cancelled = true; unsubStatus(); unsubCollab(); };
+  }, []);
+
+  const syncLabel = syncStatus === 'syncing' && syncPending > 0
+    ? `Syncing (${syncPending})`
+    : syncStatusKey(syncStatus);
+
+  const syncMenuItems = syncStatus
+    ? [
+        { type: 'separator' },
+        {
+          type: () => (
+            <div className={menuTheme.syncStatusWrapper}>
+              <div className={`${menuTheme.syncStatusDot} ${menuTheme[`syncDot${syncStatusKey(syncStatus)}`] || ''}`} />
+              <span className={menuTheme.syncStatusLabel}>{syncLabel}</span>
+              {syncCollab.rooms > 0 && (
+                <div className={menuTheme.syncCollabWrapper}>
+                  <Icon icon={'Users'} className={menuTheme.syncCollabIcon} />
+                  <span>{syncCollab.peers > 1 ? syncCollab.peers : syncCollab.rooms}</span>
+                </div>
+              )}
+            </div>
+          ),
+        },
+      ]
+    : [];
 
   let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
     {
@@ -143,6 +194,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
                   ...authMenuItems.map(menuItem => ({...menuItem, icon: menuItem.icon || 'PageRound'})),
                   { name: 'Profile', path: '/auth/manage/profile', type: 'link', icon: 'User' },
                   ...viewAsMenuItems,
+                  ...syncMenuItems,
                   { type: 'separator'},
                   { name: 'Logout', path: '/auth/logout', type: 'link', icon: 'Logout' },
                 ]}
@@ -150,7 +202,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
                 activeStyle={navigableMenuActiveStyle}
               >
                 <div className={menuTheme.userMenuWrapper}>
-                  <UserMenu activeStyle={activeStyle} />
+                  <UserMenu activeStyle={activeStyle} syncStatus={syncStatus} />
                 </div>
               </NavigableMenu>
               <EditControl activeStyle={activeStyle} />

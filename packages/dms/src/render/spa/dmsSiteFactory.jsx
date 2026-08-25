@@ -93,7 +93,6 @@ export function DmsSite (config) {
 
 
     // --- Sync state (effects run after router is defined below) ---
-    const [syncActive, setSyncActive] = useState(false);
     const [syncAPI, setSyncAPIState] = useState(null);
     // The app to sync against. Single-tenant deployments know this synchronously
     // (dmsConfig never changes) so sync can start immediately, in parallel with
@@ -165,7 +164,6 @@ export function DmsSite (config) {
             const api = await initSync(app, API_HOST, siteType);
             _setSyncAPI(api);
             setSyncAPIState(api);
-            setSyncActive(true);
             // console.log(`[sync] fully wired into DMS (${(performance.now() - t0).toFixed(0)}ms total)`);
         }).catch(err =>
             console.warn('[dms] sync init failed:', err.message)
@@ -187,26 +185,14 @@ export function DmsSite (config) {
     }, [syncAPI, router]);
     // --- End sync ---
 
-    const SyncStatusLazy = React.useMemo(
-      () => syncActive ? React.lazy(() => import('../../sync/SyncStatus.jsx')) : null,
-      [syncActive]
-    );
-
     if (loading && !dynamicRoutes.length) {
         return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
     }
 
     return (
-      <>
-        <AuthedRouteProvider
-          router={router}
-        />
-        {SyncStatusLazy && (
-          <React.Suspense fallback={null}>
-            <SyncStatusLazy />
-          </React.Suspense>
-        )}
-      </>
+      <AuthedRouteProvider
+        router={router}
+      />
     )
 }
 

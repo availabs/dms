@@ -47,7 +47,7 @@ When two or more users edit the same rich text section simultaneously:
 
 - Each user sees the other users' cursors, labeled with their email address.
 - Edits appear character-by-character in real time (Yjs CRDT merge, no conflicts).
-- The SyncStatus indicator (bottom-right corner) shows a peer count icon when a collaborative session is active.
+- The user menu's avatar ring and sync status row (in the account dropdown) show a peer count icon when a collaborative session is active.
 - Collaborative state (the Yjs document) is persisted on the server in the `yjs_states` table, so edits survive page reloads and reconnects.
 - Content is saved to the DMS database only when the user clicks **Save**. Clicking **Cancel** discards all local edits. The Yjs state is the live working copy; the database record is the published copy.
 
@@ -74,8 +74,8 @@ Browser Tab
 | `sync/index.js` | Public API entry point (`initSync`, `getSyncAPI`) |
 | `sync/sync-manager.js` | Core logic: bootstrap, delta, push, WS, collab room management |
 | `sync/idb-store.js` | IndexedDB schema + storage API (runs on the main thread, no worker) |
-| `sync/SyncStatus.jsx` | Status indicator component (connection state, pending count, peer count) |
 | `sync/sync-scope.js` | Tracks which types are synced locally |
+| `patterns/page/components/userMenu.jsx` | Consumes `onStatusChange`/`onCollabChange` and renders the status ring + status row (connection state, pending count, peer count) inside the user menu |
 
 ### Key server modules
 
@@ -97,7 +97,7 @@ The sync system is wired up in two phases:
 - Verify `VITE_DMS_SYNC=1` is set in your `.env` (must be a build-time Vite variable, not a runtime one).
 - Confirm the DMS server is running and reachable.
 - Check the browser console for WebSocket connection errors (`ws://` or `wss://` URLs).
-- Look at the SyncStatus indicator in the bottom-right corner: red = disconnected, yellow = syncing, green = connected.
+- Look at the ring around the user avatar in the user menu: red/slate = disconnected, amber = syncing, orange = recovering, green = connected. Open the menu for the full status row (label + pending count + peer count).
 
 **Stale data after server restart**
 - The client catches up automatically via a delta request on the next WebSocket reconnect. If data still looks stale, trigger a page reload -- the client will run a delta against its last revision.
@@ -114,6 +114,6 @@ The sync system is wired up in two phases:
 
 **Collaborative cursors not showing**
 - Both users must be editing the same section (same item ID).
-- Check that the WebSocket connection is active (green dot in SyncStatus).
-- Verify the SyncStatus indicator shows a peer count (people icon with a number). If it shows nothing, the collab room may not have been joined.
+- Check that the WebSocket connection is active (green ring on the user menu avatar).
+- Open the user menu and verify the sync status row shows a peer count (people icon with a number). If it shows nothing, the collab room may not have been joined.
 - Ensure both users have `VITE_DMS_SYNC=1` enabled -- collaborative editing only works through the sync system.
