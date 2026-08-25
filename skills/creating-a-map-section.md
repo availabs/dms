@@ -129,6 +129,11 @@ A layer's `dynamic-filters[]` entries bind to page variables by key
 - Set `usePageFilters: true` on layers with page-variable bindings — the runtime sync doesn't
   require it, but the Map settings UI's per-layer "use page filters" toggle reads/writes it, so
   authored and scripted layers agree.
+- **A STATIC dynamic-filter (baked `values`, no page variable) must mirror its values in
+  `defaultValue`.** The page-filter sync resets every dynamic-filter with no matching page
+  variable to `defaultValue`-or-`[]` on ANY page-filter change (see §7c item 3) — a static
+  boundary scoping (`county_nam = 'Sullivan'`) silently un-filters on the first dropdown click
+  unless `defaultValue` restores it. (MNY actions dashboard jurisdictions layer, 2026-08-24.)
 - The value vocabulary must match the tile property EXACTLY (see §2 byte-check). The cleanest
   architecture: point the page's Filter CONTROL at the same source/view the map layer renders,
   so one vocabulary serves control options, data-section leaves, and the map.
@@ -327,7 +332,11 @@ See `editing-map-symbologies.md` §1 for the drift/refresh model.
 
 Playwright on the dev site (login first; view mode is cleanest — edit mode's hover chrome
 blocks clicks but scroll+screenshot still work):
-1. Tile requests for YOUR views return 200 (capture `/tiles/` responses).
+1. Tile requests for YOUR views return 200 (capture `/tiles/` responses). ⚠ **maplibre fetches
+   vector tiles from its WORKER thread — `page.on('request')` sees NONE of them** (only basemap
+   JSON/raster from the main thread), so a perfectly healthy map looks dead. Listen at the
+   CONTEXT level (`browserContext.on('request')`) instead. (Cost a full debugging detour on the
+   MNY actions dashboard, 2026-08-24.)
 2. Zero console errors (paint validation failures are silent — a bad property just doesn't draw).
 3. Screenshot and LOOK: are the lines/fills COLORED (not basemap roads)? Is the legend showing
    your rows? Colored-lines-missing with tiles-200 almost always = a paint column missing from

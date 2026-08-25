@@ -290,6 +290,16 @@ covers the DOM shape you'd query for.
   band (which is how you author them), and view mode has no published
   `sections` to render. Check a modal's *content* in edit mode; check its
   *behaviour* only after publishing (a throwaway page works).
+- **Typing into a native `<input type="date">` via `claude-in-chrome`: `triple_click` then `type`
+  a full `"MM/DD/YYYY"` string corrupts the value.** The browser's date-picker widget has three
+  separate MM/DD/YYYY sub-fields; a triple-click doesn't reliably select/focus all three, and the
+  `/` characters in a typed string aren't valid input, so digits keep accumulating into whichever
+  sub-field was actually focused (e.g. typing `"06/01/2024"` and `"06/30/2024"` into two fields
+  produced `12024-06-01`/`275760-06-30` — found live 2026-08-21, `report-authoring-ux-overhaul.md`
+  Tier 8B). The value still round-trips through `apiUpdate` and gets persisted, so this fails
+  silently until something downstream chokes on the garbage year. Fix: `left_click` once on the
+  field (focuses the first, month sub-field), then `type` digits ONLY, no separators, e.g.
+  `"06012024"` — native date inputs auto-advance MM→DD→YYYY as you type each 2-or-4-digit group.
 
 ## 5. Extending this doc
 

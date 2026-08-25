@@ -58,6 +58,7 @@
 
 ## api
 
+- [ ] [UDA: constant-valued columns vanish on ungrouped-aggregate cards; long attribute keys truncate](./tasks/current/uda-constant-columns-and-long-attribute-keys.md) — two silent, independent defects, diagnosed from live responses 2026-08-24 (control-room ticket 2214562). **(1)** With `ungroupedAggregate: true` (a Card with no GROUP BY column), any column whose expression evaluates to a **constant** returns a Falcor atom with **no value** — bare literal, `max('literal')` and an aggregate-guarded `case` all fail, while `min(date)::text` in the same cell position works, so it is not position or the render layer. The identical column config renders fine on a card that *happens* to carry a group column. **(2)** Attribute keys truncate at ~185 chars: a 196-char expression came back with its trailing `.` mutated to `_` and ` as <alias>` dropped, so `Card.jsx`'s `source[normalName] ?? source[name]` lookup can never match. Both produce a **blank cell with no error anywhere**, and bug 2 masks debugging of bug 1. Both look additive/BC. Symptom worked around by moving fixed prose to `origin:"static"` columns (ticket 2214516).
 - [x] DataWrapper API-layer loading — move dataWrapper data fetching into the DMS API/loader so section data loads at navigation time (React Router 7 loader) instead of after component mount; detect dataWrapper sections, extract URL-mapped filter params, pre-run getData(), leverage cache freshness to skip component-level re-fetch
 - [x] DataWrapper skip fetch when cached — Graph + other non-paginated components honor the "Always Fetch Data" toggle; Pagination's auto-set of `readyToLoad` no longer leaks into persisted state.
 - [x] Falcor loader parallel requests — combine sequential `length` + data `falcor.get()` calls into a single call using a ceiling value for `toIndex`, eliminating one HTTP round-trip (~50ms) from first page load
@@ -188,6 +189,12 @@
       surfaced by the transportny build-script custody task).
 
 ## ui
+
+### ui/filter-controls
+
+- [x] [Map section: `"1/2"` (450px) height option](./tasks/current/map-height-option-half.md) — one-line additive; settings select derives from Object.keys (2026-08-24)
+- [x] [Filter-control theming enrichments](./tasks/current/filter-control-theming-enrichments.md) — `Input` resolves `activeStyle` named styles (flat themes unchanged); filter leaves may author `placeholder`; empty multi-select triggers render a provided placeholder (2026-08-25)
+- [ ] [Filter controls as Card cells (`filter_control` columnType) — scoping](./tasks/current/filter-controls-as-card-cells.md) — proposal answering "deprecate Filter, lay filters out with Card?": don't deprecate; add a Card columnType that mounts the shared filter controls and writes page variables. Decision + design wanted.
 
 - [x] [Card link cells ignore their font token's `leading` (inline `<a>` strut)](./tasks/completed/card-link-cell-line-height.md) —
       SHIPPED 2026-08-14. The token sits on the `<a>`/`<Link>` (deliberately — a box token on both

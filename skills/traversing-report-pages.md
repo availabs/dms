@@ -84,6 +84,112 @@ not a flat catalog list:
   `t.routeList`-shaped block you find is the route list — the category pill
   row now comes first in `view === 'root'`.
 
+#### 2026-08-25 redesign: prominence sort, "mine"/"curated"/"auto-generated" facets, fragment collapse
+
+Built for the npmrds-picker-modals design work (mockup:
+`src/themes/transportny/TransportNY Design System/dms_design_system_v2/pages/npmrds-picker-modals.html`).
+Verified live via `report_probe.mjs --eval` scripts (claude-in-chrome was unavailable this
+session) against both live call sites — RRL's "+ Add Route" and Dynamic Reports' blocking entry
+gate — on a scratch page. Shared code now lives in
+`src/themes/transportny/components/PickerModal/` (`pickerScoring.js`, `useCatalogFetch.js`,
+`fetchCatalogRows.js` — moved from this folder, `PickerModalParts.jsx`), reused by the new report
+picker (below) so the two pickers share styling/behavior rather than drifting.
+
+- **Default sort is now prominence-weighted ("Best match"), not `created_at desc`.**
+  `RouteTagBrowserModal/routeScore.js`'s `routeScore()` weighs road class (I-/US-/NY- name
+  prefix) far above raw TMC count, plus a log-scaled size bonus, a has-tags bonus, an ownership
+  boost, and a single-TMC fragment penalty — all computed CLIENT-SIDE (this modal fetches via
+  `apiLoad` into a plain JS array, so there's no SQL-side scoring limitation the way there is for
+  the report picker, below).
+- **A "narrow by" facet-chip row (Mine / Curated / Auto-generated)** sits above the route list in
+  root/value/other views (not shown in the pure-navigational `category` view). "Mine" compares
+  the real `created_by` column against `CMSContext.user.id` — client-side only, no server-side
+  check that it matches the real auth token (a deliberate, explicit v1 scope limit, not an
+  oversight). "Curated"/"Auto-generated" filter on the `tags` column's `auto_generated` value.
+- **Every row carries a mine/auto-generated/curated badge** (`UI.Pill`, `activeStyle`
+  `blue`/`zinc`/`green`) instead of the merge living only in the tag-browse tree structure.
+- **Single-TMC "fragment" routes collapse behind a "Show short segments too" reveal** in any
+  unscoped (non-search) view — root default, a plain tag-folder browse. A real, load-bearing
+  finding drove this being a SERVER-side exclusion (`routeScore.js`'s
+  `EXCLUDE_FRAGMENTS_FILTER`, a raw-SQL `col` filter leaf, Step 2b's "option A" pattern), not just
+  a client-side re-sort/hide: confirmed live 2026-08-25, 52,633 of ~73,464 real routes (72%) are
+  single-TMC fragments, AND the 80 most-recently-created rows in the WHOLE catalog were 100%
+  fragments (a bulk batch) — a client-side re-sort of a `created_at`-ordered `LIMIT 60` fetch
+  never even saw a non-fragment row in that case. Any active search (name search, or "Other
+  tags"' free-text search) shows fragments inline instead, badge and all — never collapsed.
+- **A name search ALSO needs SQL-side ranking to avoid a second, separate junk population.**
+  Confirmed live: searching "87" against the real catalog can return thousands of
+  raw-TMC-code-named rows (`T2870095500573W_...`, single-TMC — caught by the fragment exclusion)
+  AND thousands of raw-numeric-id-named MULTI-TMC legacy rows (`1004262_3787_LATHAM CIRCLE`,
+  NOT caught by fragment exclusion) that also substring-match arbitrary digit queries — either
+  population alone can fill an entire search `LIMIT` before a real match like I-87 is ever
+  fetched, and no client-side re-sort can recover a candidate that was never fetched. Fixed via
+  two more `extraColumns` (a new `fetchCatalogRows.js`/`useCatalogFetch.js` param — a
+  `selectOnly` calculated sort-only column, same "option A" mechanism, needs both `show:true`
+  AND `normalName` set or the platform's `orderBy`-column-resolution step silently drops it):
+  `FRAGMENT_RANK_SORT_COLUMN` (non-fragments first) and `ROAD_CLASS_RANK_SORT_COLUMN`
+  (I-/US-/NY--prefixed names first). Multiple `.sort`-bearing columns DO compose into one
+  multi-column `ORDER BY` (`buildUdaConfig.js`'s `orderBy` is a dict built by `reduce` over every
+  column carrying `.sort`, in column-array order) — but a plain real-column sort (e.g. `name`)
+  placed EARLIER in the columns array than these `extraColumns` would dominate the `ORDER BY` and
+  reduce them to a rarely-reached tiebreak; the fix deliberately does NOT sort by `name` during a
+  plain search for exactly this reason. The SQL ordering's only job is getting the right
+  candidates PAST the `LIMIT` — `routeScore()`'s client-side re-sort still owns final display
+  order once real matches are actually in the fetched set.
+- **CLI footgun found while testing this**: `dms section create <page> --pattern <name>` is safe
+  and additive (appends to `draft_sections`, doesn't touch `sections`/other page fields). But
+  `dms page update <id> --pattern <name> --set draft_sections='[...]'` (documented in the repo's
+  own `CLAUDE.md` as a "partial update, read-modify-write") is NOT safe on this CLI version for
+  an array-shaped top-level field — confirmed live: it replaced the page row's ENTIRE `data`
+  object with just `{entries, has_changes, draft_sections}`, dropping `title`/`url_slug`/`parent`/
+  everything else (only caught because the page's `dms page show` output afterward read
+  `"title":"(untitled)"`, `"url_slug":""`). Only hit on a disposable scratch page (deleted after);
+  never used against a real/production page. Until this is root-caused in the CLI itself, prefer
+  `dms section create` (additive) and `dms raw update <section_id> --data {...}` (a single
+  component row — proven safe, e.g. setting a new section's `group`/`element`) over
+  `dms page update --set` for any page-level ARRAY field.
+
+### The report picker ("Choose a report") — net new, 2026-08-25
+
+A superset of the `/reports` homepage's AVAIL-curated Card grid
+(`converted_reports/reports`, page 2208581) — the homepage itself is unchanged (still exactly
+the curated 12-card catalog), this is an ADDITIONAL surface for searching everything the current
+user is authorized for, drawn from the same `reports_snap_2` catalog (source 2177438 / view
+2177440).
+
+- **Architecture mirrors `RouteTagBrowserModal` on purpose** (Ryan's explicit ask: share code,
+  don't let the two pickers drift) — a self-contained React component
+  (`ReportPickerModal/ReportPickerModal.jsx`) using `UI.Modal` directly, mounted by a small
+  registered trigger section (`ChooseReportButton`, same shape as the pre-existing
+  `CreateReportButton`) that owns its own `open`/`setOpen` state. This is NOT built on the
+  declarative `isModal`/`modalParamKey` section-group mechanism (`modal-section-group.md`) even
+  though that mechanism has a real, live precedent for a find-a-report dialog on page 2188366
+  (`converted_reports`, section 2214393-95, `modalParamKey:'find'`) — that precedent predates
+  this session's code-sharing ask and was left as-is, not migrated.
+- **No multi-select** — unlike the route picker, choosing a report NAVIGATES to it
+  (`navigate(row.page_path)`) and closes the modal; there's nothing to "confirm." A row with no
+  `page_path` (a legacy `admin2.reports` row never rebuilt into a real DMS page) renders
+  disabled/muted with a "Legacy — not yet rebuilt" badge instead of being clickable.
+  "Rebuilt" (green) vs "Legacy — not yet rebuilt" (zinc) is the report-picker's equivalent of the
+  route picker's mine/auto-generated/curated badge — same `UI.Pill` mechanism, different
+  vocabulary because reports and routes have genuinely different real distinctions.
+- **Facets: "Mine" and "Hide incomplete-looking"** — the latter is the real, shipped version of
+  the design mockup's "hide likely test/junk" chip, renamed per explicit user feedback that the
+  original copy read as judgmental developer jargon, not plain user-facing language. Backs a
+  shared `LOOKS_INCOMPLETE_RE` (`PickerModal/pickerScoring.js`) also used for a "Possible draft"
+  (amber) row badge — same heuristic, two surfaces.
+- **Prominence sort DOES include an ownership boost here** (unlike the route picker's fragment/
+  road-class SQL-ranking constraints — this picker fetches client-side the same way
+  `RouteTagBrowserModal` does, so there's no SQL-limit truncation problem to design around):
+  `ReportPickerModal/reportScore.js`'s `reportScore()` weighs yours → rebuilt → described →
+  recency, penalizing incomplete-looking names.
+- **Trigger placement**: added draft-only to the real `/reports` homepage (page 2208581, section
+  2214721, same section group as the existing `CreateReportButton` trigger) — landed at the
+  BOTTOM of the page (appended after all 12 catalog cards) since section order follows array
+  order and this was appended last; a human should drag-reorder it up near "Create Report" via
+  the normal edit-mode section UI before publishing. `sections` (the published array) was not
+  touched — the homepage's live/public view is unchanged until someone explicitly publishes.
+
 ### QuickControls (the header pill row): layout controls, Table's multi-measure Measure pill, Difference-mode gating
 
 Built/extended 2026-08-20 — full design record in
@@ -419,6 +525,13 @@ any DMS page, not just reports. What's specific to reports:
   multi-measure **Table** (see the dedicated bullet below) — N value columns like a
   multi-measure Info Box, but a real paginated data grid, not a Card, and its own QuickControls
   Measure pill is a checklist instead of a single pick.
+  **2026-08-21: Route Compare and Info Box's reliability measures both now have a real live
+  authoring path** (gap #16, `report-authoring-ux-overhaul.md` Tier 8) — a Table's Measure pill
+  (QuickControls or AddGraphModal) has "Route Compare — add a '% vs Main' column per measure" and
+  "Reliability — add LOTTR/TTTR/Freeflow columns" toggles, both Table+Summary-only (see that
+  file's own gating rationale). The Python converter is no longer the only way to build either
+  shape — a live-authored Table with these toggles on is now structurally identical to what the
+  converter used to build by hand.
 - **The report's own attribution line (bottom of each AVL Graph/Info Box/Route Compare panel)
   names which join it's actually using — a real, live way to confirm the 2026-08-12
   metadata-join fix landed on a given page.** Before the fix: `... | (Join) NPMRDS TMC
@@ -502,6 +615,28 @@ any DMS page, not just reports. What's specific to reports:
   whether the specific failing section predates the fix** — if so, force a recompose (any QuickControls
   measure toggle) rather than re-diagnosing a working fix as broken. If a GENUINELY FRESH section
   (built via Add Graph or a live pick, after the fix) still fails, that's the real signal.
+- **One real exception to "force a recompose to fix a stale section," found 2026-08-21 building
+  Route Compare's delta column**: forcing a recompose only cleans up a column that ALREADY carries
+  a `target` in `MeasurePicker/index.js`'s `MANAGED_TARGETS` list (`xAxis`/`yAxis`/`color`/`delta`).
+  A picker-owned column shipped WITHOUT a `target` (the delta column's first cut had none) is
+  invisible to that replace-on-re-pick filter forever — no amount of re-picking removes it, since
+  the filter only ever matches on `target`, never on `origin` or column type. If a section has an
+  extra/duplicate column that a toggle-off should have removed and didn't, check whether that
+  column type is actually in `MANAGED_TARGETS` before assuming the toggle logic itself is broken —
+  confirmed live via a genuine `ClickHouseError: Unknown expression or function identifier
+  'ds.tmc'` (an orphaned, join-qualified delta column survived a re-pick that dropped the join).
+  Any NEW picker-owned column type added to `composeMeasureConfig.js` going forward needs a
+  `target` tag added to `MANAGED_TARGETS` at the same time, or it will hit this exact trap.
+- **`pgFederated` (a live Postgres table joined into a ClickHouse query via ClickHouse's own
+  `postgresql()` table function) is already a fully generic, tested dms-server join type** —
+  `dms-server/src/routes/uda/utils.js`'s `buildJoin` and the client-side `buildUdaConfig.js` both
+  already handle it, with its own dedicated test coverage (`tests/test-uda.js`'s "buildJoin
+  pgFederated branch"). Don't assume a measure that needs a Postgres-hosted join (like source
+  1410's LOTTR/TTTR/Freeflow reliability data) needs new dms-core/server work — it almost certainly
+  just needs a new `vocabulary.json` join entry + measure definitions, the same class of change as
+  adding `META_JOIN` originally was. Confirmed 2026-08-21 building Reliability
+  (`report-authoring-ux-overhaul.md` Tier 8B): zero dms-core changes, all the work was in
+  `src/themes/transportny/`.
 - **`scratchpad/npmrds-sub/dms-server.log` (a `tee`'d nodemon log, already running) is the fastest way
   to get the ACTUAL ClickHouse error text for a blank/broken report section** — the browser console
   only ever shows a generic "Error fetching data Array(N)" with no SQL detail. `grep -n

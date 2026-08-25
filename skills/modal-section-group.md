@@ -137,6 +137,35 @@ sec(MODAL_GROUP, "12", "Card", JSON.stringify({
 }))
 ```
 
+## 6. A modal that is NOT a create form — the search-dialog variant
+
+Nothing in §1–2 is form-specific: the group's sections can be anything. Worked example, verified in
+view mode 2026-08-19 — NPMRDS Reports (`npmrdsv5+npmrds_sub`, page **2188366**,
+`build_npmrds_reports.mjs`), a **find-a-report dialog** at `modalSize: '4xl'` holding three ordinary
+sections:
+
+1. a **`Filter`** with `operation: 'like'` + `searchParamKey: 'search'` (the search box —
+   `full-text-search-filter.md`);
+2. a **Card** result list carrying the matching `OR` group of `like` leaves, `pageSize: 8`,
+   `usePagination: false`;
+3. a **Card** foot whose bound `count(1)` over the *same* filter tree states how many matched.
+
+Two things this variant makes concrete:
+
+- **The query travels, the open flag does not.** The Filter is URL-bound, so `?search=bridge` still
+  works in a shared link — but action params are never URL params, so the page arrives with the
+  query live and the dialog **shut**. Give the trigger a bound match count over the same filter
+  tree and the closed state reports the result honestly (measured: `?search=bridge` → the closed
+  trigger reads `130 reports`). Rendering the query *text* in the trigger is **not expressible** —
+  no primitive renders a page variable's value — so don't design around it.
+- **`Esc` does not close it.** `sectionGroup.jsx` wires the overlay click and the ✕ to
+  `clearActionParam`; there is no key handler. Measured: click-trigger → 1 overlay, ✕ → 0,
+  backdrop → 0, `Escape` → still 1. If a design promises Esc, that is an enrichment.
+
+Register the search key in the page's `filters` array (`creating-interactive-pages.md` step 0) or
+the control's value never reaches the URL and neither the list nor the trigger reacts. ⚠ `filters`
+is a **page-level** field, not draft/published split — writing it goes live immediately.
+
 ## Gotchas
 
 | Symptom | Cause / fix |
