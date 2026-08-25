@@ -187,6 +187,12 @@
 
 ## ui
 
+### ui/filter-controls
+
+- [x] [Map section: `"1/2"` (450px) height option](./tasks/current/map-height-option-half.md) — one-line additive; settings select derives from Object.keys (2026-08-24)
+- [x] [Filter-control theming enrichments](./tasks/current/filter-control-theming-enrichments.md) — `Input` resolves `activeStyle` named styles (flat themes unchanged); filter leaves may author `placeholder`; empty multi-select triggers render a provided placeholder (2026-08-25)
+- [ ] [Filter controls as Card cells (`filter_control` columnType) — scoping](./tasks/current/filter-controls-as-card-cells.md) — proposal answering "deprecate Filter, lay filters out with Card?": don't deprecate; add a Card columnType that mounts the shared filter controls and writes page variables. Decision + design wanted.
+
 - [x] [Card link cells ignore their font token's `leading` (inline `<a>` strut)](./tasks/completed/card-link-cell-line-height.md) —
       SHIPPED 2026-08-14. The token sits on the `<a>`/`<Link>` (deliberately — a box token on both
       painted a phantom second box), and an **inline** box's `line-height` cannot size the line box it
