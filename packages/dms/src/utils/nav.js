@@ -12,7 +12,17 @@ import { resolveSubdomainPath } from './subdomainPath';
 // relative to the pattern's baseUrl. react-router's Link handles the rest: it
 // compares origins and renders a plain anchor for a different one, so a nav item
 // pointing at another product's subdomain does a normal full page navigation.
-const ABSOLUTE_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+export const ABSOLUTE_URL = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
+
+// `rootPath` items resolve to a FULL URL on the viewer's own origin (owner call
+// 2026-08-26: cross-pattern nav links must be absolute, not relative) — the
+// destination is another pattern's document, so the link leaves the SPA as a
+// normal page load and stays subdomain-correct (a county subdomain links into
+// its own county plan). SSR renders the bare root path; hydration upgrades it.
+const toRootUrl = (slugOrPath) => {
+    const path = `/${`${slugOrPath}`.replace(/^\//, '')}`;
+    return typeof window === 'undefined' ? path : `${window.location.origin}${path}`;
+};
 
 export function getChildNav(item, dataItems, baseUrl = '', edit, getInPageMenuItems = () => []) {
     let children = dataItems
@@ -28,7 +38,13 @@ export function getChildNav(item, dataItems, baseUrl = '', edit, getInPageMenuIt
         .map((d, i) => {
         let item = {
             id: d.id,
-            path: `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
+            // `rootPath` (authored navItems only): the destination is another
+            // pattern's page (e.g. a county-plan page shown in a sibling
+            // pattern's secondary nav) — resolved to a full URL on the viewer's
+            // origin (see toRootUrl); no baseUrl, no /edit prefix.
+            path: d.rootPath
+                ? toRootUrl(d.url_slug || d.id)
+                : `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
             name: d.title,
             description: d.description,
             hideInNav: d.hide_in_nav
@@ -70,10 +86,14 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, getInPageMen
             let item = {
                 id: d.id,
                 // Absolute destinations leave the app, so they take neither the baseUrl
-                // nor the /edit prefix — they are already a complete URL.
+                // nor the /edit prefix — they are already a complete URL. `rootPath`
+                // (authored navItems only) marks another pattern's page — resolved to
+                // a full URL on the viewer's origin (see toRootUrl).
                 path: ABSOLUTE_URL.test(url)
                     ? url
-                    : `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
+                    : d.rootPath
+                        ? toRootUrl(url)
+                        : `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
                 name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
                 description: d.description,
                 hideInNav: d.hide_in_nav

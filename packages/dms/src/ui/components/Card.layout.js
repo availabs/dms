@@ -107,6 +107,7 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
     const {
         cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight,
         cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate,
+        cardsRadius, cardsBorderColor,
     } = display;
     // `cellsVerticalAlign: 'stretch'` opts the cells grid into filling the card
     // height — the cells equivalent of `cardsVerticalAlign: 'stretch'`. The
@@ -124,6 +125,11 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
         ...(cellsRowGap != null && cellsRowGap !== '' ? { rowGap: cellsRowGap } : {}),
         ...(cellsColumnGap != null && cellsColumnGap !== '' ? { columnGap: cellsColumnGap } : {}),
         backgroundColor: cardsBgColor,
+        // Per-card SURFACE chrome, sibling knobs to `cardsBgColor` — a tinted
+        // panel card (e.g. a filter band) wants its own radius + hairline
+        // border without a theme change. Number → px; unset = no-op (BC).
+        ...(cardsRadius != null && cardsRadius !== '' ? { borderRadius: cardsRadius } : {}),
+        ...(cardsBorderColor ? { border: `1px solid ${cardsBorderColor}` } : {}),
         // Legacy naming wrinkle: `cardsPadding` pads the CELLS grid inside
         // each card (the per-card surface inset), not the cards grid.
         padding: cardsPadding,

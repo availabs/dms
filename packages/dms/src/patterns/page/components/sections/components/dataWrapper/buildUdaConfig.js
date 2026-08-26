@@ -886,6 +886,7 @@ export const buildColumnsWithSettings = (columns, sourceColumns, isDms) => {
 
 /**
  * Get columns to fetch — visible, non-formula, non-static columns + formula variable columns.
+ * (`filter_control` columns never reach here — buildUdaConfig drops them at intake.)
  */
 export const getColumnsToFetch = (columnsWithSettings, allColumns) => {
   const columnsToFetch = columnsWithSettings.filter(
@@ -1258,9 +1259,15 @@ export const buildUdaConfig = ({
     Array.isArray(effectiveVariants) &&
     effectiveVariants.some((v) => v && v.label);
 
+  // `filter_control` columns are chrome, not data: their `name` only names the
+  // source column whose options the control fetches (useColumnOptions does that
+  // separately). Drop them from the WHOLE query config at intake — leaving them
+  // in `columns` while excluding them from the fetch recreates the known
+  // present-but-unfetched poison (length succeeds, the data request dies).
   const rawUserColumns = rawUserColumnsInput.filter(
     (c) =>
-      (activeComparisonSeries || c.origin !== "comparison-series"),
+      (activeComparisonSeries || c.origin !== "comparison-series") &&
+      c.type !== "filter_control",
   );
 
   // Guard against the "unfiltered full-table scan" trap.

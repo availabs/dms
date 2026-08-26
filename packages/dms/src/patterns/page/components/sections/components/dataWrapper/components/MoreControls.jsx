@@ -3,6 +3,7 @@ import {ToggleControl} from "./ToggleControl";
 import {InputControl} from "./InputControl";
 import {ComponentContext} from "../../../../../context";
 import {ThemeContext} from "../../../../../../../ui/useTheme"
+import { coerceControlValue } from "../../../controls_utils";
 
 export default function MoreControls({context}) {
     const {state: {display}, setState, controls} = useContext(context || ComponentContext);
@@ -53,7 +54,12 @@ export default function MoreControls({context}) {
                                             <ToggleControl key={key} title={label} value={display[key]}
                                                            setValue={value => updateDisplayValue(key, value, onChange)}/> :
                                             type === 'input' ?
-                                                <InputControl key={key} type={inputType} title={label} value={display[key]} setValue={value => updateDisplayValue(key, value)} {...rest}/> :
+                                                <InputControl key={key} type={inputType} title={label} value={display[key] ?? ''}
+                                                              // `coerce` makes InputControl hand up the RAW field text so a
+                                                              // blank stays blank (unset) instead of becoming 0, and clamps to
+                                                              // the item's min/max. min/max/step ride along via ...rest.
+                                                              coerce={value => coerceControlValue({inputType, ...rest}, value)}
+                                                              setValue={value => updateDisplayValue(key, value)} {...rest}/> :
                                                 type === 'select' ?
                                                     <div
                                                         key={key}
