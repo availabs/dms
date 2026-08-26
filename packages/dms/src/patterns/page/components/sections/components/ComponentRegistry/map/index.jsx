@@ -33,6 +33,10 @@ export const HEIGHT_OPTIONS = {
     "screen": '100vh',
     1: "900px",
     "2/3": "600px",
+    // Half-column embeds beside a stacked sibling column (e.g. a map + two
+    // chart cards): 600 overshoots the band, 300 undershoots it. The settings
+    // Height select derives from Object.keys here, so this is the only edit.
+    "1/2": "450px",
     "1/3": "300px",
     "1/4": "150px",
 };
