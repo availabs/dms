@@ -1,6 +1,65 @@
-# Filter controls as Card cells (`filter_control` columnType) — scoping
+# Filter controls as Card cells (`filter_control` columnType)
 
-## Status: PROPOSAL (2026-08-25) — decision + design wanted before any code
+## Status: IMPLEMENTED 2026-08-25 (owner approved same day) — live-verified on the MNY Actions Dashboard
+
+**What shipped:**
+- `patterns/page/components/sections/FilterControlCell.{jsx,theme.js}` — the cell component
+  (select via `MultiSelectEdit`, search via `Input`; label + control inside a themeable wrapper,
+  key `filterControlCell`). Column config: `name` (options source + default param), `searchParamKey`,
+  `controlOp` (`filter`|`like`), `isMulti`, `placeholder`, `controlLabel`, `activeStyle` (names a
+  `theme.multiselect`/`theme.input` style, e.g. `pill`).
+- Registered as `filter_control` in `patterns/page/siteConfig.jsx` (module scope,
+  `registerColumnType`) — appears in the Card column Type picker automatically.
+- Card.config.jsx: five wiring controls (`Search Param`, `Control Op`, `Multi Select`,
+  `Placeholder`, `Control Label`) gated on `type === 'filter_control'`.
+- **buildUdaConfig drops `filter_control` columns at intake** (same spot the inactive
+  comparison-series columns drop). This is load-bearing: leaving them in `columns` while excluding
+  them from the fetch recreates the present-but-unfetched poison — the section's data request dies
+  and the whole Card renders empty (hit during this build; length query fine, zero rows out).
+
+**Design answers (as scoped, all confirmed in the build):**
+1. State contract: page-variable-only — reads `pageState.filters`, writes
+   `updatePageStateFilters`; no section filter tree, so no tree-editing UI.
+2. Option scoping: the HOST CARD's own authored filter tree, pruned of any leaf wired to this
+   control's page variable or naming its column — a geoid leaf county-scopes every picker,
+   siblings cascade, and a control never narrows away its own alternatives.
+3. Edit-mode UX: the five column controls above + the existing per-column `activeStyle`
+   ("Column Type Style") for the control's named style.
+4. Clear-all / count: not control features — a static link cell (`origin:'static'`,
+   `isLink`, `location:'?'`) and an aggregate calc cell on the same card do both jobs.
+5. BC: purely additive; the Filter section is unchanged and NOT deprecated.
+
+**Verified live** (dashboard page 2410892, one Card = the mockup's single tinted panel: 2 group
+headers + live count + clear-all + search pill + 4 select pills on a 5-track grid): picking
+"Bethel (Town)" wrote `?jurisdiction=…`, table 474→25, strip/charts/count followed, token-in-pill
++ branded menu rendered.
+
+**Round 2 (2026-08-25, same day) — design-parity options added, all additive:**
+- `controlIcon` — Icon-registry glyph before the label/control (the mockup's icon-only search
+  pill); themed via `filterControlCell.icon`.
+- `controlOp: 'toggle'` + `controlValue` — a checkbox writing a fixed value to the page variable
+  (the Key-Characteristics / workspace-toggle control kind; no live consumer until the flag
+  fields become physical columns). Theme keys `toggleWrapper`/`checkbox`.
+- **Debounced `like`** (400ms, local buffer, external changes re-seed) — a search keystroke no
+  longer navigates per character; URL-seeded values and Clear all round-trip correctly.
+- `excludeOptionValues` / `optionLabels` — design-vocabulary shaping of the option list (hide the
+  `NA` sentinel; label `Discontinued/Paused` → "Discontinued"); written values stay raw.
+- Card display knobs `cardsRadius` + `cardsBorderColor` (Card.layout.js `resolveCellsGridStyle`,
+  siblings to `cardsBgColor`) — the panel card's rounded corners + hairline border without a
+  theme change. Config controls added for all of the above.
+
+Verified: mid-typing URL stays clean, one write after the pause (`?search=culvert` → 63 rows);
+`?search=` deep-link seeds the box; Clear all converges (474, box empties); status menu shows no
+`NA` and the "Discontinued" label. Residuals: no hairline group divider (`cellBorderColor` is a
+4px accent — groups separate via a fixed 40px spacer track), no exact 11px-uppercase eyebrow
+token (deferred token-set decision), "of N" unfiltered total not expressible in a single filtered
+query.
+
+---
+
+Original scoping doc below, kept for the reasoning record.
+
+## Status when scoped: PROPOSAL (2026-08-25)
 
 ## The question (owner, 2026-08-25)
 "Is there a world where we just deprecate the Filter component and use the Card component to lay
