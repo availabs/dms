@@ -323,6 +323,7 @@ async function setupAndListen() {
           authPath: process.env.DMS_AUTH_PATH || process.env.VITE_DMS_AUTH_PATH || '/auth',
         },
         pgEnvs,
+        isMultiTenant: (process.env.DMS_MULTI_TENANT || process.env.VITE_DMS_MULTI_TENANT) === '1',
       },
     });
   }

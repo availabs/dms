@@ -1,6 +1,6 @@
 # SSR: resolve the correct tenant per request, not the master app
 
-## Status: NOT STARTED. Diagnosed and confirmed live 2026-08-27; not yet implemented.
+## Status: IMPLEMENTED 2026-08-27 (all 4 file changes from "Proposed Changes" below landed as specified). Both the client build and the dedicated SSR build (`npm run build:ssr`) compile cleanly. **Live verification against a real multi-tenant deployment is still outstanding** — see "Testing Checklist"; this requires infra access (a running SSR container, a real or seeded tenant subdomain) not available in this session.
 
 ## Objective
 
@@ -15,15 +15,15 @@ re-resolves the tenant correctly.
 
 ## Evidence — confirmed live in production, 2026-08-27
 
-Deployed on `tessera.so` (`setup/tasks/current/enable-ssr-mode.md` tracks
+Deployed on `PROD_DOMAIN` (`setup/tasks/current/enable-ssr-mode.md` tracks
 that infra rollout — this task is the follow-up fix it flagged and left
 open). Two requests through real nginx/TLS, same server, same deploy:
 
-- `https://tessera.so/` → 200, real SSR HTML, `__dmsSSRData.defaultData[0].app === "tessera-test"` (master — correct, this *is* the master domain).
-- `https://test_tessera_subdomain.tessera.so/` (a real configured tenant — `app: "test_tessera_subdomain"` per its own tenant record inside the master's site data) → 200, but **byte-identical** to the master response: same `app: "tessera-test"` in `__dmsSSRData`, and the rendered body is literally `<div id="root"><div>404 - Not Found</div>...` because the master app's routes/patterns have nothing matching the tenant's own base path.
+- `https://PROD_DOMAIN/` → 200, real SSR HTML, `__dmsSSRData.defaultData[0].app === "tessera-test"` (master — correct, this *is* the master domain).
+- `https://test_tessera_subdomain.PROD_DOMAIN/` (a real configured tenant — `app: "test_tessera_subdomain"` per its own tenant record inside the master's site data) → 200, but **byte-identical** to the master response: same `app: "tessera-test"` in `__dmsSSRData`, and the rendered body is literally `<div id="root"><div>404 - Not Found</div>...` because the master app's routes/patterns have nothing matching the tenant's own base path.
 
 This is not hypothetical — it's the exact symptom a real visitor to any
-`*.tessera.so` tenant subdomain would see on first load today.
+`*.PROD_DOMAIN` tenant subdomain would see on first load today.
 
 ## Current State — root cause, traced to two specific gaps
 
@@ -198,19 +198,26 @@ proven.
 
 ## Testing Checklist
 
+- [x] All 4 file changes implemented exactly as specified in "Proposed Changes".
+- [x] `npm run build` (client) and `npm run build:ssr` (client + server bundles,
+      exercises `entry-ssr.jsx` → `handler.jsx` → `dmsSiteFactory.jsx` directly)
+      both compile cleanly with no new errors/warnings.
+- [x] Full client test suite (`npx vitest run tests/`): 247/248 pass, same
+      pre-existing unrelated `cardLayout.test.js` failure as before this change
+      (confirmed via stash-and-rerun).
 - [ ] Direct-to-container test (bypass nginx, mirrors how this bug was
-      first confirmed): `docker exec dms-server node -e "fetch('http://localhost:5555/', {headers:{Host:'tessera.so'}})..."` → `__dmsSSRData.defaultData[0].app === 'tessera-test'` (master, unchanged).
-- [ ] Same, `Host: test_tessera_subdomain.tessera.so` (or whatever real
+      first confirmed): `docker exec dms-server node -e "fetch('http://localhost:5555/', {headers:{Host:'PROD_DOMAIN'}})..."` → `__dmsSSRData.defaultData[0].app === 'tessera-test'` (master, unchanged).
+- [ ] Same, `Host: test_tessera_subdomain.PROD_DOMAIN` (or whatever real
       tenant subdomain exists at test time) → `__dmsSSRData.defaultData[0].app`
       now equals the **tenant's own** `app` (`test_tessera_subdomain` today),
       not `tessera-test`.
 - [ ] Rendered body for the tenant request is real tenant content, not
       `<div>404 - Not Found</div>`.
-- [ ] Live, through real nginx/TLS: `curl https://test_tessera_subdomain.tessera.so/`
+- [ ] Live, through real nginx/TLS: `curl https://test_tessera_subdomain.PROD_DOMAIN/`
       (or the real production tenant domain at fix time) shows the same —
       this is the actual user-facing symptom from the 2026-08-27 confirmation
       above, so re-run that exact check.
-- [ ] Platform-admin / root-domain path unaffected: `tessera.so` still
+- [ ] Platform-admin / root-domain path unaffected: `PROD_DOMAIN` still
       renders the master site correctly (no regression from adding the
       `isMultiTenant` branch).
 - [ ] No-subdomain and unmatched-subdomain cases still behave sanely (fall
@@ -239,7 +246,7 @@ proven.
   the sibling `setup/` deployment-infra repo, not this submodule), tracks
   turning `DMS_SSR=1` on for real in production and is what surfaced this
   bug. That file documents the live rollout state (currently: `DMS_SSR=1`
-  is live on `tessera.so`, master domain confirmed correct, tenant
+  is live on `PROD_DOMAIN`, master domain confirmed correct, tenant
   subdomains still broken pending this task) — check it for current
   production status before testing live, and update it once this fix ships
   so its own testing checklist can be re-run there too.

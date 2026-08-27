@@ -205,7 +205,14 @@ export default async function dmsSiteFactory(config) {
     // doesn't pass this. See sync-bring-up-to-date.md Phase 2 for why this
     // exists — sync used to always initialize against the master app, even on
     // a tenant subdomain.
-    let { dmsConfig, falcor, API_HOST, isMultiTenant, host, onResolvedSyncApp } = config
+    //
+    // onResolvedSiteData (optional): reports the {app, type, data} actually
+    // used to build the returned routes — the master site normally, or the
+    // subdomain-resolved tenant's own site in multi-tenant mode. Added so SSR
+    // (render/ssr2/handler.jsx) can get correctly tenant-scoped `siteData` for
+    // `__dmsSSRData` from this same call instead of a redundant, always-master
+    // standalone fetch. Same additive pattern as onResolvedSyncApp.
+    let { dmsConfig, falcor, API_HOST, isMultiTenant, host, onResolvedSyncApp, onResolvedSiteData } = config
 
     // Step 1 — always load the master site
     let dmsConfigUpdated = cloneDeep(dmsConfig);
@@ -226,6 +233,7 @@ export default async function dmsSiteFactory(config) {
 
     if (!isMultiTenant) {
         onResolvedSyncApp?.(dmsConfig.app);
+        onResolvedSiteData?.(dmsConfig.app, siteType, data);
         return pattern2routes(data, config)
     }
 
@@ -237,6 +245,7 @@ export default async function dmsSiteFactory(config) {
         // Platform admin (root domain) — serve master site routes.
         // Phase 3 will render TenantList inside editSite when !subdomain && isMultiTenant.
         onResolvedSyncApp?.(dmsConfig.app);
+        onResolvedSiteData?.(dmsConfig.app, siteType, data);
         return pattern2routes(data, config)
     }
 
@@ -248,6 +257,7 @@ export default async function dmsSiteFactory(config) {
         // No resolved app — sync-init in DmsSite skips entirely when app is falsy,
         // which is correct here: there's no tenant data to sync against.
         onResolvedSyncApp?.(null);
+        onResolvedSiteData?.(null, null, null);
         return [{
             path: '/*',
             Component: () => React.createElement(
@@ -286,5 +296,6 @@ export default async function dmsSiteFactory(config) {
 
     // Step 5 — build routes scoped to the tenant
     onResolvedSyncApp?.(tenantApp);
+    onResolvedSiteData?.(tenantApp, siteType, tenantData);
     return pattern2routes(tenantData, { ...config, dmsConfig: tenantDmsConfig })
 }
