@@ -1542,3 +1542,51 @@ below its Pagination/Attribution footer. Fixed with `mt-auto` on that footer `<d
 `dataWrapper/index.jsx` (both Edit/View blocks) — the unavoidable slack now sits between the
 chart and the footer (pinned flush to the bottom edge) instead of below everything. No-op for
 components that already fill (Card) since there's no slack left to redistribute.
+
+### Filter controls as Card cells (`filter_control` columnType, 2026-08-25)
+
+A whole filter BAR can be one Card: the `filter_control` column type renders a viewer-facing
+filter control (select or search box) inside a cell, writing a **page variable** — so the bar
+gets the Card's full layout engine (tracks templates, spans, static group-header cells, an
+aggregate count cell, a static clear-all link cell) instead of the Filter section's single row.
+The Filter section is NOT deprecated — this is the layout-controlled alternative.
+
+Column config (Card toolbar shows these once the Type is `filter_control`):
+
+| key | role |
+|---|---|
+| `name` | the source column whose distinct values populate the picker (and the default param key) |
+| `searchParamKey` | the page variable written — **must be registered in `page.filters[]`**, same as any page variable |
+| `controlOp` | `'filter'` (select, default) or `'like'` (text/search box) |
+| `isMulti` | multi-select; off = single select with a deselect × |
+| `placeholder` / `controlLabel` | empty-state text ("All", "Search actions…") / the label INSIDE the pill |
+| `activeStyle` | named style for the control itself (`theme.multiselect` / `theme.input` styles — e.g. mny's `pill`) |
+
+Load-bearing mechanics:
+- **State is page-variable-only** (reads `pageState.filters`, writes `updatePageStateFilters`);
+  the host card and every other section react through their own `usePageFilters` leaves.
+- **Options are scoped by the host card's own filter tree**, pruned of any leaf wired to this
+  control's param (or naming its column): a `county_geoid` leaf county-scopes every picker,
+  sibling selections cascade, and a control never narrows away its own alternatives.
+- **`buildUdaConfig` drops `filter_control` columns at intake.** They're chrome, not data — a
+  present-but-unfetched column poisons the section's data request (length succeeds, rows never
+  arrive, the Card renders EMPTY). If a filter-control card renders nothing at all, check that
+  intake filter first.
+- The cell wrapper is themed via `filterControlCell` (flat map: `wrapper`, `label`); mny styles
+  it as the white rounded pill so the cell IS the mockup's pill.
+
+Worked example — the MNY Actions Dashboard filter band (page 2410892): one Card, `cellsGridSize
+5` + `cellsTracksTemplate '1.25fr 1fr 1fr 1fr 1.15fr'`, row 1 = static "Find & Filter" header ·
+`'Showing ' || count(1) || ' actions'` calc cell · static "Clear all" (`isLink`, `location:'?'`) ·
+spacer · static "Action Development" header; row 2 = a `like` search control + four select
+controls. Builder: `scratchpad/mitigat-ny-prod-prod/build_dashboard.mjs` (`filterBandED`).
+
+**filter_control options added 2026-08-25 (round 2):** `controlIcon` (Icon-registry glyph before
+the label — the icon-only search pill), `controlOp:'toggle'` + `controlValue` (checkbox writing a
+fixed value — boolean-attribute filters), debounced `like` (400ms; URL-seeded and clear-all
+round-trip), `excludeOptionValues` + `optionLabels` (hide sentinels / design-vocabulary relabels;
+written values stay raw). Card display also gained **`cardsRadius`** and **`cardsBorderColor`**
+(per-card surface radius + 1px hairline, siblings to `cardsBgColor`) — the filter band's rounded
+bordered panel needs no theme change. Group DIVIDERS remain inexpressible (`cellBorderColor` is a
+4px accent); separate groups with a fixed spacer track (e.g. `'… 40px …'` in
+`cellsTracksTemplate`).

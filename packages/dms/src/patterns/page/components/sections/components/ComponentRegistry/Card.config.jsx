@@ -249,6 +249,28 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
     },
     { type: 'select', label: 'Value', key: 'valueFontStyle', options: fontStyleOptions, isBatchUpdatable: true, displayCdn: ({ attribute }) => !attribute.hideValue },
 
+    // filter_control wiring — only shown when the column's type is filter_control.
+    // searchParamKey must be a REGISTERED page variable (page.filters[]).
+    { type: 'input', inputType: 'text', label: 'Search Param', key: 'searchParamKey',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+    { type: 'select', label: 'Control Op', key: 'controlOp',
+        options: [
+            { label: 'Select (filter)', value: 'filter' },
+            { label: 'Search (like)', value: 'like' },
+            { label: 'Checkbox (toggle)', value: 'toggle' },
+        ],
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+    { type: 'input', inputType: 'text', label: 'Toggle Value', key: 'controlValue',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' && attribute.controlOp === 'toggle' },
+    { type: 'toggle', label: 'Multi Select', key: 'isMulti',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+    { type: 'input', inputType: 'text', label: 'Placeholder', key: 'placeholder',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+    { type: 'input', inputType: 'text', label: 'Control Label', key: 'controlLabel',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+    { type: 'input', inputType: 'text', label: 'Control Icon', key: 'controlIcon',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // layout — all per-cell controls always visible (no mode gating)
     { type: 'toggle', label: 'Border Below', key: 'cellBorderBelow' },
@@ -552,6 +574,11 @@ const buildControls = (theme) => ({
                         ],
                     },
                     { type: ({ value, setValue }) => <ColorControls value={value} setValue={setValue} title={'Card Background'} />, key: 'cardsBgColor' },
+                    // Per-card surface chrome, siblings to Card Background: radius (px)
+                    // + a 1px hairline border color — a tinted panel card (filter band)
+                    // without a theme change.
+                    { type: 'input', inputType: 'number', label: 'Card Radius', key: 'cardsRadius' },
+                    { type: ({ value, setValue }) => <ColorControls value={value} setValue={setValue} title={'Card Border Color'} />, key: 'cardsBorderColor' },
                     { type: 'toggle', label: 'Card Border', key: 'cardBorder' },
                 ]
             },

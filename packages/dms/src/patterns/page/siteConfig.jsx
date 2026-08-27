@@ -16,6 +16,17 @@ import { registerComponents } from './components/sections/componentRegistry';
 import { registerSectionMenuExtensions } from './components/sections/sectionMenuExtensions';
 import { registerSectionHeaderExtensions } from './components/sections/sectionHeaderExtensions';
 import { registerColumnType } from "../../ui/columnTypes";
+import { FilterControlCell } from "./components/sections/FilterControlCell";
+
+// `filter_control` — a Card cell that hosts a viewer-facing filter control
+// writing a page variable (see FilterControlCell.jsx for the column config).
+// Registered here (module scope, once) because the cell needs the page
+// pattern's contexts; the ui registry stays pattern-agnostic.
+registerColumnType('filter_control', {
+    name: 'Filter Control',
+    EditComp: FilterControlCell,
+    ViewComp: FilterControlCell,
+});
 import SearchButton from "./components/search/index";
 import DefaultMenu from "./components/userMenu";
 

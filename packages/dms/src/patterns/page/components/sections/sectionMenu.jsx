@@ -6,7 +6,7 @@ import { getComponentTheme, ThemeContext } from "../../../../ui/useTheme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import TemplateManager from "./TemplateManager";
-import { getColumnLabel } from "./controls_utils";
+import { coerceControlValue, getColumnLabel } from "./controls_utils";
 import { getSectionMenuExtensions } from "./sectionMenuExtensions";
 import ColorControls from "./components/ComponentRegistry/sharedControls/ColorControls";
 
@@ -140,9 +140,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 id: `${item.key}_input`,
                 name: `${item.label} input`,
                 type: 'input', inputType: item.inputType, value,
-                onChange: (e) => dwAPI.setDisplay(item.key,
-                    item.inputType === 'number' ? +(e?.target?.value ?? e) : (e?.target?.value ?? e),
-                    item.onChange)
+                // Forwarded to the DOM input (NavigableMenu spreads the whole
+                // menuItem into ui/components/Input, which spreads ...props onto
+                // <input>) so the spinner/arrow keys respect the same range the
+                // write path clamps to.
+                min: item.min, max: item.max, step: item.step,
+                placeholder: item.placeHolder,
+                // Clamps to min/max and turns a blank field into "unset" — see
+                // coerceControlValue for why a raw `+value` here was destructive.
+                onChange: (e) => dwAPI.setDisplay(item.key, coerceControlValue(item, e), item.onChange)
             }]
         }),
     };
