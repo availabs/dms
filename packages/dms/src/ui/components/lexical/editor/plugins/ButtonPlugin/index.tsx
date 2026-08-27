@@ -44,6 +44,7 @@ export function InsertButtonDialog({
     actionType?: 'navigate' | 'setParam';
     paramKey?: string;
     paramValue?: string;
+    icon?: string;
     nodeKey?: string;
   };
 }): JSX.Element {
@@ -85,6 +86,7 @@ export function InsertButtonDialog({
   const [actionType, setActionType] = useState(initialValues?.actionType || 'navigate');
   const [paramKey, setParamKey] = useState(initialValues?.paramKey || '');
   const [paramValue, setParamValue] = useState(initialValues?.paramValue || '');
+  const [icon, setIcon] = useState(initialValues?.icon || '');
 
   useEffect(() => {
     hasModifier.current = false;
@@ -98,7 +100,7 @@ export function InsertButtonDialog({
   }, [activeEditor]);
 
   const handleOnClick = () => {
-    const payload = {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue};
+    const payload = {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon};
     activeEditor.update(() => {
       if (initialValues?.nodeKey) {
         const newNode = $createButtonNode(payload);
@@ -230,6 +232,24 @@ export function InsertButtonDialog({
               <option key={opt.value} value={opt.value}>{opt.label}</option>
             ))}
           </select>
+        )}
+      </label>
+
+      <label className="flex flex-col gap-1.5">
+        <span className="text-sm font-medium">Icon (registered icon name, optional)</span>
+        {Input ? (
+          <Input
+            value={icon}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIcon(e.target.value)}
+            placeholder="e.g. Download"
+          />
+        ) : (
+          <input
+            type="text"
+            value={icon}
+            onChange={(e) => setIcon(e.target.value)}
+            className="border px-2 py-1"
+          />
         )}
       </label>
 

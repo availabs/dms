@@ -288,6 +288,11 @@ the answer is a width escalation, not a smaller font.
 | `cellPaddingBottom`  | Inline `paddingBottom`. Wins over `cellPadding`.                          |
 | `cellPaddingLeft`    | Inline `paddingLeft`. Wins over `cellPadding`.                            |
 | `cellBorderBelow`    | Adds `theme.headerValueWrapperBorderBelow` (default `border-b rounded-none`). |
+| `cellBorderColor`    | Coloured 4px LEFT accent rule (stat-strip look). Wins the left edge over `cellOutline`. |
+| `cellOutline`        | **Per-cell perimeter border** — a full CSS border shorthand the author types (`1px solid #E0EBF0`, `1px dashed #EAAD43`). Same author-value affordance as `cellBgColor`'s gradient. |
+| `cellRadius`         | Per-cell corner radius (number → px). For cells that ARE the visual card (stat strips). |
+| `subValueCol`        | Renders a SIBLING column's value as a **subline inside this cell** (the stat-card "N% of actions" row). ⚠ The lookup key is the sibling's **row key** = `normalName \|\| name` — an aliased calc column (`expr as alias`) MUST set `normalName: 'alias'` or its row key is the whole SQL string. Pair the sibling with `selectOnly: true`. |
+| `subValueFontStyle`  | Type token for the subline (a `textSettings`/dataCard key). The subline div takes ONLY this key's classes — include `w-full` in the key if the wrapper centers non-full children (mny does). |
 
 The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** — type a side value to override one edge, type `cellPadding` to override all four at once, type neither to inherit the section's `cellsPadding`. An empty/cleared field falls through (it does *not* mean "0"); to apply zero padding, type `0` explicitly.
 | `justify`            | `'left' | 'right' | 'center' | 'full'`. Maps to `theme.justifyText*` classes. `'full'` splits header to left, value to right. |
@@ -1590,3 +1595,46 @@ written values stay raw). Card display also gained **`cardsRadius`** and **`card
 bordered panel needs no theme change. Group DIVIDERS remain inexpressible (`cellBorderColor` is a
 4px accent); separate groups with a fixed spacer track (e.g. `'… 40px …'` in
 `cellsTracksTemplate`).
+
+## Recipe: a stat-card strip (label · big number · "N% of actions" subline, per-card chrome)
+
+The MNY Actions Dashboard status strip (mockup `county-actions/dashboard.html`) as ONE Card —
+six cells, each cell IS a visual card. The knobs added 2026-08-27 for exactly this
+(`cellOutline` / `cellRadius` / `subValueCol` / `subValueFontStyle`, table above):
+
+- One count column per card: `"<CASE expr> as alias"`, `fn:'sum'`, `formatFn:'comma'`,
+  `headerFontStyle` = the 11px tracked label role, `valueFontStyle` = the 30px display token,
+  `isLink` + `activeOnSearchParam` (theme `cellActive` supplies the active ring).
+- One pct sibling per card: `"round(sum(<expr>) * 100.0 / count(1))::int::text || '% of actions'
+  as alias_pct"`, **`normalName: 'alias_pct'`** (⚠ without it the row key is the whole SQL
+  string and `subValueCol` finds nothing), `fn:'exempt'`, `selectOnly: true`. Keep the
+  expression comma-free (single-arg `round`): commas split falcor attribute paths.
+- Count column points at it: `subValueCol: 'alias_pct'`, `subValueFontStyle: 'statCardSub'`.
+- Per-card chrome: `cellOutline` (`'1px solid #E0EBF0'`, `'1px dashed #EAAD43'` for the
+  needs-attention card), `cellBorderColor` (4px left accent — omit for the dashed card),
+  `cellBgColor`, `cellRadius: 12`.
+- Display: `cellBorder:false` (the old `itemBorder` gray border+shadow is the wrong-color-border
+  trap), `cardsVerticalAlign:'top'` (else band slack inflates rows via `theme.header`'s
+  `flex-1`), and remember the dataCard `headerValueWrapper` usually carries its own `p-2` —
+  the design's p-4 is `cellsPadding: 8` + that 8, not 16.
+
+Worked example: `scratchpad/mitigat-ny-prod-prod/build_dashboard.mjs` (`statusStripED`) —
+measured 103px cards vs the mockup's 104px.
+
+**filter_control round 3 (2026-08-27, the full three-group band):**
+- **JSONB / expression selects work** — but the options endpoint REJECTS a bare expression
+  (`data->>'x'` → 500 `syntax error at "->>"`); use the **`expr as alias`** calc shape with
+  `origin: 'calculated-column'` on the fc column. WHERE leaves in consuming sections take the
+  bare expression (unmapped pass-through). Tile (map) filters take neither — physical columns
+  only.
+- **Toggles can render bare**: theme keys `toggleCellWrapper` (replaces the pill `wrapper` for
+  the toggle branch) + `toggleLabel` (falls back to `label`). Absent → pill chrome as before.
+- **fr tracks won't shrink below a pill's min-content** — a nowrap pill (`Application
+  Readiness` ≈195px) silently expands its track and the grid OVERFLOWS the panel (content
+  clipped at the border, no scrollbar). Budget `cellsTracksTemplate` by measured content.
+- **Continuous vertical group dividers**: a rowspanning spacer cell with `cellBgColor` set to a
+  centered-1px `linear-gradient(to right, transparent calc(50% - 0.5px), <color> …)` — the
+  gradient affordance draws the design's `border-l` separator with no new primitive.
+- ⚠ **A builder's idempotent rerun must re-write the page's `filters` REGISTRY** when it adds
+  searchKeys — sections' leaves and fc's alone are not enough; unregistered page variables
+  don't URL-sync and controls write into the void.

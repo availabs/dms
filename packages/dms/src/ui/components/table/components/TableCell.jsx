@@ -91,9 +91,15 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
         // ONLY DOM-safe props to the <a>/<Link>; spreading the rest leaks invalid attributes and
         // triggers "React does not recognize the `X` prop on a DOM element" warnings.
         const domProps = ({ className, style, onClick, title }) => ({ className, style, onClick, title });
+        // `linkIcon`: render a registered theme icon as the link body instead of
+        // text — an icon-only action column (e.g. a chevron opening the record).
+        // linkText (if also set) becomes the hover title, keeping it accessible.
+        const linkBody = attribute.linkIcon
+            ? <Icon icon={attribute.linkIcon} title={linkText || undefined} />
+            : (linkText || valueFormattedForDisplay);
         return isLinkExternal
-            ? (props) => <a {...domProps(props)} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
-            : (props) => <Link {...domProps(props)} to={url}>{linkText || valueFormattedForDisplay}</Link>
+            ? (props) => <a {...domProps(props)} href={url} target="_blank" rel="noopener noreferrer">{linkBody}</a>
+            : (props) => <Link {...domProps(props)} to={url}>{linkBody}</Link>
     }
 
     if(actionType){
@@ -164,7 +170,7 @@ const getEdge = (
 
 export const TableCell = memo(function TableCell ({
     index, attrI, item, isTotalCell,
-    showOpenOutCaret, setShowOpenOut,
+    showOpenOutCaret, showOpenOut, setShowOpenOut,
     attribute, openOutTitle, openOutInline
 }) {
     const {
@@ -537,9 +543,14 @@ export const TableCell = memo(function TableCell ({
                 <div className={theme.openOutIconWrapper}
                      onClick={toggleOpenOut}
                 >
-                    <Icon icon={'InfoCircle'}
-                          title={'Hide Open Out'}
-                          width={18} height={18}
+                    {/* themeable expander: `openOutIcon` (closed) / `openOutIconOpen`
+                        (expanded, falls back to openOutIcon) / `openOutIconSize` —
+                        defaults preserve the historical InfoCircle @18. */}
+                    <Icon icon={(showOpenOut
+                              ? (theme.openOutIconOpen || theme.openOutIcon)
+                              : theme.openOutIcon) || 'InfoCircle'}
+                          title={showOpenOut ? 'Hide Open Out' : 'Show Open Out'}
+                          width={theme.openOutIconSize || 18} height={theme.openOutIconSize || 18}
                     />
                 </div> : null}
 

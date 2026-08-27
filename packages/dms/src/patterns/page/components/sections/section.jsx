@@ -449,6 +449,18 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
+    // ── Section-level VIEW gate ──
+    // A section carrying authPermissions is HIDDEN from viewers who don't clear
+    // them (e.g. {groups:{public:[]}} = signed-in only — auth-gated CTAs living
+    // in their own sections). Sections without authPermissions are untouched
+    // (BC), and page-edit mode always shows the section so authors can manage
+    // it. Mirrors the page-level authPermissions convention.
+    const sectionHasAuth = sectionAuthPermissions && (
+        Object.keys(sectionAuthPermissions?.groups || {}).length ||
+        Object.keys(sectionAuthPermissions?.users || {}).length
+    );
+    if (sectionHasAuth && !editPageMode && !isUserAuthed(['view'], sectionAuthPermissions)) return null;
+
     // ── Menu from handle ──
     const dwAPI = dwHandle?.dwAPI;
     const mapAPI = dwHandle?.mapAPI;

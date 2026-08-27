@@ -27,6 +27,8 @@ export const Pagination = ({currentPage, setCurrentPage, showPagination, setRead
         setCurrentPage={(i) => {
             setCurrentPage && setCurrentPage(i)
         }}
-        activeStyle={activeStyle}
+        // same precedence the Table body uses (spreadsheet/index.jsx): a named
+        // table style must restyle its pagination too, not just the grid
+        activeStyle={state.display.tableStyle || activeStyle}
     />
 }

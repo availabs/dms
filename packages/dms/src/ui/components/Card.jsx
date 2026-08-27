@@ -693,6 +693,20 @@ const CardColumnField = ({
                         }
                     </div>
             }
+            {/* subValueCol: render a SIBLING column's value (usually a selectOnly
+                aggregate) as a subline inside this cell — the stat-card
+                "N% of actions" row. `subValueFontStyle` picks its type token;
+                absent → no output, so every existing cell is unchanged. */}
+            {attr.subValueCol ? (() => {
+                const sv = source?.[attr.subValueCol];
+                const svVal = sv !== null && sv !== undefined && typeof sv === 'object'
+                    ? (sv.value ?? sv.originalValue ?? '') : sv;
+                return (svVal === undefined || svVal === null || svVal === '') ? null : (
+                    <div className={`${theme[attr.subValueFontStyle] || ''} ${theme[valueTextJustifyClass] || ''}`}>
+                        {svVal}
+                    </div>
+                );
+            })() : null}
             {menuButton}
         </div>
     );
@@ -918,6 +932,7 @@ export default function Card ({
 
     const {
         cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
+        cardsRadius, cardsBorderColor,
         cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
         cellsVerticalAlign, cellsTracksTemplate, cellsRowsTemplate,
         cardBorder, cellBorder,
@@ -963,10 +978,13 @@ export default function Card ({
 
     const subWrapperStyle = useMemo(
         () => resolveCellsGridStyle({
-            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate },
+            // cardsRadius/cardsBorderColor: the per-card surface chrome (tinted
+            // filter panels) — resolveCellsGridStyle reads them; dropping them
+            // from this pick silently un-borders every panel card.
+            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate, cardsRadius, cardsBorderColor },
             gridTemplateColumns, hasRowSpan,
         }),
-        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, cellsRowsTemplate, hasRowSpan]);
+        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, cellsRowsTemplate, cardsRadius, cardsBorderColor, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {
