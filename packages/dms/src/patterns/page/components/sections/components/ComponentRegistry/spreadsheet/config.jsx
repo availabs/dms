@@ -328,6 +328,9 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Is External', key: 'isLinkExternal', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
             { type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
+            // registered icon name rendered as the link body (icon-only action
+            // column); Link Text then serves as the hover title
+            { type: 'input', inputType: 'text', label: 'Link Icon', key: 'linkIcon', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
             { type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
             { type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink,
                 options: [

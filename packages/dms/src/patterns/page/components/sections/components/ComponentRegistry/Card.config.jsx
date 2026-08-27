@@ -383,6 +383,17 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
     // (stat-strip look). Applied in resolveCellStyle (Card.layout.js) next to
     // cellBgColor. Unset → no border → BC.
     { type: ({ value, setValue }) => (<ColorControls value={value} setValue={setValue} title={'Accent Border Color'} />), key: 'cellBorderColor' },
+    // Per-cell perimeter border: a full CSS border shorthand the author types
+    // ('1px solid #E0EBF0', '1px dashed #EAAD43'). The left accent above still
+    // wins the left edge when both are set. Unset → no border → BC.
+    { type: 'input', inputType: 'text', label: 'Cell Outline (css border)', key: 'cellOutline' },
+    // Per-cell corner radius (px) — for cells that ARE the visual card (stat strips).
+    { type: 'input', inputType: 'number', label: 'Cell Radius', key: 'cellRadius' },
+    // Subline inside the cell: renders ANOTHER column's value (usually a
+    // selectOnly aggregate — "N% of actions") under this cell's value, styled
+    // by Sub Value Style (a textSettings/dataCard key).
+    { type: 'input', inputType: 'text', label: 'Sub Value Column', key: 'subValueCol' },
+    { type: 'input', inputType: 'text', label: 'Sub Value Style', key: 'subValueFontStyle' },
 
     // Empty Default — per-column placeholder used by getData.js's blank-row
     // fallback (only when `display.useBlankRowFallback` is on for the section).

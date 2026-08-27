@@ -139,7 +139,10 @@ export const FilterControlCell = ({
     const toggleOn = isToggle && pageVals.includes(controlValue);
 
     return (
-        <div className={t.wrapper}>
+        // toggles may take their own cell wrapper (`toggleCellWrapper`) — designs
+        // often render checkboxes BARE while the selects/search keep the pill
+        // chrome. Falls back to `wrapper`, so themes without it are unchanged.
+        <div className={(isToggle && t.toggleCellWrapper) || t.wrapper}>
             {controlIcon ? <Icon icon={controlIcon} className={t.icon} /> : null}
             {isToggle ? (
                 <label className={t.toggleWrapper}>
@@ -149,7 +152,7 @@ export const FilterControlCell = ({
                         checked={toggleOn}
                         onChange={() => write(toggleOn ? [] : [controlValue])}
                     />
-                    {label ? <span className={t.label}>{label}</span> : null}
+                    {label ? <span className={t.toggleLabel || t.label}>{label}</span> : null}
                 </label>
             ) : (
                 <>
