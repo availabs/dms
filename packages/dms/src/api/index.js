@@ -96,9 +96,17 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
         // rejects outright ("not a valid key") — a real crash, not a no-op.
         // Only fall back to treating `ref` as a bare id when it's actually a
         // primitive; an object with no usable id has nothing to resolve.
+        // Coerce to String: IndexedDB keys are strictly typed and every
+        // server-synced row is keyed by a string id (see note below), but
+        // some refs (e.g. a site's `patterns` array) are written with `id`
+        // as a JS Number (`+newId` at creation time). Without this,
+        // `getItemsByIds` silently misses those rows and the ref is left
+        // unresolved — the exact cause of the admin /list page rendering
+        // blank pattern names on client-side navigation.
         const childIds = Array.from(item[key])
           .map(ref => (ref && typeof ref === 'object') ? ref.id : ref)
-          .filter(Boolean);
+          .filter(Boolean)
+          .map(String);
         if (childIds.length > 0) {
           // IndexedDB keys are strictly typed. Every server-synced row (the
           // vast majority — bootstrap/delta/WS-applied items, and localCreate's
@@ -137,9 +145,9 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
           });
         }
       } else if (item[key]?.id) {
-        // Single ref — see the array-ref case above for why this must NOT
-        // coerce to Number.
-        const child = await sync.getItem(item[key].id);
+        // Single ref — see the array-ref case above for why this must
+        // coerce to String, not Number.
+        const child = await sync.getItem(String(item[key].id));
         if (child) {
           const parsed = typeof child.data === 'string'
             ? JSON.parse(child.data) : (child.data || {});

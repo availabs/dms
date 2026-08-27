@@ -65,10 +65,15 @@ function SiteEdit ({
 			return
 		}
 
+		// user is optimistically seeded from localStorage on refresh with a
+		// placeholder groups:['public'] while the real groups load async
+		// (see auth/providers.jsx) — don't judge access on that stale state.
+		if (user?.isAuthenticating) return
+
 		if (!hasAccess) {
 			navigate('/')
 		}
-	}, [resolvedId, user?.authed, JSON.stringify(user?.groups), dataItems, isLoading])
+	}, [resolvedId, user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), dataItems, isLoading])
 
 	const updateData = (data, attrKey) => {
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})

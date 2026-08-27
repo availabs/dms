@@ -686,6 +686,7 @@
 - [ ] Pattern creation refresh bug — new pattern row appears with blank data, requires page refresh; `dmsDataEditor` mutates input data (replaces dms-format attrs with refs), revalidation doesn't restore correct data
 - [x] [Pattern-configurable HTML page title](./tasks/completed/pattern-html-title.md) — add `html_title` attribute to pattern format, edit field in Overview pane of pattern editor, set `document.title` while pattern's routes are active; fall back to pattern `name` when unset
 - [x] [Admin site-edit auth + separate create route](./tasks/completed/admin-site-edit-auth.md) — split editSite into protected edit route (admin group only) + public create route; in-component auth guard handles no-site bootstrap case; auto-login after site creation; auth pattern permissions control who else can access the list page
+- [x] [Admin `/list`: refresh redirects to `/`, and shows blank names/urls on nav](./tasks/current/list-page-refresh-redirect-and-stale-refs.md) — reported on tessera.so 2026-08-27. Two bugs: `editSite.jsx`'s `hasAccess` redirect fires off the optimistic pre-auth `groups:['public']` state on full reload (auth-loading not gated); client-side nav to `/list` served stale/unresolved `patterns` refs from the local IndexedDB sync store because `loadFromLocalDB` queried it with un-coerced numeric ids against string-keyed rows — live-reproduced and fixed.
 
 ### patterns/auth
 
