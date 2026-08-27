@@ -18,6 +18,245 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 76 (2026-08-26) — architectural fix, not just another port: GridGraph's 18 templates are now COMPOSED via the real `applyMeasurePick`/`composeMeasureConfig.js` (a new `compose_bridge.mjs` + `compose_bridge.py`), not hand-built Python — the two-independent-reimplementations problem rounds 74/75 kept finding is now structurally impossible for this graph family (moved verbatim to archive on 2026-08-27, round 77 start)
+
+**Context**: after rounds 74/75 (both "JS already fixed this, Python never got the port"), Ryan asked whether the Python converter could just call the JS composition code directly instead of maintaining a parallel reimplementation forever. Scoped in chat first (mechanism, effort, risk) before building — `report_build.mjs` already proved the exact mechanism needed (one Vite SSR-loaded server, calling the same `applyMeasurePick` the live Measure Picker uses); this round reuses it via a new small bridge script rather than reimplementing it. Ryan's explicit steer mid-build: use vocabulary.json's canonical `avgCo2Emissions_passenger`/`_truck` measures for the two "avg co2" diff templates rather than preserving Python's own unverified `fn:"avg"`-on-the-sum-expr construction — "co2 stuff... is definitely something that a human has never verified, and tbh its low priority... you can just migrate all 18."
+
+**What was built**:
+- `scripts/npmrds-reports/compose_bridge.mjs` — a trimmed copy of `report_build.mjs`'s own proven pattern (`createServer({middlewareMode:true})` + `ssrLoadModule` of `MeasurePicker/index.js` + the AVL Graph component config). Batch contract: stdin/file → JSON array of `{key, graphType, measureKey, resolutionKey, comparisonModeKey?, seriesCount?}` requests, stdout → one JSON object `{key: composedState}`. One Vite-server startup per Python-process run, not per template or per report — every individual `applyMeasurePick` call after that is a plain in-memory JS call, same cost profile as `report_build.mjs`'s own per-graph loop.
+- `convert_old_reports_lib/compose_bridge.py` — thin subprocess wrapper (`call_compose_bridge(requests)`), omits any request that composed to nothing (unknown measure/resolution) rather than erroring, matching `composeMeasureConfig`'s own "compose nothing" contract.
+- `template_specs.py`'s 18 GridGraph `TEMPLATE_SPECS` entries (hand-built column/display dicts) removed outright — not deprecated, not left dead — replaced by a new `BRIDGE_GRAPH_SPECS` dict holding just the semantic pick (`graphType`/`measureKey`/`resolutionKey`/`comparisonModeKey`), the same vocabulary.json keys `SPEED_EXPR` etc. already derive from.
+- `graph_templates.py`'s new `ensure_bridge_graph_templates(needed_names, templates, dry_run)` — sibling to `ensure_graph_templates`, called alongside it at both call sites (`convert_report.py`, `convert_template.py`). A composed state (`{filters, columns, data, display, externalSource, join, comparisonSeries}`) is a COMPLETE section stateJson on its own — unlike `ensure_graph_templates`'s base-clone-then-patch model, there's no partial merge: a bridge-driven template's `stateJson` simply IS the bridge's output, wholesale. Drift detection is correspondingly a single whole-object comparison against a fresh compose call, not ~10 individual field-level checks (verified nothing in the rest of the converter depends on GridGraph column ORDER or an `origin` field — grep confirmed zero Python code reads `origin` at all, and every existing column lookup already searches by `target`, not index).
+
+**A real, independently-confirmed bug found along the way** (not caused by this refactor — it predates it, this refactor just exposed and fixed it as a side effect): every `speed`-measure GridGraph/LineGraph/BarGraph-day template was still joined to the OLD frozen `455/3464` TMC identification snapshot. Round 59 (2026-07-17) fixed this exact join staleness for `hoursOfDelay`/`avgHoursOfDelay`/`co2Emissions`/`avgCo2Emissions` but never touched `speed`/`travelTime`, because those `TEMPLATE_SPECS` entries never declared a `join` key at all — so the existing drift-detection had nothing to compare against and it silently stayed stale for over a month. Confirmed via live network capture on the reconverted report: the join now reads `view_id: 983` (the correct year-matched `NPMRDS_V6_tmc_meta`), not `3464`.
+
+**Live-verified across 4 diverse reports, not just one**: reconverted report 435 (`speed`/`travelTime`/`avgHoursOfDelay` grids, page `2214921`) — screenshot confirms real TMC ids, real red→yellow→green gradients on all 8 grid sections, 0 errors; 751 "Van Wyck CO2 Test Single TMC" (`avgCo2Emissions_passenger`/`_truck`, page `2214949`) — screenshot confirms clean gradients using vocabulary's canonical avg-CO2 expression (confirmed via the live captured query text, byte-matching `vocabulary.json`'s own `avgCo2Emissions_truck.expr`, not the old CO2_EXPR_TRUCK+fn:avg construction), 0 errors, diff-grid panels correctly near-flat (genuinely near-zero delta for this test report — the sibling diff BAR chart shows real variation, confirming the difference mechanism itself works); 1037 "Inc 3/1/2023 NY33 EB @ Dodge St" (`avgHoursOfDelay` diff grid, page `2214973`) — 0 errors, real diff values in the captured query; 584 "I-190 NB COVID Comparison" (`speed` diff grid) — dry-run clean. Proactively swept all 18 `BRIDGE_GRAPH_SPECS` names directly (no report reconversion needed): 17/18 recomposed (structurally different shape than before, expected for a one-time migration), the 18th (`tmc_speed_grid_graph_tmc`) already fixed by report 435's own conversion moments earlier. Full corpus census re-run, 870/870 reports, 0 errors, `full_producible` unchanged at 184.
+
+**Separately investigated and ruled unrelated**: Ryan spotted report 435's "Hours of Delay" Bar Graph Summary section rendering only 1 visible bar instead of 3. Confirmed via the live captured query + a direct ClickHouse check that this is a genuinely separate, pre-existing issue — that section is `graphType: "BarGraph"`, never touched by `ensure_bridge_graph_templates` (GridGraph-only this round). Root cause: `hoursOfDelay`'s formula needs real `aadt`/`avg_speedlimit`/`faciltype` from the year-matched meta join (`582/983`), and for **2017-dated data specifically**, that source's rows exist but carry `aadt=0`/`avg_speedlimit=0`/`faciltype=0` (placeholder, not real values) — confirmed live for all 3 assigned TMCs. The existing `nullIf(table1.aadt, 0)` guards are working exactly as round 59 documented ("2017 rows... now null out cleanly... instead of reading as a wrong zero") — Hours of Delay is genuinely unrenderable for 2017 data by design; Speed doesn't hit this because its formula floors `avg_speedlimit` at a minimum instead of nulling on zero. Not fixed (a real, permanent 2017 data-coverage gap, not a bug), not this round's scope.
+
+**Not migrated this round, deliberate scope boundary**: LineGraph/BarGraph/Bar Graph Summary specs (~43 remaining `TEMPLATE_SPECS` entries) stay on the old hand-built path — `composeMeasureConfig.js` handles them identically in principle (same `applyMeasurePick` call, just a different `graphType`), so the SAME migration pattern applies directly; deferred as a follow-up round rather than done in one sitting given the corpus-wide verification burden already paid for GridGraph alone.
+
+**Files changed**: `scripts/npmrds-reports/compose_bridge.mjs` (new, ~95 lines), `convert_old_reports_lib/compose_bridge.py` (new, ~40 lines), `convert_old_reports_lib/template_specs.py` (18 hand-built entries removed, `BRIDGE_GRAPH_SPECS` added, net -220 lines), `convert_old_reports_lib/graph_templates.py` (new `ensure_bridge_graph_templates`, ~75 lines), `convert_old_reports_lib/convert_report.py` + `convert_template.py` (1 import + 1 call site each).
+
+---
+
+## Round 75 (2026-08-26) — same-session follow-up: GridGraph's "confetti" rainbow color scale, fixed by porting a known 2026-08-12 compose-time fix into the Python converter (moved verbatim to archive on 2026-08-26, round 76 start)
+
+**Context**: Ryan, looking at round 74's own fix: "those grid graphs, also have the stale rainbow
+color scheme. This came up many times during the dynamic report work, prob almost identical issue
+to the yaxis formatting" — then, after I started re-deriving root cause from the old client source,
+redirected directly: "we already solved this in the new tools" and pointed at
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md:305`. Should have gone
+straight there — noted for next time.
+
+**The bug**: identical shape to round 74's yAxis fix, different field. Every GridGraph template's
+`display.colors` is the base LineGraph template's ~20-swatch route-identity palette
+(`{type:"palette", value:[20 hex colors]}`) — correct for distinguishing routes/years by hue on a
+LineGraph legend, meaningless for GridGraph, which always colors cells by raw measure VALUE
+regardless of route count (`GridGraph.jsx`'s `dataFromProps` always calls `buildValueColorScale`,
+never reads the categorize column for coloring). Feeding a 20-color categorical palette into a
+continuous value scale produces visually jumbled "confetti" instead of a readable gradient.
+
+**Already fixed once, just not here**: `dynamic-reports-and-route-tags.md`'s own 2026-08-12 entry
+("GridGraph/BarGraph magnitude color scale") documents this exact bug, already root-caused and
+fixed — in `composeMeasureConfig.js` (the live in-app Measure Picker), which `report_build.mjs`
+calls directly via `ssrLoadModule` for every Dynamic Report build. That doc's own root-cause
+pattern (B) names the reason it never reached here: "`composeMeasureConfig.js` is a parallel,
+independent reimplementation of the Python converter's own composition logic, so a fix in one
+never propagates to the other by construction." Confirmed `report_build.mjs` needed no change
+(verified it already imports/calls `composeMeasureConfig.js`) — only `convert_old_reports.py`
+(a separate codebase) was missing the fix.
+
+**The fix** (`graph_templates.py`, same `ensure_graph_templates` mint + drift branches round 74
+touched): a direct, same-values port of `composeMeasureConfig.js`'s `buildDiffColors`-adjacent
+branch — `{type: "scheme", scheme: "rdylgn", reverse: measure.reverseColors}` for every plain
+(non-difference) GridGraph spec. `reverse` is read from `vocabulary.json`'s own
+`measures[key].reverseColors` (`GRAPH_VOCAB`, the same file both the JS and Python sides already
+load from — a lookup by expr string, not a second hand-maintained set, so the two sides can't drift
+apart again). Difference-mode GridGraph specs are explicitly excluded (`_grid_default_colors`
+returns `None` when the spec already carries its own `display.colors` — the existing, already-
+correct `_diff_colors()` byValueSymmetric ramp from round 52 must win, not get overwritten).
+
+**Live-verified**: ran `ensure_graph_templates` directly over all 18 GridGraph spec names (no
+report reconversion needed) — the 10 plain specs each fixed (`GridGraph value color scale drift
+fix`), the 8 difference specs correctly untouched. Confirmed via direct query: `speed`/
+`speed_truck` templates got `reverse: false` (high speed = green, matches intuition), every other
+measure (travelTime/delay/avgDelay/CO2 truck+passenger) got `reverse: true` (low value = green).
+Reconverted report 435 (`--replace` → page `2214893`) — screenshot confirms every grid graph now
+renders a real red→yellow→green gradient (e.g. "2017 Route 1": 4.65 mph at the red end, 60.5 mph
+at the green end) instead of rainbow confetti; 0 console/page/SQL errors, same benign
+`/track/visit` 204. Full corpus census re-run, 870/870, 0 errors, `full_producible` unchanged at
+184.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/graph_templates.py` (~30 lines,
+same function as round 74). No other files.
+
+---
+
+## Round 74 (2026-08-26) — user-reported live bug: every TMC Grid Graph's y-axis shows "NaN" instead of TMC ids; root-caused and fixed (this is the SAME bug round 69 flagged and mis-diagnosed as a data-shape oddity, not a formatter bug — it's a formatter bug) (moved verbatim to archive on 2026-08-26, round 75 start)
+
+**Context**: Ryan, browsing round 73's own live-verification page (`converted_reports/skyway_sb_vs_lake_ave_eb_wb_january_5_th_2017`): "all the grid graphs have NaN for the y axis values. prob a formatting thing that is missing from the converter?" Correct guess — root-caused fully, not just flagged.
+
+**The bug**: every `GridGraph` template's `display.yAxis` is a byte-for-byte deep copy of
+`TEMPLATE_BASE_NAME` (`tmc_travel_time_line_graph`)'s own `yAxis` block —
+`{tickFormat: "Integer", label: "Travel Time (min)", ...}` — because `ensure_graph_templates`'s
+mint path clones the base template's whole `stateJson` and only ever patches the ONE column
+matching the spec's own value target (`"color"` for GridGraph, per round 35's fix), never the
+`display.yAxis` block itself. For every OTHER graph type (Bar/Line/Bar Graph Summary), that's
+correct — their yAxis IS the numeric measure. But GridGraph is inverted: its `yAxis` AXIS POSITION
+holds the categorize column (a TMC identifier string, e.g. `"104N08243"` — see
+`tmc_speed_grid_graph_tmc`'s own spec, a `categorize` dict deliberately pre-targeted at `"yAxis"`,
+[[project_gridgraph_yaxis_not_categorize]]), while the real measure renders as cell COLOR, not a
+y-position. `GraphComponent.jsx` applies `getFormatFunc(display.yAxis.format)` to the y-axis
+unconditionally regardless of graph type (`GraphComponent.jsx:237`); `AxisLeft.jsx` calls
+`d3AxisLeft(scale).tickFormat(format)` unconditionally too, even for an ordinal/band scale
+(`GridGraph.jsx` renders its y-axis with `type="ordinal"`, but `type` never gates whether `format`
+gets applied). d3's `",d"` integer formatter coerces its input via `+x` first — `+"104N08243"` →
+`NaN` → every tick renders the literal string `"NaN"`. Confirmed corpus-wide via direct DB query:
+**15/15 existing `avl_graph_template` rows with `graphType: "GridGraph"` carried `tickFormat:
+"Integer"`** — a 100% hit rate, not an isolated glitch. Round 69 (2026-08-04) had already spotted
+this exact symptom on a single-row grid and explicitly mis-diagnosed it as "likely a data-shape
+oddity (why does this per-TMC grid only have one row?)" — it fires on every GridGraph regardless
+of row count; round 69's own tooltip fix (same file, `indexFormat`/`keyFormat` routing) was a
+different, already-fixed bug that happened to share a symptom.
+
+**The fix** (`convert_old_reports_lib/graph_templates.py`, `ensure_graph_templates`, both branches):
+whenever a spec's value column targets anything other than `"yAxis"` (i.e. `y_target != "yAxis"` —
+true only for GridGraph specs, confirmed via `grep` that `target: "color"` never appears outside
+`graphType: "GridGraph"` in `template_specs.py`), clear `display.yAxis.tickFormat`/`format` (no
+correct non-empty value exists for a categorical axis — Identity/pass-through is the only sane
+default) and reset `label` to `""` (also inherited nonsense — one already-minted template,
+`tmc_diff_grid_delay_5min`, carried a leftover literal `"Travel Time (min)"` label on its TMC-id
+axis). Added to **both** the mint path (new GridGraph templates never inherit the bug) and the
+existing lazy drift-detection loop (already-minted ones self-heal), matching this file's own
+established idiom exactly (same shape as round 61/62's `epoch_format_drift`/`epoch_label_drift`).
+
+**Live-verified**: reconverted report 435 with `--replace` → new page `2214862` (superseding
+round 73's `2214814`). Drift fired and fixed `tmc_speed_grid_graph_tmc` in the same run
+(`updated template 'tmc_speed_grid_graph_tmc' id=2190777 (yAxis categorical format/label drift
+fix)`). Screenshot confirms all 8 GridGraph sections now render real TMC ids on the y-axis
+(`104N08243`, `104-04319`, etc.) instead of `NaN`; 0 console/page/SQL errors, 1 benign 204 on
+`/track/visit` (same known-harmless endpoint round 50 already flagged). Went further than the one
+touched template: ran `ensure_graph_templates` directly (no full report reconversion needed) over
+all 18 `TEMPLATE_SPECS` GridGraph entries — fixed the remaining 14 already-existing templates (which
+also surfaced OTHER pre-existing, unrelated staleness on several of them — stale `yAxis expr`/
+`join`/`xAxis format`/`xAxis label`/`display` drift from rounds 59-62 that had simply never been
+triggered because no report using them had been reconverted since minting; all self-healed in the
+same pass) and minted 3 templates that didn't exist yet (`tmc_diff_grid_speed_15min`,
+`tmc_diff_grid_speed_5min_truck`, `tmc_diff_grid_travel_time_5min` — latent, not yet referenced by
+any report). Re-queried all 18: 0 now carry `tickFormat`/`format`/a stray `label`. Full corpus
+census re-run twice (before and after the 18-template sweep), 870/870 reports, 0 errors both times,
+`full_producible` unchanged at 184 (pure display fix, no coverage-logic change).
+
+**Verify URL**: `http://npmrds.localhost:5173/converted_reports/skyway_sb_vs_lake_ave_eb_wb_january_5_th_2017`
+— all 8 grid sections ("2017 Route 1/2/3", "Jan 5 Route 1/2/3") should show real TMC id strings on
+the y-axis, never "NaN".
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/graph_templates.py` (~25 lines,
+`ensure_graph_templates`'s mint + drift-detection branches only). No other files.
+
+---
+
+## Round 73 (2026-08-26) — fixed round 71 finding (2): the `{recent-NaN}` relativeDate-placeholder crash, gap-logged instead of hard-crashing, live-verified on all 13 known-affected reports (moved verbatim to archive on 2026-08-26, round 74 start)
+
+**Context**: user picked this as the next focus after reviewing the mesh task file's cross-
+reference into this one. Small, well-scoped fix per round 71's own framing — "gap-log the malformed
+relativeDate case instead of crashing" — held for a follow-up round since round 71 was read-only
+verification.
+
+**The bug** (`convert_old_reports_lib/convert_report.py`, the point-drawn-route TMC-resolution
+loop): `years = {str(s.get(k))[:4] for k in ("startDate", "endDate") if s.get(k)}` assumed every
+present `startDate`/`endDate` was a real `YYYYMMDD` value and blindly took its first 4 characters;
+`comp_years = range(int(min(years)), int(max(years)) + 1)` then called `int()` on whatever came out.
+On 13/870 reports (1.5%), a route_comp's `startDate` holds a garbled old-tool relativeDate
+template-substitution artifact instead of a date — three distinct corrupted shapes found in the
+corpus via a direct `admin2.reports` query: `{recent-NaN}`, `{recent-NaN}ent-NaN}`, and
+`{recent-NaN}ent-NaN}ent-NaN}ent-NaN}ent-NaN}` (report 415, 419/422/427/429/434/435/436/437/439,
+and 443/444/445 respectively) — the OLD system's own bug, nothing recoverable behind it. Taking the
+first 4 characters of any of these gives `{rec`, which `int()` rejects with an unhandled
+`ValueError`, crashing the whole conversion instead of gap-logging and continuing. All 13 have a
+valid `endDate` (`20171231`) — only `startDate` is corrupted.
+
+**The fix**: build the `years` set field-by-field instead of via one comprehension; a field whose
+first-4-chars aren't all digits is dropped from `years` (treated the same as if the field were
+absent — falls through to the pre-existing `tmc_resolution_empty` gap path if BOTH fields end up
+unusable) and gap-logged as a new `malformed_relative_date_value` kind carrying the field name and
+raw corrupted value. Mirrors the exact same "guard the int() parse, gap-log the non-numeric case
+instead of crashing" idiom `dates.py`'s `route_comp_is_pre_2017` and `section_builders.py`'s
+`malformed_state_resolution` handling already use elsewhere in this converter — not a new pattern.
+
+**Live-verified**: dry-run against all 3 corrupted-value shapes (reports 435, 415, 443/445) —
+every one now completes (page-creation plan printed, gap report written) instead of crashing, and
+each correctly logs `malformed_relative_date_value` for `comp-9`'s `startDate` with the exact raw
+value, while still resolving TMCs via the valid `endDate` (2017). Full corpus census re-run
+(870 reports, **0 errors** — confirms no other report in the corpus regressed) — `full_producible`
+unchanged at **184**, exactly matching round 71's classification, as expected for a pure crash-guard
+with no effect on mapping/coverage logic. (`converted_pages_total: 1` in this census run is round
+72's own live-verification page, `2214660` — not new; finding (4)'s "corpus is empty" observation
+was about the state as of round 71, before round 72's own run.) Went one step further than dry-run:
+converted report 435 for real (`python3 convert_old_reports.py --report-id 435`, no `--replace`
+needed — never had a page before, per finding 2) → new page `2214814`
+(`converted_reports/skyway_sb_vs_lake_ave_eb_wb_january_5_th_2017`). `report_probe.mjs --auth`:
+12 sections rendered, 0 console errors, 0 page errors, 0 non-200s, 0 pending-at-close requests,
+real ClickHouse `/graph` traffic with real speed/travel-time/hours-of-delay values (e.g. Route Map
+speed choropleth quantile breaks, Route Line Graph epoch series) — confirms the fix isn't just
+"doesn't crash," the resulting page is a real, working report end to end.
+
+**Not addressed this round**: finding (3) `route_comps_merged` not corpus-counted (explicitly
+descoped, round 71), finding (4)'s open question resolved as above (not a blocker either way). No
+bulk reconversion run yet — that go/no-go decision is still open.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/convert_report.py` (~15 lines,
+the point-route year-resolution loop only). No other files.
+
+---
+
+## Round 72 (2026-08-25) — fixed round 71's finding (1): `_measurePick.routeWindows` now written, live-verified end to end (moved verbatim to archive on 2026-08-26, round 73 start)
+
+**Context**: Ryan's direction after reviewing round 71: "That regression is a high priority fix" —
+fixed same session, before any bulk reconversion run.
+
+**The fix** (`convert_old_reports_lib/section_builders.py`, `build_graph_section_data`, the one
+call site of `resolve_measure_pick_window`): `resolve_measure_pick_window` itself is unchanged —
+same "every assigned comp agrees, or gap-log and default" logic round 70 shipped. Only the
+WRITE changed: the resulting `{weekdays, start, end}` window is now fanned out to
+`_measurePick.routeWindows[compId] = [{weekdays, start, end}]` for every comp id assigned to that
+graph (`info["assigned"]`), in addition to the existing (now-decorative but harmless) flat fields.
+This is a faithful translation of what round 70 already computed, not a new decision — round 70
+never captured per-route variation within one graph (see its own "no single correct answer" framing
+for the disagreement case), so one shared variant per assigned comp is exactly equivalent to the old
+flat write, just in the shape `useGraphPublish.js` actually reads today.
+
+**Live-verified**, not just unit-level: reconverted report 1045 with `--replace`
+(`python3 convert_old_reports.py --report-id 1045 --replace`) → new page `2214660`
+(`converted_reports/rochester_inner_loop`, the same report round 70 originally verified against).
+Fetched every published section's raw `element-data` via `dms raw get`/`dms raw get` on each
+`sections[]` ref (not `draft_sections`, which this converter leaves at a stray framework default —
+see the "Old/New shape" reference section) and confirmed:
+- Real AM-peak (`06:00`–`09:00`, Mon/Tue/Wed/Thu weekdays-only) and PM-peak (`15:00`–`18:00`)
+  windows landed correctly, keyed by the exact `comp-N` ids `useGraphPublish.js`'s
+  `transformReportRoutes` looks up via `route.route_comp_id`/`route_comp_ids`.
+- A multi-comp graph (section `2214688`) correctly got separate `routeWindows` entries for each of
+  its two assigned comps (`comp-5`, `comp-6`), both carrying the same agreed-on window.
+- The two `measure_pick_window_mixed` disagreement cases (sections `2214685`/`2214692`, same ones
+  round 71's dry-run and round 70's original run both flagged) still gap-log correctly and still
+  write the empty-default window — now via `routeWindows` too, harmless since an empty variant
+  reads as "unrestricted" on both the old and new mechanism.
+- `node report_probe.mjs converted_reports/rochester_inner_loop --auth`: 11/15 sections with
+  content, 0 console errors, 0 page errors, 0 SQL errors, real ClickHouse queries visible in the
+  captured `/graph` responses with real speed/hours-of-delay/LOTTR/TTTR values and real WHERE-clause
+  date/epoch filtering reflecting the AM/PM-peak windows above (not "all days, all hours").
+
+**Not addressed this round** (unchanged from round 71): finding (2) the `{recent-NaN}` crash,
+finding (3) `route_comps_merged` not corpus-counted (explicitly descoped), finding (4) the prior
+converted-page corpus being gone from the dev DB. No bulk reconversion run yet — that's still a
+separate go/no-go decision.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` (the fix,
+~12 lines). No other files.
+
+---
+
 ## Round 71 (2026-08-25) — pre-reconversion audit: census-based clean/needs-attention/junk classification of the full old-report corpus, plus tooling verification against the current (post-08-14) `_measurePick.routeWindows` model
 
 **Context**: Ryan wants to re-run bulk conversion but first wants (a) confirmation the converter's

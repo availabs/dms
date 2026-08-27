@@ -8,95 +8,111 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-08-25, ROUND 72 DONE — fixed round 71's finding (1): `_measurePick` is no
-longer stale. `section_builders.py` now writes `_measurePick.routeWindows[compId] = [{weekdays,
-start, end}]` for every comp assigned to a self-bound graph, matching the shape
-`useGraphPublish.js`/`report_build.mjs` have read/written since the 2026-08-14 migration
-(`cff5318`) — same window-resolution logic round 70 shipped (agree → real window, disagree →
-gap-log + empty default), just written to the field that's actually read now. Live-verified:
-reconverted report 1045 (`--replace` → page `2214660`), confirmed real AM/PM-peak windows landed
-correctly keyed by `comp-N` id, a multi-comp graph got separate entries per comp, the 2 genuine
-disagreement cases still gap-log correctly, and `report_probe.mjs --auth` showed 11/15 sections
-with content, 0 console/page/SQL errors, real ClickHouse queries reflecting the peak-hour
-date/epoch filters (not "all days, all hours"). **Round 71 (2026-08-25) — still relevant** — the
-pre-reconversion audit: a full-corpus clean/needs-attention/junk classification (184/328/358 of 870
-old reports) built from `census_old_reports.py`'s own existing fields
-(`class`/`route_validity`/`pre_2017_only`). Its other 3 findings remain open: **(2)** a real crash
-bug, unrelated to (1): `convert_report.py`'s point-route year-resolution crashes on a corrupted
-`{recent-NaN}` relativeDate placeholder found on 13/870 reports (1.5%) — legacy data corruption (the
-OLD system's own template-substitution bug, confirmed via the raw stored value
-`"{recent-NaN}ent-NaN}"` — nothing recoverable behind it), not gap-logged, not yet fixed. **(3)**
-`census_old_reports.py` never actually computes the `route_comps_merged` ("routes collapsed") gap
-kind corpus-wide — that pass only runs inside the real/dry-run converter and needs falcor
-point-route resolution the census deliberately skips for speed; confirmed real via a 9-report
-dry-run spot check (3/9 fired it) but not corpus-counted, per Ryan's explicit scope (no new
-route-collapse detection). **(4)** The entire prior already-converted-page corpus (36+ pages across
-rounds 1-70, including round 70's own live-verification page 2209156) is GONE from the current dev
-DB — reset at some point for the Dynamic Report catalog work; `converted_pages_total` is genuinely 0
-today, confirmed both by the census and a direct DB query. Finding (2) should still be fixed before
-a bulk reconversion run (it will hard-crash on 13 known reports); (3)/(4) don't block one. Full
-detail: Round 72 above (fix), Round 71 in the archive (audit — moved 2026-08-25, round 72 start).
-Round 70 (weekday/peak-hour `_measurePick` backfill, superseded by round 72's fix), round 69
-(day-of-week axis labels, GridGraph tooltip NaN, Bar Graph Summary colors, comparison-series anchor
-sort — all 4 DONE and live-verified 2026-08-04), round 68 (Bar Graph Summary freeflow-byDateRange
-wired into convert/analyze, `full`/`full_producible` 229/181, converted_pages_total 35→36 — page
-since gone, see finding (4)), round 67 (Route Line Graph/Route Compare Component
-resolution-precedence), round 66 (pm3 2018-2020 backfill), and earlier rounds remain DONE — full
-detail archived, see ledger below. Next work: fix finding (2) [gap-log the malformed relativeDate
-case instead of crashing] before any bulk reconversion run; then decide whether to run bulk
-conversion against the 184 clean + 328 needs-attention reports, or address specific
-needs-attention gap categories first; root-cause the single-row GridGraph y-axis NaN (round 69,
-still open) is unrelated and still open too.)
+## Current state (2026-08-27, ROUND 77 DONE — extended round 76's bridge-composition pattern from
+GridGraph-only to LineGraph/BarGraph/Bar Graph Summary/Route Difference: **37 `TEMPLATE_SPECS`
+entries moved to `BRIDGE_GRAPH_SPECS`** (mechanical dict moves, zero bridge/compose code changed —
+`ensure_bridge_graph_templates` was already graph-type-generic) **+ 3 more unlocked by one small,
+real JS addition**: `composeMeasureConfig.js` had no equivalent of `expressions.py`'s per-grain
+`_avg_delay_summary_expr` (avgHoursOfDelay's Bar Graph Summary value is bucket-grain-dependent,
+unlike every other summary measure) — ported as `avgDelaySummaryExpr`/`SUMMARY_DELAY_BUCKET_EXPR`,
+gated behind a new converter-only `summaryDelayGrainKey` param threaded through
+`compose_bridge.mjs`→`applyMeasurePick`→`composeMeasureConfig` (never set by any live-UI caller, so
+the live Measure Picker's own behavior is byte-unchanged). Verified the JS port is byte-identical
+to Python's `AVG_DELAY_SUMMARY_5MIN_EXPR` by direct string comparison before trusting it. **6
+entries deliberately NOT migrated**, both for real structural reasons, not inertia: (1)
+`tmc_travel_time_line_graph` (`TEMPLATE_BASE_NAME`) — every mint branch in both
+`ensure_graph_templates` and `ensure_bridge_graph_templates` sources row-envelope fields from
+whichever row this name resolves to; migrating its own spec would replace its own stateJson with an
+untested-as-a-base bridge shape, so it stays hand-built until a follow-up round verifies that's
+safe; (2) 5 "Hours of Delay Graph" `tmc_delay_bar_graph_{5min,day_tmc,hour_tmc,15min_tmc,
+month_tmc}` entries — a newly-found real gap: `composeMeasureConfig.js` has no mechanism to add a
+per-TMC breakdown column to BarGraph (`categorize: "tmc"`), only GridGraph's yAxis-targeted one —
+flagged as a small follow-up, same shape as the avgHoursOfDelay-summary gap was before this round,
+not built. **Side-effect fix**: `census_old_reports.py`'s `AADT_CONSUMING_TEMPLATES` only ever
+scanned `TEMPLATE_SPECS` for a `"table1.aadt"` substring — round 76's GridGraph bridge migration had
+already silently broken this for 4 delay/CO2 GridGraph templates (the `aadt_override_mixed` gap
+check stopped seeing them, unnoticed until now); fixed to also scan `BRIDGE_GRAPH_SPECS` by
+measureKey, now correctly covers all 32 aadt-consuming templates across both dicts. **Live-verified**
+on 2 reconverted reports: 787 "R5 HELP Route Analysis" (`--replace` → page `2214985`) exercises the
+NEW avgHoursOfDelay-summary capability (Bar Graph Summary) + the migrated `tmc_avg_delay_line_graph`
+— screenshot confirms real, distinct-height bars and a real line chart with correct axis
+labels/legend, 0 console/page/SQL errors, live ClickHouse query capture confirms the ported
+two-level-fold expression executes and returns real varying values; 584 "I-190 NB COVID Comparison"
+(`--replace` → page `2215001`) exercises `route_diff_speed_5min` (migrated BarGraph difference) +
+`tmc_speed_line_graph` (migrated LineGraph) — screenshot confirms the diverging red/orange/green
+difference bars + zero-centered legend render correctly, 0 errors. Plus dry-run-clean on 1071, 1045,
+1037 (a diverse spread of route-wide BarGraph/LineGraph/Bar-Graph-Summary/diff templates). Full
+corpus census re-run, 870/870, 0 errors, `full_producible` unchanged at 184 (a pure architecture
+migration — no coverage change expected or found). **Ryan's explicit direction going into this
+round: do NOT run bulk conversion yet** ("IDC about bulk until we are more confident in all of the
+conversion, accuracy, etc. FIX the converter first") — this round IS that fix work; bulk conversion
+remains un-authorized. **Not done this round** (Tier 3/4 from the scoping pass): Info Box (821 lines,
+`info_box_templates.py`) and Route Compare Component (233 lines, `route_compare_template.py`) have
+NO composeMeasureConfig.js/applyMeasurePick equivalent at all today — building one would be genuinely
+new JS composition code (reusing existing partial ports, `composeReliabilityColumns`/
+`buildRouteCompareDeltaColumn`, built for an unrelated Table checkbox feature), not a dict move.
+Route Map is harder still — its JS composer (`composeMapConfig.js`) uses fixed placeholder color
+breaks where Python's `route_map.py` does a real live ClickHouse quantile bake; "call the real JS
+code" doesn't fully apply until that gap is closed. None of these three are scoped/built yet — next
+session's call. Round 76 (GridGraph architectural fix) and everything before it: full detail moved
+to the archive 2026-08-27; see ledger below.)
 
-## Round 72 (2026-08-25) — fixed round 71 finding (1): `_measurePick.routeWindows` now written, live-verified end to end
+## Round 77 (2026-08-27) — extended round 76's bridge-composition pattern from GridGraph-only to LineGraph/BarGraph/Bar Graph Summary/Route Difference (37 mechanical dict moves + 3 unlocked by a new `summaryDelayGrainKey` JS capability); 6 entries deliberately held back for real structural reasons; fixed a round-76 census side-effect gap found along the way
 
-**Context**: Ryan's direction after reviewing round 71: "That regression is a high priority fix" —
-fixed same session, before any bulk reconversion run.
+**Context**: directly following round 76's own "deferred as a follow-up round" note. Ryan's kickoff direction was explicit and came in two parts across the conversation: first, do NOT run bulk conversion against the corpus yet ("IDC about bulk until we are more confident in all of the conversion, accuracy, etc. FIX the converter first"); second, extend the bridge-composition pattern to "all graph types, info boxes, comparisons, etc." — call the real JS code everywhere, not just GridGraph. A scoping pass (via a research subagent reading `composeMeasureConfig.js`/`applyMeasurePick`/`report_build.mjs`/the Python builders directly, not guessing) found the ask splits into real tiers of effort: LineGraph/BarGraph/Bar Graph Summary/Route Difference are direct extensions of the exact GridGraph pattern (same composer function, different `graphType`/`resolutionKey`); Info Box/Route Compare/Route Map have no JS composer to call at all yet, a materially bigger lift. This round did the first tier only, per Ryan's "do 1 and 2, then check in."
 
-**The fix** (`convert_old_reports_lib/section_builders.py`, `build_graph_section_data`, the one
-call site of `resolve_measure_pick_window`): `resolve_measure_pick_window` itself is unchanged —
-same "every assigned comp agrees, or gap-log and default" logic round 70 shipped. Only the
-WRITE changed: the resulting `{weekdays, start, end}` window is now fanned out to
-`_measurePick.routeWindows[compId] = [{weekdays, start, end}]` for every comp id assigned to that
-graph (`info["assigned"]`), in addition to the existing (now-decorative but harmless) flat fields.
-This is a faithful translation of what round 70 already computed, not a new decision — round 70
-never captured per-route variation within one graph (see its own "no single correct answer" framing
-for the disagreement case), so one shared variant per assigned comp is exactly equivalent to the old
-flat write, just in the shape `useGraphPublish.js` actually reads today.
+**What was migrated (37 entries, zero bridge/compose code changes — `ensure_bridge_graph_templates` was already graph-type-generic, confirmed by reading it before starting)**:
+- LineGraph (2): `tmc_speed_line_graph`, `tmc_speed_line_graph_truck`, `tmc_avg_delay_line_graph`.
+- Route Bar Graph / route-wide Hours-of-Delay (18): every `tmc_speed_bar_graph_*`/`tmc_travel_time_bar_graph_*`/`tmc_avg_delay_bar_graph_*` resolution variant, plus the two route-wide (non-categorize) `tmc_delay_bar_graph_day`/`tmc_delay_bar_graph_weekday`.
+- Route Difference Graph (10): every `route_diff_*` entry — same `comparisonModeKey: "difference"` mechanism the `tmc_diff_grid_*` GridGraph entries already proved live in round 76. Per Ryan's round-76 CO2 direction (reaffirmed applicable here, not re-asked): `route_diff_avg_co2_5min_passenger`/`_truck` now use vocabulary's canonical `avgCo2Emissions_passenger`/`_truck` measures instead of the old `fn:"avg"`-on-sum-expr construction.
+- Bar Graph Summary (6): `tmc_speed_summary_bar_graph`/`tmc_travel_time_summary_bar_graph`/`tmc_delay_summary_bar_graph` moved directly (no gap); the 3 `tmc_avg_delay_summary_bar_graph_{5min,day,weekday}` entries needed the `summaryDelayGrainKey` JS addition below first.
 
-**Live-verified**, not just unit-level: reconverted report 1045 with `--replace`
-(`python3 convert_old_reports.py --report-id 1045 --replace`) → new page `2214660`
-(`converted_reports/rochester_inner_loop`, the same report round 70 originally verified against).
-Fetched every published section's raw `element-data` via `dms raw get`/`dms raw get` on each
-`sections[]` ref (not `draft_sections`, which this converter leaves at a stray framework default —
-see the "Old/New shape" reference section) and confirmed:
-- Real AM-peak (`06:00`–`09:00`, Mon/Tue/Wed/Thu weekdays-only) and PM-peak (`15:00`–`18:00`)
-  windows landed correctly, keyed by the exact `comp-N` ids `useGraphPublish.js`'s
-  `transformReportRoutes` looks up via `route.route_comp_id`/`route_comp_ids`.
-- A multi-comp graph (section `2214688`) correctly got separate `routeWindows` entries for each of
-  its two assigned comps (`comp-5`, `comp-6`), both carrying the same agreed-on window.
-- The two `measure_pick_window_mixed` disagreement cases (sections `2214685`/`2214692`, same ones
-  round 71's dry-run and round 70's original run both flagged) still gap-log correctly and still
-  write the empty-default window — now via `routeWindows` too, harmless since an empty variant
-  reads as "unrestricted" on both the old and new mechanism.
-- `node report_probe.mjs converted_reports/rochester_inner_loop --auth`: 11/15 sections with
-  content, 0 console errors, 0 page errors, 0 SQL errors, real ClickHouse queries visible in the
-  captured `/graph` responses with real speed/hours-of-delay/LOTTR/TTTR values and real WHERE-clause
-  date/epoch filtering reflecting the AM/PM-peak windows above (not "all days, all hours").
+**The one real JS capability gap this round closed**: `composeMeasureConfig.js`'s `isUnsupportedSummaryMeasure` refused `resolutionKey: "summary"` + `measureKey: "avgHoursOfDelay"` outright — avgHoursOfDelay's summary value is bucket-grain-dependent (a mean-of-daily-averages isn't the same number as a mean-of-5-minute-averages), and the picker had no equivalent of `expressions.py`'s per-grain `_avg_delay_summary_expr`. Ported as `avgDelaySummaryExpr(bucketExpr)` + a `SUMMARY_DELAY_BUCKET_EXPR` lookup (`'5-minutes'→'ds.epoch'`, `'day'→'ds.date'`, `'weekday'→'toDayOfWeek(ds.date)'`), reusing `vocab.measures.hoursOfDelay.expr` (stripped of its own trailing alias) rather than a second hardcoded copy of the delay formula. Gated behind a new `summaryDelayGrainKey` param on `composeMeasureConfig`/`isUnsupportedSummaryMeasure` — deliberately NOT a live-authoring-UI field (the Resolution picker has no secondary grain dimension and never will for this one narrow case), only ever set by `compose_bridge.mjs`'s forwarded `BRIDGE_GRAPH_SPECS` request, threaded through `applyMeasurePickToState`'s `composeMeasureConfig(...)` call in `MeasurePicker/index.js`. Live Measure Picker/QuickControls behavior is byte-unchanged (still refuses the combo when no grain is given, which is always, for any live-UI caller). Verified the ported expression against Python's `AVG_DELAY_SUMMARY_5MIN_EXPR` by direct string comparison (ran `compose_bridge.mjs` standalone, diffed the composed yAxis column's `name` against the Python constant) — byte-identical.
 
-**Not addressed this round** (unchanged from round 71): finding (2) the `{recent-NaN}` crash,
-finding (3) `route_comps_merged` not corpus-counted (explicitly descoped), finding (4) the prior
-converted-page corpus being gone from the dev DB. No bulk reconversion run yet — that's still a
-separate go/no-go decision.
+**6 entries deliberately NOT migrated, both for real reasons found while scoping, not oversights**:
+1. `tmc_travel_time_line_graph` (`TEMPLATE_BASE_NAME`) — both `ensure_graph_templates`' and `ensure_bridge_graph_templates`' mint branches source row-envelope fields (`layoutJson`/`includesLayout`/`includesSource`/`createdBy`/`updatedBy`) from whichever DB row this name currently resolves to. Migrating its OWN spec would replace its own `stateJson` with a from-scratch bridge-composed shape, untested as a base for the still-hand-built specs below (which read structural assumptions — e.g. a `__series` column in `state["columns"]`, a `state["externalSource"]["columns"]` list — off the base's stateJson). Kept hand-built on purpose; a follow-up could verify the bridge shape is a safe base and fold this in.
+2. `tmc_delay_bar_graph_{5min,day_tmc,hour_tmc,15min_tmc,month_tmc}` — the "Hours of Delay Graph" per-TMC breakdown shape (`categorize: "tmc"`, one bar per TMC — a genuinely different old component from "Route Bar Graph"'s route-wide shape). `composeMeasureConfig.js` has zero mechanism to add a per-TMC categorize column to BarGraph — only GridGraph gets a breakdown column (`buildGridBreakdownColumn`, targeted `yAxis` not `categorize`). Not found during the original chat-based scoping; found while implementing. Same class of gap as avgHoursOfDelay-summary was before this round (small, scoped, would need one more `composeMeasureConfig.js` addition) — flagged, not built.
 
-**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` (the fix,
-~12 lines). No other files.
+**Side-effect fix, found while migrating**: `census_old_reports.py`'s `AADT_CONSUMING_TEMPLATES` (drives the `aadt_override_mixed` gap check) was built by scanning `TEMPLATE_SPECS` alone for a `"table1.aadt"` substring — round 76's GridGraph migration had already silently stopped it from recognizing 4 delay/CO2 GridGraph templates (nobody had noticed; it's a diagnostic-only gap, not a conversion-correctness one — `section_builders.py`'s actual `overrides.aadt` substitution operates on the live composed `stateJson` regardless of which dict built it, and was unaffected). Fixed by also scanning `BRIDGE_GRAPH_SPECS` for aadt-consuming `measureKey`s (looked up against `GRAPH_VOCAB["measures"]`) — now correctly covers all 32 aadt-consuming templates across both dicts (confirmed by direct import + count).
 
-## Round ledger (rounds 1–71 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 72 is current, full detail above)
+**Live-verified end-to-end on 2 reconverted reports** (plus 3 more dry-run-clean): 787 "R5 HELP Route Analysis" (`--replace` → page `2214985`, `converted_reports/r_5_help_route_analysis`) — `report_probe.mjs --auth`: 0 console/page/SQL errors, 5/6 sections with content (the 6th is the routeless RRL sidebar, expected); screenshot confirms "R5 HELP Routes Y2Y Delay Analysis" (Bar Graph Summary, the NEW avgHoursOfDelay-summary capability) renders 4 bars with real, distinct heights, and "R5 I-290 Y2Y Delay Analysis"/"R5 Route 33 Y2Y Delay Analysis" (migrated `tmc_avg_delay_line_graph`) render real line charts with correct "Avg. Hours of Delay"/"Time of Day" axis labels; live network capture shows the ported two-level-fold ClickHouse expression executing and returning real varying values (e.g. `0.0077`–`0.375`), not nulls/errors. 584 "I-190 NB COVID Comparison" (`--replace` → page `2215001`) — 0 errors, 4/5 sections with content; screenshot confirms "Route Difference Graph, Speed" (migrated `route_diff_speed_5min`) renders correct diverging red/orange/green bars with a zero-centered legend (-31.9 to 31.9), and "Route Line Graph, Speed" (migrated `tmc_speed_line_graph`) renders a real speed curve. Dry-run-clean (no page created, just checked for errors): 1071 (Route Bar Graph day family, 4 migrated templates recomposed), 1045 (`--replace` dry-run: 5 migrated templates incl. `tmc_avg_delay_summary_bar_graph_5min`), 1037 (`--replace` dry-run). Full corpus census re-run: 870/870 reports processed, `full_producible` unchanged at 184 — expected for a pure architecture migration with no mapping-coverage change.
 
+**Not done this round** (Tier 3/4 from the scoping pass, per the "do 1 and 2, then check in" instruction): Info Box (`info_box_templates.py`, 821 lines) and Route Compare Component (`route_compare_template.py`, 233 lines) have no `composeMeasureConfig.js`/`applyMeasurePick` equivalent at all — no component type in the live authoring registry, no menu/header extension; `report_build.mjs` currently shells out INTO Python for both (the reverse direction), meaning Python is the current canonical/proven logic for these two. Building real JS composers is genuinely new work, not a dict move — though partial ports already exist from an unrelated Table-checkbox feature (`composeReliabilityColumns`, `buildRouteCompareDeltaColumn`) that could be reused rather than starting from zero. Route Map is harder still: its composer (`composeMapConfig.js`) uses fixed placeholder color breaks where Python's `route_map.py` does a real live ClickHouse quantile bake — "call the real JS code" doesn't fully apply until that capability gap closes too. None of these three scoped into a concrete plan yet.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/template_specs.py` (37 hand-built entries removed, added to `BRIDGE_GRAPH_SPECS`; 6 kept, with new comments explaining why), `scripts/npmrds-reports/census_old_reports.py` (`AADT_CONSUMING_TEMPLATES` now scans both spec dicts), `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` (`avgDelaySummaryExpr`/`SUMMARY_DELAY_BUCKET_EXPR`, `isUnsupportedSummaryMeasure` gained a `summaryDelayGrainKey` param, `composeMeasureConfig` builds the special yAxis column when set), `src/themes/transportny/components/MeasurePicker/index.js` (threads `pick.summaryDelayGrainKey` into the `composeMeasureConfig` call), `scripts/npmrds-reports/compose_bridge.mjs` (forwards `req.summaryDelayGrainKey`, contract comment updated).
+
+## Round ledger (rounds 1–77 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 77 is current, full detail above)
+
+- **R76** (08-26): architectural fix — GridGraph's 18 templates now COMPOSED via the real
+  `applyMeasurePick`/`composeMeasureConfig.js` (`compose_bridge.mjs`/`compose_bridge.py`), not
+  hand-built Python; the two-independent-reimplementations problem rounds 74/75 kept finding is now
+  structurally impossible for this graph family. Found+fixed a real, independent join-staleness bug
+  for `speed`/`travelTime` along the way (round 59 never reached them). Live-verified on 4 reports
+  (435/751/1037/584), full census 870/870 0 errors, `full_producible` unchanged at 184. Full detail:
+  [archive, "Round 76"](./old-reports-conversion-archive.md).
+- **R75** (08-26): fixed GridGraph's "confetti" rainbow color scale — a direct port of
+  `composeMeasureConfig.js`'s 2026-08-12 fix (`{type:"scheme",scheme:"rdylgn",reverse}`), same
+  shape as R74's yAxis fix. Live-verified on all 18 GridGraph templates + report 435 (page
+  `2214893`). Full detail: [archive, "Round 75"](./old-reports-conversion-archive.md).
+- **R74** (08-26): fixed a user-reported live bug — every GridGraph's y-axis showed "NaN" instead
+  of the TMC id (`display.yAxis` inherited a numeric `tickFormat` from the LineGraph base template,
+  applied to a categorical TMC-id axis). This is the SAME symptom round 69 mis-diagnosed as a
+  data-shape oddity. Fixed in `graph_templates.py`'s `ensure_graph_templates` (mint + drift);
+  live-verified on report 435 (page `2214862`), all 18 GridGraph templates swept directly. Full
+  detail: [archive, "Round 74"](./old-reports-conversion-archive.md).
+- **R73** (08-26): fixed round 71 finding (2) — the `{recent-NaN}` relativeDate-placeholder crash
+  (13/870 reports), gap-logged instead of hard-crashing (`convert_report.py`). Live-verified: all
+  3 corrupted-value shapes dry-run clean; report 435 converted for real → page `2214814`
+  (superseded by R74's `2214862`), 0 errors, full census 870/870 0 errors, `full_producible`
+  unchanged at 184. Full detail: [archive, "Round 73"](./old-reports-conversion-archive.md).
+- **R72** (08-25): fixed round 71 finding (1) — `_measurePick.routeWindows` now written per-comp
+  (`section_builders.py`), matching the shape `useGraphPublish.js`/`report_build.mjs` have read
+  since the 2026-08-14 `routeWindows` migration. Live-verified on report 1045 (`--replace` → page
+  `2214660`), `report_probe.mjs --auth` 11/15 sections with content, 0 errors. Full detail:
+  [archive, "Round 72"](./old-reports-conversion-archive.md).
 - **R71** (08-25): pre-reconversion audit — census-based clean/needs-attention/junk classification
   of the full 870-report corpus (184/328/358), plus 4 tooling-verification findings (finding 1
-  fixed in R72; findings 2-4 still open — see Current state).
+  fixed in R72; finding 2 fixed in R73; findings 3-4 resolved/descoped — see Current state).
 - **R70** (08-07): converter's `_measurePick` write was unconditionally hardcoding a converted
   graph's `weekdays`/`start`/`end` to the empty "all day" default, silently dropping every
   converted report's weekday mask/peak-hour window — new `resolve_measure_pick_window`
