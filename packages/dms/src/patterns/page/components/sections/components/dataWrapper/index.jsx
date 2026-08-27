@@ -509,6 +509,36 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     usePageFilterSync({ state, setState, setReadyOnChange: true, sectionId, trackingId });
 
+    // ── downloadOnParam: an EXTERNAL control triggers this section's download ──
+    // A button living outside the section — e.g. a lexical button with
+    // actionType 'setParam' writing an ACTION page param, or a link setting a
+    // registered URL variable — flips the param; this section watches it, fires
+    // the same triggerDownload the in-section icon uses (visible columns), and
+    // clears the param first so the click can repeat.
+    const downloadParam = state?.display?.downloadOnParam;
+    const { updatePageStateFilters: viewUpdatePageStateFilters, clearActionParam: viewClearActionParam } = _pageCtx;
+    const downloadBusyRef = useRef(false);
+    useEffect(() => {
+        if (!downloadParam || !apiLoad) return;
+        const pf = (viewPageState?.filters || []).find(f => f.searchKey === downloadParam);
+        const vals = pf?.values;
+        const on = Array.isArray(vals)
+            ? vals.some(v => v != null && String(v).length)
+            : (vals != null && String(vals).length > 0);
+        if (!on || downloadBusyRef.current) return;
+        downloadBusyRef.current = true;
+        if (pf?.type === 'action' && viewClearActionParam) {
+            viewClearActionParam(downloadParam);
+        } else if (viewUpdatePageStateFilters) {
+            const remaining = (viewPageState?.filters || [])
+                .filter(f => f.searchKey !== downloadParam)
+                .map(f => ({ searchKey: f.searchKey, values: f.values }));
+            viewUpdatePageStateFilters(remaining, { [downloadParam]: true });
+        }
+        triggerDownload({ state: viewStateRef.current, apiLoad, setLoading: () => {} })
+            .finally(() => { downloadBusyRef.current = false; });
+    }, [viewPageState?.filters, downloadParam, viewUpdatePageStateFilters, viewClearActionParam, apiLoad]);
+
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
         const pageParamColumns = (state?.columns || []).filter(c => c.usePageParams && c.pageParamKey);
