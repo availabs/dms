@@ -348,8 +348,11 @@ async function testPatternBootstrapSiblingTypes() {
     // Bootstrap scoped by the page's own type must also return the sibling component.
     const { status, body } = await httpGet(`/sync/bootstrap?app=${TEST_APP}&pattern=${encodeURIComponent(pageType)}`);
     assert(status === 200, `Status 200 (got ${status})`);
-    assert(body.items.some(i => i.id === pageId && i.type === pageType), 'pattern bootstrap includes the page itself');
-    assert(body.items.some(i => i.id === compId && i.type === componentType), 'pattern bootstrap includes the sibling component type (instance-prefix match)');
+    // Item ids round-trip through JSON as strings (server-assigned ids are
+    // string-keyed everywhere — see Bug 4 in concurrent-page-editing-data-loss.md),
+    // so compare as strings rather than coercing to Number.
+    assert(body.items.some(i => Number(i.id) === pageId && i.type === pageType), 'pattern bootstrap includes the page itself');
+    assert(body.items.some(i => Number(i.id) === compId && i.type === componentType), 'pattern bootstrap includes the sibling component type (instance-prefix match)');
 
     // Delta scoped the same way must also pick up sibling-type changes.
     const sinceRev = body.revision;

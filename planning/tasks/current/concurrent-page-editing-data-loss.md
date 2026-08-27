@@ -511,16 +511,16 @@ schema changes any of this.
 Combination key: **SM** = split mode (`legacy` / `per-app`), **MT** =
 multi-tenant (`off` / `on`), **Sync** = local-first sync (`off` / `on`).
 
-| # | SM | MT | Sync | Create page | Add section (single) | Add section (concurrent 3-4x) | Update section content (single) | Update section content (concurrent, same section) | Delete section (single) | Delete section (concurrent vs. add) | Delete page (single) | Delete page (concurrent, e.g. vs. edit-in-progress) |
+| # | SM | MT | Sync | Create page | Add section (single) | Add section (concurrent 3-4x) | Update section content (single) | Update section content (concurrent, same section)¹⁷ | Delete section (single) | Delete section (concurrent vs. add) | Delete page (single) | Delete page (concurrent, e.g. vs. edit-in-progress) |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
-| **C1** | legacy | off | off | ✅ | ✅ | ❌⁴ **Bug 1** | ✅ | ✅⁵ | ✅ | ❌ **Bug 3** | ✅ | ✅⁶ |
-| **C2** | legacy | off | on | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ |
-| **C3** | legacy | on | off | ✅⁸ | ✅⁸ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅⁹ | ✅ | ✅ |
+| **C1** | legacy | off | off | ✅ | ✅ | ❌⁴ **Bug 1** | ✅ | ✅⁵ᵂ | ✅ | ❌ **Bug 3** | ✅ | ✅⁶ |
+| **C2** | legacy | off | on | ✅ | ✅ | ❌⁷ **new bug** | ✅ | ✅ᵂ | ✅ | ❌⁷ **new bug** | ✅ | ✅ |
+| **C3** | legacy | on | off | ✅⁸ | ✅⁸ | ❌ **Bug 1** | ✅ | ✅ᵂ | ✅ | ✅⁹ | ✅ | ✅ |
 | **C4** | legacy | on | on | ❌¹⁰ **new bug** | ❌¹⁰ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ | ⏳¹¹ |
-| **C5** | per-app | off | off | ✅ | ✅ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅¹² | ✅ | ✅ |
-| **C6** | per-app | off | **on** | ⚠️¹ | ✅ | ✅¹⁶ (was ❌ Bug 1, stale pre-fix result) | ✅ | ❌ **Bug 2** | ✅ | ✅¹⁵ | ✅ | ✅ |
-| **C7** | per-app | on | off | ✅¹³ | ✅¹³ | ❌ **Bug 1** | ✅ | ✅ | ✅ | ✅¹⁴ | ✅ | ✅ |
-| **C8** | per-app | on | **on** | ✅ | ✅³ | ✅ | ✅ | ✅ | ✅³ | ✅ | ✅ | ✅ |
+| **C5** | per-app | off | off | ✅ | ✅ | ❌ **Bug 1** | ✅ | ✅ᵂ | ✅ | ✅¹² | ✅ | ✅ |
+| **C6** | per-app | off | **on** | ⚠️¹ | ✅ | ✅¹⁶ (was ❌ Bug 1, stale pre-fix result) | ✅ | ❌ **Bug 2** (the one cell that actually tested this) | ✅ | ✅¹⁵ | ✅ | ✅ |
+| **C7** | per-app | on | off | ✅¹³ | ✅¹³ | ❌ **Bug 1** | ✅ | ✅ᵂ | ✅ | ✅¹⁴ | ✅ | ✅ |
+| **C8** | per-app | on | **on** | ✅ | ✅³ | ✅ | ✅ | ⚠️¹⁸ | ✅³ | ✅ | ✅ | ✅ |
 
 ³ Was ❌ **Bug 4** (page blanks permanently, needs hard reload) before the
 fix — both add and delete were re-verified live, post-fix, on this exact
@@ -533,7 +533,9 @@ against SQLite scratch databases.
 
 Legend: ✅ tested, passed · ❌ tested, failed (bug found — see write-up above)
 · ⚠️ tested but not stress-tested (worked once, not adversarially) · ⏳ not
-yet tested.
+yet tested · ᵂ **weak test** — see footnote 17: this cell used a different,
+easier scenario than the column header implies, so its ✅ doesn't rule out
+Bug 2.
 
 ¹ Site/page creation via the wizard worked and went through
 `sync.localCreate` correctly (confirmed in prior session), but was never
@@ -692,6 +694,71 @@ the MT-on combination C8 already verified — closes the "carried-forward
 stale result" gap for this cell. See "C6 re-verification + reorder test
 (sync=on)" below for the full write-up, including a concurrent-reorder test
 on the same environment.
+
+¹⁷ **Found 2026-08-25, while answering a direct user question about why C6 and
+C8 disagree on this column.** This column's label ("Update section content
+(concurrent, same section)") implies every cell tested the same scenario Bug
+2 was found with — two clients typing into the *same field, same cursor
+position*, at the *same time*, via the real Lexical editor. They didn't.
+Reading every matrix script that filled in this column
+(`scratchpad/matrix-c{2,4,5,7,8}-full.mjs`, plus C1/C3's Falcor-direct
+equivalents) shows they all instead ran this:
+
+```js
+A.evaluate(() => globalThis.__dmsSyncAPI.localUpdate(sec1Id, { text: 'FROM-A' })),
+B.evaluate(() => globalThis.__dmsSyncAPI.localUpdate(sec1Id, { title: 'title-from-B' })),
+```
+
+— two clients calling `localUpdate` on **different fields** (`text` vs.
+`title`) of the same item, bypassing the Lexical/Yjs collaboration binding
+entirely. A plain Yjs `YMap` merges different keys with zero risk; this
+scenario was never capable of reproducing Bug 2's failure mode (same-key,
+same-position, real-editor character interleaving), regardless of which
+combination it ran against. **Only C6's ❌ reflects a real test of Bug 2's
+actual mechanism** — it was found by hand, not by the automated script, and
+no other cell was ever re-tested the same way. Every `✅ᵂ` in this column
+means "the weak different-fields test passed," not "Bug 2 doesn't reproduce
+here" — the column is not a valid apples-to-apples comparison across rows as
+written, and C8's plain `✅` (before this footnote) was equally affected
+until the follow-up in footnote 18.
+
+¹⁸ **Follow-up same day, addressing footnote 17's gap for C8 specifically.**
+Bug 2 lives entirely in `collaboration.js`'s Yjs↔Lexical binding — a
+client-side concern with no multi-tenant-specific code in its path — so
+there was no a priori reason to expect it to behave differently under MT-on
+vs. MT-off. Ran the real adversarial scenario (two separate logged-in browser
+contexts, both entering true per-section edit mode on the same freshly
+created Rich Text section on a real MT-on/sync-on tenant, both clicking into
+the Lexical editor and pressing End at the same cursor position, then typing
+different suffixes — `" [added by H]"` at 70ms/key, `" [added by I]"` at
+90ms/key — truly concurrently via `Promise.all`) against a throwaway tenant
+on the real dev server (`clauderepro8`, real Postgres, `per-app` split,
+matching C8's combination). **One clean trial completed**: pre-save state on
+both clients already showed the same garbled interleaving pattern as the
+original Bug 2 discovery (`"...  [[aadddedde db yb yH] I]"` shape), and the
+final persisted server value was a **character-multiset-complete permutation
+of the two inputs — garbled ordering, but zero characters lost** (expected
+and actual both 54 characters, every character accounted for). That's the
+"expected, if ugly, CRDT property" the original Bug 2 write-up explicitly
+distinguishes from the actual defect (real, non-recoverable character loss).
+Attempted 3 more trials to build statistical confidence but hit escalating
+Playwright automation flakiness (`networkidle` never resolving against a
+test page that had accumulated ~15 sections with live per-item Yjs rooms
+from earlier sessions' testing, plus a discovered gotcha: resetting a
+section's content via a raw `/sync/push` does NOT reset its persisted Yjs
+collaboration document — `data_items` and `yjs_states` are two separate
+stores, and true-edit-mode re-hydrates from the latter, so a fresh section
+must be created per trial rather than reusing/resetting one) — not a product
+finding, an automation-harness limitation, not pursued further given
+diminishing returns. **Marked ⚠️, not ✅ or ❌**: one trial is not enough to
+rule Bug 2 out on this combination (it's a genuine timing race — the
+original discovery didn't need many attempts either), but it does confirm
+the mechanism reproduces the *lead-up* to Bug 2's failure mode identically on
+MT-on, and there is no known reason (no MT-specific code in
+`collaboration.js`'s path) to expect the underlying defect itself to be
+MT-dependent. Bug 2 should be treated as reproducing on every sync-on
+combination, C6 and C8 alike, until proven otherwise — the matrix's apparent
+"C6 fails, C8 passes" was never real evidence to the contrary.
 
 ### C1 findings (2026-08-25, legacy/off/off, SQLite scratch DB)
 
@@ -2131,9 +2198,23 @@ Confirmed via full network + WebSocket capture (monkey-patched `WebSocket` in th
 
 **Files touched**: `packages/dms/src/api/index.js` only (`dmsDataEditor`'s `updateRow`, ~line 465).
 
+## Automated test suite audit (2026-08-25, after Bug 17)
+
+Ran `packages/dms-server/tests/test-sync.js` (the real automated regression suite for change_log/bootstrap/delta/push/WS-broadcast/collab — the closest thing this codebase has to regression coverage for Bugs 1/5/7/9/10/12/13) against this repo's actual `dms-sqlite` config, which — despite the name — points at the real shared Postgres (`mercury.availabs.org`/`dms3`, per-app split mode; same instance flagged elsewhere in this doc as off-limits for destructive Postgres experiments, though this suite's own tests clean up their own rows in `finally` blocks the same way they always have). **Stopped short of the fuller `npm test` chain** (`test-sqlite.js`, `test-controller.js`, …) after `test-sqlite.js` failed immediately on a raw `?`-placeholder SQL syntax error — those files assume a true SQLite adapter and are incompatible with this repo's `dms-sqlite` config actually being Postgres; a pre-existing environment/naming mismatch, not a regression, but not safe to blindly push further through without understanding which of those tests are write-heavy against the shared DB.
+
+**Result: 84/84 passed** (after one fix — see below). Confirms no regression in any of the sync-layer bugs that suite covers, and specifically re-validates `testWebSocketBroadcastFromFalcor` (a plain `dms.data.create` via Falcor does correctly broadcast over WS in this isolated single-create test) — narrows, but doesn't fully resolve, the open question flagged in Bug 17's write-up about why the *update*/dms-format-child writes observed live during Bug 17's repro never echoed back over WS. Worth a closer look by whoever picks up that thread: the passing case here is an unscoped `create`; Bug 17's repro hit an *update* to an existing item plus a *create* of a dms-format child, both via `dms.data.edit`/`dms.data.create` in the same request cycle as a concurrent pattern-subscribe — not yet proven to be the same code path as this test's simpler case.
+
+**One pre-existing failing test found and fixed**: `testPatternBootstrapSiblingTypes` was comparing `body.items[].id` (a string, per Bug 4's already-documented finding that server-assigned ids round-trip through JSON as strings) against a `Number(...)`-coerced expected id with strict `===` — always false, unconditionally failing regardless of whether the underlying bootstrap behavior was correct. Fixed by coercing the actual side (`Number(i.id)`) instead of comparing across types. **Not caused by anything in this session** — the file was last touched at an older commit (`96c2da40`) predating today's Bug 15/16/17 work, confirmed via `git log`. Same bug class as Bug 4, but in test code, not product code.
+
+**Test-coverage gap worth flagging explicitly**: Bugs 4, 15, and 17 — all three found live from real user reports rather than the C1-C8 matrix harness — have **zero automated regression coverage**. `packages/dms` (the client package where all three fixes live: `api/index.js` for Bugs 4 and 17, `patterns/page/pages/view.jsx` for Bug 15) has no working test suite at all — its `package.json` `test` script (`node test.js`) points at a file that doesn't exist. Every verification for these three bugs is a one-off live/Playwright repro, not a regression test that would catch a future reintroduction. Nothing in this doc's existing follow-up items tracks this gap; worth its own task if a client-side test harness (even a lightweight one exercising `dmsDataEditor`/`dmsDataLoader` against a mocked or real `sync` API) is ever prioritized.
+
+**Matrix note**: the C1-C8 grid (below) is unaffected by this session's fixes (Bugs 15, 16, 17) — none of them were found via, or reproduce inside, the matrix's own throwaway-environment harness (all three came from live reports on real dev-server tenants, `test_bug_2`/`test_bug_3`). No matrix cell changes status as a result of today's work; the matrix was already marked complete and audited as of the prior session.
+
 ## Testing checklist
 
 - [x] **Bug 17 — a page's first structural edit (add/move/delete section) per session fell through to Falcor instead of sync, never reached local IndexedDB, then got stranded there by a racing reactive bootstrap — blanked the page until reload, every time `isLocal` reset — fixed.** `api/index.js`'s `dmsDataEditor` now `await sync.bootstrapPattern(type)` before deciding Falcor-vs-sync for an existing item's update, closing the race between the write's eligibility check and the concurrent reactive bootstrap it was racing against. Verified live on a throwaway tenant: pre-fix, an added section's content vanished immediately after save (confirmed via direct IndexedDB inspection — `draft_sections` stuck empty indefinitely) and only reappeared after a hard reload; post-fix, 3/3 consecutive add rounds render immediately with no reload. Move/reorder not independently UI-verified but shares the identical `dmsDataEditor` chokepoint. See Bug 17's write-up above for the full network/WS evidence.
+- [x] **Automated test suite audit (post-Bug-17) — ran `test-sync.js`, found and fixed one unrelated pre-existing failing test, confirmed no regressions.** `testPatternBootstrapSiblingTypes` was comparing a string item id against a `Number`-coerced expected id with `===` (same bug class as Bug 4, but in test code — pre-dates this session, unrelated to Bugs 15-17). Fixed the comparison; suite now 84/84 green. Flagged a real gap: Bugs 4/15/17 (all client-side, `packages/dms`) have zero automated regression coverage — that package's own `test` script points at a nonexistent file. See "Automated test suite audit" section above for full detail, including a still-open question about Falcor-write WS-broadcast behavior for updates vs. creates.
+- [ ] **Matrix methodology gap found (footnotes 17-18) — "Update section content (concurrent, same section)" column is not a valid comparison across rows.** Every cell except C6 tested two clients writing to *different fields* via direct `localUpdate` calls (trivial `YMap` merge, incapable of reproducing Bug 2), not Bug 2's real same-position/same-editor scenario — found while answering a direct user question about why C6 (❌) and C8 (previously bare ✅) disagreed. Retagged the weak cells `✅ᵂ` and re-ran the real adversarial scenario against C8's combination (footnote 18): one clean trial showed the same garbled-interleaving lead-up as the original Bug 2 discovery, with zero character loss this time (a valid "benign CRDT" outcome, not a clean bug-free pass) — inconclusive on n=1 for a genuine race, marked `⚠️` not `✅`/`❌`. **Not closed**: needs either more trials (blocked this session by Playwright `networkidle` flakiness against a test page that had accumulated many sections with live Yjs rooms — needs a fresh/smaller tenant) or a decision to just treat Bug 2 as applying uniformly to every sync-on combination without further per-cell verification, since nothing in `collaboration.js`'s code path is MT-specific. Also worth a pass to re-run C1/C2/C3/C5/C7's same column with the *real* scenario, not just C8 — all of them currently carry the same weak-test `✅ᵂ`.
 - [x] **Bug 15 — `PageView`'s Rules-of-Hooks violation intermittently blanked the page with "Unable to complete your request" — fixed.** `view.jsx`'s `isViewDenied` early return sat between two groups of hooks; moved it down to merge with the existing `item?.id === 'no-access'` guard right before the final `return`, so every hook now runs unconditionally. Verified live: pre-fix ~1-in-4–5 fresh page loads crashed on `test_bug_2/page_1_1`; post-fix, 0/12 consecutive fresh loads crashed.
 - [ ] **Bug 16 (OPEN) — a page rename 404'd pushing an update to item id 8, and the same id shows a duplicate delete 21 minutes after its real deletion, on `test_bug_2`.** Root cause not identified — candidates are a stale `history` ref, a stale pending-mutation-queue retry, or an interaction with Bug 14's Postgres transaction-pooling defect. See Bug 16's write-up above for the full evidence and next-step leads.
 - [x] **Bug 9 — client-side echo suppression keyed by item id (not revision) permanently dropped a different client's concurrent edit — fixed.** Replaced `pendingItemIds` with revision-keyed `myRevisions` in `sync-manager.js`'s `ws.onmessage` and `applyChanges()`; removed the now-dead `pendingItemIds`/`countPendingMutationsForItem`. Verified live: pre-fix, a concurrent update was lost both live AND after reload (permanent); post-fix, correct in both cases.
