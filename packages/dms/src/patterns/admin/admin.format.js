@@ -93,6 +93,15 @@ export const pattern = {
       required: false,
       default: [],
     },
+    // Subdomains this pattern USED to answer on and no longer mounts. They
+    // redirect to the pattern's primary base_url on the root domain instead of
+    // 404ing, so old bookmarks survive a move onto a path
+    // (utils/retiredSubdomain.js). Optional; absent/empty = no redirects.
+    { key: "retired_subdomains",
+      type: "json",
+      required: false,
+      default: [],
+    },
     { key: "html_title",
       placeholder: 'Browser tab title (defaults to pattern name)',
       type: "text",

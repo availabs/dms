@@ -42,6 +42,39 @@ function LocationsEditor({ value, onChange }) {
 }
 
 
+// Subdomains this pattern has MOVED OFF. Each one redirects to the pattern's
+// primary base URL on the root domain instead of 404ing, so links to the old host
+// keep working after a move onto a path (e.g. tsmo2:/ → www:/tsmo). A subdomain
+// the pattern still mounts is ignored — the live route always wins. Saved through
+// the section's normal Save button as `retired_subdomains`.
+// See utils/retiredSubdomain.js.
+function RetiredSubdomainsEditor({ value, onChange }) {
+  const { UI } = useContext(ThemeContext);
+  const { Input, Button } = UI;
+  const rows = Array.isArray(value) ? value : [];
+  return (
+    <div className={'w-full flex flex-col gap-1 pt-2'}>
+      <span className={'text-sm font-medium text-slate-700'}>Retired Subdomains</span>
+      <span className={'text-xs text-slate-400'}>
+        Old subdomains for this pattern — each redirects to its base URL on the root domain.
+      </span>
+      {rows.map((sub, i) => (
+        <div key={i} className={'w-full flex items-center gap-2'}>
+          <Input value={sub || ''} placeholder={'subdomain (e.g. tsmo2)'}
+                 onChange={e => onChange(rows.map((r, ri) => ri === i ? e.target.value : r))} />
+          <Button type={'plain'} title={'remove subdomain'}
+                  onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
+        </div>
+      ))}
+      <Button type={'plain'} className={'w-fit'} title={'add retired subdomain'}
+              onClick={() => onChange([...rows, ''])}>
+        + add retired subdomain
+      </Button>
+    </div>
+  );
+}
+
+
 const customTheme = {
     field: 'pb-2 flex flex-col col-span-9'
 }
@@ -303,6 +336,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
             <LocationsEditor
               value={tmpValue.locations}
               onChange={(locations) => setTmpValue(draft => { draft.locations = locations; })}
+            />
+            <RetiredSubdomainsEditor
+              value={tmpValue.retired_subdomains}
+              onChange={(subs) => setTmpValue(draft => { draft.retired_subdomains = subs; })}
             />
         </div>
 
