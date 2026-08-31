@@ -107,7 +107,24 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
 
 const getInitState = ({columns, default_columns=[], state={}, app, doc_type, view_id, data, searchParams}) => {
     const res = {
-        dataRequest: {filter: getFilterFromSearchParams(searchParams)},
+        // filterGroups is promoted to the top-level `filters` tree by migrateV1ToV2
+        // (dataWrapper/migrateToV2.js) — no server change needed. Valid and invalid rows
+        // share one split table/type for new-format sources (isValid is a plain field on
+        // the row, not a separate type — see the sourceInfo comment below), so this table,
+        // titled "Invalid Rows", needs a real filter to only fetch isValid: false rows.
+        // `col` is a raw SQL expression rather than a column name deliberately — `isValid`
+        // isn't a user-facing source column, so schema-based col-ref resolution
+        // (mapFilterGroupCols in buildUdaConfig.js) can't find it and passes the leaf
+        // through unresolved; buildLeafSQL then emits `col` verbatim, which is exactly
+        // what's wanted here. Shows as a normal (removable) filter chip in this table's
+        // own filter editor.
+        dataRequest: {
+            filter: getFilterFromSearchParams(searchParams),
+            filterGroups: {
+                op: 'AND',
+                groups: [{col: "data->>'isValid'", op: 'filter', value: ['false']}],
+            },
+        },
         data: [],
         columns: uniqBy([
             ...default_columns.map(dc => {
