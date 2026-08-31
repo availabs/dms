@@ -40,9 +40,10 @@ const datasetsConfig = ({
     damaDataTypes,
     themes={ default: {} },
     useFalcor,
+    ssrCollect,
     ...props
 }) => {
-    const theme = getPatternTheme(themes, pattern)
+    const theme = getPatternTheme(themes, pattern, ssrCollect)
     const patternFormat = initializePatternFormat(datasetsFormat, app, type);
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 

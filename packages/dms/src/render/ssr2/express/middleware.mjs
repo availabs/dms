@@ -55,7 +55,15 @@ export function createSSRMiddleware({ getHandler, getTemplate }) {
         .replace(/>/g, '\\u003e')
         .replace(/&/g, '\\u0026')
 
-      const headContent = `<script>window.__dmsSSRData=${serializedData}</script>`
+      // themeFontsHtml: the resolved pattern(s)' theme font/CSS <style> tags,
+      // collected server-side during route building (see handler.jsx /
+      // ui/useTheme.js's loadThemeFonts) — embedding them here means the
+      // theme's real look (colors, backgrounds, brand fonts) is present at
+      // first paint instead of only appearing once client JS hydrates and
+      // re-injects them, which was a visible flash of unstyled content.
+      const headContent =
+        `<script>window.__dmsSSRData=${serializedData}</script>` +
+        (result.themeFontsHtml || '')
 
       const content = template
         .replace('<!--app-head-->', headContent)

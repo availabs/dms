@@ -58,9 +58,10 @@ const pagesConfig = ({
   pgEnv,
   API_HOST,
   DAMA_HOST,
+  ssrCollect,
   ...rest
 }) => {
-  const theme = getPatternTheme(themes, pattern)
+  const theme = getPatternTheme(themes, pattern, ssrCollect)
 
   // Which mount this route set serves, for resolving site-absolute authored link
   // values (utils/mountPath.js). Built once per config — NOT inline in the

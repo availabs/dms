@@ -103,7 +103,12 @@ export function pattern2routes (siteData, props) {
         damaDataTypes,
         damaMapPlugins,
         isMultiTenant = false,
-        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost',
+        // SSR only: an array threaded from route building (render/ssr2/handler.jsx)
+        // that each pattern's getPatternTheme() call collects its theme's font/CSS
+        // HTML into, since document.head isn't available server-side. See
+        // ui/useTheme.js's loadThemeFonts and planning/tasks/current/ssr-runtime-theme-css-fouc.md.
+        ssrCollect,
     } = props
 
 
@@ -334,6 +339,7 @@ export function pattern2routes (siteData, props) {
                     damaDataTypes,
                     damaMapPlugins,
                     isMultiTenant,
+                    ssrCollect,
                 });
                 // console.log('dmssitefactory Config obj', configObj)
                 const route = dmsPageFactory({

@@ -107,7 +107,7 @@ export function mergeTheme(base, override) {
   return result;
 }
 
-export const getPatternTheme = (themes, pattern) => {
+export const getPatternTheme = (themes, pattern, ssrCollect) => {
   let patternSelection = (
     pattern?.theme?.selectedTheme || //current Theme Setting
     pattern?.theme?.settings?.theme?.theme || //old Theme setting pre v0.
@@ -129,12 +129,17 @@ export const getPatternTheme = (themes, pattern) => {
   );
 
   // Inject any fonts declared on the theme into <head>. Idempotent across
-  // calls (deduped per font key) and SSR-safe (no-op when document is
-  // undefined). Living here means every pattern that calls getPatternTheme
-  // gets font loading for free without each pattern's siteConfig.jsx having
-  // to repeat the wiring. Enable diagnostic logging by setting
-  // `window.__DMS_DEBUG_FONTS__ = true` in the console, then refreshing.
-  loadThemeFonts(merged?.fonts, { selectedTheme: patternSelection, themes });
+  // calls (deduped per font key). Living here means every pattern that
+  // calls getPatternTheme gets font loading for free without each pattern's
+  // siteConfig.jsx having to repeat the wiring. Enable diagnostic logging by
+  // setting `window.__DMS_DEBUG_FONTS__ = true` in the console, then
+  // refreshing.
+  //
+  // `ssrCollect` (optional, only meaningful server-side): an array threaded
+  // in from SSR route building (see render/ssr2/handler.jsx) that this
+  // collects font HTML strings into instead of no-op'ing when there's no
+  // `document` — see loadThemeFonts below.
+  loadThemeFonts(merged?.fonts, { selectedTheme: patternSelection, themes, ssrCollect });
 
   return merged;
 }
@@ -182,14 +187,26 @@ export const getPatternTheme = (themes, pattern) => {
         html, body { font-family: var(--font-sans); }
      ` }
 
-   The loader injects a <style>@import url(…);</style> for google/css entries,
-   an @font-face <style> for face entries, a <style type="text/tailwindcss">
-   for tailwind entries, and a raw <style> for style entries. Each entry is
-   added to document.head at most once across the lifetime of the page;
-   subsequent theme resolutions short-circuit. SSR-safe (no-op without document).
+   Client-side, the loader injects a <style>@import url(…);</style> for
+   google/css entries, an @font-face <style> for face entries, a
+   <style type="text/tailwindcss"> for tailwind entries, and a raw <style>
+   for style entries — each added to document.head at most once across the
+   lifetime of the page; subsequent theme resolutions short-circuit.
+
+   Server-side (no `document`), the exact same content is instead collected
+   as HTML strings into an `ssrCollect` array threaded in from SSR route
+   building (see render/ssr2/handler.jsx), so SSR can embed the theme's real
+   CSS/fonts directly in the initial response instead of leaving the browser
+   to inject it after hydration (previously a several-hundred-ms flash of
+   unstyled content — see planning/tasks/current/ssr-runtime-theme-css-fouc.md
+   in the dms submodule). Every injected node (DOM or string) also carries a
+   `data-dms-font-key` attribute so the client can seed its own dedup set
+   from whatever SSR already rendered, instead of re-appending duplicates on
+   hydration.
 */
 
 const _loadedFontKeys = typeof Set !== 'undefined' ? new Set() : null;
+let _seededFromSSR = false;
 
 function fontKey(font) {
   if (!font || typeof font !== 'object') return '';
@@ -200,7 +217,10 @@ function fontKey(font) {
   return JSON.stringify(font);
 }
 
-function buildFontNode(font) {
+// Shared shape for both renderers below — one place that knows how to turn
+// a font entry into a <style> tag's attributes + content, so the DOM and
+// HTML-string builders can never drift from each other.
+function fontNodeSpec(font) {
   if (font.type === 'google' || font.type === 'css') {
     // Use @import inside a <style> block rather than a <link> tag. Both
     // work in principle, but Chromium (incl. headless) sometimes drops
@@ -208,10 +228,7 @@ function buildFontNode(font) {
     // insertion happens after first paint. @import-in-style always fires
     // the fetch immediately. (This is also the pattern the project's
     // index.html uses for the in-page Oswald font.)
-    const style = document.createElement('style');
-    style.dataset.dmsThemeFont = font.type;
-    style.textContent = `@import url(${JSON.stringify(font.href)});`;
-    return style;
+    return { dataType: font.type, content: `@import url(${JSON.stringify(font.href)});` };
   }
   if (font.type === 'tailwind') {
     // Tailwind 4 runtime config — the project loads @tailwindcss/browser@4
@@ -221,12 +238,7 @@ function buildFontNode(font) {
     // makes Tailwind generate .font-sans / .font-serif / .font-mono utilities
     // pointing at the brand families, and sets the body default via
     // --default-font-family. Strictly additive to existing @theme blocks.
-    const style = document.createElement('style');
-    style.type = 'text/tailwindcss';
-    style.dataset.dmsThemeFont = 'tailwind';
-    if (font.id) style.id = font.id;
-    style.textContent = font.content;
-    return style;
+    return { dataType: 'tailwind', styleType: 'text/tailwindcss', id: font.id, content: font.content };
   }
   if (font.type === 'face') {
     const sources = font.sources
@@ -235,26 +247,60 @@ function buildFontNode(font) {
     const srcStr = sources
       .map(s => `url(${JSON.stringify(s.url)})${s.format ? ` format(${JSON.stringify(s.format)})` : ''}`)
       .join(', ');
-    const style = document.createElement('style');
-    style.dataset.dmsThemeFont = 'face';
-    style.textContent =
-      `@font-face { ` +
-      `font-family: ${JSON.stringify(font.family)}; ` +
-      (font.weight != null ? `font-weight: ${font.weight}; ` : '') +
-      (font.style ? `font-style: ${font.style}; ` : '') +
-      `font-display: ${font.display || 'swap'}; ` +
-      `src: ${srcStr}; ` +
-      `}`;
-    return style;
+    return {
+      dataType: 'face',
+      content:
+        `@font-face { ` +
+        `font-family: ${JSON.stringify(font.family)}; ` +
+        (font.weight != null ? `font-weight: ${font.weight}; ` : '') +
+        (font.style ? `font-style: ${font.style}; ` : '') +
+        `font-display: ${font.display || 'swap'}; ` +
+        `src: ${srcStr}; ` +
+        `}`,
+    };
   }
   if (font.type === 'style' && font.content) {
-    const style = document.createElement('style');
-    style.dataset.dmsThemeFont = 'style';
-    if (font.id) style.id = font.id;
-    style.textContent = font.content;
-    return style;
+    return { dataType: 'style', id: font.id, content: font.content };
   }
   return null;
+}
+
+function buildFontNode(font, key) {
+  const spec = fontNodeSpec(font);
+  if (!spec) return null;
+  const style = document.createElement('style');
+  if (spec.styleType) style.type = spec.styleType;
+  style.dataset.dmsThemeFont = spec.dataType;
+  style.dataset.dmsFontKey = key;
+  if (spec.id) style.id = spec.id;
+  style.textContent = spec.content;
+  return style;
+}
+
+// Escape any literal "</style" in CSS content so it can't prematurely close
+// the wrapping <style> tag when embedded as a string into SSR HTML.
+function escapeStyleContent(s) {
+  return String(s).replace(/<\/(style)/gi, '<\\/$1');
+}
+
+function buildFontHtml(font, key) {
+  const spec = fontNodeSpec(font);
+  if (!spec) return '';
+  const attrs = [`data-dms-theme-font="${spec.dataType}"`, `data-dms-font-key="${key.replace(/"/g, '&quot;')}"`];
+  if (spec.styleType) attrs.push(`type="${spec.styleType}"`);
+  if (spec.id) attrs.push(`id="${spec.id}"`);
+  return `<style ${attrs.join(' ')}>${escapeStyleContent(spec.content)}</style>`;
+}
+
+// Client-only: before the first real font load, adopt whatever
+// `data-dms-font-key`s SSR already rendered into <head> so hydration
+// doesn't re-append duplicates of content that's already there.
+function seedLoadedFontKeysFromSSR() {
+  if (_seededFromSSR || typeof document === 'undefined' || !document?.head) return;
+  _seededFromSSR = true;
+  document.head.querySelectorAll('[data-dms-font-key]').forEach((node) => {
+    _loadedFontKeys.add(node.getAttribute('data-dms-font-key'));
+  });
 }
 
 export function loadThemeFonts(fonts, ctx = {}) {
@@ -264,13 +310,37 @@ export function loadThemeFonts(fonts, ctx = {}) {
     }
   };
   debug('called', { selectedTheme: ctx.selectedTheme, hasFonts: Array.isArray(fonts), length: fonts?.length });
-  if (typeof document === 'undefined' || !document?.head) { debug('no document/head — bailing (SSR?)'); return; }
   if (!Array.isArray(fonts) || !fonts.length) { debug('no fonts on this theme — bailing'); return; }
+
+  if (typeof document === 'undefined' || !document?.head) {
+    // SSR: collect string HTML instead of no-op'ing, so the caller (SSR
+    // route building, see render/ssr2/handler.jsx) can embed it in the
+    // initial response. Dedup is scoped to this one collection pass (a
+    // fresh `ssrCollect` array per host route-build), not the module-level
+    // `_loadedFontKeys` — that one's for the page's client-side lifetime.
+    if (Array.isArray(ctx.ssrCollect)) {
+      const seen = ctx.ssrCollect._seen || (ctx.ssrCollect._seen = new Set());
+      for (const font of fonts) {
+        const key = fontKey(font);
+        if (!key || seen.has(key)) { debug('skip (ssr) — no key or already collected', key); continue; }
+        const html = buildFontHtml(font, key);
+        if (!html) { debug('skip (ssr) — could not build html for', font); continue; }
+        seen.add(key);
+        ctx.ssrCollect.push(html);
+        debug('collected (ssr)', key);
+      }
+    } else {
+      debug('no document/head and no ctx.ssrCollect — bailing (SSR without a collector?)');
+    }
+    return;
+  }
+
+  seedLoadedFontKeysFromSSR();
   for (const font of fonts) {
     const key = fontKey(font);
     if (!key) { debug('skip — could not key', font); continue; }
     if (_loadedFontKeys.has(key)) { debug('skip — already loaded', key); continue; }
-    const node = buildFontNode(font);
+    const node = buildFontNode(font, key);
     if (!node) { debug('skip — could not build node for', font); continue; }
     _loadedFontKeys.add(key);
     document.head.appendChild(node);
