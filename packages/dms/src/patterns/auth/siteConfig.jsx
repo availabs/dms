@@ -51,12 +51,13 @@ const authConfig = ({
   app = "default-app",
   baseUrl = '/dms_auth',
     pattern,
-  themes = {}
+  themes = {},
+  ssrCollect,
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
     // hard coding mny_admin for dev, needs to come from pattern
-    const theme = getPatternTheme(themes, pattern); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    const theme = getPatternTheme(themes, pattern, ssrCollect); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
         const totalImages = theme?.auth?.authPages?.sectionGroup?.default?.wrapper4ImgList?.length || 0;
         authImgI = Math.floor(Math.random() * totalImages);
@@ -129,6 +130,7 @@ const manageAuthConfig = ({
   pattern,
   authPermissions = {},
   rightMenu = <DefaultMenu />,
+  ssrCollect,
 }) => {
 
     const menuItems = [
@@ -171,7 +173,7 @@ const manageAuthConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'mny_admin'}}); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'mny_admin'}}, ssrCollect); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
 
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'

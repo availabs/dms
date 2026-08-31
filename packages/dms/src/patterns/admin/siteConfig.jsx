@@ -53,6 +53,7 @@ const adminConfig = ({
   authPermissions = {},
   isMultiTenant = false,
   pgEnv = '',
+  ssrCollect,
 }) => {
   const format = cloneDeep(adminFormat);
   format.app = app;
@@ -75,7 +76,7 @@ const adminConfig = ({
   let theme = getPatternTheme(themes, {
     ...patternData,
     theme: { selectedTheme: "default" },
-  });
+  }, ssrCollect);
 
   // console.log('admin siteconfig API', API_HOST)
   return {

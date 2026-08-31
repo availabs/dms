@@ -76,7 +76,14 @@ export function createSSRHandler({
     // onResolvedSiteData reports back the {app, type, data} it actually
     // resolved — the master site, or the subdomain-matched tenant's own
     // site — so this doesn't need its own separate, always-master fetch.
+    //
+    // ssrCollect: threaded down into every pattern's getPatternTheme() call
+    // (via pattern2routes -> each siteConfig.jsx) so their theme's font/CSS
+    // <style> content is collected as HTML strings here instead of being
+    // silently dropped (loadThemeFonts no-ops without `document`). See
+    // ui/useTheme.js and planning/tasks/current/ssr-runtime-theme-css-fouc.md.
     let siteData = null
+    const ssrCollect = []
     const routes = await dmsSiteFactory({
       dmsConfig,
       falcor,
@@ -88,6 +95,7 @@ export function createSSRHandler({
       adminPath: siteConfig.baseUrl || '/list',
       isMultiTenant,
       onResolvedSiteData: (app, type, data) => { siteData = data },
+      ssrCollect,
     })
 
     // Add a catch-all 404 at the end (must match client's PageNotFoundRoute)
@@ -96,15 +104,15 @@ export function createSSRHandler({
       Component: () => React.createElement('div', null, '404 - Not Found'),
     })
 
-    return { routes, siteData }
+    return { routes, siteData, themeFontsHtml: ssrCollect.join('') }
   }
 
   async function ensureRoutes(host) {
     let entry = routeCache.get(host)
     if (!entry) {
-      const { routes, siteData } = await buildRoutes(host)
+      const { routes, siteData, themeFontsHtml } = await buildRoutes(host)
       const handler = createStaticHandler(routes)
-      entry = { routes, handler, siteData }
+      entry = { routes, handler, siteData, themeFontsHtml }
       routeCache.set(host, entry)
     }
     return entry
@@ -113,13 +121,13 @@ export function createSSRHandler({
   /**
    * Render a Web Request to HTML.
    * @param {Request} request - Web standard Request object
-   * @returns {Promise<{ html: string, status: number, headers: object, siteData: object|null }>}
+   * @returns {Promise<{ html: string, status: number, headers: object, siteData: object|null, themeFontsHtml: string }>}
    */
   async function render(request) {
     const url = new URL(request.url)
     const host = url.host
 
-    const { routes, handler, siteData } = await ensureRoutes(host)
+    const { routes, handler, siteData, themeFontsHtml } = await ensureRoutes(host)
 
     const context = await handler.query(request)
 
@@ -160,6 +168,7 @@ export function createSSRHandler({
       status: context.statusCode || 200,
       headers,
       siteData,
+      themeFontsHtml,
     }
   }
 
