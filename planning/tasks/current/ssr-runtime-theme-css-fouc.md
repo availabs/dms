@@ -1,5 +1,18 @@
 # SSR: runtime-injected theme CSS/fonts cause a flash of unstyled content
 
+## Status: IMPLEMENTED and LIVE-VERIFIED 2026-08-31
+
+All 5 proposed changes landed (`dms` repo, `local-first-sync-updates`,
+commits `6c544ac5` then a same-day branch-order correction `092fa76d` — see
+"Implementation notes / gotcha hit" below). Client (`npm run build`) and
+SSR (`npm run build:ssr`) both compile cleanly. Deployed to tessera.so via
+`setup/scripts/server-update.sh` (zero-downtime) and confirmed live:
+`curl`ing the raw SSR response now shows all 5
+`data-dms-theme-font="..."` `<style>` tags embedded directly in `<head>`,
+and a Playwright screenshot capture of a fresh load shows the fully themed
+page (paper-grain background, bold display font, blue accents) in the
+*first* captured frame (~450ms) — no more unstyled-then-styled flash.
+
 ## Objective
 
 On an SSR page load, real content paints immediately (SSR renders correct
@@ -228,36 +241,60 @@ in `document.head` (from the SSR-rendered HTML) before the first
 
 | File | Change |
 |---|---|
-| `packages/dms/src/ui/useTheme.js` | String-producing variant of `buildFontNode`; `loadThemeFonts` collects into `ctx.ssrCollect` instead of no-op bailing when `document` is undefined; client-side dedup seeded from SSR-rendered `<style>` tags |
-| `packages/dms/src/render/ssr2/handler.jsx` | `ensureRoutes(host)` passes a per-build collector array through route building, caches the joined result as `themeFontsHtml` alongside `routes`/`siteData`; `render()` returns it |
-| `packages/dms/src/render/ssr2/express/middleware.mjs` | Append `themeFontsHtml` to `headContent` before the `<!--app-head-->` replace |
+| `packages/dms/src/ui/useTheme.js` | Refactored `buildFontNode` into a shared `fontNodeSpec()` + two renderers: DOM (`buildFontNode`) and string (`buildFontHtml`). `loadThemeFonts` checks `ctx.ssrCollect` **first** (see gotcha below), collecting HTML strings there instead of appending DOM nodes; falls through to the original `document.head.appendChild` path otherwise. `getPatternTheme` gained a third `ssrCollect` param. Client-side dedup (`_loadedFontKeys`) now seeded once from any `data-dms-font-key`-tagged `<style>` tags already in `document.head` (i.e. ones SSR rendered), via `seedLoadedFontKeysFromSSR()`. |
+| `packages/dms/src/patterns/{page,datasets,auth,mapeditor,admin}/siteConfig.jsx` | (Not in the original plan — the actual threading path.) Each of the 6 `getPatternTheme(themes, pattern)` call sites now destructures `ssrCollect` from its config-factory args and passes it as the third arg. |
+| `packages/dms/src/render/spa/utils/index.js` | `pattern2routes(siteData, props)` destructures `ssrCollect` from `props` and includes it in the `configObj` built for every pattern (the single choke point all 6 `siteConfig.jsx` factories are called through). |
+| `packages/dms/src/render/ssr2/handler.jsx` | `buildRoutes(host)` creates a fresh `ssrCollect = []`, passes it into `dmsSiteFactory({...})` (which passes `config` — including `ssrCollect` — straight through to `pattern2routes`, no change needed there), and returns `themeFontsHtml: ssrCollect.join('')` alongside `routes`/`siteData`. `ensureRoutes(host)` caches it per host; `render()` returns it. |
+| `packages/dms/src/render/ssr2/express/middleware.mjs` | Append `result.themeFontsHtml` to `headContent` before the `<!--app-head-->` replace. |
+
+### Implementation notes / gotcha hit
+
+**`typeof document === 'undefined'` is not a reliable SSR signal in this
+codebase** — `handler.jsx` stubs a real `document` globally via `linkedom`
+(`globalThis.document = dom.document`) specifically so other components
+(Lexical) can call `document.createElement` during `renderToString`. The
+first implementation pass checked `document` first and only used
+`ctx.ssrCollect` in the `document === undefined` branch — which meant SSR
+never actually hit the collector branch at all: `loadThemeFonts` took the
+normal DOM path, appended `<style>` nodes into the *stubbed* `document.head`,
+and `renderToString` (which serializes the actual React tree, not the
+stubbed document) silently dropped them. Deployed, verified live, and
+confirmed to still reproduce the original bug — the theme tags were absent
+from both the raw SSR response and `themeFontsHtml`. Fixed by checking
+`Array.isArray(ctx.ssrCollect)` **first**, unconditionally, before looking
+at `document` at all — an explicit collector is a stronger, more direct
+signal than environment-sniffing a value that's been intentionally stubbed
+for an unrelated reason. Second deploy confirmed fixed (see Testing
+Checklist). If touching this branch again, keep the collector check first.
 
 ## Testing Checklist
 
-- [ ] `npm run build` (client) and `npm run build:ssr` both compile cleanly.
-- [ ] Playwright screenshot capture (see `scratchpad/replicate_flash*.cjs`
-      pattern used to diagnose this — not committed, gitignored `scratchpad/`,
-      rewrite as needed) of a fresh load shows the theme's real CSS
-      (background, fonts, colors) present in the *first* screenshot, not
-      appearing ~700ms later.
-- [ ] Network trace (see `scratchpad/network_trace.cjs` pattern) shows no
-      `<style data-dms-theme-font=...>` mutation event after `load` — the
-      tags should already be in the SSR HTML (verify via `curl` on the raw
-      response, not just post-hydration DOM).
+- [x] `npm run build` (client) and `npm run build:ssr` both compile cleanly.
+- [x] `curl` on the raw SSR response (`curl -A "Mozilla/5.0" https://tessera.so/`)
+      shows all 5 `data-dms-theme-font="..."` `<style>` tags embedded
+      directly in `<head>` — confirmed after the branch-order fix (was empty
+      after the first, buggy deploy — see gotcha above).
+- [x] Playwright screenshot capture of a fresh load shows the theme's real
+      CSS (paper-grain background, bold display font, blue accents) present
+      in the *first* captured frame (~450ms), not appearing ~700-900ms later.
+- [ ] Network trace confirming no `<style data-dms-theme-font=...>` mutation
+      event fires after `load` (i.e. client hydration doesn't also inject
+      them) — not explicitly re-verified after the fix; worth a quick check
+      since the dedup-seeding path (`seedLoadedFontKeysFromSSR`) is what's
+      supposed to prevent this.
 - [ ] No duplicate `<style data-dms-theme-font=...>`/`id`-tagged tags in
-      `document.head` after hydration (client-side dedup against
-      SSR-injected tags works).
+      `document.head` after hydration — same as above, not explicitly
+      re-checked post-fix.
 - [ ] Test against at least one other SSR-multi-tenant-relevant site if one
       exists in a test/dev tenant, to confirm this isn't tessera-specific
       wiring — the fix lives entirely in shared `dms` code
-      (`useTheme.js`/`ssr2/`), so it should apply to any site with a themed
-      `fonts` array.
-- [ ] Confirm the reverted `hoistEntryCss` Vite plugin stays reverted (it's
-      not needed by this fix, and was confirmed ineffective for this bug —
-      don't resurrect it as part of this work without new evidence).
-- [ ] Live verification on tessera.so (or the then-current test tenant)
-      after deploy: hard-refresh with cache disabled, confirm no visible
-      unstyled-then-styled flash.
+      (`useTheme.js`/`ssr2/`/pattern `siteConfig.jsx` files), so it should
+      apply to any site with a themed `fonts` array. Not yet tested outside
+      tessera.so.
+- [x] Confirm the reverted `hoistEntryCss` Vite plugin stays reverted — it
+      was not resurrected as part of this work.
+- [x] Live verification on tessera.so after deploy: `curl` + Playwright both
+      confirm no visible unstyled-then-styled flash on a fresh load.
 
 ## Notes for whoever picks this up
 
