@@ -296,7 +296,49 @@ Checklist). If touching this branch again, keep the collector check first.
 - [x] Live verification on tessera.so after deploy: `curl` + Playwright both
       confirm no visible unstyled-then-styled flash on a fresh load.
 
-## Notes for whoever picks this up
+## Follow-up found and fixed same day: residual flash from a *different* mechanism
+
+After the above landed, a small remaining flash was still visible — not the
+theme's design-system CSS this time (that part was confirmed instant), but
+the theme's dynamically-constructed Tailwind arbitrary-value classes, e.g.
+`bg-[var(--t-cobalt)]` in `tessera-theme-v6.js`, built via a JS template
+literal (`` `bg-[${c.cobalt}]` ``). Tailwind's build-time compiler only sees
+literal class strings in source files, so it can never generate a CSS rule
+for a class that only exists after runtime string interpolation — that rule
+only appears once the client-side `@tailwindcss/browser@4` CDN script (the
+JIT engine `dms-template/index.html` loads for the admin theme editor's
+live-preview feature) finishes downloading, parsing, and scanning the DOM.
+
+Measured before any fix: the CSS custom property (`--t-cobalt`) was defined
+correctly from first paint, but the button's actual computed
+`background-color` stayed `transparent` until ~660-800ms later, when the
+JIT script finally applied the matching rule.
+
+**This affects every theme that builds Tailwind classes this way, not just
+tessera** — confirmed present at real volume in `tessera-theme.js` (~468
+occurrences), `landbank/theme.js` (494), plus smaller counts in
+`landbank/columnTypes/*` and several `transportny/` components. A full fix
+(e.g. a generated Tailwind safelist per theme, so the build-time compiler
+can see these classes and this JIT step becomes unnecessary; or a
+`dms-server`-side dynamic Tailwind compile mirroring this task's approach
+for fonts) is real, separate follow-up work — **not done here**, and not
+this task's scope (it's a `dms-template`/theme-authoring concern, not a
+`dms` submodule one).
+
+**What *was* done here, same day:** a cheap, low-risk mitigation —
+`dms-template/index.html`'s `@tailwindcss/browser@4` `<script>` tag was
+moved from the end of `<body>` (where the browser didn't even start
+downloading it until the entire rest of the document had been parsed) up
+into `<head>`, with `defer` added (starts the fetch as soon as the parser
+reaches the tag, runs only after the DOM is fully built, same as before).
+`dms-template` commit `3cdc814`. Measured live, 4 runs: the gap between the
+background painting correctly and the button's blue background applying
+shrank from a consistent ~660-800ms down to a consistent ~80-130ms — not
+zero, but small enough that it was judged good enough to close out (2026-08-31,
+user call). If it ever needs finishing properly, see the two fix
+directions above.
+
+## Context notes
 
 - This is a `dms` submodule fix (`packages/dms/src/ui/useTheme.js`,
   `packages/dms/src/render/ssr2/`) — scoped here in `src/dms/planning/`,
