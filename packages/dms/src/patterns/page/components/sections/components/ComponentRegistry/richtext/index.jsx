@@ -42,7 +42,7 @@ export const RichtextEdit = ({value, onChange}) => {
     // Get settings from ComponentContext.state.display (managed by controls)
     const isCard = cachedData?.isCard || state?.display?.isCard || '';
     const bgColor = cachedData?.bgColor || state?.display?.bgColor || 'rgba(0,0,0,0)';
-    const showToolbar = cachedData?.showToolbar || state?.display?.showToolbar || false;
+    const showToolbar = cachedData?.showToolbar || state?.display?.showToolbar || true;
     const [text, setText] = useState(cachedData?.text || (value?.root ? value : ''));
 
     // Sync state.display changes and text to element-data via onChange
