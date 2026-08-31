@@ -843,6 +843,13 @@ any DMS page, not just reports. What's specific to reports:
   raw delete npmrdsv5 "reports_snap_2|2177440:data" <row-id>` (needs a fresh auth token; `dms raw
   get <row-id>` can't address it — split `:data` row, use `dataset query --filter id=<row-id>` to
   confirm deletion instead).
+- **The "+ Add Graph" modal silently no-ops if the report has zero routes.** Clicking "Add Graph"
+  with 0 routes on the report at all (not just 0 checked in the modal) leaves the modal open with
+  no error and no section created — easy to mistake for a misclick or a slow save. Add at least one
+  route via "+ Add Route" first (any route works for a throwaway scratch test), THEN "+ Add Graph"
+  will actually let you pick it in "ROUTES FOR THIS GRAPH" and create the section. Found live
+  2026-08-31 building a scratch Map section to verify a hover-tooltip fix on a brand-new "Create
+  Report" page (0 routes at creation).
 
 ## 6. Which tool to reach for
 

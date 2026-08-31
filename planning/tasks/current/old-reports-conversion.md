@@ -8,77 +8,230 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-08-27, ROUND 80 DONE — platform-wide switch from dynamic to STATIC color
-scales, resolving the question raised in round 78. Ryan's direction, given in stages across the
-conversation: (1) static breaks everywhere with a color scale — not just Route Map, GridGraph's
-rdylgn gradient and BarGraph's byValue mode too; (2) retire Python's per-report ClickHouse quantile
-computation entirely, no fallback; (3) both the converter's output AND the live browser rendering use
-the same static breaks (so the live Map's `colorDomain` refetch gets bypassed too); (4) seed the
-breaks table from the existing `composeMapConfig.js` placeholder values (not a fresh distribution
-analysis — "ship with placeholder, then we can follow up with real breaks"), reusing MacroView's own
-authored values verbatim for the 3 measures that are literally the same underlying PM3 columns
-(LOTTR/TTTR/freeflow) MacroView already covers; (5) fold in a real author-facing SectionMenu UI
-control for the new fixed-domain capability, not just a hidden compose-time field. **What shipped**:
-new shared `colorBreaks.json` (`MeasurePicker/`, same cross-language single-source-of-truth pattern as
-`vocabulary.json` — 9 NPMRDS measures seeded from the old `CHOROPLETH_DEFAULTS` placeholder values,
-flagged per-entry by actual provenance quality, plus 3 reliability entries reused verbatim from
-`macroview/breaks.js` for future use, not yet wired to anything); `composeMapConfig.js` reads
-breaks from it and flips `bin-method` from `'quantile'` to `'custom'` (the Map runtime's own
-existing, previously-unused escape hatch that skips the live `colorDomain` refetch entirely — this
-one line is what makes "static" actually real at render time, not just at compose time);
-`composeMeasureConfig.js`'s GridGraph/BarGraph coloring branch sets a static `domainMin`/`domainMax`
-from the same table when a measure has one, silently falling back to today's dynamic per-section
-range otherwise; `GridGraph.jsx`/`BarGraph.jsx` (core `packages/dms`, not NPMRDS-specific) gained the
-underlying capability those fields need — a `colors.domainMin`/`domainMax` check that wins outright
-over the data-computed range, a genuinely new primitive that didn't exist before this round; a new
-"Domain Min"/"Domain Max" SectionMenu control in the shared Colors group (`graph_new/config.jsx`),
-same two-flat-key convention as the existing Y Axis domain override. Python's entire per-report
-choropleth bake — `quantile_breaks`/`pooled_route_map_values`/`apply_route_map_paint`/
-`bake_route_map_choropleth_paint`/`bake_route_map_delay_paint`, plus their call sites in
-`section_builders.py`/`convert_report.py`/`convert_template.py` — deleted outright; every
-`route_map_*_template` now embeds PERMANENT static breaks from the same shared JSON. One
-pre-existing, out-of-scope JS/Python divergence found and explicitly NOT touched: Route Map's
-`avgHoursOfDelay` has a genuinely different 5-minute-epoch-rate expression in Python with no JS
-equivalent at all (Route Map's own template-minting hasn't been bridge-migrated yet — separate
-future work) — its breaks stay a small Python-only constant, flagged as such. **Live-verified**
-comprehensively on report 168 (`--replace` → page `2215071`): 0 console/page/SQL errors; direct
-network-capture inspection confirms **zero `colorDomain` requests fired** (the whole point, actually
-working); screenshot shows the Route Map choropleth and both GridGraph sections rendering with the
-correct static breaks/domain; browser walkthrough of the live SectionMenu confirms the new "Domain
-Min: 0" / "Domain Max: 80" control renders with the exact value the bridge auto-composed, live and
-editable. Full corpus census re-run: 870/870, 0 errors, `full_producible` unchanged at 184 (a pure
-architecture/rendering change, no coverage impact). **Flagged mid-round, not yet resolved**: the
-breaks table's per-measure provenance is explicitly placeholder-quality except the 3
-MacroView-reused reliability entries — a real distribution analysis (mirroring MacroView's own,
-documented in `planning/transportny/research/macroview-legend-breaks-analysis.md`) is a deliberate,
-tracked follow-up, not done this round. **Next**: Route Map's own template-minting (the
-`ensure_route_map_*_template` functions) still hand-builds its Map-section layer/join shape in
-Python rather than calling a JS composer — the one remaining Tier-3/4 item, now unblocked by this
-round's color-scale resolution but not scoped into a concrete plan yet. Round 79 (Info Box) and
-everything before it: full detail moved to the archive 2026-08-27; see ledger below.)
+## Current state (2026-08-31, ROUND 84 DONE — round 82 finding 6 ("Map hover tooltips") re-
+investigated against the user's corrected mechanism (hover popups are an existing, proven,
+symbology-level DMS map capability — not a from-scratch feature) and fixed. The Route Map layer
+JSON that would need `hover`/`hover-columns` is built independently in 3 places: the Python
+converter (`route_map.py`), `report_build.mjs` (confirmed to delegate straight to the Python
+converter's own `--route-map-section` CLI mode, no separate implementation), and the live "Add
+Graph"/QuickControls authoring UI (`composeMapConfig.js`, a genuinely separate JS port — the one
+real gap, surfaced by the user's own mid-session question about whether all 3 paths were covered).**
 
-## Round 80 (2026-08-27) — platform-wide switch from dynamic to static color scales: a new shared `colorBreaks.json`, Route Map's live `colorDomain` refetch bypassed via the Map runtime's own existing (previously-unused) `bin-method:'custom'` escape hatch, Python's entire per-report quantile-bake machinery retired outright, a genuinely new `colors.domainMin`/`domainMax` capability added to core GridGraph/BarGraph with a real SectionMenu UI control
+**Fixed + live-verified, same day**: `route_map.py` gained a `route_map_hover_columns()` helper
+wired into all 5 Route Map template-builders (TMC always, plus the measure's own value with a
+per-measure `formatFn` for the 4 choropleth measures); `composeMapConfig.js` gained the mirrored
+`routeMapHoverColumns()` wired into both its layer-builders, called by both the "create a new Map
+section" path and the "re-pick a measure" path. Python path live-verified on reconverted report 971
+(`nittec_150` → page `2216069`) — user confirmed the hover popup shows TMC + Speed correctly. JS
+authoring path live-verified on a scratch report (`page_23`, deleted after) — user confirmed the
+hover popup shows TMC + Travel Time correctly. One doc gap found and fixed along the way: `+ Add
+Graph` silently no-ops with 0 routes on the report (now in `traversing-report-pages.md` §5).
+**New, deliberately-deferred finding** (user: "dont do this now"): Travel Time's Route Map color
+scale looks backwards (low/fast renders red, high/slow renders pale yellow — the opposite of
+`speed`'s correctly-fixed ramp) and, per the user, should arguably be dynamic rather than static for
+this measure specifically — not touched this round, logged in "Known functionality gaps" below.
+Full detail: this round's own section immediately below; round 83's full text (the report-browser
+picker/tag-canonicalization fixes, done concurrently by a sibling session working the same task)
+moved to [the archive](./old-reports-conversion-archive.md).
 
-**Context**: directly following round 78's still-open color-scale question. Ryan's direction arrived incrementally across the conversation, each piece confirmed before building: static breaks for every color-scaled chart/map (not just Route Map — GridGraph's `rdylgn` gradient and BarGraph's `byValue` mode have the identical "same measure, different color meaning across sections" problem); retire Python's live quantile computation entirely, no fallback path kept; both the converter's own output and the live browser rendering must use the same static breaks, meaning the Map's live `colorDomain` recompute needed to stop firing too, not just Route Map's compose-time defaults; ship using the EXISTING placeholder values (`composeMapConfig.js`'s prior `CHOROPLETH_DEFAULTS`) rather than block on a real distribution analysis, explicitly accepting the "not independently re-derived" risk as a tracked follow-up; and fold in a real author-facing SectionMenu control for the new fixed-domain capability, not just a hidden compose-time field, per the platform's own author-empowerment principle. Investigated live (not assumed) whether MacroView's own breaks.js could be reused directly: confirmed genuine, literal overlap for exactly 3 measures (LOTTR, TTTR, freeflow/`speed_pctl_85` — the same PM3/source-1410 columns NPMRDS's own Info Box reliability bucket already queries) and confirmed NO overlap at all for Route Map's actual measure set (speed/travelTime/hoursOfDelay/avgHoursOfDelay/CO2×4 come from a completely different source, raw NPMRDS Production V6 data) — MacroView's own breaks.js has no equivalent for any of those, so they needed their own table regardless of rigor level.
+---
 
-**What was built**:
-- `src/themes/transportny/components/MeasurePicker/colorBreaks.json` (new) — the shared static-breaks table, same cross-language single-source-of-truth pattern `vocabulary.json` already established for measure expressions (read by both JS and Python, so the two can never independently drift the way rounds 74-76's GridGraph color work did). `measures`: 9 NPMRDS measures (speed/speedTruck/travelTime/hoursOfDelay/avgHoursOfDelay/co2Emissions_passenger+truck/avgCo2Emissions_passenger+truck), each `{colors, breaks, maxValue, domain, _source}` — seeded verbatim from `composeMapConfig.js`'s prior inline `CHOROPLETH_DEFAULTS`, with `_source` documenting each entry's actual provenance (most are un-derived round-number guesses; the 4 CO2 entries are literally a single live data point, one of which was already caught wrong once live and patched — see the file's own comments). `reliability`: `lottr`/`tttr`/`freeflow`, reused byte-for-byte from `macroview/breaks.js`'s own authored `SETS` — not yet wired to anything (Info Box's reliability bucket is a plain Table with no color-scale concept at all), included purely for coverage per Ryan's "do we not have coverage for all the measures" prompt.
-- `src/themes/transportny/components/MeasurePicker/composeMapConfig.js` — `CHOROPLETH_DEFAULTS` is now `colorBreaks.measures` (an import, not an inline object); `'bin-method': 'quantile'` → `'custom'` in `buildChoroplethLayer` — the single line that makes "fixed breaks" real at render time. This is the Map runtime's OWN pre-existing escape hatch (`ComponentRegistry/map/index.jsx` already skips the live `colorDomain` refetch entirely when a layer's `bin-method` is `'custom'`) — nothing new was built here, just finally used.
-- `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` — GridGraph/single-series-BarGraph's `displayPatch.colors` now includes `domainMin`/`domainMax` (read from `colorBreaks.measures[measureKey].domain`) whenever the measure has a shared-table entry; silently omitted (today's dynamic per-section range, unchanged) for measures with none.
-- `src/dms/packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` and `BarGraph.jsx` (core package, not NPMRDS-specific) — both gained the actual capability those fields need: when `colors.domainMin`/`domainMax` are both set, the color scale uses them directly, winning outright over both the data-computed min/max AND `byValueSymmetric`. This genuinely did not exist before this round (confirmed by reading both components in full) — the closest precedent is the existing `yAxis.domainMin`/`domainMax` fixed-axis override, whose two-flat-key shape this deliberately mirrors rather than inventing an array convention.
-- `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx` — new "Domain Min"/"Domain Max" number inputs in the shared `colors` SectionMenu group (alongside the existing Scheme/Reverse controls), keyed `colors.domainMin`/`colors.domainMax` — the real author-facing control Ryan asked to fold in, not just a hidden compose-time field.
-- `scripts/npmrds-reports/convert_old_reports_lib/config.py` — new `COLOR_BREAKS` loader (`json.load` off `colorBreaks.json`, same pattern `GRAPH_VOCAB` already uses for `vocabulary.json`).
-- `scripts/npmrds-reports/convert_old_reports_lib/route_map.py` — every `ensure_route_map_*_template` function now reads its `colors`/`breaks`/`maxValue` from `COLOR_BREAKS` and sets `'bin-method': 'custom'`, producing PERMANENT breaks instead of placeholders. `avgHoursOfDelay`'s 5-minute-resolution variant (a genuinely different, much-smaller-magnitude expression with no JS/shared-table equivalent — Route Map's own template-minting hasn't been bridge-migrated, a separate follow-up) stays a small Python-only constant, explicitly flagged as a pre-existing divergence this round doesn't fix. Deleted outright: `quantile_breaks`, `pooled_route_map_values`, `apply_route_map_paint`, `bake_route_map_choropleth_paint`, `bake_route_map_delay_paint`, the now-dead `ROUTE_MAP_VALUE_EXPR`/`DEFAULT_SPEED_COLOR_RANGE` constants, and the raw ClickHouse table-name constants (`CH_FACT_TABLE`/`CH_TMC_IDENT_TABLE`/`CH_META_TABLE`/`CH_AADT_DIST_TABLE`) and `dbq` import that only existed to support them. `REVERSE_COLORS_MEASURES` kept — still used by the generic `COLOR_RANGE_GRAPH_TYPES` old-report `color_range` wiring in `section_builders.py`, unrelated to Route Map's own baking.
-- `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` — the `is_map and route_map_value_ctx is not None:` baking branch in `build_graph_section_data` removed outright (nothing left to bake); `build_route_map_section_state` (the spec-driven `report_build.mjs` entrypoint) simplified to mint-and-return, no bake step; `route_map_value_ctx`/`tmcs`/`start_date`/`end_date`/`color_range` params kept accepted-but-unused on `build_route_map_section_state` purely so `report_build.mjs`'s existing CLI invocation doesn't need updating, `route_map_value_ctx` dropped entirely from `build_graph_section_data`'s signature (a real removal, not vestigial — its only caller inside this file no longer needs it).
-- `scripts/npmrds-reports/convert_old_reports_lib/convert_report.py` — the `route_map_value_ctx` dict-building (2 lines) and its passthrough into `build_graph_section_data` removed.
-- `scripts/npmrds-reports/convert_old_reports_lib/convert_template.py` — its own `route_map_value_ctx=None`-with-explanatory-comment call site removed (the comment's own reasoning — "no per-report bake makes sense for an unfilled Dynamic Report slot" — is now simply true for every caller, not a special case this file needed to opt out of).
+## Round 84 (2026-08-31) — Map hover tooltips (round 82 finding 6 / Round C): mechanism confirmed, fixed across all 3 Route-Map-building code paths, live-verified
 
-**Verified**: JS syntax/import-resolution checked via direct Vite SSR module loads for every touched file (`composeMapConfig.js`, `composeMeasureConfig.js`, `index.js`, `GridGraph.jsx`, `BarGraph.jsx`, `graph_new/config.jsx`) before any Python work started. Standalone bridge tests confirmed: GridGraph/single-series-BarGraph requests for measures WITH a table entry get the right `domainMin`/`domainMax`; a measure with NO entry (`length`) composes with no domain fields at all, confirming the silent-fallback contract. Python: `COLOR_BREAKS` imports cleanly with all 9 keys; dry-run against 4 real Route-Map-bearing reports (168/1045/775/179, covering speed/hoursOfDelay templates) — all existing live template rows correctly detected as drifted and would update in place, 0 errors. Full corpus census re-run: 870/870, 0 errors, `full_producible` unchanged at 184. Real end-to-end: report 168 reconverted (`--replace` → page `2215071`) — `report_probe.mjs --auth`: 0 console/page/SQL errors; direct inspection of the captured network traffic confirms **no `colorDomain` request fired at all** for this page (the actual proof the static breaks are permanent, not just intended to be); screenshot confirms the Route Map choropleth renders with a real static legend (15/45/80 speed breaks) and both GridGraph sections render real red→yellow→green gradients with a fixed 0–80 legend scale; the Route Compare table from round 78 renders correctly alongside, confirming no regression from the earlier rounds' work. Separately, live-navigated the edit UI (not just inspected code): opened a GridGraph section's Colors SectionMenu group and confirmed the new "Domain Min"/"Domain Max" fields render with the exact live values (`0`/`80`) the bridge auto-composed for this measure, and are genuinely editable inputs, not dead UI — closed without saving (toolbar confirmed "NO CHANGES" after).
+**Context**: round 82 flagged Map hover tooltips as a real user-reported gap ("hovering a Map
+feature shows nothing"), but round 82's own investigation had wrongly concluded "no hover machinery
+exists at all" — corrected by the user: hover popups are an existing, proven, symbology-level DMS
+map capability (set via the Map Editor's own Popover tab), not a from-scratch feature. This round
+re-investigated against the corrected mechanism, then built and verified the fix.
 
-**Files changed**: `src/themes/transportny/components/MeasurePicker/colorBreaks.json` (new), `src/themes/transportny/components/MeasurePicker/composeMapConfig.js` (breaks import, `bin-method` flip), `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` (`domainMin`/`domainMax` wiring), `src/dms/packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` + `BarGraph.jsx` (new fixed-domain capability), `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx` (new SectionMenu control), `scripts/npmrds-reports/convert_old_reports_lib/config.py` (`COLOR_BREAKS` loader), `scripts/npmrds-reports/convert_old_reports_lib/route_map.py` (permanent breaks, 5 functions deleted), `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` + `convert_report.py` + `convert_template.py` (bake call sites removed).
+**Mechanism, confirmed by reading the real runtime code**: a Map layer's hover popup is gated by
+two per-layer symbology keys, `layer['hover']` ('hover'/'') and `layer['hover-columns']` (an array
+of `{column_name, display_name, formatFn, justify, ...}` rows), read by `HoverComp` in
+`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx`
+and normally authored via the Map Editor's Layer Editor → Popover tab (`PopoverEditor/index.jsx`).
+Critically, `HoverComp` already handles Route Map's exact join shape (`layer.props.join`'s
+`featureKeyColumn`/`joinColumn`/`source.viewId`/`query`) with a live join-source fallback fetch —
+but for Route Map specifically that fallback never fires, since the tile URL builder
+(`getLayerTileUrl`) already appends the `join=` param so dms-server bakes the joined `value` column
+directly into the MVT tile's feature properties server-side. So a hover popup showing `tmc` +
+`value` reads data already sitting on the hovered feature — zero extra network round-trips.
 
-## Round ledger (rounds 1–80 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 80 is current, full detail above)
+**The actual gap, and why it's 3 code paths, not 1**: the Route Map layer JSON is built
+independently in THREE places, and none of them set `hover`/`hover-columns`:
+1. **`scripts/npmrds-reports/convert_old_reports_lib/route_map.py`** (Python converter,
+   `convert_report.py`/`convert_template.py`'s old-report-conversion path) — confirmed via
+   `grep -rn hover` across the whole converter lib: zero hits.
+2. **`scripts/npmrds-reports/report_build.mjs`** (the spec-driven Dynamic Report Template
+   builder) — checked its own source: it does NOT reimplement Map composition. Its own comment
+   explains why: a `graphType: "Map"` graph "shells out to convert_old_reports.py's
+   `--route-map-section` ... reuses the Route Map choropleth machinery built for the
+   old-report-conversion task rather than reimplementing template-minting/CH quantile-baking a
+   second time in JS." So this path is automatically covered by fixing #1 — confirmed by
+   dry-running `--route-map-section` directly and seeing `hover`/`hover-columns` in its JSON output.
+3. **`src/themes/transportny/components/MeasurePicker/composeMapConfig.js`** (the live "Add
+   Graph → Map" / QuickControls measure-repick authoring UI) — a genuinely separate JS
+   reimplementation (its own header comment says it's ported from `route_map.py`'s logic) with its
+   own two layer-builders, `buildRouteGeometryLayer`/`buildChoroplethLayer`. This one needed its own
+   independent fix — the user's own mid-session question ("will these changes also be picked up by
+   ... `composeMeasureConfig`? `report_build.mjs`? the python converter?") is what surfaced this as a
+   real, separate gap rather than assuming symmetry.
 
+**Fixed**:
+- `route_map.py` — new `route_map_hover_columns(value_label=None, value_format=' ')` helper
+  (mirrors the map runtime's `normalizeHoverColumn` shape) returns a `tmc` row always, plus a
+  `value` row when a measure has one. Wired into all 5 template-builders: `ensure_route_map_none_template`
+  (TMC-only), `_speed_template` ("Speed (mph)", `decimal_2`), `_traveltime_template` ("Travel Time",
+  `minutes_clock` — matches round 35's route-traversal-MINUTES unit), `_avghoursofdelay_template`/
+  `_hoursofdelay_template` ("Avg./Hours of Delay", `decimal_2`).
+- `composeMapConfig.js` — new `routeMapHoverColumns(measureKey)` helper mirroring the Python one
+  (same field shape, same shared `formatFunctions` registry), wired into both
+  `buildRouteGeometryLayer` (TMC-only) and `buildChoroplethLayer` (TMC + value). Per-measure
+  `HOVER_VALUE_FORMAT` mirrors Python's for the 4 measures Python also builds
+  (speed/travelTime/hoursOfDelay/avgHoursOfDelay); the 4 CO2 variants (JS-only, no Python
+  precedent) fall through to raw passthrough (`' '`) rather than `decimal_2`, since their real
+  values sit in the 0.0001–0.05 range and `decimal_2` would round every one of them to "0.00" (see
+  `colorBreaks.json`'s own note on those measures' domains) — a formatter that actively lies is
+  worse than none.
+- Both `useAddGraphSection.js` (new Map section) and `MeasurePicker/index.js` (measure re-pick via
+  QuickControls) call these same two functions — confirmed by reading both call sites — so creating
+  a Map via the live UI, and later re-picking its measure, both get hover automatically, per the
+  user's explicit ask ("i want it so when the user creates a Map via the UI, it also has these hover
+  things setup automatically").
+
+**Verified live** (claude-in-chrome + the user's own hands-on check, both against the running dev
+stack):
+- Python path: reconverted old report 971 (`nittec_150`, `--replace` → page `2216069`) —
+  `report_probe.mjs --auth`: 0 console/page/SQL errors. User confirmed hovering a Route Map segment
+  shows a popup titled with the route's own comparison-series label ("5-min on Sept29") with **TMC**
+  and **Speed (mph)** rows, correct values.
+- JS authoring path: created a scratch report (`converted_reports/page_23`, DRAFT — deleted after
+  verification) via "Create Report" → "+ Add Route" → "+ Add Graph" → Map → Travel Time. User
+  confirmed the hover popup shows correctly (TMC + Travel Time). Also surfaced and fixed a doc gap:
+  **`+ Add Graph` silently no-ops with 0 routes on the report** — logged as a new gotcha in
+  `src/dms/skills/traversing-report-pages.md` §5.
+- `route_map_none`'s TMC-only hover-columns shape verified via `--route-map-section --measure none`
+  dry-run JSON output (not separately click-tested — same runtime mechanism already proven twice
+  above via speed and travelTime).
+
+**New deferred finding (NOT fixed this round, per explicit user direction — "dont do this now")**:
+while verifying the Travel Time hover, the user flagged Travel Time's Route Map color scale as bad
+in two distinct ways: (1) it's the pre-round-82 placeholder ramp (`colorBreaks.json`'s `travelTime`
+entry: `#ce141f→#e1631a→#ec962a→#f3c048→#f7e76e`, a red-to-pale-yellow ramp, never given the
+ColorBrewer RdYlGn treatment round 82 gave `speed` — round 82 deliberately scoped that fix to speed
+only) — user's view: for Travel Time specifically, a STATIC scale is wrong in principle and it
+should be dynamic/data-driven instead of just re-colored; (2) **the polarity looks backwards** —
+low travel time (fast/good) currently renders red (`colors[0]`) and high travel time (slow/bad)
+renders pale yellow (`colors[-1]`), the opposite of the intuitive "green=good, red=bad" convention
+`speed`'s fixed ramp already follows correctly. Since `hoursOfDelay`/`avgHoursOfDelay`/the CO2
+measures share this exact same placeholder color array and have the same "higher=worse" polarity as
+travelTime, they likely have the identical backwards-polarity issue — unconfirmed, not
+user-observed, flagged here as a probable but unverified extension of the same bug. Nothing touched
+this round; logged in "Known functionality gaps" below for whenever it's picked up.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/route_map.py`,
+`src/themes/transportny/components/MeasurePicker/composeMapConfig.js`,
+`src/dms/skills/traversing-report-pages.md` (new gotcha, §5). No DB migration; no backfill required
+for NEW conversions (drift-detection on the shared per-year templates picks the fix up
+automatically) — existing already-converted pages with a Route Map section need a `--replace`
+reconversion to pick up hover, same lazy-reconvert policy as every other template-level fix this
+task has shipped (blast radius is small: `converted_pages_total` is only 10-11 right now).
+
+---
+
+## Round 83 (archived, 2026-08-31) — user-reported report-browser bug: converted reports invisible/unclickable in "Choose a report" + Tag Browser; root-caused to two independent bugs, both fixed + backfilled + live-verified. Full detail: [archive, "Round 83"](./old-reports-conversion-archive.md).
+
+## Round 82 (archived, 2026-08-31) — user's cosmetic-gap triage from round 81's side-by-side samples: 4 real bugs found + fixed (Round A), report-tags scoped for review (Round B), Map-hover finding corrected (Round C — fixed round 84). Full detail: [archive, "Round 82"](./old-reports-conversion-archive.md).
+
+## Round ledger (rounds 1–83 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 84 is current, full detail above)
+
+- **R84** (08-31): round 82 finding 6 ("Map hover tooltips")/Round C fixed — mechanism confirmed
+  (hover popups are an existing, symbology-level DMS map capability, gated by
+  `layer['hover']`/`layer['hover-columns']`, read by the map runtime's `HoverComp` and normally
+  authored via the Map Editor's Popover tab). The gap was in 3 independent Route-Map-layer-building
+  code paths, not 1: the Python converter (`route_map.py`, fixed — new
+  `route_map_hover_columns()` wired into all 5 template-builders), `report_build.mjs` (confirmed to
+  delegate straight to the Python converter's `--route-map-section` CLI, no separate fix needed),
+  and the live "Add Graph"/QuickControls authoring UI (`composeMapConfig.js`, a genuinely separate
+  JS port — fixed with a mirrored `routeMapHoverColumns()`, surfaced by the user's own question
+  about whether all 3 paths were covered). Live-verified twice: Python path on reconverted report
+  971 (`nittec_150` → page `2216069`, user-confirmed TMC+Speed popup); JS authoring path on a
+  scratch report (created + deleted, user-confirmed TMC+Travel Time popup). New doc gotcha found
+  (`+ Add Graph` no-ops with 0 routes) logged in `traversing-report-pages.md`. New deferred finding,
+  explicitly NOT fixed this round per the user: Travel Time's Route Map color scale is both static
+  (should arguably be dynamic) and polarity-backwards (low/fast = red, should be green) — logged in
+  "Known functionality gaps", `hoursOfDelay`/`avgHoursOfDelay`/CO2 measures suspected to share the
+  same backwards-polarity bug (unconfirmed). Also caught+resolved a live cross-session write
+  collision with a sibling session working round 83 concurrently on the same corpus — no data lost,
+  confirmed via `SendMessage` both ways. Full detail above.
+- **R83** (08-31): user-reported report-browser bug — a real converted report was invisible (search
+  found only greyed-out "Legacy — not yet rebuilt" duplicates) and unfindable by tag despite a
+  visible tag chip. Two independent root causes: (1) round 82's converter never wrote `page_path`
+  on the `reports_snap_2` row, so `isRebuilt()` could never tell a real conversion apart from a
+  never-rebuilt legacy row — fixed in `convert_report.py`/`convert_template.py`, backfilled onto
+  all 10 pre-existing conversions via a one-off script; (2) `ReportTagsEditor.jsx`'s free-text tag
+  input committed raw typed text instead of the canonical prefixed vocabulary value ("AVAIL" instead
+  of "agency:AVAIL"), permanently unfindable by the Tag Browser — fixed via a new
+  `canonicalizeTag()` helper, one live bad tag corrected in the backfill. Also, per explicit user
+  direction, legacy (never-rebuilt) rows now excluded from the picker entirely, not just
+  down-ranked — `useReportSearch.js` filters `page_path notempty` unconditionally. A live
+  cross-session write collision during the backfill (a sibling session concurrently reconverting
+  the same report) resolved cleanly with no data loss. Live-verified end-to-end via claude-in-chrome
+  reproducing the user's exact repro. Full detail above.
+- **R82** (08-31): user's cosmetic-gap triage from round 81's 3 samples, 6 findings. 4 REAL bugs
+  found + fixed (Round A): (1) RRL/chart series colors never copied from the old report
+  (`build_route_entry` missing the `color` field `build_slot_entry` already had) — systemic, every
+  multi-route converted report was affected; (2) graph section order didn't match the old tool
+  (converter walked raw `graph_comps[]` array order, not the old tool's own `(layout.y,x)` visual
+  order — now sorted before anything reads the list); (3) speed Route Map had no green in its
+  color ramp (round 80's `colorBreaks.json` placeholder was pure yellow→red — replaced with a
+  real ColorBrewer RdYlGn ramp, platform-wide for every speed map); (4) grid/line graph titles
+  never showed which route/year (title was already author-editable, converter just never
+  defaulted it — generalized an existing narrow merge-only title-suffix into the default path).
+  All 3 round-81 samples reconverted + live-verified (colors/order/titles all confirmed correct in
+  browser), full census 870/870 0 errors, `full_producible`/`converted_pages_total` unchanged.
+  Report-folders→tags (Round B) scoped, corrected per user feedback (storage moved to the
+  `reports_snap_2` dataset row, not a page field; vocabulary shared with routes), then BUILT +
+  live-verified same day — new `fetch_agency_tag()` (Python) writes `agency:<code>` tags at
+  conversion time; a chip-input editor and a full category→value tag-browser drill-down (mirroring
+  RouteTagBrowserModal) shipped on the JS side; `AGENCY_CODES` extended 18→22 entries, shared by
+  both pickers. Nesting checked against real data and found not worth replicating (only 4/870
+  reports sit in any nested folder, all in personal test folders) — flat tags shipped instead, with
+  a design note that flat multiselect tags already support future nesting-by-co-occurring-tags with
+  no further storage change. Map-hover-tooltip finding from round 45/round-53's gap list
+  corrected by the user — hover popups ARE an existing, proven DMS map capability
+  (symbology-level), not a from-scratch feature as previously logged; not yet re-scoped (Round C).
+  Full detail: [archive, "Round 82"](./old-reports-conversion-archive.md) once archived.
+- **R81** (08-31): user requested 2-3 clean, RECENT sample conversions for side-by-side validation
+  against the old tool. Found only 7 of 29 live `converted_reports/*` pages are real old-report
+  conversions (the other 22 are the unrelated Dynamic Report Template catalog demo pages) — all 7
+  predate 2025-04. Census re-run + cross-referenced against old-DB `updated_at` to rank zero-gap
+  full/producible reports by real recency; converted 3 new ones: 1066 "787 NB 5-12-2026"
+  (2026-05-12), 1064 "NYC Test" (2025-11-07), 971 "NITTEC 150" (2023-01-04) — all live-verified 0
+  errors on the published view. Stale-auth-token probe gotcha hit + fixed (re-mint, not a new
+  product bug). **Then a real bug**, user-caught in EDIT mode on those same pages: converted pages'
+  `draft_sections` (what `/edit/` reads) silently dropped every section but the last — root cause
+  was `dms section create`'s racy per-call read-push-write attach, called once per section in a
+  loop; `sections` (published) never had this since it's built as one bulk write. Also found
+  pre-existing on 1 of the 7 old real conversions (787). Fixed in `convert_report.py`/
+  `convert_template.py`: draft rows now created via `raw create` + attached in one bulk update,
+  mirroring the published path. All 4 broken pages reconverted (971→`2215835`, 1066→`2215853`,
+  1064→`2215867`, 787→`2215885`), draft/published parity + live edit-mode rendering confirmed,
+  published views re-verified unaffected. Full census 870/870 0 errors, `converted_pages_total`
+  7→10. **Then a third bug**: report pages missing the compact sidenav rail (per-page
+  `theme.layout.options.sideNav.activeStyle:1`) — the Report Page template already carries the
+  right value but no page-creation path (`convert_report.py`/`convert_template.py`/
+  `report_build.mjs`) ever copied it, so every created/recreated page silently lost it; fixed all
+  3 to copy `theme` off the template, then backfilled all 22 currently-missing `converted_reports/*`
+  pages via `dms raw update --set`. 32/32 report pages now carry the override, live-verified.
+  Full detail: [archive, "Round 81"](./old-reports-conversion-archive.md).
+- **R80** (08-27): platform-wide switch from dynamic to static color scales — new shared
+  `colorBreaks.json` (same cross-language pattern as `vocabulary.json`), Route Map's live
+  `colorDomain` refetch bypassed via the Map runtime's own existing `bin-method:'custom'` escape
+  hatch, Python's entire per-report quantile-bake machinery retired outright, a genuinely new
+  `colors.domainMin`/`domainMax` capability added to core GridGraph/BarGraph with a real
+  SectionMenu UI control. Live-verified on report 168 (`--replace` → page `2215071`): confirmed
+  **zero `colorDomain` requests fired**. Full census 870/870, 0 errors, `full_producible` unchanged
+  at 184. Full detail: [archive, "Round 80"](./old-reports-conversion-archive.md).
 - **R79** (08-27): Info Box migrated onto the bridge — a genuinely new `grain` (`route`/`tmc`)
   capability in `composeTableMeasuresConfig`, not just reuse, plus a `length`/`aadt` TMC-grain
   expression override. Found+fixed a real cross-platform bug: the generic `reconcileComparisonSeriesColumnOnState`
@@ -711,17 +864,28 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   color swatch + name per route on the title row — that IS a legend, just categorical not a
   scale, so "just a list of layers" for `route_map_none` maps is closer to a UX opinion than a
   bug; see the next item).
-- **Map sections have no hover interactivity (user-reported 2026-07-15, NOT investigated beyond
-  confirming there's nothing to wire up — logged only)**: hovering a Map feature (a TMC segment
-  on a Route Map, a choropleth cell) shows nothing — no tooltip/popup with the underlying value.
-  Checked `ComponentRegistry/map/index.jsx` for any existing mousemove/mouseenter/popup
-  machinery to extend: **none exists** — the only hover-adjacent code is a few comments about a
-  *future* click/hover→page-filter publish mechanism (already excluded from the Map's filter
-  sync, per round 45's `dataPageFilters` note), not a value-on-hover tooltip. This would be a
-  real new feature (maplibre `mousemove`/`mouseenter` handlers + a popup component + wiring per
-  layer to its `data-column`/value), not a config tweak — NOT almost-free, deliberately left
-  unbuilt per the user's own "mark as bug, don't work on it now" instruction. Candidate for an
-  M4-adjacent or post-M3 round if prioritized.
+- **~~Map sections have no hover interactivity on converted Route Map choropleths~~ — FIXED round
+  84 (2026-08-31)**: was gated by `layer['hover']`/`layer['hover-columns']` (an existing, proven
+  DMS map capability, normally set via the Map Editor's Popover tab), which none of the 3 places
+  that build a Route Map layer (`route_map.py`, `report_build.mjs` — delegates to the Python
+  converter, `composeMapConfig.js`) ever populated. All 3 now set it (round 84's own section has
+  full detail); live-verified on both the Python-converter path (speed) and the live "Add
+  Graph"/QuickControls JS path (travel time). Explicitly still OUT of scope: letting a Report
+  Author edit the tooltip via quick controls or similar — real future work, not built this round.
+- **Travel Time's (and likely hoursOfDelay/avgHoursOfDelay/CO2's) Route Map color scale is static
+  and polarity-backwards (user-reported 2026-08-31, round 84 — explicitly NOT fixed this round,
+  "dont do this now")**: verifying round 84's hover fix on a Travel Time choropleth, the user flagged
+  the color scale itself as bad in two ways: (1) low/fast travel time renders **red** and high/slow
+  travel time renders **pale yellow** — backwards from the intuitive "green=good, red=bad"
+  convention `speed`'s round-82-fixed ramp already gets right (round 82 deliberately scoped that fix
+  to speed only, per the user's own "not for ALL maps" direction at the time); (2) beyond just wrong
+  colors, the user's view is that Travel Time specifically needs a DYNAMIC/data-driven scale, not
+  just better static breaks — a materially different ask than round 82's "ship the existing
+  placeholder numbers, real-distribution analysis is a tracked follow-up" framing for the other
+  measures. `hoursOfDelay`/`avgHoursOfDelay`/the CO2 measures share the exact same placeholder color
+  array (`colorBreaks.json`) and the same "higher=worse" polarity as travelTime, so they likely have
+  the identical backwards-polarity bug — unconfirmed, not user-observed, flagged as a probable but
+  unverified extension. Not scoped or built — parked exactly where the user left it.
 - **Route Map's per-route category legend may be more noise than signal (user opinion,
   2026-07-15, logged only)**: for `route_map_none`-style maps (plain colored lines, no
   choropleth), the current legend lists every route by name+color — technically correct
@@ -741,6 +905,74 @@ file (not this section) as more sources get investigated.
 
 ## Open questions (user)
 
+- **Round B — report folders → tags. BUILT + live-verified 2026-08-31 — see Round 82's "Round B"
+  section above for the verification record and full files-changed list.** Scoping history kept
+  below for the reasoning trail (the plan didn't change once finalized). Original write-up below
+  had one wrong premise (page-level field); corrected + all open design questions resolved by the
+  user in one round. Final plan:
+  - **Storage — dataset row, not a page field (user correction).** Reports are double-represented
+    in DMS: a `page` row (content) AND a `reports_snap_2` catalog row (`reports_snap_2|2177440:data`,
+    one per converted report, same split-table shape as `routes_data|2107427:data`) — confirmed by
+    reading `config.py`'s `REPORTS_SNAP_TYPE`/`REPORTS_SNAP_TABLE`. My original plan proposed a new
+    page-level `tags` field; the user corrected this — reports already have their own dataset row,
+    exactly like routes, so `tags` belongs there, not on the page (avoids any DMS-core/page-schema
+    change entirely, not just avoids a *formal* one). Confirmed the mechanism is even simpler than
+    routes' own precedent suggested: the routes_data VIEW row (2107427) carries no column schema at
+    all (`data:"schema-free"`) — the real "column" only exists as a `config.attributes` entry
+    (`type:"multiselect"`) on the SOURCE row (2107426), which is what the UDA engine actually reads
+    to know the column's type for filtering. Round B mirrors this exactly: add the identical
+    `{name:"tags", type:"multiselect"}` attribute to the `reports_snap_2` SOURCE row (id `2177438`),
+    then `convert_report.py`/`convert_template.py` write `data.tags = json.dumps([...])` on each
+    `reports_snap_2` row at conversion time — same `js()`-style JSON-string convention every other
+    field on that schema-free row already uses.
+  - **Vocabulary — ONE shared list with routes, not a separate one (user decision).** Reports' 8
+    real agency folders (NYSDOT 186, AVAIL 75, MHV 42, NYSDOT CONSULTANT 15, OCTC 12, CDTC 8,
+    NPMRDS New Users 5, GBNRTC 4) only partially overlap routes' existing 18-value `AGENCY_CODES`
+    (`RouteTagBrowserModal/tagCategories.js`) — NYSDOT/CDTC/GBNRTC/OCTC already present, but
+    AVAIL/MHV/`NYSDOT CONSULTANT`/`NPMRDS New Users` are NOT. Per the user's call ("can't think of
+    a reason why we'd want distinct lists"), `AGENCY_CODES` gets those 4 new entries added
+    (→ 22 values total) and BOTH routes and reports read the same list — no report-specific
+    vocabulary file.
+  - **Nesting — stays flat now, but the flat design is ALREADY nesting-forward-compatible by
+    construction, so no schema hedge is needed (user decision + a design insight worth recording).**
+    Checked against real data (see original finding, kept below): only 4/870 reports sit in any
+    nested folder, all noise — not worth building hierarchy FOR NOW. But the user wants it easy to
+    add nesting later, and floated the mechanism themselves: nesting-via-co-occurring-tags (a
+    report tagged BOTH `agency:NYSDOT` and a future `batch:batch_1` tag displays to the user as
+    "NYSDOT → batch_1"), not a single baked hierarchical string like `NYSDOT/batch_1`. This means
+    the flat `multiselect` array chosen for Round B **already fully supports this** with zero
+    future storage/schema change — a report can always carry >1 tag today, and "nesting" later is
+    purely a BROWSE-UI enhancement (group visually by a second tag dimension when both are
+    present), not a data-model migration. Worth stating plainly: flat-now was never a trade-off
+    against easy-nesting-later — they're the same design.
+  - **Editor UI**: a chip-input control (mirrors `SaveRouteModal.jsx`'s `TagsInputField` exactly)
+    added to `ReportRouteList.jsx`'s already-existing "Report settings" disclosure panel (currently
+    holds only the "Dynamic Report" toggle). This is architecturally consistent with the storage
+    decision above, not just convenient placement: RRL already reads/writes the SAME
+    `reports_snap_2` row (its `routes` array) on every route edit, so adding a sibling `tags` field
+    to that same save payload needs no new read/write path — just a new field in an existing one.
+  - **Discovery — a real tag-browser IS in scope, not deferred (user decision, reversing my
+    original hedge).** `ReportPickerModal.jsx` ("Choose a report") already exists, already reads
+    from the `reports_snap_2` catalog, and already shares `PickerSearchInput`/`PickerFacetChips`/
+    `PickerCountBar` chrome + `rankByScore` scoring with `RouteTagBrowserModal` — confirmed by
+    reading both files directly. What it doesn't have yet is the category→value drill-down state
+    machine (`view: root/category/value/other`) `RouteTagBrowserModal` uses. Mirrors that pattern
+    directly: a `TAG_CATEGORIES`-equivalent (using the now-shared agency list above), a
+    `useReportTagBrowser` hook mirroring `useTagBrowser` (same `array_contains` UDA filter
+    mechanism already proven for routes), and the same category/value/list view states. Given how
+    much chrome is already shared, this really is the moderate lift the user expects, not a
+    from-scratch build — confirms their own read. This does functionally overlap with the
+    2026-07-27 "no report discovery page" ruling, but the user's direction here — "we will want
+    discovery via tag browser, eventually" — reads as a deliberate, informed choice to build this
+    specific piece (a picker MODAL searching what a user is already authorized for, same shape as
+    the existing "Choose a report" modal) rather than a standalone browse/index PAGE, which is the
+    thing that ruling was actually about. Treating this as in-scope for Round B, not re-blocked by
+    that older ruling — flag if that reading is wrong.
+  - **Original finding, unchanged**: real folder nesting exists in `admin2.folders`/
+    `stuff_in_folders` generally, but only 4/870 reports sit in ANY nested folder (all in personal
+    test folders — `AVAIL → BatchReportsTest` and `NYSDOT`'s 3 subfolders have ZERO reports
+    directly; nested `user` folders have reports in only 2 of many, "two deep"/"Test 123", 2 each).
+  - **Not yet built** — this is the finalized plan, ready for a go-ahead.
 - Where should converted pages live (flat vs under a parent "Converted Reports" page; replicate old
   `admin2.folders` hierarchy as page hierarchy?)
 - Auth token for CLI deletes/updates (needed for idempotent re-runs / rollback) — user offered
@@ -751,6 +983,12 @@ file (not this section) as more sources get investigated.
   through `dms site tree` (stale auth token). See `graph_layout` width note above.
 
 ## Artifacts (scratchpad/npmrds-sub/old-reports/)
+
+**Round 81 side-by-side validation set (2026-08-31)** — old-tool URL is `https://npmrds.transportny.org/report/view/<old_id>` (user-corrected 2026-08-31 twice: (1) the live/prod old tool is on the `transportny.org` domain, not `devtny.org` — the earlier `npmrds.devtny.org` form used elsewhere in this file's history is a dev/staging host, not the one to hand a user for validation; (2) use the read-only `/report/view/<id>` route, not `/report/edit/<id>` — confirmed as a real, separate route by reading transportNY's own source, `pages/analysis/reports/view/index.js` sibling to `reports/edit/index.js`, both linked from `pages/Folders/components/Stuff.jsx`), new-tool URL is `http://npmrds.localhost:5173/converted_reports/<slug>` (dev) — both require sign-in (`mint_token.sh` creds for the new side; the new page also needs the RRL sidebar to publish routes to its graphs to render, same as any converted page):
+(page ids below are post-fix, current as of the round-81 `draft_sections` bug fix — the original conversion ids, 2215783/2215799/2215817, were superseded by `--replace` reconversions and no longer exist):
+- 1066 "787 NB 5-12-2026" (old-tool updated 2026-05-12) ↔ page `2215853`, `converted_reports/787_nb_5_12_2026`
+- 1064 "NYC Test" (updated 2025-11-07) ↔ page `2215867`, `converted_reports/nyc_test`
+- 971 "NITTEC 150" (updated 2023-01-04) ↔ page `2215835`, `converted_reports/nittec_150`
 
 `report_1070.json`, `report_1070_routes.json` (old side); `new_page_2187523.json`,
 `new_page_2187523_sections.json`, `new_report_row_page2187523.json`,
