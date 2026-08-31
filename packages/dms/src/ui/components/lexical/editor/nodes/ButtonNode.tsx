@@ -27,6 +27,8 @@ import {InsertButtonDialog} from "../plugins/ButtonPlugin";
 import useModal from "../hooks/useModal";
 import { ThemeContext, getComponentTheme } from "../../../../useTheme";
 import { resolveSubdomainPath } from "../../../../../utils/subdomainPath";
+import { resolveMountPath } from "../../../../../utils/mountPath";
+import { MountContext } from "../../../../mountContext";
 import { usePageActionsContext } from "../context/usePageActionsContext";
 
 /**
@@ -70,7 +72,11 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
   const [modal, showModal] = useModal();
   const location = useLocation();
   const navigate = useNavigate();
-  const resolvedPath = resolveSubdomainPath(path);
+  // `sub://` first (may return an absolute cross-origin URL, which the mount
+  // resolver leaves alone), then the current mount's baseUrl for site-absolute
+  // paths — so one authored `/congestion_v2` works on every mount of its pattern.
+  const { baseUrl: mountBaseUrl, siteRootPaths } = React.useContext(MountContext) || {};
+  const resolvedPath = resolveMountPath(resolveSubdomainPath(path), mountBaseUrl, siteRootPaths);
   const linkPath = keepSearchParams ? `${resolvedPath}${location.search}` : resolvedPath;
 
   const { theme: fullTheme = {}, UI } = React.useContext(ThemeContext) || {};

@@ -1,6 +1,8 @@
 import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
+import {MountContext} from '../mountContext';
+import {resolveMountPath} from '../../utils/mountPath';
 import ColumnTypes from "../columnTypes";
 import NavigableMenu from "./navigableMenu";
 import CardColumnPicker from './CardColumnPicker';
@@ -394,6 +396,9 @@ const CardColumnField = ({
     const [hovered, setHovered] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const visible = hovered || isMenuOpen;
+    // Which pattern mount this card is rendering under, for site-absolute link
+    // cells. `{}` outside the page pattern → today's behavior.
+    const mount = React.useContext(MountContext);
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize} = attr || {};
     // cardHints: optional metadata declared by a column type (typically a
     // theme-registered one) that lets the type opt out of the field chrome.
@@ -482,6 +487,13 @@ const CardColumnField = ({
         } else {
             url = `${location || valueFormattedForDisplay}${searchParams}`;
         }
+        // A site-absolute destination — the column's `location` or, as in the
+        // Freight Atlas maps gallery, a `/freight_atlas?layers=…` value carried in
+        // the row's own data — is written against the pattern's PRIMARY layout.
+        // Re-point it at the mount being served. No-op on a root mount and on
+        // another pattern's path. Same treatment as TableCell's LinkComp; see
+        // utils/mountPath.js.
+        url = resolveMountPath(url, mount?.baseUrl, mount?.siteRootPaths);
     }
 
     const wrapperFlexClass = headerValueLayout === 'col' && !reverse ? theme.itemFlexCol :

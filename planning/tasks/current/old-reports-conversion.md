@@ -8,95 +8,132 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-08-25, ROUND 72 DONE — fixed round 71's finding (1): `_measurePick` is no
-longer stale. `section_builders.py` now writes `_measurePick.routeWindows[compId] = [{weekdays,
-start, end}]` for every comp assigned to a self-bound graph, matching the shape
-`useGraphPublish.js`/`report_build.mjs` have read/written since the 2026-08-14 migration
-(`cff5318`) — same window-resolution logic round 70 shipped (agree → real window, disagree →
-gap-log + empty default), just written to the field that's actually read now. Live-verified:
-reconverted report 1045 (`--replace` → page `2214660`), confirmed real AM/PM-peak windows landed
-correctly keyed by `comp-N` id, a multi-comp graph got separate entries per comp, the 2 genuine
-disagreement cases still gap-log correctly, and `report_probe.mjs --auth` showed 11/15 sections
-with content, 0 console/page/SQL errors, real ClickHouse queries reflecting the peak-hour
-date/epoch filters (not "all days, all hours"). **Round 71 (2026-08-25) — still relevant** — the
-pre-reconversion audit: a full-corpus clean/needs-attention/junk classification (184/328/358 of 870
-old reports) built from `census_old_reports.py`'s own existing fields
-(`class`/`route_validity`/`pre_2017_only`). Its other 3 findings remain open: **(2)** a real crash
-bug, unrelated to (1): `convert_report.py`'s point-route year-resolution crashes on a corrupted
-`{recent-NaN}` relativeDate placeholder found on 13/870 reports (1.5%) — legacy data corruption (the
-OLD system's own template-substitution bug, confirmed via the raw stored value
-`"{recent-NaN}ent-NaN}"` — nothing recoverable behind it), not gap-logged, not yet fixed. **(3)**
-`census_old_reports.py` never actually computes the `route_comps_merged` ("routes collapsed") gap
-kind corpus-wide — that pass only runs inside the real/dry-run converter and needs falcor
-point-route resolution the census deliberately skips for speed; confirmed real via a 9-report
-dry-run spot check (3/9 fired it) but not corpus-counted, per Ryan's explicit scope (no new
-route-collapse detection). **(4)** The entire prior already-converted-page corpus (36+ pages across
-rounds 1-70, including round 70's own live-verification page 2209156) is GONE from the current dev
-DB — reset at some point for the Dynamic Report catalog work; `converted_pages_total` is genuinely 0
-today, confirmed both by the census and a direct DB query. Finding (2) should still be fixed before
-a bulk reconversion run (it will hard-crash on 13 known reports); (3)/(4) don't block one. Full
-detail: Round 72 above (fix), Round 71 in the archive (audit — moved 2026-08-25, round 72 start).
-Round 70 (weekday/peak-hour `_measurePick` backfill, superseded by round 72's fix), round 69
-(day-of-week axis labels, GridGraph tooltip NaN, Bar Graph Summary colors, comparison-series anchor
-sort — all 4 DONE and live-verified 2026-08-04), round 68 (Bar Graph Summary freeflow-byDateRange
-wired into convert/analyze, `full`/`full_producible` 229/181, converted_pages_total 35→36 — page
-since gone, see finding (4)), round 67 (Route Line Graph/Route Compare Component
-resolution-precedence), round 66 (pm3 2018-2020 backfill), and earlier rounds remain DONE — full
-detail archived, see ledger below. Next work: fix finding (2) [gap-log the malformed relativeDate
-case instead of crashing] before any bulk reconversion run; then decide whether to run bulk
-conversion against the 184 clean + 328 needs-attention reports, or address specific
-needs-attention gap categories first; root-cause the single-row GridGraph y-axis NaN (round 69,
-still open) is unrelated and still open too.)
+## Current state (2026-08-27, ROUND 80 DONE — platform-wide switch from dynamic to STATIC color
+scales, resolving the question raised in round 78. Ryan's direction, given in stages across the
+conversation: (1) static breaks everywhere with a color scale — not just Route Map, GridGraph's
+rdylgn gradient and BarGraph's byValue mode too; (2) retire Python's per-report ClickHouse quantile
+computation entirely, no fallback; (3) both the converter's output AND the live browser rendering use
+the same static breaks (so the live Map's `colorDomain` refetch gets bypassed too); (4) seed the
+breaks table from the existing `composeMapConfig.js` placeholder values (not a fresh distribution
+analysis — "ship with placeholder, then we can follow up with real breaks"), reusing MacroView's own
+authored values verbatim for the 3 measures that are literally the same underlying PM3 columns
+(LOTTR/TTTR/freeflow) MacroView already covers; (5) fold in a real author-facing SectionMenu UI
+control for the new fixed-domain capability, not just a hidden compose-time field. **What shipped**:
+new shared `colorBreaks.json` (`MeasurePicker/`, same cross-language single-source-of-truth pattern as
+`vocabulary.json` — 9 NPMRDS measures seeded from the old `CHOROPLETH_DEFAULTS` placeholder values,
+flagged per-entry by actual provenance quality, plus 3 reliability entries reused verbatim from
+`macroview/breaks.js` for future use, not yet wired to anything); `composeMapConfig.js` reads
+breaks from it and flips `bin-method` from `'quantile'` to `'custom'` (the Map runtime's own
+existing, previously-unused escape hatch that skips the live `colorDomain` refetch entirely — this
+one line is what makes "static" actually real at render time, not just at compose time);
+`composeMeasureConfig.js`'s GridGraph/BarGraph coloring branch sets a static `domainMin`/`domainMax`
+from the same table when a measure has one, silently falling back to today's dynamic per-section
+range otherwise; `GridGraph.jsx`/`BarGraph.jsx` (core `packages/dms`, not NPMRDS-specific) gained the
+underlying capability those fields need — a `colors.domainMin`/`domainMax` check that wins outright
+over the data-computed range, a genuinely new primitive that didn't exist before this round; a new
+"Domain Min"/"Domain Max" SectionMenu control in the shared Colors group (`graph_new/config.jsx`),
+same two-flat-key convention as the existing Y Axis domain override. Python's entire per-report
+choropleth bake — `quantile_breaks`/`pooled_route_map_values`/`apply_route_map_paint`/
+`bake_route_map_choropleth_paint`/`bake_route_map_delay_paint`, plus their call sites in
+`section_builders.py`/`convert_report.py`/`convert_template.py` — deleted outright; every
+`route_map_*_template` now embeds PERMANENT static breaks from the same shared JSON. One
+pre-existing, out-of-scope JS/Python divergence found and explicitly NOT touched: Route Map's
+`avgHoursOfDelay` has a genuinely different 5-minute-epoch-rate expression in Python with no JS
+equivalent at all (Route Map's own template-minting hasn't been bridge-migrated yet — separate
+future work) — its breaks stay a small Python-only constant, flagged as such. **Live-verified**
+comprehensively on report 168 (`--replace` → page `2215071`): 0 console/page/SQL errors; direct
+network-capture inspection confirms **zero `colorDomain` requests fired** (the whole point, actually
+working); screenshot shows the Route Map choropleth and both GridGraph sections rendering with the
+correct static breaks/domain; browser walkthrough of the live SectionMenu confirms the new "Domain
+Min: 0" / "Domain Max: 80" control renders with the exact value the bridge auto-composed, live and
+editable. Full corpus census re-run: 870/870, 0 errors, `full_producible` unchanged at 184 (a pure
+architecture/rendering change, no coverage impact). **Flagged mid-round, not yet resolved**: the
+breaks table's per-measure provenance is explicitly placeholder-quality except the 3
+MacroView-reused reliability entries — a real distribution analysis (mirroring MacroView's own,
+documented in `planning/transportny/research/macroview-legend-breaks-analysis.md`) is a deliberate,
+tracked follow-up, not done this round. **Next**: Route Map's own template-minting (the
+`ensure_route_map_*_template` functions) still hand-builds its Map-section layer/join shape in
+Python rather than calling a JS composer — the one remaining Tier-3/4 item, now unblocked by this
+round's color-scale resolution but not scoped into a concrete plan yet. Round 79 (Info Box) and
+everything before it: full detail moved to the archive 2026-08-27; see ledger below.)
 
-## Round 72 (2026-08-25) — fixed round 71 finding (1): `_measurePick.routeWindows` now written, live-verified end to end
+## Round 80 (2026-08-27) — platform-wide switch from dynamic to static color scales: a new shared `colorBreaks.json`, Route Map's live `colorDomain` refetch bypassed via the Map runtime's own existing (previously-unused) `bin-method:'custom'` escape hatch, Python's entire per-report quantile-bake machinery retired outright, a genuinely new `colors.domainMin`/`domainMax` capability added to core GridGraph/BarGraph with a real SectionMenu UI control
 
-**Context**: Ryan's direction after reviewing round 71: "That regression is a high priority fix" —
-fixed same session, before any bulk reconversion run.
+**Context**: directly following round 78's still-open color-scale question. Ryan's direction arrived incrementally across the conversation, each piece confirmed before building: static breaks for every color-scaled chart/map (not just Route Map — GridGraph's `rdylgn` gradient and BarGraph's `byValue` mode have the identical "same measure, different color meaning across sections" problem); retire Python's live quantile computation entirely, no fallback path kept; both the converter's own output and the live browser rendering must use the same static breaks, meaning the Map's live `colorDomain` recompute needed to stop firing too, not just Route Map's compose-time defaults; ship using the EXISTING placeholder values (`composeMapConfig.js`'s prior `CHOROPLETH_DEFAULTS`) rather than block on a real distribution analysis, explicitly accepting the "not independently re-derived" risk as a tracked follow-up; and fold in a real author-facing SectionMenu control for the new fixed-domain capability, not just a hidden compose-time field, per the platform's own author-empowerment principle. Investigated live (not assumed) whether MacroView's own breaks.js could be reused directly: confirmed genuine, literal overlap for exactly 3 measures (LOTTR, TTTR, freeflow/`speed_pctl_85` — the same PM3/source-1410 columns NPMRDS's own Info Box reliability bucket already queries) and confirmed NO overlap at all for Route Map's actual measure set (speed/travelTime/hoursOfDelay/avgHoursOfDelay/CO2×4 come from a completely different source, raw NPMRDS Production V6 data) — MacroView's own breaks.js has no equivalent for any of those, so they needed their own table regardless of rigor level.
 
-**The fix** (`convert_old_reports_lib/section_builders.py`, `build_graph_section_data`, the one
-call site of `resolve_measure_pick_window`): `resolve_measure_pick_window` itself is unchanged —
-same "every assigned comp agrees, or gap-log and default" logic round 70 shipped. Only the
-WRITE changed: the resulting `{weekdays, start, end}` window is now fanned out to
-`_measurePick.routeWindows[compId] = [{weekdays, start, end}]` for every comp id assigned to that
-graph (`info["assigned"]`), in addition to the existing (now-decorative but harmless) flat fields.
-This is a faithful translation of what round 70 already computed, not a new decision — round 70
-never captured per-route variation within one graph (see its own "no single correct answer" framing
-for the disagreement case), so one shared variant per assigned comp is exactly equivalent to the old
-flat write, just in the shape `useGraphPublish.js` actually reads today.
+**What was built**:
+- `src/themes/transportny/components/MeasurePicker/colorBreaks.json` (new) — the shared static-breaks table, same cross-language single-source-of-truth pattern `vocabulary.json` already established for measure expressions (read by both JS and Python, so the two can never independently drift the way rounds 74-76's GridGraph color work did). `measures`: 9 NPMRDS measures (speed/speedTruck/travelTime/hoursOfDelay/avgHoursOfDelay/co2Emissions_passenger+truck/avgCo2Emissions_passenger+truck), each `{colors, breaks, maxValue, domain, _source}` — seeded verbatim from `composeMapConfig.js`'s prior inline `CHOROPLETH_DEFAULTS`, with `_source` documenting each entry's actual provenance (most are un-derived round-number guesses; the 4 CO2 entries are literally a single live data point, one of which was already caught wrong once live and patched — see the file's own comments). `reliability`: `lottr`/`tttr`/`freeflow`, reused byte-for-byte from `macroview/breaks.js`'s own authored `SETS` — not yet wired to anything (Info Box's reliability bucket is a plain Table with no color-scale concept at all), included purely for coverage per Ryan's "do we not have coverage for all the measures" prompt.
+- `src/themes/transportny/components/MeasurePicker/composeMapConfig.js` — `CHOROPLETH_DEFAULTS` is now `colorBreaks.measures` (an import, not an inline object); `'bin-method': 'quantile'` → `'custom'` in `buildChoroplethLayer` — the single line that makes "fixed breaks" real at render time. This is the Map runtime's OWN pre-existing escape hatch (`ComponentRegistry/map/index.jsx` already skips the live `colorDomain` refetch entirely when a layer's `bin-method` is `'custom'`) — nothing new was built here, just finally used.
+- `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` — GridGraph/single-series-BarGraph's `displayPatch.colors` now includes `domainMin`/`domainMax` (read from `colorBreaks.measures[measureKey].domain`) whenever the measure has a shared-table entry; silently omitted (today's dynamic per-section range, unchanged) for measures with none.
+- `src/dms/packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` and `BarGraph.jsx` (core package, not NPMRDS-specific) — both gained the actual capability those fields need: when `colors.domainMin`/`domainMax` are both set, the color scale uses them directly, winning outright over both the data-computed min/max AND `byValueSymmetric`. This genuinely did not exist before this round (confirmed by reading both components in full) — the closest precedent is the existing `yAxis.domainMin`/`domainMax` fixed-axis override, whose two-flat-key shape this deliberately mirrors rather than inventing an array convention.
+- `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx` — new "Domain Min"/"Domain Max" number inputs in the shared `colors` SectionMenu group (alongside the existing Scheme/Reverse controls), keyed `colors.domainMin`/`colors.domainMax` — the real author-facing control Ryan asked to fold in, not just a hidden compose-time field.
+- `scripts/npmrds-reports/convert_old_reports_lib/config.py` — new `COLOR_BREAKS` loader (`json.load` off `colorBreaks.json`, same pattern `GRAPH_VOCAB` already uses for `vocabulary.json`).
+- `scripts/npmrds-reports/convert_old_reports_lib/route_map.py` — every `ensure_route_map_*_template` function now reads its `colors`/`breaks`/`maxValue` from `COLOR_BREAKS` and sets `'bin-method': 'custom'`, producing PERMANENT breaks instead of placeholders. `avgHoursOfDelay`'s 5-minute-resolution variant (a genuinely different, much-smaller-magnitude expression with no JS/shared-table equivalent — Route Map's own template-minting hasn't been bridge-migrated, a separate follow-up) stays a small Python-only constant, explicitly flagged as a pre-existing divergence this round doesn't fix. Deleted outright: `quantile_breaks`, `pooled_route_map_values`, `apply_route_map_paint`, `bake_route_map_choropleth_paint`, `bake_route_map_delay_paint`, the now-dead `ROUTE_MAP_VALUE_EXPR`/`DEFAULT_SPEED_COLOR_RANGE` constants, and the raw ClickHouse table-name constants (`CH_FACT_TABLE`/`CH_TMC_IDENT_TABLE`/`CH_META_TABLE`/`CH_AADT_DIST_TABLE`) and `dbq` import that only existed to support them. `REVERSE_COLORS_MEASURES` kept — still used by the generic `COLOR_RANGE_GRAPH_TYPES` old-report `color_range` wiring in `section_builders.py`, unrelated to Route Map's own baking.
+- `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` — the `is_map and route_map_value_ctx is not None:` baking branch in `build_graph_section_data` removed outright (nothing left to bake); `build_route_map_section_state` (the spec-driven `report_build.mjs` entrypoint) simplified to mint-and-return, no bake step; `route_map_value_ctx`/`tmcs`/`start_date`/`end_date`/`color_range` params kept accepted-but-unused on `build_route_map_section_state` purely so `report_build.mjs`'s existing CLI invocation doesn't need updating, `route_map_value_ctx` dropped entirely from `build_graph_section_data`'s signature (a real removal, not vestigial — its only caller inside this file no longer needs it).
+- `scripts/npmrds-reports/convert_old_reports_lib/convert_report.py` — the `route_map_value_ctx` dict-building (2 lines) and its passthrough into `build_graph_section_data` removed.
+- `scripts/npmrds-reports/convert_old_reports_lib/convert_template.py` — its own `route_map_value_ctx=None`-with-explanatory-comment call site removed (the comment's own reasoning — "no per-report bake makes sense for an unfilled Dynamic Report slot" — is now simply true for every caller, not a special case this file needed to opt out of).
 
-**Live-verified**, not just unit-level: reconverted report 1045 with `--replace`
-(`python3 convert_old_reports.py --report-id 1045 --replace`) → new page `2214660`
-(`converted_reports/rochester_inner_loop`, the same report round 70 originally verified against).
-Fetched every published section's raw `element-data` via `dms raw get`/`dms raw get` on each
-`sections[]` ref (not `draft_sections`, which this converter leaves at a stray framework default —
-see the "Old/New shape" reference section) and confirmed:
-- Real AM-peak (`06:00`–`09:00`, Mon/Tue/Wed/Thu weekdays-only) and PM-peak (`15:00`–`18:00`)
-  windows landed correctly, keyed by the exact `comp-N` ids `useGraphPublish.js`'s
-  `transformReportRoutes` looks up via `route.route_comp_id`/`route_comp_ids`.
-- A multi-comp graph (section `2214688`) correctly got separate `routeWindows` entries for each of
-  its two assigned comps (`comp-5`, `comp-6`), both carrying the same agreed-on window.
-- The two `measure_pick_window_mixed` disagreement cases (sections `2214685`/`2214692`, same ones
-  round 71's dry-run and round 70's original run both flagged) still gap-log correctly and still
-  write the empty-default window — now via `routeWindows` too, harmless since an empty variant
-  reads as "unrestricted" on both the old and new mechanism.
-- `node report_probe.mjs converted_reports/rochester_inner_loop --auth`: 11/15 sections with
-  content, 0 console errors, 0 page errors, 0 SQL errors, real ClickHouse queries visible in the
-  captured `/graph` responses with real speed/hours-of-delay/LOTTR/TTTR values and real WHERE-clause
-  date/epoch filtering reflecting the AM/PM-peak windows above (not "all days, all hours").
+**Verified**: JS syntax/import-resolution checked via direct Vite SSR module loads for every touched file (`composeMapConfig.js`, `composeMeasureConfig.js`, `index.js`, `GridGraph.jsx`, `BarGraph.jsx`, `graph_new/config.jsx`) before any Python work started. Standalone bridge tests confirmed: GridGraph/single-series-BarGraph requests for measures WITH a table entry get the right `domainMin`/`domainMax`; a measure with NO entry (`length`) composes with no domain fields at all, confirming the silent-fallback contract. Python: `COLOR_BREAKS` imports cleanly with all 9 keys; dry-run against 4 real Route-Map-bearing reports (168/1045/775/179, covering speed/hoursOfDelay templates) — all existing live template rows correctly detected as drifted and would update in place, 0 errors. Full corpus census re-run: 870/870, 0 errors, `full_producible` unchanged at 184. Real end-to-end: report 168 reconverted (`--replace` → page `2215071`) — `report_probe.mjs --auth`: 0 console/page/SQL errors; direct inspection of the captured network traffic confirms **no `colorDomain` request fired at all** for this page (the actual proof the static breaks are permanent, not just intended to be); screenshot confirms the Route Map choropleth renders with a real static legend (15/45/80 speed breaks) and both GridGraph sections render real red→yellow→green gradients with a fixed 0–80 legend scale; the Route Compare table from round 78 renders correctly alongside, confirming no regression from the earlier rounds' work. Separately, live-navigated the edit UI (not just inspected code): opened a GridGraph section's Colors SectionMenu group and confirmed the new "Domain Min"/"Domain Max" fields render with the exact live values (`0`/`80`) the bridge auto-composed for this measure, and are genuinely editable inputs, not dead UI — closed without saving (toolbar confirmed "NO CHANGES" after).
 
-**Not addressed this round** (unchanged from round 71): finding (2) the `{recent-NaN}` crash,
-finding (3) `route_comps_merged` not corpus-counted (explicitly descoped), finding (4) the prior
-converted-page corpus being gone from the dev DB. No bulk reconversion run yet — that's still a
-separate go/no-go decision.
+**Files changed**: `src/themes/transportny/components/MeasurePicker/colorBreaks.json` (new), `src/themes/transportny/components/MeasurePicker/composeMapConfig.js` (breaks import, `bin-method` flip), `src/themes/transportny/components/MeasurePicker/composeMeasureConfig.js` (`domainMin`/`domainMax` wiring), `src/dms/packages/dms/src/ui/components/graph_new/components/GridGraph.jsx` + `BarGraph.jsx` (new fixed-domain capability), `src/dms/packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/graph_new/config.jsx` (new SectionMenu control), `scripts/npmrds-reports/convert_old_reports_lib/config.py` (`COLOR_BREAKS` loader), `scripts/npmrds-reports/convert_old_reports_lib/route_map.py` (permanent breaks, 5 functions deleted), `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` + `convert_report.py` + `convert_template.py` (bake call sites removed).
 
-**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` (the fix,
-~12 lines). No other files.
+## Round ledger (rounds 1–80 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 80 is current, full detail above)
 
-## Round ledger (rounds 1–71 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 72 is current, full detail above)
-
+- **R79** (08-27): Info Box migrated onto the bridge — a genuinely new `grain` (`route`/`tmc`)
+  capability in `composeTableMeasuresConfig`, not just reuse, plus a `length`/`aadt` TMC-grain
+  expression override. Found+fixed a real cross-platform bug: the generic `reconcileComparisonSeriesColumnOnState`
+  was adding a spurious second categorize column at TMC grain. Reliability/multi-measure composition
+  simplified via a new `ensure_dynamic_bridge_template` helper. `info_box_templates.py` 822→~200
+  lines. Live-verified on report 1045 (after cleaning up a partial page from an unrelated transient
+  DB timeout), full census 870/870 0 errors, `full_producible` unchanged at 184. Full detail:
+  [archive, "Round 79"](./old-reports-conversion-archive.md).
+- **R78** (08-27): Route Compare Component migrated onto the bridge — near-zero-new-code, since
+  `composeTableMeasuresConfig` already produced byte-identical delta-column math; real work was 2
+  small general-purpose Table-bridge infra additions (Spreadsheet config loading, `elementType`
+  branching) round 79 also reused. One accepted behavior change: travelTime-only tables now compose
+  with no join (unneeded — functionally equivalent, matches every other travelTime consumer's own
+  contract). Live-verified on report 168, full census 870/870 0 errors, `full_producible` unchanged
+  at 184. Also raised (not resolved this round) a platform-wide static-vs-dynamic color-scale
+  question. Full detail: [archive, "Round 78"](./old-reports-conversion-archive.md).
+- **R77** (08-27): extended round 76's bridge-composition pattern from GridGraph-only to
+  LineGraph/BarGraph/Bar Graph Summary/Route Difference — 37 mechanical dict moves + 3 unlocked by a
+  new `summaryDelayGrainKey` JS capability (avgHoursOfDelay's Bar Graph Summary value, ported
+  byte-identical from Python's `_avg_delay_summary_expr`). 6 entries deliberately held back (the base
+  template; 5 "Hours of Delay Graph" per-TMC BarGraph entries — a newly-found `categorize:"tmc"`
+  BarGraph gap). Fixed a round-76 census side-effect gap (`AADT_CONSUMING_TEMPLATES` missing
+  GridGraph's bridge-composed entries) along the way. Live-verified on reports 787/584, full census
+  870/870 0 errors, `full_producible` unchanged at 184. Full detail: [archive, "Round
+  77"](./old-reports-conversion-archive.md).
+- **R76** (08-26): architectural fix — GridGraph's 18 templates now COMPOSED via the real
+  `applyMeasurePick`/`composeMeasureConfig.js` (`compose_bridge.mjs`/`compose_bridge.py`), not
+  hand-built Python; the two-independent-reimplementations problem rounds 74/75 kept finding is now
+  structurally impossible for this graph family. Found+fixed a real, independent join-staleness bug
+  for `speed`/`travelTime` along the way (round 59 never reached them). Live-verified on 4 reports
+  (435/751/1037/584), full census 870/870 0 errors, `full_producible` unchanged at 184. Full detail:
+  [archive, "Round 76"](./old-reports-conversion-archive.md).
+- **R75** (08-26): fixed GridGraph's "confetti" rainbow color scale — a direct port of
+  `composeMeasureConfig.js`'s 2026-08-12 fix (`{type:"scheme",scheme:"rdylgn",reverse}`), same
+  shape as R74's yAxis fix. Live-verified on all 18 GridGraph templates + report 435 (page
+  `2214893`). Full detail: [archive, "Round 75"](./old-reports-conversion-archive.md).
+- **R74** (08-26): fixed a user-reported live bug — every GridGraph's y-axis showed "NaN" instead
+  of the TMC id (`display.yAxis` inherited a numeric `tickFormat` from the LineGraph base template,
+  applied to a categorical TMC-id axis). This is the SAME symptom round 69 mis-diagnosed as a
+  data-shape oddity. Fixed in `graph_templates.py`'s `ensure_graph_templates` (mint + drift);
+  live-verified on report 435 (page `2214862`), all 18 GridGraph templates swept directly. Full
+  detail: [archive, "Round 74"](./old-reports-conversion-archive.md).
+- **R73** (08-26): fixed round 71 finding (2) — the `{recent-NaN}` relativeDate-placeholder crash
+  (13/870 reports), gap-logged instead of hard-crashing (`convert_report.py`). Live-verified: all
+  3 corrupted-value shapes dry-run clean; report 435 converted for real → page `2214814`
+  (superseded by R74's `2214862`), 0 errors, full census 870/870 0 errors, `full_producible`
+  unchanged at 184. Full detail: [archive, "Round 73"](./old-reports-conversion-archive.md).
+- **R72** (08-25): fixed round 71 finding (1) — `_measurePick.routeWindows` now written per-comp
+  (`section_builders.py`), matching the shape `useGraphPublish.js`/`report_build.mjs` have read
+  since the 2026-08-14 `routeWindows` migration. Live-verified on report 1045 (`--replace` → page
+  `2214660`), `report_probe.mjs --auth` 11/15 sections with content, 0 errors. Full detail:
+  [archive, "Round 72"](./old-reports-conversion-archive.md).
 - **R71** (08-25): pre-reconversion audit — census-based clean/needs-attention/junk classification
   of the full 870-report corpus (184/328/358), plus 4 tooling-verification findings (finding 1
-  fixed in R72; findings 2-4 still open — see Current state).
+  fixed in R72; finding 2 fixed in R73; findings 3-4 resolved/descoped — see Current state).
 - **R70** (08-07): converter's `_measurePick` write was unconditionally hardcoding a converted
   graph's `weekdays`/`start`/`end` to the empty "all day" default, silently dropping every
   converted report's weekday mask/peak-hour window — new `resolve_measure_pick_window`

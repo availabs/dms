@@ -450,6 +450,20 @@ const graphConfig = {
                 },
                 { type: "toggle",
                     label: "Reverse", key: "colors.reverse"
+                },
+                // Fixed value-scale domain (round 80) — for a value-scaled scheme
+                // (GridGraph, or Bar Graph's "Color by Value"), pins the color
+                // range to this [min,max] instead of computing it from whatever
+                // data happens to be loaded in this section, so the same measure
+                // reads the same color the same way across every section/report
+                // that shows it. Blank on both → auto-scale to the data (today's
+                // behavior, unchanged). Same two-flat-key shape as the existing
+                // Y Axis "Domain Min"/"Domain Max" fixed-axis override just above.
+                { type: "input", inputType: "number",
+                    label: "Domain Min", key: "colors.domainMin"
+                },
+                { type: "input", inputType: "number",
+                    label: "Domain Max", key: "colors.domainMax"
                 }
             ]
         },

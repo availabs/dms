@@ -12,17 +12,25 @@
 // Consumers: lexical ButtonNode (authored buttons/links, since 2026-07-13) and
 // dataItemsNav (nav items, since 2026-07-29). Lived inside ButtonNode until the
 // second consumer arrived.
+// The host minus its subdomain label — `tsmo2.devtny.org` → `devtny.org`,
+// `npmrds.localhost:5173` → `localhost:5173`, `devtny.org` → `devtny.org`
+// (nothing to strip). Single-depth, mirroring getSubdomain; the port rides along.
+// Second consumer since 2026-08-27: the retired-subdomain redirect
+// (utils/retiredSubdomain.js) needs the same base to build its target host.
+export function getBaseHost(host) {
+  const hostname = `${host || ''}`.split(':')[0];
+  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
+  const minParts = isLocalhost ? 2 : 3;
+  const parts = hostname.split('.');
+  return parts.length >= minParts ? host.slice(host.indexOf('.') + 1) : host;
+}
+
 export function resolveSubdomainPath(path) {
   if (!path?.startsWith('sub://') || typeof window === 'undefined') return path;
   const rest = path.slice('sub://'.length);
   const slash = rest.indexOf('/');
   const sub = slash === -1 ? rest : rest.slice(0, slash);
   const tail = slash === -1 ? '/' : rest.slice(slash);
-  const host = window.location.host; // includes port
-  const hostname = host.split(':')[0];
-  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-  const minParts = isLocalhost ? 2 : 3;
-  const parts = hostname.split('.');
-  const baseHost = parts.length >= minParts ? host.slice(host.indexOf('.') + 1) : host;
+  const baseHost = getBaseHost(window.location.host); // host includes port
   return `${window.location.protocol}//${sub}.${baseHost}${tail}`;
 }

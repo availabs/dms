@@ -5,6 +5,8 @@ import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
 import { parseIfJSON } from '../../../patterns/page/pages/_utils';
 import { getInstance } from '../../../utils/type-utils';
+import { collectSiteRootPaths } from '../../../utils/mountPath';
+import { buildRetiredSubdomainMap, applyRetiredSubdomainRedirect } from '../../../utils/retiredSubdomain';
 import patternTypes from '../../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
@@ -157,6 +159,38 @@ export function pattern2routes (siteData, props) {
     // Build datasetPatterns once (for backwards compatibility with other patterns)
     const datasetPatterns = patterns.filter(p => ['forms', 'datasets', 'mapeditor'].includes(p.pattern_type));
 
+    // Every pattern mount's first path segment (`/auth`, `/datasources`, `/docs`,
+    // `/list`, …), across ALL subdomains — the set a site-absolute authored link is
+    // allowed to point at without picking up the current mount's prefix. Derived
+    // from the same mount list the router registers, so it can't drift from the
+    // live route table. See utils/mountPath.js.
+    const siteRootPaths = collectSiteRootPaths(
+        patterns
+          .filter(p => p?.pattern_type)
+          .flatMap(p => getPatternMounts(p).map(m => m.base_url))
+    );
+
+    // Retired subdomains — a pattern that has moved to a path on the root domain
+    // can list the hosts it used to answer on, and they bounce to the new location
+    // instead of 404ing. Hosting-level 301s stay the primary mechanism (faster, and
+    // they work without loading the bundle); this is the environment-portable
+    // backstop that also covers local development. A subdomain some pattern STILL
+    // mounts is never redirected — the live route wins, so a half-applied cutover
+    // degrades to "the old URL keeps working". See utils/retiredSubdomain.js.
+    const livePatternSubdomains = new Set(
+        patterns
+          .filter(p => p?.pattern_type)
+          .flatMap(p => getPatternMounts(p).map(m => `${m.subdomain || ''}`.toLowerCase()))
+          .filter(Boolean)
+    );
+    const retiredSubdomainMap = buildRetiredSubdomainMap(
+        patterns.filter(p => p?.pattern_type),
+        (sub) => livePatternSubdomains.has(sub)
+    );
+    if (applyRetiredSubdomainRedirect({
+        retiredMap: retiredSubdomainMap, siteRootPaths, subdomain: getSubdomain(host),
+    })) return [];
+
     const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
 
     // Extract dmsEnv rows from site data (loaded via dms-format attribute)
@@ -281,6 +315,7 @@ export function pattern2routes (siteData, props) {
                     format: pattern?.config,
                     // downstream link-building reads pattern.base_url — give it this mount's
                     pattern: { ...pattern, base_url: mount.base_url, navPrefix: mount.navPrefix || '', filters: resolvedFilters },
+                    siteRootPaths,
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     authBaseUrl,

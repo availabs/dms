@@ -7,6 +7,8 @@ import {formatFunctions} from "../../../../patterns/page/components/sections/com
 import { RenderAction, RenderActionsPopup } from "./RenderActions";
 import {TableCellContext, TableStructureContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
+import {MountContext} from "../../../mountContext";
+import {resolveMountPath} from "../../../../utils/mountPath";
 
 const justifyClass = {
     left: 'justify-start',
@@ -26,7 +28,7 @@ const parseIfJson = strValue => {
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{typeof value === 'object' ? JSON.stringify(value) : value}</div>
 
-const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
+const LinkComp = ({attribute, columns, newItem, removeItem, value, mount}) => {
     const {actionType, location, linkText, isLink, isLinkExternal, useId} = attribute;
     // isLink:
         // linkText
@@ -86,6 +88,12 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
         } else {
             url = `${location || valueFormattedForDisplay}${searchParams}`;
         }
+        // A site-absolute destination — whether authored as the column's `location`
+        // or carried in the row's own data (the Freight Atlas gallery's
+        // `/freight_atlas?layers=…` cells) — is written against the pattern's
+        // PRIMARY layout. Re-point it at the mount actually being served; no-op on
+        // a root mount and on another pattern's path. See utils/mountPath.js.
+        url = resolveMountPath(url, mount?.baseUrl, mount?.siteRootPaths);
         // The cell renderer spreads the WHOLE column object (attributeProps) in, so `props` carries
         // column-config keys (activeStyle, customName, linkText, normalName, formatFn, …). Forward
         // ONLY DOM-safe props to the <a>/<Link>; spreading the rest leaks invalid attributes and
@@ -179,6 +187,10 @@ export const TableCell = memo(function TableCell ({
         updateItem, removeItem, columns, display, theme
     } = useContext(TableCellContext);
     const { highlightedRow, visibleAttrsWithoutOpenOut = [] } = useContext(TableStructureContext);
+    // Which pattern mount this table is rendering under — used to resolve
+    // site-absolute `isLink` destinations (LinkComp). `{}` outside the page
+    // pattern, which resolves to today's behavior.
+    const mount = useContext(MountContext);
 
     // =================================================================================================================
     // ============================================ Cell Properties begin ==============================================
@@ -294,9 +306,9 @@ export const TableCell = memo(function TableCell ({
         compType === 'ui' ? (attribute.Comp || DisplayCalculatedCell) :
             renderTextBox ? DataTypes.textarea.EditComp :
                 attribute.isLink || attribute.actionType ?
-                    LinkComp({attribute, columns, newItem, removeItem, value: rawValue}) :
+                    LinkComp({attribute, columns, newItem, removeItem, value: rawValue, mount}) :
                     (DataTypes[compType]?.[compMode] || DisplayCalculatedCell),
-        [compType, compMode, renderTextBox, attribute, newItem, rawValue]);
+        [compType, compMode, renderTextBox, attribute, newItem, rawValue, mount]);
 
     const formattedValue = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
         compMode === 'EditComp' ? rawValue : // edit mode should always show raw value
