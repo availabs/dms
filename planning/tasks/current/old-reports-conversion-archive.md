@@ -18,6 +18,108 @@ and leave only its ledger line in the live file.
 
 ---
 
+## Round 84 (2026-08-31) — Map hover tooltips (round 82 finding 6 / Round C): mechanism confirmed, fixed across all 3 Route-Map-building code paths, live-verified (moved verbatim to archive on 2026-08-31, round 85 start)
+
+**Context**: round 82 flagged Map hover tooltips as a real user-reported gap ("hovering a Map
+feature shows nothing"), but round 82's own investigation had wrongly concluded "no hover machinery
+exists at all" — corrected by the user: hover popups are an existing, proven, symbology-level DMS
+map capability (set via the Map Editor's own Popover tab), not a from-scratch feature. This round
+re-investigated against the corrected mechanism, then built and verified the fix.
+
+**Mechanism, confirmed by reading the real runtime code**: a Map layer's hover popup is gated by
+two per-layer symbology keys, `layer['hover']` ('hover'/'') and `layer['hover-columns']` (an array
+of `{column_name, display_name, formatFn, justify, ...}` rows), read by `HoverComp` in
+`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/SymbologyViewLayer.jsx`
+and normally authored via the Map Editor's Layer Editor → Popover tab (`PopoverEditor/index.jsx`).
+Critically, `HoverComp` already handles Route Map's exact join shape (`layer.props.join`'s
+`featureKeyColumn`/`joinColumn`/`source.viewId`/`query`) with a live join-source fallback fetch —
+but for Route Map specifically that fallback never fires, since the tile URL builder
+(`getLayerTileUrl`) already appends the `join=` param so dms-server bakes the joined `value` column
+directly into the MVT tile's feature properties server-side. So a hover popup showing `tmc` +
+`value` reads data already sitting on the hovered feature — zero extra network round-trips.
+
+**The actual gap, and why it's 3 code paths, not 1**: the Route Map layer JSON is built
+independently in THREE places, and none of them set `hover`/`hover-columns`:
+1. **`scripts/npmrds-reports/convert_old_reports_lib/route_map.py`** (Python converter,
+   `convert_report.py`/`convert_template.py`'s old-report-conversion path) — confirmed via
+   `grep -rn hover` across the whole converter lib: zero hits.
+2. **`scripts/npmrds-reports/report_build.mjs`** (the spec-driven Dynamic Report Template
+   builder) — checked its own source: it does NOT reimplement Map composition. Its own comment
+   explains why: a `graphType: "Map"` graph "shells out to convert_old_reports.py's
+   `--route-map-section` ... reuses the Route Map choropleth machinery built for the
+   old-report-conversion task rather than reimplementing template-minting/CH quantile-baking a
+   second time in JS." So this path is automatically covered by fixing #1 — confirmed by
+   dry-running `--route-map-section` directly and seeing `hover`/`hover-columns` in its JSON output.
+3. **`src/themes/transportny/components/MeasurePicker/composeMapConfig.js`** (the live "Add
+   Graph → Map" / QuickControls measure-repick authoring UI) — a genuinely separate JS
+   reimplementation (its own header comment says it's ported from `route_map.py`'s logic) with its
+   own two layer-builders, `buildRouteGeometryLayer`/`buildChoroplethLayer`. This one needed its own
+   independent fix — the user's own mid-session question ("will these changes also be picked up by
+   ... `composeMeasureConfig`? `report_build.mjs`? the python converter?") is what surfaced this as a
+   real, separate gap rather than assuming symmetry.
+
+**Fixed**:
+- `route_map.py` — new `route_map_hover_columns(value_label=None, value_format=' ')` helper
+  (mirrors the map runtime's `normalizeHoverColumn` shape) returns a `tmc` row always, plus a
+  `value` row when a measure has one. Wired into all 5 template-builders: `ensure_route_map_none_template`
+  (TMC-only), `_speed_template` ("Speed (mph)", `decimal_2`), `_traveltime_template` ("Travel Time",
+  `minutes_clock` — matches round 35's route-traversal-MINUTES unit), `_avghoursofdelay_template`/
+  `_hoursofdelay_template` ("Avg./Hours of Delay", `decimal_2`).
+- `composeMapConfig.js` — new `routeMapHoverColumns(measureKey)` helper mirroring the Python one
+  (same field shape, same shared `formatFunctions` registry), wired into both
+  `buildRouteGeometryLayer` (TMC-only) and `buildChoroplethLayer` (TMC + value). Per-measure
+  `HOVER_VALUE_FORMAT` mirrors Python's for the 4 measures Python also builds
+  (speed/travelTime/hoursOfDelay/avgHoursOfDelay); the 4 CO2 variants (JS-only, no Python
+  precedent) fall through to raw passthrough (`' '`) rather than `decimal_2`, since their real
+  values sit in the 0.0001–0.05 range and `decimal_2` would round every one of them to "0.00" (see
+  `colorBreaks.json`'s own note on those measures' domains) — a formatter that actively lies is
+  worse than none.
+- Both `useAddGraphSection.js` (new Map section) and `MeasurePicker/index.js` (measure re-pick via
+  QuickControls) call these same two functions — confirmed by reading both call sites — so creating
+  a Map via the live UI, and later re-picking its measure, both get hover automatically, per the
+  user's explicit ask ("i want it so when the user creates a Map via the UI, it also has these hover
+  things setup automatically").
+
+**Verified live** (claude-in-chrome + the user's own hands-on check, both against the running dev
+stack):
+- Python path: reconverted old report 971 (`nittec_150`, `--replace` → page `2216069`) —
+  `report_probe.mjs --auth`: 0 console/page/SQL errors. User confirmed hovering a Route Map segment
+  shows a popup titled with the route's own comparison-series label ("5-min on Sept29") with **TMC**
+  and **Speed (mph)** rows, correct values.
+- JS authoring path: created a scratch report (`converted_reports/page_23`, DRAFT — deleted after
+  verification) via "Create Report" → "+ Add Route" → "+ Add Graph" → Map → Travel Time. User
+  confirmed the hover popup shows correctly (TMC + Travel Time). Also surfaced and fixed a doc gap:
+  **`+ Add Graph` silently no-ops with 0 routes on the report** — logged as a new gotcha in
+  `src/dms/skills/traversing-report-pages.md` §5.
+- `route_map_none`'s TMC-only hover-columns shape verified via `--route-map-section --measure none`
+  dry-run JSON output (not separately click-tested — same runtime mechanism already proven twice
+  above via speed and travelTime).
+
+**New deferred finding (NOT fixed this round, per explicit user direction — "dont do this now")**:
+while verifying the Travel Time hover, the user flagged Travel Time's Route Map color scale as bad
+in two distinct ways: (1) it's the pre-round-82 placeholder ramp (`colorBreaks.json`'s `travelTime`
+entry: `#ce141f→#e1631a→#ec962a→#f3c048→#f7e76e`, a red-to-pale-yellow ramp, never given the
+ColorBrewer RdYlGn treatment round 82 gave `speed` — round 82 deliberately scoped that fix to speed
+only) — user's view: for Travel Time specifically, a STATIC scale is wrong in principle and it
+should be dynamic/data-driven instead of just re-colored; (2) **the polarity looks backwards** —
+low travel time (fast/good) currently renders red (`colors[0]`) and high travel time (slow/bad)
+renders pale yellow (`colors[-1]`), the opposite of the intuitive "green=good, red=bad" convention
+`speed`'s fixed ramp already follows correctly. Since `hoursOfDelay`/`avgHoursOfDelay`/the CO2
+measures share this exact same placeholder color array and have the same "higher=worse" polarity as
+travelTime, they likely have the identical backwards-polarity issue — unconfirmed, not
+user-observed, flagged here as a probable but unverified extension of the same bug. Nothing touched
+this round; logged in "Known functionality gaps" below for whenever it's picked up.
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/route_map.py`,
+`src/themes/transportny/components/MeasurePicker/composeMapConfig.js`,
+`src/dms/skills/traversing-report-pages.md` (new gotcha, §5). No DB migration; no backfill required
+for NEW conversions (drift-detection on the shared per-year templates picks the fix up
+automatically) — existing already-converted pages with a Route Map section need a `--replace`
+reconversion to pick up hover, same lazy-reconvert policy as every other template-level fix this
+task has shipped (blast radius is small: `converted_pages_total` is only 10-11 right now).
+
+---
+
 ## Round 83 (2026-08-31) — user-reported report-browser bug: converted reports invisible/unclickable in "Choose a report" + Tag Browser; root-caused to two independent bugs, both fixed + backfilled + live-verified (moved verbatim to archive on 2026-08-31, round 84 start)
 
 **Context**: user tried to find their own just-converted report (`787_nb_5_12_2026`, old report
