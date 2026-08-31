@@ -1,6 +1,8 @@
 import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
 import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
+import {MountContext} from '../mountContext';
+import {resolveMountPath} from '../../utils/mountPath';
 import ColumnTypes from "../columnTypes";
 import NavigableMenu from "./navigableMenu";
 import CardColumnPicker from './CardColumnPicker';
@@ -394,6 +396,9 @@ const CardColumnField = ({
     const [hovered, setHovered] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const visible = hovered || isMenuOpen;
+    // Which pattern mount this card is rendering under, for site-absolute link
+    // cells. `{}` outside the page pattern → today's behavior.
+    const mount = React.useContext(MountContext);
     const {isLink, isLinkExternal, location, linkText, isImg, imageSrc, imageLocation, imageExtension, imageSize} = attr || {};
     // cardHints: optional metadata declared by a column type (typically a
     // theme-registered one) that lets the type opt out of the field chrome.
@@ -482,6 +487,13 @@ const CardColumnField = ({
         } else {
             url = `${location || valueFormattedForDisplay}${searchParams}`;
         }
+        // A site-absolute destination — the column's `location` or, as in the
+        // Freight Atlas maps gallery, a `/freight_atlas?layers=…` value carried in
+        // the row's own data — is written against the pattern's PRIMARY layout.
+        // Re-point it at the mount being served. No-op on a root mount and on
+        // another pattern's path. Same treatment as TableCell's LinkComp; see
+        // utils/mountPath.js.
+        url = resolveMountPath(url, mount?.baseUrl, mount?.siteRootPaths);
     }
 
     const wrapperFlexClass = headerValueLayout === 'col' && !reverse ? theme.itemFlexCol :
@@ -693,6 +705,20 @@ const CardColumnField = ({
                         }
                     </div>
             }
+            {/* subValueCol: render a SIBLING column's value (usually a selectOnly
+                aggregate) as a subline inside this cell — the stat-card
+                "N% of actions" row. `subValueFontStyle` picks its type token;
+                absent → no output, so every existing cell is unchanged. */}
+            {attr.subValueCol ? (() => {
+                const sv = source?.[attr.subValueCol];
+                const svVal = sv !== null && sv !== undefined && typeof sv === 'object'
+                    ? (sv.value ?? sv.originalValue ?? '') : sv;
+                return (svVal === undefined || svVal === null || svVal === '') ? null : (
+                    <div className={`${theme[attr.subValueFontStyle] || ''} ${theme[valueTextJustifyClass] || ''}`}>
+                        {svVal}
+                    </div>
+                );
+            })() : null}
             {menuButton}
         </div>
     );
@@ -918,6 +944,7 @@ export default function Card ({
 
     const {
         cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
+        cardsRadius, cardsBorderColor,
         cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
         cellsVerticalAlign, cellsTracksTemplate, cellsRowsTemplate,
         cardBorder, cellBorder,
@@ -963,10 +990,13 @@ export default function Card ({
 
     const subWrapperStyle = useMemo(
         () => resolveCellsGridStyle({
-            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate },
+            // cardsRadius/cardsBorderColor: the per-card surface chrome (tinted
+            // filter panels) — resolveCellsGridStyle reads them; dropping them
+            // from this pick silently un-borders every panel card.
+            display: { cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate, cardsRadius, cardsBorderColor },
             gridTemplateColumns, hasRowSpan,
         }),
-        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, cellsRowsTemplate, hasRowSpan]);
+        [gridTemplateColumns, cellsGridGap, cellsRowGap, cellsColumnGap, cardsBgColor, cardsPadding, cellsRowHeight, cellsVerticalAlign, cellsRowsTemplate, cardsRadius, cardsBorderColor, hasRowSpan]);
 
     // Reordering function
     function handleDrop(targetCol) {

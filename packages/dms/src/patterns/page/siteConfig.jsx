@@ -11,11 +11,23 @@ import { CMSContext } from "./context";
 import { isUserAuthed } from "../../utils/auth.js";
 import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
+import { MountContext } from "../../ui/mountContext.js";
 import { registerWidget } from "../../ui/widgets";
 import { registerComponents } from './components/sections/componentRegistry';
 import { registerSectionMenuExtensions } from './components/sections/sectionMenuExtensions';
 import { registerSectionHeaderExtensions } from './components/sections/sectionHeaderExtensions';
 import { registerColumnType } from "../../ui/columnTypes";
+import { FilterControlCell } from "./components/sections/FilterControlCell";
+
+// `filter_control` — a Card cell that hosts a viewer-facing filter control
+// writing a page variable (see FilterControlCell.jsx for the column config).
+// Registered here (module scope, once) because the cell needs the page
+// pattern's contexts; the ui registry stays pattern-agnostic.
+registerColumnType('filter_control', {
+    name: 'Filter Control',
+    EditComp: FilterControlCell,
+    ViewComp: FilterControlCell,
+});
 import SearchButton from "./components/search/index";
 import DefaultMenu from "./components/userMenu";
 
@@ -37,6 +49,7 @@ const pagesConfig = ({
   authBaseUrl = '/auth',
   themes = { default: {} },
   pattern,
+  siteRootPaths = [],
   datasources,
   dmsEnvs = [],
   dmsEnvById = {},
@@ -48,6 +61,12 @@ const pagesConfig = ({
   ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern)
+
+  // Which mount this route set serves, for resolving site-absolute authored link
+  // values (utils/mountPath.js). Built once per config — NOT inline in the
+  // provider — so its identity is stable across renders, the same reason
+  // App.jsx memoizes dmsConfig/pgEnvs.
+  const mountContextValue = { baseUrl, siteRootPaths }
 
   // Auto-register theme-provided page components
   if (theme.pageComponents) {
@@ -179,7 +198,9 @@ const pagesConfig = ({
               }
             }}>
               <ThemeContext.Provider value={{theme, UI, getComponentTheme}}>
-                {children}
+                <MountContext.Provider value={mountContextValue}>
+                  {children}
+                </MountContext.Provider>
               </ThemeContext.Provider>
             </CMSContext.Provider>
           )

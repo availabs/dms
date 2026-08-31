@@ -545,8 +545,12 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
         updatePageStateFilters(nextFilters);
     }, [shareEnabled, state.symbologies, pageState.filters, shareReadReconciled]);
 
+    // Also ready if a symbology is plugin-only (no regular layers).
     const isReady = useMemo(() => {
-        return Object.values(state.symbologies || {}).some(symb => Object.keys(symb?.symbology?.layers || {}).length > 0);
+        return Object.values(state.symbologies || {}).some(symb =>
+            Object.keys(symb?.symbology?.layers || {}).length > 0 ||
+            Object.keys(symb?.symbology?.plugins || {}).length > 0
+        );
     }, [state.symbologies]);
 
     const activeSym = useMemo(() => {

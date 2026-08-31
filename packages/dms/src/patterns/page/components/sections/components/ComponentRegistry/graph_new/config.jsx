@@ -596,13 +596,22 @@ const graphConfig = {
                         {label: 'Stacked', value: 'stacked'},
                         {label: 'Grouped', value: 'grouped'},
                     ]},
+                // Gap between bars, as d3's band-scale INNER PADDING — a
+                // fraction of the band step, NOT pixels. bandwidth =
+                // step * (1 - paddingInner), so 1 means zero-width (invisible)
+                // bars; d3 clamps anything larger to 1, which is why typing a
+                // pixel-ish "10" here used to make the whole chart vanish.
+                // max 0.9 keeps that unreachable; blank = inherit the theme's
+                // chartDefaults. ~0.3 reads like the design-system bar rows.
                 { type: "input", inputType: "number",
-                    label: "Inner Padding", key: "paddingInner"
+                    label: "Bar Spacing (0–0.9)", key: "paddingInner",
+                    min: 0, max: 0.9, step: 0.05, placeHolder: "theme default"
                 },
-                // Bar fill-opacity. Blank → the CSS default (0.75, :hover → 1).
-                // Set to 1 for solid, design-matching bars (0–1).
+                // Bar fill-opacity, 0–1. Blank → the CSS default (0.75, :hover → 1).
+                // Set to 1 for solid, design-matching bars.
                 { type: "input", inputType: "number",
-                    label: "Bar Opacity", key: "barOpacity"
+                    label: "Bar Opacity (0–1)", key: "barOpacity",
+                    min: 0, max: 1, step: 0.05, placeHolder: "theme default"
                 },
                 // Off (default) → one color per series (route/comparison), the
                 // usual multi-series legend. On → one scale across the whole

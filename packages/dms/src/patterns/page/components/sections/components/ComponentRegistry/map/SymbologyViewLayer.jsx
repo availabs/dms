@@ -1619,7 +1619,13 @@ const getLayerTileUrl = (tileBase, layerProps) => {
   
   const dynamicCols = layerProps?.["dynamic-filters"]
     ?.filter((dFilter) => dFilter?.values?.length > 0)
-    .map((dFilter) => dFilter.column_name); 
+    .map((dFilter) => dFilter.column_name)
+    // Expression column_names (data->>'x', CASE …) can't be tile PROPERTIES —
+    // appending them to `cols=` makes the tile server return EMPTY tiles for
+    // the whole layer. They don't need to be: a serverSide dynamic-filter does
+    // its work in the `filter=` SQL clause, which accepts expressions fine.
+    // Only plain identifiers may ride along as tile properties.
+    .filter((col) => /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(col || ''));
   const colsToAppend = dataFilterCols
     .concat(dynamicCols)
     .filter(onlyUnique)

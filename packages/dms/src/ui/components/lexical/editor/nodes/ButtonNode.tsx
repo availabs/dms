@@ -27,6 +27,8 @@ import {InsertButtonDialog} from "../plugins/ButtonPlugin";
 import useModal from "../hooks/useModal";
 import { ThemeContext, getComponentTheme } from "../../../../useTheme";
 import { resolveSubdomainPath } from "../../../../../utils/subdomainPath";
+import { resolveMountPath } from "../../../../../utils/mountPath";
+import { MountContext } from "../../../../mountContext";
 import { usePageActionsContext } from "../context/usePageActionsContext";
 
 /**
@@ -64,13 +66,17 @@ function resolveButtonStyleName(
 // (moved there 2026-07-29 when dataItemsNav became a second consumer — see
 // planning/tasks/current/nav-subdomain-links.md). BC: only `sub://` paths are affected.
 
-function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, actionType, paramKey, paramValue}) {
+function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, actionType, paramKey, paramValue, icon}) {
   const isEditable = useLexicalEditable();
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
   const location = useLocation();
   const navigate = useNavigate();
-  const resolvedPath = resolveSubdomainPath(path);
+  // `sub://` first (may return an absolute cross-origin URL, which the mount
+  // resolver leaves alone), then the current mount's baseUrl for site-absolute
+  // paths — so one authored `/congestion_v2` works on every mount of its pattern.
+  const { baseUrl: mountBaseUrl, siteRootPaths } = React.useContext(MountContext) || {};
+  const resolvedPath = resolveMountPath(resolveSubdomainPath(path), mountBaseUrl, siteRootPaths);
   const linkPath = keepSearchParams ? `${resolvedPath}${location.search}` : resolvedPath;
 
   const { theme: fullTheme = {}, UI } = React.useContext(ThemeContext) || {};
@@ -95,7 +101,7 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
         <InsertButtonDialog
           activeEditor={editor}
           onClose={onClose}
-          initialValues={{linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, nodeKey}}
+          initialValues={{linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon, nodeKey}}
         />
       ));
       return;
@@ -112,15 +118,23 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
     }
   };
 
+  // Optional leading icon (registered Icon name, author-picked in the button
+  // dialog). Its classes come from the button STYLE's optional `icon` key —
+  // themes without one get a plain inline-size default.
+  const t = getComponentTheme(fullTheme, 'button', activeStyle);
+  const Icon = UI?.Icon;
+  const iconEl = icon && Icon
+    ? <Icon icon={icon} className={t?.icon || 'inline-block size-3.5 shrink-0'} />
+    : null;
+
   // Belt-and-braces: if UI.Button isn't available (e.g. node rendered
   // outside a ThemeContext provider) fall back to a span with the theme's
   // button class string. Same brand skin, different element.
   if (!Button) {
-    const t = getComponentTheme(fullTheme, 'button', activeStyle);
     return (
       <>
         <span className={t?.button || ''} onClick={handleClick}>
-          {linkText || 'submit'}
+          {iconEl}{linkText || 'submit'}
         </span>
         {modal}
       </>
@@ -130,7 +144,7 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
   return (
     <>
       <Button activeStyle={activeStyle} onClick={handleClick}>
-        {linkText || 'submit'}
+        {iconEl}{linkText || 'submit'}
       </Button>
       {modal}
     </>
@@ -144,6 +158,7 @@ export interface ButtonPayload {
     actionType?: 'navigate' | 'setParam';
     paramKey?: string;
     paramValue?: string;
+    icon?: string;
 }
 
 export type SerializedButtonNode = Spread<
@@ -155,6 +170,7 @@ export type SerializedButtonNode = Spread<
     actionType?: 'navigate' | 'setParam';
     paramKey?: string;
     paramValue?: string;
+    icon?: string;
   },
   SerializedDecoratorNode
 >;
@@ -168,8 +184,9 @@ function convertButtonElement(
   const actionType = domNode.getAttribute('data-lexical-button-action-type') || undefined;
   const paramKey = domNode.getAttribute('data-lexical-button-param-key') || undefined;
   const paramValue = domNode.getAttribute('data-lexical-button-param-value') || undefined;
+  const icon = domNode.getAttribute('data-lexical-button-icon') || undefined;
   if (linkText) {
-    const node = $createButtonNode({linkText, path, style, actionType, paramKey, paramValue});
+    const node = $createButtonNode({linkText, path, style, actionType, paramKey, paramValue, icon});
     return {node};
   }
   return null;
@@ -183,13 +200,14 @@ export class ButtonNode extends DecoratorNode {
   __actionType: 'navigate' | 'setParam';
   __paramKey: string;
   __paramValue: string;
+  __icon: string;
 
   static getType(): string {
     return 'button';
   }
 
   static clone(node: ButtonNode): ButtonNode {
-    return new ButtonNode(node.__linkText, node.__keepSearchParams, node.__path, node.__style, node.__actionType, node.__paramKey, node.__paramValue, node.__key);
+    return new ButtonNode(node.__linkText, node.__keepSearchParams, node.__path, node.__style, node.__actionType, node.__paramKey, node.__paramValue, node.__icon, node.__key);
   }
 
   static importJSON(serializedNode): ButtonNode {
@@ -201,6 +219,7 @@ export class ButtonNode extends DecoratorNode {
       actionType: serializedNode.actionType,
       paramKey: serializedNode.paramKey,
       paramValue: serializedNode.paramValue,
+      icon: serializedNode.icon,
     });
 
     return node;
@@ -218,10 +237,11 @@ export class ButtonNode extends DecoratorNode {
       actionType: this.__actionType,
       paramKey: this.__paramKey,
       paramValue: this.__paramValue,
+      icon: this.__icon,
     };
   }
 
-  constructor(linkText: string, keepSearchParams: boolean, path?: string, style?: string, actionType?: 'navigate' | 'setParam', paramKey?: string, paramValue?: string, key?: NodeKey) {
+  constructor(linkText: string, keepSearchParams: boolean, path?: string, style?: string, actionType?: 'navigate' | 'setParam', paramKey?: string, paramValue?: string, icon?: string, key?: NodeKey) {
     super(key);
     this.__linkText = linkText;
     this.__keepSearchParams = keepSearchParams;
@@ -230,6 +250,7 @@ export class ButtonNode extends DecoratorNode {
     this.__actionType = actionType || 'navigate';
     this.__paramKey = paramKey;
     this.__paramValue = paramValue;
+    this.__icon = icon || '';
   }
 
   createDOM(config: EditorConfig): HTMLElement {
@@ -255,6 +276,7 @@ export class ButtonNode extends DecoratorNode {
       if (this.__paramKey) element.setAttribute('data-lexical-button-param-key', this.__paramKey);
       if (this.__paramValue) element.setAttribute('data-lexical-button-param-value', this.__paramValue);
     }
+    if (this.__icon) element.setAttribute('data-lexical-button-icon', this.__icon);
     element.textContent = this.__linkText;
     return {element};
   }
@@ -293,6 +315,7 @@ export class ButtonNode extends DecoratorNode {
         actionType={this.__actionType}
         paramKey={this.__paramKey}
         paramValue={this.__paramValue}
+        icon={this.__icon}
       />
     );
   }
@@ -303,8 +326,8 @@ export class ButtonNode extends DecoratorNode {
 }
 
 export function $createButtonNode(payload): ButtonNode {
-  const {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue} = payload
-  return new ButtonNode(linkText, keepSearchParams, path, style, actionType, paramKey, paramValue);
+  const {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon} = payload
+  return new ButtonNode(linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon);
 }
 
 export function $isButtonNode(

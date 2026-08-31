@@ -187,11 +187,35 @@
 
 ## ui
 
+### ui/nav
+
+- [x] [nav: `rootPath` opt-in on authored navItems](./tasks/current/nav-rootpath-items.md) — cross-pattern secondary navs: an authored navItem with `rootPath: true` skips the host pattern's baseUrl (app-root-relative). Motivating use: the MNY actions pattern's topNav is now a generated copy of the county-plan nav (2026-08-26).
+
 ### ui/filter-controls
 
 - [x] [Map section: `"1/2"` (450px) height option](./tasks/current/map-height-option-half.md) — one-line additive; settings select derives from Object.keys (2026-08-24)
 - [x] [Filter-control theming enrichments](./tasks/current/filter-control-theming-enrichments.md) — `Input` resolves `activeStyle` named styles (flat themes unchanged); filter leaves may author `placeholder`; empty multi-select triggers render a provided placeholder (2026-08-25)
-- [ ] [Filter controls as Card cells (`filter_control` columnType) — scoping](./tasks/current/filter-controls-as-card-cells.md) — proposal answering "deprecate Filter, lay filters out with Card?": don't deprecate; add a Card columnType that mounts the shared filter controls and writes page variables. Decision + design wanted.
+- [x] [Filter controls as Card cells (`filter_control` columnType)](./tasks/current/filter-controls-as-card-cells.md) — IMPLEMENTED 2026-08-25: Card cells that host the shared filter controls and write page variables (page-variable-only state; options scoped by the host card's own filter tree; buildUdaConfig drops the columns at intake — load-bearing). Live-verified on the MNY Actions Dashboard's single-panel filter band. The Filter section stays, not deprecated. Round 3 (2026-08-27): `toggleCellWrapper`/`toggleLabel` theme hooks (bare design checkboxes; pill fallback = BC); JSONB selects work via the `expr as alias` calc shape (bare `data->>` 500s on the options endpoint).
+
+### ui/card
+
+- [x] [Card stat-cell enrichments](./tasks/current/card-stat-cell-enrichments.md) — `subValueCol`/`subValueFontStyle` (sibling column's value as an in-cell subline — "N% of actions"; aliased calc siblings need `normalName`), `cellOutline` (per-cell CSS border shorthand incl. dashed), `cellRadius`. All additive; recipe + gotchas in skills/card-layout.md (2026-08-27).
+
+### patterns/page — sections
+
+- [x] [Section authPermissions gate VIEW visibility](./tasks/current/section-authpermissions-view-gate.md) — sections carrying authPermissions now hide from viewers failing `['view']` (edit mode unaffected; no permissions = unchanged). `{groups:{public:[]}}` = signed-in only. Motivating use: MNY dashboard's staff-only CTA sections (2026-08-27).
+
+### patterns/page — map
+
+- [x] [Map tiles: expression dynamic-filters](./tasks/current/map-tile-expression-filters.md) — a serverSide dynamic-filter with an expression column_name (`data->>'x'`) blanked the whole layer: the `filter=` clause takes expressions fine, but the active filter's column_name was also appended to `cols=` where an expression can't be a tile property → empty tiles. `cols=` now keeps plain identifiers only (2026-08-27).
+
+### ui/table
+
+- [x] [Lexical button icon](./tasks/current/lexical-button-icon.md) — Button nodes carry an optional registered-icon name (dialog "Icon" input); classes come from the button style's `icon` key (mny `pillWhite`). BC (2026-08-27).
+- [x] [Spreadsheet external download trigger](./tasks/current/spreadsheet-download-on-param.md) — `display.downloadOnParam`: a lexical `setParam` action button (or a registered URL var) triggers the section's existing download; the section clears the param so clicks repeat. Gotcha: `keepSearchParams` + query-only path = malformed double-`?` (2026-08-27).
+
+- [x] [dataWrapper Pagination honors `display.tableStyle`](./tasks/current/tablestyle-pagination-parity.md) — one-line precedence parity with the Table body (`display.tableStyle || activeStyle`); a named table style now restyles its pagination too. Found via the mny `mny-inventory` style (2026-08-26).
+- [x] [Table design-parity enrichments](./tasks/current/table-design-parity-enrichments.md) — themeable open-out expander (`openOutIcon`/`openOutIconOpen`/`openOutIconSize` table-style keys, chevron flip via the previously-ignored `showOpenOut` prop) + `linkIcon` on isLink columns (icon-only action columns; "Link Icon" control) + `row` base-class key enabling whole-row hover via `group/row` (must be in index.jsx's curated rowTheme pick-list). All default to prior behavior (2026-08-27).
 
 - [x] [Card link cells ignore their font token's `leading` (inline `<a>` strut)](./tasks/completed/card-link-cell-line-height.md) —
       SHIPPED 2026-08-14. The token sits on the `<a>`/`<Link>` (deliberately — a box token on both
@@ -453,6 +477,22 @@
 ## patterns
 
 ### patterns/page
+
+- [x] [Bounded numeric display controls — clamp on write, blank = unset](./tasks/current/numeric-control-clamp-and-unset.md) —
+      **IMPLEMENTED 2026-08-25, live UI pass still open.** Reported as "setting inner padding on a
+      bar graph makes the bars disappear." Root cause was two defects in one write path: (1) numeric
+      display controls never clamped, and `paddingInner` is a d3 band-scale *fraction*, so d3's
+      `Math.min(1, _)` + `bandwidth = step * (1 - paddingInner)` turns any entry >= 1 (someone typing
+      a pixel-ish "10") into **zero-width bars** with no error — and HTML `min`/`max` can't stop
+      typing, so the clamp had to be on write; (2) `+'' === 0`, so clearing a field pinned an
+      explicit 0 that shadows the theme's `chartDefaults` in `mergeChartDefaults`, making "use the
+      brand default" unreachable from the UI. Adds `coerceControlValue` to `controls_utils.js`
+      (clamp + blank/garbage -> unset), makes `updateDisplayValue` **delete** on `undefined` only
+      (0/''/null/false still survive), forwards `min`/`max`/`step`/`placeHolder` through
+      `sectionMenu.jsx`'s input transformer to the DOM, adds an opt-in `coerce` prop to
+      `InputControl` (BC for every existing caller), and bounds graph_new's two 0–1 controls —
+      "Bar Spacing (0–0.9)" and "Bar Opacity (0–1)". Verified against the real `d3-scale`: no input
+      now yields `bandwidth === 0`. Follow-up noted: `paddingOuter` still has no author control.
 
 - [x] [Reuse buildUdaConfig's filter-tree pipeline for options queries](./tasks/completed/filter-options-reuse-builduda-pipeline.md) —
       DONE 2026-08-06. `useColumnOptions` (server filters + ComplexFilters' own value

@@ -618,6 +618,9 @@ export default function Table ({
     }, [data, showTotal]);
 
     const rowTheme = useMemo(() => ({
+        // optional base class on every data row (e.g. `group/row` so cell bg
+        // keys can hover the whole row via group-hover/row:)
+        row: theme?.row,
         totalRow: theme?.totalRow,
         stripedRow: theme?.stripedRow,
         gutterCellWrapper: theme?.gutterCellWrapper,

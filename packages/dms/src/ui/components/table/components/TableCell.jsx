@@ -7,6 +7,8 @@ import {formatFunctions} from "../../../../patterns/page/components/sections/com
 import { RenderAction, RenderActionsPopup } from "./RenderActions";
 import {TableCellContext, TableStructureContext} from "../index";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
+import {MountContext} from "../../../mountContext";
+import {resolveMountPath} from "../../../../utils/mountPath";
 
 const justifyClass = {
     left: 'justify-start',
@@ -26,7 +28,7 @@ const parseIfJson = strValue => {
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{typeof value === 'object' ? JSON.stringify(value) : value}</div>
 
-const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
+const LinkComp = ({attribute, columns, newItem, removeItem, value, mount}) => {
     const {actionType, location, linkText, isLink, isLinkExternal, useId} = attribute;
     // isLink:
         // linkText
@@ -86,14 +88,26 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value}) => {
         } else {
             url = `${location || valueFormattedForDisplay}${searchParams}`;
         }
+        // A site-absolute destination — whether authored as the column's `location`
+        // or carried in the row's own data (the Freight Atlas gallery's
+        // `/freight_atlas?layers=…` cells) — is written against the pattern's
+        // PRIMARY layout. Re-point it at the mount actually being served; no-op on
+        // a root mount and on another pattern's path. See utils/mountPath.js.
+        url = resolveMountPath(url, mount?.baseUrl, mount?.siteRootPaths);
         // The cell renderer spreads the WHOLE column object (attributeProps) in, so `props` carries
         // column-config keys (activeStyle, customName, linkText, normalName, formatFn, …). Forward
         // ONLY DOM-safe props to the <a>/<Link>; spreading the rest leaks invalid attributes and
         // triggers "React does not recognize the `X` prop on a DOM element" warnings.
         const domProps = ({ className, style, onClick, title }) => ({ className, style, onClick, title });
+        // `linkIcon`: render a registered theme icon as the link body instead of
+        // text — an icon-only action column (e.g. a chevron opening the record).
+        // linkText (if also set) becomes the hover title, keeping it accessible.
+        const linkBody = attribute.linkIcon
+            ? <Icon icon={attribute.linkIcon} title={linkText || undefined} />
+            : (linkText || valueFormattedForDisplay);
         return isLinkExternal
-            ? (props) => <a {...domProps(props)} href={url} target="_blank" rel="noopener noreferrer">{linkText || valueFormattedForDisplay}</a>
-            : (props) => <Link {...domProps(props)} to={url}>{linkText || valueFormattedForDisplay}</Link>
+            ? (props) => <a {...domProps(props)} href={url} target="_blank" rel="noopener noreferrer">{linkBody}</a>
+            : (props) => <Link {...domProps(props)} to={url}>{linkBody}</Link>
     }
 
     if(actionType){
@@ -164,7 +178,7 @@ const getEdge = (
 
 export const TableCell = memo(function TableCell ({
     index, attrI, item, isTotalCell,
-    showOpenOutCaret, setShowOpenOut,
+    showOpenOutCaret, showOpenOut, setShowOpenOut,
     attribute, openOutTitle, openOutInline
 }) {
     const {
@@ -173,6 +187,10 @@ export const TableCell = memo(function TableCell ({
         updateItem, removeItem, columns, display, theme
     } = useContext(TableCellContext);
     const { highlightedRow, visibleAttrsWithoutOpenOut = [] } = useContext(TableStructureContext);
+    // Which pattern mount this table is rendering under — used to resolve
+    // site-absolute `isLink` destinations (LinkComp). `{}` outside the page
+    // pattern, which resolves to today's behavior.
+    const mount = useContext(MountContext);
 
     // =================================================================================================================
     // ============================================ Cell Properties begin ==============================================
@@ -288,9 +306,9 @@ export const TableCell = memo(function TableCell ({
         compType === 'ui' ? (attribute.Comp || DisplayCalculatedCell) :
             renderTextBox ? DataTypes.textarea.EditComp :
                 attribute.isLink || attribute.actionType ?
-                    LinkComp({attribute, columns, newItem, removeItem, value: rawValue}) :
+                    LinkComp({attribute, columns, newItem, removeItem, value: rawValue, mount}) :
                     (DataTypes[compType]?.[compMode] || DisplayCalculatedCell),
-        [compType, compMode, renderTextBox, attribute, newItem, rawValue]);
+        [compType, compMode, renderTextBox, attribute, newItem, rawValue, mount]);
 
     const formattedValue = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
         compMode === 'EditComp' ? rawValue : // edit mode should always show raw value
@@ -537,9 +555,14 @@ export const TableCell = memo(function TableCell ({
                 <div className={theme.openOutIconWrapper}
                      onClick={toggleOpenOut}
                 >
-                    <Icon icon={'InfoCircle'}
-                          title={'Hide Open Out'}
-                          width={18} height={18}
+                    {/* themeable expander: `openOutIcon` (closed) / `openOutIconOpen`
+                        (expanded, falls back to openOutIcon) / `openOutIconSize` —
+                        defaults preserve the historical InfoCircle @18. */}
+                    <Icon icon={(showOpenOut
+                              ? (theme.openOutIconOpen || theme.openOutIcon)
+                              : theme.openOutIcon) || 'InfoCircle'}
+                          title={showOpenOut ? 'Hide Open Out' : 'Show Open Out'}
+                          width={theme.openOutIconSize || 18} height={theme.openOutIconSize || 18}
                     />
                 </div> : null}
 

@@ -209,6 +209,10 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Virtualize Columns', key: 'virtualizeColumns' },
             { type: 'input', label: 'Max Height', key: 'maxHeight', displayCdn: ({ display }) => !display.usePagination },
             { type: 'toggle', label: 'Allow Download', key: 'allowDownload' },
+            // an EXTERNAL button (e.g. a lexical button navigating to ?<param>=1
+            // with keepSearchParams) can trigger this section's download through
+            // a registered page variable — the section clears the param after
+            { type: 'input', inputType: 'text', label: 'Download Trigger Param', key: 'downloadOnParam' },
             { type: 'toggle', label: 'Use Pagination', key: 'usePagination' },
             { type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize' },
         ],
@@ -328,6 +332,9 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Is Link', key: 'isLink', displayCdn: ({ isEdit }) => isEdit },
             { type: 'toggle', label: 'Is External', key: 'isLinkExternal', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
             { type: 'input', inputType: 'text', label: 'Link Text', key: 'linkText', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
+            // registered icon name rendered as the link body (icon-only action
+            // column); Link Text then serves as the hover title
+            { type: 'input', inputType: 'text', label: 'Link Icon', key: 'linkIcon', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
             { type: 'input', inputType: 'text', label: 'Location', key: 'location', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink },
             { type: 'select', label: 'Search Params', key: 'searchParams', displayCdn: ({ attribute, isEdit }) => isEdit && attribute.isLink,
                 options: [

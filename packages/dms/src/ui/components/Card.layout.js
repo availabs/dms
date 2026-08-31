@@ -107,6 +107,7 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
     const {
         cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight,
         cardsBgColor, cardsPadding, cellsVerticalAlign, cellsRowsTemplate,
+        cardsRadius, cardsBorderColor,
     } = display;
     // `cellsVerticalAlign: 'stretch'` opts the cells grid into filling the card
     // height — the cells equivalent of `cardsVerticalAlign: 'stretch'`. The
@@ -124,6 +125,11 @@ export function resolveCellsGridStyle({ display = {}, gridTemplateColumns, hasRo
         ...(cellsRowGap != null && cellsRowGap !== '' ? { rowGap: cellsRowGap } : {}),
         ...(cellsColumnGap != null && cellsColumnGap !== '' ? { columnGap: cellsColumnGap } : {}),
         backgroundColor: cardsBgColor,
+        // Per-card SURFACE chrome, sibling knobs to `cardsBgColor` — a tinted
+        // panel card (e.g. a filter band) wants its own radius + hairline
+        // border without a theme change. Number → px; unset = no-op (BC).
+        ...(cardsRadius != null && cardsRadius !== '' ? { borderRadius: cardsRadius } : {}),
+        ...(cardsBorderColor ? { border: `1px solid ${cardsBorderColor}` } : {}),
         // Legacy naming wrinkle: `cardsPadding` pads the CELLS grid inside
         // each card (the per-card surface inset), not the cards grid.
         padding: cardsPadding,
@@ -309,12 +315,22 @@ export function resolveCellStyle({ attr = {}, hints = {}, display = {}, cellsPad
         // component. The colour picker still writes plain colours here; a
         // gradient is typed in by an author who wants one.
         ...definedStyle('background', attr.cellBgColor),
+        // Per-cell PERIMETER border — a full CSS border shorthand typed by the
+        // author ('1px solid #E0EBF0', '1px dashed #EAAD43'), same author-value
+        // affordance as cellBgColor's gradient. Placed BEFORE cellBorderColor so
+        // the 4px left accent still wins the left edge when both are set.
+        ...(attr.cellOutline ? { border: attr.cellOutline } : {}),
         // Per-cell accent border — a coloured LEFT rule (the stat-strip
         // `border-l-4 border-<color>` look). Sibling of cellBgColor: an inline
         // style from the author-supplied colour, applied right here where the
         // background is. Unset/empty → no key → BC (every existing cell stays
         // byte-identical). Default 4px solid; left accent only, kept minimal.
         ...(attr.cellBorderColor ? { borderLeft: `4px solid ${attr.cellBorderColor}` } : {}),
+        // Per-cell corner radius (number → px, string passes through) — a cell
+        // that IS the visual card (stat strips) needs its own rounding.
+        ...((attr.cellRadius != null && attr.cellRadius !== '')
+            ? { borderRadius: typeof attr.cellRadius === 'number' ? `${attr.cellRadius}px` : attr.cellRadius }
+            : {}),
         ...(hints.height ? { height: `${hints.height}px` } : {}),
         // Vertical alignment of the cell within its grid row (per-column
         // cellVAlign wins; display-level cellsVAlign is the ambient default).

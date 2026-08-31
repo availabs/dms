@@ -89,6 +89,8 @@ if (!process.env.DMS_SSR) {
 const REQUEST_TIMEOUT = 30_000; // 30s default
 const GRAPH_TIMEOUT = 120_000;  // 2 min for Falcor graph requests
 app.use((req, res, next) => {
+  // Routing plugin's searches can take 60s+ - skip the app-level timeout for these routes.
+  if (req.path.includes('trsp-memory')) { next(); return; }
   const timeout = req.path.startsWith('/graph') ? GRAPH_TIMEOUT : REQUEST_TIMEOUT;
   req.setTimeout(timeout, () => {
     if (!res.headersSent) {
