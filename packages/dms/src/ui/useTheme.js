@@ -312,26 +312,33 @@ export function loadThemeFonts(fonts, ctx = {}) {
   debug('called', { selectedTheme: ctx.selectedTheme, hasFonts: Array.isArray(fonts), length: fonts?.length });
   if (!Array.isArray(fonts) || !fonts.length) { debug('no fonts on this theme — bailing'); return; }
 
-  if (typeof document === 'undefined' || !document?.head) {
-    // SSR: collect string HTML instead of no-op'ing, so the caller (SSR
-    // route building, see render/ssr2/handler.jsx) can embed it in the
-    // initial response. Dedup is scoped to this one collection pass (a
-    // fresh `ssrCollect` array per host route-build), not the module-level
-    // `_loadedFontKeys` — that one's for the page's client-side lifetime.
-    if (Array.isArray(ctx.ssrCollect)) {
-      const seen = ctx.ssrCollect._seen || (ctx.ssrCollect._seen = new Set());
-      for (const font of fonts) {
-        const key = fontKey(font);
-        if (!key || seen.has(key)) { debug('skip (ssr) — no key or already collected', key); continue; }
-        const html = buildFontHtml(font, key);
-        if (!html) { debug('skip (ssr) — could not build html for', font); continue; }
-        seen.add(key);
-        ctx.ssrCollect.push(html);
-        debug('collected (ssr)', key);
-      }
-    } else {
-      debug('no document/head and no ctx.ssrCollect — bailing (SSR without a collector?)');
+  // Check for an explicit SSR collector FIRST, before looking at `document`.
+  // render/ssr2/handler.jsx stubs a real (linkedom) `document` globally so
+  // other components (Lexical) can call document.createElement during
+  // renderToString — so `typeof document === 'undefined'` is NOT a reliable
+  // SSR signal here. Appending to that stub's head would silently vanish
+  // (renderToString serializes the React tree, not the stubbed document),
+  // which is exactly the bug this branch ordering avoids. Whoever's driving
+  // SSR route building opts in explicitly by passing `ctx.ssrCollect`.
+  if (Array.isArray(ctx.ssrCollect)) {
+    // Dedup is scoped to this one collection pass (a fresh `ssrCollect`
+    // array per host route-build), not the module-level `_loadedFontKeys`
+    // — that one's for a real page's client-side lifetime.
+    const seen = ctx.ssrCollect._seen || (ctx.ssrCollect._seen = new Set());
+    for (const font of fonts) {
+      const key = fontKey(font);
+      if (!key || seen.has(key)) { debug('skip (ssr) — no key or already collected', key); continue; }
+      const html = buildFontHtml(font, key);
+      if (!html) { debug('skip (ssr) — could not build html for', font); continue; }
+      seen.add(key);
+      ctx.ssrCollect.push(html);
+      debug('collected (ssr)', key);
     }
+    return;
+  }
+
+  if (typeof document === 'undefined' || !document?.head) {
+    debug('no document/head and no ctx.ssrCollect — bailing (SSR without a collector?)');
     return;
   }
 
