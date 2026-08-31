@@ -82,7 +82,20 @@ export function DmsSite (config) {
                 onResolvedSyncApp: setResolvedSyncApp,
             });
             if (!isStale) {
-                setDynamicRoutes(routes);
+                // SSR mode only: `dynamicRoutes`'s initial value already hydrated a
+                // real `createBrowserRouter` from `hydrationData` (see `router` memo
+                // below), matching the server-rendered HTML. Swapping in a new
+                // `routes` array here — even one describing the same routes — makes
+                // that memo recreate the router from scratch, discarding the SSR
+                // hydration and forcing route loaders to re-run, which flashes a
+                // loading state before settling back to identical content. Only
+                // replace it when the refetch actually found routes the SSR payload
+                // didn't have. Off SSR, `dynamicRoutes` starts empty and this is the
+                // real initial population, so always apply it there.
+                const isRedundantSSRRefetch = hydrationData
+                    && routes.length === dynamicRoutes.length
+                    && routes.every((r, i) => r.path === dynamicRoutes[i]?.path);
+                if (!isRedundantSSRRefetch) setDynamicRoutes(routes);
                 setLoading(false);
                 // console.timeEnd('dmsSite - loading Dynamic Routes')
             }
