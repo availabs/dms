@@ -643,11 +643,32 @@ export async function udaCreateView(falcor, { env, source_id, version, copy_from
 	return created.length ? Math.max(...created) : null;
 }
 
+// Batched existence check — given an app and a list of ids, returns the Set of ids (as strings)
+// that currently exist as data_items rows for that app, regardless of kind/type. Bypasses
+// dmsDataLoader/createRequest's 'edit'/'view' action path (which derives exactly one id-ref per
+// active config — not reusable for a bulk check) and calls the generic
+// `dms.data[{app}].byId[{ids}][{attrs}]` Falcor route directly; the server already batches an
+// array of ids into a single SQL `WHERE id IN (...)` query, and a missing id simply comes back
+// with `id: null` rather than an error. Useful for e.g. dropping stale references to since-deleted
+// pages from a UI list.
+export async function checkIdsExist(falcor, app, ids) {
+  const uniqueIds = [...new Set((ids || []).map((id) => String(id)))].filter(Boolean);
+  if (!falcor?.get || !app || !uniqueIds.length) return new Set();
+  const res = await falcor.get(['dms', 'data', app, 'byId', uniqueIds, ['id']]);
+  const byId = get(res, ['json', 'dms', 'data', app, 'byId'], {});
+  return new Set(
+    Object.entries(byId)
+      .filter(([, v]) => v?.id != null)
+      .map(([id]) => id)
+  );
+}
+
 const api = {
   dmsDataLoader,
   dmsDataEditor,
   udaListViews,
-  udaCreateView
+  udaCreateView,
+  checkIdsExist,
 }
 
 export default api
