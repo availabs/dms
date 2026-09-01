@@ -39,10 +39,10 @@ export const Graph = ({isEdit}) => {
     const {state, setState, controls={}, activeStyle} = useContext(ComponentContext);
     const pageContext = useContext(PageContext);
     const {UI} = useContext(ThemeContext);
-    const {AvlGraph} = UI;
+    const {Graph} = UI;
 
     return (
-        <AvlGraph isEdit={ isEdit }
+        <Graph isEdit={ isEdit }
             pageContext={ pageContext }
             state={ state }
             setState={ setState }
