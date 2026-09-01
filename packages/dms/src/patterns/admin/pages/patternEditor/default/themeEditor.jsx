@@ -104,16 +104,26 @@ export function PatternThemeEditor({
 
     // themes is an array of {name, theme, id}
     const navigate = useNavigate();
-    const {themes, UI, theme} = useContext(ThemeContext);
+    const {themes, themesLoader, UI, theme} = useContext(ThemeContext);
     const t = { ...themeEditorTheme, ...(theme?.admin?.themeEditor || {}) }
     const {baseUrl, user, apiUpdate} = React.useContext(AdminContext) || {};
     const {MultiSelect, Button} = UI;
+
+    // `themes` here is only the subset the site's own patterns currently use
+    // (see collectThemeNames/resolveThemes) — this editor needs the full
+    // registry to let an admin discover/preview any theme, not just ones
+    // already assigned. Lazily fetch the rest only when this editor mounts.
+    const [allThemes, setAllThemes] = useState(themes);
+    useEffect(() => {
+        if (typeof themesLoader !== 'function') return;
+        themesLoader(themesLoader.ALL_NAMES || []).then(full => setAllThemes(prev => ({ ...prev, ...full })));
+    }, []);
 
     // console.log('Pattern themeEditor themes',themes)
     const [baseTheme, setBaseTheme] = React.useState(
         mergeTheme(
             defaultTheme,
-            themes?.[value?.theme?.selectedTheme || 'default'] || {},
+            allThemes?.[value?.theme?.selectedTheme || 'default'] || {},
         )
     )
 
@@ -160,7 +170,7 @@ export function PatternThemeEditor({
     useEffect(() => {
         const newBase = mergeTheme(
             defaultTheme,
-            themes?.[patternTheme.selectedTheme || 'default'] || {},
+            allThemes?.[patternTheme.selectedTheme || 'default'] || {},
         )
         setBaseTheme(newBase)
         //console.log('updating base theme')
@@ -168,7 +178,7 @@ export function PatternThemeEditor({
         // setPatternTheme((draft) => {
         //   set(draft, 'layout.options', cloneDeep(newBase?.layout?.options))
         // })
-    }, [patternTheme.selectedTheme])
+    }, [patternTheme.selectedTheme, allThemes])
 
     const onSubmit = (updateCurrentTheme) => {
         //const value = item.theme_refs.map(t => t.theme_id === theme_id ? {...t, theme: JSON.stringify(updateCurrentTheme)} : t);
@@ -199,7 +209,7 @@ export function PatternThemeEditor({
                                     })
                                 }
                             }
-                            options={Object.keys(themes).map(d => {
+                            options={Object.keys(allThemes).map(d => {
                                 return {label: d, value: d}
                             })}
                         />

@@ -35,7 +35,7 @@ export default function SettingsPage({format}) {
     const {baseUrl, falcor, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
-    const {Layout, LayoutGroup, Input, Button} = UI;
+    const {Layout, LayoutGroup, Input} = UI;
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
@@ -44,7 +44,6 @@ export default function SettingsPage({format}) {
 
     const [sources, setSources] = useState([]);
     const [filteredCategories, setFilteredCategories] = useState([]);
-    const [showUncategorized, setShowUncategorized] = useState(true);
     const [search, setSearch] = useState('');
     const [saving, setSaving] = useState(false);
 
@@ -61,9 +60,6 @@ export default function SettingsPage({format}) {
             const settings = get(res, ["json", "uda", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
-            if (parsed.show_uncategorized !== undefined) {
-                setShowUncategorized(parsed.show_uncategorized);
-            }
         });
     }, [pgEnv]);
 
@@ -71,20 +67,18 @@ export default function SettingsPage({format}) {
         if (!pgEnv) return;
         setSaving(true);
         const newFiltered = updates.filtered_categories ?? filteredCategories;
-        const newShowUncat = updates.show_uncategorized ?? showUncategorized;
         setFilteredCategories(newFiltered);
-        setShowUncategorized(newShowUncat);
         falcor.set({
             paths: [['uda', pgEnv, 'settings']],
             jsonGraph: {
                 uda: {
                     [pgEnv]: {
-                        settings: JSON.stringify({filtered_categories: newFiltered, show_uncategorized: newShowUncat})
+                        settings: JSON.stringify({filtered_categories: newFiltered})
                     }
                 }
             }
         }).then(() => setSaving(false));
-    }, [pgEnv, falcor, filteredCategories, showUncategorized]);
+    }, [pgEnv, falcor, filteredCategories]);
 
     const allCategories = useMemo(() => [...new Set(
         sources.reduce((acc, s) => [
@@ -150,15 +144,6 @@ export default function SettingsPage({format}) {
                                 <span className={theme.envRowValue}>{pgEnv}</span>
                             </div>
                         ) : null}
-                    </div>
-                    <div className={theme.toggleRow}>
-                        <Button
-                            type={showUncategorized ? 'active' : 'plain'}
-                            onClick={() => saveSettings({show_uncategorized: !showUncategorized})}
-                            disabled={saving}
-                        >
-                            {showUncategorized ? 'Showing' : 'Hiding'} uncategorized sources
-                        </Button>
                     </div>
                     <div className={theme.searchWrapper}>
                         <Input

@@ -1,7 +1,5 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext, useImperativeHandle, forwardRef} from 'react'
 import {useNavigate} from "react-router";
-import ExcelJS from 'exceljs';
-import JSZip from 'jszip';
 import { isEqual } from "lodash-es";
 import {useImmer} from "use-immer";
 import {CMSContext, ComponentContext, PageContext} from "../../../../context";
@@ -54,6 +52,10 @@ const excludeFromDownload = c => isDisaggregatingCol(c) || isActionCol(c);
 
 const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoading}) => {
     setLoading(true);
+    const [{ default: ExcelJS }, { default: JSZip }] = await Promise.all([
+        import('exceljs'),
+        import('jszip'),
+    ]);
     const needAllCols = loadAllColumns || withId;
     let cols = needAllCols
         ? [

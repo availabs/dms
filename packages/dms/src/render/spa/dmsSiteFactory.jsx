@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 import { createBrowserRouter, RouterProvider, useRouteError } from "react-router";
 import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
@@ -6,7 +6,7 @@ import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } fr
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
-import { pattern2routes, getSubdomain } from './utils'
+import { pattern2routes, getSubdomain, resolveThemes } from './utils'
 import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 
@@ -56,14 +56,57 @@ export function DmsSite (config) {
     const localStorePatterns = isTenantSubdomain
         ? null
         : parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
-    const [loading, setLoading] = useState(() => !localStorePatterns?.length && !defaultData?.length);
+    // `themes` is a function when it's the lazy loader from src/themes/index.js
+    // (the normal cold-SPA case — App.jsx passes it straight through) — dynamic
+    // import() can never be synchronous, so this fast path can't resolve routes
+    // in its useState initializer for that case; the effect below handles it
+    // instead. When `themes` is already a plain object (SSR hydration, where
+    // main.jsx resolves the theme(s) before calling hydrateRoot, or any legacy
+    // caller), this synchronous branch is unchanged from before.
+    const isLazyThemes = typeof themes === 'function';
+    const [loading, setLoading] = useState(() => {
+        const hasCache = localStorePatterns?.length || defaultData?.length;
+        return !hasCache || isLazyThemes;
+    });
     const [dynamicRoutes, setDynamicRoutes] = useState(() => {
+        if (isLazyThemes) return EMPTY_ROUTES;
         if (localStorePatterns?.length || defaultData?.length) {
             // console.log('has localstore patterns')
             return pattern2routes(localStorePatterns?.length ? localStorePatterns : defaultData, routeProps)
         }
-        return []
+        return EMPTY_ROUTES
     });
+
+    // Guards the fast path below from clobbering the full fetch's result.
+    // Both paths resolve their own theme(s) independently and asynchronously —
+    // if the cached data's theme differs from the live data's (e.g. an admin
+    // changed the site's theme since this browser's last visit), they race on
+    // two unrelated dynamic import()s with no ordering guarantee. Without this
+    // guard, a slow-to-resolve stale (cached-data) theme can commit AFTER the
+    // fresh (live-data) theme already did, permanently overwriting it with
+    // outdated content — reproduced and confirmed via Playwright before this
+    // fix existed. The full fetch is always authoritative once it lands.
+    const routesFinalizedRef = useRef(false);
+
+    // Fast-path theme resolution for the lazy-themes case: compute routes from
+    // already-available cached/default data as soon as the needed theme(s)
+    // resolve, without waiting for the full network fetch below.
+    useEffect(() => {
+        if (!isLazyThemes) return;
+        const cached = localStorePatterns?.length ? localStorePatterns : defaultData;
+        if (!cached?.length) return;
+        let isStale = false;
+        (async () => {
+            const resolvedThemes = await resolveThemes(themes, cached);
+            if (isStale || routesFinalizedRef.current) return;
+            // `themes` (still the raw lazy loader here) doubles as adminThemesLoader
+            // so the admin pattern-theme-picker (themeEditor.jsx) can fetch the full
+            // theme registry even if opened before the full fetch below completes.
+            setDynamicRoutes(pattern2routes(cached, { ...routeProps, themes: resolvedThemes, adminThemesLoader: themes }));
+            setLoading(false);
+        })();
+        return () => { isStale = true };
+    }, []);
 
     useEffect(() => {
         let isStale = false;
@@ -76,6 +119,7 @@ export function DmsSite (config) {
             // console.time('dmsSite - loading Dynamic Routes', )
             const routes = await dmsSiteFactory(routeProps);
             if (!isStale) {
+                routesFinalizedRef.current = true;
                 setDynamicRoutes(routes);
                 setLoading(false);
                 // console.timeEnd('dmsSite - loading Dynamic Routes')
@@ -206,8 +250,16 @@ export default async function dmsSiteFactory(config) {
       data
     )
 
+    // `config.themes` may be the lazy loader exported by src/themes/index.js —
+    // resolve only the theme names this site's patterns actually reference
+    // before building routes. adminThemesLoader carries the raw, unresolved
+    // loader through for the one consumer (themeEditor.jsx) that needs every
+    // theme name. See planning/shared/bundle-size-log.md.
+    const resolvedThemes = await resolveThemes(config.themes, data);
+    const resolvedConfig = { ...config, themes: resolvedThemes, adminThemesLoader: config.themes };
+
     if (!isMultiTenant) {
-        return pattern2routes(data, config)
+        return pattern2routes(data, resolvedConfig)
     }
 
     // Step 2 — multi-tenant: detect subdomain and route accordingly
@@ -217,7 +269,7 @@ export default async function dmsSiteFactory(config) {
     if (!subdomain) {
         // Platform admin (root domain) — serve master site routes.
         // Phase 3 will render TenantList inside editSite when !subdomain && isMultiTenant.
-        return pattern2routes(data, config)
+        return pattern2routes(data, resolvedConfig)
     }
 
     // Find the tenant row whose subdomain matches
@@ -262,5 +314,6 @@ export default async function dmsSiteFactory(config) {
     )
 
     // Step 5 — build routes scoped to the tenant
-    return pattern2routes(tenantData, { ...config, dmsConfig: tenantDmsConfig })
+    const tenantResolvedThemes = await resolveThemes(config.themes, tenantData);
+    return pattern2routes(tenantData, { ...resolvedConfig, dmsConfig: tenantDmsConfig, themes: tenantResolvedThemes })
 }
