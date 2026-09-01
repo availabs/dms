@@ -647,9 +647,13 @@ function createValidateHandler(controller) {
       }
 
       if (isNewFormat) {
-        // New format: update data.isValid flag only (no type changes)
+        // New format: update data.isValid flag only (no type changes).
+        // app/type MUST be passed — setDataById resolves the split table from
+        // them; omitting them falls back to the main data_items table, where a
+        // split-table row's id doesn't exist, so the UPDATE silently matches
+        // zero rows while this still reports success.
         for (const { id, data } of rowsToUpdate) {
-          await controller.setDataById(id, { isValid: data.isValid });
+          await controller.setDataById(id, { isValid: data.isValid }, null, app, type);
         }
         console.log(`[validate] ${app}+${type} complete — ${rowsToUpdate.length} rows updated (isValid flag)`);
         res.json({ data: `${rowsToUpdate.length} rows updated.` });

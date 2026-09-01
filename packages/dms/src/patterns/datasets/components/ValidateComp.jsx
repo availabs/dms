@@ -92,6 +92,7 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
         await falcor.invalidate(['uda', `${app}+${type}`]);
         await falcor.invalidate(['uda']);
         const publishFinalEvent = await res.json();
+        if (publishFinalEvent?.err) setError(publishFinalEvent.err);
         setValidating(false)
         // window.location = window.location;
     }catch (e){
@@ -106,7 +107,24 @@ const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()
 
 const getInitState = ({columns, default_columns=[], state={}, app, doc_type, view_id, data, searchParams}) => {
     const res = {
-        dataRequest: {filter: getFilterFromSearchParams(searchParams)},
+        // filterGroups is promoted to the top-level `filters` tree by migrateV1ToV2
+        // (dataWrapper/migrateToV2.js) — no server change needed. Valid and invalid rows
+        // share one split table/type for new-format sources (isValid is a plain field on
+        // the row, not a separate type — see the sourceInfo comment below), so this table,
+        // titled "Invalid Rows", needs a real filter to only fetch isValid: false rows.
+        // `col` is a raw SQL expression rather than a column name deliberately — `isValid`
+        // isn't a user-facing source column, so schema-based col-ref resolution
+        // (mapFilterGroupCols in buildUdaConfig.js) can't find it and passes the leaf
+        // through unresolved; buildLeafSQL then emits `col` verbatim, which is exactly
+        // what's wanted here. Shows as a normal (removable) filter chip in this table's
+        // own filter editor.
+        dataRequest: {
+            filter: getFilterFromSearchParams(searchParams),
+            filterGroups: {
+                op: 'AND',
+                groups: [{col: "data->>'isValid'", op: 'filter', value: ['false']}],
+            },
+        },
         data: [],
         columns: uniqBy([
             ...default_columns.map(dc => {
@@ -136,12 +154,28 @@ const getInitState = ({columns, default_columns=[], state={}, app, doc_type, vie
                 show: true,
                 externalFilter: searchParams.get(c.name)?.split(filterValueDelimiter)?.filter(d => d.length)
             })),
+        // No separate "-invalid-entry" type/table exists for new-format (`{slug}|{view}:data`)
+        // sources — invalid rows live in the SAME split table as valid rows, distinguished only
+        // by `data.isValid` (see dms/CLAUDE.md "Invalid data rows", and dama/upload/routes.js's
+        // `isNewFormat` branch, which updates `data.isValid` in place rather than moving rows
+        // between types). sourceInfo must therefore point at the same real env as
+        // validEntriesFormat; valid vs invalid is a `data->>'isValid'` filter, not a different env.
+        //
+        // `type`/`doc_type` are kept as the BARE source slug (not `{slug}|{view}:data`) —
+        // DataWrapper's own updateItem/addItem (patterns/page/.../dataWrapper/index.jsx) build
+        // the per-row edit call by appending `|${view_id}:data` onto externalSource.type
+        // themselves, assuming it's still bare (that's the convention every other DMS-bound
+        // section relies on — see useDataSource.js's onSourceChange). Pre-qualifying it here
+        // doubled the suffix (`...:data|1033368:data`), so every individual-cell edit silently
+        // updated zero rows. Callers that need the fully-qualified type (reValidate, the mass
+        // update `massedit` call below) build it explicitly from `doc_type`+`view_id` instead
+        // of reading it off sourceInfo.
         sourceInfo: {
             app,
-            type: `${doc_type}|${view_id}:data-invalid-entry`,
-            doc_type: `${doc_type}|${view_id}:data-invalid-entry`,
+            type: doc_type,
+            doc_type: doc_type,
 
-            env: `${app}+${doc_type}|${view_id}:data-invalid-entry`,
+            env: `${app}+${doc_type}`,
             isDms: true,
             originalDocType: `${doc_type}`,
             view_id: view_id,
@@ -176,7 +210,10 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
     const [maps, setMaps] = useState([]);
     const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
     const currColumn = columns.find(col => col.name === open);
-    const {app, type} = sourceInfo;
+    // sourceInfo.type is the bare source slug (see the note on sourceInfo in getInitState) —
+    // massedit needs the fully-qualified split-table type.
+    const {app, type: sourceSlug, view_id} = sourceInfo;
+    const type = `${sourceSlug}|${view_id}:data`;
     const Comp = useMemo(() => ColumnTypes[currColumn.type]?.EditComp || ColumnTypes.text.EditComp, [currColumn.type]);
 
     const invalidValues = useMemo(() => data[`${currColumn.shortName}_invalid_values`], [data, currColumn.shortName]);
@@ -292,11 +329,19 @@ export default function Validate ({
     const columns = (JSON.parse(config || '{}')?.attributes || []).filter(col => col.type !== 'calculated').map((col, i) => ({...col, shortName: `col_${i}`}));
     console.log('columns in validate', {app, sourceSlug, config, default_columns, view_id, source_id});
     const [value, setValue] = useImmer(getInitState({columns, default_columns, app, doc_type: sourceSlug, data, searchParams, view_id}));
+    // env must be `{app}+{sourceSlug}` (bare slug, no view_id/`:data` baked in) —
+    // getEssentials (routes/uda/utils.js) splits env on '+' and expects the second
+    // half to be the bare source slug so it can look up the view row and construct
+    // the real `{slug}|{view_id}:data` type itself. Embedding view_id/`:data` here
+    // makes env.split('+')[1] something no view lookup matches, so every uda
+    // request silently resolves to zero rows. See patterns/datasets/pages/dataTypes/
+    // gis_dataset/pages/table.jsx for the working reference pattern.
+    // type/doc_type are the bare slug — see the matching note on sourceInfo above.
     const validEntriesFormat = {
         app,
-        type: `${sourceSlug}|${view_id}:data`,
-        doc_type: `${sourceSlug}|${view_id}:data`,
-        env: `${app}+${sourceSlug}|${view_id}:data`,
+        type: sourceSlug,
+        doc_type: sourceSlug,
+        env: `${app}+${sourceSlug}`,
         isDms: true,
         originalDocType: `${sourceSlug}`,
         view_id: view_id,
@@ -364,6 +409,8 @@ export default function Validate ({
                 .reduce((acc, columnName) => ({...acc, [`data->>'${columnName}'`]: multiselectFilterValueSets[columnName] || filterFromUrl[columnName] }), {})
 
             // ==================================== get # invalid rows begin ===========================================
+            // Valid and invalid rows live in the SAME split table/type (see the sourceInfo
+            // comment above) — split them with a `data->>'isValid'` filter, not a different format.
             console.log('value.sourceinfo', value.sourceInfo)
             const invalidLength = await apiLoad({
                 format: value.sourceInfo,
@@ -372,7 +419,7 @@ export default function Validate ({
                     action: 'udaLength',
                     path: '/',
                     filter: {
-                        options: JSON.stringify({filter}),
+                        options: JSON.stringify({filter: {...filter, "data->>'isValid'": ['false']}}),
                         stopFullDataLoad: true
                     },
                 }]
@@ -384,7 +431,7 @@ export default function Validate ({
                     action: 'udaLength',
                     path: '/',
                     filter: {
-                        options: JSON.stringify({filter}),
+                        options: JSON.stringify({filter: {...filter, "data->>'isValid'": ['true']}}),
                         stopFullDataLoad: true
                     },
                 }]
@@ -464,6 +511,9 @@ export default function Validate ({
     }, [app, sourceSlug, config, default_columns?.length, view_id, source_id, searchParams, updating, validating])
 
     const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
+    SpreadSheetCompWithControls.controls = typeof SpreadSheetCompWithControls.controls === 'function'
+        ? SpreadSheetCompWithControls.controls(theme)
+        : SpreadSheetCompWithControls.controls;
     SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
     SpreadSheetCompWithControls.controls.header = {
         displayFn: column => {
@@ -540,7 +590,7 @@ export default function Validate ({
                             className={error ? t.revalidateButtonError : t.revalidateButton}
                             onClick={() =>
                                 reValidate({
-                                    app, type: value.sourceInfo.type,
+                                    app, type: `${sourceSlug}|${view_id}:data`, parentId: source_id,
                                     parentDocType: sourceSlug, dmsServerPath, setValidating, setError, falcor
                                 })}
                         >

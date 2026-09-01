@@ -28,7 +28,6 @@ import Permissions from "./components/Permissions";
 import Pagination from "./components/Pagination";
 import Table from "./components/table";
 import Card from "./components/Card";
-import Graph from "./components/graph";
 import NavigableMenu from "./components/navigableMenu";
 import DraggableList from "./components/DraggableList";
 import Popup from "./components/Popup";
@@ -36,7 +35,7 @@ import DndList from "./components/DndList";
 import ColumnTypes from "./columnTypes/index.jsx";
 import { MultiSelectEdit as MultiSelect } from "./components/MultiSelect";
 
-import AvlGraph from "./components/graph_new"
+import Graph from "./components/graph_new"
 
 const UI = {
 	// --- Layout
@@ -86,8 +85,6 @@ const UI = {
 
   // ------ component modes: {EditComp, ViewComp}
   ColumnTypes,
-
-  AvlGraph
 }
 
 //console.log('UI - index - UI', UI, columnTypes)

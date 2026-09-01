@@ -44,14 +44,10 @@ export default function LinkPlugin(): JSX.Element {
 
                             return;
                         }else{
-                            // Create a new link node with the selected text inside
-                            const linkNode = $createLinkNode(url, { target, rel });
-                            linkNode.append($createTextNode(selectedText));
-
-                            // Replace selection with the new link node
-                            selection.insertNodes([linkNode]);
-
-                            // Try to update existing link nodes
+                            // If the selection/caret is already inside an existing link
+                            // (e.g. editing via the floating link editor), just update its
+                            // fields in place — do not insert a new node, since insertNodes
+                            // at a caret splits the surrounding link/text node in two.
                             for (const node of nodes) {
                                 const parent = node.getParent();
                                 if ($isLinkNode(parent)) {
@@ -67,6 +63,11 @@ export default function LinkPlugin(): JSX.Element {
                                     return;
                                 }
                             }
+
+                            // Otherwise, wrap the newly selected plain text in a new link node.
+                            const linkNode = $createLinkNode(url, { target, rel });
+                            linkNode.append($createTextNode(selectedText));
+                            selection.insertNodes([linkNode]);
                         }
                     });
 

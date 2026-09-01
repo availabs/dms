@@ -1,9 +1,7 @@
 import React, {useContext, useEffect} from "react";
 import { DatasetsContext } from '../../../../context'
 import { getExternalEnv } from '../../../../utils/datasources'
-import Spreadsheet from "../../../../../page/components/sections/components/ComponentRegistry/spreadsheet/config";
 import {useNavigate} from "react-router";
-import {cloneDeep} from "lodash-es";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import ValidateComp from "../../../../components/ValidateComp";
 
@@ -22,8 +20,6 @@ export default function Validate ({apiUpdate, apiLoad, format, source, setSource
         }
     }, [source.views]);
 
-    const SpreadSheetCompWithControls = cloneDeep(Spreadsheet);
-    SpreadSheetCompWithControls.controls.columns = SpreadSheetCompWithControls.controls.columns.filter(({label}) => label !== 'duplicate')
     if(!isDms) return;
 
     return (isDms && !source.config)? <div className={'p-1 text-center'}>Please setup metadata.</div> :

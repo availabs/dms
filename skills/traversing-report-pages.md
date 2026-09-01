@@ -151,11 +151,16 @@ picker (below) so the two pickers share styling/behavior rather than drifting.
 
 ### The report picker ("Choose a report") — net new, 2026-08-25
 
-A superset of the `/reports` homepage's AVAIL-curated Card grid
-(`converted_reports/reports`, page 2208581) — the homepage itself is unchanged (still exactly
-the curated 12-card catalog), this is an ADDITIONAL surface for searching everything the current
-user is authorized for, drawn from the same `reports_snap_2` catalog (source 2177438 / view
-2177440).
+**Correction, Ryan 2026-08-26: `/converted_reports` (page 2188366) is the site's real
+homepage, not `/converted_reports/reports` (page 2208581).** Earlier session notes (including
+just below) assumed 2208581 was "the homepage" — wrong, it's the curated Reports catalog page,
+one level under the real homepage. Fixed throughout this section; if you find "homepage" still
+referring to 2208581 anywhere else in this doc, it's stale, correct it in place.
+
+A superset of the curated Reports page's AVAIL-curated Card grid (`converted_reports/reports`,
+page 2208581) — that page itself is unchanged (still exactly the curated 12-card catalog), this
+is an ADDITIONAL surface for searching everything the current user is authorized for, drawn from
+the same `reports_snap_2` catalog (source 2177438 / view 2177440).
 
 - **Architecture mirrors `RouteTagBrowserModal` on purpose** (Ryan's explicit ask: share code,
   don't let the two pickers drift) — a self-contained React component
@@ -183,12 +188,128 @@ user is authorized for, drawn from the same `reports_snap_2` catalog (source 217
   `RouteTagBrowserModal` does, so there's no SQL-limit truncation problem to design around):
   `ReportPickerModal/reportScore.js`'s `reportScore()` weighs yours → rebuilt → described →
   recency, penalizing incomplete-looking names.
-- **Trigger placement**: added draft-only to the real `/reports` homepage (page 2208581, section
-  2214721, same section group as the existing `CreateReportButton` trigger) — landed at the
-  BOTTOM of the page (appended after all 12 catalog cards) since section order follows array
-  order and this was appended last; a human should drag-reorder it up near "Create Report" via
-  the normal edit-mode section UI before publishing. `sections` (the published array) was not
-  touched — the homepage's live/public view is unchanged until someone explicitly publishes.
+- **Trigger placement**: originally added draft-only to the curated Reports page (page 2208581,
+  section 2214721, same section group as the existing `CreateReportButton` trigger), landed at
+  the BOTTOM of the page. **Stale as of 2026-08-26**: since this was written, the page was
+  edited and published (by a human, through the normal edit-mode UI, between sessions) — the
+  PUBLISHED `sections` array now has both triggers reordered to the top, right after the intro
+  heading: `CreateReportButton` (id 2214746) then `ChooseReportButton` (id 2214747), both in
+  section group `b77dbc82-4485-4e9a-8046-cc3a7eedf5b4`. Confirmed live 2026-08-26. As always,
+  publish clones draft component rows into fresh published-side ids rather than reusing them —
+  see `draft_vs_published_sections_different_ids` if that's news.
+
+### The real homepage (`/converted_reports`, page 2188366) — "New Report" fix + "Open Report" added, 2026-08-26
+
+Ryan's ask: the real homepage's **"New Report"** button (top of page, next to "New Route") was a
+dead-end — it just navigated to `/converted_reports/reports` instead of actually creating a
+report — and he wanted a second button there to open the existing-report picker, matching the
+curated Reports page's pair one level down.
+
+- **Root cause**: unlike `CreateReportButton`/`ChooseReportButton` (real registered React
+  components), the old "New Report" was a plain `Card` cell — `origin: "static", isLink: true,
+  location: "/converted_reports/reports"` (section 2214127, the same Card row as the still-fine
+  "New Route" cell, which links to `#routes` and was left untouched). A static Card link can only
+  ever render an RRL `<Link>` (`Card.jsx` line ~637) — it has no way to invoke real component
+  logic, so it could never actually create a page the way `CreateReportButton` does.
+- **Fix**: removed the `new_report` column from section 2214127 (`cellsGridSize` 3→2,
+  `cellsTracksTemplate` dropped one track — "New Route" alone remains in that Card), and added
+  two brand-new PUBLISHED component rows cloned byte-for-byte from the curated Reports page's own
+  proven-live `CreateReportButton`/`ChooseReportButton` rows (2214746/2214747 above) — new ids
+  **2214758** (`CreateReportButton`) and **2214759** (`ChooseReportButton`) — into page 2188366's
+  `Header` section group (`68a9bc92-7c50-4893-a1e7-575120b4f3b6`), inserted into the array right
+  after 2214127. `CreateReportButton`'s own code comment already anticipated exactly this
+  placement: `newPage()` derives the new report's parent from `item?.parent || item?.id`, and
+  2188366 has `parent: ''`, so mounting it there correctly files new reports under "Converted
+  Reports" (2188366) itself — same folder semantics as mounting it on 2208581 (whose `parent` is
+  already 2188366).
+- **Live-verified** via claude-in-chrome: both buttons render as real `<button>`s (not `<a>`
+  links) in their own row right where "New Report" used to be; "Choose a report" pops the real
+  `ReportPickerModal` (60 real results, Mine/Hide-incomplete-looking facets); zero console errors
+  on a clean reload; `dms page show 2188366` confirms `title`/`url_slug`/`published` untouched,
+  `sections_count` 28→30.
+- **Write path — edited the PUBLISHED `sections` array directly, did NOT touch draft or publish
+  the page.** This page's `draft_sections` (30 ids, `has_changes: true`) already diverges
+  significantly from `sections` (unrelated pending edits, including the inert find-a-report modal
+  precedent at 2214393-95 mentioned above) — publishing would have pushed all of that live
+  unreviewed, way out of scope for this ask. Instead: `dms raw create` for the two new component
+  rows (bypasses `section create`'s draft-only attach), `dms section update 2214127 --data
+  {...}` (full replace of one row, the already-documented-safe pattern), then `dms page update
+  2188366 --data '{"sections": [...]}'` — **a payload containing ONLY the `sections` key**.
+- **New finding, refines the `--set`-on-array-fields caution above**: `dms page update --data`
+  (as opposed to `--set`) is safe for a page-level array field, confirmed by reading the actual
+  server path (`dms-server/.../dms.controller.js`'s `setDataById` → `jsonMerge()` in
+  `db/query-utils.js`): the SQL is `data = COALESCE(data,'{}') || $1::jsonb` on Postgres (or
+  `json_patch` on SQLite) — a shallow TOP-LEVEL merge, not a JS deep-merge and not a full-column
+  replace. A `--data` payload with only `{"sections": [...]}` overwrites just that one top-level
+  key; sibling keys (`title`, `url_slug`, `draft_sections`, `section_groups`, etc.) are absent
+  from the payload and thus left completely alone. No page-specific special-casing exists in that
+  code path — editing a page's array field this way is exactly as safe as the already-trusted
+  single-component-row `--data` pattern. The earlier `--set` warning above is unaffected — that
+  footgun is specific to `--set`'s client-side lodash `merge()` read-modify-write, which handles
+  arrays by index-merging instead of replacing them; `--data` alone never goes through that code
+  path.
+- **Follow-up fix, same day**: the first pass reused `CreateReportButton`/`ChooseReportButton`'s
+  exact section `data` verbatim (`size: "6"`, no `size` on `ChooseReportButton`, `title: "Choose a
+  report"` on `ChooseReportButton`) — this looked fine on the Reports page's own big roomy hero,
+  but on the denser homepage header it rendered as two giant stacked full-width blocks with a
+  redundant "CHOOSE A REPORT" header band, not inline with each other. Root cause (confirmed by
+  reading `sectionArray.jsx` + transportny's `sectionArray` theme, `themev2.js:2192-2347`): each
+  section is one native CSS Grid item (`grid grid-cols-12 gap-0`), column span comes from
+  `theme.sizes[data.size].className` (`col-span-12 md:col-span-N`), and **a missing `size` field
+  falls back to `theme.defaultSize` — `"12"` on this theme, i.e. FULL WIDTH** — not
+  "auto"/content-width; there is no fit-content/flex-based sizing option anywhere in this stack
+  today, every grid item stretches to its full column span (`justify-items: stretch`, the CSS
+  Grid default, never overridden). A non-empty `title` also always renders a hardcoded
+  `ViewSectionHeader` band regardless of context (see `dms-section-create-cli-gaps` memory item 1
+  — `title` must be `""`). Auto-wrap is plain native CSS Grid row-flow (no manual row-breaking
+  logic exists) — two consecutive siblings whose spans sum to ≤12 land on the same row together.
+  **Fix, on BOTH pages** (2214746/2214747 on the Reports page, 2214758/2214759 on the homepage):
+  `size` on both buttons → `"3"` (was `"6"`/absent) so they share one row instead of each forcing
+  its own; `title` on `ChooseReportButton` → `""` (kills the header band); and — a second-order
+  effect, easy to miss — `ChooseReportButton` needed the same `padding: {"top": "8"}` as
+  `CreateReportButton` added explicitly (it had none, `CreateReportButton` did), or the two
+  buttons sit visibly misaligned vertically once they're actually side-by-side (`resolvePadding()`,
+  `sectionArray.jsx:68-87`, back-fills any unspecified side with the theme's default gutter step,
+  so "no padding field" and "explicit `pt-8`" are NOT the same baseline — worth checking any time
+  two sibling sections need to align on one row). All four changes were single-field `dms section
+  update <id> --set size=3 [--set title= ] [--set padding.top=8]` calls — no code changes, no
+  layout restructuring. Live-verified via a zoomed screenshot that button tops align pixel-for-
+  pixel after the padding fix. **Superseded on the homepage by the next round below same day —
+  Ryan then asked for these truly inline with "New Route" too, not just with each other.** The
+  Reports page (2214746/2214747) was left at this `size:"3"` state and is no longer being
+  actively tuned — Ryan: "IDC about `/converted_reports/reports` anymore, that page is
+  effectively dead."
+- **Final homepage layout, same day**: Ryan wanted "Create Report"/"Choose a Report" truly
+  inline with "New Route" in row 1, not on their own row below it. Root cause row 1 was
+  full BEFORE the buttons ever got a chance: `heading(2) + search-Card(6) + freshness/NewRoute-
+  Card(4) = 12` — zero room left regardless of button size. Found a stale, unrelated **draft**
+  (`draft_sections`, created 2026-08-20, predates today's `ChooseReportButton` work entirely —
+  see the still-live `has_changes:true` divergence noted above) that had already solved exactly
+  this for `CreateReportButton` alone: it split the row into 5 narrower cells (`heading:2,
+  search-Card:4, freshness-Card:2, CreateReportButton:2, NewRoute-Card:2` = 12) — confirmed via
+  `dms raw get` on each draft id (2214366-2214395), not by publishing/trusting the draft. Useful
+  independent confirmation: the draft's `find_label`/`freshness`/`new_route` Card content was
+  **byte-identical** to the live published Cards (2214126/2214127) — same columns, same
+  `_functions.click_publish` search wiring — so the published Cards could be resized in place with
+  zero behavior risk, no need to clone the draft's copies. Applied to the PUBLISHED row only
+  (`sections`, not draft — same reasoning as above): `search-Card (2214126)` 6→3, the combined
+  `freshness+NewRoute Card (2214127)` 4→3, `CreateReportButton (2214758)` 3→2, `ChooseReportButton
+  (2214759)` 3→2 — sums to 12, all six pieces (heading, search, freshness+route, New Route,
+  Create Report, Choose a Report) now share one row. **Second alignment bug found here**: `dms
+  section update <id> --data {...}` (payload WITHOUT a `padding` key) does NOT clear a
+  previously-set `padding` field — the server's `data || $1::jsonb` merge only ever ADDS/
+  overwrites keys present in the payload, it never unsets a key just because the payload omits
+  it (this is the same shallow-merge behavior documented above as "safe," but it cuts the other
+  way when you actually want to delete something). The earlier round's `padding:{"top":"8"}` on
+  both buttons survived several `--data` pushes that didn't mention `padding` at all, keeping
+  them visibly lower than "New Route" (which has no padding override). Fix: explicitly send
+  `--data '{"padding": null}'` — `resolvePadding()` treats a non-object `padding` value as `{}`
+  and falls back to the theme's default gutter on every side, matching "New Route"'s own
+  (padding-field-absent) baseline exactly. **To unset/delete a field via this CLI, you must
+  explicitly null it — omitting it from `--data` is a no-op, not a delete.** Live-verified via a
+  zoomed screenshot: all three buttons' tops align pixel-for-pixel with "New Route" and with each
+  other. Final row-1 sizes: heading `2214125`=2, search `2214126`=3, freshness+route `2214127`=3,
+  Create Report `2214758`=2, Choose a Report `2214759`=2 — no `padding` key on either button row.
 
 ### QuickControls (the header pill row): layout controls, Table's multi-measure Measure pill, Difference-mode gating
 
@@ -722,6 +843,13 @@ any DMS page, not just reports. What's specific to reports:
   raw delete npmrdsv5 "reports_snap_2|2177440:data" <row-id>` (needs a fresh auth token; `dms raw
   get <row-id>` can't address it — split `:data` row, use `dataset query --filter id=<row-id>` to
   confirm deletion instead).
+- **The "+ Add Graph" modal silently no-ops if the report has zero routes.** Clicking "Add Graph"
+  with 0 routes on the report at all (not just 0 checked in the modal) leaves the modal open with
+  no error and no section created — easy to mistake for a misclick or a slow save. Add at least one
+  route via "+ Add Route" first (any route works for a throwaway scratch test), THEN "+ Add Graph"
+  will actually let you pick it in "ROUTES FOR THIS GRAPH" and create the section. Found live
+  2026-08-31 building a scratch Map section to verify a hover-tooltip fix on a brand-new "Create
+  Report" page (0 routes at creation).
 
 ## 6. Which tool to reach for
 

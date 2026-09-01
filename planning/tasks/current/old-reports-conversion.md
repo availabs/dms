@@ -8,95 +8,347 @@
 > starts, move the previous round's full text to the top of the archive, leave a ledger line here,
 > and fold anything durable into the summary or reference sections.
 
-## Current state (2026-08-25, ROUND 72 DONE — fixed round 71's finding (1): `_measurePick` is no
-longer stale. `section_builders.py` now writes `_measurePick.routeWindows[compId] = [{weekdays,
-start, end}]` for every comp assigned to a self-bound graph, matching the shape
-`useGraphPublish.js`/`report_build.mjs` have read/written since the 2026-08-14 migration
-(`cff5318`) — same window-resolution logic round 70 shipped (agree → real window, disagree →
-gap-log + empty default), just written to the field that's actually read now. Live-verified:
-reconverted report 1045 (`--replace` → page `2214660`), confirmed real AM/PM-peak windows landed
-correctly keyed by `comp-N` id, a multi-comp graph got separate entries per comp, the 2 genuine
-disagreement cases still gap-log correctly, and `report_probe.mjs --auth` showed 11/15 sections
-with content, 0 console/page/SQL errors, real ClickHouse queries reflecting the peak-hour
-date/epoch filters (not "all days, all hours"). **Round 71 (2026-08-25) — still relevant** — the
-pre-reconversion audit: a full-corpus clean/needs-attention/junk classification (184/328/358 of 870
-old reports) built from `census_old_reports.py`'s own existing fields
-(`class`/`route_validity`/`pre_2017_only`). Its other 3 findings remain open: **(2)** a real crash
-bug, unrelated to (1): `convert_report.py`'s point-route year-resolution crashes on a corrupted
-`{recent-NaN}` relativeDate placeholder found on 13/870 reports (1.5%) — legacy data corruption (the
-OLD system's own template-substitution bug, confirmed via the raw stored value
-`"{recent-NaN}ent-NaN}"` — nothing recoverable behind it), not gap-logged, not yet fixed. **(3)**
-`census_old_reports.py` never actually computes the `route_comps_merged` ("routes collapsed") gap
-kind corpus-wide — that pass only runs inside the real/dry-run converter and needs falcor
-point-route resolution the census deliberately skips for speed; confirmed real via a 9-report
-dry-run spot check (3/9 fired it) but not corpus-counted, per Ryan's explicit scope (no new
-route-collapse detection). **(4)** The entire prior already-converted-page corpus (36+ pages across
-rounds 1-70, including round 70's own live-verification page 2209156) is GONE from the current dev
-DB — reset at some point for the Dynamic Report catalog work; `converted_pages_total` is genuinely 0
-today, confirmed both by the census and a direct DB query. Finding (2) should still be fixed before
-a bulk reconversion run (it will hard-crash on 13 known reports); (3)/(4) don't block one. Full
-detail: Round 72 above (fix), Round 71 in the archive (audit — moved 2026-08-25, round 72 start).
-Round 70 (weekday/peak-hour `_measurePick` backfill, superseded by round 72's fix), round 69
-(day-of-week axis labels, GridGraph tooltip NaN, Bar Graph Summary colors, comparison-series anchor
-sort — all 4 DONE and live-verified 2026-08-04), round 68 (Bar Graph Summary freeflow-byDateRange
-wired into convert/analyze, `full`/`full_producible` 229/181, converted_pages_total 35→36 — page
-since gone, see finding (4)), round 67 (Route Line Graph/Route Compare Component
-resolution-precedence), round 66 (pm3 2018-2020 backfill), and earlier rounds remain DONE — full
-detail archived, see ledger below. Next work: fix finding (2) [gap-log the malformed relativeDate
-case instead of crashing] before any bulk reconversion run; then decide whether to run bulk
-conversion against the 184 clean + 328 needs-attention reports, or address specific
-needs-attention gap categories first; root-cause the single-row GridGraph y-axis NaN (round 69,
-still open) is unrelated and still open too.)
+## Current state (2026-08-31, ROUND 85 DONE — user asked for a breakdown of "non-clean"
+conversions; census-based decomposition ranked `Route/TMC Info Box × speed` as the single highest-
+leverage unmapped bucket (90 single-blocker reports, 29% of the whole needs_attention bucket).
+Scoping it surfaced a real, undocumented conflict: rounds 19/38/40/49/58 dispatched this bucket to a
+pm3/source-1410 LOTTR/TTTR reliability join (gated on resolving a per-report year+bin), but the old
+tool's `speed` measure is genuinely just plain average speed in mph — confirmed directly against
+transportNY's real `dataTypes.js`/`RouteInfoBox.jsx` source, independent of a 2026-08-12 comment in
+a sibling task that said the same thing but was never connected back to this converter's dispatch.
+The reliability substitution was rounds 19/38's own deliberate (if ultimately not-fidelity-correct)
+call, made because the old tool's *literal* `LOTTR`/`TTTR` measure keys have 0 real reports
+overlapping 1410's coverage.**
 
-## Round 72 (2026-08-25) — fixed round 71 finding (1): `_measurePick.routeWindows` now written, live-verified end to end
+**Fixed**: `speed` now maps unconditionally to the real plain-speed template
+(`ensure_info_box_speed_template`, already built + proven 2026-08-12 for the spec-driven
+`report_build.mjs` path) — no year/bin gate at all, since the date window comes from the graph's own
+`routeWindows` at render time, the same live mechanism every other measure already uses (source
+583/982 is one continuous table, unlike 1410's per-year-per-bin provisioning). Live-verified on 2
+real conversions (317 route-grain, 182 TMC-grain — first-ever real use of a freshly-minted
+`tmc_info_box_speed` row), 0 console/page/SQL errors, real sane mph values confirmed in the actual
+fired SQL. **Corpus impact: clean (page-producible + full) conversions 184→290 (+106, +58%)** in
+one change — `full` 309→483, `no_equivalent`-bucket instances 534→49. `probe_corpus.mjs`'s
+golden-corpus/Dynamic-Report regression check showed failures on every entry: the 4
+`golden_corpus_*` failures were a 3rd recurrence of a known manifest-drift bug, root-caused and
+**fixed same session** (`report_build.mjs`'s `computeTargetSlug()` now always derives a page's slug
+from its title, matching the admin UI — see this round's addendum below); the 4 `dynamic_report_*`
+failures are pre-existing, unrelated to this change (`report_build.mjs`'s own separate Info Box
+code path, untouched) and left open, out of scope.
 
-**Context**: Ryan's direction after reviewing round 71: "That regression is a high priority fix" —
-fixed same session, before any bulk reconversion run.
+**Deliberately NOT built this round** (per user: keep LOTTR/TTTR for real, "somewhat soon... idk if
+mandatory," but scope it as a follow-on): real support for the old tool's literal `LOTTR`/`TTTR`
+measure keys (10 reports, currently invisible — buried in the generic `extra_measures_dropped` gap
+kind, never surfaced as their own bucket), entangled with a separate, larger pre-existing gap this
+round also surfaced: `convert_report.py`/`convert_template.py` only ever build ONE measure per Info
+Box graph at all (869 "extra measures dropped" instances / 524 reports corpus-wide) — the
+multi-measure composition already exists (`build_route_info_box_section_state_multi`) but is only
+wired into the spec-driven `report_build.mjs` path, never the automatic old-report converter. Both
+logged together in "Known functionality gaps" below.
 
-**The fix** (`convert_old_reports_lib/section_builders.py`, `build_graph_section_data`, the one
-call site of `resolve_measure_pick_window`): `resolve_measure_pick_window` itself is unchanged —
-same "every assigned comp agrees, or gap-log and default" logic round 70 shipped. Only the
-WRITE changed: the resulting `{weekdays, start, end}` window is now fanned out to
-`_measurePick.routeWindows[compId] = [{weekdays, start, end}]` for every comp id assigned to that
-graph (`info["assigned"]`), in addition to the existing (now-decorative but harmless) flat fields.
-This is a faithful translation of what round 70 already computed, not a new decision — round 70
-never captured per-route variation within one graph (see its own "no single correct answer" framing
-for the disagreement case), so one shared variant per assigned comp is exactly equivalent to the old
-flat write, just in the shape `useGraphPublish.js` actually reads today.
+Full detail: this round's own section immediately below; round 84's full text (Map hover tooltips)
+moved to [the archive](./old-reports-conversion-archive.md).
 
-**Live-verified**, not just unit-level: reconverted report 1045 with `--replace`
-(`python3 convert_old_reports.py --report-id 1045 --replace`) → new page `2214660`
-(`converted_reports/rochester_inner_loop`, the same report round 70 originally verified against).
-Fetched every published section's raw `element-data` via `dms raw get`/`dms raw get` on each
-`sections[]` ref (not `draft_sections`, which this converter leaves at a stray framework default —
-see the "Old/New shape" reference section) and confirmed:
-- Real AM-peak (`06:00`–`09:00`, Mon/Tue/Wed/Thu weekdays-only) and PM-peak (`15:00`–`18:00`)
-  windows landed correctly, keyed by the exact `comp-N` ids `useGraphPublish.js`'s
-  `transformReportRoutes` looks up via `route.route_comp_id`/`route_comp_ids`.
-- A multi-comp graph (section `2214688`) correctly got separate `routeWindows` entries for each of
-  its two assigned comps (`comp-5`, `comp-6`), both carrying the same agreed-on window.
-- The two `measure_pick_window_mixed` disagreement cases (sections `2214685`/`2214692`, same ones
-  round 71's dry-run and round 70's original run both flagged) still gap-log correctly and still
-  write the empty-default window — now via `routeWindows` too, harmless since an empty variant
-  reads as "unrestricted" on both the old and new mechanism.
-- `node report_probe.mjs converted_reports/rochester_inner_loop --auth`: 11/15 sections with
-  content, 0 console errors, 0 page errors, 0 SQL errors, real ClickHouse queries visible in the
-  captured `/graph` responses with real speed/hours-of-delay/LOTTR/TTTR values and real WHERE-clause
-  date/epoch filtering reflecting the AM/PM-peak windows above (not "all days, all hours").
+---
 
-**Not addressed this round** (unchanged from round 71): finding (2) the `{recent-NaN}` crash,
-finding (3) `route_comps_merged` not corpus-counted (explicitly descoped), finding (4) the prior
-converted-page corpus being gone from the dev DB. No bulk reconversion run yet — that's still a
-separate go/no-go decision.
+## Round 85 (2026-08-31) — Info Box `speed` bucket: rounds 19-58's pm3-reliability substitution replaced with the old tool's REAL plain-speed measure, unconditionally mapped (no year/bin gate); +106 clean conversions in one change
 
-**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/section_builders.py` (the fix,
-~12 lines). No other files.
+**Context**: continuing this session's "breakdown of non-clean conversions" request — a census-based
+clean/needs_attention/junk decomposition (`conversion_outcome_classification.json`, built round 71)
+ranked unmapped (graph type/measure/resolution/dataColumn) keys by how many `needs_attention`
+reports they alone block from going clean. `Route Info Box`/`TMC Info Box` × `speed` × `5-minutes`
+was #1 and #3 (169+92 instances, 90 single-blocker reports — 29% of the entire 328-report
+needs_attention bucket), by a wide margin the highest-leverage single fix available.
 
-## Round ledger (rounds 1–71 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 72 is current, full detail above)
+**The conflict found while scoping it**: `INFO_BOX_BUCKET = ("speed", "travel_time_all")` has been
+dispatched to a pm3/source-1410 LOTTR/TTTR/Freeflow **reliability** join since rounds 19/38/40/49/58
+— gated on resolving a per-report (year, bin) pair against 1410's 2021-2025(now 2018-2025) coverage
+and 4 precomputed time-of-day bins, which is exactly what left 261 instances permanently unmapped.
+But `info_box_templates.py`/`vocab.py` already carried a 2026-08-12 comment (from a completely
+separate task, `dynamic-reports-and-route-tags.md`) stating this was wrong: `speed` is really the
+old tool's plain average-speed-in-mph measure, never reliability. **Independently re-verified this
+round, directly against `transportNY`'s real source** (not just trusting the comment): `dataTypes.js`
+`BASE_DATA_TYPES` has `{key:'speed', alias:'travelTime', ...}` — no `group`, falls through
+`RouteInfoBox.jsx`/`TmcInfoBox.jsx`'s plain default `allReducer` branch, same code path as
+`travelTime`; `lottr`/`tttr`/`reliability` appear **nowhere** in `dataTypes.js` — that vocabulary
+only exists in unrelated old pages (`pm3Map21`, `MacroView`, `TmcPage`), never in the report-builder
+(`pages/analysis`) that `admin2.reports` actually feeds. Cross-checked against round 18's own
+archived notes: the reliability substitution was a **deliberate pragmatic call**, not a
+misunderstanding of what `speed` meant — the old tool's *literal* `LOTTR`/`TTTR` measure keys (a
+real, separate, rare bucket) have 0 real reports overlapping 1410's coverage (all pre-2018), so
+round 18/19 piggybacked the newly-proven pm3-join mechanism onto the `speed` bucket to get a working
+demo instead of 0 corpus flips. That substitution never actually reproduced what a `speed` Info Box
+showed in the old tool, and blocked 261 real instances (~90-95 reports) for no correctness reason.
 
+**User's ruling** (after a clarifying back-and-forth on why `speed` needs no year/bin, unlike
+`travelTime`'s own real date-dependency): plain speed always, replacing the reliability substitution
+for this bucket entirely — confirmed there's no defensible reason to prefer reliability once plain
+speed has zero coverage gating; Option 2 ("reliability first, plain-speed fallback") was explicitly
+rejected as strictly worse on every axis once that's true. The reliability machinery itself
+(`ensure_pm3_join_template`/`graph_reliability_bin`/`PM3_VIEW_BY_YEAR`/`RELIABILITY_BIN_LABELS`) is
+kept, unused by this bucket now — the user wants LOTTR/TTTR support built for real (other
+components may need it despite sparse old-tool usage), scoped as a follow-on, not this round (see
+"Known functionality gaps").
+
+**Why `speed` needs no year/bin, unlike reliability (the clarifying point)**: `SPEED_EXPR`
+(`miles*3600/travelTime`) is exactly as date-dependent as `travelTime` — both read the same
+continuous raw ClickHouse fact table (source 583/view 982, `NPMRDS_V6`, 2017-2026 in one table).
+The date window is a **live, per-request parameter** (`_measurePick.routeWindows`, resolved via the
+`comparisonSeries` `$self` subscriber at render time, round 72's fix), identical to how Route
+Bar/Line Graph's own `speed` measure already works — so ONE static template per grain suffices.
+Reliability is different in *kind*: source 1410 is provisioned as a **separate Postgres table per
+year** (`s1410_v2587_pm_3` for 2021, etc.) with each time-of-day bin as a **separate column**
+(`lottr_amp_lottr` vs `lottr_pmp_lottr`) — the join target itself has to be chosen at
+template-mint time, which is why reliability (and only reliability) needs a `{year}_{bin}` baked
+into its template name.
+
+**Built**: `convert_report.py`/`convert_template.py`'s Info Box dispatch (the `measure_col ==
+INFO_BOX_BUCKET` branch) now calls `ensure_info_box_speed_template(grain, ...)` — already built
+2026-08-12 for the spec-driven `report_build.mjs` path (`SPEED_EXPR`, `decimal_2` formatFn,
+live-proven on the Dynamic Report catalog's `one_week_study` page) — unconditionally, no year/bin
+resolution at all. `census_old_reports.py`'s mirror updated identically. Removed the now-dead
+`graph_max_year`/`graph_reliability_bin` reliability-resolution code + the
+`info_box_year_undetermined`/`info_box_year_outside_pm3_coverage`/`info_box_bin_undetermined` gap
+kinds for this bucket (they never fire for `speed` anymore); `graph_reliability_bin` import dropped
+from all 3 files (now unused — `graph_max_year`/`PM3_VIEW_BY_YEAR` stay, still used by Route
+Map/Bar-Graph-Summary-freeflow). Left pointer comments in all 3 files (plus `vocab.py`'s
+`INFO_BOX_BUCKET`/`INFO_BOX_SPEC_MEASURES` definitions) explaining the history and that the
+reliability functions are intentionally kept, unused here, for the LOTTR/TTTR follow-on.
+
+**Live-verified**: dry-ran 10 candidate reports first (317/816/182/1039/1026/191/321/435/443/942) —
+confirms both grains dispatch correctly (`route_info_box_speed` drift-recomposed where it already
+existed from the Dynamic Report catalog work, `tmc_info_box_speed` freshly minted where it didn't).
+Converted 2 for real: **317** "Madison Ave Road Diet Westbound" (`--replace` → page `2216102`, route
+grain, point-drawn routes resolved via falcor) and **182** "I-87 Exit 4 NB Ramp" (fresh convert →
+page `2216129`, TMC grain, first-ever real use of a freshly-minted `tmc_info_box_speed` row).
+`report_probe.mjs --auth` on both: **0 console/page/SQL errors** (only the known-benign
+`/track/visit` 204); "Route Info Box, Speed"/"TMC Info Box, Speed" sections render real, sane mph
+values (48-60 mph range on 182's TMCs — plausible highway speeds) computed live via the genuine
+two-level `SPEED_EXPR` query (confirmed by inspecting the actual fired ClickHouse SQL in the probe's
+network capture, not just "no error").
+
+**Corpus impact** (full census re-run): `full` 309→**483** (+174), mapped instances 5675→**6160**/7107,
+`no_equivalent` bucket instances 534→**49** (nearly this whole bucket WAS this one substitution).
+Reclassified clean/needs_attention/junk: **clean (page-producible + full) 184→290 (+106, +58%)**,
+needs_attention 328→223, junk ~unchanged (357, page-producibility is untouched by this fix).
+`conversion_outcome_classification.json` regenerated to match.
+
+**Regression check — ran `probe_corpus.mjs`, all findings traced to pre-existing causes, none to
+this change**: every golden-corpus/Dynamic-Report entry showed failures, but the 4
+`golden_corpus_*` entries were rendering the site's **marketing homepage**, not the report page at
+all — their live pages had been resaved earlier that day (`dms_npmrdsv5.data_items` `updated_at`
+14:18 UTC, slugs now `golden_corpus_line_graph` etc., underscored vs. the manifest's
+`golden_corpus_linegraph`), the 3rd recurrence of a bug the manifest's own notes already documented
+from 2026-08-24/25. Root-caused and **fixed as a same-session addendum, not left open**: the real
+bug was in `report_build.mjs`'s `computeTargetSlug()`, which trusted an explicit `spec.slug` field
+verbatim (via a fallback algorithm that didn't even match the admin UI's own `toSnakeCase()`/
+`getUrlSlug()` either) instead of always deriving the slug from `spec.title` the way the admin UI
+does — these 4 specs' hand-picked slugs never matched what their own two-word titles would
+produce, so every resave silently drifted the slug back out from under the hardcoded one. Fixed:
+`computeTargetSlug()` now always computes via an exact `toSnakeCase()` port from `spec.title`
+(dropping `spec.slug` entirely); verified every one of the 12 real production `dynamic_report_
+specs/*` already had a slug matching `toSnakeCase(title)` exactly (so this changes nothing for
+them), removed the now-dead `slug` field from all 16 spec files, rebuilt the 4 golden-corpus pages
+for real (`--replace --publish`) onto their now-stable title-derived slugs, updated the manifest's
+`url`s to match, and re-captured (`--capture --only`) — all 4 read back as real working pages (0
+errors, correct section titles) and now PASS `probe_corpus.mjs` cleanly. The `dynamic_report_*`
+entries' separate failures (query-shape drift, one pending-request increase) are built via
+`report_build.mjs`'s OWN Info Box function (`section_builders.py`'s
+`build_route_info_box_section_state`), a completely different code path neither this fix nor the
+Info Box `speed` fix above touched — confirmed by inspecting that function, untouched; left open,
+out of scope for this round. New gotcha (with the fix) logged in `regression-testing-npmrds-
+reports.md`.
+
+**Known functionality gaps opened, not built this round** (per user: "somewhat soon... idk if
+mandatory" — logged as a real follow-on): see "Known functionality gaps" below,
+"Info Box multi-measure support + literal LOTTR/TTTR recognition, needed for real report fidelity".
+
+**Files changed**: `scripts/npmrds-reports/convert_old_reports_lib/convert_report.py`,
+`convert_template.py`, `scripts/npmrds-reports/census_old_reports.py`,
+`convert_old_reports_lib/vocab.py` (comment corrections only). No new DB rows beyond the 2 live
+test conversions (317→`2216102`, 182→`2216129`) and the drift-recomposed `route_info_box_speed`
+row; `tmc_info_box_speed` newly created (`id=2216128`). No backfill of already-converted pages —
+lazy-reconvert policy, same as every other template-level fix this task has shipped.
+
+**Addendum, same session (slug-computation root-cause fix)**: `scripts/npmrds-reports/report_build.mjs`
+(`computeTargetSlug()`/new `toSnakeCase()`), all 12 `dynamic_report_specs/*.json` + 4
+`report_probe_fixtures/specs/golden-corpus-*.json` (dead `slug` field removed),
+`report_probe_fixtures/golden-corpus.json` (4 `url`s updated + notes, baselines re-captured).
+4 pages rebuilt for real: `golden_corpus_line_graph`/`_bar_graph`/`_grid_graph`/`_route_map`
+(new `reports_snap_2` rows 2216148/2216156/2216164/2216172). No production `dynamic_report_specs`
+page was renamed (verified their existing slugs already matched `toSnakeCase(title)`).
+
+---
+
+## Round 84 (archived, 2026-08-31) — Map hover tooltips (round 82 finding 6 / Round C): mechanism confirmed, fixed across all 3 Route-Map-building code paths, live-verified. Full detail: [archive, "Round 84"](./old-reports-conversion-archive.md).
+
+## Round 83 (archived, 2026-08-31) — user-reported report-browser bug: converted reports invisible/unclickable in "Choose a report" + Tag Browser; root-caused to two independent bugs, both fixed + backfilled + live-verified. Full detail: [archive, "Round 83"](./old-reports-conversion-archive.md).
+
+## Round 82 (archived, 2026-08-31) — user's cosmetic-gap triage from round 81's side-by-side samples: 4 real bugs found + fixed (Round A), report-tags scoped for review (Round B), Map-hover finding corrected (Round C — fixed round 84). Full detail: [archive, "Round 82"](./old-reports-conversion-archive.md).
+
+## Round ledger (rounds 1–84 archived — full detail in [the archive](./old-reports-conversion-archive.md); round 62 is ledger-only below (full detail lives in "Known functionality gaps"), round 85 is current, full detail above)
+
+- **R85** (08-31): Info Box `speed` bucket fixed — rounds 19/38/40/49/58's pm3-reliability
+  substitution (year/bin-gated, based on the old tool's literal `LOTTR`/`TTTR` measure keys having 0
+  real corpus overlap with 1410's coverage) replaced with the REAL plain-speed measure (confirmed
+  directly against transportNY's `dataTypes.js`/`RouteInfoBox.jsx` source: `speed` is plain mph, no
+  reliability connection at all), now mapped unconditionally via `ensure_info_box_speed_template`
+  (already built 2026-08-12 for the spec-driven `report_build.mjs` path) — no year/bin gate needed,
+  since the date window comes from `routeWindows` at render time like every other measure. Live-
+  verified on 2 real conversions (317 route-grain, 182 TMC-grain), 0 console/page/SQL errors, real
+  sane mph values in the fired SQL. **Clean conversions 184→290 (+106, +58%)** in one change (`full`
+  309→483, `no_equivalent`-bucket instances 534→49). `probe_corpus.mjs` regression check showed
+  failures on every entry but all traced to pre-existing, unrelated causes (stale manifest URLs
+  after an unrelated same-day page rename; `report_build.mjs`'s own separate, untouched Info Box
+  code path) — not fixed, logged. Deliberately NOT built: real literal `LOTTR`/`TTTR` measure-key
+  support (10 reports, currently invisible inside the generic `extra_measures_dropped` gap kind) and
+  the entangled, larger gap that the automatic converter only ever builds ONE measure per Info Box
+  graph at all (869 "extra measures dropped" instances/524 reports corpus-wide) — both logged as a
+  single follow-on in "Known functionality gaps", per the user ("somewhat soon... idk if
+  mandatory").
+- **R84** (08-31): round 82 finding 6 ("Map hover tooltips")/Round C fixed — mechanism confirmed
+  (hover popups are an existing, symbology-level DMS map capability, gated by
+  `layer['hover']`/`layer['hover-columns']`, read by the map runtime's `HoverComp` and normally
+  authored via the Map Editor's Popover tab). The gap was in 3 independent Route-Map-layer-building
+  code paths, not 1: the Python converter (`route_map.py`, fixed — new
+  `route_map_hover_columns()` wired into all 5 template-builders), `report_build.mjs` (confirmed to
+  delegate straight to the Python converter's `--route-map-section` CLI, no separate fix needed),
+  and the live "Add Graph"/QuickControls authoring UI (`composeMapConfig.js`, a genuinely separate
+  JS port — fixed with a mirrored `routeMapHoverColumns()`, surfaced by the user's own question
+  about whether all 3 paths were covered). Live-verified twice: Python path on reconverted report
+  971 (`nittec_150` → page `2216069`, user-confirmed TMC+Speed popup); JS authoring path on a
+  scratch report (created + deleted, user-confirmed TMC+Travel Time popup). New doc gotcha found
+  (`+ Add Graph` no-ops with 0 routes) logged in `traversing-report-pages.md`. New deferred finding,
+  explicitly NOT fixed this round per the user: Travel Time's Route Map color scale is both static
+  (should arguably be dynamic) and polarity-backwards (low/fast = red, should be green) — logged in
+  "Known functionality gaps", `hoursOfDelay`/`avgHoursOfDelay`/CO2 measures suspected to share the
+  same backwards-polarity bug (unconfirmed). Also caught+resolved a live cross-session write
+  collision with a sibling session working round 83 concurrently on the same corpus — no data lost,
+  confirmed via `SendMessage` both ways. Full detail above.
+- **R83** (08-31): user-reported report-browser bug — a real converted report was invisible (search
+  found only greyed-out "Legacy — not yet rebuilt" duplicates) and unfindable by tag despite a
+  visible tag chip. Two independent root causes: (1) round 82's converter never wrote `page_path`
+  on the `reports_snap_2` row, so `isRebuilt()` could never tell a real conversion apart from a
+  never-rebuilt legacy row — fixed in `convert_report.py`/`convert_template.py`, backfilled onto
+  all 10 pre-existing conversions via a one-off script; (2) `ReportTagsEditor.jsx`'s free-text tag
+  input committed raw typed text instead of the canonical prefixed vocabulary value ("AVAIL" instead
+  of "agency:AVAIL"), permanently unfindable by the Tag Browser — fixed via a new
+  `canonicalizeTag()` helper, one live bad tag corrected in the backfill. Also, per explicit user
+  direction, legacy (never-rebuilt) rows now excluded from the picker entirely, not just
+  down-ranked — `useReportSearch.js` filters `page_path notempty` unconditionally. A live
+  cross-session write collision during the backfill (a sibling session concurrently reconverting
+  the same report) resolved cleanly with no data loss. Live-verified end-to-end via claude-in-chrome
+  reproducing the user's exact repro. Full detail above.
+- **R82** (08-31): user's cosmetic-gap triage from round 81's 3 samples, 6 findings. 4 REAL bugs
+  found + fixed (Round A): (1) RRL/chart series colors never copied from the old report
+  (`build_route_entry` missing the `color` field `build_slot_entry` already had) — systemic, every
+  multi-route converted report was affected; (2) graph section order didn't match the old tool
+  (converter walked raw `graph_comps[]` array order, not the old tool's own `(layout.y,x)` visual
+  order — now sorted before anything reads the list); (3) speed Route Map had no green in its
+  color ramp (round 80's `colorBreaks.json` placeholder was pure yellow→red — replaced with a
+  real ColorBrewer RdYlGn ramp, platform-wide for every speed map); (4) grid/line graph titles
+  never showed which route/year (title was already author-editable, converter just never
+  defaulted it — generalized an existing narrow merge-only title-suffix into the default path).
+  All 3 round-81 samples reconverted + live-verified (colors/order/titles all confirmed correct in
+  browser), full census 870/870 0 errors, `full_producible`/`converted_pages_total` unchanged.
+  Report-folders→tags (Round B) scoped, corrected per user feedback (storage moved to the
+  `reports_snap_2` dataset row, not a page field; vocabulary shared with routes), then BUILT +
+  live-verified same day — new `fetch_agency_tag()` (Python) writes `agency:<code>` tags at
+  conversion time; a chip-input editor and a full category→value tag-browser drill-down (mirroring
+  RouteTagBrowserModal) shipped on the JS side; `AGENCY_CODES` extended 18→22 entries, shared by
+  both pickers. Nesting checked against real data and found not worth replicating (only 4/870
+  reports sit in any nested folder, all in personal test folders) — flat tags shipped instead, with
+  a design note that flat multiselect tags already support future nesting-by-co-occurring-tags with
+  no further storage change. Map-hover-tooltip finding from round 45/round-53's gap list
+  corrected by the user — hover popups ARE an existing, proven DMS map capability
+  (symbology-level), not a from-scratch feature as previously logged; not yet re-scoped (Round C).
+  Full detail: [archive, "Round 82"](./old-reports-conversion-archive.md) once archived.
+- **R81** (08-31): user requested 2-3 clean, RECENT sample conversions for side-by-side validation
+  against the old tool. Found only 7 of 29 live `converted_reports/*` pages are real old-report
+  conversions (the other 22 are the unrelated Dynamic Report Template catalog demo pages) — all 7
+  predate 2025-04. Census re-run + cross-referenced against old-DB `updated_at` to rank zero-gap
+  full/producible reports by real recency; converted 3 new ones: 1066 "787 NB 5-12-2026"
+  (2026-05-12), 1064 "NYC Test" (2025-11-07), 971 "NITTEC 150" (2023-01-04) — all live-verified 0
+  errors on the published view. Stale-auth-token probe gotcha hit + fixed (re-mint, not a new
+  product bug). **Then a real bug**, user-caught in EDIT mode on those same pages: converted pages'
+  `draft_sections` (what `/edit/` reads) silently dropped every section but the last — root cause
+  was `dms section create`'s racy per-call read-push-write attach, called once per section in a
+  loop; `sections` (published) never had this since it's built as one bulk write. Also found
+  pre-existing on 1 of the 7 old real conversions (787). Fixed in `convert_report.py`/
+  `convert_template.py`: draft rows now created via `raw create` + attached in one bulk update,
+  mirroring the published path. All 4 broken pages reconverted (971→`2215835`, 1066→`2215853`,
+  1064→`2215867`, 787→`2215885`), draft/published parity + live edit-mode rendering confirmed,
+  published views re-verified unaffected. Full census 870/870 0 errors, `converted_pages_total`
+  7→10. **Then a third bug**: report pages missing the compact sidenav rail (per-page
+  `theme.layout.options.sideNav.activeStyle:1`) — the Report Page template already carries the
+  right value but no page-creation path (`convert_report.py`/`convert_template.py`/
+  `report_build.mjs`) ever copied it, so every created/recreated page silently lost it; fixed all
+  3 to copy `theme` off the template, then backfilled all 22 currently-missing `converted_reports/*`
+  pages via `dms raw update --set`. 32/32 report pages now carry the override, live-verified.
+  Full detail: [archive, "Round 81"](./old-reports-conversion-archive.md).
+- **R80** (08-27): platform-wide switch from dynamic to static color scales — new shared
+  `colorBreaks.json` (same cross-language pattern as `vocabulary.json`), Route Map's live
+  `colorDomain` refetch bypassed via the Map runtime's own existing `bin-method:'custom'` escape
+  hatch, Python's entire per-report quantile-bake machinery retired outright, a genuinely new
+  `colors.domainMin`/`domainMax` capability added to core GridGraph/BarGraph with a real
+  SectionMenu UI control. Live-verified on report 168 (`--replace` → page `2215071`): confirmed
+  **zero `colorDomain` requests fired**. Full census 870/870, 0 errors, `full_producible` unchanged
+  at 184. Full detail: [archive, "Round 80"](./old-reports-conversion-archive.md).
+- **R79** (08-27): Info Box migrated onto the bridge — a genuinely new `grain` (`route`/`tmc`)
+  capability in `composeTableMeasuresConfig`, not just reuse, plus a `length`/`aadt` TMC-grain
+  expression override. Found+fixed a real cross-platform bug: the generic `reconcileComparisonSeriesColumnOnState`
+  was adding a spurious second categorize column at TMC grain. Reliability/multi-measure composition
+  simplified via a new `ensure_dynamic_bridge_template` helper. `info_box_templates.py` 822→~200
+  lines. Live-verified on report 1045 (after cleaning up a partial page from an unrelated transient
+  DB timeout), full census 870/870 0 errors, `full_producible` unchanged at 184. Full detail:
+  [archive, "Round 79"](./old-reports-conversion-archive.md).
+- **R78** (08-27): Route Compare Component migrated onto the bridge — near-zero-new-code, since
+  `composeTableMeasuresConfig` already produced byte-identical delta-column math; real work was 2
+  small general-purpose Table-bridge infra additions (Spreadsheet config loading, `elementType`
+  branching) round 79 also reused. One accepted behavior change: travelTime-only tables now compose
+  with no join (unneeded — functionally equivalent, matches every other travelTime consumer's own
+  contract). Live-verified on report 168, full census 870/870 0 errors, `full_producible` unchanged
+  at 184. Also raised (not resolved this round) a platform-wide static-vs-dynamic color-scale
+  question. Full detail: [archive, "Round 78"](./old-reports-conversion-archive.md).
+- **R77** (08-27): extended round 76's bridge-composition pattern from GridGraph-only to
+  LineGraph/BarGraph/Bar Graph Summary/Route Difference — 37 mechanical dict moves + 3 unlocked by a
+  new `summaryDelayGrainKey` JS capability (avgHoursOfDelay's Bar Graph Summary value, ported
+  byte-identical from Python's `_avg_delay_summary_expr`). 6 entries deliberately held back (the base
+  template; 5 "Hours of Delay Graph" per-TMC BarGraph entries — a newly-found `categorize:"tmc"`
+  BarGraph gap). Fixed a round-76 census side-effect gap (`AADT_CONSUMING_TEMPLATES` missing
+  GridGraph's bridge-composed entries) along the way. Live-verified on reports 787/584, full census
+  870/870 0 errors, `full_producible` unchanged at 184. Full detail: [archive, "Round
+  77"](./old-reports-conversion-archive.md).
+- **R76** (08-26): architectural fix — GridGraph's 18 templates now COMPOSED via the real
+  `applyMeasurePick`/`composeMeasureConfig.js` (`compose_bridge.mjs`/`compose_bridge.py`), not
+  hand-built Python; the two-independent-reimplementations problem rounds 74/75 kept finding is now
+  structurally impossible for this graph family. Found+fixed a real, independent join-staleness bug
+  for `speed`/`travelTime` along the way (round 59 never reached them). Live-verified on 4 reports
+  (435/751/1037/584), full census 870/870 0 errors, `full_producible` unchanged at 184. Full detail:
+  [archive, "Round 76"](./old-reports-conversion-archive.md).
+- **R75** (08-26): fixed GridGraph's "confetti" rainbow color scale — a direct port of
+  `composeMeasureConfig.js`'s 2026-08-12 fix (`{type:"scheme",scheme:"rdylgn",reverse}`), same
+  shape as R74's yAxis fix. Live-verified on all 18 GridGraph templates + report 435 (page
+  `2214893`). Full detail: [archive, "Round 75"](./old-reports-conversion-archive.md).
+- **R74** (08-26): fixed a user-reported live bug — every GridGraph's y-axis showed "NaN" instead
+  of the TMC id (`display.yAxis` inherited a numeric `tickFormat` from the LineGraph base template,
+  applied to a categorical TMC-id axis). This is the SAME symptom round 69 mis-diagnosed as a
+  data-shape oddity. Fixed in `graph_templates.py`'s `ensure_graph_templates` (mint + drift);
+  live-verified on report 435 (page `2214862`), all 18 GridGraph templates swept directly. Full
+  detail: [archive, "Round 74"](./old-reports-conversion-archive.md).
+- **R73** (08-26): fixed round 71 finding (2) — the `{recent-NaN}` relativeDate-placeholder crash
+  (13/870 reports), gap-logged instead of hard-crashing (`convert_report.py`). Live-verified: all
+  3 corrupted-value shapes dry-run clean; report 435 converted for real → page `2214814`
+  (superseded by R74's `2214862`), 0 errors, full census 870/870 0 errors, `full_producible`
+  unchanged at 184. Full detail: [archive, "Round 73"](./old-reports-conversion-archive.md).
+- **R72** (08-25): fixed round 71 finding (1) — `_measurePick.routeWindows` now written per-comp
+  (`section_builders.py`), matching the shape `useGraphPublish.js`/`report_build.mjs` have read
+  since the 2026-08-14 `routeWindows` migration. Live-verified on report 1045 (`--replace` → page
+  `2214660`), `report_probe.mjs --auth` 11/15 sections with content, 0 errors. Full detail:
+  [archive, "Round 72"](./old-reports-conversion-archive.md).
 - **R71** (08-25): pre-reconversion audit — census-based clean/needs-attention/junk classification
   of the full 870-report corpus (184/328/358), plus 4 tooling-verification findings (finding 1
-  fixed in R72; findings 2-4 still open — see Current state).
+  fixed in R72; finding 2 fixed in R73; findings 3-4 resolved/descoped — see Current state).
 - **R70** (08-07): converter's `_measurePick` write was unconditionally hardcoding a converted
   graph's `weekdays`/`start`/`end` to the empty "all day" default, silently dropping every
   converted report's weekday mask/peak-hour window — new `resolve_measure_pick_window`
@@ -545,6 +797,36 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
 
 ## Known functionality gaps (to grow as conversion proceeds)
 
+- **Info Box multi-measure support + literal LOTTR/TTTR recognition, needed for real report
+  fidelity (round 85, 2026-08-31, NOT built — user: "somewhat soon... idk if mandatory")**: two
+  entangled gaps surfaced while fixing the `speed` bucket (round 85 above).
+  1. **`convert_report.py`/`convert_template.py` only ever build ONE measure per Info Box graph,
+     full stop.** The old tool's real Route/TMC Info Box shows N measures as N columns in one box
+     (e.g. "Speed, Travel Time") — `analyze_graph` only classifies/builds a graph's PRIMARY measure;
+     every other configured display column is silently dropped into the generic
+     `extra_measures_dropped` gap kind. Corpus-wide: **869 instances / 524 reports** carry at least
+     one dropped secondary measure — the single largest gap-kind in the whole census, though it
+     doesn't block a report from being classified "full"/clean (only the primary measure's mapping
+     does). The multi-measure composition already exists
+     (`build_route_info_box_section_state_multi`/`INFO_BOX_SPEC_MEASURES`, `check_info_box_measure_
+     combo`) but is wired ONLY into the spec-driven `report_build.mjs` path (first real usage:
+     `one_week_study`'s weekday Info Box, 2026-08-13), never into the automatic old-report converter.
+  2. **The old tool's literal `LOTTR`/`TTTR` measure keys have no real classification at all** —
+     confirmed by grepping `census.json`'s `extra_measures_dropped` gap detail directly: exactly 10
+     reports (137, 156, 181, 185, 210, 231, 232, 244, 245, 298 — matches round 18's original count)
+     request `LOTTR`/`TTTR` by name, always as a secondary/dropped column (gap 1 above), so they
+     never surface as their own bucket in the ranked unmapped-key table the way `speed` did — a
+     future session grepping the census for "what's still unmapped" would miss this entirely.
+     Building real support means recognizing `LOTTR`/`TTTR` as their own primary-eligible measure
+     keys in `analyze_graph`'s dispatch (today only `speed`/`travelTime`/`length`/`aadt`/
+     `hoursOfDelay` are recognized at all) and reusing the reliability machinery round 85
+     deliberately preserved for this (`ensure_pm3_join_template`/`graph_reliability_bin`/
+     `PM3_VIEW_BY_YEAR`/`RELIABILITY_BIN_LABELS` — still defined, just unused by the `speed` bucket
+     now). **Payoff today is zero**: all 10 reports predate 2018, outside 1410's coverage even after
+     the 2018-2020 backfill — pure future-proofing until either more reports use it or another
+     component (per the user: "we may need it for stuff") needs the same reliability data.
+  Not scoped into a concrete plan yet — logged here as a real, user-endorsed follow-on, not a
+  hypothetical.
 - ~~weekday masks~~ **DONE (2026-07-07)**: route entries carry a first-class `weekdays` field (old
   settings shape, `{monday: bool, …}`); `transformReportRoutes.generateDateRange` skips
   explicitly-`false` days when enumerating the `date IN` list — no new filter op needed. Verified
@@ -674,17 +956,28 @@ convert from `admin2.reports` directly (dedupe/cleanup of that dataset is separa
   color swatch + name per route on the title row — that IS a legend, just categorical not a
   scale, so "just a list of layers" for `route_map_none` maps is closer to a UX opinion than a
   bug; see the next item).
-- **Map sections have no hover interactivity (user-reported 2026-07-15, NOT investigated beyond
-  confirming there's nothing to wire up — logged only)**: hovering a Map feature (a TMC segment
-  on a Route Map, a choropleth cell) shows nothing — no tooltip/popup with the underlying value.
-  Checked `ComponentRegistry/map/index.jsx` for any existing mousemove/mouseenter/popup
-  machinery to extend: **none exists** — the only hover-adjacent code is a few comments about a
-  *future* click/hover→page-filter publish mechanism (already excluded from the Map's filter
-  sync, per round 45's `dataPageFilters` note), not a value-on-hover tooltip. This would be a
-  real new feature (maplibre `mousemove`/`mouseenter` handlers + a popup component + wiring per
-  layer to its `data-column`/value), not a config tweak — NOT almost-free, deliberately left
-  unbuilt per the user's own "mark as bug, don't work on it now" instruction. Candidate for an
-  M4-adjacent or post-M3 round if prioritized.
+- **~~Map sections have no hover interactivity on converted Route Map choropleths~~ — FIXED round
+  84 (2026-08-31)**: was gated by `layer['hover']`/`layer['hover-columns']` (an existing, proven
+  DMS map capability, normally set via the Map Editor's Popover tab), which none of the 3 places
+  that build a Route Map layer (`route_map.py`, `report_build.mjs` — delegates to the Python
+  converter, `composeMapConfig.js`) ever populated. All 3 now set it (round 84's own section has
+  full detail); live-verified on both the Python-converter path (speed) and the live "Add
+  Graph"/QuickControls JS path (travel time). Explicitly still OUT of scope: letting a Report
+  Author edit the tooltip via quick controls or similar — real future work, not built this round.
+- **Travel Time's (and likely hoursOfDelay/avgHoursOfDelay/CO2's) Route Map color scale is static
+  and polarity-backwards (user-reported 2026-08-31, round 84 — explicitly NOT fixed this round,
+  "dont do this now")**: verifying round 84's hover fix on a Travel Time choropleth, the user flagged
+  the color scale itself as bad in two ways: (1) low/fast travel time renders **red** and high/slow
+  travel time renders **pale yellow** — backwards from the intuitive "green=good, red=bad"
+  convention `speed`'s round-82-fixed ramp already gets right (round 82 deliberately scoped that fix
+  to speed only, per the user's own "not for ALL maps" direction at the time); (2) beyond just wrong
+  colors, the user's view is that Travel Time specifically needs a DYNAMIC/data-driven scale, not
+  just better static breaks — a materially different ask than round 82's "ship the existing
+  placeholder numbers, real-distribution analysis is a tracked follow-up" framing for the other
+  measures. `hoursOfDelay`/`avgHoursOfDelay`/the CO2 measures share the exact same placeholder color
+  array (`colorBreaks.json`) and the same "higher=worse" polarity as travelTime, so they likely have
+  the identical backwards-polarity bug — unconfirmed, not user-observed, flagged as a probable but
+  unverified extension. Not scoped or built — parked exactly where the user left it.
 - **Route Map's per-route category legend may be more noise than signal (user opinion,
   2026-07-15, logged only)**: for `route_map_none`-style maps (plain colored lines, no
   choropleth), the current legend lists every route by name+color — technically correct
@@ -704,6 +997,74 @@ file (not this section) as more sources get investigated.
 
 ## Open questions (user)
 
+- **Round B — report folders → tags. BUILT + live-verified 2026-08-31 — see Round 82's "Round B"
+  section above for the verification record and full files-changed list.** Scoping history kept
+  below for the reasoning trail (the plan didn't change once finalized). Original write-up below
+  had one wrong premise (page-level field); corrected + all open design questions resolved by the
+  user in one round. Final plan:
+  - **Storage — dataset row, not a page field (user correction).** Reports are double-represented
+    in DMS: a `page` row (content) AND a `reports_snap_2` catalog row (`reports_snap_2|2177440:data`,
+    one per converted report, same split-table shape as `routes_data|2107427:data`) — confirmed by
+    reading `config.py`'s `REPORTS_SNAP_TYPE`/`REPORTS_SNAP_TABLE`. My original plan proposed a new
+    page-level `tags` field; the user corrected this — reports already have their own dataset row,
+    exactly like routes, so `tags` belongs there, not on the page (avoids any DMS-core/page-schema
+    change entirely, not just avoids a *formal* one). Confirmed the mechanism is even simpler than
+    routes' own precedent suggested: the routes_data VIEW row (2107427) carries no column schema at
+    all (`data:"schema-free"`) — the real "column" only exists as a `config.attributes` entry
+    (`type:"multiselect"`) on the SOURCE row (2107426), which is what the UDA engine actually reads
+    to know the column's type for filtering. Round B mirrors this exactly: add the identical
+    `{name:"tags", type:"multiselect"}` attribute to the `reports_snap_2` SOURCE row (id `2177438`),
+    then `convert_report.py`/`convert_template.py` write `data.tags = json.dumps([...])` on each
+    `reports_snap_2` row at conversion time — same `js()`-style JSON-string convention every other
+    field on that schema-free row already uses.
+  - **Vocabulary — ONE shared list with routes, not a separate one (user decision).** Reports' 8
+    real agency folders (NYSDOT 186, AVAIL 75, MHV 42, NYSDOT CONSULTANT 15, OCTC 12, CDTC 8,
+    NPMRDS New Users 5, GBNRTC 4) only partially overlap routes' existing 18-value `AGENCY_CODES`
+    (`RouteTagBrowserModal/tagCategories.js`) — NYSDOT/CDTC/GBNRTC/OCTC already present, but
+    AVAIL/MHV/`NYSDOT CONSULTANT`/`NPMRDS New Users` are NOT. Per the user's call ("can't think of
+    a reason why we'd want distinct lists"), `AGENCY_CODES` gets those 4 new entries added
+    (→ 22 values total) and BOTH routes and reports read the same list — no report-specific
+    vocabulary file.
+  - **Nesting — stays flat now, but the flat design is ALREADY nesting-forward-compatible by
+    construction, so no schema hedge is needed (user decision + a design insight worth recording).**
+    Checked against real data (see original finding, kept below): only 4/870 reports sit in any
+    nested folder, all noise — not worth building hierarchy FOR NOW. But the user wants it easy to
+    add nesting later, and floated the mechanism themselves: nesting-via-co-occurring-tags (a
+    report tagged BOTH `agency:NYSDOT` and a future `batch:batch_1` tag displays to the user as
+    "NYSDOT → batch_1"), not a single baked hierarchical string like `NYSDOT/batch_1`. This means
+    the flat `multiselect` array chosen for Round B **already fully supports this** with zero
+    future storage/schema change — a report can always carry >1 tag today, and "nesting" later is
+    purely a BROWSE-UI enhancement (group visually by a second tag dimension when both are
+    present), not a data-model migration. Worth stating plainly: flat-now was never a trade-off
+    against easy-nesting-later — they're the same design.
+  - **Editor UI**: a chip-input control (mirrors `SaveRouteModal.jsx`'s `TagsInputField` exactly)
+    added to `ReportRouteList.jsx`'s already-existing "Report settings" disclosure panel (currently
+    holds only the "Dynamic Report" toggle). This is architecturally consistent with the storage
+    decision above, not just convenient placement: RRL already reads/writes the SAME
+    `reports_snap_2` row (its `routes` array) on every route edit, so adding a sibling `tags` field
+    to that same save payload needs no new read/write path — just a new field in an existing one.
+  - **Discovery — a real tag-browser IS in scope, not deferred (user decision, reversing my
+    original hedge).** `ReportPickerModal.jsx` ("Choose a report") already exists, already reads
+    from the `reports_snap_2` catalog, and already shares `PickerSearchInput`/`PickerFacetChips`/
+    `PickerCountBar` chrome + `rankByScore` scoring with `RouteTagBrowserModal` — confirmed by
+    reading both files directly. What it doesn't have yet is the category→value drill-down state
+    machine (`view: root/category/value/other`) `RouteTagBrowserModal` uses. Mirrors that pattern
+    directly: a `TAG_CATEGORIES`-equivalent (using the now-shared agency list above), a
+    `useReportTagBrowser` hook mirroring `useTagBrowser` (same `array_contains` UDA filter
+    mechanism already proven for routes), and the same category/value/list view states. Given how
+    much chrome is already shared, this really is the moderate lift the user expects, not a
+    from-scratch build — confirms their own read. This does functionally overlap with the
+    2026-07-27 "no report discovery page" ruling, but the user's direction here — "we will want
+    discovery via tag browser, eventually" — reads as a deliberate, informed choice to build this
+    specific piece (a picker MODAL searching what a user is already authorized for, same shape as
+    the existing "Choose a report" modal) rather than a standalone browse/index PAGE, which is the
+    thing that ruling was actually about. Treating this as in-scope for Round B, not re-blocked by
+    that older ruling — flag if that reading is wrong.
+  - **Original finding, unchanged**: real folder nesting exists in `admin2.folders`/
+    `stuff_in_folders` generally, but only 4/870 reports sit in ANY nested folder (all in personal
+    test folders — `AVAIL → BatchReportsTest` and `NYSDOT`'s 3 subfolders have ZERO reports
+    directly; nested `user` folders have reports in only 2 of many, "two deep"/"Test 123", 2 each).
+  - **Not yet built** — this is the finalized plan, ready for a go-ahead.
 - Where should converted pages live (flat vs under a parent "Converted Reports" page; replicate old
   `admin2.folders` hierarchy as page hierarchy?)
 - Auth token for CLI deletes/updates (needed for idempotent re-runs / rollback) — user offered
@@ -714,6 +1075,12 @@ file (not this section) as more sources get investigated.
   through `dms site tree` (stale auth token). See `graph_layout` width note above.
 
 ## Artifacts (scratchpad/npmrds-sub/old-reports/)
+
+**Round 81 side-by-side validation set (2026-08-31)** — old-tool URL is `https://npmrds.transportny.org/report/view/<old_id>` (user-corrected 2026-08-31 twice: (1) the live/prod old tool is on the `transportny.org` domain, not `devtny.org` — the earlier `npmrds.devtny.org` form used elsewhere in this file's history is a dev/staging host, not the one to hand a user for validation; (2) use the read-only `/report/view/<id>` route, not `/report/edit/<id>` — confirmed as a real, separate route by reading transportNY's own source, `pages/analysis/reports/view/index.js` sibling to `reports/edit/index.js`, both linked from `pages/Folders/components/Stuff.jsx`), new-tool URL is `http://npmrds.localhost:5173/converted_reports/<slug>` (dev) — both require sign-in (`mint_token.sh` creds for the new side; the new page also needs the RRL sidebar to publish routes to its graphs to render, same as any converted page):
+(page ids below are post-fix, current as of the round-81 `draft_sections` bug fix — the original conversion ids, 2215783/2215799/2215817, were superseded by `--replace` reconversions and no longer exist):
+- 1066 "787 NB 5-12-2026" (old-tool updated 2026-05-12) ↔ page `2215853`, `converted_reports/787_nb_5_12_2026`
+- 1064 "NYC Test" (updated 2025-11-07) ↔ page `2215867`, `converted_reports/nyc_test`
+- 971 "NITTEC 150" (updated 2023-01-04) ↔ page `2215835`, `converted_reports/nittec_150`
 
 `report_1070.json`, `report_1070_routes.json` (old side); `new_page_2187523.json`,
 `new_page_2187523_sections.json`, `new_report_row_page2187523.json`,
