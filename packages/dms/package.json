@@ -87,7 +87,6 @@
     "react-router": "^7.5.3",
     "use-immer": "^0.11.0",
     "uuid": "^11.0.3",
-    "write-excel-file": "^2.0.10",
     "y-protocols": "^1.0.7",
     "yjs": "^13.6.30"
   }
