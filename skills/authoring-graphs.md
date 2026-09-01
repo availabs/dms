@@ -150,9 +150,20 @@ horizontal bars with no axes.
 - **Series colors** — `colors: { type: "palette", value: ["#1F3F8F", "#E5A646"] }` maps
   palette entries to series in column order (per-column `color` is honored by LineGraph
   series, not BarGraph bars — use the palette for bars).
-- **Legend** — `legend: { show: true, position: "right" }`. ⚠ BarGraph only renders the
-  legend at `position: "left" | "right"` — `{ show: true }` with no position renders
-  **nothing**. Series-mode legend labels show the column's `customName`/`display_name`
+- **Legend** — `legend: { show: true, position: "right" }`. **Every chart type** (Bar/Line/
+  Pie/Treemap/Sunburst) renders the legend at `position: "right" | "left" | "top" | "bottom"`
+  — the author "Legend" Settings group exposes all four as a "Position" select
+  (`ComponentRegistry/graph_new/config.jsx`). GridGraph has its own corner-based scheme
+  instead (its legend is a linear color-scale gradient, not a per-series swatch list):
+  `"right" | "left" | "top-right" | "top-left" | "bottom-right" | "bottom-left"`, via the
+  separate `legendForGridGraph` control group. ⚠ `{ show: true }` with **no `position` key
+  at all** still renders nothing — none of a wrapper's position checks
+  (`legend.position !== "right"` etc.) match `undefined`; the shipped `defaultState` always
+  sets `position: "right"` so this only bites hand-built section data (e.g. a CLI-created
+  section with a partial `legend` object). ⚠ Switching **Graph Type** resets
+  `legend.position` back to `"right"` (`config.jsx`'s graph-type `onChange`), so a chosen
+  Top/Bottom position doesn't survive a later type change — re-set it after switching types.
+  Series-mode legend labels show the column's `customName`/`display_name`
   (the wrapper translates the alias keys — raw `tons_share`-style aliases used to leak
   through; fixed in `components/BarGraph.jsx`). Categorize-mode keys are data values and
   pass through as-is.
