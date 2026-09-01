@@ -181,7 +181,6 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
-    const [showUncategorized, setShowUncategorized] = useState(true);
     const [isListAll, setIsListAll] = useState(false);
 
     useEffect(() => {
@@ -204,27 +203,27 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
             const settings = get(res, ["json", "uda", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
-            if (parsed.show_uncategorized !== undefined) {
-                setShowUncategorized(parsed.show_uncategorized);
-            }
         });
     }, [pgEnv]);
 
     const isSearching = layerSearch.length > 2;
 
+    // Uncategorized sources are always hidden from the default "All datasets"
+    // view — "Show all" (isListAll, below) is the only way to reveal them,
+    // same mechanism used for admin-excluded (filteredCategories) sources.
     const visibleSources = useMemo(() => {
         if (isListAll || isSearching) return sources || [];
         return (sources || []).filter(source => {
             const cats = (Array.isArray(source?.categories) ? source.categories : []).map(c => c[0]);
-            if (!cats.length) return showUncategorized;
+            if (!cats.length) return false;
             if (!filteredCategories.length) return true;
             return !cats.every(c => filteredCategories.includes(c));
         });
-    }, [sources, filteredCategories, showUncategorized, isListAll, isSearching]);
+    }, [sources, filteredCategories, isListAll, isSearching]);
 
-    // Pool for the "Uncategorized" filter — independent of showUncategorized/
-    // filteredCategories (those settings only govern the default "All datasets"
-    // view), so the explicit filter always shows every uncategorized source.
+    // Pool for the "Uncategorized" filter — independent of the above (which
+    // only governs the default "All datasets" view), so the explicit filter
+    // always shows every uncategorized source.
     const uncategorizedSources = useMemo(() =>
         (sources || []).filter(s => !(Array.isArray(s?.categories) && s.categories.length)),
     [sources]);
@@ -326,7 +325,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className={t.iconMd}/>
                     </Button>
 
-                    {filteredCategories.length > 0 &&
+                    {(filteredCategories.length > 0 || uncategorizedSources.length > 0) &&
                         <Button type="plain" title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
                             <Icon icon={isListAll ? 'FilterX' : 'Filter'} className={t.iconMd}/>
                         </Button>
@@ -345,7 +344,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         <span className={t.sidebarItemText}>All datasets</span>
                         <div className={t.sidebarBadge}>{(visibleSources || []).length}</div>
                     </Link>
-                    {uncategorizedSources.length > 0 &&
+                    {isListAll && uncategorizedSources.length > 0 &&
                         <Link to={catHref(UNCATEGORIZED_CAT)} className={cat1 === UNCATEGORIZED_CAT ? t.sidebarItemActive : t.sidebarItem}>
                             <span className={t.sidebarItemText}>Uncategorized</span>
                             <div className={t.sidebarBadge}>{uncategorizedSources.length}</div>
