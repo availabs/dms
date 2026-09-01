@@ -87,6 +87,36 @@ function getPatternMounts(pattern) {
 // --
 //console.log('hola', pageConfig)
 
+/**
+ * Distinct theme names actually referenced by a site's pattern rows — the
+ * site's own selections plus 'mny_admin', which patterns/auth/siteConfig.jsx's
+ * manageAuthConfig hardcodes for the /auth/manage panel every auth pattern
+ * gets (patterns/admin/siteConfig.jsx uses selectedTheme: "default", which
+ * needs no theme module — it resolves to the library's own baked-in
+ * defaultTheme). Used to resolve only the theme(s) a site needs instead of
+ * loading every theme in the registry. See planning/shared/bundle-size-log.md.
+ */
+export function collectThemeNames(siteData) {
+    const patterns = (siteData || []).reduce((acc, row) => [...acc, ...(row?.patterns || [])], []);
+    const names = new Set();
+    patterns.forEach(p => {
+        if (p?.theme?.selectedTheme) names.add(p.theme.selectedTheme);
+        if (p?.pattern_type === 'auth') names.add('mny_admin');
+    });
+    return [...names];
+}
+
+/**
+ * Resolves `themesConfig` into a plain { name: themeObject } map ready for
+ * pattern2routes. `themesConfig` is either already a plain object (legacy
+ * callers, or an already-resolved SSR-hydration value) or the lazy loader
+ * function exported by src/themes/index.js, in which case only the theme
+ * names collectThemeNames finds in siteData are dynamically imported.
+ */
+export async function resolveThemes(themesConfig, siteData) {
+    if (typeof themesConfig !== 'function') return themesConfig || { default: {} };
+    return await themesConfig(collectThemeNames(siteData));
+}
 
 export function pattern2routes (siteData, props) {
     let {
@@ -95,6 +125,7 @@ export function pattern2routes (siteData, props) {
         authPath,
         authWrapper = withAuth,
         themes = { default: {} },
+        adminThemesLoader = null,
         pgEnvs = [],
         API_HOST = 'https://graph.availabs.org',
         DAMA_HOST = 'https://graph.availabs.org',
@@ -327,6 +358,10 @@ export function pattern2routes (siteData, props) {
                     damaBaseUrl,
                     datasetPatterns,
                     themes,
+                    // Raw, unresolved theme loader — only the admin pattern-theme-picker
+                    // (themeEditor.jsx) needs the full theme registry; everyone else gets
+                    // the already-narrowed `themes` above. See resolveThemes/collectThemeNames.
+                    themesLoader: pattern?.pattern_type === 'admin' ? adminThemesLoader : undefined,
                     useFalcor,
                     API_HOST,
                     DAMA_HOST,
