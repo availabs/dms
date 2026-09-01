@@ -188,6 +188,20 @@ the same `reports_snap_2` catalog (source 2177438 / view 2177440).
   `RouteTagBrowserModal` does, so there's no SQL-limit truncation problem to design around):
   `ReportPickerModal/reportScore.js`'s `reportScore()` weighs yours → rebuilt → described →
   recency, penalizing incomplete-looking names.
+- **"Mine" was broken end-to-end until 2026-09-01, despite reading as shipped above** — two
+  compounding bugs, both fixed (`routes-reports-users-mesh.md`'s 2026-09-01 progress-log entry has
+  full detail): (1) `reportCatalogSource.js`'s `created_by` column was declared as a plain
+  `data->>'created_by'` JSON field, a DIFFERENT thing from DMS's own always-populated system audit
+  column of the same name — nothing ever wrote the JSON field (converted reports stash the old
+  tool's creator under an inert `_old_created_by` instead; live authoring never wrote it at all),
+  so "Mine" could never match ANY report. Fixed by declaring it `systemCol: true`. (2) A report
+  published with zero routes never got a `reports_snap_2` catalog row at all — `CreateReportButton`
+  only creates the page, and the row was only ever created lazily on the first route add
+  (`useReportRow.js`'s `persistRoutes`) — making it invisible under every facet, not just "Mine".
+  Fixed: the row is now created the moment the report's edit page opens if none exists yet, and
+  `name`/`page_path` are (re-)written on every route/tag edit as self-healing. Verify current
+  behavior by testing "Mine" live, not by trusting this doc's earlier "live-verified" claims below —
+  they exercised the facet's UI/count-bar rendering, not whether it could ever actually match a row.
 - **Trigger placement**: originally added draft-only to the curated Reports page (page 2208581,
   section 2214721, same section group as the existing `CreateReportButton` trigger), landed at
   the BOTTOM of the page. **Stale as of 2026-08-26**: since this was written, the page was
