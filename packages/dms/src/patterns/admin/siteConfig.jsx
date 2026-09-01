@@ -47,6 +47,7 @@ const adminConfig = ({
   baseUrl = "/",
   authPath = "/auth",
   themes = {},
+  themesLoader = null,
   dmsEnvs = [],
   dmsEnvById = {},
   pattern: patternData,
@@ -108,7 +109,7 @@ const adminConfig = ({
                 pgEnv,
               }}
             >
-              <ThemeContext.Provider value={{ theme, themes, UI }}>
+              <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                   <LayoutGroup>{props.children}</LayoutGroup>
                 </Layout>
@@ -176,6 +177,7 @@ const patternConfig = ({
   baseUrl = "/",
   authPath = "/auth",
   themes = {},
+  themesLoader = null,
   rightMenu = <DefaultMenu />,
   dmsEnvs = [],
   dmsEnvById = {},
@@ -240,7 +242,7 @@ const patternConfig = ({
                 datasources,
               }}
             >
-              <ThemeContext.Provider value={{ theme, themes, UI }}>
+              <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                   <SectionGroup maxWidth={""}>{props.children}</SectionGroup>
                 </Layout>

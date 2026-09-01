@@ -3,6 +3,7 @@ export { updateRegisteredFormats, updateAttributes, json2DmsForm, initializePatt
 export { default as dmsColumnTypes } from './ui/columnTypes'
 export { default as dmsPageFactory } from './render/dmsPageFactory'
 export { default as dmsSiteFactory, DmsSite } from "./render/spa/dmsSiteFactory";
+export { collectThemeNames } from "./render/spa/utils";
 export { CMSContext } from './patterns/page/context'
 export { useAuth } from './patterns/auth/context';
 export { withAuth, authProvider } from './patterns/auth/providers';
