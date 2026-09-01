@@ -213,7 +213,7 @@ export function DmsSite (config) {
     );
 
     if (loading && !dynamicRoutes.length) {
-        return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
+        return <div className="w-screen h-screen flex items-center justify-center"></div>;
     }
 
     return (
