@@ -294,6 +294,16 @@ page was renamed (verified their existing slugs already matched `toSnakeCase(tit
   SectionMenu UI control. Live-verified on report 168 (`--replace` → page `2215071`): confirmed
   **zero `colorDomain` requests fired**. Full census 870/870, 0 errors, `full_producible` unchanged
   at 184. Full detail: [archive, "Round 80"](./old-reports-conversion-archive.md).
+  **Semi-reverted 2026-09-02 (Ryan)**: static breaks kept for Route Map only — maps are
+  queried/built differently and can have load issues, so a consistent legend is worth more there.
+  GridGraph/single-series BarGraph go back to a per-section, data-computed domain.
+  `composeMeasureConfig.js`'s `APPLY_STATIC_BREAKS_TO_CHARTS` flag (module-level, currently
+  `false`) is the switch — `colorBreaks.json` and the `colors.domainMin`/`domainMax` capability
+  itself are untouched, just not auto-applied to charts anymore. `composeMapConfig.js` unchanged.
+  **Same session**: GridGraph's y-axis (the categorical tmc-row breakdown, not a numeric scale)
+  now defaults `showGridLines: false` — scoped to `composeMeasureConfig.js`'s GridGraph branch
+  only (reports-only, per Ryan), not the shared `defaultState`/`ChartDefaults`/`graph_new/config.jsx`
+  default of `true` that LineGraph/BarGraph and non-report GridGraph sections still get.
 - **R79** (08-27): Info Box migrated onto the bridge — a genuinely new `grain` (`route`/`tmc`)
   capability in `composeTableMeasuresConfig`, not just reuse, plus a `length`/`aadt` TMC-grain
   expression override. Found+fixed a real cross-platform bug: the generic `reconcileComparisonSeriesColumnOnState`
