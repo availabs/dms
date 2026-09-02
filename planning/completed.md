@@ -51,6 +51,14 @@
 
 - [centralize-format-initialization.md](./tasks/completed/centralize-format-initialization.md) - Centralized `updateRegisteredFormats`/`updateAttributes` in `_utils.jsx`, added `initializePatternFormat` helper; removed ~100 lines of duplicated code from admin/page/forms/datasets patterns (2026-02-05)
 
+## routing / mounts
+
+- [mount-aware-links-and-retired-subdomains.md](./tasks/completed/mount-aware-links-and-retired-subdomains.md) —
+  Site-absolute authored links follow the pattern mount they're served from; patterns can declare
+  `retired_subdomains` that bounce old hosts to their new location; the dms-server `no-access` stub
+  now carries `locations`/`retired_subdomains` so a logged-out visitor on a location mount reaches
+  the login screen rather than the root catch-all. (2026-09-02)
+
 ## dms-server
 
 - [comparison-series-difference-mode.md](./tasks/completed/comparison-series-difference-mode.md) - Comparison-series "difference" combine mode: `options.seriesCombine = {mode: "difference", invert?}` makes the ClickHouse fan-out INNER JOIN each non-anchor arm to the anchor (first-variant) arm on the group-by columns and return `anchor − variant` value columns under their original aliases — the old NPMRDS tool's "Main minus Compare", per x-bucket for bar graphs and per (tmc, bucket) for grids, with zero graph-type-specific code. Client forwards `state.comparisonSeries.combine` (buildUdaConfig.js); PG/SQLite fan-out refuses loudly (mirrors `__ANCHOR__`). Companion rendering work in `packages/dms`: diverging BarGraph (zero-spanning y-domain, zero-baseline stacked/grouped geometry in both orientations, backward-compatible for all-positive data) + `colors.byValueSymmetric` zero-centered value color scale (Bar + Grid) with author-facing "Zero-Centered Colors" toggles. 10 new uda unit tests (93/93 green), 151/151 client vitest; live end-to-end on converted Route Difference Graph / TMC Difference Grid pages, values bit-exact vs hand-built CH arm subtractions. Same-day bonus fix: the colorDomain join merge projected the join key from BOTH the geometry and CTE sides, so every key-FILTERED break query died with `column reference "tmc" is ambiguous` — first exercised by a converted Route Map's comparison-series live re-break (`uda.colorDomain.controller.js`; 12/12 colorDomain tests green). Platform half of the old-reports round-52 arc (dms-template `planning/tasks/current/old-reports-conversion.md`). (2026-07-16)
