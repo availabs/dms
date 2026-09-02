@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { useParams, useLocation, useNavigate, useLoaderData, useRevalidator } from "react-router";
 
 import { dmsDataLoader, dmsDataEditor } from "../api";
@@ -30,6 +30,18 @@ export default function dmsPageFactory({
   // matters. Read once at module init; on the server (no `window`) this stays
   // null forever, which correctly disables the retry for SSR requests.
   let lastAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
+  // Separate one-shot memory for DMS()'s revalidate-on-auth-resolve effect
+  // below — closure-scoped (not a useRef) so it survives a remount, not just
+  // a re-render. A useRef here would reset on every fresh mount, and if
+  // whatever's on screen for a persistently (correctly, permanently) denied
+  // user ever forces a remount for an unrelated reason, a per-mount guard
+  // would let the effect re-fire forever — one real remount loop is enough
+  // to turn a single intended retry into an infinite one, since the
+  // underlying fact ("this user has no access") never changes between
+  // attempts. Tracked separately from `lastAuthToken` above: that one gates
+  // the loader's own cache-resync retry, this one gates a full route
+  // revalidate from the rendered component — different layers, don't share.
+  let lastRevalidateAttemptToken;
 
   async function loader({ request, params }) {
     if (isAuth) return { data: [] };
@@ -95,7 +107,6 @@ export default function dmsPageFactory({
     const { user } = useAuth();
     const loaderData = useLoaderData();
     const revalidator = useRevalidator();
-    const hasRevalidatedForAuth = useRef(false);
 
     // SSR always renders as anonymous — the server never sees a browser's
     // localStorage token (see the loader's comment above) — and client
@@ -107,13 +118,16 @@ export default function dmsPageFactory({
     // confirmed (not just optimistically assumed — hence waiting out
     // isAuthenticating) a real authenticated user, if the page we already
     // rendered is a no-access stub, revalidate once so the loader reruns
-    // with the now-known-good auth. Only ever needs to fire once per mount:
-    // every navigation after this one already runs the loader fresh through
-    // React Router's normal lifecycle, not through hydration data.
+    // with the now-known-good auth. Gated on `lastRevalidateAttemptToken`
+    // (declared above, outside this component) rather than a useRef: only
+    // ever needs to fire once per auth token, and a closure variable is what
+    // makes that hold across a remount, not just across re-renders of the
+    // same mounted instance.
     useEffect(() => {
       const hasNoAccess = loaderData?.data?.some(d => d?.id === 'no-access');
-      if (user?.authed && !user?.isAuthenticating && hasNoAccess && !hasRevalidatedForAuth.current) {
-        hasRevalidatedForAuth.current = true;
+      const currentToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
+      if (user?.authed && !user?.isAuthenticating && hasNoAccess && currentToken !== lastRevalidateAttemptToken) {
+        lastRevalidateAttemptToken = currentToken;
         revalidator.revalidate();
       }
     }, [user?.authed, user?.isAuthenticating, loaderData, revalidator]);

@@ -206,7 +206,14 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 
 	const getSectionGroups =  ( sectionName ) => {
-		return (item?.draft_section_groups || [])
+		// A blocked item comes back with every field — including this one —
+		// scrubbed to the literal string 'no-access' (see dmsPageFactory.jsx's
+		// loader), not an array. `|| []` doesn't catch that (a non-empty
+		// string is truthy), so check the real shape instead. This branch is
+		// now reachable on every render, including a no-access one, since the
+		// useMemo calls that call this were hoisted above the early returns
+		// below (see the comment there) to satisfy Rules of Hooks.
+		return (Array.isArray(item?.draft_section_groups) ? item.draft_section_groups : [])
 			.filter((g,i) => g.position === sectionName)
 			.sort((a,b) => a?.index - b?.index)
 			.map((group,i) => (
@@ -218,6 +225,19 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 				/>
 			))
 	}
+
+	// Hoisted above the early returns below on purpose: a render that takes
+	// one of those returns (e.g. item?.id === 'no-access') must still call
+	// exactly the same hooks, in the same order, as a render that reaches
+	// the full JSX — otherwise React throws "Rendered fewer hooks than
+	// expected" the next time a render takes a different path than the
+	// previous one. `EditWrapper` (dms-manager/wrapper.jsx) resolves `item`
+	// in two phases on mount (an initial synchronous guess, then a
+	// corrective effect that can swap in a real no-access stub), so that
+	// path-change is a real, common transition here, not a hypothetical one.
+	const headerChildren = React.useMemo(() => getSectionGroups('top'), [item?.draft_section_groups]);
+	const footerChildren = React.useMemo(() => getSectionGroups('bottom'), [item?.draft_section_groups]);
+	const contentChildren = React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups]);
 
 	if (item?.id === 'no-access') {
 		if (user?.isAuthenticating) return null;
@@ -266,10 +286,10 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               navItems={menuItems}
               resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
-              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups])}
-              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups])}
+              headerChildren={headerChildren}
+              footerChildren={footerChildren}
           >
-            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups])}
+            {contentChildren}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>
