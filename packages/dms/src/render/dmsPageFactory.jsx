@@ -1,10 +1,11 @@
-import React, { useEffect } from "react";
-import { useParams, useLocation, useNavigate } from "react-router";
+import React, { useEffect, useRef } from "react";
+import { useParams, useLocation, useNavigate, useLoaderData, useRevalidator } from "react-router";
 
 import { dmsDataLoader, dmsDataEditor } from "../api";
 
 import DmsManager from "../dms-manager/index.jsx";
 import { withAuth } from "../patterns/auth/providers";
+import { useAuth } from "../patterns/auth/context";
 // import defaultTheme from './theme/default-theme'
 
 import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor";
@@ -23,6 +24,12 @@ export default function dmsPageFactory({
   const dmsPath = `${baseUrl}${baseUrl === "/" ? "" : "/"}`;
   // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST);
+  // Tracks the login token across loader calls so the no-access retry below
+  // can tell "user just logged in, cache is stale" apart from "this visitor
+  // genuinely can't see this content" — see that check for why the distinction
+  // matters. Read once at module init; on the server (no `window`) this stays
+  // null forever, which correctly disables the retry for SSR requests.
+  let lastAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
 
   async function loader({ request, params }) {
     if (isAuth) return { data: [] };
@@ -30,11 +37,26 @@ export default function dmsPageFactory({
     // if (import.meta.env.DEV) console.log(`[dms loader] ${path} — start`)
     const t0 = import.meta.env.DEV ? performance.now() : 0;
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
-    // If any item came back as 'no-access', the falcor cache may be holding a
-    // pre-auth response. Clear it and retry so a newly logged-in user gets real data.
-    if (data.some(d => d.id === 'no-access')) {
+    // A blocked row comes back from the server with every field (including
+    // `id`) scrubbed to the literal string 'no-access' — including rows
+    // pulled in only for site-nav purposes, unrelated to the page actually
+    // being viewed. So `data.some(d => d.id === 'no-access')` is true on
+    // almost any anonymous load of a site that restricts *any* nav page,
+    // regardless of whether the current page itself is restricted. Retrying
+    // only helps the one real scenario this guards against — a user who just
+    // logged in while the Falcor cache still holds pre-login 'no-access'
+    // responses — so only retry when the auth token has actually changed
+    // since the last *successful resync*. Only advance `lastAuthToken` inside
+    // the retry branch (not on every call): if we compared against "last
+    // loader call" instead, a token change would get silently consumed by
+    // whichever page loads first after login, even if that page had nothing
+    // restricted to retry — leaving any *other* page's stale pre-login
+    // no-access cache stuck with no further chance to self-heal this session.
+    const currentAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
+    if (currentAuthToken !== lastAuthToken && data.some(d => d.id === 'no-access')) {
       falcor.setCache({});
       data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
+      lastAuthToken = currentAuthToken;
     }
     const t1 = import.meta.env.DEV ? performance.now() : 0;
     // Pre-load dataWrapper section data if the pattern supports it
@@ -70,6 +92,31 @@ export default function dmsPageFactory({
     const location = useLocation();
     const navigate = useNavigate();
     const AuthedManager = React.useMemo(() => authWrapper(DmsManager), []);
+    const { user } = useAuth();
+    const loaderData = useLoaderData();
+    const revalidator = useRevalidator();
+    const hasRevalidatedForAuth = useRef(false);
+
+    // SSR always renders as anonymous — the server never sees a browser's
+    // localStorage token (see the loader's comment above) — and client
+    // hydration reuses that server-rendered loader data as-is, without
+    // re-running the loader. So a genuinely authorized, already-logged-in
+    // user hard-navigating straight to a restricted page gets stuck seeing
+    // the SSR "no-access" render forever: nothing else re-asks the server
+    // now that the real token is available. Once AuthProvider has actually
+    // confirmed (not just optimistically assumed — hence waiting out
+    // isAuthenticating) a real authenticated user, if the page we already
+    // rendered is a no-access stub, revalidate once so the loader reruns
+    // with the now-known-good auth. Only ever needs to fire once per mount:
+    // every navigation after this one already runs the loader fresh through
+    // React Router's normal lifecycle, not through hydration data.
+    useEffect(() => {
+      const hasNoAccess = loaderData?.data?.some(d => d?.id === 'no-access');
+      if (user?.authed && !user?.isAuthenticating && hasNoAccess && !hasRevalidatedForAuth.current) {
+        hasRevalidatedForAuth.current = true;
+        revalidator.revalidate();
+      }
+    }, [user?.authed, user?.isAuthenticating, loaderData, revalidator]);
 
     return React.useMemo(
       () => (
