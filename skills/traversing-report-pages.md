@@ -20,6 +20,17 @@ doc is worse than no doc, because it reads as authoritative. If you find a
 claim below that no longer matches the code, fix it in place rather than
 leaving it to rot.
 
+**Correction, 2026-09-02: the URL scheme is now `reports/*`, not `converted_reports/*`.**
+The homepage (page 2188366) and every report page under it were renamed
+`converted_reports` → `reports` (`converted_reports/<slug>` → `reports/<slug>`), and the
+curated-catalog page `converted_reports/reports` (2208581) was **destroyed**, not renamed —
+Ryan confirmed it was a disposable v0.1 landing page. See
+`planning/transportny/tasks/current/rename-converted-reports-url-to-reports.md` for the full
+record (DB migration, code changes, why a parent-page UI rename does NOT cascade to children).
+Every `converted_reports` reference below this point describes historical state at the time it
+was written — read it as history, not current fact, and substitute `reports` when actually
+navigating live.
+
 ## 4. Creating a report page, and the Route List panel (tags, Dynamic Reports)
 
 ### Creating a page via "+ Add Page → Your Templates"
@@ -901,8 +912,8 @@ you'd rather have (a throwaway headless browser vs. touching a real session).
 Delete, Publish, or drags sections) against a page the user might have open**
 — create or reuse a dedicated scratch report for that. Read-only page loads
 (via `pick_test_report.py`'s output, or `report_probe.mjs` against any real
-`converted_reports/<slug>`) are fine on real pages since they only navigate
-and capture, never click.
+`reports/<slug>` — renamed 2026-09-02 from `converted_reports/<slug>`) are fine
+on real pages since they only navigate and capture, never click.
 
 ## 7. Extending this doc
 
