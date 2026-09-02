@@ -82,7 +82,13 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
               // Return minimal routing info so the client builds the route and
               // redirects to login instead of 404ing. `theme` must be included:
               // without it a transient auth failure renders the whole site with
-              // the default theme (and the login redirect unbranded). `config`
+              // the default theme (and the login redirect unbranded). `locations`
+              // and `retired_subdomains` must be included too: getPatternMounts()
+              // and buildRetiredSubdomainMap() (render/spa/utils/index.js) read
+              // them to resolve non-primary mounts, and an anonymous visitor on
+              // one of those mounts needs the same routing info an authenticated
+              // one gets — otherwise the mount silently disappears and the
+              // subdomain 404s instead of redirecting to login. `config`
               // stays out — schema info, not needed for routing/branding.
               //
               // `locations` is routing info too, and leaving it out broke the very
@@ -102,6 +108,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
                 authPermissions: row.data?.authPermissions,
                 name: row.data?.name,
                 theme: row.data?.theme,
+                locations: row.data?.locations,
+                retired_subdomains: row.data?.retired_subdomains,
               });
             } else value = 'no-access';
             response.push({ path, value });
