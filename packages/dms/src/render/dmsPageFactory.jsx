@@ -1,10 +1,11 @@
 import React, { useEffect } from "react";
-import { useParams, useLocation, useNavigate } from "react-router";
+import { useParams, useLocation, useNavigate, useLoaderData, useRevalidator } from "react-router";
 
 import { dmsDataLoader, dmsDataEditor } from "../api";
 
 import DmsManager from "../dms-manager/index.jsx";
 import { withAuth } from "../patterns/auth/providers";
+import { useAuth } from "../patterns/auth/context";
 // import defaultTheme from './theme/default-theme'
 
 import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor";
@@ -23,6 +24,24 @@ export default function dmsPageFactory({
   const dmsPath = `${baseUrl}${baseUrl === "/" ? "" : "/"}`;
   // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST);
+  // Tracks the login token across loader calls so the no-access retry below
+  // can tell "user just logged in, cache is stale" apart from "this visitor
+  // genuinely can't see this content" — see that check for why the distinction
+  // matters. Read once at module init; on the server (no `window`) this stays
+  // null forever, which correctly disables the retry for SSR requests.
+  let lastAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
+  // Separate one-shot memory for DMS()'s revalidate-on-auth-resolve effect
+  // below — closure-scoped (not a useRef) so it survives a remount, not just
+  // a re-render. A useRef here would reset on every fresh mount, and if
+  // whatever's on screen for a persistently (correctly, permanently) denied
+  // user ever forces a remount for an unrelated reason, a per-mount guard
+  // would let the effect re-fire forever — one real remount loop is enough
+  // to turn a single intended retry into an infinite one, since the
+  // underlying fact ("this user has no access") never changes between
+  // attempts. Tracked separately from `lastAuthToken` above: that one gates
+  // the loader's own cache-resync retry, this one gates a full route
+  // revalidate from the rendered component — different layers, don't share.
+  let lastRevalidateAttemptToken;
 
   async function loader({ request, params }) {
     if (isAuth) return { data: [] };
@@ -30,11 +49,26 @@ export default function dmsPageFactory({
     // if (import.meta.env.DEV) console.log(`[dms loader] ${path} — start`)
     const t0 = import.meta.env.DEV ? performance.now() : 0;
     let data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
-    // If any item came back as 'no-access', the falcor cache may be holding a
-    // pre-auth response. Clear it and retry so a newly logged-in user gets real data.
-    if (data.some(d => d.id === 'no-access')) {
+    // A blocked row comes back from the server with every field (including
+    // `id`) scrubbed to the literal string 'no-access' — including rows
+    // pulled in only for site-nav purposes, unrelated to the page actually
+    // being viewed. So `data.some(d => d.id === 'no-access')` is true on
+    // almost any anonymous load of a site that restricts *any* nav page,
+    // regardless of whether the current page itself is restricted. Retrying
+    // only helps the one real scenario this guards against — a user who just
+    // logged in while the Falcor cache still holds pre-login 'no-access'
+    // responses — so only retry when the auth token has actually changed
+    // since the last *successful resync*. Only advance `lastAuthToken` inside
+    // the retry branch (not on every call): if we compared against "last
+    // loader call" instead, a token change would get silently consumed by
+    // whichever page loads first after login, even if that page had nothing
+    // restricted to retry — leaving any *other* page's stale pre-login
+    // no-access cache stuck with no further chance to self-heal this session.
+    const currentAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
+    if (currentAuthToken !== lastAuthToken && data.some(d => d.id === 'no-access')) {
       falcor.setCache({});
       data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
+      lastAuthToken = currentAuthToken;
     }
     const t1 = import.meta.env.DEV ? performance.now() : 0;
     // Pre-load dataWrapper section data if the pattern supports it
@@ -70,6 +104,33 @@ export default function dmsPageFactory({
     const location = useLocation();
     const navigate = useNavigate();
     const AuthedManager = React.useMemo(() => authWrapper(DmsManager), []);
+    const { user } = useAuth();
+    const loaderData = useLoaderData();
+    const revalidator = useRevalidator();
+
+    // SSR always renders as anonymous — the server never sees a browser's
+    // localStorage token (see the loader's comment above) — and client
+    // hydration reuses that server-rendered loader data as-is, without
+    // re-running the loader. So a genuinely authorized, already-logged-in
+    // user hard-navigating straight to a restricted page gets stuck seeing
+    // the SSR "no-access" render forever: nothing else re-asks the server
+    // now that the real token is available. Once AuthProvider has actually
+    // confirmed (not just optimistically assumed — hence waiting out
+    // isAuthenticating) a real authenticated user, if the page we already
+    // rendered is a no-access stub, revalidate once so the loader reruns
+    // with the now-known-good auth. Gated on `lastRevalidateAttemptToken`
+    // (declared above, outside this component) rather than a useRef: only
+    // ever needs to fire once per auth token, and a closure variable is what
+    // makes that hold across a remount, not just across re-renders of the
+    // same mounted instance.
+    useEffect(() => {
+      const hasNoAccess = loaderData?.data?.some(d => d?.id === 'no-access');
+      const currentToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
+      if (user?.authed && !user?.isAuthenticating && hasNoAccess && currentToken !== lastRevalidateAttemptToken) {
+        lastRevalidateAttemptToken = currentToken;
+        revalidator.revalidate();
+      }
+    }, [user?.authed, user?.isAuthenticating, loaderData, revalidator]);
 
     return React.useMemo(
       () => (

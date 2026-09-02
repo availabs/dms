@@ -123,7 +123,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const theme = getComponentTheme(fullTheme, 'pages.section')
     const {Button, Icon, Switch, NavigableMenu, Permissions, Pill} = UI
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+    const sectionAuthPermissions = getPageAuthPermissions(value?.authPermissions);
 
     // ── Resolve element-data (merge page-level config if dataSourceId present) ──
     const resolvedElementData = isDataComponent
@@ -380,7 +380,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const isEdit = false;
     const refreshDataBtnRef = useRef(null);
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+    const sectionAuthPermissions = getPageAuthPermissions(value?.authPermissions);
 
     const TitleComp = attributes?.title?.ViewComp || (() => <div>Title component not found.</div>)
     const TitleEditComp = attributes?.title?.EditComp
