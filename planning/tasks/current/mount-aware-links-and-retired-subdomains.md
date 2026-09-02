@@ -176,6 +176,29 @@ added to an auth-restricted pattern, which happened on `npmrds_sub` (id 2100394,
 `npmrds.localhost:5173/` while logged out now redirects to the branded `/auth/login` instead of
 showing "404".
 
+## Follow-up: `updateTitle`'s post-rename redirect dropped the mount prefix (2026-09-02)
+
+A gap in this task's own consumer list: `editFunctions.jsx`'s `updateTitle()` (the mechanism
+behind the Bottom toolbar's Filter icon → Page Name field, and — new this session — a report
+canvas header's own inline title editor, `ReportPageHeader.jsx`) navigates to
+`/edit/${newItem.url_slug}` after a rename, but never routed that through `resolveMountPath` —
+unlike its sibling `newPage()` in the same file, which already did. On a prefixed mount (confirmed
+live on `www.localhost:5173/npmrds`), renaming a page redirected to `www.localhost:5173/edit/...`
+(mount dropped), which doesn't 404 — it falls through to a DIFFERENT pattern's page entirely
+(TransportNY's own root landing page), which is far more confusing than a 404 would have been.
+Reported by Ryan as "very common issue" while live-testing the new report-header title editor.
+
+**Fix:** `updateTitle(item, dataItems, value, user, apiUpdate, mountBaseUrl, siteRootPaths)` gained
+two new optional trailing params (same convention as `newPage`), used to wrap the `newPath` in
+`resolveMountPath`. Both callers updated to pass `MountContext`'s values through:
+`settingsPane.jsx` (added a `MountContext` read) and `ReportPageHeader.jsx` (already read
+`MountContext` for its Edit/Done toggle). Omitting the params preserves the old unprefixed
+behavior, so any other caller of `updateTitle` is unaffected.
+
+Live-verified on `www.localhost:5173/npmrds`: renaming a report via both the header's inline title
+and the Bottom toolbar's Page Name field now redirect to `www.localhost:5173/npmrds/edit/<new
+slug>` — mount preserved, page stays on the correct pattern.
+
 ## Progress log
 
 - 2026-08-27 — Built and live-verified. Gotcha found en route: **Card.jsx duplicates TableCell's

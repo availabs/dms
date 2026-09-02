@@ -68,7 +68,7 @@ node src/dms/packages/dms/cli/bin/mint-token.mjs \
   --host http://localhost:3001 \
   --email availabs@gmail.com --password test123 \
   --project npmrdsv5 \
-  --origin http://npmrds.localhost:5173 \
+  --origin http://www.localhost:5173/npmrds \
   --out scratchpad/npmrdsv5-dev2/auth.json
 ```
 
@@ -84,9 +84,10 @@ Then point the screenshot script at it: `card-shot.mjs --storage scratchpad/npmr
 
 **The `--origin` must match the URL you'll screenshot.** Draft sections only render
 in edit mode (`/edit/<slug>`), which needs the token seeded for *that* origin. With
-multiple `/`-based patterns on one site, a subdomain pattern (`npmrds.localhost:5173`)
-shadows a bare-host one — mint for the origin you actually load (see
-`creating-pages-from-a-design-pattern.md` §8 "Common failures").
+multiple `/`-based patterns on one site, a subdomain or path-mounted pattern (e.g.
+`www.localhost:5173/npmrds` — npmrds_sub's own mount as of 2026-09-02, see
+`traversing-dms-pages.md`'s subdomain gotcha) shadows a bare-host one — mint for the origin
+you actually load (see `creating-pages-from-a-design-pattern.md` §8 "Common failures").
 
 ## Gotchas
 
