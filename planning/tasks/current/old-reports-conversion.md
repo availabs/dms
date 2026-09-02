@@ -750,8 +750,17 @@ Distribution surveys (define the conversion matrix):
   1061 "Single Route Before and After" (before/after date windows, hour+day) → 1045 "Rochester
   Inner Loop" (month+weekday resolutions, dataQuality) → 874 "Zizhao_119EB_Delay_AADT" (AADT from
   the join table, mixed dataColumns).
-  Note: bulk-converting all 868 reports is explicitly NOT the goal — the goal is building the
-  conversion *capability*; reports are chosen by gap coverage.
+  Note: this was the original framing (2026-07-07) — **reversed 2026-09-02**, Ryan's explicit
+  direction: mass-converting the old reports into the new system is now itself a goal, not just
+  building the conversion capability. First real batch (2026-09-02): 30 reports, selected from the
+  round-85 "clean" census (`conversion_outcome_classification.json`) prioritizing recency, deduped
+  by exact title to avoid burning the batch on near-identical same-day test rows — see the batch
+  files in `scratchpad/npmrds-sub/old-reports/batches/`. Also new as of the same session: each
+  converted report's old folder is now tagged on `reports_snap_2` — `agency:<code>` from the
+  folder when it's a real agency/group folder (unchanged `fetch_agency_tag()`), else derived from
+  the creator's own `avail_auth` login-group membership (`fetch_auth_agency_tags()`, mirrors the
+  live UI's `defaultTagsForUser()`/`realGroupTags()` exactly) — plus an unconditional
+  `user:<creator id>` tag either way (`fetch_user_tag()`, both in `convert_old_reports_lib/db.py`).
 
 ## New shape (verified live on page_10 = page `2187523`)
 
