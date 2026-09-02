@@ -99,7 +99,11 @@ export const newPage = async (item, dataItems, user, apiUpdate, template, mountB
     await apiUpdate({data:newItem, newPath: resolveMountPath(`/edit/${newItem.url_slug}`, mountBaseUrl, siteRootPaths)})
   }
 
-export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {
+// mountBaseUrl/siteRootPaths are optional, same convention as newPage() above — pass
+// MountContext's values through on a prefixed mount (e.g. `/npmrds`) so the post-rename
+// redirect lands on `/npmrds/edit/...` instead of dropping the mount off the URL and falling
+// through to a different pattern entirely. Omitting them preserves the old unprefixed behavior.
+export const updateTitle = async ( item, dataItems, value='', user, apiUpdate, mountBaseUrl, siteRootPaths) => {
     if(!item.id) return;
     if(value !== item.title) {
       const newItem = {
@@ -110,7 +114,7 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
-      apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
+      apiUpdate({data:newItem, newPath: resolveMountPath(`/edit/${newItem.url_slug}`, mountBaseUrl, siteRootPaths)})
     }
   }
 

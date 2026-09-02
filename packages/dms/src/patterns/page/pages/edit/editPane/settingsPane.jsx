@@ -4,6 +4,7 @@ import { cloneDeep, set, get, isEqual } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { PageContext, CMSContext } from '../../../context'
 import { ThemeContext } from "../../../../../ui/useTheme";
+import { MountContext } from "../../../../../ui/mountContext";
 import { getPageAuthPermissions } from "../../../pages/_utils";
 import { nameToSlug } from '../../../../../utils/type-utils';
 import {buildPageTemplatePayload, buildPageTemplateType} from "../../../../utils";
@@ -278,6 +279,7 @@ function SettingsPane () {
   const { theme, UI } = React.useContext(ThemeContext);
   const { baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
+  const { baseUrl: mountBaseUrl, siteRootPaths } = React.useContext(MountContext) || {}
   const { Button, FieldSet, Icon, Input } = UI;
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const themeSettings = React.useMemo(() => {
@@ -301,7 +303,7 @@ function SettingsPane () {
                   value: item.title,
                   onChange: (val) => {
                       console.log('Change page Name', val)
-                      updateTitle ( item, dataItems, val, user, apiUpdate)
+                      updateTitle ( item, dataItems, val, user, apiUpdate, mountBaseUrl, siteRootPaths)
                   }
               },
               {
