@@ -594,7 +594,19 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     useEffect(() => { onHandle?.(handle); }, [handle]);
 
     // ── CRUD ──
-    const editableColumns = useMemo(() => state?.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state?.columns])
+    // Only actually-writable source fields belong in a row update: a column whose
+    // `name` is a SQL expression (whitespace in the name), or that is a calc/static/
+    // formula/selectOnly cell, can never be a source field — including them wrote the
+    // whole SELECT expression string into the row's data JSONB as a key on every
+    // liveEdit pick / form save (server-side jsonb merge; keys are unremovable via
+    // the public API). See planning/tasks/current/datawrapper-liveedit-writes-expression-columns.md
+    const editableColumns = useMemo(() => state?.columns?.filter(c =>
+        !(c.serverFn && c.joinKey) && c.editable !== false
+        && !c.selectOnly
+        && c.origin !== 'calculated-column' && c.origin !== 'static'
+        && c.type !== 'calculated' && c.type !== 'formula'
+        && !/\s/.test(c.name || '')
+    ), [state?.columns])
     const updateItem = useCallback((value, attribute, d) => {
         if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);

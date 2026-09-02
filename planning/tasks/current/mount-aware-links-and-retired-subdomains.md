@@ -134,6 +134,25 @@ Core change — rides the transportNY vendored-dms git sync (owner-run). Product
 sync + deploy happens; the pattern-row half of the TransportNY cutover is live on prod immediately.
 Deploy the code first.
 
+## Follow-up: `sub://` links no longer force a new tab (2026-08-31)
+
+`resolveSubdomainPath` returns an absolute URL, and ButtonNode's click handler treated *every*
+absolute URL as external — `window.open(_blank)`. That is wrong for `sub://`, which by definition
+names another product on the SAME platform; it only looks absolute because the scheme resolves
+against the current base domain. Users moving between products accumulated tabs.
+
+`handleClick` now branches three ways:
+
+| destination | behavior |
+|---|---|
+| relative / site-absolute | `navigate()` — SPA, unchanged |
+| resolved from `sub://` | `window.location.assign()` — same tab, full load (still a different origin, so react-router cannot route it) |
+| any other absolute URL | `window.open(_blank)` — **byte-identical to before** |
+
+BC: the external branch is untouched, and only paths authored as `sub://` take the new branch.
+Verified by A/B on one button: the deployed build fires `POPUP https://www.devtny.org/npmrds` for the
+landing page's `Open NPMRDS`; the patched build navigates the same tab.
+
 ## Progress log
 
 - 2026-08-27 — Built and live-verified. Gotcha found en route: **Card.jsx duplicates TableCell's
