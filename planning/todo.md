@@ -270,6 +270,14 @@
       in no grant vocabulary, so it can't be granted from the UI. Blocked on a product decision
       (is the data-source catalog public?); the landing-page symptom is fixable independently.
 
+- [x] [Mount-aware site-absolute links + retired-subdomain redirects](./tasks/completed/mount-aware-links-and-retired-subdomains.md) —
+      **DONE 2026-09-02** · BC. `utils/mountPath.js` resolves an authored `/slug` against the CURRENT
+      mount (with a `siteRootPaths` exemption so another pattern's path is left alone), delivered via
+      a provider-optional `ui/mountContext.js` and consumed by ButtonNode, TableCell's `LinkComp` and
+      **Card.jsx (which keeps its own copy of the link-URL builder)**. Plus `retired_subdomains` on a
+      pattern row, and `locations`/`retired_subdomains` added to the dms-server `no-access` stub —
+      without them a restricted pattern on a location mount registered NO route for a logged-out
+      visitor, so it rendered the root catch-all instead of the login screen. 31 new tests.
 - [x] [Nav items can link across subdomains — `sub://` in `dataItemsNav`](./tasks/current/nav-subdomain-links.md) —
       `sub://<subdomain>/<path>` shipped in 2026-07 for lexical **ButtonNode** only, so a nav item
       couldn't reach another product site: `dataItemsNav` treats anything not starting `/` as a slug
