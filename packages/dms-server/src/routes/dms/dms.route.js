@@ -84,11 +84,21 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
               // without it a transient auth failure renders the whole site with
               // the default theme (and the login redirect unbranded). `config`
               // stays out — schema info, not needed for routing/branding.
+              //
+              // `locations` is routing info too, and leaving it out broke the very
+              // thing this stub exists for: a pattern served at a `locations` mount
+              // registered NO route for a logged-out visitor, so `/tsmo` fell
+              // through to whatever catch-all sat at `/` and rendered THAT page
+              // instead of the login screen — the auth gate lives inside
+              // patterns/page/pages/view.jsx, so a route that never registers can
+              // never redirect. Exposes nothing sensitive: mount points are the
+              // same class of public routing data as `subdomain`/`base_url` above.
               value = $atom({
                 id: 'no-access',
                 base_url: row.data?.base_url,
                 pattern_type: row.data?.pattern_type,
                 subdomain: row.data?.subdomain,
+                locations: row.data?.locations,
                 authPermissions: row.data?.authPermissions,
                 name: row.data?.name,
                 theme: row.data?.theme,
