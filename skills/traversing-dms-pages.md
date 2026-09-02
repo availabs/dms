@@ -230,6 +230,32 @@ fan-out, the axis/categorize binding model) belong in
 [`difference-graphs.md`](./difference-graphs.md), not here — this doc only
 covers the DOM shape you'd query for.
 
+## 3b. Editable Spreadsheet cells (`allowEditInView` grids) — driving them in automation
+
+Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-styled grids:
+
+- **Single click SELECTS the cell** (blue ring), it does not edit. The editor opens on
+  **DOUBLE-CLICK** (`TableCell.onDoubleClick`). For a select-type column the editor is a
+  closed picker whose placeholder is `Select…` — with a **UNICODE ellipsis (U+2026)**, so
+  `getByText("Select...")` never matches; click that trigger to open the option menu, then
+  click the option text (a `priority_tier` option is a badge + short-label composite — match
+  on the short label, e.g. "Important but Secondary Priority").
+- **liveEdit saves ~500ms after the pick** (debounced). Wait ≥1s before asserting, and
+  verify with `dms dataset query` — never trust the pill alone.
+- **The pagination footer ("Rows 1 to N of M") only renders when M > pageSize**; for a
+  filtered result inside one page, count `.group\/row` elements instead. Also rendered-row
+  count lags/virtualizes (~25 shown of 30) — the footer's M is the truth when present.
+- **Edit-mode section chrome can swallow real clicks** on interactive cells (a
+  `filter_control` toggle's checkbox at one position ignored mouse clicks while an identical
+  toggle lower on the page worked; invoking the input's React `onChange` via
+  `__reactProps$…` proved the wiring). Re-verify physical clicks in VIEW mode post-publish
+  before filing a bug.
+- **A row-update writes only writable source fields** (since 2026-08-31): `editableColumns`
+  excludes selectOnly/calculated/static/formula columns and whitespace (expression) names.
+  Before that fix, every liveEdit pick merged every section column — including whole SQL
+  expression strings as keys — into the row's data JSONB (see src/dms task
+  `datawrapper-liveedit-writes-expression-columns.md`).
+
 ## 4. Known state-machine / URL gotchas (check this list before concluding a bug)
 
 - **Subdomain routing, not path routing.** A pattern's page lives at
@@ -237,6 +263,11 @@ covers the DOM shape you'd query for.
   resolves to the default/landing pattern instead (zero data-loading traffic
   fires; easy to misread as "the page never loads its sections"). Find the
   subdomain via `dms pattern show <pattern-name>`.
+- **The repo `.env` can override your throwaway vite's site.** dms-template's `.env`
+  carries `VITE_DMS_TYPE=dev2` (npmrdsv5 QA); a QA vite for a `prod`-type site launched
+  without an explicit `VITE_DMS_TYPE=prod` loads `<app>+dev2:site` → EVERY route 404s with
+  zero console errors. Diagnose by watching the first `/graph` request's site key
+  (2026-08-31, mitigat-ny-prod).
 - **Edit URL puts `edit` first**: `/edit/<slug>`, not `<slug>/edit`. The wrong
   shape silently falls back to the site's default/index page.
 - **Any unresolvable slug silently falls back to the home/index page** —

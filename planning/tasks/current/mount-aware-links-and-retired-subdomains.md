@@ -134,6 +134,48 @@ Core change — rides the transportNY vendored-dms git sync (owner-run). Product
 sync + deploy happens; the pattern-row half of the TransportNY cutover is live on prod immediately.
 Deploy the code first.
 
+## Follow-up: `sub://` links no longer force a new tab (2026-08-31)
+
+`resolveSubdomainPath` returns an absolute URL, and ButtonNode's click handler treated *every*
+absolute URL as external — `window.open(_blank)`. That is wrong for `sub://`, which by definition
+names another product on the SAME platform; it only looks absolute because the scheme resolves
+against the current base domain. Users moving between products accumulated tabs.
+
+`handleClick` now branches three ways:
+
+| destination | behavior |
+|---|---|
+| relative / site-absolute | `navigate()` — SPA, unchanged |
+| resolved from `sub://` | `window.location.assign()` — same tab, full load (still a different origin, so react-router cannot route it) |
+| any other absolute URL | `window.open(_blank)` — **byte-identical to before** |
+
+BC: the external branch is untouched, and only paths authored as `sub://` take the new branch.
+Verified by A/B on one button: the deployed build fires `POPUP https://www.devtny.org/npmrds` for the
+landing page's `Open NPMRDS`; the patched build navigates the same tab.
+
+## Follow-up: anonymous visitors 404 on a `locations` mount instead of redirecting to login (2026-09-02)
+
+A `locations`-mounted pattern that also restricts anonymous viewing (no `public` group in
+`authPermissions`) 404'd for logged-out visitors on its non-primary mount instead of redirecting to
+`/auth/login` — and stayed broken even after logging in client-side, until a hard refresh. Reported
+as: on a TransportNY subdomain, every page 404'd until you separately navigated to `/auth/login`,
+logged in, then refreshed.
+
+**Cause:** `dataByIdResponse`'s no-access stub for a blocked `pattern` row
+(`packages/dms-server/src/routes/dms/dms.route.js`) only copied
+`id, base_url, pattern_type, subdomain, authPermissions, name, theme` — predating this task's
+`locations`/`retired_subdomains` fields, so neither was ever added to it. `getPatternMounts()`
+(`render/spa/utils/index.js`) reads `pattern.locations` to find non-primary mounts; with `locations`
+stripped, an anonymous request only sees the pattern's primary mount, so a subdomain that exists only
+as a `locations` entry has zero matching routes and falls through to the client's catch-all 404. This
+was latent since `locations` shipped (2026-07-13) — it only surfaced once a `locations` entry got
+added to an auth-restricted pattern, which happened on `npmrds_sub` (id 2100394, app `npmrdsv5`) on
+2026-09-01, adding `{base_url: "/", subdomain: "npmrds"}` alongside its `www:/npmrds` primary.
+
+**Fix:** added `locations` and `retired_subdomains` to the no-access stub object. Verified live:
+`npmrds.localhost:5173/` while logged out now redirects to the branded `/auth/login` instead of
+showing "404".
+
 ## Progress log
 
 - 2026-08-27 — Built and live-verified. Gotcha found en route: **Card.jsx duplicates TableCell's

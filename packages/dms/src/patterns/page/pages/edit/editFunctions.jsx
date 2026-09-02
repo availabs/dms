@@ -3,6 +3,7 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
 import { appendHistoryEntry } from '../../../utils';
+import { resolveMountPath } from '../../../../utils/mountPath';
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     if(!item?.id) return;
@@ -54,7 +55,11 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
 }
 
-export const newPage = async (item, dataItems, user, apiUpdate, template) => {
+// mountBaseUrl/siteRootPaths are optional — resolveMountPath no-ops when mountBaseUrl is
+// undefined/root, so callers outside a multi-mount pattern (or that predate MountContext) are
+// unaffected. Callers on a prefixed mount (e.g. `/npmrds`) pass MountContext's values through so
+// the post-create redirect lands on `/npmrds/edit/...` instead of dropping the mount off the URL.
+export const newPage = async (item, dataItems, user, apiUpdate, template, mountBaseUrl, siteRootPaths) => {
     // Siblings under the SAME parent the new page is about to be created under —
     // not top-level pages. Comparing against `!d.parent` regardless of where the
     // new page actually lands meant every "Add Page" click from inside a nested
@@ -91,7 +96,7 @@ export const newPage = async (item, dataItems, user, apiUpdate, template) => {
       if (template.theme !== undefined) newItem.theme = template.theme;
     }
 
-    await apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
+    await apiUpdate({data:newItem, newPath: resolveMountPath(`/edit/${newItem.url_slug}`, mountBaseUrl, siteRootPaths)})
   }
 
 export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {

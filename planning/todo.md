@@ -204,6 +204,7 @@
 ### patterns/page — sections
 
 - [x] [Section authPermissions gate VIEW visibility](./tasks/current/section-authpermissions-view-gate.md) — sections carrying authPermissions now hide from viewers failing `['view']` (edit mode unaffected; no permissions = unchanged). `{groups:{public:[]}}` = signed-in only. Motivating use: MNY dashboard's staff-only CTA sections (2026-08-27).
+- [x] [dataWrapper updateItem writes calc-expression columns into row data](./tasks/current/datawrapper-liveedit-writes-expression-columns.md) — every liveEdit pick / form save merged EVERY section column into the row's data JSONB, keying calc cells by their whole SQL expression string (permanent pollution; merge-only API can't remove keys). `editableColumns` now excludes selectOnly/calculated/static/formula columns and expression names. Found on the MNY worklists build (2026-08-31).
 
 ### patterns/page — map
 

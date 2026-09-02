@@ -23,6 +23,8 @@ const THEME = {
   layout: { options: { topNav: { size: 'compact' } } },
 };
 const AUTH = { groups: { 'Site Admin': ['*'], public: [] }, users: {} };
+const LOCATIONS = [{ base_url: '/', subdomain: 'dash' }];
+const RETIRED_SUBDOMAINS = ['dash-old'];
 
 let pass = 0, fail = 0;
 const t = (name, fn) => {
@@ -48,6 +50,8 @@ async function main() {
       theme: THEME,
       config: { attributes: [{ key: 'secret-schema' }] },
       authPermissions: AUTH,
+      locations: LOCATIONS,
+      retired_subdomains: RETIRED_SUBDOMAINS,
     }]
   );
   const id = Object.keys(createResult.jsonGraph?.dms?.data?.byId || {})[0];
@@ -71,6 +75,10 @@ async function main() {
   });
   t('stub includes theme (branded login redirect, no default-theme flash)', () =>
     assert.deepStrictEqual(anonData?.theme, THEME));
+  t('stub keeps locations (non-primary mounts stay routable while logged out)', () =>
+    assert.deepStrictEqual(anonData?.locations, LOCATIONS));
+  t('stub keeps retired_subdomains (redirect still fires while logged out)', () =>
+    assert.deepStrictEqual(anonData?.retired_subdomains, RETIRED_SUBDOMAINS));
   t('stub still omits config', () =>
     assert.strictEqual(anonData?.config, undefined));
 
