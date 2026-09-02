@@ -19,7 +19,7 @@ import { buildLayerUdaFilterOptions, fetchBoundsForFilter } from '../../../../..
 import { choroplethPaint } from "./utils.js";
 import { ThemeContext, getComponentTheme } from "../../../../../../../ui/useTheme";
 import { damaMapTheme } from "./map.theme";
-import { useComparisonSeriesLayers, isSeriesGeneratedLayer, SERIES_FINGERPRINT_KEY } from "./useComparisonSeriesLayers";
+import { useComparisonSeriesLayers, isSeriesGeneratedLayer, SERIES_FINGERPRINT_KEY, SERIES_TEMPLATE_KEY } from "./useComparisonSeriesLayers";
 import { migrateMapState } from "./Map.migrate.js";
 
 import mapeditorFormat from "../../../../../../mapeditor/mapeditor.format"
@@ -845,6 +845,17 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                 const layers = Object.values(symb?.symbology?.layers || {});
 
                 for (const layer of layers) {
+                    // A `series-template` layer is never rendered itself (useComparisonSeriesLayers
+                    // clones it per assigned route/variant, each clone carrying its own route-scoped
+                    // join filter — see that hook's header comment). The template's own join query is
+                    // deliberately wide open (filters:{}, no route scoping — comparison_series fills
+                    // that in per clone), so running THIS refresh against the template directly is a
+                    // guaranteed unfiltered colorDomain call — the server's own scan-hazard guard
+                    // (uda.colorDomain.controller.js) refuses it every render for any choropleth Map
+                    // with a live (non-'custom') bin-method. Found 2026-09-02 reverting maps back to a
+                    // dynamic scale (round 80 had masked this — 'custom' bin-method short-circuits
+                    // before reaching this fetch at all, so an unfiltered template query never fired).
+                    if (layer?.[SERIES_TEMPLATE_KEY]) continue;
                     /**
                      * Interactive layers keep the active variant nested under
                      * `interactive-filters`, while the top-level layer remains
