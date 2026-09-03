@@ -721,6 +721,16 @@ keys, sort drivers, fields a column type reads off `row`): the column stays in
 the SELECT (keep `show: true` — dropping `show` changes the GROUP BY, see the
 aggregate gotcha) but renders no cell. Toolbar: "Select Only (no cell)".
 
+**A grouped card's dimension column additionally needs `group: true`** — a bare
+plain column mixed with aggregate cells does NOT enter the GROUP BY on its own;
+the section issues `groupBy: []` with `ungroupedAggregate: true` and renders
+NOTHING (no console error, the length query even returns 1). The working shape
+is `{ name: 'jurisdiction', show: true, group: true, selectOnly: true }` with
+every rendered cell an aggregate (`fn: 'sum'`/`'exempt'`) — one card per group
+row (MitigateNY jurisdictions grid, dashboard `mixED` bar lists). Per-row
+column types (`stacked_bar`, `data_bar`) read their sibling aggregates off each
+group row, so per-card mini-bars work with the jp-hero segment recipe verbatim.
+
 Related per-cell chrome: `cellBorderBelow: true` draws the theme hairline under
 a cell (`theme.headerValueWrapperBorderBelow`) — the design-system divider
 between a KPI's note and its substat row.
