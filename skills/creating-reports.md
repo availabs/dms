@@ -306,13 +306,12 @@ concept exists in code.
    "Removal" section for the full history). A fresh page has exactly 2 sections —
    `ReportPageHeader` and `ReportRouteList` (sidebar) — and no pre-existing graph; add
    the first one via RRL's own "+ Add Graph". The template itself is now a git-committed
-   spec (`scripts/npmrds-reports/page_template_specs/report_page.json`), built the same
-   way `report_build.mjs` builds report pages from `dynamic_report_specs/*.json` — edit
-   the spec, then `node scripts/npmrds-reports/report_page_template_build.mjs
-   scripts/npmrds-reports/page_template_specs/report_page.json --apply` rather than
-   hand-editing the template row with `dms raw update`. `--from-template` reverses the
-   live row back into a spec (bootstrap, or check for drift); `--summary`/`--dry-run`
-   preview without writing.
+   spec (`scripts/npmrds-reports/page_template_specs/report_page.json`), in the same
+   spirit as `report_build.mjs` building report pages from `dynamic_report_specs/*.json`
+   but deliberately much smaller (a singleton row, no routes/graphs/measures) — edit the
+   spec, then `node scripts/npmrds-reports/report_page_template_build.mjs --apply` rather
+   than hand-editing the template row with `dms raw update`. `--dry-run` previews the
+   composed row without writing.
 
 ### Add routes via ReportRouteList (RRL)
 
