@@ -681,7 +681,18 @@ class ViewLayer extends AvlLayer {
     //     </div>
     //   )
     // },
-    isPinnable: this.isPinnable || true
+    // `|| true` silently discarded an explicit `isPinnable: false` on the layer config
+    // (`false || true` is `true`), so there was never actually a way to opt a layer out
+    // of click-to-pin - `this.isPinnable` is never set anywhere else in this class or
+    // its base, so nothing ever exercised that path. `!== false` keeps the same default
+    // for every layer that doesn't set it, while letting one (routecreation.plugin.jsx's
+    // network layer) opt out for real - explicit about the one value that flips it,
+    // rather than relying on `??`'s null/undefined-only coercion.
+    isPinnable: this.isPinnable !== false,
+    // See avl-layer.jsx's mousemove - lets a layer widen its hover hit-test box (px) to
+    // match a wider click hit-test of its own. Defaults to 0 (native exact-pixel hover),
+    // unchanged for every layer that doesn't set `hoverTolerance`.
+    tolerance: this.hoverTolerance || 0
   };
 
   RenderComponent = ViewLayerRender;
