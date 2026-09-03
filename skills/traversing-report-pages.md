@@ -56,13 +56,23 @@ navigating live.
    own Settings pane afterward if it needs a real slug/parent.
 
 Verified 2026-08-03: a freshly-created "Report Page" page (zero custom code,
-zero scripts involved) already has a working `ReportRouteList` panel + one
-starter self-bound AVL Graph section, ready to receive a route the moment one
-is added via "+ Add Route" — useful as a clean, un-scripted reproduction
-environment when you need to rule out "is this bug specific to some other
-build path" (this is exactly how a genuine AVL Graph rendering bug was
-isolated away from a suspected feature-specific cause — see
-`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
+zero scripts involved) already has a working `ReportRouteList` panel, ready to
+receive a route the moment one is added via "+ Add Route" — useful as a clean,
+un-scripted reproduction environment when you need to rule out "is this bug
+specific to some other build path" (this is exactly how a genuine AVL Graph
+rendering bug was isolated away from a suspected feature-specific cause — see
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, repo
+root). **Correction, 2026-09-03**: the template no longer ships a starter
+graph/stat section at all — it used to include a starter self-bound AVL Graph,
+later replaced by an unconfigured hero-stat "Callout Stat" Card, which was
+itself removed the same day it was found to just read as blank dead space
+between the header and the (nonexistent) first graph — see
+`planning/transportny/tasks/current/report-page-template-editorial-slots.md`'s
+"Removal" section for the full record. A fresh Report Page now has exactly 3
+sections (`ReportPageHeader`, a standalone header-prose `lexical` block,
+`ReportRouteList`) and zero data/visual sections — the first graph always
+comes from RRL's own "+ Add Graph", never a pre-existing slot. Re-verify this
+claim again if the template changes further.
 
 ### The route-picker modal ("+ Add Route" / "+ Add Route Slot")
 
@@ -424,9 +434,15 @@ relative to today" section.
   ever renders); a Dynamic Report that doesn't use it shows the gate exactly as before. Confirming
   adds a second URL param (`?routes=...&asOf=YYYY-MM-DD`) alongside the routes param. Absent that
   param (or on a normal, non-Dynamic report, which has no entry gate at all), the anchor falls back
-  to `defaultAnchorDate()` (see the publish-lag finding right below — **not** literal today) —
-  there's no other way to set it once past the gate; re-triggering the gate (e.g. a slot/URL-count
-  mismatch) is the only way to change it later.
+  to `defaultAnchorDate()` (see the publish-lag finding right below — **not** literal today).
+  **2026-09-03: no longer the only way to set it.** `ReportPageHeader.jsx` now also carries a
+  persistent "Viewing as of" date input (same gating condition, same `?asOf=` param, just written
+  via a plain `navigate()` off `location.search` instead of the entry-gate's `onConfirm`) — visible
+  in both view and edit mode, on every page load, not just the one-time gate. The gate's own field
+  is untouched and still does its one-time job (e.g. re-triggering by mismatching the slot/URL
+  route count still shows it); the header control is for changing the date at any other time. When
+  no override is set, the header's reset control reads "Use latest available (<date>)", not "today"
+  — see the publish-lag point right below for why that distinction matters.
 - **NPMRDS's own data has a real publish lag — a literal-"today" anchor queries a date range with
   zero rows, and the usual "does it render" checks won't catch this.** Confirmed live 2026-08-10:
   `SELECT max(date) FROM npmrds.s583_v982_NPMRDS_V6` (the live 5-minute speed table) returned
