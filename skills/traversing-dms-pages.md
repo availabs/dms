@@ -258,11 +258,22 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
 
 ## 4. Known state-machine / URL gotchas (check this list before concluding a bug)
 
-- **Subdomain routing, not path routing.** A pattern's page lives at
-  `http://<subdomain>.localhost:5173/<slug>` — bare `localhost:5173/<slug>`
-  resolves to the default/landing pattern instead (zero data-loading traffic
-  fires; easy to misread as "the page never loads its sections"). Find the
-  subdomain via `dms pattern show <pattern-name>`.
+- **Subdomain routing OR path-mount routing — check the pattern's actual mount, don't assume.**
+  A pattern's primary mount is either `{subdomain, base_url:'/'}` (page lives at
+  `http://<subdomain>.localhost:5173/<slug>`) or `{subdomain:'www', base_url:'/<mount>'}` (page
+  lives at `http://www.localhost:5173/<mount>/<slug>`) — `dms pattern show <pattern-name>` gives
+  the truth (`subdomain`/`base_url` fields), don't hardcode either shape from memory or from an
+  older doc. Bare `localhost:5173/<slug>` (no subdomain, no mount) resolves to the default/landing
+  pattern instead (zero data-loading traffic fires; easy to misread as "the page never loads its
+  sections"). **`npmrds_sub` moved from the `npmrds` subdomain to the `www:/npmrds` path-mount on
+  2026-09-02** (part of the broader TransportNY subdomain→path consolidation,
+  `mount-aware-links-and-retired-subdomains.md` in `src/dms/planning/tasks/current/`) — any doc or
+  script still hardcoding `npmrds.localhost:5173` is stale; the live URL is
+  `www.localhost:5173/npmrds/<slug>` (edit: `www.localhost:5173/npmrds/edit/<slug>`). A stale
+  subdomain host may still 200 (the pattern's `locations` can carry the old subdomain as a
+  secondary mount) — don't treat "it loads" as proof it's the current canonical URL; check
+  `dms pattern show` if in doubt. This applies per-pattern: don't assume every subdomain migrated
+  just because npmrds_sub did.
 - **The repo `.env` can override your throwaway vite's site.** dms-template's `.env`
   carries `VITE_DMS_TYPE=dev2` (npmrdsv5 QA); a QA vite for a `prod`-type site launched
   without an explicit `VITE_DMS_TYPE=prod` loads `<app>+dev2:site` → EVERY route 404s with

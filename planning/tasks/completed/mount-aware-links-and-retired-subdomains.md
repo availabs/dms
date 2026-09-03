@@ -176,28 +176,40 @@ added to an auth-restricted pattern, which happened on `npmrds_sub` (id 2100394,
 `npmrds.localhost:5173/` while logged out now redirects to the branded `/auth/login` instead of
 showing "404".
 
-## Follow-up: `updateTitle`'s post-rename redirect dropped the mount prefix (2026-09-02)
+## Follow-up: the no-access stub was missing its mount fields (2026-09-02)
 
-A gap in this task's own consumer list: `editFunctions.jsx`'s `updateTitle()` (the mechanism
-behind the Bottom toolbar's Filter icon → Page Name field, and — new this session — a report
-canvas header's own inline title editor, `ReportPageHeader.jsx`) navigates to
-`/edit/${newItem.url_slug}` after a rename, but never routed that through `resolveMountPath` —
-unlike its sibling `newPage()` in the same file, which already did. On a prefixed mount (confirmed
-live on `www.localhost:5173/npmrds`), renaming a page redirected to `www.localhost:5173/edit/...`
-(mount dropped), which doesn't 404 — it falls through to a DIFFERENT pattern's page entirely
-(TransportNY's own root landing page), which is far more confusing than a 404 would have been.
-Reported by Ryan as "very common issue" while live-testing the new report-header title editor.
+`dms-server` returns a **minimal stub** for a pattern an anonymous user may not view
+(`routes/dms/dms.route.js`), and its own comment states the purpose: *"Return minimal routing info
+so the client builds the route and redirects to login instead of 404ing."* It carried `base_url` and
+`subdomain` but **not `locations` / `retired_subdomains`** — so for a pattern served at a `locations`
+mount, a logged-out visitor got **zero registered routes**. `/tsmo` then fell through to whatever
+catch-all sat at `/` (the `landing` pattern's `/*`) and rendered the HOMEPAGE instead of the login
+screen.
 
-**Fix:** `updateTitle(item, dataItems, value, user, apiUpdate, mountBaseUrl, siteRootPaths)` gained
-two new optional trailing params (same convention as `newPage`), used to wrap the `newPath` in
-`resolveMountPath`. Both callers updated to pass `MountContext`'s values through:
-`settingsPane.jsx` (added a `MountContext` read) and `ReportPageHeader.jsx` (already read
-`MountContext` for its Edit/Done toggle). Omitting the params preserves the old unprefixed
-behavior, so any other caller of `updateTitle` is unaffected.
+The reason it presents as "no login screen" rather than "404": **the auth gate lives inside the
+page**, `patterns/page/pages/view.jsx` (`isViewDenied` → `<Navigate to={authBaseUrl}/login>`). A
+route that never registers never renders that component, so nothing can redirect. Only patterns that
+are BOTH auth-restricted AND reliant on a location mount were affected — which is why the public
+Freight Atlas pattern worked and why the bug was invisible while logged in.
 
-Live-verified on `www.localhost:5173/npmrds`: renaming a report via both the header's inline title
-and the Bottom toolbar's Page Name field now redirect to `www.localhost:5173/npmrds/edit/<new
-slug>` — mount preserved, page stays on the correct pattern.
+Fix: add `locations` and `retired_subdomains` to the stub. Both are routing info of exactly the same
+class as `subdomain`/`base_url`, and expose nothing sensitive — mount points are public by nature.
+
+Verified against a spare dms-server + vite on the real DB, anonymous:
+
+| request | before | after |
+|---|---|---|
+| `www.localhost/tsmo` | landing page | **→ `/auth/login`** |
+| `www.localhost/npmrds` | landing page | **→ `/auth/login`** |
+| `www.localhost/freightatlas` | renders (public) | renders — unchanged |
+| `tsmo.localhost/congestion_v2` | served/404 | **→ `/auth/login`** via `retired_subdomains` |
+
+Full round-trip: `/tsmo` → login → **back to `/tsmo`** rendering the real TSMO site
+(`authLogin.jsx:31` honours `location.state.from`, which `view.jsx` sets to the blocked path).
+Suite: 821 tests pass; `siteSnapshot.test.js` (the one test touching `no-access`) green.
+
+⚠ This is a **dms-server** change, so it needs the server redeployed — `dmsserver.availabs.org`
+(`deploy.sh`), not just a front-end build. Until then the fix is local-only.
 
 ## Progress log
 
