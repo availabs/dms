@@ -33,7 +33,8 @@ export const LayerRenderComponent = props => {
     MapActions,
     resourcesLoaded,
     containerId,
-    Protocols
+    Protocols,
+    layerProps
   } = props;
 
   const {
@@ -234,13 +235,54 @@ export const LayerRenderComponent = props => {
       Component = DefaultHoverComp,
       property = null,
       filterFunc = null,
-      isPinnable = false,
+      isPinnable: defaultIsPinnable = false,
+      tolerance: defaultTolerance = 0,
       zIndex = -1
     } = onHover;
 
+    // `onHover` is a class field on the layer instance, baked in ONCE at construction
+    // (new SymbologyViewLayer(l)) - a plugin's later mapRegister mutation to the
+    // layer's stored config (e.g. routecreation.plugin.jsx setting isPinnable/
+    // hoverTolerance) lands too late to ever be read from `this.isPinnable` again, no
+    // matter how state changes afterward (confirmed live 2026-09-03: baking these into
+    // the class field never actually took effect for a real hover-then-click sequence,
+    // only for a synthetic click with no preceding hover). `layerProps` (this render's
+    // live, reactively-updated per-layer config - the same object mapRegister writes
+    // to) is checked first; the frozen class-field default is the fallback for every
+    // layer that was never given a live override.
+    const isPinnable = layerProps?.isPinnable ?? defaultIsPinnable;
+    const tolerance = layerProps?.hoverTolerance ?? defaultTolerance;
+
     const HoveredFeatures = new Map();
 
-    function mousemove(layerId, { point, features, lngLat }) {
+    function mousemove(layerId, { point, features: nativeFeatures, lngLat }) {
+      // An optional per-layer hit-test tolerance (px) - default 0 keeps every existing
+      // layer's exact-pixel hover precision unchanged. A layer whose OWN click handler
+      // widens its hit test (e.g. routecreation's useMapTmcHandler) sets this to keep
+      // the hover popup's precision in sync with what a click there actually selects -
+      // otherwise the two silently drift apart (2026-09-03 user report: "you could
+      // click to add a tmc but never see a popover").
+      const features = tolerance > 0
+        ? maplibreMap.queryRenderedFeatures(
+            [[point.x - tolerance, point.y - tolerance], [point.x + tolerance, point.y + tolerance]],
+            { layers: [layerId] }
+          )
+        : nativeFeatures;
+
+      // Only reachable via the canvas-wide binding below (tolerance > 0) - the native
+      // layer-scoped event this function is normally bound to (maplibreMap.on
+      // ("mousemove", layerId, ...)) never invokes it with an empty `features` at all,
+      // so `callback(layerId, features, ...)` below (ViewLayer's callback does
+      // `features[0].id` with no guard) can safely assume at least one feature exists
+      // in every other case. Treat "nothing within the tolerance box" as a leave -
+      // guarded on HoveredFeatures actually having an entry (cleared by mouseleave
+      // itself) so a canvas-wide mousemove far from this layer dispatches nothing
+      // instead of a redundant hover-layer-leave on every single pixel of movement.
+      if (!features.length) {
+        if (HoveredFeatures.has(layerId)) mouseleave(layerId);
+        return;
+      }
+
       const hoveredFeatures = HoveredFeatures.get(layerId) || new Map();
       HoveredFeatures.set(layerId, new Map());
 
@@ -341,21 +383,36 @@ export const LayerRenderComponent = props => {
     }
 
     const funcs = layers.reduce((a, c) => {
-      let callback = mousemove.bind(layer, c);
-      a.push({
-        action: "mousemove",
-        callback,
-        layerId: c
-      });
-      maplibreMap.on("mousemove", c, callback);
+      if (tolerance > 0) {
+        // MapLibre's layer-scoped mousemove/mouseleave events (the `else` branch
+        // below) are gated by MapLibre's OWN exact-pixel hit test before our callback
+        // is ever invoked - widening the query *inside* mousemove() is moot if that
+        // outer native gate already decided "nothing here" and never called us at all
+        // (confirmed live 2026-09-03: no cursor:pointer change on a near-miss, meaning
+        // `hover-layer-move` never dispatched). Bind canvas-wide instead so our own box
+        // query is the only gate, the same way routecreation's own click/hover
+        // handlers already work - `mousemove` already runs its own tolerance-box
+        // `queryRenderedFeatures` and treats an empty result as a leave.
+        const callback = (e) => mousemove(c, { point: e.point, features: [], lngLat: e.lngLat });
+        a.push({ action: "mousemove", callback, layerId: c, canvasWide: true });
+        maplibreMap.on("mousemove", callback);
+      } else {
+        let callback = mousemove.bind(layer, c);
+        a.push({
+          action: "mousemove",
+          callback,
+          layerId: c
+        });
+        maplibreMap.on("mousemove", c, callback);
 
-      callback = mouseleave.bind(layer, c);
-      a.push({
-        action: "mouseleave",
-        callback,
-        layerId: c
-      });
-      maplibreMap.on("mouseleave", c, callback);
+        callback = mouseleave.bind(layer, c);
+        a.push({
+          action: "mouseleave",
+          callback,
+          layerId: c
+        });
+        maplibreMap.on("mouseleave", c, callback);
+      }
 
       if (typeof hoverEnter === "function") {
         const callback = callbackWrapper(hoverEnter.bind(layer, layerId));
@@ -393,8 +450,12 @@ export const LayerRenderComponent = props => {
     return () => {
       if (!maplibreMap || !maplibreMap.loaded()) return;
 
-      funcs.forEach(({ action, callback, layerId }) => {
-        maplibreMap.off(action, layerId, callback);
+      funcs.forEach(({ action, callback, layerId, canvasWide }) => {
+        if (canvasWide) {
+          maplibreMap.off(action, callback);
+        } else {
+          maplibreMap.off(action, layerId, callback);
+        }
       });
       HoveredFeatures.forEach(hoveredFeatures => {
         hoveredFeatures.forEach(value => {
@@ -402,7 +463,7 @@ export const LayerRenderComponent = props => {
         });
       });
     }
-  }, [maplibreMap, layer, onHover, isActive, updateHover]);
+  }, [maplibreMap, layer, onHover, isActive, updateHover, layerProps?.isPinnable, layerProps?.hoverTolerance]);
 
 // ADD ON BOX SELECT
   React.useEffect(() => {
