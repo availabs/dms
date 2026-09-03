@@ -489,6 +489,16 @@
 
 ### patterns/page
 
+- [ ] [Sync pattern filters to pages/sections](./tasks/current/pattern-filter-sync.md) — a "Sync to
+      Pages" button per pattern filter group (`*` and each subdomain group) that reconciles every
+      draft page in a pattern whose sections consume that group's filter
+      (`usePageFilters`/`searchParamKey` match), server-side — patching the stored default AND
+      eagerly recomputing/persisting fresh data (Tier 2) — with client-visible progress via the
+      existing `dms/tasks` queue (same mechanism as `dms/pattern_duplicate`), plus a new
+      multi-select bulk-publish action on the pattern's "To Publish" queue lens. Plan written and
+      fully decided (draft-only, Tier 2, per-group buttons, bulk publish included); test fixtures
+      pending a usertoken; Tier-2 query-shape tracing is the first implementation step.
+
 - [x] [Bounded numeric display controls — clamp on write, blank = unset](./tasks/current/numeric-control-clamp-and-unset.md) —
       **IMPLEMENTED 2026-08-25, live UI pass still open.** Reported as "setting inner padding on a
       bar graph makes the bars disappear." Root cause was two defects in one write path: (1) numeric

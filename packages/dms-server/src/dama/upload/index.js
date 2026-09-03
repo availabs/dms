@@ -9,6 +9,7 @@ const { downloadGuard, createDownload, deleteDownload } = require('./download-ro
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
 const { createDuplicateHandler } = require('./dms-duplicate');
+const { createPatternFilterSyncHandler } = require('../../dms/pattern-filter-sync');
 const dmsTasks = require('../../dms/tasks');
 const { serveTile } = require('../tiles/tiles.rest');
 const { createController } = require('../../routes/dms/dms.controller');
@@ -38,6 +39,11 @@ function registerUploadRoutes(app) {
 
   // Pattern duplicate — queues a background task; client polls /dms/tasks/:taskId for status.
   app.post('/dama-admin/dms/:appType/duplicate', createDuplicateHandler(controller));
+
+  // Pattern filter sync — reconciles a pattern filter group into draft sections; queues a
+  // background task, client polls /dms/tasks/:taskId for status (same as duplicate above).
+  // See src/dms/planning/tasks/current/pattern-filter-sync.md.
+  app.post('/dama-admin/dms/:appType/sync-filters', createPatternFilterSyncHandler(controller));
 
   // Task status — used by the client to poll for duplicate (and future long-running) tasks.
   app.get('/dama-admin/dms/tasks/:taskId', async (req, res) => {
@@ -75,7 +81,7 @@ function registerUploadRoutes(app) {
   // Event polling compat shim (legacy clients poll this for task progress)
   app.get('/dama-admin/:pgEnv/events/query', eventsQuery);
 
-  console.log('Upload: registered 18 routes at /dama-admin/ and /dms-admin/');
+  console.log('Upload: registered 19 routes at /dama-admin/ and /dms-admin/');
 }
 
 module.exports = { registerUploadRoutes };
