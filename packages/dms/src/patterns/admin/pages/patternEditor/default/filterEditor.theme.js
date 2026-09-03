@@ -8,6 +8,8 @@ export const filterEditorTheme = {
     subdomainHeader: 'flex items-center gap-2',
     subdomainBadge: 'text-xs font-semibold bg-gray-100 px-2 py-0.5 rounded',
     subdomainRemoveBtn: 'text-xs text-red-500 hover:text-red-700',
+    syncMessageSuccess: 'text-xs text-green-700 bg-green-50 border border-green-200 rounded px-2 py-1',
+    syncMessageError: 'text-xs text-red-700 bg-red-50 border border-red-200 rounded px-2 py-1',
 
     // Add subdomain row
     addSubdomainRow: 'flex gap-2 items-center mt-1',

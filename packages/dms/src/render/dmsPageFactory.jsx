@@ -65,10 +65,25 @@ export default function dmsPageFactory({
     // restricted to retry — leaving any *other* page's stale pre-login
     // no-access cache stuck with no further chance to self-heal this session.
     const currentAuthToken = typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null;
-    if (currentAuthToken !== lastAuthToken && data.some(d => d.id === 'no-access')) {
-      falcor.setCache({});
-      data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
-      lastAuthToken = currentAuthToken;
+    if (currentAuthToken !== lastAuthToken) {
+      // `falcor.setCache({})` used to wipe the entire root cache here — every
+      // pattern, every site visited this session, not just the blocked rows —
+      // forcing a full re-fetch storm on the very next render even though only
+      // this page's pattern(s) actually had stale pre-login data. Scope the
+      // invalidate to just the app+type pairs seen among the blocked rows
+      // instead. `app`/`type` are real values even on a blocked row (only the
+      // other fields get scrubbed to 'no-access' — see dms-server's
+      // dms.route.js); the real per-row id is not (discarded by
+      // processNewData's Object.values flatten), so this is pattern-level
+      // scoping, not per-row.
+      const blocked = data.filter(d => d.id === 'no-access');
+      if (blocked.length) {
+        const paths = [...new Set(blocked.map(d => `${d.app}+${d.type}`))]
+          .map(appType => ['dms', 'data', appType]);
+        await falcor.invalidate(...paths);
+        data = await dmsDataLoader(falcor, dmsConfig, `/${params["*"] || ""}`);
+        lastAuthToken = currentAuthToken;
+      }
     }
     const t1 = import.meta.env.DEV ? performance.now() : 0;
     // Pre-load dataWrapper section data if the pattern supports it

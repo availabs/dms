@@ -584,6 +584,15 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         if (!apiLoad || !falcor || !value.app || !patternInstance) return;
         setLoading(true);
         try {
+            // This is a "review before publish" surface — serving stale Falcor cache here is
+            // actively dangerous (a bulk-publish would ship whatever's cached, not reality), so
+            // always force a fresh fetch instead of trusting whatever's already in the client
+            // cache. Covers not just this pattern's own Sync-to-Pages action (which also
+            // invalidates on its own success — see filterEditor.jsx) but any other out-of-band
+            // write to these rows (CLI, another tab/session) landing between page loads. Mirrors
+            // the same invalidate-before-get pattern api/index.js already uses for UDA data.
+            await falcor.invalidate(['dms', 'data', `${value.app}+${patternInstance}|page`]);
+            await falcor.invalidate(['dms', 'data', `${value.app}+${patternInstance}|component`]);
             // Step 1: fetch pages
             const pageItems = await apiLoad({
                 format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },
@@ -925,6 +934,61 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         setDropTargetId(null);
     }, []);
 
+    // Bulk-publish selection — see src/dms/planning/tasks/current/pattern-filter-sync.md
+    // Decision 4. Only meaningful in the "queue" lens; publishPage() is already a fast
+    // synchronous apiUpdate per page, so a client-side sequential loop (no dms/tasks queue)
+    // is enough — matches the plan's stated design (no server-side job needed for this part).
+    const [selectedIds, setSelectedIds] = useState(new Set());
+    const [publishingSelected, setPublishingSelected] = useState(false);
+    const [publishSelectedResult, setPublishSelectedResult] = useState(null);
+
+    const toggleSelected = useCallback((pageId) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            const key = String(pageId);
+            if (next.has(key)) next.delete(key); else next.add(key);
+            return next;
+        });
+    }, []);
+
+    const selectAllInQueue = useCallback(() => {
+        setSelectedIds(new Set(pages.filter(needsPublish).map(p => String(p.id))));
+    }, [pages]);
+
+    const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
+
+    const publishSelected = useCallback(async () => {
+        const targets = pages.filter(p => needsPublish(p) && selectedIds.has(String(p.id)));
+        if (!targets.length) return;
+        setPublishingSelected(true);
+        setPublishSelectedResult(null);
+        let succeeded = 0, failed = 0;
+        for (const page of targets) {
+            try {
+                await publishPage(page);
+                succeeded++;
+            } catch (e) {
+                failed++;
+            }
+        }
+        setPublishingSelected(false);
+        setPublishSelectedResult(`${succeeded} of ${targets.length} published${failed ? `, ${failed} failed` : ''}`);
+        setSelectedIds(new Set());
+    }, [pages, selectedIds, publishPage]);
+
+    const SelectCheckboxComp = useCallback(({ row: page }) => {
+        if (!page || page._isGroupBand || !needsPublish(page)) return null;
+        const key = String(page.id);
+        return (
+            <input
+                type="checkbox"
+                checked={selectedIds.has(key)}
+                onChange={() => toggleSelected(page.id)}
+                onClick={(e) => e.stopPropagation()}
+            />
+        );
+    }, [selectedIds, toggleSelected]);
+
     // counts for lens chips
     const counts = useMemo(() => ({
         queue: pages.filter(needsPublish).length,
@@ -1007,6 +1071,9 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     }, [t, UI, value.base_url, navigate, publishPage, discardPage, duplicatePage, setDeletingPage]);
 
     const columns = useMemo(() => [
+        ...(lens === 'queue' ? [
+            { name: '_select', display_name: ' ', show: true, type: 'ui', size: 32, Comp: SelectCheckboxComp },
+        ] : []),
         { name: 'title',           display_name: 'Page',           show: true, type: 'tree_node'},
         { name: '_publishState',   display_name: 'State',          show: true, type: 'publish_state',  size: 110 },
         { name: '_lastPublished',  display_name: 'Last Published', show: true, type: 'last_published',  size: 120 },
@@ -1019,7 +1086,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
             Comp: PageActionsComp },
         { name: '_sections',       display_name: 'Sections',  show: true, type: 'ui',
           Comp: SectionsPanelComp, openOut: true },
-    ], [SectionsPanelComp, PageActionsComp]);
+    ], [SectionsPanelComp, PageActionsComp, SelectCheckboxComp, lens]);
 
     const lenses = [
         { id: 'all',     label: 'All Pages' },
@@ -1115,6 +1182,27 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
                 {hasActiveFilters && (
                     <button className={t.clearFiltersBtn} onClick={clearFilters}>✕ Clear Filters</button>
+                )}
+
+                {lens === 'queue' && counts.queue > 0 && (
+                    <>
+                        <button className={t.ghostBtn} onClick={selectAllInQueue}>Select All ({counts.queue})</button>
+                        {selectedIds.size > 0 && (
+                            <>
+                                <button className={t.ghostBtn} onClick={clearSelection}>Clear Selection</button>
+                                <button
+                                    className={t.addBtn}
+                                    onClick={publishSelected}
+                                    disabled={publishingSelected}
+                                >
+                                    {publishingSelected ? 'Publishing…' : `Publish Selected (${selectedIds.size})`}
+                                </button>
+                            </>
+                        )}
+                        {publishSelectedResult && (
+                            <span className={t.lensCount}>{publishSelectedResult}</span>
+                        )}
+                    </>
                 )}
 
                 <div className="flex-1" />
