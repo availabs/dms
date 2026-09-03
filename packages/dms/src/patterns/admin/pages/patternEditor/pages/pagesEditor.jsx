@@ -584,6 +584,15 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         if (!apiLoad || !falcor || !value.app || !patternInstance) return;
         setLoading(true);
         try {
+            // This is a "review before publish" surface — serving stale Falcor cache here is
+            // actively dangerous (a bulk-publish would ship whatever's cached, not reality), so
+            // always force a fresh fetch instead of trusting whatever's already in the client
+            // cache. Covers not just this pattern's own Sync-to-Pages action (which also
+            // invalidates on its own success — see filterEditor.jsx) but any other out-of-band
+            // write to these rows (CLI, another tab/session) landing between page loads. Mirrors
+            // the same invalidate-before-get pattern api/index.js already uses for UDA data.
+            await falcor.invalidate(['dms', 'data', `${value.app}+${patternInstance}|page`]);
+            await falcor.invalidate(['dms', 'data', `${value.app}+${patternInstance}|component`]);
             // Step 1: fetch pages
             const pageItems = await apiLoad({
                 format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },

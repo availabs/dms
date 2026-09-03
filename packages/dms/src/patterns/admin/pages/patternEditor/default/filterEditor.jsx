@@ -91,7 +91,7 @@ function FilterRows({ filters = [], onChange }) {
     );
 }
 
-export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
+export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) => {
     const { UI, theme } = useContext(ThemeContext);
     const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
     const { apiUpdate, app, API_HOST } = useContext(AdminContext);
@@ -137,6 +137,18 @@ export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
                         + (r.warnings ? ` — ${r.warnings} warning(s)` : '')
                         + (r.pagesPatched ? '. Pending pages are in the "To Publish" queue.' : '.');
                     setSyncState(prev => ({ ...prev, [subdomain]: { syncing: false, progress: 1, message, isError: false } }));
+                    // The sync worker writes directly to the DB via a plain REST POST — it never
+                    // goes through Falcor, so the client's Falcor cache has no idea these rows
+                    // changed. Without this, PatternPagesEditor's "To Publish" queue (and anything
+                    // else that already cached these pages/sections) keeps serving pre-sync data —
+                    // confirmed live: a bulk-publish right after a sync published the STALE cached
+                    // section content, not the freshly-synced values. Invalidate both branches this
+                    // worker can write to so every already-mounted or freshly-loaded consumer
+                    // refetches for real.
+                    if (falcor) {
+                        await falcor.invalidate(['dms', 'data', `${app}+${patternInstance}|page`]);
+                        await falcor.invalidate(['dms', 'data', `${app}+${patternInstance}|component`]);
+                    }
                     return;
                 }
                 if (task.status === 'error') {

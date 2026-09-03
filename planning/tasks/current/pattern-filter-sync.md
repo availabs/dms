@@ -723,9 +723,46 @@ is specifically the new React code: does the button render in the right place, d
 correctly, does the checkbox column coexist with the Table's tree/group-band rendering without
 visual breakage.
 
+### Live browser pass (you) — update + bulk-publish both worked; one real bug found and fixed
+
+You manually tested both flows for real and confirmed the button and bulk-publish UI both work.
+**One bug found: bulk-publish, run right after a sync, published the STALE pre-sync section
+content, not the freshly-synced values.**
+
+**Root cause:** the sync worker writes directly to the DB via a plain REST POST — it never goes
+through Falcor at all — so the client's Falcor cache has no idea those rows changed.
+`filterEditor.jsx`'s `syncGroup()` didn't even have `falcor` in scope (it was silently absorbed
+into an unused `...rest`), so nothing invalidated anything after a sync completed. Any component
+that had already loaded those page/section rows into its Falcor cache — including
+`PatternPagesEditor`'s "To Publish" queue, whose `publishPage()` reads section content from a
+`compById` map built off of exactly that cached load — kept serving the pre-sync snapshot.
+
+**Fix applied (both, not either/or):**
+1. `filterEditor.jsx` — `PatternFilterEditor` now destructures `falcor` from its props (it was
+   already being passed down from `patternEditor/index.jsx`, just unused). `syncGroup()`'s
+   `status:'done'` branch now calls
+   `falcor.invalidate(['dms','data','${app}+${patternInstance}|page'])` and the same for
+   `|component`, right after showing the success message.
+2. `pagesEditor.jsx` — `loadAll()` now does the same two `falcor.invalidate(...)` calls
+   unconditionally, BEFORE its own fetch, every time it runs. This is the more robust half of the
+   fix: it protects the "review before publish" surface against staleness from ANY source (this
+   sync feature, a CLI write, another browser tab/session), not only the one trigger that was
+   actually observed.
+
+**Not yet re-verified live** — these are freshly-written fixes; the original bug report was against
+the pre-fix code. Re-run the same repro (sync a group, then immediately bulk-publish without an
+intervening manual page refresh) to confirm the fix actually resolves it before considering Phase 2
+fully done. Also worth spot-checking: does `falcor.invalidate()` on a branch-level path (not a full
+leaf path) actually cascade-invalidate everything nested beneath it in this codebase's Falcor setup
+(`@availabs/avl-falcor`) — standard Falcor semantics say yes, and every other `falcor.invalidate`
+call in this codebase (`api/index.js`'s UDA invalidation) uses full leaf paths rather than a branch
+prefix, so this specific usage pattern (invalidating a branch) isn't independently precedented here,
+just standard Falcor behavior assumed to hold.
+
 ## Status
 
-**IMPLEMENTATION DONE, Phase 1 verified live, Phase 2 needs a human/browser pass before shipping.**
+**IMPLEMENTATION DONE. Phase 1 verified live. Phase 2 browser-tested live by the user — update and
+bulk-publish both work; one real staleness bug found and fixed, fix not yet re-verified.**
 
 - Decisions 1-4 confirmed and built (Tier 2 eager recompute; draft-only for v1; one Sync button per
   filter group; bulk-publish included).
@@ -734,9 +771,12 @@ visual breakage.
   (Phase 1)" above for the full per-row table). Three real `curl`-driven task runs against
   `shaun-test-app`/`test`'s `pfs_test` pattern (`*` group, `songs` group, `*` again for
   idempotency), all `status:"done"`.
-- **Phase 2 (dms client UI) — written, passes a syntax check, NOT browser-verified** (Playwright
-  browser binaries weren't available this session — see "Implementation (Phase 2)" above for
-  exactly what still needs a human/browser pass).
+- **Phase 2 (dms client UI) — browser-tested live by the user.** Sync button and bulk-publish both
+  functioned. **Found: bulk-publish right after a sync shipped stale pre-sync data** (Falcor cache
+  never invalidated after the worker's out-of-band DB write) — root-caused and fixed in
+  `filterEditor.jsx` (invalidate on sync success) and `pagesEditor.jsx` (invalidate unconditionally
+  before every load, the more robust half). **Fix is NOT yet re-verified** — see "Live browser pass"
+  above for the exact repro to re-run.
 - **Test fixtures for all 21 matrix rows built on `shaun-test-app`/`test`** (see "Test fixtures
   (built)") — the `externalSource.env`/`srcEnv` mixup and the Map section's `dynamic-filters`
   nesting are fixed and confirmed live via `dms raw get`; row 21 added mid-session per review.
@@ -752,8 +792,10 @@ visual breakage.
 
 ### What's left before this can be considered fully done
 
-1. **Browser-verify Phase 2** (see the note at the end of "Implementation (Phase 2)" above) — the
-   single biggest remaining gap.
+1. **Re-verify the Falcor-staleness fix** (sync a group, then immediately bulk-publish with no
+   manual refresh in between — should now publish the fresh synced content, not stale cache) — the
+   single most important remaining check, since it's a correctness bug in already-shipped-feeling
+   code, not just an unverified-but-presumed-fine path.
 2. Decide whether to fix the two Phase-1 caveats (row 8's fixture doesn't exercise a real
    lag/delta KPI-card recipe; row 19's Tier-2 "failure" path doesn't throw for an unresolvable
    DMS-mode view_id, so no warn event fires for that specific kind of brokenness) or accept them as
