@@ -6,7 +6,7 @@ import Icon from "../Icon"
 import { LayerRenderComponent } from "./avl-layer"
 import { HoverComponent, PinnedHoverComponent } from "./components/HoverComponent"
 import useMapTheme from "./useMapTheme"
-import { useSetSize } from "./utils"
+import { useSetSize, normalizeMarkerElement } from "./utils"
 
 let idCounter = 0;
 const getNewId = () => `avl-thing-${ ++idCounter }`;
@@ -15,30 +15,6 @@ const EmptyArray = [];
 const EmptyObject = {};
 
 const PIN_OUTLINE_LAYER_SUFFIX = 'pin_outline'
-
-const normalizeMarkerElement = (marker) => {
-  const markerEl = marker?.getElement?.();
-  if (!markerEl) return marker;
-  const markerChild = markerEl.firstElementChild;
-  const fallbackWidth = markerChild?.getAttribute?.("width") || "27px";
-  const fallbackHeight = markerChild?.getAttribute?.("height") || "41px";
-
-  // Keep the marker wrapper sized to the pin itself so MapLibre's
-  // translate(-50%, -50%) centers the actual pin instead of a stretched box.
-  markerEl.style.position = "absolute";
-  markerEl.style.left = "0";
-  markerEl.style.top = "0";
-  markerEl.style.width = fallbackWidth;
-  markerEl.style.maxWidth = "none";
-  markerEl.style.minWidth = fallbackWidth;
-  markerEl.style.height = fallbackHeight;
-  markerEl.style.minHeight = fallbackHeight;
-  markerEl.style.display = "block";
-  markerEl.style.padding = "0";
-  markerEl.style.margin = "0";
-
-  return marker;
-};
 
 export const DefaultStyles = [
   { name: "Dark",
@@ -386,7 +362,7 @@ const Reducer = (state, action) => {
     case "pin-hover-comp": {
       if (!state.hoverData.hovering) return state;
 
-      const { lngLat, marker } = payload;
+      const { lngLat, marker, exclusive } = payload;
 
       const HoverComps = [...state.hoverData.data]
         .filter(({ layerId }) => !layerId.includes(PIN_OUTLINE_LAYER_SUFFIX))
@@ -402,10 +378,15 @@ const Reducer = (state, action) => {
           HoverComps
         }
 
-        const updatedPinnedComps = [
-        ...state.pinnedHoverComps,
-        newPinned
-      ];
+        // `exclusive` (see avl-map.jsx's pinExclusive memo) replaces every previous
+        // pin instead of stacking on top of it - remove their markers from the map too,
+        // not just from state, or the old pin's marker DOM element would be orphaned.
+        if (exclusive) {
+          state.pinnedHoverComps.forEach(phc => phc.marker.remove());
+        }
+        const updatedPinnedComps = exclusive
+          ? [newPinned]
+          : [...state.pinnedHoverComps, newPinned];
 
       const curGeometry = updatedPinnedComps[0]?.HoverComps[0]?.layer?.filters?.geometry?.value;
 
@@ -767,12 +748,17 @@ export const AvlMapInner = ({
   const maplibreRef = React.useRef(maplibre);
   maplibreRef.current = maplibre;
 
+  // Mirrors maplibreRef: pinHoverComp is kept referentially stable ([] deps, see the
+  // click-listener effect below) but still needs this render's live `pinExclusive`
+  // value (computed further down, after `activeLayers` exists) at click time.
+  const pinExclusiveRef = React.useRef(false);
+
   const pinHoverComp = React.useCallback(({ lngLat }) => {
     const marker = normalizeMarkerElement(
       new maplibreRef.current.Marker().setLngLat(lngLat)
     );
 
-    dispatch({ type: "pin-hover-comp", lngLat, marker });
+    dispatch({ type: "pin-hover-comp", lngLat, marker, exclusive: pinExclusiveRef.current });
   }, []);
 
   const removePinnedHoverComp = React.useCallback(id => {
@@ -846,11 +832,26 @@ export const AvlMapInner = ({
   }, [state.layersLoading, activeLayers]);
 
 // APPLY CLICK LISTENER TO MAP TO ALLOW PINNED HOVER COMPS
+  // Mirrors avl-layer.jsx's LayerRenderComponent: `onHover.isPinnable` is baked into
+  // the layer instance once at construction, so a plugin's later mapRegister mutation
+  // to `layerProps` (the live, reactively-updated per-layer config) is checked first -
+  // otherwise this gate never reflects a layer opting out after its first render.
   const isPinnable = React.useMemo(() => {
     return activeLayers.reduce((a, c) => {
-      return a || get(c, ["onHover", "isPinnable"], false);
+      const layerIsPinnable = get(layerProps, [c.id, "isPinnable"], get(c, ["onHover", "isPinnable"], false));
+      return a || layerIsPinnable;
     }, false);
-  }, [activeLayers]);
+  }, [activeLayers, layerProps]);
+
+  // A layer can opt into "only one pinned popup open at a time" via a live
+  // `pinExclusive: true` (routecreation.plugin.jsx sets this on its network layer,
+  // 2026-09-03 - clicking a TMC still pins its popup, but a new pin replaces the
+  // previous one instead of stacking indefinitely). Default stays the original
+  // stack-every-click behavior for every layer/map product that doesn't set it.
+  const pinExclusive = React.useMemo(() => {
+    return activeLayers.reduce((a, c) => a || Boolean(get(layerProps, [c.id, "pinExclusive"], false)), false);
+  }, [activeLayers, layerProps]);
+  pinExclusiveRef.current = pinExclusive;
 
   React.useEffect(() => {
     if (!isPinnable) return;

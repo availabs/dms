@@ -77,9 +77,26 @@
 
 - [x] SSR Phase 1: Basic SSR — platform-agnostic core in `render/ssr2/`, Express adapter in `render/ssr2/express/`, integration into dms-server via `mountSSR()` (`DMS_SSR` env var), fix `getSubdomain` window bug, client hydration via `DmsSite` `defaultData`/`hydrationData`, two-build system (Vite client + server)
 - [ ] SSR Phase 2: Streaming SSR — upgrade `renderToString` to `renderToPipeableStream`, template splitting for immediate shell delivery, optional `Suspense` boundaries for per-section streaming, bot/crawler detection for complete HTML
+- [ ] [Perf: page-load root-causing + auth-revalidate duplicate-fetch regression](./tasks/current/perf-auth-revalidate-duplicate-fetch.md) — 6 fixes shipped+verified 2026-09-02 (anonymous double-fetch, cross-origin logo LCP, SSR stuck-no-access, resulting infinite-loop + JSON.parse/`.filter` crashes, preconnect hints — no measurable win). 7th fix (scoped `falcor.invalidate()` replacing blanket `falcor.setCache({})`) implemented + deployed to devmny.org, confirmed live — but produced **zero measurable change** on production Lighthouse. Root-caused: targets the wrong mechanism. Real fix split out to the task below.
+- [ ] [Perf: fast-path + full-fetch route rebuilds duplicate the entire page data fetch](./tasks/current/route-build-duplicate-falcor-instances.md) — the actual cause of the Lighthouse-measured regression above. `dmsPageFactory()` makes a brand-new empty-cache Falcor instance on every call (`dmsPageFactory.jsx:26`); `dmsSiteFactory.jsx` builds routes twice by design — a fast path from cached/SSR `defaultData`/`localStorePatterns`, then an unconditional full-API-fetch pass — so the full-fetch pass can never see what the fast path already fetched and re-fetches the entire page graph from scratch. Auth-independent (correlates with "logged in" only because returning/authed visitors are more likely to have cached route data). Estimated impact if fixed: ~5.71MB→~3.9MB payload, LCP ~4.7s→~2.5-3.2s, Perf score ~46→~55-65. Must work across SSR×non-SSR and sync×non-sync (4 combinations) — SSR already has partial shared-Falcor plumbing (`ssr2/handler.jsx:66-94`, `DmsSite`'s `falcor` prop) that dead-ends before reaching `dmsPageFactory()`; design question (share one instance vs. skip full-fetch when fresh) not yet resolved — see task file.
 
 ## dms-manager
 
+- [ ] Admin route on a cold direct navigation resolves `user` as a "public" stub, not the real
+      authed user — found 2026-09-03 while browser-testing `pattern-filter-sync` with a
+      Playwright session seeded via `localStorage.userToken` (not the real interactive login flow).
+      `PatternEditor` (`patterns/admin/pages/patternEditor/index.jsx`) read `AdminContext.user.groups`
+      as `["public"]` on a fresh `page.goto` straight to `/list/manage_pattern/<id>/filters`, denying
+      access with "You do not have permission to manage this pattern." — even though the site's own
+      `POST /auth` call, made on that exact same page load, correctly returned
+      `groups:["shaun-test-app Admin"]`. Not a timing race (persisted after an extra 3s wait).
+      Reproduces on ANY cold/deep-linked navigation into an admin route (bookmarked link, page
+      refresh while on the route, or an automated test) — as opposed to arriving there via in-app
+      client-side navigation from an already-resolved session, which is presumably why a real user
+      doesn't normally notice it. Root cause not found — didn't dig further, tangential to the task
+      that surfaced it (`src/dms/planning/tasks/current/pattern-filter-sync.md`). Worth its own
+      investigation into wherever `AdminContext`'s `user` prop gets constructed (likely `withAuth`)
+      to see why it doesn't wait for/pick up the resolved `/auth` response on a fresh load.
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server

@@ -67,7 +67,7 @@ describe("resolveMountPath — in-pattern links follow the mount", () => {
         expect(on("/map_21")).toBe("/npmrds/map_21");
         expect(on("/map_21/level_of_travel_time_reliability"))
             .toBe("/npmrds/map_21/level_of_travel_time_reliability");
-        expect(on("/converted_reports/reports")).toBe("/npmrds/converted_reports/reports");
+        expect(on("/reports/snapshot")).toBe("/npmrds/reports/snapshot");
         expect(on("/route_comparison")).toBe("/npmrds/route_comparison");
         expect(on("/home")).toBe("/npmrds/home");
     });

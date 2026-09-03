@@ -4,6 +4,7 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 import { isEqual } from "lodash-es";
 import { filterEditorTheme } from './filterEditor.theme';
 import { parseIfJSON } from '../../../utils';
+import { getInstance } from '../../../../../utils/type-utils';
 
 // Normalise raw filters value (flat array or subdomain-keyed object) → subdomain-keyed object
 function normaliseFilters(raw) {
@@ -90,15 +91,74 @@ function FilterRows({ filters = [], onChange }) {
     );
 }
 
-export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
+export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) => {
     const { UI, theme } = useContext(ThemeContext);
     const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
-    const { apiUpdate } = useContext(AdminContext);
-    const { FieldSet } = UI;
+    const { apiUpdate, app, API_HOST } = useContext(AdminContext);
+    const { FieldSet, Button } = UI;
 
     const normalised = normaliseFilters(value?.filters);
     const [tmpFilters, setTmpFilters] = useState(normalised);
     const [newSubdomain, setNewSubdomain] = useState('');
+    // Per-group sync state: { [subdomain]: { syncing, progress, message, isError } }
+    const [syncState, setSyncState] = useState({});
+
+    const patternInstance = getInstance(value.type);
+    const hasUnsavedChanges = !isEqual(tmpFilters, normalised);
+
+    // "Sync to Pages" — see src/dms/planning/tasks/current/pattern-filter-sync.md.
+    // Follows patternList.jsx's duplicate() shape exactly: POST -> { task_id } -> poll
+    // /dms/tasks/:taskId every ~3s -> show progress -> terminal success/error state.
+    const syncGroup = async (subdomain) => {
+        if (!patternInstance || !value.id) return;
+        const dmsServerPath = `${API_HOST}/dama-admin`;
+        setSyncState(prev => ({ ...prev, [subdomain]: { syncing: true, progress: 0, message: null, isError: false } }));
+        try {
+            const res = await fetch(`${dmsServerPath}/dms/${app}+${patternInstance}/sync-filters`, {
+                method: 'POST',
+                body: JSON.stringify({ patternId: value.id, filterGroupKey: subdomain }),
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const body = await res.json().catch(() => ({}));
+            if (!res.ok || body?.err) {
+                throw new Error(body?.err || `HTTP ${res.status}`);
+            }
+            const { task_id } = body;
+            for (;;) {
+                await new Promise(r => setTimeout(r, 3000));
+                const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+                const task = await statusRes.json().catch(() => ({}));
+                if (task.progress != null) {
+                    setSyncState(prev => ({ ...prev, [subdomain]: { ...prev[subdomain], progress: task.progress } }));
+                }
+                if (task.status === 'done') {
+                    const r = task.result || {};
+                    const message = `Synced ${r.sectionsPatched ?? 0} section(s) across ${r.pagesPatched ?? 0} page(s)`
+                        + (r.warnings ? ` — ${r.warnings} warning(s)` : '')
+                        + (r.pagesPatched ? '. Pending pages are in the "To Publish" queue.' : '.');
+                    setSyncState(prev => ({ ...prev, [subdomain]: { syncing: false, progress: 1, message, isError: false } }));
+                    // The sync worker writes directly to the DB via a plain REST POST — it never
+                    // goes through Falcor, so the client's Falcor cache has no idea these rows
+                    // changed. Without this, PatternPagesEditor's "To Publish" queue (and anything
+                    // else that already cached these pages/sections) keeps serving pre-sync data —
+                    // confirmed live: a bulk-publish right after a sync published the STALE cached
+                    // section content, not the freshly-synced values. Invalidate both branches this
+                    // worker can write to so every already-mounted or freshly-loaded consumer
+                    // refetches for real.
+                    if (falcor) {
+                        await falcor.invalidate(['dms', 'data', `${app}+${patternInstance}|page`]);
+                        await falcor.invalidate(['dms', 'data', `${app}+${patternInstance}|component`]);
+                    }
+                    return;
+                }
+                if (task.status === 'error') {
+                    throw new Error(task.error || 'Sync failed');
+                }
+            }
+        } catch (err) {
+            setSyncState(prev => ({ ...prev, [subdomain]: { syncing: false, progress: 0, message: err.message, isError: true } }));
+        }
+    };
 
     const updateSubdomainFilters = (subdomain, filters) => {
         setTmpFilters(prev => ({ ...prev, [subdomain]: filters }));
@@ -123,7 +183,9 @@ export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
         <div className={t.wrapper}>
             <label className={t.label}>Filters</label>
 
-            {Object.entries(tmpFilters).map(([subdomain, filters]) => (
+            {Object.entries(tmpFilters).map(([subdomain, filters]) => {
+                const sync = syncState[subdomain];
+                return (
                 <div key={subdomain} className={t.subdomainSection}>
                     <div className={t.subdomainHeader}>
                         <span className={t.subdomainBadge}>
@@ -137,13 +199,27 @@ export const PatternFilterEditor = ({ value = {}, onChange, ...rest }) => {
                                 remove subdomain
                             </button>
                         )}
+                        <Button
+                            buttonType="plain"
+                            disabled={hasUnsavedChanges || sync?.syncing || !filters.length}
+                            title={hasUnsavedChanges ? 'Save filter changes before syncing' : 'Reconcile this filter group into every page (draft-only)'}
+                            onClick={() => syncGroup(subdomain)}
+                        >
+                            {sync?.syncing ? `Syncing… ${Math.round((sync.progress || 0) * 100)}%` : 'Sync to Pages'}
+                        </Button>
                     </div>
+                    {sync?.message && (
+                        <div className={sync.isError ? t.syncMessageError : t.syncMessageSuccess}>
+                            {sync.message}
+                        </div>
+                    )}
                     <FilterRows
                         filters={filters}
                         onChange={(updated) => updateSubdomainFilters(subdomain, updated)}
                     />
                 </div>
-            ))}
+                );
+            })}
 
             <div className={t.addSubdomainRow}>
                 <input
