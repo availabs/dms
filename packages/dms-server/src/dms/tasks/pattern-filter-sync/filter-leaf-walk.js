@@ -17,7 +17,7 @@
  * same normalization convention for consistency.
  */
 
-const { applyPageFilters } = require('./mirrors/buildUdaConfig');
+const { applyPageFilters } = require('../../mirrors/buildUdaConfig');
 
 function isGroup(node) {
   return !!(node && Array.isArray(node.groups));

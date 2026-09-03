@@ -20,9 +20,9 @@
  * :appType only carries the pattern instance — see the task file's "Design note" on this.
  */
 
-const { registerHandler, queueTask } = require('./tasks');
+const { registerHandler, queueTask } = require('../index');
 const { patchSectionElementData } = require('./filter-leaf-walk');
-const { getData } = require('./mirrors/getData');
+const { getData } = require('../../mirrors/getData');
 
 function parseIfJSON(raw, fallback) {
   if (raw == null) return fallback;

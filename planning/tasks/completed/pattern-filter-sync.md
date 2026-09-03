@@ -189,7 +189,7 @@ client to be subscribed before the job starts.
 
 ### Server: new worker + one new route (mirrors `dms-duplicate.js` structurally)
 
-New file `src/dms/packages/dms-server/src/dms/pattern-filter-sync.js` (new `dms/` location, not
+New file `../../../packages/dms-server/src/dms/tasks/pattern-filter-sync/pattern-filter-sync.js` (new `dms/` location, not
 under `upload/` — `dms-duplicate.js` living under `upload/` is itself a slight mis-home from an
 earlier task; not fixing that now, just not perpetuating it for an unrelated feature).
 
