@@ -485,6 +485,10 @@
 
 ## patterns
 
+### patterns/mapeditor
+
+- [x] [Layers panel "..." menu button not opening (layer delete unreachable)](./tasks/completed/mapeditor-layer-menu-dots-not-opening.md) — `MenuDots` icon component ignored injected props (no `{...props}` spread, no `forwardRef`), so `Popup`'s `cloneElement`-injected `onClick` never reached the DOM and clicking "..." did nothing — the delete/zoom-to-fit/duplicate menu was simply unreachable, not broken. Fixed by wrapping `LayerMenu`'s button in `<Button type="plain">`, matching the already-working `LayerInfo` pattern. Also covers the Legend panel and Layer Editor's own "..." menus, which share `LayerMenu`. `map_dama`'s separate `SymbologyMenu` may have the same bug independently — not touched.
+
 ### patterns/page
 
 - [x] [Bounded numeric display controls — clamp on write, blank = unset](./tasks/current/numeric-control-clamp-and-unset.md) —
