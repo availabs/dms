@@ -758,8 +758,27 @@ observation rather than just assumed from standard Falcor semantics.
 
 ## Status
 
-**IMPLEMENTATION DONE. Phase 1 verified live. Phase 2 browser-tested live by the user, including a
-real bug found, fixed, AND re-verified fixed. Feature is functionally complete.**
+**COMPLETED 2026-09-03.** Implementation done, Phase 1 verified live, Phase 2 browser-tested live
+by the user including a real bug found, fixed, and re-verified fixed. Feature is functionally
+complete. Rows 8/19 caveats accepted as known limitations (user decision, no fix needed). Moved to
+`tasks/completed/` per `planning-rules.md`.
+
+**Still open, tracked as follow-ups, not blockers to closing this task:**
+- Row 12 (pattern filters as a legacy flat array) never live-exercised — low risk, direct mirror of
+  `filterEditor.jsx`'s own `normaliseFilters`.
+- External-source (`isDms:false`) coverage deliberately deferred to a future `test_dama` pgEnv.
+- **Nothing has been committed to git yet** — new/changed files sit as staged/unstaged changes in
+  `src/dms/`; a commit (and likely a PR) is still needed before this ships anywhere.
+- The **⚠ DRIFT WARNING** in the Tier 2 design section above is permanent, not task-scoped — it
+  must keep being honored for as long as the `dms-server` mirror files
+  (`dms-server/src/dms/mirrors/buildUdaConfig.js`, `getData.js`) exist, regardless of this task's
+  completed status.
+- A separate, real bug was found and filed (not fixed here): `dms-manager`'s admin routes resolve
+  the user as a "public" stub on a cold direct navigation — see `todo.md` under `dms-manager`.
+
+**Original status line (superseded above):** IMPLEMENTATION DONE. Phase 1 verified live. Phase 2
+browser-tested live by the user, including a real bug found, fixed, AND re-verified fixed. Feature
+is functionally complete.
 
 - Decisions 1-4 confirmed and built (Tier 2 eager recompute; draft-only for v1; one Sync button per
   filter group; bulk-publish included).
