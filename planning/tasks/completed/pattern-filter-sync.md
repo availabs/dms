@@ -776,10 +776,6 @@ complete. Rows 8/19 caveats accepted as known limitations (user decision, no fix
 - A separate, real bug was found and filed (not fixed here): `dms-manager`'s admin routes resolve
   the user as a "public" stub on a cold direct navigation — see `todo.md` under `dms-manager`.
 
-**Original status line (superseded above):** IMPLEMENTATION DONE. Phase 1 verified live. Phase 2
-browser-tested live by the user, including a real bug found, fixed, AND re-verified fixed. Feature
-is functionally complete.
-
 - Decisions 1-4 confirmed and built (Tier 2 eager recompute; draft-only for v1; one Sync button per
   filter group; bulk-publish included).
 - **Phase 1 (dms-server) — DONE, verified live against all 21 fixture rows** (18 fully passing, 2
