@@ -803,10 +803,12 @@ real bug found, fixed, AND re-verified fixed. Feature is functionally complete.*
 ### What's left before this can be considered fully done
 
 1. ~~Re-verify the Falcor-staleness fix~~ — **DONE, confirmed by the user.**
-2. Decide whether to fix the two Phase-1 caveats (row 8's fixture doesn't exercise a real
-   lag/delta KPI-card recipe; row 19's Tier-2 "failure" path doesn't throw for an unresolvable
-   DMS-mode view_id, so no warn event fires for that specific kind of brokenness) or accept them as
-   known limitations.
+2. ~~Decide whether to fix the two Phase-1 caveats~~ — **DECIDED: accept both as known
+   limitations, no fix needed.** Row 8 (fixture doesn't exercise a real lag/delta KPI-card recipe —
+   a fixture coverage gap, not a code defect) and row 19 (Tier-2's "failure" path doesn't throw for
+   an unresolvable DMS-mode `view_id`, so no `warn` event fires for that specific kind of
+   brokenness — a real design-vs-implementation gap, but low severity: the failure is silent-empty,
+   not silently-wrong-data) are both fine to ship as-is.
 3. Row 12 (pattern filters stored as a legacy flat array) was never live-exercised this session —
    low risk (the read-side code is a direct mirror of `filterEditor.jsx`'s own
    `normaliseFilters`), but worth a quick manual check.
