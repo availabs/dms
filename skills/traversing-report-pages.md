@@ -66,13 +66,21 @@ root). **Correction, 2026-09-03**: the template no longer ships a starter
 graph/stat section at all — it used to include a starter self-bound AVL Graph,
 later replaced by an unconfigured hero-stat "Callout Stat" Card, which was
 itself removed the same day it was found to just read as blank dead space
-between the header and the (nonexistent) first graph — see
-`planning/transportny/tasks/current/report-page-template-editorial-slots.md`'s
-"Removal" section for the full record. A fresh Report Page now has exactly 3
-sections (`ReportPageHeader`, a standalone header-prose `lexical` block,
-`ReportRouteList`) and zero data/visual sections — the first graph always
-comes from RRL's own "+ Add Graph", never a pre-existing slot. Re-verify this
-claim again if the template changes further.
+between the header and the (nonexistent) first graph. **Same day, second
+pass**: the template's standalone header-prose `lexical` block (kicker/"What
+question does this report answer?"/prose) was ALSO removed — it duplicated
+`ReportPageHeader`'s own `purpose` field near-verbatim, and there were no
+compelling lexical-block report examples to justify keeping the pattern
+around. See `planning/transportny/tasks/current/report-page-template-
+editorial-slots.md`'s "Removal" section for the full record. A fresh Report
+Page now has exactly **2 sections** (`ReportPageHeader`, `ReportRouteList`)
+and zero data/visual sections — the first graph always comes from RRL's own
+"+ Add Graph", never a pre-existing slot. The template itself is now a
+git-committed spec (`scripts/npmrds-reports/page_template_specs/
+report_page.json`), built via `report_page_template_build.mjs` the same way
+`report_build.mjs` builds pages from `dynamic_report_specs/*.json` — edit the
+spec and `--apply` it rather than hand-editing the template row. Re-verify
+this claim again if the template changes further.
 
 ### The route-picker modal ("+ Add Route" / "+ Add Route Slot")
 
