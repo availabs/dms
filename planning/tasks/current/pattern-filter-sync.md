@@ -723,7 +723,7 @@ is specifically the new React code: does the button render in the right place, d
 correctly, does the checkbox column coexist with the Table's tree/group-band rendering without
 visual breakage.
 
-### Live browser pass (you) — update + bulk-publish both worked; one real bug found and fixed
+### Live browser pass (you) — update + bulk-publish both worked; one real bug found, fixed, and re-verified
 
 You manually tested both flows for real and confirmed the button and bulk-publish UI both work.
 **One bug found: bulk-publish, run right after a sync, published the STALE pre-sync section
@@ -749,20 +749,17 @@ that had already loaded those page/section rows into its Falcor cache — includ
    sync feature, a CLI write, another browser tab/session), not only the one trigger that was
    actually observed.
 
-**Not yet re-verified live** — these are freshly-written fixes; the original bug report was against
-the pre-fix code. Re-run the same repro (sync a group, then immediately bulk-publish without an
-intervening manual page refresh) to confirm the fix actually resolves it before considering Phase 2
-fully done. Also worth spot-checking: does `falcor.invalidate()` on a branch-level path (not a full
-leaf path) actually cascade-invalidate everything nested beneath it in this codebase's Falcor setup
-(`@availabs/avl-falcor`) — standard Falcor semantics say yes, and every other `falcor.invalidate`
-call in this codebase (`api/index.js`'s UDA invalidation) uses full leaf paths rather than a branch
-prefix, so this specific usage pattern (invalidating a branch) isn't independently precedented here,
-just standard Falcor behavior assumed to hold.
+**RE-VERIFIED LIVE BY THE USER — fix confirmed working.** Re-ran the exact repro (sync a group, then
+immediately bulk-publish with no manual refresh in between) — bulk-publish now shows and publishes
+fresh, correctly-synced data. This also empirically confirms `falcor.invalidate()` on a branch-level
+path (not a full leaf path) does cascade-invalidate everything nested beneath it in this codebase's
+Falcor setup (`@availabs/avl-falcor`) — the one open question from the original fix, now settled by
+observation rather than just assumed from standard Falcor semantics.
 
 ## Status
 
-**IMPLEMENTATION DONE. Phase 1 verified live. Phase 2 browser-tested live by the user — update and
-bulk-publish both work; one real staleness bug found and fixed, fix not yet re-verified.**
+**IMPLEMENTATION DONE. Phase 1 verified live. Phase 2 browser-tested live by the user, including a
+real bug found, fixed, AND re-verified fixed. Feature is functionally complete.**
 
 - Decisions 1-4 confirmed and built (Tier 2 eager recompute; draft-only for v1; one Sync button per
   filter group; bulk-publish included).
@@ -771,12 +768,25 @@ bulk-publish both work; one real staleness bug found and fixed, fix not yet re-v
   (Phase 1)" above for the full per-row table). Three real `curl`-driven task runs against
   `shaun-test-app`/`test`'s `pfs_test` pattern (`*` group, `songs` group, `*` again for
   idempotency), all `status:"done"`.
-- **Phase 2 (dms client UI) — browser-tested live by the user.** Sync button and bulk-publish both
-  functioned. **Found: bulk-publish right after a sync shipped stale pre-sync data** (Falcor cache
-  never invalidated after the worker's out-of-band DB write) — root-caused and fixed in
-  `filterEditor.jsx` (invalidate on sync success) and `pagesEditor.jsx` (invalidate unconditionally
-  before every load, the more robust half). **Fix is NOT yet re-verified** — see "Live browser pass"
-  above for the exact repro to re-run.
+- **Phase 2 (dms client UI) — DONE, browser-tested live by the user, including a real bug caught
+  and fixed.** Sync button and bulk-publish both function correctly. Found mid-testing:
+  bulk-publish right after a sync shipped stale pre-sync data (Falcor cache never invalidated after
+  the worker's out-of-band DB write) — root-caused and fixed in `filterEditor.jsx` (invalidate on
+  sync success) and `pagesEditor.jsx` (invalidate unconditionally before every load, the more
+  robust half). **Fix re-verified live by the user** — re-ran the repro, bulk-publish now shows
+  fresh data.
+- **A Playwright self-verification attempt hit an unrelated, real auth-harness issue — filed
+  separately, not fixed here.** A synthetic session (`localStorage.userToken` seeded directly, not
+  real interactive login) gets `AdminContext.user.groups: ["public"]` on a cold direct navigation to
+  `/list/manage_pattern/54431/filters`, even though the page's own `POST /auth` call correctly
+  returns `groups:["shaun-test-app Admin"]` — not a timing race (persisted after 3s extra wait).
+  Filed as its own `todo.md` entry under `dms-manager` — a real, reproducible, separate concern
+  (likely affects any cold/deep-linked navigation into an admin route, not just automated testing).
+  Not investigated further; the user re-ran the repro themselves instead, which is how the fix above
+  got confirmed. Also, incidentally: I briefly created then reverted an extra `admin`-type pattern
+  row (id `54500`) on `shaun-test-app` while investigating reachability, and found `dms raw update
+  --set` doesn't cleanly replace an array value (silently no-ops on removal; `--data`, full replace,
+  worked) — site's `patterns[]` is confirmed back to its original 5 entries.
 - **Test fixtures for all 21 matrix rows built on `shaun-test-app`/`test`** (see "Test fixtures
   (built)") — the `externalSource.env`/`srcEnv` mixup and the Map section's `dynamic-filters`
   nesting are fixed and confirmed live via `dms raw get`; row 21 added mid-session per review.
@@ -792,10 +802,7 @@ bulk-publish both work; one real staleness bug found and fixed, fix not yet re-v
 
 ### What's left before this can be considered fully done
 
-1. **Re-verify the Falcor-staleness fix** (sync a group, then immediately bulk-publish with no
-   manual refresh in between — should now publish the fresh synced content, not stale cache) — the
-   single most important remaining check, since it's a correctness bug in already-shipped-feeling
-   code, not just an unverified-but-presumed-fine path.
+1. ~~Re-verify the Falcor-staleness fix~~ — **DONE, confirmed by the user.**
 2. Decide whether to fix the two Phase-1 caveats (row 8's fixture doesn't exercise a real
    lag/delta KPI-card recipe; row 19's Tier-2 "failure" path doesn't throw for an unresolvable
    DMS-mode view_id, so no warn event fires for that specific kind of brokenness) or accept them as
@@ -805,7 +812,10 @@ bulk-publish both work; one real staleness bug found and fixed, fix not yet re-v
    `normaliseFilters`), but worth a quick manual check.
 4. External-source (`isDms:false`) coverage remains deliberately deferred (needs a `test_dama`
    pgEnv — see "Scope note: internal-only for now" above) — not attempted this session.
-5. Once the above are addressed, follow `planning-rules.md`: move this task file to
+5. **Nothing has been committed to git yet** — all new/changed files sit as staged/unstaged changes
+   in `src/dms/` (`git status` in that submodule shows exactly what's pending). A commit (and likely
+   a PR) is needed before this ships anywhere.
+6. Once the above are addressed, follow `planning-rules.md`: move this task file to
    `tasks/completed/`, update `todo.md`/`completed.md`, and consider whether any of this warrants
    a `src/dms/skills/` entry (the mirror-vs-import pattern is already captured as a standing
    memory rule, separate from this task file).

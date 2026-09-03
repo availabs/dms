@@ -82,6 +82,21 @@
 
 ## dms-manager
 
+- [ ] Admin route on a cold direct navigation resolves `user` as a "public" stub, not the real
+      authed user — found 2026-09-03 while browser-testing `pattern-filter-sync` with a
+      Playwright session seeded via `localStorage.userToken` (not the real interactive login flow).
+      `PatternEditor` (`patterns/admin/pages/patternEditor/index.jsx`) read `AdminContext.user.groups`
+      as `["public"]` on a fresh `page.goto` straight to `/list/manage_pattern/<id>/filters`, denying
+      access with "You do not have permission to manage this pattern." — even though the site's own
+      `POST /auth` call, made on that exact same page load, correctly returned
+      `groups:["shaun-test-app Admin"]`. Not a timing race (persisted after an extra 3s wait).
+      Reproduces on ANY cold/deep-linked navigation into an admin route (bookmarked link, page
+      refresh while on the route, or an automated test) — as opposed to arriving there via in-app
+      client-side navigation from an already-resolved session, which is presumably why a real user
+      doesn't normally notice it. Root cause not found — didn't dig further, tangential to the task
+      that surfaced it (`src/dms/planning/tasks/current/pattern-filter-sync.md`). Worth its own
+      investigation into wherever `AdminContext`'s `user` prop gets constructed (likely `withAuth`)
+      to see why it doesn't wait for/pick up the resolved `/auth` response on a fresh load.
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server
