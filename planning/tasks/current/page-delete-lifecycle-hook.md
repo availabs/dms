@@ -285,6 +285,11 @@ reads them):
   doesn't block/roll back the delete, source/view dispatch unaffected by the new branch). 16/16
   passing (was 11/11).
 - `hooks/package.json` (new) — `{"type":"commonjs"}`, mirrors `data-types/package.json`.
+- `hooks/CLAUDE.md` (new) — mirrors `data-types/CLAUDE.md`: bootstrap mechanism, handler contract,
+  how to add a new handler.
+- `.env.example` — documents `DMS_PAGE_DELETE_HOOK` (commented out), mirroring the existing
+  `DMS_EXTRA_DATATYPES` entry; also fixed that entry's stale example path
+  (`server/register-datatypes.js` → `data-types/register-datatypes.js`).
 - `hooks/reports_snap_ids.json` (new) — the canonical constants.
 - `hooks/register_page_delete_hooks.js` (new) — the generic bootstrap `DMS_PAGE_DELETE_HOOK`
   actually points at (mirrors `register-datatypes.js`).
