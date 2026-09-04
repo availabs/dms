@@ -291,7 +291,11 @@ const LineGraphWrapper = props => {
 	return (
     <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
       { !legend.show || legend.position !== "top" ? null :
-      	<div className="flex justify-center shrink-0" ref={ legendRef }>
+      	// `titleNode` (opt-in, see GraphComponent.jsx) shares this row instead of stacking
+      	// above it — title left, legend right. Falls back to centered legend-only, byte-
+      	// identical to before, when no titleNode is passed (the default everywhere else).
+      	<div className={ `flex items-center shrink-0 ${ props.titleNode ? "justify-between gap-3" : "justify-center" }` } ref={ legendRef }>
+        	{ props.titleNode }
         	{ InstantiatedLegend }
         </div>
       }

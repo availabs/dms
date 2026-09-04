@@ -189,6 +189,20 @@ horizontal bars with no axes.
   explicitly set; with no theme tokens (generic theme) the historical `text-2xl` look
   is unchanged. So: set `title.title` + `description` as plain strings and let the
   brand style them — don't hand-set fonts per section.
+- **Title can share a row with a top-positioned legend instead of stacking above it**
+  (2026-09-04, opt-in) — `theme.titleInlineWithLegend: true` on an avlGraph theme **style**
+  (`styles[]` entry, not the site-wide default) makes `GraphComponent.jsx` pass the already-built
+  `<GraphTitle>` element down as a `titleNode` prop instead of rendering it standalone above the
+  chart. `LineGraph.jsx`/`BarGraph.jsx`/`GridGraph.jsx` each render `titleNode` as a sibling of the
+  legend inside their existing top-legend-row block (title left, legend right via
+  `justify-between`) — only when there's actually a rendered top-row legend to share with
+  (`legend.show` true AND `legend.position` starts with `"top"`); any other combination falls back
+  to the normal standalone title, so it's never silently dropped. A section opts in via its own
+  top-level `activeStyle` field (same field `border`/`title`/`group` live on), selecting the named
+  style — see `src/themes/transportny/themev2.js`'s `avlGraph.styles[1]`
+  (`"reportInlineTitle"`) for a worked example, and `graph-title-inline-with-legend.md` in
+  `src/dms/planning/tasks/completed/` for the full design record. Because it's opt-in per named
+  style (not the site default), a site can have some graphs stacked and others inline.
 
 ## Pattern: in-chart title + caption (lighter than a sibling Card)
 

@@ -415,12 +415,19 @@ const GridGraphWrapper = props => {
       ` }
     >
       { !legend.show || !legend.position.includes("top") ? null :
+        // `titleNode` (opt-in, see GraphComponent.jsx) shares this row instead of stacking
+        // above it. `justify-between` (title first child, legend second) wins over the
+        // corner-specific class whenever a title is sharing the row — with exactly 2
+        // children the top-left/top-right corner distinction has nothing left to express
+        // (title always reads left, legend always reads right); falls back to the
+        // corner-only positioning, byte-identical to before, when no titleNode is passed.
         <div
           className={ `
-              flex shrink-0
-              ${ legend.position === "top-right" ? "justify-end" : "" }
+              flex items-center shrink-0
+              ${ props.titleNode ? "justify-between gap-3" : (legend.position === "top-right" ? "justify-end" : "") }
           ` }
         >
+          { props.titleNode }
           { InstantiatedLegend }
         </div>
       }

@@ -143,6 +143,24 @@ export const GraphComponent = props => {
 
 // console.log("GraphComponent::actions", props.actions);
 
+  // Opt-in, theme-driven (2026-09-04, Ryan) — `theme.titleInlineWithLegend` lives on a named
+  // avlGraph style selected per-section via `activeStyle` (see transportny/themev2.js's
+  // `reportInlineTitle` style), NOT the site-wide default, so most NPMRDS graphs are
+  // untouched. Even when the theme opts in, this only actually applies when there's a
+  // top-positioned legend to share a row with — legend hidden, or positioned left/right/
+  // bottom/bottom-*, falls back to the normal standalone title below it, so the title can
+  // never be silently dropped.
+  const legendPosition = get(graphFormat, ["legend", "position"]);
+  const titleInline = Boolean(theme.titleInlineWithLegend)
+    && Boolean(get(graphFormat, ["legend", "show"]))
+    && String(legendPosition || "").startsWith("top");
+
+  const titleNode = (
+    <GraphTitle { ...(graphFormat.title || {}) }
+      description={ graphFormat.description }
+      theme={ theme }/>
+  );
+
   return (
     <div
       className={ `
@@ -152,11 +170,10 @@ export const GraphComponent = props => {
       ` }
     >
 
-      <GraphTitle { ...(graphFormat.title || {}) }
-        description={ graphFormat.description }
-        theme={ theme }/>
+      { titleInline ? null : titleNode }
 
       <GraphComponent
+        titleNode={ titleInline ? titleNode : null }
         viewData={ viewData }
         columns={ columns }
         height={ graphHeight }
