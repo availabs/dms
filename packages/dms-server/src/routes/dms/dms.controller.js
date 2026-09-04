@@ -364,6 +364,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     if (!hook) return;
     try {
       await hook(row, { userId, reqMeta, dms_db, resolveTable, jsonField, dbType, splitMode });
+      console.log(`[page-delete-hook] dispatched for ${row.app}/${row.type}#${row.id}`);
     } catch (e) {
       console.error(`[page-delete-hook] failed for ${row.app}/${row.type}#${row.id}: ${e.message}`);
     }
