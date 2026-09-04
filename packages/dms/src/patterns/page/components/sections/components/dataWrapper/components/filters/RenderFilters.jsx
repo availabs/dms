@@ -331,6 +331,7 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
                                                        delimiter={filterValueDelimiter}
                                                        columns={state.columns}
                                                        controlStyle={theme.filters.controlStyle}
+                                                       theme={theme}
                             />
                         </div>
                     </div>

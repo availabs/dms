@@ -108,6 +108,15 @@
       Fix: server-side cascade in `deleteData` + ghost filtering in `getSiteSources`
       + regression tests + one-time npmrdsv5 repair.
 
+- [ ] [Page-delete lifecycle hook — close the `reports_snap_2` orphan hole at its source](./tasks/current/page-delete-lifecycle-hook.md)
+      — deleting a page (admin UI, CLI `page delete`/`raw delete`, or scripts) never cascades to
+      transportny's `reports_snap_2` catalog row, because a page's type (`{pattern}|page`) has no
+      colon and never reaches `deleteData`'s existing `kind`-based cascade dispatch. Extends that
+      same dispatch (already proven for source/view orphans above) with a new opt-in, app-registered
+      hook — server-side so it covers every delete path, not just the admin UI. Supersedes a
+      2026-09-01 client-only `ThemeContext` sketch that CLI deletes would have bypassed. SCOPED
+      2026-09-04, not started.
+
 - [x] [Comparison-series "difference" combine mode](./tasks/completed/comparison-series-difference-mode.md)
       — DONE 2026-07-16. `options.seriesCombine = {mode: "difference", invert?}`: the ClickHouse
       fan-out joins each non-anchor arm to the anchor arm on the group-by columns and returns

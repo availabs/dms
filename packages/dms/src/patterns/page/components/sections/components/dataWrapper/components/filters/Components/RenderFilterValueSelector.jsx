@@ -57,11 +57,20 @@ const RenderSearchKeySelector = ({filter, pageState, onChange}) => {
 }
 
 export const RenderFilterValueSelector = ({
-                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns, controlStyle: controlStyleProp
+                                              loading, isEdit, filterColumn, filterOptions=[], state, setState, filterWithSearchParamKeys, columns, controlStyle: controlStyleProp, theme: themeProp
                                           }) => {
     const { pageState, updatePageStateFilters } =  React.useContext(PageContext) || {}; // page to extract page filters
     const { theme: themeFromContext = {}, UI} = React.useContext(ThemeContext) || {};
-    const theme = {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters')}};
+    // Prefer the ALREADY-RESOLVED theme RenderFilters.jsx passes down (it selects the section's
+    // `display.filterStyle`, e.g. an author-picked named design) over re-deriving one here with NO
+    // selector. Found live, 2026-09-04: re-deriving silently fell back to the filters.styles[0]
+    // default for every key EXCEPT `controlStyle` (the one key RenderFilters already threaded
+    // through separately) — so a named style's `filterRowWrapper`/`filtersWrapper`/etc. overrides
+    // were dropped specifically for this component, even though `RenderFilters.jsx`'s own render
+    // (the label, the toggle button, …) picked them up correctly. The local fallback keeps this
+    // component usable if ever rendered without a parent providing `theme` (dms/CLAUDE.md's
+    // "local-default spread" convention).
+    const theme = themeProp || {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters')}};
     const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
     // The value control's multiselect style comes from the active filter DESIGN
@@ -299,14 +308,20 @@ export const RenderFilterValueSelector = ({
                         loading={loading}
                         value={value}
                         placeholder={
-                            // gt/gte/lt/lte render a number input (see `type` below) — keep the
-                            // numeric hint there. filter/exclude are option searches — name the
-                            // column being searched. like keeps its generic text-search hint
-                            // (its column names often already read as search prompts).
-                            filter.operation === 'like' ? 'search...' :
-                                ['filter', 'exclude'].includes(filter.operation)
-                                    ? `Search ${filterColumn.customName || filterColumn.display_name || filterColumn.name}...`
-                                    : 'Please enter a number...'
+                            // A leaf may author its own placeholder (mirrors the same
+                            // `node.placeholder` fallback ConditionValueInput.jsx already has for
+                            // the v2 filter-tree path — this component is the v1 `columns[].filters[]`
+                            // path, which had no equivalent). gt/gte/lt/lte render a number input
+                            // (see `type` below) — keep the numeric hint there. filter/exclude are
+                            // option searches — name the column being searched. like keeps its
+                            // generic text-search hint (its column names often already read as
+                            // search prompts) unless the leaf overrides it.
+                            filter.placeholder || (
+                                filter.operation === 'like' ? 'search...' :
+                                    ['filter', 'exclude'].includes(filter.operation)
+                                        ? `Search ${filterColumn.customName || filterColumn.display_name || filterColumn.name}...`
+                                        : 'Please enter a number...'
+                            )
                         }
                         options={['filter', 'exclude'].includes(filter.operation) ? (options || []) : undefined}
                         singleSelectOnly={['filter', 'exclude'].includes(filter.operation) ? !filter.isMulti : undefined}
