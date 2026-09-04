@@ -13,6 +13,12 @@
  *      data split table dropped, uda sources length updated.
  *   2. View delete cascades: source views ref removed, data split table dropped.
  *   3. getSiteSources filters dangling refs created out-of-band.
+ *   4. Page delete dispatches to an optional, deployment-registered hook
+ *      (setPageDeleteHook) — added 2026-09-04 for the reports_snap_2 orphan
+ *      fix (see planning/tasks/current/page-delete-lifecycle-hook.md): the
+ *      hook is invoked with the doomed row, a throwing hook never blocks or
+ *      rolls back the page delete, and deleting a page with no hook
+ *      registered behaves exactly as before.
  *
  * Database selection: DMS_TEST_DB=dms-sqlite (default) or dms-postgres-test.
  */
@@ -20,6 +26,7 @@
 const { createTestGraph } = require('./graph');
 const { getDb } = require('../src/db/index.js');
 const { resolveTable } = require('../src/db/table-resolver.js');
+const { setPageDeleteHook } = require('../src/routes/dms/dms.controller.js');
 
 const DB_NAME = process.env.DMS_TEST_DB || 'dms-sqlite';
 // UDA routes read DMS_DB_ENV to resolve the database — sync it with the test DB
@@ -215,6 +222,56 @@ async function testDanglingRefFilteredFromList() {
   pass('byIndex returns only live sources');
 }
 
+async function testPageDeleteHook() {
+  console.log('\n--- Page delete dispatches to an optional hook ---');
+
+  // No hook registered: a page delete must behave exactly as before (no throw).
+  const bareId = await createItem(`${PATTERN_INSTANCE}|page`, { title: 'Bare Page' });
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${PATTERN_INSTANCE}|page`, bareId]);
+  assert(!(await rowExists(bareId)), 'page deleted with no hook registered');
+  pass('page delete with no hook registered behaves as before');
+
+  // Hook registered: invoked with the doomed row, receives working ctx helpers.
+  const calls = [];
+  setPageDeleteHook(async (row, ctx) => {
+    calls.push(row);
+    assert(typeof ctx.dms_db?.promise === 'function', 'ctx.dms_db.promise is callable');
+    assert(typeof ctx.resolveTable === 'function', 'ctx.resolveTable is callable');
+    assert(typeof ctx.jsonField === 'function', 'ctx.jsonField is callable');
+  });
+  try {
+    const hookedId = await createItem(`${PATTERN_INSTANCE}|page`, { title: 'Hooked Page' });
+    await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${PATTERN_INSTANCE}|page`, hookedId]);
+
+    assert(calls.length === 1, `hook called once, got ${calls.length}`);
+    assert(+calls[0].id === hookedId, 'hook received the deleted page\'s own row');
+    assert(calls[0].app === TEST_APP, 'hook received the row\'s real app');
+    pass('hook invoked with the doomed row + working ctx helpers');
+
+    assert(!(await rowExists(hookedId)), 'page row still deleted when a hook is registered');
+    pass('page delete still succeeds with a hook registered');
+  } finally {
+    setPageDeleteHook(null);
+  }
+
+  // A throwing hook must never block or roll back the page's own deletion.
+  setPageDeleteHook(async () => { throw new Error('boom'); });
+  try {
+    const throwsId = await createItem(`${PATTERN_INSTANCE}|page`, { title: 'Throws Page' });
+    await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${PATTERN_INSTANCE}|page`, throwsId]);
+    assert(!(await rowExists(throwsId)), 'page still deleted even though its hook threw');
+    pass('a throwing hook does not block or roll back the page delete');
+  } finally {
+    setPageDeleteHook(null);
+  }
+
+  // Sanity: source/view delete dispatch is unaffected by the new branch.
+  const ds = await createDataset('plan_pdf_d', 'Plan PDF D');
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, `${ENV_INSTANCE}|source`, ds.srcId]);
+  assert(!(await rowExists(ds.srcId)), 'source delete still cascades after the page-hook change');
+  pass('source/view cascade dispatch unaffected by the new page branch');
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -229,6 +286,7 @@ async function run() {
   await testSourceDeleteCascades();
   await testViewDeleteCascades();
   await testDanglingRefFilteredFromList();
+  await testPageDeleteHook();
 
   // Cleanup all remaining test rows
   const fqn = resolveTable(TEST_APP, 'non-split', db.type, SPLIT_MODE).fullName;

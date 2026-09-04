@@ -874,9 +874,17 @@ any DMS page, not just reports. What's specific to reports:
   in any `rebuild` field that might see this again.
 - **`--replace`'s first implementation only deleted the page row — not its `reports_snap_2` row —
   and that row is exactly what `/reports`'s catalog cards query, by tag, not by page reference.**
-  `dms page delete` never cascades to a page's own dataset rows (same non-cascade as its sections,
-  already noted elsewhere in this doc as harmless-because-invisible — this one ISN'T invisible).
-  Every `--replace` left the OLD `reports_snap_2` row behind with the OLD `report_id`, still
+  At the time, `dms page delete` never cascaded to a page's own dataset rows (same non-cascade as
+  its sections, already noted elsewhere in this doc as harmless-because-invisible — this one
+  ISN'T invisible). **Fixed platform-side 2026-09-04** for the `reports_snap_2` case specifically —
+  a generic page delete (admin UI, `dms page delete`, `dms raw delete`) now dispatches to an
+  opt-in server hook that deletes the matching catalog row (`src/dms/planning/tasks/current/
+  page-delete-lifecycle-hook.md`; requires a dms-server redeploy to take effect anywhere). DMS
+  core still has no BUILT-IN structural cascade for page→dataset rows in general (deliberately —
+  that relationship is app-specific, not a DMS concept) and page→section rows are still not
+  cascaded at all, so the troubleshooting recipe below remains valid for cleaning up legacy
+  orphans, pre-deploy environments, or a silently-logged hook failure. Every `--replace` left the
+  OLD `reports_snap_2` row behind with the OLD `report_id`, still
   carrying the same `tags`, so it kept matching the catalog's tag filter and rendering as a second
   card for the same report. Found live 2026-08-17 by Ryan spotting duplicate cards on `/reports`
   right after all 12 templates were `--replace`d in one session — some templates (`Weekly

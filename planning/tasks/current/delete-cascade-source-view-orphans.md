@@ -7,6 +7,12 @@ orphan view 2189914 deleted; both mirrored into change_log. Row backups:
 Remaining: deploy the updated dms-server (user-owned), eyeball the datasets list,
 optional PG docker test run.**
 
+**Follow-on (2026-09-04):** this same `deleteData` per-row `kind` dispatch gained a third branch
+for `page`-kind rows, closing an analogous orphan hole (`reports_snap_2` catalog rows surviving a
+report page delete) via an opt-in, deployment-registered hook rather than a hardcoded structural
+cascade (page→dataset-row isn't a DMS structural concept the way source→view is). See
+[`page-delete-lifecycle-hook.md`](./page-delete-lifecycle-hook.md).
+
 ## Objective
 
 Deleting an internal datasource (a `:source` row) or a version (`:view` row) through

@@ -109,13 +109,15 @@
       + regression tests + one-time npmrdsv5 repair.
 
 - [ ] [Page-delete lifecycle hook — close the `reports_snap_2` orphan hole at its source](./tasks/current/page-delete-lifecycle-hook.md)
-      — deleting a page (admin UI, CLI `page delete`/`raw delete`, or scripts) never cascades to
+      — deleting a page (admin UI, CLI `page delete`/`raw delete`, or scripts) never cascaded to
       transportny's `reports_snap_2` catalog row, because a page's type (`{pattern}|page`) has no
-      colon and never reaches `deleteData`'s existing `kind`-based cascade dispatch. Extends that
-      same dispatch (already proven for source/view orphans above) with a new opt-in, app-registered
-      hook — server-side so it covers every delete path, not just the admin UI. Supersedes a
-      2026-09-01 client-only `ThemeContext` sketch that CLI deletes would have bypassed. SCOPED
-      2026-09-04, not started.
+      colon and never reached `deleteData`'s existing `kind`-based cascade dispatch. Extends that
+      same dispatch (already proven for source/view orphans above) with a new opt-in,
+      app-registered hook (`DMS_PAGE_DELETE_HOOK`, same shape as `DMS_EXTRA_DATATYPES`) — server-side
+      so it covers every delete path, not just the admin UI. Supersedes a 2026-09-01 client-only
+      `ThemeContext` sketch that CLI deletes would have bypassed. **CODE + TESTS DONE 2026-09-04**
+      (16/16 on the extended `test-delete-cascade` suite, 21/21 full `npm test`); PG run + live
+      verification against a real deploy still open.
 
 - [x] [Comparison-series "difference" combine mode](./tasks/completed/comparison-series-difference-mode.md)
       — DONE 2026-07-16. `options.seriesCombine = {mode: "difference", invert?}`: the ClickHouse
