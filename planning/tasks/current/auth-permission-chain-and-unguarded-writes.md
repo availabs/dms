@@ -2,10 +2,16 @@
 
 > **Status:** DIAGNOSED 2026-07-29, **not fixed** · surfaced while working TransportNY QA ticket row
 > 2197778 (landing page links to two sign-in-walled destinations). Defect B is security-relevant and
-> deserves triage ahead of the original ticket.
+> deserves triage ahead of the original ticket. **Defect D added 2026-09-05**: a concrete, fully
+> reproduced real-world consequence of this same territory — `report_build.mjs`/the DMS CLI silently
+> corrupts a page's sections when run without an auth token against a permission-gated pattern. See
+> that section for the mechanism, evidence, and mitigation options. **Its script-level mitigation
+> (report_build.mjs auto-mints an auth token) is APPLIED + verified 2026-09-05** — the general
+> CLI-level fix is not.
 >
-> **Nothing here has been changed.** Two of the three defects need an owner decision first, and all of
-> them change auth behaviour, so none is a safe unsupervised edit.
+> **Nothing here has been changed for defects A-C.** They need an owner decision first (auth behaviour
+> change). Defect D's script-level mitigation is applied (see its section); its general CLI-level fix
+> is not — flagged for Ryan's prioritization.
 
 ## Provenance of every claim below
 
@@ -130,3 +136,96 @@ not a permission.
 Subagent-reported: 8 datasets patterns across 5 apps — npmrdsv5 `1700711` / `2100298` / `2186526`,
 mitigat-ny-prod `1499610` / `2248246`, dms-site `1676363`, landbank "Data", wcdb `1685618`. Confirm
 before touching shared code.
+
+## Defect D — 2026-09-05: a concrete, reproduced consequence — the CLI silently corrupts pages when
+its own internal reads get gated by defect A/B's read-side check
+
+Found and fully reproduced (not theorized) 2026-09-05 while verifying `dynamic-reports-authoring-gaps.md`
+item 1 against a scratch page built via `scripts/npmrds-reports/report_build.mjs`. Directly caused
+`report_build.mjs` (a heavily-relied-on TransportNY script) to silently build a page missing its
+header/RRL sections, with zero errors anywhere in the pipeline.
+
+**Mechanism, confirmed end-to-end:**
+
+1. `dms section create` (`src/dms/packages/dms/cli/src/commands/section.js:181`) attaches a new
+   section to a page by doing its own read-modify-write: `fetchById(falcor, app, pageId, ['id','data'])`
+   → read current `draft_sections` → push the new entry → write the whole array back. Several other
+   CLI commands do the identical shape — `page.js` (lines 98/137/251/274/292), `raw.js:32/162`,
+   `section.js`'s own `delete`/`update` (lines 90/120/234/264) — all exposed to the same failure mode.
+2. That `fetchById` goes through `dataByIdResponse` (`dms-server/src/routes/dms/dms.route.js:30-115`,
+   this doc's defect A/B territory) — the SAME read-side gate already documented above. `npmrdsv5`'s
+   `npmrds_sub` pattern (row `2100394`) restricts `view-page` via `authPermissions` to specific
+   users/groups. `dataByIdResponse` gates on `if (user !== undefined && row.type)` — and
+   `dms-server/src/index.js:205` always resolves `user` to `null` (never bare `undefined`) for an
+   unauthenticated request, so `null !== undefined` is `true` and the gate fires for **any**
+   unauthenticated caller, CLI included. A gated response returns the literal **string** `"no-access"**
+   for the `data` attribute (`dms.route.js:110`), not an error and not a 403.
+3. The CLI's `parseData()` (`src/dms/packages/dms/cli/src/utils/data.js:36`) does
+   `JSON.parse("no-access")`, which throws, and its `catch` returns the string **unchanged** rather
+   than surfacing the failure. `pageData.draft_sections` (a property read on a *string*) is
+   `undefined`, silently falls back to `[]`, the new section gets pushed onto that empty array, and
+   the 1-element result is written back as the page's **entire** `draft_sections` — every previously
+   attached section (header, RRL, earlier graphs) is gone. No exception anywhere in the chain; both
+   the section-create call and the page-edit call report success.
+
+**Confirmed live** (`/home/ryan/.claude/jobs/13f1afb6/tmp/debug_fetch.mjs`, a throwaway script calling
+the CLI's own `fetchById` directly): identical request without an auth token returns
+`{"id":"no-access","data":"no-access"}`; the exact same request with a freshly minted dev token
+(`scratchpad/npmrds-sub/mint_token.sh`) returns the real row, `draft_sections` included.
+
+**Why this looked "new" but isn't — and why nothing live is currently affected:** `report_build.mjs`'s
+own `dms()` helper (line 226) has **never** passed an auth token — this isn't a recent break in a
+previously-safe script. Whether a past run corrupted a page has always come down to pure luck: whether
+`DMS_AUTH_TOKEN` happened to be exported in whatever shell ran it. Checked directly: the ~30 real
+reports built 2026-09-02 and all 12 catalog Dynamic Report templates have healthy, fully-attached
+`draft_sections`/`sections`, and their `created_by`/`updated_by` columns show a real user id (993) —
+whoever ran those builds had a token in their environment. My scratch page's `created_by`/`updated_by`
+are both `null` — this session's shell never had one. **Nothing live was found to be corrupted** by
+this pass; the exposure is to *future* runs from an environment without the token set (a fresh shell,
+CI, a background agent session — exactly what happened here).
+
+Likely why read-gating specifically bit *this* session and not earlier CLI-driven builds even before
+2026-09-02: `dataByIdResponse`'s gate only fires `if (user !== undefined && row.type)` — if `type`
+wasn't always included in the fetched attributes, `row.type` would be missing and the gate would
+silently no-op, letting an unauthenticated read through with real data as a side effect. The
+2026-09-02 commit (`21e7d011`, author Alex) added a comment right at this spot — "The auth check keys
+off row.type — always fetch it... otherwise skips the check and leaks restricted rows" — i.e. it looks
+like a deliberate close of that exact leak. Plausible net effect: unauthenticated CLI reads that used
+to work *by accident* (missing `type` bypassing the gate) now correctly get gated — surfacing this
+CLI-side landmine for the first time, rather than the gate itself being new. Not independently
+confirmed by diffing pre/post behavior; flagged as the most likely explanation, not a certainty.
+
+**This is a different angle on the same defect A/B territory above, not a separate root cause**: the
+write path (`setDataById`) has zero authorization (defect B) — a corrupted write succeeds fine
+regardless of auth. The read path's gating (part of defect A's territory) is what returns `"no-access"`
+instead of real data for an unauthenticated caller. Defect D is what happens when CLI automation (which
+was never built with a "service account" concept) collides with that read gate: silent data loss, not
+a visible error, because `parseData`'s string-fallback branch has no way to distinguish "genuinely a
+non-JSON string value" from "an access-denied sentinel disguised as a string."
+
+**Mitigations:**
+- **Script-level, contained — APPLIED 2026-09-05** (Ryan's call: "doesn't fix the root bug but fixes
+  our stuff"). `report_build.mjs` now always mints a fresh dev token at startup
+  (`execFileSync('bash', [mint_token.sh path])`, failing loudly via the script's existing `fail()` if
+  minting itself fails) and passes it as `--auth-token` on every `dms` CLI call the script's `dms()`
+  helper makes — no more reliance on whatever the calling shell happens to have exported. Deliberately
+  mints fresh every run rather than reusing the token file if present, since a stale token risks the
+  identical silent-corruption failure, just intermittently. **Verified end-to-end**: ran the script in
+  a fully clean environment (`env -u DMS_AUTH_TOKEN -u DMS_HOST -u DMS_APP -u DMS_TYPE`) against a
+  throwaway spec — the built page's `draft_sections` had all 3 sections attached (was 1 before the
+  fix, reproduced on the same clean-env setup) and `created_by`/`updated_by` showed a real user id
+  (993, not null). Test page deleted after verification. This fixes `report_build.mjs` specifically;
+  it does **not** fix the underlying CLI/library gap below, which any other CLI-driven automation
+  (or a future script) can still hit.
+- **CLI-level, general — not yet applied, flagging for a decision**: `parseData()` and/or every
+  read-modify-write call site should detect the `"no-access"` sentinel specifically (or more generally:
+  assert `typeof pageData === 'object'` after parsing) and throw a clear error instead of silently
+  falling through to `{}`/`[]`. This is the fix that protects every CLI command with this shape
+  (`page.js`, `raw.js`, `section.js`), not just `report_build.mjs`'s call sites, and doesn't require
+  resolving the broader "should the CLI have a service-account auth mode" question first.
+
+**Cross-reference**: `planning/transportny/tasks/current/dynamic-reports-authoring-gaps.md` (where this
+was found) and its memory note
+`~/.claude/projects/-home-ryan-code-dms-template/memory/project_report_build_mjs_draft_sections_gap.md`
+(written before the root cause was known — superseded by this section, not deleted, since it still
+records the originally-observed symptom accurately).
