@@ -927,6 +927,18 @@ any DMS page, not just reports. What's specific to reports:
   will actually let you pick it in "ROUTES FOR THIS GRAPH" and create the section. Found live
   2026-08-31 building a scratch Map section to verify a hover-tooltip fix on a brand-new "Create
   Report" page (0 routes at creation).
+- **Driving a plain `<select>` via `claude-in-chrome`'s `computer` tool is unreliable** — clicking
+  it opens the OS-native dropdown, which the extension can't screenshot/click into. Read/set it via
+  `javascript_tool` instead: read every select's options with
+  `Array.from(document.querySelectorAll('select')).map(s => ({title: s.title, value: s.value,
+  options: Array.from(s.options).map(o => ({value:o.value, text:o.text}))}))` (options carry both
+  the value React reads and the human-readable label, useful for confirming a computed label before
+  committing to a click-path test), then commit a choice through React's own controlled-input path
+  — a bare `sel.value = x` does NOT fire React's `onChange` (React wraps the native property
+  setter): `Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,
+  'value').set.call(sel, value)` followed by `sel.dispatchEvent(new Event('change', {bubbles:
+  true}))`. Found live 2026-09-08 verifying `dynamic-reports-authoring-gaps.md` sub-item 2's
+  "reuse an existing route" select next to "+ Add Route Slot".
 
 ## 6. Which tool to reach for
 
