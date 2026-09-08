@@ -213,6 +213,18 @@ const graphConfig = {
                     { label: "Color", value: "color",
                         displayCdn: ({ display }) => display.graphType === "GridGraph"
                     },
+                    // Row/column scaling — read by GridGraphWrapper (graph_new/components/
+                    // GridGraph.jsx) but, until now, only settable by hand-editing a section's
+                    // JSON (e.g. via the CLI), never from this picker. "Height" scales each
+                    // yAxis row (e.g. TMC miles on a per-TMC space-time grid — this is what
+                    // composeMeasureConfig.js's buildGridHeightColumn composes automatically for
+                    // every per-TMC GridGraph pick); "Width" does the same for xAxis columns.
+                    { label: "Height", value: "height",
+                        displayCdn: ({ display }) => display.graphType === "GridGraph"
+                    },
+                    { label: "Width", value: "width",
+                        displayCdn: ({ display }) => display.graphType === "GridGraph"
+                    },
                 ],
             },
             { type: 'select',

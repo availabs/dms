@@ -82,9 +82,26 @@
 - [ ] SSR Phase 2: Streaming SSR — upgrade `renderToString` to `renderToPipeableStream`, template splitting for immediate shell delivery, optional `Suspense` boundaries for per-section streaming, bot/crawler detection for complete HTML
 - [ ] [SSR multi-tenant resolution](./tasks/current/ssr-multi-tenant-resolution.md) — confirmed live on the production domain 2026-08-27: SSR always renders the master app's data/routes regardless of request host, so a tenant subdomain's first load literally renders `404 - Not Found` until client hydration corrects it. `handler.jsx` calls the same `dmsSiteFactory()` that already has proven, working tenant-resolution logic (added for the analogous `sync-bring-up-to-date.md` fix) but never passes `isMultiTenant`, and separately fetches `siteData` from the fixed master `siteConfig.app` for `__dmsSSRData`. Fix: thread `isMultiTenant` through from `dms-server/src/index.js`'s `mountSSR()` config, and add an `onResolvedSiteData` callback to `dmsSiteFactory` (mirroring the existing `onResolvedSyncApp`) so SSR gets the correctly tenant-scoped data for free instead of a redundant master-only fetch. **IMPLEMENTED 2026-08-27, builds clean (client + `build:ssr`); live verification against a real deployed tenant subdomain still pending.**
 - [ ] [SSR runtime theme CSS/fonts cause a flash of unstyled content](./tasks/current/ssr-runtime-theme-css-fouc.md) — confirmed live on tessera.so 2026-08-31: SSR renders correct HTML/classes immediately, but a theme's actual CSS (colors, backgrounds, brand fonts — declared via a theme's `fonts` array, e.g. `tessera-theme-v6.js`) is only ever injected client-side, into `document.head`, by `loadThemeFonts()` (`ui/useTheme.js`) after JS hydrates — a ~700-900ms visible flash from unstyled to fully themed. `loadThemeFonts` already no-ops server-side ("SSR-safe (no-op without `document`)") instead of producing the same `<style>` content as a string SSR could embed via the already-wired `<!--app-head-->` placeholder. Fix: string-producing variant of `buildFontNode`, `ssrCollect` threaded through `pattern2routes`/each pattern's `siteConfig.jsx` and collected during SSR route building (`ensureRoutes(host)` in `handler.jsx`), injected into `headContent` in `middleware.mjs`, plus client-side dedup against SSR-rendered tags. (A prior attempt to fix this by reordering the compiled Tailwind CSS `<link>` tag in `dms-template/index.html`'s `<head>` — via a `dms-template`-side Vite plugin — was tried, deployed, confirmed ineffective, and reverted; the compiled CSS bundle never contained the theme's actual CSS to begin with.) **IMPLEMENTED and LIVE-VERIFIED 2026-08-31 on tessera.so** (hit and fixed one real gotcha along the way — `handler.jsx`'s linkedom `document` stub made `typeof document === 'undefined'` an unreliable SSR signal, see task file); two lower-priority checklist items (client-side re-injection check, testing on a second SSR site) still open.
+- [ ] [Perf: page-load root-causing + auth-revalidate duplicate-fetch regression](./tasks/current/perf-auth-revalidate-duplicate-fetch.md) — 6 fixes shipped+verified 2026-09-02 (anonymous double-fetch, cross-origin logo LCP, SSR stuck-no-access, resulting infinite-loop + JSON.parse/`.filter` crashes, preconnect hints — no measurable win). 7th fix (scoped `falcor.invalidate()` replacing blanket `falcor.setCache({})`) implemented + deployed to devmny.org, confirmed live — but produced **zero measurable change** on production Lighthouse. Root-caused: targets the wrong mechanism. Real fix split out to the task below.
+- [ ] [Perf: fast-path + full-fetch route rebuilds duplicate the entire page data fetch](./tasks/current/route-build-duplicate-falcor-instances.md) — the actual cause of the Lighthouse-measured regression above. `dmsPageFactory()` makes a brand-new empty-cache Falcor instance on every call (`dmsPageFactory.jsx:26`); `dmsSiteFactory.jsx` builds routes twice by design — a fast path from cached/SSR `defaultData`/`localStorePatterns`, then an unconditional full-API-fetch pass — so the full-fetch pass can never see what the fast path already fetched and re-fetches the entire page graph from scratch. Auth-independent (correlates with "logged in" only because returning/authed visitors are more likely to have cached route data). Estimated impact if fixed: ~5.71MB→~3.9MB payload, LCP ~4.7s→~2.5-3.2s, Perf score ~46→~55-65. Must work across SSR×non-SSR and sync×non-sync (4 combinations) — SSR already has partial shared-Falcor plumbing (`ssr2/handler.jsx:66-94`, `DmsSite`'s `falcor` prop) that dead-ends before reaching `dmsPageFactory()`; design question (share one instance vs. skip full-fetch when fresh) not yet resolved — see task file.
 
 ## dms-manager
 
+- [ ] Admin route on a cold direct navigation resolves `user` as a "public" stub, not the real
+      authed user — found 2026-09-03 while browser-testing `pattern-filter-sync` with a
+      Playwright session seeded via `localStorage.userToken` (not the real interactive login flow).
+      `PatternEditor` (`patterns/admin/pages/patternEditor/index.jsx`) read `AdminContext.user.groups`
+      as `["public"]` on a fresh `page.goto` straight to `/list/manage_pattern/<id>/filters`, denying
+      access with "You do not have permission to manage this pattern." — even though the site's own
+      `POST /auth` call, made on that exact same page load, correctly returned
+      `groups:["shaun-test-app Admin"]`. Not a timing race (persisted after an extra 3s wait).
+      Reproduces on ANY cold/deep-linked navigation into an admin route (bookmarked link, page
+      refresh while on the route, or an automated test) — as opposed to arriving there via in-app
+      client-side navigation from an already-resolved session, which is presumably why a real user
+      doesn't normally notice it. Root cause not found — didn't dig further, tangential to the task
+      that surfaced it (`src/dms/planning/tasks/current/pattern-filter-sync.md`). Worth its own
+      investigation into wherever `AdminContext`'s `user` prop gets constructed (likely `withAuth`)
+      to see why it doesn't wait for/pick up the resolved `/auth` response on a fresh load.
 - [x] Centralize format initialization (`updateAttributes`/`updateRegisteredFormats`) — remove duplicated definitions from patterns, add `initializePatternFormat` helper
 
 ## dms-server
@@ -95,6 +112,17 @@
       behind. Surfaced 2026-08-05 by the freight-plan PDF deletes on npmrdsv5.
       Fix: server-side cascade in `deleteData` + ghost filtering in `getSiteSources`
       + regression tests + one-time npmrdsv5 repair.
+
+- [ ] [Page-delete lifecycle hook — close the `reports_snap_2` orphan hole at its source](./tasks/current/page-delete-lifecycle-hook.md)
+      — deleting a page (admin UI, CLI `page delete`/`raw delete`, or scripts) never cascaded to
+      transportny's `reports_snap_2` catalog row, because a page's type (`{pattern}|page`) has no
+      colon and never reached `deleteData`'s existing `kind`-based cascade dispatch. Extends that
+      same dispatch (already proven for source/view orphans above) with a new opt-in,
+      app-registered hook (`DMS_PAGE_DELETE_HOOK`, same shape as `DMS_EXTRA_DATATYPES`) — server-side
+      so it covers every delete path, not just the admin UI. Supersedes a 2026-09-01 client-only
+      `ThemeContext` sketch that CLI deletes would have bypassed. **CODE + TESTS DONE 2026-09-04**
+      (16/16 on the extended `test-delete-cascade` suite, 21/21 full `npm test`); PG run + live
+      verification against a real deploy still open.
 
 - [x] [Comparison-series "difference" combine mode](./tasks/completed/comparison-series-difference-mode.md)
       — DONE 2026-07-16. `options.seriesCombine = {mode: "difference", invert?}`: the ClickHouse
@@ -209,6 +237,7 @@
 ### patterns/page — sections
 
 - [x] [Section authPermissions gate VIEW visibility](./tasks/current/section-authpermissions-view-gate.md) — sections carrying authPermissions now hide from viewers failing `['view']` (edit mode unaffected; no permissions = unchanged). `{groups:{public:[]}}` = signed-in only. Motivating use: MNY dashboard's staff-only CTA sections (2026-08-27).
+- [x] [dataWrapper updateItem writes calc-expression columns into row data](./tasks/current/datawrapper-liveedit-writes-expression-columns.md) — every liveEdit pick / form save merged EVERY section column into the row's data JSONB, keying calc cells by their whole SQL expression string (permanent pollution; merge-only API can't remove keys). `editableColumns` now excludes selectOnly/calculated/static/formula columns and expression names. Found on the MNY worklists build (2026-08-31).
 
 ### patterns/page — map
 
@@ -274,6 +303,14 @@
       in no grant vocabulary, so it can't be granted from the UI. Blocked on a product decision
       (is the data-source catalog public?); the landing-page symptom is fixable independently.
 
+- [x] [Mount-aware site-absolute links + retired-subdomain redirects](./tasks/completed/mount-aware-links-and-retired-subdomains.md) —
+      **DONE 2026-09-02** · BC. `utils/mountPath.js` resolves an authored `/slug` against the CURRENT
+      mount (with a `siteRootPaths` exemption so another pattern's path is left alone), delivered via
+      a provider-optional `ui/mountContext.js` and consumed by ButtonNode, TableCell's `LinkComp` and
+      **Card.jsx (which keeps its own copy of the link-URL builder)**. Plus `retired_subdomains` on a
+      pattern row, and `locations`/`retired_subdomains` added to the dms-server `no-access` stub —
+      without them a restricted pattern on a location mount registered NO route for a logged-out
+      visitor, so it rendered the root catch-all instead of the login screen. 31 new tests.
 - [x] [Nav items can link across subdomains — `sub://` in `dataItemsNav`](./tasks/current/nav-subdomain-links.md) —
       `sub://<subdomain>/<path>` shipped in 2026-07 for lexical **ButtonNode** only, so a nav item
       couldn't reach another product site: `dataItemsNav` treats anything not starting `/` as a slug

@@ -206,7 +206,14 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 
 
 	const getSectionGroups =  ( sectionName ) => {
-		return (item?.draft_section_groups || [])
+		// A blocked item comes back with every field — including this one —
+		// scrubbed to the literal string 'no-access' (see dmsPageFactory.jsx's
+		// loader), not an array. `|| []` doesn't catch that (a non-empty
+		// string is truthy), so check the real shape instead. This branch is
+		// now reachable on every render, including a no-access one, since the
+		// useMemo calls that call this were hoisted above the early returns
+		// below (see the comment there) to satisfy Rules of Hooks.
+		return (Array.isArray(item?.draft_section_groups) ? item.draft_section_groups : [])
 			.filter((g,i) => g.position === sectionName)
 			.sort((a,b) => a?.index - b?.index)
 			.map((group,i) => (
@@ -218,6 +225,34 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 				/>
 			))
 	}
+
+	// Hoisted above the early returns below on purpose: a render that takes
+	// one of those returns (e.g. item?.id === 'no-access') must still call
+	// exactly the same hooks, in the same order, as a render that reaches
+	// the full JSX — otherwise React throws "Rendered fewer hooks than
+	// expected" the next time a render takes a different path than the
+	// previous one. `EditWrapper` (dms-manager/wrapper.jsx) resolves `item`
+	// in two phases on mount (an initial synchronous guess, then a
+	// corrective effect that can swap in a real no-access stub), so that
+	// path-change is a real, common transition here, not a hypothetical one.
+	//
+	// Deps include item?.draft_sections alongside item?.draft_section_groups —
+	// the group LAYOUT (names/positions) almost never changes independent of
+	// item?.draft_sections (the actual section CONTENT, which does change on
+	// every add/delete/edit). When only draft_sections changed, memoizing on
+	// draft_section_groups alone returned the exact same cached React element
+	// tree, and React's reconciler bails out of re-rendering an unchanged
+	// memoized subtree entirely — so SectionGroup/sectionArray.jsx, nested
+	// inside, never re-rendered to read the fresh PageContext value, even
+	// though item itself was already correctly up to date one level up. This
+	// is why a remote edit's data would land correctly in local IndexedDB and
+	// even in this component's own `item` state, yet never appear on screen
+	// without a hard reload (which remounts everything fresh instead of
+	// relying on this memo). See
+	// planning/tasks/current/concurrent-page-editing-data-loss.md.
+	const headerChildren = React.useMemo(() => getSectionGroups('top'), [item?.draft_section_groups, item?.draft_sections]);
+	const footerChildren = React.useMemo(() => getSectionGroups('bottom'), [item?.draft_section_groups, item?.draft_sections]);
+	const contentChildren = React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups, item?.draft_sections]);
 
 	if (item?.id === 'no-access') {
 		if (user?.isAuthenticating) return null;
@@ -266,25 +301,10 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               navItems={menuItems}
               resolveNav={resolveNav}
               secondNav={menuItemsSecondNav}
-              headerChildren={React.useMemo(() => getSectionGroups('top'),[item?.draft_section_groups, item?.draft_sections])}
-              footerChildren={React.useMemo(() => getSectionGroups('bottom'),[item?.draft_section_groups, item?.draft_sections])}
+              headerChildren={headerChildren}
+              footerChildren={footerChildren}
           >
-            {/* Was memoized on item?.draft_section_groups alone — the group
-                LAYOUT (names/positions), which almost never changes independent
-                of item?.draft_sections (the actual section CONTENT, which does
-                change on every add/delete/edit). When only draft_sections
-                changed, this useMemo returned the exact same cached React
-                element tree, and React's reconciler bails out of re-rendering
-                an unchanged memoized subtree entirely — so SectionGroup/
-                sectionArray.jsx, nested inside, never re-rendered to read the
-                fresh PageContext value, even though item itself was already
-                correctly up to date one level up. This is why a remote edit's
-                data would land correctly in local IndexedDB and even in this
-                component's own `item` state, yet never appear on screen
-                without a hard reload (which remounts everything fresh instead
-                of relying on this memo). See
-                planning/tasks/current/concurrent-page-editing-data-loss.md. */}
-            {React.useMemo(() => getSectionGroups('content'),[item?.draft_section_groups, item?.draft_sections])}
+            {contentChildren}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>

@@ -258,7 +258,7 @@ because the live theme was stale.)
   node scripts/mint-token.mjs \
     --host http://localhost:3001 \
     --email availabs@gmail.com --password test123 --project npmrdsv5 \
-    --origin http://npmrds.localhost:5173 \
+    --origin http://www.localhost:5173/npmrds \
     --out scratchpad/npmrdsv5-dev2/auth.json
   ```
   The app stores its JWT in `localStorage.userToken` (see
@@ -272,16 +272,19 @@ because the live theme was stale.)
   **Headed (when there are no API credentials / SSO only):**
   ```bash
   node scripts/save-auth.mjs \
-    --url "http://npmrds.localhost:5173/edit/<slug>?year_record=2025" \
+    --url "http://www.localhost:5173/npmrds/edit/<slug>?year_record=2025" \
     --out scratchpad/<env>/auth.json
   # a real browser window opens — log in by hand; it saves & closes itself
   ```
   Then `node scripts/card-shot.mjs … --storage scratchpad/<env>/auth.json`.
   Tokens expire ~6h; re-mint when shots start landing on `/auth/login`. The token is a
   JWT — decode its `.exp` to check freshness. On an open localhost, omit `--storage`.
-- **Draft pages need `/edit/`, and the host is subdomain-based.** The live URL is
-  `http://<pattern-subdomain>.localhost:5173/edit/<slug>` (e.g.
-  `npmrds.localhost`), not the `/list` admin base. Sections render as
+- **Draft pages need `/edit/`, and the host is per-pattern (subdomain OR path-mount — check
+  `dms pattern show`, don't assume).** The live URL is either
+  `http://<pattern-subdomain>.localhost:5173/edit/<slug>` or, for a path-mounted pattern,
+  `http://www.localhost:5173/<mount>/edit/<slug>` (e.g. npmrds_sub: `www.localhost:5173/npmrds/
+  edit/<slug>`, since it moved off the `npmrds` subdomain 2026-09-02 — see
+  `traversing-dms-pages.md`'s subdomain gotcha), not the `/list` admin base. Sections render as
   `<div id="<sectionId>">`, so the live selector is `[id="<sectionId>"]` (CSS ids
   can't start with a digit, so use the attribute form, not `#2173919`).
 - **Selector stability.** Prefer an id/`data-` attribute over deep class chains; the

@@ -42,12 +42,34 @@ covers) without probing anything — the fast "what does this even cover" check.
 
 ## 3. Is a finding real, or noise?
 
-Two known noise sources are already filtered out (don't re-litigate these if you see them mentioned
-in the task file's history):
+Three known noise sources are already filtered out (don't re-litigate these if you see them
+mentioned in the task file's history):
 - Generic Falcor/UDA plumbing (site-wide catalog reads, source-picker listings) — excluded from the
   diff entirely, since it drifts from unrelated activity on a shared dev DB.
 - A network blip that made the page fail to load outright — detected and refused (`PROBE FAILED TO
   LOAD THE PAGE`), never captured or diffed as if it were a real state.
+- **A stale manifest URL silently renders the site's marketing homepage instead of 404ing** (found
+  round 85, old-reports-conversion.md, 2026-08-31, **ROOT-CAUSE FIXED same day** — see below): if a
+  page's `url_slug` changed since the manifest entry was written (a title save recomputes it — see
+  `reference_dms_section_create_cli_gaps`/round 63's archive note — or someone renamed/recreated the
+  page under a new slug), the route falls through to the homepage rather than erroring. This shows
+  up as an oddly **uniform** "section count changed: 2 → N" Blocker across every corpus entry at
+  once (the same generic homepage, N ≈ its own nav/hero section count, on every failing URL) plus
+  every previously-captured `/graph` query "no longer firing" (the real page's data queries never
+  ran). That signature — identical section count on multiple unrelated entries, not just one — is
+  the tell that it's a routing/slug problem, not a rendering regression in whatever you just
+  changed. Confirm with a direct query (`dms_npmrdsv5.data_items` `url_slug`/`updated_at` for the
+  `npmrds_sub|page` type) before assuming your change broke every entry at once. **Root cause fixed
+  2026-08-31**: `report_build.mjs`'s `computeTargetSlug()` used to trust an explicit `spec.slug`
+  field verbatim (via a fallback algorithm that didn't even match the admin UI's own slug algorithm
+  either) — these 4 golden-corpus specs' hand-picked slugs never matched what their own `title`
+  would produce, so this recurred 3 times (2026-08-24/25/31) as titled pages kept getting resaved.
+  Fixed at the root: `computeTargetSlug()` now always derives the slug from `spec.title` via an
+  exact port of the admin UI's `toSnakeCase()`/`getUrlSlug()` — the same thing a title save
+  recomputes to — so a save is a no-op on the slug from now on; the dead `spec.slug` field was
+  removed from all spec files. This should no longer recur for ANY spec-driven page (verified every
+  real production spec's slug already matched its own title). If it somehow does anyway, the fix
+  above is `report_build.mjs`'s `computeTargetSlug()`/`toSnakeCase()`, not a manifest-only patch.
 
 If you see a finding that looks like neither of these, it's real — go look at the actual page
 (`node scripts/npmrds-reports/report_probe.mjs <url> --bodies` for full detail) before assuming the

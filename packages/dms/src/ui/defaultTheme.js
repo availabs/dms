@@ -21,7 +21,6 @@ import {multiselectTheme} from "./components/MultiSelect.theme";
 import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
-import {graphTheme} from "./components/graph/theme";
 import {logoTheme} from "./components/Logo.theme";
 import {themeToggleTheme} from "./components/ThemeToggle.theme";
 import navigableMenuTheme from "./components/navigableMenu/theme";
@@ -91,7 +90,6 @@ const components = {
     dataCard: dataCardTheme,
     attribution: attributionTheme,
     filters: filterTheme,
-    graph: graphTheme,
     avlGraph: avlGraphTheme,
     navigableMenu: navigableMenuTheme,
     map: mapTheme,

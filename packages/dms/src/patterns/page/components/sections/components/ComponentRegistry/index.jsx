@@ -10,7 +10,6 @@ import MnyHeaderDataDriven from "./mnyHeader/config";
 import MNYFooter from './footer.config'
 import Spreadsheet from "./spreadsheet/config";
 import Card from "./Card.config";
-import LegacyGraph from "./graph/config"
 import FilterComponent from "./FilterComponent.config";
 // import UploadComponent from "./UploadComponent";
 // import ValidateComponent from "./ValidateComponent";
@@ -28,10 +27,6 @@ const ComponentRegistry = {
     lexical,
     Card,
     Spreadsheet,
-    // Kept around for reference — no live element-type resolves to this key
-    // anymore. "Graph" now points at GraphNew (see below); old sections
-    // upgrade automatically at render time via Graph.migrate.js.
-    // legacy_graph: LegacyGraph,
     Filter: FilterComponent,
     "Header: Default Header": Header,
     "Header: MNY Data": MnyHeaderDataDriven,

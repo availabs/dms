@@ -1,7 +1,6 @@
 import {docs as MultiSelect} from "./components/MultiSelect.theme";
 import {docs as Table} from "./components/table/table.theme";
 import {docs as Card} from "./components/card.theme";
-import {docs as Graph} from "./components/graph/theme";
 import {docs as Input} from "./components/Input.theme";
 import {docs as Modal} from "./components/Modal.theme";
 import SideNav from "./components/SideNav.docs";
@@ -27,7 +26,6 @@ const output = {
     MultiSelect,
     Table,
     Card,
-    Graph,
     Modal,
     SideNav,
     TopNav,

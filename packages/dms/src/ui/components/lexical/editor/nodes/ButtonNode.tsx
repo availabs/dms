@@ -77,6 +77,10 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
   // paths — so one authored `/congestion_v2` works on every mount of its pattern.
   const { baseUrl: mountBaseUrl, siteRootPaths } = React.useContext(MountContext) || {};
   const resolvedPath = resolveMountPath(resolveSubdomainPath(path), mountBaseUrl, siteRootPaths);
+  // `sub://` resolves to an absolute URL on this platform's own base domain, so
+  // the absolute-ness alone can't tell an external site from a sibling product.
+  // Remember which it was — see the navigation branch in handleClick.
+  const isPlatformLink = typeof path === 'string' && path.startsWith('sub://');
   const linkPath = keepSearchParams ? `${resolvedPath}${location.search}` : resolvedPath;
 
   const { theme: fullTheme = {}, UI } = React.useContext(ThemeContext) || {};
@@ -111,10 +115,19 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
       return;
     }
     if (!linkPath) return;
-    if (/^(https?:)?\/\//.test(linkPath)) {
-      window.open(linkPath, '_blank', 'noopener,noreferrer');
-    } else {
+    if (!/^(https?:)?\/\//.test(linkPath)) {
       navigate(linkPath);
+    } else if (isPlatformLink) {
+      // A `sub://` destination is another PRODUCT OF THIS PLATFORM, not an
+      // external site — it only looks absolute because the scheme resolves
+      // against the current base domain. Opening it in a new tab strands the
+      // user with a pile of tabs while moving around one platform, so it gets
+      // ordinary same-tab navigation. Not `navigate()`: it is still a different
+      // origin, so react-router cannot route it.
+      window.location.assign(linkPath);
+    } else {
+      // A genuinely external URL the author typed in full — new tab, as before.
+      window.open(linkPath, '_blank', 'noopener,noreferrer');
     }
   };
 

@@ -42,7 +42,7 @@ import {
     selfParamKey,
 } from "../../dataWrapper/buildUdaConfig";
 import { fetchBoundsForFilter } from "../../../../../../mapeditor/MapEditor/stateUtils";
-import { getColorRange } from "../../../../../../../ui/components/graph/colorRange";
+import { getColorRange } from "../../../../../../../ui/components/graph_new/colorRange";
 
 export const SERIES_TEMPLATE_KEY = "series-template";
 export const SERIES_GENERATED_KEY = "__seriesGenerated";
