@@ -615,6 +615,10 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
 export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
     // one time redirection
+    // `item` can still be a not-yet-resolved stand-in on the very first render (e.g. sync's
+    // local mirror hasn't caught up with this specific page yet) — without this guard a
+    // falsy `item.url_slug` navigates to a literal `.../edit/undefined` URL.
+    if (!item?.url_slug) return;
     const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
     if(searchParamFilters?.length){
         const filtersObject = searchParamFilters

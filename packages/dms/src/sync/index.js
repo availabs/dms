@@ -16,7 +16,7 @@ import { configure, bootstrapSkeleton, bootstrapPattern, isPatternLoaded,
          onInvalidate, onStatusChange, getStatus, getWS, onWSChange, getPendingCount,
          isCollabReady,
          registerCollabRoom, unregisterCollabRoom, updateCollabPeers, getCollabInfo, onCollabChange,
-         resetAndRebootstrap } from './sync-manager.js';
+         resetAndRebootstrap, clearPendingMutations } from './sync-manager.js';
 import { isLocal, addToScope, getSyncedTypes, clearScope } from './sync-scope.js';
 
 let _ready = false;
@@ -108,6 +108,7 @@ export function getSyncAPI() {
     isPatternLoaded,
     isCollabReady,
     resetAndRebootstrap,
+    clearPendingMutations,
   };
 }
 
@@ -134,4 +135,5 @@ export {
   isPatternLoaded,
   isCollabReady,
   resetAndRebootstrap,
+  clearPendingMutations,
 };

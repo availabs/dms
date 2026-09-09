@@ -108,6 +108,13 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
     ? `Syncing (${syncPending})`
     : syncStatusKey(syncStatus);
 
+  const handleClearPendingMutations = React.useCallback(async () => {
+    if (syncPending === 0) return;
+    const { clearPendingMutations, getPendingCount } = await import('../../../sync/sync-manager.js');
+    await clearPendingMutations();
+    setSyncPending(await getPendingCount());
+  }, [syncPending]);
+
   const syncMenuItems = syncStatus
     ? [
         { type: 'separator' },
@@ -122,6 +129,19 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
                   <span>{syncCollab.peers > 1 ? syncCollab.peers : syncCollab.rooms}</span>
                 </div>
               )}
+            </div>
+          ),
+        },
+        {
+          type: () => (
+            <div
+              className={`${menuTheme.syncClearWrapper} ${syncPending === 0 ? menuTheme.syncClearWrapperDisabled : ''}`}
+              onClick={syncPending === 0 ? undefined : handleClearPendingMutations}
+            >
+              <Icon icon={'TrashCan'} className={menuTheme.syncCollabIcon} />
+              <span className={menuTheme.syncClearLabel}>
+                {syncPending > 0 ? `Clear pending mutations (${syncPending})` : 'No pending mutations'}
+              </span>
             </div>
           ),
         },
