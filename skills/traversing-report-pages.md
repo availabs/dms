@@ -414,18 +414,20 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 - Reloading the same `?routes=...` URL directly re-resolves with no gate (the
   URL is the durable/shareable state); a different `?routes=` value on the
   same page renders a different route's real data — the core mechanism.
-- **`?routes=` is silently INERT on any `/edit/...` URL — probe the published
-  view, never edit mode, to check whether a slot actually resolved.** Found
-  live 2026-08-11: `useDynamicReportRoutes`'s own `enabled` check is
-  `isDynamicReport && !isEdit && routeIds.length > 0` — by design, an author
-  editing a Dynamic Report always sees the raw unresolved slots (so editing
-  the template itself isn't at the mercy of whichever route happens to be in
-  the URL). A `report_probe.mjs "edit/<slug>?routes=<id> --auth"` run against
-  a slot-fed graph will show real chart chrome with **zero data** (an "EMPTY
-  SVG"/no `/graph` query at all for that section) even when everything is
-  wired correctly — this is expected, not a bug, and reads as a false failure
-  if you don't already know the mode gates it off. Publish the page (or at
-  least confirm it's published) and probe the plain slug instead.
+- **STALE, corrected 2026-09-09: `?routes=` DOES resolve on a `/edit/...` URL.** The note
+  originally here (2026-08-11) said it was silently inert in edit mode, citing
+  `useDynamicReportRoutes`'s `enabled` check as `isDynamicReport && !isEdit &&
+  routeIds.length > 0`. That was true THEN but was changed 2026-08-19
+  (report-authoring-ux-overhaul.md item 7): the check is now `isDynamicReport &&
+  routeIds.length > 0`, no `!isEdit` — an author previewing `/edit/<slug>?routes=...`
+  sees the same resolved preview a real viewer would (route names/dates/TMCs all
+  resolve; mutation controls stay edit-mode-gated as normal). Re-confirmed live
+  2026-09-09 across many round-trips (dynamic-reports-authoring-gaps.md sub-item 4):
+  editing a Dynamic Report with a `?routes=` param present shows fully resolved
+  data, not raw slot placeholders. A plain `/edit/<slug>` with no `?routes=` still
+  falls through to raw, unresolved slots (nothing to resolve against). If
+  `report_probe.mjs "edit/<slug>?routes=<id> --auth"` ever shows an EMPTY graph
+  again, treat it as a real signal, not this old expected-gating note.
 
 ### Relative dates: the "Today (view time)" virtual base, and its entry-gate date field
 
