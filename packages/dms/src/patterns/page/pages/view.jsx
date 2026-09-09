@@ -14,6 +14,8 @@ import {
 import SectionGroup from '../components/sections/sectionGroup'
 import { PageContext, CMSContext, DataSourceContext } from '../context';
 import { ThemeContext, mergeTheme } from "../../../ui/useTheme";
+import { ABSOLUTE_URL } from "../../../utils/nav";
+import { resolveSubdomainPath } from "../../../utils/subdomainPath";
 
 function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdate, reqPermissions, format,busy}) {
     //console.log('create doc', { item, dataItems: allDataItems })
@@ -52,6 +54,19 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
       }).catch(() => {});
       hasTrackedVisitRef.current = item.id;
     }, [item?.id, user?.isAuthenticating, search]);
+
+    // LINK PAGE (`nav_link`, page.format.js): the page carries no content — it exists
+    // only to put a nav entry pointing somewhere else into the page tree. Landing on
+    // its own slug should take you to the destination instead of rendering an empty
+    // page. Edit mode deliberately does NOT redirect (pages/edit/index.jsx), or the
+    // author could never open the page to change the link again.
+    const navLink = item?.nav_link ? resolveSubdomainPath(`${item.nav_link}`) : '';
+    // A full URL is not a router path — navigate()/<Navigate> would mangle it, so it
+    // leaves as a document load. Same split as TopNav's absolute-destination handling.
+    const navLinkIsAbsolute = Boolean(navLink) && ABSOLUTE_URL.test(navLink);
+    useEffect(() => {
+        if (navLinkIsAbsolute) window.location.assign(navLink);
+    }, [navLink, navLinkIsAbsolute]);
 
     if(isViewDenied){
         if (user?.isAuthenticating) return null;
@@ -95,6 +110,13 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     }, [searchParams, item?.id, item?.filters, item?.sections?.length]);
 
     useEffect(() => {
+        // A link page never syncs its own page variables into the URL. It may still
+        // carry `filters` from whatever it was before it became a link (the MitigateNY
+        // county Actions Dashboard kept 12 url-bound variables), and this effect
+        // navigates to `${baseUrl}/${item.url_slug}?<params>` — which lands straight
+        // back on the link page and cancels the <Navigate> below, so the redirect
+        // silently never happened.
+        if (navLink) return;
         initNavigateUsingSearchParams({pageState, search, navigate, baseUrl, item, isView: true})
     }, [])
 
@@ -181,6 +203,13 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
             return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
         }
         return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
+    }
+    // Placed after every hook, not next to the `nav_link` resolution above: an early
+    // return there would skip the useMemos below, and a SPA navigation from a link
+    // page to a normal one would change the hook count mid-mount. The absolute case
+    // renders nothing while the effect above performs the document load.
+    if (navLink) {
+        return navLinkIsAbsolute ? null : <Navigate to={navLink} replace />;
     }
   return (
       <DataSourceContext.Provider value={dataSourceActions}>

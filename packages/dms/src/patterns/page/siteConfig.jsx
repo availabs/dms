@@ -211,7 +211,7 @@ const pagesConfig = ({
         filter: {
           attributes: [
             "title", "index", "authPermissions", "url_slug","parent",
-            "published", "description", "icon", "navOptions", "hide_in_nav",
+            "published", "description", "icon", "navOptions", "hide_in_nav", "nav_link",
             // needed when no page is registered at / and we're picking 0th page as /
             "draft_sections", "draft_section_groups", "sections", "section_groups"
           ],
@@ -235,7 +235,7 @@ const pagesConfig = ({
             filter: {
               attributes: [
                   'title','index','filters','authPermissions','url_slug','parent','published',
-                  'hide_in_nav','sections',  'section_groups',  'sidebar', 'sidebarHideInView', 'navOptions','theme'
+                  'hide_in_nav','nav_link','sections',  'section_groups',  'sidebar', 'sidebarHideInView', 'navOptions','theme'
               ]
             },
             action: 'view',

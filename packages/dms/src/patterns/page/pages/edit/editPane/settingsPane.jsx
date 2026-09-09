@@ -157,7 +157,11 @@ function DebouncedInput({value, onChange, Input, ...rest}) {
         return () => clearTimeout(handler);
     }, [tmpValue, value]);
 
-    return <Input value={tmpValue} onChange={e => setTmpValue(e.target.value)}/>
+    // `rest` was destructured but never forwarded, so a field config could not set
+    // `placeholder` (or anything else) on the underlying input. Input destructures
+    // label/description/activeStyle out of its own props, so the FieldSet config keys
+    // that ride along here are absorbed rather than leaked onto the DOM element.
+    return <Input {...rest} value={tmpValue} onChange={e => setTmpValue(e.target.value)}/>
 }
 
 function SaveAsTemplateSection() {
@@ -351,6 +355,22 @@ function SettingsPane () {
                   setEnabled: e => togglePageSetting(item, 'hide_in_nav', e ? 'hide' : null, apiUpdate),
                   customTheme:{
                       field: 'pb-2 flex flex-row gap-2'
+                  }
+              },
+              {
+                  // LINK PAGE (`nav_link`, page.format.js). Setting this turns the page
+                  // into a nav entry that points somewhere else: it stops rendering its
+                  // own sections and a visit to its slug redirects. Clearing the field
+                  // turns it back into an ordinary page.
+                  type: DebouncedInput,
+                  Input,
+                  label: 'Nav Link',
+                  value: item?.nav_link || '',
+                  // The three accepted forms are not guessable, so name them here —
+                  // there is nowhere else in the UI an author would learn them.
+                  placeholder: '/actions/dashboard · sub://name/path · https://…',
+                  onChange:(e) => {
+                      togglePageSetting(item, 'nav_link', e, apiUpdate)
                   }
               },
               {

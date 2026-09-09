@@ -218,6 +218,7 @@
 ### ui/nav
 
 - [x] [nav: `rootPath` opt-in on authored navItems](./tasks/current/nav-rootpath-items.md) — cross-pattern secondary navs: an authored navItem with `rootPath: true` skips the host pattern's baseUrl (app-root-relative). Motivating use: the MNY actions pattern's topNav is now a generated copy of the county-plan nav (2026-08-26).
+- [x] [Link pages — a page that is only a nav entry pointing elsewhere](./tasks/current/nav-link-pages.md) — **IMPLEMENTED 2026-09-08.** New `nav_link` page attribute: a page in the tree that renders no content and navigates to another pattern's page (`/actions/dashboard`), another subdomain (`sub://…`), or an external URL. Nav resolution, a view-mode redirect, an edit-mode "this page is a link" canvas, a **Nav Link** field in page settings, and a **Link** entry in the page-template picker. Both nav code paths now share one `navPath()` helper instead of two drifting copies — which fixes `getChildNav`'s missing `ABSOLUTE_URL` branch (an absolute child destination used to come out as `/baseUrl/https://…`). Also ports TopNav's `matchBase` into SideNav and makes `DebouncedInput` forward `...rest`. All additive/BC. 14 unit tests; live-verified on `npmrdsv5/dev2` and BC-checked against MNY `county_template`. **Round 2 (2026-09-09)** — the first real consumer (the MitigateNY conversion) surfaced two bugs, both fixed: a link page's leftover url-bound page variables made `initNavigateUsingSearchParams` navigate back onto itself and silently cancel the redirect, and the MNY `footer.jsx` hand-builds its own links so it ignored `nav_link`. Open follow-on: three hand-rolled link builders (`footer.jsx`, `ExportPdf.jsx`, `mnyHeaderDataDriven.jsx`) each have to be taught this feature separately — folding them onto the shared builder would retire the class.
 
 ### ui/filter-controls
 
@@ -233,6 +234,26 @@
 
 - [x] [Section authPermissions gate VIEW visibility](./tasks/current/section-authpermissions-view-gate.md) — sections carrying authPermissions now hide from viewers failing `['view']` (edit mode unaffected; no permissions = unchanged). `{groups:{public:[]}}` = signed-in only. Motivating use: MNY dashboard's staff-only CTA sections (2026-08-27).
 - [x] [dataWrapper updateItem writes calc-expression columns into row data](./tasks/current/datawrapper-liveedit-writes-expression-columns.md) — every liveEdit pick / form save merged EVERY section column into the row's data JSONB, keying calc cells by their whole SQL expression string (permanent pollution; merge-only API can't remove keys). `editableColumns` now excludes selectOnly/calculated/static/formula columns and expression names. Found on the MNY worklists build (2026-08-31).
+
+- [ ] [`display.rowOffset` — let a section skip the first N rows of its own result](./tasks/current/datawrapper-row-offset.md) — `getData.js:365` derives the fetch window from `currentPage * pageSize` alone, and `currentPage` is `useState(0)` inside `useDataLoader`, so an author cannot start a result at row 1. That blocks the "rank 1 out front, ranks 2-n beside it" pattern (grouped+ordered leader in a focus panel, the remainder in a list). Purely additive; unset ⇒ identical requests. Raised on the MitigateNY LHMP plan home (2026-09-09) — the one thing that build could not express with existing primitives.
+- [ ] [Delete `mnyHeader` from the library](./tasks/current/remove-mnyheader-from-library.md) — brand code (its `consts.js` is a list of mny asset paths) that predates theme-provided components. **Step 1 is already live**: the component now ships from `src/themes/mny/components/mnyHeader/` via `theme.pageComponents` under the unchanged key `"Header: MNY Data"`, and the theme entry overrides the built-in, so the library copy is dead but present. Step 2 is the deletion + a submodule commit, gated on an other-app pre-flight (142 live components carry that element-type in MitigateNY alone).
+
+- [ ] **Move the default `sectionArray` sizes map to a 12-column vocabulary** — the library default
+  (`sectionArray.theme.jsx:32-37`) is still an older, narrower set on a **6-column** basis
+  (`1/3`→`md:col-span-2`, `1/2`→3, `2/3`→4, `1`→6). The current convention is plain integers
+  `"1"`–`"12"`, which is why the two newest themes both have to escape the default with
+  `_replace: ["sizes"]` — `wcdb` (`src/themes/wcdb/wcdb_theme.js:36-51`) and `transportny` themev2
+  (`src/themes/transportny/themev2.js:2438-2452`), byte-identical in shape. Making 1–12 the default
+  means a new theme inherits the current convention instead of replacing it.
+  ⚠ **Not additive for every theme.** `mny` (`src/themes/mny/theme.js:499-510`) is a fractional
+  hybrid in which **`"1"` = col-span-9 and `"2"` = col-span-12** — the same keys the integer
+  convention uses for col-span-1 and col-span-2, with opposite meanings. Any theme in that shape
+  needs its stored `data.size` values rewritten (`1/12`→`1`, `1/6`→`2`, `1/4`→`3`, `1/3`→`4`,
+  `1/2`→`6`, `2/3`→`8`, `1`→`9`, `2`→`12`) atomically with the theme change, and a missed row fails
+  **silently** — `sectionArray.jsx:319,463` falls back to `defaultSize` rather than erroring, so it
+  validates by count, not by eyeball. Direction confirmed by the owner 2026-09-09 while scoping
+  [`planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md`](../../../planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md)
+  work item B, which carries the mny-side census and mapping; **deliberately not that task's scope.**
 
 ### patterns/page — map
 
