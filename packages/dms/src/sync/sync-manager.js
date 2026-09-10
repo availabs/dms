@@ -23,6 +23,7 @@ import {
 } from './idb-store.js';
 import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
 import { addToScope, clearScope } from './sync-scope.js';
+import { isSplitType } from '../utils/type-utils.js';
 
 // If a delta response exceeds this many changes, discard it and do a full
 // re-bootstrap for that scope instead.  This avoids applying extremely large
@@ -226,6 +227,47 @@ async function applyItems(items) {
 const _DEV = typeof globalThis.__SYNC_DEV !== 'undefined' ? globalThis.__SYNC_DEV
   : (typeof import.meta !== 'undefined' && import.meta.env?.DEV);
 
+// One-shot per session — the steady state finds nothing, so there is no point
+// re-scanning on every skeleton bootstrap (which also runs on every
+// reBootstrapLoadedScopes).
+let _purgedSplitRows = false;
+
+/**
+ * Delete any split-type (`:data`) rows an earlier build wrote into the local
+ * mirror.
+ *
+ * Those rows only ever got there via the WS broadcast, which used to ship
+ * dataset-row payloads in full (see sync-ws-broadcast-split-row-payload.md).
+ * They are unreachable dead weight: /sync/bootstrap and /sync/delta never
+ * mention these types, so nothing refreshes them and nothing removes them —
+ * a stale multi-megabyte row could sit in a browser profile indefinitely.
+ * Existing profiles have to clean themselves up, hence this pass.
+ *
+ * Cost in the steady state is one distinct-types index scan per session.
+ */
+async function purgeLocalSplitRows() {
+  if (_purgedSplitRows) return;
+  _purgedSplitRows = true;
+  try {
+    const local = await getDistinctAppTypesByApp(_app);
+    const splitTypes = local.filter(row => isSplitType(row.type));
+    if (splitTypes.length === 0) return;
+    let removed = 0;
+    for (const { app, type } of splitTypes) {
+      const rows = await getItemsByAppType(app, type);
+      if (rows.length === 0) continue;
+      await deleteItemsByIds(rows.map(r => r.id));
+      removed += rows.length;
+    }
+    if (removed > 0) {
+      console.log(`[sync] purged ${removed} locally-mirrored dataset rows across ${splitTypes.length} split types (never served by bootstrap/delta)`);
+      invalidate('data_items');
+    }
+  } catch (err) {
+    console.warn('[sync] split-row purge failed:', err.message);
+  }
+}
+
 /**
  * Bootstrap the site skeleton (site row + pattern rows).
  * This is always small (<20 items) and provides the nav/route structure.
@@ -298,6 +340,7 @@ export async function bootstrapSkeleton() {
     } catch { /* ignore */ }
   }
 
+  await purgeLocalSplitRows();
   await flushPending();
 }
 
@@ -518,6 +561,29 @@ export function connectWS() {
         if (myRevisions.has(msg.revision)) {
           myRevisions.delete(msg.revision);
           await setLastRevision(msg.revision);
+          return;
+        }
+
+        // Dataset rows are NOT mirrored locally. /sync/bootstrap and
+        // /sync/delta exclude split types by design — they live in their own
+        // tables and are fetched on demand through Falcor/UDA — but this
+        // handler used to apply whatever arrived, so a broadcast would parse a
+        // multi-megabyte blob, run it through the Yjs merge, write it to
+        // IndexedDB and register the type as locally-synced. Nothing ever read
+        // that copy, nothing refreshed it, and nothing removed it.
+        //
+        // The invalidation is the part that matters: it debounces into
+        // router.revalidate() (dmsSiteFactory.jsx), which refetches through the
+        // normal on-demand path — so a dataset view still updates live. That
+        // was always what drove the refresh, not the payload.
+        //
+        // Branch on the type, not on the server's `dataOmitted` flag, so a
+        // client talking to a server that predates that flag still refuses to
+        // mirror the blob.
+        if (isSplitType(msg.item?.type)) {
+          await setLastRevision(msg.revision);
+          invalidate('data_items');
+          invalidate(`data_items:${msg.item.app}+${msg.item.type}`);
           return;
         }
 

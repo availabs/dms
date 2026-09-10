@@ -449,9 +449,10 @@ crashing but grow (436 MB, 40→117 s) and every `since` stays put, because of i
 - Detect a `since` older than the compaction horizon and force a bootstrap.
 - The `mitigateny_hamilton` churn itself: a county load generating ~10,700 `change_log` rows
   (mostly self-cancelling) is worth looking at from the script side.
-- The WebSocket broadcast still ships full `data` for `:data` types and the client's
-  `ws.onmessage` still applies them — see "Also found" above. Decide whether the client should
-  mirror dataset rows at all, then make the push path agree with the pull path either way.
+- ~~The WebSocket broadcast still ships full `data` for `:data` types and the client's
+  `ws.onmessage` still applies them~~ — **split out and implemented** 2026-09-10 as
+  [`sync-ws-broadcast-split-row-payload.md`](./sync-ws-broadcast-split-row-payload.md)
+  (Option A: broadcast a notification, not a payload).
 - `bootstrapFull` is dead code (reachable only from its own recursion) and has been flagged
   `no-unused-vars` by eslint since before this task. It was fixed in place here rather than
   deleted, to keep this change reviewable; deleting it is a separate call.
