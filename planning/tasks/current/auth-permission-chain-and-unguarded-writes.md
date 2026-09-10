@@ -224,7 +224,7 @@ non-JSON string value" from "an access-denied sentinel disguised as a string."
   (`page.js`, `raw.js`, `section.js`), not just `report_build.mjs`'s call sites, and doesn't require
   resolving the broader "should the CLI have a service-account auth mode" question first.
 
-**Cross-reference**: `planning/transportny/tasks/current/dynamic-reports-authoring-gaps.md` (where this
+**Cross-reference**: `planning/transportny/tasks/completed/dynamic-reports-authoring-gaps.md` (where this
 was found) and its memory note
 `~/.claude/projects/-home-ryan-code-dms-template/memory/project_report_build_mjs_draft_sections_gap.md`
 (written before the root cause was known — superseded by this section, not deleted, since it still
