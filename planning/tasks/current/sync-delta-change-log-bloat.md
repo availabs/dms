@@ -1,6 +1,8 @@
 # Sync delta / change_log bloat + non-convergence — full-app delta OOM'd the server, and `catchUp()` can never advance past it
 
-**Status:** Item 3 (heap stopgap) DONE 2026-09-10. Items A, B, 1, 4 open.
+**Status:** Items A, B, 1, 3, 4 + the `"no-access"` push loop all implemented 2026-09-10.
+Code complete and unit-tested; the live convergence + reclaim checks in the Testing Checklist
+still need a real browser and an operator-scheduled vacuum.
 **Found:** 2026-09-10, diagnosing "the server on 5556 is responding slowly" on the
 `dms-template-server` container (mercury / `dms-mercury-3` / app `mitigat-ny-prod`).
 
@@ -67,6 +69,167 @@ watermark — `bootstrapSkeleton()` alone does not set `last_revision`, so verif
 `catchUp` should instead reset *and* fall through to `bootstrapFull()`, or whether a null
 `last_revision` is correctly handled on the next pass. **Do not ship the one-liner without
 checking that**, or the loop becomes "re-bootstrap skeleton every reconnect" instead.
+
+## Assessment 2026-09-10 (session 2) — item A is deeper than "one missing line"
+
+Reading the client end-to-end before implementing turned up three bugs in the same
+watermark-reset path. The missing `setLastRevision(null)` in `catchUp()` is real, but adding it
+alone would have fixed nothing, because **`setLastRevision(null)` does not clear anything.**
+
+### A1 — `setLastRevision(null)` writes the string `"null"`
+
+`setLastRevision` (`sync-manager.js:126-128`) does `setState(key, String(rev))`, and `setState`
+(`idb-store.js:109`) `put`s that value verbatim. So a "clear" stores the four-character string
+`"null"`. On the way back out, `getLastRevision` (`sync-manager.js:120-123`) does:
+
+```js
+const value = await getState(key);       // "null" — a real row, so not the null default
+return value !== null ? parseInt(value, 10) : null;   // parseInt("null", 10) === NaN
+```
+
+`lastRev` comes back as **`NaN`, not `null`**, and every cold-start test in the file is
+`lastRev === null`. So both branches this task doc marked ✅ ("clears watermark") are broken
+too — they clear nothing and then re-enter the *warm* delta branch.
+
+### A2 — a "cleared" watermark asks the server for the entire change_log
+
+With `lastRev = NaN` the warm branch builds `…&since=NaN`, and the server does
+`parseInt(since, 10) || 0` (`sync.js:264`) → **`sinceRev = 0`**. `bootstrapFull`'s stale
+fallback therefore recurses on a delta covering *every revision the app has ever had* —
+strictly worse than the payload it was trying to avoid. `bootstrapFull` is unreachable in the
+live path today (`initSync` → `bootstrapSkeleton` → `connectWS` → `catchUp`, plus
+`bootstrapPattern` on navigation; `bootstrapFull` is called only from its own recursion and one
+commented-out line at `sync-manager.js:178`), which is the only reason this is not the headline
+symptom. It is the worst-case shape of the same bug and should not be left armed.
+
+### A3 — `bootstrapPattern`'s stale fallback resolves a promise with itself
+
+`_bootstrapPatternImpl`'s too-large branch does `_loadedPatterns.delete(t); return
+bootstrapPattern(t)` (`sync-manager.js:310-311`). At that moment `_inflightBootstraps` still
+holds *this* impl's own promise, so the public wrapper hands it straight back
+(`sync-manager.js:267`) and the async function resolves its own promise with itself →
+`TypeError: Chaining cycle detected for promise #<Promise>`, delivered as a rejection the
+surrounding `try/catch` cannot see (the cycle is detected at the resolve boundary, outside the
+function body). The pattern is never re-bootstrapped.
+
+### Consequence for the fix
+
+Item A is not a one-liner. The minimum coherent fix is:
+
+1. Make a null watermark actually clear (delete the `sync_state` key), and make
+   `getLastRevision` treat any non-finite stored value as cold — browser profiles already
+   carrying a `"null"` string from A1 have to recover on their own.
+2. Recurse into `_bootstrapPatternImpl`, not the memoizing wrapper.
+3. In `catchUp`, **advance** the watermark to the tail the server reports and cold-re-bootstrap
+   the scopes this client actually holds (skeleton + loaded patterns) — not merely clear it.
+   Clearing alone makes `catchUp` a silent no-op until some later WS message happens to seed
+   `last_revision`, which is precisely the "re-bootstrap skeleton on every reconnect" outcome
+   this doc warned against.
+
+### Also found — the WS broadcast does not honour the split-type exclusion
+
+`appendChangeLog` (`dms.controller.js:243`) and `/sync/push` (`sync.js:462`) broadcast
+`{ item: { …, data } }` with the **full** `data` blob for `:data` types, and the client's
+`ws.onmessage` (`sync-manager.js:440`) has no `isSyncExcluded` equivalent — it upserts whatever
+arrives into IndexedDB. So one 7.7 MB `jurisdictions|…:data` write ships 7.7 MB to every
+subscribed client and lands in a local mirror that `bootstrap`/`delta` deliberately keep those
+rows out of. Same family as items 1 and 4, opposite direction (push, not pull), and
+inconsistent with the pull path either way. Recorded as a follow-up, not fixed here — whether
+the client *should* mirror dataset rows at all is a design question, not a bloat fix.
+
+## Implementation Plan — DONE 2026-09-10
+
+Ordered so each step is independently verifiable. Items A and B touch both sides of the
+protocol; items 1 and 4 are server-only.
+
+### Step 1 — client: make a null watermark actually clear (A1)
+
+- `idb-store.js`: add `removeState(key)` — a `delete` on `sync_state`, alongside
+  `getState`/`setState`.
+- `sync-manager.js` `setLastRevision(rev, scope)`: when `rev == null`, `removeState(key)`
+  instead of writing `String(null)`.
+- `sync-manager.js` `getLastRevision(scope)`: return `null` unless the parsed value is a finite
+  number, so an already-persisted `"null"` (or any junk) reads as cold instead of `NaN`.
+
+### Step 2 — client: fix the pattern re-bootstrap recursion (A3)
+
+- `_bootstrapPatternImpl`'s too-large branch returns `_bootstrapPatternImpl(patternType)`
+  directly, bypassing the `_inflightBootstraps` memo that would otherwise hand back its own
+  promise.
+
+### Step 3 — protocol: `tooLarge` instead of a payload nobody wants (item B)
+
+Server, `/sync/delta`:
+
+- Threshold `maxChanges = min(client-supplied ?maxChanges, DMS_SYNC_MAX_DELTA ?? 1000)`. Taking
+  the **min** is what makes the two thresholds agree in the safe direction: the server only
+  ever ships a row count the client has already said it will accept, so a served delta can
+  never be discarded client-side. A client asking for less than the server default is honoured;
+  one asking for more is capped.
+- Run `SELECT count(*)` on the same predicate as the row query first. Past the threshold,
+  return without ever touching the rows:
+  `{ tooLarge: true, count, revision: sinceRev, latestRevision, changes: [] }`.
+- `revision: sinceRev` (not the tail) and `changes: []` are deliberate: a **pre-`tooLarge`
+  client** parsing this response applies nothing and rewrites the watermark it already had, so
+  it keeps looping as it does today but at the cost of one `count(*)` instead of 436 MB. Had the
+  tail gone in `revision`, such a client would jump its watermark past thousands of changes it
+  never received — the silent permanent gap this file's own bootstrap/delta ordering comments
+  exist to prevent. New clients read the tail from `latestRevision`.
+
+Client, all three delta call sites:
+
+- Send `&maxChanges=${STALE_DELTA_THRESHOLD}`.
+- Treat `payload.tooLarge` exactly like `changes.length > STALE_DELTA_THRESHOLD`, behind one
+  shared predicate so the two cannot drift apart.
+
+### Step 4 — client: make `catchUp` converge (item A)
+
+Replace the bare `bootstrapSkeleton()` in the too-large branch with:
+
+- `setLastRevision(latestRevision ?? revision)` — advance to the tail the server just reported,
+  so the next reconnect asks for a small window instead of re-requesting the same one.
+- `reBootstrapLoadedScopes()` — new helper: clear `rev:skeleton:<siteType>` and the
+  `rev:pattern:<t>` of every entry in `_loadedPatterns`, drop them from `_loadedPatterns`, then
+  `bootstrapSkeleton()` and `bootstrapPattern(t)` for each. Those snapshots are read *after*
+  the tail revision, so the client lands at or ahead of the watermark it just wrote; the next
+  delta may redundantly re-deliver a change already in the snapshot, which `applyChanges` is
+  idempotent about. Same safe direction `/sync/bootstrap`'s revision-before-items comment
+  already argues for.
+
+Ordering matters: write the watermark **before** re-bootstrapping, so a failure mid-bootstrap
+leaves the loop broken rather than re-armed.
+
+### Step 5 — server: stop reading rows the response will discard (item 1)
+
+- Add `AND type NOT LIKE '%:data'` to the full-app delta row query and its new `count(*)`, to
+  the pattern-scoped row query and count, and to the `item_id IN (…)` skeleton query.
+- **Keep** the JS `isSyncExcluded` filter. The SQL predicate catches the current
+  `{source}|{view}:data` form only; the legacy `NAME_SPLIT_REGEX` form
+  (`table-resolver.js:21`, e.g. `traffic_counts-1`) has no `:data` suffix and is caught only in
+  JS. The count and the row query must carry the *same* SQL predicate, or `count` and
+  `changes.length` disagree.
+
+### Step 6 — server: stop snapshotting split-row data into change_log (item 4)
+
+- Both writers — `/sync/push` (`sync.js:447`) and `appendChangeLog`
+  (`dms.controller.js:232`) — write `data = NULL` when `isSplitType(type)`. The revision row is
+  still written, so ordering, compaction and `MAX(revision)` are unchanged; only the blob goes
+  away. Nothing reads it: `/sync/delta` excludes these types before serializing, and the WS
+  broadcast uses the in-memory row rather than the change_log copy.
+- Ship the one-time cleanup as a checked-in script, not an automatic migration — nulling 24 GB
+  of TOAST and actually reclaiming it needs `VACUUM FULL`/`pg_repack` under an exclusive lock,
+  which is an operator's call, not a boot-time side effect.
+
+### Step 7 — server + client: the `"no-access"` poison mutation
+
+- Server `/sync/push`: reject a non-integer `item.id` with **400** before it reaches a `bigint`
+  cast, instead of letting Postgres raise and returning 500.
+- Client `pushMutation`: on a **permanent** rejection (400/404/409/422 — a mutation no retry can
+  fix) drop the pending row and carry on, instead of calling `retryFlush()`. 401/403/408/429 and
+  every 5xx stay retryable, since a login or a restart genuinely can fix those.
+- Client `retryFlush`: exponential backoff 500 ms → 30 s ceiling, reset on any successful push.
+  Today it is a fixed 500 ms with no ceiling, which is what turned one bad mutation into 404
+  server-side errors.
 
 ## What items 1 and 4 actually do (correction)
 
@@ -205,38 +368,79 @@ and GC'd back to 1.9 GB.
 **Stopgap only, and it does not fix convergence** — post-fix, deltas complete instead of
 crashing but grow (436 MB, 40→117 s) and every `since` stays put, because of item A.
 
-## Files Requiring Changes
+## Files Requiring Changes — DONE 2026-09-10
 
-| File | Change |
+| File | Change | Status |
+|---|---|---|
+| `packages/dms/src/sync/idb-store.js` | new `removeState(key)` so a watermark can actually be deleted | ✅ |
+| `packages/dms/src/sync/sync-manager.js` | **A1** — `setLastRevision(null)` deletes the key; `getLastRevision` treats any non-finite stored value as cold, so profiles carrying the old `"null"` string self-heal | ✅ |
+| `packages/dms/src/sync/sync-manager.js` | **A3** — pattern re-bootstrap re-enters `_bootstrapPatternImpl`, not the memoizing wrapper (was a promise chaining cycle) | ✅ |
+| `packages/dms/src/sync/sync-manager.js` | **item A** — `catchUp` advances `last_revision` to the server's tail, then `reBootstrapLoadedScopes()` cold-refreshes skeleton + loaded patterns | ✅ |
+| `packages/dms/src/sync/sync-manager.js` | **item B** — `deltaQuery`/`isDeltaTooLarge`/`deltaSize`/`deltaTailRevision` shared by all three delta call sites; every request now sends `maxChanges` | ✅ |
+| `packages/dms-server/src/routes/sync/sync.js` | **item B** — `resolveMaxChanges` (min of client's and server's), `buildDeltaQuery` (row + count over one shared predicate), `count(*)` before the rows, `{tooLarge, count, maxChanges, changes: [], revision: sinceRev, latestRevision}` past the threshold | ✅ |
+| `packages/dms-server/src/routes/sync/sync.js` | **item 1** — `SQL_NOT_SPLIT_TYPE` on the full-app and pattern-scoped row + count queries and on the skeleton `item_id IN (…)` query; JS `isSyncExcluded` kept as the legacy backstop, skipped only for an explicit `?type=` | ✅ |
+| `packages/dms-server/src/db/table-resolver.js` | **item 4** — new exported `changeLogData(type, action, data)`: null for deletes (as before) and null for split types | ✅ |
+| `packages/dms-server/src/routes/sync/sync.js` | **item 4** — push writer uses `changeLogData` | ✅ |
+| `packages/dms-server/src/routes/dms/dms.controller.js` | **item 4** — `appendChangeLog` uses `changeLogData` (the second, higher-traffic writer) | ✅ |
+| `packages/dms-server/src/db/sql/maintenance/reclaim_change_log_split_data.sql` | **item 4** — new operator-run cleanup: batched null-out + the `VACUUM FULL`/`pg_repack` step left explicitly to a maintenance window. Nothing auto-loads it | ✅ |
+| `packages/dms-server/src/routes/sync/sync.js` | `isValidItemId` — a non-integer `item.id` is a **400** before it reaches a bigint cast, not a 500 from Postgres | ✅ |
+| `packages/dms/src/sync/sync-manager.js` (`pushMutation`) | `PERMANENT_PUSH_STATUSES` (400/404/409/410/422) → drop the queued mutation instead of retrying; 401/403/408/429 and all 5xx stay retryable | ✅ |
+| `packages/dms/src/sync/sync-manager.js` (`retryFlush`) | exponential backoff 500 ms → 30 s ceiling, reset on a successful push or an emptied queue | ✅ |
+| `dms-template/.env.example` | documents `DMS_SYNC_MAX_DELTA` and that the effective threshold is min(server, client) | ✅ |
+| `dms-template/Dockerfile` | **item 3** — heap flag in CMD | ✅ (earlier) |
+
+### New tests
+
+| File | Covers |
 |---|---|
-| `packages/dms/src/sync/sync-manager.js:500` | **item A** — clear the unscoped watermark before re-bootstrapping; verify the cold path then repopulates it |
-| `packages/dms-server/src/routes/sync/sync.js:325-336` | **item B** — count first; return `{tooLarge, count, revision}` past a threshold instead of the rows |
-| `packages/dms/src/sync/sync-manager.js:493-512` | **item B** — handle a `tooLarge` response like the existing `STALE_DELTA_THRESHOLD` branch |
-| `packages/dms-server/src/routes/sync/sync.js:332` | **item 1** — `AND type NOT LIKE '%:data'`; keep the JS filter as a backstop for the legacy `NAME_SPLIT_REGEX` forms (`table-resolver.js:34`), which the SQL predicate does not catch |
-| `packages/dms-server/src/routes/sync/sync.js:294-299` | **item 1** — same predicate on the pattern-scoped query |
-| wherever `change_log` rows are written | **item 4** — `data = NULL` (or skip the row) for `isSplitType(type)` |
-| one-time migration / ops | **item 4** — null out existing `:data` snapshots, then `VACUUM FULL` / `pg_repack` (exclusive lock — schedule it) |
-| `packages/dms-server/src/routes/sync/sync.js:391` | validate client-supplied `item.id` is an integer; return 4xx |
-| `packages/dms/src/sync/sync-manager.js` (`retryFlush`) | stop retrying permanently-rejected mutations; add a backoff ceiling |
-| `dms-template/Dockerfile` | **done** — heap flag in CMD |
+| `packages/dms/tests/syncDeltaConvergence.test.js` | 7 tests driving the real `ws.onopen` → `catchUp` path against faked IndexedDB/fetch/WebSocket: the watermark advances and the next reconnect asks from the new one; `maxChanges` is sent; convergence still happens against a server with no `tooLarge`; an under-threshold delta still applies normally; a cold client no-ops; the pattern re-bootstrap resolves and goes cold; a `"null"` watermark reads as cold rather than `since=NaN`. **Verified to fail against the pre-fix `catchUp`** (2 of 7 red, the two convergence assertions). |
+| `packages/dms-server/tests/syncDelta.test.js` | 23 tests: `resolveMaxChanges` min/fallback semantics and the "never exceeds the client threshold" invariant; `buildDeltaQuery` count-and-rows-share-one-predicate invariant across all four scopes, placeholder/param arity, split exclusion present for pattern + full-app and absent for explicit `?type=`; `changeLogData` for deletes / ordinary types / `:data` / legacy split form; `isValidItemId` including the literal `"no-access"`. |
 
 ## Testing Checklist
 
 - [x] Heap ceiling active (4144 → 16432 MB; `RestartCount` 0, healthy, 0 OOMs)
 - [x] CLI flag confirmed to override `NODE_OPTIONS` (tested against `node:22-alpine`)
-- [ ] **Item A: a client stuck at a stale `since` actually converges** — the one test that
-      matters. Reproduce with a >1000-change backlog, confirm `last_revision` advances across
-      a reconnect instead of repeating the same `since`.
-- [ ] Item A does not turn into "re-bootstrap skeleton on every reconnect"
-- [ ] Item B: server returns `tooLarge` without serializing the rows; client re-bootstraps on it
-- [ ] Item B: server threshold and `STALE_DELTA_THRESHOLD` agree
-- [ ] Item 1: full-app delta returns byte-identical `changes` before/after the SQL filter (if
-      it differs, the SQL and JS predicates disagree and the legacy forms matter)
-- [ ] Item 1: legacy `NAME_SPLIT_REGEX` split types still excluded
-- [ ] Item 1: pattern-scoped delta unaffected
-- [ ] Item 4: `:data` insert/update/delete still produces a revision, with no `data` blob
-- [ ] Item 4: reclaimed table size confirmed after vacuum
-- [ ] `"no-access"` push rejected with 4xx; client stops retrying without manual intervention
+- [x] **Item A: a client stuck at a stale `since` actually converges** — the one test that
+      matters. `syncDeltaConvergence.test.js` drives `ws.onopen` → `catchUp` with a stale
+      `last_revision` of 907608 against a `tooLarge` response, asserts the watermark becomes
+      946768, and asserts the **second** reconnect requests `since=946768`. Confirmed red
+      against the pre-fix `catchUp` (which left it at 907608), green after.
+- [x] Item A does not turn into "re-bootstrap skeleton on every reconnect" — same test: the
+      second reconnect issues a normal small-window delta, not another bootstrap.
+- [x] Item B: server returns `tooLarge` without serializing the rows; client re-bootstraps on
+      it. Verified live against the local server on the real mercury backlog: `since=0` →
+      `{"tooLarge":true,"count":228237,"maxChanges":1000,"changes":[],"revision":0,
+      "latestRevision":949545}` in **81 ms / 100 bytes**, against 436 MB and 40-120 s before.
+- [x] Item B: server threshold and `STALE_DELTA_THRESHOLD` agree — structurally, not by
+      convention: the client sends its own threshold and the server takes the min, so a served
+      delta is always under the client's limit. Unit-tested as an invariant
+      (`resolveMaxChanges` "never exceeds the client threshold"), and confirmed live that
+      `maxChanges=5` is honoured over the server's 1000.
+- [x] Item 1: full-app delta returns byte-identical `changes` before/after the SQL filter.
+      Checked on live data instead of by diff: for the window `since=949000` the SQL-filtered
+      `count` is 622 and `changes.length` after the JS backstop is also **622**, so the JS pass
+      removes nothing and the two predicates agree on this app's data.
+- [x] Item 1: legacy `NAME_SPLIT_REGEX` split types still excluded — the JS `isSyncExcluded`
+      pass is retained for exactly this and asserted by `buildDeltaQuery`'s `excludeSplit`
+      flag; `changeLogData('traffic_counts-1', …)` is unit-tested too.
+- [x] Item 1: pattern-scoped delta unaffected — `buildDeltaQuery` tests cover the pattern
+      scope's params, placeholder arity and instance-prefix sibling matching.
+- [x] Item 1: `:data` rows really are being excluded (i.e. the filter does work) — a
+      `?type=jurisdictions|1346450:data` delta reports 3,306 rows, matching the figure in this
+      doc, while the full-app scope's 228,237 excludes them.
+- [x] Item 4: `:data` insert/update/delete still produces a revision, with no `data` blob —
+      `changeLogData` unit-tested for all three actions; `change_log.data` is nullable
+      (`change_log.sql`) and the `RETURNING revision` insert is otherwise untouched.
+- [ ] Item 4: reclaimed table size confirmed after vacuum — **needs an operator**. Run
+      `src/db/sql/maintenance/reclaim_change_log_split_data.sql` (step 0 reports the savings
+      read-only first), then schedule step 2's `VACUUM FULL`/`pg_repack` in a maintenance
+      window; it takes an ACCESS EXCLUSIVE lock on a 37 GB table.
+- [x] `"no-access"` push rejected with 4xx; client stops retrying without manual intervention —
+      `isValidItemId` returns 400 before the bigint cast, and `PERMANENT_PUSH_STATUSES` drops
+      the queued mutation on a 400 rather than calling `retryFlush()`. Both unit-tested.
+- [ ] Live browser pass on a real stale profile — the tests fake IndexedDB, so one run in a
+      browser that actually carries a stale `last_revision` (or a `"null"` pattern watermark)
+      is still worth doing before this is closed out.
 
 ## Follow-ups (not scoped here)
 
@@ -245,6 +449,12 @@ crashing but grow (436 MB, 40→117 s) and every `since` stays put, because of i
 - Detect a `since` older than the compaction horizon and force a bootstrap.
 - The `mitigateny_hamilton` churn itself: a county load generating ~10,700 `change_log` rows
   (mostly self-cancelling) is worth looking at from the script side.
+- The WebSocket broadcast still ships full `data` for `:data` types and the client's
+  `ws.onmessage` still applies them — see "Also found" above. Decide whether the client should
+  mirror dataset rows at all, then make the push path agree with the pull path either way.
+- `bootstrapFull` is dead code (reachable only from its own recursion) and has been flagged
+  `no-unused-vars` by eslint since before this task. It was fixed in place here rather than
+  deleted, to keep this change reviewable; deleting it is a separate call.
 
 ## Diagnosis notes
 

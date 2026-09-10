@@ -19,6 +19,7 @@ const {
 const { resolveAuthPermissions } = require('./auth');
 const {
   isSplitType,
+  changeLogData,
   parseType,
   resolveTable,
   getSequenceName,
@@ -235,7 +236,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       `INSERT INTO ${tbl} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING revision;`,
-      [itemId, app, type, action, action === 'D' ? null : data, userId,
+      [itemId, app, type, action, changeLogData(type, action, data), userId,
        reqMeta?.ip || null, reqMeta?.userAgent || null, reqMeta?.authState || null]
     );
     const revision = rows[0]?.revision;
