@@ -18,7 +18,7 @@ import {
 export function LayerMenu({layer, button}) {
   const { state, setState  } = React.useContext(SymbologyContext);
   const { UI } = React.useContext(ThemeContext) || {};
-  const { NavigableMenu } = UI || {};
+  const { NavigableMenu, Button } = UI || {};
 
   return (
     <NavigableMenu
@@ -39,7 +39,7 @@ export function LayerMenu({layer, button}) {
         }
       ]}
     >
-      {button}
+      <Button type="plain" className="p-0">{button}</Button>
     </NavigableMenu>
   )
 }
