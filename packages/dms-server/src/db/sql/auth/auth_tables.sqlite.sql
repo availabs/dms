@@ -57,6 +57,16 @@ CREATE TABLE IF NOT EXISTS logins (
     FOREIGN KEY (project_name) REFERENCES projects(name)
 );
 
+-- Failed login attempts, for the IP lockout check in auth/utils/queries.js
+-- (checkIfIpIsLocked / insertFailedLoginAttempt). Added when this file was
+-- found to be missing the table entirely — every login failed against a
+-- fresh SQLite auth database ("no such table: failed_logins"). See
+-- migrate_auth_core.sqlite.sql for the matching backfill.
+CREATE TABLE IF NOT EXISTS failed_logins (
+    ip TEXT NOT NULL,
+    attempted_at TEXT DEFAULT (datetime('now')) NOT NULL
+);
+
 -- Signup requests table
 CREATE TABLE IF NOT EXISTS signup_requests (
     user_email TEXT NOT NULL,
@@ -116,6 +126,7 @@ CREATE INDEX IF NOT EXISTS idx_groups_in_projects_project ON groups_in_projects(
 CREATE INDEX IF NOT EXISTS idx_groups_in_projects_group ON groups_in_projects(group_name);
 CREATE INDEX IF NOT EXISTS idx_messages_user ON messages(user_email);
 CREATE INDEX IF NOT EXISTS idx_messages_new_sent_to ON messages_new(sent_to);
+CREATE INDEX IF NOT EXISTS idx_failed_logins_ip ON failed_logins(ip);
 
 -- Insert default data
 INSERT OR IGNORE INTO projects (name, created_at, created_by) VALUES ('avail_auth', datetime('now'), 'admin@availabs.org');

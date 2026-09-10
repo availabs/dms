@@ -29,17 +29,14 @@ function _getSyncAPI() { return globalThis.__dmsSyncAPI || null; }
  */
 async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeConfigs, path) {
   const t0 = _DEV ? performance.now() : 0;
-  const result = await sync.exec(
-    'SELECT * FROM data_items WHERE app = ? AND type = ? ORDER BY id',
-    [app, type]
-  );
+  const rows = await sync.getItemsByAppType(app, type);
 
-  if (result.rows.length === 0) {
+  if (rows.length === 0) {
     if (_DEV) console.log(`[sync:load] ${app}+${type} — no local data, falling through to Falcor`);
     return null;
   }
 
-  const items = result.rows.map(row => {
+  const items = rows.map(row => {
     const parsed = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
     return {
       ...parsed,
@@ -62,12 +59,18 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
   // (which includes the edit/view prefix, e.g., "edit/know_the_environment")
   const wildcardParam = activeViewEdit?.params?.['*']
     || activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
+  // Only a LEADING edit/view segment is ever a mode prefix in this codebase's URL
+  // convention (/edit/<slug>, never <slug>/edit — see siteConfig.jsx's "edit/*" route
+  // and traversing-dms-pages.md's "Edit URL puts edit first" gotcha). A trailing strip
+  // used to also run here and silently truncated any real slug whose OWN last segment
+  // is literally "edit" or "view" (e.g. "forms/participation/edit") down to the wrong,
+  // shorter slug — activeSlug then never matched item.url_slug, so this page's section
+  // refs never resolved from local storage and rendered as permanently blank stubs
+  // under sync. Found live 2026-09-09 diagnosing a sync-only blank-render report.
   const strippedWildcard = wildcardParam
     .replace(/^(edit|view)(\/|$)/, '')  // strip leading edit/ or view/ prefix (or bare "edit"/"view")
-    .replace(/\/(edit|view)(\/.*)?$/, '') // strip trailing /edit or /view suffix
   const strippedPath = (path || '').replace(/^\//, '')
     .replace(/^(edit|view)(\/|$)/, '')
-    .replace(/\/(edit|view)(\/.*)?$/, '')
   const activeSlug = strippedWildcard || strippedPath || '';
   const needsRefResolution = (item, idx) => {
     if (!Object.keys(dmsAttrsConfigs).length) return false;
@@ -90,15 +93,40 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
       }
 
       if (item[key] && typeof item[key]?.[Symbol.iterator] === 'function') {
-        // Array of refs
-        const childIds = Array.from(item[key]).map(ref => ref.id || ref).filter(Boolean);
+        // Array of refs. `ref` is normally either a resolved-ref object
+        // ({id, ref, ...}) or, for legacy data, a bare id primitive — hence
+        // extracting `.id` with a fallback to `ref` itself. But `ref.id || ref`
+        // breaks when `ref` is an object whose `id` is explicitly null/missing
+        // (a malformed/incomplete ref): `null || ref` falls through to the
+        // whole REF OBJECT, not a primitive, which IndexedDB's `s.get()`
+        // rejects outright ("not a valid key") — a real crash, not a no-op.
+        // Only fall back to treating `ref` as a bare id when it's actually a
+        // primitive; an object with no usable id has nothing to resolve.
+        // Coerce to String: IndexedDB keys are strictly typed and every
+        // server-synced row is keyed by a string id (see note below), but
+        // some refs (e.g. a site's `patterns` array) are written with `id`
+        // as a JS Number (`+newId` at creation time). Without this,
+        // `getItemsByIds` silently misses those rows and the ref is left
+        // unresolved — the exact cause of the admin /list page rendering
+        // blank pattern names on client-side navigation.
+        const childIds = Array.from(item[key])
+          .map(ref => (ref && typeof ref === 'object') ? ref.id : ref)
+          .filter(Boolean)
+          .map(String);
         if (childIds.length > 0) {
-          const placeholders = childIds.map(() => '?').join(',');
-          const children = await sync.exec(
-            `SELECT * FROM data_items WHERE id IN (${placeholders})`,
-            childIds
-          );
-          const childMap = new Map(children.rows.map(r => [String(r.id), r]));
+          // IndexedDB keys are strictly typed. Every server-synced row (the
+          // vast majority — bootstrap/delta/WS-applied items, and localCreate's
+          // server-assigned id) is written keyed by whatever type its `id` field
+          // has in the server's JSON response, which is a STRING (confirmed live:
+          // getItem('54035') finds the row, getItem(54035) does not). Only the
+          // rare offline-create fallback (createItemOffline's autoIncrement) ever
+          // produces a genuinely numeric key. Coercing to Number here — as this
+          // used to do — made every ref lookup miss for any row sourced from the
+          // server, silently leaving refs unresolved (a bare {id, ref} stub with
+          // no content), which is what rendered as a permanently blank page after
+          // the first edit of a session. Pass childIds through as-is.
+          const childRows = await sync.getItemsByIds(childIds);
+          const childMap = new Map(childRows.map(r => [String(r.id), r]));
           if (_DEV) {
             const missing = childIds.filter(id => !childMap.has(String(id)));
             if (missing.length > 0) {
@@ -123,13 +151,10 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
           });
         }
       } else if (item[key]?.id) {
-        // Single ref
-        const children = await sync.exec(
-          'SELECT * FROM data_items WHERE id = ?',
-          [item[key].id]
-        );
-        if (children.rows.length > 0) {
-          const child = children.rows[0];
+        // Single ref — see the array-ref case above for why this must
+        // coerce to String, not Number.
+        const child = await sync.getItem(String(item[key].id));
+        if (child) {
           const parsed = typeof child.data === 'string'
             ? JSON.parse(child.data) : (child.data || {});
           item[key] = {
@@ -453,6 +478,26 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 
 		// --- Sync intercept: write locally first ---
 		const sync = _getSyncAPI();
+
+		// An update to an EXISTING item is only sync-eligible once its type is
+		// locally scoped (isLocal). On a page's first structural edit in a
+		// session, isLocal is still false — it only flips true once the
+		// reactive bootstrapPattern() fired by the read side (dmsDataLoader,
+		// above) finishes, tens to hundreds of ms later. Without waiting here,
+		// this write (and any dms-format children it carries, e.g. `history`)
+		// falls through to plain Falcor: it persists correctly server-side but
+		// never touches local IndexedDB and never echoes back over WebSocket
+		// the way a sync.localUpdate/push does. The concurrent bootstrap then
+		// completes, flips isLocal permanently true, and every subsequent read
+		// switches to the local-first path — which never received this write —
+		// so the page renders as if the edit vanished until a hard reload
+		// forces a fresh bootstrap/delta. Awaiting bootstrapPattern (idempotent
+		// — a no-op if already loaded or already in flight) closes that race by
+		// making sure isLocal reflects reality before the write path is chosen.
+		if (sync && id && requestType !== 'updateType' && !sync.isLocal(app, type) && sync.bootstrapPattern && type) {
+			await sync.bootstrapPattern(type);
+		}
+
 		// Use sync for: updates/deletes of known types, AND creates (type may not be in scope yet)
 		const isSyncEligible = sync && requestType !== 'updateType' && (sync.isLocal(app, type) || (!id && attributeKeys.length > 0));
 		if (_DEV) {

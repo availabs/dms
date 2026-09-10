@@ -155,6 +155,21 @@ CREATE TABLE public.logins (
 
 
 
+-- Failed login attempts, for the IP lockout check in auth/utils/queries.js
+-- (checkIfIpIsLocked / insertFailedLoginAttempt). Not part of the original
+-- pg_dump — added when the create script was found to be missing this table
+-- entirely (both dialects), which made every login fail against a fresh
+-- database. See migrate_auth_core.sql for the matching backfill.
+
+CREATE TABLE public.failed_logins (
+    ip text NOT NULL,
+    attempted_at timestamp with time zone DEFAULT now() NOT NULL
+);
+
+CREATE INDEX idx_failed_logins_ip ON public.failed_logins(ip);
+
+
+
 --
 -- TOC entry 223 (class 1259 OID 64309)
 -- Name: messages; Type: TABLE; Schema: public;

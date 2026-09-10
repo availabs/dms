@@ -285,6 +285,16 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   rather than erroring. A typo'd slug and an actual permission denial render
   identically (full rich content, no error text). Don't over-interpret a
   fallback render as a permission problem before double-checking the URL.
+  **A page's `url_slug` can itself contain `/` and isn't just the last path segment** — e.g. a
+  TransportNY report's `url_slug` is the full `reports/<title_snake_case>`, not `<title_snake_case>`
+  under a `reports/` mount, so `/edit/<title_snake_case>` (stripping what looks like a parent
+  prefix) 404s-via-fallback while `/edit/reports/<title_snake_case>` resolves (found live
+  2026-09-04). Don't guess-and-strip a prefix that looks like a mount segment — confirm the real,
+  complete `url_slug` first: `python3 scripts/npmrds-reports/check_page_exists.py <fragment>` queries
+  `dms_npmrdsv5.data_items` directly (exact match, falling back to a `url_slug`/title substring
+  search) and prints the real `url_slug` plus ready-to-use view/edit URLs — cheaper than a
+  screenshot-guess-repeat loop, and works for any `npmrds_sub|page`, not just `reports/*` (that
+  narrower case has its own picker, `pick_test_report.py`, referenced above).
 - **A stale injected auth token silently degrades to anonymous** rather than
   erroring — a rendered-but-view-only page (settings/edit affordances all
   missing) is as likely to mean "expired token" as "real permissions issue."

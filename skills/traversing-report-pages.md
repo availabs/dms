@@ -414,18 +414,20 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 - Reloading the same `?routes=...` URL directly re-resolves with no gate (the
   URL is the durable/shareable state); a different `?routes=` value on the
   same page renders a different route's real data — the core mechanism.
-- **`?routes=` is silently INERT on any `/edit/...` URL — probe the published
-  view, never edit mode, to check whether a slot actually resolved.** Found
-  live 2026-08-11: `useDynamicReportRoutes`'s own `enabled` check is
-  `isDynamicReport && !isEdit && routeIds.length > 0` — by design, an author
-  editing a Dynamic Report always sees the raw unresolved slots (so editing
-  the template itself isn't at the mercy of whichever route happens to be in
-  the URL). A `report_probe.mjs "edit/<slug>?routes=<id> --auth"` run against
-  a slot-fed graph will show real chart chrome with **zero data** (an "EMPTY
-  SVG"/no `/graph` query at all for that section) even when everything is
-  wired correctly — this is expected, not a bug, and reads as a false failure
-  if you don't already know the mode gates it off. Publish the page (or at
-  least confirm it's published) and probe the plain slug instead.
+- **STALE, corrected 2026-09-09: `?routes=` DOES resolve on a `/edit/...` URL.** The note
+  originally here (2026-08-11) said it was silently inert in edit mode, citing
+  `useDynamicReportRoutes`'s `enabled` check as `isDynamicReport && !isEdit &&
+  routeIds.length > 0`. That was true THEN but was changed 2026-08-19
+  (report-authoring-ux-overhaul.md item 7): the check is now `isDynamicReport &&
+  routeIds.length > 0`, no `!isEdit` — an author previewing `/edit/<slug>?routes=...`
+  sees the same resolved preview a real viewer would (route names/dates/TMCs all
+  resolve; mutation controls stay edit-mode-gated as normal). Re-confirmed live
+  2026-09-09 across many round-trips (dynamic-reports-authoring-gaps.md sub-item 4):
+  editing a Dynamic Report with a `?routes=` param present shows fully resolved
+  data, not raw slot placeholders. A plain `/edit/<slug>` with no `?routes=` still
+  falls through to raw, unresolved slots (nothing to resolve against). If
+  `report_probe.mjs "edit/<slug>?routes=<id> --auth"` ever shows an EMPTY graph
+  again, treat it as a real signal, not this old expected-gating note.
 
 ### Relative dates: the "Today (view time)" virtual base, and its entry-gate date field
 
@@ -567,33 +569,53 @@ into the component itself. See `ReportRouteList/README.md`'s "View-mode visibili
 `planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` item 3's "View-mode visibility"
 section for the full history.
 
-### RRL row mutation (pencil/reorder/trash/date-edit) needs RRL's OWN `SectionEdit`, not just page-level `/edit/`
+### RRL row mutation (pencil/reorder/trash/name/date-edit) — page-level `/edit/` is enough, no separate `SectionEdit` needed
 
-Found live 2026-08-07. Being on `/edit/<slug>` is not enough to unlock a route row's pencil/trash/
-reorder/date-edit controls — `RouteRow`'s `canMutateRow` comes from `ReportRouteList`'s own
-`canMutate = isEdit && Boolean(sectionEditorOpen)`, where `sectionEditorOpen` is `props.isEdit` (the
-same per-section `SectionEdit`-vs-`SectionView` signal every custom component has to gate on — see
-`traversing-dms-pages.md`'s "two different edit states" gotcha). Confirmed live via the React fiber
-tree: on a freshly-loaded `/edit/<slug>` page, `ReportRouteList`'s own `isEdit` prop reads `false`
-and its ancestor is `SectionView`, not `SectionEdit` — every row renders with zero mutation
-affordances (no color picker, no name pencil, no reorder arrows, no date-edit pencil) until you
-explicitly enter RRL's *own* edit mode: hover the RRL panel to reveal its Settings kebab (same
-generic per-section trigger every section has, positioned `absolute top-2 right-2` inside the
-section's own padded cell), open Settings, click the pencil-square icon at the top of that dropdown
-— only then does `ADD ROUTE SLOT`/`ADD GRAPH`/the Dynamic Report toggle and every row's mutation
-UI appear. Easy to miss because RRL doesn't look like an ordinary configurable section (no visible
-Dataset/Columns chrome until you're actually in this mode) and its Settings entry only has
-`Type`/`Dataset`/`Layout`/`Delete` before you click the pencil — the mutation UI is genuinely absent
-until then, not just visually subtle.
+**Superseded 2026-08-19, re-confirmed live 2026-09-04** — this section used to say a row's pencil/
+trash/reorder/date-edit controls needed RRL's own `SectionEdit` (hover the panel → Settings kebab →
+click the pencil-square) on top of page-level `/edit/<slug>`, per a 2026-08-07 finding. That extra
+gate was a deliberate design decision reversed by `report-authoring-ux-overhaul.md` item 3
+(2026-08-19): `ReportRouteList`'s `canMutate` is now keyed on page-level `editPageMode` **alone** —
+`const isEdit = Boolean(editPageMode); const canMutate = isEdit;` — with no requirement that this
+section also be put into its own `SectionEdit` pencil-click mode first. Confirmed live 2026-09-04 on
+a scratch report (`report_build.mjs`-built, 2 routes + 1 graph): loading a plain `/edit/<slug>` URL
+immediately showed every row's mutation affordances (reorder arrows, color-picker dot, the combined
+edit toggle, trash icon) and `ADD ROUTE`/`ADD GRAPH`/the Report Settings disclosure — no extra click
+needed. **Author-empowerment break from DMS's normal per-section view/edit gating, not a bug** —
+see the file's own top-of-hook comment in `ReportRouteList.jsx` for the full reasoning.
 
-**A caution learned the hard way in the same session**: once inside this mutation UI, click targets
-shift as soon as anything else changes the layout above them (an open Settings dropdown, a row
-expanding). A coordinate-based click that was correct a moment ago can land on a different row's
-"Move up" reorder button instead of the pencil it was aimed at — on a real, published page, this
-silently reorders `reports_snap_2.routes[]` (no confirm dialog). Prefer a DOM query
-(`element.click()` on the button found by its exact `title`, e.g. `"Edit derived-date relationship"`
-or `"Expand"`) over coordinates once inside this UI, and always re-read the DB after any live-testing
-session here to confirm nothing unintended stuck.
+**Row-level UI, current shape (2026-09-04 restructure, edit-commit model replaced 2026-09-05)**:
+collapsed, each row shows a **bold date-range line** (the prominent one) with a muted
+`"N TMCs · X.X mi"` line underneath (swapped + reweighted 2026-09-05 — dates were originally the
+muted line, TMC/mileage prominent; that read backwards per Ryan's feedback). A `PencilSquare`
+button (`title="Edit route"`) enters edit mode, **replacing** that two-line summary with an
+editable title `<input>` + the Fixed/Derived date editor in the same visual slot (not appended
+below it) — no separate "Edit name" pencil, that's still true.
+
+**Committing an edit is explicit Save/Discard, NOT autosave** (reversed 2026-09-05 — the
+2026-09-04 restructure had shipped with autosave-on-blur/debounce for both fields, extending the
+2026-08-19 item-4A "always live" decision for dates; Ryan's live feedback called the resulting
+single ambiguous toggle misleading and asked for a real commit gate instead). While a row is in
+edit mode, the header shows **two icon buttons side by side**: an `XMark` (`title="Discard
+changes"`) and a green-tinted floppy-disk (`title="Save changes"`, disabled — greyed, not
+clickable — while the name collides with a sibling or the derive-mode pick is incomplete/invalid).
+Nothing persists until Save is clicked; Discard reverts the row's buffer to the last-persisted
+values. Both live in the header row itself — an earlier same-day iteration put Save/Discard in a
+bottom action row instead, found redundant with the header's own X, and was removed within the
+same session (don't expect to find a bottom action row here). See `ReportRouteList/RouteRow.jsx`'s
+own top comment and `planning/transportny/tasks/current/npmrds-reports-routes-feedback-triage.md`'s
+"Phase 2 follow-up" section for the full design and live-verification record. A real viewer (not
+an author) never sees any of this — see the section above, RRL is author-only, full stop.
+
+**A caution still true**: once a row is in edit mode, click targets shift as soon as anything else
+changes the layout above them (another row toggling open, the Report Settings disclosure). A
+coordinate-based click that was correct a moment ago can land on a different row's reorder button
+instead of the one it was aimed at — on a real, published page, this silently reorders
+`reports_snap_2.routes[]` (no confirm dialog, though as of 2026-09-05 a reorder itself still
+persists immediately regardless of Save/Discard — only name/dates are buffered). Prefer a DOM
+query (`element.click()` on the button found by its exact `title`, e.g. `"Edit route"`/`"Discard
+changes"`/`"Save changes"`/`"Move up"`) over coordinates inside this UI, and always re-read the DB
+after any live-testing session here to confirm nothing unintended stuck.
 
 ## 5. Report-specific gotchas (check `traversing-dms-pages.md` §4 too)
 
@@ -874,9 +896,17 @@ any DMS page, not just reports. What's specific to reports:
   in any `rebuild` field that might see this again.
 - **`--replace`'s first implementation only deleted the page row — not its `reports_snap_2` row —
   and that row is exactly what `/reports`'s catalog cards query, by tag, not by page reference.**
-  `dms page delete` never cascades to a page's own dataset rows (same non-cascade as its sections,
-  already noted elsewhere in this doc as harmless-because-invisible — this one ISN'T invisible).
-  Every `--replace` left the OLD `reports_snap_2` row behind with the OLD `report_id`, still
+  At the time, `dms page delete` never cascaded to a page's own dataset rows (same non-cascade as
+  its sections, already noted elsewhere in this doc as harmless-because-invisible — this one
+  ISN'T invisible). **Fixed platform-side 2026-09-04** for the `reports_snap_2` case specifically —
+  a generic page delete (admin UI, `dms page delete`, `dms raw delete`) now dispatches to an
+  opt-in server hook that deletes the matching catalog row (`src/dms/planning/tasks/current/
+  page-delete-lifecycle-hook.md`; requires a dms-server redeploy to take effect anywhere). DMS
+  core still has no BUILT-IN structural cascade for page→dataset rows in general (deliberately —
+  that relationship is app-specific, not a DMS concept) and page→section rows are still not
+  cascaded at all, so the troubleshooting recipe below remains valid for cleaning up legacy
+  orphans, pre-deploy environments, or a silently-logged hook failure. Every `--replace` left the
+  OLD `reports_snap_2` row behind with the OLD `report_id`, still
   carrying the same `tags`, so it kept matching the catalog's tag filter and rendering as a second
   card for the same report. Found live 2026-08-17 by Ryan spotting duplicate cards on `/reports`
   right after all 12 templates were `--replace`d in one session — some templates (`Weekly
@@ -899,6 +929,18 @@ any DMS page, not just reports. What's specific to reports:
   will actually let you pick it in "ROUTES FOR THIS GRAPH" and create the section. Found live
   2026-08-31 building a scratch Map section to verify a hover-tooltip fix on a brand-new "Create
   Report" page (0 routes at creation).
+- **Driving a plain `<select>` via `claude-in-chrome`'s `computer` tool is unreliable** — clicking
+  it opens the OS-native dropdown, which the extension can't screenshot/click into. Read/set it via
+  `javascript_tool` instead: read every select's options with
+  `Array.from(document.querySelectorAll('select')).map(s => ({title: s.title, value: s.value,
+  options: Array.from(s.options).map(o => ({value:o.value, text:o.text}))}))` (options carry both
+  the value React reads and the human-readable label, useful for confirming a computed label before
+  committing to a click-path test), then commit a choice through React's own controlled-input path
+  — a bare `sel.value = x` does NOT fire React's `onChange` (React wraps the native property
+  setter): `Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,
+  'value').set.call(sel, value)` followed by `sel.dispatchEvent(new Event('change', {bubbles:
+  true}))`. Found live 2026-09-08 verifying `dynamic-reports-authoring-gaps.md` sub-item 2's
+  "reuse an existing route" select next to "+ Add Route Slot".
 
 ## 6. Which tool to reach for
 

@@ -247,6 +247,22 @@ async function setupAndListen() {
     }
   }
 
+  // Optional app-owned page-delete side effect — load via DMS_PAGE_DELETE_HOOK
+  // if set. Same shape as DMS_EXTRA_DATATYPES above: an env var pointing at a
+  // CommonJS module, resolved against cwd. The module's default export is a
+  // single async function called by dms.controller.js's cascadePageDelete for
+  // every deleted page row on every app this server hosts.
+  const pageDeleteHookPath = process.env.DMS_PAGE_DELETE_HOOK;
+
+  if (pageDeleteHookPath) {
+    try {
+      const onPageDeleted = require(require('path').resolve(pageDeleteHookPath));
+      require('./routes/dms/dms.controller').setPageDeleteHook(onPageDeleted);
+    } catch (e) {
+      console.error(`[page-delete-hook] Failed to load DMS_PAGE_DELETE_HOOK=${pageDeleteHookPath}:`, e.message);
+    }
+  }
+
   // Mount plugin routes with shared helpers
   const tasks = require('./dama/tasks');
   const metadata = require('./dama/upload/metadata');
@@ -323,6 +339,7 @@ async function setupAndListen() {
           authPath: process.env.DMS_AUTH_PATH || process.env.VITE_DMS_AUTH_PATH || '/auth',
         },
         pgEnvs,
+        isMultiTenant: (process.env.DMS_MULTI_TENANT || process.env.VITE_DMS_MULTI_TENANT) === '1',
       },
     });
   }

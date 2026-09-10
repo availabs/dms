@@ -27,6 +27,7 @@ const mapeditorConfig = ({
   pgEnv,
   useFalcor,
   themes = {},
+  ssrCollect,
 	...rest
 }) => {
   baseUrl = baseUrl === '/' ? '' : baseUrl;
@@ -35,7 +36,7 @@ const mapeditorConfig = ({
   const format = initializePatternFormat(MapEditorFormat, app, patternInstance);
   const childType = format.type; // e.g. "map_editor_test|symbology"
 
-  const theme = getPatternTheme(themes, pattern);
+  const theme = getPatternTheme(themes, pattern, ssrCollect);
 
 	Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 

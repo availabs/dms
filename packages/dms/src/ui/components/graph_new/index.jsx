@@ -166,9 +166,26 @@ export default function Graph (props) {
     });
   }, [data]);
 
+  // Live-resolve a difference graph's caption against whichever real route(s) it's bound to
+  // (dynamic-reports-authoring-gaps.md — "Static graph text vs. live route resolution").
+  // `contextTheme.resolveReportDisplayText` (the ROOT theme, not the `avlGraph`-scoped `theme`
+  // above) only exists on sites/themes that define it (transportny); everywhere else this is a
+  // no-op and `resolvedDescription === display.description` unchanged. `_autoDiffCaption` is set
+  // by report_build.mjs only for a difference graph with no author-supplied `caption` — see that
+  // function's own doc comment for why an auto caption rebuilds the whole phrase live instead of
+  // token-substituting stored text (there IS no stored text for that case).
+  const resolvedDescription = contextTheme?.resolveReportDisplayText
+    ? contextTheme.resolveReportDisplayText(display.description, {
+        routeIds: display._measurePick?.routeIds,
+        invert: display?.comparisonSeries?.combine?.invert,
+        isAutoDiffCaption: Boolean(display._autoDiffCaption),
+        pageState,
+      })
+    : display.description;
+
   return (
     <GraphComponent
-        graphFormat={ mergeChartDefaults(theme?.chartDefaults, display) }
+        graphFormat={ mergeChartDefaults(theme?.chartDefaults, resolvedDescription === display.description ? display : { ...display, description: resolvedDescription }) }
         graphType={ display.graphType }
         viewData={ viewData }
         columns={ keyedColumns }

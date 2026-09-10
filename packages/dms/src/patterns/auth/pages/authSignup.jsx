@@ -101,7 +101,7 @@ export default function AuthSignup({ disableSignup }) {
                 const siteDataValue = siteRow?.data?.$type === 'atom' ? siteRow.data.value : siteRow?.data;
                 const currentTenants = Array.isArray(siteDataValue?.tenants) ? siteDataValue.tenants : [];
                 await falcor.call(['dms', 'data', 'edit'], [masterApp, +siteId, {
-                    tenants: [...currentTenants, { ref: `${masterApp}+${siteInstance}|tenant`, id: +tenantId }]
+                    tenants: [...currentTenants, { ref: `${masterApp}+${tenantType}`, id: +tenantId }]
                 }]);
 
                 // 4. Create tenant's own site row in tenant app
@@ -113,9 +113,10 @@ export default function AuthSignup({ disableSignup }) {
                 if (!tenantSiteId) throw new Error('Failed to create tenant site');
 
                 // 5. Create tenant's auth pattern
+                const authPatternType = `${siteInstance}|auth:pattern`;
                 const authPatternRes = await falcor.call(
                     ['dms', 'data', 'create'],
-                    [slug, `${siteInstance}|auth:pattern`, {
+                    [slug, authPatternType, {
                         pattern_type: 'auth',
                         name: 'Auth',
                         base_url: 'auth',
@@ -132,7 +133,7 @@ export default function AuthSignup({ disableSignup }) {
                 // 6. Create template patterns then update tenant site with all refs.
                 // siteId/initialPatternRefs make provisioning register each pattern
                 // on the tenant site as it's created (crash-safe).
-                const authPatternRef = { ref: `${slug}+${siteInstance}|pattern`, id: +authPatternId };
+                const authPatternRef = { ref: `${slug}+${authPatternType}`, id: +authPatternId };
                 const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
                     app: slug,
                     siteInstance,

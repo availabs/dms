@@ -521,6 +521,24 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     // Clean in-page-nav anchor id (Phase 3) — see SectionEdit for rationale.
     const anchorId = value?.anchorId || (value?.navLabel ? slugifyAnchor(value.navLabel) : undefined);
 
+    // Live-resolve a report graph's own section title against whichever real route it's bound
+    // to (dynamic-reports-authoring-gaps.md — "Static graph text vs. live route resolution").
+    // `theme.resolveReportDisplayText` only exists on sites/themes that define it (transportny);
+    // everywhere else this is a no-op and `resolvedTitle === value?.title` unchanged. Safe to call
+    // unconditionally even on transportny's own non-report sections: the hook itself no-ops on
+    // anything that isn't a `%n`/`%y`-bearing string (a Lexical rich-text title, an already-plain
+    // title, etc). `dwHandle.state` is the same parsed element-data graph_new/index.jsx renders
+    // from — already tracked here for the `hideSection` read above, no new plumbing.
+    const measurePick = dwHandle?.state?.display?._measurePick;
+    const resolvedTitle = fullTheme?.resolveReportDisplayText
+        ? fullTheme.resolveReportDisplayText(value?.['title'], {
+            routeIds: measurePick?.routeIds,
+            invert: dwHandle?.state?.display?.comparisonSeries?.combine?.invert,
+            pageState,
+        })
+        : value?.['title'];
+    const headerValue = resolvedTitle === value?.['title'] ? value : { ...value, title: resolvedTitle };
+
     return (
         <div id={anchorId}
              className={`${editPageMode && hideSection && !editPageMode ? theme.wrapperHidden : theme.wrapper}${anchorId ? ' scroll-mt-36' : ''}`}
@@ -550,7 +568,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
             {/* -------------------Section Header ----------------------*/}
             {showHeader ? (
                 <ViewSectionHeader
-                    value={value}
+                    value={headerValue}
                     TitleComp={TitleComp}
                     updateAttribute={updateAttribute}
                     helpTextArray={helpTextArray}
