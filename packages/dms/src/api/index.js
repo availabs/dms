@@ -59,12 +59,18 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
   // (which includes the edit/view prefix, e.g., "edit/know_the_environment")
   const wildcardParam = activeViewEdit?.params?.['*']
     || activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
+  // Only a LEADING edit/view segment is ever a mode prefix in this codebase's URL
+  // convention (/edit/<slug>, never <slug>/edit — see siteConfig.jsx's "edit/*" route
+  // and traversing-dms-pages.md's "Edit URL puts edit first" gotcha). A trailing strip
+  // used to also run here and silently truncated any real slug whose OWN last segment
+  // is literally "edit" or "view" (e.g. "forms/participation/edit") down to the wrong,
+  // shorter slug — activeSlug then never matched item.url_slug, so this page's section
+  // refs never resolved from local storage and rendered as permanently blank stubs
+  // under sync. Found live 2026-09-09 diagnosing a sync-only blank-render report.
   const strippedWildcard = wildcardParam
     .replace(/^(edit|view)(\/|$)/, '')  // strip leading edit/ or view/ prefix (or bare "edit"/"view")
-    .replace(/\/(edit|view)(\/.*)?$/, '') // strip trailing /edit or /view suffix
   const strippedPath = (path || '').replace(/^\//, '')
     .replace(/^(edit|view)(\/|$)/, '')
-    .replace(/\/(edit|view)(\/.*)?$/, '')
   const activeSlug = strippedWildcard || strippedPath || '';
   const needsRefResolution = (item, idx) => {
     if (!Object.keys(dmsAttrsConfigs).length) return false;
