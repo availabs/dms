@@ -1,11 +1,90 @@
 # AVL Graph — graph-chrome theming (legend, card padding, admin surface)
 
-**Status:** RESCOPED 2026-09-10 after a design review against the real code — not yet built, pending
-Ryan's decisions on the four open questions. The 2026-09-09 scope had four shape errors (a token-name
-collision, an already-built threading step, a magic-number "fix" for a layout bug, and a wrong
-premise about stacked padding) and omitted the admin-editability half of the goal. Corrections are
-folded in below; the sections they replace are marked.
-**Started:** 2026-09-09
+**Status:** PASS 1 DONE + live-verified 2026-09-10 · PASS 2 NOT STARTED · **Started:** 2026-09-09
+
+---
+
+## ▶ START HERE — current state, 2026-09-10
+
+This file is long because it carries the whole design argument and three rounds of corrections. If
+you are picking this up cold, you only need this block plus the two sections it points at.
+
+**The goal, in Ryan's words:** "make TransportNY, and the reports pages, look better." Anything
+broader defers to a later task. Work is organised as nine visible punch-list items (see the artifact
+below and the "Numbering map" section) across three passes.
+
+### DONE — 6 source files, all live-verified
+
+| # | What | Where |
+|---|---|---|
+| Pass 1, items 01-03 | Gradient legend no longer draws outside its own box; three bands (ramp / 4px mark gutter / labels) so **nothing is drawn on the gradient**; ramp shrinks with a narrow row; inline titles truncate instead of being crushed | `graph_new/components/avl-graph/components/Legend.jsx`, `graph_new/GraphComponent.jsx` |
+| Fallback fix | A gradient legend with no usable colour ramp now renders **nothing** instead of a fabricated `0/0.25/0.5/0.75/1` key | `Legend.jsx` (guard in the exported `Legend`) |
+| Admin editor | `avlGraphSettings` generates a control per class-string token; the preview pane draws a real graph | `graph_new/theme.js`, **new** `graph_new/Graph.docs.js`, `ui/docs.js` |
+| Editor crash fix | The theme editor died for **any** section-component preview (lazy-docs race) | `patterns/admin/pages/themes/editTheme.jsx` |
+
+See **"PASS 1 — IMPLEMENTED"**, **"Fallback fix — DONE"** and **"Admin theme-editor pieces — DONE"**
+below for the measurements, the A/B that proves the corpus diffs came from a `git pull` and not from
+this work, and a bug I introduced and then caught by measuring (a `max-width`ed flex item freezes and
+stops shrinking — use `flex-basis`).
+
+### NEXT — pass 2, item by item, in this order
+
+1. **Legend prop separation + brand wiring** (items 05, 09). Separate the settings bag from the
+   computed draw data across the six graph wrappers + `Legend.jsx`'s signature, **keeping the old flat
+   shape accepted** (Ryan's MitigateNY insurance call — comment it so nobody deletes it as cruft).
+   Add the `classNames` injection in `GraphComponent.jsx` (snippet in correction 2). Then set
+   transportny's values — the design system's chip treatment, **not** the older authored
+   mono/uppercase values; details in the transportny task file's "Proposed values".
+2. **Units on gradient tick labels** (item 07) — derive from `display._measurePick.measure`, which
+   every report graph already stores, so **no report needs regenerating**.
+3. **Tooltip** (item 06) — Ryan put this in scope. Same shape as the legend but a level deeper: it
+   threads through each chart type rather than riding the legend prop bag. `HoverCompContainer`
+   already accepts a `theme` prop and never reads it, and nobody passes one.
+4. **Padding last** (item 08) — as a **per-section chart setting**, not a change to
+   `styles[0].padding`. That is what keeps MAP-21 and tsmo2 on today's 16px.
+
+Then **pass 3** (item 04, the collapsing legend), and **last of all** the `reportInlineTitle`
+dead-code removal + the 367-section regen.
+
+### Four constraints that must not be broken
+
+1. **Core `avlGraphTheme` defaults stay byte-identical to today's literals.** This is the only thing
+   protecting MitigateNY's **7,415** legend-rendering graphs, which are almost all `CategoricalLegend`.
+   Assert it in a test; don't infer it from reading the theme file.
+2. **Item 04's `collapse` default is today's behaviour**, with only transportny opting in. It is the
+   one remaining item that touches `CategoricalLegend`.
+3. **Nothing in this task may require regenerating a report.** If a change would, it is putting a
+   decision in the DB that belongs in the theme or in code — rework it. (The inline-title `||`
+   back-compat is what buys this; see that section.)
+4. **`Legend`'s old flat prop shape keeps working.** Deliberate exception to Ryan's
+   no-dead-code-paths preference, for MitigateNY.
+
+### How to verify
+
+```bash
+# local API is :3001 (.env), NOT the :4444 in CLAUDE.md's examples
+node scripts/npmrds-reports/report_probe.mjs \
+  "reports/annual_average_study?routes=2207838&asOf=2026-07-23" --auth --wait 18000 \
+  --eval scratchpad/npmrds-sub/tmp/legend_geom.mjs --no-json     # geometry: expect slack_in_box: 0
+node scripts/npmrds-reports/probe_corpus.mjs                     # mandatory on every touch
+```
+
+- **Data-bearing legend page:** `reports/annual_average_study?routes=2207838&asOf=2026-07-23` (4 real
+  gradient ramps + 4 categorical legends). `reports/snapshot` and `reports/seasonality` render
+  **blank** for lack of data and are useless as legend fixtures — that's the known data gap.
+- **Theme editor:** `http://www.localhost:5173/list/theme/47f862e5-3e7b-4dff-a80a-28e57c127359/graph`
+  — pick `avlGraph` in the left dropdown. The `theme_id` is **not** the theme row's id; see
+  `skills/using-the-admin-theme-editor.md`, written 2026-09-10 because none of this was documented.
+- The `--eval` probes used above live in `scratchpad/npmrds-sub/tmp/` (gitignored, throwaway); each
+  one is small enough to rewrite from the measurements quoted in the sections below.
+
+### Read next
+Artifact **https://claude.ai/code/artifact/8adeb3e1-a319-4ba2-9f4e-6a4580b72bf8** ("Report Graph
+Punch List") is the plain-language version of all nine items — glossary first, then See → Why →
+After per item. Ryan's feedback on the first draft was that a ranked-code-findings review read as
+vague; the artifact is the corrected form, and the same lesson applies to whatever gets written next.
+
+---
 
 ## Objective
 
@@ -330,6 +409,149 @@ What it buys:
 Item 03 (letting the title truncate in that row) is independent of where the flag lives and should
 happen in pass 1 regardless.
 
+## PASS 1 — IMPLEMENTED 2026-09-10 (items 01-03)
+
+**Files changed (2, both core — no theme values, no site values, nothing stored):**
+- `ui/components/graph_new/components/avl-graph/components/Legend.jsx` — both linear legends
+  rewritten as three bands (ramp / 4px mark gutter / label band) with **percentage** tick positions;
+  terminal and first labels anchored inward; `VerticalLinearLegendTick` and
+  `HorizontalLinearLegendTick` removed (neither was exported); `CategoricalLegend` **untouched**.
+  New tick-count fallback `5 → 3 → 2` via `fitRampTicks`. `SizeMap` values unchanged.
+- `ui/components/graph_new/GraphComponent.jsx` — `GraphTitle` takes an `inline` prop; when sharing a
+  row with a top legend it gets `min-w-0 overflow-hidden` on the wrapper and `truncate` + a native
+  `title` tooltip on the text, with `flexShrink:1; minWidth:0` as an **inline style** (a theme's
+  `shrink-0` can't be beaten by class order — stylesheet order decides).
+
+**Verified live** (`reports/annual_average_study?routes=2207838&asOf=2026-07-23`, a data-bearing
+corpus page; API on `:3001`; probe `scratchpad/npmrds-sub/tmp/legend_geom.mjs` via
+`report_probe.mjs --eval`):
+- ✅ Real gradient, real domain (28.9 → 33.4 mph), 5 ticks, declared box **250×35**.
+- ✅ **`slack_in_box: 0` on every gradient legend** — the last label's right edge now lands exactly on
+  the box's right edge. Pre-fix it *started* 4px outside the box, so this was ≈ −28px for a "33.4"
+  label and ≈ −42px for `formatMinutesAuto`'s "14.06 min". **This is the pass-1 gate, met.**
+- ✅ Nothing drawn on the gradient: DOM shows ramp `height:15px` at the top, mark gutter
+  `top:15px; height:4px`, labels at `top:19px`.
+- ✅ Title truncation live (`truncate`, `title` attr, `flex-shrink:1`), and it measurably freed width:
+  clipped titles went 2-of-3 → 0-of-3 at a wide viewport, 3-of-3 → 1-of-3 at 640px.
+- ✅ **Golden corpus: no regression from this change.** The run reports 5 "was blank → has content"
+  Blockers and a set of "query no longer fires" Majors — **all of them reproduce with both files
+  reverted to HEAD**, so they come from the pulled changes, not from pass 1. One apparent difference
+  in the first A/B pair turned out to be the known cold-load LineGraph flake: it reproduced in the
+  reverted arm on both re-runs. 0 console errors, 0 page errors, 0 SQL errors throughout.
+
+**A bug I introduced and then fixed, worth keeping in the file:** the first implementation sized the
+legend `width:100% + max-width:250px`. Per the flexbox algorithm an item clamped by `max-width` is
+**frozen** at that cap and stops shrinking — measured live at a 640px viewport (row ≈286px): the
+legend held its full 250px and the graph *title* collapsed to 24px instead, i.e. exactly the bug item
+03 exists to fix. Replaced with `flex: 0 1 <natural>px` on the `Legend` wrapper (grow 0 so it never
+exceeds natural size, shrink 1 so a tight row takes it below), verified applied live as
+`flex: 0 1 250px`.
+
+**Shrink path — VERIFIED 2026-09-10** (`scratchpad/npmrds-sub/tmp/shrink.mjs`, which constrains the
+real header row in-browser; the flex negotiation under test *is* the row's, so narrowing the row is the
+mechanism, not a proxy — what it does not prove is that a size-4 card produces such a row, which the
+design system already asserts at ~244px):
+
+| row width | legend | title | tick overlaps | slack in box |
+|---|---|---|---|---|
+| 1414px (natural) | 250 | 63 | 0 | 0 |
+| 300px | **230** | 58 | 0 | 0 |
+| 200px | **150** | 38 | 0 | 0 |
+
+The legend absorbs most of the squeeze (250 → 150) while the title gives up far less (63 → 38) — the
+intended priority, and the inverse of the `max-width` freeze it replaced.
+
+**One residual gap, precisely bounded:** `fitRampTicks` estimates against the NATURAL width, so its
+tick-count choice is optimistic once the ramp has shrunk. Measured above: harmless for short numeric
+labels (5 ticks at a 150px ramp still had 0 overlaps). The failing corner is **long labels AND a
+narrow ramp** — e.g. `formatMinutesAuto`'s "14.06 min" (~54px): at 250px the estimate correctly drops
+to 3 ticks, but if the ramp then shrinks to 150px those 3 would crowd. Labels stay inside the box
+either way (anchoring guarantees that); they'd overlap each other. Fixing it exactly needs a measured
+width — a `ResizeObserver`/`useLayoutEffect` like `useLegendSqueezeGuard` already runs. Left out
+deliberately; revisit if a real report shows it.
+
+### Fallback fix — DONE 2026-09-10 (Ryan: "sure, do that fallback fix fast")
+
+The no-usable-ramp case (pre-existing bug 1 below) now **renders nothing** instead of a fabricated
+key. Guard in `Legend.jsx`'s exported wrapper, after the hooks: a linear legend must have a `scale`
+whose `range()` is a non-empty array of **strings** (a real ramp's range is CSS colours; d3's default
+`scaleLinear()` range is the numbers `[0,1]`, which is exactly what was leaking through). Categorical
+short-circuits on `type === "categorical"` and is untouched — that's the MitigateNY path.
+
+No message is rendered in the failure case on purpose: the chart's own empty state already reports the
+missing data, and there's no honest label for the other way this fails (real data, empty palette).
+
+Verified live:
+| page | legend boxes | real ramps | fabricated `0…1` keys |
+|---|---|---|---|
+| `reports/snapshot` (blank, was showing the fake key) | 0 | 0 | **0** (was 6) |
+| `reports/seasonality` (8 blank GridGraphs) | 0 | 0 | **0** (was 8) |
+| `reports/annual_average_study` (real data) | — | **4** | 0 |
+
+And the guard is provably linear-only: the same data-bearing page still renders **4 categorical
+legend items with real labels** ("35E QUEENS MIDTOWN EXPY …") alongside its 4 gradient ramps.
+
+**Two pre-existing bugs found while verifying (NOT caused by this pass; #1 now fixed above):**
+1. **A gradient legend with no scale renders as `0 / 0.25 / 0.5 / 0.75 / 1` with no colours at all.**
+   Confirmed on `reports/snapshot` (BarGraph, `colors.byValue`) and `reports/seasonality` (8
+   GridGraphs), and confirmed identical with `Legend.jsx` reverted to HEAD, so it long predates this
+   work. Mechanism: `buildValueColorScale` returns `undefined` when min/max aren't finite or the
+   palette is empty (`components/utils.js:95-106`), the legend then falls back to its
+   `scale = scaleLinear()` default parameter (domain **and** range `[0,1]`), and
+   `background: linear-gradient(to right, 0,1)` is invalid CSS so the browser drops it. Arguably worse
+   than the clipping this pass fixes — a legend that silently lies about the domain.
+2. **Both those pages render blank** — `paths=0 rects=1` per GridGraph, i.e. no data, which is *why*
+   min/max aren't finite. That's the known data-coverage gap, out of scope
+   (`project_data_gaps_out_of_scope`), but it means neither page is usable as a legend fixture.
+   `reports/annual_average_study` is the one that has real data.
+
+## Admin theme-editor pieces — DONE 2026-09-10 (both, plus a crash fix)
+
+Justification remains verification speed, not the admin story (Ryan 2026-09-10).
+
+**How to actually reach it** — undocumented until now, and it cost 3 wrong URL guesses:
+`http://www.localhost:5173/list/theme/<theme_id>/<component>`, where
+- `/list` is `VITE_DMS_BASE_URL` (`.env:10`), passed to `DmsSite` as `adminPath`;
+- **`<theme_id>` is the UUID from the SITE ROW's `theme_refs`, NOT the theme row's id.** For
+  npmrdsv5/dev2 that's `47f862e5-3e7b-4dff-a80a-28e57c127359` (the theme row itself is `1677773`,
+  which does *not* work). Get it from `/list/themes` — the list links to the right URL;
+- `<component>` is a lowercased `compOptions` value from `editTheme.jsx` (`graph`, `button`, …).
+
+**1. `graph_new/theme.js` — `avlGraphSettings` now exposes tokens.** Was a style picker and nothing
+else. Adds a generated "Graph Tokens" group: one `Textarea` per **class-string** key of the ACTIVE
+style, same shape as `SideNav.theme.jsx:126-133`, so a token added to any brand's graph theme appears
+with no per-key work. Filtered to strings deliberately (`chartDefaults` is a nested object — a
+Textarea bound to it renders `[object Object]` and writes that back on save); `name` excluded too,
+since styles are selected BY NAME in places (`activeStyle: 'reportInlineTitle'`) and renaming one
+would silently detach every section pointing at it.
+
+**2. `ui/docs.js` + new `graph_new/Graph.docs.js` — the preview pane draws a real graph.**
+`compOptions` had always offered `Graph`, but there was no docs entry, so the pane fell back to a
+propless `UI.Graph`. Two fixtures, chosen to cover the two legend KINDS the tokens differ on: a
+2-series BarGraph (swatch legend) and a single-series `colors.byValue` BarGraph (colour ramp). Static
+data — the graph section reads `state.data` and fetches nothing, so no source/dmsEnv/network needed.
+
+**3. Crash fix in `admin/pages/themes/editTheme.jsx`** — found by doing the above.
+`componentDocs` is lazy-loaded, so the preview frame's FIRST render resolved every `props` lookup to
+`undefined`. Most previews tolerate that; a **section** component doesn't — `Graph` threw
+`TypeError: Cannot destructure property 'pageState' of 'pageContext' as it is undefined`
+(`graph_new/index.jsx` reads `pageContext` unconditionally) and, with no error boundary in that frame,
+**took the whole theme editor down**. Now gated on the docs being loaded, not on `props`, so a
+component with no docs entry keeps rendering propless exactly as before, one tick later.
+
+**Verified live** at the URL above: no crash (0 page errors), 5 controls rendered, `avlGraph` present
+in the settings dropdown, and inside the `about:srcdoc` preview frame — **1 `svg.avl-graph`, 2 legend
+swatches ("Before"/"After")**, title, subtitle and both axes all rendering from the fixture.
+
+**Left alone:** a pre-existing React `key` warning from `ControlRenderer`'s `.map` in the same file
+(`editTheme.jsx:186`) — unrelated to this work, one line, not widened into scope.
+
+**Not documented anywhere** — see the "next" note at the bottom of this file: the theme editor has no
+how-to. `skills/translating-design-system-to-dms-theme.md` mentions it in passing three times (the
+style `name` shows in its dropdown; the `options`/`styles` shape is "the format the theme editor
+knows") but nothing states where it lives, the `theme_refs`-UUID gotcha, that the left pane is
+generated from each component's `*Settings` export, or that the preview comes from `ui/docs.js`.
+
 ## Passes (each gate can actually fail)
 
 Reframed 2026-09-10 to match the artifact's punch-list numbering. The impetus is **making TransportNY
@@ -430,20 +652,90 @@ was wrong — a setting reachable from `report_build.mjs` or the CLI is already 
 control is a follow-up. That removes the pressure to force values into the site-wide theme, which
 matters because the site-wide theme is exactly what reaches MAP-21 and tsmo2 (see the blast-radius
 section). Net:
-- Visual *look* values (fonts, colors, swatch, ramp/tick styling, tooltip) → **brand values**. Legend
-  ones are provably safe site-wide (nothing else renders a legend); the tooltip needs a browser check.
+- Visual *look* values (fonts, colors, swatch, ramp/tick styling, tooltip) → **brand values**. These
+  land in *transportny's* theme, so they can't reach MitigateNY (own theme, sets none of these keys) —
+  **conditional on core `avlGraphTheme` defaults keeping today's literals**, which is what protects
+  MNY's 7,415 legend-rendering graphs. The tooltip additionally needs a MAP-21/tsmo2 browser check
+  since it isn't gated on legend visibility.
 - **`padding` → a chart setting**, specifically to keep MAP-21 and tsmo2 on today's value.
 - Layer B otherwise keeps `show`/`position`/`size` (already there) plus `rampLength` and `tickCount`.
 - Promoting another value to a setting later stays a small change; no need to design for it now.
 
-## Blast radius — MEASURED 2026-09-10, not reasoned (Ryan: "are other graphs on TransportNY forced into this new stuff?")
+## ⚠ Blast radius — CORRECTED 2026-09-10 (the first measurement was wrong; MitigateNY is the biggest consumer)
+
+**My first pass at this queried `element-type = 'AVL Graph'` only, and concluded "legend work can't
+reach any real non-report page." That is WRONG.** Ryan pushed on MitigateNY specifically ("`mitigateNY`
+is the project that concerns me most") and he was right to.
+
+`ComponentRegistry/index.jsx:54` maps **`Graph: GraphNew`** — the legacy `Graph` element-type resolves
+to the *same* `graph_new` component as `AVL Graph` (the comment there says legacy sections upgrade
+automatically). **MitigateNY uses the legacy type almost exclusively: 7,554 `Graph` sections vs 4
+`AVL Graph`.** Filtering on `AVL Graph` hid essentially all of MNY.
+
+Corrected sweep — **both element types**, all 101 schemas carrying a `data_items` table, legend
+scoped to the `"legend":{…}` fragment (a bare `"show":true` match is useless: column definitions carry
+their own `show` key, which is what made an earlier run report "hidden: 0" everywhere):
+
+| Schema (app) | legend ON | legend off | **gradient legend** | categorical legend | `byValue` (any) |
+|---|---|---|---|---|---|
+| `dms_mitigat_ny_prod` (**MitigateNY**) | **7,415** | 90 | **0** | **7,520** | 4 |
+| `dms_npmrdsv5` (TransportNY) | 4,226 | 1,025 | **1,220** | 3,006 | 1,220 |
+| `dms_shaun_test_app` | 104 | 20 | 0 | 104 | 0 |
+| `dms_dms_site` | 71 | 0 | 0 | 71 | 0 |
+| `dms_landbank` | 3 | 35 | 0 | 3 | 0 |
+
+**Second correction, 2026-09-10 (my error, caught by Ryan asking for links to MNY's 4):** an earlier
+version of this table had a single "gradient (`colors.byValue`)" column showing 4 for MNY, and I read
+that as "4 MNY graphs render a gradient legend." **It isn't the same thing** — that column counted
+graphs that *colour by value* regardless of whether their legend is visible. Re-counted with both
+conditions (`legend.show=true` AND `colors.byValue=true`): **MitigateNY renders ZERO gradient
+legends**, and all 1,220 gradient legends in the entire database are TransportNY's. MNY's 4 `byValue`
+graphs break down as: 2 with `legend.show=false` (ids 2413616 published / 2061332 draft — the same
+BarGraph on the `mitigateny_2025` **Home** page, `/home`), and **2 orphans** (2389142, 2389145 —
+referenced by no page or pattern at all, verified by a `data::text LIKE` scan over every page and
+pattern row, 0 rows).
+
+**MitigateNY renders more graph legends than TransportNY does.** Reproduce with
+`$CLAUDE_JOB_DIR/tmp/sweep3.py`'s query shape; MNY config per `planning/mitigateny/skills/README.md:122`
+(`DMS_APP=mitigat-ny-prod DMS_TYPE=prod` → schema `dms_mitigat_ny_prod`).
+
+### What this changes, per item
+
+- **Items 01-02 (gradient-legend geometry) — touch ZERO MitigateNY graphs.** A gradient legend needs
+  `legend.show=true` AND `colors.byValue=true`; MNY has no graph meeting both. All 1,220 gradient
+  legends in the DB are TransportNY's. So these two items are TransportNY-only in practice and need no
+  MNY gate. (The intermediate claim that they reach "4 real MNY production graphs" was my
+  miscount — see the second correction above.)
+- **Item 04 (collapsing legend)** — touches `CategoricalLegend`, i.e. **7,520 MNY graphs**. This is
+  where *all* of the MitigateNY exposure now sits. Its `collapse: 'cap'` default (today's squeeze-guard
+  behaviour) is the **single most load-bearing default in the plan**, not a nicety. Only transportny
+  opts into `'dots'`.
+- **Items 05, 06, 09 (legend + tooltip brand values, `tabular-nums`)** — safe for MNY, and here is the
+  proof rather than an assumption: MNY has its own theme (`src/themes/mny/theme.js`, registered as
+  `mnyv1`), its `mny_avlGraph` block (lines 143-176) sets **no** `legend`/`legendSwatch`/`tooltip`
+  class keys, and the `legend:` string at line 952 is under **`theme.stackedBar`** — the `stacked_bar`
+  *column type* (read by `columnTypes/stacked_bar.jsx:74`), an unrelated scope. So MNY is a no-op
+  **provided core `avlGraphTheme` defaults keep today's literals** — Rule 2 now protects 7,415 graphs.
+- **Item 03 (title/legend row)** — gated on `titleInlineWithLegend`, transportny-only. MNY unaffected.
+- **Item 08 (padding)** — per-section setting now; MNY sets none, so it falls through to MNY's own
+  theme value. Unaffected.
+- **Landmine-1 separation** — Ryan: "I am OK keeping the 'insurance' (dead/old code) to make sure
+  MitigateNY still looks correct." **Keep the back-compat prop shape on `Legend`.** With 7,415 MNY
+  graphs through this component, that's clearly the right trade even though it leaves one compat path.
+
+### Original (npmrdsv5-only) measurement — still valid for what it covered
+
+Ryan's original concern was "Theres other pages, like Map-21, that already use graphs and look good."
+Within `npmrds_sub`/`tsmo2`/etc., **`AVL Graph`** sections:
 
 Ryan's concern: "Theres other pages, like Map-21, that already use graphs and look good, so I don't
 want to make them look worse or have a regression." Queried every `AVL Graph` component row in
 `dms_npmrdsv5` (local API is `:3001`, see R5). Reproduce with `scripts/npmrds-reports/dbq.py new` and
 a `substring(... from '"legend"[^}]{0,60}')` regex — a full `::jsonb` cast over all rows times out.
 
-**Legend work cannot touch any real non-report page — they don't render a legend at all:**
+~~Legend work cannot touch any real non-report page.~~ **Retracted — see the correction above; this
+table covers `AVL Graph` only and therefore excludes MitigateNY's 7,505 legacy-`Graph` sections.**
+It is still accurate for the TransportNY pages Ryan named:
 
 | Pattern | AVL Graphs | `legend.show` |
 |---|---|---|
@@ -488,10 +780,15 @@ imports outside `graph_new/` are the **map** legends — different components en
 and the only other `avl-graph` mentions in the repo are comments (`themes/mny/theme.js:71`,
 `themev2.js:2293`, `MeasurePicker/index.js:250`, `report_probe.mjs:200`).
 
-Nothing stored in the DB changes, no theme key changes, no authoring behaviour changes. **Residual
-risk:** a *downstream repo* deep-importing `Legend` from submodule source — not greppable from here.
-Cheap insurance: have `Legend` accept the old flat prop shape alongside the separated one (a few
-lines). Ryan's call whether that shim is worth it given his preference for not keeping dead paths.
+Nothing stored in the DB changes, no theme key changes, no authoring behaviour changes.
+
+**DECIDED (Ryan, 2026-09-10): keep the insurance.** "In this case, I am OK keeping the 'insurance'
+(dead/old code) to make sure MitigateNY still looks correct." So `Legend` accepts the old flat prop
+shape alongside the separated one. Justified by the corrected blast radius: 7,415 MitigateNY graphs
+render through this component, and MNY is a different app/config out of this same repo — the one place
+where a signature change could bite without showing up in a transportny regression pass. This is the
+deliberate exception to his general "don't keep dead code paths" preference; note it in the code
+comment so nobody deletes it as cruft later.
 
 ## Regeneration impact (Ryan asked 2026-09-10)
 
@@ -582,10 +879,25 @@ Pass 2 — brand:
 - [ ] `probe_corpus.mjs` / `report_probe.mjs --auth` golden-corpus pass, 0 console errors.
 - [ ] Theme editor: a legend value edited there changes the preview and survives a reload.
 
+MitigateNY gates (the biggest legend consumer — 7,415 graphs; see the corrected blast radius):
+- [ ] **Core `avlGraphTheme` defaults are byte-identical to today's literals.** This one assertion is
+  what keeps 7,415 MNY graphs unchanged through items 05/06/09. Diff the rendered class strings, don't
+  eyeball the theme file.
+- [ ] ~~The 4 MNY gradient graphs rendered before/after items 01-02.~~ **Not needed — MNY renders zero
+  gradient legends** (2 have `legend.show=false`, 2 are orphans). Items 01-02 are TransportNY-only in
+  practice. Live pages for the record, if anyone wants to eyeball them anyway:
+  `https://mitigateny.org/home` (published section 2413616 — its legend is off) and
+  `https://devmny.org/home`.
+- [ ] A sample of MNY **categorical** legend graphs unchanged after item 04 lands with
+  `collapse: 'cap'` — the default that protects them. Assert the default explicitly.
+- [ ] `Legend`'s back-compat prop shape kept, with a comment saying it exists for MitigateNY so it
+  isn't deleted as cruft later.
+
 Don't-regress-MAP-21 gates (pass 2):
 - [ ] MAP-21 `/map_21` (page 2173915) and a `tsmo2` page rendered before/after the **tooltip** change,
-  in the browser. Legend changes provably can't reach them (measured, `legend.show=false`), so this
-  gate is specifically about the tooltip.
+  in the browser. Legend changes can't reach *these two* (measured, `legend.show=false` on all of
+  their graphs), so this gate is specifically about the tooltip. Site-wide legend safety is a separate
+  question — see the MitigateNY gates above.
 - [ ] **`padding` unset on `styles[0]`** — the per-section setting is what changes, so MAP-21 and
   tsmo2 keep 16px. Confirm by rendering them, not by reading the theme.
 - [ ] `landing`'s single legend-showing graph checked — the one real non-report graph legend work reaches.

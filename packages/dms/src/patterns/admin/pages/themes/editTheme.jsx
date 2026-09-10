@@ -216,6 +216,16 @@ function ComponentList ({
             `}
 					>
   					<ThemeContext.Provider value={{theme: currentTheme, UI}}>
+  						{ /* `componentDocs` is lazy-loaded (the useEffect above), so this frame's
+  						   FIRST render resolves every `props` lookup below to undefined. Most
+  						   previews tolerate that; a section component does not — the Graph
+  						   preview threw `Cannot destructure property 'pageState' of
+  						   'pageContext'` (graph_new/index.jsx reads pageContext
+  						   unconditionally) and, with no error boundary here, took the whole
+  						   theme editor down with it. Gate on the DOCS, not on `props`: a
+  						   component with no docs entry keeps rendering propless exactly as
+  						   before, one tick later. */ }
+  						{ !componentDocs ? null :
   						<ComponentRenderer
   						  Component={
                   componentDocs?.[currentComponent]?.component ||
@@ -228,7 +238,7 @@ function ComponentList ({
                   componentDocs?.[currentComponent]?.props ||
                   componentDocs?.[currentComponent]
                 }
-  						/>
+  						/> }
   					</ThemeContext.Provider>
 					</Frame>
 				</div>

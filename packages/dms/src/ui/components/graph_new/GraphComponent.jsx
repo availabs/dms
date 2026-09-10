@@ -20,7 +20,7 @@ const axisFontProps = (graphFormat, axis) => ({
   labelColor: get(graphFormat, [axis, "labelColor"]),
 });
 
-const GraphTitle = ({ title, description, theme = {}, ...props }) => {
+const GraphTitle = ({ title, description, theme = {}, inline = false, ...props }) => {
 
   // Explicit per-section font settings (fontSize/fontWeight on display.title) win;
   // otherwise the avlGraph theme's header tokens style the title/description so every
@@ -39,9 +39,31 @@ const GraphTitle = ({ title, description, theme = {}, ...props }) => {
 
   const justify = props.justify || "justify-start";
 
+  // `inline` = this title is sharing a row with a top-positioned legend (see
+  // titleInline below), which is the only case where it competes for width. Both
+  // sides used to refuse to shrink — transportny's `title` token ends in `shrink-0`
+  // (deliberately, to keep the title on one line) and the gradient legend had a
+  // hard 250px ramp — so a row narrower than their sum overflowed, and the rounded
+  // section card clipped whichever lost. The legend is shrinkable as of the
+  // Legend.jsx geometry fix; this is the title half.
+  //
+  // flexShrink/minWidth go in an INLINE STYLE rather than as classes on purpose: the
+  // theme string may carry `shrink-0`, and which of two competing Tailwind utilities
+  // wins depends on stylesheet order, not on class order in the string — an inline
+  // style is the only reliable override. It only applies when sharing the row, so a
+  // stacked title keeps the theme's intent untouched.
+  //
+  // Truncating with an ellipsis honours that intent better than clipping did: the
+  // title still occupies exactly one line, and the full text stays reachable via the
+  // native tooltip.
   return !title && !description ? null : (
-    <div className={ theme.headerWrapper || `w-full flex ${ justify }` }>
-      <div className={ titleClassName }>{ title }</div>
+    <div className={ `${ theme.headerWrapper || `w-full flex ${ justify }` }${ inline ? " min-w-0 overflow-hidden" : "" }` }>
+      <div className={ `${ titleClassName }${ inline ? " truncate" : "" }` }
+        style={ inline ? { flexShrink: 1, minWidth: 0 } : undefined }
+        title={ inline && typeof title === "string" ? title : undefined }
+      >
+        { title }
+      </div>
       { !description ? null :
         <div className={ theme.subtitle || "" }>{ description }</div>
       }
@@ -158,7 +180,8 @@ export const GraphComponent = props => {
   const titleNode = (
     <GraphTitle { ...(graphFormat.title || {}) }
       description={ graphFormat.description }
-      theme={ theme }/>
+      theme={ theme }
+      inline={ titleInline }/>
   );
 
   return (

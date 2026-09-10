@@ -59,18 +59,48 @@ export const avlGraphTheme = {
     ]
 }
 
-export const avlGraphSettings = theme => [
-    { label: "Graph Styles",
-        type: 'inline',
-        controls: [
-            { label: 'Style',
-                type: 'MultiSelect',
-                singleSelectOnly: true,
-                searchable: false,
-                options: (theme?.avlGraph?.styles || [])
-                    .map((k, i) => ({ label: k?.name || i, value: i })),
-                path: `avlGraph.options.activeStyle`,
-            }
-        ]
-    }
-]
+export const avlGraphSettings = theme => {
+    // The theme editor (patterns/admin/pages/themes/editTheme.jsx) renders these
+    // controls beside a live preview, which is the fastest way to tune a graph token —
+    // no report-page rebuild, no reload. Until now this exposed a style PICKER and
+    // nothing else, so not one graph token was editable in-product.
+    const activeStyle = theme?.avlGraph?.options?.activeStyle || 0;
+    const style = theme?.avlGraph?.styles?.[activeStyle] || {};
+    return [
+        { label: "Graph Styles",
+            type: 'inline',
+            controls: [
+                { label: 'Style',
+                    type: 'MultiSelect',
+                    singleSelectOnly: true,
+                    searchable: false,
+                    options: (theme?.avlGraph?.styles || [])
+                        .map((k, i) => ({ label: k?.name || i, value: i })),
+                    path: `avlGraph.options.activeStyle`,
+                }
+            ]
+        },
+        // One Textarea per class-string token on the ACTIVE style, generated the same
+        // way SideNav.theme.jsx does it — so a token added to a brand's graph theme
+        // shows up here with no per-key work.
+        //
+        // Filtered to STRINGS deliberately: `chartDefaults` is a nested object, and a
+        // Textarea bound to it would render "[object Object]" and write that string
+        // back over the whole object on save. Numeric/boolean tokens are skipped for
+        // the same reason (a Textarea hands back a string).
+        //
+        // `name` is excluded even though it is a string: styles are selected BY NAME in
+        // places (a section's `activeStyle`, e.g. transportny's `reportInlineTitle`), so
+        // renaming one here would silently detach every section pointing at it.
+        { label: "Graph Tokens",
+            type: 'inline',
+            controls: Object.keys(style)
+                .filter(k => k !== "name" && typeof style[k] === "string")
+                .map(k => ({
+                    label: k,
+                    type: 'Textarea',
+                    path: `avlGraph.styles[${ activeStyle }].${ k }`
+                }))
+        }
+    ];
+}
