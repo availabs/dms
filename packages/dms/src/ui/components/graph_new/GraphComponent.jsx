@@ -165,6 +165,36 @@ export const GraphComponent = props => {
 
 // console.log("GraphComponent::actions", props.actions);
 
+  // Theme-sourced legend chrome (the "Layer A" class-string tokens). Injected HERE rather
+  // than read inside Legend.jsx, because the legend cannot resolve the token itself: which
+  // avlGraph style is live is decided per-section by `activeStyle`, and the legend never sees
+  // it. One injection covers all six graph wrappers without touching any of them — each
+  // already spreads `{ ...legend }` into <Legend/>.
+  //
+  // `classNames` is safe as a flat key: the wrappers own (and overwrite) `type`,
+  // `orientation`, `scale`, `colors`, `colorsByKey`, `categories`, `format`, `actions`,
+  // `onEnter` and `onLeave`, and collide with nothing else. This is the same reason
+  // `chartDefaults.legend.scale` was rejected — it would be destroyed one hop before
+  // Legend.jsx read it.
+  //
+  // Every token is OPTIONAL and every unset token falls back to Legend.jsx's historical
+  // literal, byte for byte. That is not a nicety: ~7,415 MitigateNY graphs render a legend
+  // and none of them will ever set one of these. Locked by tests/legendLegacyProps.test.js.
+  //
+  // Memoised because `legend` is spread into components whose own React.useMemo deps include
+  // it — handing them a fresh object on every render would quietly defeat that memoisation.
+  const legend = React.useMemo(() => ({
+    ...get(graphFormat, "legend", {}),
+    classNames: {
+      row: theme?.legend,
+      swatch: theme?.legendSwatch,
+      label: theme?.legendLabel,
+      tick: theme?.legendTick,
+      ramp: theme?.legendRamp
+    }
+  }), [graphFormat, theme?.legend, theme?.legendSwatch, theme?.legendLabel,
+       theme?.legendTick, theme?.legendRamp]);
+
   // Opt-in, theme-driven (2026-09-04, Ryan) — `theme.titleInlineWithLegend` lives on a named
   // avlGraph style selected per-section via `activeStyle` (see transportny/themev2.js's
   // `reportInlineTitle` style), NOT the site-wide default, so most NPMRDS graphs are
@@ -297,7 +327,7 @@ export const GraphComponent = props => {
         // keeps the historical solid pie; Pie only, ignored by other graph types.
         pieInnerRadius={ get(graphFormat, "pieInnerRadius", 0) }
         margin={ margin }
-        legend={ get(graphFormat, "legend", {}) }
+        legend={ legend }
         hoverComp={ hoverComp }
 
         actions={ actions }

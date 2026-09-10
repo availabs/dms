@@ -625,6 +625,14 @@ CLI-cloned test pages, map/WebGL blank-canvas) now live in
 [`traversing-dms-pages.md`](./traversing-dms-pages.md)'s §4 — they apply to
 any DMS page, not just reports. What's specific to reports:
 
+- **A probe slug is NOT a browser URL — the `/npmrds` prefix.** `report_probe.mjs` takes a BARE
+  slug (`reports/annual_average_study?routes=…`) because its default `--host` is already
+  `http://www.localhost:5173/npmrds`. Paste that same slug into a browser and you get
+  `http://www.localhost:5173/reports/…`, which is missing the prefix and does not resolve. When
+  quoting a verify URL to a human, write the full
+  `http://www.localhost:5173/npmrds/reports/<slug>` — the probe argument and the browser URL are
+  different strings. (Cost a round-trip on 2026-09-10; Ryan: "your verification link was missing
+  `/npmrds` at the start".)
 - **`report_<old_id>`-style slugs are a deprecated/unstable scheme**
   (title-derived, recomputed on every title save) — get a real,
   currently-valid slug from `scripts/npmrds-reports/pick_test_report.py`

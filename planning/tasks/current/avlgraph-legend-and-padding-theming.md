@@ -1,6 +1,7 @@
 # AVL Graph — graph-chrome theming (legend, card padding, admin surface)
 
-**Status:** PASS 1 DONE + live-verified 2026-09-10 · PASS 2 NOT STARTED · **Started:** 2026-09-09
+**Status:** PASS 1 DONE + live-verified 2026-09-10 · **PASS 2 IN PROGRESS** — item 1's plumbing +
+back-compat test suite DONE 2026-09-10, transportny token VALUES still to set · **Started:** 2026-09-09
 
 ---
 
@@ -29,14 +30,43 @@ stops shrinking — use `flex-basis`).
 
 ### NEXT — pass 2, item by item, in this order
 
-1. **Legend prop separation + brand wiring** (items 05, 09). Separate the settings bag from the
-   computed draw data across the six graph wrappers + `Legend.jsx`'s signature, **keeping the old flat
-   shape accepted** (Ryan's MitigateNY insurance call — comment it so nobody deletes it as cruft).
-   Add the `classNames` injection in `GraphComponent.jsx` (snippet in correction 2). Then set
-   transportny's values — the design system's chip treatment, **not** the older authored
-   mono/uppercase values; details in the transportny task file's "Proposed values".
-2. **Units on gradient tick labels** (item 07) — derive from `display._measurePick.measure`, which
-   every report graph already stores, so **no report needs regenerating**.
+1. **Legend prop separation + brand wiring** (items 05, 09). **PLUMBING + TESTS DONE 2026-09-10**
+   — see "Item 1 — DONE" below. **Still to do: set transportny's token VALUES** — the design
+   system's chip treatment, **not** the older authored mono/uppercase values; details in the
+   transportny task file's "Proposed values".
+   > **Scope correction made while implementing, flagged to Ryan.** The START HERE bullet said
+   > "separate the settings bag from the computed draw data across the six graph wrappers +
+   > `Legend.jsx`'s signature". **Correction 2 supersedes that** and it was written later: the
+   > threading already exists, so the six wrappers needed **no change at all**, and the only real
+   > gap was the class-string layer — one `classNames` injection in `GraphComponent.jsx`. Correction
+   > 1 had already done the collision audit that makes a full split unnecessary (Layer B keys are
+   > author-owned and collide with nothing). Taking the smaller change is also what Ryan's stated
+   > priority asks for — "I am just very concerned about a regression with this change in
+   > particular". Consequence: the legacy flat shape isn't merely "still accepted", it is the
+   > **only** shape, so there is no second code path to rot.
+2. **Units on gradient tick labels** (item 07) — **approach changed 2026-09-10, do NOT use
+   `display._measurePick.measure` directly in shared code.** Ryan: "`_measurePick` is ONLY set/used
+   by NPMRDS reports, so I don't like having that pollute `dms` code." Instead:
+   - dms reads a generic token `display.legend.unit`, and if unset asks an optional theme-supplied
+     resolver, `contextTheme?.avlGraph?.resolveLegendUnit?.(display)`. Two lines; no NPMRDS
+     vocabulary in the library.
+   - transportny implements that resolver **inside its own theme folder**, where `_measurePick`
+     already lives. Existing reports still pick units up with **no regeneration**, which was the
+     whole reason `_measurePick` was proposed in the first place.
+   - Pass the resolver the **whole `display`**, not a plucked `_measurePick` field, so the hook does
+     not become a third leak. (Two already exist and are explicitly out of scope for now:
+     `graph_new/index.jsx:179` reads `display._measurePick?.routeIds`, and
+     `patterns/page/components/sections/section.jsx:532` reads `dwHandle?.state?.display?._measurePick`.)
+   - **Naming rule, Ryan 2026-09-10.** The precedent for this hook is
+     `contextTheme.resolveReportDisplayText` (`index.jsx:171`) — the *mechanism* is right (theme
+     supplies it, no-op everywhere else) but the *name* is not: "report" is NPMRDS vocabulary
+     smuggled into shared code. Ryan spotted it: "that's funny, that ALSO sounds like transportNY /
+     NPMRDS specific stuff." Renaming it is out of scope; **do not copy the mistake.** New hooks get
+     names describing the generic capability — `resolveLegendUnit`, not `resolveReportLegendUnit`.
+   - `ValueFormats` cannot supply the unit: its names are generic numeric shapes (`integer`,
+     `float1`, `fnum`, `duration_mmss`), and `vocabulary.json`'s measure entries carry
+     `label`/`expr`/`fn`/`requiresJoin`/`reverseColors` but **no `units` field** — adding one is part
+     of this item, on the transportny side of the line.
 3. **Tooltip** (item 06) — Ryan put this in scope. Same shape as the legend but a level deeper: it
    threads through each chart type rather than riding the legend prop bag. `HoverCompContainer`
    already accepts a `theme` prop and never reads it, and nobody passes one.
@@ -469,6 +499,162 @@ to 3 ticks, but if the ramp then shrinks to 150px those 3 would crowd. Labels st
 either way (anchoring guarantees that); they'd overlap each other. Fixing it exactly needs a measured
 width — a `ResizeObserver`/`useLayoutEffect` like `useLegendSqueezeGuard` already runs. Left out
 deliberately; revisit if a real report shows it.
+
+## Item 1 — DONE 2026-09-10 (plumbing + the back-compat suite Ryan asked for)
+
+Ryan, greenlighting pass 2: *"For item 1, with the legend separation. Please add unit tests, or
+something, that ensures that the old legacy flat shape is accepted. IDK how you would scope that, or
+if that even makes sense? But I am just very concerned about a regression with this change in
+particular."* Everything below is the answer to that.
+
+### What shipped
+
+**`GraphComponent.jsx`** — one injection, memoised, covering all six graph wrappers without touching
+any of them (each already spreads `{ ...legend }` into `<Legend/>`):
+
+```js
+const legend = React.useMemo(() => ({
+  ...get(graphFormat, "legend", {}),
+  classNames: { row: theme?.legend, swatch: theme?.legendSwatch, label: theme?.legendLabel,
+                tick: theme?.legendTick, ramp: theme?.legendRamp }
+}), [graphFormat, theme?.legend, theme?.legendSwatch, theme?.legendLabel, theme?.legendTick, theme?.legendRamp]);
+```
+
+**`Legend.jsx`** — consumes `classNames` at five sites, governed by one rule stated in the file:
+
+> **a token replaces the LOOK it names, and never the STRUCTURE around it.**
+
+| token | replaces | structure kept outside it |
+|---|---|---|
+| `row` | `px-4 … gap-*` on the categorical container | `grid grid-cols-1` / `flex flex-wrap items-center justify-left` (the orientation contract) |
+| `swatch` | `w-4 h-4 rounded mr-1` | `flex-shrink-0` |
+| `label` | *(appends — nothing here is decorative)* | `min-w-0 truncate` |
+| `tick` | `tabular-nums` | `absolute whitespace-nowrap` |
+| `ramp` | `rounded` | `shrink-0` (vertical) |
+
+The structural half is not fussiness: `absolute`, `truncate` and `shrink-0` are what keep a legend
+inside its own box, and a brand able to delete them would reintroduce the exact clipping pass 1 just
+fixed. The linear containers are pure positioning, so `row` appends there rather than replacing.
+
+**Deliberate simplification vs. the original bullet** — see the note in the START HERE block. The six
+wrappers were not touched, so the legacy flat shape is the only shape and there is no second path to
+rot. This is a smaller change than "separate the settings bag from the computed draw data", and it is
+what correction 2 concluded.
+
+### The regression net — 41 tests, 4 files, zero new dependencies
+
+The key enabler: **`react-dom/server`'s `renderToStaticMarkup` runs under vitest with no DOM.** The
+package has no jsdom/happy-dom and no `@testing-library/react`, and every existing test is a pure
+function test — but SSR gives **real rendered-HTML** assertions without adding a dep to a submodule
+that ~7,415 MitigateNY graphs depend on.
+
+| file | tests | what it locks |
+|---|---|---|
+| `tests/legendLegacyProps.test.js` | 19 | **The back-compat lock.** 10 legacy flat prop shapes rendered to HTML and compared against goldens **captured from the code before the change**. Not "the props are accepted" — the actual markup, class strings and all. Plus named assertions on the categorical internals MitigateNY depends on (swatch classes, container classes, size→text mapping, category reversal, `colorsByKey` precedence, `hover_highlight`). |
+| `tests/legendThemeTokens.test.js` | 13 | Forward coverage: a SET token does the right thing **and takes no structural class with it**. Includes absent-vs-empty `classNames` equivalence and partial fills. |
+| `tests/graphComponentLegendTokens.test.js` | 4 | The injection end-to-end: a real BarGraph through `GraphComponent`, asserting a theme token reaches the rendered legend **under the right key name** — the one thing the Legend unit tests can't see, and where a typo would fail silently. |
+| `tests/avlGraphThemeDefaults.test.js` | 5 | **Constraint 1**, asserted rather than inferred: the whole `avlGraphTheme` frozen against a golden, plus named checks that both styles still carry `p-4`, that `chartDefaults.legend` is still exactly `{ show: true }`, and that core sets **no** Layer-A class token. |
+
+Fixtures in `tests/fixtures/`. Regenerating a golden is a deliberate act — it means changing what
+every existing site's legend looks like, so it needs a reason in the same commit, not a green test.
+
+**Stated gap, not papered over:** the two LINEAR legends measure their container with a ref, and
+under SSR that measurement is absent — their goldens lock the pre-measurement paint, not the final
+geometry. Playwright still owns geometry (`slack_in_box: 0`). The CATEGORICAL path, which is what
+MitigateNY actually renders, has no measurement and is locked completely.
+
+### Verification
+
+- `npx vitest run packages/dms/tests --root src/dms` → **17 files, 334 tests, all green.**
+- A bare `npx vitest run --root src/dms` also reports **29 failing files — all pre-existing and
+  unrelated**: the vendored mocha suite under `packages/dms-server/src/utils/falcor-router/test/`,
+  failing `describe is not defined` because there is no vitest `globals` config. Confirmed by
+  stashing the source changes and reproducing.
+- **`probe_corpus.mjs` — no diff attributable to this work, proven by A/A rather than A/B.**
+  Four runs across two code states: baseline blockers 2 then 8; changed blockers 8 then 7; majors
+  constant at 53 throughout. **Baseline run 2 and changed run 1 are byte-identical.** The blank vs
+  has-content detection swings in *both* directions between two runs of the *same* code, so it is
+  timing flake in the probe, not a rendering change.
+- **The corpus baseline is stale and should be re-captured (not done — needs Ryan's ok).** Every
+  flaky line reads "was blank → has content", i.e. the baseline was captured before data existed
+  that exists now (the PM3 2018-2020 backfill). Ryan, same session, on the live client: *"what I see
+  currently on local client, for `snapshot` dynamic report, looks good to me?"* Until it is
+  re-captured the suite will keep reporting these as blockers.
+
+### ⚠ A live break I caused, caught by Ryan, fixed same session — read this before wiring any token
+
+**What happened.** Within minutes of the tokens going in, Ryan on the local client: *"specifically
+looking at the legend since u are changing it, it now has the overlapping text onto color."* That is
+the pass-1 defect back — labels drawn on the gradient.
+
+**Root cause, and it is the interesting part: I did not change a theme value. I made a dead one
+live.** `themev2.js:1987` had carried
+`legend: "flex items-center gap-4 font-mono text-[10.5px] uppercase tracking-wider text-slate-500"`
+for a long time as scaffolding nothing read. The `classNames` injection wired it, so it took effect
+with **no edit to any theme file**. Landing `flex` on the horizontal gradient legend's container
+turned the ramp — a `width: 100%` block — into a shrink-wrapping flex item, so it no longer spanned
+the box the absolutely-positioned tick labels are placed against, and the labels fell back onto the
+colour. The same value would also have put `flex` and `grid` on the *vertical categorical*
+container at once, where stylesheet rule order, not attribute order, picks the winner.
+
+**Fixed on both sides, because either alone is a patch:**
+
+1. **Component** — `row` is *the categorical legend's row of items* and is **no longer applied to
+   either linear legend**. A brand cannot know which variant its token will reach, so the gradient
+   legend's container stays component-owned; `tick` and `ramp` are the surfaces that reach it. The
+   reasoning is written at the token contract in `Legend.jsx` so it does not get re-added.
+2. **Value** — `themev2.js` `legend` dropped its display/alignment classes (`flex items-center`),
+   keeping spacing and typography: `"gap-4 font-mono text-[10.5px] uppercase tracking-wider
+   text-slate-500"`. `legendSwatch` gained `mr-2`, because the token *replaces* `w-4 h-4 rounded
+   mr-1` and a thin `h-0.5 w-4` rule with no margin abuts the label.
+
+**Verified by reproducing the break, not just by observing the fix.** A new probe
+(`scratchpad/npmrds-sub/tmp/legend_geom.mjs`) measures label-vs-ramp rect intersection — rects, not
+a screenshot, since a few px of overlap is invisible to a compressed image. Reverting **both**
+halves reproduces it exactly: overlapping labels `28.9 / 30 / 31.1 / 32.3 / 33.4 / 24.2 / 27.2 …`.
+Restoring the fix returns `overlaps: []`. Reverting the theme value **alone** does not reproduce it,
+which is the check that proves the component half is doing the work.
+
+| page | gradient legends | overlaps | ramp spans box | container display | slack_in_box | console/page errors |
+|---|---|---|---|---|---|---|
+| `reports/annual_average_study?routes=2207838&asOf=2026-07-23` | 4 | **0** | true | `block` | 0 | 0 / 0 |
+| `reports/snapshot?routes=2207838&asOf=2026-07-23` | 7 | **0** | true | `block` | 0 | 0 / 0 |
+
+**Blast radius, checked by grep rather than reasoning.** The only `avlGraph`-scoped legend class
+tokens in the whole repo are transportny's `themev2.js:1987-1988`. Every other `legend` in
+`src/themes/` sits in a different component block — `stackedBar` (mny `theme.js:952`, landbank
+`theme.js:1951`), `dots` (`themev2.js:3110`), a tessera map panel, wcdb's `ScheduleGrid`. **So
+MitigateNY was never exposed**, which is what the tests said and what the grep confirms
+independently.
+
+**The lesson that outlived the bug**, and the reason
+[`planning/shared/tasks/current/theme-legend-token-consolidation.md`](../../../../../planning/shared/tasks/current/theme-legend-token-consolidation.md)
+now exists (Ryan's call — scope it later, don't investigate now): **wiring a previously-dead theme
+token is a silent, repo-wide behaviour change for every site that already authored it.** Nothing
+today can answer "who has authored this token, and does anything read it?" Before wiring any further
+dead token — `tooltip` in item 3 is next, and it is authored in two places already — grep every
+theme for it first and read the values as if they were about to render, because they are.
+
+### Still open on item 1
+
+**REVIEWED AND APPROVED by Ryan, 2026-09-10: "the new legends look great."** Item 1 is closed.
+
+The live values are transportny's own long-dead `themev2.js:1987-1988` tokens, minus the display
+classes that broke the gradient legend — `legend: "gap-4 font-mono text-[10.5px] uppercase
+tracking-wider text-slate-500"` and `legendSwatch: "h-0.5 w-4 mr-2"`. They were adopted as a
+de-risking fix rather than chosen, and START HERE had called for the design system's **chip
+treatment** instead; Ryan's review settles it in favour of what is now rendering, so **the chip
+treatment is not needed and that instruction is superseded.** `legendLabel`, `legendTick` and
+`legendRamp` remain unset, so gradient ticks and the ramp keep their historical look — available
+if a later item wants them.
+
+Verify at
+`http://www.localhost:5173/npmrds/reports/annual_average_study?routes=2207838&asOf=2026-07-23`.
+
+> **URL gotcha, cost a round-trip here.** The browser origin is `.../npmrds`, but
+> `report_probe.mjs` takes a BARE slug (`reports/annual_average_study`) because `/npmrds` is
+> already baked into its default `--host`. Copying a probe argument into a browser URL silently
+> drops the prefix and 404s. Now recorded in `skills/traversing-report-pages.md`.
 
 ### Fallback fix — DONE 2026-09-10 (Ryan: "sure, do that fallback fix fast")
 

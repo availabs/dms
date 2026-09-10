@@ -9,6 +9,35 @@ const SizeMap = {
 	large: [400, 40, "text-sm"]
 }
 
+// ── Layer A: theme class-string tokens ─────────────────────────────────────
+// `classNames` ({ row, swatch, label, tick, ramp }) is injected by GraphComponent, not read
+// from a theme here: which avlGraph style is live is decided per-section by `activeStyle`,
+// which the legend never sees. Two rules govern every token below, and both are load-bearing.
+//
+//   1. UNSET ⇒ the historical literal, byte for byte. Roughly 7,415 MitigateNY graphs render
+//      a legend and not one of them sets a token; `tests/legendLegacyProps.test.js` locks the
+//      exact rendered markup so this can't drift by accident.
+//   2. A token replaces LOOK, never STRUCTURE. `absolute`, `whitespace-nowrap`, `min-w-0`,
+//      `truncate`, `shrink-0` and the grid/flex orientation classes stay component-owned — a
+//      brand must not be able to drop them and reintroduce the label clipping that the
+//      geometry pass just fixed.
+//
+// Tailwind footgun, stated because this repo has already been bitten by it: these are class
+// strings, not CSS declarations. A token that repeats a utility its fallback also sets (two
+// `gap-*`, two `h-*`) is resolved by the generated stylesheet's rule order, NOT by which one
+// sits later in the attribute. Author a token as a COMPLETE replacement for the look it names.
+//
+// `row` IS THE CATEGORICAL LEGEND'S ROW OF ITEMS, and is deliberately NOT applied to the two
+// linear (gradient) legends. Caught live 2026-09-10, on the first render after these tokens were
+// wired: transportny had authored `legend: "flex items-center gap-4 …"` years earlier as dead
+// scaffolding, describing a chip row. Landing `flex` on the gradient container made the ramp — a
+// `width: 100%` block — into a shrink-wrapping flex item, so it no longer spanned the box the
+// absolutely-positioned tick labels are positioned against, and the labels fell back on top of
+// the colour. That is precisely the defect the geometry pass existed to remove. A brand cannot
+// know which legend variant its token will land on, so the gradient legend's container stays
+// component-owned; its typography is reachable through `tick`, and its ramp through `ramp`.
+const look = (token, fallback) => token || fallback;
+
 const VerticalCategoricalLegendItem = props => {
 
 	const {
@@ -16,7 +45,8 @@ const VerticalCategoricalLegendItem = props => {
 		color,
 		doHighlight = false,
 		onEnter,
-		onLeave
+		onLeave,
+		classNames = {}
 	} = props;
 
 	const doOnEnter = React.useCallback(e => {
@@ -40,14 +70,17 @@ const VerticalCategoricalLegendItem = props => {
 			onMouseEnter={ doOnEnter }
 			onMouseLeave={ doOnLeave }
 		>
-			<div className="w-4 h-4 rounded mr-1 flex-shrink-0"
+			{ /* `flex-shrink-0` is structural and stays outside the token: a swatch that can
+			   shrink collapses to nothing in a tight row. The look — size, radius, gap — is
+			   the brand's (transportny authors a thin `h-0.5 w-4` rule rather than a block). */ }
+			<div className={ `${ look(classNames.swatch, "w-4 h-4 rounded mr-1") } flex-shrink-0` }
 				style={ {
 					backgroundColor: doHighlight ? "red" : color
 				} }/>
 			{ /* min-w-0 + truncate only ever clip anything once an ancestor
 			   actually constrains this item's width (see useLegendSqueezeGuard) —
 			   inert, and identical to today's render, otherwise. */ }
-			<div className="min-w-0 truncate" title={ label }>
+			<div className={ `min-w-0 truncate${ classNames.label ? ` ${ classNames.label }` : "" }` } title={ label }>
 				{ label }
 			</div>
 		</div>
@@ -62,6 +95,7 @@ const CategoricalLegend = props => {
 		colorsByKey,
 		actions = [],
 		orientation = "vertical",
+		classNames = {},
 		...rest
 	} = props;
 
@@ -91,11 +125,17 @@ const CategoricalLegend = props => {
 
 // console.log("VerticalCategoricalLegend::catsToHiglight", catsToHiglight);
 
+	// Layout (`grid` vs `flex`) is the ORIENTATION contract and stays ours; `row` supplies the
+	// brand's own spacing and typography in its place. Written as two whole strings rather than
+	// assembled from parts, so the unset case is visibly the exact historical literal.
 	return (
-		<div className={ orientation === "horizontal" ? "px-4 flex flex-wrap items-center justify-left gap-2" : "px-4 grid grid-cols-1 gap-1" }>
+		<div className={ orientation === "horizontal"
+				? (classNames.row ? `${ classNames.row } flex flex-wrap items-center justify-left` : "px-4 flex flex-wrap items-center justify-left gap-2")
+				: (classNames.row ? `${ classNames.row } grid grid-cols-1` : "px-4 grid grid-cols-1 gap-1") }>
 			{ categoriesAndColors.map(([cat, color]) =>
 					<VerticalCategoricalLegendItem key={ cat }
 						{ ...rest }
+						classNames={ classNames }
 						label={ cat }
 						color={ color }
 						doHighlight={ catsToHiglight.has(cat) }/>
@@ -169,7 +209,7 @@ const fitRampTicks = (scale, format, fontPx, available) => {
 	return rampTicks(scale, 2);
 }
 
-const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }) => {
+const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {} }) => {
 
 	const [height, cross] = React.useMemo(() => {
 		return SizeMap[size] || SizeMap["medium"];
@@ -189,7 +229,7 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }
 			} }
 		>
 			<div
-				className="rounded shrink-0"
+				className={ `${ look(classNames.ramp, "rounded") } shrink-0` }
 				style={ {
 					background: `linear-gradient(to bottom, ${ scale.range() })`,
 					width: `${ rampThickness }px`,
@@ -214,7 +254,7 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }
 			>
 				{ ticks.map((t, i) =>
 						<div key={ i }
-							className="absolute whitespace-nowrap tabular-nums"
+							className={ `absolute whitespace-nowrap ${ look(classNames.tick, "tabular-nums") }` }
 							style={ {
 								top: `${ (i / (ticks.length - 1)) * 100 }%`,
 								transform: i === 0 ? "translateY(0)" :
@@ -231,7 +271,7 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity }
 	)
 }
 
-const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity }) => {
+const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {} }) => {
 
 	const [maxWidth, cross] = React.useMemo(() => {
 		return SizeMap[size] || SizeMap["medium"];
@@ -255,7 +295,7 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 			} }
 		>
 			<div
-				className="rounded"
+				className={ look(classNames.ramp, "rounded") }
 				style={ {
 					background: `linear-gradient(to right, ${ scale.range() })`,
 					width: "100%",
@@ -274,7 +314,7 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 									height: `${ TICK_GUTTER }px`,
 									transform: "translateX(-1px)"
 								} }/>
-							<div className="absolute whitespace-nowrap tabular-nums"
+							<div className={ `absolute whitespace-nowrap ${ look(classNames.tick, "tabular-nums") }` }
 								style={ {
 									left: `${ pct }%`,
 									top: `${ rampThickness + TICK_GUTTER }px`,
