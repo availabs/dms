@@ -221,6 +221,19 @@ Resulting `grid-template-columns`: `64px minmax(0, 1fr) minmax(0, 1fr) minmax(0,
 
 The walker is **row-span-naïve** — it doesn't track which tracks are still occupied by an earlier `cellRowSpan > 1` cell. That doesn't matter for *sizing* (CSS Grid handles placement correctly regardless); the only effect is which column gets credited with claiming a track first. The "first wins" rule still produces sensible outputs in practice.
 
+> ⚠️ **`cellWidth` is a property of the SHARED grid, not of the cell you set it on.**
+> One `cellWidth: 'max-content'` cell resizes the tracks for *every* row of the card. The walker
+> collapses that cell's other spanned tracks to **0px**, so the tracks stop adding up to the
+> container — and any *other* row that spans the full grid is then **narrower than the card**, with
+> no visible cause. Measured on the MitigateNY LHMP plan home (2026-09-09): four `max-content` chips
+> on a 12-track card left the `cellSpan: 12` label/value rows ending **152px short** of the card
+> edge, so their right-aligned values looked mis-aligned while being perfectly aligned to a grid
+> that had quietly shrunk. Removing `cellWidth` restored them (152px → 21px, the card padding).
+>
+> Use `cellWidth` only when **every** row of the card wants that track shape. For "pack these few
+> cells to their content" inside a card that also has full-width rows, plain equal `cellSpan`s plus
+> a `w-fit` token on the cell's own content is the safe form.
+
 #### Section-level — `cellsTracksTemplate`
 
 Power-user escape hatch under the **Cells Grid → Track Template** input. A freeform `grid-template-columns` string. When set, it wins over the per-column derivation:

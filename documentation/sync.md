@@ -2,7 +2,9 @@
 
 ## Overview
 
-DMS sync provides a local-first data layer for DMS sites. Data is stored in an in-browser SQLite database (wa-sqlite backed by IndexedDB), so reads are instant and the app works offline. Writes are applied locally first, then pushed to the server. A WebSocket connection delivers real-time change notifications from other clients.
+DMS sync provides a local-first data layer for DMS sites. Data is stored in an in-browser IndexedDB database, so reads are instant and the app works offline. Writes are applied locally first, then pushed to the server. A WebSocket connection delivers real-time change notifications from other clients.
+
+(Earlier versions of this system ran SQLite compiled to WebAssembly — wa-sqlite — in a Web Worker, itself persisted to IndexedDB via a virtual filesystem. That SQL-engine layer was removed in favor of talking to IndexedDB directly: the query surface it needed to serve turned out to be exact-key gets and exact/prefix matches only — no joins, no aggregates — which IndexedDB's native indexes cover without a SQL engine in between, and dropping it also removes a ~2.3MB WASM+worker payload and a `postMessage` round trip from every read. See `sync/CLAUDE.md`'s "Query-flexibility constraint" if you're about to reach for something more than an exact or prefix match.)
 
 For rich text content, sync includes collaborative editing via Yjs and Lexical's CollaborationPlugin. Multiple users editing the same section see each other's cursors and edits in real time.
 
@@ -29,15 +31,15 @@ No manual database setup is required. The `change_log` and `yjs_states` tables a
 
 1. **Bootstrap** -- On first load (or after a local DB reset), the client fetches a skeleton of the site (site row + pattern rows) from `/sync/bootstrap`. This is enough to render navigation.
 
-2. **On-demand pattern loading** -- When the user navigates to a pattern for the first time, `bootstrapPattern()` fetches that pattern's pages, sections, and dataset rows. Subsequent visits read from local SQLite.
+2. **On-demand pattern loading** -- When the user navigates to a pattern for the first time, `bootstrapPattern()` fetches that pattern's pages, sections, and dataset rows. Subsequent visits read from local IndexedDB.
 
-3. **Local reads** -- All component data reads (`useQuery`, `exec`) query the local SQLite database. There is no network round-trip for reads.
+3. **Local reads** -- Component data reads query local IndexedDB via `idb-store.js`'s purpose-built functions (exact-key and exact/prefix `(app,type)` lookups only — see `sync/CLAUDE.md`'s "Query-flexibility constraint"). There is no network round-trip for reads.
 
-4. **Local writes + push** -- Writes (`localCreate`, `localUpdate`, `localDelete`) are applied to local SQLite immediately, then pushed to the server via `/sync/push`. The server applies the change to its database, records it in `change_log`, and broadcasts a WebSocket notification to other connected clients.
+4. **Local writes + push** -- Writes (`localCreate`, `localUpdate`, `localDelete`) are applied to local IndexedDB immediately, then pushed to the server via `/sync/push`. The server applies the change to its database, records it in `change_log`, and broadcasts a WebSocket notification to other connected clients.
 
 5. **Delta sync** -- On WebSocket reconnect (or periodically), the client calls `/sync/delta` with its last-known revision to fetch any changes it missed. This keeps clients in sync after network interruptions.
 
-6. **WebSocket notifications** -- The server broadcasts change events per-app. When a client receives a notification for a row it has locally, it fetches the updated data and applies it to its local SQLite.
+6. **WebSocket notifications** -- The server broadcasts change events per-app. When a client receives a notification for a row it has locally, it fetches the updated data and applies it to its local IndexedDB.
 
 ## Collaborative Editing
 
@@ -45,7 +47,7 @@ When two or more users edit the same rich text section simultaneously:
 
 - Each user sees the other users' cursors, labeled with their email address.
 - Edits appear character-by-character in real time (Yjs CRDT merge, no conflicts).
-- The SyncStatus indicator (bottom-right corner) shows a peer count icon when a collaborative session is active.
+- The user menu's avatar ring and sync status row (in the account dropdown) show a peer count icon when a collaborative session is active.
 - Collaborative state (the Yjs document) is persisted on the server in the `yjs_states` table, so edits survive page reloads and reconnects.
 - Content is saved to the DMS database only when the user clicks **Save**. Clicking **Cancel** discards all local edits. The Yjs state is the live working copy; the database record is the published copy.
 
@@ -55,7 +57,7 @@ When two or more users edit the same rich text section simultaneously:
 Browser Tab
 +-- React App (DmsSite)
 +-- Sync Manager (bootstrap / delta / WS / push)
-+-- SQLite WASM (Web Worker, IDB persistence)
++-- IndexedDB (main thread, no worker)
 +-- WebSocket -----> DMS Server
                      +-- /sync/bootstrap   (full snapshot for app or pattern)
                      +-- /sync/delta       (changes since revision N)
@@ -71,10 +73,9 @@ Browser Tab
 |--------|------|
 | `sync/index.js` | Public API entry point (`initSync`, `getSyncAPI`) |
 | `sync/sync-manager.js` | Core logic: bootstrap, delta, push, WS, collab room management |
-| `sync/db-client.js` | SQLite WASM wrapper (runs in a Web Worker) |
-| `sync/use-query.js` | React hook for querying local SQLite |
-| `sync/SyncStatus.jsx` | Status indicator component (connection state, pending count, peer count) |
+| `sync/idb-store.js` | IndexedDB schema + storage API (runs on the main thread, no worker) |
 | `sync/sync-scope.js` | Tracks which types are synced locally |
+| `patterns/page/components/userMenu.jsx` | Consumes `onStatusChange`/`onCollabChange` and renders the status ring + status row (connection state, pending count, peer count) inside the user menu |
 
 ### Key server modules
 
@@ -96,10 +97,13 @@ The sync system is wired up in two phases:
 - Verify `VITE_DMS_SYNC=1` is set in your `.env` (must be a build-time Vite variable, not a runtime one).
 - Confirm the DMS server is running and reachable.
 - Check the browser console for WebSocket connection errors (`ws://` or `wss://` URLs).
-- Look at the SyncStatus indicator in the bottom-right corner: red = disconnected, yellow = syncing, green = connected.
+- Look at the ring around the user avatar in the user menu: red/slate = disconnected, amber = syncing, orange = recovering, green = connected. Open the menu for the full status row (label + pending count + peer count).
 
 **Stale data after server restart**
 - The client catches up automatically via a delta request on the next WebSocket reconnect. If data still looks stale, trigger a page reload -- the client will run a delta against its last revision.
+
+**Inspecting local data**
+- In dev mode, `globalThis.__dmsSyncDump()` from the browser console dumps all three IndexedDB object stores (`data_items`, `sync_state`, `pending_mutations`) as `console.table`s — faster than digging through DevTools' Application tab for a one-off check.
 
 **Corrupted local database**
 - Call `resetAndRebootstrap()` from the browser console:
@@ -110,6 +114,6 @@ The sync system is wired up in two phases:
 
 **Collaborative cursors not showing**
 - Both users must be editing the same section (same item ID).
-- Check that the WebSocket connection is active (green dot in SyncStatus).
-- Verify the SyncStatus indicator shows a peer count (people icon with a number). If it shows nothing, the collab room may not have been joined.
+- Check that the WebSocket connection is active (green ring on the user menu avatar).
+- Open the user menu and verify the sync status row shows a peer count (people icon with a number). If it shows nothing, the collab room may not have been joined.
 - Ensure both users have `VITE_DMS_SYNC=1` enabled -- collaborative editing only works through the sync system.

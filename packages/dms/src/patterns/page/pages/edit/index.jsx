@@ -236,9 +236,24 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	// in two phases on mount (an initial synchronous guess, then a
 	// corrective effect that can swap in a real no-access stub), so that
 	// path-change is a real, common transition here, not a hypothetical one.
-	const headerChildren = React.useMemo(() => getSectionGroups('top'), [item?.draft_section_groups]);
-	const footerChildren = React.useMemo(() => getSectionGroups('bottom'), [item?.draft_section_groups]);
-	const contentChildren = React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups]);
+	//
+	// Deps include item?.draft_sections alongside item?.draft_section_groups —
+	// the group LAYOUT (names/positions) almost never changes independent of
+	// item?.draft_sections (the actual section CONTENT, which does change on
+	// every add/delete/edit). When only draft_sections changed, memoizing on
+	// draft_section_groups alone returned the exact same cached React element
+	// tree, and React's reconciler bails out of re-rendering an unchanged
+	// memoized subtree entirely — so SectionGroup/sectionArray.jsx, nested
+	// inside, never re-rendered to read the fresh PageContext value, even
+	// though item itself was already correctly up to date one level up. This
+	// is why a remote edit's data would land correctly in local IndexedDB and
+	// even in this component's own `item` state, yet never appear on screen
+	// without a hard reload (which remounts everything fresh instead of
+	// relying on this memo). See
+	// planning/tasks/current/concurrent-page-editing-data-loss.md.
+	const headerChildren = React.useMemo(() => getSectionGroups('top'), [item?.draft_section_groups, item?.draft_sections]);
+	const footerChildren = React.useMemo(() => getSectionGroups('bottom'), [item?.draft_section_groups, item?.draft_sections]);
+	const contentChildren = React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups, item?.draft_sections]);
 
 	// LINK PAGE (`nav_link`, page.format.js): no sections by design, so the canvas is
 	// replaced with a notice naming the destination. Edit does NOT redirect the way
