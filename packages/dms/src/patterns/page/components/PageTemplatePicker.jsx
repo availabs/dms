@@ -232,7 +232,41 @@ function HazardEventPreview({ t }) {
   );
 }
 
+// ── Link: a chain glyph over an empty canvas — the page has no content ───────
+function LinkPreview({ t }) {
+  return (
+    <div className={t.cardPreview} style={{ alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '3px' }}>
+        <div className={t.cardPreviewBlock} style={{ width: '16px', height: '7px', borderRadius: '99px' }} />
+        <div className={t.cardPreviewBlock} style={{ width: '6px', height: '2px', opacity: 0.5 }} />
+        <div className={t.cardPreviewBlock} style={{ width: '16px', height: '7px', borderRadius: '99px' }} />
+      </div>
+      <div className={t.cardPreviewBlock} style={{ height: '3px', width: '46%', opacity: 0.4 }} />
+    </div>
+  );
+}
+
+// Built-in, always available on the Theme Templates tab: a page that carries only a
+// nav entry pointing elsewhere (`nav_link`, page.format.js). Appended after the
+// theme's own templates, never prepended — the default selection is themeTemplates[0],
+// and "+ Add Page" must keep defaulting to a real content page.
+// Module-local, not exported: a non-component export would break this .jsx file's
+// Fast Refresh boundary (see packages/dms/CLAUDE.md). The picker hands the object to
+// newPage via onSelect, so nothing outside needs to import it.
+const LINK_PAGE_TEMPLATE = {
+  id: 'link_page',
+  name: 'Link',
+  description: 'A nav entry that points somewhere else. No content of its own.',
+  // Seeded with the site root rather than '' on purpose: a page counts as a link page
+  // only while `nav_link` is non-empty (clearing the field turns it back into an
+  // ordinary page), so an empty seed would create an indistinguishable blank page and
+  // the author would never see the "this page is a link" canvas telling them what to
+  // do next. '/' is a valid, harmless placeholder they then replace.
+  nav_link: '/',
+};
+
 const PREVIEW_COMPONENTS = {
+  link_page: LinkPreview,
   blank: BlankPreview,
   article: ArticlePreview,
   two_column: TwoColumnPreview,
@@ -270,6 +304,10 @@ export default function PageTemplatePicker({ open, onClose, onSelect }) {
   const themeTemplates = useMemo(
     () => themeFromContext?.page_templates || [],
     [themeFromContext?.page_templates]
+  );
+  const themeTabTemplates = useMemo(
+    () => [...themeTemplates, LINK_PAGE_TEMPLATE],
+    [themeTemplates]
   );
   const [tab, setTab] = useState('theme');
   const [dbTemplates, setDbTemplates] = useState([]);
@@ -331,7 +369,7 @@ export default function PageTemplatePicker({ open, onClose, onSelect }) {
           </span>
         </div>
         <div className={t.grid}>
-          {tab === 'theme' && themeTemplates.map(tpl => (
+          {tab === 'theme' && themeTabTemplates.map(tpl => (
             <TemplateCard
               key={tpl.id}
               template={tpl}

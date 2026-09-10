@@ -221,6 +221,19 @@ Resulting `grid-template-columns`: `64px minmax(0, 1fr) minmax(0, 1fr) minmax(0,
 
 The walker is **row-span-naïve** — it doesn't track which tracks are still occupied by an earlier `cellRowSpan > 1` cell. That doesn't matter for *sizing* (CSS Grid handles placement correctly regardless); the only effect is which column gets credited with claiming a track first. The "first wins" rule still produces sensible outputs in practice.
 
+> ⚠️ **`cellWidth` is a property of the SHARED grid, not of the cell you set it on.**
+> One `cellWidth: 'max-content'` cell resizes the tracks for *every* row of the card. The walker
+> collapses that cell's other spanned tracks to **0px**, so the tracks stop adding up to the
+> container — and any *other* row that spans the full grid is then **narrower than the card**, with
+> no visible cause. Measured on the MitigateNY LHMP plan home (2026-09-09): four `max-content` chips
+> on a 12-track card left the `cellSpan: 12` label/value rows ending **152px short** of the card
+> edge, so their right-aligned values looked mis-aligned while being perfectly aligned to a grid
+> that had quietly shrunk. Removing `cellWidth` restored them (152px → 21px, the card padding).
+>
+> Use `cellWidth` only when **every** row of the card wants that track shape. For "pack these few
+> cells to their content" inside a card that also has full-width rows, plain equal `cellSpan`s plus
+> a `w-fit` token on the cell's own content is the safe form.
+
 #### Section-level — `cellsTracksTemplate`
 
 Power-user escape hatch under the **Cells Grid → Track Template** input. A freeform `grid-template-columns` string. When set, it wins over the per-column derivation:
@@ -690,6 +703,25 @@ key** — set `normalName` explicitly on the seg calcs and reference that (with 
 > has spaces around it in the raw string, e.g.
 > `|| ' more' || chr(32) || 'as their data lands'`.
 
+> ⚠️ **A column type's host `name` still goes into the SELECT — it must be valid SQL.**
+> `stacked_bar` (and any column type whose own value is unused) reads its data off *sibling*
+> columns, which makes it tempting to give the host a label-ish name like `actions_meter`. Don't:
+> `buildUdaConfig` puts every `show: true` column's `name` in the attribute list, so the server
+> compiles `sum((actions_meter)::integer) as actions_meter_sum` and Postgres answers
+> **`column "actions_meter" does not exist`**. That error comes back on *every attribute in the
+> request*, so the whole card renders zeros/blanks — it presents as a broken filter, not as a bad
+> column name. Use a literal expression instead: `{ name: '1 as actions_meter', normalName:
+> 'actions_meter', fn: 'sum' }` (or `count(1) as …` with `fn: 'exempt'`). Same rule for any
+> hand-written calc: one bad expression poisons the entire section's data.
+> **Corollary for `isDms` sources:** their fields live in the row's JSONB, so a calculated column
+> must address them as `data->>'field'`. A *filter* leaf uses the bare name (the UDA maps it), but a
+> bare name inside a calc expression hits the same "does not exist" failure. Both forms exist in
+> live MitigateNY config and only the `data->>` one is correct in a calc.
+>
+> **Debugging this class of failure:** the only place the message appears is the falcor response.
+> Capture it with a Playwright `page.on('response')` filtered to the API host — the browser console
+> only logs a generic `Error fetching data`.
+
 > ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
 > `domainColumns`/`*Column` props) must reference a sibling column by its FULL
 > SQL `name`, not its alias.** The row handed to the column type is keyed by each
@@ -697,7 +729,13 @@ key** — set `normalName` explicitly on the seg calcs and reference that (with 
 > the bare alias misses the lookup → `barMax` resolves to `NaN` → `fillPct`
 > clamps every bar to 100% (bars show *no variation*, the classic symptom).
 > Define the max/tone expressions once and reuse the exact string in both the
-> column and the `*Column` prop. Also: `data_bar` parses the cell value with
+> column and the `*Column` prop. **And do not point `barMaxColumn` at the bar's OWN column** — the
+> max then equals the value on every row and every bar is 100%, the same symptom as the alias
+> mismatch. The scale has to be a separate `selectOnly` sibling holding a window aggregate, e.g.
+> `max(sum(<expr>)) over () as loss_max` (or `nth_value(sum(<expr>), 2) over (order by sum(<expr>)
+> desc rows between unbounded preceding and unbounded following)` to scale ranks 2-n to rank 2 and
+> let the leader clamp) with `normalName: 'loss_max'` and `barMaxColumn: 'loss_max'`. Verified on the
+> MitigateNY LHMP plan home, 2026-09-09. Also: `data_bar` parses the cell value with
 > `parseFloat`, which stops at a comma — a `formatFn: 'comma'` value like
 > `"31,677"` parses as `31` and collapses the scale; the built-in `data_bar`
 > strips commas before parsing, so keep that behavior if you fork it.

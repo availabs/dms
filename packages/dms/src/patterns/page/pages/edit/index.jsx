@@ -10,6 +10,7 @@ import {
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
+import LinkPageNotice from '../../components/LinkPageNotice'
 import PageControls from './editPane'
 
 function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
@@ -94,7 +95,15 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		// -------------------------------------------------------------------
 		// -- This on load effect backfills pages created before sectionGroups
 		// -------------------------------------------------------------------]
-		if(!item.draft_section_groups && item?.id) {
+		// Require url_slug (every real page row has one — see siteConfig.jsx's
+		// filter.attributes) alongside id. Without this, a not-yet-resolved `item`
+		// (e.g. sync's local mirror hasn't caught up with this specific page, so
+		// EditWrapper's initial pick falls back to an unrelated row that still has
+		// a real `id` but no `url_slug` — a component/section row, not a page) both
+		// writes bogus draft_section_groups/draft_sections onto that WRONG row and
+		// navigates to a literal `.../edit/undefined` URL via sectionsEditBackill's
+		// own apiUpdate call.
+		if(!item.draft_section_groups && item?.id && item?.url_slug) {
 			console.log('backfill------------------')
 			sectionsEditBackill(item,baseUrl,apiUpdate, search, theme)
 		}
@@ -108,6 +117,15 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		// Skip initial render and no-change cases
 		if (draftDataSources === draftDataSourcesRef.current) return;
 		draftDataSourcesRef.current = draftDataSources;
+		// item.id can be 'no-access' (the server's blocked-row placeholder — every field
+		// on a restricted item is scrubbed to this literal string, not just id) or falsy
+		// (not yet resolved). Writing against either produces a request the server can
+		// never honor: 'no-access' 500s forever and — under sync — gets durably queued
+		// in pending_mutations, retrying on every future page load in that browser
+		// profile until manually cleared (found live 2026-09-09, a stuck no-access
+		// mutation spamming /sync/push). A falsy id is worse: dmsDataEditor treats a
+		// missing id as a CREATE, silently spawning a junk row instead of just failing.
+		if (!item?.id || item.id === 'no-access') return;
 		const timeout = setTimeout(() => {
 			apiUpdate({ data: { id: item.id, draft_dataSources: draftDataSources } });
 		}, 500);
@@ -254,6 +272,12 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const footerChildren = React.useMemo(() => getSectionGroups('bottom'), [item?.draft_section_groups, item?.draft_sections]);
 	const contentChildren = React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups, item?.draft_sections]);
 
+	// LINK PAGE (`nav_link`, page.format.js): no sections by design, so the canvas is
+	// replaced with a notice naming the destination. Edit does NOT redirect the way
+	// pages/view.jsx does — that is the whole point, it keeps the page openable so the
+	// link can be changed. Declared after the memos above to keep hook order stable.
+	const isLinkPage = Boolean(item?.nav_link);
+
 	if (item?.id === 'no-access') {
 		if (user?.isAuthenticating) return null;
 		if (!user?.authed) {
@@ -304,7 +328,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               headerChildren={headerChildren}
               footerChildren={footerChildren}
           >
-            {contentChildren}
+            {isLinkPage ? <LinkPageNotice navLink={item.nav_link} /> : contentChildren}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>

@@ -791,6 +791,29 @@ function _notifyCollabListeners() {
 
 // --- Error recovery ---
 
+/**
+ * Discard every currently-queued pending mutation without pushing it again.
+ * For a mutation that can never succeed (e.g. one queued against the
+ * server's 'no-access' placeholder id — see the page-edit autosave guard
+ * this pairs with, found live 2026-09-09), this is the only way out:
+ * retryFlush() has no backoff ceiling and would otherwise hit /sync/push
+ * forever, spamming the console and server on every future page load in
+ * this browser profile. This only stops the retry loop — the LOCAL
+ * optimistic write each discarded mutation represented is left as-is, so
+ * local/server state can stay diverged for that item until the next full
+ * bootstrap/delta corrects it. Same tradeoff resetAndRebootstrap makes,
+ * just scoped to the stuck mutations instead of wiping all local data.
+ */
+export async function clearPendingMutations() {
+  const rows = await getAllPendingMutationsOrdered();
+  for (const row of rows) {
+    await deletePendingMutationById(row.id);
+  }
+  if ((await countAllPendingMutations()) === 0) {
+    updateStatus('connected');
+  }
+}
+
 let _recovering = false;
 
 export async function resetAndRebootstrap() {

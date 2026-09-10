@@ -34,6 +34,12 @@ export const userMenuTheme = {
       syncCollabWrapper: 'flex items-center gap-1 text-blue-600',
       syncCollabIcon: 'size-3',
 
+      // "Clear pending mutations" action row, right below the sync status row.
+      // Disabled (no click, dimmed) whenever there's nothing stuck to clear.
+      syncClearWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500 cursor-pointer hover:bg-slate-50',
+      syncClearWrapperDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
+      syncClearLabel: 'flex-1',
+
       // EditControl component
       editControlWrapper: 'flex justify-center items-center p-2',
       iconWrapper: 'size-9 flex items-center justify-center',
@@ -80,6 +86,9 @@ const themeClasses = {
     "syncDotDisconnected",
     "syncCollabWrapper",
     "syncCollabIcon",
+    "syncClearWrapper",
+    "syncClearWrapperDisabled",
+    "syncClearLabel",
   ],
   "editControl": [
     "editControlWrapper",

@@ -91,6 +91,10 @@ export const newPage = async (item, dataItems, user, apiUpdate, template, mountB
         newItem.draft_sections = cloneDeep(template.draft_sections).map(s => ({ ...s, trackingId: crypto.randomUUID() }));
       }
       if (template.draft_section_groups !== undefined) newItem.draft_section_groups = template.draft_section_groups;
+      // Link pages (`nav_link`, page.format.js) are created from a template like any
+      // other kind; the built-in "Link" template seeds an empty destination, which the
+      // author then fills in from the settings pane.
+      if (template.nav_link !== undefined) newItem.nav_link = template.nav_link;
       if (template.sidebar !== undefined) newItem.sidebar = template.sidebar;
       if (template.sidebarHideInView !== undefined) newItem.sidebarHideInView = template.sidebarHideInView;
       if (template.theme !== undefined) newItem.theme = template.theme;

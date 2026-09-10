@@ -658,6 +658,11 @@ const buildControls = (theme) => ({
             { type: 'toggle', label: 'Hide if No Data', key: 'hideIfNull' },
             { type: 'toggle', label: 'Use Pagination', key: 'usePagination' },
             { type: 'input', inputType: 'number', label: 'Page Size', key: 'pageSize', displayCdn: ({ display }) => display.usePagination === true },
+            // Skip the first N rows of this section's own result — the "rank 1 out
+            // front, ranks 2-n beside it" composition (a grouped+ordered leader in
+            // its own panel, the remainder in a list scaled to THEIR top). Not
+            // gated on usePagination: the motivating case is an unpaginated list.
+            { type: 'input', inputType: 'number', label: 'Row Offset', key: 'rowOffset' },
         ],
         data: [
             { type: 'toggle', label: 'Allow Edit', key: 'allowEditInView',
