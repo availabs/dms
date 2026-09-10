@@ -24,6 +24,29 @@ const toRootUrl = (slugOrPath) => {
     return typeof window === 'undefined' ? path : `${window.location.origin}${path}`;
 };
 
+// A nav row's destination. Shared by `dataItemsNav` (top level) and `getChildNav`
+// (children) because the two hand-written copies had already drifted: children never
+// got the ABSOLUTE_URL or `sub://` branches, so an authored child pointing at another
+// site had `baseUrl` glued to the front and produced a dead link.
+const navPath = (d, baseUrl, edit) => {
+    // LINK PAGES (`nav_link`, page.format.js): the page renders no content, it exists
+    // only to carry this nav entry. The value is site-absolute by definition — another
+    // pattern's page on this host, a `sub://` cross-subdomain target, or a full external
+    // URL — so it takes neither the baseUrl nor the /edit prefix. Left as a plain path
+    // when it is one (rather than resolved to a full URL the way `rootPath` does), so
+    // react-router keeps SPA navigation and SideNav's `useMatch` still highlights it.
+    if (d.nav_link) return resolveSubdomainPath(`${d.nav_link}`);
+
+    const url = resolveSubdomainPath(`${d.url_slug || d.path || d.id}`);
+    // Absolute destinations leave the app, so they take neither the baseUrl nor the
+    // /edit prefix — they are already a complete URL. `rootPath` (authored navItems
+    // only) marks another pattern's page — resolved to a full URL on the viewer's
+    // origin (see toRootUrl).
+    if (ABSOLUTE_URL.test(url)) return url;
+    if (d.rootPath) return toRootUrl(url);
+    return `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`;
+};
+
 export function getChildNav(item, dataItems, baseUrl = '', edit, getInPageMenuItems = () => []) {
     let children = dataItems
         .filter(d => item.id && d.parent === item.id)
@@ -38,13 +61,7 @@ export function getChildNav(item, dataItems, baseUrl = '', edit, getInPageMenuIt
         .map((d, i) => {
         let item = {
             id: d.id,
-            // `rootPath` (authored navItems only): the destination is another
-            // pattern's page (e.g. a county-plan page shown in a sibling
-            // pattern's secondary nav) — resolved to a full URL on the viewer's
-            // origin (see toRootUrl); no baseUrl, no /edit prefix.
-            path: d.rootPath
-                ? toRootUrl(d.url_slug || d.id)
-                : `${edit ? `${baseUrl}/edit` : baseUrl}/${d.url_slug || d.id}`,
+            path: navPath(d, baseUrl, edit),
             name: d.title,
             description: d.description,
             hideInNav: d.hide_in_nav
@@ -82,18 +99,9 @@ export function dataItemsNav(dataItems, baseUrl = '', edit = false, getInPageMen
                 if (d?.icon && d?.icon !== 'none') label.icon = d.icon
                 return label
             }
-            const url = resolveSubdomainPath(`${d.url_slug || d.path || d.id}`);
             let item = {
                 id: d.id,
-                // Absolute destinations leave the app, so they take neither the baseUrl
-                // nor the /edit prefix — they are already a complete URL. `rootPath`
-                // (authored navItems only) marks another pattern's page — resolved to
-                // a full URL on the viewer's origin (see toRootUrl).
-                path: ABSOLUTE_URL.test(url)
-                    ? url
-                    : d.rootPath
-                        ? toRootUrl(url)
-                        : `${edit ? `${baseUrl}/edit` : baseUrl}${url?.startsWith('/') ? `` : `/`}${url}`,
+                path: navPath(d, baseUrl, edit),
                 name: `${d.title || d.name} ${d.published === 'draft' ? '*' : ''}`,
                 description: d.description,
                 hideInNav: d.hide_in_nav

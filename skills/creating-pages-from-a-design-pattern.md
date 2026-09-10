@@ -308,8 +308,37 @@ and height control without touching the theme:
 | Field | Type | What it does |
 |---|---|---|
 | `size` | string | The column span. Tessera's `pages.sectionArray` ships a 12-col grid (`"1"`..`"12"`); the codebase default ships `"1/3" \| "1/2" \| "2/3" \| "1"`. Omit to take the section's full width. |
-| `padding` | string | Tailwind class that overrides the sectionArray's `sectionPadding` default (usually `p-4`). Use `'p-0'` to align section content with the **LayoutGroup wrapper's left edge** — the marketing-homepage hero uses this so the eyebrow and h1 don't get the standard gutter. Set to any Tailwind padding class (`'p-2'`, `'px-0 py-6'`, etc.). |
+| `padding` | **object** (string = legacy) | Per-side padding as **step keys** into `theme.paddings`: `{ top: '6', bottom: '4' }`. See the warning below — a Tailwind class string still *renders*, but the section-settings UI cannot round-trip it. |
 | `height` | string | `'fill'` makes the section's grid cell **and** its chrome box `h-full` so it stretches to the row height. **Set `height: 'fill'` on every card in a multi-card row** (KPI strips, mode/feature/tile grids, a tall card beside a short one) so siblings render **equal height** instead of each shrink-wrapping its own content. Leave it **unset (auto)** for a full-width (`size:'12'`) section or any card that's alone in its row — there's nothing to match, and auto is the right default. (`resolveHeight` in `sectionArray.jsx`; falls back to `h-full flex flex-col` when the theme ships no `heights` map.) |
+
+> ⚠️ **Write `padding` as a per-side OBJECT, not a Tailwind class string.**
+> `resolvePadding` (`sectionArray.jsx:68`) returns a string as-is for BC, so a seeded
+> `'pt-6 pb-4'` looks right on the page and the bug is invisible until an author opens
+> the section's settings. The padding control stores
+> `{ top, right, bottom, left }` of **step keys**, and reconstructs a legacy string with
+> `parseLegacyPad` (`sectionMenu.jsx:1343`), which only understands `p-N` / `px-N` /
+> `py-N` / `p[trbl]-N` **on the theme's own step ladder**. So `'pt-3 pb-1'` reads back as
+> nothing (3 and 1 are not steps), the sides it can't parse display as the theme default,
+> and **the first click an author makes rewrites the whole value as an object**, silently
+> dropping whatever didn't parse.
+>
+> The addressable steps are the keys of `theme.paddings` — the library default (which
+> mny, having no map of its own, inherits) is `'0' | '2' | '4' | '6' | '8'`. Anything else
+> is not expressible; snap to the ladder rather than reaching for a literal class. A theme
+> with no `defaultPaddingStep` emits nothing for an omitted side (so `{top:'6',bottom:'4'}`
+> sets no x-padding, exactly like the string did); a theme that sets one defaults every
+> unlisted side to it.
+>
+> Guard it in the builder so an off-ladder value fails loudly at build time rather than
+> quietly at authoring time:
+> ```js
+> const PAD_STEPS = new Set(['0', '2', '4', '6', '8']);
+> const pad = (sides) => { for (const [side, step] of Object.entries(sides))
+>     if (!PAD_STEPS.has(String(step))) throw new Error(`padding.${side}: "${step}" is not a theme step`);
+>   return sides; };
+> ```
+> (Found on the MitigateNY LHMP plan home, 2026-09-09 — reported by the owner as
+> "the padding settings are malformed and not being read correctly by the UI".)
 
 Seed-script example (`scripts/seed-tessera-pages.mjs`):
 ```js
@@ -324,7 +353,7 @@ Seed-script example (`scripts/seed-tessera-pages.mjs`):
 The seed-loop reads these and passes them through:
 ```js
 payload.size = s.size || '12';            // default full-width
-if (s.padding != null) payload.padding = s.padding;
+if (s.padding != null) payload.padding = s.padding;   // per-side object of step keys
 if (s.height != null) payload.height = s.height;   // 'fill' for equal-height rows
 // A clean heuristic that bakes the rule in: any bordered card narrower than
 // full-width sits beside siblings, so fill it; full-width singles stay auto.
@@ -778,6 +807,34 @@ seed's `layout()` helper inside a single section's lexical data:
     ]),
 ])}
 ```
+
+#### ⚠ A `templateColumns` class only works if the literal exists in a SCANNED source file
+
+`layout()`'s `templateColumns` is a **Tailwind class string**, and Tailwind 4 generates a rule only
+for class literals it finds while scanning the project's source — it never sees your DMS content. So
+an arbitrary value like `md:grid-cols-[1fr_auto]` that appears **nowhere in a tracked file** produces
+no CSS at all, and the container silently falls back to a single column. It fails as a *layout* bug
+(the right-hand item drops below the left one), not as an error, and it is invisible in the JSON.
+
+Two things make this easy to get wrong:
+
+- **A seed script under `scratchpad/` does not count.** `scratchpad/` is gitignored and Tailwind
+  respects `.gitignore`, so writing the class in your builder does not make it exist.
+- **Markdown counts.** Tailwind scans `.md` too, so `md:grid-cols-[max-content_max-content_1fr]`
+  works *because this skill file mentions it* — which is a fragile reason for a page to render.
+
+Before using an arbitrary `grid-cols-[…]`, grep for the exact literal:
+
+```bash
+grep -rn 'md:grid-cols-\[1fr_auto\]' src/ | grep -v scratchpad
+```
+
+If it isn't there, either use a standard utility pair (`grid-cols-1 md:grid-cols-2`,
+`grid-cols-2 md:grid-cols-4` — always generated), pick an arbitrary value that a tracked file already
+uses, or add the literal to a tracked file (the brand theme is the natural home) in the same change.
+Measured on the MitigateNY LHMP plan home, 2026-09-09: `md:grid-cols-[1fr_auto]` on a band header
+stacked its right-aligned link under the title; swapping to `md:grid-cols-[1fr_240px]` (present in a
+tracked wcdb mockup) fixed it with no other change.
 
 #### Col offset — use an empty filler section
 

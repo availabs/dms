@@ -8,28 +8,12 @@
  *
  * Full design: src/dms/planning/tasks/current/pattern-filter-sync.md
  * - Decision 1: Tier 2 (eager recompute), via the mirrored getData (./mirrors/getData.js)
- * - Decision 2: draft-only BY DEFAULT — see `scope` below
+ * - Decision 2: draft-only for v1 — only draft_sections rows are touched
  * - Decision 3: one filter group per run (filterGroupKey, default '*')
  *
  *   POST /dama-admin/dms/:appType/sync-filters     (:appType = "<app>+<patternInstance>")
- *   body: { patternId, filterGroupKey? = '*', scope?, clearKeys?, dropRequestCache? }
+ *   body: { patternId, filterGroupKey? = '*' }
  *   → { task_id }
- *
- * Full-coverage options (all default to the v1 behaviour — see
- * src/dms/planning/tasks/current/pattern-filter-sync-full-coverage.md):
- *   scope             'draft' (default) | 'published' | 'both'. A freshly DUPLICATED pattern needs
- *                     'both': its published `sections` are verbatim clones of the source's, and
- *                     nothing in the copy has been published yet, so draft-only leaves every
- *                     rendered page showing the source pattern's values.
- *   clearKeys         searchKeys whose leaves are EMPTIED instead of substituted, for keys with no
- *                     meaningful value in the target (e.g. a jurisdiction id in a brand-new county
- *                     site). Substitution cannot express this: applyPageFilters deliberately keeps
- *                     a saved value when the replacement normalizes to empty.
- *   dropRequestCache  delete the derived request memos from patched sections — `dataRequest`,
- *                     `lastDataRequest` and `outputSourceInfo.asUdaConfig` — which otherwise retain
- *                     the OLD filter values indefinitely. All three are rebuilt on the next fetch
- *                     (asUdaConfig by buildUdaConfig); the rest of `outputSourceInfo`, which holds
- *                     real column metadata, is left alone.
  *
  * patternId is required in the body (not derivable from :appType alone) because the
  * pattern ROW's type string is site-qualified (`{site}|{instance}:pattern`) while
@@ -72,13 +56,7 @@ function createPatternFilterSyncHandler(controller) {
   // Register the worker once — controller is captured in closure, same shape as
   // dama/upload/dms-duplicate.js's createDuplicateHandler.
   registerHandler('dms/pattern_filter_sync', async (ctx) => {
-    const {
-      app, patternInstance, patternId, filterGroupKey = '*', userId,
-      scope = 'draft', clearKeys = [], dropRequestCache = false,
-    } = ctx.task.descriptor;
-    const REF_KEYS = scope === 'both' ? ['draft_sections', 'sections']
-      : scope === 'published' ? ['sections']
-      : ['draft_sections'];
+    const { app, patternInstance, patternId, filterGroupKey = '*', userId } = ctx.task.descriptor;
     const user = { id: userId ?? null };
     const tag = `[pattern-filter-sync task=${ctx.task.task_id}]`;
 
@@ -94,10 +72,8 @@ function createPatternFilterSyncHandler(controller) {
     }
     const keyCount = Object.keys(searchKeyMap).length;
     console.log(`${tag} group "${filterGroupKey}": ${keyCount} filter key(s) — ${Object.keys(searchKeyMap).join(', ')}`);
-    console.log(`${tag} scope=${scope} (${REF_KEYS.join('+')}) clearKeys=[${clearKeys.join(', ')}] dropRequestCache=${dropRequestCache}`);
     await ctx.dispatchEvent('log', `Group "${filterGroupKey}": ${keyCount} filter key(s)`, searchKeyMap);
-    // clearKeys alone is enough work to justify a run even with an empty group.
-    if (!keyCount && !clearKeys.length) {
+    if (!keyCount) {
       return { pagesScanned: 0, pagesPatched: 0, sectionsPatched: 0, sectionsSkipped: 0, warnings: 0, note: 'Filter group is empty — nothing to sync' };
     }
 
@@ -109,15 +85,12 @@ function createPatternFilterSyncHandler(controller) {
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
       const pageData = asObj(page.data);
-      // Published and draft sections are DIFFERENT rows (a duplicate keeps them disjoint), so the
-      // two passes never touch the same row and their ids can simply be unioned.
-      const refs = REF_KEYS.flatMap((k) => (Array.isArray(pageData[k]) ? pageData[k] : []));
-      const draftRefs = refs;
+      const draftRefs = Array.isArray(pageData.draft_sections) ? pageData.draft_sections : [];
 
       if (draftRefs.length) {
-        const sectionIds = [...new Set(draftRefs
+        const sectionIds = draftRefs
           .map((r) => (r && typeof r === 'object' ? +r.id : +r))
-          .filter((id) => Number.isFinite(id) && id > 0))];
+          .filter((id) => Number.isFinite(id) && id > 0);
 
         if (sectionIds.length) {
           const sectionRows = await controller.getDataById(sectionIds, ['id', 'data'], app);
@@ -141,21 +114,8 @@ function createPatternFilterSyncHandler(controller) {
               continue;
             }
 
-            const { elementData: patchedElementData, patched } = patchSectionElementData(elementData, searchKeyMap, { clearKeys });
+            const { elementData: patchedElementData, patched } = patchSectionElementData(elementData, searchKeyMap);
             if (!patched) { sectionsSkipped++; continue; }
-
-            // Derived request memos still echo the OLD filter values. They are rebuilt on the
-            // dataWrapper's next fetch, so deleting is safe — and reconstructing them here would
-            // mean mirroring the client's request builder forever.
-            if (dropRequestCache) {
-              delete patchedElementData.dataRequest;
-              delete patchedElementData.lastDataRequest;
-              // Only the compiled config — outputSourceInfo.columns is real metadata, not an echo.
-              if (patchedElementData.outputSourceInfo?.asUdaConfig) {
-                patchedElementData.outputSourceInfo = { ...patchedElementData.outputSourceInfo };
-                delete patchedElementData.outputSourceInfo.asUdaConfig;
-              }
-            }
 
             // Tier 2 — recompute for dataWrapper (Card/Spreadsheet/Graph) sections only.
             // Map sections have no externalSource / getData-compatible shape and no `data`
@@ -207,12 +167,12 @@ function createPatternFilterSyncHandler(controller) {
     }
 
     console.log(`${tag} done — ${pages.length} pages scanned, ${pagesPatched} patched, ${sectionsPatched} sections patched, ${sectionsSkipped} sections skipped, ${warnings} warning(s)`);
-    return { pagesScanned: pages.length, pagesPatched, sectionsPatched, sectionsSkipped, warnings, scope, clearKeys, dropRequestCache };
+    return { pagesScanned: pages.length, pagesPatched, sectionsPatched, sectionsSkipped, warnings };
   });
 
   return async function syncFilters(req, res) {
     const [app, patternInstance] = (req.params.appType || '').split('+');
-    const { filterGroupKey = '*', patternId, scope = 'draft', clearKeys = [], dropRequestCache = false } = req.body || {};
+    const { filterGroupKey = '*', patternId } = req.body || {};
     const userId = req.user?.id ?? null;
 
     if (!app || !patternInstance || !patternId) {
@@ -220,9 +180,6 @@ function createPatternFilterSyncHandler(controller) {
     }
 
     try {
-      if (!['draft', 'published', 'both'].includes(scope)) {
-        return res.status(400).json({ err: `scope must be 'draft', 'published' or 'both' (got ${scope})` });
-      }
       const taskId = await queueTask({
         workerPath: 'dms/pattern_filter_sync',
         app,
@@ -230,9 +187,6 @@ function createPatternFilterSyncHandler(controller) {
         patternId,
         filterGroupKey,
         userId,
-        scope,
-        clearKeys: Array.isArray(clearKeys) ? clearKeys : [],
-        dropRequestCache: !!dropRequestCache,
       });
       return res.json({ task_id: taskId });
     } catch (err) {

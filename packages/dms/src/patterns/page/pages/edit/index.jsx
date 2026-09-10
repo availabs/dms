@@ -10,6 +10,7 @@ import {
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
+import LinkPageNotice from '../../components/LinkPageNotice'
 import PageControls from './editPane'
 
 function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attributes, apiLoad, apiUpdate, reqPermissions, busy}) {
@@ -271,6 +272,12 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	const footerChildren = React.useMemo(() => getSectionGroups('bottom'), [item?.draft_section_groups, item?.draft_sections]);
 	const contentChildren = React.useMemo(() => getSectionGroups('content'), [item?.draft_section_groups, item?.draft_sections]);
 
+	// LINK PAGE (`nav_link`, page.format.js): no sections by design, so the canvas is
+	// replaced with a notice naming the destination. Edit does NOT redirect the way
+	// pages/view.jsx does — that is the whole point, it keeps the page openable so the
+	// link can be changed. Declared after the memos above to keep hook order stable.
+	const isLinkPage = Boolean(item?.nav_link);
+
 	if (item?.id === 'no-access') {
 		if (user?.isAuthenticating) return null;
 		if (!user?.authed) {
@@ -321,7 +328,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               headerChildren={headerChildren}
               footerChildren={footerChildren}
           >
-            {contentChildren}
+            {isLinkPage ? <LinkPageNotice navLink={item.nav_link} /> : contentChildren}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>

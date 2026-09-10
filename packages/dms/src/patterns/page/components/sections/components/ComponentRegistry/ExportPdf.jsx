@@ -85,7 +85,8 @@ export function PdfExport({ }) {
             'published',
             'icon',
             'index',
-            'is_cover_page'
+            'is_cover_page',
+            'nav_link'
           ]
         },
         children: [{
@@ -95,7 +96,9 @@ export function PdfExport({ }) {
         }]
       });
 
-      const allPages = res || [];
+      // Link pages (`nav_link`, page.format.js) are nav entries pointing at another
+      // pattern, not documents — they have no sections, so there is nothing to print.
+      const allPages = (res || []).filter(p => !p.nav_link);
       const cover = allPages.filter(p => p.is_cover_page === "yes");
       const pdf = allPages.filter(p => p.is_cover_page !== "yes" || !p.is_cover_page);
 

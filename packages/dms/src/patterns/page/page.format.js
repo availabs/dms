@@ -153,6 +153,17 @@ const cmsPageFormat = {
       type: "text",
       default: false
     },
+    // Link page: the page renders no content, it only carries a nav entry pointing
+    // somewhere else. Accepts a site-absolute path into another pattern on this host
+    // ('/actions/dashboard'), a cross-subdomain 'sub://<subdomain>/<path>', or a full
+    // external URL. utils/nav.js turns it into the nav item's path (skipping baseUrl,
+    // which a site-absolute value must not pick up) and pages/view.jsx redirects a
+    // direct visit. Declared here — unlike icon/show_in_footer/is_cover_page — because
+    // it changes routing behavior, so it should be findable from the format.
+    {
+      key: "nav_link",
+      type: "text"
+    },
     {
       key: "index",
       type: "number",

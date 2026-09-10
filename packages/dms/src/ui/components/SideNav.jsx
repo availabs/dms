@@ -3,6 +3,7 @@ import { useMatch, useNavigate, Link } from "react-router";
 import Icon from './Icon'
 import { MobileMenu } from './TopNav'
 import { ThemeContext, getComponentTheme } from '../useTheme'
+import { ABSOLUTE_URL } from '../../utils/nav'
 // import menu from "../../patterns/datasets/components/menu";
 
 const NOOP = () => { return {} }
@@ -181,7 +182,21 @@ export const SideNavItem = ({
 		return [...To, ...subs];
 	}, [To, subMenus]);
 
-	const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
+	// Absolute destinations (a `rootPath` cross-pattern item resolved to a full URL, or
+	// an authored external link) are not router paths, so useMatch can't take them
+	// directly. Match same-origin ones by pathname so the item still highlights while
+	// you're browsing that section; foreign origins never match. Mirrors TopNav's
+	// `matchBase` — the two renderers had drifted, and only TopNav handled this.
+	const matchBase = React.useMemo(() => {
+		const p = subTos[0] || '';
+		if (!ABSOLUTE_URL.test(p)) return p;
+		try {
+			const u = new URL(p, typeof window === 'undefined' ? 'http://x' : window.location.origin);
+			return (typeof window === 'undefined' || u.origin === window.location.origin) ? u.pathname : '';
+		} catch { return ''; }
+	}, [subTos]);
+
+	const routeMatch = Boolean(useMatch({ path: `${matchBase}/*`, end: true }));
 
 	const linkClasses = theme?.navitemSide;
 	const activeClasses = theme?.navitemSideActive

@@ -362,7 +362,20 @@ export const getData = async ({
     // and the section hangs on "loading..." (route-comparison pivot page bug).
     const loadAllRows = isPivotMode || fullDataLoad;
     const safePageSize = Number(state.display?.pageSize) > 0 ? Number(state.display.pageSize) : 25;
-    const fromIndex = isOptionsLoad || loadAllRows ? 0 : currentPage * safePageSize;
+    // `display.rowOffset` — skip the first N rows of the section's OWN result.
+    //
+    // The window was derived from the pager alone, and `currentPage` is component
+    // state (useDataLoader), so an author had no way to start a result at row 1.
+    // That blocks the "rank 1 out front, ranks 2-n beside it" composition: a
+    // grouped+ordered leader in a focus panel and the remainder in a list scaled
+    // to THEIR own top. Filtering the leader out by value isn't a substitute — on
+    // a template serving 62 counties the leader differs per county.
+    //
+    // BC: unset ⇒ 0 ⇒ byte-identical requests. Options loads and full loads that
+    // deliberately fetch everything (pivot cross-tabs) ignore it.
+    const rowOffset = Math.max(0, Math.floor(Number(state.display?.rowOffset) || 0));
+    const offset = isOptionsLoad || loadAllRows ? 0 : rowOffset;
+    const fromIndex = isOptionsLoad || loadAllRows ? 0 : offset + currentPage * safePageSize;
     // dataByIndex `to` is INCLUSIVE (a length-N result spans indices 0..N-1), so the
     // full-load end index is length-1. Requesting `length` fetches one extra out-of-range
     // slot that comes back as an empty Falcor atom and renders as a phantom "loading" row.
@@ -370,7 +383,7 @@ export const getData = async ({
         ? OPTIONS_LIMIT - 1
         : loadAllRows
             ? length - 1
-            : Math.min(length, currentPage * safePageSize + safePageSize) - 1;
+            : Math.min(length, offset + currentPage * safePageSize + safePageSize) - 1;
     if (fromIndex >= length) {
         // Empty-result fallback. Opt-in via `display.useBlankRowFallback`.
         // When the real query returned 0 rows AND the section has opted in,

@@ -1,7 +1,15 @@
 import React from "react";
 import {Link} from "react-router";
 import {ComponentContext, PageContext} from "../../../../context";
+import {resolveSubdomainPath} from "../../../../../../utils/subdomainPath";
 
+// The footer builds its own links instead of going through utils/nav.js, so it needs
+// the same link-page rule: a page carrying `nav_link` (page.format.js) points at that
+// destination, not at its own slug. Without this the footer keeps linking to a slug
+// that only exists to redirect.
+const footerHref = (d) => (d?.nav_link
+    ? resolveSubdomainPath(`${d.nav_link}`)
+    : `/${d?.url_slug}`);
 
 export const Footer = () => {
     const {dataItems, item} = React.useContext(PageContext);
@@ -24,13 +32,13 @@ export const Footer = () => {
                 {
                     parents.map(parent => (
                         <div key={parent.root.url_slug} className={'flex flex-col p-4 pl-[24px] gap-[12px] w-[282px] overflow-hidden'}>
-                            <Link to={`/${parent.root.url_slug}`}
+                            <Link to={footerHref(parent.root)}
                                   className={'text-[#2D3E4C] font-[Oswald] font-medium text-[14px] leading-[14px] uppercase tracking-normal'}>
                                 {parent.root.title}
                             </Link>
                             {
                                 parent.children.filter((_, i) => i <= 5).map((child) =>
-                                    <Link key={`/${child.url_slug}`} to={`/${child.url_slug}`} className={'text-[#37576B] font-normal text-[16px] leading-[22.4px] tracking-normal'}>
+                                    <Link key={`/${child.url_slug}`} to={footerHref(child)} className={'text-[#37576B] font-normal text-[16px] leading-[22.4px] tracking-normal'}>
                                         {child.title}
                                     </Link>
                                 )

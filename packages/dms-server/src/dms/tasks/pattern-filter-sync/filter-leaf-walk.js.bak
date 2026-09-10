@@ -1,10 +1,9 @@
 'use strict';
 
 /**
- * Walks a section's FOUR page-filter leaf representations (dataWrapper filter tree, the
- * legacy per-column mirror, Map's per-layer dynamic-filters, and the symbology-level
- * pageFilters list) and patches any leaf that consumes one of the given pattern filter
- * searchKeys. Used by pattern-filter-sync.js.
+ * Walks a section's three page-filter leaf representations (dataWrapper filter tree,
+ * the legacy per-column mirror, and Map's dynamic-filters) and patches any leaf that
+ * consumes one of the given pattern filter searchKeys. Used by pattern-filter-sync.js.
  *
  * See src/dms/planning/tasks/current/pattern-filter-sync.md's "Background" section for
  * the three-representation model this implements.
@@ -90,12 +89,7 @@ function patchMapDynamicFilters(symbologies, searchKeyMap) {
         if (!key || !Object.prototype.hasOwnProperty.call(searchKeyMap, key)) return df;
         const normalized = normalizeValues(searchKeyMap[key]);
         layerPatched = true;
-        // A static map's `defaultValue` must mirror `values` — when the two disagree the
-        // page-filter sync on load wipes the value back to the default. Only mirrored when the
-        // key is already present, so we never invent one.
-        const next = { ...df, values: normalized };
-        if (Object.prototype.hasOwnProperty.call(df, 'defaultValue')) next.defaultValue = normalized;
-        return next;
+        return { ...df, values: normalized };
       });
       if (!layerPatched) { nextLayers[layerId] = layer; continue; }
       symPatched = true;
@@ -108,77 +102,6 @@ function patchMapDynamicFilters(symbologies, searchKeyMap) {
   return { symbologies: nextSymbologies, patched };
 }
 
-// symbologies[symId].symbology.pageFilters[] — the symbology-level filter list, sibling to the
-// per-layer dynamic-filters. Shape is `[{ searchKey, values }]`, keyed `searchKey` (NOT the
-// `searchParamKey`/`column_name` the layer filters use). Not gated on `usePageFilters` for the
-// same reason patchMapDynamicFilters isn't: the Map runtime matches on the key alone.
-function patchSymbologyPageFilters(symbologies, searchKeyMap) {
-  let patched = false;
-  if (!symbologies || typeof symbologies !== 'object') return { symbologies, patched };
-  const nextSymbologies = {};
-  for (const [symId, sym] of Object.entries(symbologies)) {
-    const pfs = sym?.symbology?.pageFilters;
-    if (!Array.isArray(pfs) || !pfs.length) { nextSymbologies[symId] = sym; continue; }
-    let symPatched = false;
-    const nextPfs = pfs.map((pf) => {
-      const key = pf?.searchKey;
-      if (!key || !Object.prototype.hasOwnProperty.call(searchKeyMap, key)) return pf;
-      symPatched = true;
-      return { ...pf, values: normalizeValues(searchKeyMap[key]) };
-    });
-    if (!symPatched) { nextSymbologies[symId] = sym; continue; }
-    patched = true;
-    nextSymbologies[symId] = { ...sym, symbology: { ...sym.symbology, pageFilters: nextPfs } };
-  }
-  return { symbologies: nextSymbologies, patched };
-}
-
-// Empty every leaf whose key is in `clearKeys`, across all four representations.
-//
-// Substitution can't express this: applyPageFilters (and the mirrors here) deliberately KEEP a
-// saved value when the replacement normalizes to empty — "an unset page filter must behave like an
-// absent one". Clearing is the opposite intent, and only a caller knows which keys have no
-// meaningful value in the target pattern (e.g. a jurisdiction id when a county site is first
-// created), so it is opt-in and key-scoped rather than inferred.
-function clearLeaves(elementData, clearKeys) {
-  const keys = new Set(clearKeys || []);
-  if (!keys.size) return { elementData, patched: false };
-  let patched = false;
-  const json = JSON.parse(JSON.stringify(elementData));
-
-  const walkTree = (node) => {
-    if (!node) return;
-    if (Array.isArray(node.groups)) { node.groups.forEach(walkTree); return; }
-    const key = node.searchParamKey || node.col;
-    if (key && keys.has(key) && node.value != null) { node.value = []; patched = true; }
-  };
-  walkTree(json.filters);
-
-  for (const col of json.columns || []) {
-    for (const leaf of col.filters || []) {
-      if (leaf?.searchParamKey && keys.has(leaf.searchParamKey)) { leaf.values = []; patched = true; }
-    }
-  }
-
-  for (const sym of Object.values(json.symbologies || {})) {
-    for (const pf of sym?.symbology?.pageFilters || []) {
-      if (pf?.searchKey && keys.has(pf.searchKey)) { pf.values = []; patched = true; }
-    }
-    for (const layer of Object.values(sym?.symbology?.layers || {})) {
-      for (const df of layer?.['dynamic-filters'] || []) {
-        const key = df.searchParamKey || df.column_name;
-        if (key && keys.has(key)) {
-          df.values = [];
-          if (Object.prototype.hasOwnProperty.call(df, 'defaultValue')) df.defaultValue = [];
-          patched = true;
-        }
-      }
-    }
-  }
-
-  return { elementData: patched ? json : elementData, patched };
-}
-
 /**
  * Given a section's parsed element-data and a searchKeyMap ({ [searchKey]: value }, value
  * scalar or array — raw pattern-filter `values`, un-normalized), returns
@@ -186,13 +109,10 @@ function clearLeaves(elementData, clearKeys) {
  * otherwise the SAME reference is returned, so callers can use `patched` (not deep-equal)
  * to decide whether to write the row / recompute Tier-2 data.
  */
-function patchSectionElementData(elementData, searchKeyMap, options = {}) {
-  const { clearKeys = [] } = options;
-  const hasWork = (searchKeyMap && Object.keys(searchKeyMap).length) || clearKeys.length;
-  if (!elementData || typeof elementData !== 'object' || !hasWork) {
+function patchSectionElementData(elementData, searchKeyMap) {
+  if (!elementData || typeof elementData !== 'object' || !searchKeyMap || !Object.keys(searchKeyMap).length) {
     return { elementData, patched: false };
   }
-  searchKeyMap = searchKeyMap || {};
   let patched = false;
   let next = elementData;
 
@@ -211,18 +131,7 @@ function patchSectionElementData(elementData, searchKeyMap, options = {}) {
     if (res.patched) { next = { ...next, symbologies: res.symbologies }; patched = true; }
   }
 
-  if (next.symbologies) {
-    const res = patchSymbologyPageFilters(next.symbologies, searchKeyMap);
-    if (res.patched) { next = { ...next, symbologies: res.symbologies }; patched = true; }
-  }
-
-  // Clearing runs last so an explicit clearKeys entry wins over a substitution for the same key.
-  if (clearKeys.length) {
-    const res = clearLeaves(next, clearKeys);
-    if (res.patched) { next = res.elementData; patched = true; }
-  }
-
   return { elementData: next, patched };
 }
 
-module.exports = { patchSectionElementData, treeHasMatchingLeaf, normalizeValues, patchSymbologyPageFilters, clearLeaves };
+module.exports = { patchSectionElementData, treeHasMatchingLeaf, normalizeValues };
