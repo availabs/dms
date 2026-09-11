@@ -144,6 +144,14 @@ describe("legend Layer-A class tokens", () => {
       scale, format: d => `${ Math.round(d) }`, actions: [], ...extra
     });
 
+    it("renders nothing for an explicitly EMPTY title", () => {
+      // An author who clears the Settings-drawer "Title" field stores "" (coerceControlValue only
+      // blanks NUMBER inputs to undefined). That has to mean "no caption" — it is the only way to
+      // suppress the automatic unit. index.jsx uses `??` rather than `||` so "" survives as a
+      // deliberate choice instead of collapsing back to the resolver's value.
+      expect(titled({ title: "" })).toBe(titled());
+    });
+
     it("renders nothing extra when no title is set", () => {
       // The whole reason the title wraps rather than nests: an untitled legend's DOM must be
       // unchanged. legendLegacyProps.test.js proves that byte for byte; this states the intent.
@@ -183,12 +191,40 @@ describe("legend Layer-A class tokens", () => {
       expect(out.indexOf("minutes")).toBeLessThan(out.indexOf("linear-gradient"));
     });
 
-    it("is ignored by the categorical legend (linear-only for now)", () => {
+    it("shows the automatic unit on a linear legend", () => {
+      expect(titled({ unit: "mph" })).toContain("mph");
+    });
+
+    it("lets an author's title beat the automatic unit", () => {
+      const out = titled({ title: "Avg Speed", unit: "mph" });
+      expect(out).toContain("Avg Speed");
+      expect(out).not.toContain("mph");
+    });
+
+    it("treats an explicit empty title as OFF, not as a fallback to the unit", () => {
+      // Clearing the Settings field stores "", which has to mean "no caption" — otherwise the
+      // automatic unit springs back and there is no way to suppress it.
+      expect(titled({ title: "", unit: "mph" })).toBe(titled());
+    });
+
+    it("never shows a unit on a categorical legend", () => {
+      // A categorical legend keys identity — which line is which route — so a unit over it is
+      // nonsense. Caught live: "mph" above a speed line graph's route list.
       const out = render({
         type: "categorical", orientation: "vertical", size: "medium",
-        categories: ["A"], colors: RAMP, actions: [], title: "mph"
+        categories: ["I-87 NB"], colors: RAMP, actions: [], unit: "mph"
       });
       expect(out).not.toContain("mph");
+    });
+
+    it("titles the categorical legend too", () => {
+      // Both legend families take the slot, so the Settings-drawer "Title" control is not dead
+      // on the graph types that draw a categorical key.
+      const out = render({
+        type: "categorical", orientation: "vertical", size: "medium",
+        categories: ["A"], colors: RAMP, actions: [], title: "Households"
+      });
+      expect(out.indexOf("Households")).toBeLessThan(out.indexOf("background-color"));
     });
   });
 

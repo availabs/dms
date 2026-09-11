@@ -8,6 +8,24 @@ const DefaultPalette = getColorRange(20, "div7");
 
 // console.log("SchemeOptions", SchemeOptions)
 
+// Placeholder for the legend's "Title" field: shows what the legend would caption itself with if
+// the author types nothing.
+//
+// The automatic value is a measure UNIT, and a unit is only ever drawn on a LINEAR (gradient)
+// legend — GridGraph always, BarGraph when it colours by value. Every other legend is a
+// categorical key to identity ("which line is which route"), where a unit is meaningless and is
+// deliberately ignored; offering it as a placeholder there would promise a caption that never
+// appears. The unit itself comes from an optional, site-supplied `avlGraph.resolveLegendUnit`
+// hook, so on a site without one this is just "Optional".
+const legendTitlePlaceHolder = (display, theme) => {
+    const isLinearLegend = display?.graphType === "GridGraph" || Boolean(display?.colors?.byValue);
+    if (!isLinearLegend) return "Optional";
+    const unit = typeof theme?.avlGraph?.resolveLegendUnit === "function"
+        ? theme.avlGraph.resolveLegendUnit(display)
+        : undefined;
+    return unit ? `${ unit } (automatic)` : "Optional";
+};
+
 const componentFunctions = {
   providers: [
     { id: 'hover_publish',
@@ -486,6 +504,10 @@ const graphConfig = {
                 { type: "toggle",
                     label: "Show", key: "legend.show"
                 },
+                { type: "input", inputType: "text",
+                    label: "Title", key: "legend.title",
+                    placeHolder: legendTitlePlaceHolder
+                },
                 { type: "select",
                     label: "Position", key: "legend.position",
                     options: [
@@ -503,6 +525,10 @@ const graphConfig = {
             items: [
                 { type: "toggle",
                     label: "Show", key: "legend.show"
+                },
+                { type: "input", inputType: "text",
+                    label: "Title", key: "legend.title",
+                    placeHolder: legendTitlePlaceHolder
                 },
                 { type: "select",
                     label: "Position", key: "legend.position",

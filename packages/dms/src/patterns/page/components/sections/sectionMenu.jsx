@@ -145,7 +145,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 // <input>) so the spinner/arrow keys respect the same range the
                 // write path clamps to.
                 min: item.min, max: item.max, step: item.step,
-                placeholder: item.placeHolder,
+                // `placeHolder` may be a function of (display, theme) so a control can show the
+                // value it would INHERIT when the field is empty — greyed, so it reads as
+                // automatic rather than as something the author typed. Plain strings are
+                // unchanged, so every existing control behaves exactly as before.
+                placeholder: typeof item.placeHolder === 'function'
+                    ? item.placeHolder(state?.display, theme)
+                    : item.placeHolder,
                 // Clamps to min/max and turns a blank field into "unset" — see
                 // coerceControlValue for why a raw `+value` here was destructive.
                 onChange: (e) => dwAPI.setDisplay(item.key, coerceControlValue(item, e), item.onChange)

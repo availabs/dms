@@ -47,10 +47,19 @@ const look = (token, fallback) => token || fallback;
 // ramp says it once and costs no tick width at all, only ~16px of height. Legends on a narrow
 // card are the constrained case, and they are the ones a per-tick unit would have degraded.
 //
-// It is a TITLE, not a units feature: an author sets `legend.title` to whatever the legend is a
-// key to — "Hours of Delay", "Avg Speed" — and a unit is merely the default that fills it when
-// they haven't. Rendering is opt-in: with no title the markup is byte-identical to before, which
-// is what keeps every existing site untouched.
+// TWO SOURCES, AND THEY ARE NOT INTERCHANGEABLE.
+//   `title` — author-set, meaningful on ANY legend ("Hours of Delay", "Routes").
+//   `unit`  — supplied automatically by a site's `resolveLegendUnit` hook, and read ONLY by the
+//             linear legends. A linear legend keys a colour RAMP, so its numbers are magnitudes
+//             and "mph" says what they are measured in. A CATEGORICAL legend keys IDENTITY —
+//             which line is which route — where a unit is simply wrong. Shipping the unit to both
+//             put "mph" above a speed line graph's list of routes; hence the split.
+// On a linear legend an author's `title` wins over the automatic `unit`, and an explicit empty
+// title ("", what clearing the Settings field stores) means "no caption" rather than falling back
+// to the unit.
+//
+// Rendering is opt-in: with neither set the markup is byte-identical to before, which is what
+// keeps every site that asks for nothing untouched.
 const LegendTitle = ({ title, classNames = {} }) => !title ? null : (
 	// `truncate` is structural — a long title must not widen the legend and push the chart
 	// around; the look is entirely the theme's (`legendTitle`), with no imposed default beyond
@@ -118,6 +127,7 @@ const CategoricalLegend = props => {
 		actions = [],
 		orientation = "vertical",
 		classNames = {},
+		title,
 		...rest
 	} = props;
 
@@ -150,7 +160,7 @@ const CategoricalLegend = props => {
 	// Layout (`grid` vs `flex`) is the ORIENTATION contract and stays ours; `row` supplies the
 	// brand's own spacing and typography in its place. Written as two whole strings rather than
 	// assembled from parts, so the unset case is visibly the exact historical literal.
-	return (
+	const body = (
 		<div className={ orientation === "horizontal"
 				? (classNames.row ? `${ classNames.row } flex flex-wrap items-center justify-left` : "px-4 flex flex-wrap items-center justify-left gap-2")
 				: (classNames.row ? `${ classNames.row } grid grid-cols-1` : "px-4 grid grid-cols-1 gap-1") }>
@@ -163,6 +173,16 @@ const CategoricalLegend = props => {
 						doHighlight={ catsToHiglight.has(cat) }/>
 				)
 		}
+		</div>
+	);
+
+	// `title` only, never `unit` — a unit over an identity key is nonsense (see LegendTitle).
+	// Wrapped ONLY when titled, so the untitled DOM is unchanged, which is what keeps every
+	// categorical legend on every site that sets nothing byte-identical.
+	return !title ? body : (
+		<div>
+			<LegendTitle title={ title } classNames={ classNames }/>
+			{ body }
 		</div>
 	)
 }
@@ -231,7 +251,10 @@ const fitRampTicks = (scale, format, fontPx, available) => {
 	return rampTicks(scale, 2);
 }
 
-const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {}, title }) => {
+const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {}, title, unit }) => {
+
+	// An author's title wins; "" is a deliberate "no caption" and does NOT fall back to the unit.
+	const caption = title ?? unit;
 
 	const [height, cross] = React.useMemo(() => {
 		return SizeMap[size] || SizeMap["medium"];
@@ -292,16 +315,19 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, 
 		</div>
 	);
 
-	// Wrapped ONLY when there is a title, so the untitled DOM is unchanged.
-	return !title ? body : (
+	// Wrapped ONLY when captioned, so the uncaptioned DOM is unchanged.
+	return !caption ? body : (
 		<div className="w-fit">
-			<LegendTitle title={ title } classNames={ classNames }/>
+			<LegendTitle title={ caption } classNames={ classNames }/>
 			{ body }
 		</div>
 	)
 }
 
-const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {}, title }) => {
+const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {}, title, unit }) => {
+
+	// An author's title wins; "" is a deliberate "no caption" and does NOT fall back to the unit.
+	const caption = title ?? unit;
 
 	const [maxWidth, cross] = React.useMemo(() => {
 		return SizeMap[size] || SizeMap["medium"];
@@ -364,10 +390,10 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 		</div>
 	);
 
-	// Wrapped ONLY when there is a title, so the untitled DOM is unchanged.
-	return !title ? body : (
+	// Wrapped ONLY when captioned, so the uncaptioned DOM is unchanged.
+	return !caption ? body : (
 		<div className="w-full min-w-0">
-			<LegendTitle title={ title } classNames={ classNames }/>
+			<LegendTitle title={ caption } classNames={ classNames }/>
 			{ body }
 		</div>
 	)
