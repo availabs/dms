@@ -637,6 +637,12 @@ any DMS page, not just reports. What's specific to reports:
     the theme token never applied (cost a round-trip 2026-09-11). Expect
     `15px / 500 / Oswald / rgb(15, 23, 34)`, `text-transform: none`, 12px above and 13px below in
     the 40px band.
+  - **A title whose descenders look shaved is `overflow: hidden` on too short a line box, not a
+    font problem.** `truncate` sets `overflow: hidden`, so a line-height equal to the font size
+    clips Oswald's g/p/y (measured 2026-09-11: `clientHeight 15` vs `scrollHeight 18`). Test it with
+    `el.scrollHeight > el.clientHeight` — a screenshot barely shows 3px. The token is
+    `pages.section` `headerTitle`; it needs ~1.4 leading, and the band being `items-center` means a
+    taller line box costs nothing.
   - the **kicker** (unit + time window, e.g. `mph · Weekdays only`) is the `div` carrying
     `tracking-[0.18em]`, right-aligned in the same band, fed by the section's `description`
     attribute. It is `hidden xl:block`, so a viewport narrower than 1280px has no kicker and that
