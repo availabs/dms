@@ -160,16 +160,8 @@ async function getData({ state, fullDataLoad, keepOriginalValues, currentPage = 
 
   const loadAllRows = Boolean(fullDataLoad);
   const safePageSize = Number(state.display?.pageSize) > 0 ? Number(state.display.pageSize) : 25;
-  // `display.rowOffset` — skip the first N rows of the section's OWN result. Mirrors the client
-  // getData.js window computation; omitting it here made the server-side recompute return a
-  // DIFFERENT window than the browser, so a section composed as "rank 1 out front, ranks 2-n
-  // beside it" (the county home page's hazard graph) came back with its leader row folded back
-  // into the list and every bar shifted. Full loads deliberately fetch everything and ignore it.
-  // BC: unset => 0 => byte-identical requests.
-  const rowOffset = Math.max(0, Math.floor(Number(state.display?.rowOffset) || 0));
-  const offset = loadAllRows ? 0 : rowOffset;
-  const fromIndex = loadAllRows ? 0 : offset + currentPage * safePageSize;
-  const toIndex = loadAllRows ? length - 1 : Math.min(length, offset + currentPage * safePageSize + safePageSize) - 1;
+  const fromIndex = loadAllRows ? 0 : currentPage * safePageSize;
+  const toIndex = loadAllRows ? length - 1 : Math.min(length, currentPage * safePageSize + safePageSize) - 1;
   if (fromIndex >= length) {
     return { length, data: [] };
   }

@@ -10,6 +10,7 @@
 
 const { WebSocketServer } = require('ws');
 const { logEntry, initLogFile, isEnabled: isLoggingEnabled } = require('../../middleware/request-logger');
+const { isSplitType } = require('#db/table-resolver.js');
 
 let wss = null;
 
@@ -536,14 +537,51 @@ function typeMatchesPattern(itemType, pattern) {
   return false;
 }
 
+/**
+ * Reduce a dataset-row (split-type) change to a notification.
+ *
+ * The pull path deliberately never delivers these rows: they live in their own
+ * `data_items__<source>` tables, they can be arbitrarily large, and they are
+ * fetched on demand through Falcor/UDA instead — `/sync/bootstrap` and
+ * `/sync/delta` both filter them out (isSyncExcluded in sync.js). The push
+ * path did the opposite and shipped them in full: 7.7 MB per write for
+ * `jurisdictions|1346450:data`, 3,306 writes in 30 days, to whichever clients
+ * happened to have no pattern subscription at that moment.
+ *
+ * Stripping `data` leaves the notification — revision, action, and the item's
+ * id/app/type — which is all a client needs, because the invalidation it
+ * triggers is what actually refreshes a dataset view (via router.revalidate →
+ * Falcor refetch), not this payload. Nothing ever read the mirrored copy.
+ *
+ * `dataOmitted` makes the wire format self-describing and shows up in the
+ * broadcast log. Clients branch on the TYPE rather than this flag, so an older
+ * client sees a `:data` message with no data (harmless — the same invalidation
+ * still fires) and a newer client refuses to mirror a blob even from a server
+ * that predates this change.
+ *
+ * See sync-ws-broadcast-split-row-payload.md.
+ */
+function stripSplitRowData(msg) {
+  const type = msg?.item?.type;
+  if (!type || !isSplitType(type) || msg.item.data === undefined) return msg;
+  const item = { ...msg.item, dataOmitted: true };
+  delete item.data;
+  return { ...msg, item };
+}
+
 function notifyChange(app, msg) {
   const subs = appSubscribers.get(app);
   if (!subs) return;
-  const payload = JSON.stringify(msg);
+  // Strip BEFORE serializing: JSON.stringify runs once, unconditionally, ahead
+  // of any per-client filtering, so a single subscriber anywhere on the app was
+  // enough to pay the full multi-megabyte allocation even when the filter then
+  // dropped every recipient.
+  const outbound = stripSplitRowData(msg);
+  const payload = JSON.stringify(outbound);
   _stats.broadcastCount++;
   _stats.broadcastMsgBytes += payload.length;
 
-  const itemType = msg.item?.type;
+  const itemType = outbound.item?.type;
   let recipientCount = 0;
 
   for (const client of subs) {
@@ -575,8 +613,9 @@ function notifyChange(app, msg) {
     action: msg.action,
     revision: msg.revision,
     itemId: msg.item?.id,
-    itemType: msg.item?.type,
+    itemType,
     payloadKB: +(payload.length / 1024).toFixed(1),
+    dataOmitted: outbound.item?.dataOmitted === true,
     recipients: recipientCount,
   });
 }
@@ -588,4 +627,10 @@ function getWSS() {
   return wss;
 }
 
-module.exports = { initWebSocket, notifyChange, getWSS };
+module.exports = {
+  initWebSocket,
+  notifyChange,
+  getWSS,
+  // Exposed for testing
+  stripSplitRowData,
+};

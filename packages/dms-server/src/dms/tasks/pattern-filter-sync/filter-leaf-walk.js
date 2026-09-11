@@ -1,10 +1,18 @@
 'use strict';
 
 /**
- * Walks a section's FOUR page-filter leaf representations (dataWrapper filter tree, the
- * legacy per-column mirror, Map's per-layer dynamic-filters, and the symbology-level
- * pageFilters list) and patches any leaf that consumes one of the given pattern filter
- * searchKeys. Used by pattern-filter-sync.js.
+ * Walks a section's FIVE page-filter leaf representations and patches any leaf that consumes one
+ * of the given pattern filter searchKeys. Used by pattern-filter-sync.js.
+ *
+ *   1. `filters`                     — the v2 dataWrapper filter tree
+ *   2. `columns[].filters`           — the legacy per-column mirror
+ *   3. Map per-layer `dynamic-filters`
+ *   4. symbology-level `pageFilters`
+ *   5. `dataRequest.filterGroups`    — ⚠ NOT a cache. For a v1-legacy section (one bound via
+ *      `sourceInfo` rather than `externalSource`), `legacyStateToBuildInput` reads its filters
+ *      from `state.dataRequest.filterGroups` — the top-level `filters` key is ignored entirely.
+ *      So for those sections this is the ONLY representation that reaches the query, and it must
+ *      be patched, never dropped.
  *
  * See src/dms/planning/tasks/current/pattern-filter-sync.md's "Background" section for
  * the three-representation model this implements.
@@ -153,6 +161,9 @@ function clearLeaves(elementData, clearKeys) {
     if (key && keys.has(key) && node.value != null) { node.value = []; patched = true; }
   };
   walkTree(json.filters);
+  for (const key of ['dataRequest', 'lastDataRequest']) {
+    if (json[key] && json[key].filterGroups) walkTree(json[key].filterGroups);
+  }
 
   for (const col of json.columns || []) {
     for (const leaf of col.filters || []) {
@@ -214,6 +225,15 @@ function patchSectionElementData(elementData, searchKeyMap, options = {}) {
   if (next.symbologies) {
     const res = patchSymbologyPageFilters(next.symbologies, searchKeyMap);
     if (res.patched) { next = { ...next, symbologies: res.symbologies }; patched = true; }
+  }
+
+  // dataRequest / lastDataRequest .filterGroups — same tree shape, same leaf fields.
+  for (const key of ['dataRequest', 'lastDataRequest']) {
+    const fg = next[key] && next[key].filterGroups;
+    if (fg && treeHasMatchingLeaf(fg, searchKeyMap)) {
+      next = { ...next, [key]: { ...next[key], filterGroups: applyPageFilters(fg, searchKeyMap) } };
+      patched = true;
+    }
   }
 
   // Clearing runs last so an explicit clearKeys entry wins over a substitution for the same key.

@@ -19,14 +19,54 @@ import {
   reassignItemId, sqliteNow, resetDB,
   addPendingMutation, deletePendingMutationById, findFirstPendingMutation,
   countAllPendingMutations, getAllPendingMutationsOrdered,
+  removeState,
 } from './idb-store.js';
 import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
 import { addToScope, clearScope } from './sync-scope.js';
+import { isSplitType } from '../utils/type-utils.js';
 
 // If a delta response exceeds this many changes, discard it and do a full
 // re-bootstrap for that scope instead.  This avoids applying extremely large
 // change-sets that would be slower than a fresh snapshot.
 const STALE_DELTA_THRESHOLD = 1000;
+
+// Every delta request carries this client's own threshold, so the server can
+// count first and decline to serialize a payload we would only measure and
+// throw away. Before this, the server built the whole response — 436 MB and
+// 40-120 s of ~1 GB heap, measured live 2026-09-10 — purely so the client
+// could read `changes.length` off it. The server takes min(ours, its own), so
+// anything it does send is under our threshold and can never be discarded
+// here; see sync-delta-change-log-bloat.md item B.
+function deltaQuery(params) {
+  return `${params}&maxChanges=${STALE_DELTA_THRESHOLD}`;
+}
+
+// A delta should be dropped in favour of a fresh snapshot when the server
+// refused to send it (`tooLarge`), or when it sent one over our threshold
+// anyway — an older server with no `tooLarge`, or one whose own threshold is
+// higher than ours.
+function isDeltaTooLarge(payload) {
+  if (!payload) return false;
+  if (payload.tooLarge) return true;
+  return Array.isArray(payload.changes) && payload.changes.length > STALE_DELTA_THRESHOLD;
+}
+
+// How many changes the delta covers: the server's count when it declined to
+// send them, otherwise the length of what it did send.
+function deltaSize(payload) {
+  if (payload?.count != null) return payload.count;
+  return Array.isArray(payload?.changes) ? payload.changes.length : 0;
+}
+
+// The server's current tail revision. A `tooLarge` response deliberately
+// leaves `revision` at the `since` the client asked from — advancing it there
+// would push a pre-`tooLarge` client's watermark past changes it never
+// received — and reports the real tail separately.
+function deltaTailRevision(payload) {
+  if (payload?.latestRevision != null) return payload.latestRevision;
+  if (payload?.revision != null) return payload.revision;
+  return null;
+}
 
 // Event bus for invalidation
 const listeners = new Set();
@@ -117,14 +157,34 @@ function authHeaders() {
 
 // --- Bootstrap / Delta ---
 
+// Reads a watermark, returning null for "no watermark" — i.e. cold start.
+//
+// The Number.isFinite guard is not defensive padding: setLastRevision used to
+// store a cleared watermark as `String(null)`, so profiles in the wild carry
+// the literal string "null" under these keys. That row is a real row, so
+// getState returns it rather than its null default, and `parseInt("null", 10)`
+// is NaN — which is not `=== null`, so every caller's cold-start test failed
+// and the warm delta branch ran with `since=NaN`. The server's
+// `parseInt(since, 10) || 0` then turned that into since=0, i.e. a delta over
+// the app's entire change_log history. Anything non-numeric now reads as cold,
+// so an affected profile heals itself on the next load.
 async function getLastRevision(scope = null) {
   const key = scope ? `rev:${scope}` : 'last_revision';
   const value = await getState(key);
-  return value !== null ? parseInt(value, 10) : null;
+  if (value === null || value === undefined) return null;
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
+// Passing null/undefined CLEARS the watermark (deletes the key), which is what
+// every "re-bootstrap from scratch" path means by it. Writing String(null)
+// here instead is the bug described on getLastRevision.
 async function setLastRevision(rev, scope = null) {
   const key = scope ? `rev:${scope}` : 'last_revision';
+  if (rev === null || rev === undefined) {
+    await removeState(key);
+    return;
+  }
   await setState(key, String(rev));
 }
 
@@ -166,6 +226,47 @@ async function applyItems(items) {
 
 const _DEV = typeof globalThis.__SYNC_DEV !== 'undefined' ? globalThis.__SYNC_DEV
   : (typeof import.meta !== 'undefined' && import.meta.env?.DEV);
+
+// One-shot per session — the steady state finds nothing, so there is no point
+// re-scanning on every skeleton bootstrap (which also runs on every
+// reBootstrapLoadedScopes).
+let _purgedSplitRows = false;
+
+/**
+ * Delete any split-type (`:data`) rows an earlier build wrote into the local
+ * mirror.
+ *
+ * Those rows only ever got there via the WS broadcast, which used to ship
+ * dataset-row payloads in full (see sync-ws-broadcast-split-row-payload.md).
+ * They are unreachable dead weight: /sync/bootstrap and /sync/delta never
+ * mention these types, so nothing refreshes them and nothing removes them —
+ * a stale multi-megabyte row could sit in a browser profile indefinitely.
+ * Existing profiles have to clean themselves up, hence this pass.
+ *
+ * Cost in the steady state is one distinct-types index scan per session.
+ */
+async function purgeLocalSplitRows() {
+  if (_purgedSplitRows) return;
+  _purgedSplitRows = true;
+  try {
+    const local = await getDistinctAppTypesByApp(_app);
+    const splitTypes = local.filter(row => isSplitType(row.type));
+    if (splitTypes.length === 0) return;
+    let removed = 0;
+    for (const { app, type } of splitTypes) {
+      const rows = await getItemsByAppType(app, type);
+      if (rows.length === 0) continue;
+      await deleteItemsByIds(rows.map(r => r.id));
+      removed += rows.length;
+    }
+    if (removed > 0) {
+      console.log(`[sync] purged ${removed} locally-mirrored dataset rows across ${splitTypes.length} split types (never served by bootstrap/delta)`);
+      invalidate('data_items');
+    }
+  } catch (err) {
+    console.warn('[sync] split-row purge failed:', err.message);
+  }
+}
 
 /**
  * Bootstrap the site skeleton (site row + pattern rows).
@@ -239,6 +340,7 @@ export async function bootstrapSkeleton() {
     } catch { /* ignore */ }
   }
 
+  await purgeLocalSplitRows();
   await flushPending();
 }
 
@@ -296,19 +398,26 @@ async function _bootstrapPatternImpl(patternType) {
     } else {
       // Warm start: delta for this pattern
       const t0 = performance.now();
-      let url = `/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}&since=${lastRev}`;
+      let url = deltaQuery(`/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}&since=${lastRev}`);
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
       const res = await fetch(apiUrl(url), { headers: authHeaders() });
       if (!res.ok) throw new Error(`pattern delta failed: ${res.status}`);
-      const { changes, revision } = await res.json();
-      if (_DEV) console.log(`[sync]     pattern '${patternType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
+      const payload = await res.json();
+      const { changes = [], revision } = payload;
+      if (_DEV) console.log(`[sync]     pattern '${patternType}' delta: ${deltaSize(payload)} changes (${(performance.now() - t0).toFixed(0)}ms)`);
 
       // Stale delta — too many changes, fall back to full re-bootstrap
-      if (changes.length > STALE_DELTA_THRESHOLD) {
-        console.warn(`[sync] pattern '${patternType}' delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+      if (isDeltaTooLarge(payload)) {
+        console.warn(`[sync] pattern '${patternType}' delta too large (${deltaSize(payload)} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
         await setLastRevision(null, scope);
         _loadedPatterns.delete(patternType);
-        return bootstrapPattern(patternType);
+        // Re-enter the impl, NOT the memoizing wrapper. _inflightBootstraps
+        // still holds this very call's promise, so bootstrapPattern() would
+        // hand it straight back and this async function would resolve its own
+        // promise with itself — `TypeError: Chaining cycle detected`, raised
+        // at the resolve boundary where the try/catch below cannot see it,
+        // leaving the pattern permanently un-bootstrapped.
+        return _bootstrapPatternImpl(patternType);
       }
 
       if (changes.length > 0) {
@@ -367,15 +476,21 @@ async function bootstrapFull() {
       console.log(`[sync] bootstrapped ${items.length} items, revision=${revision}`);
     } else {
       const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`), { headers: authHeaders() });
+      const res = await fetch(apiUrl(deltaQuery(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`)), { headers: authHeaders() });
       if (!res.ok) throw new Error(`delta failed: ${res.status}`);
-      const { changes, revision } = await res.json();
+      const payload = await res.json();
+      const { changes = [], revision } = payload;
       const tFetch = performance.now();
-      if (_DEV) console.log(`[sync]     delta: ${changes.length} changes since rev ${lastRev} (${(tFetch - t0).toFixed(0)}ms)`);
+      if (_DEV) console.log(`[sync]     delta: ${deltaSize(payload)} changes since rev ${lastRev} (${(tFetch - t0).toFixed(0)}ms)`);
 
-      // Stale delta — too many changes, fall back to full re-bootstrap
-      if (changes.length > STALE_DELTA_THRESHOLD) {
-        console.warn(`[sync] full delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+      // Stale delta — too many changes, fall back to full re-bootstrap.
+      // setLastRevision(null) genuinely clears the key now, so the recursive
+      // call takes the cold branch. While it stored String(null) instead,
+      // this recursed straight back into the warm branch with `since=NaN`,
+      // which the server read as since=0 — a delta over the app's whole
+      // change_log, forever.
+      if (isDeltaTooLarge(payload)) {
+        console.warn(`[sync] full delta too large (${deltaSize(payload)} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
         await setLastRevision(null);
         return bootstrapFull();
       }
@@ -449,6 +564,29 @@ export function connectWS() {
           return;
         }
 
+        // Dataset rows are NOT mirrored locally. /sync/bootstrap and
+        // /sync/delta exclude split types by design — they live in their own
+        // tables and are fetched on demand through Falcor/UDA — but this
+        // handler used to apply whatever arrived, so a broadcast would parse a
+        // multi-megabyte blob, run it through the Yjs merge, write it to
+        // IndexedDB and register the type as locally-synced. Nothing ever read
+        // that copy, nothing refreshed it, and nothing removed it.
+        //
+        // The invalidation is the part that matters: it debounces into
+        // router.revalidate() (dmsSiteFactory.jsx), which refetches through the
+        // normal on-demand path — so a dataset view still updates live. That
+        // was always what drove the refresh, not the payload.
+        //
+        // Branch on the type, not on the server's `dataOmitted` flag, so a
+        // client talking to a server that predates that flag still refuses to
+        // mirror the blob.
+        if (isSplitType(msg.item?.type)) {
+          await setLastRevision(msg.revision);
+          invalidate('data_items');
+          invalidate(`data_items:${msg.item.app}+${msg.item.type}`);
+          return;
+        }
+
         if (msg.action === 'I' || msg.action === 'U') {
           const remoteData = typeof msg.item.data === 'string'
             ? JSON.parse(msg.item.data) : msg.item.data;
@@ -488,28 +626,71 @@ export function connectWS() {
   ws.onerror = () => { /* onclose will fire */ };
 }
 
+/**
+ * Cold re-bootstrap of every scope this client actually holds — the site
+ * skeleton, plus each pattern loaded so far.
+ *
+ * catchUp's delta is app-wide, but the local mirror only ever holds the
+ * skeleton and the patterns the user has navigated to, so those are the only
+ * snapshots worth re-fetching when a delta is refused as too large.
+ *
+ * The skeleton's own watermark is deliberately left alone: bootstrapSkeleton
+ * re-fetches its full snapshot on every call regardless (it reads the
+ * watermark only to log cold vs. warm), so clearing it would be churn.
+ */
+async function reBootstrapLoadedScopes() {
+  const patterns = [..._loadedPatterns];
+  for (const patternType of patterns) {
+    await setLastRevision(null, `pattern:${patternType}`);
+    _loadedPatterns.delete(patternType);
+  }
+  await bootstrapSkeleton();
+  for (const patternType of patterns) {
+    await bootstrapPattern(patternType);
+  }
+}
+
 async function catchUp() {
   try {
     const lastRev = await getLastRevision();
-    if (lastRev !== null) {
-      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`), { headers: authHeaders() });
-      if (res.ok) {
-        const { changes, revision } = await res.json();
+    if (lastRev === null) return;
 
-        // Stale delta — too many changes, re-bootstrap skeleton
-        if (changes.length > STALE_DELTA_THRESHOLD) {
-          console.warn(`[sync] catchUp delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
-          await bootstrapSkeleton();
-          return;
-        }
+    const res = await fetch(apiUrl(deltaQuery(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`)), { headers: authHeaders() });
+    if (!res.ok) return;
 
-        if (changes.length > 0) {
-          await applyChanges(changes);
-          invalidate('data_items');
-        }
-        await setLastRevision(revision);
-      }
+    const payload = await res.json();
+    const { changes = [], revision } = payload;
+
+    // Stale delta — too many changes to be worth applying one at a time.
+    //
+    // This branch used to call bootstrapSkeleton() and return, which left the
+    // unscoped `last_revision` this function reads completely untouched:
+    // bootstrapSkeleton writes `rev:skeleton:<siteType>`, a different key. So
+    // every WS reconnect re-requested the identical window, the server rebuilt
+    // the identical multi-hundred-MB payload, and the client measured its
+    // length and threw it away — for hours, with `since` never moving (890584,
+    // 893395, 905516, 907608 observed live 2026-09-10).
+    //
+    // Advancing to the tail the server just reported is what breaks the loop.
+    // The snapshots reBootstrapLoadedScopes fetches are read AFTER that
+    // revision, so the client lands at or ahead of the watermark written here;
+    // the worst case is the next delta redundantly re-delivering a change the
+    // snapshot already contains, which applyChanges is idempotent about. The
+    // watermark is written BEFORE re-bootstrapping on purpose — a failure
+    // partway through leaves the loop broken rather than re-armed.
+    if (isDeltaTooLarge(payload)) {
+      const tail = deltaTailRevision(payload);
+      console.warn(`[sync] catchUp delta too large (${deltaSize(payload)} > ${STALE_DELTA_THRESHOLD}), advancing to rev=${tail} and re-bootstrapping loaded scopes`);
+      if (tail !== null && tail > lastRev) await setLastRevision(tail);
+      await reBootstrapLoadedScopes();
+      return;
     }
+
+    if (changes.length > 0) {
+      await applyChanges(changes);
+      invalidate('data_items');
+    }
+    await setLastRevision(revision);
   } catch (err) {
     console.warn('[sync] catch-up failed:', err.message);
   }
@@ -637,6 +818,15 @@ export async function localDelete(id) {
 
 // --- Push to server via /sync/push ---
 
+// HTTP statuses a queued mutation can never recover from by being retried:
+// the request is malformed, or it names an item that does not exist. Retrying
+// these forever is what turned one bad mutation into 404 `[sync/push] error:
+// invalid input syntax for type bigint: "no-access"` server-side errors
+// (measured live 2026-09-10). Everything else stays retryable — 401/403
+// because a login may follow, 408/429 because they are transient by
+// definition, and every 5xx because a server restart genuinely can fix it.
+const PERMANENT_PUSH_STATUSES = new Set([400, 404, 409, 410, 422]);
+
 async function pushMutation(action, item) {
   const pushUrl = apiUrl('/sync/push');
   if (_DEV) console.log(`[sync] pushMutation ${action} id=${item.id} → ${pushUrl}`);
@@ -649,7 +839,9 @@ async function pushMutation(action, item) {
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      throw new Error(`push failed: ${res.status} ${errBody}`);
+      const httpErr = new Error(`push failed: ${res.status} ${errBody}`);
+      httpErr.status = res.status;
+      throw httpErr;
     }
     const { item: serverItem, revision } = await res.json();
     if (_DEV) console.log(`[sync] push ${action} id=${item.id} → server id=${serverItem?.id} rev=${revision}`);
@@ -666,8 +858,20 @@ async function pushMutation(action, item) {
 
     await setLastRevision(revision);
     markMyRevision(revision);
+    _flushDelay = FLUSH_DELAY_MIN; // a push got through — reset the backoff
     await removePending(serverItem.id || item.id, action);
   } catch (err) {
+    if (PERMANENT_PUSH_STATUSES.has(err.status)) {
+      // Discard it instead of retrying. Same tradeoff clearPendingMutations
+      // documents — the LOCAL optimistic write stays as-is, so this item can
+      // remain diverged from the server until the next bootstrap/delta
+      // corrects it — but without requiring someone to notice and invoke that
+      // by hand, and without blocking every other queued mutation behind a
+      // request that can only ever fail.
+      console.error(`[sync] push ${action} PERMANENTLY REJECTED id=${item.id} (HTTP ${err.status}) — discarding queued mutation:`, err.message);
+      await removePending(item.id, action);
+      return;
+    }
     console.error(`[sync] push ${action} FAILED id=${item.id}:`, err.message, err);
     retryFlush();
   }
@@ -681,17 +885,30 @@ async function removePending(itemId, action) {
 
   const total = await countAllPendingMutations();
   if (total === 0) {
+    _flushDelay = FLUSH_DELAY_MIN;
     updateStatus('connected');
   }
 }
 
+const FLUSH_DELAY_MIN = 500;
+const FLUSH_DELAY_MAX = 30000;
+
 let flushTimer = null;
+let _flushDelay = FLUSH_DELAY_MIN;
+
+// Exponential backoff with a ceiling. This was a flat 500 ms with no ceiling,
+// so anything the server kept refusing was re-pushed twice a second for as
+// long as the tab stayed open. pushMutation now discards permanently rejected
+// mutations outright; this bounds the cost of everything else (an offline
+// stretch, a restarting server) and resets to 500 ms as soon as a push lands.
 function retryFlush() {
   if (flushTimer) return;
+  const delay = _flushDelay;
+  _flushDelay = Math.min(_flushDelay * 2, FLUSH_DELAY_MAX);
   flushTimer = setTimeout(async () => {
     flushTimer = null;
     await flushPending();
-  }, 500);
+  }, delay);
 }
 
 async function flushPending() {
