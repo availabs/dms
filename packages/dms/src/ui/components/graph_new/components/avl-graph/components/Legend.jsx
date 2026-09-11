@@ -38,6 +38,28 @@ const SizeMap = {
 // component-owned; its typography is reachable through `tick`, and its ramp through `ramp`.
 const look = (token, fallback) => token || fallback;
 
+// ── Legend title (the unit slot) ───────────────────────────────────────────
+// A gradient legend's numbers carry no unit, and appending one to every tick is NOT free.
+// `fitRampTicks` budgets label text against the ramp's width, so " mph" on five ticks needs
+// ~315px of a 250px ramp and silently drops the legend from 5 tick marks to 3 — two reference
+// points traded away to say the unit five times. The vertical variant never drops ticks, so
+// there the same change just widens the legend and eats chart width instead. One line above the
+// ramp says it once and costs no tick width at all, only ~16px of height. Legends on a narrow
+// card are the constrained case, and they are the ones a per-tick unit would have degraded.
+//
+// It is a TITLE, not a units feature: an author sets `legend.title` to whatever the legend is a
+// key to — "Hours of Delay", "Avg Speed" — and a unit is merely the default that fills it when
+// they haven't. Rendering is opt-in: with no title the markup is byte-identical to before, which
+// is what keeps every existing site untouched.
+const LegendTitle = ({ title, classNames = {} }) => !title ? null : (
+	// `truncate` is structural — a long title must not widen the legend and push the chart
+	// around; the look is entirely the theme's (`legendTitle`), with no imposed default beyond
+	// the wrapper's own text size.
+	<div className={ `truncate${ classNames.title ? ` ${ classNames.title }` : "" }` } title={ title }>
+		{ title }
+	</div>
+);
+
 const VerticalCategoricalLegendItem = props => {
 
 	const {
@@ -209,7 +231,7 @@ const fitRampTicks = (scale, format, fontPx, available) => {
 	return rampTicks(scale, 2);
 }
 
-const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {} }) => {
+const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {}, title }) => {
 
 	const [height, cross] = React.useMemo(() => {
 		return SizeMap[size] || SizeMap["medium"];
@@ -222,7 +244,7 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, 
 	// first and last labels inside the box instead of laying out one cell too many.
 	const ticks = React.useMemo(() => rampTicks(scale, 5), [scale]);
 
-	return (
+	const body = (
 		<div className="relative flex w-fit"
 			style={ {
 				height: `${ height }px`
@@ -268,10 +290,18 @@ const VerticalLinearLegend = ({ size, scale = scaleLinear(), format = identity, 
 				}
 			</div>
 		</div>
+	);
+
+	// Wrapped ONLY when there is a title, so the untitled DOM is unchanged.
+	return !title ? body : (
+		<div className="w-fit">
+			<LegendTitle title={ title } classNames={ classNames }/>
+			{ body }
+		</div>
 	)
 }
 
-const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {} }) => {
+const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity, classNames = {}, title }) => {
 
 	const [maxWidth, cross] = React.useMemo(() => {
 		return SizeMap[size] || SizeMap["medium"];
@@ -285,7 +315,7 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 		return fitRampTicks(scale, format, fontPx, maxWidth);
 	}, [scale, format, fontPx, maxWidth]);
 
-	return (
+	const body = (
 		<div className="relative w-full min-w-0"
 			style={ {
 				// Width comes from the wrapper in `Legend` below (which is the actual flex
@@ -331,6 +361,14 @@ const HorizontalLinearLegend = ({ size, scale = scaleLinear(), format = identity
 					)
 				})
 			}
+		</div>
+	);
+
+	// Wrapped ONLY when there is a title, so the untitled DOM is unchanged.
+	return !title ? body : (
+		<div className="w-full min-w-0">
+			<LegendTitle title={ title } classNames={ classNames }/>
+			{ body }
 		</div>
 	)
 }

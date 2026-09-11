@@ -1,7 +1,8 @@
 # AVL Graph — graph-chrome theming (legend, card padding, admin surface)
 
-**Status:** PASS 1 DONE + live-verified 2026-09-10 · **PASS 2 IN PROGRESS** — item 1's plumbing +
-back-compat test suite DONE 2026-09-10, transportny token VALUES still to set · **Started:** 2026-09-09
+**Status:** PASS 1 DONE · **PASS 2 items 1 + 2 DONE + live-verified 2026-09-10** (legend class
+tokens, back-compat suite, legend title/unit slot) · items 3 (tooltip) + 4 (padding) NOT started ·
+**Started:** 2026-09-09
 
 ---
 
@@ -44,8 +45,14 @@ stops shrinking — use `flex-basis`).
    > priority asks for — "I am just very concerned about a regression with this change in
    > particular". Consequence: the legacy flat shape isn't merely "still accepted", it is the
    > **only** shape, so there is no second code path to rot.
-2. **Units on gradient tick labels** (item 07) — **approach changed 2026-09-10, do NOT use
-   `display._measurePick.measure` directly in shared code.** Ryan: "`_measurePick` is ONLY set/used
+2. ~~**Units on gradient tick labels** (item 07)~~ — **DONE 2026-09-10, and the shape changed
+   twice on the way. See "Item 2 — DONE" below.** Ryan rejected per-tick units outright ("Some of
+   these legends, are already REALLY tight. Maybe, we should just have the units ontop of the
+   legend?") and the arithmetic backed him: " mph" on five ticks needs ~315px of a 250px ramp and
+   would have dropped the legend to 3 tick marks. Shipped as a legend **title** slot instead, with
+   the unit as its default value. The `_measurePick` guidance below still stands and is what was
+   built. **Approach changed 2026-09-10, do NOT use `display._measurePick.measure` directly in
+   shared code.** Ryan: "`_measurePick` is ONLY set/used
    by NPMRDS reports, so I don't like having that pollute `dms` code." Instead:
    - dms reads a generic token `display.legend.unit`, and if unset asks an optional theme-supplied
      resolver, `contextTheme?.avlGraph?.resolveLegendUnit?.(display)`. Two lines; no NPMRDS
@@ -580,6 +587,87 @@ MitigateNY actually renders, has no measurement and is locked completely.
   that exists now (the PM3 2018-2020 backfill). Ryan, same session, on the live client: *"what I see
   currently on local client, for `snapshot` dynamic report, looks good to me?"* Until it is
   re-captured the suite will keep reporting these as blockers.
+
+## Item 2 — DONE 2026-09-10 (legend title slot; units are its default value)
+
+**The design changed because Ryan pushed back on the premise.** Item 07 was scoped as "put units on
+the gradient tick labels". His objection: *"IDK if we want units on the legends, on each tick mark.
+Some of these legends, are already REALLY tight. Maybe, we should just have the units ontop of the
+legend?"*
+
+**He was right, and it is arithmetic rather than taste.** `fitRampTicks` budgets tick-label text
+against the ramp width (`CHAR_W 0.62 × fontPx 12`, `MIN_TICK_GAP 8`). Against a real 250px ramp with
+the live speed labels:
+
+| | width needed | vs 250px |
+|---|---|---|
+| 5 ticks, no unit | 165.9px | fits |
+| **5 ticks + " mph"** | **314.7px** | **overflows → silently drops to 3 ticks** |
+| 3 ticks + " mph" | 194.6px | fits |
+
+So per-tick units would have been **paid for in resolution** — two of five reference points traded
+away to repeat the unit five times. On the vertical variant it is worse in kind: that one never
+drops ticks, so it would simply widen and eat chart width.
+
+**Shipped as a legend TITLE, not a units feature.** Same pixels, but an author gets a normal thing
+legends have, and the unit is merely the default that fills it:
+
+```
+display.legend.title   ??   contextTheme.avlGraph.resolveLegendUnit(display)
+```
+
+Author-set title always wins; no resolver ⇒ no title ⇒ every other site unchanged. Rendering is
+opt-in, so an untitled legend's DOM is byte-identical to before — which is what the goldens prove.
+
+### Where each piece lives, and why the boundary is where it is
+
+| piece | file | note |
+|---|---|---|
+| `LegendTitle`, wrapped only when titled | `Legend.jsx` | `truncate` is structural so a long title can never widen the legend and shove the chart; the look is entirely `classNames.title` |
+| `legendTitle` class token | `GraphComponent.jsx` | sixth key in the `classNames` injection |
+| the `??` resolution | `graph_new/index.jsx` | beside the existing `resolveReportDisplayText` call |
+| `resolveLegendUnit(display)` | **`themes/transportny/components/MeasurePicker/resolveLegendUnit.js`** | sits next to `_measurePick`'s own writer and the vocabulary that defines units |
+| `units` on all 11 measures | `MeasurePicker/vocabulary.json` | +11 lines, surgical |
+| `legendTitle` value | `themev2.js` | `font-mono text-[9.5px] uppercase tracking-wider text-slate-400 mb-0.5` — quieter than the numerals it captions |
+
+**No `_measurePick` entered the library.** The library hands over the whole `display` and the hook
+owns the shape it reads (Ryan: *"`_measurePick` is ONLY set/used by NPMRDS reports, so I don't like
+having that pollute `dms` code"*). The hook is named for the generic capability —
+`resolveReportDisplayText` is the precedent for the **mechanism only**, never the name.
+
+**Format beats the nominal unit where they disagree.** `travelTime` is stored in decimal minutes but
+renders "22:45" through `duration_mmss`, so captioning it "min" would misdescribe what is on screen;
+`UNIT_BY_VALUE_FORMAT` maps it to `mm:ss`, and maps `epoch_time`/`day_of_week` to **no caption at
+all** (a clock time is self-describing, and a needless line costs height).
+
+**No report regeneration** — every section already stores `_measurePick.measure`.
+
+### Verification
+
+- `packages/dms/tests` → **341 green** (7 new legend-title tests; the pre-existing goldens still
+  pass untouched, i.e. the untitled DOM did not move).
+- `MeasurePicker/__tests__/resolveLegendUnit.test.js` → **7 green**, including a loop asserting
+  *every* measure in the vocabulary resolves to a unit, so adding a measure without one fails.
+- **`vocabulary.json` is read by the Python converter**, and its own `_provenance` demands a
+  byte-diff afterwards. Ran it: **34 derived constants compared, 0 changed**; no existing key lost
+  or value altered; exactly 11 `units` keys added. (First attempt at this check was a false green —
+  both sides failed with `ModuleNotFoundError` and I diffed two identical tracebacks. Fixed the
+  import path and re-ran.)
+- **Live, measured:**
+
+| page | gradient legends | titles rendered | above the ramp | tick marks kept | overlaps | errors |
+|---|---|---|---|---|---|---|
+| `annual_average_study` | 4 | `mph` ×4 | yes | **5/5** | 0 | 0 |
+| `snapshot` | 7 | `mph` ×4, `hours` ×3 | yes | **5/5** | 0 | 0 |
+
+The retained 5 tick marks are the point: this is exactly what the per-tick approach would have cost.
+
+### Follow-on, deliberately not done
+
+The title slot is **linear-only**. A categorical legend would benefit from one too and it is a small
+change, but it touches the path MitigateNY actually renders, so it is not being bundled into an item
+about gradient units. A test asserts the categorical legend currently ignores `title`, so the
+decision is recorded rather than accidental.
 
 ### ⚠ A live break I caused, caught by Ryan, fixed same session — read this before wiring any token
 

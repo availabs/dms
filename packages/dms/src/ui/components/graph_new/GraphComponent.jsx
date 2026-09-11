@@ -190,10 +190,11 @@ export const GraphComponent = props => {
       swatch: theme?.legendSwatch,
       label: theme?.legendLabel,
       tick: theme?.legendTick,
-      ramp: theme?.legendRamp
+      ramp: theme?.legendRamp,
+      title: theme?.legendTitle
     }
   }), [graphFormat, theme?.legend, theme?.legendSwatch, theme?.legendLabel,
-       theme?.legendTick, theme?.legendRamp]);
+       theme?.legendTick, theme?.legendRamp, theme?.legendTitle]);
 
   // Opt-in, theme-driven (2026-09-04, Ryan) — `theme.titleInlineWithLegend` lives on a named
   // avlGraph style selected per-section via `activeStyle` (see transportny/themev2.js's

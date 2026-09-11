@@ -183,9 +183,41 @@ export default function Graph (props) {
       })
     : display.description;
 
+  // Default the legend's title (see Legend.jsx's LegendTitle for WHY the unit goes above the
+  // ramp rather than onto every tick). An author-set `display.legend.title` always wins; only
+  // when they haven't set one do we ask the theme.
+  //
+  // The resolver is OPTIONAL and site-supplied, which is the whole point: the unit of a measure
+  // is site vocabulary, and this library must not learn it. The obvious shortcut — reading
+  // `display._measurePick.measure` here — is deliberately rejected: that field is set and read
+  // only by the npmrds report tooling, so depending on it would move site vocabulary into the
+  // library. The whole `display` is handed over instead and the hook owns the shape it reads;
+  // transportny implements it in its own theme folder, where `_measurePick` already lives.
+  //
+  // Existing sections pick the unit up with NO regeneration, which is the constraint that ruled
+  // out minting per-measure format names instead.
+  //
+  // Named for the generic capability on purpose. `resolveReportDisplayText` just above is the
+  // precedent for the MECHANISM and emphatically not for the NAME — "report" is npmrds
+  // vocabulary and does not belong in a shared hook name. Renaming it is out of scope; don't
+  // copy it.
+  const resolvedLegendTitle = display?.legend?.title
+    || (contextTheme?.avlGraph?.resolveLegendUnit
+          ? contextTheme.avlGraph.resolveLegendUnit(display)
+          : undefined);
+
+  const displayForGraph = React.useMemo(() => {
+    let d = display;
+    if (resolvedDescription !== display.description) d = { ...d, description: resolvedDescription };
+    if (resolvedLegendTitle && !display?.legend?.title) {
+      d = { ...d, legend: { ...(d.legend || {}), title: resolvedLegendTitle } };
+    }
+    return d;
+  }, [display, resolvedDescription, resolvedLegendTitle]);
+
   return (
     <GraphComponent
-        graphFormat={ mergeChartDefaults(theme?.chartDefaults, resolvedDescription === display.description ? display : { ...display, description: resolvedDescription }) }
+        graphFormat={ mergeChartDefaults(theme?.chartDefaults, displayForGraph) }
         graphType={ display.graphType }
         viewData={ viewData }
         columns={ keyedColumns }

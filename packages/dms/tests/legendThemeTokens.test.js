@@ -138,6 +138,60 @@ describe("legend Layer-A class tokens", () => {
     });
   });
 
+  describe("title (the unit slot)", () => {
+    const titled = (extra = {}) => render({
+      type: "linear", orientation: "horizontal", size: "medium",
+      scale, format: d => `${ Math.round(d) }`, actions: [], ...extra
+    });
+
+    it("renders nothing extra when no title is set", () => {
+      // The whole reason the title wraps rather than nests: an untitled legend's DOM must be
+      // unchanged. legendLegacyProps.test.js proves that byte for byte; this states the intent.
+      expect(titled()).not.toContain("truncate");
+    });
+
+    it("renders the title above the ramp, not on it", () => {
+      const out = titled({ title: "mph" });
+      // the title must come BEFORE the gradient in document order
+      expect(out.indexOf("mph")).toBeLessThan(out.indexOf("linear-gradient"));
+    });
+
+    it("truncates a long title so it cannot widen the legend", () => {
+      // A title that grows the legend would push the chart around — the exact cost this design
+      // was chosen to avoid.
+      expect(titled({ title: "Average Hours of Delay per Vehicle" })).toContain(`class="truncate"`);
+    });
+
+    it("takes the legendTitle class token", () => {
+      expect(titled({ title: "mph", classNames: { title: "text-[10px] text-slate-400" } }))
+        .toContain(`class="truncate text-[10px] text-slate-400"`);
+    });
+
+    it("does NOT change the tick labels (the point of putting the unit up top)", () => {
+      // Ticks must stay exactly as wide as they were, or fitRampTicks starts dropping them.
+      const withT = titled({ title: "mph" });
+      const withoutT = titled();
+      const ticks = h => (h.match(/absolute whitespace-nowrap[^>]*>([^<]*)</g) || []).join("|");
+      expect(ticks(withT)).toBe(ticks(withoutT));
+    });
+
+    it("titles the vertical legend too", () => {
+      const out = render({
+        type: "linear", orientation: "vertical", size: "medium",
+        scale, format: d => `${ Math.round(d) }`, actions: [], title: "minutes"
+      });
+      expect(out.indexOf("minutes")).toBeLessThan(out.indexOf("linear-gradient"));
+    });
+
+    it("is ignored by the categorical legend (linear-only for now)", () => {
+      const out = render({
+        type: "categorical", orientation: "vertical", size: "medium",
+        categories: ["A"], colors: RAMP, actions: [], title: "mph"
+      });
+      expect(out).not.toContain("mph");
+    });
+  });
+
   it("still renders nothing when there is no usable ramp, tokens or not", () => {
     // A theme must not be able to resurrect the fabricated 0/0.25/0.5/0.75/1 key.
     expect(render({
