@@ -497,9 +497,17 @@ const graphConfig = {
                 }
             ]
         },
+        // ONE legend control for every graph type (2026-09-11). It used to be split in two,
+        // because only GridGraph's wrapper understood the corner positions — the other five
+        // matched `legend.position` with strict equality against the four bare edges, so a corner
+        // value matched no branch and the legend silently disappeared. Now that the corner cases
+        // live in one shared helper (components/utils.js's isTopLegend/legendRowJustify) every
+        // wrapper handles all eight, and there is nothing left for the split to express.
+        //
+        // Additive for existing sections: the four bare values are still offered and still mean
+        // exactly what they meant, and a GridGraph section keeps every option it had.
         legend: {
             name: "Legend",
-            displayCdn: ({ display }) => display.graphType !== "GridGraph",
             items: [
                 { type: "toggle",
                     label: "Show", key: "legend.show"
@@ -514,29 +522,9 @@ const graphConfig = {
                         { label: "Right", value: "right" },
                         { label: "Left", value: "left" },
                         { label: "Top", value: "top" },
-                        { label: "Bottom", value: "bottom" }
-                    ]
-                }
-            ]
-        },
-        legendForGridGraph: {
-            name: "Legend",
-            displayCdn: ({ display }) => display.graphType === "GridGraph",
-            items: [
-                { type: "toggle",
-                    label: "Show", key: "legend.show"
-                },
-                { type: "input", inputType: "text",
-                    label: "Title", key: "legend.title",
-                    placeHolder: legendTitlePlaceHolder
-                },
-                { type: "select",
-                    label: "Position", key: "legend.position",
-                    options: [
-                        { label: "Right", value: "right" },
-                        { label: "Left", value: "left" },
                         { label: "Top Right", value: "top-right" },
                         { label: "Top Left", value: "top-left" },
+                        { label: "Bottom", value: "bottom" },
                         { label: "Bottom Right", value: "bottom-right" },
                         { label: "Bottom Left", value: "bottom-left" }
                     ]

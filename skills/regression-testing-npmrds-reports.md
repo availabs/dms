@@ -42,7 +42,17 @@ covers) without probing anything — the fast "what does this even cover" check.
 
 ## 3. Is a finding real, or noise?
 
-Three known noise sources are already filtered out (don't re-litigate these if you see them
+**A Map-bearing entry's `non-200` and `pending-at-close` counts are inherently jittery** (added
+2026-09-11). `golden_corpus_routemap` reported `non-200: 1 → 3` on one run and
+`requests pending at close: 0 → 2` on the very next, with no code change between them. Both are
+vector-tile requests: `204 No Content` is the documented "this tile has no geometry" response (see
+`creating-a-map-section.md`), and how many tiles the map has panned through before the probe closes
+varies with load. Check what the responses actually ARE — `report_probe.mjs` prints each non-200 URL
+— before treating either as a regression. A real problem shows up as console/page/SQL errors or a
+lost section, none of which these produce. Don't re-capture the baseline to silence it; the counts
+will just drift the other way next run.
+
+Three further noise sources are already filtered out (don't re-litigate these if you see them
 mentioned in the task file's history):
 - Generic Falcor/UDA plumbing (site-wide catalog reads, source-picker listings) — excluded from the
   diff entirely, since it drifts from unrelated activity on a shared dev DB.

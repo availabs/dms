@@ -625,6 +625,65 @@ CLI-cloned test pages, map/WebGL blank-canvas) now live in
 [`traversing-dms-pages.md`](./traversing-dms-pages.md)'s §4 — they apply to
 any DMS page, not just reports. What's specific to reports:
 
+- **A report graph card has ONE title, and it lives in the card's header band (2026-09-11).**
+  A regenerated report section carries `activeStyle: "reportCard"`, which selects transportny's
+  named `pages.section` style — so the section header renders as a 40px bordered band at the top
+  of the card instead of the generic 50px title row:
+  - the band is `div.h-10.pl-4.pr-10` with `border-b border-zinc-950/10`;
+  - the **title** is the `div` inside `div.flex-1.min-w-0 > div.flex-1.min-w-0` carrying
+    `font-display … text-[15px] … text-[#0F1722] truncate`. ⚠ `div.h-10 div.flex-1.min-w-0`
+    matches the header's INNER ROW first and its own wrapper second — both have those two classes.
+    Select on `[class*="text-[15px]"]`, not on structure, or you measure the wrapper and conclude
+    the theme token never applied (cost a round-trip 2026-09-11). Expect
+    `15px / 500 / Oswald / rgb(15, 23, 34)`, `text-transform: none`, 12px above and 13px below in
+    the 40px band.
+  - the **kicker** (unit + time window, e.g. `mph · Weekdays only`) is the `div` carrying
+    `tracking-[0.18em]`, right-aligned in the same band, fed by the section's `description`
+    attribute. It is `hidden xl:block`, so a viewport narrower than 1280px has no kicker and that
+    is not a bug.
+  - there is **no graph-native title any more** on a report card — `display.title` is cleared at
+    build time. `div.font-display.uppercase.text-[12.5px]` (the old in-card title) finding nothing
+    is the correct state.
+  - **A report built before 2026-09-11 looks completely different and that is also correct.** Its
+    sections carry `activeStyle: "reportInlineTitle"`, which matches no `pages.section` style and
+    falls back to `styles[0]` — the historical `flex w-full min-h-[50px] items-center pb-2` band
+    with a 16px black Oswald title, plus the old in-card title. Both states are live on the dev
+    site simultaneously (`reports/snapshot` regenerated, `reports/annual_average_study` not), which
+    makes that pair the standing control for any change to the band.
+- **Every NPMRDS report legend sits TOP-RIGHT (2026-09-11), and a corner position used to mean
+  "no legend at all".** Until this date only `GridGraph`'s wrapper understood
+  `top-right`/`top-left`/`bottom-right`/`bottom-left`; the other five (Bar, Line, Pie, Treemap,
+  Sunburst) matched `legend.position` with strict equality against the four bare edges, so a corner
+  value hit no branch and the legend **silently did not render**. If you are ever debugging a
+  missing legend on an older build, check `display.legend.position` before anything else — it looks
+  exactly like `legend.show: false`.
+  - Fixed via shared helpers in `graph_new/components/utils.js` (`isTopLegend`/`isBottomLegend`/
+    `isColumnLegendPosition`/`legendRowJustify`); a bare `top`/`bottom` still centres, so nothing
+    that predates the change moved.
+  - **How to verify placement: measure the legend CONTENT, never the row it sits in.** The row is
+    full-width and therefore always "centred" on the plot no matter where `justify-end` puts its
+    contents — a probe that measures the row concludes nothing changed. Walk up from the ramp (or
+    the last swatch) only while the parent is still narrower than the card, then compare that box's
+    right edge to the card's: expect **17px** (the graph's own `p-4` plus the card's 1px border).
+  - The default for a newly minted report graph is `DEFAULT_LEGEND_POSITION_BY_GRAPH_TYPE` in
+    transportny's `composeMeasureConfig.js` — reached ONLY by the three NPMRDS-report mint paths,
+    so no other site's graphs are affected.
+- **Graph legends: how to find one, and the caption above it (2026-09-11).** Two shapes, and they
+  are structurally different:
+  - **Categorical** (series identity — which line is which route): a container of items, each
+    `div.flex.items-center.px-1.min-w-0` holding a swatch `div` with an inline
+    `style="background-color: …"` and a label `div.min-w-0.truncate[title]`. Query the labels, walk
+    up one level for the item, two for the container.
+  - **Linear / gradient** (a colour ramp): the ramp is the only `div` whose inline `style` contains
+    `linear-gradient`. Tick labels are absolutely positioned siblings inside the same box.
+  - **Caption** — when a legend has one, it is a `div.truncate` that is the FIRST child of a wrapper
+    one level above the legend's own box. There is no wrapper at all when uncaptioned, so test
+    `firstElementChild !== theLegendBox` before reading it. A caption comes from an author-set
+    `legend.title` (any legend type) or an automatic `legend.unit` (**linear only** — a unit over an
+    identity key is meaningless, and shipping it to both was a real bug).
+  - Measuring **label-vs-ramp overlap** is the way to catch the recurring "text on the gradient"
+    defect: intersect each tick label's rect with the ramp's. Do NOT judge it from a screenshot —
+    a few px of overlap is invisible to a compressed image.
 - **A probe slug is NOT a browser URL — the `/npmrds` prefix.** `report_probe.mjs` takes a BARE
   slug (`reports/annual_average_study?routes=…`) because its default `--host` is already
   `http://www.localhost:5173/npmrds`. Paste that same slug into a browser and you get

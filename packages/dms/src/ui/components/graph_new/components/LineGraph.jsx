@@ -5,7 +5,7 @@ import { LineGraph, Legend } from "./avl-graph"
 import { groups as d3groups } from "d3-array"
 
 import { strictNaN } from "../utils"
-import { getAggFunc, useLegendSqueezeGuard } from "./utils"
+import { getAggFunc, useLegendSqueezeGuard, isTopLegend, isBottomLegend, isColumnLegendPosition, legendRowJustify } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const LineGraphWrapper = props => {
@@ -286,15 +286,15 @@ const LineGraphWrapper = props => {
   });
   const legendWrapClass = squeezed ? "flex items-center max-w-[40%] min-w-0 overflow-hidden" : "flex items-center";
 
-	const isColumnLegend = ["top", "bottom"].includes(legend.position);
+	const isColumnLegend = isColumnLegendPosition(legend.position);
 
 	return (
     <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
-      { !legend.show || legend.position !== "top" ? null :
+      { !legend.show || !isTopLegend(legend.position) ? null :
       	// `titleNode` (opt-in, see GraphComponent.jsx) shares this row instead of stacking
       	// above it — title left, legend right. Falls back to centered legend-only, byte-
       	// identical to before, when no titleNode is passed (the default everywhere else).
-      	<div className={ `flex items-center shrink-0 ${ props.titleNode ? "justify-between gap-3" : "justify-center" }` } ref={ legendRef }>
+      	<div className={ `flex items-center shrink-0 ${ props.titleNode ? "justify-between gap-3" : legendRowJustify(legend.position) }` } ref={ legendRef }>
         	{ props.titleNode }
         	{ InstantiatedLegend }
         </div>
@@ -322,8 +322,8 @@ const LineGraphWrapper = props => {
         	{ InstantiatedLegend }
         </div>
       }
-      { !legend.show || legend.position !== "bottom" ? null :
-      	<div className="flex justify-center shrink-0" ref={ legendRef }>
+      { !legend.show || !isBottomLegend(legend.position) ? null :
+      	<div className={ `flex ${ legendRowJustify(legend.position) } shrink-0` } ref={ legendRef }>
         	{ InstantiatedLegend }
         </div>
       }

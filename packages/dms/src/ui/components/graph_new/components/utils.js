@@ -118,3 +118,29 @@ export const buildSpacedTickValues = (lo, hi, step) => {
 	for (let v = Math.ceil(lo / step) * step; v <= hi + step * 1e-9; v += step) ticks.push(v);
 	return ticks;
 }
+
+// ── Legend position ──────────────────────────────────────────────────────────
+// A legend's `position` is one of the four bare edges (`left`/`right`/`top`/`bottom`) or one of
+// the four CORNER variants (`top-left`/`top-right`/`bottom-left`/`bottom-right`).
+//
+// Every wrapper except GridGraph used to match `position` with strict equality against the bare
+// four, so a corner value matched NO branch at all and the legend silently vanished — not a
+// fallback, not a warning, just a graph with no key. The author-facing option list happened to
+// offer corners only for GridGraph, which hid the gap instead of closing it (see
+// composeMeasureConfig.js's LEGEND_POSITION_OPTIONS). These helpers close it, and are shared
+// rather than re-inlined per wrapper so the six can't drift again.
+//
+// BACKWARD COMPATIBLE BY CONSTRUCTION: a bare `top`/`bottom` resolves to `justify-center`, the
+// literal every wrapper hardcoded before — so every existing section (MitigateNY's ~7,415
+// legend-rendering graphs included) renders byte-identically. Locked by legendPosition.test.js.
+export const isTopLegend = pos => String(pos ?? "").startsWith("top");
+export const isBottomLegend = pos => String(pos ?? "").startsWith("bottom");
+export const isColumnLegendPosition = pos => isTopLegend(pos) || isBottomLegend(pos);
+
+// The horizontal alignment for a legend sitting in a top/bottom row.
+export const legendRowJustify = pos => {
+	const p = String(pos ?? "");
+	if (p.endsWith("-right")) return "justify-end";
+	if (p.endsWith("-left")) return "justify-start";
+	return "justify-center";
+}

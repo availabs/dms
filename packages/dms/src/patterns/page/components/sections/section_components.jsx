@@ -2,31 +2,89 @@ import React, {useContext, useRef, useState} from "react"
 import {CMSContext} from '../../context'
 import {ThemeContext} from "../../../../ui/useTheme";
 
+// ── Section header band tokens ───────────────────────────────────────────────
+// Every class in this band used to be hardcoded, so no theme could reach it: a fixed 50px row,
+// `font-display font-medium uppercase`, and a title class of `w-full ${theme.heading[level]}`.
+// These tokens (theme `pages.section`) open it up WITHOUT changing anything for a theme that
+// sets none of them — each default below is the literal string this component emitted before
+// the tokens existed, down to the trailing space in the title class and the `undefined` a
+// missing `theme.heading` produces. That is not pedantry: 154,632 MitigateNY component rows
+// render a title through here and none of them will ever set one of these. The exact markup is
+// locked in tests/viewSectionHeaderLegacy.test.js against goldens captured from the pre-token
+// code — a diff there means an existing site's pages changed.
+//
+// `??` rather than `||` throughout, so a theme can deliberately set a token to "" (e.g. to
+// remove the band's padding) instead of silently getting the default back.
+const HEADER_DEFAULTS = {
+    headerRow:      'flex w-full min-h-[50px] items-center pb-2',
+    headerInner:    'flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center',
+    headerTitleWrap:'flex-1',
+    headerActions:  'flex item-center h-full pointer-events-auto',
+    // Unset by default, and BOTH are opt-in by the theme rather than by the data:
+    //  • headerTitle  — appended AFTER the historical `w-full ${heading}` string, never replacing it.
+    //  • headerKicker — the right-hand meta line, rendered from the section's own `description`
+    //    attribute. That attribute has been registered in page.format.js for years with no render
+    //    path at all (measured 2026-09-11: zero sections carry a value, site-wide), so giving it
+    //    one cannot surface text an author never expected to see. Gated on the TOKEN, not on the
+    //    value, so a site that later fills a description still shows nothing until it opts in.
+    headerTitle:  '',
+    headerKicker: '',
+    // When a theme registers sectionHeaderExtensions (see sectionHeaderExtensions.js), they
+    // render on their own row BELOW this band by default. `headerExtensionsInline` moves them
+    // into the band itself, sharing the row with the title — the graph-card header shape, where
+    // the title, the measure pills and the settings kebab are one 40px line.
+    //
+    // The kicker and the extensions SHARE that right-hand slot rather than one suppressing the
+    // other. An earlier version hid the kicker whenever `headerExtensions` was non-empty, which
+    // looked right and was wrong: an extension builder returns a React node whose component may
+    // then render `null` (npmrds' Quick Controls do exactly that outside page-edit mode), so
+    // array length says nothing about whether anything is actually drawn — the kicker vanished
+    // on every report card in view mode, which is the one mode it exists for. A theme that wants
+    // the kicker to yield on a narrow card does it in the token, with a breakpoint.
+    headerExtensionsInline: false,
+    headerExtensionsInlineRow: 'shrink-0 flex items-center gap-1.5',
+};
+
 export function ViewSectionHeader({
     value,
     TitleComp,
     updateAttribute,
     helpTextArray,
-    HelpComp
+    HelpComp,
+    // The already-resolved `pages.section` style. Passed in rather than read from context here,
+    // because which style is live is decided per-section by `value.activeStyle` and only
+    // section.jsx knows it (same reason GraphComponent.jsx injects the legend's class tokens).
+    // Undefined ⇒ every default above applies ⇒ historical markup.
+    sectionTheme,
+    // Theme-supplied header extensions, already built by section.jsx. Only passed when the
+    // theme asked for them inline; otherwise section.jsx still renders its own row below.
+    headerExtensions,
 }) {
     const { UI, theme } = React.useContext(ThemeContext)
     const { Popup, Icon } = UI
+    const t = key => sectionTheme?.[key] ?? HEADER_DEFAULTS[key];
 
     let helpTextCondition = helpTextArray.some(({text, icon}) => text && !(
         (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) || // empty child
         (text?.root?.children?.length === 0) // no children
     ))
+    // Kept as one template literal so the unset case is byte-identical to the historical string,
+    // including `w-full undefined` when the theme has no `heading` map at all.
+    const headingClassName = `w-full ${theme.heading?.[value?.['level']] || theme.heading?.['default']}`;
+    const inlineExtensions = t('headerExtensionsInline') ? (headerExtensions || []) : [];
+    const kicker = t('headerKicker') && value?.['description'] ? value['description'] : null;
     return (
-        <div className={`flex w-full min-h-[50px] items-center pb-2`}>
+        <div className={t('headerRow')}>
             <div id={`#${value?.title?.replace(/ /g, '_')}`}
-                 className={`flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center`}>
-                <div className='flex-1'>
+                 className={t('headerInner')}>
+                <div className={t('headerTitleWrap')}>
                     <TitleComp
-                        className={`w-full ${theme.heading?.[value?.['level']] || theme.heading?.['default']}`}
+                        className={t('headerTitle') ? `${headingClassName} ${t('headerTitle')}` : headingClassName}
                         value={value?.['title']}
                     />
                 </div>
-                <div className='flex item-center h-full pointer-events-auto'>
+                {kicker ? <div className={t('headerKicker')}>{kicker}</div> : null}
+                <div className={t('headerActions')}>
                     {value?.['tags']?.length ?
                         (<Popup button={
                             <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
@@ -63,6 +121,11 @@ export function ViewSectionHeader({
                     }
                 </div>
             </div>
+            {inlineExtensions.length > 0 ? (
+                <div className={t('headerExtensionsInlineRow')}>
+                    {inlineExtensions.map((node, idx) => <React.Fragment key={idx}>{node}</React.Fragment>)}
+                </div>
+            ) : null}
         </div>
     )
 }

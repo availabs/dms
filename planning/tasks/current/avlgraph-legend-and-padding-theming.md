@@ -1,21 +1,22 @@
 # AVL Graph — graph-chrome theming (legend, card padding, admin surface)
 
-**Status:** PASS 1 DONE · **PASS 2 items 1 + 2 DONE + live-verified 2026-09-10** (legend class
-tokens, back-compat suite, legend title/unit slot) · items 3 (tooltip) + 4 (padding) NOT started ·
+**Status:** PASS 1 DONE · **PASS 2 items 1 + 2 DONE, live-verified and owner-reviewed 2026-09-11**
+(legend class tokens + back-compat suite; legend caption = author `title` / automatic `unit`, with a
+Settings-drawer control) · **items 3 (tooltip) + 4 (padding) NOT started** · pass 3 not started ·
 **Started:** 2026-09-09
 
 ---
 
-## ▶ START HERE — current state, 2026-09-10
+## ▶ START HERE — current state, 2026-09-11
 
 This file is long because it carries the whole design argument and three rounds of corrections. If
 you are picking this up cold, you only need this block plus the two sections it points at.
 
-**The goal, in Ryan's words:** "make TransportNY, and the reports pages, look better." Anything
-broader defers to a later task. Work is organised as nine visible punch-list items (see the artifact
+**The goal:** make TransportNY and the reports pages look better. Anything broader defers to a
+later task. Work is organised as nine visible punch-list items (see the artifact
 below and the "Numbering map" section) across three passes.
 
-### DONE — 6 source files, all live-verified
+### DONE — pass 1 + pass 2 items 1-2, all live-verified
 
 | # | What | Where |
 |---|---|---|
@@ -23,65 +24,57 @@ below and the "Numbering map" section) across three passes.
 | Fallback fix | A gradient legend with no usable colour ramp now renders **nothing** instead of a fabricated `0/0.25/0.5/0.75/1` key | `Legend.jsx` (guard in the exported `Legend`) |
 | Admin editor | `avlGraphSettings` generates a control per class-string token; the preview pane draws a real graph | `graph_new/theme.js`, **new** `graph_new/Graph.docs.js`, `ui/docs.js` |
 | Editor crash fix | The theme editor died for **any** section-component preview (lazy-docs race) | `patterns/admin/pages/themes/editTheme.jsx` |
+| Pass 2, item 1 | Legend **class-token layer**: one `classNames` injection covers all six graph wrappers (none were touched). Six tokens — `row`, `swatch`, `label`, `tick`, `ramp`, `title` | `GraphComponent.jsx`, `Legend.jsx`, `themes/transportny/themev2.js` |
+| Pass 2, item 2 | Legend **caption**: author-set `legend.title` on any legend + automatic `legend.unit` on linear ones only, via an optional site-supplied `resolveLegendUnit` hook | `index.jsx`, `Legend.jsx`, `config.jsx`, `sectionMenu.jsx`, **new** `MeasurePicker/resolveLegendUnit.js`, `vocabulary.json` |
+| Test suite | **352** in `packages/dms/tests` (18 files) + **7** for the resolver. Rendered-HTML goldens captured BEFORE the change lock the untouched case byte-for-byte | **new** `tests/legendLegacyProps.test.js`, `legendThemeTokens.test.js`, `graphComponentLegendTokens.test.js`, `graphLegendTitleUnthemedSites.test.js`, `avlGraphThemeDefaults.test.js`, `tests/fixtures/` |
 
-See **"PASS 1 — IMPLEMENTED"**, **"Fallback fix — DONE"** and **"Admin theme-editor pieces — DONE"**
-below for the measurements, the A/B that proves the corpus diffs came from a `git pull` and not from
-this work, and a bug I introduced and then caught by measuring (a `max-width`ed flex item freezes and
-stops shrinking — use `flex-basis`).
+See **"PASS 1 — IMPLEMENTED"**, **"Item 1 — DONE"** and **"Item 2 — DONE"** below for the
+measurements and the two live regressions this pass caused and fixed. Both are worth reading before
+item 3, because both came from the same root cause — **wiring a theme token that had been authored
+but never read**.
 
-### NEXT — pass 2, item by item, in this order
+### NEXT — start here
 
-1. **Legend prop separation + brand wiring** (items 05, 09). **PLUMBING + TESTS DONE 2026-09-10**
-   — see "Item 1 — DONE" below. **Still to do: set transportny's token VALUES** — the design
-   system's chip treatment, **not** the older authored mono/uppercase values; details in the
-   transportny task file's "Proposed values".
-   > **Scope correction made while implementing, flagged to Ryan.** The START HERE bullet said
-   > "separate the settings bag from the computed draw data across the six graph wrappers +
-   > `Legend.jsx`'s signature". **Correction 2 supersedes that** and it was written later: the
-   > threading already exists, so the six wrappers needed **no change at all**, and the only real
-   > gap was the class-string layer — one `classNames` injection in `GraphComponent.jsx`. Correction
-   > 1 had already done the collision audit that makes a full split unnecessary (Layer B keys are
-   > author-owned and collide with nothing). Taking the smaller change is also what Ryan's stated
-   > priority asks for — "I am just very concerned about a regression with this change in
-   > particular". Consequence: the legacy flat shape isn't merely "still accepted", it is the
-   > **only** shape, so there is no second code path to rot.
-2. ~~**Units on gradient tick labels** (item 07)~~ — **DONE 2026-09-10, and the shape changed
-   twice on the way. See "Item 2 — DONE" below.** Ryan rejected per-tick units outright ("Some of
-   these legends, are already REALLY tight. Maybe, we should just have the units ontop of the
-   legend?") and the arithmetic backed him: " mph" on five ticks needs ~315px of a 250px ramp and
-   would have dropped the legend to 3 tick marks. Shipped as a legend **title** slot instead, with
-   the unit as its default value. The `_measurePick` guidance below still stands and is what was
-   built. **Approach changed 2026-09-10, do NOT use `display._measurePick.measure` directly in
-   shared code.** Ryan: "`_measurePick` is ONLY set/used
-   by NPMRDS reports, so I don't like having that pollute `dms` code." Instead:
-   - dms reads a generic token `display.legend.unit`, and if unset asks an optional theme-supplied
-     resolver, `contextTheme?.avlGraph?.resolveLegendUnit?.(display)`. Two lines; no NPMRDS
-     vocabulary in the library.
-   - transportny implements that resolver **inside its own theme folder**, where `_measurePick`
-     already lives. Existing reports still pick units up with **no regeneration**, which was the
-     whole reason `_measurePick` was proposed in the first place.
-   - Pass the resolver the **whole `display`**, not a plucked `_measurePick` field, so the hook does
-     not become a third leak. (Two already exist and are explicitly out of scope for now:
-     `graph_new/index.jsx:179` reads `display._measurePick?.routeIds`, and
-     `patterns/page/components/sections/section.jsx:532` reads `dwHandle?.state?.display?._measurePick`.)
-   - **Naming rule, Ryan 2026-09-10.** The precedent for this hook is
-     `contextTheme.resolveReportDisplayText` (`index.jsx:171`) — the *mechanism* is right (theme
-     supplies it, no-op everywhere else) but the *name* is not: "report" is NPMRDS vocabulary
-     smuggled into shared code. Ryan spotted it: "that's funny, that ALSO sounds like transportNY /
-     NPMRDS specific stuff." Renaming it is out of scope; **do not copy the mistake.** New hooks get
-     names describing the generic capability — `resolveLegendUnit`, not `resolveReportLegendUnit`.
-   - `ValueFormats` cannot supply the unit: its names are generic numeric shapes (`integer`,
-     `float1`, `fnum`, `duration_mmss`), and `vocabulary.json`'s measure entries carry
-     `label`/`expr`/`fn`/`requiresJoin`/`reverseColors` but **no `units` field** — adding one is part
-     of this item, on the transportny side of the line.
-3. **Tooltip** (item 06) — Ryan put this in scope. Same shape as the legend but a level deeper: it
-   threads through each chart type rather than riding the legend prop bag. `HoverCompContainer`
-   already accepts a `theme` prop and never reads it, and nobody passes one.
-4. **Padding last** (item 08) — as a **per-section chart setting**, not a change to
-   `styles[0].padding`. That is what keeps MAP-21 and tsmo2 on today's 16px.
+**Pass 2 items 1 and 2 are DONE, live-verified, and owner-reviewed.** Read "Item 1 — DONE" and
+"Item 2 — DONE" below only if you need the reasoning; you do not need them to continue. What
+remains, in order:
 
-Then **pass 3** (item 04, the collapsing legend), and **last of all** the `reportInlineTitle`
-dead-code removal + the 367-section regen.
+3. **Tooltip** (item 06) — in scope by owner decision, because a themed legend beside an unthemed
+   tooltip reads as obviously unfinished. Same shape as the legend but a level deeper: it threads
+   through each chart type rather than riding the legend prop bag. `HoverCompContainer` already
+   accepts a `theme` prop, never reads it, and nobody passes one.
+   > **Read the warning under "Two bugs found after the first cut" first.** `tooltip` is already
+   > authored as DEAD scaffolding in at least two places. Wiring a dead token is a silent,
+   > repo-wide behaviour change for every site that already authored a value — that is exactly how
+   > this pass's live break happened. **Grep every theme for `tooltip` and read the values as if
+   > they were about to render, because they are.**
+4. **Padding** (item 08) — LAST, and as a **per-section chart setting**, not a change to
+   `styles[0].padding`. That is what keeps MAP-21 and tsmo2 on today's 16px. See correction 4: the
+   section gutter is on the OUTER box, so `p-4` is the only padding inside a card and there is no
+   redundancy to reclaim.
+
+Then **pass 3** (item 04, the collapsing legend — the one remaining item that touches
+`CategoricalLegend`), and last of all the `reportInlineTitle` dead-code removal + the 367-section
+regen.
+
+### Patterns established in pass 2 that items 3-4 should reuse
+
+- **A token replaces the LOOK it names, never the STRUCTURE around it.** `absolute`,
+  `whitespace-nowrap`, `min-w-0 truncate`, `shrink-0` and the grid/flex orientation classes stay
+  component-owned. A brand cannot know which variant its token will reach.
+- **Gate on the SOURCE of a value, not on the component type.** Item 2's live bug came from
+  deciding by legend type; the fix was to separate an author-set `title` from an automatic `unit`.
+- **Opt-in rendering.** Unset ⇒ byte-identical markup. This is what makes every change safe for the
+  ~7,415 MitigateNY graphs, and it is asserted by goldens rather than argued.
+- **A site-specific value reaches shared code through an OPTIONAL theme-supplied hook**, handed the
+  whole `display`, named for the generic capability. Never read npmrds-only state (`_measurePick`)
+  in the library, and never put site vocabulary in a shared name.
+- **Show an inherited value as a greyed placeholder**, not as a prefilled value — an author must be
+  able to tell "automatic" from "typed". `sectionMenu.jsx`'s `placeHolder` now accepts a function of
+  `(display, theme)` for exactly this.
+- **Tests before the change.** Capture rendered-HTML goldens from the code as it stands, then make
+  the change. `react-dom/server`'s `renderToStaticMarkup` needs no DOM and no new dependency.
+
 
 ### Four constraints that must not be broken
 
@@ -99,6 +92,9 @@ dead-code removal + the 367-section regen.
 ### How to verify
 
 ```bash
+npx vitest run packages/dms/tests --root src/dms          # 18 files / 352 — the fast gate
+npx vitest run src/themes/transportny/components/MeasurePicker/__tests__/   # resolver, 7
+
 # local API is :3001 (.env), NOT the :4444 in CLAUDE.md's examples
 node scripts/npmrds-reports/report_probe.mjs \
   "reports/annual_average_study?routes=2207838&asOf=2026-07-23" --auth --wait 18000 \
@@ -106,9 +102,20 @@ node scripts/npmrds-reports/report_probe.mjs \
 node scripts/npmrds-reports/probe_corpus.mjs                     # mandatory on every touch
 ```
 
-- **Data-bearing legend page:** `reports/annual_average_study?routes=2207838&asOf=2026-07-23` (4 real
-  gradient ramps + 4 categorical legends). `reports/snapshot` and `reports/seasonality` render
-  **blank** for lack of data and are useless as legend fixtures — that's the known data gap.
+- **Browser URLs need the `/npmrds` prefix** — `report_probe.mjs` takes a BARE slug because
+  `/npmrds` is already in its default `--host`. Full URL:
+  `http://www.localhost:5173/npmrds/reports/annual_average_study?routes=2207838&asOf=2026-07-23`.
+- **Data-bearing legend pages:** `reports/annual_average_study?routes=2207838&asOf=2026-07-23`
+  (4 gradient ramps + categorical legends) and `reports/snapshot?routes=2207390&asOf=2026-08-20`
+  (7 gradient + 1 categorical — the fixture that caught the unit-on-a-categorical-legend bug).
+  **The old note that `snapshot`/`seasonality` render blank is STALE** — they carry data now, which
+  is also why `probe_corpus.mjs` reports "was blank → has content" blockers against its stored
+  baseline. That baseline needs re-capturing; not done, needs an owner call.
+- **`probe_corpus.mjs` blank/has-content results are FLAKY.** Two runs of identical code differ, in
+  both directions. Diff an A/A pair before attributing any of it to your change; majors (53) and the
+  rest of the output are stable.
+- **A `sections with content: 0/1` result with page text "Welcome back." is an EXPIRED AUTH TOKEN**,
+  not a regression. Re-mint with `bash scratchpad/npmrds-sub/mint_token.sh`.
 - **Theme editor:** `http://www.localhost:5173/list/theme/47f862e5-3e7b-4dff-a80a-28e57c127359/graph`
   — pick `avlGraph` in the left dropdown. The `theme_id` is **not** the theme row's id; see
   `skills/using-the-admin-theme-editor.md`, written 2026-09-10 because none of this was documented.
@@ -588,16 +595,15 @@ MitigateNY actually renders, has no measurement and is locked completely.
   currently on local client, for `snapshot` dynamic report, looks good to me?"* Until it is
   re-captured the suite will keep reporting these as blockers.
 
-## Item 2 — DONE 2026-09-10 (legend title slot; units are its default value)
+## Item 2 — DONE 2026-09-10 (legend caption: an author TITLE and an automatic UNIT)
 
-**The design changed because Ryan pushed back on the premise.** Item 07 was scoped as "put units on
-the gradient tick labels". His objection: *"IDK if we want units on the legends, on each tick mark.
-Some of these legends, are already REALLY tight. Maybe, we should just have the units ontop of the
-legend?"*
+Item 07 was originally scoped as "put the units on the gradient tick labels". That premise was
+rejected at review on the grounds that these legends are already tight, with the counter-proposal
+of putting the unit above the legend instead. The measurements agreed.
 
-**He was right, and it is arithmetic rather than taste.** `fitRampTicks` budgets tick-label text
-against the ramp width (`CHAR_W 0.62 × fontPx 12`, `MIN_TICK_GAP 8`). Against a real 250px ramp with
-the live speed labels:
+**Why per-tick units were wrong, in numbers.** `fitRampTicks` budgets tick-label text against the
+ramp width (`CHAR_W 0.62 × fontPx 12`, `MIN_TICK_GAP 8`). Against a real 250px ramp carrying the
+live speed labels:
 
 | | width needed | vs 250px |
 |---|---|---|
@@ -605,69 +611,107 @@ the live speed labels:
 | **5 ticks + " mph"** | **314.7px** | **overflows → silently drops to 3 ticks** |
 | 3 ticks + " mph" | 194.6px | fits |
 
-So per-tick units would have been **paid for in resolution** — two of five reference points traded
-away to repeat the unit five times. On the vertical variant it is worse in kind: that one never
-drops ticks, so it would simply widen and eat chart width.
+The unit would have been **paid for in resolution** — two of five reference points traded away to
+repeat the unit five times, and worst on exactly the narrow cards that prompted the objection. The
+vertical variant never drops ticks, so there it would simply widen and eat chart width. One line
+above the ramp says it once, costs no tick width, and costs ~16px of height.
 
-**Shipped as a legend TITLE, not a units feature.** Same pixels, but an author gets a normal thing
-legends have, and the unit is merely the default that fills it:
+### The shape that survived: TWO sources, not one
 
-```
-display.legend.title   ??   contextTheme.avlGraph.resolveLegendUnit(display)
-```
+The first cut treated the unit as the *default value of a title*. That was wrong, and it produced a
+live bug (below). The correct split:
 
-Author-set title always wins; no resolver ⇒ no title ⇒ every other site unchanged. Rendering is
-opt-in, so an untitled legend's DOM is byte-identical to before — which is what the goldens prove.
+| | set by | applies to | notes |
+|---|---|---|---|
+| `legend.title` | an **author**, in the Settings drawer | **every** legend type | "Hours of Delay", "Routes" |
+| `legend.unit` | the site's `resolveLegendUnit` hook, automatically | **linear (gradient) legends only** | a unit describes a colour ramp's magnitude |
+
+A linear legend keys a **ramp**: its numbers are magnitudes, and "mph" says what they are measured
+in. A categorical legend keys **identity** — which line is which route — where a unit is
+meaningless. On a linear legend an author's `title` beats the automatic `unit`; an explicit empty
+title (`""`, what clearing the field stores) means **no caption** rather than falling back to the
+unit, so the automatic caption can actually be turned off.
+
+Rendering is opt-in throughout: with neither set, the markup is byte-identical to before. That is
+what keeps every site that asks for nothing — MitigateNY above all — untouched.
 
 ### Where each piece lives, and why the boundary is where it is
 
-| piece | file | note |
-|---|---|---|
-| `LegendTitle`, wrapped only when titled | `Legend.jsx` | `truncate` is structural so a long title can never widen the legend and shove the chart; the look is entirely `classNames.title` |
-| `legendTitle` class token | `GraphComponent.jsx` | sixth key in the `classNames` injection |
-| the `??` resolution | `graph_new/index.jsx` | beside the existing `resolveReportDisplayText` call |
-| `resolveLegendUnit(display)` | **`themes/transportny/components/MeasurePicker/resolveLegendUnit.js`** | sits next to `_measurePick`'s own writer and the vocabulary that defines units |
-| `units` on all 11 measures | `MeasurePicker/vocabulary.json` | +11 lines, surgical |
-| `legendTitle` value | `themev2.js` | `font-mono text-[9.5px] uppercase tracking-wider text-slate-400 mb-0.5` — quieter than the numerals it captions |
+| piece | file |
+|---|---|
+| `LegendTitle`; categorical reads `title`, linear reads `title ?? unit` | `Legend.jsx` |
+| `legendTitle` class token (6th key in the `classNames` injection) | `GraphComponent.jsx` |
+| calls the hook, writes `legend.unit` onto the derived display | `graph_new/index.jsx` |
+| **"Title" text control** in both Legend groups, with an inherited-value placeholder | `ComponentRegistry/graph_new/config.jsx` |
+| `placeHolder` may now be a **function of `(display, theme)`** | `sectionMenu.jsx` |
+| `resolveLegendUnit(display)` | `themes/transportny/components/MeasurePicker/resolveLegendUnit.js` |
+| `units` on all 11 measures | `MeasurePicker/vocabulary.json` (+11 lines, surgical) |
+| `legendTitle` value | `themev2.js` |
 
-**No `_measurePick` entered the library.** The library hands over the whole `display` and the hook
-owns the shape it reads (Ryan: *"`_measurePick` is ONLY set/used by NPMRDS reports, so I don't like
-having that pollute `dms` code"*). The hook is named for the generic capability —
-`resolveReportDisplayText` is the precedent for the **mechanism only**, never the name.
+**No `_measurePick` entered the library.** The measure a section is bound to is npmrds-only state;
+the library hands the hook the whole `display` and the hook owns the shape it reads. The hook is
+named for the generic capability — `resolveReportDisplayText` is the precedent for the *mechanism*
+only, never the name, since "report" is npmrds vocabulary in a shared signature.
 
-**Format beats the nominal unit where they disagree.** `travelTime` is stored in decimal minutes but
-renders "22:45" through `duration_mmss`, so captioning it "min" would misdescribe what is on screen;
-`UNIT_BY_VALUE_FORMAT` maps it to `mm:ss`, and maps `epoch_time`/`day_of_week` to **no caption at
-all** (a clock time is self-describing, and a needless line costs height).
+**Format beats the nominal unit.** `travelTime` is stored in decimal minutes but renders "22:45" via
+`duration_mmss`, so it captions as `mm:ss`; `epoch_time` and `day_of_week` caption as **nothing**,
+being self-describing. That table is in `resolveLegendUnit.js`.
 
 **No report regeneration** — every section already stores `_measurePick.measure`.
 
+### Two bugs found after the first cut, both caught on the live client
+
+1. **The unit captioned categorical legends.** Extending the title slot to categorical legends
+   dragged the automatic unit along with it, so a speed line graph showed "mph" above its list of
+   **routes**. Root cause: gating on the legend *type* instead of on the *source* of the value.
+   Fixed by the `title` / `unit` split above. Confined to report pages, since transportny is the
+   only site with a resolver.
+2. **The Settings "Title" field read blank while a caption was on screen.** The automatic value
+   never exists in stored state — only on the derived display — so there was nothing for the
+   control to read. Fixed by showing the inherited value as a greyed **placeholder**
+   (`mph (automatic)`), which distinguishes "automatic" from "authored" in a way prefilling could
+   not. The placeholder only offers a unit where one can actually be drawn (`GridGraph`, or
+   `BarGraph` colouring by value); on a categorical legend it reads `Optional`, because promising a
+   caption the component ignores is precisely how bug 1 happened.
+
+### Shared-code change, and its blast radius
+
+`sectionMenu.jsx`'s `placeHolder` accepting a function is the only edit outside the graph code, and
+it is used by **every section type**. Safety was established by enumerating consumers, not by
+reasoning: all 10 existing `placeHolder` values in the package are string literals, so the
+`typeof === "function"` branch never fires for any of them.
+
 ### Verification
 
-- `packages/dms/tests` → **341 green** (7 new legend-title tests; the pre-existing goldens still
-  pass untouched, i.e. the untitled DOM did not move).
+- `packages/dms/tests` → **352 green (18 files)**. The pre-existing goldens still pass untouched,
+  which is the byte-level proof that an uncaptioned legend did not move.
 - `MeasurePicker/__tests__/resolveLegendUnit.test.js` → **7 green**, including a loop asserting
-  *every* measure in the vocabulary resolves to a unit, so adding a measure without one fails.
-- **`vocabulary.json` is read by the Python converter**, and its own `_provenance` demands a
-  byte-diff afterwards. Ran it: **34 derived constants compared, 0 changed**; no existing key lost
-  or value altered; exactly 11 `units` keys added. (First attempt at this check was a false green —
-  both sides failed with `ModuleNotFoundError` and I diffed two identical tracebacks. Fixed the
-  import path and re-ran.)
-- **Live, measured:**
-
-| page | gradient legends | titles rendered | above the ramp | tick marks kept | overlaps | errors |
-|---|---|---|---|---|---|---|
-| `annual_average_study` | 4 | `mph` ×4 | yes | **5/5** | 0 | 0 |
-| `snapshot` | 7 | `mph` ×4, `hours` ×3 | yes | **5/5** | 0 | 0 |
-
-The retained 5 tick marks are the point: this is exactly what the per-tick approach would have cost.
+  every measure in the vocabulary resolves to a unit, so adding a measure without one fails.
+- New tests pin each half: a unit renders on a linear legend and **never** on a categorical one; an
+  author's title beats the unit; an explicit `""` means no caption rather than a fallback.
+- `graphLegendTitleUnthemedSites.test.js` renders the real section component through `ThemeContext`
+  — the only place the "no hook" path exists — across an MNY-shaped theme, a bare `{avlGraph:{}}`
+  and an empty theme: no caption, no wrapper, byte-identical markup. Also pins that a theme whose
+  `resolveLegendUnit` is a **string** (a realistic hand-edit accident in a DB-stored theme) renders
+  identically instead of throwing mid-render.
+- **`vocabulary.json` is read by the Python converter** and its own `_provenance` demands a
+  byte-diff. Ran it: **34 derived constants compared, 0 changed**; no key lost, no value altered;
+  exactly 11 `units` keys added. (The first run of that check was a false green — both sides died on
+  `ModuleNotFoundError` and two identical tracebacks were compared. Import path fixed, re-run.)
+- **Live**, on `reports/snapshot?routes=2207390&asOf=2026-08-20`: **7 linear legends captioned**
+  (`mph` ×4, `hours` ×3), **1 categorical legend with no caption** (the route list, sample entry
+  `OCEAN PKWY (FRONTAGE)`), 11/14 sections, 0 console/page errors. On
+  `reports/annual_average_study?routes=2207838&asOf=2026-07-23`: 4 gradient legends, `mph` on each,
+  **5 tick marks retained**, 0 overlaps. The retained ticks are the whole point — the per-tick
+  approach would have cost two of them.
+- Both Settings-drawer paths (categorical and linear) confirmed by the owner on the live client.
 
 ### Follow-on, deliberately not done
 
-The title slot is **linear-only**. A categorical legend would benefit from one too and it is a small
-change, but it touches the path MitigateNY actually renders, so it is not being bundled into an item
-about gradient units. A test asserts the categorical legend currently ignores `title`, so the
-decision is recorded rather than accidental.
+Nothing outstanding on item 2. Note for whoever does item 3: the `tooltip` token is authored as dead
+scaffolding in two places already, so grep every theme and read the values **before** wiring it —
+that is exactly how bug 1's sibling (the `flex` in transportny's `legend` value) got loose.
+
 
 ### ⚠ A live break I caused, caught by Ryan, fixed same session — read this before wiring any token
 

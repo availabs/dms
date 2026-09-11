@@ -26,6 +26,36 @@ export const sectionTheme = {
       // existed — sites that use the feature supply background/padding here.
       headerExtensionsRow: '',
 
+      // ── Section header band ──────────────────────────────────────────
+      // The title band itself (section_components.jsx's ViewSectionHeader).
+      // Every value here is the literal that component hardcoded before these
+      // keys existed, so leaving them alone renders byte-identically — locked
+      // by tests/viewSectionHeaderLegacy.test.js. They are listed explicitly
+      // rather than left undefined so the admin theme editor can surface them
+      // and a reader can see what the band is made of.
+      //
+      // A brand that wants a card-style header (title + meta on one bordered
+      // row, the graph-card shape) overrides these on a NAMED style and points
+      // individual sections at it via `value.activeStyle` — see section.jsx's
+      // getComponentTheme call. Site-wide is usually wrong: a docs page and a
+      // report card want very different bands.
+      headerRow:       'flex w-full min-h-[50px] items-center pb-2',
+      headerInner:     'flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center',
+      headerTitleWrap: 'flex-1',
+      headerActions:   'flex item-center h-full pointer-events-auto',
+      // APPENDED to the historical `w-full ${theme.heading[level]}` string, not
+      // a replacement — so a site keeps whatever its heading map already did.
+      headerTitle:     '',
+      // The right-hand meta line, rendered from the section's `description`
+      // attribute. Unset ⇒ never rendered, so a description typed into the
+      // Settings drawer stays invisible until a theme opts in.
+      headerKicker:    '',
+      // true ⇒ header extensions render INSIDE the band, sharing the row with
+      // the title, instead of on their own row below it (and the kicker yields
+      // the slot to them). false keeps the historical two-row layout.
+      headerExtensionsInline: false,
+      headerExtensionsInlineRow: 'shrink-0 flex items-center gap-1.5',
+
       // Min-height applied only in page edit mode so a section with no
       // data (empty filter result, empty draft, etc.) still reserves
       // enough vertical room for its settings handle to be reachable.
@@ -75,6 +105,15 @@ const themeClasses = {
     "topBarButtonsEdit",
     "topBarButtonsView",
     "headerExtensionsRow",
+  ],
+  "header": [
+    "headerRow",
+    "headerInner",
+    "headerTitleWrap",
+    "headerTitle",
+    "headerKicker",
+    "headerActions",
+    "headerExtensionsInlineRow",
   ],
   "menu": [
     "menuPosition",
@@ -139,6 +178,18 @@ export const sectionSettings = (theme) => {
       label: "Section Top Bar",
       type: 'inline',
       controls: themeClasses.topBar
+        .map(k => {
+          return {
+            label: k,
+            type: 'Textarea',
+            path: `pages.section.styles[${activeStyle}].${k}`
+          }
+        })
+    },
+    {
+      label: "Section Header",
+      type: 'inline',
+      controls: themeClasses.header
         .map(k => {
           return {
             label: k,
