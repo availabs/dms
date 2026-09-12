@@ -34,14 +34,31 @@ const InputControl = ({show, value, onChange, placeHolder}) => {
     );
 };
 
+// Manage-page chrome comes from `theme.auth.authPages.manage`; the fallbacks
+// are the literals these pages carried before the keys existed.
+const MANAGE_DEFAULTS = {
+    pageWrapper: "flex flex-col gap-3",
+    headerRow: "w-full flex justify-between border-b-2 border-blue-400",
+    headerTitle: "text-2xl font-semibold text-gray-700",
+    headerAction: "shrink-0",
+    tableHeaderCell: "flex gap-3 items-center",
+    modalBody: "flex flex-row gap-3",
+    notice: "",
+};
+const useManageTheme = () => {
+    const { theme } = React.useContext(ThemeContext);
+    return { ...MANAGE_DEFAULTS, ...(theme?.auth?.authPages?.manage || {}) };
+};
+
 function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     const { UI } = React.useContext(ThemeContext);
     const { Modal, Input, Button } = UI;
+    const m = useManageTheme();
     const [email, setEmail] = useState("");
 
     return (
         <Modal open={open} setOpen={setOpen}>
-            <div className="flex flex-row gap-3">
+            <div className={m.modalBody}>
                 <Input
                     type="text"
                     value={email}
@@ -73,6 +90,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
       || isUserAuthed({ user, authPermissions, reqPermissions: ['view-as'] });
     const gridRef = useRef(null);
     const { Modal, Table, Button } = UI;
+    const m = useManageTheme();
 
     const loadUsers = async () => {
         const uRes = await callAuthServer(`${AUTH_HOST}/users/byProject`, {
@@ -208,7 +226,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     const usersTableControls = useMemo(() => ({
         header: {
             displayFn: (attribute) => (
-                <div className="flex gap-3 items-center">
+                <div className={m.tableHeaderCell}>
                     {attribute.display_name}
                     { attribute.name === 'email' &&
                         <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..."/> }
@@ -217,7 +235,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 </div>
             )
         }
-    }), [searchUser, searchGroup]);
+    }), [searchUser, searchGroup, m.tableHeaderCell]);
 
     // const requestsTableControls = {
     //     header: {
@@ -260,14 +278,14 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
     /* -------------------------------- Render -------------------------------- */
 
-    if (!user?.authed) return <div>To access this page, you need to login.</div>;
+    if (!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>;
 
     return (
-        <div className="flex flex-col gap-3">
+        <div className={m.pageWrapper}>
 
-            <div className="w-full flex justify-between border-b-2 border-blue-400">
-                <div className="text-2xl font-semibold text-gray-700">Users</div>
-                <Button className="shrink-0" onClick={() => setAddingNew(true)}>Add new</Button>
+            <div className={m.headerRow}>
+                <div className={m.headerTitle}>Users</div>
+                <Button className={m.headerAction} onClick={() => setAddingNew(true)}>Add new</Button>
             </div>
 
             {/* <Table data={filteredRequests} columns={requestsColumns} controls={requestsTableControls} customTheme={customTableTheme} /> */}
@@ -312,7 +330,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
             {/* Reset password modal */}
             <Modal open={Boolean(editUser)} setOpen={setEditUser}>
-                <div className="flex flex-row gap-3">
+                <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?
                     <Button onClick={async () => {
                         const res = await callAuthServer(`${AUTH_HOST}/password/reset`, {

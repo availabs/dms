@@ -66,14 +66,24 @@ export default function Profile (props) {
         loadRequests();
     }, [PROJECT_NAME]);
 
-    if(!user?.authed) return <div>To access this page, you need to login.</div>
+    // Manage-page chrome from `theme.auth.authPages.manage`; fallbacks are the
+    // literals this page carried before the keys existed.
+    const m = {
+        profileWrapper: "flex flex-col",
+        headerRow: "w-full flex justify-between border-b-2 border-blue-400",
+        headerTitle: "text-2xl font-semibold text-gray-700",
+        notice: "",
+        profileLink: "",
+        ...(theme?.auth?.authPages?.manage || {}),
+    };
+    if(!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>
 
     return (
-        <div className={'flex flex-col'}>
-            <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-                <div className={'text-2xl font-semibold text-gray-700'}>{user.email}</div>
+        <div className={m.profileWrapper}>
+            <div className={m.headerRow}>
+                <div className={m.headerTitle}>{user.email}</div>
             </div>
-            <Link to={`${baseUrl}/password/reset`} >Reset Password</Link>
+            <Link to={`${baseUrl}/password/reset`} className={m.profileLink}>Reset Password</Link>
         </div>
     )
 }

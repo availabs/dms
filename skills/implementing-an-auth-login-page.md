@@ -196,6 +196,24 @@ auth flows, more form fields. Adding a *new* slot is itself a shared-component c
 before non-BC"*, file a task, keep it key-gated/BC, and **ask first**. Don't fork the
 auth component to chase pixel parity unprompted.
 
+## 8. The rest of the pattern's chrome is themeable too (2026-09-12)
+
+Beyond the login form, the pattern's other fixed surfaces read keys with defaults equal to
+the literals they used to hardcode — set them on your brand's `auth` to restyle; leave
+them and nothing changes (`planning/tasks/completed/auth-pages-themeable-chrome.md`):
+
+| Surface | Keys |
+|---|---|
+| Manage pages (`/auth/manage/users`, `/groups`, `/profile`, via `AdminLayout`) | `auth.authPages.manage.{pageWrapper, profileWrapper, headerOuter, headerRow, headerTitle, headerAction, tableHeaderCell, modalBody, notice, profileLink}` — `headerAction` is the "Add new" Button's `className`, which REPLACES the Button style |
+| Login error strip · signup disabled notice · signup status | `auth.authPages.sectionGroup.default.{error, disabledNotice, status}` |
+| `/auth/*` placeholder | `auth.authPages.landing` |
+| Account menu (`components/menu.jsx`, the manage pages' right menu) | `auth.userMenu.{avatar, avatarIcon, loginLink, header, headerEmail, headerGroup, trigger}` |
+| `AdminLayout` outer wrapper | `auth.authPages.container` (pre-existing) |
+
+The manage pages take the pattern's DEFAULT layout options — the same ones the login
+notch reads. A sidenav on that pattern shows on the sign-in page too, so put the manage
+links in the topNav (`nav: "main"`; `AuthLayout` passes no navItems, so login stays clean).
+
 ## Worked example — TransportNY (2026-06-03)
 
 `login-page-translate.md`: styled `npmrds_auth` (pattern 1498261, `selectedTheme:

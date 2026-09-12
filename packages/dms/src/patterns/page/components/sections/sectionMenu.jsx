@@ -59,7 +59,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI } = auth
-    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {} } = ui
+    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {}, sectionArrayStyle } = ui
+    // The band's `pages.sectionArray` style — the SAME resolution sectionArray.jsx
+    // renders with. Without the style name every lookup below returned styles[0],
+    // so a theme whose named styles replace `sizes` (a 12-column grid keyed
+    // "1"…"12") offered the default fractions ("1/3"…), which matched nothing at
+    // render time and silently fell back to full width.
+    const sectionArrayTheme = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle)
     const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
@@ -1223,17 +1229,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     }))
                 },
                 {
-                    icon: 'Column', name: 'Width', value: value?.['size'] || 1, showValue: true,
+                    icon: 'Column', name: 'Width', value: value?.['size'] || sectionArrayTheme.defaultSize || 1, showValue: true,
                     cdn: () => canEditSection,
-                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').sizes || {})
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle).sizes || {})
                       .sort((a, b) => {
-                        const sizes = getComponentTheme(theme, 'pages.sectionArray').sizes
+                        const sizes = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle).sizes
                         let first = +sizes[a].iconSize || 100
                         let second = +sizes[b].iconSize || 100
                         return first - second
                     }).map((name, i) => {
                         return {
-                            icon: name === (value?.['size'] || '1') ? 'CircleCheck' : 'Blank',
+                            icon: name === String(value?.['size'] || sectionArrayTheme.defaultSize || '1') ? 'CircleCheck' : 'Blank',
                             id: `size_${name}`,
                             'name': name,
                             'onClick': () => updateAttribute('size', name)
@@ -1266,7 +1272,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     // skipped `pages.` and bypassed getComponentTheme, so the
                     // menu rendered "Rowspan" with no items even when the
                     // theme had a full 1..8 map).
-                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').rowspans || {}).sort((a, b) => {
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle).rowspans || {}).sort((a, b) => {
                         return +a - +b
                     }).map((name, i) => {
                         return {
@@ -1328,7 +1334,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection,
                     items: [
                         { name: 'padding', type: () => {
-                            const sa = getComponentTheme(theme, 'pages.sectionArray');
+                            const sa = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle);
                             const paddings = sa?.paddings || {};
                             const defStep = sa?.defaultPaddingStep;
                             // Seed from a legacy string padding (e.g. "p-6", "px-4 py-2") so
@@ -1400,7 +1406,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 <div onClick={() => toggle(side)}
                                     className={`absolute ${cls} rounded cursor-pointer transition ${cur[side] ? 'bg-[#1F3F8F]' : 'bg-slate-200 hover:bg-slate-300'}`}/>
                             );
-                            const sa = getComponentTheme(theme, 'pages.sectionArray');
+                            const sa = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle);
                             const widths = sa?.borderWidths || [1, 2, 3, 4, 6, 8];
                             const swatches = sa?.borderColors;   // curated palette (undefined → ColorControls default)
                             const setWidth = w => updateAttribute('border', { ...cur, width: cur.width === w ? undefined : w });
@@ -1468,7 +1474,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection,
                     items: [
                         { name: 'bg', type: () => {
-                            const sa = getComponentTheme(theme, 'pages.sectionArray');
+                            const sa = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle);
                             const bgMap = sa?.backgrounds || {};
                             const cur = value?.['bg'] || 'none';
                             return (
@@ -1493,7 +1499,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     // shadow doesn't preview meaningfully at swatch size).
                     icon: 'Border', name: 'Shadow', value: value?.['shadow'] || 'none', showValue: true,
                     cdn: () => canEditSection,
-                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray').shadows || {}).map((name) => {
+                    items: Object.keys(getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle).shadows || {}).map((name) => {
                         return {
                             icon: name === (value?.['shadow'] || 'none') ? 'CircleCheck' : 'Blank',
                             id: `shadow_${name}`,

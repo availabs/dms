@@ -27,6 +27,8 @@ component per named section group. `sectionArray.jsx` renders a CSS grid:
 ```
 div.<sectionArray container classes>              (grid, e.g. "grid grid-cols-6")
   div#<section.id>                                (theme sectionViewWrapper/sectionEditWrapper —
+                                                     NB ids are numeric, so in CSS/Playwright select
+                                                     with `[id="1969285"]`, not `#1969285` —
                                                      literally "relative group" in this theme; the
                                                      `group` class is what makes hover-reveal work.
                                                      THIS is the div.relative.group a DOM census

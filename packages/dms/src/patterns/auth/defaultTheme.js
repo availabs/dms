@@ -31,8 +31,42 @@ const theme = {
                 actionButton: "w-fit opacity-100 gap-2 rounded-full pt-4 pr-6 pb-4 pl-6 bg-blue-100 hover:bg-blue-200 cursor-pointer",
                 actionText: "font-bold text-blue-900 text-xs leading-none tracking-normal text-center uppercase",
                 prompt: "font-normal text-blue-500 text-sm leading-none tracking-normal flex gap-1",
+                // Notices. Defaults are the literals the pages carried before these
+                // keys existed (2026-09-12), so a theme that sets nothing is unchanged.
+                error: "text-red-500 bg-red-50 rounded-md px-2 py-1",          // authLogin
+                disabledNotice: "text-sm text-gray-500",                          // authSignup, disabled
+                status: "text-sm text-red-600 mt-2",                              // authSignup status line
             },
         },
+        // The `/auth/*` placeholder (siteConfig.jsx).
+        landing: "flex flex-col gap-3",
+        // The MANAGE pages — users / groups / profile, rendered through AdminLayout.
+        // One key per literal the pages used to hardcode; where two pages differed
+        // they keep separate keys (unifying them would be a visual change).
+        manage: {
+            pageWrapper: "flex flex-col gap-3",                                   // users, groups
+            profileWrapper: "flex flex-col",                                       // profile
+            headerOuter: "w-full flex",                                            // groups only
+            headerRow: "w-full flex justify-between border-b-2 border-blue-400",
+            headerTitle: "text-2xl font-semibold text-gray-700",
+            // NB `UI.Button` treats `className` as a REPLACEMENT for its style, so
+            // this is the whole look of the "Add new" button.
+            headerAction: "shrink-0",
+            tableHeaderCell: "flex gap-3 items-center",
+            modalBody: "flex flex-row gap-3",
+            notice: "",
+            profileLink: "",
+        },
+    },
+    // The account menu (components/menu.jsx).
+    userMenu: {
+        avatar: "h-[47px] w-[47px] border border-[#E0EBF0] rounded-full flex items-center justify-center",
+        avatarIcon: "size-6 fill-[#37576b]",
+        loginLink: "flex items-center px-8 text-lg font-bold h-12 text-slate-500",
+        header: "py-2",
+        headerEmail: "text-md font-thin tracking-tighter text-left",
+        headerGroup: "text-xs font-medium -mt-1 tracking-widest text-left",
+        trigger: "px-1",
     },
     field: {
         fieldWrapper: "flex flex-col gap-[2vh]",

@@ -37,7 +37,7 @@ const isLocationActive = (location, pageFilterValues, groupParamKeys) => {
 
 export const CardSection = ({
                   isEdit, //edit mode
-                  updateItem, addItem,
+                  updateItem, addItem, removeItem,
                   newItem, setNewItem,
                   allowEdit // is data edit allowed
               }) => {
@@ -206,6 +206,20 @@ export const CardSection = ({
         return res;
     }, [addItem, closeModalOnAddKey, clearActionParam, addPublishCfg?.paramKey, setActionParam]);
 
+    // delete_publish provider + closeModalOnDelete — the delete-side twins of the add
+    // hooks above. `display.allowDelete` puts a two-step Delete button on each record
+    // (Card.jsx RenderItem); a confirmed delete goes through dataWrapper's removeItem
+    // (uda.data.delete / dms.data.delete), then closes the modal it lives in and
+    // publishes the deleted id so data_refresh subscribers refetch.
+    const closeModalOnDeleteKey = state.display?.closeModalOnDelete;
+    const deletePublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'delete_publish' && p.enabled);
+    const removeItemWrapped = useCallback(async (item) => {
+        const res = await removeItem?.(item);
+        if (closeModalOnDeleteKey) clearActionParam?.(closeModalOnDeleteKey);
+        if (deletePublishCfg?.paramKey) setActionParam?.(deletePublishCfg.paramKey, `deleted:${item?.id}`);
+        return res;
+    }, [removeItem, closeModalOnDeleteKey, clearActionParam, deletePublishCfg?.paramKey, setActionParam]);
+
     const clickSaveSubCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'click_save' && s.enabled);
     const clickSaveParam = clickSaveSubCfg && pageState
         ? pageState.filters.find(f => f.searchKey === clickSaveSubCfg.paramKey && f.type === 'action')
@@ -238,6 +252,7 @@ export const CardSection = ({
                      ...(Object.keys(activeColumns).length ? { activeColumns } : {}),
                  }}
                  isEdit={isEdit} updateItem={updateItem} addItem={(closeModalOnAddKey || addPublishCfg) ? addItemWrapped : addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
+                 removeItem={(closeModalOnDeleteKey || deletePublishCfg) ? removeItemWrapped : removeItem}
                  activeStyle={state.display?.cardStyle || activeStyle}
                  formatFunctions={formatFunctions}
     />

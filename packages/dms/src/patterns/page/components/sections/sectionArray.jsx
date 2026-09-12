@@ -374,6 +374,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 ? <SectionEdit
                                     // key={v.id} having key introduces bugs while adding a new section
                                     i={i}
+                                    group={group}
                                     value={edit.value}
                                     attributes={attr?.attributes}
                                     siteType={siteType}
@@ -392,6 +393,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                                 <SectionView
                                     key={v.id} // to prevent value glitch while removing sections
                                     i={i}
+                                    group={group}
                                     value={v}
                                     attributes={attr?.attributes}
                                     siteType={siteType}
@@ -497,6 +499,7 @@ const View = ({value, attr, group, siteType}) => {
                                 <SectionView
                                     key={v?.id || i}
                                     i={i}
+                                    group={group}
                                     value={v}
                                     attributes={attr?.attributes}
                                     siteType={siteType}

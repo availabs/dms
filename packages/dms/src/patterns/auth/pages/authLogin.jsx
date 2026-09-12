@@ -92,7 +92,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                 />
 
                 {
-                    error ? <div className={'text-red-500 bg-red-50 rounded-md px-2 py-1'}>{error}</div> : null
+                    error ? <div className={t.error ?? 'text-red-500 bg-red-50 rounded-md px-2 py-1'}>{error}</div> : null
                 }
                 <Button type='plain'
                     buttonType="submit"

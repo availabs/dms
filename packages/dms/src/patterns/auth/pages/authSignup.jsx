@@ -49,7 +49,7 @@ export default function AuthSignup({ disableSignup }) {
         return (
             <div className={sectionGroupTheme.pageWrapper}>
                 <div className={sectionGroupTheme.pageTitle}>Sign Up Disabled</div>
-                <p className='text-sm text-gray-500'>Sign up is not available. Please contact an administrator.</p>
+                <p className={sectionGroupTheme.disabledNotice ?? 'text-sm text-gray-500'}>Sign up is not available. Please contact an administrator.</p>
             </div>
         );
     }
@@ -205,7 +205,7 @@ export default function AuthSignup({ disableSignup }) {
                     onSelect={setSelectedTemplateId}
                 />
 
-                {status && <div className='text-sm text-red-600 mt-2'>{status}</div>}
+                {status && <div className={sectionGroupTheme.status ?? 'text-sm text-red-600 mt-2'}>{status}</div>}
 
                 <Button
                     type='plain'

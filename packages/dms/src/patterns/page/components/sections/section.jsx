@@ -88,7 +88,7 @@ function resolveElementData(elementData, dataSources) {
     });
 }
 
-export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave }) {
+export function SectionEdit({ i, value, attributes, siteType, format, onChange, onRemove, moveItem, onCancel, onSave, group }) {
     const isEdit = true;
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed} = React.useContext(CMSContext) || {};
@@ -228,7 +228,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
         actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
-        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
+        // `sectionArrayStyle`: the BAND's `pages.sectionArray` style name, so the
+        // menu offers the Width/Row span/Border/Padding/Shadow maps this band
+        // actually renders with (sectionArray.jsx resolves its grid the same way).
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,
@@ -348,7 +351,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     )
 }
 
-export function SectionView({ i, value, attributes, siteType, format, isActive, editPageMode, onChange, onRemove, moveItem, onEdit }) {
+export function SectionView({ i, value, attributes, siteType, format, isActive, editPageMode, onChange, onRemove, moveItem, onEdit, group }) {
     const {AuthAPI} = React.useContext(AuthContext) || {};
     const {user, isUserAuthed = () => {} } = React.useContext(CMSContext) || {};
     const {theme: fullTheme, UI} = React.useContext(ThemeContext);
@@ -460,7 +463,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
         actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
-        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,

@@ -49,8 +49,15 @@ export const dataCardTheme = {
             itemFlexRowReverse: 'flex-row flex-row-reverse',
             iconAndColorValues: 'flex items-center gap-1.5 uppercase',
 
-            formEditButtonsWrapper: 'w-fit justify-self-end self-end flex gap-0.5',
-            formAddNewItemWrapper: 'w-fit justify-self-end self-end',
+            // The form action rows (save/cancel/delete, add). `col-span-full` so
+            // `justify-self-end` means the CARD's right edge — without it the
+            // wrapper is one grid cell and "end" is the end of its own track
+            // (mid-card on a 2-column form). Optional per-button classes, all
+            // undefined here so the stock Button renders as before:
+            //   formSaveButton, formCancelButton, formAddButton,
+            //   formDeleteButton, formDeleteConfirmButton
+            formEditButtonsWrapper: 'col-span-full w-fit justify-self-end self-end flex items-center gap-0.5',
+            formAddNewItemWrapper: 'col-span-full w-fit justify-self-end self-end',
 
             justifyTextLeft: 'text-start justify-items-start  rounded-md',
             justifyTextRight: 'text-end justify-items-end rounded-md',

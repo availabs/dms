@@ -426,6 +426,13 @@ export const componentFunctions = {
             args: [],
         },
         {
+            id: 'delete_publish',
+            label: 'Delete: Publish Removed Row',
+            description: 'After a confirmed Delete (display.allowDelete), publishes `deleted:<id>` to a page action param — pair with a Refetch Data subscriber so other sections over the same source drop the row without a reload.',
+            trigger: 'delete',
+            args: [],
+        },
+        {
             id: 'load_publish',
             label: 'On Load: Publish Derived Row',
             description: 'When data loads, derive a row (first/max/min over a metric) and publish one or more of its column values to page action params — e.g. an event-header Card publishes the event\'s date/year for downstream sections. Publishes only after a live fetch (never from the Card\'s saved seed rows); re-publishes when the data changes.',
@@ -643,6 +650,15 @@ const buildControls = (theme) => ({
             // successful add clears it, closing the modal (see skills/modal-section-group.md)
             { type: 'input', inputType: 'text', label: 'Close modal on add (param key)', key: 'closeModalOnAdd',
                 displayCdn: ({ display }) => display.allowAdddNew },
+            // Delete. A two-step button on each record (Delete → Confirm / Keep, no native
+            // dialog) that removes the row through dataWrapper's removeItem. Pair with
+            // `closeModalOnDelete` in an edit modal and a `delete_publish` provider so the
+            // lists over the same source refetch.
+            { type: 'toggle', label: 'Allow Delete', key: 'allowDelete' },
+            { type: 'input', inputType: 'text', label: 'Delete label', key: 'deleteItemLabel',
+                displayCdn: ({ display }) => display.allowDelete },
+            { type: 'input', inputType: 'text', label: 'Close modal on delete (param key)', key: 'closeModalOnDelete',
+                displayCdn: ({ display }) => display.allowDelete },
             { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
               options: [
                 { label: 'Cache (use preloaded data)', value: 'cache' },

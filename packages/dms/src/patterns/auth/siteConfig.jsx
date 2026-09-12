@@ -84,9 +84,8 @@ const authConfig = ({
         children: [
             {
                 type: (props) => {
-                    const linkClass = 'w-full sm:w-1/3 px-12 py-8 bg-blue-100 hover:bg-blue-300 rounded-md'
                     return (
-                        <div className={'flex flex-col gap-3'}>
+                        <div className={theme?.auth?.authPages?.landing ?? 'flex flex-col gap-3'}>
                             Admin
 
                         </div>

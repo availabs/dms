@@ -703,7 +703,8 @@ const RenderItem = memo(function RenderItem ({
                                                  reverse, cardBorder, cellBorder, cellsPadding, allowAdddNew,
                                                  headerValueLayout, headerWidth, valueWidth, liveEdit, // state.display
                                                  isDms, // state.sourceInfo
-                                                 item, newItem, setNewItem, addItem, updateItem, allowEdit,
+                                                 item, newItem, setNewItem, addItem, updateItem, removeItem, allowEdit,
+                                                 allowDelete, deleteItemLabel, // state.display (via the spread)
                                                  subWrapperStyle,
                                                  columns, visibleColumns,
                                                  formatFunctions= {},
@@ -712,6 +713,9 @@ const RenderItem = memo(function RenderItem ({
     const { UI } = React.useContext(ThemeContext) || {};
     const { Button } = UI || {};
     const [tmpItem, setTmpItem] = useState(item || {}); // for form edit controls
+    // Two-step delete: the first click swaps the button for Confirm / Keep, so a
+    // stray click cannot remove a row and no native dialog is needed.
+    const [confirmDelete, setConfirmDelete] = useState(false);
     const [cardHovered, setCardHovered] = useState(false);
     const [isPickerOpen, setIsPickerOpen] = useState(false);
 
@@ -884,17 +888,46 @@ const RenderItem = memo(function RenderItem ({
             }
 
             {
-                isFormLikeEditMode && !controls?.clickSaveActive ? (
-                    <div className={theme.formEditButtonsWrapper}>
-                        <Button activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
-                        <Button onClick={() => setTmpItem(item)}>cancel</Button>
-                    </div>
-                ) : null
+                // One action row per record: [delete …] [cancel] [save]. Delete shows on an
+                // existing row when `display.allowDelete` is set and the wrapper handed us a
+                // removeItem (editable source); save/cancel keep their form-edit gate. Each
+                // button takes an optional theme class (`formSaveButton` …) and otherwise
+                // renders the stock Button as before.
+                (() => {
+                    const showSaveCancel = isFormLikeEditMode && !controls?.clickSaveActive;
+                    const showDelete = allowDelete && item?.id && removeItem && !isNewItem;
+                    if (!showSaveCancel && !showDelete) return null;
+                    return (
+                        <div className={theme.formEditButtonsWrapper}>
+                            {showDelete ? (
+                                confirmDelete ? (
+                                    <>
+                                        <Button className={theme.formDeleteConfirmButton} activeStyle="active"
+                                                onClick={() => { setConfirmDelete(false); removeItem(item); }}>
+                                            {`Confirm: ${deleteItemLabel || 'delete'}`}
+                                        </Button>
+                                        <Button className={theme.formCancelButton} onClick={() => setConfirmDelete(false)}>keep</Button>
+                                    </>
+                                ) : (
+                                    <Button className={theme.formDeleteButton} onClick={() => setConfirmDelete(true)}>
+                                        {deleteItemLabel || 'delete'}
+                                    </Button>
+                                )
+                            ) : null}
+                            {showSaveCancel ? (
+                                <>
+                                    <Button className={theme.formSaveButton} activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
+                                    <Button className={theme.formCancelButton} onClick={() => setTmpItem(item)}>cancel</Button>
+                                </>
+                            ) : null}
+                        </div>
+                    );
+                })()
             }
             {
                 isAddingNewItem ? (
                     <div className={theme.formAddNewItemWrapper}>
-                        <Button activeStyle="active" onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
+                        <Button className={theme.formAddButton} activeStyle="active" onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
                     </div>
                 ) : null
             }
@@ -904,7 +937,7 @@ const RenderItem = memo(function RenderItem ({
 
 export default function Card ({
     allowEdit,
-    updateItem, addItem, isEdit,
+    updateItem, addItem, removeItem, isEdit,
     columns=[], data=[], display={}, controls={}, sourceInfo={}, setState,
     newItem, setNewItem, formatFunctions, activeStyle
 }) {
@@ -1030,7 +1063,7 @@ export default function Card ({
                             display={display}
                             isDms={sourceInfo.isDms || sourceInfo.isEditable}
                             item={item} newItem={newItem} setNewItem={setNewItem}
-                            addItem={addItem} updateItem={updateItem} allowEdit={allowEdit}
+                            addItem={addItem} updateItem={updateItem} removeItem={removeItem} allowEdit={allowEdit}
                             subWrapperStyle={subWrapperStyle}
                             columns={columns}
                             visibleColumns={visibleColumns}

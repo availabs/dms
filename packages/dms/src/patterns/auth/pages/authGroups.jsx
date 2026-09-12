@@ -14,6 +14,19 @@ export default function AuthGroups (props) {
     const { user, AUTH_HOST, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null);
     const {Table, Input, Modal, Button} = UI;
+    // Manage-page chrome from `theme.auth.authPages.manage`; fallbacks are the
+    // literals this page carried before the keys existed.
+    const m = {
+        pageWrapper: "flex flex-col gap-3",
+        headerOuter: "w-full flex",
+        headerRow: "w-full flex justify-between border-b-2 border-blue-400",
+        headerTitle: "text-2xl font-semibold text-gray-700",
+        headerAction: "shrink-0",
+        tableHeaderCell: "flex gap-3 items-center",
+        modalBody: "flex flex-row gap-3",
+        notice: "",
+        ...(theme?.auth?.authPages?.manage || {}),
+    };
 
     useEffect(() => {
         async function loadGroups(){
@@ -33,15 +46,15 @@ export default function AuthGroups (props) {
         {name: 'name', display_name: 'Group', show: true, type: 'text'},
         {name: 'num_members', display_name: '# Members', show: true, type: 'text'},
     ]
-    if(!user?.authed) return <div>To access this page, you need to login.</div>
+    if(!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>
 
     return (
-        <div className={'flex flex-col gap-3'}>
-            <div className={'w-full flex'}>
-                <div className={'w-full flex justify-between border-b-2 border-blue-400'}>
-                    <div className={'text-2xl font-semibold text-gray-700'}>Groups</div>
+        <div className={m.pageWrapper}>
+            <div className={m.headerOuter}>
+                <div className={m.headerRow}>
+                    <div className={m.headerTitle}>Groups</div>
                 </div>
-                <Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add new </Button>
+                <Button className={m.headerAction} onClick={() => setAddingNew(true)}> Add new </Button>
             </div>
 
 
@@ -50,7 +63,7 @@ export default function AuthGroups (props) {
                            columns={groupColumns}
                            allowEdit={true}
                            controls={{header: {displayFn: (attribute) => (
-                                       <div className={'flex gap-3 items-center'}>
+                                       <div className={m.tableHeaderCell}>
                                            {attribute.display_name}
                                            {
                                                attribute.name === 'name' ?
@@ -63,7 +76,7 @@ export default function AuthGroups (props) {
                     />
 
             <Modal open={addingNew} setOpen={setAddingNew}>
-                <div className={'flex flex-row gap-3'}>
+                <div className={m.modalBody}>
                     <Input type={'text'}
                            value={newGroup.name}
                            onChange={e => setNewGroup({...newGroup, name: e.target.value})}
