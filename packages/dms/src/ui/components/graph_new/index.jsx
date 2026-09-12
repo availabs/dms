@@ -166,9 +166,61 @@ export default function Graph (props) {
     });
   }, [data]);
 
+  // Live-resolve a difference graph's caption against whichever real route(s) it's bound to
+  // (dynamic-reports-authoring-gaps.md — "Static graph text vs. live route resolution").
+  // `contextTheme.resolveReportDisplayText` (the ROOT theme, not the `avlGraph`-scoped `theme`
+  // above) only exists on sites/themes that define it (transportny); everywhere else this is a
+  // no-op and `resolvedDescription === display.description` unchanged. `_autoDiffCaption` is set
+  // by report_build.mjs only for a difference graph with no author-supplied `caption` — see that
+  // function's own doc comment for why an auto caption rebuilds the whole phrase live instead of
+  // token-substituting stored text (there IS no stored text for that case).
+  const resolvedDescription = contextTheme?.resolveReportDisplayText
+    ? contextTheme.resolveReportDisplayText(display.description, {
+        routeIds: display._measurePick?.routeIds,
+        invert: display?.comparisonSeries?.combine?.invert,
+        isAutoDiffCaption: Boolean(display._autoDiffCaption),
+        pageState,
+      })
+    : display.description;
+
+  // The legend's automatic UNIT — distinct from its author-set `title`, and the distinction is
+  // load-bearing.
+  //
+  // A LINEAR legend is a key to a colour RAMP: its numbers are magnitudes, and "mph" above them
+  // says what they are measured in. A CATEGORICAL legend is a key to IDENTITY — which line is
+  // which route — and a unit over it is nonsense, which is exactly what shipping it everywhere
+  // produced: "mph" captioning a speed line graph's series list. So the unit is passed as its own
+  // `legend.unit` and only the linear legends read it, while `legend.title` stays author-owned
+  // and works on every legend type.
+  //
+  // The resolver is OPTIONAL and site-supplied. The unit of a measure is site vocabulary and this
+  // library must not learn it: the obvious shortcut — reading `display._measurePick.measure` here
+  // — is deliberately rejected, since that field is written and read only by the npmrds report
+  // tooling. The whole `display` is handed over and the hook owns the shape it reads.
+  //
+  // `typeof === "function"` rather than a truthiness check: themes are partly DB-stored and
+  // hand-edited, so a stale string under this key is a realistic accident, and calling it would
+  // throw during render and take the page down for a cosmetic caption.
+  //
+  // Named for the generic capability on purpose. `resolveReportDisplayText` just above is the
+  // precedent for the MECHANISM and emphatically not for the NAME — "report" is npmrds vocabulary
+  // and does not belong in a shared hook name. Renaming it is out of scope; don't copy it.
+  const resolvedLegendUnit = typeof contextTheme?.avlGraph?.resolveLegendUnit === "function"
+    ? contextTheme.avlGraph.resolveLegendUnit(display)
+    : undefined;
+
+  const displayForGraph = React.useMemo(() => {
+    let d = display;
+    if (resolvedDescription !== display.description) d = { ...d, description: resolvedDescription };
+    if (resolvedLegendUnit && !d?.legend?.unit) {
+      d = { ...d, legend: { ...(d.legend || {}), unit: resolvedLegendUnit } };
+    }
+    return d;
+  }, [display, resolvedDescription, resolvedLegendUnit]);
+
   return (
     <GraphComponent
-        graphFormat={ mergeChartDefaults(theme?.chartDefaults, display) }
+        graphFormat={ mergeChartDefaults(theme?.chartDefaults, displayForGraph) }
         graphType={ display.graphType }
         viewData={ viewData }
         columns={ keyedColumns }

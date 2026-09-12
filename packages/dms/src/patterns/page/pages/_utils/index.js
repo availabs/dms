@@ -615,6 +615,10 @@ export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, p
 
 export const initNavigateUsingSearchParams = ({pageState, search, navigate, baseUrl, item, isView}) => {
     // one time redirection
+    // `item` can still be a not-yet-resolved stand-in on the very first render (e.g. sync's
+    // local mirror hasn't caught up with this specific page yet) — without this guard a
+    // falsy `item.url_slug` navigates to a literal `.../edit/undefined` URL.
+    if (!item?.url_slug) return;
     const searchParamFilters = (pageState?.filters || []).filter(f => f.useSearchParams);
     if(searchParamFilters?.length){
         const filtersObject = searchParamFilters
@@ -626,6 +630,18 @@ export const initNavigateUsingSearchParams = ({pageState, search, navigate, base
     }
 }
 
-export const getPageAuthPermissions = authPermissions =>
-    authPermissions && typeof authPermissions === 'string' ? JSON.parse(authPermissions) :
-    authPermissions && typeof authPermissions === 'object' ? authPermissions : undefined;
+export const getPageAuthPermissions = authPermissions => {
+    if (authPermissions && typeof authPermissions === 'object') return authPermissions;
+    if (authPermissions && typeof authPermissions === 'string') {
+        // A server-blocked row scrubs every field (including this one) to the
+        // literal string 'no-access' (see dmsPageFactory.jsx's loader) — not
+        // real JSON. Treat anything unparseable as "no permissions data"
+        // rather than throwing and taking the whole page down with it.
+        try {
+            return JSON.parse(authPermissions);
+        } catch {
+            return undefined;
+        }
+    }
+    return undefined;
+};

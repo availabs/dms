@@ -350,3 +350,15 @@ blocks clicks but scroll+screenshot still work):
 LOTTR choropleth over Map 21 Extended (view 3394) — paint = `step` over
 `max(to-number(lottr_*))` with a 0/no-data guard, year page-variable-bound — plus NYSDOT
 regions (view 1823) with `region` page-variable binding + zoom-to-fit. Catalog copy: 2193672.
+
+## Expression dynamic-filters (JSONB fields etc.) — 2026-08-27
+
+A serverSide `dynamic-filter`'s `column_name` MAY be a SQL expression
+(`data->>'maturity_level'`): the tile `filter=` param is a composed SQL
+condition string and the server evaluates it fine. The trap (fixed in
+SymbologyViewLayer): active filter column_names are also appended to the tile
+URL's `cols=` — an expression there makes the server return EMPTY tiles for the
+whole layer (looks like "the filter broke the map"). `getLayerTileUrl` now
+keeps only plain identifiers in `cols=`. Diagnostic that separates the two: the
+tile layer goes blank ONLY while the filter is active, and a direct tile
+request with the same `filter=` but a minimal `cols=` returns data.

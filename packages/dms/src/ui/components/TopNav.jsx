@@ -148,7 +148,20 @@ const TopNavItem = ({
     return [...To, ...subs];
   }, [To, subMenus]);
 
-  const routeMatch = Boolean(useMatch({ path: `${subTos[0]}/*` || '', end: true }));
+  // Absolute destinations (cross-pattern nav items resolved to full URLs) are
+  // not router paths: match same-origin ones by their pathname so the active
+  // state still tracks, and navigate them as a normal document load below —
+  // react-router's navigate() would mangle a full URL into a garbage path.
+  const isAbsolute = (p) => /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i.test(p || '');
+  const matchBase = React.useMemo(() => {
+    const p = subTos[0] || '';
+    if (!isAbsolute(p)) return p;
+    try {
+      const u = new URL(p, typeof window === 'undefined' ? 'http://x' : window.location.origin);
+      return (typeof window === 'undefined' || u.origin === window.location.origin) ? u.pathname : '';
+    } catch { return ''; }
+  }, [subTos]);
+  const routeMatch = Boolean(useMatch({ path: `${matchBase}/*` || '', end: true }));
 
   const linkClasses = theme?.navitem
   const activeClasses = theme?.navitemActive;
@@ -182,6 +195,9 @@ const TopNavItem = ({
           onClick={(e) => {
             e.stopPropagation();
             if (navItem?.onClick) return onClick(To[0]);
+            // Full URLs leave the SPA as a document load (another pattern's page
+            // or another site) — navigate() only understands router paths.
+            if (To[0] && isAbsolute(To[0])) return window.location.assign(To[0]);
             if (To[0]) navigate(To[0]);
           }}
         >

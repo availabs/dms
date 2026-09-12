@@ -1,5 +1,35 @@
 import React from "react"
 
+// Every consumer of the raw maplibre-gl `Marker` API needs this: the app doesn't load
+// maplibre-gl's own stylesheet (no `.maplibregl-marker` rule anywhere - confirmed live,
+// 2026-09-03), so a marker's wrapper div has no `position` rule and renders as a static,
+// full-width block instead of a small pin anchored at the click point - effectively
+// invisible. Originally written for avl-map.jsx's own pin-on-click marker; reused by
+// routecreation's useMapMarkerHandler, which hit the same bug independently.
+export const normalizeMarkerElement = (marker) => {
+  const markerEl = marker?.getElement?.();
+  if (!markerEl) return marker;
+  const markerChild = markerEl.firstElementChild;
+  const fallbackWidth = markerChild?.getAttribute?.("width") || "27px";
+  const fallbackHeight = markerChild?.getAttribute?.("height") || "41px";
+
+  // Keep the marker wrapper sized to the pin itself so MapLibre's
+  // translate(-50%, -50%) centers the actual pin instead of a stretched box.
+  markerEl.style.position = "absolute";
+  markerEl.style.left = "0";
+  markerEl.style.top = "0";
+  markerEl.style.width = fallbackWidth;
+  markerEl.style.maxWidth = "none";
+  markerEl.style.minWidth = fallbackWidth;
+  markerEl.style.height = fallbackHeight;
+  markerEl.style.minHeight = fallbackHeight;
+  markerEl.style.display = "block";
+  markerEl.style.padding = "0";
+  markerEl.style.margin = "0";
+
+  return marker;
+};
+
 export const hasValue = value => {
   if ((value === null) || (value === undefined)) return false;
   if ((typeof value === "string") && !value.length) return false;

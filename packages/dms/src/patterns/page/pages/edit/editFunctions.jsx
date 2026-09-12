@@ -3,6 +3,7 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
 import { appendHistoryEntry } from '../../../utils';
+import { resolveMountPath } from '../../../../utils/mountPath';
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     if(!item?.id) return;
@@ -54,7 +55,11 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     apiUpdate({data:newItem})
 }
 
-export const newPage = async (item, dataItems, user, apiUpdate, template) => {
+// mountBaseUrl/siteRootPaths are optional — resolveMountPath no-ops when mountBaseUrl is
+// undefined/root, so callers outside a multi-mount pattern (or that predate MountContext) are
+// unaffected. Callers on a prefixed mount (e.g. `/npmrds`) pass MountContext's values through so
+// the post-create redirect lands on `/npmrds/edit/...` instead of dropping the mount off the URL.
+export const newPage = async (item, dataItems, user, apiUpdate, template, mountBaseUrl, siteRootPaths) => {
     // Siblings under the SAME parent the new page is about to be created under —
     // not top-level pages. Comparing against `!d.parent` regardless of where the
     // new page actually lands meant every "Add Page" click from inside a nested
@@ -86,15 +91,23 @@ export const newPage = async (item, dataItems, user, apiUpdate, template) => {
         newItem.draft_sections = cloneDeep(template.draft_sections).map(s => ({ ...s, trackingId: crypto.randomUUID() }));
       }
       if (template.draft_section_groups !== undefined) newItem.draft_section_groups = template.draft_section_groups;
+      // Link pages (`nav_link`, page.format.js) are created from a template like any
+      // other kind; the built-in "Link" template seeds an empty destination, which the
+      // author then fills in from the settings pane.
+      if (template.nav_link !== undefined) newItem.nav_link = template.nav_link;
       if (template.sidebar !== undefined) newItem.sidebar = template.sidebar;
       if (template.sidebarHideInView !== undefined) newItem.sidebarHideInView = template.sidebarHideInView;
       if (template.theme !== undefined) newItem.theme = template.theme;
     }
 
-    await apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
+    await apiUpdate({data:newItem, newPath: resolveMountPath(`/edit/${newItem.url_slug}`, mountBaseUrl, siteRootPaths)})
   }
 
-export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) => {
+// mountBaseUrl/siteRootPaths are optional, same convention as newPage() above — pass
+// MountContext's values through on a prefixed mount (e.g. `/npmrds`) so the post-rename
+// redirect lands on `/npmrds/edit/...` instead of dropping the mount off the URL and falling
+// through to a different pattern entirely. Omitting them preserves the old unprefixed behavior.
+export const updateTitle = async ( item, dataItems, value='', user, apiUpdate, mountBaseUrl, siteRootPaths) => {
     if(!item.id) return;
     if(value !== item.title) {
       const newItem = {
@@ -105,7 +118,7 @@ export const updateTitle = async ( item, dataItems, value='', user, apiUpdate) =
       }
 
       newItem.url_slug = getUrlSlug(newItem, dataItems)
-      apiUpdate({data:newItem, newPath: `/edit/${newItem.url_slug}`})
+      apiUpdate({data:newItem, newPath: resolveMountPath(`/edit/${newItem.url_slug}`, mountBaseUrl, siteRootPaths)})
     }
   }
 
@@ -143,7 +156,7 @@ export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) =>
 }
 
 export const publish = async (user, item, apiUpdate) => {
-  console.log('publish', item)
+  // console.log('publish', item)
     if(!item.id) return;
 
   const newItem = {
@@ -177,7 +190,7 @@ export const publish = async (user, item, apiUpdate) => {
 
   newItem.section_groups = cloneDeep(item.draft_section_groups)
   newItem.dataSources = cloneDeep(item.draft_dataSources)
-  console.log('publishing item', newItem)
+  // console.log('publishing item', newItem)
   apiUpdate({data:newItem})
 
 }

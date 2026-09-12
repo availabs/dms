@@ -128,8 +128,19 @@ const GridGraphWrapper = props => {
 
     // byValueSymmetric centers the scale on zero (±max(|min|, |max|)) — see
     // the matching option in BarGraph.jsx; used by difference/diverging grids.
+    // `colors.domainMin`/`domainMax` (round 80, static-color-breaks): an
+    // explicit fixed domain wins outright over both the data-computed range
+    // and byValueSymmetric — an author who fixed a domain wants THAT range
+    // every time, not one that shifts per section/report (see
+    // composeMeasureConfig.js's own header comment on why NPMRDS moved
+    // static-measure charts to this). Same two-flat-number-key shape as the
+    // existing `yAxis.domainMin`/`domainMax` fixed-axis override, not a new
+    // array convention.
     const symMax = Math.max(Math.abs(min), Math.abs(max));
-    const colorFunc = props.colors?.byValueSymmetric
+    const hasFixedDomain = props.colors?.domainMin != null && props.colors?.domainMax != null;
+    const colorFunc = hasFixedDomain
+      ? buildValueColorScale(props.colors.domainMin, props.colors.domainMax, colors)
+      : props.colors?.byValueSymmetric
       ? buildValueColorScale(-symMax, symMax, colors)
       : buildValueColorScale(min, max, colors);
 
@@ -171,7 +182,7 @@ const GridGraphWrapper = props => {
 
     return { data, keys, colors: colorFunc, keyWidths, max };
   }, [props.viewData, xColumn, yColumn, colorColumns, widthColumn, heightColumn, colors,
-      props.colors?.byValueSymmetric]);
+      props.colors?.byValueSymmetric, props.colors?.domainMin, props.colors?.domainMax]);
 
 // console.log("GridGraphWrapper::dataFromProps", dataFromProps);
 
@@ -404,12 +415,19 @@ const GridGraphWrapper = props => {
       ` }
     >
       { !legend.show || !legend.position.includes("top") ? null :
+        // `titleNode` (opt-in, see GraphComponent.jsx) shares this row instead of stacking
+        // above it. `justify-between` (title first child, legend second) wins over the
+        // corner-specific class whenever a title is sharing the row — with exactly 2
+        // children the top-left/top-right corner distinction has nothing left to express
+        // (title always reads left, legend always reads right); falls back to the
+        // corner-only positioning, byte-identical to before, when no titleNode is passed.
         <div
           className={ `
-              flex shrink-0
-              ${ legend.position === "top-right" ? "justify-end" : "" }
+              flex items-center shrink-0
+              ${ props.titleNode ? "justify-between gap-3" : (legend.position === "top-right" ? "justify-end" : "") }
           ` }
         >
+          { props.titleNode }
           { InstantiatedLegend }
         </div>
       }

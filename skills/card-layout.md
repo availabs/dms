@@ -221,6 +221,19 @@ Resulting `grid-template-columns`: `64px minmax(0, 1fr) minmax(0, 1fr) minmax(0,
 
 The walker is **row-span-naïve** — it doesn't track which tracks are still occupied by an earlier `cellRowSpan > 1` cell. That doesn't matter for *sizing* (CSS Grid handles placement correctly regardless); the only effect is which column gets credited with claiming a track first. The "first wins" rule still produces sensible outputs in practice.
 
+> ⚠️ **`cellWidth` is a property of the SHARED grid, not of the cell you set it on.**
+> One `cellWidth: 'max-content'` cell resizes the tracks for *every* row of the card. The walker
+> collapses that cell's other spanned tracks to **0px**, so the tracks stop adding up to the
+> container — and any *other* row that spans the full grid is then **narrower than the card**, with
+> no visible cause. Measured on the MitigateNY LHMP plan home (2026-09-09): four `max-content` chips
+> on a 12-track card left the `cellSpan: 12` label/value rows ending **152px short** of the card
+> edge, so their right-aligned values looked mis-aligned while being perfectly aligned to a grid
+> that had quietly shrunk. Removing `cellWidth` restored them (152px → 21px, the card padding).
+>
+> Use `cellWidth` only when **every** row of the card wants that track shape. For "pack these few
+> cells to their content" inside a card that also has full-width rows, plain equal `cellSpan`s plus
+> a `w-fit` token on the cell's own content is the safe form.
+
 #### Section-level — `cellsTracksTemplate`
 
 Power-user escape hatch under the **Cells Grid → Track Template** input. A freeform `grid-template-columns` string. When set, it wins over the per-column derivation:
@@ -288,6 +301,11 @@ the answer is a width escalation, not a smaller font.
 | `cellPaddingBottom`  | Inline `paddingBottom`. Wins over `cellPadding`.                          |
 | `cellPaddingLeft`    | Inline `paddingLeft`. Wins over `cellPadding`.                            |
 | `cellBorderBelow`    | Adds `theme.headerValueWrapperBorderBelow` (default `border-b rounded-none`). |
+| `cellBorderColor`    | Coloured 4px LEFT accent rule (stat-strip look). Wins the left edge over `cellOutline`. |
+| `cellOutline`        | **Per-cell perimeter border** — a full CSS border shorthand the author types (`1px solid #E0EBF0`, `1px dashed #EAAD43`). Same author-value affordance as `cellBgColor`'s gradient. |
+| `cellRadius`         | Per-cell corner radius (number → px). For cells that ARE the visual card (stat strips). |
+| `subValueCol`        | Renders a SIBLING column's value as a **subline inside this cell** (the stat-card "N% of actions" row). ⚠ The lookup key is the sibling's **row key** = `normalName \|\| name` — an aliased calc column (`expr as alias`) MUST set `normalName: 'alias'` or its row key is the whole SQL string. Pair the sibling with `selectOnly: true`. |
+| `subValueFontStyle`  | Type token for the subline (a `textSettings`/dataCard key). The subline div takes ONLY this key's classes — include `w-full` in the key if the wrapper centers non-full children (mny does). |
 
 The padding precedence is **side-specific > `cellPadding` > `cellsPadding`** — type a side value to override one edge, type `cellPadding` to override all four at once, type neither to inherit the section's `cellsPadding`. An empty/cleared field falls through (it does *not* mean "0"); to apply zero padding, type `0` explicitly.
 | `justify`            | `'left' | 'right' | 'center' | 'full'`. Maps to `theme.justifyText*` classes. `'full'` splits header to left, value to right. |
@@ -685,6 +703,25 @@ key** — set `normalName` explicitly on the seg calcs and reference that (with 
 > has spaces around it in the raw string, e.g.
 > `|| ' more' || chr(32) || 'as their data lands'`.
 
+> ⚠️ **A column type's host `name` still goes into the SELECT — it must be valid SQL.**
+> `stacked_bar` (and any column type whose own value is unused) reads its data off *sibling*
+> columns, which makes it tempting to give the host a label-ish name like `actions_meter`. Don't:
+> `buildUdaConfig` puts every `show: true` column's `name` in the attribute list, so the server
+> compiles `sum((actions_meter)::integer) as actions_meter_sum` and Postgres answers
+> **`column "actions_meter" does not exist`**. That error comes back on *every attribute in the
+> request*, so the whole card renders zeros/blanks — it presents as a broken filter, not as a bad
+> column name. Use a literal expression instead: `{ name: '1 as actions_meter', normalName:
+> 'actions_meter', fn: 'sum' }` (or `count(1) as …` with `fn: 'exempt'`). Same rule for any
+> hand-written calc: one bad expression poisons the entire section's data.
+> **Corollary for `isDms` sources:** their fields live in the row's JSONB, so a calculated column
+> must address them as `data->>'field'`. A *filter* leaf uses the bare name (the UDA maps it), but a
+> bare name inside a calc expression hits the same "does not exist" failure. Both forms exist in
+> live MitigateNY config and only the `data->>` one is correct in a calc.
+>
+> **Debugging this class of failure:** the only place the message appears is the falcor response.
+> Capture it with a Playwright `page.on('response')` filtered to the API host — the browser console
+> only logs a generic `Error fetching data`.
+
 > ⚠️ **`barMaxColumn` / `barColorColumn` (and `data_color_cell`'s
 > `domainColumns`/`*Column` props) must reference a sibling column by its FULL
 > SQL `name`, not its alias.** The row handed to the column type is keyed by each
@@ -692,7 +729,13 @@ key** — set `normalName` explicitly on the seg calcs and reference that (with 
 > the bare alias misses the lookup → `barMax` resolves to `NaN` → `fillPct`
 > clamps every bar to 100% (bars show *no variation*, the classic symptom).
 > Define the max/tone expressions once and reuse the exact string in both the
-> column and the `*Column` prop. Also: `data_bar` parses the cell value with
+> column and the `*Column` prop. **And do not point `barMaxColumn` at the bar's OWN column** — the
+> max then equals the value on every row and every bar is 100%, the same symptom as the alias
+> mismatch. The scale has to be a separate `selectOnly` sibling holding a window aggregate, e.g.
+> `max(sum(<expr>)) over () as loss_max` (or `nth_value(sum(<expr>), 2) over (order by sum(<expr>)
+> desc rows between unbounded preceding and unbounded following)` to scale ranks 2-n to rank 2 and
+> let the leader clamp) with `normalName: 'loss_max'` and `barMaxColumn: 'loss_max'`. Verified on the
+> MitigateNY LHMP plan home, 2026-09-09. Also: `data_bar` parses the cell value with
 > `parseFloat`, which stops at a comma — a `formatFn: 'comma'` value like
 > `"31,677"` parses as `31` and collapses the scale; the built-in `data_bar`
 > strips commas before parsing, so keep that behavior if you fork it.
@@ -715,6 +758,16 @@ Set **`selectOnly: true`** on columns that exist only for the query (GROUP BY
 keys, sort drivers, fields a column type reads off `row`): the column stays in
 the SELECT (keep `show: true` — dropping `show` changes the GROUP BY, see the
 aggregate gotcha) but renders no cell. Toolbar: "Select Only (no cell)".
+
+**A grouped card's dimension column additionally needs `group: true`** — a bare
+plain column mixed with aggregate cells does NOT enter the GROUP BY on its own;
+the section issues `groupBy: []` with `ungroupedAggregate: true` and renders
+NOTHING (no console error, the length query even returns 1). The working shape
+is `{ name: 'jurisdiction', show: true, group: true, selectOnly: true }` with
+every rendered cell an aggregate (`fn: 'sum'`/`'exempt'`) — one card per group
+row (MitigateNY jurisdictions grid, dashboard `mixED` bar lists). Per-row
+column types (`stacked_bar`, `data_bar`) read their sibling aggregates off each
+group row, so per-card mini-bars work with the jp-hero segment recipe verbatim.
 
 Related per-cell chrome: `cellBorderBelow: true` draws the theme hairline under
 a cell (`theme.headerValueWrapperBorderBelow`) — the design-system divider
@@ -1542,3 +1595,94 @@ below its Pagination/Attribution footer. Fixed with `mt-auto` on that footer `<d
 `dataWrapper/index.jsx` (both Edit/View blocks) — the unavoidable slack now sits between the
 chart and the footer (pinned flush to the bottom edge) instead of below everything. No-op for
 components that already fill (Card) since there's no slack left to redistribute.
+
+### Filter controls as Card cells (`filter_control` columnType, 2026-08-25)
+
+A whole filter BAR can be one Card: the `filter_control` column type renders a viewer-facing
+filter control (select or search box) inside a cell, writing a **page variable** — so the bar
+gets the Card's full layout engine (tracks templates, spans, static group-header cells, an
+aggregate count cell, a static clear-all link cell) instead of the Filter section's single row.
+The Filter section is NOT deprecated — this is the layout-controlled alternative.
+
+Column config (Card toolbar shows these once the Type is `filter_control`):
+
+| key | role |
+|---|---|
+| `name` | the source column whose distinct values populate the picker (and the default param key) |
+| `searchParamKey` | the page variable written — **must be registered in `page.filters[]`**, same as any page variable |
+| `controlOp` | `'filter'` (select, default) or `'like'` (text/search box) |
+| `isMulti` | multi-select; off = single select with a deselect × |
+| `placeholder` / `controlLabel` | empty-state text ("All", "Search actions…") / the label INSIDE the pill |
+| `activeStyle` | named style for the control itself (`theme.multiselect` / `theme.input` styles — e.g. mny's `pill`) |
+
+Load-bearing mechanics:
+- **State is page-variable-only** (reads `pageState.filters`, writes `updatePageStateFilters`);
+  the host card and every other section react through their own `usePageFilters` leaves.
+- **Options are scoped by the host card's own filter tree**, pruned of any leaf wired to this
+  control's param (or naming its column): a `county_geoid` leaf county-scopes every picker,
+  sibling selections cascade, and a control never narrows away its own alternatives.
+- **`buildUdaConfig` drops `filter_control` columns at intake.** They're chrome, not data — a
+  present-but-unfetched column poisons the section's data request (length succeeds, rows never
+  arrive, the Card renders EMPTY). If a filter-control card renders nothing at all, check that
+  intake filter first.
+- The cell wrapper is themed via `filterControlCell` (flat map: `wrapper`, `label`); mny styles
+  it as the white rounded pill so the cell IS the mockup's pill.
+
+Worked example — the MNY Actions Dashboard filter band (page 2410892): one Card, `cellsGridSize
+5` + `cellsTracksTemplate '1.25fr 1fr 1fr 1fr 1.15fr'`, row 1 = static "Find & Filter" header ·
+`'Showing ' || count(1) || ' actions'` calc cell · static "Clear all" (`isLink`, `location:'?'`) ·
+spacer · static "Action Development" header; row 2 = a `like` search control + four select
+controls. Builder: `scratchpad/mitigat-ny-prod-prod/build_dashboard.mjs` (`filterBandED`).
+
+**filter_control options added 2026-08-25 (round 2):** `controlIcon` (Icon-registry glyph before
+the label — the icon-only search pill), `controlOp:'toggle'` + `controlValue` (checkbox writing a
+fixed value — boolean-attribute filters), debounced `like` (400ms; URL-seeded and clear-all
+round-trip), `excludeOptionValues` + `optionLabels` (hide sentinels / design-vocabulary relabels;
+written values stay raw). Card display also gained **`cardsRadius`** and **`cardsBorderColor`**
+(per-card surface radius + 1px hairline, siblings to `cardsBgColor`) — the filter band's rounded
+bordered panel needs no theme change. Group DIVIDERS remain inexpressible (`cellBorderColor` is a
+4px accent); separate groups with a fixed spacer track (e.g. `'… 40px …'` in
+`cellsTracksTemplate`).
+
+## Recipe: a stat-card strip (label · big number · "N% of actions" subline, per-card chrome)
+
+The MNY Actions Dashboard status strip (mockup `county-actions/dashboard.html`) as ONE Card —
+six cells, each cell IS a visual card. The knobs added 2026-08-27 for exactly this
+(`cellOutline` / `cellRadius` / `subValueCol` / `subValueFontStyle`, table above):
+
+- One count column per card: `"<CASE expr> as alias"`, `fn:'sum'`, `formatFn:'comma'`,
+  `headerFontStyle` = the 11px tracked label role, `valueFontStyle` = the 30px display token,
+  `isLink` + `activeOnSearchParam` (theme `cellActive` supplies the active ring).
+- One pct sibling per card: `"round(sum(<expr>) * 100.0 / count(1))::int::text || '% of actions'
+  as alias_pct"`, **`normalName: 'alias_pct'`** (⚠ without it the row key is the whole SQL
+  string and `subValueCol` finds nothing), `fn:'exempt'`, `selectOnly: true`. Keep the
+  expression comma-free (single-arg `round`): commas split falcor attribute paths.
+- Count column points at it: `subValueCol: 'alias_pct'`, `subValueFontStyle: 'statCardSub'`.
+- Per-card chrome: `cellOutline` (`'1px solid #E0EBF0'`, `'1px dashed #EAAD43'` for the
+  needs-attention card), `cellBorderColor` (4px left accent — omit for the dashed card),
+  `cellBgColor`, `cellRadius: 12`.
+- Display: `cellBorder:false` (the old `itemBorder` gray border+shadow is the wrong-color-border
+  trap), `cardsVerticalAlign:'top'` (else band slack inflates rows via `theme.header`'s
+  `flex-1`), and remember the dataCard `headerValueWrapper` usually carries its own `p-2` —
+  the design's p-4 is `cellsPadding: 8` + that 8, not 16.
+
+Worked example: `scratchpad/mitigat-ny-prod-prod/build_dashboard.mjs` (`statusStripED`) —
+measured 103px cards vs the mockup's 104px.
+
+**filter_control round 3 (2026-08-27, the full three-group band):**
+- **JSONB / expression selects work** — but the options endpoint REJECTS a bare expression
+  (`data->>'x'` → 500 `syntax error at "->>"`); use the **`expr as alias`** calc shape with
+  `origin: 'calculated-column'` on the fc column. WHERE leaves in consuming sections take the
+  bare expression (unmapped pass-through). Tile (map) filters take neither — physical columns
+  only.
+- **Toggles can render bare**: theme keys `toggleCellWrapper` (replaces the pill `wrapper` for
+  the toggle branch) + `toggleLabel` (falls back to `label`). Absent → pill chrome as before.
+- **fr tracks won't shrink below a pill's min-content** — a nowrap pill (`Application
+  Readiness` ≈195px) silently expands its track and the grid OVERFLOWS the panel (content
+  clipped at the border, no scrollbar). Budget `cellsTracksTemplate` by measured content.
+- **Continuous vertical group dividers**: a rowspanning spacer cell with `cellBgColor` set to a
+  centered-1px `linear-gradient(to right, transparent calc(50% - 0.5px), <color> …)` — the
+  gradient affordance draws the design's `border-l` separator with no new primitive.
+- ⚠ **A builder's idempotent rerun must re-write the page's `filters` REGISTRY** when it adds
+  searchKeys — sections' leaves and fc's alone are not enough; unregistered page variables
+  don't URL-sync and controls write into the void.

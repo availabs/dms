@@ -1,4 +1,4 @@
-import React, {useState, useEffect} from 'react'
+import React, {useState, useEffect, useRef} from 'react'
 import { createBrowserRouter, RouterProvider, useRouteError } from "react-router";
 import { falcorGraph } from "@availabs/avl-falcor"
 import { cloneDeep } from "lodash-es"
@@ -6,7 +6,7 @@ import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } fr
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
-import { pattern2routes, getSubdomain } from './utils'
+import { pattern2routes, getSubdomain, resolveThemes } from './utils'
 import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 
@@ -56,14 +56,57 @@ export function DmsSite (config) {
     const localStorePatterns = isTenantSubdomain
         ? null
         : parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
-    const [loading, setLoading] = useState(() => !localStorePatterns?.length && !defaultData?.length);
+    // `themes` is a function when it's the lazy loader from src/themes/index.js
+    // (the normal cold-SPA case — App.jsx passes it straight through) — dynamic
+    // import() can never be synchronous, so this fast path can't resolve routes
+    // in its useState initializer for that case; the effect below handles it
+    // instead. When `themes` is already a plain object (SSR hydration, where
+    // main.jsx resolves the theme(s) before calling hydrateRoot, or any legacy
+    // caller), this synchronous branch is unchanged from before.
+    const isLazyThemes = typeof themes === 'function';
+    const [loading, setLoading] = useState(() => {
+        const hasCache = localStorePatterns?.length || defaultData?.length;
+        return !hasCache || isLazyThemes;
+    });
     const [dynamicRoutes, setDynamicRoutes] = useState(() => {
+        if (isLazyThemes) return EMPTY_ROUTES;
         if (localStorePatterns?.length || defaultData?.length) {
             // console.log('has localstore patterns')
             return pattern2routes(localStorePatterns?.length ? localStorePatterns : defaultData, routeProps)
         }
-        return []
+        return EMPTY_ROUTES
     });
+
+    // Guards the fast path below from clobbering the full fetch's result.
+    // Both paths resolve their own theme(s) independently and asynchronously —
+    // if the cached data's theme differs from the live data's (e.g. an admin
+    // changed the site's theme since this browser's last visit), they race on
+    // two unrelated dynamic import()s with no ordering guarantee. Without this
+    // guard, a slow-to-resolve stale (cached-data) theme can commit AFTER the
+    // fresh (live-data) theme already did, permanently overwriting it with
+    // outdated content — reproduced and confirmed via Playwright before this
+    // fix existed. The full fetch is always authoritative once it lands.
+    const routesFinalizedRef = useRef(false);
+
+    // Fast-path theme resolution for the lazy-themes case: compute routes from
+    // already-available cached/default data as soon as the needed theme(s)
+    // resolve, without waiting for the full network fetch below.
+    useEffect(() => {
+        if (!isLazyThemes) return;
+        const cached = localStorePatterns?.length ? localStorePatterns : defaultData;
+        if (!cached?.length) return;
+        let isStale = false;
+        (async () => {
+            const resolvedThemes = await resolveThemes(themes, cached);
+            if (isStale || routesFinalizedRef.current) return;
+            // `themes` (still the raw lazy loader here) doubles as adminThemesLoader
+            // so the admin pattern-theme-picker (themeEditor.jsx) can fetch the full
+            // theme registry even if opened before the full fetch below completes.
+            setDynamicRoutes(pattern2routes(cached, { ...routeProps, themes: resolvedThemes, adminThemesLoader: themes }));
+            setLoading(false);
+        })();
+        return () => { isStale = true };
+    }, []);
 
     useEffect(() => {
         let isStale = false;
@@ -74,9 +117,29 @@ export function DmsSite (config) {
             // subset of routes (e.g., SSR pre-rendered one pattern but the
             // site has others). The fetch fills in any missing routes.
             // console.time('dmsSite - loading Dynamic Routes', )
-            const routes = await dmsSiteFactory(routeProps);
+            const routes = await dmsSiteFactory({
+                ...routeProps,
+                // Single-tenant: fires with the same value resolvedSyncApp already
+                // had (no-op re-render). Multi-tenant: this is the first time the
+                // correct (tenant) app is known — see resolvedSyncApp's init below.
+                onResolvedSyncApp: setResolvedSyncApp,
+            });
             if (!isStale) {
-                setDynamicRoutes(routes);
+                routesFinalizedRef.current = true;
+                // SSR mode only: `dynamicRoutes`'s initial value already hydrated a
+                // real `createBrowserRouter` from `hydrationData` (see `router` memo
+                // below), matching the server-rendered HTML. Swapping in a new
+                // `routes` array here — even one describing the same routes — makes
+                // that memo recreate the router from scratch, discarding the SSR
+                // hydration and forcing route loaders to re-run, which flashes a
+                // loading state before settling back to identical content. Only
+                // replace it when the refetch actually found routes the SSR payload
+                // didn't have. Off SSR, `dynamicRoutes` starts empty and this is the
+                // real initial population, so always apply it there.
+                const isRedundantSSRRefetch = hydrationData
+                    && routes.length === dynamicRoutes.length
+                    && routes.every((r, i) => r.path === dynamicRoutes[i]?.path);
+                if (!isRedundantSSRRefetch) setDynamicRoutes(routes);
                 setLoading(false);
                 // console.timeEnd('dmsSite - loading Dynamic Routes')
             }
@@ -87,8 +150,21 @@ export function DmsSite (config) {
 
 
     // --- Sync state (effects run after router is defined below) ---
-    const [syncActive, setSyncActive] = useState(false);
     const [syncAPI, setSyncAPIState] = useState(null);
+    // The app to sync against. Single-tenant deployments know this synchronously
+    // (dmsConfig never changes) so sync can start immediately, in parallel with
+    // route loading. Multi-tenant deployments don't know the real app — the
+    // master app vs. the subdomain-resolved tenant app — until dmsSiteFactory's
+    // async subdomain→tenant lookup resolves above, so this starts null and is
+    // filled in by the load() effect. Previously this used dmsConfig.app
+    // unconditionally and fired on mount regardless of isMultiTenant, which
+    // meant sync always initialized against the *master* app on a tenant
+    // subdomain — sync.isLocal() checks against the tenant's app would then
+    // always miss the (wrongly-scoped) local registry and silently fall
+    // through to Falcor. See sync-bring-up-to-date.md Phase 2.
+    const [resolvedSyncApp, setResolvedSyncApp] = useState(
+        () => isMultiTenant ? null : (dmsConfig?.format?.app || dmsConfig?.app)
+    );
 
 
     const routesWithErrorBoundary = React.useMemo(() => routes.filter(c => !c.isLink).map(c => {
@@ -130,8 +206,12 @@ export function DmsSite (config) {
     // --- Sync initialization (after router is defined) ---
     useEffect(() => {
         if (!DMS_SYNC_ENABLED) return;
-        const app = dmsConfig?.format?.app || dmsConfig?.app;
-        if (!app) return;
+        // Null on mount in multi-tenant mode until the load() effect resolves
+        // the subdomain → tenant app mapping (see resolvedSyncApp above) — this
+        // effect re-runs once that lands. Single-tenant: resolvedSyncApp is
+        // already correct on the first run.
+        if (!resolvedSyncApp) return;
+        const app = resolvedSyncApp;
 
         const siteType = dmsConfig?.format?.type || dmsConfig?.type;
         const t0 = performance.now();
@@ -141,12 +221,11 @@ export function DmsSite (config) {
             const api = await initSync(app, API_HOST, siteType);
             _setSyncAPI(api);
             setSyncAPIState(api);
-            setSyncActive(true);
             // console.log(`[sync] fully wired into DMS (${(performance.now() - t0).toFixed(0)}ms total)`);
         }).catch(err =>
             console.warn('[dms] sync init failed:', err.message)
         );
-    }, []);
+    }, [resolvedSyncApp]);
 
     // Revalidate routes when sync receives remote changes (debounced to avoid storm)
     useEffect(() => {
@@ -163,31 +242,34 @@ export function DmsSite (config) {
     }, [syncAPI, router]);
     // --- End sync ---
 
-    const SyncStatusLazy = React.useMemo(
-      () => syncActive ? React.lazy(() => import('../../sync/SyncStatus.jsx')) : null,
-      [syncActive]
-    );
-
     if (loading && !dynamicRoutes.length) {
-        return <div className="w-screen h-screen flex items-center justify-center">Loading...</div>;
+        return <div className="w-screen h-screen flex items-center justify-center"></div>;
     }
 
     return (
-      <>
-        <AuthedRouteProvider
-          router={router}
-        />
-        {SyncStatusLazy && (
-          <React.Suspense fallback={null}>
-            <SyncStatusLazy />
-          </React.Suspense>
-        )}
-      </>
+      <AuthedRouteProvider
+        router={router}
+      />
     )
 }
 
 export default async function dmsSiteFactory(config) {
-    let { dmsConfig, falcor, API_HOST, isMultiTenant, host } = config
+    // onResolvedSyncApp (optional): reports the app the caller should scope
+    // client-side sync to — the master app normally, or the subdomain-resolved
+    // tenant app in multi-tenant mode. Purely additive: dmsSiteFactory is a
+    // documented public export (see CLAUDE.md "Key Exports") and its return
+    // value (the routes array) is unchanged for any existing caller that
+    // doesn't pass this. See sync-bring-up-to-date.md Phase 2 for why this
+    // exists — sync used to always initialize against the master app, even on
+    // a tenant subdomain.
+    //
+    // onResolvedSiteData (optional): reports the {app, type, data} actually
+    // used to build the returned routes — the master site normally, or the
+    // subdomain-resolved tenant's own site in multi-tenant mode. Added so SSR
+    // (render/ssr2/handler.jsx) can get correctly tenant-scoped `siteData` for
+    // `__dmsSSRData` from this same call instead of a redundant, always-master
+    // standalone fetch. Same additive pattern as onResolvedSyncApp.
+    let { dmsConfig, falcor, API_HOST, isMultiTenant, host, onResolvedSyncApp, onResolvedSiteData } = config
 
     // Step 1 — always load the master site
     let dmsConfigUpdated = cloneDeep(dmsConfig);
@@ -206,8 +288,18 @@ export default async function dmsSiteFactory(config) {
       data
     )
 
+    // `config.themes` may be the lazy loader exported by src/themes/index.js —
+    // resolve only the theme names this site's patterns actually reference
+    // before building routes. adminThemesLoader carries the raw, unresolved
+    // loader through for the one consumer (themeEditor.jsx) that needs every
+    // theme name. See planning/shared/bundle-size-log.md.
+    const resolvedThemes = await resolveThemes(config.themes, data);
+    const resolvedConfig = { ...config, themes: resolvedThemes, adminThemesLoader: config.themes };
+
     if (!isMultiTenant) {
-        return pattern2routes(data, config)
+        onResolvedSyncApp?.(dmsConfig.app);
+        onResolvedSiteData?.(dmsConfig.app, siteType, data);
+        return pattern2routes(data, resolvedConfig)
     }
 
     // Step 2 — multi-tenant: detect subdomain and route accordingly
@@ -217,7 +309,9 @@ export default async function dmsSiteFactory(config) {
     if (!subdomain) {
         // Platform admin (root domain) — serve master site routes.
         // Phase 3 will render TenantList inside editSite when !subdomain && isMultiTenant.
-        return pattern2routes(data, config)
+        onResolvedSyncApp?.(dmsConfig.app);
+        onResolvedSiteData?.(dmsConfig.app, siteType, data);
+        return pattern2routes(data, resolvedConfig)
     }
 
     // Find the tenant row whose subdomain matches
@@ -225,6 +319,10 @@ export default async function dmsSiteFactory(config) {
     const matchedTenant = tenants.find(t => t.subdomain === subdomain);
 
     if (!matchedTenant) {
+        // No resolved app — sync-init in DmsSite skips entirely when app is falsy,
+        // which is correct here: there's no tenant data to sync against.
+        onResolvedSyncApp?.(null);
+        onResolvedSiteData?.(null, null, null);
         return [{
             path: '/*',
             Component: () => React.createElement(
@@ -262,5 +360,8 @@ export default async function dmsSiteFactory(config) {
     )
 
     // Step 5 — build routes scoped to the tenant
-    return pattern2routes(tenantData, { ...config, dmsConfig: tenantDmsConfig })
+    const tenantResolvedThemes = await resolveThemes(config.themes, tenantData);
+    onResolvedSyncApp?.(tenantApp);
+    onResolvedSiteData?.(tenantApp, siteType, tenantData);
+    return pattern2routes(tenantData, { ...resolvedConfig, dmsConfig: tenantDmsConfig, themes: tenantResolvedThemes })
 }

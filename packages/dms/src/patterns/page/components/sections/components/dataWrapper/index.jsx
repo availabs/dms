@@ -1,7 +1,5 @@
 import React, {useState, useEffect, useMemo, useRef, useCallback, useContext, useImperativeHandle, forwardRef} from 'react'
 import {useNavigate} from "react-router";
-import ExcelJS from 'exceljs';
-import JSZip from 'jszip';
 import { isEqual } from "lodash-es";
 import {useImmer} from "use-immer";
 import {CMSContext, ComponentContext, PageContext} from "../../../../context";
@@ -54,6 +52,10 @@ const excludeFromDownload = c => isDisaggregatingCol(c) || isActionCol(c);
 
 const triggerDownload = async ({state, apiLoad, loadAllColumns, withId, setLoading}) => {
     setLoading(true);
+    const [{ default: ExcelJS }, { default: JSZip }] = await Promise.all([
+        import('exceljs'),
+        import('jszip'),
+    ]);
     const needAllCols = loadAllColumns || withId;
     let cols = needAllCols
         ? [
@@ -509,6 +511,36 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
 
     usePageFilterSync({ state, setState, setReadyOnChange: true, sectionId, trackingId });
 
+    // ── downloadOnParam: an EXTERNAL control triggers this section's download ──
+    // A button living outside the section — e.g. a lexical button with
+    // actionType 'setParam' writing an ACTION page param, or a link setting a
+    // registered URL variable — flips the param; this section watches it, fires
+    // the same triggerDownload the in-section icon uses (visible columns), and
+    // clears the param first so the click can repeat.
+    const downloadParam = state?.display?.downloadOnParam;
+    const { updatePageStateFilters: viewUpdatePageStateFilters, clearActionParam: viewClearActionParam } = _pageCtx;
+    const downloadBusyRef = useRef(false);
+    useEffect(() => {
+        if (!downloadParam || !apiLoad) return;
+        const pf = (viewPageState?.filters || []).find(f => f.searchKey === downloadParam);
+        const vals = pf?.values;
+        const on = Array.isArray(vals)
+            ? vals.some(v => v != null && String(v).length)
+            : (vals != null && String(vals).length > 0);
+        if (!on || downloadBusyRef.current) return;
+        downloadBusyRef.current = true;
+        if (pf?.type === 'action' && viewClearActionParam) {
+            viewClearActionParam(downloadParam);
+        } else if (viewUpdatePageStateFilters) {
+            const remaining = (viewPageState?.filters || [])
+                .filter(f => f.searchKey !== downloadParam)
+                .map(f => ({ searchKey: f.searchKey, values: f.values }));
+            viewUpdatePageStateFilters(remaining, { [downloadParam]: true });
+        }
+        triggerDownload({ state: viewStateRef.current, apiLoad, setLoading: () => {} })
+            .finally(() => { downloadBusyRef.current = false; });
+    }, [viewPageState?.filters, downloadParam, viewUpdatePageStateFilters, viewClearActionParam, apiLoad]);
+
     // ── Sync newItem from page params for columns with usePageParams ──
     useEffect(() => {
         const pageParamColumns = (state?.columns || []).filter(c => c.usePageParams && c.pageParamKey);
@@ -562,7 +594,19 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     useEffect(() => { onHandle?.(handle); }, [handle]);
 
     // ── CRUD ──
-    const editableColumns = useMemo(() => state?.columns?.filter(c => !(c.serverFn && c.joinKey) && c.editable !== false), [state?.columns])
+    // Only actually-writable source fields belong in a row update: a column whose
+    // `name` is a SQL expression (whitespace in the name), or that is a calc/static/
+    // formula/selectOnly cell, can never be a source field — including them wrote the
+    // whole SELECT expression string into the row's data JSONB as a key on every
+    // liveEdit pick / form save (server-side jsonb merge; keys are unremovable via
+    // the public API). See planning/tasks/current/datawrapper-liveedit-writes-expression-columns.md
+    const editableColumns = useMemo(() => state?.columns?.filter(c =>
+        !(c.serverFn && c.joinKey) && c.editable !== false
+        && !c.selectOnly
+        && c.origin !== 'calculated-column' && c.origin !== 'static'
+        && c.type !== 'calculated' && c.type !== 'formula'
+        && !/\s/.test(c.name || '')
+    ), [state?.columns])
     const updateItem = useCallback((value, attribute, d) => {
         if(!(state?.externalSource?.isDms || state?.externalSource?.isEditable) || !apiUpdate || groupByColumnsLength) return;
         const sourceType = state?.externalSource?.type || (state?.externalSource?.name ? nameToSlug(state.externalSource.name) : undefined);

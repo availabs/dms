@@ -10,6 +10,7 @@
 
 const { WebSocketServer } = require('ws');
 const { logEntry, initLogFile, isEnabled: isLoggingEnabled } = require('../../middleware/request-logger');
+const { isSplitType } = require('#db/table-resolver.js');
 
 let wss = null;
 
@@ -24,6 +25,10 @@ const rooms = new Map();
 let Y = null;
 let awarenessProtocol = null;
 const yjsDocs = new Map();
+// In-flight yjs_states load per itemId — see getOrCreateYDoc's comment for
+// why this must exist (a real, live-reproduced duplication bug, not a
+// hypothetical). Entries are removed once the load settles.
+const yjsDocLoads = new Map();
 const awarenesses = new Map();
 
 // Flush timers: itemId → timeout
@@ -90,30 +95,69 @@ async function loadYjs() {
   }
 }
 
+// Fetch (creating + loading if needed) the server-side Y.Doc for `itemId`.
+//
+// Concurrency note — this function is called from the `join-room` handler,
+// and it is NOT safe to assume only one join arrives at a time: multiple
+// clients (e.g. several stale browser tabs all reconnecting once a dev
+// server restarts) can send `join-room` for the same itemId within the same
+// event-loop tick, well before the first call's DB load has resolved. An
+// earlier version of this function registered the new Y.Doc into `yjsDocs`
+// BEFORE awaiting the `yjs_states` SELECT:
+//   const ydoc = new Y.Doc(); yjsDocs.set(itemId, ydoc); await db.promise(...)
+// which closed the "two different Y.Doc instances" race but opened a worse
+// one: every join that arrived while that SELECT was still in flight got the
+// same (correctly shared) but STILL-EMPTY doc back, computed an empty state
+// vector for its own `yjs-sync-step1`, and — per page-structure-provider.js's
+// client-side seed logic (concurrent-page-editing-data-loss.md's "Bug 12")
+// — concluded the room was genuinely empty and safely seedable. Each such
+// client then seeded from its own last-known-good local `draft_sections`
+// copy; since Yjs has no identity linking a fresh seed-insert to
+// already-persisted content, every racing client's copy (plus whatever the
+// DB load eventually applied) landed in the merged array as a separate set
+// of entries — live-reproduced 2026-08-25 against a real page (not a
+// synthetic test): a room's `draft_sections` array jumped from 10 correct
+// entries to 59 (six duplicate copies) in a single write, with no
+// intervening edit, immediately after a dev server restart. This was
+// exactly the "known remaining edge case" the Bug 12 write-up flagged as
+// needing server-side coordination to close — this is that coordination:
+// concurrent callers for the same itemId now await the SAME in-flight load
+// promise, and the doc is only published to `yjsDocs` (so `join-room` can
+// compute a state vector / send step1) once that load has actually
+// completed — so no caller can ever observe a not-yet-loaded doc as empty.
 async function getOrCreateYDoc(itemId) {
   if (yjsDocs.has(itemId)) return yjsDocs.get(itemId);
+  if (yjsDocLoads.has(itemId)) return yjsDocLoads.get(itemId);
   if (!Y) await loadYjs();
   if (!Y) return null;
 
-  const ydoc = new Y.Doc();
-  yjsDocs.set(itemId, ydoc);
+  const loadPromise = (async () => {
+    const ydoc = new Y.Doc();
 
-  // Try to load persisted state
-  if (_db) {
-    try {
-      const row = await _db.promise(
-        `SELECT state FROM ${tbl('yjs_states')} WHERE item_id = $1`, [itemId]
-      );
-      if (row[0]?.state) {
-        const buf = row[0].state instanceof Buffer ? row[0].state : Buffer.from(row[0].state);
-        Y.applyUpdate(ydoc, new Uint8Array(buf));
+    // Try to load persisted state
+    if (_db) {
+      try {
+        const row = await _db.promise(
+          `SELECT state FROM ${tbl('yjs_states')} WHERE item_id = $1`, [itemId]
+        );
+        if (row[0]?.state) {
+          const buf = row[0].state instanceof Buffer ? row[0].state : Buffer.from(row[0].state);
+          Y.applyUpdate(ydoc, new Uint8Array(buf));
+        }
+      } catch (err) {
+        console.warn(`[ws] failed to load Yjs state for ${itemId}:`, err.message);
       }
-    } catch (err) {
-      console.warn(`[ws] failed to load Yjs state for ${itemId}:`, err.message);
     }
-  }
 
-  return ydoc;
+    yjsDocs.set(itemId, ydoc);
+    return ydoc;
+  })();
+  yjsDocLoads.set(itemId, loadPromise);
+  try {
+    return await loadPromise;
+  } finally {
+    yjsDocLoads.delete(itemId);
+  }
 }
 
 function getOrCreateAwareness(itemId, ydoc) {
@@ -470,20 +514,74 @@ function initWebSocket(server, db = null) {
  */
 /**
  * Check if a change's item type matches a pattern subscription.
- * A pattern matches if the item type equals the doc_type or starts with doc_type + '|'.
+ * A pattern matches if the item type equals the pattern, starts with
+ * pattern + '|' (a child type, e.g. subscribing to 'my_docs|page' also
+ * wants 'my_docs|page|history'), OR starts with the pattern's own instance
+ * prefix + '|' (a SIBLING type under the same instance — e.g. subscribing
+ * to 'my_docs|page' must also match 'my_docs|component', since a page's
+ * sections are a sibling type, not a child of the page's own type string).
+ * Mirrors sync.js's bootstrap/delta instancePrefix matching exactly — those
+ * REST endpoints already handle this sibling relationship; this filter
+ * didn't, so a client subscribed only to a page's pattern type never
+ * received the live WS broadcast for an edit to one of that page's own
+ * sections. Found live 2026-08-24 investigating cross-tab data loss — see
+ * concurrent-page-editing-data-loss.md Bug 10.
  */
 function typeMatchesPattern(itemType, pattern) {
-  return itemType === pattern || itemType.startsWith(pattern + '|');
+  if (itemType === pattern || itemType.startsWith(pattern + '|')) return true;
+  const pipeIdx = pattern.indexOf('|');
+  if (pipeIdx !== -1) {
+    const instancePrefix = pattern.substring(0, pipeIdx);
+    if (itemType.startsWith(instancePrefix + '|')) return true;
+  }
+  return false;
+}
+
+/**
+ * Reduce a dataset-row (split-type) change to a notification.
+ *
+ * The pull path deliberately never delivers these rows: they live in their own
+ * `data_items__<source>` tables, they can be arbitrarily large, and they are
+ * fetched on demand through Falcor/UDA instead — `/sync/bootstrap` and
+ * `/sync/delta` both filter them out (isSyncExcluded in sync.js). The push
+ * path did the opposite and shipped them in full: 7.7 MB per write for
+ * `jurisdictions|1346450:data`, 3,306 writes in 30 days, to whichever clients
+ * happened to have no pattern subscription at that moment.
+ *
+ * Stripping `data` leaves the notification — revision, action, and the item's
+ * id/app/type — which is all a client needs, because the invalidation it
+ * triggers is what actually refreshes a dataset view (via router.revalidate →
+ * Falcor refetch), not this payload. Nothing ever read the mirrored copy.
+ *
+ * `dataOmitted` makes the wire format self-describing and shows up in the
+ * broadcast log. Clients branch on the TYPE rather than this flag, so an older
+ * client sees a `:data` message with no data (harmless — the same invalidation
+ * still fires) and a newer client refuses to mirror a blob even from a server
+ * that predates this change.
+ *
+ * See sync-ws-broadcast-split-row-payload.md.
+ */
+function stripSplitRowData(msg) {
+  const type = msg?.item?.type;
+  if (!type || !isSplitType(type) || msg.item.data === undefined) return msg;
+  const item = { ...msg.item, dataOmitted: true };
+  delete item.data;
+  return { ...msg, item };
 }
 
 function notifyChange(app, msg) {
   const subs = appSubscribers.get(app);
   if (!subs) return;
-  const payload = JSON.stringify(msg);
+  // Strip BEFORE serializing: JSON.stringify runs once, unconditionally, ahead
+  // of any per-client filtering, so a single subscriber anywhere on the app was
+  // enough to pay the full multi-megabyte allocation even when the filter then
+  // dropped every recipient.
+  const outbound = stripSplitRowData(msg);
+  const payload = JSON.stringify(outbound);
   _stats.broadcastCount++;
   _stats.broadcastMsgBytes += payload.length;
 
-  const itemType = msg.item?.type;
+  const itemType = outbound.item?.type;
   let recipientCount = 0;
 
   for (const client of subs) {
@@ -515,8 +613,9 @@ function notifyChange(app, msg) {
     action: msg.action,
     revision: msg.revision,
     itemId: msg.item?.id,
-    itemType: msg.item?.type,
+    itemType,
     payloadKB: +(payload.length / 1024).toFixed(1),
+    dataOmitted: outbound.item?.dataOmitted === true,
     recipients: recipientCount,
   });
 }
@@ -528,4 +627,10 @@ function getWSS() {
   return wss;
 }
 
-module.exports = { initWebSocket, notifyChange, getWSS };
+module.exports = {
+  initWebSocket,
+  notifyChange,
+  getWSS,
+  // Exposed for testing
+  stripSplitRowData,
+};

@@ -1,8 +1,9 @@
-export { dmsDataLoader, dmsDataEditor, _setSyncAPI } from './api'
+export { dmsDataLoader, dmsDataEditor, checkIdsExist, _setSyncAPI } from './api'
 export { updateRegisteredFormats, updateAttributes, json2DmsForm, initializePatternFormat } from './dms-manager/_utils'
 export { default as dmsColumnTypes } from './ui/columnTypes'
 export { default as dmsPageFactory } from './render/dmsPageFactory'
 export { default as dmsSiteFactory, DmsSite } from "./render/spa/dmsSiteFactory";
+export { collectThemeNames } from "./render/spa/utils";
 export { CMSContext } from './patterns/page/context'
 export { useAuth } from './patterns/auth/context';
 export { withAuth, authProvider } from './patterns/auth/providers';

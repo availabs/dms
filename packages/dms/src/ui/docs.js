@@ -1,7 +1,6 @@
 import {docs as MultiSelect} from "./components/MultiSelect.theme";
 import {docs as Table} from "./components/table/table.theme";
 import {docs as Card} from "./components/card.theme";
-import {docs as Graph} from "./components/graph/theme";
 import {docs as Input} from "./components/Input.theme";
 import {docs as Modal} from "./components/Modal.theme";
 import SideNav from "./components/SideNav.docs";
@@ -20,6 +19,7 @@ import {docs as Pagination} from "./components/Pagination";
 import {docs as DraggableNav} from "./components/draggableNav";
 import {docs as NavigableMenu} from "./components/navigableMenu/theme";
 import pageViewDoc from "../patterns/page/pages/view.doc";
+import Graph from "./components/graph_new/Graph.docs";
 
 const output = {
     PageView: pageViewDoc,
@@ -27,7 +27,6 @@ const output = {
     MultiSelect,
     Table,
     Card,
-    Graph,
     Modal,
     SideNav,
     TopNav,
@@ -44,7 +43,10 @@ const output = {
     // // Nestable,
     DraggableNav,
     Pagination,
-    NavigableMenu
+    NavigableMenu,
+    // compOptions in editTheme.jsx has always offered Graph; without an entry
+    // here the preview pane fell back to a propless UI.Graph and drew nothing.
+    Graph
 }
 
 export default output

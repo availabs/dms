@@ -141,7 +141,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
       .find(k => k !== '$__path');
     if (!templatePatternId) continue;
 
-    allPatternRefs = [...allPatternRefs, { ref: `${app}+${siteInstance}|pattern`, id: +templatePatternId }];
+    allPatternRefs = [...allPatternRefs, { ref: `${app}+${patternType}`, id: +templatePatternId }];
     await syncSiteRefs();
 
     if (patternSpec.pattern_type === 'page' && patternSpec.pages?.length) {
@@ -153,6 +153,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
           : baseSections;
         await falcor.call(['dms', 'data', 'create'], [app, `${patternSlug}|page`, {
           title: pageSpec.title,
+          url_slug: nameToSlug(pageSpec.title),
           index: 0,
           published: 'draft',
           draft_sections,
@@ -168,14 +169,15 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
       const envId = Object.keys(envRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
 
       if (envId) {
-        allEnvRefs = [...allEnvRefs, { ref: `${app}+${siteInstance}|dmsenv`, id: +envId }];
+        allEnvRefs = [...allEnvRefs, { ref: `${app}+${envType}`, id: +envId }];
         await syncSiteRefs();
         await falcor.call(['dms', 'data', 'edit'], [app, +templatePatternId, { dmsEnvId: +envId }]);
 
         let sourceRefs = [];
         for (const sourceSpec of patternSpec.sources) {
           const sourceSlug = nameToSlug(sourceSpec.name);
-          const sourceRes = await falcor.call(['dms', 'data', 'create'], [app, `${envSlug}|${sourceSlug}:source`, {
+          const sourceType = `${envSlug}|${sourceSlug}:source`;
+          const sourceRes = await falcor.call(['dms', 'data', 'create'], [app, sourceType, {
             name: sourceSpec.name,
             type: sourceSpec.source_type,
             ...(sourceSpec.config ? { config: JSON.stringify(sourceSpec.config) } : {}),
@@ -183,7 +185,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
           const sourceId = Object.keys(sourceRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
           if (!sourceId) continue;
 
-          sourceRefs = [...sourceRefs, { ref: `${app}+${envSlug}|source`, id: +sourceId }];
+          sourceRefs = [...sourceRefs, { ref: `${app}+${sourceType}`, id: +sourceId }];
 
           if (sourceSpec.views?.length) {
             let viewRefs = [];
@@ -193,7 +195,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
               const viewRes = await falcor.call(['dms', 'data', 'create'], [app, viewType, { name: viewSpec.name }]);
               const viewId = Object.keys(viewRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
               if (viewId) {
-                viewRefs = [...viewRefs, { ref: `${app}+${sourceSlug}|view`, id: +viewId }];
+                viewRefs = [...viewRefs, { ref: `${app}+${viewType}`, id: +viewId }];
 
                 if (!wiredContext) {
                   wiredContext = {

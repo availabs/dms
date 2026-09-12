@@ -297,7 +297,12 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
             className={t.valueComp}
             loading={loading}
             value={value}
-            placeholder={node.op === 'like' ? 'search...' : isMultiselect ? 'select...' : 'enter a number...'}
+            // A leaf may author its own placeholder (e.g. the mockup vocabulary:
+            // dropdowns say "All", the search box says "Search actions…").
+            // Multiselects get NO default — MultiSelect renders a provided
+            // placeholder in the empty trigger, so a default here would put
+            // "select..." text in every existing filter dropdown.
+            placeholder={node.placeholder || (node.op === 'like' ? 'search...' : isMultiselect ? undefined : 'enter a number...')}
             options={isMultiselect ? options : undefined}
             singleSelectOnly={isMultiselect ? !node.isMulti : undefined}
             // Single-select filter pickers stay clearable: an × deselects back to

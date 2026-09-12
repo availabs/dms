@@ -123,7 +123,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const theme = getComponentTheme(fullTheme, 'pages.section')
     const {Button, Icon, Switch, NavigableMenu, Permissions, Pill} = UI
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+    const sectionAuthPermissions = getPageAuthPermissions(value?.authPermissions);
 
     // ── Resolve element-data (merge page-level config if dataSourceId present) ──
     const resolvedElementData = isDataComponent
@@ -162,6 +162,15 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         if (!isEqual(value, {...value, [k]: v})) {
             onChange({...value, [k]: v})
         }
+    }
+    // Multi-key sibling of updateAttribute. Two sequential single-key calls both derive their
+    // next value from the SAME captured `value`, so the second silently discards the first — which
+    // is a real trap for any caller that needs to change a section's element AND one of its own
+    // attributes in one action (e.g. the NPMRDS measure pills, which rewrite element-data and the
+    // section's auto-composed title together). Additive: nothing existing calls it.
+    const updateAttributes = (patch) => {
+        const newV = {...value, ...patch}
+        if (!isEqual(value, newV)) onChange(newV)
     }
     const updateElementType = (v) => {
         if(!isEqual(value.element['element-type'], v)){
@@ -226,7 +235,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
     const canEditPageContent = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const sectionMenuItems = getSectionMenuItems({
         sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
-        actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
+        actions: { moveItem, updateAttribute, updateAttributes, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
         // `sectionArrayStyle`: the BAND's `pages.sectionArray` style name, so the
         // menu offers the Width/Row span/Border/Padding/Shadow maps this band
@@ -255,7 +264,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                     state: stateFromRef, dwAPI: dwAPI || {}, mapAPI, isEdit, canEditSection,
                     currentComponent: component, siblingSections,
                     sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
-                    actions: { moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
+                    actions: { moveItem, updateAttribute, updateAttributes, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
                     auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
                     ui: { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents },
                     dataSource: dataSourceFromRef,
@@ -361,7 +370,17 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const siblingSections = item?.[editPageMode ? 'draft_sections' : 'sections'] || [];
 
     const {NavigableMenu, Switch, Pill, Icon, Permissions} = UI;
-    const theme = getComponentTheme(fullTheme, 'pages.section');
+    // `value.activeStyle` selects this section's `pages.section` style, the same field that
+    // already selects its component style (graph_new/Card/spreadsheet all read it off the
+    // `activeStyle` prop threaded below). One field, several component scopes: each resolves it
+    // against its own `styles` list and getComponentTheme falls back to styles[0] on any name it
+    // doesn't recognise, so a section naming a style only one scope defines is a no-op in the
+    // others. That fallback is what makes this additive — every section that predates a named
+    // style, and every site that defines none, keeps styles[0] exactly as before.
+    //
+    // Site-wide would have been wrong here: a brand wants a bordered card band on a report graph
+    // and nothing of the sort on a documentation page, and both are `pages.section`.
+    const theme = getComponentTheme(fullTheme, 'pages.section', value?.activeStyle);
 
     const RegisteredComponents = getRegisteredComponents();
     const component = RegisteredComponents[get(value, ["element", "element-type"], "lexical")];
@@ -383,7 +402,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const isEdit = false;
     const refreshDataBtnRef = useRef(null);
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-    const sectionAuthPermissions = value?.authPermissions && typeof value.authPermissions === 'string' ? JSON.parse(value?.authPermissions) : undefined;
+    const sectionAuthPermissions = getPageAuthPermissions(value?.authPermissions);
 
     const TitleComp = attributes?.title?.ViewComp || (() => <div>Title component not found.</div>)
     const TitleEditComp = attributes?.title?.EditComp
@@ -403,6 +422,15 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         if (!isEqual(value, newV)) {
             onChange?.(i, newV)
         }
+    }
+    // Multi-key sibling of updateAttribute. Two sequential single-key calls both derive their
+    // next value from the SAME captured `value`, so the second silently discards the first — which
+    // is a real trap for any caller that needs to change a section's element AND one of its own
+    // attributes in one action (e.g. the NPMRDS measure pills, which rewrite element-data and the
+    // section's auto-composed title together). Additive: nothing existing calls it.
+    const updateAttributes = (patch) => {
+        const newV = {...value, ...patch}
+        if (!isEqual(value, newV)) onChange?.(i, newV)
     }
     const updateElementType = (v) => {
         if(!isEqual(value.element['element-type'], v)){
@@ -452,6 +480,18 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null;
 
+    // ── Section-level VIEW gate ──
+    // A section carrying authPermissions is HIDDEN from viewers who don't clear
+    // them (e.g. {groups:{public:[]}} = signed-in only — auth-gated CTAs living
+    // in their own sections). Sections without authPermissions are untouched
+    // (BC), and page-edit mode always shows the section so authors can manage
+    // it. Mirrors the page-level authPermissions convention.
+    const sectionHasAuth = sectionAuthPermissions && (
+        Object.keys(sectionAuthPermissions?.groups || {}).length ||
+        Object.keys(sectionAuthPermissions?.users || {}).length
+    );
+    if (sectionHasAuth && !editPageMode && !isUserAuthed(['view'], sectionAuthPermissions)) return null;
+
     // ── Menu from handle ──
     const dwAPI = dwHandle?.dwAPI;
     const mapAPI = dwHandle?.mapAPI;
@@ -461,7 +501,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
     const canEditPageContent = isUserAuthed(['edit-page', 'edit-page-layout'], pageAuthPermissions);
     const sectionMenuItems = getSectionMenuItems({
         sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
-        actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
+        actions: { onEdit, moveItem, updateAttribute, updateAttributes, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme },
         dataSource: dataSourceFromRef,
@@ -485,7 +525,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                     state: stateFromRef, dwAPI: dwAPI || {}, mapAPI, isEdit, canEditSection,
                     currentComponent: component, siblingSections,
                     sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
-                    actions: { onEdit, moveItem, updateAttribute, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
+                    actions: { onEdit, moveItem, updateAttribute, updateAttributes, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
                     auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
                     ui: { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents },
                     dataSource: dataSourceFromRef,
@@ -511,6 +551,24 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     // Clean in-page-nav anchor id (Phase 3) — see SectionEdit for rationale.
     const anchorId = value?.anchorId || (value?.navLabel ? slugifyAnchor(value.navLabel) : undefined);
+
+    // Live-resolve a report graph's own section title against whichever real route it's bound
+    // to (dynamic-reports-authoring-gaps.md — "Static graph text vs. live route resolution").
+    // `theme.resolveReportDisplayText` only exists on sites/themes that define it (transportny);
+    // everywhere else this is a no-op and `resolvedTitle === value?.title` unchanged. Safe to call
+    // unconditionally even on transportny's own non-report sections: the hook itself no-ops on
+    // anything that isn't a `%n`/`%y`-bearing string (a Lexical rich-text title, an already-plain
+    // title, etc). `dwHandle.state` is the same parsed element-data graph_new/index.jsx renders
+    // from — already tracked here for the `hideSection` read above, no new plumbing.
+    const measurePick = dwHandle?.state?.display?._measurePick;
+    const resolvedTitle = fullTheme?.resolveReportDisplayText
+        ? fullTheme.resolveReportDisplayText(value?.['title'], {
+            routeIds: measurePick?.routeIds,
+            invert: dwHandle?.state?.display?.comparisonSeries?.combine?.invert,
+            pageState,
+        })
+        : value?.['title'];
+    const headerValue = resolvedTitle === value?.['title'] ? value : { ...value, title: resolvedTitle };
 
     return (
         <div id={anchorId}
@@ -541,19 +599,25 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
             {/* -------------------Section Header ----------------------*/}
             {showHeader ? (
                 <ViewSectionHeader
-                    value={value}
+                    value={headerValue}
                     TitleComp={TitleComp}
                     updateAttribute={updateAttribute}
                     helpTextArray={helpTextArray}
                     HelpComp={HelpComp}
+                    sectionTheme={theme}
+                    headerExtensions={headerExtensions}
                 />
             ) : ''
             }
             {/* Independent of showHeader — many AVL Graph sections carry no
                 title of their own (the "header + hero-stat" pattern stacks a
                 separate title Card above), so gating this on showHeader would
-                make extensions unreachable for that common case. */}
-            {headerExtensions.length > 0 && (
+                make extensions unreachable for that common case.
+                Skipped when the style pulls them INSIDE the header band
+                (`headerExtensionsInline`) — but only when there is actually a
+                header band to pull them into, so a titleless graph still gets
+                its Quick Controls on the row below rather than losing them. */}
+            {headerExtensions.length > 0 && !(theme.headerExtensionsInline && showHeader) && (
                 <div className={theme.headerExtensionsRow}>
                     {headerExtensions.map((node, idx) => <React.Fragment key={idx}>{node}</React.Fragment>)}
                 </div>

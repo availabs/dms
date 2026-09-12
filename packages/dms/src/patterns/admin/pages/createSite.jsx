@@ -79,7 +79,7 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				const newPatternId = Object.keys(patternRes?.json?.dms?.data?.byId || {})
 					.find(k => k !== '$__path');
 				const authPatternRefs = newPatternId
-					? [{ ref: `${app}+${siteInstance}|pattern`, id: +newPatternId }]
+					? [{ ref: `${app}+${authPatternType}`, id: +newPatternId }]
 					: [];
 				if (authPatternRefs.length) {
 					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, { patterns: authPatternRefs }]);

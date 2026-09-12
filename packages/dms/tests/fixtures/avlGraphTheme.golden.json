@@ -1,0 +1,145 @@
+{
+  "options": {
+    "activeStyle": 0
+  },
+  "styles": [
+    {
+      "name": "Light Mode",
+      "bgColor": "bg-white",
+      "textColor": "text-slate-800",
+      "padding": "p-4",
+      "chartDefaults": {
+        "colors": {
+          "type": "palette",
+          "value": [
+            "#2166ac",
+            "#67a9cf",
+            "#d1e5f0",
+            "#fddbc7",
+            "#ef8a62",
+            "#b2182b"
+          ]
+        },
+        "margin": {
+          "top": 20,
+          "right": 20,
+          "bottom": 50,
+          "left": 100
+        },
+        "height": 300,
+        "interpolation": "catmullrom",
+        "strokeWidth": 1,
+        "area": false,
+        "areaOpacity": 0.15,
+        "xAxis": {
+          "show": true,
+          "showGridLines": false,
+          "rotateLabels": false,
+          "tickDensity": 2,
+          "gridLineOpacity": 0.25,
+          "axisColor": "currentColor",
+          "tickFontSize": "0.75rem",
+          "tickFontFamily": "inherit",
+          "tickFontWeight": "normal",
+          "tickColor": "currentColor",
+          "labelFontSize": "1rem",
+          "labelFontFamily": "inherit",
+          "labelFontWeight": "bold",
+          "labelColor": "currentColor"
+        },
+        "yAxis": {
+          "show": true,
+          "showGridLines": true,
+          "format": "Integer",
+          "gridLineOpacity": 0.25,
+          "axisColor": "currentColor",
+          "tickFontSize": "0.75rem",
+          "tickFontFamily": "inherit",
+          "tickFontWeight": "normal",
+          "tickColor": "currentColor",
+          "labelFontSize": "1rem",
+          "labelFontFamily": "inherit",
+          "labelFontWeight": "bold",
+          "labelColor": "currentColor"
+        },
+        "legend": {
+          "show": true
+        }
+      },
+      "text": "text-base font-regular",
+      "headerWrapper": "grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5",
+      "columnControlWrapper": "px-1 font-semibold border bg-gray-50 text-gray-500",
+      "scaleWrapper": "flex rounded-md p-1 divide-x border w-fit",
+      "scaleItem": "font-semibold text-gray-500 hover:text-gray-700 px-2 py-1"
+    },
+    {
+      "name": "Dark Mode",
+      "bgColor": "bg-transparent",
+      "textColor": "text-white",
+      "padding": "p-4",
+      "chartDefaults": {
+        "colors": {
+          "type": "palette",
+          "value": [
+            "#2166ac",
+            "#67a9cf",
+            "#d1e5f0",
+            "#fddbc7",
+            "#ef8a62",
+            "#b2182b"
+          ]
+        },
+        "margin": {
+          "top": 20,
+          "right": 20,
+          "bottom": 50,
+          "left": 100
+        },
+        "height": 300,
+        "interpolation": "catmullrom",
+        "strokeWidth": 1,
+        "area": false,
+        "areaOpacity": 0.15,
+        "xAxis": {
+          "show": true,
+          "showGridLines": false,
+          "rotateLabels": false,
+          "tickDensity": 2,
+          "gridLineOpacity": 0.25,
+          "axisColor": "currentColor",
+          "tickFontSize": "0.75rem",
+          "tickFontFamily": "inherit",
+          "tickFontWeight": "normal",
+          "tickColor": "currentColor",
+          "labelFontSize": "1rem",
+          "labelFontFamily": "inherit",
+          "labelFontWeight": "bold",
+          "labelColor": "currentColor"
+        },
+        "yAxis": {
+          "show": true,
+          "showGridLines": true,
+          "format": "Integer",
+          "gridLineOpacity": 0.25,
+          "axisColor": "currentColor",
+          "tickFontSize": "0.75rem",
+          "tickFontFamily": "inherit",
+          "tickFontWeight": "normal",
+          "tickColor": "currentColor",
+          "labelFontSize": "1rem",
+          "labelFontFamily": "inherit",
+          "labelFontWeight": "bold",
+          "labelColor": "currentColor"
+        },
+        "legend": {
+          "show": true
+        }
+      },
+      "text": "text-base font-regular",
+      "headerWrapper": "grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-4 gap-x-1 gap-y-0.5",
+      "columnControlWrapper": "px-1 font-semibold border bg-gray-50 text-gray-500",
+      "scaleWrapper": "flex rounded-md p-1 divide-x border w-fit",
+      "scaleItem": "font-semibold text-gray-500 hover:text-gray-700 px-2 py-1"
+    }
+  ]
+}

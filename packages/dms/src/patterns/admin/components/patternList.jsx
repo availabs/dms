@@ -251,7 +251,7 @@ function PatternEdit({
 			.filter(d => d !== '$__path')?.[0];
 
 		if (newId) {
-			const newData = [...value, { ref: `${app}+${siteInstance}|pattern`, id: +newId }];
+			const newData = [...value, { ref: `${app}+${patternType}`, id: +newId }];
 			onChange(newData);
 			onSubmit(newData);
 		}
@@ -262,6 +262,7 @@ function PatternEdit({
 			const pageType = `${slug}|page`;
 			await falcor.call(['dms', 'data', 'create'], [app, pageType, {
 				title: tmpl?.name ?? data.name,
+				url_slug: nameToSlug(tmpl?.name ?? data.name),
 				index: 0,
 				published: 'draft',
 				...(tmpl?.draft_sections !== undefined          ? { draft_sections: tmpl.draft_sections }                 : {}),

@@ -232,19 +232,71 @@ fan-out, the axis/categorize binding model) belong in
 [`difference-graphs.md`](./difference-graphs.md), not here — this doc only
 covers the DOM shape you'd query for.
 
+## 3b. Editable Spreadsheet cells (`allowEditInView` grids) — driving them in automation
+
+Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-styled grids:
+
+- **Single click SELECTS the cell** (blue ring), it does not edit. The editor opens on
+  **DOUBLE-CLICK** (`TableCell.onDoubleClick`). For a select-type column the editor is a
+  closed picker whose placeholder is `Select…` — with a **UNICODE ellipsis (U+2026)**, so
+  `getByText("Select...")` never matches; click that trigger to open the option menu, then
+  click the option text (a `priority_tier` option is a badge + short-label composite — match
+  on the short label, e.g. "Important but Secondary Priority").
+- **liveEdit saves ~500ms after the pick** (debounced). Wait ≥1s before asserting, and
+  verify with `dms dataset query` — never trust the pill alone.
+- **The pagination footer ("Rows 1 to N of M") only renders when M > pageSize**; for a
+  filtered result inside one page, count `.group\/row` elements instead. Also rendered-row
+  count lags/virtualizes (~25 shown of 30) — the footer's M is the truth when present.
+- **Edit-mode section chrome can swallow real clicks** on interactive cells (a
+  `filter_control` toggle's checkbox at one position ignored mouse clicks while an identical
+  toggle lower on the page worked; invoking the input's React `onChange` via
+  `__reactProps$…` proved the wiring). Re-verify physical clicks in VIEW mode post-publish
+  before filing a bug.
+- **A row-update writes only writable source fields** (since 2026-08-31): `editableColumns`
+  excludes selectOnly/calculated/static/formula columns and whitespace (expression) names.
+  Before that fix, every liveEdit pick merged every section column — including whole SQL
+  expression strings as keys — into the row's data JSONB (see src/dms task
+  `datawrapper-liveedit-writes-expression-columns.md`).
+
 ## 4. Known state-machine / URL gotchas (check this list before concluding a bug)
 
-- **Subdomain routing, not path routing.** A pattern's page lives at
-  `http://<subdomain>.localhost:5173/<slug>` — bare `localhost:5173/<slug>`
-  resolves to the default/landing pattern instead (zero data-loading traffic
-  fires; easy to misread as "the page never loads its sections"). Find the
-  subdomain via `dms pattern show <pattern-name>`.
+- **Subdomain routing OR path-mount routing — check the pattern's actual mount, don't assume.**
+  A pattern's primary mount is either `{subdomain, base_url:'/'}` (page lives at
+  `http://<subdomain>.localhost:5173/<slug>`) or `{subdomain:'www', base_url:'/<mount>'}` (page
+  lives at `http://www.localhost:5173/<mount>/<slug>`) — `dms pattern show <pattern-name>` gives
+  the truth (`subdomain`/`base_url` fields), don't hardcode either shape from memory or from an
+  older doc. Bare `localhost:5173/<slug>` (no subdomain, no mount) resolves to the default/landing
+  pattern instead (zero data-loading traffic fires; easy to misread as "the page never loads its
+  sections"). **`npmrds_sub` moved from the `npmrds` subdomain to the `www:/npmrds` path-mount on
+  2026-09-02** (part of the broader TransportNY subdomain→path consolidation,
+  `mount-aware-links-and-retired-subdomains.md` in `src/dms/planning/tasks/current/`) — any doc or
+  script still hardcoding `npmrds.localhost:5173` is stale; the live URL is
+  `www.localhost:5173/npmrds/<slug>` (edit: `www.localhost:5173/npmrds/edit/<slug>`). A stale
+  subdomain host may still 200 (the pattern's `locations` can carry the old subdomain as a
+  secondary mount) — don't treat "it loads" as proof it's the current canonical URL; check
+  `dms pattern show` if in doubt. This applies per-pattern: don't assume every subdomain migrated
+  just because npmrds_sub did.
+- **The repo `.env` can override your throwaway vite's site.** dms-template's `.env`
+  carries `VITE_DMS_TYPE=dev2` (npmrdsv5 QA); a QA vite for a `prod`-type site launched
+  without an explicit `VITE_DMS_TYPE=prod` loads `<app>+dev2:site` → EVERY route 404s with
+  zero console errors. Diagnose by watching the first `/graph` request's site key
+  (2026-08-31, mitigat-ny-prod).
 - **Edit URL puts `edit` first**: `/edit/<slug>`, not `<slug>/edit`. The wrong
   shape silently falls back to the site's default/index page.
 - **Any unresolvable slug silently falls back to the home/index page** —
   rather than erroring. A typo'd slug and an actual permission denial render
   identically (full rich content, no error text). Don't over-interpret a
   fallback render as a permission problem before double-checking the URL.
+  **A page's `url_slug` can itself contain `/` and isn't just the last path segment** — e.g. a
+  TransportNY report's `url_slug` is the full `reports/<title_snake_case>`, not `<title_snake_case>`
+  under a `reports/` mount, so `/edit/<title_snake_case>` (stripping what looks like a parent
+  prefix) 404s-via-fallback while `/edit/reports/<title_snake_case>` resolves (found live
+  2026-09-04). Don't guess-and-strip a prefix that looks like a mount segment — confirm the real,
+  complete `url_slug` first: `python3 scripts/npmrds-reports/check_page_exists.py <fragment>` queries
+  `dms_npmrdsv5.data_items` directly (exact match, falling back to a `url_slug`/title substring
+  search) and prints the real `url_slug` plus ready-to-use view/edit URLs — cheaper than a
+  screenshot-guess-repeat loop, and works for any `npmrds_sub|page`, not just `reports/*` (that
+  narrower case has its own picker, `pick_test_report.py`, referenced above).
 - **A stale injected auth token silently degrades to anonymous** rather than
   erroring — a rendered-but-view-only page (settings/edit affordances all
   missing) is as likely to mean "expired token" as "real permissions issue."

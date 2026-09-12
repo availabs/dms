@@ -47,12 +47,14 @@ const adminConfig = ({
   baseUrl = "/",
   authPath = "/auth",
   themes = {},
+  themesLoader = null,
   dmsEnvs = [],
   dmsEnvById = {},
   pattern: patternData,
   authPermissions = {},
   isMultiTenant = false,
   pgEnv = '',
+  ssrCollect,
 }) => {
   const format = cloneDeep(adminFormat);
   format.app = app;
@@ -75,7 +77,7 @@ const adminConfig = ({
   let theme = getPatternTheme(themes, {
     ...patternData,
     theme: { selectedTheme: "default" },
-  });
+  }, ssrCollect);
 
   // console.log('admin siteconfig API', API_HOST)
   return {
@@ -108,7 +110,7 @@ const adminConfig = ({
                 pgEnv,
               }}
             >
-              <ThemeContext.Provider value={{ theme, themes, UI }}>
+              <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                   <LayoutGroup>{props.children}</LayoutGroup>
                 </Layout>
@@ -176,6 +178,7 @@ const patternConfig = ({
   baseUrl = "/",
   authPath = "/auth",
   themes = {},
+  themesLoader = null,
   rightMenu = <DefaultMenu />,
   dmsEnvs = [],
   dmsEnvById = {},
@@ -240,7 +243,7 @@ const patternConfig = ({
                 datasources,
               }}
             >
-              <ThemeContext.Provider value={{ theme, themes, UI }}>
+              <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
                 <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
                   <SectionGroup maxWidth={""}>{props.children}</SectionGroup>
                 </Layout>

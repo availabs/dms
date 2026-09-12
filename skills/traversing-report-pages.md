@@ -20,6 +20,17 @@ doc is worse than no doc, because it reads as authoritative. If you find a
 claim below that no longer matches the code, fix it in place rather than
 leaving it to rot.
 
+**Correction, 2026-09-02: the URL scheme is now `reports/*`, not `converted_reports/*`.**
+The homepage (page 2188366) and every report page under it were renamed
+`converted_reports` → `reports` (`converted_reports/<slug>` → `reports/<slug>`), and the
+curated-catalog page `converted_reports/reports` (2208581) was **destroyed**, not renamed —
+Ryan confirmed it was a disposable v0.1 landing page. See
+`planning/transportny/tasks/current/rename-converted-reports-url-to-reports.md` for the full
+record (DB migration, code changes, why a parent-page UI rename does NOT cascade to children).
+Every `converted_reports` reference below this point describes historical state at the time it
+was written — read it as history, not current fact, and substitute `reports` when actually
+navigating live.
+
 ## 4. Creating a report page, and the Route List panel (tags, Dynamic Reports)
 
 ### Creating a page via "+ Add Page → Your Templates"
@@ -45,13 +56,31 @@ leaving it to rot.
    own Settings pane afterward if it needs a real slug/parent.
 
 Verified 2026-08-03: a freshly-created "Report Page" page (zero custom code,
-zero scripts involved) already has a working `ReportRouteList` panel + one
-starter self-bound AVL Graph section, ready to receive a route the moment one
-is added via "+ Add Route" — useful as a clean, un-scripted reproduction
-environment when you need to rule out "is this bug specific to some other
-build path" (this is exactly how a genuine AVL Graph rendering bug was
-isolated away from a suspected feature-specific cause — see
-`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, repo root).
+zero scripts involved) already has a working `ReportRouteList` panel, ready to
+receive a route the moment one is added via "+ Add Route" — useful as a clean,
+un-scripted reproduction environment when you need to rule out "is this bug
+specific to some other build path" (this is exactly how a genuine AVL Graph
+rendering bug was isolated away from a suspected feature-specific cause — see
+`planning/transportny/tasks/current/dynamic-reports-and-route-tags.md`, repo
+root). **Correction, 2026-09-03**: the template no longer ships a starter
+graph/stat section at all — it used to include a starter self-bound AVL Graph,
+later replaced by an unconfigured hero-stat "Callout Stat" Card, which was
+itself removed the same day it was found to just read as blank dead space
+between the header and the (nonexistent) first graph. **Same day, second
+pass**: the template's standalone header-prose `lexical` block (kicker/"What
+question does this report answer?"/prose) was ALSO removed — it duplicated
+`ReportPageHeader`'s own `purpose` field near-verbatim, and there were no
+compelling lexical-block report examples to justify keeping the pattern
+around. See `planning/transportny/tasks/current/report-page-template-
+editorial-slots.md`'s "Removal" section for the full record. A fresh Report
+Page now has exactly **2 sections** (`ReportPageHeader`, `ReportRouteList`)
+and zero data/visual sections — the first graph always comes from RRL's own
+"+ Add Graph", never a pre-existing slot. The template itself is now a
+git-committed spec (`scripts/npmrds-reports/page_template_specs/
+report_page.json`), built via `report_page_template_build.mjs` the same way
+`report_build.mjs` builds pages from `dynamic_report_specs/*.json` — edit the
+spec and `--apply` it rather than hand-editing the template row. Re-verify
+this claim again if the template changes further.
 
 ### The route-picker modal ("+ Add Route" / "+ Add Route Slot")
 
@@ -83,6 +112,247 @@ not a flat catalog list:
   navigating this modal via DOM query, don't assume the first
   `t.routeList`-shaped block you find is the route list — the category pill
   row now comes first in `view === 'root'`.
+
+#### 2026-08-25 redesign: prominence sort, "mine"/"curated"/"auto-generated" facets, fragment collapse
+
+Built for the npmrds-picker-modals design work (mockup:
+`src/themes/transportny/TransportNY Design System/dms_design_system_v2/pages/npmrds-picker-modals.html`).
+Verified live via `report_probe.mjs --eval` scripts (claude-in-chrome was unavailable this
+session) against both live call sites — RRL's "+ Add Route" and Dynamic Reports' blocking entry
+gate — on a scratch page. Shared code now lives in
+`src/themes/transportny/components/PickerModal/` (`pickerScoring.js`, `useCatalogFetch.js`,
+`fetchCatalogRows.js` — moved from this folder, `PickerModalParts.jsx`), reused by the new report
+picker (below) so the two pickers share styling/behavior rather than drifting.
+
+- **Default sort is now prominence-weighted ("Best match"), not `created_at desc`.**
+  `RouteTagBrowserModal/routeScore.js`'s `routeScore()` weighs road class (I-/US-/NY- name
+  prefix) far above raw TMC count, plus a log-scaled size bonus, a has-tags bonus, an ownership
+  boost, and a single-TMC fragment penalty — all computed CLIENT-SIDE (this modal fetches via
+  `apiLoad` into a plain JS array, so there's no SQL-side scoring limitation the way there is for
+  the report picker, below).
+- **A "narrow by" facet-chip row (Mine / Curated / Auto-generated)** sits above the route list in
+  root/value/other views (not shown in the pure-navigational `category` view). "Mine" compares
+  the real `created_by` column against `CMSContext.user.id` — client-side only, no server-side
+  check that it matches the real auth token (a deliberate, explicit v1 scope limit, not an
+  oversight). "Curated"/"Auto-generated" filter on the `tags` column's `auto_generated` value.
+- **Every row carries a mine/auto-generated/curated badge** (`UI.Pill`, `activeStyle`
+  `blue`/`zinc`/`green`) instead of the merge living only in the tag-browse tree structure.
+- **Single-TMC "fragment" routes collapse behind a "Show short segments too" reveal** in any
+  unscoped (non-search) view — root default, a plain tag-folder browse. A real, load-bearing
+  finding drove this being a SERVER-side exclusion (`routeScore.js`'s
+  `EXCLUDE_FRAGMENTS_FILTER`, a raw-SQL `col` filter leaf, Step 2b's "option A" pattern), not just
+  a client-side re-sort/hide: confirmed live 2026-08-25, 52,633 of ~73,464 real routes (72%) are
+  single-TMC fragments, AND the 80 most-recently-created rows in the WHOLE catalog were 100%
+  fragments (a bulk batch) — a client-side re-sort of a `created_at`-ordered `LIMIT 60` fetch
+  never even saw a non-fragment row in that case. Any active search (name search, or "Other
+  tags"' free-text search) shows fragments inline instead, badge and all — never collapsed.
+- **A name search ALSO needs SQL-side ranking to avoid a second, separate junk population.**
+  Confirmed live: searching "87" against the real catalog can return thousands of
+  raw-TMC-code-named rows (`T2870095500573W_...`, single-TMC — caught by the fragment exclusion)
+  AND thousands of raw-numeric-id-named MULTI-TMC legacy rows (`1004262_3787_LATHAM CIRCLE`,
+  NOT caught by fragment exclusion) that also substring-match arbitrary digit queries — either
+  population alone can fill an entire search `LIMIT` before a real match like I-87 is ever
+  fetched, and no client-side re-sort can recover a candidate that was never fetched. Fixed via
+  two more `extraColumns` (a new `fetchCatalogRows.js`/`useCatalogFetch.js` param — a
+  `selectOnly` calculated sort-only column, same "option A" mechanism, needs both `show:true`
+  AND `normalName` set or the platform's `orderBy`-column-resolution step silently drops it):
+  `FRAGMENT_RANK_SORT_COLUMN` (non-fragments first) and `ROAD_CLASS_RANK_SORT_COLUMN`
+  (I-/US-/NY--prefixed names first). Multiple `.sort`-bearing columns DO compose into one
+  multi-column `ORDER BY` (`buildUdaConfig.js`'s `orderBy` is a dict built by `reduce` over every
+  column carrying `.sort`, in column-array order) — but a plain real-column sort (e.g. `name`)
+  placed EARLIER in the columns array than these `extraColumns` would dominate the `ORDER BY` and
+  reduce them to a rarely-reached tiebreak; the fix deliberately does NOT sort by `name` during a
+  plain search for exactly this reason. The SQL ordering's only job is getting the right
+  candidates PAST the `LIMIT` — `routeScore()`'s client-side re-sort still owns final display
+  order once real matches are actually in the fetched set.
+- **CLI footgun found while testing this**: `dms section create <page> --pattern <name>` is safe
+  and additive (appends to `draft_sections`, doesn't touch `sections`/other page fields). But
+  `dms page update <id> --pattern <name> --set draft_sections='[...]'` (documented in the repo's
+  own `CLAUDE.md` as a "partial update, read-modify-write") is NOT safe on this CLI version for
+  an array-shaped top-level field — confirmed live: it replaced the page row's ENTIRE `data`
+  object with just `{entries, has_changes, draft_sections}`, dropping `title`/`url_slug`/`parent`/
+  everything else (only caught because the page's `dms page show` output afterward read
+  `"title":"(untitled)"`, `"url_slug":""`). Only hit on a disposable scratch page (deleted after);
+  never used against a real/production page. Until this is root-caused in the CLI itself, prefer
+  `dms section create` (additive) and `dms raw update <section_id> --data {...}` (a single
+  component row — proven safe, e.g. setting a new section's `group`/`element`) over
+  `dms page update --set` for any page-level ARRAY field.
+
+### The report picker ("Choose a report") — net new, 2026-08-25
+
+**Correction, Ryan 2026-08-26: `/converted_reports` (page 2188366) is the site's real
+homepage, not `/converted_reports/reports` (page 2208581).** Earlier session notes (including
+just below) assumed 2208581 was "the homepage" — wrong, it's the curated Reports catalog page,
+one level under the real homepage. Fixed throughout this section; if you find "homepage" still
+referring to 2208581 anywhere else in this doc, it's stale, correct it in place.
+
+A superset of the curated Reports page's AVAIL-curated Card grid (`converted_reports/reports`,
+page 2208581) — that page itself is unchanged (still exactly the curated 12-card catalog), this
+is an ADDITIONAL surface for searching everything the current user is authorized for, drawn from
+the same `reports_snap_2` catalog (source 2177438 / view 2177440).
+
+- **Architecture mirrors `RouteTagBrowserModal` on purpose** (Ryan's explicit ask: share code,
+  don't let the two pickers drift) — a self-contained React component
+  (`ReportPickerModal/ReportPickerModal.jsx`) using `UI.Modal` directly, mounted by a small
+  registered trigger section (`ChooseReportButton`, same shape as the pre-existing
+  `CreateReportButton`) that owns its own `open`/`setOpen` state. This is NOT built on the
+  declarative `isModal`/`modalParamKey` section-group mechanism (`modal-section-group.md`) even
+  though that mechanism has a real, live precedent for a find-a-report dialog on page 2188366
+  (`converted_reports`, section 2214393-95, `modalParamKey:'find'`) — that precedent predates
+  this session's code-sharing ask and was left as-is, not migrated.
+- **No multi-select** — unlike the route picker, choosing a report NAVIGATES to it
+  (`navigate(row.page_path)`) and closes the modal; there's nothing to "confirm." A row with no
+  `page_path` (a legacy `admin2.reports` row never rebuilt into a real DMS page) renders
+  disabled/muted with a "Legacy — not yet rebuilt" badge instead of being clickable.
+  "Rebuilt" (green) vs "Legacy — not yet rebuilt" (zinc) is the report-picker's equivalent of the
+  route picker's mine/auto-generated/curated badge — same `UI.Pill` mechanism, different
+  vocabulary because reports and routes have genuinely different real distinctions.
+- **Facets: "Mine" and "Hide incomplete-looking"** — the latter is the real, shipped version of
+  the design mockup's "hide likely test/junk" chip, renamed per explicit user feedback that the
+  original copy read as judgmental developer jargon, not plain user-facing language. Backs a
+  shared `LOOKS_INCOMPLETE_RE` (`PickerModal/pickerScoring.js`) also used for a "Possible draft"
+  (amber) row badge — same heuristic, two surfaces.
+- **Prominence sort DOES include an ownership boost here** (unlike the route picker's fragment/
+  road-class SQL-ranking constraints — this picker fetches client-side the same way
+  `RouteTagBrowserModal` does, so there's no SQL-limit truncation problem to design around):
+  `ReportPickerModal/reportScore.js`'s `reportScore()` weighs yours → rebuilt → described →
+  recency, penalizing incomplete-looking names.
+- **"Mine" was broken end-to-end until 2026-09-01, despite reading as shipped above** — two
+  compounding bugs, both fixed (`routes-reports-users-mesh.md`'s 2026-09-01 progress-log entry has
+  full detail): (1) `reportCatalogSource.js`'s `created_by` column was declared as a plain
+  `data->>'created_by'` JSON field, a DIFFERENT thing from DMS's own always-populated system audit
+  column of the same name — nothing ever wrote the JSON field (converted reports stash the old
+  tool's creator under an inert `_old_created_by` instead; live authoring never wrote it at all),
+  so "Mine" could never match ANY report. Fixed by declaring it `systemCol: true`. (2) A report
+  published with zero routes never got a `reports_snap_2` catalog row at all — `CreateReportButton`
+  only creates the page, and the row was only ever created lazily on the first route add
+  (`useReportRow.js`'s `persistRoutes`) — making it invisible under every facet, not just "Mine".
+  Fixed: the row is now created the moment the report's edit page opens if none exists yet, and
+  `name`/`page_path` are (re-)written on every route/tag edit as self-healing. Verify current
+  behavior by testing "Mine" live, not by trusting this doc's earlier "live-verified" claims below —
+  they exercised the facet's UI/count-bar rendering, not whether it could ever actually match a row.
+- **Trigger placement**: originally added draft-only to the curated Reports page (page 2208581,
+  section 2214721, same section group as the existing `CreateReportButton` trigger), landed at
+  the BOTTOM of the page. **Stale as of 2026-08-26**: since this was written, the page was
+  edited and published (by a human, through the normal edit-mode UI, between sessions) — the
+  PUBLISHED `sections` array now has both triggers reordered to the top, right after the intro
+  heading: `CreateReportButton` (id 2214746) then `ChooseReportButton` (id 2214747), both in
+  section group `b77dbc82-4485-4e9a-8046-cc3a7eedf5b4`. Confirmed live 2026-08-26. As always,
+  publish clones draft component rows into fresh published-side ids rather than reusing them —
+  see `draft_vs_published_sections_different_ids` if that's news.
+
+### The real homepage (`/converted_reports`, page 2188366) — "New Report" fix + "Open Report" added, 2026-08-26
+
+Ryan's ask: the real homepage's **"New Report"** button (top of page, next to "New Route") was a
+dead-end — it just navigated to `/converted_reports/reports` instead of actually creating a
+report — and he wanted a second button there to open the existing-report picker, matching the
+curated Reports page's pair one level down.
+
+- **Root cause**: unlike `CreateReportButton`/`ChooseReportButton` (real registered React
+  components), the old "New Report" was a plain `Card` cell — `origin: "static", isLink: true,
+  location: "/converted_reports/reports"` (section 2214127, the same Card row as the still-fine
+  "New Route" cell, which links to `#routes` and was left untouched). A static Card link can only
+  ever render an RRL `<Link>` (`Card.jsx` line ~637) — it has no way to invoke real component
+  logic, so it could never actually create a page the way `CreateReportButton` does.
+- **Fix**: removed the `new_report` column from section 2214127 (`cellsGridSize` 3→2,
+  `cellsTracksTemplate` dropped one track — "New Route" alone remains in that Card), and added
+  two brand-new PUBLISHED component rows cloned byte-for-byte from the curated Reports page's own
+  proven-live `CreateReportButton`/`ChooseReportButton` rows (2214746/2214747 above) — new ids
+  **2214758** (`CreateReportButton`) and **2214759** (`ChooseReportButton`) — into page 2188366's
+  `Header` section group (`68a9bc92-7c50-4893-a1e7-575120b4f3b6`), inserted into the array right
+  after 2214127. `CreateReportButton`'s own code comment already anticipated exactly this
+  placement: `newPage()` derives the new report's parent from `item?.parent || item?.id`, and
+  2188366 has `parent: ''`, so mounting it there correctly files new reports under "Converted
+  Reports" (2188366) itself — same folder semantics as mounting it on 2208581 (whose `parent` is
+  already 2188366).
+- **Live-verified** via claude-in-chrome: both buttons render as real `<button>`s (not `<a>`
+  links) in their own row right where "New Report" used to be; "Choose a report" pops the real
+  `ReportPickerModal` (60 real results, Mine/Hide-incomplete-looking facets); zero console errors
+  on a clean reload; `dms page show 2188366` confirms `title`/`url_slug`/`published` untouched,
+  `sections_count` 28→30.
+- **Write path — edited the PUBLISHED `sections` array directly, did NOT touch draft or publish
+  the page.** This page's `draft_sections` (30 ids, `has_changes: true`) already diverges
+  significantly from `sections` (unrelated pending edits, including the inert find-a-report modal
+  precedent at 2214393-95 mentioned above) — publishing would have pushed all of that live
+  unreviewed, way out of scope for this ask. Instead: `dms raw create` for the two new component
+  rows (bypasses `section create`'s draft-only attach), `dms section update 2214127 --data
+  {...}` (full replace of one row, the already-documented-safe pattern), then `dms page update
+  2188366 --data '{"sections": [...]}'` — **a payload containing ONLY the `sections` key**.
+- **New finding, refines the `--set`-on-array-fields caution above**: `dms page update --data`
+  (as opposed to `--set`) is safe for a page-level array field, confirmed by reading the actual
+  server path (`dms-server/.../dms.controller.js`'s `setDataById` → `jsonMerge()` in
+  `db/query-utils.js`): the SQL is `data = COALESCE(data,'{}') || $1::jsonb` on Postgres (or
+  `json_patch` on SQLite) — a shallow TOP-LEVEL merge, not a JS deep-merge and not a full-column
+  replace. A `--data` payload with only `{"sections": [...]}` overwrites just that one top-level
+  key; sibling keys (`title`, `url_slug`, `draft_sections`, `section_groups`, etc.) are absent
+  from the payload and thus left completely alone. No page-specific special-casing exists in that
+  code path — editing a page's array field this way is exactly as safe as the already-trusted
+  single-component-row `--data` pattern. The earlier `--set` warning above is unaffected — that
+  footgun is specific to `--set`'s client-side lodash `merge()` read-modify-write, which handles
+  arrays by index-merging instead of replacing them; `--data` alone never goes through that code
+  path.
+- **Follow-up fix, same day**: the first pass reused `CreateReportButton`/`ChooseReportButton`'s
+  exact section `data` verbatim (`size: "6"`, no `size` on `ChooseReportButton`, `title: "Choose a
+  report"` on `ChooseReportButton`) — this looked fine on the Reports page's own big roomy hero,
+  but on the denser homepage header it rendered as two giant stacked full-width blocks with a
+  redundant "CHOOSE A REPORT" header band, not inline with each other. Root cause (confirmed by
+  reading `sectionArray.jsx` + transportny's `sectionArray` theme, `themev2.js:2192-2347`): each
+  section is one native CSS Grid item (`grid grid-cols-12 gap-0`), column span comes from
+  `theme.sizes[data.size].className` (`col-span-12 md:col-span-N`), and **a missing `size` field
+  falls back to `theme.defaultSize` — `"12"` on this theme, i.e. FULL WIDTH** — not
+  "auto"/content-width; there is no fit-content/flex-based sizing option anywhere in this stack
+  today, every grid item stretches to its full column span (`justify-items: stretch`, the CSS
+  Grid default, never overridden). A non-empty `title` also always renders a hardcoded
+  `ViewSectionHeader` band regardless of context (see `dms-section-create-cli-gaps` memory item 1
+  — `title` must be `""`). Auto-wrap is plain native CSS Grid row-flow (no manual row-breaking
+  logic exists) — two consecutive siblings whose spans sum to ≤12 land on the same row together.
+  **Fix, on BOTH pages** (2214746/2214747 on the Reports page, 2214758/2214759 on the homepage):
+  `size` on both buttons → `"3"` (was `"6"`/absent) so they share one row instead of each forcing
+  its own; `title` on `ChooseReportButton` → `""` (kills the header band); and — a second-order
+  effect, easy to miss — `ChooseReportButton` needed the same `padding: {"top": "8"}` as
+  `CreateReportButton` added explicitly (it had none, `CreateReportButton` did), or the two
+  buttons sit visibly misaligned vertically once they're actually side-by-side (`resolvePadding()`,
+  `sectionArray.jsx:68-87`, back-fills any unspecified side with the theme's default gutter step,
+  so "no padding field" and "explicit `pt-8`" are NOT the same baseline — worth checking any time
+  two sibling sections need to align on one row). All four changes were single-field `dms section
+  update <id> --set size=3 [--set title= ] [--set padding.top=8]` calls — no code changes, no
+  layout restructuring. Live-verified via a zoomed screenshot that button tops align pixel-for-
+  pixel after the padding fix. **Superseded on the homepage by the next round below same day —
+  Ryan then asked for these truly inline with "New Route" too, not just with each other.** The
+  Reports page (2214746/2214747) was left at this `size:"3"` state and is no longer being
+  actively tuned — Ryan: "IDC about `/converted_reports/reports` anymore, that page is
+  effectively dead."
+- **Final homepage layout, same day**: Ryan wanted "Create Report"/"Choose a Report" truly
+  inline with "New Route" in row 1, not on their own row below it. Root cause row 1 was
+  full BEFORE the buttons ever got a chance: `heading(2) + search-Card(6) + freshness/NewRoute-
+  Card(4) = 12` — zero room left regardless of button size. Found a stale, unrelated **draft**
+  (`draft_sections`, created 2026-08-20, predates today's `ChooseReportButton` work entirely —
+  see the still-live `has_changes:true` divergence noted above) that had already solved exactly
+  this for `CreateReportButton` alone: it split the row into 5 narrower cells (`heading:2,
+  search-Card:4, freshness-Card:2, CreateReportButton:2, NewRoute-Card:2` = 12) — confirmed via
+  `dms raw get` on each draft id (2214366-2214395), not by publishing/trusting the draft. Useful
+  independent confirmation: the draft's `find_label`/`freshness`/`new_route` Card content was
+  **byte-identical** to the live published Cards (2214126/2214127) — same columns, same
+  `_functions.click_publish` search wiring — so the published Cards could be resized in place with
+  zero behavior risk, no need to clone the draft's copies. Applied to the PUBLISHED row only
+  (`sections`, not draft — same reasoning as above): `search-Card (2214126)` 6→3, the combined
+  `freshness+NewRoute Card (2214127)` 4→3, `CreateReportButton (2214758)` 3→2, `ChooseReportButton
+  (2214759)` 3→2 — sums to 12, all six pieces (heading, search, freshness+route, New Route,
+  Create Report, Choose a Report) now share one row. **Second alignment bug found here**: `dms
+  section update <id> --data {...}` (payload WITHOUT a `padding` key) does NOT clear a
+  previously-set `padding` field — the server's `data || $1::jsonb` merge only ever ADDS/
+  overwrites keys present in the payload, it never unsets a key just because the payload omits
+  it (this is the same shallow-merge behavior documented above as "safe," but it cuts the other
+  way when you actually want to delete something). The earlier round's `padding:{"top":"8"}` on
+  both buttons survived several `--data` pushes that didn't mention `padding` at all, keeping
+  them visibly lower than "New Route" (which has no padding override). Fix: explicitly send
+  `--data '{"padding": null}'` — `resolvePadding()` treats a non-object `padding` value as `{}`
+  and falls back to the theme's default gutter on every side, matching "New Route"'s own
+  (padding-field-absent) baseline exactly. **To unset/delete a field via this CLI, you must
+  explicitly null it — omitting it from `--data` is a no-op, not a delete.** Live-verified via a
+  zoomed screenshot: all three buttons' tops align pixel-for-pixel with "New Route" and with each
+  other. Final row-1 sizes: heading `2214125`=2, search `2214126`=3, freshness+route `2214127`=3,
+  Create Report `2214758`=2, Choose a Report `2214759`=2 — no `padding` key on either button row.
 
 ### QuickControls (the header pill row): layout controls, Table's multi-measure Measure pill, Difference-mode gating
 
@@ -144,18 +414,20 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 - Reloading the same `?routes=...` URL directly re-resolves with no gate (the
   URL is the durable/shareable state); a different `?routes=` value on the
   same page renders a different route's real data — the core mechanism.
-- **`?routes=` is silently INERT on any `/edit/...` URL — probe the published
-  view, never edit mode, to check whether a slot actually resolved.** Found
-  live 2026-08-11: `useDynamicReportRoutes`'s own `enabled` check is
-  `isDynamicReport && !isEdit && routeIds.length > 0` — by design, an author
-  editing a Dynamic Report always sees the raw unresolved slots (so editing
-  the template itself isn't at the mercy of whichever route happens to be in
-  the URL). A `report_probe.mjs "edit/<slug>?routes=<id> --auth"` run against
-  a slot-fed graph will show real chart chrome with **zero data** (an "EMPTY
-  SVG"/no `/graph` query at all for that section) even when everything is
-  wired correctly — this is expected, not a bug, and reads as a false failure
-  if you don't already know the mode gates it off. Publish the page (or at
-  least confirm it's published) and probe the plain slug instead.
+- **STALE, corrected 2026-09-09: `?routes=` DOES resolve on a `/edit/...` URL.** The note
+  originally here (2026-08-11) said it was silently inert in edit mode, citing
+  `useDynamicReportRoutes`'s `enabled` check as `isDynamicReport && !isEdit &&
+  routeIds.length > 0`. That was true THEN but was changed 2026-08-19
+  (report-authoring-ux-overhaul.md item 7): the check is now `isDynamicReport &&
+  routeIds.length > 0`, no `!isEdit` — an author previewing `/edit/<slug>?routes=...`
+  sees the same resolved preview a real viewer would (route names/dates/TMCs all
+  resolve; mutation controls stay edit-mode-gated as normal). Re-confirmed live
+  2026-09-09 across many round-trips (dynamic-reports-authoring-gaps.md sub-item 4):
+  editing a Dynamic Report with a `?routes=` param present shows fully resolved
+  data, not raw slot placeholders. A plain `/edit/<slug>` with no `?routes=` still
+  falls through to raw, unresolved slots (nothing to resolve against). If
+  `report_probe.mjs "edit/<slug>?routes=<id> --auth"` ever shows an EMPTY graph
+  again, treat it as a real signal, not this old expected-gating note.
 
 ### Relative dates: the "Today (view time)" virtual base, and its entry-gate date field
 
@@ -172,9 +444,15 @@ relative to today" section.
   ever renders); a Dynamic Report that doesn't use it shows the gate exactly as before. Confirming
   adds a second URL param (`?routes=...&asOf=YYYY-MM-DD`) alongside the routes param. Absent that
   param (or on a normal, non-Dynamic report, which has no entry gate at all), the anchor falls back
-  to `defaultAnchorDate()` (see the publish-lag finding right below — **not** literal today) —
-  there's no other way to set it once past the gate; re-triggering the gate (e.g. a slot/URL-count
-  mismatch) is the only way to change it later.
+  to `defaultAnchorDate()` (see the publish-lag finding right below — **not** literal today).
+  **2026-09-03: no longer the only way to set it.** `ReportPageHeader.jsx` now also carries a
+  persistent "Viewing as of" date input (same gating condition, same `?asOf=` param, just written
+  via a plain `navigate()` off `location.search` instead of the entry-gate's `onConfirm`) — visible
+  in both view and edit mode, on every page load, not just the one-time gate. The gate's own field
+  is untouched and still does its one-time job (e.g. re-triggering by mismatching the slot/URL
+  route count still shows it); the header control is for changing the date at any other time. When
+  no override is set, the header's reset control reads "Use latest available (<date>)", not "today"
+  — see the publish-lag point right below for why that distinction matters.
 - **NPMRDS's own data has a real publish lag — a literal-"today" anchor queries a date range with
   zero rows, and the usual "does it render" checks won't catch this.** Confirmed live 2026-08-10:
   `SELECT max(date) FROM npmrds.s583_v982_NPMRDS_V6` (the live 5-minute speed table) returned
@@ -291,33 +569,53 @@ into the component itself. See `ReportRouteList/README.md`'s "View-mode visibili
 `planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` item 3's "View-mode visibility"
 section for the full history.
 
-### RRL row mutation (pencil/reorder/trash/date-edit) needs RRL's OWN `SectionEdit`, not just page-level `/edit/`
+### RRL row mutation (pencil/reorder/trash/name/date-edit) — page-level `/edit/` is enough, no separate `SectionEdit` needed
 
-Found live 2026-08-07. Being on `/edit/<slug>` is not enough to unlock a route row's pencil/trash/
-reorder/date-edit controls — `RouteRow`'s `canMutateRow` comes from `ReportRouteList`'s own
-`canMutate = isEdit && Boolean(sectionEditorOpen)`, where `sectionEditorOpen` is `props.isEdit` (the
-same per-section `SectionEdit`-vs-`SectionView` signal every custom component has to gate on — see
-`traversing-dms-pages.md`'s "two different edit states" gotcha). Confirmed live via the React fiber
-tree: on a freshly-loaded `/edit/<slug>` page, `ReportRouteList`'s own `isEdit` prop reads `false`
-and its ancestor is `SectionView`, not `SectionEdit` — every row renders with zero mutation
-affordances (no color picker, no name pencil, no reorder arrows, no date-edit pencil) until you
-explicitly enter RRL's *own* edit mode: hover the RRL panel to reveal its Settings kebab (same
-generic per-section trigger every section has, positioned `absolute top-2 right-2` inside the
-section's own padded cell), open Settings, click the pencil-square icon at the top of that dropdown
-— only then does `ADD ROUTE SLOT`/`ADD GRAPH`/the Dynamic Report toggle and every row's mutation
-UI appear. Easy to miss because RRL doesn't look like an ordinary configurable section (no visible
-Dataset/Columns chrome until you're actually in this mode) and its Settings entry only has
-`Type`/`Dataset`/`Layout`/`Delete` before you click the pencil — the mutation UI is genuinely absent
-until then, not just visually subtle.
+**Superseded 2026-08-19, re-confirmed live 2026-09-04** — this section used to say a row's pencil/
+trash/reorder/date-edit controls needed RRL's own `SectionEdit` (hover the panel → Settings kebab →
+click the pencil-square) on top of page-level `/edit/<slug>`, per a 2026-08-07 finding. That extra
+gate was a deliberate design decision reversed by `report-authoring-ux-overhaul.md` item 3
+(2026-08-19): `ReportRouteList`'s `canMutate` is now keyed on page-level `editPageMode` **alone** —
+`const isEdit = Boolean(editPageMode); const canMutate = isEdit;` — with no requirement that this
+section also be put into its own `SectionEdit` pencil-click mode first. Confirmed live 2026-09-04 on
+a scratch report (`report_build.mjs`-built, 2 routes + 1 graph): loading a plain `/edit/<slug>` URL
+immediately showed every row's mutation affordances (reorder arrows, color-picker dot, the combined
+edit toggle, trash icon) and `ADD ROUTE`/`ADD GRAPH`/the Report Settings disclosure — no extra click
+needed. **Author-empowerment break from DMS's normal per-section view/edit gating, not a bug** —
+see the file's own top-of-hook comment in `ReportRouteList.jsx` for the full reasoning.
 
-**A caution learned the hard way in the same session**: once inside this mutation UI, click targets
-shift as soon as anything else changes the layout above them (an open Settings dropdown, a row
-expanding). A coordinate-based click that was correct a moment ago can land on a different row's
-"Move up" reorder button instead of the pencil it was aimed at — on a real, published page, this
-silently reorders `reports_snap_2.routes[]` (no confirm dialog). Prefer a DOM query
-(`element.click()` on the button found by its exact `title`, e.g. `"Edit derived-date relationship"`
-or `"Expand"`) over coordinates once inside this UI, and always re-read the DB after any live-testing
-session here to confirm nothing unintended stuck.
+**Row-level UI, current shape (2026-09-04 restructure, edit-commit model replaced 2026-09-05)**:
+collapsed, each row shows a **bold date-range line** (the prominent one) with a muted
+`"N TMCs · X.X mi"` line underneath (swapped + reweighted 2026-09-05 — dates were originally the
+muted line, TMC/mileage prominent; that read backwards per Ryan's feedback). A `PencilSquare`
+button (`title="Edit route"`) enters edit mode, **replacing** that two-line summary with an
+editable title `<input>` + the Fixed/Derived date editor in the same visual slot (not appended
+below it) — no separate "Edit name" pencil, that's still true.
+
+**Committing an edit is explicit Save/Discard, NOT autosave** (reversed 2026-09-05 — the
+2026-09-04 restructure had shipped with autosave-on-blur/debounce for both fields, extending the
+2026-08-19 item-4A "always live" decision for dates; Ryan's live feedback called the resulting
+single ambiguous toggle misleading and asked for a real commit gate instead). While a row is in
+edit mode, the header shows **two icon buttons side by side**: an `XMark` (`title="Discard
+changes"`) and a green-tinted floppy-disk (`title="Save changes"`, disabled — greyed, not
+clickable — while the name collides with a sibling or the derive-mode pick is incomplete/invalid).
+Nothing persists until Save is clicked; Discard reverts the row's buffer to the last-persisted
+values. Both live in the header row itself — an earlier same-day iteration put Save/Discard in a
+bottom action row instead, found redundant with the header's own X, and was removed within the
+same session (don't expect to find a bottom action row here). See `ReportRouteList/RouteRow.jsx`'s
+own top comment and `planning/transportny/tasks/current/npmrds-reports-routes-feedback-triage.md`'s
+"Phase 2 follow-up" section for the full design and live-verification record. A real viewer (not
+an author) never sees any of this — see the section above, RRL is author-only, full stop.
+
+**A caution still true**: once a row is in edit mode, click targets shift as soon as anything else
+changes the layout above them (another row toggling open, the Report Settings disclosure). A
+coordinate-based click that was correct a moment ago can land on a different row's reorder button
+instead of the one it was aimed at — on a real, published page, this silently reorders
+`reports_snap_2.routes[]` (no confirm dialog, though as of 2026-09-05 a reorder itself still
+persists immediately regardless of Save/Discard — only name/dates are buffered). Prefer a DOM
+query (`element.click()` on the button found by its exact `title`, e.g. `"Edit route"`/`"Discard
+changes"`/`"Save changes"`/`"Move up"`) over coordinates inside this UI, and always re-read the DB
+after any live-testing session here to confirm nothing unintended stuck.
 
 ## 5. Report-specific gotchas (check `traversing-dms-pages.md` §4 too)
 
@@ -327,6 +625,79 @@ CLI-cloned test pages, map/WebGL blank-canvas) now live in
 [`traversing-dms-pages.md`](./traversing-dms-pages.md)'s §4 — they apply to
 any DMS page, not just reports. What's specific to reports:
 
+- **A report graph card has ONE title, and it lives in the card's header band (2026-09-11).**
+  A regenerated report section carries `activeStyle: "reportCard"`, which selects transportny's
+  named `pages.section` style — so the section header renders as a 40px bordered band at the top
+  of the card instead of the generic 50px title row:
+  - the band is `div.h-10.pl-4.pr-10` with `border-b border-zinc-950/10`;
+  - the **title** is the `div` inside `div.flex-1.min-w-0 > div.flex-1.min-w-0` carrying
+    `font-display … text-[15px] … text-[#0F1722] truncate`. ⚠ `div.h-10 div.flex-1.min-w-0`
+    matches the header's INNER ROW first and its own wrapper second — both have those two classes.
+    Select on `[class*="text-[15px]"]`, not on structure, or you measure the wrapper and conclude
+    the theme token never applied (cost a round-trip 2026-09-11). Expect
+    `15px / 500 / Oswald / rgb(15, 23, 34)`, `text-transform: none`, 12px above and 13px below in
+    the 40px band.
+  - **A title whose descenders look shaved is `overflow: hidden` on too short a line box, not a
+    font problem.** `truncate` sets `overflow: hidden`, so a line-height equal to the font size
+    clips Oswald's g/p/y (measured 2026-09-11: `clientHeight 15` vs `scrollHeight 18`). Test it with
+    `el.scrollHeight > el.clientHeight` — a screenshot barely shows 3px. The token is
+    `pages.section` `headerTitle`; it needs ~1.4 leading, and the band being `items-center` means a
+    taller line box costs nothing.
+  - the **kicker** (unit + time window, e.g. `mph · Weekdays only`) is the `div` carrying
+    `tracking-[0.18em]`, right-aligned in the same band, fed by the section's `description`
+    attribute. It is `hidden xl:block`, so a viewport narrower than 1280px has no kicker and that
+    is not a bug.
+  - there is **no graph-native title any more** on a report card — `display.title` is cleared at
+    build time. `div.font-display.uppercase.text-[12.5px]` (the old in-card title) finding nothing
+    is the correct state.
+  - **A report built before 2026-09-11 looks completely different and that is also correct.** Its
+    sections carry `activeStyle: "reportInlineTitle"`, which matches no `pages.section` style and
+    falls back to `styles[0]` — the historical `flex w-full min-h-[50px] items-center pb-2` band
+    with a 16px black Oswald title, plus the old in-card title. Both states are live on the dev
+    site simultaneously (`reports/snapshot` regenerated, `reports/annual_average_study` not), which
+    makes that pair the standing control for any change to the band.
+- **Every NPMRDS report legend sits TOP-RIGHT (2026-09-11), and a corner position used to mean
+  "no legend at all".** Until this date only `GridGraph`'s wrapper understood
+  `top-right`/`top-left`/`bottom-right`/`bottom-left`; the other five (Bar, Line, Pie, Treemap,
+  Sunburst) matched `legend.position` with strict equality against the four bare edges, so a corner
+  value hit no branch and the legend **silently did not render**. If you are ever debugging a
+  missing legend on an older build, check `display.legend.position` before anything else — it looks
+  exactly like `legend.show: false`.
+  - Fixed via shared helpers in `graph_new/components/utils.js` (`isTopLegend`/`isBottomLegend`/
+    `isColumnLegendPosition`/`legendRowJustify`); a bare `top`/`bottom` still centres, so nothing
+    that predates the change moved.
+  - **How to verify placement: measure the legend CONTENT, never the row it sits in.** The row is
+    full-width and therefore always "centred" on the plot no matter where `justify-end` puts its
+    contents — a probe that measures the row concludes nothing changed. Walk up from the ramp (or
+    the last swatch) only while the parent is still narrower than the card, then compare that box's
+    right edge to the card's: expect **17px** (the graph's own `p-4` plus the card's 1px border).
+  - The default for a newly minted report graph is `DEFAULT_LEGEND_POSITION_BY_GRAPH_TYPE` in
+    transportny's `composeMeasureConfig.js` — reached ONLY by the three NPMRDS-report mint paths,
+    so no other site's graphs are affected.
+- **Graph legends: how to find one, and the caption above it (2026-09-11).** Two shapes, and they
+  are structurally different:
+  - **Categorical** (series identity — which line is which route): a container of items, each
+    `div.flex.items-center.px-1.min-w-0` holding a swatch `div` with an inline
+    `style="background-color: …"` and a label `div.min-w-0.truncate[title]`. Query the labels, walk
+    up one level for the item, two for the container.
+  - **Linear / gradient** (a colour ramp): the ramp is the only `div` whose inline `style` contains
+    `linear-gradient`. Tick labels are absolutely positioned siblings inside the same box.
+  - **Caption** — when a legend has one, it is a `div.truncate` that is the FIRST child of a wrapper
+    one level above the legend's own box. There is no wrapper at all when uncaptioned, so test
+    `firstElementChild !== theLegendBox` before reading it. A caption comes from an author-set
+    `legend.title` (any legend type) or an automatic `legend.unit` (**linear only** — a unit over an
+    identity key is meaningless, and shipping it to both was a real bug).
+  - Measuring **label-vs-ramp overlap** is the way to catch the recurring "text on the gradient"
+    defect: intersect each tick label's rect with the ramp's. Do NOT judge it from a screenshot —
+    a few px of overlap is invisible to a compressed image.
+- **A probe slug is NOT a browser URL — the `/npmrds` prefix.** `report_probe.mjs` takes a BARE
+  slug (`reports/annual_average_study?routes=…`) because its default `--host` is already
+  `http://www.localhost:5173/npmrds`. Paste that same slug into a browser and you get
+  `http://www.localhost:5173/reports/…`, which is missing the prefix and does not resolve. When
+  quoting a verify URL to a human, write the full
+  `http://www.localhost:5173/npmrds/reports/<slug>` — the probe argument and the browser URL are
+  different strings. (Cost a round-trip on 2026-09-10; Ryan: "your verification link was missing
+  `/npmrds` at the start".)
 - **`report_<old_id>`-style slugs are a deprecated/unstable scheme**
   (title-derived, recomputed on every title save) — get a real,
   currently-valid slug from `scripts/npmrds-reports/pick_test_report.py`
@@ -598,9 +969,17 @@ any DMS page, not just reports. What's specific to reports:
   in any `rebuild` field that might see this again.
 - **`--replace`'s first implementation only deleted the page row — not its `reports_snap_2` row —
   and that row is exactly what `/reports`'s catalog cards query, by tag, not by page reference.**
-  `dms page delete` never cascades to a page's own dataset rows (same non-cascade as its sections,
-  already noted elsewhere in this doc as harmless-because-invisible — this one ISN'T invisible).
-  Every `--replace` left the OLD `reports_snap_2` row behind with the OLD `report_id`, still
+  At the time, `dms page delete` never cascaded to a page's own dataset rows (same non-cascade as
+  its sections, already noted elsewhere in this doc as harmless-because-invisible — this one
+  ISN'T invisible). **Fixed platform-side 2026-09-04** for the `reports_snap_2` case specifically —
+  a generic page delete (admin UI, `dms page delete`, `dms raw delete`) now dispatches to an
+  opt-in server hook that deletes the matching catalog row (`src/dms/planning/tasks/current/
+  page-delete-lifecycle-hook.md`; requires a dms-server redeploy to take effect anywhere). DMS
+  core still has no BUILT-IN structural cascade for page→dataset rows in general (deliberately —
+  that relationship is app-specific, not a DMS concept) and page→section rows are still not
+  cascaded at all, so the troubleshooting recipe below remains valid for cleaning up legacy
+  orphans, pre-deploy environments, or a silently-logged hook failure. Every `--replace` left the
+  OLD `reports_snap_2` row behind with the OLD `report_id`, still
   carrying the same `tags`, so it kept matching the catalog's tag filter and rendering as a second
   card for the same report. Found live 2026-08-17 by Ryan spotting duplicate cards on `/reports`
   right after all 12 templates were `--replace`d in one session — some templates (`Weekly
@@ -616,6 +995,25 @@ any DMS page, not just reports. What's specific to reports:
   raw delete npmrdsv5 "reports_snap_2|2177440:data" <row-id>` (needs a fresh auth token; `dms raw
   get <row-id>` can't address it — split `:data` row, use `dataset query --filter id=<row-id>` to
   confirm deletion instead).
+- **The "+ Add Graph" modal silently no-ops if the report has zero routes.** Clicking "Add Graph"
+  with 0 routes on the report at all (not just 0 checked in the modal) leaves the modal open with
+  no error and no section created — easy to mistake for a misclick or a slow save. Add at least one
+  route via "+ Add Route" first (any route works for a throwaway scratch test), THEN "+ Add Graph"
+  will actually let you pick it in "ROUTES FOR THIS GRAPH" and create the section. Found live
+  2026-08-31 building a scratch Map section to verify a hover-tooltip fix on a brand-new "Create
+  Report" page (0 routes at creation).
+- **Driving a plain `<select>` via `claude-in-chrome`'s `computer` tool is unreliable** — clicking
+  it opens the OS-native dropdown, which the extension can't screenshot/click into. Read/set it via
+  `javascript_tool` instead: read every select's options with
+  `Array.from(document.querySelectorAll('select')).map(s => ({title: s.title, value: s.value,
+  options: Array.from(s.options).map(o => ({value:o.value, text:o.text}))}))` (options carry both
+  the value React reads and the human-readable label, useful for confirming a computed label before
+  committing to a click-path test), then commit a choice through React's own controlled-input path
+  — a bare `sel.value = x` does NOT fire React's `onChange` (React wraps the native property
+  setter): `Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,
+  'value').set.call(sel, value)` followed by `sel.dispatchEvent(new Event('change', {bubbles:
+  true}))`. Found live 2026-09-08 verifying `dynamic-reports-authoring-gaps.md` sub-item 2's
+  "reuse an existing route" select next to "+ Add Route Slot".
 
 ## 6. Which tool to reach for
 
@@ -653,8 +1051,8 @@ you'd rather have (a throwaway headless browser vs. touching a real session).
 Delete, Publish, or drags sections) against a page the user might have open**
 — create or reuse a dedicated scratch report for that. Read-only page loads
 (via `pick_test_report.py`'s output, or `report_probe.mjs` against any real
-`converted_reports/<slug>`) are fine on real pages since they only navigate
-and capture, never click.
+`reports/<slug>` — renamed 2026-09-02 from `converted_reports/<slug>`) are fine
+on real pages since they only navigate and capture, never click.
 
 ## 7. Extending this doc
 

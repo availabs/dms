@@ -19,6 +19,7 @@ const {
 const { resolveAuthPermissions } = require('./auth');
 const {
   isSplitType,
+  changeLogData,
   parseType,
   resolveTable,
   getSequenceName,
@@ -35,6 +36,18 @@ const DATA_ATTRIBUTES = [
   "created_at", "created_by",
   "updated_at", "updated_by"
 ];
+
+// Optional, deployment-registered side effect for page deletes (e.g. an
+// app-specific catalog row cleanup — see cascadePageDelete below). Loaded
+// once at server boot from DMS_PAGE_DELETE_HOOK (see index.js). Module-level
+// rather than per-controller-instance: it's a single boot-time concept meant
+// to apply no matter which controller instance's deleteData runs, and
+// dms.route.js/index.js each create their own createController() instance
+// rather than sharing this file's defaultController. Tests set/reset it
+// directly via setPageDeleteHook.
+let _pageDeleteHook = null;
+function setPageDeleteHook(fn) { _pageDeleteHook = fn; }
+function getPageDeleteHook() { return _pageDeleteHook; }
 
 // ignore dangerous column names
 const sanitizeName = name => {
@@ -223,7 +236,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       `INSERT INTO ${tbl} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING revision;`,
-      [itemId, app, type, action, action === 'D' ? null : data, userId,
+      [itemId, app, type, action, changeLogData(type, action, data), userId,
        reqMeta?.ip || null, reqMeta?.userAgent || null, reqMeta?.authState || null]
     );
     const revision = rows[0]?.revision;
@@ -336,6 +349,26 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       await dropViewDataTable(row.app, sourceInstance, row.id, sourceId);
     }
     await removeIdFromRefArrays(row.app, 'views', ['source'], row.id, userId, reqMeta);
+  }
+
+  /**
+   * A deleted page has no structural children DMS itself knows about (unlike
+   * source/view), so there is nothing to cascade here by default. Instead
+   * this dispatches to an optional, deployment-registered hook (see
+   * setPageDeleteHook) so an app-specific side effect — e.g. transportny's
+   * reports_snap_2 catalog row cleanup — can run without dms-server ever
+   * knowing that relationship exists. A hook failure is logged, never
+   * thrown: it must not block or roll back the page's own deletion.
+   */
+  async function cascadePageDelete(row, userId, reqMeta) {
+    const hook = getPageDeleteHook();
+    if (!hook) return;
+    try {
+      await hook(row, { userId, reqMeta, dms_db, resolveTable, jsonField, dbType, splitMode });
+      console.log(`[page-delete-hook] dispatched for ${row.app}/${row.type}#${row.id}`);
+    } catch (e) {
+      console.error(`[page-delete-hook] failed for ${row.app}/${row.type}#${row.id}: ${e.message}`);
+    }
   }
 
   return {
@@ -1029,6 +1062,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           const kind = typeof row.type === 'string' && row.type.includes(':') ? getKind(row.type) : null;
           if (kind === 'source') await cascadeSourceDelete(row, userId, reqMeta);
           else if (kind === 'view') await cascadeViewDelete(row, userId, reqMeta);
+          // Pages are colon-less by design (`{pattern}|page`), not legacy —
+          // checked by literal suffix rather than widening the `includes(':')`
+          // guard above, which exists specifically to keep genuinely-legacy
+          // (pre-refactor, colon-less) types out of cascade dispatch.
+          else if (typeof row.type === 'string' && row.type.endsWith('|page')) {
+            await cascadePageDelete(row, userId, reqMeta);
+          }
         }
 
         await dms_db.commitTransaction();
@@ -1208,3 +1248,4 @@ const defaultController = createController(process.env.DMS_DB_ENV || 'dms-sqlite
 module.exports = defaultController;
 module.exports.createController = createController;
 module.exports.DATA_ATTRIBUTES = DATA_ATTRIBUTES;
+module.exports.setPageDeleteHook = setPageDeleteHook;

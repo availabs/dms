@@ -85,7 +85,11 @@ export const TableRow = memo(function TableRow ({
     // cursor-pointer signals a click_publish table (rows are clickable to switch a page param).
     const clickableClass = onRowMouseClick && !isTotalRow ? 'cursor-pointer' : '';
 
-    const rowClass = `${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``} ${conditionalRowClass} ${highlightAccentClass} ${clickableClass}`;
+    // `theme.row`: optional base class on every data row (absent in existing
+    // themes → no change). Lets a table style make the row a named group
+    // (row: 'group/row') so cell bg keys can hover the WHOLE row via
+    // `group-hover/row:` instead of per-cell `hover:`.
+    const rowClass = `${theme.row || ``} ${isTotalRow ? theme.totalRow : ``} ${isDragging ? `select-none` : ``} ${striped ? theme.stripedRow : ``} ${conditionalRowClass} ${highlightAccentClass} ${clickableClass}`;
     const actionsColExists = attrsToRender.find(a => a._isActionsColumn);
     // Whether any column declares itself the openOut trigger (e.g. sectionsChip).
     // Falls back to the legacy first-column behaviour when none does.

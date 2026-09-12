@@ -5,6 +5,8 @@ import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
 import { parseIfJSON } from '../../../patterns/page/pages/_utils';
 import { getInstance } from '../../../utils/type-utils';
+import { collectSiteRootPaths } from '../../../utils/mountPath';
+import { buildRetiredSubdomainMap, applyRetiredSubdomainRedirect } from '../../../utils/retiredSubdomain';
 import patternTypes from '../../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
@@ -85,6 +87,36 @@ function getPatternMounts(pattern) {
 // --
 //console.log('hola', pageConfig)
 
+/**
+ * Distinct theme names actually referenced by a site's pattern rows — the
+ * site's own selections plus 'mny_admin', which patterns/auth/siteConfig.jsx's
+ * manageAuthConfig hardcodes for the /auth/manage panel every auth pattern
+ * gets (patterns/admin/siteConfig.jsx uses selectedTheme: "default", which
+ * needs no theme module — it resolves to the library's own baked-in
+ * defaultTheme). Used to resolve only the theme(s) a site needs instead of
+ * loading every theme in the registry. See planning/shared/bundle-size-log.md.
+ */
+export function collectThemeNames(siteData) {
+    const patterns = (siteData || []).reduce((acc, row) => [...acc, ...(row?.patterns || [])], []);
+    const names = new Set();
+    patterns.forEach(p => {
+        if (p?.theme?.selectedTheme) names.add(p.theme.selectedTheme);
+        if (p?.pattern_type === 'auth') names.add('mny_admin');
+    });
+    return [...names];
+}
+
+/**
+ * Resolves `themesConfig` into a plain { name: themeObject } map ready for
+ * pattern2routes. `themesConfig` is either already a plain object (legacy
+ * callers, or an already-resolved SSR-hydration value) or the lazy loader
+ * function exported by src/themes/index.js, in which case only the theme
+ * names collectThemeNames finds in siteData are dynamically imported.
+ */
+export async function resolveThemes(themesConfig, siteData) {
+    if (typeof themesConfig !== 'function') return themesConfig || { default: {} };
+    return await themesConfig(collectThemeNames(siteData));
+}
 
 export function pattern2routes (siteData, props) {
     let {
@@ -93,6 +125,7 @@ export function pattern2routes (siteData, props) {
         authPath,
         authWrapper = withAuth,
         themes = { default: {} },
+        adminThemesLoader = null,
         pgEnvs = [],
         API_HOST = 'https://graph.availabs.org',
         DAMA_HOST = 'https://graph.availabs.org',
@@ -101,7 +134,12 @@ export function pattern2routes (siteData, props) {
         damaDataTypes,
         damaMapPlugins,
         isMultiTenant = false,
-        host = typeof window !== 'undefined' ? window.location.host : 'localhost'
+        host = typeof window !== 'undefined' ? window.location.host : 'localhost',
+        // SSR only: an array threaded from route building (render/ssr2/handler.jsx)
+        // that each pattern's getPatternTheme() call collects its theme's font/CSS
+        // HTML into, since document.head isn't available server-side. See
+        // ui/useTheme.js's loadThemeFonts and planning/tasks/current/ssr-runtime-theme-css-fouc.md.
+        ssrCollect,
     } = props
 
 
@@ -156,6 +194,38 @@ export function pattern2routes (siteData, props) {
 
     // Build datasetPatterns once (for backwards compatibility with other patterns)
     const datasetPatterns = patterns.filter(p => ['forms', 'datasets', 'mapeditor'].includes(p.pattern_type));
+
+    // Every pattern mount's first path segment (`/auth`, `/datasources`, `/docs`,
+    // `/list`, …), across ALL subdomains — the set a site-absolute authored link is
+    // allowed to point at without picking up the current mount's prefix. Derived
+    // from the same mount list the router registers, so it can't drift from the
+    // live route table. See utils/mountPath.js.
+    const siteRootPaths = collectSiteRootPaths(
+        patterns
+          .filter(p => p?.pattern_type)
+          .flatMap(p => getPatternMounts(p).map(m => m.base_url))
+    );
+
+    // Retired subdomains — a pattern that has moved to a path on the root domain
+    // can list the hosts it used to answer on, and they bounce to the new location
+    // instead of 404ing. Hosting-level 301s stay the primary mechanism (faster, and
+    // they work without loading the bundle); this is the environment-portable
+    // backstop that also covers local development. A subdomain some pattern STILL
+    // mounts is never redirected — the live route wins, so a half-applied cutover
+    // degrades to "the old URL keeps working". See utils/retiredSubdomain.js.
+    const livePatternSubdomains = new Set(
+        patterns
+          .filter(p => p?.pattern_type)
+          .flatMap(p => getPatternMounts(p).map(m => `${m.subdomain || ''}`.toLowerCase()))
+          .filter(Boolean)
+    );
+    const retiredSubdomainMap = buildRetiredSubdomainMap(
+        patterns.filter(p => p?.pattern_type),
+        (sub) => livePatternSubdomains.has(sub)
+    );
+    if (applyRetiredSubdomainRedirect({
+        retiredMap: retiredSubdomainMap, siteRootPaths, subdomain: getSubdomain(host),
+    })) return [];
 
     const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
 
@@ -281,6 +351,7 @@ export function pattern2routes (siteData, props) {
                     format: pattern?.config,
                     // downstream link-building reads pattern.base_url — give it this mount's
                     pattern: { ...pattern, base_url: mount.base_url, navPrefix: mount.navPrefix || '', filters: resolvedFilters },
+                    siteRootPaths,
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     authBaseUrl,
@@ -292,6 +363,10 @@ export function pattern2routes (siteData, props) {
                     damaBaseUrl,
                     datasetPatterns,
                     themes,
+                    // Raw, unresolved theme loader — only the admin pattern-theme-picker
+                    // (themeEditor.jsx) needs the full theme registry; everyone else gets
+                    // the already-narrowed `themes` above. See resolveThemes/collectThemeNames.
+                    themesLoader: pattern?.pattern_type === 'admin' ? adminThemesLoader : undefined,
                     useFalcor,
                     API_HOST,
                     DAMA_HOST,
@@ -299,6 +374,7 @@ export function pattern2routes (siteData, props) {
                     damaDataTypes,
                     damaMapPlugins,
                     isMultiTenant,
+                    ssrCollect,
                 });
                 // console.log('dmssitefactory Config obj', configObj)
                 const route = dmsPageFactory({

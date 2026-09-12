@@ -21,6 +21,10 @@ export const isJson = (str)  => {
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
+// Sentinel `cat` value for the "no category" sidebar filter — distinct from any
+// real category name, never appears in a source's `categories` array.
+const UNCATEGORIZED_CAT = '__uncategorized__';
+
 /**
  * Extract plain text from a Lexical JSON description. The list view only
  * needs a short, scannable snippet — mounting a full Lexical Editor per
@@ -177,7 +181,6 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
-    const [showUncategorized, setShowUncategorized] = useState(true);
     const [isListAll, setIsListAll] = useState(false);
 
     useEffect(() => {
@@ -200,23 +203,30 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
             const settings = get(res, ["json", "uda", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
-            if (parsed.show_uncategorized !== undefined) {
-                setShowUncategorized(parsed.show_uncategorized);
-            }
         });
     }, [pgEnv]);
 
     const isSearching = layerSearch.length > 2;
 
+    // Uncategorized sources are always hidden from the default "All datasets"
+    // view — "Show all" (isListAll, below) is the only way to reveal them,
+    // same mechanism used for admin-excluded (filteredCategories) sources.
     const visibleSources = useMemo(() => {
         if (isListAll || isSearching) return sources || [];
         return (sources || []).filter(source => {
             const cats = (Array.isArray(source?.categories) ? source.categories : []).map(c => c[0]);
-            if (!cats.length) return showUncategorized;
+            if (!cats.length) return false;
             if (!filteredCategories.length) return true;
             return !cats.every(c => filteredCategories.includes(c));
         });
-    }, [sources, filteredCategories, showUncategorized, isListAll, isSearching]);
+    }, [sources, filteredCategories, isListAll, isSearching]);
+
+    // Pool for the "Uncategorized" filter — independent of the above (which
+    // only governs the default "All datasets" view), so the explicit filter
+    // always shows every uncategorized source.
+    const uncategorizedSources = useMemo(() =>
+        (sources || []).filter(s => !(Array.isArray(s?.categories) && s.categories.length)),
+    [sources]);
 
     const categories = useMemo(() => [...new Set(
         (visibleSources || [])
@@ -248,7 +258,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
 
     const breadcrumbItems = useMemo(() => {
         const items = [{icon: 'Database', href: baseUrl}];
-        if (cat1) {
+        if (cat1 === UNCATEGORIZED_CAT) {
+            items.push({name: 'Uncategorized'});
+        } else if (cat1) {
             catParts.forEach((part, i) => {
                 items.push({
                     name: part,
@@ -260,20 +272,22 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     }, [cat1, catParts, baseUrl]);
 
     // sources after category-path + search + sort (the rendered set)
-    const shownSources = useMemo(() => (visibleSources || [])
-        .filter(source => {
-            if (!cat1) return true;
-            return (Array.isArray(source?.categories) ? source?.categories : [])
-                .some(cat => catParts.every((p, i) => cat[i] === p));
-        })
-        .filter(source => {
-            const searchTerm = ((source?.name || '') + " " + (
-                (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
-                .reduce((out, cat) => out + (Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : ''), ''));
-            return !(layerSearch.length > 2) || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
-        })
-        .sort((a, b) => (sort === 'asc' ? 1 : -1) * (a?.name || '').localeCompare(b?.name || '')),
-    [visibleSources, cat1, catParts, layerSearch, sort]);
+    const shownSources = useMemo(() => {
+        const base = cat1 === UNCATEGORIZED_CAT ? uncategorizedSources : (visibleSources || []);
+        return base
+            .filter(source => {
+                if (cat1 === UNCATEGORIZED_CAT || !cat1) return true;
+                return (Array.isArray(source?.categories) ? source?.categories : [])
+                    .some(cat => catParts.every((p, i) => cat[i] === p));
+            })
+            .filter(source => {
+                const searchTerm = ((source?.name || '') + " " + (
+                    (Array.isArray(source?.categories) ? source?.categories : [source?.categories]) || [])
+                    .reduce((out, cat) => out + (Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : ''), ''));
+                return !(layerSearch.length > 2) || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
+            })
+            .sort((a, b) => (sort === 'asc' ? 1 : -1) * (a?.name || '').localeCompare(b?.name || ''));
+    }, [visibleSources, uncategorizedSources, cat1, catParts, layerSearch, sort]);
 
     const VIEWS = [
         { key: 'grid',  d: 'M3.5 3.5h7v7h-7zM13.5 3.5h7v7h-7zM3.5 13.5h7v7h-7zM13.5 13.5h7v7h-7z' },
@@ -311,7 +325,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className={t.iconMd}/>
                     </Button>
 
-                    {filteredCategories.length > 0 &&
+                    {(filteredCategories.length > 0 || uncategorizedSources.length > 0) &&
                         <Button type="plain" title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
                             <Icon icon={isListAll ? 'FilterX' : 'Filter'} className={t.iconMd}/>
                         </Button>
@@ -330,6 +344,12 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         <span className={t.sidebarItemText}>All datasets</span>
                         <div className={t.sidebarBadge}>{(visibleSources || []).length}</div>
                     </Link>
+                    {isListAll && uncategorizedSources.length > 0 &&
+                        <Link to={catHref(UNCATEGORIZED_CAT)} className={cat1 === UNCATEGORIZED_CAT ? t.sidebarItemActive : t.sidebarItem}>
+                            <span className={t.sidebarItemText}>Uncategorized</span>
+                            <div className={t.sidebarBadge}>{uncategorizedSources.length}</div>
+                        </Link>
+                    }
                     {(categories || [])
                         .sort((a,b) => a.localeCompare(b))
                         .map(cat => (

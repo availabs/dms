@@ -8,6 +8,7 @@ import { complexFiltersTheme } from './components/sections/ComplexFilters.theme'
 import { templateManagerTheme } from './components/sections/TemplateManager.theme'
 import { timePickerTheme } from './components/sections/components/dataWrapper/components/filters/TimePicker/timePicker.theme'
 import { pageTemplatePickerTheme } from './components/PageTemplatePicker.theme'
+import { linkPageNoticeTheme } from './components/LinkPageNotice.theme'
 import { damaMapTheme } from './components/sections/components/ComponentRegistry/map/map.theme'
 
 export default {
@@ -22,6 +23,7 @@ export default {
     templateManager: templateManagerTheme,
     timePicker: timePickerTheme,
     pageTemplatePicker: pageTemplatePickerTheme,
+    linkPageNotice: linkPageNoticeTheme,
     damaMap: damaMapTheme,
 }
 

@@ -124,9 +124,11 @@ much faster once the TMC chain is known.
 
 ### Step 2 — Build the route(s) in the map tool
 
-URL pattern: `http://npmrds.localhost:5173/edit/<some-page>` for a scratch page with a
+URL pattern: `http://www.localhost:5173/npmrds/edit/<some-page>` for a scratch page with a
 map section in edit mode, or the dedicated route-creation demo page if one exists
-(`/edit/converted_reports/route_creation_demo` in this session).
+(`/npmrds/edit/converted_reports/route_creation_demo` in this session). npmrds_sub moved off
+the `npmrds` subdomain to this `www:/npmrds` path-mount 2026-09-02 — see
+`traversing-dms-pages.md`'s subdomain gotcha if a page 404s or falls through to the wrong pattern.
 
 - **TMC Click mode**: click directly on the map line for each TMC segment in the
   chain. Thin/divided-highway segments are hard to hit — use the `zoom` tool

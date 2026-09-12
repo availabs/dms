@@ -6,11 +6,8 @@ import {
   StaticRouterProvider,
 } from 'react-router'
 import { falcorGraph } from '@availabs/avl-falcor'
-import { cloneDeep } from 'lodash-es'
 
 import dmsSiteFactory from '../spa/dmsSiteFactory.jsx'
-import { dmsDataLoader, updateRegisteredFormats, updateAttributes } from '../../'
-import { getInstance } from '../../utils/type-utils.js'
 
 // Stub `window` and `document` for SSR — many components access window.location,
 // window.localStorage, document.createElement, etc. during render.
@@ -50,6 +47,7 @@ if (typeof globalThis.window === 'undefined') {
  * @param {string} config.apiHost - Falcor API base URL (e.g., 'http://localhost:4444')
  * @param {object} config.siteConfig - { app, type, baseUrl, authPath, pgEnvs, ... }
  * @param {string[]} [config.pgEnvs] - PostgreSQL environments
+ * @param {boolean} [config.isMultiTenant] - resolve the request host to a tenant's own site (see dmsSiteFactory)
  */
 export function createSSRHandler({
   adminConfigFn,
@@ -57,6 +55,7 @@ export function createSSRHandler({
   apiHost,
   siteConfig,
   pgEnvs = [],
+  isMultiTenant = false,
 }) {
   // Cache per-host — different subdomains produce different route sets
   // (pattern2routes filters by subdomain).
@@ -72,16 +71,19 @@ export function createSSRHandler({
       authPath: siteConfig.authPath || '/auth',
     })
 
-    // Pre-fetch site data for client hydration.
-    // dmsDataLoader needs the same updated config that dmsSiteFactory builds internally.
-    const dmsConfigUpdated = cloneDeep(dmsConfig)
-    const siteType = dmsConfig?.format?.type || dmsConfig.type
-    const siteInstance = getInstance(siteType) || siteType
-    dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
-    dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
-    const siteData = await dmsDataLoader(falcor, dmsConfigUpdated, `/`)
-
-    // Build routes. Falcor cache makes dmsSiteFactory's internal dmsDataLoader call instant.
+    // Build routes. dmsSiteFactory does the tenant/subdomain resolution
+    // itself when isMultiTenant is set (same logic the client uses), and
+    // onResolvedSiteData reports back the {app, type, data} it actually
+    // resolved — the master site, or the subdomain-matched tenant's own
+    // site — so this doesn't need its own separate, always-master fetch.
+    //
+    // ssrCollect: threaded down into every pattern's getPatternTheme() call
+    // (via pattern2routes -> each siteConfig.jsx) so their theme's font/CSS
+    // <style> content is collected as HTML strings here instead of being
+    // silently dropped (loadThemeFonts no-ops without `document`). See
+    // ui/useTheme.js and planning/tasks/current/ssr-runtime-theme-css-fouc.md.
+    let siteData = null
+    const ssrCollect = []
     const routes = await dmsSiteFactory({
       dmsConfig,
       falcor,
@@ -91,6 +93,9 @@ export function createSSRHandler({
       pgEnvs,
       host,
       adminPath: siteConfig.baseUrl || '/list',
+      isMultiTenant,
+      onResolvedSiteData: (app, type, data) => { siteData = data },
+      ssrCollect,
     })
 
     // Add a catch-all 404 at the end (must match client's PageNotFoundRoute)
@@ -99,15 +104,15 @@ export function createSSRHandler({
       Component: () => React.createElement('div', null, '404 - Not Found'),
     })
 
-    return { routes, siteData }
+    return { routes, siteData, themeFontsHtml: ssrCollect.join('') }
   }
 
   async function ensureRoutes(host) {
     let entry = routeCache.get(host)
     if (!entry) {
-      const { routes, siteData } = await buildRoutes(host)
+      const { routes, siteData, themeFontsHtml } = await buildRoutes(host)
       const handler = createStaticHandler(routes)
-      entry = { routes, handler, siteData }
+      entry = { routes, handler, siteData, themeFontsHtml }
       routeCache.set(host, entry)
     }
     return entry
@@ -116,13 +121,13 @@ export function createSSRHandler({
   /**
    * Render a Web Request to HTML.
    * @param {Request} request - Web standard Request object
-   * @returns {Promise<{ html: string, status: number, headers: object, siteData: object|null }>}
+   * @returns {Promise<{ html: string, status: number, headers: object, siteData: object|null, themeFontsHtml: string }>}
    */
   async function render(request) {
     const url = new URL(request.url)
     const host = url.host
 
-    const { routes, handler, siteData } = await ensureRoutes(host)
+    const { routes, handler, siteData, themeFontsHtml } = await ensureRoutes(host)
 
     const context = await handler.query(request)
 
@@ -163,6 +168,7 @@ export function createSSRHandler({
       status: context.statusCode || 200,
       headers,
       siteData,
+      themeFontsHtml,
     }
   }
 

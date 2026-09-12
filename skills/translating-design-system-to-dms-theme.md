@@ -26,7 +26,7 @@ renders pages matching the mockups.
 
 ## If you take nothing else from this skill
 
-Five gotchas every theme translation hits, in order of how often
+Nine gotchas every theme translation hits, in order of how often
 they bite. Each one looks like a one-character config detail and is
 actually load-bearing. Skip to the linked sections; the rest of this
 doc is reference material organized around the per-primitive checklist.
@@ -60,7 +60,39 @@ doc is reference material organized around the per-primitive checklist.
    falsy, and the codebase ships them set. Without explicit override,
    the codebase default's `font-display` rule shadows your brand
    tokens and headings render in the wrong family inside Lexical.
-5. **Leading-zero Tailwind opacity (`/05`, `/06`) is invalid in
+5. **Ship a `textSettings` block even if your type tokens already live
+   on `dataCard`** — see [§3.1.6](#316-textsettings--the-global-type-scale).
+   The Card toolbar's Value / Header font dropdowns are built from
+   `textSettings` alone, so a brand without one gives authors **empty
+   dropdowns** while the page still renders correctly (Card merges
+   `{...textSettings, ...dataCard}` at render time). Correct output,
+   unauthorable type — no error, no visual tell. `grep -c textSettings
+   src/themes/<brand>/theme.js` → `0` means you have this bug.
+6. **A Tailwind arbitrary value may not contain a literal space** —
+   `font-[Proxima Nova]` is parsed as the two junk classes
+   `font-[Proxima` and `Nova]`, so **no `font-family` rule is emitted
+   at all** and text silently falls back to the app default. Use
+   underscores: `font-['Proxima_Nova',_system-ui,_sans-serif]`. The
+   failure is invisible in review — the text renders, just in the
+   wrong face, reading heavier and wider at the same px. Found on 29
+   keys of a shipped brand theme. Check with
+   `grep -n "\[[^]]* [^]]*\]" src/themes/<brand>/theme.js`.
+7. **Lexical's `<hr>` is themed by FLAT keys — `hr_base` / `hr_after` /
+   `hr_selected` on `theme.lexical.styles[0]`, NOT a nested `hr: {}`**
+   (`buildLexicalInternalTheme` assembles the nested object from them,
+   so a nested override silently no-ops — and neither does it live on
+   `theme.richtext`, which themes the editor chrome). The library
+   default is a **2px `#ccc`** bar: unbranded and double most brands'
+   rule weight, on every horizontal rule an author inserts anywhere on
+   the site. Override it when you define your divider scale.
+8. **Define `cellBorderSides` for any brand whose cells are rounded** —
+   `cellBorderBelow` composes from `theme.dataCard.cellBorderSides`,
+   NOT from `headerValueWrapperBorderBelow` (a legacy key nothing
+   reads). Without it a brand inherits `border-b-zinc-950/15`, which
+   is both off-brand ink and keeps the cell's own `rounded-[…]`, so
+   every divider draws as a curved grey hairline. Ship the four sides
+   with your hairline colour and `rounded-none!`.
+9. **Leading-zero Tailwind opacity (`/05`, `/06`) is invalid in
    Tailwind v4** — see [§3.1.57](#3157-leading-zero-opacity-classes-are-invalid-in-tailwind-v4).
    `border-zinc-950/05` compiles fine under the mockup's Tailwind Play
    CDN but generates **no rule** in the live v4 build, so the border
@@ -68,7 +100,7 @@ doc is reference material organized around the per-primitive checklist.
    straight from a mockup silently ships near-black hairlines. Use `/5`,
    `/6` — single-digit, no leading zero.
 
-Five sentences at the top of this skill save every brand half a day
+Nine sentences at the top of this skill save every brand half a day
 of debugging.
 
 ---
@@ -1070,6 +1102,39 @@ Steps 1–3 cover the bug class this section exists to prevent.
 `textSettings` is **not** a primitive; it's a top-level theme key
 holding **named text styles** that several components read by name.
 Source of truth: `src/dms/packages/dms/src/ui/themes/textSettings.js`.
+
+> ⚠ **A brand with NO `textSettings` block looks fine and is silently
+> unauthorable.** Ship one even if the type tokens already live
+> somewhere else.
+>
+> `Card.config.jsx`'s `buildFontStyleOptions` builds the toolbar's
+> **Value** and **Header** font-style dropdowns from
+> `getComponentTheme(theme, 'textSettings')`. With no such key that
+> returns `{}`, so both dropdowns render **empty** — an author cannot
+> pick a type token at all, and the only way to set one is to hand-edit
+> `element-data`. Meanwhile the *page* still renders correctly, because
+> `ui/components/Card.jsx` builds its theme as
+> `{ ...textSettings, ...dataCard }` — so tokens parked on `dataCard`
+> resolve at render time. Correct output, broken authoring: nothing in
+> the UI tells you, and a screenshot pass will never catch it.
+>
+> The same key also feeds Lexical's `/Style:` slash menu (§3.1.4
+> Approach B), so a missing block costs you that too.
+>
+> **Check it in one line** before trusting any brand's type layer:
+> ```bash
+> grep -c "textSettings" src/themes/<brand>/theme.js   # 0 ⇒ empty dropdowns
+> ```
+> Found in the wild: the mny theme carried a full 22-key ladder
+> (`textXS…text8XL`) on `dataCard` and no `textSettings` at all. The fix
+> is purely **additive** — add `textSettings` with the design system's
+> named tokens and leave the legacy `dataCard` keys alone; since the two
+> key sets don't collide, the merge can only add, so every existing page
+> renders byte-identically. Verify with a collision check:
+> ```bash
+> # must print nothing
+> comm -12 <(textSettings keys | sort) <(dataCard keys | sort)
+> ```
 
 **What reads textSettings:**
 

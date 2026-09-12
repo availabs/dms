@@ -6,7 +6,7 @@ import get from "lodash/get"
 import { TreemapGraph, Legend } from "./avl-graph"
 
 import { strictNaN } from "../utils"
-import { getAggFunc, useLegendSqueezeGuard } from "./utils"
+import { getAggFunc, useLegendSqueezeGuard, isTopLegend, isBottomLegend, isColumnLegendPosition, legendRowJustify } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const TreemapGraphWrapper = props => {
@@ -211,12 +211,12 @@ const TreemapGraphWrapper = props => {
     return () => publish(null);
   }, [publish, provider, indexColumn, categoryColumn]);
 
-  const isColumnLegend = ["top", "bottom"].includes(legend.position);
+  const isColumnLegend = isColumnLegendPosition(legend.position);
 
   return (
     <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>
-      { !legend.show || legend.position !== "top" ? null :
-        <div className="flex justify-center shrink-0" ref={ legendRef }>
+      { !legend.show || !isTopLegend(legend.position) ? null :
+        <div className={ `flex ${ legendRowJustify(legend.position) } shrink-0` } ref={ legendRef }>
           { InstantiatedLegend }
         </div>
       }
@@ -247,8 +247,8 @@ const TreemapGraphWrapper = props => {
           { InstantiatedLegend }
         </div>
       }
-      { !legend.show || legend.position !== "bottom" ? null :
-        <div className="flex justify-center shrink-0" ref={ legendRef }>
+      { !legend.show || !isBottomLegend(legend.position) ? null :
+        <div className={ `flex ${ legendRowJustify(legend.position) } shrink-0` } ref={ legendRef }>
           { InstantiatedLegend }
         </div>
       }

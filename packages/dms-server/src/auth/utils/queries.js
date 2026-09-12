@@ -333,11 +333,20 @@ const isPublicGroup = async (db, groupName, project) => {
 };
 
 const checkIfIpIsLocked = async (db, ip, LOCKOUT_INTERVAL, MAXIMUM_LOGIN_ATTEMPTS) => {
+  // `NOW() - INTERVAL '30 minutes'` is Postgres-only syntax — SQLite has no
+  // INTERVAL type and rejects it outright ("near '30 minutes': syntax
+  // error"), so this ran on every single login attempt against a SQLite auth
+  // backend. LOCKOUT_INTERVAL is a fixed developer constant (see
+  // auth/handlers/auth.js), not user input, so string interpolation here
+  // carries no injection risk on either branch.
+  const cutoff = db.type === 'sqlite'
+    ? `datetime('now', '-${ LOCKOUT_INTERVAL }')`
+    : `NOW() - INTERVAL '${ LOCKOUT_INTERVAL }'`;
   const sql = `
     SELECT COUNT(1) AS num_failed_attempts
       FROM failed_logins
       WHERE ip = $1
-        AND attempted_at >= NOW() - INTERVAL '${ LOCKOUT_INTERVAL }';
+        AND attempted_at >= ${cutoff};
   `;
   const { rows } = await db.query(sql, [ip]);
   const [{ num_failed_attempts }] = rows;

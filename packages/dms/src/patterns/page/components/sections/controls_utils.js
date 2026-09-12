@@ -206,14 +206,59 @@ export const addStaticColumn = (column, setState) => setState(draft => {
         draft.columns.push(column)
     }
 })
+// ─────────────────────────────────────────────────────────────────────────────
+// Numeric control coercion.
+//
+// A `{type:'input', inputType:'number'}` control used to write `+e.target.value`
+// straight through, which had two sharp edges:
+//
+//  1. **No range enforcement.** HTML `min`/`max` only drive the spinner and form
+//     validation — they do NOT stop a user typing an out-of-range number. For a
+//     0–1 fraction like a bar graph's `paddingInner` that is destructive rather
+//     than merely wrong: d3's band scale clamps with `Math.min(1, _)` and derives
+//     `bandwidth = step * (1 - paddingInner)`, so ANY entry >= 1 (someone typing
+//     "10" meaning 10px) silently yields zero-width bars — the whole chart
+//     disappears with no error. Clamping on write makes that unreachable.
+//  2. **Clearing the field wrote 0, not "unset".** `+"" === 0`, so emptying the
+//     box pinned an explicit 0 that beats the brand default in the theme merge,
+//     instead of falling back to it. Blank now means undefined, and
+//     `updateDisplayValue` deletes the key outright so the theme default applies.
+//
+// `min`/`max`/`step` on the control item are also forwarded to the DOM input by
+// the renderers, so the spinner and the written value agree.
+// ─────────────────────────────────────────────────────────────────────────────
+export const coerceControlValue = (item, raw) => {
+    const value = raw?.target?.value ?? raw;
+    if (item?.inputType !== 'number') return value;
+
+    // Blank (or a lone "-"/"." mid-typing) = unset, so the key can fall back to
+    // the theme's chartDefaults rather than being pinned to 0.
+    if (value === '' || value === null || value === undefined || value === '-' || value === '.') return undefined;
+
+    const num = Number(value);
+    if (!Number.isFinite(num)) return undefined;
+
+    const { min, max } = item || {};
+    if (Number.isFinite(min) && num < min) return min;
+    if (Number.isFinite(max) && num > max) return max;
+    return num;
+};
+
 export const updateDisplayValue = (key, value, onChange, setState) => {
     setState(draft => {
+        // `undefined` means UNSET — delete the key rather than storing an
+        // explicit undefined. A stored `undefined` still wins the spread in
+        // graph_new's mergeChartDefaults ({...defaults, ...display}), so the
+        // brand default would stay shadowed and the renderer would fall back to
+        // its own hardcoded default instead. Deleting restores inheritance.
         if (key?.includes('.')) {
             const [parent, child] = key.split('.');
             if (!draft.display[parent]) draft.display[parent] = {};
-            draft.display[parent][child] = value;
+            if (value === undefined) delete draft.display[parent][child];
+            else draft.display[parent][child] = value;
         } else {
-            draft.display[key] = value;
+            if (value === undefined) delete draft.display[key];
+            else draft.display[key] = value;
         }
 
         if(key === 'allowEditInView' && value){

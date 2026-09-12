@@ -8,6 +8,24 @@ const DefaultPalette = getColorRange(20, "div7");
 
 // console.log("SchemeOptions", SchemeOptions)
 
+// Placeholder for the legend's "Title" field: shows what the legend would caption itself with if
+// the author types nothing.
+//
+// The automatic value is a measure UNIT, and a unit is only ever drawn on a LINEAR (gradient)
+// legend — GridGraph always, BarGraph when it colours by value. Every other legend is a
+// categorical key to identity ("which line is which route"), where a unit is meaningless and is
+// deliberately ignored; offering it as a placeholder there would promise a caption that never
+// appears. The unit itself comes from an optional, site-supplied `avlGraph.resolveLegendUnit`
+// hook, so on a site without one this is just "Optional".
+const legendTitlePlaceHolder = (display, theme) => {
+    const isLinearLegend = display?.graphType === "GridGraph" || Boolean(display?.colors?.byValue);
+    if (!isLinearLegend) return "Optional";
+    const unit = typeof theme?.avlGraph?.resolveLegendUnit === "function"
+        ? theme.avlGraph.resolveLegendUnit(display)
+        : undefined;
+    return unit ? `${ unit } (automatic)` : "Optional";
+};
+
 const componentFunctions = {
   providers: [
     { id: 'hover_publish',
@@ -211,6 +229,18 @@ const graphConfig = {
                         }
                     },
                     { label: "Color", value: "color",
+                        displayCdn: ({ display }) => display.graphType === "GridGraph"
+                    },
+                    // Row/column scaling — read by GridGraphWrapper (graph_new/components/
+                    // GridGraph.jsx) but, until now, only settable by hand-editing a section's
+                    // JSON (e.g. via the CLI), never from this picker. "Height" scales each
+                    // yAxis row (e.g. TMC miles on a per-TMC space-time grid — this is what
+                    // composeMeasureConfig.js's buildGridHeightColumn composes automatically for
+                    // every per-TMC GridGraph pick); "Width" does the same for xAxis columns.
+                    { label: "Height", value: "height",
+                        displayCdn: ({ display }) => display.graphType === "GridGraph"
+                    },
+                    { label: "Width", value: "width",
                         displayCdn: ({ display }) => display.graphType === "GridGraph"
                     },
                 ],
@@ -450,15 +480,41 @@ const graphConfig = {
                 },
                 { type: "toggle",
                     label: "Reverse", key: "colors.reverse"
+                },
+                // Fixed value-scale domain (round 80) — for a value-scaled scheme
+                // (GridGraph, or Bar Graph's "Color by Value"), pins the color
+                // range to this [min,max] instead of computing it from whatever
+                // data happens to be loaded in this section, so the same measure
+                // reads the same color the same way across every section/report
+                // that shows it. Blank on both → auto-scale to the data (today's
+                // behavior, unchanged). Same two-flat-key shape as the existing
+                // Y Axis "Domain Min"/"Domain Max" fixed-axis override just above.
+                { type: "input", inputType: "number",
+                    label: "Domain Min", key: "colors.domainMin"
+                },
+                { type: "input", inputType: "number",
+                    label: "Domain Max", key: "colors.domainMax"
                 }
             ]
         },
+        // ONE legend control for every graph type (2026-09-11). It used to be split in two,
+        // because only GridGraph's wrapper understood the corner positions — the other five
+        // matched `legend.position` with strict equality against the four bare edges, so a corner
+        // value matched no branch and the legend silently disappeared. Now that the corner cases
+        // live in one shared helper (components/utils.js's isTopLegend/legendRowJustify) every
+        // wrapper handles all eight, and there is nothing left for the split to express.
+        //
+        // Additive for existing sections: the four bare values are still offered and still mean
+        // exactly what they meant, and a GridGraph section keeps every option it had.
         legend: {
             name: "Legend",
-            displayCdn: ({ display }) => display.graphType !== "GridGraph",
             items: [
                 { type: "toggle",
                     label: "Show", key: "legend.show"
+                },
+                { type: "input", inputType: "text",
+                    label: "Title", key: "legend.title",
+                    placeHolder: legendTitlePlaceHolder
                 },
                 { type: "select",
                     label: "Position", key: "legend.position",
@@ -466,25 +522,9 @@ const graphConfig = {
                         { label: "Right", value: "right" },
                         { label: "Left", value: "left" },
                         { label: "Top", value: "top" },
-                        { label: "Bottom", value: "bottom" }
-                    ]
-                }
-            ]
-        },
-        legendForGridGraph: {
-            name: "Legend",
-            displayCdn: ({ display }) => display.graphType === "GridGraph",
-            items: [
-                { type: "toggle",
-                    label: "Show", key: "legend.show"
-                },
-                { type: "select",
-                    label: "Position", key: "legend.position",
-                    options: [
-                        { label: "Right", value: "right" },
-                        { label: "Left", value: "left" },
                         { label: "Top Right", value: "top-right" },
                         { label: "Top Left", value: "top-left" },
+                        { label: "Bottom", value: "bottom" },
                         { label: "Bottom Right", value: "bottom-right" },
                         { label: "Bottom Left", value: "bottom-left" }
                     ]
@@ -582,13 +622,22 @@ const graphConfig = {
                         {label: 'Stacked', value: 'stacked'},
                         {label: 'Grouped', value: 'grouped'},
                     ]},
+                // Gap between bars, as d3's band-scale INNER PADDING — a
+                // fraction of the band step, NOT pixels. bandwidth =
+                // step * (1 - paddingInner), so 1 means zero-width (invisible)
+                // bars; d3 clamps anything larger to 1, which is why typing a
+                // pixel-ish "10" here used to make the whole chart vanish.
+                // max 0.9 keeps that unreachable; blank = inherit the theme's
+                // chartDefaults. ~0.3 reads like the design-system bar rows.
                 { type: "input", inputType: "number",
-                    label: "Inner Padding", key: "paddingInner"
+                    label: "Bar Spacing (0–0.9)", key: "paddingInner",
+                    min: 0, max: 0.9, step: 0.05, placeHolder: "theme default"
                 },
-                // Bar fill-opacity. Blank → the CSS default (0.75, :hover → 1).
-                // Set to 1 for solid, design-matching bars (0–1).
+                // Bar fill-opacity, 0–1. Blank → the CSS default (0.75, :hover → 1).
+                // Set to 1 for solid, design-matching bars.
                 { type: "input", inputType: "number",
-                    label: "Bar Opacity", key: "barOpacity"
+                    label: "Bar Opacity (0–1)", key: "barOpacity",
+                    min: 0, max: 1, step: 0.05, placeHolder: "theme default"
                 },
                 // Off (default) → one color per series (route/comparison), the
                 // usual multi-series legend. On → one scale across the whole

@@ -20,7 +20,7 @@ const axisFontProps = (graphFormat, axis) => ({
   labelColor: get(graphFormat, [axis, "labelColor"]),
 });
 
-const GraphTitle = ({ title, description, theme = {}, ...props }) => {
+const GraphTitle = ({ title, description, theme = {}, inline = false, ...props }) => {
 
   // Explicit per-section font settings (fontSize/fontWeight on display.title) win;
   // otherwise the avlGraph theme's header tokens style the title/description so every
@@ -39,9 +39,31 @@ const GraphTitle = ({ title, description, theme = {}, ...props }) => {
 
   const justify = props.justify || "justify-start";
 
+  // `inline` = this title is sharing a row with a top-positioned legend (see
+  // titleInline below), which is the only case where it competes for width. Both
+  // sides used to refuse to shrink — transportny's `title` token ends in `shrink-0`
+  // (deliberately, to keep the title on one line) and the gradient legend had a
+  // hard 250px ramp — so a row narrower than their sum overflowed, and the rounded
+  // section card clipped whichever lost. The legend is shrinkable as of the
+  // Legend.jsx geometry fix; this is the title half.
+  //
+  // flexShrink/minWidth go in an INLINE STYLE rather than as classes on purpose: the
+  // theme string may carry `shrink-0`, and which of two competing Tailwind utilities
+  // wins depends on stylesheet order, not on class order in the string — an inline
+  // style is the only reliable override. It only applies when sharing the row, so a
+  // stacked title keeps the theme's intent untouched.
+  //
+  // Truncating with an ellipsis honours that intent better than clipping did: the
+  // title still occupies exactly one line, and the full text stays reachable via the
+  // native tooltip.
   return !title && !description ? null : (
-    <div className={ theme.headerWrapper || `w-full flex ${ justify }` }>
-      <div className={ titleClassName }>{ title }</div>
+    <div className={ `${ theme.headerWrapper || `w-full flex ${ justify }` }${ inline ? " min-w-0 overflow-hidden" : "" }` }>
+      <div className={ `${ titleClassName }${ inline ? " truncate" : "" }` }
+        style={ inline ? { flexShrink: 1, minWidth: 0 } : undefined }
+        title={ inline && typeof title === "string" ? title : undefined }
+      >
+        { title }
+      </div>
       { !description ? null :
         <div className={ theme.subtitle || "" }>{ description }</div>
       }
@@ -143,6 +165,56 @@ export const GraphComponent = props => {
 
 // console.log("GraphComponent::actions", props.actions);
 
+  // Theme-sourced legend chrome (the "Layer A" class-string tokens). Injected HERE rather
+  // than read inside Legend.jsx, because the legend cannot resolve the token itself: which
+  // avlGraph style is live is decided per-section by `activeStyle`, and the legend never sees
+  // it. One injection covers all six graph wrappers without touching any of them — each
+  // already spreads `{ ...legend }` into <Legend/>.
+  //
+  // `classNames` is safe as a flat key: the wrappers own (and overwrite) `type`,
+  // `orientation`, `scale`, `colors`, `colorsByKey`, `categories`, `format`, `actions`,
+  // `onEnter` and `onLeave`, and collide with nothing else. This is the same reason
+  // `chartDefaults.legend.scale` was rejected — it would be destroyed one hop before
+  // Legend.jsx read it.
+  //
+  // Every token is OPTIONAL and every unset token falls back to Legend.jsx's historical
+  // literal, byte for byte. That is not a nicety: ~7,415 MitigateNY graphs render a legend
+  // and none of them will ever set one of these. Locked by tests/legendLegacyProps.test.js.
+  //
+  // Memoised because `legend` is spread into components whose own React.useMemo deps include
+  // it — handing them a fresh object on every render would quietly defeat that memoisation.
+  const legend = React.useMemo(() => ({
+    ...get(graphFormat, "legend", {}),
+    classNames: {
+      row: theme?.legend,
+      swatch: theme?.legendSwatch,
+      label: theme?.legendLabel,
+      tick: theme?.legendTick,
+      ramp: theme?.legendRamp,
+      title: theme?.legendTitle
+    }
+  }), [graphFormat, theme?.legend, theme?.legendSwatch, theme?.legendLabel,
+       theme?.legendTick, theme?.legendRamp, theme?.legendTitle]);
+
+  // Opt-in, theme-driven (2026-09-04, Ryan) — `theme.titleInlineWithLegend` lives on a named
+  // avlGraph style selected per-section via `activeStyle` (see transportny/themev2.js's
+  // `reportInlineTitle` style), NOT the site-wide default, so most NPMRDS graphs are
+  // untouched. Even when the theme opts in, this only actually applies when there's a
+  // top-positioned legend to share a row with — legend hidden, or positioned left/right/
+  // bottom/bottom-*, falls back to the normal standalone title below it, so the title can
+  // never be silently dropped.
+  const legendPosition = get(graphFormat, ["legend", "position"]);
+  const titleInline = Boolean(theme.titleInlineWithLegend)
+    && Boolean(get(graphFormat, ["legend", "show"]))
+    && String(legendPosition || "").startsWith("top");
+
+  const titleNode = (
+    <GraphTitle { ...(graphFormat.title || {}) }
+      description={ graphFormat.description }
+      theme={ theme }
+      inline={ titleInline }/>
+  );
+
   return (
     <div
       className={ `
@@ -152,11 +224,10 @@ export const GraphComponent = props => {
       ` }
     >
 
-      <GraphTitle { ...(graphFormat.title || {}) }
-        description={ graphFormat.description }
-        theme={ theme }/>
+      { titleInline ? null : titleNode }
 
       <GraphComponent
+        titleNode={ titleInline ? titleNode : null }
         viewData={ viewData }
         columns={ columns }
         height={ graphHeight }
@@ -257,7 +328,7 @@ export const GraphComponent = props => {
         // keeps the historical solid pie; Pie only, ignored by other graph types.
         pieInnerRadius={ get(graphFormat, "pieInnerRadius", 0) }
         margin={ margin }
-        legend={ get(graphFormat, "legend", {}) }
+        legend={ legend }
         hoverComp={ hoverComp }
 
         actions={ actions }

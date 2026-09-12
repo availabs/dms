@@ -1,15 +1,16 @@
 import React from 'react'
 import Icon from './Icon'
-import {ThemeContext} from '../useTheme'
+import {ThemeContext, getComponentTheme} from '../useTheme'
 import {inputTheme} from './Input.theme'
 
-// `activeStyle` is a THEMING key (named-style selector) that themed callers (filter controls,
-// column types) pass alongside real input props — destructure it out so it never spreads onto
-// the DOM <input> (React unknown-prop warning). Input doesn't resolve styles[] today; if it
-// grows named styles, wire activeStyle into getComponentTheme here.
+// `activeStyle` is a THEMING key (named-style selector) passed by themed callers (filter
+// controls, column types). Resolved through getComponentTheme so a site theme may register
+// `input` as an options/styles[] map with named variants (e.g. a borderless 'pill' style for
+// filter-bar controls). BC: a flat `theme.input` map passes through getComponentTheme
+// unchanged regardless of activeStyle, so themes without styles[] behave exactly as before.
 export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
-  const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
+  const theme = {...themeFromContext, input: {...inputTheme, ...(getComponentTheme(themeFromContext, 'input', activeStyle) || {})}};
   return (
     <span className={`${theme?.input?.inputContainer}`}>
       <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>

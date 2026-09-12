@@ -38,6 +38,27 @@ function isSplitType(type) {
 }
 
 /**
+ * The `data` snapshot to store in change_log for a mutation, or null for none.
+ *
+ * Deletes never carried one. Split-row types no longer do either: nothing
+ * reads it — /sync/delta excludes those types before serializing, and the
+ * WebSocket broadcast uses the in-memory row rather than this copy — while
+ * storing it cost 24 GB of TOAST on one production app, 65% of the entire
+ * change_log, from a single dataset row rewritten 3,306 times at ~7.7 MB a
+ * write (measured 2026-09-10, see sync-delta-change-log-bloat.md item 4). The
+ * revision row itself is still written, so revision ordering, MAX(revision)
+ * and compaction are all unchanged.
+ *
+ * Uses the broad isSplitType above, so legacy NAME_SPLIT_REGEX types stop
+ * snapshotting too, not just the current `{source}|{view}:data` form.
+ */
+function changeLogData(type, action, data) {
+  if (action === 'D') return null;
+  if (isSplitType(type)) return null;
+  return data;
+}
+
+/**
  * Parse a split type string into its components.
  *
  * New format: 'source|view:data' → { source, view }
@@ -372,6 +393,7 @@ function forgetTable(schema, table) {
 
 module.exports = {
   isSplitType,
+  changeLogData,
   parseType,
   sanitize,
   resolveSchema,

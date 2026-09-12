@@ -14,6 +14,7 @@ const { getDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
 const {
   isSplitType,
+  changeLogData,
   resolveTable,
   getSequenceName,
   ensureSequence,
@@ -24,6 +25,111 @@ const {
 /** Types excluded from sync bootstrap/delta (loaded on-demand instead) */
 function isSyncExcluded(type) {
   return isSplitType(type);
+}
+
+/**
+ * SQL form of the split-type exclusion, for pushing the filter into the query
+ * instead of discarding rows in JS after they have been read, de-TOASTed and
+ * parsed. In the window measured live on 2026-09-10 that read was 1,998 rows
+ * and 24 MB of compressed `data` per full-app delta, every byte of it thrown
+ * away by isSyncExcluded a moment later.
+ *
+ * This catches the current `{source}|{view}:data` form only. The legacy
+ * NAME_SPLIT_REGEX form (table-resolver.js, e.g. `traffic_counts-1`) has no
+ * ':data' suffix, so the JS filter has to stay as a backstop — the two
+ * predicates are not equivalent, and the SQL one is deliberately the narrower.
+ */
+const SQL_NOT_SPLIT_TYPE = `AND type NOT LIKE '%:data'`;
+
+/**
+ * Ceiling on how many change_log rows one delta will serialize. Past it the
+ * endpoint reports the count instead of the rows — see item B in
+ * sync-delta-change-log-bloat.md.
+ */
+const SERVER_MAX_DELTA = parseInt(process.env.DMS_SYNC_MAX_DELTA, 10) || 1000;
+
+/**
+ * The row count ceiling for one delta: the stricter of what the client asked
+ * for and what this server allows.
+ *
+ * Taking the min is what keeps the two thresholds in agreement. Anything the
+ * server serializes is under the client's own limit, so a served delta can
+ * never be built and then discarded on arrival. A client asking for less than
+ * the server default is honoured; one asking for more — or one that sends
+ * nothing, i.e. predates `maxChanges` — is capped at the server default.
+ *
+ * @param {*} rawClientMax - the request's ?maxChanges, unparsed
+ * @param {number} serverMax
+ * @returns {number}
+ */
+function resolveMaxChanges(rawClientMax, serverMax = SERVER_MAX_DELTA) {
+  const clientMax = parseInt(rawClientMax, 10);
+  return Number.isFinite(clientMax) && clientMax > 0
+    ? Math.min(clientMax, serverMax)
+    : serverMax;
+}
+
+/**
+ * Build the row query and the matching count query for a delta scope.
+ *
+ * The two SQL strings deliberately share one `where` string. They have to: the
+ * count decides whether the rows are worth reading at all, so a count over a
+ * different predicate would either refuse a delta that is actually small or
+ * serialize one that isn't.
+ *
+ * `excludeSplit` reports whether the caller still needs the JS isSyncExcluded
+ * pass. It is off for an explicit ?type= request — asking for a split type by
+ * name is honoured rather than silently emptied.
+ *
+ * @param {{ table: string, app: string, type?: string, pattern?: string, sinceRev: number }} opts
+ * @returns {{ rowSql: string, countSql: string, params: Array, excludeSplit: boolean }}
+ */
+function buildDeltaQuery({ table, app, type, pattern, sinceRev }) {
+  let where, params, excludeSplit;
+
+  if (pattern) {
+    // Pattern-scoped: the pattern's own type, its sub-types, and sibling types
+    // under the same instance prefix (e.g. 'songs_2|component' for 'songs_2|page').
+    const pipeIdx = pattern.indexOf('|');
+    const instancePrefix = pipeIdx !== -1 ? pattern.substring(0, pipeIdx) : null;
+    excludeSplit = true;
+    where = instancePrefix
+      ? `app = $1 AND (type = $2 OR type LIKE $2 || '|%' OR type LIKE $3 || '|%') AND revision > $4 ${SQL_NOT_SPLIT_TYPE}`
+      : `app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ${SQL_NOT_SPLIT_TYPE}`;
+    params = instancePrefix ? [app, pattern, instancePrefix, sinceRev] : [app, pattern, sinceRev];
+  } else if (type) {
+    excludeSplit = false;
+    where = `app = $1 AND type = $2 AND revision > $3`;
+    params = [app, type, sinceRev];
+  } else {
+    excludeSplit = true;
+    where = `app = $1 AND revision > $2 ${SQL_NOT_SPLIT_TYPE}`;
+    params = [app, sinceRev];
+  }
+
+  return {
+    rowSql: `SELECT * FROM ${table} WHERE ${where} ORDER BY revision ASC`,
+    countSql: `SELECT count(*) AS n FROM ${table} WHERE ${where}`,
+    params,
+    excludeSplit,
+  };
+}
+
+/**
+ * Is a client-supplied item id usable as a bigint primary key?
+ *
+ * `data_items.id` and `change_log.item_id` are BIGINT. A non-numeric id
+ * reached Postgres as a cast and came back as a 500 — `invalid input syntax
+ * for type bigint: "no-access"`, 404 of them in a single window on 2026-09-10,
+ * because the placeholder id the client had queued a mutation against was
+ * replayed forever: a 500 reads as "try again later", and the client's retry
+ * had no backoff ceiling. Rejecting it as the 4xx it actually is lets the
+ * client discard the mutation instead.
+ */
+function isValidItemId(id) {
+  if (typeof id === 'number') return Number.isInteger(id) && id > 0;
+  if (typeof id === 'string') return /^\d+$/.test(id.trim()) && Number(id) > 0;
+  return false;
 }
 const {
   jsonMerge,
@@ -140,6 +246,33 @@ function createSyncRoutes(dbName) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
+      // Compute the revision watermark BEFORE fetching items, not after.
+      // These are two separate, non-transactional queries — if a write
+      // commits in the gap between them, whichever runs second sees it and
+      // whichever runs first doesn't. Reading revision first means a
+      // concurrent write can only make `items` MORE current than the
+      // reported `revision` (safe: the client's next delta re-fetches that
+      // change, redundant but harmless). Reading revision last — the
+      // previous order — meant a concurrent write could leave `items`
+      // STALE relative to the reported `revision`: the client records
+      // itself as caught up through a revision whose actual data it never
+      // received, and since every future delta filters on
+      // `revision > sinceRev`, that specific change is never re-delivered —
+      // a silent, permanent gap. Found live: two browser tabs on the same
+      // page, one edited, the other's cold bootstrap reported a revision
+      // number newer than the edit but its own local copy of that exact
+      // row never picked up the edit, with no further trigger that would
+      // ever correct it short of a hard reload or another later edit to
+      // the same row.
+      let revision = 0;
+      if (await hasChangeLog()) {
+        const maxRevRow = await dms_db.promise(
+          `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
+          [app]
+        );
+        revision = maxRevRow[0]?.max_rev || 0;
+      }
+
       let items;
 
       if (skeleton) {
@@ -188,15 +321,6 @@ function createSyncRoutes(dbName) {
         items = allItems.filter(item => !isSyncExcluded(item.type));
       }
 
-      let revision = 0;
-      if (await hasChangeLog()) {
-        const maxRevRow = await dms_db.promise(
-          `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
-          [app]
-        );
-        revision = maxRevRow[0]?.max_rev || 0;
-      }
-
       const scope = skeleton ? `skeleton=${skeleton}` : pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
       const durationMs = Date.now() - t0;
 
@@ -237,76 +361,115 @@ function createSyncRoutes(dbName) {
   router.get('/sync/delta', async (req, res) => {
     const t0 = Date.now();
     try {
-      const { app, type, pattern, since } = req.query;
+      const { app, type, pattern, since, siteType } = req.query;
       if (!app) return res.status(400).json({ error: 'app is required' });
       if (requireAuth && !req.availAuthContext?.user) {
         return res.status(401).json({ error: 'Authentication required' });
       }
 
       const sinceRev = parseInt(since, 10) || 0;
+      const maxChanges = resolveMaxChanges(req.query.maxChanges);
 
       if (!(await hasChangeLog())) {
         return res.json({ changes: [], revision: sinceRev });
       }
 
-      let changes;
-      if (pattern) {
-        // Pattern-scoped delta: changes for types matching the pattern's doc_type
-        // Also include sibling types under the same instance prefix
-        // Also include skeleton types if siteType is provided
-        const { siteType } = req.query;
-        const pipeIdx = pattern.indexOf('|');
-        const instancePrefix = pipeIdx !== -1 ? pattern.substring(0, pipeIdx) : null;
-        let patternChanges = await dms_db.promise(
-          instancePrefix
-            ? `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%' OR type LIKE $3 || '|%') AND revision > $4 ORDER BY revision ASC`
-            : `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND (type = $2 OR type LIKE $2 || '|%') AND revision > $3 ORDER BY revision ASC`,
-          instancePrefix ? [app, pattern, instancePrefix, sinceRev] : [app, pattern, sinceRev]
-        );
-        if (siteType) {
-          // Include skeleton changes (site row + its ref children) alongside pattern changes.
-          // Discover skeleton IDs from the current site row rather than hardcoding type conventions.
-          const deltaTable = await mainTable(app);
-          const siteRows = await dms_db.promise(
-            `SELECT * FROM ${deltaTable} WHERE app = $1 AND type = $2`,
-            [app, siteType]
-          );
-          const skeletonIds = siteRows.map(r => r.id);
-          for (const row of siteRows) {
-            const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
-            skeletonIds.push(...extractRefIds(data));
-          }
-          if (skeletonIds.length > 0) {
-            const placeholders = skeletonIds.map((_, i) => `$${i + 2}`).join(',');
-            const skeletonChanges = await dms_db.promise(
-              `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND item_id IN (${placeholders}) AND revision > $${skeletonIds.length + 2} ORDER BY revision ASC`,
-              [app, ...skeletonIds, sinceRev]
-            );
-            const seen = new Set(patternChanges.map(c => c.revision));
-            patternChanges = [...patternChanges, ...skeletonChanges.filter(c => !seen.has(c.revision))];
-            patternChanges.sort((a, b) => a.revision - b.revision);
-          }
-        }
-        changes = patternChanges.filter(c => !isSyncExcluded(c.type));
-      } else if (type) {
-        changes = await dms_db.promise(
-          `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND type = $2 AND revision > $3 ORDER BY revision ASC`,
-          [app, type, sinceRev]
-        );
-      } else {
-        // Default: exclude split-table types
-        const allChanges = await dms_db.promise(
-          `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND revision > $2 ORDER BY revision ASC`,
-          [app, sinceRev]
-        );
-        changes = allChanges.filter(c => !isSyncExcluded(c.type));
-      }
-
+      // Compute the revision watermark BEFORE fetching changes, not after —
+      // same race as /sync/bootstrap (see its comment for the full
+      // explanation): reading revision last let a write that commits in the
+      // gap leave `changes` missing that write while `revision` already
+      // reflects it, permanently skipping it (every future delta filters on
+      // `revision > sinceRev`, which is already past the missed one).
+      // Reading revision first means a concurrent write can only make
+      // `changes` include MORE than the reported revision implies — the
+      // client's next delta harmlessly re-fetches that same change.
       const maxRevRow = await dms_db.promise(
         `SELECT MAX(revision) AS max_rev FROM ${tbl('change_log')} WHERE app = $1`,
         [app]
       );
       const revision = maxRevRow[0]?.max_rev || sinceRev;
+
+      const { rowSql, countSql, params: queryParams, excludeSplit } = buildDeltaQuery({
+        table: tbl('change_log'), app, type, pattern, sinceRev,
+      });
+
+      // Count before reading anything. Past the threshold the client's only
+      // use for this delta is to measure its length and throw it away, so
+      // building it is pure waste: 436 MB and 40-120 s at ~1 GB of heap per
+      // request when measured live on 2026-09-10, which is what OOM'd this
+      // server 26 times in 25 minutes. idx_change_log_app_rev covers the
+      // count, and it never touches `data`, so no TOAST is de-compressed.
+      //
+      // For the pattern scope this counts the pattern predicate only, not the
+      // siteType skeleton rows unioned in below. Those are bounded by the
+      // skeleton's handful of item_ids, so they cannot turn a small delta into
+      // a large one.
+      const countRow = await dms_db.promise(countSql, queryParams);
+      const count = Number(countRow[0]?.n ?? 0);
+
+      if (count > maxChanges) {
+        const scope = pattern ? `pattern=${pattern}` : type ? `type=${type}` : 'full-app';
+        const durationMs = Date.now() - t0;
+        console.log(`[sync/delta] app=${app} ${scope} since=${sinceRev} → ${count} changes EXCEEDS maxChanges=${maxChanges}, returning tooLarge (rev=${revision}, ${durationMs}ms)`);
+        logEntry({
+          _type: 'sync-delta-too-large',
+          timestamp: new Date().toISOString(),
+          app, type: type || null, pattern: pattern || null,
+          since: sinceRev, count, maxChanges,
+          revision: Number(revision), durationMs,
+        });
+        // `revision` stays at sinceRev on purpose — it must NOT advance. A
+        // client predating this response shape reads `revision` and rewrites
+        // its watermark from it; handing it the tail here would push it past
+        // thousands of changes it never received, which is precisely the
+        // silent permanent gap the revision-before-rows ordering above exists
+        // to prevent. Such a client keeps re-requesting the same window as it
+        // does today, but for the cost of one count(*) rather than the whole
+        // payload. Clients that understand `tooLarge` read the tail from
+        // `latestRevision` and advance to it.
+        return res.json({
+          tooLarge: true,
+          count,
+          maxChanges,
+          changes: [],
+          revision: sinceRev,
+          latestRevision: Number(revision),
+        });
+      }
+
+      let changes = await dms_db.promise(rowSql, queryParams);
+
+      if (pattern && siteType) {
+        // Include skeleton changes (site row + its ref children) alongside pattern changes.
+        // Discover skeleton IDs from the current site row rather than hardcoding type conventions.
+        const deltaTable = await mainTable(app);
+        const siteRows = await dms_db.promise(
+          `SELECT * FROM ${deltaTable} WHERE app = $1 AND type = $2`,
+          [app, siteType]
+        );
+        const skeletonIds = siteRows.map(r => r.id);
+        for (const row of siteRows) {
+          const data = typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {});
+          skeletonIds.push(...extractRefIds(data));
+        }
+        if (skeletonIds.length > 0) {
+          const placeholders = skeletonIds.map((_, i) => `$${i + 2}`).join(',');
+          const skeletonChanges = await dms_db.promise(
+            `SELECT * FROM ${tbl('change_log')} WHERE app = $1 AND item_id IN (${placeholders}) AND revision > $${skeletonIds.length + 2} ${SQL_NOT_SPLIT_TYPE} ORDER BY revision ASC`,
+            [app, ...skeletonIds, sinceRev]
+          );
+          const seen = new Set(changes.map(c => c.revision));
+          changes = [...changes, ...skeletonChanges.filter(c => !seen.has(c.revision))];
+          changes.sort((a, b) => a.revision - b.revision);
+        }
+      }
+
+      // JS backstop for the legacy NAME_SPLIT_REGEX split types, which carry
+      // no ':data' suffix for SQL_NOT_SPLIT_TYPE to have caught. Skipped for
+      // an explicit ?type= request, which is honoured as asked.
+      if (excludeSplit) {
+        changes = changes.filter(c => !isSyncExcluded(c.type));
+      }
 
       const response = { changes, revision: Number(revision) };
       const payload = JSON.stringify(response);
@@ -345,6 +508,12 @@ function createSyncRoutes(dbName) {
         return res.status(401).json({ error: 'Authentication required to delete items' });
       }
       if (!action || !item) return res.status(400).json({ error: 'action and item are required' });
+      if (item.id != null && !isValidItemId(item.id)) {
+        return res.status(400).json({ error: `Invalid item id: ${JSON.stringify(item.id)}` });
+      }
+      if ((action === 'U' || action === 'D') && item.id == null) {
+        return res.status(400).json({ error: `action ${action} requires item.id` });
+      }
 
       const { user = null } = req.availAuthContext || {};
       const userId = user?.id || null;
@@ -421,7 +590,7 @@ function createSyncRoutes(dbName) {
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING revision;`,
             [resultItem.id, resultItem.app, resultItem.type, action,
-             action === 'D' ? null : resultItem.data, userId,
+             changeLogData(resultItem.type, action, resultItem.data), userId,
              req.clientIp || null,
              req.headers['user-agent'] || null,
              userId ? 'authenticated' : 'sync']
@@ -506,4 +675,13 @@ function startCompaction(db, dbType) {
   return () => clearInterval(timer);
 }
 
-module.exports = { createSyncRoutes, startCompaction };
+module.exports = {
+  createSyncRoutes,
+  startCompaction,
+  // Exposed for testing
+  buildDeltaQuery,
+  resolveMaxChanges,
+  isValidItemId,
+  SQL_NOT_SPLIT_TYPE,
+  SERVER_MAX_DELTA,
+};

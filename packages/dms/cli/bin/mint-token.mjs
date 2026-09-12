@@ -11,7 +11,7 @@
 //        node src/dms/packages/dms/cli/bin/mint-token.mjs \
 //          --host http://localhost:3001 --project npmrdsv5 \
 //          --email availabs@gmail.com --password test123 \
-//          --origin http://npmrds.localhost:5173 \
+//          --origin http://www.localhost:5173/npmrds \
 //          --out scratchpad/npmrdsv5-dev2/auth.json
 //
 // The --origin must match the URL you'll load (multi-tenant sites key auth per

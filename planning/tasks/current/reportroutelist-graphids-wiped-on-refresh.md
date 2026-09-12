@@ -121,16 +121,19 @@ reports if this file's summary isn't enough for a future session):
 - **~25+ stray duplicate `reports_snap_2` rows** on page 13 (report_id `2195012`) are cleanup debt
   from this exact bug being live all day — same class of issue as the round-53 "stray duplicate rows"
   finding in `old-reports-conversion-archive.md` (different report, same underlying
-  create-instead-of-update failure mode, now root-caused). **Not deleted** — needs the user's
-  go-ahead per the standing destructive-action policy. Only the single latest row per report_id is
-  ever read now (thanks to `sort:'desc'`), so these are inert garbage, not an active bug, but they're
-  worth clearing out eventually. This is likely NOT unique to page 13 — any report page edited before
-  today's fix could have the same accumulation; a corpus-wide check would need a new pass.
+  create-instead-of-update failure mode, now root-caused). Only the single latest row per report_id
+  was ever read (thanks to `sort:'desc'`), so these were inert garbage, not an active bug — but this
+  turned out NOT to be unique to page 13 at all: a corpus-wide check 2026-08-24 found 701 stale
+  duplicate rows across 666 distinct report_ids (out of 1654 total). **Cleaned up 2026-08-24** — see
+  `planning/transportny/tasks/current/reportroutelist.md`'s "Open items" section for the full record
+  (backup file, delete mechanism, post-cleanup verification).
 
 ## Next steps (not yet done)
 
-- [ ] Clean up the stray duplicate rows (page 13 confirmed; likely other report pages too) — needs
-  user authorization before any deletes.
+- [x] Clean up the stray duplicate rows — **DONE 2026-08-24**, see
+  `planning/transportny/tasks/current/reportroutelist.md`'s "Open items" section for the full
+  record (701 stale rows across 666 report_ids, backed up then deleted, far more than "page 13,
+  likely others" suggested).
 - [ ] Investigate/flag the dms-server tile-join crash separately if it recurs.
 - [x] The "ghost routes from another report" symptom (see below) was never formally re-investigated
   against the original repro steps, but was informally re-tested the next day (2026-07-21, during

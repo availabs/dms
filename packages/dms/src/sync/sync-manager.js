@@ -10,14 +10,63 @@
  *   - WebSocket subscribes per-app
  */
 
-import { exec, execBatch } from './db-client.js';
+import {
+  getState, setState,
+  getItem, getItemsByAppType,
+  getDistinctAppTypesByApp, getDistinctAppTypesByAppAndPatternPrefix,
+  upsertItemNow, upsertItemsFromServer, applyChangeBatch,
+  deleteItem, deleteItemsByIds, updateItemData, createItemOffline,
+  reassignItemId, sqliteNow, resetDB,
+  addPendingMutation, deletePendingMutationById, findFirstPendingMutation,
+  countAllPendingMutations, getAllPendingMutationsOrdered,
+  removeState,
+} from './idb-store.js';
 import { applyLocal, applyRemote, initFromData, getData } from './yjs-store.js';
 import { addToScope, clearScope } from './sync-scope.js';
+import { isSplitType } from '../utils/type-utils.js';
 
 // If a delta response exceeds this many changes, discard it and do a full
 // re-bootstrap for that scope instead.  This avoids applying extremely large
 // change-sets that would be slower than a fresh snapshot.
 const STALE_DELTA_THRESHOLD = 1000;
+
+// Every delta request carries this client's own threshold, so the server can
+// count first and decline to serialize a payload we would only measure and
+// throw away. Before this, the server built the whole response — 436 MB and
+// 40-120 s of ~1 GB heap, measured live 2026-09-10 — purely so the client
+// could read `changes.length` off it. The server takes min(ours, its own), so
+// anything it does send is under our threshold and can never be discarded
+// here; see sync-delta-change-log-bloat.md item B.
+function deltaQuery(params) {
+  return `${params}&maxChanges=${STALE_DELTA_THRESHOLD}`;
+}
+
+// A delta should be dropped in favour of a fresh snapshot when the server
+// refused to send it (`tooLarge`), or when it sent one over our threshold
+// anyway — an older server with no `tooLarge`, or one whose own threshold is
+// higher than ours.
+function isDeltaTooLarge(payload) {
+  if (!payload) return false;
+  if (payload.tooLarge) return true;
+  return Array.isArray(payload.changes) && payload.changes.length > STALE_DELTA_THRESHOLD;
+}
+
+// How many changes the delta covers: the server's count when it declined to
+// send them, otherwise the length of what it did send.
+function deltaSize(payload) {
+  if (payload?.count != null) return payload.count;
+  return Array.isArray(payload?.changes) ? payload.changes.length : 0;
+}
+
+// The server's current tail revision. A `tooLarge` response deliberately
+// leaves `revision` at the `since` the client asked from — advancing it there
+// would push a pre-`tooLarge` client's watermark past changes it never
+// received — and reports the real tail separately.
+function deltaTailRevision(payload) {
+  if (payload?.latestRevision != null) return payload.latestRevision;
+  if (payload?.revision != null) return payload.revision;
+  return null;
+}
 
 // Event bus for invalidation
 const listeners = new Set();
@@ -30,8 +79,38 @@ function invalidate(scope) {
   for (const fn of listeners) fn(scope);
 }
 
-// Track pending item IDs for echo suppression
-const pendingItemIds = new Set();
+// Track this tab's OWN push revisions, for echo suppression.
+//
+// Echo suppression cannot be keyed by item id: a WS `change` message (or a
+// delta row) for an item this tab also has a mutation in flight for is NOT
+// necessarily this tab's own echo — it can just as easily be a genuinely
+// different client's concurrent edit to the same item, arriving while this
+// tab's own push is still in flight. Item-id keying suppressed that message
+// unconditionally (and still advanced the persisted revision watermark past
+// it), which silently and PERMANENTLY dropped the other client's write from
+// this tab's local mirror — confirmed live 2026-08-24 (see
+// concurrent-page-editing-data-loss.md, Bug 9): a hard reload did not
+// recover it, because `revision > sinceRev` delta filtering never re-serves
+// a revision this tab already claimed to be caught up through.
+//
+// A revision number is a safe key: change_log.revision is a per-app
+// monotonic serial, so the exact revision returned by THIS tab's own
+// `/sync/push` response can only ever appear once, on the WS
+// broadcast/delta row for that exact write — never on any other client's
+// write. If the WS echo happens to arrive before the push's own HTTP
+// response resolves (so myRevisions doesn't have it yet), the message is
+// just applied as if remote — harmless, since it's this tab's own data
+// (yjs-store's applyRemote no-ops on unchanged keys) — which fails open
+// (redundant apply) instead of the old failure mode (silent, permanent
+// drop of someone else's write).
+const myRevisions = new Set();
+function markMyRevision(revision) {
+  if (revision == null) return;
+  myRevisions.add(revision);
+  // Safety net in case the echo never arrives (e.g. this exact revision
+  // gets superseded by a stale-delta re-bootstrap before it's ever seen).
+  setTimeout(() => myRevisions.delete(revision), 60000);
+}
 
 let ws = null;
 let wsRetryDelay = 500;
@@ -58,72 +137,82 @@ function apiUrl(path) {
   return `${_apiHost}${path}`;
 }
 
-// --- Bootstrap / Delta ---
-
-async function getLastRevision(scope = null) {
-  const key = scope ? `rev:${scope}` : 'last_revision';
-  const result = await exec(
-    "SELECT value FROM sync_state WHERE key = ?",
-    [key]
-  );
-  return result.rows.length > 0 ? parseInt(result.rows[0].value, 10) : null;
+// Matches the Authorization convention used everywhere else in this client
+// (e.g. patterns/page/pages/edit/index.jsx's `Authorization: user?.token` —
+// a bare token, not "Bearer "-prefixed; the server's jwtAuth middleware
+// accepts both forms). /sync/push's fetch calls previously sent no auth
+// header at all, so req.availAuthContext.user was always null server-side —
+// invisible for create/update (only enforced when DMS_SYNC_AUTH=1) but a
+// guaranteed 401 for every delete, which checks auth unconditionally
+// regardless of DMS_SYNC_AUTH, even for an actually-logged-in user.
+function authHeaders() {
+  let token = '';
+  try {
+    token = (typeof window !== 'undefined' && window.localStorage.getItem('userToken')) || '';
+  } catch { /* localStorage unavailable (SSR, privacy mode) */ }
+  return token
+    ? { 'Content-Type': 'application/json', Authorization: token }
+    : { 'Content-Type': 'application/json' };
 }
 
+// --- Bootstrap / Delta ---
+
+// Reads a watermark, returning null for "no watermark" — i.e. cold start.
+//
+// The Number.isFinite guard is not defensive padding: setLastRevision used to
+// store a cleared watermark as `String(null)`, so profiles in the wild carry
+// the literal string "null" under these keys. That row is a real row, so
+// getState returns it rather than its null default, and `parseInt("null", 10)`
+// is NaN — which is not `=== null`, so every caller's cold-start test failed
+// and the warm delta branch ran with `since=NaN`. The server's
+// `parseInt(since, 10) || 0` then turned that into since=0, i.e. a delta over
+// the app's entire change_log history. Anything non-numeric now reads as cold,
+// so an affected profile heals itself on the next load.
+async function getLastRevision(scope = null) {
+  const key = scope ? `rev:${scope}` : 'last_revision';
+  const value = await getState(key);
+  if (value === null || value === undefined) return null;
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+// Passing null/undefined CLEARS the watermark (deletes the key), which is what
+// every "re-bootstrap from scratch" path means by it. Writing String(null)
+// here instead is the bug described on getLastRevision.
 async function setLastRevision(rev, scope = null) {
   const key = scope ? `rev:${scope}` : 'last_revision';
-  await exec(
-    "INSERT OR REPLACE INTO sync_state (key, value) VALUES (?, ?)",
-    [key, String(rev)]
-  );
+  if (rev === null || rev === undefined) {
+    await removeState(key);
+    return;
+  }
+  await setState(key, String(rev));
 }
 
 async function applyChanges(changes) {
-  const statements = [];
+  const ops = [];
   for (const change of changes) {
-    if (pendingItemIds.has(change.item_id)) continue;
+    if (myRevisions.has(change.revision)) { myRevisions.delete(change.revision); continue; }
 
     if (change.action === 'I' || change.action === 'U') {
       const dataStr = typeof change.data === 'string' ? change.data : JSON.stringify(change.data || {});
-      statements.push({
-        sql: `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           app = excluded.app, type = excluded.type,
-           data = excluded.data, updated_at = datetime('now')`,
-        params: [change.item_id, change.app, change.type, dataStr]
-      });
+      ops.push({ action: 'upsert', id: change.item_id, app: change.app, type: change.type, data: dataStr });
     } else if (change.action === 'D') {
-      statements.push({
-        sql: 'DELETE FROM data_items WHERE id = ?',
-        params: [change.item_id]
-      });
+      ops.push({ action: 'delete', id: change.item_id });
     }
   }
-  if (statements.length > 0) {
-    await execBatch(statements);
+  if (ops.length > 0) {
+    await applyChangeBatch(ops);
   }
 }
 
 async function applyItems(items) {
-  // Batch all inserts into a single worker round-trip (transaction)
-  const UPSERT_SQL = `INSERT INTO data_items (id, app, type, data, created_at, created_by, updated_at, updated_by)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET
-         app = excluded.app, type = excluded.type,
-         data = excluded.data, updated_at = excluded.updated_at`;
-
-  // Chunk into batches to avoid oversized postMessages
-  const CHUNK = 500;
-  for (let i = 0; i < items.length; i += CHUNK) {
-    const chunk = items.slice(i, i + CHUNK);
-    const statements = chunk.map(item => ({
-      sql: UPSERT_SQL,
-      params: [item.id, item.app, item.type,
-        typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {}),
-        item.created_at, item.created_by, item.updated_at, item.updated_by]
-    }));
-    await execBatch(statements);
-  }
+  const normalized = items.map(item => ({
+    id: item.id, app: item.app, type: item.type,
+    data: typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {}),
+    created_at: item.created_at, created_by: item.created_by,
+    updated_at: item.updated_at, updated_by: item.updated_by,
+  }));
+  await upsertItemsFromServer(normalized);
 
   // Register types in sync scope + init Yjs docs (these are cheap in-memory ops)
   for (const item of items) {
@@ -137,6 +226,47 @@ async function applyItems(items) {
 
 const _DEV = typeof globalThis.__SYNC_DEV !== 'undefined' ? globalThis.__SYNC_DEV
   : (typeof import.meta !== 'undefined' && import.meta.env?.DEV);
+
+// One-shot per session — the steady state finds nothing, so there is no point
+// re-scanning on every skeleton bootstrap (which also runs on every
+// reBootstrapLoadedScopes).
+let _purgedSplitRows = false;
+
+/**
+ * Delete any split-type (`:data`) rows an earlier build wrote into the local
+ * mirror.
+ *
+ * Those rows only ever got there via the WS broadcast, which used to ship
+ * dataset-row payloads in full (see sync-ws-broadcast-split-row-payload.md).
+ * They are unreachable dead weight: /sync/bootstrap and /sync/delta never
+ * mention these types, so nothing refreshes them and nothing removes them —
+ * a stale multi-megabyte row could sit in a browser profile indefinitely.
+ * Existing profiles have to clean themselves up, hence this pass.
+ *
+ * Cost in the steady state is one distinct-types index scan per session.
+ */
+async function purgeLocalSplitRows() {
+  if (_purgedSplitRows) return;
+  _purgedSplitRows = true;
+  try {
+    const local = await getDistinctAppTypesByApp(_app);
+    const splitTypes = local.filter(row => isSplitType(row.type));
+    if (splitTypes.length === 0) return;
+    let removed = 0;
+    for (const { app, type } of splitTypes) {
+      const rows = await getItemsByAppType(app, type);
+      if (rows.length === 0) continue;
+      await deleteItemsByIds(rows.map(r => r.id));
+      removed += rows.length;
+    }
+    if (removed > 0) {
+      console.log(`[sync] purged ${removed} locally-mirrored dataset rows across ${splitTypes.length} split types (never served by bootstrap/delta)`);
+      invalidate('data_items');
+    }
+  } catch (err) {
+    console.warn('[sync] split-row purge failed:', err.message);
+  }
+}
 
 /**
  * Bootstrap the site skeleton (site row + pattern rows).
@@ -158,7 +288,7 @@ export async function bootstrapSkeleton() {
     // on every load. The server follows refs from the site row to discover
     // children (pattern items, etc.) rather than using hardcoded type conventions.
     const t0 = performance.now();
-    const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`));
+    const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}&skeleton=${encodeURIComponent(_siteType)}`), { headers: authHeaders() });
     if (!res.ok) throw new Error(`skeleton bootstrap failed: ${res.status}`);
     const { items, revision } = await res.json();
     if (_DEV) console.log(`[sync]     skeleton: ${items.length} items (${(performance.now() - t0).toFixed(0)}ms)`);
@@ -167,11 +297,8 @@ export async function bootstrapSkeleton() {
     // stale local items that belong to the skeleton scope but aren't in the
     // response (e.g., site row or pattern children from a previous database).
     const serverIds = new Set(items.map(i => i.id));
-    const localSite = await exec(
-      "SELECT id, data FROM data_items WHERE app = ? AND type = ?",
-      [_app, _siteType]
-    );
-    for (const row of localSite.rows) {
+    const localSite = await getItemsByAppType(_app, _siteType);
+    for (const row of localSite) {
       // Collect stale IDs: the site row itself + any ref children it points to
       const staleIds = [];
       if (!serverIds.has(row.id)) staleIds.push(row.id);
@@ -180,14 +307,20 @@ export async function bootstrapSkeleton() {
         for (const value of Object.values(data)) {
           if (!Array.isArray(value)) continue;
           for (const item of value) {
-            const refId = item?.id != null ? Number(item.id) : (typeof item === 'number' ? item : null);
+            // Match serverIds' actual type (String — see api/index.js's ref
+            // resolution for the full explanation). This used to coerce to
+            // Number, which meant this check could never match anything —
+            // every ref looked "stale" here, and the resulting delete was
+            // itself a silent no-op for the same reason (deleteItemsByIds
+            // querying a numeric key against a string-keyed row also misses).
+            // Net effect was inert rather than destructive, but still wrong.
+            const refId = item?.id != null ? String(item.id) : (typeof item === 'number' ? String(item) : null);
             if (refId != null && !serverIds.has(refId)) staleIds.push(refId);
           }
         }
       } catch { /* ignore parse errors */ }
       if (staleIds.length > 0) {
-        const placeholders = staleIds.map(() => '?').join(',');
-        await exec(`DELETE FROM data_items WHERE id IN (${placeholders})`, staleIds);
+        await deleteItemsByIds(staleIds);
         if (_DEV) console.log(`[sync]     skeleton: deleted ${staleIds.length} stale local items`);
       }
     }
@@ -200,16 +333,14 @@ export async function bootstrapSkeleton() {
     console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
   } catch (err) {
     console.warn('[sync] skeleton bootstrap failed (offline?):', err.message);
-    // Offline: seed scope from whatever is in local SQLite
+    // Offline: seed scope from whatever is in local storage
     try {
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ?",
-        [_app]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
+      const local = await getDistinctAppTypesByApp(_app);
+      for (const row of local) addToScope(row.app, row.type);
     } catch { /* ignore */ }
   }
 
+  await purgeLocalSplitRows();
   await flushPending();
 }
 
@@ -217,63 +348,76 @@ export async function bootstrapSkeleton() {
  * Bootstrap a specific pattern's data (pages, sections, sources, views).
  * Called on-demand when the user navigates to a pattern.
  *
- * @param {string} docType - The pattern's doc_type
+ * @param {string} patternType - The full DB `type` of the item being loaded
+ *   (e.g. 'my_docs|page'), as passed by api/index.js's dmsDataLoader. This is
+ *   NOT the bare pattern instance name — the server (`/sync/bootstrap`,
+ *   `/sync/delta`) derives the instance prefix itself (everything before the
+ *   first '|') and matches all sibling types under it. This parameter was
+ *   named `docType` before the type-system refactor removed `data.doc_type`
+ *   entirely; renamed here for accuracy — see sync-bring-up-to-date.md Phase 1.
  * @returns {Promise<void>}
  */
-export function bootstrapPattern(docType) {
-  if (!docType) return Promise.resolve();
-  if (_loadedPatterns.has(docType)) {
-    if (_DEV) console.log(`[sync]     pattern '${docType}' already loaded, skipping`);
+export function bootstrapPattern(patternType) {
+  if (!patternType) return Promise.resolve();
+  if (_loadedPatterns.has(patternType)) {
+    if (_DEV) console.log(`[sync]     pattern '${patternType}' already loaded, skipping`);
     return Promise.resolve();
   }
   // Deduplicate concurrent calls — return existing inflight promise if one exists
-  if (_inflightBootstraps.has(docType)) {
-    if (_DEV) console.log(`[sync]     pattern '${docType}' bootstrap already inflight, waiting...`);
-    return _inflightBootstraps.get(docType);
+  if (_inflightBootstraps.has(patternType)) {
+    if (_DEV) console.log(`[sync]     pattern '${patternType}' bootstrap already inflight, waiting...`);
+    return _inflightBootstraps.get(patternType);
   }
-  const promise = _bootstrapPatternImpl(docType);
-  _inflightBootstraps.set(docType, promise);
-  promise.finally(() => _inflightBootstraps.delete(docType));
+  const promise = _bootstrapPatternImpl(patternType);
+  _inflightBootstraps.set(patternType, promise);
+  promise.finally(() => _inflightBootstraps.delete(patternType));
   return promise;
 }
 
-async function _bootstrapPatternImpl(docType) {
-  const scope = `pattern:${docType}`;
+async function _bootstrapPatternImpl(patternType) {
+  const scope = `pattern:${patternType}`;
   const lastRev = await getLastRevision(scope);
-  if (_DEV) console.log(`[sync]     pattern '${docType}' lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
+  if (_DEV) console.log(`[sync]     pattern '${patternType}' lastRev=${lastRev} (${lastRev === null ? 'cold' : 'warm'})`);
 
   try {
     if (lastRev === null) {
       const t0 = performance.now();
-      let url = `/sync/bootstrap?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(docType)}`;
+      let url = `/sync/bootstrap?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}`;
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
-      const res = await fetch(apiUrl(url));
+      const res = await fetch(apiUrl(url), { headers: authHeaders() });
       if (!res.ok) throw new Error(`pattern bootstrap failed: ${res.status}`);
       const { items, revision } = await res.json();
       const tFetch = performance.now();
-      if (_DEV) console.log(`[sync]     pattern '${docType}': ${items.length} items (${(tFetch - t0).toFixed(0)}ms)`);
+      if (_DEV) console.log(`[sync]     pattern '${patternType}': ${items.length} items (${(tFetch - t0).toFixed(0)}ms)`);
       await applyItems(items);
       // Always add the pattern type to scope — even with 0 items, creates should go through sync
-      addToScope(_app, docType);
+      addToScope(_app, patternType);
       await setLastRevision(revision, scope);
       invalidate('data_items');
-      console.log(`[sync] pattern '${docType}' bootstrapped: ${items.length} items, rev=${revision}`);
+      console.log(`[sync] pattern '${patternType}' bootstrapped: ${items.length} items, rev=${revision}`);
     } else {
       // Warm start: delta for this pattern
       const t0 = performance.now();
-      let url = `/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(docType)}&since=${lastRev}`;
+      let url = deltaQuery(`/sync/delta?app=${encodeURIComponent(_app)}&pattern=${encodeURIComponent(patternType)}&since=${lastRev}`);
       if (_siteType) url += `&siteType=${encodeURIComponent(_siteType)}`;
-      const res = await fetch(apiUrl(url));
+      const res = await fetch(apiUrl(url), { headers: authHeaders() });
       if (!res.ok) throw new Error(`pattern delta failed: ${res.status}`);
-      const { changes, revision } = await res.json();
-      if (_DEV) console.log(`[sync]     pattern '${docType}' delta: ${changes.length} changes (${(performance.now() - t0).toFixed(0)}ms)`);
+      const payload = await res.json();
+      const { changes = [], revision } = payload;
+      if (_DEV) console.log(`[sync]     pattern '${patternType}' delta: ${deltaSize(payload)} changes (${(performance.now() - t0).toFixed(0)}ms)`);
 
       // Stale delta — too many changes, fall back to full re-bootstrap
-      if (changes.length > STALE_DELTA_THRESHOLD) {
-        console.warn(`[sync] pattern '${docType}' delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+      if (isDeltaTooLarge(payload)) {
+        console.warn(`[sync] pattern '${patternType}' delta too large (${deltaSize(payload)} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
         await setLastRevision(null, scope);
-        _loadedPatterns.delete(docType);
-        return bootstrapPattern(docType);
+        _loadedPatterns.delete(patternType);
+        // Re-enter the impl, NOT the memoizing wrapper. _inflightBootstraps
+        // still holds this very call's promise, so bootstrapPattern() would
+        // hand it straight back and this async function would resolve its own
+        // promise with itself — `TypeError: Chaining cycle detected`, raised
+        // at the resolve boundary where the try/catch below cannot see it,
+        // leaving the pattern permanently un-bootstrapped.
+        return _bootstrapPatternImpl(patternType);
       }
 
       if (changes.length > 0) {
@@ -283,36 +427,30 @@ async function _bootstrapPatternImpl(docType) {
       await setLastRevision(revision, scope);
 
       // Re-seed scope from local data for this pattern
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type LIKE ? || '|%')",
-        [_app, docType, docType]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
+      const local = await getDistinctAppTypesByAppAndPatternPrefix(_app, patternType);
+      for (const row of local) addToScope(row.app, row.type);
     }
   } catch (err) {
-    console.warn(`[sync] pattern '${docType}' bootstrap failed (offline?):`, err.message);
+    console.warn(`[sync] pattern '${patternType}' bootstrap failed (offline?):`, err.message);
     try {
-      const local = await exec(
-        "SELECT DISTINCT app, type FROM data_items WHERE app = ? AND (type = ? OR type LIKE ? || '|%')",
-        [_app, docType, docType]
-      );
-      for (const row of local.rows) addToScope(row.app, row.type);
+      const local = await getDistinctAppTypesByAppAndPatternPrefix(_app, patternType);
+      for (const row of local) addToScope(row.app, row.type);
     } catch { /* ignore */ }
   }
 
-  _loadedPatterns.add(docType);
+  _loadedPatterns.add(patternType);
 
   // Subscribe WebSocket to this pattern
   if (ws && ws.readyState === 1) {
-    ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: docType }));
+    ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: patternType }));
   }
 }
 
 /**
  * Check if a pattern has been bootstrapped.
  */
-export function isPatternLoaded(docType) {
-  return _loadedPatterns.has(docType);
+export function isPatternLoaded(patternType) {
+  return _loadedPatterns.has(patternType);
 }
 
 /**
@@ -325,7 +463,7 @@ async function bootstrapFull() {
   try {
     if (lastRev === null) {
       const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}`));
+      const res = await fetch(apiUrl(`/sync/bootstrap?app=${encodeURIComponent(_app)}`), { headers: authHeaders() });
       if (!res.ok) throw new Error(`bootstrap failed: ${res.status}`);
       const { items, revision } = await res.json();
       const tFetch = performance.now();
@@ -338,15 +476,21 @@ async function bootstrapFull() {
       console.log(`[sync] bootstrapped ${items.length} items, revision=${revision}`);
     } else {
       const t0 = performance.now();
-      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`));
+      const res = await fetch(apiUrl(deltaQuery(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`)), { headers: authHeaders() });
       if (!res.ok) throw new Error(`delta failed: ${res.status}`);
-      const { changes, revision } = await res.json();
+      const payload = await res.json();
+      const { changes = [], revision } = payload;
       const tFetch = performance.now();
-      if (_DEV) console.log(`[sync]     delta: ${changes.length} changes since rev ${lastRev} (${(tFetch - t0).toFixed(0)}ms)`);
+      if (_DEV) console.log(`[sync]     delta: ${deltaSize(payload)} changes since rev ${lastRev} (${(tFetch - t0).toFixed(0)}ms)`);
 
-      // Stale delta — too many changes, fall back to full re-bootstrap
-      if (changes.length > STALE_DELTA_THRESHOLD) {
-        console.warn(`[sync] full delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
+      // Stale delta — too many changes, fall back to full re-bootstrap.
+      // setLastRevision(null) genuinely clears the key now, so the recursive
+      // call takes the cold branch. While it stored String(null) instead,
+      // this recursed straight back into the warm branch with `since=NaN`,
+      // which the server read as since=0 — a delta over the app's whole
+      // change_log, forever.
+      if (isDeltaTooLarge(payload)) {
+        console.warn(`[sync] full delta too large (${deltaSize(payload)} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
         await setLastRevision(null);
         return bootstrapFull();
       }
@@ -359,22 +503,22 @@ async function bootstrapFull() {
       await setLastRevision(revision);
 
       // Re-seed sync scope from local data (warm start)
-      const local = await exec('SELECT DISTINCT app, type FROM data_items WHERE app = ?', [_app]);
-      for (const row of local.rows) {
+      const local = await getDistinctAppTypesByApp(_app);
+      for (const row of local) {
         addToScope(row.app, row.type);
       }
-      if (_DEV) console.log(`[sync]     scope seeded: ${local.rows.length} types from local data`);
+      if (_DEV) console.log(`[sync]     scope seeded: ${local.length} types from local data`);
     }
   } catch (err) {
     console.warn('[sync] bootstrap/delta failed (offline?):', err.message);
 
     // Still seed scope from existing local data if we're offline
     try {
-      const local = await exec('SELECT DISTINCT app, type FROM data_items WHERE app = ?', [_app]);
-      for (const row of local.rows) {
+      const local = await getDistinctAppTypesByApp(_app);
+      for (const row of local) {
         addToScope(row.app, row.type);
       }
-      if (_DEV) console.log(`[sync]     offline — scope seeded from ${local.rows.length} local types`);
+      if (_DEV) console.log(`[sync]     offline — scope seeded from ${local.length} local types`);
     } catch { /* ignore */ }
   }
 
@@ -399,8 +543,8 @@ export function connectWS() {
     ws.send(JSON.stringify({ type: 'subscribe', app: _app }));
 
     // Re-subscribe to all loaded patterns
-    for (const docType of _loadedPatterns) {
-      ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: docType }));
+    for (const patternType of _loadedPatterns) {
+      ws.send(JSON.stringify({ type: 'subscribe', app: _app, pattern: patternType }));
     }
 
     catchUp();
@@ -412,9 +556,34 @@ export function connectWS() {
     try {
       const msg = JSON.parse(e.data);
       if (msg.type === 'change') {
-        // Skip echoes
-        if (msg.item && pendingItemIds.has(msg.item.id)) {
+        // Skip echoes — see myRevisions' doc comment for why this must be
+        // keyed by revision, not item id.
+        if (myRevisions.has(msg.revision)) {
+          myRevisions.delete(msg.revision);
           await setLastRevision(msg.revision);
+          return;
+        }
+
+        // Dataset rows are NOT mirrored locally. /sync/bootstrap and
+        // /sync/delta exclude split types by design — they live in their own
+        // tables and are fetched on demand through Falcor/UDA — but this
+        // handler used to apply whatever arrived, so a broadcast would parse a
+        // multi-megabyte blob, run it through the Yjs merge, write it to
+        // IndexedDB and register the type as locally-synced. Nothing ever read
+        // that copy, nothing refreshed it, and nothing removed it.
+        //
+        // The invalidation is the part that matters: it debounces into
+        // router.revalidate() (dmsSiteFactory.jsx), which refetches through the
+        // normal on-demand path — so a dataset view still updates live. That
+        // was always what drove the refresh, not the payload.
+        //
+        // Branch on the type, not on the server's `dataOmitted` flag, so a
+        // client talking to a server that predates that flag still refuses to
+        // mirror the blob.
+        if (isSplitType(msg.item?.type)) {
+          await setLastRevision(msg.revision);
+          invalidate('data_items');
+          invalidate(`data_items:${msg.item.app}+${msg.item.type}`);
           return;
         }
 
@@ -424,19 +593,12 @@ export function connectWS() {
           const merged = applyRemote(msg.item.id, remoteData);
           const mergedStr = JSON.stringify(merged);
 
-          await exec(
-            `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
-             VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-             ON CONFLICT(id) DO UPDATE SET
-               app = excluded.app, type = excluded.type,
-               data = excluded.data, updated_at = datetime('now')`,
-            [msg.item.id, msg.item.app, msg.item.type, mergedStr]
-          );
+          await upsertItemNow({ id: msg.item.id, app: msg.item.app, type: msg.item.type, data: mergedStr });
 
           // Ensure type is in scope
           addToScope(msg.item.app, msg.item.type);
         } else if (msg.action === 'D') {
-          await exec('DELETE FROM data_items WHERE id = ?', [msg.item.id]);
+          await deleteItem(msg.item.id);
         }
 
         await setLastRevision(msg.revision);
@@ -464,28 +626,71 @@ export function connectWS() {
   ws.onerror = () => { /* onclose will fire */ };
 }
 
+/**
+ * Cold re-bootstrap of every scope this client actually holds — the site
+ * skeleton, plus each pattern loaded so far.
+ *
+ * catchUp's delta is app-wide, but the local mirror only ever holds the
+ * skeleton and the patterns the user has navigated to, so those are the only
+ * snapshots worth re-fetching when a delta is refused as too large.
+ *
+ * The skeleton's own watermark is deliberately left alone: bootstrapSkeleton
+ * re-fetches its full snapshot on every call regardless (it reads the
+ * watermark only to log cold vs. warm), so clearing it would be churn.
+ */
+async function reBootstrapLoadedScopes() {
+  const patterns = [..._loadedPatterns];
+  for (const patternType of patterns) {
+    await setLastRevision(null, `pattern:${patternType}`);
+    _loadedPatterns.delete(patternType);
+  }
+  await bootstrapSkeleton();
+  for (const patternType of patterns) {
+    await bootstrapPattern(patternType);
+  }
+}
+
 async function catchUp() {
   try {
     const lastRev = await getLastRevision();
-    if (lastRev !== null) {
-      const res = await fetch(apiUrl(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`));
-      if (res.ok) {
-        const { changes, revision } = await res.json();
+    if (lastRev === null) return;
 
-        // Stale delta — too many changes, re-bootstrap skeleton
-        if (changes.length > STALE_DELTA_THRESHOLD) {
-          console.warn(`[sync] catchUp delta too large (${changes.length} > ${STALE_DELTA_THRESHOLD}), re-bootstrapping`);
-          await bootstrapSkeleton();
-          return;
-        }
+    const res = await fetch(apiUrl(deltaQuery(`/sync/delta?app=${encodeURIComponent(_app)}&since=${lastRev}`)), { headers: authHeaders() });
+    if (!res.ok) return;
 
-        if (changes.length > 0) {
-          await applyChanges(changes);
-          invalidate('data_items');
-        }
-        await setLastRevision(revision);
-      }
+    const payload = await res.json();
+    const { changes = [], revision } = payload;
+
+    // Stale delta — too many changes to be worth applying one at a time.
+    //
+    // This branch used to call bootstrapSkeleton() and return, which left the
+    // unscoped `last_revision` this function reads completely untouched:
+    // bootstrapSkeleton writes `rev:skeleton:<siteType>`, a different key. So
+    // every WS reconnect re-requested the identical window, the server rebuilt
+    // the identical multi-hundred-MB payload, and the client measured its
+    // length and threw it away — for hours, with `since` never moving (890584,
+    // 893395, 905516, 907608 observed live 2026-09-10).
+    //
+    // Advancing to the tail the server just reported is what breaks the loop.
+    // The snapshots reBootstrapLoadedScopes fetches are read AFTER that
+    // revision, so the client lands at or ahead of the watermark written here;
+    // the worst case is the next delta redundantly re-delivering a change the
+    // snapshot already contains, which applyChanges is idempotent about. The
+    // watermark is written BEFORE re-bootstrapping on purpose — a failure
+    // partway through leaves the loop broken rather than re-armed.
+    if (isDeltaTooLarge(payload)) {
+      const tail = deltaTailRevision(payload);
+      console.warn(`[sync] catchUp delta too large (${deltaSize(payload)} > ${STALE_DELTA_THRESHOLD}), advancing to rev=${tail} and re-bootstrapping loaded scopes`);
+      if (tail !== null && tail > lastRev) await setLastRevision(tail);
+      await reBootstrapLoadedScopes();
+      return;
     }
+
+    if (changes.length > 0) {
+      await applyChanges(changes);
+      invalidate('data_items');
+    }
+    await setLastRevision(revision);
   } catch (err) {
     console.warn('[sync] catch-up failed:', err.message);
   }
@@ -512,7 +717,7 @@ export async function localCreate(app, type, data) {
     if (_DEV) console.log(`[sync] localCreate ${app}+${type} → pushing to server first`);
     const res = await fetch(pushUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ action: 'I', item: { app, type, data: dataStr } }),
     });
 
@@ -524,19 +729,10 @@ export async function localCreate(app, type, data) {
       // Store locally with the server-assigned ID
       const serverDataStr = typeof serverItem.data === 'string'
         ? serverItem.data : JSON.stringify(serverItem.data || {});
-      await exec(
-        `INSERT INTO data_items (id, app, type, data, created_at, updated_at)
-         VALUES (?, ?, ?, ?, datetime('now'), datetime('now'))
-         ON CONFLICT(id) DO UPDATE SET
-           app = excluded.app, type = excluded.type,
-           data = excluded.data, updated_at = datetime('now')`,
-        [serverId, app, type, serverDataStr]
-      );
+      await upsertItemNow({ id: serverId, app, type, data: serverDataStr });
 
       await setLastRevision(revision);
-      pendingItemIds.add(serverId);
-      // Clear echo suppression after a short delay (server WS broadcast will arrive)
-      setTimeout(() => pendingItemIds.delete(serverId), 2000);
+      markMyRevision(revision);
 
       // Initialize Yjs doc for this new item
       try {
@@ -557,20 +753,13 @@ export async function localCreate(app, type, data) {
   }
 
   // Offline fallback: optimistic local write with temp ID
-  await exec(
-    `INSERT INTO data_items (app, type, data, created_at, updated_at)
-     VALUES (?, ?, ?, datetime('now'), datetime('now'))`,
-    [app, type, dataStr]
-  );
-  const lastRow = await exec('SELECT last_insert_rowid() AS id');
-  const tempId = lastRow.rows[0].id;
+  const now = sqliteNow();
+  const tempId = await createItemOffline({
+    app, type, data: dataStr, created_at: now, updated_at: now, created_by: null, updated_by: null,
+  });
 
-  await exec(
-    "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'I', ?, ?, ?)",
-    [tempId, app, type, dataStr]
-  );
+  await addPendingMutation({ item_id: tempId, action: 'I', app, type, data: dataStr });
 
-  pendingItemIds.add(tempId);
   invalidate('data_items');
   invalidate(`data_items:${app}+${type}`);
   updateStatus('syncing');
@@ -581,16 +770,16 @@ export async function localCreate(app, type, data) {
 
 export async function localUpdate(id, data) {
   // Get existing row (needed for app/type and to seed Yjs if not initialized)
-  const existing = await exec('SELECT app, type, data FROM data_items WHERE id = ?', [id]);
-  const app = existing.rows[0]?.app || _app;
-  const type = existing.rows[0]?.type || '';
+  const existing = await getItem(id);
+  const app = existing?.app || _app;
+  const type = existing?.type || '';
 
-  // Seed Yjs doc from SQLite if not already initialized — prevents partial
-  // updates from wiping fields when the in-memory doc was lost (e.g. page refresh)
-  if (!getData(id) && existing.rows[0]?.data) {
+  // Seed Yjs doc from local storage if not already initialized — prevents
+  // partial updates from wiping fields when the in-memory doc was lost (e.g. page refresh)
+  if (!getData(id) && existing?.data) {
     try {
-      const existingData = typeof existing.rows[0].data === 'string'
-        ? JSON.parse(existing.rows[0].data) : existing.rows[0].data;
+      const existingData = typeof existing.data === 'string'
+        ? JSON.parse(existing.data) : existing.data;
       initFromData(id, existingData);
     } catch { /* ignore parse errors */ }
   }
@@ -600,17 +789,10 @@ export async function localUpdate(id, data) {
   const dataStr = JSON.stringify(merged);
   if (_DEV) console.log(`[sync] localUpdate id=${id} app=${app} type=${type} keys=${Object.keys(data).join(',')}`);
 
-  await exec(
-    "UPDATE data_items SET data = ?, updated_at = datetime('now') WHERE id = ?",
-    [dataStr, id]
-  );
+  await updateItemData(id, dataStr, sqliteNow());
 
-  await exec(
-    "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'U', ?, ?, ?)",
-    [id, app, type, dataStr]
-  );
+  await addPendingMutation({ item_id: id, action: 'U', app, type, data: dataStr });
 
-  pendingItemIds.add(id);
   invalidate('data_items');
   invalidate(`data_items:${app}+${type}`);
   updateStatus('syncing');
@@ -619,18 +801,14 @@ export async function localUpdate(id, data) {
 }
 
 export async function localDelete(id) {
-  const existing = await exec('SELECT app, type FROM data_items WHERE id = ?', [id]);
-  const app = existing.rows[0]?.app || _app;
-  const type = existing.rows[0]?.type || '';
+  const existing = await getItem(id);
+  const app = existing?.app || _app;
+  const type = existing?.type || '';
 
-  await exec('DELETE FROM data_items WHERE id = ?', [id]);
+  await deleteItem(id);
 
-  await exec(
-    "INSERT INTO pending_mutations (item_id, action, app, type, data) VALUES (?, 'D', ?, ?, NULL)",
-    [id, app, type]
-  );
+  await addPendingMutation({ item_id: id, action: 'D', app, type, data: null });
 
-  pendingItemIds.add(id);
   invalidate('data_items');
   invalidate(`data_items:${app}+${type}`);
   updateStatus('syncing');
@@ -640,84 +818,103 @@ export async function localDelete(id) {
 
 // --- Push to server via /sync/push ---
 
+// HTTP statuses a queued mutation can never recover from by being retried:
+// the request is malformed, or it names an item that does not exist. Retrying
+// these forever is what turned one bad mutation into 404 `[sync/push] error:
+// invalid input syntax for type bigint: "no-access"` server-side errors
+// (measured live 2026-09-10). Everything else stays retryable — 401/403
+// because a login may follow, 408/429 because they are transient by
+// definition, and every 5xx because a server restart genuinely can fix it.
+const PERMANENT_PUSH_STATUSES = new Set([400, 404, 409, 410, 422]);
+
 async function pushMutation(action, item) {
   const pushUrl = apiUrl('/sync/push');
   if (_DEV) console.log(`[sync] pushMutation ${action} id=${item.id} → ${pushUrl}`);
   try {
     const res = await fetch(pushUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders(),
       body: JSON.stringify({ action, item }),
     });
 
     if (!res.ok) {
       const errBody = await res.text().catch(() => '');
-      throw new Error(`push failed: ${res.status} ${errBody}`);
+      const httpErr = new Error(`push failed: ${res.status} ${errBody}`);
+      httpErr.status = res.status;
+      throw httpErr;
     }
     const { item: serverItem, revision } = await res.json();
     if (_DEV) console.log(`[sync] push ${action} id=${item.id} → server id=${serverItem?.id} rev=${revision}`);
 
     // If the server assigned a different ID (create), update local
     if (action === 'I' && serverItem.id !== item.id) {
-      await exec(
-        'UPDATE data_items SET id = ? WHERE id = ?',
-        [serverItem.id, item.id]
-      );
-      pendingItemIds.delete(item.id);
-      pendingItemIds.add(serverItem.id);
-      // Update the pending mutation's item_id too
-      await exec(
-        'UPDATE pending_mutations SET item_id = ? WHERE item_id = ? AND action = ?',
-        [serverItem.id, item.id, action]
-      );
+      // ADR 2: IndexedDB can't change a record's key via put(), so this is
+      // delete-old + add-new under the hood — done as one cross-store
+      // transaction with the matching pending_mutations rewrite (see
+      // idb-store.js's reassignItemId), which is actually a small
+      // correctness improvement over the original two independent UPDATEs.
+      await reassignItemId(item.id, serverItem.id);
     }
 
     await setLastRevision(revision);
+    markMyRevision(revision);
+    _flushDelay = FLUSH_DELAY_MIN; // a push got through — reset the backoff
     await removePending(serverItem.id || item.id, action);
   } catch (err) {
+    if (PERMANENT_PUSH_STATUSES.has(err.status)) {
+      // Discard it instead of retrying. Same tradeoff clearPendingMutations
+      // documents — the LOCAL optimistic write stays as-is, so this item can
+      // remain diverged from the server until the next bootstrap/delta
+      // corrects it — but without requiring someone to notice and invoke that
+      // by hand, and without blocking every other queued mutation behind a
+      // request that can only ever fail.
+      console.error(`[sync] push ${action} PERMANENTLY REJECTED id=${item.id} (HTTP ${err.status}) — discarding queued mutation:`, err.message);
+      await removePending(item.id, action);
+      return;
+    }
     console.error(`[sync] push ${action} FAILED id=${item.id}:`, err.message, err);
     retryFlush();
   }
 }
 
 async function removePending(itemId, action) {
-  const result = await exec(
-    'SELECT id FROM pending_mutations WHERE item_id = ? AND action = ? ORDER BY id ASC LIMIT 1',
-    [itemId, action]
-  );
-  if (result.rows.length > 0) {
-    await exec('DELETE FROM pending_mutations WHERE id = ?', [result.rows[0].id]);
+  const match = await findFirstPendingMutation(itemId, action);
+  if (match) {
+    await deletePendingMutationById(match.id);
   }
 
-  // Only clear echo suppression when ALL pending mutations for this item are done
-  const remaining = await exec(
-    'SELECT COUNT(*) as count FROM pending_mutations WHERE item_id = ?',
-    [itemId]
-  );
-  if (remaining.rows[0].count === 0) {
-    pendingItemIds.delete(itemId);
-  }
-
-  const total = await exec('SELECT COUNT(*) as count FROM pending_mutations');
-  if (total.rows[0].count === 0) {
+  const total = await countAllPendingMutations();
+  if (total === 0) {
+    _flushDelay = FLUSH_DELAY_MIN;
     updateStatus('connected');
   }
 }
 
+const FLUSH_DELAY_MIN = 500;
+const FLUSH_DELAY_MAX = 30000;
+
 let flushTimer = null;
+let _flushDelay = FLUSH_DELAY_MIN;
+
+// Exponential backoff with a ceiling. This was a flat 500 ms with no ceiling,
+// so anything the server kept refusing was re-pushed twice a second for as
+// long as the tab stayed open. pushMutation now discards permanently rejected
+// mutations outright; this bounds the cost of everything else (an offline
+// stretch, a restarting server) and resets to 500 ms as soon as a push lands.
 function retryFlush() {
   if (flushTimer) return;
+  const delay = _flushDelay;
+  _flushDelay = Math.min(_flushDelay * 2, FLUSH_DELAY_MAX);
   flushTimer = setTimeout(async () => {
     flushTimer = null;
     await flushPending();
-  }, 500);
+  }, delay);
 }
 
 async function flushPending() {
-  const result = await exec('SELECT * FROM pending_mutations ORDER BY id ASC');
-  if (_DEV && result.rows.length > 0) console.log(`[sync] flushPending: ${result.rows.length} pending mutations`);
-  for (const row of result.rows) {
-    pendingItemIds.add(row.item_id);
+  const rows = await getAllPendingMutationsOrdered();
+  if (_DEV && rows.length > 0) console.log(`[sync] flushPending: ${rows.length} pending mutations`);
+  for (const row of rows) {
     await pushMutation(row.action, {
       id: row.item_id,
       app: row.app,
@@ -811,6 +1008,29 @@ function _notifyCollabListeners() {
 
 // --- Error recovery ---
 
+/**
+ * Discard every currently-queued pending mutation without pushing it again.
+ * For a mutation that can never succeed (e.g. one queued against the
+ * server's 'no-access' placeholder id — see the page-edit autosave guard
+ * this pairs with, found live 2026-09-09), this is the only way out:
+ * retryFlush() has no backoff ceiling and would otherwise hit /sync/push
+ * forever, spamming the console and server on every future page load in
+ * this browser profile. This only stops the retry loop — the LOCAL
+ * optimistic write each discarded mutation represented is left as-is, so
+ * local/server state can stay diverged for that item until the next full
+ * bootstrap/delta corrects it. Same tradeoff resetAndRebootstrap makes,
+ * just scoped to the stuck mutations instead of wiping all local data.
+ */
+export async function clearPendingMutations() {
+  const rows = await getAllPendingMutationsOrdered();
+  for (const row of rows) {
+    await deletePendingMutationById(row.id);
+  }
+  if ((await countAllPendingMutations()) === 0) {
+    updateStatus('connected');
+  }
+}
+
 let _recovering = false;
 
 export async function resetAndRebootstrap() {
@@ -820,12 +1040,11 @@ export async function resetAndRebootstrap() {
   updateStatus('recovering');
 
   try {
-    const { resetDB } = await import('./db-client.js');
     await resetDB();
 
     // Clear in-memory state
     _loadedPatterns.clear();
-    pendingItemIds.clear();
+    myRevisions.clear();
     clearScope();
 
     // Re-bootstrap
@@ -843,6 +1062,5 @@ export async function resetAndRebootstrap() {
 // --- Pending count ---
 
 export async function getPendingCount() {
-  const result = await exec('SELECT COUNT(*) as count FROM pending_mutations');
-  return result.rows[0]?.count || 0;
+  return countAllPendingMutations();
 }

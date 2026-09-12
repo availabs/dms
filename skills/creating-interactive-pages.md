@@ -132,6 +132,34 @@ registers all four.)
 
 ---
 
+## Built-in page variable: `user_id` (the current logged-in viewer, no registration needed)
+
+One `searchKey` is special-cased and skips Step 0 entirely: **`user_id`**. Every page rendered
+through the `page` pattern's `siteConfig.jsx` gets `patternFilters` unconditionally carrying
+`{ id: 'user_id_default_filter', searchKey: 'user_id', values: user?.id }` (`siteConfig.jsx:177`) —
+the current logged-in user's id, injected by the platform itself, not authored on the page.
+`mergeFilters` (`_utils/index.js:444-454`, "patternFilters should take over if present") gives this
+priority over anything the page's own `filters` registers under the same key, and
+`getPageVariableRegistry(item, patternFilters)` — what both `view.jsx` and the edit page use to seed
+`pageState.filters` — includes it in the merge regardless of whether the page lists it. So **any
+data section's filter leaf with `usePageFilters: true, searchParamKey: 'user_id'` resolves to the
+viewer's id with zero page-level setup** — no `page.filters` entry, no Filter control needed to set
+it (there's nothing to set; it's read-only, driven by who's logged in).
+
+```jsonc
+// a Card leaf that scopes rows to "mine" — no page.filters entry required for this to work
+{ "col": "created_by", "op": "filter", "value": [],
+  "usePageFilters": true, "searchParamKey": "user_id" }
+```
+
+This is what lets a "my records" facet be a plain authored Card filter instead of custom React code
+reading `CMSContext.user.id` — confirmed live 2026-09-03 (adding a page filter named `user_id` in a
+page's own `/edit` panel auto-populates with the viewer's real id; see
+`planning/transportny/tasks/current/npmrds-all-reports-list-page.md`'s Architecture section for the
+full trace). **No equivalent exists for the viewer's `groups`** — only `user_id` gets this injection
+— so a facet that needs to know *which groups* the viewer belongs to (not just their id) still needs
+a component reading `CMSContext.user.groups` directly.
+
 ## Step 1 — add the control (a Filter section)
 
 A `Filter` section sets a page variable. Its `element-data` is the standard
