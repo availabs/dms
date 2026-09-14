@@ -788,6 +788,8 @@ export default function Table ({
                             virtualizeColumns={display.virtualizeColumns}
                             renderItem={itemContent}
                             components={components}
+                            headerClassName={theme.stickyHeader}
+                            bottomClassName={theme.stickyBottom}
                         />
                     </TableCellContext.Provider>
                 </TableStructureContext.Provider>
