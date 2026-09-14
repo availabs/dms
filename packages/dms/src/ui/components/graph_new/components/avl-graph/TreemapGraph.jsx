@@ -11,7 +11,8 @@ import {
 
 import {
   HoverCompContainer,
-  useHoverComp
+  useHoverComp,
+  LabelValueHoverComp
 } from "./components"
 
 import {
@@ -27,57 +28,13 @@ import {
   getUniqueId
 } from "./utils"
 
-const DefaultHoverComp = ({ data: node, indexFormat, keyFormat, valueFormat }) => {
-
-	const label = React.useMemo(() => {
-
-
-
-		// const makeLabel = (node, label = "") => {
-		// 	if (node.parent) {
-		// 		return makeLabel(node.parent, `${ format(node.data[0]) } ${ label }`);
-		// 	}
-		// 	return isRoot ? "Total" : label;
-		// }
-
-		const makeLabel = (node, label = "") => {
-			if (!node) {
-				return label || "total";
-			}
-			const d = node.data[0];
-			if (d === null || d === undefined) {
-				return makeLabel(node.parent, label);
-			}
-
-			const isIndex = node.depth == 1;
-			const isCat = node.depth === 2;
-
-			const format = isIndex ? indexFormat :
-											isCat ? keyFormat :
-											Identity;
-
-			return makeLabel(node.parent, `${ format(d) } ${ label }`);
-		}
-
-		return makeLabel(node);
-	}, [node, indexFormat, keyFormat]);
-
-  return (
-    <div className={ `
-      flex flex-col px-2 pt-1 rounded min-w-40
-    ` }>
-    	<div className="font-bold text-lg leading-6 border-b-2">
-    		{ label }
-    	</div>
-    	<div className="text-right">
-    		{ valueFormat(node.value) }
-    	</div>
-    </div>
-  )
-}
+// Sunburst and Treemap draw the same hierarchy tooltip. It lived here as a byte-identical
+// copy of the other wrapper's until it was moved to components/HoverComps.jsx. The alias is
+// kept so this wrapper's rendered output stays individually pinned by the hover-comp goldens.
+export const DefaultTreemapHoverComp = LabelValueHoverComp;
 
 const DefaultHoverCompData = {
-  HoverComp: DefaultHoverComp,
+  HoverComp: DefaultTreemapHoverComp,
   indexFormat: Identity,
   keyFormat: Identity,
   valueFormat: Identity,
@@ -153,6 +110,9 @@ export const TreemapGraph = props => {
     data = EmptyArray,
     margin = EmptyObject,
     hoverComp = EmptyObject,
+    // Forwarded to HoverCompContainer for the `tooltip` token. BarGraph already took this;
+    // the other five wrappers never destructured it, so the theme stopped here.
+    theme = EmptyObject,
     tileMethod = "treemapSquarify",
     indexTextSize = "medium",
     valueTextSize = "medium",
@@ -293,7 +253,7 @@ export const TreemapGraph = props => {
       </svg>
 
       { !showHoverComp ? null :
-        <HoverCompContainer { ...hoverData }
+        <HoverCompContainer { ...hoverData } theme={ theme }
           position={ position }
           svgWidth={ width }
           svgHeight={ height }

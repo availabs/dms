@@ -45,11 +45,29 @@ const getTranslate = ({ pos, svgWidth, svgHeight, margin, position, windowPos })
 }
 
 export const HoverCompContainer = ({ show, children, theme = {}, ...rest }) => {
+  // `theme.tooltip` replaces the container's LOOK — background, radius, typography, elevation.
+  // Everything else here is STRUCTURE and is emitted in every case:
+  //
+  //   absolute top-0 left-0 z-50   positions the tooltip against the graph container
+  //   pointer-events-none          stops it swallowing the hover that spawned it
+  //   whitespace-nowrap            keeps rows on one line (with width:max-content below)
+  //   hover-comp                   an ancestor HOOK, not decoration: avl-graph.css styles every
+  //                                swatch through `.hover-comp .color-square`, so a token that
+  //                                could drop it would break swatches on every site.
+  //
+  // Unset, the fallback is the historical `rounded bg-inherit`. Note what `bg-inherit` means in
+  // practice: background-color is NOT an inherited property, so this forces the value from the
+  // parent — which is `.avl-graph-container`, itself `background-color: inherit`, resolving up
+  // to GraphComponent's wrapper and its `theme.bgColor`. Core's "Light Mode" sets `bg-white`,
+  // but a brand that defines no `bgColor` (transportny) leaves the whole chain transparent, so
+  // the tooltip has no background of its own and the chart shows through it. Supplying this
+  // token is what gives a tooltip a real, chosen background.
+  const look = theme.tooltip;
   return (
     <div
       className={ `
         absolute top-0 left-0 z-50 pointer-events-none
-        rounded whitespace-nowrap hover-comp bg-inherit
+        whitespace-nowrap hover-comp ${ look || "rounded bg-inherit" }
       ` }
       style={ {
         display: show ? "inline-block" : "none",
@@ -59,7 +77,10 @@ export const HoverCompContainer = ({ show, children, theme = {}, ...rest }) => {
         // content regardless of the host graph's width; wide graphs are unchanged.
         width: "max-content",
         transform: getTranslate(rest),
-        boxShadow: "2px 2px 8px 0px rgba(0, 0, 0, 0.75)",
+        // The hardcoded drop shadow exists to separate a transparent `bg-inherit` tooltip from
+        // the chart behind it. A theme that supplies its own background owns its own elevation
+        // (transportny's token carries `shadow-lg`), so it steps aside rather than stacking.
+        ...(look ? null : { boxShadow: "2px 2px 8px 0px rgba(0, 0, 0, 0.75)" }),
         transition: "transform 0.15s ease-out"
       } }
     >

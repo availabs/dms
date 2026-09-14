@@ -1015,6 +1015,47 @@ any DMS page, not just reports. What's specific to reports:
   true}))`. Found live 2026-09-08 verifying `dynamic-reports-authoring-gaps.md` sub-item 2's
   "reuse an existing route" select next to "+ Add Route Slot".
 
+### Graph tooltips: hovering one, and where GridGraph defeats automation (2026-09-14)
+
+The tooltip container is `.hover-comp` — a single element per graph, rendered whenever tooltips
+are enabled and toggled with `display: none`, NOT mounted on hover. So `querySelector('.hover-comp')`
+finding something proves nothing; check `getComputedStyle(el).display !== 'none'`.
+
+Hovering has to be a REAL pointer move — avl-graph listens for `mousemove` on the marks, and a
+single move at a resting position often will not fire it. Move twice, half a pixel apart:
+
+```js
+const box = await mark.boundingBox();
+const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+await page.mouse.move(cx, cy);
+await page.mouse.move(cx + 0.5, cy + 0.5);   // the second move is what fires it
+await page.waitForTimeout(320);
+```
+
+Marks by graph type: `rect.avl-stack` (Bar), `rect.avl-rect`, `path.avl-slice` (Pie),
+`rect.avl-grid` (Grid). Bar/Pie/Line automate reliably.
+
+**GridGraph does not.** On a real heatmap (the snapshot report's "Average speed by TMC and
+5-minute epoch") the cells are sub-pixel, so a synthetic `mouse.move` lands between them and no
+tooltip fires — a probe that located a `rect.avl-grid`, scrolled it into view and hovered its
+computed centre still came back `tooltip: null`. Do not burn a session automating it; verify a
+GridGraph tooltip by eye, or assert its markup through
+`packages/dms/tests/hoverCompLegacyMarkup.test.js` instead.
+
+Reading the tooltip's own chrome, once visible:
+
+```js
+const el = document.querySelector('.hover-comp');
+const cs = getComputedStyle(el);          // container: the `tooltip` theme token
+const body = el.firstElementChild;        // the content comp's own wrapper (keeps its OWN padding)
+const rows = [...body.children].slice(1); // row 0 is the title
+```
+
+**Measure, do not eyeball.** Two tooltip screenshots taken before and after adding row padding
+looked different only because the capture margins differed; the tooltips were identically sized
+(304×63 both) because the token was never wired. Comparing the DOM rect caught it immediately.
+Crop with `page.screenshot({ clip })` only to SHOW a human, never to judge a few px.
+
 ## 6. Which tool to reach for
 
 Both paths can inspect the exact same DOM described above — the difference

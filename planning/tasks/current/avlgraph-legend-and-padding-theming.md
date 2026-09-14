@@ -2,7 +2,7 @@
 
 **Status:** PASS 1 DONE · **PASS 2 items 1 + 2 DONE, live-verified and owner-reviewed 2026-09-11**
 (legend class tokens + back-compat suite; legend caption = author `title` / automatic `unit`, with a
-Settings-drawer control) · **items 3 (tooltip) + 4 (padding) NOT started** · pass 3 not started ·
+Settings-drawer control) · **item 3 (tooltip) DONE 2026-09-14, live-verified + owner-reviewed** — 6 tokens across all six graph types, Sunburst/Treemap + Bar/Pie merged, GridGraph highlight unified, 443 tests green · **item 4 (padding) NOT started** · pass 3 not started ·
 **Started:** 2026-09-09
 
 ---
@@ -39,10 +39,12 @@ but never read**.
 "Item 2 — DONE" below only if you need the reasoning; you do not need them to continue. What
 remains, in order:
 
-3. **Tooltip** (item 06) — in scope by owner decision, because a themed legend beside an unthemed
-   tooltip reads as obviously unfinished. Same shape as the legend but a level deeper: it threads
-   through each chart type rather than riding the legend prop bag. `HoverCompContainer` already
-   accepts a `theme` prop, never reads it, and nobody passes one.
+3. **Tooltip** (item 06) — **IN PROGRESS 2026-09-14.** In scope by owner decision, because a
+   themed legend beside an unthemed tooltip reads as obviously unfinished. Same shape as the
+   legend but a level deeper: it threads through each chart type rather than riding the legend
+   prop bag. `HoverCompContainer` already accepts a `theme` prop, never reads it, and nobody
+   passes one. **See "Item 3 — tooltip" below for the grounding pass, the de-duplication plan
+   and current progress.**
    > **Read the warning under "Two bugs found after the first cut" first.** `tooltip` is already
    > authored as DEAD scaffolding in at least two places. Wiring a dead token is a silent,
    > repo-wide behaviour change for every site that already authored a value — that is exactly how
@@ -127,6 +129,222 @@ Artifact **https://claude.ai/code/artifact/8adeb3e1-a319-4ba2-9f4e-6a4580b72bf8*
 Punch List") is the plain-language version of all nine items — glossary first, then See → Why →
 After per item. Ryan's feedback on the first draft was that a ranked-code-findings review read as
 vague; the artifact is the corrected form, and the same lesson applies to whatever gets written next.
+
+
+---
+
+## Item 3 — tooltip (DONE 2026-09-14 · live-verified, owner-reviewed)
+
+### The dead-token sweep (done first, as the warning above demands)
+
+Every theme in `src/themes/` grepped for `tooltip`. Live, `avlGraph`-shaped, authored-but-never-read:
+
+| theme | value | note |
+|---|---|---|
+| transportny `themev2.js:1991` (`graph.styles[0]`) | `rounded-[6px] bg-[#0F1722] text-white text-[12px] px-2.5 py-1.5 shadow-lg font-proxima` | **this is the value we want** — matches the design system's own `theme.js:1152` |
+| tessera `tessera-theme.js:934` (`graph`) and `:949` (`avlGraph`) | slate/parchment, `rounded-none`, bordered, `tabular-nums` | goes live on tessera the moment the token is read |
+| tessera `tessera-theme-v6.js:954` / `:969` | board/chalk, `FONT_MONO`, `rounded-md` | same |
+| avail `theme.js:1245` | `{ show, fontSize }` — an **object** | inside a component-docs example blob, NOT a theme style token. Not in the render path, but it shows the name is overloaded. |
+
+**Owner decision 2026-09-14 (Ryan): let tessera's values go live, then eyeball tessera afterward**
+— same precedent as pass 2 item 1, where transportny's and tessera's dead `legend` tokens went
+live and the fallout was fixed. Tessera's values read as real design-system intent, not accidents.
+
+**Do not conflate `display.tooltip` with the theme token.** `composeMeasureConfig` writes
+`display.tooltip = { valueFormat, yFormat }` per section — data formatting, not a class string.
+
+### Why the tooltip needs a de-duplication pass first (Ryan's call, 2026-09-14)
+
+`HoverCompContainer` is only the positioned shell (`absolute z-50 rounded bg-inherit`, an inline
+JS `boxShadow`, `width: max-content`). The visible look lives in **six separate `DefaultHoverComp`
+implementations**, one per wrapper. The legend's "one `classNames` injection covers all six
+wrappers" trick does not apply. Ryan asked whether they could be shared instead. Measured, they
+are three groups, not one:
+
+| group | members | finding |
+|---|---|---|
+| **A** | Sunburst, Treemap | **byte-identical** — `diff` returns nothing. 48 duplicated lines, down to the same commented-out `makeLabel` sketch and the same tab indentation. |
+| **B** | Bar, Pie, Grid | one skeleton (title → rows of `swatch · label · value` → optional total). Bar vs Pie differ in exactly **three** things: `showTotals = true` vs no default (⇒ Pie omits the total when the prop is absent), row order (`.reverse()` vs value-descending), and swatch colour source (`data.barValues[key].color` vs `data.colorMap[index][key]`). Grid adds three **structural** differences: two stacked absolutely-positioned swatches (bg underlay + value colour, `ml-7` on the label to clear them), highlight via inline `outline: 2px solid #000` rather than `border-2 border-current`, and `grid grid-cols-1 gap-1` instead of `flex flex-col`, plus `keyTotal`/`singleCell`. |
+| **C** | Line | genuinely different — a `(Line Total)` header column, three-column rows, and a second pass over `data.secondary` with its own `grid grid-cols-3` markup. **Deliberately excluded from any merge**; folding it in would mean a variant flag on every row. |
+
+### Stage 0 — goldens before the change · DONE
+
+The six comps were module-private. Each is now exported under a distinct name
+(`DefaultBarHoverComp`, `DefaultPieHoverComp`, `DefaultGridHoverComp`, `DefaultLineHoverComp`,
+`DefaultSunburstHoverComp`, `DefaultTreemapHoverComp`) — distinct because `index.js` does
+`export * from` each wrapper and identical names would collide.
+
+- **new** `tests/fixtures/hoverCompCases.jsx` — 22 cases across all six comps
+- **new** `tests/fixtures/capture-hoverCompLegacy.mjs` + `hoverCompLegacy.golden.json`
+- **new** `tests/hoverCompLegacyMarkup.test.js` — **30 tests**, all green
+
+The goldens pin the current behaviour *including the parts that look like accidents*: Pie's
+missing `showTotals` default, Grid dropping null-valued rows, single-key suppressing the total.
+
+**A gap found and closed in the fixture itself.** The first capture used `alpha: 12, beta: 30`,
+for which Bar's `.reverse()` and Pie's value-descending sort *coincidentally agree* — Bar and Pie
+rendered byte-identically, so a shared component could have picked either ordering and still
+matched every golden. Two cases (`bar: row order is key-reversed`, `pie: row order is
+value-descending`) now use `alpha: 30, beta: 12`, which separates them.
+
+### Stage 1 — de-duplicate, zero visual change · group A DONE
+
+**new** `components/avl-graph/components/HoverComps.jsx` holds `LabelValueHoverComp`, the body
+copied **verbatim** from SunburstGraph (byte identity of the two originals verified
+programmatically, not by eye). Both wrappers now alias it:
+
+```js
+export const DefaultSunburstHoverComp = LabelValueHoverComp;
+```
+
+The per-wrapper alias is kept deliberately, so the goldens still mean "what Sunburst renders"
+rather than becoming trivially true if someone later forks one.
+
+**429 tests / 24 files green** after the merge.
+
+### Stage 1 — group B · DONE (Bar + Pie merged; Grid and Line keep their own bodies)
+
+**The whitespace worry never materialised.** Keeping the shared component's JSX at the same
+nesting depth preserved the class strings exactly — all 22 goldens still pass **byte-for-byte**,
+no normalisation needed. The proposed relaxation of the byte-identical rule was withdrawn.
+
+**new** `SeriesRowsHoverComp` in `components/HoverComps.jsx` backs Bar and Pie. Their three
+differences are call-site props: `orderedKeys`, `colorForKey`, and `showTotals` (left undefaulted,
+so Pie still omits the total when the prop is absent).
+
+**Grid and Line keep their own bodies**, on measurement rather than taste. Per-row structural
+fingerprints from the goldens:
+
+| | bar | pie | grid | line |
+|---|---|---|---|---|
+| direct children per row | 3 | 3 | 4 | 3 |
+| descendants per row | 3 | 3 | 4 | **8** |
+| levels below the row | 1 | 1 | 1 | **3** |
+| swatch divs | 1 | 1 | **2** | 1 |
+
+Pairwise distance: bar≡pie = 0, grid = 3 from both, **line = 7 from bar/pie and 8 from grid** —
+line is the outlier in every direction, and marginally *further* from grid than from bar. Its row
+nests three levels because each of its three columns is a div wrapping a div, and it carries a
+per-series running total nothing else has. Grid's only real deviation is the doubled swatch
+(an opaque underlay behind a translucent cell colour).
+
+### Stage 2 — theme it · DONE, live-verified 2026-09-14
+
+**SIX** tokens, injected once and reaching all six components. The injection rides
+`hoverComp.classNames` through each wrapper's `restOfHoverCompData` spread — the mirror of the
+legend's `legend.classNames` trick, and the reason Grid and Line did not need merging for the
+theming to work.
+
+| token | replaces | stays component-owned |
+|---|---|---|
+| `tooltip` | container background / radius / typography / elevation | `absolute top-0 left-0 z-50 pointer-events-none whitespace-nowrap`, **`hover-comp`** |
+| `tooltipTitle` | title typography + its rule | per-comp spacing, Line's `flex-1` |
+| `tooltipSwatch` | `rounded-sm` | `color-square w-5 h-5`, Grid's `absolute z-10 / z-50` |
+| `tooltipValue` | `text-right` | `flex-1` |
+| `tooltipRow` | **appended**, not replacing — for row padding | `flex items-center`, **`border-2`** |
+| `tooltipRowActive` | the `border-current` highlight | `border-transparent` on inactive rows |
+
+`border-2` is deliberately OUTSIDE `tooltipRow`: a border colour with no border width renders
+nothing, which is precisely the dead-CSS bug the audit found in LineGraph.
+
+**GridGraph's highlight was unified onto the same mechanism.** It used an inline
+`outline: 2px solid #000` — unreachable by any theme and hardcoded black, so once the other
+tooltips were themed it kept a black row marker while everything else followed the token. It now
+uses `border-2` + `rowActive`. Goldens re-captured deliberately; the diff was verified per case:
+Bar/Pie whitespace-only, Line/Sunburst/Treemap byte-identical, **Grid the only real change**
+(gains `border-2`/`border-current`/`border-transparent`, loses the inline outline).
+
+#### Two wiring misses — same shape, both found by MEASURING, not by tests
+
+1. **`theme` never reached the graph at all.** Every wrapper destructured a `theme` prop and
+   BarGraph had forwarded it to `HoverCompContainer` for years, but `GraphComponent` never passed
+   one — so `theme.tooltip` silently did nothing on a real page while every unit test passed.
+   (This also means this file's earlier "correction" claiming BarGraph already forwarded it was
+   wrong in effect: the forward existed, the value did not.)
+2. **`tooltipRow` was added to the components and the theme but not to the injection object.**
+   It no-opped; the before/after screenshots were identically sized, which is how it was caught.
+
+Both are invisible to component-level tests: each half is correct in isolation and only the wire
+between them is missing. **new** `tests/graphComponentThemeWiring.test.js` (5) stubs the graph
+component and asserts the props it actually receives, including an **exhaustive** check that every
+`tooltip*` key a theme authors appears in the injection — a dropped key now fails the suite.
+
+**Tests: 443 green across 26 files.**
+
+### transportny values authored (`themev2.js`)
+
+The authored `tooltip` value was dead scaffolding — `bg-[#0F1722] text-white … px-2.5 py-1.5` —
+and looked wrong the moment it was seen live. Grounds, not taste: it was the ONLY dark surface in
+the design system (every popover, modal, drawer and card is `bg-white` + `border-zinc-950/10` +
+a shadow), `#0F1722` is otherwise an ink colour, and a dark fill inverts the contrast the series
+palettes were built for — they are chosen to sit on a white plot. It now matches
+`navigableMenu`'s popover, the closest analogue.
+
+```js
+tooltip:          "rounded-[8px] bg-white border border-zinc-950/10 text-slate-700 text-[12px] shadow-lg font-proxima"
+tooltipTitle:     "font-proxima text-[12px] font-semibold leading-5 text-slate-900 border-b border-zinc-950/10"
+tooltipValue:     "text-right tabular-nums text-slate-900"
+tooltipRow:       "py-0.5"
+tooltipRowActive: "border-slate-300"
+```
+
+**No padding in the `tooltip` token, deliberately** — the tooltip BODY keeps its own
+`px-2 pt-1 pb-2`, so a padded container double-pads the panel (measured live: container
+`6px 10px` + body `4px 8px 8px` before the fix; container `0px` after).
+
+**Active-row marker — RESOLVED 2026-09-14.** The historical look inherited `border-current`
+(dark) and the first pass to `border-slate-300` read as too faint. Rather than change colour and
+spacing together, padding was tested in ISOLATION on the theory that the real problem was the 2px
+border sitting directly on the text with no vertical padding. It was: **owner accepted grey +
+`py-0.5`**. The title's bottom rule keeps the matching light treatment, which leaves state (the
+active row) as the stronger signal and the header rule as a quiet divider.
+
+### Live verification (2026-09-14, `reports/snapshot?routes=2207390&asOf=2026-08-20`)
+
+Measured from the DOM, not judged from a screenshot:
+
+| | before | after |
+|---|---|---|
+| container background | `rgb(15,23,34)` | `rgb(255,255,255)` |
+| container padding | `6px 10px` | `0px` |
+| tooltip box | 317×78 | 304×67 |
+| row classes | `… border-2 rounded transition border-current` | `… border-2 rounded transition py-0.5 border-slate-300` |
+
+**`probe_corpus.mjs`: 8 blockers / 56 majors / 0 minors.** Seven blockers are the documented
+flaky blank↔content class; the eighth is a MapTiler style fetch failing (external). All 56 majors
+are the same "/graph query no longer fires" kind. **This file records ~53 as the stable baseline
+— the delta is unexplained and no A/A run was done.**
+
+**GridGraph's tooltip was confirmed live by the owner** ("grid graph looks good"), not by the
+probe. Automated hover on a GridGraph is unreliable and should not be attempted this way: the
+snapshot heatmap's cells are sub-pixel, so a synthetic `mouse.move` lands between cells and no
+tooltip fires. The probe located a `rect.avl-grid` and still got `tooltip: null`. Bar/Line/Pie
+hover automates fine — see `skills/traversing-report-pages.md`.
+
+### Not done / follow-ups
+
+- **Dead classes left in place, deliberately.** Removing LineGraph's inert
+  `border-current`/`border-transparent` at `:78`/`:125`, and the two dead CSS rules
+  (`.hover-comp table.hover-table`, `.hover-comp .secondary .color-square`), would change rendered
+  markup and force a golden re-capture. Kept separate from this additive change.
+- **The `probe_corpus.mjs` majors delta (56 vs a recorded ~53)** is unexplained; no A/A run was
+  done. All are the same "/graph query no longer fires" kind and none touch the tooltip path.
+- **Dead classes left in place, deliberately** (unchanged from above): LineGraph's inert
+  `border-current`/`border-transparent` at the inner row, and the two dead CSS rules
+  (`.hover-comp table.hover-table`, `.hover-comp .secondary .color-square`).
+- Tessera's authored `tooltip` values went live per owner decision; **tessera not eyeballed.**
+- **Split out as its own task, deferred by the owner 2026-09-14:** the tooltip swatch is muted so
+  hard (20% alpha on Line, `opacity: 0.2` on Bar/Pie) that a dark series reads as light grey, and
+  LineGraph keys the muting on VALUE RANK rather than the pointer, so one series changes colour as
+  you sweep along x. Pre-existing, not caused by item 3. See
+  [`tooltip-swatch-muting-obscures-series-color.md`](./tooltip-swatch-muting-obscures-series-color.md).
+- Tessera's authored values go live per owner decision; **tessera not yet eyeballed**.
+
+### Stage 2 — theme it · NOT STARTED
+
+Once B is merged the token set lands in ~3 places instead of 6: `HoverCompContainer` (bg / text /
+font / radius, replacing the hardcoded `rounded` and the inline `boxShadow`), the two shared
+comps, and Line threaded once by hand. Unset ⇒ byte-identical markup, as with the legend.
 
 ---
 

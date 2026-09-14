@@ -13,7 +13,8 @@ import {
   AxisLeft,
   AxisRight,
   HoverCompContainer,
-  useHoverComp
+  useHoverComp,
+  SeriesRowsHoverComp
 } from "./components"
 
 import {
@@ -31,54 +32,16 @@ import {
 
 import "./avl-graph.css"
 
-const DefaultHoverComp = ({ data, keys, indexFormat, keyFormat, valueFormat, valueLabel, showTotals = true }) => {
-  return (
-    <div className={ `
-      flex flex-col px-2 pt-1 rounded
-      ${ keys.length <= 1 ? "pb-2" : "pb-1" }
-    ` }>
-      <div className="font-bold text-lg leading-6 border-b-2 mb-1 pl-2">
-        { indexFormat(get(data, "index", null)) }
-      </div>
-      { keys.filter(key => get(data, ["data", key], false))
-          .reverse().map(key => (
-            <div key={ key } className={ `
-              flex items-center px-2 border-2 rounded transition
-              ${ data.key === key ? "border-current" : "border-transparent" }
-            `}>
-              <div className="mr-2 rounded-sm color-square w-5 h-5"
-                style={ {
-                  backgroundColor: get(data, ["barValues", key, "color"], null),
-                  opacity: data.key === key ? 1 : 0.2
-                } }/>
-              <div className="mr-4">
-                { keyFormat(key) }:
-              </div>
-              <div className="text-right flex-1">
-                { valueFormat(get(data, ["data", key], 0)) }
-                { !valueLabel ? null :
-                  <b className="ml-1">{ valueLabel }</b>
-                }
-              </div>
-            </div>
-          ))
-      }
-      { (keys.length <= 1) || !showTotals ? null :
-        <div className="flex pr-2">
-          <div className="w-5 mr-2"/>
-          <div className="mr-4 pl-2">
-            Total:
-          </div>
-          <div className="flex-1 text-right">
-            {  valueFormat(keys.reduce((a, c) => a + get(data, ["data", c], 0), 0)) }
-          </div>
-        </div>
-      }
-    </div>
-  )
-}
+export const DefaultBarHoverComp = ({ showTotals = true, ...props }) => (
+  // `showTotals = true` is Bar's own historical default and stays here: PieGraph deliberately
+  // has none, so an omitted prop means no total row on a pie. See SeriesRowsHoverComp.
+  <SeriesRowsHoverComp { ...props } showTotals={ showTotals }
+    orderedKeys={ (keys, data) => keys.filter(key => get(data, ["data", key], false)).reverse() }
+    colorForKey={ (data, key) => get(data, ["barValues", key, "color"], null) }/>
+);
+
 const DefaultHoverCompData = {
-  HoverComp: DefaultHoverComp,
+  HoverComp: DefaultBarHoverComp,
   indexFormat: Identity,
   keyFormat: Identity,
   valueFormat: Identity,
