@@ -17,10 +17,16 @@ let authImgI = null;
 
 const AdminLayout = ({menuItems, children, theme, Menu}) => {
     const {Layout, LayoutGroup} = UI;
+    // A theme may name the Layout / LayoutGroup styles these pages use
+    // (`auth.authPages.manageLayoutStyle` / `manageLayoutGroupStyle`) and swap
+    // the nav items (`auth.authPages.manage.menuItems`). Unset, the pattern's
+    // default layout options and the manager's Sites / Themes / Auth menu
+    // apply, exactly as before 2026-09-13.
+    const pages = theme?.auth?.authPages || {};
     return (
-        <div className={theme?.auth?.authPages?.container}>
-            <Layout navItems={menuItems} Menu={Menu}>
-                <LayoutGroup>
+        <div className={pages.container}>
+            <Layout navItems={pages.manage?.menuItems || menuItems} Menu={Menu} activeStyle={pages.manageLayoutStyle}>
+                <LayoutGroup activeStyle={pages.manageLayoutGroupStyle}>
                     {children}
                 </LayoutGroup>
             </Layout>
@@ -172,7 +178,14 @@ const manageAuthConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-    const theme = getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'mny_admin'}}, ssrCollect); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
+    // The manage pages follow the auth pattern's OWN theme, like the login pages
+    // above. `mny_admin` is only the fallback for a pattern with no
+    // `selectedTheme` — that was the hardcoded value here until 2026-09-12, so a
+    // site that never set one renders exactly as before.
+    const managePattern = pattern?.theme?.selectedTheme
+        ? pattern
+        : {...pattern, theme: {...(pattern?.theme || {}), selectedTheme: 'mny_admin'}};
+    const theme = getPatternTheme(themes, managePattern, ssrCollect);
 
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'

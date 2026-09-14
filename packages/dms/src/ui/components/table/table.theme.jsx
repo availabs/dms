@@ -13,6 +13,10 @@ export const tableTheme = {
             headerContainer: 'sticky top-0 grid',
             headerLeftGutter: 'flex justify-between sticky left-0 z-[1]',
             headerWrapper: 'flex justify-between',
+            // The sticky header / footer bands of a scrolling table (Virtual.jsx).
+            // Opaque so rows cannot show through; dark themes repaint them.
+            stickyHeader: 'top-0 sticky z-[5] bg-white',
+            stickyBottom: 'bottom-0 sticky z-[5] bg-white',
             headerCellContainer: 'w-full font-semibold px-3 py-1 content-center text-sm font-semibold text-gray-600',
             headerCellContainerBgSelected: 'bg-blue-100 text-gray-900',
             headerCellContainerBg: 'bg-gray-50 text-gray-500',

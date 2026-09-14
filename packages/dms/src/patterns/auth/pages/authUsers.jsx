@@ -5,7 +5,7 @@ import {callAuthServer} from "../api";
 import {isEqual} from "lodash-es";
 import { isUserAuthed } from "../../../utils/auth";
 
-const InputControl = ({show, value, onChange, placeHolder}) => {
+const InputControl = ({show, value, onChange, placeHolder, className}) => {
     const { UI } = React.useContext(ThemeContext);
     const { Input } = UI;
 
@@ -25,7 +25,7 @@ const InputControl = ({show, value, onChange, placeHolder}) => {
 
     if (!show) return null;
     return (
-        <Input
+        <Input className={className}
             type="text"
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -65,7 +65,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
                     onChange={e => setEmail(e.target.value)}
                     placeHolder="Enter user email"
                 />
-                <Button onClick={() => onAdd(email)}>
+                <Button className={m.modalAction} onClick={() => onAdd(email)}>
                     {loading ? "Adding" : status || "Add"}
                 </Button>
             </div>
@@ -209,6 +209,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 const isActive = viewAsUser?.email === row.email;
                 return (
                     <Button
+                        className={m.rowAction}
                         onClick={() => setViewAsUser(isActive ? null : { ...row, groups: [...new Set([...(row.groups || []), 'public'])], authed: true, isAuthenticating: false })}
                     >
                         {isActive ? 'Viewing As' : 'View As'}
@@ -218,7 +219,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
         },
         {
             name: '', display_name: '', show: true, type: 'ui',
-            Comp: d => <Button onClick={() => setEditUser(d.row)}>reset password</Button>
+            Comp: d => <Button className={m.rowAction} onClick={() => setEditUser(d.row)}>reset password</Button>
         },
     ];
 
@@ -229,13 +230,13 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 <div className={m.tableHeaderCell}>
                     {attribute.display_name}
                     { attribute.name === 'email' &&
-                        <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..."/> }
+                        <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..." className={m.headerInput}/> }
                     { attribute.name === 'groups' &&
-                        <InputControl show value={searchGroup} onChange={setSearchGroup} placeHolder="filter group..."/> }
+                        <InputControl show value={searchGroup} onChange={setSearchGroup} placeHolder="filter group..." className={m.headerInput}/> }
                 </div>
             )
         }
-    }), [searchUser, searchGroup, m.tableHeaderCell]);
+    }), [searchUser, searchGroup, m.tableHeaderCell, m.headerInput]);
 
     // const requestsTableControls = {
     //     header: {
@@ -332,7 +333,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
             <Modal open={Boolean(editUser)} setOpen={setEditUser}>
                 <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?
-                    <Button onClick={async () => {
+                    <Button className={m.modalAction} onClick={async () => {
                         const res = await callAuthServer(`${AUTH_HOST}/password/reset`, {
                             project_name: PROJECT_NAME,
                             email: editUser?.email,

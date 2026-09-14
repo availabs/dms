@@ -211,6 +211,17 @@ export const mapFilterGroupCols = (node, getColumn, isDms) => {
     if (!vals.length) return null;
   }
 
+  // Same guard for the scalar comparison ops. A `usePageFilters` range leaf
+  // (`received_at gte {from}`) is fed "" by usePageFilterSync until the control
+  // that owns the variable has written it; `col >= ''` is a Postgres type error
+  // on a timestamptz ("invalid input syntax…"), which the loader swallows into
+  // "Error getting length" and an empty section. An unset bound is no bound.
+  if (["gt", "gte", "lt", "lte"].includes(node.op)) {
+    const vals = (Array.isArray(node.value) ? node.value : (node.value != null ? [node.value] : []))
+      .filter((v) => v != null && String(v).length);
+    if (!vals.length) return null;
+  }
+
   // Leaf condition: map col name to refName
   const col = getColumn(node.col);
   if (!col) return node;
