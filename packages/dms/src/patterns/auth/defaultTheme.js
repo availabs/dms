@@ -40,6 +40,11 @@ const theme = {
         },
         // The `/auth/*` placeholder (siteConfig.jsx).
         landing: "flex flex-col gap-3",
+        // Manage pages: which named `layout` / `layoutGroup` style AdminLayout
+        // asks for. Unset = the pattern's default options (BC). A theme sets
+        // e.g. `manageLayoutStyle: "app"` to put them on its admin layout.
+        manageLayoutStyle: undefined,
+        manageLayoutGroupStyle: undefined,
         // The MANAGE pages — users / groups / profile, rendered through AdminLayout.
         // One key per literal the pages used to hardcode; where two pages differed
         // they keep separate keys (unifying them would be a visual change).
@@ -56,6 +61,15 @@ const theme = {
             modalBody: "flex flex-row gap-3",
             notice: "",
             profileLink: "",
+            // Optional overrides, unset by default: a row's View As / reset
+            // password buttons, a dialog's submit button, and the search inputs
+            // in the table header. Unset = UI.Button's / theme.input's default.
+            rowAction: undefined,
+            modalAction: undefined,
+            headerInput: undefined,
+            // Unset = the manager's Sites / Themes / Auth menu. A client site
+            // sets `[{name, path}]` — typically just Profile / Users / Groups.
+            menuItems: undefined,
         },
     },
     // The account menu (components/menu.jsx).
