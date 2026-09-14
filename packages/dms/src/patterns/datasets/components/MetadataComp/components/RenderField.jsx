@@ -1,4 +1,4 @@
-import React, {useContext, useMemo, useState} from "react";
+import React, {useContext, useEffect, useMemo, useRef, useState} from "react";
 import {DatasetsContext} from "../../../context";
 import {ThemeContext} from "../../../../../ui/useTheme";
 import {metadataCompTheme} from "../metadataComp.theme";
@@ -81,6 +81,7 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
         <div className={t.inputWrapper}>
             <label className={t.label}>{label}</label>
             <MultiSelect
+                disabled={disabled}
                 singleSelectOnly
                 searchable={false}
                 value={value}
@@ -99,7 +100,7 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
 }
 
 
-const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueValue=true}) => {
+const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueValue=true, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -110,6 +111,7 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
             <label className={t.label}>{label}</label>
             <Switch
                 enabled={value === trueValue}
+                disabled={disabled}
                 setEnabled={e => updateAttribute(col, {[attr]: e ? trueValue : false})}
                 size={'small'}
             />
@@ -117,7 +119,7 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
     )
 }
 
-const RenderIndexSwitch = ({value, col, onSetIndex}) => {
+const RenderIndexSwitch = ({value, col, onSetIndex, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -127,6 +129,7 @@ const RenderIndexSwitch = ({value, col, onSetIndex}) => {
             <label className={t.label}>Index</label>
             <Switch
                 enabled={!!value}
+                disabled={disabled}
                 setEnabled={e => onSetIndex(col, e)}
                 size={'small'}
             />
@@ -146,7 +149,7 @@ const RenderIndexSwitch = ({value, col, onSetIndex}) => {
 // sync with the real DB (e.g. someone drops the constraint directly in Postgres), and
 // trusting it here would leave the badge stuck showing a PK that no longer exists, with
 // no way to re-trigger a set on that column.
-const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey}) => {
+const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -154,7 +157,7 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey}) => {
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const isThisColumnPk = !!(pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn === col);
     const anotherColumnIsPk = pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn && pkeyInfo.pkeyColumn !== col;
-    const disabled = anotherColumnIsPk;
+    const disabled = !canEdit || anotherColumnIsPk;
     const title = isThisColumnPk
         ? (pkeyInfo?.isDetectedExisting ? 'Detected as the existing primary key — click to remove' : 'Primary key — click to remove')
         : anotherColumnIsPk
@@ -187,7 +190,7 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey}) => {
     );
 };
 
-const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options}) => {
+const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -199,7 +202,8 @@ const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, o
             <ButtonSelect
                 value={value}
                 options={options}
-                onChange={e => updateAttribute(col, {[attr]: e})}
+                disabled={disabled}
+                onChange={e => !disabled && updateAttribute(col, {[attr]: e})}
             />
         </div>
     )
@@ -210,6 +214,25 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {ColumnTypes: {lexical: {EditComp}}} = UI;
+    // Lexical's onChange fires once on mount as a side effect of hydrating `value` into
+    // the editor, not from typing — and can also fire on a selection-only commit with no
+    // content change. `e` is a Lexical EditorState, not a string, so `.toString()` gives
+    // "[object Object]" for every call and never distinguishes them. `JSON.stringify(e)`
+    // invokes EditorState's own `toJSON()` (selection excluded), giving a real content
+    // fingerprint. There's no reliable fingerprint for `value` to seed from up front (it
+    // may be plain text or a lexical-JSON string, and duplicating Lexical's own hydration
+    // shape here would be fragile) — so the first call seeds the baseline instead of
+    // being propagated, and every call after that only proceeds if the content actually
+    // changed since the last one seen.
+    const lastSerialized = useRef(null);
+    // Propagating on every keystroke round-trips through MetadataComp's setItem/onChange
+    // (a network save) before the next character can render — and since this field isn't
+    // rendered `editable` to the lexical wrapper, each resulting `value` prop change
+    // re-triggers its hydrate-on-value-change effect, resetting the editor mid-typing.
+    // Debounce the propagation, not the typing: Lexical keeps its own state locally and
+    // stays responsive; only the outward call waits for a pause.
+    const debounceRef = useRef(null);
+    useEffect(() => () => clearTimeout(debounceRef.current), []);
     return (
         <div className={t.inputWrapper}>
             <label className={t.label}>{label}</label>
@@ -217,7 +240,12 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
                 value={value}
                 bgColor={'#ffffff'}
                 onChange={e => {
-                    updateAttribute(col, {[attr]: e})
+                    const serialized = JSON.stringify(e);
+                    const changed = lastSerialized.current !== null && serialized !== lastSerialized.current;
+                    lastSerialized.current = serialized;
+                    if (!changed) return;
+                    clearTimeout(debounceRef.current);
+                    debounceRef.current = setTimeout(() => updateAttribute(col, {[attr]: e}), 500);
                 }}
                 placeHolder={label}
             />
@@ -294,7 +322,7 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
         </div>
     )
 }
-const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], dependsOn=[], updateAttribute}) => {
+const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], dependsOn=[], updateAttribute, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -326,18 +354,20 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
         <div className={t.optionsWrapper}>
             <label className={t.labelUpperCase}>options</label>
             <div className={t.optionsInner}>
-                <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />
-                <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />
+                {canEdit && <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />}
+                {canEdit && <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />}
 
                 <div className={t.optionsList}>
                     {
                         options?.map((option, optionI) => (
                             <div key={optionI} className={t.optionTag}>
-                                <label className={t.optionTagLabel} onClick={() => setEditing(optionI)}>{option?.label || option}</label>
-                                <div title={'remove'}
-                                     className={t.optionRemove}
-                                     onClick={e => removeValue(value, option)}
-                                >x</div>
+                                <label className={t.optionTagLabel} onClick={() => canEdit && setEditing(optionI)}>{option?.label || option}</label>
+                                {canEdit &&
+                                    <div title={'remove'}
+                                         className={t.optionRemove}
+                                         onClick={e => removeValue(value, option)}
+                                    >x</div>
+                                }
                             </div>
                         ))
                     }
@@ -355,7 +385,7 @@ const parseIfJSON = strValue => {
         return {}
     }
 }
-const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttribute}) => {
+const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttribute, canEdit = true}) => {
     // {"viewId": "1346450", "sourceId": "1346449", "labelColumn": "municipality_name", "valueColumn": "geoid", "isDms": true, "type": "477b3e18-2b35-4e98-82f1-feb821ba4fc3"}
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
@@ -396,14 +426,15 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
                         customTheme
                     },
                     {
-                        type: 'Button', children: 'update', activeStyle: 'active',
+                        type: 'Button', children: 'update', activeStyle: 'active', disabled: !canEdit,
                         onClick: () => {
-                            updateAttribute(col, {[attr]: JSON.stringify(newOption)});
+                            canEdit && updateAttribute(col, {[attr]: JSON.stringify(newOption)});
                         }
                     },
                     {
-                        type: 'Button', children: 'remove', activeStyle: 'danger',
+                        type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit,
                         onClick: () => {
+                            if (!canEdit) return;
                             updateAttribute(col, {[attr]: undefined});
                             setNewOption({})
                         }
@@ -414,13 +445,14 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     )
 }
 
-const RenderRemoveBtn = ({col, removeAttribute}) => {
+const RenderRemoveBtn = ({col, removeAttribute, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const {Button, Modal} = UI;
     const [showDeleteModal, setShowDeleteModal] = React.useState(false);
 
+    if (!canEdit) return null;
     return (
         <div className={t.deleteWrapper}>
             <Modal open={showDeleteModal} setOpen={setShowDeleteModal} className={t.deleteModalBorder}>
@@ -446,20 +478,20 @@ const RenderRemoveBtn = ({col, removeAttribute}) => {
     )
 }
 
-export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, pkeyInfo, onSetPrimaryKey, apiLoad, format, dragStart, dragEnter, dragOver, drop}) => {
+export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, pkeyInfo, onSetPrimaryKey, apiLoad, format, dragStart, dragEnter, dragOver, drop, canEdit = true}) => {
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
     const [showAdvanced, setShowAdvanced] = useState(false);
     return (
             <div key={i}
                  className={`${i % 2 ? t.fieldRowOdd : t.fieldRowEven} ${t.fieldRow}`}
-                 onDragStart={(e) => dragStart(e, i)}
-                 onDragEnter={(e) => dragEnter(e, i)}
+                 onDragStart={(e) => canEdit && dragStart(e, i)}
+                 onDragEnter={(e) => canEdit && dragEnter(e, i)}
 
                  onDragOver={dragOver}
 
-                 onDragEnd={drop}
-                 draggable={true}
+                 onDragEnd={(e) => canEdit && drop(e)}
+                 draggable={canEdit}
             >
                 <div className={showAdvanced ? `${t.fieldHeader} bg-blue-50` : t.fieldHeader}>
                     {item.isIndex && <span className={t.pkBadge}>IDX</span>}
@@ -489,11 +521,12 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             attr={'display_name'}
                             value={item.display_name}
                             col={item.name}
+                            disabled={!canEdit}
                             updateAttribute={updateAttribute}
                         />
 
                         <RenderInputSelect
-                            disabled={!isDms && item.display !== 'calculated' && item.origin !== 'calculated-column'}
+                            disabled={!canEdit || (!isDms && item.display !== 'calculated' && item.origin !== 'calculated-column')}
                             key={`${item.name}-type`}
                             label={'Column Type'}
                             value={item.type}
@@ -518,6 +551,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             value={item.isIndex}
                             col={item.name}
                             onSetIndex={onSetIndex}
+                            disabled={!canEdit}
                         />
                         {!isDms && onSetPrimaryKey &&
                             <RenderPrimaryKeySwitch
@@ -526,6 +560,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                                 col={item.name}
                                 pkeyInfo={pkeyInfo}
                                 onSetPrimaryKey={onSetPrimaryKey}
+                                canEdit={canEdit}
                             />
                         }
                         <RenderInputSwitch
@@ -536,6 +571,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             col={item.name}
                             attr={'required'}
                             updateAttribute={updateAttribute}
+                            disabled={!canEdit}
                         />
                         <RenderInputButtonSelect
                             key={`${item.name}-display`}
@@ -546,6 +582,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             options={item.type  === 'calculated' ? [{value: 'calculated', label: 'calculated'}] : behaviourTypes} // don't rely on user selecting display. even if type is calculated, consider the column to be calculated.
                             updateAttribute={updateAttribute}
                             placeHolder={'Please select behaviour type'}
+                            disabled={!canEdit}
                         />
 
                         <RenderInputButtonSelect
@@ -556,6 +593,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             attr={'defaultFn'}
                             options={defaultFnTypes}
                             updateAttribute={updateAttribute}
+                            disabled={!canEdit}
                         />
 
                         <RenderInputButtonSelect
@@ -566,6 +604,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             attr={'dataType'}
                             options={dataTypes}
                             updateAttribute={updateAttribute}
+                            disabled={!canEdit}
                         />
                         <RenderInputText
                             key={`${item.name}-trueValue`}
@@ -575,6 +614,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             col={item.name}
                             updateAttribute={updateAttribute}
                             hidden={!['checkbox', 'switch'].includes(item.type)}
+                            disabled={!canEdit}
                         />
                     </div>
                     <div className={t.advancedDescRow}>
@@ -605,10 +645,11 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                                    dependsOn={item.depends_on}
                                    attr={'options'}
                                    updateAttribute={updateAttribute}
+                                   canEdit={canEdit}
                     />
-                    <RenderMappedOptions key={`${item.name}-mapped-options`} col={item.name} drivingAttribute={item.type} value={item.mapped_options} attr={'mapped_options'} updateAttribute={updateAttribute}/>
-                    <Metadata key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={!isDms && item.meta_lookup ? 'meta' : item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute}/>
-                    <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute}/>
+                    <RenderMappedOptions key={`${item.name}-mapped-options`} col={item.name} drivingAttribute={item.type} value={item.mapped_options} attr={'mapped_options'} updateAttribute={updateAttribute} canEdit={canEdit}/>
+                    <Metadata key={`${item.name}-meta_lookup`} col={item.name} drivingAttribute={!isDms && item.meta_lookup ? 'meta' : item.display} value={item.meta_lookup} attr={'meta_lookup'} updateAttribute={updateAttribute} canEdit={canEdit}/>
+                    <RenderRemoveBtn key={`${item.name}-removeBtn`} col={item.name} removeAttribute={removeAttribute} canEdit={canEdit}/>
 
                 </div>
             </div>);

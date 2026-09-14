@@ -27,6 +27,7 @@ export const multiselectTheme = {
 
             view: 'w-full h-full',
             mainWrapper: 'group relative block w-full h-full',
+            disabled: 'opacity-50 pointer-events-none cursor-not-allowed',
 
             // Trigger / input shell. Padding mirrors Catalyst's Listbox button —
             // `calc(theme(spacing.X)-1px)` so the inset border lines up at the
