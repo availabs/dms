@@ -2268,7 +2268,63 @@ Static read of `sync-manager.js`, `page-structure-provider.js`, `idb-store.js`, 
 
 **Fix applied (2026-09-14):** `pagesEditor.jsx` now re-fetches immediately before every destructive write. Added `fetchFreshPage(falcor, app, pageId)` and `fetchFreshCompById(falcor, app, refs)` (both invalidate the specific Falcor `byId` cache entries and re-`get` them, mirroring the CLI's `page publish` command's own re-fetch-before-clone pattern in `cli/src/commands/page.js`). `publishPage`, `discardPage`, and `duplicatePage` all call these before reading `draft_sections`/`sections`/other page fields, replacing reads of the possibly-stale `page` param and `compById` React state with a fresh server read. `publishSelected` (bulk publish) calls `publishPage` per page in a loop, so it inherits the fix automatically — no separate bulk-path change needed. Step 3 above (`sectionArray.jsx`) remains open.
 
+## Bug 19 — a page whose `url_slug` is literally `view` (or `edit`) never resolved its section refs from local IndexedDB, rendering permanently blank on client-side navigation — FOUND, ROOT-CAUSED, AND FIXED (2026-09-15)
+
+**Symptom as reported:** MitigateNY's county Actions pattern — `http://cayuga.localhost:5173/actions/view?id=1103571` — renders blank when reached by clicking through from the Actions Dashboard (or any other page that links to it), but renders correctly on a hard refresh of the same URL.
+
+**Reproduced live** (Playwright, `cayuga.localhost:5173`, `mitigat-ny-prod`/`prod`, `VITE_DMS_SYNC=1`): load `/actions`, wait for the pattern bootstrap, click an `/actions/view?id=…` link → `document.body.innerText.length` drops from 3503 to **54** (the sidenav only) and stays there indefinitely (probed to 20s — not a slow load). Hard-reloading that same URL gives 1951 chars of real content. The DOM confirms the shape precisely: all **11 section wrappers are present with their correct ids** (`2448165`–`2448175`), each containing exactly `<div class=""></div>` — i.e. `SectionView`'s `if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null` guard (`section.jsx:481`) firing on every one, because each section is still a bare `{id, ref}` stub.
+
+**Root cause** — `api/index.js`'s `loadFromLocalDB()`, in the `activeSlug` derivation that decides which items get their `dms-format` child refs resolved (`needsRefResolution`). The code took the active view/edit child config's splat param and then ran a leading-`(edit|view)/?` strip over it:
+
+```js
+const wildcardParam = activeViewEdit?.params?.['*'] || <parent config's param> || '';
+const strippedWildcard = wildcardParam.replace(/^(edit|view)(\/|$)/, '');
+const activeSlug = strippedWildcard || strippedPath || '';
+```
+
+That strip is wrong for the child config, because **the child's splat is already the clean slug**: the edit route is declared as `edit/*` (page `siteConfig.jsx`), so React Router has itself consumed the `edit/` segment, and the view route is plain `/*`, so its splat is the raw `url_slug` with no prefix at all. Only the *fallbacks* (the parent `/*` config's param, e.g. `"edit/know_the_environment"`, and the raw request `path`) can still carry a mode prefix.
+
+So for a page whose `url_slug` **is** `view`, the regex's `(\/|$)` alternation matched the bare word and ate the entire slug. Instrumented live:
+
+```
+[sync:slug] path= "/view" wildcardParam= "view" activeViewEditParams= {"*":"view"} activeId= undefined activeSlug= ""
+```
+
+With `activeSlug === ''`, `needsRefResolution()` fell through to its home-page rule (`!activeSlug && !activeId && !item.parent && item.index == 0`) plus `idx === 0` — so it resolved refs for the *default* page and left the `view` page's own `sections` unresolved. Note `activeId` does **not** rescue this: it reads `activeViewEdit?.params?.id` (a *route* param), whereas `?id=1103571` here is a search param used as a page variable, so it is always `undefined` on this route.
+
+**Why refresh masked it.** `dmsDataLoader` only takes the local-IndexedDB path when `sync.isLocal(app, type)` is already true. On a hard load the pattern isn't in sync scope yet, so the loader falls through to Falcor (fully-resolved sections) and fires `bootstrapPattern` in the background. Every *subsequent* client-side navigation is served from local IndexedDB and hits the bug. This is why it presents as "blank when navigated to, fine on refresh" — and also why it was mildly timing-sensitive on a direct load: once the background bootstrap finishes, the `onInvalidate` → router `revalidate()` re-runs the loader, which can re-render the same URL blank without any navigation at all.
+
+**Same bug class as the 2026-09-09 trailing-strip removal** (which truncated slugs whose *last* segment was `edit`/`view`, e.g. `forms/participation/edit`). That pass fixed the trailing half and left the leading half applied to a param that never needed it.
+
+**Fix** (`packages/dms/src/api/index.js`): use the active view/edit child config's splat param **verbatim**, and apply `stripModePrefix()` only to the parent-config and `path` fallbacks.
+
+```js
+const stripModePrefix = (slug) => (slug || '').replace(/^(edit|view)(\/|$)/, '');
+const childWildcard = activeViewEdit?.params?.['*'] || '';
+const parentWildcard = activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
+const activeSlug = childWildcard
+  || stripModePrefix(parentWildcard)
+  || stripModePrefix((path || '').replace(/^\//, ''))
+  || '';
+```
+
+**Live verification** (same Playwright harness, post-fix):
+
+| step | before | after |
+|---|---|---|
+| cold load `/actions/dashboard` | 3503 | 3503 |
+| SPA click → `/actions/view?id=1103568` | **54 (blank)** | **1951** |
+| SPA back → `/actions/dashboard` | 3503 | 3503 |
+| SPA click → `/actions/view?id=1103579` | **54 (blank)** | **2191** |
+| hard reload on the view page | 1951 | 2191 |
+
+`[sync:slug]` now logs `activeSlug= "view"` on `/actions/view`, and the edit route was checked for regressions on the same instrumentation: `path= "/edit/view" childWildcard= "view" → activeSlug= "view"` — confirming directly that React Router hands the `edit/*` child a prefix-free splat, which is the premise the fix rests on. All instrumentation (`_DEV` flag and the temporary `[sync:slug]` log) was reverted; the shipped diff is the `activeSlug` block only.
+
+**Observation, not part of this fix:** the `[sync:ref]` warnings show some *other* pages' `draft_sections` children missing from the local mirror entirely (e.g. item `2265531`, 5/5 not found). That only affects edit mode, is a separate question from this bug (the view path reads `sections`, which resolved correctly post-fix), and was not chased. Possibly related to Bug 18's staleness family.
+
 ## Testing checklist
+
+- [x] **Bug 19 — a page whose `url_slug` is literally `view`/`edit` never resolved its section refs from local IndexedDB, blanking the page on every client-side navigation (fine on refresh) — fixed.** `loadFromLocalDB()`'s leading-`(edit|view)` strip was being applied to the active view/edit child route's splat param, which React Router already hands over prefix-free; for MitigateNY's `/actions/view?id=…` action-detail page that collapsed `activeSlug` to `''`, so `needsRefResolution()` never matched the page and every section rendered as an empty stub. Strip now applies only to the parent-config/`path` fallbacks. Verified live on `cayuga.localhost` (blank 54 chars → 1951/2191 chars across two different actions, dashboard round-trip and hard reload unaffected; edit route re-checked). See Bug 19's write-up above.
 
 - [x] **Bug 17 — a page's first structural edit (add/move/delete section) per session fell through to Falcor instead of sync, never reached local IndexedDB, then got stranded there by a racing reactive bootstrap — blanked the page until reload, every time `isLocal` reset — fixed.** `api/index.js`'s `dmsDataEditor` now `await sync.bootstrapPattern(type)` before deciding Falcor-vs-sync for an existing item's update, closing the race between the write's eligibility check and the concurrent reactive bootstrap it was racing against. Verified live on a throwaway tenant: pre-fix, an added section's content vanished immediately after save (confirmed via direct IndexedDB inspection — `draft_sections` stuck empty indefinitely) and only reappeared after a hard reload; post-fix, 3/3 consecutive add rounds render immediately with no reload. Move/reorder not independently UI-verified but shares the identical `dmsDataEditor` chokepoint. See Bug 17's write-up above for the full network/WS evidence.
 - [x] **Automated test suite audit (post-Bug-17) — ran `test-sync.js`, found and fixed one unrelated pre-existing failing test, confirmed no regressions.** `testPatternBootstrapSiblingTypes` was comparing a string item id against a `Number`-coerced expected id with `===` (same bug class as Bug 4, but in test code — pre-dates this session, unrelated to Bugs 15-17). Fixed the comparison; suite now 84/84 green. Flagged a real gap: Bugs 4/15/17 (all client-side, `packages/dms`) have zero automated regression coverage — that package's own `test` script points at a nonexistent file. See "Automated test suite audit" section above for full detail, including a still-open question about Falcor-write WS-broadcast behavior for updates vs. creates.
