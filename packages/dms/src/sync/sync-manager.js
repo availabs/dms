@@ -126,11 +126,75 @@ const _loadedPatterns = new Set();
 // Inflight bootstrap promises — deduplicates concurrent calls for the same pattern
 const _inflightBootstraps = new Map();
 
+// Timestamp (ms since epoch) of the last time each pattern's freshness was
+// actually confirmed against the server (a successful cold/warm bootstrap) —
+// set only on success, never on an offline/failed attempt. `_loadedPatterns`
+// membership alone used to be trusted forever, for the life of the tab, no
+// matter how long it sat idle/backgrounded — see "there must be an expiry"
+// under Bug 18 in concurrent-page-editing-data-loss.md. Paired with
+// WAKE_REVALIDATE_TTL_MS and revalidateLoadedScopes() below.
+const _patternLastVerified = new Map();
+let _skeletonLastVerified = 0;
+
+// How long a pattern/skeleton can go without being re-confirmed against the
+// server before a wake/reconnect event should force a fresh check, rather
+// than trusting it's still current indefinitely.
+const WAKE_REVALIDATE_TTL_MS = 30000;
+
 export function configure(app, apiHost, siteType = '') {
   _app = app;
   _apiHost = apiHost || '';
   _siteType = siteType;
+  installVisibilityWatcher();
   if (_DEV) console.log(`[sync] configure: app=${app} apiHost=${_apiHost} siteType=${siteType}`);
+}
+
+// Background-tab throttling/freezing (Chrome Memory Saver and similar) can
+// silently delay this tab's WS reconnect indefinitely — a frozen tab's
+// queued `setTimeout` for reconnect backoff simply doesn't run until the tab
+// is unfrozen, and there is otherwise no visibility/focus-driven check
+// anywhere in this module (confirmed by grep, 2026-09-15 — see Bug 18's
+// "Grounded mechanics" section in concurrent-page-editing-data-loss.md).
+// This is the fix: force an immediate reconnect check, and an independent
+// content revalidation, the moment the tab becomes visible again.
+//
+// Live-tested 2026-09-15 (scratchpad/gap-freeze/): a frozen tab whose network
+// was cut and restored while still frozen (CDP offline emulation) never saw
+// its WS readyState change from OPEN at all — no onclose ever fired, because
+// the browser's own network stack never noticed anything was wrong. A
+// TTL/"how long since we last confirmed freshness" gate on the revalidation
+// step was tried first and is WRONG here: elapsed time doesn't tell you
+// whether anything was missed, and the whole point of this backstop is that
+// a zombie socket gives no other signal at all. The only thing worth gating
+// on is how long the tab was actually hidden — long enough that a missed
+// message is plausible — not how recently a pattern was last verified.
+let _visibilityWatcherInstalled = false;
+let _hiddenAt = 0;
+const MIN_HIDDEN_MS_TO_REVALIDATE = 2000;
+function installVisibilityWatcher() {
+  if (_visibilityWatcherInstalled) return;
+  if (typeof document === 'undefined') return; // non-browser environment (tests)
+  _visibilityWatcherInstalled = true;
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') {
+      _hiddenAt = Date.now();
+      return;
+    }
+    if (document.visibilityState !== 'visible') return;
+    const hiddenForMs = _hiddenAt ? Date.now() - _hiddenAt : Infinity;
+    if (_DEV) console.log(`[sync] tab visible again after ~${hiddenForMs}ms hidden`);
+    if (!ws || ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+      wsRetryDelay = 500;
+      connectWS();
+    }
+    if (hiddenForMs < MIN_HIDDEN_MS_TO_REVALIDATE) return; // rapid alt-tab, nothing could have changed
+    // Independent of WS state — a socket that still *looks* open can be a
+    // zombie the browser hasn't noticed died yet. This doesn't wait for a
+    // reconnect or depend on catchUp()'s unscoped watermark (gap #2); it's a
+    // plain per-pattern delta fetch off each pattern's own trusted watermark.
+    // Forced unconditionally (not TTL-gated) — see doc comment above for why.
+    revalidateLoadedScopes(true);
+  });
 }
 
 function apiUrl(path) {
@@ -370,6 +434,7 @@ export async function bootstrapSkeleton() {
     await bumpLastRevision(revision);
     invalidate('data_items');
     console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
+    _skeletonLastVerified = Date.now();
   } catch (err) {
     console.warn('[sync] skeleton bootstrap failed (offline?):', err.message);
     // Offline: seed scope from whatever is in local storage
@@ -398,11 +463,21 @@ export async function bootstrapSkeleton() {
  */
 export function bootstrapPattern(patternType) {
   if (!patternType) return Promise.resolve();
-  if (_loadedPatterns.has(patternType)) {
+  const lastVerified = _patternLastVerified.get(patternType);
+  const isFresh = lastVerified != null && (Date.now() - lastVerified) < WAKE_REVALIDATE_TTL_MS;
+  if (_loadedPatterns.has(patternType) && isFresh) {
     if (_DEV) console.log(`[sync]     pattern '${patternType}' already loaded, skipping`);
     return Promise.resolve();
   }
-  // Deduplicate concurrent calls — return existing inflight promise if one exists
+  return _runPatternBootstrap(patternType);
+}
+
+// Deduplicates concurrent bootstrap/revalidate calls for the same pattern —
+// shared by bootstrapPattern() (which skips entirely if already loaded and
+// still within the freshness TTL) and revalidateLoadedScopes() (which always
+// re-checks an already-loaded pattern on its own schedule, bypassing that
+// skip on purpose).
+function _runPatternBootstrap(patternType) {
   if (_inflightBootstraps.has(patternType)) {
     if (_DEV) console.log(`[sync]     pattern '${patternType}' bootstrap already inflight, waiting...`);
     return _inflightBootstraps.get(patternType);
@@ -435,6 +510,7 @@ async function _bootstrapPatternImpl(patternType) {
       await bumpLastRevision(revision);
       invalidate('data_items');
       console.log(`[sync] pattern '${patternType}' bootstrapped: ${items.length} items, rev=${revision}`);
+      _patternLastVerified.set(patternType, Date.now());
     } else {
       // Warm start: delta for this pattern
       const t0 = performance.now();
@@ -470,6 +546,7 @@ async function _bootstrapPatternImpl(patternType) {
       // Re-seed scope from local data for this pattern
       const local = await getDistinctAppTypesByAppAndPatternPrefix(_app, patternType);
       for (const row of local) addToScope(row.app, row.type);
+      _patternLastVerified.set(patternType, Date.now());
     }
   } catch (err) {
     console.warn(`[sync] pattern '${patternType}' bootstrap failed (offline?):`, err.message);
@@ -691,7 +768,46 @@ async function reBootstrapLoadedScopes() {
   }
 }
 
+/**
+ * Force a fresh delta check for every currently-loaded pattern — each off its
+ * OWN scoped watermark (the same trusted warm-delta path bootstrapPattern()
+ * already uses on navigation), plus the skeleton. This is the real backstop
+ * against a tab whose content has gone stale with no other signal to fix it:
+ *
+ * - It never depends on the unscoped `last_revision` watermark catchUpUnscoped()
+ *   reads — so it can't be defeated by that cursor being null or stale on a
+ *   mostly-read-only tab (gap #2, concurrent-page-editing-data-loss.md).
+ * - It's a plain HTTP delta fetch per pattern, so it works even while a WS
+ *   reconnect is still pending or never happens at all.
+ *
+ * `force` bypasses WAKE_REVALIDATE_TTL_MS — used by catchUp()'s backstop call
+ * below, where a WS reconnect is already a rare enough event that the extra
+ * requests are cheap. The visibility-change trigger does NOT force, so rapid
+ * tab-switching doesn't spam the server with redundant deltas.
+ */
+async function revalidateLoadedScopes(force = false) {
+  const now = Date.now();
+  const patterns = [..._loadedPatterns].filter(p => (
+    force || now - (_patternLastVerified.get(p) || 0) > WAKE_REVALIDATE_TTL_MS
+  ));
+  const jobs = patterns.map(p => _runPatternBootstrap(p));
+  if (force || now - _skeletonLastVerified > WAKE_REVALIDATE_TTL_MS) {
+    jobs.push(bootstrapSkeleton());
+  }
+  if (jobs.length === 0) return;
+  if (_DEV) console.log(`[sync] revalidating ${patterns.length} pattern(s)${force ? ' (forced)' : ''}`);
+  await Promise.all(jobs);
+}
+
 async function catchUp() {
+  await catchUpUnscoped();
+  // Backstop for gap #2 — see revalidateLoadedScopes()'s doc comment. Runs
+  // unconditionally, regardless of what happened above (success, no-op, or
+  // failure), so reconnect catch-up never depends solely on that one cursor.
+  await revalidateLoadedScopes(true);
+}
+
+async function catchUpUnscoped() {
   try {
     const lastRev = await getLastRevision();
     if (lastRev === null) return;
