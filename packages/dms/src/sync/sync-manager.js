@@ -188,6 +188,44 @@ async function setLastRevision(rev, scope = null) {
   await setState(key, String(rev));
 }
 
+// Advances the UNSCOPED `last_revision` watermark to `revision` — the one
+// catchUp() reads on every WS reconnect — never regresses it. Every scoped
+// bootstrap (skeleton, or a pattern's cold/warm fetch) must call this right
+// after writing its own scoped watermark.
+//
+// Without this, the unscoped key is only ever written by a live WS `change`
+// message or by catchUp() itself succeeding — nothing writes it on the much
+// more common per-pattern bootstrap/delta path. A session that mostly reads
+// (navigates around, never edits, and is quiet enough to never catch a live
+// broadcast) can bootstrap and warm-delta several patterns correctly — each
+// advancing its OWN scoped watermark — while the unscoped one sits at
+// whatever it started at (or stays `null` forever, making catchUp() a
+// permanent no-op — see its own null check). Confirmed live 2026-09-14 on
+// `shaun-test-app`: `last_revision` was stuck at 867575 while
+// `rev:pattern:admin|page`/`rev:pattern:pattern`/`rev:skeleton:prod:site` had
+// all independently advanced past 900000 — exactly this gap, not a stale/dead
+// tab (Bug 18's original framing) or a stale in-memory editor snapshot (this
+// file's `page-structure-provider.js` fix) — see
+// concurrent-page-editing-data-loss.md, Bug 18, "Live watermark-gap
+// confirmation" section.
+//
+// Safe to always take the max: `revision` is a single counter across the
+// whole app (not per-type — see sync/CLAUDE.md), monotonically non-decreasing
+// over time, so any two calls (in either order) converge on the true tip.
+// Bumping the unscoped watermark forward can only make a future catchUp()
+// skip changes to types this tab has never bootstrapped anyway (harmless —
+// they aren't served locally until their own on-demand bootstrap runs); it
+// can never cause it to miss a change to an already-scoped type, since that
+// type's own bootstrap just fetched everything up to (at least) this exact
+// revision.
+async function bumpLastRevision(revision) {
+  if (revision === null || revision === undefined) return;
+  const current = await getLastRevision();
+  if (current === null || revision > current) {
+    await setLastRevision(revision);
+  }
+}
+
 async function applyChanges(changes) {
   const ops = [];
   for (const change of changes) {
@@ -329,6 +367,7 @@ export async function bootstrapSkeleton() {
     // Always add the site type to scope — even with 0 items, the site type is a valid sync target
     addToScope(_app, _siteType);
     await setLastRevision(revision, scope);
+    await bumpLastRevision(revision);
     invalidate('data_items');
     console.log(`[sync] skeleton bootstrapped: ${items.length} items, rev=${revision}`);
   } catch (err) {
@@ -393,6 +432,7 @@ async function _bootstrapPatternImpl(patternType) {
       // Always add the pattern type to scope — even with 0 items, creates should go through sync
       addToScope(_app, patternType);
       await setLastRevision(revision, scope);
+      await bumpLastRevision(revision);
       invalidate('data_items');
       console.log(`[sync] pattern '${patternType}' bootstrapped: ${items.length} items, rev=${revision}`);
     } else {
@@ -425,6 +465,7 @@ async function _bootstrapPatternImpl(patternType) {
         invalidate('data_items');
       }
       await setLastRevision(revision, scope);
+      await bumpLastRevision(revision);
 
       // Re-seed scope from local data for this pattern
       const local = await getDistinctAppTypesByAppAndPatternPrefix(_app, patternType);
