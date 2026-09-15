@@ -429,6 +429,50 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
   `report_probe.mjs "edit/<slug>?routes=<id> --auth"` ever shows an EMPTY graph
   again, treat it as a real signal, not this old expected-gating note.
 
+### "Save as…" — duplicating a report, and converting its kind on the way (2026-09-15)
+
+`ReportPageHeader`'s action row carries a copy button in BOTH view and edit mode (between Print
+and Edit/Done), shown only to a signed-in user. **Its label is mode-dependent**: `Save as` in edit
+mode, `Save a copy` in view mode — "Save as" is contrastive and only reads correctly next to a
+save (edit mode's Done), which a viewer doesn't have. Match on the `Copy` icon or the dialog, not
+on one literal label, when driving this headlessly. It opens `SaveAsReportModal`: a name field, a
+two-option report-type choice, and a live preview of the tags the copy will carry. It creates a NEW
+sibling report page and **never mutates the source**.
+
+The type choice is symmetric, and the source's own kind is always preselected and labelled
+`SAME AS THIS REPORT`:
+
+| On a… | Options offered |
+|---|---|
+| static report | **Static** (keeps the exact routes) · **Dynamic** (routes become `%n (%y)` slots) |
+| dynamic report | **Dynamic** (keeps the slots) · **Static** (freezes the routes showing right now) |
+
+The Static option is **disabled with a tooltip** on a dynamic report whose slots haven't resolved
+(RRL's own `groupsFullyResolved` test). A viewer can't reach that state — the entry gate blocks the
+page first — but an author in `/edit/` can.
+
+**Driving it headlessly.** The dialog's controls are plain buttons, so `find`/`read_page` refs work:
+the name field is a `textbox "Name"`, the two type options are the next two buttons, then
+`Cancel` / `Save copy` (the dialog's own wording is "Save a copy" / "Save copy" in both modes —
+only the ACTION-ROW button label varies). After Save the page navigates to the copy in the **same mode you started
+in** (`/reports/<slug>` from view, `/edit/reports/<slug>` from edit), so assert on the URL to know
+it landed. A static result has **no `?routes=`** in the URL; a freshly-made dynamic copy opens
+straight onto the route-selection gate.
+
+**The slug is derived from the name**, via the repo's `"<title> Copy <n>"` idiom deduped against
+sibling titles — so "Menands Test" copies to `reports/menands_test_copy`, then `..._copy_2`. Type a
+distinctive name in the dialog if you want a predictable URL to probe afterwards.
+
+**Two verification traps worth knowing:**
+
+1. A copy made from **view mode** would be blank if only `draft_sections` were written, because view
+   renders `item.sections` only (`pages/_utils/index.js:258`). The copy writes BOTH arrays, so
+   always check the copy renders *in view mode*, not just in `/edit/`.
+2. RRL's route line ("N TMCs · N.N mi") reads **0 TMCs** for a beat mid-load before the catalog row
+   lands. Don't read it off a screenshot — query the DOM
+   (`document.querySelectorAll` for the text) once the page settles. Same rule as everywhere else
+   here: screenshots are for layout, the DOM is for values.
+
 ### Relative dates: the "Today (view time)" virtual base, and its entry-gate date field
 
 Built 2026-08-10. A route's date can derive from a synthetic **"Today (view time)"** base — it
