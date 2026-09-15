@@ -25,6 +25,7 @@ export default function AuthGroups (props) {
         tableHeaderCell: "flex gap-3 items-center",
         modalBody: "flex flex-row gap-3",
         notice: "",
+        rowAction: undefined, modalAction: undefined, headerInput: undefined,
         ...(theme?.auth?.authPages?.manage || {}),
     };
 
@@ -67,7 +68,7 @@ export default function AuthGroups (props) {
                                            {attribute.display_name}
                                            {
                                                attribute.name === 'name' ?
-                                                   <Input type={'text'} value={searchGroup} onChange={e => setSearchGroup(e.target.value)} placeHolder={'search...'}/> :
+                                                   <Input type={'text'} className={m.headerInput} value={searchGroup} onChange={e => setSearchGroup(e.target.value)} placeHolder={'search...'}/> :
                                                    null
                                            }
                                        </div>
@@ -82,7 +83,7 @@ export default function AuthGroups (props) {
                            onChange={e => setNewGroup({...newGroup, name: e.target.value})}
                            placeHolder={'Please enter Group Name'}
                     />
-                    <Button onClick={async () => {
+                    <Button className={m.modalAction} onClick={async () => {
                         setStatus('Adding');
                         await AuthAPI.callAuthServer(`/group/create/project/assign`,
                             {

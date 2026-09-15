@@ -91,3 +91,22 @@ Default `flex flex-col gap-3`.
 - `authUsers.jsx`'s header `displayFn` is memoised; `m.tableHeaderCell` joined its dependency
   list so a theme swap re-renders the header cells.
 - The `/auth/*` placeholder's dead `linkClass` const went with the change; nothing read it.
+
+## Follow-up — 2026-09-13, found on the first live wcdb render
+
+- **The manage pages ignored the pattern's theme.** `manageAuthConfig` hardcoded
+  `getPatternTheme(themes, {...pattern, theme: {selectedTheme: 'mny_admin'}})`, so
+  `/auth/manage/*` rendered MitigateNY's admin theme on every site. Now uses the pattern's
+  own `selectedTheme`, with `mny_admin` as the fallback when the pattern sets none (that was
+  the effective value before, so a site that never set one is unchanged).
+- **Two more keys, both unset by default (BC):** `auth.authPages.manageLayoutStyle` /
+  `manageLayoutGroupStyle` — the named Layout / LayoutGroup styles `AdminLayout` asks for
+  (unset = the pattern's default options, which on wcdb was the public two-column cutaway);
+  `auth.authPages.manage.menuItems` — replaces the manager's Sites / Themes / Auth rail
+  items (they point at pages a client site does not have).
+- **Second pass, same day:** `manage.rowAction` / `modalAction` / `headerInput` (the View As /
+  reset-password buttons, dialog submit buttons and header search inputs — unset = the
+  library Button / `theme.input` as before), and the Table's sticky header / footer bands:
+  `components/table/components/Virtual.jsx` hardcoded `bg-white`; now `headerClassName` /
+  `bottomClassName` props fed from the table theme's `stickyHeader` / `stickyBottom`
+  (defaults documented in `table.theme.jsx`, equal to the old literals).

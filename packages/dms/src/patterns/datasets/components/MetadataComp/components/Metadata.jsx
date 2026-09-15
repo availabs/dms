@@ -4,7 +4,7 @@ import {ThemeContext} from "../../../../../ui/useTheme";
 import {metadataCompTheme} from "../metadataComp.theme";
 import {isEqual} from "lodash-es";
 
-const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
+const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = true}) => {
     const {UI, app} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -69,9 +69,9 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
                     customTheme
                 },
                 {
-                    type: 'Button', children: 'save', activeStyle: 'active',
+                    type: 'Button', children: 'save', activeStyle: 'active', disabled: !canEdit,
                     onClick: () => {
-                        updateAttribute(col, {[attr]: JSON.stringify(metaObj)});
+                        canEdit && updateAttribute(col, {[attr]: JSON.stringify(metaObj)});
                     }
                 }
             ]}
@@ -79,7 +79,7 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type}) => {
     ) : null;
 }
 
-const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
+const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -118,15 +118,17 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
                             customTheme
                         },
                         {
-                            type: 'Button', children: 'update', activeStyle: 'active',
+                            type: 'Button', children: 'update', activeStyle: 'active', disabled: !canEdit,
                             onClick: () => {
+                                if (!canEdit) return;
                                 const finalObj = metaObj.reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
                                 updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
                             }
                         },
                         {
-                            type: 'Button', children: 'remove', activeStyle: 'danger',
+                            type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit,
                             onClick: () => {
+                                if (!canEdit) return;
                                 const finalObj = metaObj.filter((_, mi) => mi !== i).reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
                                 updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
                             }
@@ -134,29 +136,31 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type}) => {
                     ]}
                 />
             ))}
-            <FieldSet
-                className={t.customGrid6}
-                components={[
-                    {
-                        type: 'Input', placeHolder: 'key', value: newPair.key,
-                        onChange: e => setNewPair({...newPair, key: e.target.value}),
-                        customTheme
-                    },
-                    {
-                        type: 'Input', placeHolder: 'value', value: newPair.value,
-                        onChange: e => setNewPair({...newPair, value: e.target.value}),
-                        customTheme
-                    },
-                    {
-                        type: 'Button', children: 'add', activeStyle: 'active',
-                        onClick: () => {
-                            const finalObj = {...editing, [newPair.key]: newPair.value};
-                            updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
-                            setNewPair({});
+            {canEdit &&
+                <FieldSet
+                    className={t.customGrid6}
+                    components={[
+                        {
+                            type: 'Input', placeHolder: 'key', value: newPair.key,
+                            onChange: e => setNewPair({...newPair, key: e.target.value}),
+                            customTheme
+                        },
+                        {
+                            type: 'Input', placeHolder: 'value', value: newPair.value,
+                            onChange: e => setNewPair({...newPair, value: e.target.value}),
+                            customTheme
+                        },
+                        {
+                            type: 'Button', children: 'add', activeStyle: 'active',
+                            onClick: () => {
+                                const finalObj = {...editing, [newPair.key]: newPair.value};
+                                updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
+                                setNewPair({});
+                            }
                         }
-                    }
-                ]}
-            />
+                    ]}
+                />
+            }
         </>
     );
 }
@@ -169,7 +173,7 @@ const parseIfJSON = strValue => {
         return {}
     }
 }
-export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute}) => {
+export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute, canEdit = true}) => {
     const [editing, setEditing] = React.useState(parseIfJSON(value));
     const [type, setType] = React.useState(editing?.view_id ? 'datasource' : 'custom');
     const {UI} = React.useContext(DatasetsContext);
@@ -185,14 +189,16 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
         <div>
             <div className={t.metadataHeader}>
                 <label className={t.labelUpperCase}>metadata</label>
-                <Button activeStyle={'danger'} onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
+                {canEdit &&
+                    <Button activeStyle={'danger'} onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
+                }
             </div>
             <Tabs
                 selectedIndex={type === 'datasource' ? 0 : 1}
                 setSelectedIndex={i => setType(i === 0 ? 'datasource' : 'custom')}
                 tabs={[
-                    {name: 'Datasource', Component: () => <DataSourceForm type={type} attr={attr} col={col} editing={editing} setEditing={setEditing} updateAttribute={updateAttribute} />},
-                    {name: 'Custom', Component: () => <CustomEntryForm type={type} attr={attr} col={col} editing={editing} setEditing={setEditing} updateAttribute={updateAttribute} />},
+                    {name: 'Datasource', Component: () => <DataSourceForm type={type} attr={attr} col={col} editing={editing} setEditing={setEditing} updateAttribute={updateAttribute} canEdit={canEdit} />},
+                    {name: 'Custom', Component: () => <CustomEntryForm type={type} attr={attr} col={col} editing={editing} setEditing={setEditing} updateAttribute={updateAttribute} canEdit={canEdit} />},
                 ]}
             />
         </div>

@@ -372,3 +372,7 @@ the form field must carry the whole envelope `{jsonGraph, paths}` — the bare g
       set; deleting needs a guard against deleting the live version.
 - [ ] `airing_id` is `INTEGER NOT NULL` with no default, so the add-airing modal has to
       supply one. A blank version starts empty, which makes this reachable sooner.
+
+## Note — 2026-09-13
+
+The theme-side consumer (`src/themes/wcdb/ScheduleGrid.jsx`) shipped with its "open on the published version" effect placed ~100 lines ABOVE the `liveInfo` state it lists as a dependency; a `const` in its temporal dead zone at render time threw `Cannot access liveInfo before initialization` and blanked the admin schedule page. Moved below the state declaration in dms-template; no library change.

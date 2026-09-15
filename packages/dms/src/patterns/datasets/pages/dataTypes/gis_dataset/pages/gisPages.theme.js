@@ -4,6 +4,7 @@ export const gisPagesTheme = {
     // metadata.jsx
     metaOuter: 'overflow-auto flex flex-1 w-full flex-col shadow bg-white relative text-md font-light leading-7 p-4',
     metaInner: 'w-full',
+    readOnlyBanner: 'mb-2 rounded bg-amber-50 border border-amber-300 px-3 py-2 text-sm text-amber-800',
 
     // table.jsx — fill-height spreadsheet container, CONSTRAINED to the viewport width and
     // scrolling within itself (overflow-auto + min-w-0/max-w-full) so a wide table never makes the

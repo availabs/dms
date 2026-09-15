@@ -1,7 +1,9 @@
 import React, { useRef, useState, useLayoutEffect, useCallback, useEffect } from "react";
 
+// The sticky header / footer bands. `bg-white` so they are fully opaque — rows
+// must not show through while scrolling. A table theme overrides them via
+// `stickyHeader` / `stickyBottom` (passed in as props); unset = these.
 const theme = {
-    // bg-white so the sticky header is fully opaque — rows must not show through while scrolling
     header: 'top-0 sticky z-[5] bg-white',
     bottom: 'bottom-0 sticky z-[5] bg-white'
 }
@@ -39,7 +41,9 @@ export function VirtualList({
     virtualizeColumns,
     renderItem,
     components,
-    endReached
+    endReached,
+    headerClassName,
+    bottomClassName
 }) {
     const containerRef = useRef(null);
     const isFetchingRef = useRef(false);
@@ -211,7 +215,7 @@ export function VirtualList({
             onScroll={calculateRange}
             style={{ overflow: "auto", height: "100%", width: "100%" }}
         >
-            <div className={theme.header} style={{ paddingLeft, paddingRight }}>
+            <div className={headerClassName || theme.header} style={{ paddingLeft, paddingRight }}>
                 {components?.Header?.({start: effectiveCols.start, end: effectiveCols.end})}
             </div>
 
@@ -237,7 +241,7 @@ export function VirtualList({
                 {components?.Footer?.()}
             </div>
 
-            <div className={theme.bottom} style={{ paddingLeft, paddingRight }}>
+            <div className={bottomClassName || theme.bottom} style={{ paddingLeft, paddingRight }}>
                 {components?.bottomFrozen?.({start: effectiveCols.start, end: effectiveCols.end})}
             </div>
         </div>

@@ -6,7 +6,7 @@ const buttonSelectTheme = {
 
 }
 
-export default function ButtonSelect({ options=[], value, onChange=()=>{} }) {
+export default function ButtonSelect({ options=[], value, onChange=()=>{}, disabled=false }) {
     const { theme: themeFromContext = {buttonSelect: buttonSelectTheme}} = React.useContext(ThemeContext);
     const theme = {...themeFromContext, buttonSelect: {...buttonSelectTheme, ...(themeFromContext.buttonSelect || {})}};
     return (
@@ -14,7 +14,8 @@ export default function ButtonSelect({ options=[], value, onChange=()=>{} }) {
             {
                 options.map(option =>
                     <Button key={option.value || option}
-                            onClick={() => onChange(option?.value || option)}
+                            disabled={disabled}
+                            onClick={() => !disabled && onChange(option?.value || option)}
                             activeStyle={value === (option?.value || option) ? 'active' : 'plain'}
                     >
                         {option?.label || option}

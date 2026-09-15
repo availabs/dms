@@ -759,261 +759,58 @@ any DMS page, not just reports. What's specific to reports:
   one re-probe, then reappeared on a later probe of the identical page/moment) — map tiles
   are just slow sometimes, independent of anything the page's own build changed; don't
   chase a lone pending-tiles finding as a regression without ruling this out first.
-  `probe_corpus.mjs` now has a permanent fix for this on the one entry that hits it
-  reliably (`dynamic_report_one_week_study`, 9 sections + a Route Map): a manifest entry
-  can carry `"wait": <ms>` to override `report_probe.mjs`'s default 6000ms settle wait for
-  just that entry — set to 20000 there 2026-08-17, confirmed stable across repeated
-  `--capture`/diff runs where the default wait had flagged 4 false "was blank → has
-  content" Blockers. Add the same field to any other entry that turns out to need it
-  rather than re-deriving this fix by hand again.
-- **A Route Compare or Info Box section built by `convert_old_reports.py` (as opposed to
-  `report_build.mjs`) is invisible to `--from-page`, silently — not flagged, not
-  `_needsReview`, just absent from the reconstructed spec.** `isGraphSectionElement()`
-  used to gate on a `_routeComparePick`/`_infoBoxPick` marker only `report_build.mjs`'s own
-  compose functions stamp; the Python converter never does (confirmed via grep: zero hits
-  anywhere in `convert_old_reports_lib`). Fixed 2026-08-12 to also recognize the same
-  self-bound `comparison_series`/`$self` subscriber the live runtime's own
-  `findSelfBoundGraphs` checks, plus a `type:'delta'` column as the Route-Compare-vs-Info-Box
-  tell — a section recovered this way gets `_needsReview` for the measure (can't recover it
-  without the marker) instead of a guess. **If you're auditing a page for a "missing" panel
-  and its own gap log / original conversion notes show a Route Compare or Info Box section
-  was actually built, don't trust a from-page-reconstructed spec's absence of it as proof it
-  isn't real** — check the live page's own sections directly (`dms page dump <id> --sections`)
-  before concluding the panel never existed.
-- **A Spreadsheet section's title tells you which of now 4 things it is, but the DOM/table
-  shape tells you more precisely.** Route Compare and Info Box (and the page's own Add-a-Route
-  section) all share element-type `Spreadsheet`. A single-measure Info Box is one value
-  column; a multi-measure Info Box (added 2026-08-12 — `measure` can be an array) is N value
-  columns, one per measure, no delta columns. Route Compare (single- or multi-measure) always
-  has a `% vs Main` delta column after every value column — that's the one reliable visual
-  tell if the title alone doesn't say "Compare." The 4th, added 2026-08-20: a genuine
-  multi-measure **Table** (see the dedicated bullet below) — N value columns like a
-  multi-measure Info Box, but a real paginated data grid, not a Card, and its own QuickControls
-  Measure pill is a checklist instead of a single pick.
-  **2026-08-21: Route Compare and Info Box's reliability measures both now have a real live
-  authoring path** (gap #16, `report-authoring-ux-overhaul.md` Tier 8) — a Table's Measure pill
-  (QuickControls or AddGraphModal) has "Route Compare — add a '% vs Main' column per measure" and
-  "Reliability — add LOTTR/TTTR/Freeflow columns" toggles, both Table+Summary-only (see that
-  file's own gating rationale). The Python converter is no longer the only way to build either
-  shape — a live-authored Table with these toggles on is now structurally identical to what the
-  converter used to build by hand.
-- **The report's own attribution line (bottom of each AVL Graph/Info Box/Route Compare panel)
-  names which join it's actually using — a real, live way to confirm the 2026-08-12
-  metadata-join fix landed on a given page.** Before the fix: `... | (Join) NPMRDS TMC
-  IDENTIFICATION V5 / V6 (3464)`. After: `... | (Join) NPMRDS_V6_TMC_META (983)`. If a page's
-  `speed`/`length`/`aadt`/Route-Compare-`speed` panel still shows `(3464)`, it hasn't been
-  rebuilt since the fix (`report_build.mjs --update`, or a re-pick through the live Measure
-  Picker, will pick up the corrected join — the fix doesn't retroactively change
-  already-built sections).
-- **FIXED 2026-08-14 (was a real, current limitation before this): routes assigned to one graph
-  can now genuinely disagree on weekdays/startTime/endTime.** The bullet this replaces described
-  `report_build.mjs` silently leaving the whole graph's weekday mask unset when its assigned
-  routes disagreed (e.g. an all-days "Current Year" mixed with Mon-Fri "N Years Ago" routes on
-  one Line Graph/Map/Route Compare) — that's gone. `weekdays`/`startTime`/`endTime` moved OFF
-  `routes[]` entirely, onto `graphs[]` (a route now carrying either fails the build), and a new
-  `graphs[].routeWindows: { [routes[].id]: [{weekdays, startTime, endTime, color}, ...] }` lets
-  routes on one graph carry genuinely different windows. **Live-verification tell**: a route
-  shown 2+ times on one graph under different filters (an AM bar + a PM bar of the SAME
-  underlying route, instead of two separate route instances) gets an auto-derived label —
-  `"Current Year (6a–10a)"` style, built from the exact wording `RouteRow.jsx`'s weekday-summary
-  line already uses — not a name an author typed. If you see that parenthetical pattern in a
-  legend/table row, it's one route expanded into multiple series, not two different routes. Full
-  field docs in `report-spec.md`; full build record in `dynamic-reports-and-route-tags.md`'s
-  "Per-route window overrides" section. First real application: `snapshot`'s consolidated 4-row
-  Info Box and 2 AM/PM/Off-Peak Bar Graph Summary panels, same session.
-  - **`RouteRow.jsx` has no weekday/peak-hour UI to distrust — checked directly, it was already
-    removed by Design Push #2 itself (2026-08-06), well before `routeWindows` existed.** An
-    initial claim in this doc that it still existed and needed removing was wrong; corrected here
-    rather than left standing. The actual live UI for this (Design Push #2's own replacement) is
-    QuickControls' graph-level "When" pill, which briefly went stale the same day `routeWindows`
-    shipped (it read/wrote `_measurePick`'s bare `weekdays`/`start`/`end` scalar, which
-    `report_build.mjs`/`useGraphPublish.js` had just stopped writing/reading) and was **fixed the
-    same session** — it now reads/writes `routeWindows` directly (one uniform window applied to
-    every route on the graph, matching its original behavior; a genuine per-route control is a
-    separate, unbuilt gap — #18). Live-verified: `_measurePick.routeWindows` correctly held the
-    identical window for 2 routes after one pill click, chart re-rendered with the new window live.
-    Trust the pill again. Full record in `report-route-ui-parity-gaps.md` gap #17.
-  - **No live UI exists yet for setting a PER-ROUTE override within a multi-route graph** — even
-    a fixed QuickControls pill would only ever control one shared default per graph.
-    `report_build.mjs`'s spec format is the only way to author this today, same "missing surface"
-    category as Info Box/Route Compare creation (gap #16). Tracked as gap #18.
-- **A GridGraph with "confetti" coloring (many unrelated hues, no readable gradient) or a BarGraph
-  with one flat static color instead of a value scale means that page hasn't been rebuilt since the
-  2026-08-12 color-scale fix** (`composeMeasureConfig.js`'s plain-mode colors, `dynamic-reports-
-  and-route-tags.md`'s dedicated section) — not a new bug to re-investigate. The fix makes GridGraph
-  (always) and a single-route BarGraph (day/weekday/month breakdown, no real second series) use a
-  real `rdylgn` value scale instead of inheriting the LineGraph-style ~20-swatch route palette; it's
-  a code fix, not retroactive, so a page needs its own `--update <id> --publish` to pick it up. Only
-  `annual_average_study`/`one_week_study` had this run as of 2026-08-13 — every other catalog page
-  still shows the old confetti/flat coloring until rebuilt. Same session also fixed a LineGraph tooltip showing
-  15-digit floats (now rounds to 1 decimal, code-only, no rebuild needed) and an always-shown,
-  often-nonsensical "(Line Total)" (now hidden unless the measure's vocabulary `fn` is `"sum"`,
-  i.e. genuinely additive across time buckets — also needs a rebuild to take effect, since it's the
-  same `display.tooltip` field a rebuild writes).
-  **Same code-only-vs-baked-in split recurred 2026-08-17**: `getTooltipFormatFunc`'s no-explicit-
-  format default (`graph_new/utils.js`) went from a flat 1-decimal round to magnitude-adaptive (2
-  decimals under 10, 1 under 1000, whole above) — this is the SAME live default the "(Line Total)"
-  fix above patches, so it's retroactive on every already-built page with no rebuild, confirmed live
-  on `bi_directional`'s Travel Time BarGraph (two series that both showed "0.3" now show "0.32"/
-  "0.35"). Separately, `travelTime`'s tooltip now defaults to `duration_mmss` ("M:SS" instead of
-  decimal minutes) via `composeMeasureConfig.js`'s `displayPatch.tooltip.valueFormat`/`yFormat` —
-  this ONE is baked into `display.tooltip` at measure-pick time, same as `showTotal` above, so it
-  needs a rebuild or a live re-pick of the same measure to show up on an existing travelTime graph;
-  don't expect it on an unrebuilt page. `hoursOfDelay` deliberately stayed on the adaptive default
-  rather than also getting `duration_mmss` — its raw value is aggregate vehicle-hours (AADT-
-  weighted), not one vehicle's trip duration, so "clock time" doesn't obviously fit; ask before
-  adding it if a report seems to want it.
-- **The same code-only-vs-baked-in split recurred again 2026-08-20, sharply enough to cost real
-  debugging time twice in one session — generalize it: a fix to `composeMeasureConfig.js` or
-  `vocabulary.json` changes what a FUTURE compose produces; it does nothing to a section whose
-  `state.columns`/`state.join` were already composed and persisted before the fix landed.** Those
-  are frozen literal strings sitting in `draft_sections` — nothing re-reads the vocabulary for them
-  until something re-triggers `applyMeasurePickToState` (a live re-pick through QuickControls or the
-  Settings-drawer Measure Picker; `report_build.mjs --update`/`--replace` for a built page). Reloading
-  the page, or even ADDING A ROUTE to the section (route assignment never touches `state.columns` at
-  all), does NOT re-trigger it. Two concrete bugs hit this exact trap in the Tier 5D/5G work
-  (`report-authoring-ux-overhaul.md`): a `travelTime` join-qualification fix and a
-  `speed`/`speedTruck`/CO2-variant alias-collision fix each looked "not fixed" on an already-existing
-  section that predated the fix, purely because reloading it re-ran the SAME already-broken query —
-  toggling ANY measure off/on via QuickControls (which forces a real recompose) is what actually
-  "fixed" it, not the reload. **Before concluding a vocabulary/compose fix "didn't work," check
-  whether the specific failing section predates the fix** — if so, force a recompose (any QuickControls
-  measure toggle) rather than re-diagnosing a working fix as broken. If a GENUINELY FRESH section
-  (built via Add Graph or a live pick, after the fix) still fails, that's the real signal.
-- **One real exception to "force a recompose to fix a stale section," found 2026-08-21 building
-  Route Compare's delta column**: forcing a recompose only cleans up a column that ALREADY carries
-  a `target` in `MeasurePicker/index.js`'s `MANAGED_TARGETS` list (`xAxis`/`yAxis`/`color`/`delta`).
-  A picker-owned column shipped WITHOUT a `target` (the delta column's first cut had none) is
-  invisible to that replace-on-re-pick filter forever — no amount of re-picking removes it, since
-  the filter only ever matches on `target`, never on `origin` or column type. If a section has an
-  extra/duplicate column that a toggle-off should have removed and didn't, check whether that
-  column type is actually in `MANAGED_TARGETS` before assuming the toggle logic itself is broken —
-  confirmed live via a genuine `ClickHouseError: Unknown expression or function identifier
-  'ds.tmc'` (an orphaned, join-qualified delta column survived a re-pick that dropped the join).
-  Any NEW picker-owned column type added to `composeMeasureConfig.js` going forward needs a
-  `target` tag added to `MANAGED_TARGETS` at the same time, or it will hit this exact trap.
-- **`pgFederated` (a live Postgres table joined into a ClickHouse query via ClickHouse's own
-  `postgresql()` table function) is already a fully generic, tested dms-server join type** —
-  `dms-server/src/routes/uda/utils.js`'s `buildJoin` and the client-side `buildUdaConfig.js` both
-  already handle it, with its own dedicated test coverage (`tests/test-uda.js`'s "buildJoin
-  pgFederated branch"). Don't assume a measure that needs a Postgres-hosted join (like source
-  1410's LOTTR/TTTR/Freeflow reliability data) needs new dms-core/server work — it almost certainly
-  just needs a new `vocabulary.json` join entry + measure definitions, the same class of change as
-  adding `META_JOIN` originally was. Confirmed 2026-08-21 building Reliability
-  (`report-authoring-ux-overhaul.md` Tier 8B): zero dms-core changes, all the work was in
-  `src/themes/transportny/`.
-- **`scratchpad/npmrds-sub/dms-server.log` (a `tee`'d nodemon log, already running) is the fastest way
-  to get the ACTUAL ClickHouse error text for a blank/broken report section** — the browser console
-  only ever shows a generic "Error fetching data Array(N)" with no SQL detail. `grep -n
-  "ClickHouseError" scratchpad/npmrds-sub/dms-server.log | tail` (or grep a specific error `type`,
-  e.g. `AMBIGUOUS_IDENTIFIER`/`UNKNOWN_IDENTIFIER`/`MULTIPLE_EXPRESSIONS_FOR_ALIAS`) finds the exact
-  failing SQL, including which table alias exists in scope and which columns collided — root-caused
-  three separate composeMeasureConfig bugs this way in one session (2026-08-20) that would have taken
-  far longer to diagnose from the frontend alone. Check the log's own timestamp against wall-clock
-  time before trusting a `tail` — a `grep`/`tail -c` on this file can just as easily surface an OLD
-  error from a stale, never-recomposed section (see the bullet above) as a fresh one; when in doubt,
-  reload with `read_console_messages` tracking freshly attached, note the exact wall-clock moment, then
-  `tail` the log for entries at or after that moment.
-- **The Table shape's own compose function is `MeasurePicker/composeMeasureConfig.js`'s
-  `composeTableMeasuresConfig`** (built 2026-08-20) — N measures -> N yAxis-target columns +
-  one xAxis (resolution) column + one unioned `join` across whatever the selected measures each
-  need. See the "4 things" bullet above for how it reads on-page.
-- **A multi-measure Info Box's `join` is a plain dict `update()` union of each measure's own
-  `join.sources`, last-measure-in-the-list wins on a shared key — a stale join on ANY listed measure
-  silently overrides a correct one from another.** Found live 2026-08-13 building `one_week_study`'s
-  first-ever multi-measure Info Box (`measure: ["speed","travelTime"]`): `speed`'s own template row
-  correctly used `META_JOIN`, but `travelTime`'s pre-existing row was still on the stale
-  `TMC_IDENTIFICATION_JOIN` (missed by the 2026-08-12 join-drift-detection round — only 2 of the 3
-  sibling `ensure_*` functions got it), so the combined row's final `join` silently reverted to the
-  stale one. If a multi-measure Info Box's attribution line shows the old join, don't assume the whole
-  page needs a rebuild — check whether ONE of its measures has a stale template row first (`dms raw
-  list npmrdsv5+npmrds_sub|avl_graph_template` → find `{grain}_info_box_{measure}` → read its
-  `data.stateJson.join`).
-- **A plain-decimal Info Box measure (speed/length/aadt) with no `formatFn` renders full float
-  precision in the cell** (e.g. `20.56702084355448`) — `comma`/`abbreviate` both floor to an integer
-  below their K/M-abbreviation threshold, which is wrong for a sub-1000 rate-like value. Fixed for
-  `speed` 2026-08-13 via a new shared registry entry, `decimal_2`
-  (`dataWrapper/utils/utils.jsx`'s `formatFunctions`) — same file/pattern as `travelTime`'s
-  `minutes_clock`. `length`/`aadt` have the identical gap, not yet fixed (no live consumer had hit it
-  as of this writing).
-- **A "panel looks missing" report is worth verifying by loading BOTH the old and new page in full
-  (scroll to the bottom) before touching any code** — confirmed 2026-08-13 that a suspected 2nd missing
-  Bar Graph Summary on `one_week_study` was actually already present and correct on both pages; the old
-  template's gap log (which DOES reliably tell you what's genuinely dropped, see the entry above) would
-  have shown this too, but a direct side-by-side screenshot comparison is the fastest way to confirm or
-  rule out a suspected gap without first reasoning about it from docs.
-- **The always-built title-block section (a bare Rich Text section repeating `item.title` as its
-  own heading, with nothing else — see the freestanding "WEEKLY AVERAGE" line that used to sit
-  right under the real page header on every report) was retired 2026-08-17** — `ReportPageHeader`
-  already renders the page's `title` as its `<h1>`, so it was pure duplication; none of the 12
-  catalog templates had ever populated the `intro` body text it also carried. Every report built
-  going forward has one fewer section than before. **This makes a probe-corpus diff run right
-  after reconverting a page LOOK broken when it isn't**: `probe_corpus.mjs` compares
-  `baseline.sections[i]` against `current.sections[i]` by raw array position, not by title — remove
-  one section and EVERY later index now points at a different physical section than it used to, so
-  the diff prints a cascade of "section[N] rendering state changed" lines that are really just
-  "position N used to hold section X, now holds section X+1." Confirmed live 2026-08-17
-  reconverting all 12 templates: every one of these looked like several sections changed, but
-  comparing baseline-vs-current **by title instead of index** on `annual_average_study`/
-  `monthly_congestion`/`seasonality`/`one_week_study` showed the exact same set of sections had
-  content before and after, none dropped. Don't trust a probe-corpus index-diff at face value
-  right after any change that adds/removes a section — re-check by title first, THEN decide
-  whether to `--capture` a new baseline.
-- **`report_build.mjs` gained a `--replace` flag 2026-08-17** — deletes any existing page at the
-  spec's target slug, then builds fresh, same page slug but a NEW id. Use it instead of `--update
-  <id>` whenever a structural change (the title-block retirement above, a renamed framework
-  section) means `--update`'s reconcile path wouldn't clean up what's already on the page and
-  hand-authoring the cleanup isn't worth it. The new id means anything that linked to the OLD
-  numeric id (not the slug) breaks — a manifest's `rebuild` command pinned to `--update <old-id>`
-  goes stale the moment a page is `--replace`d; prefer `--replace --publish` (no id needed at all)
-  in any `rebuild` field that might see this again.
-- **`--replace`'s first implementation only deleted the page row — not its `reports_snap_2` row —
-  and that row is exactly what `/reports`'s catalog cards query, by tag, not by page reference.**
-  At the time, `dms page delete` never cascaded to a page's own dataset rows (same non-cascade as
-  its sections, already noted elsewhere in this doc as harmless-because-invisible — this one
-  ISN'T invisible). **Fixed platform-side 2026-09-04** for the `reports_snap_2` case specifically —
-  a generic page delete (admin UI, `dms page delete`, `dms raw delete`) now dispatches to an
-  opt-in server hook that deletes the matching catalog row (`src/dms/planning/tasks/current/
-  page-delete-lifecycle-hook.md`; requires a dms-server redeploy to take effect anywhere). DMS
-  core still has no BUILT-IN structural cascade for page→dataset rows in general (deliberately —
-  that relationship is app-specific, not a DMS concept) and page→section rows are still not
-  cascaded at all, so the troubleshooting recipe below remains valid for cleaning up legacy
-  orphans, pre-deploy environments, or a silently-logged hook failure. Every `--replace` left the
-  OLD `reports_snap_2` row behind with the OLD `report_id`, still
-  carrying the same `tags`, so it kept matching the catalog's tag filter and rendering as a second
-  card for the same report. Found live 2026-08-17 by Ryan spotting duplicate cards on `/reports`
-  right after all 12 templates were `--replace`d in one session — some templates (`Weekly
-  Average`) had FOUR stale rows once you counted back through every rebuild since before
-  `--replace` existed, not just the one from that session. Fixed in `report_build.mjs`: `--replace`
-  now looks up the target page's snap row (`findSnapRow`, the same helper `--update`'s preflight
-  uses) and deletes it before deleting the page. **If you ever see duplicate cards on `/reports`
-  for a report you know only has one live page, this is almost certainly it** — cross-reference
-  `dms dataset query 2177438 --view 2177440 --limit 2000` (the routes-data source id may differ by
-  env; check `REPORTS_SNAP_SOURCE_ID`/`REPORTS_SNAP_VIEW_ID` in `report_build.mjs`) filtered by
-  `data.name` against the currently-live page id (`dms page list --pattern npmrds_sub`) for that
-  slug — any row whose `report_id` ISN'T the live page's id is an orphan, safe to delete via `dms
-  raw delete npmrdsv5 "reports_snap_2|2177440:data" <row-id>` (needs a fresh auth token; `dms raw
-  get <row-id>` can't address it — split `:data` row, use `dataset query --filter id=<row-id>` to
-  confirm deletion instead).
-- **The "+ Add Graph" modal silently no-ops if the report has zero routes.** Clicking "Add Graph"
-  with 0 routes on the report at all (not just 0 checked in the modal) leaves the modal open with
-  no error and no section created — easy to mistake for a misclick or a slow save. Add at least one
-  route via "+ Add Route" first (any route works for a throwaway scratch test), THEN "+ Add Graph"
-  will actually let you pick it in "ROUTES FOR THIS GRAPH" and create the section. Found live
-  2026-08-31 building a scratch Map section to verify a hover-tooltip fix on a brand-new "Create
-  Report" page (0 routes at creation).
-- **Driving a plain `<select>` via `claude-in-chrome`'s `computer` tool is unreliable** — clicking
-  it opens the OS-native dropdown, which the extension can't screenshot/click into. Read/set it via
-  `javascript_tool` instead: read every select's options with
-  `Array.from(document.querySelectorAll('select')).map(s => ({title: s.title, value: s.value,
-  options: Array.from(s.options).map(o => ({value:o.value, text:o.text}))}))` (options carry both
-  the value React reads and the human-readable label, useful for confirming a computed label before
-  committing to a click-path test), then commit a choice through React's own controlled-input path
-  — a bare `sel.value = x` does NOT fire React's `onChange` (React wraps the native property
-  setter): `Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype,
-  'value').set.call(sel, value)` followed by `sel.dispatchEvent(new Event('change', {bubbles:
-  true}))`. Found live 2026-09-08 verifying `dynamic-reports-authoring-gaps.md` sub-item 2's
-  "reuse an existing route" select next to "+ Add Route Slot".
+  **Superseded 2026-09-14.** That per-entry `"wait"` override is gone, and so is the fixed-dwell
+  model it patched. `report_probe.mjs` no longer settles on `networkidle` + a fixed wait —
+  it waits for real quiescence: zero api requests in flight, no api activity, AND an
+  unchanged render signature, all held together for `--settle-quiet` (default 1500ms) under
+  a `--settle-cap` (default 90s). `--wait` survives only as a minimum floor, default 0.
+  The dump carries `settle: { ok, reason, ms, pending, polls }`, and `probe_corpus.mjs`
+  refuses to diff or baseline a dump that did not settle (retrying up to 3x first).
+  A single run is now the answer — if findings vary between runs, that variance is itself
+  the bug to fix, not something to average over. Background: the old model
+  made two identical runs disagree on 14 of 17 blocker-instances — see
+  `planning/transportny/tasks/current/report-probe-expect-and-golden-corpus.md` §2026-09-14.
+
+### Graph tooltips: hovering one, and where GridGraph defeats automation (2026-09-14)
+
+The tooltip container is `.hover-comp` — a single element per graph, rendered whenever tooltips
+are enabled and toggled with `display: none`, NOT mounted on hover. So `querySelector('.hover-comp')`
+finding something proves nothing; check `getComputedStyle(el).display !== 'none'`.
+
+Hovering has to be a REAL pointer move — avl-graph listens for `mousemove` on the marks, and a
+single move at a resting position often will not fire it. Move twice, half a pixel apart:
+
+```js
+const box = await mark.boundingBox();
+const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
+await page.mouse.move(cx, cy);
+await page.mouse.move(cx + 0.5, cy + 0.5);   // the second move is what fires it
+await page.waitForTimeout(320);
+```
+
+Marks by graph type: `rect.avl-stack` (Bar), `rect.avl-rect`, `path.avl-slice` (Pie),
+`rect.avl-grid` (Grid). Bar/Pie/Line automate reliably.
+
+**GridGraph does not.** On a real heatmap (the snapshot report's "Average speed by TMC and
+5-minute epoch") the cells are sub-pixel, so a synthetic `mouse.move` lands between them and no
+tooltip fires — a probe that located a `rect.avl-grid`, scrolled it into view and hovered its
+computed centre still came back `tooltip: null`. Do not burn a session automating it; verify a
+GridGraph tooltip by eye, or assert its markup through
+`packages/dms/tests/hoverCompLegacyMarkup.test.js` instead.
+
+Reading the tooltip's own chrome, once visible:
+
+```js
+const el = document.querySelector('.hover-comp');
+const cs = getComputedStyle(el);          // container: the `tooltip` theme token
+const body = el.firstElementChild;        // the content comp's own wrapper (keeps its OWN padding)
+const rows = [...body.children].slice(1); // row 0 is the title
+```
+
+**Measure, do not eyeball.** Two tooltip screenshots taken before and after adding row padding
+looked different only because the capture margins differed; the tooltips were identically sized
+(304×63 both) because the token was never wired. Comparing the DOM rect caught it immediately.
+Crop with `page.screenshot({ clip })` only to SHOW a human, never to judge a few px.
 
 ## 6. Which tool to reach for
 

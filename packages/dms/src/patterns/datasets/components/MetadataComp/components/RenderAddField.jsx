@@ -3,7 +3,7 @@ import {DatasetsContext} from "../../../context";
 import {ThemeContext} from "../../../../../ui/useTheme";
 import {metadataCompTheme} from "../metadataComp.theme";
 
-export const RenderAddField = ({placeHolder, attributes=[], className, addAttribute}) => {
+export const RenderAddField = ({placeHolder, attributes=[], className, addAttribute, disabled=false}) => {
     const {UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = theme?.datasets?.metadataComp || metadataCompTheme;
@@ -13,13 +13,15 @@ export const RenderAddField = ({placeHolder, attributes=[], className, addAttrib
     const {Input, Button, Icon} = UI;
 
     function fn() {
+        if (disabled) return;
         addAttribute({name: newValue});
         setNewValue('');
         setError('empty name')
         if (document.activeElement !== document.body) document.activeElement.blur();
     }
 
-    const triggerAddEvent = () => setTimeout(fn, 500)
+    const triggerAddEvent = () => !disabled && setTimeout(fn, 500)
+    if (disabled) return null;
     return (
         <div className={t.addFieldRow}>
             <Input
