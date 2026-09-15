@@ -28,7 +28,9 @@ import {
 
 import "./avl-graph.css"
 
-const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals, singleCell }) => {
+export const DefaultGridHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabel, bgColor, showTotals, singleCell, classNames }) => {
+
+  const cn = classNames || {};
 
   // singleCell: show ONLY the hovered cell (data.index) instead of every row in the
   // hovered column. Off by default → unchanged whole-column tooltip (BC).
@@ -43,23 +45,27 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
     <div className={ `
       grid grid-cols-1 gap-1 px-2 pt-1 pb-2 rounded
     ` }>
-      <div className="font-bold text-lg leading-6 border-b-2 border-current pl-2">
+      <div className={ `${ cn.title || "font-bold text-lg leading-6 border-b-2 border-current" } pl-2` }>
         { keyFormat(get(data, "key", null)) }
       </div>
       { indexes.map(i => (
           <div key={ i }
+            // The highlight used to be an inline `outline: 2px solid #000` — unreachable by any
+            // theme and hardcoded to pure black, so a themed tooltip kept a black row marker
+            // while every other graph type followed its token. Now it uses the same
+            // `border-2` + `rowActive` mechanism as Bar/Pie/Line. `border-2` stays OUTSIDE the
+            // token on purpose: a border colour with no border width renders nothing, which is
+            // exactly the dead-CSS bug this file's audit found in LineGraph.
             className={ `
-              flex items-center px-2 rounded transition relative
+              flex items-center px-2 border-2 rounded transition relative ${ cn.row || "" }
+              ${ data.index === i ? (cn.rowActive || "border-current") : "border-transparent" }
             `}
-            style={ {
-              outline: data.index === i ? `2px solid #000` : null
-            } }
           >
-            <div className="rounded-sm color-square w-5 h-5 absolute z-10"
+            <div className={ `${ cn.swatch || "rounded-sm" } color-square w-5 h-5 absolute z-10` }
               style={ {
                 backgroundColor: bgColor
               } }/>
-            <div className="rounded-sm color-square w-5 h-5 absolute z-50"
+            <div className={ `${ cn.swatch || "rounded-sm" } color-square w-5 h-5 absolute z-50` }
               style={ {
                 backgroundColor: get(data, ["indexData", i, "color"], null),
                 opacity: data.index === i ? 1 : 0.75
@@ -67,7 +73,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
             <div className="ml-7 mr-4">
               { indexFormat(i) }:
             </div>
-            <div className="text-right flex-1">
+            <div className={ `${ cn.value || "text-right" } flex-1` }>
               { valueFormat(get(data, ["indexData", i, "value"], 0)) }
               { !valueLabel ? null :
                 <b className="ml-1">{ valueLabel }</b>
@@ -81,7 +87,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
           <div className="mr-4">
             Total:
           </div>
-          <div className="text-right flex-1">
+          <div className={ `${ cn.value || "text-right" } flex-1` }>
             { valueFormat(data.keyTotal) }
             { !valueLabel ? null :
               <b className="ml-1">{ valueLabel }</b>
@@ -94,7 +100,7 @@ const DefaultHoverComp = ({ data, indexFormat, keyFormat, valueFormat, valueLabe
 }
 
 const DefaultHoverCompData = {
-  HoverComp: DefaultHoverComp,
+  HoverComp: DefaultGridHoverComp,
   indexFormat: Identity,
   keyFormat: Identity,
   valueFormat: Identity,
@@ -145,6 +151,9 @@ export const GridGraph = props => {
     indexBy = "index",
     margin = EmptyObject,
     hoverComp = EmptyObject,
+    // Forwarded to HoverCompContainer for the `tooltip` token. BarGraph already took this;
+    // the other five wrappers never destructured it, so the theme stopped here.
+    theme = EmptyObject,
     axisBottom = null,
     axisLeft = null,
     className = "",
@@ -592,6 +601,7 @@ export const GridGraph = props => {
       { !showHoverComp ? null :
         <HoverCompContainer
           { ...hoverData }
+          theme={ theme }
           position={ position }
           svgWidth={ width }
           svgHeight={ height }

@@ -159,9 +159,33 @@ export const GraphComponent = props => {
       // formatMinutesAuto) — a raw boolean, not resolved through
       // getFormatFunc, since the actual formatter needs this graph's own
       // domain max, unknown at this point.
-      minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false))
+      minutesAutoSeconds: Boolean(get(graphFormat, ["tooltip", "minutesAutoSeconds"], false)),
+      // Theme-sourced tooltip chrome, the exact mirror of the legend's `classNames` injection
+      // below. Every wrapper destructures `{ HoverComp, position, show, ...restOfHoverCompData }`
+      // off its merged hover-comp data and spreads the rest into the content component, so this
+      // one injection reaches all six without touching any of them.
+      //
+      // Every token is OPTIONAL and every unset token falls back to that component's historical
+      // literal, byte for byte — locked by tests/hoverCompLegacyMarkup.test.js. Each comp keeps
+      // its own default, so unset means four differently-shaped tooltips keep their own looks,
+      // while a set token gives all of them one look plus their own spacing/structure.
+      classNames: {
+        title: theme?.tooltipTitle,
+        swatch: theme?.tooltipSwatch,
+        value: theme?.tooltipValue,
+        // Appended to each row's own classes rather than replacing them, so a theme can add
+        // vertical padding: the row's 2px highlight border otherwise sits directly on the text.
+        row: theme?.tooltipRow,
+        // The row highlight is `border-current`, i.e. currentColor — it takes whatever text
+        // colour it inherits. A `tooltip` token that sets a text colour therefore retints every
+        // highlight (transportny's carries `text-white`, which would make them white on white).
+        // This token exists so a theme can state the highlight colour instead of inheriting it.
+        rowActive: theme?.tooltipRowActive
+      }
     };
-  }, [graphFormat.tooltip, graphFormat.xAxis, graphType]);
+  }, [graphFormat.tooltip, graphFormat.xAxis, graphType,
+      theme?.tooltipTitle, theme?.tooltipSwatch, theme?.tooltipValue, theme?.tooltipRow,
+      theme?.tooltipRowActive]);
 
 // console.log("GraphComponent::actions", props.actions);
 
@@ -330,6 +354,12 @@ export const GraphComponent = props => {
         margin={ margin }
         legend={ legend }
         hoverComp={ hoverComp }
+        // The resolved avlGraph style. Every avl-graph wrapper already destructured a `theme`
+        // prop (BarGraph forwarded it to HoverCompContainer), but nothing ever passed one — so
+        // the tooltip container's `theme.tooltip` token could never fire. This is the wire that
+        // was missing; `classNames` above reaches the tooltip BODY through hoverComp instead,
+        // which is why only the container's look was unaffected.
+        theme={ theme }
 
         actions={ actions }
         publishHoverData={ publishHoverData }

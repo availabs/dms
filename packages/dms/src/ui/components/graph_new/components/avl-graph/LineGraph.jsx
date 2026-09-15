@@ -50,11 +50,13 @@ import {
   useShouldComponentUpdate
 } from "./utils"
 
-const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTotals = true }) => {
+export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTotals = true, classNames }) => {
+
+  const cn = classNames || {};
   return (
     <div className="flex flex-col px-2 pt-1 pb-2 rounded">
-      <div className="border-b-2 px-2 flex mb-1">
-        <div className="font-bold text-lg leading-6 flex-1">
+      <div className={ `${ cn.title ? "" : "border-b-2" } px-2 flex mb-1` }>
+        <div className={ `${ cn.title || "font-bold text-lg leading-6" } flex-1` }>
           { xFormat(get(data, "x", null), data) }
         </div>
         { !showTotals ? null :
@@ -69,17 +71,17 @@ const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTo
               <div key={ id }
                 className={ `
                   rounded border-2 flex
-                  ${ isMax ? "border-current" : "border-transparent" }
+                  ${ isMax ? (cn.rowActive || "border-current") : "border-transparent" }
                 ` }
               >
                 <div className="flex-1">
                   <div className={ `
                     flex items-center
-                    ${ isMax ? "border-current" : "border-transparent" }
+                    ${ isMax ? (cn.rowActive || "border-current") : "border-transparent" }
                     transition pl-2
                   ` }>
                     <div className={ `
-                      mr-2 rounded-sm color-square w-5 h-5 transition border-2
+                      mr-2 ${ cn.swatch || "rounded-sm" } color-square w-5 h-5 transition border-2
                     ` }
                       style={ {
                         borderColor: color,
@@ -117,16 +119,16 @@ const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTo
             .map(({ id, y, color, isMax, ...rest }) => (
               <div key={ id } className={ `
                   rounded border-2 grid grid-cols-3
-                  ${ isMax ? "border-current" : "border-transparent" }
+                  ${ isMax ? (cn.rowActive || "border-current") : "border-transparent" }
                 ` }>
                 <div className="col-span-1">
                   <div className={ `
                     flex items-center
-                    ${ isMax ? "border-current" : "border-transparent" }
+                    ${ isMax ? (cn.rowActive || "border-current") : "border-transparent" }
                     transition pl-2
                   ` }>
                     <div className={ `
-                      mr-2 rounded-sm color-square w-5 h-5 transition border-2
+                      mr-2 ${ cn.swatch || "rounded-sm" } color-square w-5 h-5 transition border-2
                     ` }
                       style={ {
                         borderColor: color,
@@ -162,7 +164,7 @@ const DefaultHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTo
   )
 }
 const DefaultHoverCompData = {
-  HoverComp: DefaultHoverComp,
+  HoverComp: DefaultLineHoverComp,
   idFormat: Identity,
   xFormat: Identity,
   yFormat: Identity,
@@ -203,6 +205,9 @@ export const LineGraph = props => {
     secScale = null,
     axisRight = null,
     hoverComp = EmptyObject,
+    // Forwarded to HoverCompContainer for the `tooltip` token. BarGraph already took this;
+    // the other five wrappers never destructured it, so the theme stopped here.
+    theme = EmptyObject,
     indexBy = "id",
     className = "",
     padding = 0,
@@ -692,7 +697,7 @@ export const LineGraph = props => {
       </svg>
 
       { !showHoverComp ? null :
-        <HoverCompContainer { ...hoverData }
+        <HoverCompContainer { ...hoverData } theme={ theme }
           position={ position }
           svgWidth={ width }
           svgHeight={ height }
