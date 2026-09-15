@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { cloneDeep } from 'lodash-es';
+import { cloneDeep, get } from 'lodash-es';
 import { ThemeContext, getComponentTheme } from '../../../../../ui/useTheme';
 import { getInstance } from '../../../../../utils/type-utils';
 import Table from '../../../../../ui/components/table';
@@ -63,6 +63,36 @@ function stripCompIdentity(comp) {
     delete s.created_at; delete s.updated_at;
     delete s.created_by; delete s.updated_by;
     return s;
+}
+
+// Re-fetches a single page row straight from the server, bypassing the Falcor cache and
+// whatever `pages`/`compById` React state currently holds. publishPage/discardPage/
+// duplicatePage must call this (and fetchFreshCompById below) immediately before reading
+// a page's sections — the pattern table stays mounted for a long admin session, so an
+// out-of-band write (another tab, the single-page editor, the CLI) landing between mount
+// and the click could otherwise be cloned/overwritten off a stale in-memory snapshot.
+// Hardening prompted by the 2026-09-11 mitigat-ny-prod/county_template "Home" page
+// incident — see Bug 18's "Static root-cause narrowing" / "Owner correction" notes in
+// src/dms/planning/tasks/current/concurrent-page-editing-data-loss.md (that incident's own
+// first write was likely a legitimate Discard on already-fresh data, not this race — but the
+// race is real and worth closing regardless). Mirrors the CLI's own `page publish` command
+// (cli/src/commands/page.js), which re-fetches for the same reason.
+async function fetchFreshPage(falcor, app, pageId) {
+    await falcor.invalidate(['dms', 'data', app, 'byId', pageId]);
+    const res = await falcor.get(['dms', 'data', app, 'byId', pageId, ['data']]);
+    const data = get(res, ['json', 'dms', 'data', app, 'byId', String(pageId), 'data'], null);
+    return data ? { id: pageId, ...data } : null;
+}
+
+// Same freshness guarantee as fetchFreshPage, for the section rows a page's refs point at.
+async function fetchFreshCompById(falcor, app, refs) {
+    if (!refs?.length) return {};
+    const ids = refs
+        .map(ref => (ref == null ? null : (typeof ref === 'object' ? ref.id : ref)))
+        .filter(id => id != null)
+        .map(String);
+    await Promise.all(ids.map(id => falcor.invalidate(['dms', 'data', app, 'byId', id])));
+    return loadSectionsByRefs(refs, app, falcor);
 }
 
 function computeUrlSlug(title, existingPages, index, parent) {
@@ -709,19 +739,23 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const publishPage = useCallback(async (page) => {
         if (!page?.id) return;
 
-        const draftRefs = page.draft_sections || [];
+        const freshPage = await fetchFreshPage(falcor, value.app, page.id);
+        if (!freshPage) return;
+        const freshCompById = await fetchFreshCompById(falcor, value.app, freshPage.draft_sections);
+
+        const draftRefs = freshPage.draft_sections || [];
         const newSections = draftRefs
-            .map(ref => resolveCompRef(ref, compById))
+            .map(ref => resolveCompRef(ref, freshCompById))
             .filter(Boolean)
             .map(stripCompIdentity);
 
         const publishData = {
-            id: page.id,
+            id: freshPage.id,
             has_changes: false,
             published: '',
-            section_groups: cloneDeep(page.draft_section_groups) ?? page.section_groups,
-            dataSources: cloneDeep(page.draft_dataSources) ?? page.dataSources,
-            history: appendHistoryEntry(page.history, 'published changes.', user),
+            section_groups: cloneDeep(freshPage.draft_section_groups) ?? freshPage.section_groups,
+            dataSources: cloneDeep(freshPage.draft_dataSources) ?? freshPage.dataSources,
+            history: appendHistoryEntry(freshPage.history, 'published changes.', user),
         };
 
         const formatAttributes = [];
@@ -740,16 +774,20 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
             config: { format: { app: value.app, type: `${patternInstance}|page`, attributes: formatAttributes } },
         });
         await loadAll();
-    }, [apiUpdate, value.app, patternInstance, loadAll, compById, user]);
+    }, [apiUpdate, falcor, value.app, patternInstance, loadAll, user]);
 
     // ── discard changes ───────────────────────────────────────────────────────
     const discardPage = useCallback(async (page) => {
         if (!page?.id) return;
 
+        const freshPage = await fetchFreshPage(falcor, value.app, page.id);
+        if (!freshPage) return;
+        const freshCompById = await fetchFreshCompById(falcor, value.app, freshPage.sections);
+
         // Revert draft sections to the published sections
-        const publishedRefs = page.sections || [];
+        const publishedRefs = freshPage.sections || [];
         const revertedSections = publishedRefs
-            .map(ref => resolveCompRef(ref, compById))
+            .map(ref => resolveCompRef(ref, freshCompById))
             .filter(Boolean)
             .map(stripCompIdentity);
 
@@ -762,34 +800,38 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
         await apiUpdate({
             data: {
-                id: page.id,
+                id: freshPage.id,
                 has_changes: false,
                 published: '',
                 draft_sections: revertedSections,
-                draft_section_groups: page.section_groups,
-                history: appendHistoryEntry(page.history, 'discarded changes.', user),
+                draft_section_groups: freshPage.section_groups,
+                history: appendHistoryEntry(freshPage.history, 'discarded changes.', user),
             },
             config: { format: { app: value.app, type: `${patternInstance}|page`, attributes: formatAttributes } },
         });
         await loadAll();
-    }, [apiUpdate, value.app, patternInstance, loadAll, compById, user]);
+    }, [apiUpdate, falcor, value.app, patternInstance, loadAll, user]);
 
     // ── duplicate page ────────────────────────────────────────────────────────
     const duplicatePage = useCallback(async (page) => {
         if (!page?.id) return;
 
+        const freshPage = await fetchFreshPage(falcor, value.app, page.id);
+        if (!freshPage) return;
+
         // Prefer draft sections; fall back to published sections
-        const sourceRefs = (page.draft_sections?.length ? page.draft_sections : page.sections) || [];
+        const sourceRefs = (freshPage.draft_sections?.length ? freshPage.draft_sections : freshPage.sections) || [];
+        const freshCompById = await fetchFreshCompById(falcor, value.app, sourceRefs);
         const clonedSections = sourceRefs
-            .map(ref => resolveCompRef(ref, compById))
+            .map(ref => resolveCompRef(ref, freshCompById))
             .filter(Boolean)
             .map(stripCompIdentity);
 
-        const siblings = pages.filter(p => String(p.parent ?? '') === String(page.parent ?? ''));
+        const siblings = pages.filter(p => String(p.parent ?? '') === String(freshPage.parent ?? ''));
         const maxIndex = siblings.reduce((max, p) => Math.max(max, p.index ?? 0), 0);
         const newIndex = maxIndex + 1;
-        const newTitle = (page.title || 'Page') + ' Copy';
-        const url_slug = computeUrlSlug(newTitle, pages, newIndex, page.parent);
+        const newTitle = (freshPage.title || 'Page') + ' Copy';
+        const url_slug = computeUrlSlug(newTitle, pages, newIndex, freshPage.parent);
 
         const formatAttributes = clonedSections.length > 0 ? [
             {
@@ -803,22 +845,22 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         await apiUpdate({
             data: {
                 title: newTitle,
-                parent: page.parent || null,
+                parent: freshPage.parent || null,
                 index: newIndex,
                 published: 'draft',
                 url_slug,
                 draft_sections: clonedSections,
                 sections: [],
-                section_groups: page.section_groups,
-                draft_section_groups: page.draft_section_groups ?? page.section_groups,
-                dataSources: page.dataSources,
-                draft_dataSources: page.draft_dataSources ?? page.dataSources,
+                section_groups: freshPage.section_groups,
+                draft_section_groups: freshPage.draft_section_groups ?? freshPage.section_groups,
+                dataSources: freshPage.dataSources,
+                draft_dataSources: freshPage.draft_dataSources ?? freshPage.dataSources,
                 history: appendHistoryEntry(null, 'created duplicate page.', user),
             },
             config: { format: { app: value.app, type: `${patternInstance}|page`, attributes: formatAttributes } },
         });
         await loadAll();
-    }, [apiUpdate, value.app, patternInstance, pages, loadAll, compById, user]);
+    }, [apiUpdate, falcor, value.app, patternInstance, pages, loadAll, user]);
 
     // ── delete page ───────────────────────────────────────────────────────────
     const deletePage = useCallback(async (page) => {

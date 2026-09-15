@@ -234,7 +234,8 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                   keepMenuOpen=false,
                   tabular=false,
                   onSearch,
-                  activeStyle
+                  activeStyle,
+                  disabled=false
 }) => {
     const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
     const { Icon } = UI || {};
@@ -310,7 +311,7 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
     const invalidValues = typeSafeValue.filter(v => v && (v.value || v) && !(options || [])?.some(o => (o.value || o) === (v.value || v)));
 
     return (
-        <div ref={ref} className={`${t.mainWrapper} ${menuPosition === 'top' ? 'flex flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''}`}>
+        <div ref={ref} className={`${t.mainWrapper} ${menuPosition === 'top' ? 'flex flex-col-reverse' : ''} ${loading ? 'cursor-wait' : ''} ${disabled ? t.disabled : ''}`}>
             {
                 invalidValues.length && displayInvalidMsg ? <div className={t.error}>Invalid Values: {JSON.stringify(invalidValues)}</div> : null
             }
@@ -318,7 +319,7 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
             {
                 isTabular ? null :
                     <div ref={inputRef} className={t.inputWrapper} onClick={() => {
-                        setIsSearching(!isSearching)
+                        !disabled && setIsSearching(!isSearching)
                     }}>
                         {
                             singleSelectOnly ? (() => {

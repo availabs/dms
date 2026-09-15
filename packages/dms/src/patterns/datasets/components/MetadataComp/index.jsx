@@ -15,7 +15,7 @@ const parseJson = value => {
     }
 }
 
-export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, onIndexChange, onSetPrimaryKey, pkeyInfo, className, apiLoad, format}) {
+export default function MetadataComp ({isDms, value = '{}', accessKey, onChange, onIndexChange, onSetPrimaryKey, pkeyInfo, className, apiLoad, format, canEdit = true}) {
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};
@@ -27,7 +27,6 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     const dragOverItem = useRef();
 
     useEffect(() => setItem(parseJson(value || {})), [value]);
-    console.log('value', value, item)
     // ================================================== drag utils start =============================================
     const dragStart = (e, position) => {
         dragItem.current = position;
@@ -43,6 +42,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     };
 
     const drop = (e) => {
+        if (!canEdit) return;
         const copyListItems = cloneDeep(item[accessKey]);
         const dragItemContent = copyListItems[dragItem.current];
         copyListItems.splice(dragItem.current, 1);
@@ -57,6 +57,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
 
     // after changing meta, set a flag to say validation needs to re-run
     const updateAttribute = (col, value) => {
+        if (!canEdit) return;
         const newAttribute = (item?.[accessKey] || []).map(column => column.name === col ? {...column, ...value} : column)
         const newItem = {...item, [accessKey]: newAttribute, is_dirty: true}
         setItem(newItem)
@@ -64,6 +65,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     }
 
     const addAttribute = (value) => {
+        if (!canEdit) return;
         // here, value is the new attribute. this triggers on changing the name field.
         // value should be {name: 'xyz'}. after this triggers, the field controls are presented and edited via updateAttributes.
         const newItem = {...item, [accessKey]: [...(item[accessKey] || []), value], is_dirty: true}
@@ -72,6 +74,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     }
 
     const setIndex = (colName, enable) => {
+        if (!canEdit) return;
         const allCols = item[accessKey] || [];
         const updated = allCols.map(c => {
             if (c.name !== colName) return c;
@@ -96,7 +99,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     // NULLs/duplicates before running ALTER TABLE (when enabling), so we only update local
     // state on success and surface the error otherwise (see set_primary_col_from_meta.md).
     const setPrimaryKey = async (colName, enable = true) => {
-        if (!onSetPrimaryKey) return;
+        if (!canEdit || !onSetPrimaryKey) return;
         setPkeyError(null);
         try {
             await onSetPrimaryKey(colName, enable);
@@ -117,6 +120,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     };
 
     const removeAttribute = (col) => {
+        if (!canEdit) return;
         const newItem = {...item, [accessKey]: item[accessKey].filter(attr => attr.name !== col), is_dirty: true}
         setItem(newItem)
         onChange(JSON.stringify(newItem))
@@ -158,6 +162,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
                                              removeAttribute={removeAttribute} apiLoad={apiLoad} format={format}
                                              dragStart={dragStart} dragEnter={dragEnter} dragOver={dragOver} drop={drop}
                                              isDms={isDms}
+                                             canEdit={canEdit}
                                              onSetIndex={setIndex}
                                              onSetPrimaryKey={onSetPrimaryKey ? setPrimaryKey : undefined}
                                              pkeyInfo={pkeyInfo}
@@ -169,7 +174,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
 
             <div className={t.addFieldWrapper}>
                 <RenderAddField attributes={item[accessKey]} placeHolder={'New field name...'}
-                          className={className} addAttribute={addAttribute}/>
+                          className={className} addAttribute={addAttribute} disabled={!canEdit}/>
             </div>
         </div>
     )

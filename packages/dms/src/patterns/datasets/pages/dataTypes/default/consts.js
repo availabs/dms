@@ -10,6 +10,7 @@ export const ExternalSourceAttributes = [
     "description",
     "statistics",
     "metadata",
+    "auth_permissions",
 ];
 
 // Internal (DMS) datasets have additional attributes stored in the data column.
@@ -30,7 +31,8 @@ export const InternalSourceAttributes = [
     "description",
     "statistics",
     "metadata",
-    "views"
+    "views",
+    "auth_permissions",
 ];
 
 export const InternalViewAttributes = [
