@@ -5,6 +5,7 @@ import { SectionsChipView } from './sectionsChip'
 import { LastPublishedView } from './last_published'
 import { ActivityActionBadgeView } from './activity_action_badge'
 import { TextEdit, TextView } from './text'
+import { DateEdit, DateView } from './date'
 import { TextareaEdit, TextareaView } from './textarea'
 import { BooleanEdit, BooleanView } from './boolean'
 import { DmsFormatEdit, DmsFormatView } from './dms-format'
@@ -30,6 +31,7 @@ import { StackedBarEdit, StackedBarView } from './stacked_bar'
 import Switch from '../components/Switch'
 
 const text = { EditComp: TextEdit, ViewComp: TextView }
+const date = { EditComp: DateEdit, ViewComp: DateView }
 const textarea = { EditComp: TextareaEdit, ViewComp: TextareaView }
 const boolean = { EditComp: BooleanEdit, ViewComp: BooleanView }
 const dmsFormat = { EditComp: DmsFormatEdit, ViewComp: DmsFormatView }
@@ -71,10 +73,7 @@ const columnTypes = {
       EditComp: (props) => <TextEdit {...props} type={'number'} />,
       ViewComp: (props) => <TextView {...props} type={'number'} />,
   },
-  'date': {
-      EditComp: (props) => <TextEdit {...props} type={'date'} />,
-      ViewComp: (props) => <TextView {...props} type={'date'} />,
-  },
+  'date': date,
   'timestamp': {
       EditComp: (props) => <TextEdit {...props} type={'datetime-local'} />,
       ViewComp: (props) => <TextView {...props} type={'datetime-local'} />,

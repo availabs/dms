@@ -280,6 +280,30 @@ function waitForQuiet(room, quietMs = 300, maxWaitMs = 1500) {
  *   be awaited after applying your own op and before reading
  *   `sectionsArray` back to send to the server — see waitForQuiet's comment.
  */
+// Seeds `room.sectionsArray` from `seedSections` iff the room is still
+// genuinely untouched (`knownEmpty === true && sectionsArray.length === 0`)
+// AND there's something to seed with. Shared by the mount-time auto-seed
+// below and by `reseedIfEmpty` (see its doc comment for why a second call
+// site is needed) — both must apply the exact same stub-stripping and
+// re-check-inside-transact logic, so this is factored out rather than
+// duplicated.
+function trySeed(room, seedSections) {
+  if (!(room.knownEmpty === true && room.sectionsArray.length === 0 && Array.isArray(seedSections) && seedSections.length > 0)) return;
+  room.doc.transact(() => {
+    if (room.sectionsArray.length === 0) { // re-check inside transact: still racy across clients, not across this doc's own ticks
+      // seedSections is the page's already-*resolved* draft_sections (ref +
+      // the child's own content merged in for rendering, by
+      // api/index.js's loadFromLocalDB). The shared array must only ever
+      // hold minimal {id, ref} stubs — same reasoning as save()'s comment
+      // in sectionArray.jsx: any peer that reads this array and re-sends
+      // it must not risk re-triggering a create/update for content that
+      // isn't theirs. Strip back down to the stub shape before seeding.
+      const stubs = seedSections.map(s => ({ id: s?.id, ref: s?.ref })).filter(s => s.id != null);
+      room.sectionsArray.push(stubs);
+    }
+  });
+}
+
 export function joinPageStructureRoom(pageItemId, seedSections) {
   const key = String(pageItemId);
   let room = rooms.get(key);
@@ -289,23 +313,7 @@ export function joinPageStructureRoom(pageItemId, seedSections) {
   }
   room.refCount += 1;
 
-  room.readyPromise.then(() => {
-    if (room.knownEmpty === true && room.sectionsArray.length === 0 && Array.isArray(seedSections) && seedSections.length > 0) {
-      room.doc.transact(() => {
-        if (room.sectionsArray.length === 0) { // re-check inside transact: still racy across clients, not across this doc's own ticks
-          // seedSections is the page's already-*resolved* draft_sections (ref +
-          // the child's own content merged in for rendering, by
-          // api/index.js's loadFromLocalDB). The shared array must only ever
-          // hold minimal {id, ref} stubs — same reasoning as save()'s comment
-          // in sectionArray.jsx: any peer that reads this array and re-sends
-          // it must not risk re-triggering a create/update for content that
-          // isn't theirs. Strip back down to the stub shape before seeding.
-          const stubs = seedSections.map(s => ({ id: s?.id, ref: s?.ref })).filter(s => s.id != null);
-          room.sectionsArray.push(stubs);
-        }
-      });
-    }
-  });
+  room.readyPromise.then(() => trySeed(room, seedSections));
 
   let disconnected = false;
   return {
@@ -315,6 +323,33 @@ export function joinPageStructureRoom(pageItemId, seedSections) {
     // Call after applying your own op, before reading `.sectionsArray` back
     // to send — see waitForQuiet's comment for why this matters.
     settle: (quietMs, maxWaitMs) => waitForQuiet(room, quietMs, maxWaitMs),
+    // Re-attempts the seed with a FRESH snapshot, immediately before this
+    // client applies its own first structural op. Needed because the
+    // constructor-time seed above is captured once, synchronously, in
+    // sectionArray.jsx's mount effect (`[item?.id]` deps, deliberately
+    // excluding `value` — see that effect's own comment) — a closure over
+    // whatever `value` happened to be available at the FIRST synchronous
+    // render of that mount. When local-first sync's bootstrap/catch-up for
+    // this page is still in flight at that exact instant (a client-side
+    // route transition reusing stale loader data, or simply a cold
+    // IndexedDB read racing a concurrent bootstrap), that snapshot can be
+    // empty or stale even though `value` itself updates correctly moments
+    // later via the ordinary (non-Yjs) render path — the room has no way to
+    // know that happened, since nothing re-invokes the mount effect just
+    // because `value` changed. Left unfixed, EVERY later structural edit
+    // from that mounted instance computes on top of the room's
+    // already-locked-in stale/empty base, permanently and silently
+    // discarding any content that existed in the database but hadn't
+    // reached that one synchronous instant — confirmed live, 2026-09-14,
+    // reproducing the mitigat-ny-prod/county_template incident's mechanism
+    // exactly (see concurrent-page-editing-data-loss.md, Bug 18). Callers
+    // (`save`/`remove`/`moveItem` in sectionArray.jsx) call this with the
+    // CURRENT `value` prop right after `await room.ready` and before
+    // applying their own op — a plain closure over the latest render, not
+    // the mount-time one — so a stale seed gets one more, later chance to
+    // correct itself before this client's own write can silently clobber
+    // content it never actually saw.
+    reseedIfEmpty: (freshSeedSections) => trySeed(room, freshSeedSections),
     disconnect() {
       if (disconnected) return;
       disconnected = true;
