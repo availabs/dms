@@ -539,6 +539,10 @@
 - [x] Theme merging issues — styles arrays merge by index causing cross-contamination (e.g., Dark style bleeds into Inline Guidance in mnyv1 lexical) *(see also: standardize component theme default fill-in)*
 - [x] Map component refactor — extract core map from avl-map-2 into `ui/components/map/`, remove dead UI (sidebars/modals/panels), remove npm deps (react-color/fuse.js/colorbrewer), dynamically import maplibre-gl for code splitting, preserve external API
 
+### ui/columnTypes
+
+- [ ] [`date` columnType: normalize mixed raw date-string formats](./tasks/current/date-columntype-format-normalization.md) — native `<input type="date">` blanks (and risks overwriting) any stored value not in strict ISO `YYYY-MM-DD`; external/DAMA sources mix ISO and US-locale date strings in the same column. New `DateEdit`/`DateView` (self-contained in `ui/columnTypes/`, no `patterns/` import) always normalize to ISO for both the picker and the view display, no DB migration needed.
+
 ### ui/lexical-textsettings
 
 - [x] Phase 0: Lexical analysis and cleanup (dead code removal, upstream comparison, table plugin updates)

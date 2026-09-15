@@ -193,10 +193,22 @@ function createPatternFilterSyncHandler(controller) {
       // template's Jurisdictional Annexes table, which shipped Sullivan's municipalities to every
       // copy. Map sections have no getData-compatible shape and only get the filter-value patch.
       let tier2Warning = null;
+      let tier2Emptied = null;
       if (patched && (patchedElementData.externalSource || patchedElementData.sourceInfo)) {
+        const hadRows = Array.isArray(patchedElementData.data) ? patchedElementData.data.length : 0;
         try {
           const result = await cachedGetData(patchedElementData, secRow.id);
           patchedElementData.data = result.data;
+          // getData does NOT throw when it rejects a section: a column set that fails its
+          // grouped/fn validity rule, or a failed fetch, comes back as `{data: [], invalidState}`.
+          // Persisting that silently turns a populated card into a blank one in every copy and
+          // reports `warnings: 0` — which is how the county home page's "most costly hazard" card
+          // shipped empty to three pilots (a stray show:false column carrying an `fn`). Anything
+          // that had rows and now has none is worth a warning even without an invalidState.
+          if (!result.data?.length && hadRows) {
+            tier2Emptied = result.invalidState
+              || `recompute returned 0 rows (length=${result.length}) where ${hadRows} were cached`;
+          }
         } catch (e) {
           tier2Warning = e.message || String(e);
         }
@@ -208,12 +220,12 @@ function createPatternFilterSyncHandler(controller) {
         user,
         app
       );
-      return { id: secRow.id, patched, memoDropped, tier2Warning, touched: true };
+      return { id: secRow.id, patched, memoDropped, tier2Warning, tier2Emptied, touched: true };
     }
 
     const pageType = `${patternInstance}|page`;
     const pages = await controller.getRowsByTypes(app, [pageType]);
-    let pagesPatched = 0, sectionsPatched = 0, sectionsSkipped = 0, warnings = 0, memosDropped = 0, tier2Hits = 0;
+    let pagesPatched = 0, sectionsPatched = 0, sectionsSkipped = 0, warnings = 0, memosDropped = 0, tier2Hits = 0, sectionsEmptied = 0;
 
     for (let i = 0; i < pages.length; i++) {
       const page = pages[i];
@@ -257,6 +269,12 @@ function createPatternFilterSyncHandler(controller) {
               console.warn(`${tag} section ${r.id}: filter value patched, Tier-2 recompute failed: ${r.tier2Warning}`);
               await ctx.dispatchEvent('warn', `Section ${r.id}: filter patched, Tier-2 recompute failed`, { sectionId: r.id, error: r.tier2Warning });
             }
+            if (r.tier2Emptied) {
+              warnings++;
+              sectionsEmptied++;
+              console.warn(`${tag} section ${r.id}: Tier-2 recompute EMPTIED a populated section: ${r.tier2Emptied}`);
+              await ctx.dispatchEvent('warn', `Section ${r.id}: Tier-2 recompute emptied a populated section`, { sectionId: r.id, reason: r.tier2Emptied });
+            }
           }
 
           if (pageTouched) {
@@ -281,7 +299,7 @@ function createPatternFilterSyncHandler(controller) {
 
     console.log(`${tag} done — ${pages.length} pages scanned, ${pagesPatched} patched, ${sectionsPatched} sections patched, ${memosDropped} request memo(s) dropped, ${sectionsSkipped} sections skipped, ${warnings} warning(s)`);
     return { pagesScanned: pages.length, pagesPatched, sectionsPatched, sectionsSkipped, memosDropped,
-             tier2Queries: tier2Cache.size, tier2CacheHits: tier2Hits, warnings, scope, clearKeys, dropRequestCache, concurrency };
+             tier2Queries: tier2Cache.size, tier2CacheHits: tier2Hits, warnings, sectionsEmptied, scope, clearKeys, dropRequestCache, concurrency };
   });
 
   return async function syncFilters(req, res) {

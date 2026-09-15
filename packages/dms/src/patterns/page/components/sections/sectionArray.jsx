@@ -294,6 +294,13 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         // safe for any peer to read and re-send.
         if (room) {
             await room.ready;
+            // See page-structure-provider.js's `reseedIfEmpty` doc comment: the
+            // mount-time seed can have locked in a stale/empty snapshot if
+            // sync's bootstrap/catch-up was still in flight at mount — this is
+            // this client's last chance to correct that with the CURRENT
+            // `value` (a plain closure over the latest render, not mount-time)
+            // before its own op silently clobbers content it never actually saw.
+            room.reseedIfEmpty(value);
             const arr = room.sectionsArray;
             // A page's own type is "{patternInstance}|page" — its sibling
             // component type is "{patternInstance}|component", i.e. the same
@@ -375,6 +382,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
 
         if (room) {
             await room.ready;
+            room.reseedIfEmpty(value); // see save()'s identical comment above
             const arr = room.sectionsArray;
             const targetId = edit.type === 'update' ? edit.value?.id : value?.[i]?.id;
             const idx = targetId != null
@@ -420,6 +428,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
         // case for array CRDTs generally, not specific to this codebase).
         if (room) {
             await room.ready;
+            room.reseedIfEmpty(value); // see save()'s identical comment above
             const arr = room.sectionsArray;
             if(to < 0 || to >= arr.length){
                 return
