@@ -112,10 +112,17 @@ node scripts/npmrds-reports/probe_corpus.mjs                     # mandatory on 
   (7 gradient + 1 categorical — the fixture that caught the unit-on-a-categorical-legend bug).
   **The old note that `snapshot`/`seasonality` render blank is STALE** — they carry data now, which
   is also why `probe_corpus.mjs` reports "was blank → has content" blockers against its stored
-  baseline. That baseline needs re-capturing; not done, needs an owner call.
-- **`probe_corpus.mjs` blank/has-content results are FLAKY.** Two runs of identical code differ, in
-  both directions. Diff an A/A pair before attributing any of it to your change; majors (53) and the
-  rest of the output are stable.
+  baseline.
+- **`probe_corpus.mjs` was non-deterministic; FIXED 2026-09-14.** The note that used to live here
+  claimed "majors (53) and the rest of the output are stable" — that was wrong. A proper A/A gave
+  8 blockers/56 majors vs 9/51 with only 3 of 17 blocker-instances reproducing. Root cause was the
+  probe settling on `networkidle` + a fixed `--wait`, which under load closed the browser with
+  2-12 requests still in flight — a section that had not finished fetching reads as "blank" AND
+  its query reads as "no longer fires", so one bug produced both symptoms.
+  `report_probe.mjs` now waits for real quiescence and the suite verifies as deterministic
+  (three consecutive runs, zero findings). **Baselines were re-captured 2026-09-14** once that
+  was safe. A single run is the answer; varying results would themselves be the bug. Full record:
+  `planning/transportny/tasks/current/report-probe-expect-and-golden-corpus.md`, §2026-09-14.
 - **A `sections with content: 0/1` result with page text "Welcome back." is an EXPIRED AUTH TOKEN**,
   not a regression. Re-mint with `bash scratchpad/npmrds-sub/mint_token.sh`.
 - **Theme editor:** `http://www.localhost:5173/list/theme/47f862e5-3e7b-4dff-a80a-28e57c127359/graph`
