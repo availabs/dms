@@ -387,6 +387,27 @@ now splits into two independently-aligned groups sharing one row (a
     rather than being trapped. The Routes popover's pre-existing warning note
     about this mismatch is now mirrored onto the Mode popover too.
 
+**Route names in the Routes pill/picker are TEMPLATE-RESOLVED (2026-09-16).**
+Both the pill label (when exactly 1 route is assigned) and every row in its
+popover run through `routeDisplayLabel` (`ReportRouteList/relativeDateResolution.js`),
+the same rule RRL's own collapsed rows use — so on a Dynamic Report previewed
+with `?routes=` in the URL you should read the **real** route name
+("35E QUEENS MIDTOWN EXPY WESTBOUND (2025)"), not the stored `%n (%y)`
+template. Two live-verification consequences:
+
+- Asserting on a Quick Controls route name means asserting on the *resolved*
+  string. It won't match the route's `name` in the DB, and it won't match what
+  the same page shows with the `?routes=` param stripped.
+- With **no** `?routes=` supplied, the raw `%n (%y)` template is the CORRECT,
+  expected rendering — the slot genuinely hasn't resolved, and showing a
+  half-substituted `" (2026)"` (`%y` resolves off dates alone; `%n` needs a real
+  route) would be the bug. Don't file that as one.
+
+A useful `--eval` selector pair: the pill is `[title="Routes on this card"]`;
+inside the popover, the rows are the `<button>`s under the `routes · pick any`
+label, with the name in the 3rd `<span>` and the date range in the 4th (each
+row also carries the resolved name as its own `title` as of 2026-09-16).
+
 ### Dynamic Reports: the toggle, and the no-param entry gate
 
 Any report page can be flipped into a **Dynamic Report** — one shared page,
