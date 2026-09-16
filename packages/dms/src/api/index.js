@@ -54,24 +54,31 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
   // only resolve for active/viewed items, not every item in a list)
   const activeViewEdit = activeConfigs?.find(c => ['view', 'edit'].includes(c.action));
   const activeId = activeViewEdit?.params?.id;
-  // Page pattern uses wildcard matching: path "/*" captures url_slug in params['*']
-  // Prefer the edit/view child config's params (has the clean slug) over the parent's
-  // (which includes the edit/view prefix, e.g., "edit/know_the_environment")
-  const wildcardParam = activeViewEdit?.params?.['*']
-    || activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
-  // Only a LEADING edit/view segment is ever a mode prefix in this codebase's URL
-  // convention (/edit/<slug>, never <slug>/edit — see siteConfig.jsx's "edit/*" route
-  // and traversing-dms-pages.md's "Edit URL puts edit first" gotcha). A trailing strip
-  // used to also run here and silently truncated any real slug whose OWN last segment
-  // is literally "edit" or "view" (e.g. "forms/participation/edit") down to the wrong,
-  // shorter slug — activeSlug then never matched item.url_slug, so this page's section
-  // refs never resolved from local storage and rendered as permanently blank stubs
-  // under sync. Found live 2026-09-09 diagnosing a sync-only blank-render report.
-  const strippedWildcard = wildcardParam
-    .replace(/^(edit|view)(\/|$)/, '')  // strip leading edit/ or view/ prefix (or bare "edit"/"view")
-  const strippedPath = (path || '').replace(/^\//, '')
-    .replace(/^(edit|view)(\/|$)/, '')
-  const activeSlug = strippedWildcard || strippedPath || '';
+  // Page pattern uses wildcard matching: path "/*" captures url_slug in params['*'].
+  //
+  // The ACTIVE view/edit child config's own splat param is ALREADY the clean slug and
+  // must be used verbatim. The edit route is declared as `edit/*` (siteConfig.jsx), so
+  // React Router has itself consumed the `edit/` segment; the view route is plain `/*`,
+  // so its splat is the raw url_slug with no prefix at all. Only the FALLBACKS — the
+  // parent `/*` config's param (e.g. "edit/know_the_environment") and the raw request
+  // `path` — can still carry a mode prefix, so the strip belongs on those alone.
+  //
+  // Stripping the child's param too destroyed any page whose url_slug IS literally
+  // "view" or "edit" (MitigateNY's `/actions/view?id=…` action-detail page): activeSlug
+  // collapsed to '', so needsRefResolution() never matched that page, its section refs
+  // were left as bare {id, ref} stubs, and SectionView's `!element` guard rendered every
+  // section as nothing — a permanently blank page, but ONLY on client-side navigation
+  // (a hard reload runs before the pattern is in sync scope and so goes to Falcor).
+  // Found live 2026-09-15. A trailing strip used to run here as well and truncated any
+  // slug whose LAST segment was "edit"/"view" (e.g. "forms/participation/edit") the same
+  // way; that half was removed 2026-09-09 diagnosing the same class of blank render.
+  const stripModePrefix = (slug) => (slug || '').replace(/^(edit|view)(\/|$)/, '');
+  const childWildcard = activeViewEdit?.params?.['*'] || '';
+  const parentWildcard = activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
+  const activeSlug = childWildcard
+    || stripModePrefix(parentWildcard)
+    || stripModePrefix((path || '').replace(/^\//, ''))
+    || '';
   const needsRefResolution = (item, idx) => {
     if (!Object.keys(dmsAttrsConfigs).length) return false;
     if (activeId && String(item.id) === String(activeId)) return true;
