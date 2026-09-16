@@ -1250,3 +1250,308 @@ Other files this task has produced, outside that scratchpad folder:
   - `scratchpad/npmrds-sub/old-reports/verify_map_tile_network_capture.mjs` — reusable
     Playwright network-capture probe for a converted Map's tile/join traffic (the
     listeners-before-reload technique — see the durable-facts note above).
+
+## Info Box multi-measure — STEP 1 BUILT + live-verified (2026-09-16)
+
+Scoped at Ryan's request as the next piece of work. Supersedes the "not scoped into a concrete
+plan yet" note in the gap register above. **Not a 1.0 blocker** (Ryan, 2026-09-16) — and note it
+does not move the clean-conversion count at all, since `extra_measures_dropped` never blocked a
+report from being classified full/clean; this buys fidelity.
+
+> **Step 1 (the converter wiring) is DONE and live-verified 2026-09-16** — see "Step 1 — built"
+> at the end of this section. Steps 2 and 3 below are still open.
+
+### Correction to the first scoping pass (same day)
+
+The first pass sized this off `extra_measures_dropped` as a whole (869 instances / 524 reports).
+That gap fires for **every** graph type with >1 `displayData`, not just Info Box. Fetching all 524
+affected reports gives the real split:
+
+| Old graph type | Instances | Has a multi builder? |
+|---|---|---|
+| Route Info Box | 386 | yes — this work |
+| TMC Info Box | 211 | yes — this work |
+| **Info Box subtotal** | **597** | |
+| Route Compare Component | 216 | yes — `build_route_compare_section_state_multi`, same shape, not wired |
+| Route Line Graph | 52 | no — genuinely single-measure on the new side |
+| Traffic Volume Graph | 4 | no |
+
+So this work addresses **597**, not 869, and Route Compare's 216 is a natural step 1b (the builder
+already exists; only the converter wiring is missing, exactly as it was here).
+
+### What already exists (so this is less than it looks)
+
+- `analyze_graph` (`section_builders.py:476-489`) **already parses the full measure list** from
+  `state.displayData`. It takes `measures[0]` as primary and logs `measures[1:]` as
+  `extra_measures_dropped`. No parsing work is needed — the data is already in hand.
+- `build_route_info_box_section_state` (`section_builders.py:129-136`) **already dispatches** to
+  `build_route_info_box_section_state_multi` when handed a list of >= 2 measures.
+- `check_info_box_measure_combo` rejects exactly one thing: `reliability` combined with anything
+  else (it needs a pgFederated join the others don't). **Cost today: 0 instances** — no corpus
+  report combines reliability with another measure.
+
+### The actual work: two different section-construction idioms
+
+`convert_report.py` does **not** call `build_route_info_box_section_state` at all. It mints and
+then clones a named per-measure template (`ensure_info_box_{traveltime,length,aadt,delay,speed}_
+template` + `info_box_tmpl_name[gid]`, `convert_report.py:193-255`). The multi builder instead
+**composes fresh** through one `compose_bridge` call (`graphType: "Table"`, `resolutionKey:
+"summary"`, `measureKeys: [...]`) — deliberately, because no single named template row can be the
+source of truth for an arbitrary combo.
+
+So the converter needs a **second code path** for the >= 2-measure case, not a changed argument:
+detect multi, skip the mint/clone entirely, call the builder, and drop the now-unneeded
+`extra_measures_dropped` gap for the measures it actually consumed. Same change again in
+`convert_template.py`.
+
+### Measured payoff (census.json, round-85 lineage, 869 instances / 524 reports)
+
+`extra_measures_dropped` is 869 instances, but only a fraction is reachable with today's measure
+set. Cumulative instances buildable as each measure is added:
+
+| Supported set | Instances | Reports | Marginal |
+|---|---|---|---|
+| **Today's 6** (`speed`/`travelTime`/`length`/`aadt`/`hoursOfDelay`/`reliability`) | **237** | 153 | — |
+| + `avgHoursOfDelay` | 326 | 204 | +89 |
+| + `co2Emissions` | 385 | 219 | +59 |
+| + `freeflow-byDateRange` | 434 | 245 | +49 |
+| + `avgTT-byDateRange` | 465 | 253 | +31 |
+| + `percentile95-byDateRange` | 496 | 284 | +31 |
+| + `planningTime-byDateRange` | 549 | 333 | +53 |
+| + `travelTimeIndex-byDateRange` | 610 | 381 | +61 |
+| + `bufferTime-byDateRange` | 617 | 387 | +7 |
+| + `miseryIndex-byDateRange` | 622 | 392 | +5 |
+| + `percentile97-byDateRange` | 700 | 461 | +78 |
+
+Most-frequent secondary measures: `travelTime` 513, `hoursOfDelay` 357, `length` 223,
+`freeflow-byDateRange` 214, `avgHoursOfDelay` 200, `percentile95-byDateRange` 158,
+`planningTime-byDateRange` 157, `travelTimeIndex-byDateRange` 156, `aadt` 96.
+
+### Suggested order
+
+1. **Wiring only — 237 instances / 153 reports, no new measure support.** The two-idiom change
+   above. This is the "is it just writing?" part: yes, and it is the whole of step 1.
+2. **`avgHoursOfDelay` (+89), then `co2Emissions` (+59)** — both already real measures elsewhere in
+   the converter's vocabulary/TEMPLATE_SPECS (`tmc_avg_delay_*`), so these should be materially
+   cheaper than the tier below. Verify that before committing to it.
+3. **The `*-byDateRange` PM3 family** (freeflow, percentiles, planningTime, travelTimeIndex,
+   bufferTime, miseryIndex, avgTT) — the expensive tail, ~315 further instances. This is real
+   data-source work, not wiring, and is entangled with the literal `LOTTR`/`TTTR` item in the gap
+   register above and with source 1410's coverage window.
+
+**Caveat:** every number here is read from `scratchpad/npmrds-sub/old-reports/census/census.json`
+(2026-08-31, round-85 lineage). Re-run `census_old_reports.py` before acting if any conversion
+round has landed since.
+
+### Step 1 — built 2026-09-16
+
+**What changed** (converter only; no library changes, no new templates minted):
+
+- **`section_builders.py` — `analyze_graph`** now returns `measures` (every displayData measure,
+  primary first) alongside the existing `measure`. Additive: every other graph type is genuinely
+  single-measure and reads `measure` exactly as before.
+- **`vocab.py` — `INFO_BOX_MEASURE_BY_BUCKET`**, the old-`(measure, dataColumn)`-bucket →
+  `INFO_BOX_SPEC_MEASURES` mapping, **derived from the five existing `INFO_BOX_*_BUCKET`
+  constants** rather than restated, so a bucket edit can't silently desync the two. Note
+  `avgTT-byDateRange` and plain `travelTime` both resolve to `"travelTime"` —
+  `INFO_BOX_TRAVELTIME_BUCKETS` already treated them as one bucket.
+- **`section_builders.py` — `build_info_box_multi_template()`** (new). Composes the box via the
+  existing `build_route_info_box_section_state_multi`, then wraps the result in the minimal
+  **template-row shape** the rest of the pipeline reads (`data.stateJson`/`data.elementType` for
+  `build_graph_section_data`; `id`/`data.name`/`data.updatedAt` for `applied_template_stamp`).
+  That wrapper is the whole trick: it avoids teaching the pipeline a second section shape, since
+  the converter clones named templates while the multi path composes fresh. The synthetic name is
+  deliberately **not** a `BRIDGE_GRAPH_SPECS` key, which is what makes the kicker-caption pass skip
+  it — the same no-caption outcome Info Box already had.
+- **`convert_report.py` / `convert_template.py`** — a pre-pass branch that tries the multi path
+  before the single-measure dispatch, plus a `convertible` branch that carries the composed dict
+  directly instead of a name to look up. On success the `extra_measures_dropped` gap is rewritten
+  to list only the measures that genuinely went unbuilt (and dropped entirely when none did), with
+  a `consumed` field recording what was used.
+
+**Partial support is intentional.** A box is built whenever >= 2 measures map to a real bucket;
+anything else stays in `extra_measures_dropped`. That is what takes this from 162 instances to 498:
+
+| | Instances |
+|---|---|
+| buildable, nothing left over | 149 |
+| buildable, some measures still dropped | 334 |
+| not buildable (<2 supported) | 114 |
+| **built by step 1** | **483 of 597** | |
+
+> **Counts corrected 2026-09-16.** A first pass read `displayData`/`dataColumn` straight off each
+> graph's own state and reported 498. `info["data_column"]` is not the graph's own field — it is
+> derived from the ASSIGNED COMPS in `analyze_graph` — so that approximation was slightly
+> optimistic. The table above is re-derived by running the real `analyze_graph` over all 524
+> affected reports.
+
+Top measures still unsupported inside Info Box graphs: `freeflow-byDateRange` 203,
+`percentile95-byDateRange` 158, `planningTime-byDateRange` 143, `travelTimeIndex-byDateRange` 127,
+`avgHoursOfDelay` 96, `miseryIndex-byDateRange` 80, `bufferTime-byDateRange` 79,
+`percentile97-byDateRange` 78, `avg_speedlimit` 49, `dataQuality` 45.
+
+**Live-verified** on old report **1024** ("Testing and Acceptance - Snapshot", a 4-measure Route
+Info Box), converted to `reports/testing_and_acceptance_snapshot_0` (page `2224594`):
+
+- `extra_measures_dropped` gone from the report's gap file (all 4 measures consumed, no residual).
+- Section `2224602` is `element-type: Spreadsheet` with columns
+  `Speed (mph) · Travel Time (min) · Length (mi) · AADT · Route` — previously it would have been
+  Speed alone.
+- `report_probe.mjs reports/testing_and_acceptance_snapshot_0 --auth`: **0 console errors, 0 page
+  errors, 0 SQL errors**, 3/4 sections with content (the 4th is the page header). Rendered values
+  sane across 3 route rows — 60.25/41.67/39.42 mph, 38:53/27:09/28:43 travel time,
+  39.04/18.86/18.86 mi, 62271/69597/68888 AADT.
+- **`probe_corpus.mjs`: 9/9 PASS**, no baseline changes — re-run after the title change too, same result (the 9th entry is a `golden_corpus_difference_linegraph` case added by a concurrent session, not part of this work).
+
+**Section title now names every measure (Ryan's call, same day).** The title's `{data}` token was
+substituted with the PRIMARY measure only, so a 4-measure box read "Route Info Box, Speed". It now
+reads "Route Info Box, Speed, Travel Time, Length, AADT". Implementation note: the title is built in
+`analyze_graph`, which runs *before* the converter decides whether the multi path fires, so the
+consumed-measure split was extracted into a shared `info_box_consumed_measures()` helper used by
+both — the title and the composed box cannot disagree about which measures the box holds. Gated on
+`gtype in INFO_BOX_GRAIN` and `len(consumed) >= 2`; every other graph type keeps the original
+single-measure substitution byte-for-byte (verified live: the same page's "Route Line Graph, Speed"
+title is unchanged).
+
+### Still open after step 1
+
+- **Step 1b — Route Compare Component (216 instances).** Same gap, same shape, one row lower in the
+  frequency table. `build_route_compare_section_state_multi` already exists (composes
+  `graphType: "Table"`, `resolutionKey: "summary"`, `routeCompare: True` through the bridge) and is
+  likewise reachable only from the spec path; `convert_report.py`'s Route Compare pre-pass mints
+  `ensure_route_compare_template(info["measure"], ...)` for the PRIMARY measure alone, exactly as
+  the Info Box pre-pass did. The converter's supported measures here are narrower —
+  `MEASURE_EXPR` is just `speed`/`travelTime` — but that is enough for most of the corpus, because
+  193 of the 216 instances ask for those two together:
+
+  | | Instances | Reports |
+  |---|---|---|
+  | buildable, nothing left over | 14 | 10 |
+  | buildable, some measures still dropped | 178 | 95 |
+  | not buildable (<2 supported) | 24 | 21 |
+  | **wiring alone would build** | **192 of 216** | |
+
+  Most-requested measures: `speed` 212, `travelTime` 193, `hoursOfDelay` 149, `avgHoursOfDelay` 104,
+  `co2Emissions` 60. Commonest combo is `[speed, travelTime, hoursOfDelay, co2Emissions]` (30
+  instances), so adding `hoursOfDelay`/`co2Emissions` to `MEASURE_EXPR` would convert a lot of those
+  178 partials into full-fidelity boxes.
+- **Step 2 — `avgHoursOfDelay` (96) and `co2Emissions`** as Info Box measures; both already exist
+  elsewhere in the converter's vocabulary, so probably cheap. Verify before committing.
+- **Step 3 — the `*-byDateRange` PM3 family** (~700 instances across all graph types). Real
+  data-source work, entangled with the literal `LOTTR`/`TTTR` item in the gap register above.
+
+### Step 1b — Route Compare multi-measure, built 2026-09-16
+
+Same gap, same fix shape as step 1. `build_route_compare_section_state_multi` already existed for
+the spec path; this is the converter wiring it never had.
+
+**What changed:**
+
+- **`section_builders.py` — `route_compare_consumed_measures()`** (new), the Route Compare
+  counterpart to `info_box_consumed_measures`. Supported set is `MEASURE_EXPR` (speed/travelTime
+  today) with no bucket lookup, since Route Compare has no per-measure dataColumn dimension. Same
+  single-source-of-truth role: the composed table and the section title both read it.
+- **`section_builders.py` — `build_route_compare_multi_template()`** (new), wrapping the composed
+  state in the same template-row shape step 1 introduced.
+- **`analyze_graph` title** now names every consumed measure for Route Compare too
+  ("Route Compare Component, Speed, Travel Time — …").
+- **`convert_report.py` / `convert_template.py`** — a multi branch in the Route Compare pre-pass
+  plus the matching `convertible` branch, mirroring the Info Box wiring exactly. Route Compare's
+  own preconditions are preserved: the `ROUTE_COMPARE_BUCKET` dataColumn, and >= 2 assigned comps.
+
+**Deliberate behaviour change, flagged rather than silent:** the multi branch is NOT gated on the
+primary measure being `speed`, unlike the single-measure path below it. For a multi-column table
+every consumed measure is just a column, so which one happens to be first carries no meaning. This
+makes **5 corpus graphs** whose primary is `travelTime`/`hoursOfDelay` convert at all — today they
+fall through to the generic `unmapped_graph` gap. Unlike step 1, that means this change **can**
+move the clean-conversion count for those reports, since an `unmapped_graph` gap disappearing is
+what blocks a report from being classified full.
+
+**Coverage** (re-derived via the real `analyze_graph` over all 524 affected reports):
+
+| | Instances |
+|---|---|
+| buildable | 192 |
+| not buildable (<2 supported, or precondition fails) | 24 |
+| **built by step 1b** | **192 of 216** |
+
+Most-requested measures: `speed` 212, `travelTime` 193, `hoursOfDelay` 149, `avgHoursOfDelay` 104,
+`co2Emissions` 60. Commonest combo is `[speed, travelTime, hoursOfDelay, co2Emissions]` (30
+instances), so adding `hoursOfDelay`/`co2Emissions` to `MEASURE_EXPR` would convert many of the
+178 partials into full-fidelity tables — the natural step 2 for this branch.
+
+**Live-verified** on old report **170** ("K-Bridge W-bound 9-21-17") →
+`reports/k_bridge_w_bound_9_21_17` (page `2224629`):
+
+- Gap rewritten to `detail: ["travelTimeIndex-byDateRange"], consumed: ["speed", "travelTime"]`.
+- Section renders **two measures each with its own "% vs Main" delta column**:
+  `Speed (mph) · % vs Main · Travel Time (min) · % vs Main · Route`. Base row `→ 0` on both; the
+  compare row reads `↑ +8.17` speed and `↓ -7.55` travel time — directionally consistent (faster
+  speed, less travel time), not just non-empty.
+- Title reads "Route Compare Component, Speed, Travel Time — …".
+- `report_probe.mjs --auth`: **0 console, 0 page, 0 SQL errors**, 5/6 sections with content.
+- **`probe_corpus.mjs`: 9/9 PASS**, no baseline changes.
+
+**Before/after on the behaviour change**, old report 165 ("Week of Hell Averted", `travelTime`
+primary), same command with and without the change:
+
+```
+before:  4 graphs -> 3 built, 1 SKIPPED   [unmapped_graph] Route Compare, measure=travelTime,
+                                          reason="no template mapping"
+after:   4 graphs -> 4 built, 0 skipped   [extra_measures_dropped] detail=[travelTimeIndex-byDateRange,
+                                          bufferTime-byDateRange], consumed=[travelTime, speed]
+```
+
+## Converted-report graph tooltips had no units — FIXED 2026-09-16
+
+**Symptom** (Ryan, on a freshly converted report): every graph tooltip showed a bare number —
+"17.1" where the y-axis label two inches away said "Speed (mph)". Spec/UI-built reports
+(`reports/snapshot`) showed "17.1 mph" correctly, so this was converter-specific.
+
+**Root cause — a converter gap, not a library one.** The units mechanism already exists and is
+already wired end to end:
+
+```
+graph_new/index.jsx   →  contextTheme.avlGraph.resolveLegendUnit(display)
+resolveLegendUnit.js  →  const measureKey = display?._measurePick?.measure
+                         if (!measureKey) return undefined          ← the whole bug
+                      →  vocab.measures[measureKey].units           ("speed" → "mph")
+index.jsx             →  display.tooltip.valueLabel = resolvedLegendUnit
+hover comps           →  <b className="ml-1">{ valueLabel }</b>
+```
+
+`resolveLegendUnit`'s own header says "NO REGENERATION. Existing sections already store
+`_measurePick.measure`, so every report that has ever been built picks its unit up on next
+render." That was true of every writer **except this converter**. `build_graph_section_data`
+writes `_measurePick` with `weekdays`/`start`/`end`/`routeIds`/`routeWindows` and no `measure`,
+so the resolver bailed on its first line and the tooltip fell back to a bare number. Confirmed
+directly against the DB: every AVL Graph on a converted page had
+`display._measurePick.measure = NULL`, while every AVL Graph on `reports/snapshot` had a real key
+(`speed`, `avgHoursOfDelay`, `hoursOfDelay`, …).
+
+**Fix** (`section_builders.py`, converter only — no library change): `_measurePick` now carries
+`measure`, sourced via a new `_spec_measure_key(tmpl)` helper that looks the applied template's
+name up in `BRIDGE_GRAPH_SPECS`.
+
+Sourced from `BRIDGE_GRAPH_SPECS` rather than `info["measure"]` on purpose: `info["measure"]` is
+the OLD tool's key space (it contains keys like `avgTT-byDateRange` that match no new-side
+vocabulary entry), while `BRIDGE_GRAPH_SPECS` is the authoritative old-template → new-measure
+mapping and is **already** what the kicker-caption pass uses for exactly this translation. No
+entry ⇒ the key is omitted entirely ⇒ byte-identical to the previous behaviour, so nothing can
+regress on a template the mapping doesn't cover.
+
+**Live-verified** by actually hovering (not inferred from the legend, which shares the resolver),
+on old report 170 reconverted → `reports/k_bridge_w_bound_9_21_17`:
+
+- **LineGraph** tooltip: `K-Bridge Westbound (comp-1): 17.1 mph` / `K-Bridge Westbound: 16.2 mph`.
+- **GridGraph** tooltip (a separate hover comp): `120N05011: 10.4 mph`, `120N05010: 15.6 mph`,
+  `120-05011: 19.1 mph`, `120-05010: 13.1 mph`.
+- GridGraph legends also picked up their "MPH" ramp caption from the same resolver.
+
+**Regression:** `probe_corpus.mjs` **9/9 PASS**, no baseline changes — worth noting because
+`_measurePick` is a shape the golden corpus explicitly pins (see the "Changing this field's shape?"
+warning above the write site); adding a key rather than altering `routeIds` is what keeps it clean.
+
+**Scope of the win:** this is not report-170-specific. Every future conversion gets units, and any
+already-converted report picks them up on reconversion. The same key also feeds the legend caption,
+so both surfaces light up from one field.
