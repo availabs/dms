@@ -836,6 +836,39 @@ any DMS page, not just reports. What's specific to reports:
   made two identical runs disagree on 14 of 17 blocker-instances — see
   `planning/transportny/tasks/current/report-probe-expect-and-golden-corpus.md` §2026-09-14.
 
+### Reading a graph's Y domain back off the axis — the Unicode-minus trap (2026-09-16)
+
+To check what value range a graph actually rendered (e.g. verifying a difference graph spans
+below zero), read the left axis ticks:
+
+```js
+const left = svg.querySelector("g.axis-left, g.axis.axis-left");
+const ticks = [...left.querySelectorAll("text")].map(t => t.textContent.trim());
+// ["−15", "−10", "−5", "0", "5", "10", "15", "20"]
+```
+
+**`AxisLeft` renders a Unicode minus sign (U+2212 `−`), not an ASCII hyphen.** `Number("−15")`
+is `NaN`. A probe that does `ticks.map(Number).filter(n => !isNaN(n))` silently drops every
+negative tick and reports a floor of `0` — which looks exactly like a graph that is still
+clamping its axis at zero. Normalize first:
+
+```js
+const nums = ticks.map(t => Number(t.replace(/\u2212/g, "-").replace(/,/g, "")))
+                  .filter(n => !Number.isNaN(n));
+```
+
+This cost a real debugging detour on the difference-mode axis fix: the fix was already live
+and correct, but the probe kept reporting `tickMin: 0`.
+
+**Checking the line stays inside the plot**, separately from the ticks — use SVG user units
+via `getBBox()`, not `getBoundingClientRect()` (memory of screenshot-based checks: they lie):
+
+```js
+const plotH = svg.clientHeight - 50;   // DefaultMargin top 20 + bottom 30
+const b = path.getBBox();              // line path: d.length > 40 filters out axis/tick paths
+const escapes = (b.y + b.height) > plotH + 1 || b.y < -1;
+```
+
 ### Graph tooltips: hovering one, and where GridGraph defeats automation (2026-09-14)
 
 The tooltip container is `.hover-comp` — a single element per graph, rendered whenever tooltips

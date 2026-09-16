@@ -194,6 +194,31 @@ export const DefaultAxis = {
   min: 0
 }
 
+// Value-axis [min, max] for a set of line series.
+//
+// The ceiling is the largest y across every series (never below zero) and the
+// floor is `axisMin` (DefaultAxis.min = 0), EXCEPT that the domain always spans
+// the data it plots: a series carrying negative values drops the floor to its own
+// minimum. Difference-mode comparison series are signed by construction
+// (Main - Compare), and a floor clamped at 0 drew their negative half below the
+// plot area and outside the section. All-positive data returns the identical
+// [axisMin, max] as before, so ordinary graphs are untouched. BarGraph's value
+// axis already spans zero the same way.
+//
+// A series with any non-numeric y is skipped whole (its max reduces to NaN),
+// which is the long-standing behavior and is preserved deliberately.
+export const buildValueDomain = (series, axisMin = DefaultAxis.min) => {
+  return series.reduce((acc, s) => {
+    const high = s.data.reduce((a, d) => Math.max(a, +d.y), 0);
+    if (isNaN(high)) return acc;
+    const low = s.data.reduce((a, d) => Math.min(a, +d.y), axisMin);
+    return [
+      Math.min(low, acc.length ? acc[0] : axisMin),
+      Math.max(high, acc.length ? acc[1] : 0)
+    ];
+  }, []);
+}
+
 // export const useHoverCompData = 
 
 export const useShouldComponentUpdate = (props, width, height, additionalKeys = []) => {
