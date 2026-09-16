@@ -7,8 +7,10 @@
   "scripts": {
     "start": "node --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "dev": "nodemon --ignore var/ --ignore '*.sqlite' --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
-    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-schema-drift.js",
+    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-schema-drift.js && node tests/test-stream-json.js && node tests/test-falcor-response-limit.js",
     "test:delete-cascade": "node tests/test-delete-cascade.js",
+    "test:stream-json": "node tests/test-stream-json.js",
+    "test:falcor-limit": "node tests/test-falcor-response-limit.js",
     "test:sqlite": "node tests/test-sqlite.js",
     "test:controller": "node tests/test-controller.js",
     "test:graph": "node tests/test-graph.js",
