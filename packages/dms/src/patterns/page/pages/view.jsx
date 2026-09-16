@@ -5,7 +5,7 @@ import { useImmer } from "use-immer";
 import {
     dataItemsNav,
     nav2Level,
-    convertToUrlParams,
+    buildSearchString,
     mergeFilters,
     getPageVariableRegistry,
     initNavigateUsingSearchParams,
@@ -163,7 +163,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         if(searchParamFilters?.length || true){
             const filtersObject = searchParamFilters
                 .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-            const url = `?${convertToUrlParams(filtersObject)}`;
+            const url = buildSearchString(filtersObject);
             if(url !== search){
                 navigate(`${baseUrl}/${item.url_slug}${url}`)
             }
