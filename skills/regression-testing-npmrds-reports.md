@@ -115,7 +115,11 @@ run passed or failed.
 
 **The reverse direction matters too.** If you find a real bug in live-page rendering that no corpus
 entry caught, that's a signal the manifest has a gap — add a `covers` tag to whatever entry should
-have caught it, or add a new entry if none did. The manifest stays accurate by being corrected from
+have caught it, or add a new entry if none did. **A `covers` tag on a code path is not enough when
+the bug only fires on a different shape of DATA through that path.** Worked example (2026-09-16):
+`golden_corpus_linegraph` covers `avlGraph.LineGraph`, but its series is all-positive, so it could
+never have caught the line graph's value-axis floor being pinned at 0 — only a series that actually
+goes negative does. That needed a new entry (`golden_corpus_difference_linegraph`), not a new tag. The manifest stays accurate by being corrected from
 real misses, not by being written once and trusted forever.
 
 Several load-bearing files carry a pointer comment right at the spot that writes/reads a covered
@@ -125,7 +129,7 @@ see the pointer, it's not decorative, actually go run the check.
 
 ## 5. Adding a new corpus entry
 
-Manifest entry shape (see the existing 5 entries for real examples):
+Manifest entry shape (see the existing entries for real examples — 9 as of 2026-09-16):
 
 ```json
 {

@@ -47,10 +47,11 @@ import {
   EmptyObject,
   DefaultMargin,
   DefaultAxis,
+  buildValueDomain,
   useShouldComponentUpdate
 } from "./utils"
 
-export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTotals = true, classNames }) => {
+export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, valueLabel, showTotals = true, classNames }) => {
 
   const cn = classNames || {};
   return (
@@ -96,16 +97,19 @@ export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTot
 
                 <div>
                   <div className={ `
-                    text-right pr-4 transition
+                    ${ cn.value || "text-right" } pr-4 transition
                   ` }>
                     { yFormat(y, rest) }
+                    { !valueLabel ? null :
+                      <b className="ml-1">{ valueLabel }</b>
+                    }
                   </div>
                 </div>
 
                 { !showTotals ? null :
                   <div>
                     <div className={ `
-                      text-right transition pr-2
+                      ${ cn.value || "text-right" } transition pr-2
                     ` }>
                       ({ yFormat(lineTotals[id], rest) })
                     </div>
@@ -142,15 +146,18 @@ export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTot
                 </div>
                 <div className="col-span-1">
                   <div className={ `
-                    text-right pr-4 transition
+                    ${ cn.value || "text-right" } pr-4 transition
                   ` }>
                     { yFormat(y, rest) }
+                    { !valueLabel ? null :
+                      <b className="ml-1">{ valueLabel }</b>
+                    }
                   </div>
                 </div>
                 { !showTotals ? null :
                   <div className="col-span-1">
                     <div className={ `
-                      text-right transition pr-2
+                      ${ cn.value || "text-right" } transition pr-2
                     ` }>
                       ({ yFormat(lineTotals[id], rest) })
                     </div>
@@ -325,15 +332,10 @@ export const LineGraph = props => {
       ...axisLeft
     }
 
+    // Spans zero-or-below when the series is signed -- see buildValueDomain.
     let yDomain = [];
     if (xDomain.length) {
-      yDomain = data.reduce((a, c) => {
-        const y = c.data.reduce((a, c) => Math.max(a, +c.y), 0);
-        if (!isNaN(y)) {
-          return [aLeft.min, Math.max(y, get(a, 1, 0))];
-        }
-        return a;
-      }, []);
+      yDomain = buildValueDomain(data, aLeft.min);
     }
     if (yScale) {
       yDomain = get(yScale, "domain", yDomain);
@@ -363,13 +365,8 @@ export const LineGraph = props => {
 
     let secDomain = [];
     if (xDomain.length) {
-      secDomain = secondary.reduce((a, c) => {
-        const y = c.data.reduce((a, c) => Math.max(a, +c.y), 0);
-        if (!isNaN(y)) {
-          return [aRight.min, Math.max(y, get(a, 1, 0))];
-        }
-        return a;
-      }, []);
+      // Same treatment, so a signed series on the secondary axis is not clipped either.
+      secDomain = buildValueDomain(secondary, aRight.min);
     }
     if (secScale) {
       secDomain = get(secScale, "domain", secDomain);

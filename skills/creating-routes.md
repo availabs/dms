@@ -145,11 +145,19 @@ the `npmrds` subdomain to this `www:/npmrds` path-mount 2026-09-02 — see
   directly — both client and server behaved correctly each time). Dropped per user
   decision rather than keep chasing it; see `report-route-ui-parity-gaps.md` gap 2 if it
   resurfaces with a more specific trigger.
-- **Map scroll-zoom is disabled** (confirmed: before/after screenshots after a scroll
-  action are pixel-identical). Use double-click zoom or the on-screen `+`/`-` buttons
-  instead.
-- Hovering a segment shows a popover with the **TMC code only** (no street name) — you
-  may need to click, not just hover, depending on the build.
+- **Map scroll-zoom works** (corrected 2026-09-16 — it was disabled when this was first
+  written). `map/index.jsx:1367-1369` drives `dragPan`/`scrollZoom`/`dragRotate` off the
+  section's `zoomPan` setting, which defaults to `true` (`:382`); routecreation is a plugin
+  on that same map. Double-click zoom and the on-screen `+`/`-` buttons also still work.
+- Hovering a segment shows a popover with **Road · Direction · TMC** (fixed 2026-09-16 — it
+  previously showed the bare TMC code). Two layer settings drive this and both matter:
+  `hover-columns` picks which attributes the popup lists, and `data-column`
+  (`'tmc,road,direction'`, set in `routecreation.plugin.jsx`) decides which ride in the
+  vector tile. Keep them in sync: an attribute listed in `hover-columns` but absent from the
+  tile falls back to `HoverComp`'s resolve-by-feature-id fetch, which is the path observed
+  sticking on "Fetching Attributes" for this layer.
+  **Note:** that popup still intermittently hangs on "Fetching Attributes" — pre-existing,
+  unrelated to the above.
 
 **Critical gotcha — `route_id` in the URL is load-bearing.** If the edit URL carries
 `?route_id=<n>`, clicking Save **overwrites that existing route**, silently. This is
@@ -176,9 +184,9 @@ source `2107426` / view `2107427`) and hand it to
 See `planning/transportny/tasks/current/report-route-ui-parity-gaps.md` for the full ranked list
 (shared with the report-building gaps) — the route-creation-specific ones are:
 
-- Map scroll-zoom is disabled (workaround: double-click zoom, `+`/`-` buttons).
-- Hover popovers show TMC code only, no street name; sometimes a click is needed
-  instead of hover.
+- ~~Map scroll-zoom is disabled~~ — **fixed/never-still-true, corrected 2026-09-16** (see above).
+- ~~Hover popovers show TMC code only, no street name~~ — **fixed 2026-09-16**; the popover now
+  shows Road · Direction · TMC (see above).
 - `route_id` in the map-tool URL means "editing this route" — reusing an existing
   route's URL as a scratch pad silently overwrites it on Save (now clearly labeled in
   the UI as of 2026-07-27, see above — still no confirmation dialog).

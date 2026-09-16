@@ -215,6 +215,24 @@ export default function Graph (props) {
     if (resolvedLegendUnit && !d?.legend?.unit) {
       d = { ...d, legend: { ...(d.legend || {}), unit: resolvedLegendUnit } };
     }
+    // The same resolved unit also fills the TOOLTIP's unit slot. `valueLabel` is an existing
+    // hover-comp prop (Bar/Pie/Grid render it as `<b>` after the value; LineGraph gained the
+    // same slot alongside this change) that has always defaulted to `""`, so every tooltip on
+    // every report showed bare numbers — "30.4" where the legend two inches away said "mph".
+    //
+    // Reusing this resolver rather than adding a second hook is the point: the unit of a measure
+    // is site vocabulary, the resolver already owns reading it out of `display._measurePick`, and
+    // existing sections already store that field — so no report needs regenerating to pick this
+    // up, exactly as the legend caption didn't.
+    //
+    // Same three guards as the legend above: no resolver (every non-transportny site) ⇒
+    // `resolvedLegendUnit` is undefined ⇒ this branch never runs and nothing changes; an
+    // author-set `tooltip.valueLabel` always wins; and `UNIT_BY_VALUE_FORMAT` already returns
+    // nothing for the self-describing formats (`epoch_time`, `day_of_week`), so a clock-time or
+    // weekday tooltip does not get a spurious unit appended.
+    if (resolvedLegendUnit && !d?.tooltip?.valueLabel) {
+      d = { ...d, tooltip: { ...(d.tooltip || {}), valueLabel: resolvedLegendUnit } };
+    }
     return d;
   }, [display, resolvedDescription, resolvedLegendUnit]);
 

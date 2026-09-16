@@ -44,7 +44,12 @@ original alias. Consequences worth knowing:
 Two platform features (also round 52) make the output legible:
 
 1. **Diverging bars are automatic** — BarGraph's value axis always spans zero now, so
-   negative values extend below the baseline. Nothing to configure.
+   negative values extend below the baseline. Nothing to configure. **Line graphs span the
+   signed range too** (fixed 2026-09-16): the value axis floor follows the data instead of
+   being pinned at 0, so a difference line dips below zero inside the plot area. Before that
+   fix a difference *line* graph drew its negative half outside the section while the
+   equivalent *bar* graph looked fine — see
+   `planning/tasks/current/linegraph-signed-value-axis-domain.md`.
 2. **Zero-centered colors** — turn on "Color by Value" + **"Zero-Centered Colors"** in the
    Bar Graph Layout menu (`display.colors.byValue` + `display.colors.byValueSymmetric`), or
    just "Zero-Centered Colors" in the Grid Graph Layout menu. This pins zero to the middle
@@ -63,6 +68,9 @@ Two platform features (also round 52) make the output legible:
 - A calculated group-by column (e.g. a 15-minute `intDiv(ds.epoch, 3)` bucket) is matched to
   its attribute by EXPRESSION, and joined by its alias — keep the groupBy entry (refName) and
   the column's expression text identical, which the normal column plumbing already guarantees.
+- Axis tick labels use a **Unicode minus sign** (U+2212 `−`), not an ASCII hyphen. Any
+  script that reads the rendered domain back off the axis text must normalize it, or every
+  negative tick parses to `NaN` and the graph looks like it still has a 0 floor.
 - Length/`numRows` for a difference section is a deliberate over-count (sum of arm counts);
   clients may request more rows than return. Harmless — never truncates.
 
@@ -72,6 +80,7 @@ Two platform features (also round 52) make the output legible:
   branch), tests in `tests/test-uda.js#testClickHouseSeriesCombineDifference`.
 - Client forwarding: `dataWrapper/buildUdaConfig.js` (search `seriesCombine`).
 - Rendering: `graph_new/components/avl-graph/BarGraph.jsx` (zero baseline),
-  `BarGraph.jsx`/`GridGraph.jsx` wrappers (`byValueSymmetric`).
+  `BarGraph.jsx`/`GridGraph.jsx` wrappers (`byValueSymmetric`),
+  `avl-graph/utils/index.js#buildValueDomain` (the line-graph signed value axis).
 - Task trail: `planning/tasks/completed/comparison-series-difference-mode.md` and the
   dms-template old-reports task file's round-52 entries.

@@ -387,6 +387,27 @@ now splits into two independently-aligned groups sharing one row (a
     rather than being trapped. The Routes popover's pre-existing warning note
     about this mismatch is now mirrored onto the Mode popover too.
 
+**Route names in the Routes pill/picker are TEMPLATE-RESOLVED (2026-09-16).**
+Both the pill label (when exactly 1 route is assigned) and every row in its
+popover run through `routeDisplayLabel` (`ReportRouteList/relativeDateResolution.js`),
+the same rule RRL's own collapsed rows use — so on a Dynamic Report previewed
+with `?routes=` in the URL you should read the **real** route name
+("35E QUEENS MIDTOWN EXPY WESTBOUND (2025)"), not the stored `%n (%y)`
+template. Two live-verification consequences:
+
+- Asserting on a Quick Controls route name means asserting on the *resolved*
+  string. It won't match the route's `name` in the DB, and it won't match what
+  the same page shows with the `?routes=` param stripped.
+- With **no** `?routes=` supplied, the raw `%n (%y)` template is the CORRECT,
+  expected rendering — the slot genuinely hasn't resolved, and showing a
+  half-substituted `" (2026)"` (`%y` resolves off dates alone; `%n` needs a real
+  route) would be the bug. Don't file that as one.
+
+A useful `--eval` selector pair: the pill is `[title="Routes on this card"]`;
+inside the popover, the rows are the `<button>`s under the `routes · pick any`
+label, with the name in the 3rd `<span>` and the date range in the 4th (each
+row also carries the resolved name as its own `title` as of 2026-09-16).
+
 ### Dynamic Reports: the toggle, and the no-param entry gate
 
 Any report page can be flipped into a **Dynamic Report** — one shared page,
@@ -815,32 +836,73 @@ any DMS page, not just reports. What's specific to reports:
   made two identical runs disagree on 14 of 17 blocker-instances — see
   `planning/transportny/tasks/current/report-probe-expect-and-golden-corpus.md` §2026-09-14.
 
+### Reading a graph's Y domain back off the axis — the Unicode-minus trap (2026-09-16)
+
+To check what value range a graph actually rendered (e.g. verifying a difference graph spans
+below zero), read the left axis ticks:
+
+```js
+const left = svg.querySelector("g.axis-left, g.axis.axis-left");
+const ticks = [...left.querySelectorAll("text")].map(t => t.textContent.trim());
+// ["−15", "−10", "−5", "0", "5", "10", "15", "20"]
+```
+
+**`AxisLeft` renders a Unicode minus sign (U+2212 `−`), not an ASCII hyphen.** `Number("−15")`
+is `NaN`. A probe that does `ticks.map(Number).filter(n => !isNaN(n))` silently drops every
+negative tick and reports a floor of `0` — which looks exactly like a graph that is still
+clamping its axis at zero. Normalize first:
+
+```js
+const nums = ticks.map(t => Number(t.replace(/\u2212/g, "-").replace(/,/g, "")))
+                  .filter(n => !Number.isNaN(n));
+```
+
+This cost a real debugging detour on the difference-mode axis fix: the fix was already live
+and correct, but the probe kept reporting `tickMin: 0`.
+
+**Checking the line stays inside the plot**, separately from the ticks — use SVG user units
+via `getBBox()`, not `getBoundingClientRect()` (memory of screenshot-based checks: they lie):
+
+```js
+const plotH = svg.clientHeight - 50;   // DefaultMargin top 20 + bottom 30
+const b = path.getBBox();              // line path: d.length > 40 filters out axis/tick paths
+const escapes = (b.y + b.height) > plotH + 1 || b.y < -1;
+```
+
 ### Graph tooltips: hovering one, and where GridGraph defeats automation (2026-09-14)
 
 The tooltip container is `.hover-comp` — a single element per graph, rendered whenever tooltips
 are enabled and toggled with `display: none`, NOT mounted on hover. So `querySelector('.hover-comp')`
 finding something proves nothing; check `getComputedStyle(el).display !== 'none'`.
 
-Hovering has to be a REAL pointer move — avl-graph listens for `mousemove` on the marks, and a
-single move at a resting position often will not fire it. Move twice, half a pixel apart:
+Hovering has to be a REAL pointer move — avl-graph listens for `mousemove` on the marks.
+
+**Use the element handle's own `hover()`, not `page.mouse.move()` with computed coordinates.**
 
 ```js
-const box = await mark.boundingBox();
-const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
-await page.mouse.move(cx, cy);
-await page.mouse.move(cx + 0.5, cy + 0.5);   // the second move is what fires it
-await page.waitForTimeout(320);
+const marks = await svg.$$('rect.avl-grid, rect.avl-rect, rect.avl-stack, circle, path.avl-slice');
+const m = marks[Math.floor(marks.length / 2)];
+await m.hover({ force: true, timeout: 5000 });
+await page.waitForTimeout(600);
 ```
 
-Marks by graph type: `rect.avl-stack` (Bar), `rect.avl-rect`, `path.avl-slice` (Pie),
-`rect.avl-grid` (Grid). Bar/Pie/Line automate reliably.
+**Why the coordinate version fails, and why it fails SILENTLY.** `boundingBox()` returns *viewport*
+coordinates, and a report page is long — everything below the first card is off-screen at load. So
+`page.mouse.move(box.x + w/2, box.y + h/2)` for graph 5 moves the pointer to a y-coordinate that is
+nowhere near graph 5, lands on whatever is actually there (usually nothing), fires no `mousemove`
+on any mark, and reports `tooltip: null`. There is no error. `elementHandle.hover()` scrolls the
+element into view *first* and then moves to its live centre, which is the whole difference.
 
-**GridGraph does not.** On a real heatmap (the snapshot report's "Average speed by TMC and
-5-minute epoch") the cells are sub-pixel, so a synthetic `mouse.move` lands between them and no
-tooltip fires — a probe that located a `rect.avl-grid`, scrolled it into view and hovered its
-computed centre still came back `tooltip: null`. Do not burn a session automating it; verify a
-GridGraph tooltip by eye, or assert its markup through
-`packages/dms/tests/hoverCompLegacyMarkup.test.js` instead.
+Marks by graph type: `rect.avl-stack` (Bar), `rect.avl-rect`, `path.avl-slice` (Pie),
+`rect.avl-grid` (Grid), `circle`/`path.graph-line` (Line).
+
+**GridGraph automates fine — corrected 2026-09-15.** This section previously said it did not, on
+the theory that heatmap cells are sub-pixel and a synthetic move lands between them. That was
+mis-diagnosed: the failing probe was using computed coordinates on a below-the-fold graph, i.e. the
+bug above, and the cells are not sub-pixel (the snapshot report's "Average speed by TMC and 5-minute
+epoch" renders 288 `rect.avl-grid` marks per row, comfortably clickable). With `m.hover()` the same
+graph returns its tooltip first try — captured live at 199×366 with 11 TMC rows. Do not skip
+automating a GridGraph tooltip.
 
 Reading the tooltip's own chrome, once visible:
 
