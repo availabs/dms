@@ -821,26 +821,34 @@ The tooltip container is `.hover-comp` — a single element per graph, rendered 
 are enabled and toggled with `display: none`, NOT mounted on hover. So `querySelector('.hover-comp')`
 finding something proves nothing; check `getComputedStyle(el).display !== 'none'`.
 
-Hovering has to be a REAL pointer move — avl-graph listens for `mousemove` on the marks, and a
-single move at a resting position often will not fire it. Move twice, half a pixel apart:
+Hovering has to be a REAL pointer move — avl-graph listens for `mousemove` on the marks.
+
+**Use the element handle's own `hover()`, not `page.mouse.move()` with computed coordinates.**
 
 ```js
-const box = await mark.boundingBox();
-const cx = box.x + box.width / 2, cy = box.y + box.height / 2;
-await page.mouse.move(cx, cy);
-await page.mouse.move(cx + 0.5, cy + 0.5);   // the second move is what fires it
-await page.waitForTimeout(320);
+const marks = await svg.$$('rect.avl-grid, rect.avl-rect, rect.avl-stack, circle, path.avl-slice');
+const m = marks[Math.floor(marks.length / 2)];
+await m.hover({ force: true, timeout: 5000 });
+await page.waitForTimeout(600);
 ```
 
-Marks by graph type: `rect.avl-stack` (Bar), `rect.avl-rect`, `path.avl-slice` (Pie),
-`rect.avl-grid` (Grid). Bar/Pie/Line automate reliably.
+**Why the coordinate version fails, and why it fails SILENTLY.** `boundingBox()` returns *viewport*
+coordinates, and a report page is long — everything below the first card is off-screen at load. So
+`page.mouse.move(box.x + w/2, box.y + h/2)` for graph 5 moves the pointer to a y-coordinate that is
+nowhere near graph 5, lands on whatever is actually there (usually nothing), fires no `mousemove`
+on any mark, and reports `tooltip: null`. There is no error. `elementHandle.hover()` scrolls the
+element into view *first* and then moves to its live centre, which is the whole difference.
 
-**GridGraph does not.** On a real heatmap (the snapshot report's "Average speed by TMC and
-5-minute epoch") the cells are sub-pixel, so a synthetic `mouse.move` lands between them and no
-tooltip fires — a probe that located a `rect.avl-grid`, scrolled it into view and hovered its
-computed centre still came back `tooltip: null`. Do not burn a session automating it; verify a
-GridGraph tooltip by eye, or assert its markup through
-`packages/dms/tests/hoverCompLegacyMarkup.test.js` instead.
+Marks by graph type: `rect.avl-stack` (Bar), `rect.avl-rect`, `path.avl-slice` (Pie),
+`rect.avl-grid` (Grid), `circle`/`path.graph-line` (Line).
+
+**GridGraph automates fine — corrected 2026-09-15.** This section previously said it did not, on
+the theory that heatmap cells are sub-pixel and a synthetic move lands between them. That was
+mis-diagnosed: the failing probe was using computed coordinates on a below-the-fold graph, i.e. the
+bug above, and the cells are not sub-pixel (the snapshot report's "Average speed by TMC and 5-minute
+epoch" renders 288 `rect.avl-grid` marks per row, comfortably clickable). With `m.hover()` the same
+graph returns its tooltip first try — captured live at 199×366 with 11 TMC rows. Do not skip
+automating a GridGraph tooltip.
 
 Reading the tooltip's own chrome, once visible:
 

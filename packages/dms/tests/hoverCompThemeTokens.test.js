@@ -82,12 +82,29 @@ describe("tooltip tokens reach every graph type", () => {
   });
 
   it("swatch and value land wherever that graph type has one", () => {
-    for (const name of ["bar","pie","grid"]) {
+    // Line is in this loop as of 2026-09-15. Its own 3-column row hardcoded `text-right pr-4`
+    // and never consulted `cn.value` at all, so a brand that themed its tooltip numerals got
+    // them everywhere EXCEPT line graphs — the most common chart on an NPMRDS report page. It
+    // now follows the same `${ cn.value || "text-right" }` shape as Bar/Pie/Grid, which is
+    // byte-identical when the token is unset (locked by hoverCompLegacyMarkup.test.js).
+    for (const name of ["bar","pie","grid","line"]) {
       expect(withTokens(name), name).toContain("THEME-SWATCH");
       expect(withTokens(name), name).toContain("THEME-VALUE");
     }
-    // Line has a swatch but routes its value through yFormat in its own 3-column row.
-    expect(withTokens("line")).toContain("THEME-SWATCH");
+  });
+
+  it("valueLabel puts the measure's unit beside the value, on every row-based tooltip", () => {
+    // The slot is not new — Bar/Pie/Grid have always rendered `valueLabel` as a `<b>` after the
+    // value — but it defaulted to "" so no NPMRDS tooltip ever showed a unit. `graph_new/
+    // index.jsx` now fills it from the same `avlGraph.resolveLegendUnit` hook that fills the
+    // legend caption, so "30.4" reads "30.4 mph". Line gained the slot in the same change; it
+    // had none at all, which would have made it the one chart type still showing bare numbers.
+    for (const name of Object.keys(CASES)) {
+      const [Comp, props] = CASES[name];
+      expect(render(Comp, { ...props, valueLabel: "mph" }), name).toContain("mph");
+      // Unset stays absent — this is what keeps every other site's tooltips unchanged.
+      expect(render(Comp, props), name).not.toContain("mph");
+    }
   });
 
   it("rowActive replaces border-current on the highlighted row ONLY", () => {

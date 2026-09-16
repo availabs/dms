@@ -36,6 +36,10 @@ vi.mock("../src/ui/components/graph_new/components", async importOriginal => {
 });
 
 const { GraphComponent } = await import("../src/ui/components/graph_new/GraphComponent.jsx");
+// Same deal for the two the unit-path suite at the bottom needs: both must be imported AFTER
+// vi.mock above, so the probe stands in for the real avl-graph wrapper there too.
+const { ThemeContext } = await import("../src/ui/useTheme");
+const Graph = (await import("../src/ui/components/graph_new/index.jsx")).default;
 
 const THEME = {
   bgColor: "bg-white",
@@ -96,5 +100,61 @@ describe("GraphComponent hands the avlGraph style to the graph", () => {
   it("still passes the legend tokens it passed before (no regression)", () => {
     render();
     expect(seen.legend?.classNames?.row).toBe("THEME-LEGEND-ROW");
+  });
+});
+
+// ── The tooltip's UNIT takes a third, longer path ───────────────────────────────────────────
+// `theme` dresses the container and `hoverComp.classNames` dresses the body; the unit is
+// neither. It starts as site vocabulary, is read by the theme's own `avlGraph.resolveLegendUnit`
+// hook, and is injected one level UP — in `graph_new/index.jsx`'s `displayForGraph`, before
+// `GraphComponent` is even mounted. So it cannot be seen from the GraphComponent-only harness
+// above, which is exactly the shape of gap this file was written for: the legend caption and the
+// tooltip unit share a resolver but not a wire, and losing the tooltip half is invisible until
+// somebody hovers a graph in a browser.
+describe("the resolver's unit reaches the tooltip body, not just the legend", () => {
+
+  const DISPLAY = {
+    graphType: "BarGraph",
+    xAxis: { name: "yr" },
+    yAxis: [{ name: "v" }],
+    legend: { show: true, position: "bottom", type: "categorical" },
+    margin: { top: 20, right: 20, bottom: 50, left: 100 }
+  };
+
+  const renderThroughTheme = (avlGraph, display = DISPLAY) => {
+    for (const k of Object.keys(seen)) delete seen[k];
+    renderToStaticMarkup(
+      React.createElement(ThemeContext.Provider, { value: { theme: { avlGraph } } },
+        React.createElement(Graph, {
+          isEdit: false, activeStyle: 0, setState: () => {},
+          state: { columns: [], data: [{ yr: "2019", v: 10 }], display, comparisonSeries: undefined },
+          pageContext: { pageState: {}, setActionParam: () => {}, clearActionParam: () => {} }
+        })));
+    return seen;
+  };
+
+  it("fills hoverComp.valueLabel from resolveLegendUnit", () => {
+    expect(renderThroughTheme({ resolveLegendUnit: () => "mph" }).hoverComp?.valueLabel).toBe("mph");
+  });
+
+  it("changes NOTHING for a site with no resolver — the MitigateNY case", () => {
+    // ~7,415 legend-rendering graphs there, none of which will ever define this hook. An
+    // undefined valueLabel is what each hover comp's `!valueLabel ? null :` guard reads.
+    expect(renderThroughTheme({}).hoverComp?.valueLabel).toBeUndefined();
+    expect(renderThroughTheme({ styles: [{ name: "default" }] }).hoverComp?.valueLabel).toBeUndefined();
+  });
+
+  it("an author-set tooltip.valueLabel always wins over the resolver", () => {
+    const display = { ...DISPLAY, tooltip: { valueLabel: "AUTHORED" } };
+    expect(renderThroughTheme({ resolveLegendUnit: () => "mph" }, display).hoverComp?.valueLabel)
+      .toBe("AUTHORED");
+  });
+
+  it("a resolver that declines leaves the slot empty rather than writing undefined over it", () => {
+    // `getTooltipFormatFunc` and friends spread `...graphFormat.tooltip`, so an explicit
+    // `undefined` here would still be a present key — harmless for valueLabel, but the guard is
+    // cheap and the same spread has bitten indexFormat before (see GraphComponent's own note).
+    expect(renderThroughTheme({ resolveLegendUnit: () => undefined }).hoverComp?.valueLabel)
+      .toBeUndefined();
   });
 });

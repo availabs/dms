@@ -50,7 +50,7 @@ import {
   useShouldComponentUpdate
 } from "./utils"
 
-export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, showTotals = true, classNames }) => {
+export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTotals, valueLabel, showTotals = true, classNames }) => {
 
   const cn = classNames || {};
   return (
@@ -96,16 +96,19 @@ export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTot
 
                 <div>
                   <div className={ `
-                    text-right pr-4 transition
+                    ${ cn.value || "text-right" } pr-4 transition
                   ` }>
                     { yFormat(y, rest) }
+                    { !valueLabel ? null :
+                      <b className="ml-1">{ valueLabel }</b>
+                    }
                   </div>
                 </div>
 
                 { !showTotals ? null :
                   <div>
                     <div className={ `
-                      text-right transition pr-2
+                      ${ cn.value || "text-right" } transition pr-2
                     ` }>
                       ({ yFormat(lineTotals[id], rest) })
                     </div>
@@ -142,15 +145,18 @@ export const DefaultLineHoverComp = ({ data, idFormat, xFormat, yFormat, lineTot
                 </div>
                 <div className="col-span-1">
                   <div className={ `
-                    text-right pr-4 transition
+                    ${ cn.value || "text-right" } pr-4 transition
                   ` }>
                     { yFormat(y, rest) }
+                    { !valueLabel ? null :
+                      <b className="ml-1">{ valueLabel }</b>
+                    }
                   </div>
                 </div>
                 { !showTotals ? null :
                   <div className="col-span-1">
                     <div className={ `
-                      text-right transition pr-2
+                      ${ cn.value || "text-right" } transition pr-2
                     ` }>
                       ({ yFormat(lineTotals[id], rest) })
                     </div>
