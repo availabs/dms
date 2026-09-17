@@ -6,7 +6,7 @@ import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { CMSContext, PageContext, DataSourceContext } from '../../context';
 import {
     sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, getPageVariableRegistry, detectNavLevel, getInPageNav,
-    convertToUrlParams, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
+    buildSearchString, updatePageStateFiltersOnSearchParamChange, initNavigateUsingSearchParams, getPageAuthPermissions
 } from '../_utils'
 import SectionGroup from '../../components/sections/sectionGroup'
 import SearchButton from '../../components/search'
@@ -215,7 +215,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 		if(searchParamFilters?.length || true){
 			const filtersObject = searchParamFilters
 				.reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-			const url = `?${convertToUrlParams(filtersObject)}`;
+			const url = buildSearchString(filtersObject);
 			if(url !== search){
 				navigate(`${baseUrl}/edit/${item.url_slug}${url}`)
 			}

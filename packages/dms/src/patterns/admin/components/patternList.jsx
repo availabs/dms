@@ -4,7 +4,7 @@ import {v4 as uuidv4} from "uuid";
 import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
 import { ThemeContext } from '../../../ui/useTheme';
-import { nameToSlug, getInstance } from '../../../utils/type-utils';
+import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
 
@@ -410,11 +410,19 @@ function PatternEdit({
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
-									const newName = `${editingItem.name}_copy`;
+									// Route through nextAvailableCopyName rather than hand-rolling
+									// `${name}_copy`: it guards a missing name (which otherwise
+									// interpolates to the literal string "undefined_copy") and
+									// avoids colliding with a sibling slug.
+									const existingSlugs = value
+										.filter(v => +v.id !== +editingItem.id)
+										.map(v => getInstance(v.type) || v?.base_url?.replace(/\//g, ''))
+										.filter(Boolean);
+									const { name: newName, slug: newSlug, suffix } = nextAvailableCopyName(editingItem.name, existingSlugs);
 									const oldInstance = getInstance(editingItem.type) || editingItem.base_url?.replace(/\//g, '');
 									const dataToCopy = {
 										app: editingItem.app,
-										base_url: `${editingItem.base_url}_copy`,
+										base_url: editingItem.base_url ? `${editingItem.base_url}${suffix}` : `/${newSlug}`,
 										subdomain: editingItem.subdomain,
 										config: editingItem.config,
 										name: newName,
@@ -423,7 +431,7 @@ function PatternEdit({
 										filters: editingItem.filters,
 										theme: editingItem.theme,
 									};
-									await duplicate({oldInstance, newInstance: nameToSlug(newName)}, dataToCopy)
+									await duplicate({oldInstance, newInstance: newSlug}, dataToCopy)
 									setEditingItem(undefined)
 								}}
 							> {isDuplicating ? `duplicating... ${Math.round(duplicateProgress * 100)}%` : 'duplicate'}

@@ -67,8 +67,14 @@ export const cmsSection = {
           required: false,
           default: [],
           permissionDomain: [
-              {label: '*', value: '*'},
+              // `view` is the permission the section VIEW gate actually checks
+              // (components/sections/section.jsx). It was missing here, so the only grant an
+              // author could make that satisfied that gate was the blanket `*` — which also
+              // hands over edit. Listed first so "let this group see the section" is the
+              // obvious choice rather than `*` by default.
+              {label: 'View Section', value: 'view'},
               {label: 'Edit Section', value: 'edit'},
+              {label: '*', value: '*'},
           ],
           defaultPermission: ['*']
       },

@@ -204,7 +204,7 @@ function PatternList({
                 const oldInstance = getInstance(d.row.type) || d.row?.base_url?.replace(/\//g, '');
                 const dataToCopy = {
                   app: d.row.app,
-                  base_url: `${d.row.base_url}${suffix}`,
+                  base_url: d.row.base_url ? `${d.row.base_url}${suffix}` : `/${newSlug}`,
                   subdomain: d.row.subdomain,
                   config: d.row.config,
                   name: newName,
@@ -408,7 +408,7 @@ function PatternList({
 									const oldInstance = getInstance(editingItem?.type) || editingItem?.base_url?.replace(/\//g, '');
 									const dataToCopy = {
 										app: editingItem?.app,
-										base_url: `${editingItem?.base_url}${suffix}`,
+										base_url: editingItem?.base_url ? `${editingItem.base_url}${suffix}` : `/${newSlug}`,
 										subdomain: editingItem?.subdomain,
 										config: editingItem?.config,
 										name: newName,

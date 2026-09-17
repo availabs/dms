@@ -33,6 +33,33 @@ const { AsyncLocalStorage } = require('async_hooks');
 let logFile = null;
 let requestCount = 0;
 
+/**
+ * Append one entry as a JSON line, degrading rather than dropping it.
+ *
+ * A response over V8's max string length (512 MiB) cannot be stringified at
+ * all — the same limit that used to crash the Falcor path. Dropping the entry
+ * loses the timing and path record for precisely the requests that are in
+ * trouble, which is why the fatal request in the 2026-09-16 crash loop could
+ * not be attributed to a client. So on failure, retry without the payload:
+ * an entry marked `_omitted` is far more useful than no entry at all.
+ */
+function appendEntry(entry) {
+  if (!logFile) return;
+  try {
+    appendFileSync(logFile, JSON.stringify(entry) + '\n');
+  } catch (err) {
+    try {
+      appendFileSync(logFile, JSON.stringify({
+        ...entry,
+        response: { _omitted: true, reason: err.message },
+      }) + '\n');
+      console.error('[RequestLogger] Response too large to log, wrote entry without it:', err.message);
+    } catch (retryErr) {
+      console.error('[RequestLogger] Failed to write:', retryErr.message);
+    }
+  }
+}
+
 // Per-request error capture via AsyncLocalStorage.
 // Any code (e.g., DB adapters) can call captureQueryError() during a request
 // and the error will be included in the JSONL log entry for that request.
@@ -158,11 +185,7 @@ function createRequestLogger() {
       }
 
       // Log complete entry to file
-      try {
-        appendFileSync(logFile, JSON.stringify(entry) + '\n');
-      } catch (err) {
-        console.error('[RequestLogger] Failed to write:', err.message);
-      }
+      appendEntry(entry);
 
       const errSuffix = entry.errors ? `, ${entry.errors.length} query error(s)` : '';
       console.log(`[RequestLogger] #${seq} completed (${entry.duration}ms, status ${entry.status}${errSuffix})`);
@@ -184,11 +207,7 @@ function createRequestLogger() {
           entry.errors = store.errors;
         }
 
-        try {
-          appendFileSync(logFile, JSON.stringify(entry) + '\n');
-        } catch (err) {
-          console.error('[RequestLogger] Failed to write:', err.message);
-        }
+        appendEntry(entry);
 
         const errSuffix = entry.errors ? `, ${entry.errors.length} query error(s)` : '';
         console.log(`[RequestLogger] #${seq} completed (${entry.duration}ms, status ${entry.status}, no JSON body${errSuffix})`);
@@ -212,12 +231,7 @@ function createRequestLogger() {
  * @param {Object} entry - Object to serialize as a JSON line
  */
 function logEntry(entry) {
-  if (!logFile) return;
-  try {
-    appendFileSync(logFile, JSON.stringify(entry) + '\n');
-  } catch (err) {
-    console.error('[RequestLogger] Failed to write:', err.message);
-  }
+  appendEntry(entry);
 }
 
 /**

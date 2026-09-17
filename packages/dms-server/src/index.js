@@ -2,11 +2,18 @@ const express = require('express');
 const compression = require('compression')
 const falcorExpress = require('./utils/falcor-express');
 const falcorRoutes = require('./routes');
-const { createRequestLogger } = require('./middleware/request-logger');
+const { createRequestLogger, logEntry } = require('./middleware/request-logger');
 const { createJwtMiddleware } = require('./auth/jwt');
 const { registerAuthRoutes } = require('./auth');
 const { registerUploadRoutes } = require('./dama/upload');
 const requestIp = require('request-ip');
+
+// Install process-level safety nets before anything else, so nothing can
+// escape before they are armed. These deliberately keep the process alive on
+// an uncaught exception rather than exiting — see utils/process-safety.js for
+// the reasoning and the DMS_EXIT_ON_UNCAUGHT escape hatch.
+const { installProcessSafetyNets } = require('./utils/process-safety');
+installProcessSafetyNets({ logEntry });
 
 // Heap snapshot for OOM diagnosis — writes a .heapsnapshot file when heap exceeds threshold.
 // Run with: node --max-old-space-size=8192 src/index.js

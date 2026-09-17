@@ -17,6 +17,23 @@ export const convertToUrlParams = (obj, delimiter='|||') => {
     return params.toString();
 };
 
+/**
+ * The page-variable query string for a URL, as `useLocation().search` shapes it: '' when
+ * there is nothing to put in the URL, '?a=b' otherwise.
+ *
+ * `convertToUrlParams` returns a BARE query string and skips every variable with an empty
+ * value, so an all-empty registry yields ''. Prefixing '?' unconditionally (as all three
+ * navigate call sites used to) produced the one-character string '?', which never equals
+ * `search` — `search` is '' when the URL carries no query. So a page whose URL-bound page
+ * variables were ALL empty (MitigateNY's Actions Dashboard, 12 of them) navigated to its
+ * own URL on mount: every route loader re-ran and every section re-fetched, for a URL that
+ * hadn't changed. Always compare against `search` through this, never a raw `?`-prefix.
+ */
+export const buildSearchString = (filtersObject) => {
+    const params = convertToUrlParams(filtersObject);
+    return params ? `?${params}` : '';
+};
+
 export function timeAgo(input) {
   const date = (input instanceof Date) ? input : new Date(input);
   const formatter = new Intl.RelativeTimeFormat('en');
@@ -623,7 +640,7 @@ export const initNavigateUsingSearchParams = ({pageState, search, navigate, base
     if(searchParamFilters?.length){
         const filtersObject = searchParamFilters
             .reduce((acc, curr) => ({...acc, [curr.searchKey]: typeof curr.values === 'string' ? [curr.values] : curr.values}), {});
-        const url = `?${convertToUrlParams(filtersObject)}`;
+        const url = buildSearchString(filtersObject);
         if(!search && url !== search){
             navigate(`${baseUrl}${isView ? `/` : `/edit/`}${item.url_slug}${url}`)
         }

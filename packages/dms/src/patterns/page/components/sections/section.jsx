@@ -490,7 +490,18 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         Object.keys(sectionAuthPermissions?.groups || {}).length ||
         Object.keys(sectionAuthPermissions?.users || {}).length
     );
-    if (sectionHasAuth && !editPageMode && !isUserAuthed(['view'], sectionAuthPermissions)) return null;
+    //
+    // `view-page` is accepted alongside `view` because a section's authPermissions are an
+    // OVERRIDE merged onto the PATTERN's (siteConfig.jsx's CMSContext `isUserAuthed`), and
+    // pattern/page permissions are written in the page vocabulary — `view-page`, `edit-page`,
+    // … (page.format.js's page-level `permissionDomain`), which has no `view` in it at all.
+    // Checking `['view']` alone therefore could only ever be satisfied by a `*` grant: a
+    // pattern granting `{public:['view-page'], AVAIL:['*'], DHSES:['view-page']}` showed a
+    // `{groups:{public:[]}}` ("signed-in only") section to AVAIL and hid it from DHSES, even
+    // though both are signed in and both can view the page — the documented contract above
+    // was not what the code did. A section that needs to exclude an inherited group still
+    // does so the documented way, by disabling that grant explicitly (`{GROUP: []}`).
+    if (sectionHasAuth && !editPageMode && !isUserAuthed(['view', 'view-page'], sectionAuthPermissions)) return null;
 
     // ── Menu from handle ──
     const dwAPI = dwHandle?.dwAPI;
