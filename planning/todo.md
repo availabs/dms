@@ -556,6 +556,7 @@
 
 ### patterns/mapeditor
 
+- [x] [Add Layer modal freezes the page on open](./tasks/completed/mapeditor-add-layer-modal-freeze.md) — `SourceSelector`'s modal mounted `SourcesList`, which unbounded-fetched every source and rendered them all as `<SourceThumb>`, each independently fetching its own views regardless of selection, with an unstable effect-dependency array (`falcorCache`/`source` object) causing a fetch→re-render→refetch loop across every rendered source — a real freeze, not just lag. Fixed: gated the views fetch on `isActiveSource` + stable deps, windowed the rendered list to 30 with "Load more", removed a duplicate unconditional all-sources fetch in `index.jsx`. Server-side pagination for DMS-hosted (non-DAMA) envs and a real sources search route are still open follow-ups.
 - [x] [Layers panel "..." menu button not opening (layer delete unreachable)](./tasks/completed/mapeditor-layer-menu-dots-not-opening.md) — `MenuDots` icon component ignored injected props (no `{...props}` spread, no `forwardRef`), so `Popup`'s `cloneElement`-injected `onClick` never reached the DOM and clicking "..." did nothing — the delete/zoom-to-fit/duplicate menu was simply unreachable, not broken. Fixed by wrapping `LayerMenu`'s button in `<Button type="plain">`, matching the already-working `LayerInfo` pattern. Also covers the Legend panel and Layer Editor's own "..." menus, which share `LayerMenu`. `map_dama`'s separate `SymbologyMenu` may have the same bug independently — not touched.
 
 ### patterns/page
