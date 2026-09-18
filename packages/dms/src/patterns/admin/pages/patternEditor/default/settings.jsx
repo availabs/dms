@@ -202,7 +202,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           // 3. Create new pattern record
           const dataToCopy = {
               app: value.app,
-              base_url: `${value.base_url}${suffix}`,
+              base_url: value.base_url ? `${value.base_url}${suffix}` : `/${newSlug}`,
               subdomain: value.subdomain,
               config: value.config,
               name: newName,

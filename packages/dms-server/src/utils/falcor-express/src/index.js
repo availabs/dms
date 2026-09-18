@@ -1,6 +1,7 @@
 "use strict";
 var requestToContext = require("./requestToContext");
 var { captureQueryError } = require("../../../middleware/request-logger");
+var writeJson = require("../../stream-json");
 var FalcorEndpoint = module.exports = {};
 
 FalcorEndpoint.expressMiddleware = function(getDataSource) {
@@ -67,7 +68,38 @@ FalcorEndpoint.dataSourceRoute = function(getDataSource) {
                 console.error('[falcor-express] Headers already sent, cannot send response');
                 return;
             }
-            res.status(200).json(jsonGraphEnvelope);
+            try {
+                res.status(200).json(jsonGraphEnvelope);
+            } catch (e) {
+                // res.json() stringifies the whole envelope, so a response over
+                // V8's max string length (512 MiB) throws RangeError: Invalid
+                // string length. This handler is NOT the observable's error
+                // callback below — rxjs's SafeSubscriber rethrows a synchronous
+                // throw from here via a bare setTimeout, which nothing catches
+                // and which therefore killed the process.
+                //
+                // express stringifies before it sets any header, so nothing has
+                // been written yet and the same envelope can still go out the
+                // door — streamed in chunks, the way /sync/bootstrap sends its
+                // 1.19GB payload (routes/sync/sync.js).
+                console.error('[falcor-express] res.json() failed (' + e.message + '), streaming envelope instead');
+                captureQueryError({ sql: 'falcor-serialise:' + (context.method || 'unknown'), error: e });
+                try {
+                    res.status(200);
+                    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+                    var written = writeJson(res, jsonGraphEnvelope);
+                    res.end();
+                    console.log('[falcor-express] Streamed oversized response: %d chars', written);
+                } catch (streamErr) {
+                    console.error('[falcor-express] Streaming fallback failed:', streamErr.message);
+                    if (streamErr.stack) console.error(streamErr.stack);
+                    if (!res.headersSent) {
+                        res.status(500).json({ error: 'Response too large to serialise', message: e.message });
+                    } else {
+                        res.end();
+                    }
+                }
+            }
         }, function(err) {
             var message = err instanceof Error ? err.message : String(err);
             var stack = err instanceof Error ? err.stack : undefined;

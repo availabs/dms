@@ -6,7 +6,7 @@ import { get, set } from 'lodash-es'
 import { getLayer } from '../utils'
 import { Plus, Close } from '../../icons'
 
-import { SourceAttributes, ViewAttributes, getAttributes } from "../../../../attributes"
+import { ViewAttributes, getAttributes } from "../../../../attributes"
 
 import SourcesList from './SourceList';
 
@@ -27,21 +27,9 @@ function SourceSelector () {
   const [source, setSource] = React.useState(DEFAULT_SOURCE);
 
   // ---------------------------------
-  // -- get sources to list
+  // -- sources to list are fetched by <SourcesList/> once the modal opens;
+  // -- this just reads the same falcor cache path it populates.
   // ---------------------------------
-  useEffect(() => {
-    async function fetchData() {
-      const lengthPath = ["uda", pgEnv, "sources", "length"];
-      const resp = await falcor.get(lengthPath);
-      await falcor.get([
-        "uda", pgEnv, "sources", "byIndex",
-        { from: 0, to: get(resp.json, lengthPath, 0) - 1 },
-        Object.values(SourceAttributes)
-      ]);
-    }
-    fetchData();
-  }, [falcor, pgEnv]);
-
   const sources = useMemo(() => {
     return Object.values(get(falcorCache, ["uda", pgEnv, "sources", "byIndex"], {}))
       .map(v => getAttributes(get(falcorCache, v.value, {})));

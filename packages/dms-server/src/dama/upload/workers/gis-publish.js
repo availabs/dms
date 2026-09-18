@@ -340,12 +340,15 @@ module.exports = async function gisPublishWorker(ctx) {
       const dst = `"${c.col}"`;
       if (c.db_type === 'TEXT' && tempName === c.col) return src;
       if (c.db_type === 'TEXT') return `${src} AS ${dst}`;
-      // For integer types: handle boolean text values (true/false → 1/0)
+      // For integer types: handle boolean text values (true/false → 1/0),
+      // and any other non-numeric placeholder (e.g. "?", "N/A") → NULL
+      // rather than letting a naive CAST blow up the whole INSERT.
       if (['INTEGER', 'BIGINT', 'SMALLINT', 'INT'].includes(c.db_type.toUpperCase())) {
         return `CASE
           WHEN LOWER(TRIM(${src}::TEXT)) IN ('true','t','yes','y') THEN 1
           WHEN LOWER(TRIM(${src}::TEXT)) IN ('false','f','no','n') THEN 0
           WHEN NULLIF(TRIM(${src}::TEXT), '') IS NULL THEN NULL
+          WHEN TRIM(${src}::TEXT) !~ '^-?[0-9]+$' THEN NULL
           ELSE CAST(TRIM(${src}::TEXT) AS ${c.db_type})
         END AS ${dst}`;
       }

@@ -139,20 +139,38 @@ export function nameToSlug(name) {
  * collapsing back to the original name, since a second copy may diverge
  * from the first.
  *
+ * A missing name falls back to FALLBACK_COPY_BASE rather than being
+ * interpolated. `${undefined}_copy` is the *string* "undefined_copy", which is
+ * a perfectly valid slug, so nothing downstream ever complained — that is how
+ * mitigat-ny-prod ended up with an `undefined_copy` → `undefined_copy_copy` →
+ * `undefined_copy_copy_copy` chain, each generation dragging ~3,700 components
+ * (~177 MB) along with it and eventually pushing the app's Falcor response past
+ * V8's 512 MiB string limit. See
+ * planning/tasks/current/falcor-response-string-limit-crash.md.
+ *
  * @param {string} baseName - name of the item being duplicated
  * @param {string[]} existingSlugs - slugs/instance names already in use among siblings
  * @returns {{ name: string, slug: string, suffix: string }}
  */
+export const FALLBACK_COPY_BASE = 'untitled';
+
 export function nextAvailableCopyName(baseName, existingSlugs = []) {
+  const trimmed = typeof baseName === 'string' ? baseName.trim() : '';
+  // "undefined"/"null" are caught as well as the empty case: they are what a
+  // previous interpolation bug leaves behind, and nobody names a pattern that.
+  const base = (!trimmed || trimmed === 'undefined' || trimmed === 'null')
+    ? FALLBACK_COPY_BASE
+    : trimmed;
+
   const taken = new Set(existingSlugs.filter(Boolean));
   let n = 1;
   let suffix = '_copy';
-  let name = `${baseName}${suffix}`;
+  let name = `${base}${suffix}`;
   let slug = nameToSlug(name);
   while (taken.has(slug)) {
     n += 1;
     suffix = `_copy_${n}`;
-    name = `${baseName}${suffix}`;
+    name = `${base}${suffix}`;
     slug = nameToSlug(name);
   }
   return { name, slug, suffix };
