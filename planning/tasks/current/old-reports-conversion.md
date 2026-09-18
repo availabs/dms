@@ -1,5 +1,13 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+> **Arc entry point:** this file is the source of truth for the CONVERTER. For where conversion
+> sits in the wider Routes/Reports arc — what's open for 1.0, the verification commands, and the
+> cross-cutting gotchas — start at
+> [`planning/transportny/tasks/current/npmrds-routes-reports-1.0.md`](../../../../../planning/transportny/tasks/current/npmrds-routes-reports-1.0.md)
+> in dms-template. **Latest work (2026-09-16):** Info Box + Route Compare multi-measure support
+> (step 1 / 1b) and the converted-report tooltip-units fix — see the three sections at the end of
+> this file.
+
 > **File structure (since 2026-07-13)**: this file holds (1) the current-state summary, (2) a
 > one-line-per-round ledger, (3) the CURRENT round's full detail, and (4) the durable reference
 > sections at the bottom. Full round-by-round history for rounds 1–40 lives verbatim in
