@@ -55,6 +55,16 @@ export const sourceOverviewTheme = {
     // Categories card
     catCard: 'relative rounded-lg border border-gray-200 bg-white shadow-sm p-4',
     catHelp: 'mt-2 text-xs text-gray-500 leading-relaxed',
+    // Promotion — deliberately quiet. It is a normal next step, not an error
+    // state; the blockers list is what carries the urgency when there is any.
+    promoBox: 'mt-3 pt-3 border-t border-dashed border-gray-200',
+    promoTitle: 'text-xs font-semibold uppercase tracking-wider text-amber-700',
+    promoHint: 'text-sm text-gray-600 mt-1 leading-snug',
+    promoBlockers: 'mt-2 space-y-1',
+    promoBlocker: 'text-sm text-gray-700 flex items-start gap-2 before:content-["•"] before:text-amber-600',
+    promoBtn: 'mt-3 inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-blue-700 text-white hover:bg-blue-800',
+    promoBtnDisabled: 'mt-3 inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-gray-100 text-gray-400 cursor-not-allowed',
+    demoteBtn: 'mt-3 text-xs text-gray-500 hover:text-gray-800 hover:underline',
     catSwatches: ['#1F3F8F', '#B45309', '#37576B', '#047857', '#0F2D4D', '#7C3AED', '#0E7490', '#9D174D'],
     catPills:    'flex flex-wrap gap-1.5 items-center',
     catPill:     'inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11.5px] text-gray-700 bg-gray-100',

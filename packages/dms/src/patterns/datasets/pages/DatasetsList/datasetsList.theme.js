@@ -29,6 +29,12 @@ export const datasetsListTheme = {
     sidebarItemText: 'flex-1 min-w-0 truncate flex items-center gap-2',
     sidebarDot: 'size-2 rounded-full shrink-0',
     sidebarBadge: 'ml-auto shrink-0 text-xs tabular-nums text-gray-400',
+    // Hidden lifecycle buckets (Sandbox, Archive, Data Processing, …). Visually
+    // subordinate to the subject areas above them — these are a back door, not
+    // part of the catalog's browse structure.
+    sidebarHiddenGroup: 'mt-3 pt-2 border-t border-dashed border-gray-200',
+    sidebarHiddenLabel: 'px-2 pb-1 text-[10px] uppercase tracking-wider text-gray-400',
+    sidebarItemHidden: 'flex items-center gap-2 px-2 py-1.5 rounded-md text-sm text-gray-500 hover:bg-gray-50',
     sidebarSubItem: 'flex items-center pl-6 pr-2 py-1 rounded-md text-[13px] text-gray-500 hover:bg-gray-50',
     sidebarSubItemActive: 'flex items-center pl-6 pr-2 py-1 rounded-md text-[13px] font-medium bg-gray-100 text-gray-900',
 

@@ -137,8 +137,19 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
                 item[key] = JSON.parse(item[key]);
             }
         }
-        // if dmstype isArray
-        const attrsToFetch = ['data', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by']
+        // Columns to fetch per referenced row. An attribute can opt into a
+        // narrower projection with `refAttributes` — e.g. the site format's
+        // `theme_refs` asks only for ["data ->> 'name'"], because a theme row's
+        // `data` is 100-300 kB and the router only needs to know WHICH theme
+        // each ref is before fetching the one a pattern actually selects (see
+        // resolveThemes in render/spa/utils). `data ->> 'x'` attributes come
+        // back on the path they were requested on, so the key is normalized to
+        // `x` here; the default list has no such entries, so it is unchanged.
+        const attrsToFetch = dmsAttrsConfigs[key].refAttributes
+            || ['data', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by']
+        const metaKeyFor = (attr) => attr.includes('data ->> ')
+            ? attr.split('->>')[1].trim().replace(/[']/g, '')
+            : attr
         if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
             for (let ref of item[key]) {
                 if(ref.id) {
@@ -168,13 +179,22 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
                     if(ref.id) {
                         let value = get(newData, ['json',...byIdAddress, ref.id, 'data'])
                         const meta = attrsToFetch.filter(a => a !== 'data')
-                                                     .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json',...byIdAddress, ref.id, metaKey])}) , {})
+                                                     .reduce((acc, attr) => ({...acc, [metaKeyFor(attr)]: get(newData, ['json',...byIdAddress, ref.id, attr])}) , {})
 
                         // if new item has dms-format data, recursively fetch
                         if(Object.keys(dmsSubAttrsConfigs).length > 0){
                             await loadDmsFormats(value, dmsSubAttrsConfigs, dmsSubFormats[key], falcor)
                         }
-                        item[key][index]= {...ref,...value, ...meta, id: ref.id}
+                        // `id: ref.id` last is deliberate (the ref's id is the
+                        // real row id), but it also ERASES the server's
+                        // `data.id = 'no-access'` marker for an auth-blocked row
+                        // — which is how a routing stub used to sail past
+                        // hasNoAccessPatterns() and get persisted as a site
+                        // snapshot, making every later boot render from stub data
+                        // (default theme, no `type`) and then remount when the
+                        // real fetch landed. Keep the marker on a separate key.
+                        item[key][index]= {...ref,...value, ...meta, id: ref.id,
+                            ...(value?.id === 'no-access' ? { no_access: true } : {})}
                         index += 1
                     }
                 }
@@ -182,9 +202,10 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
             } else {
                 let value = get(newData, ['json',...byIdAddress, item[key].id, 'data'])
                 const meta = attrsToFetch.filter(a => a !== 'data')
-                                             .reduce((acc, metaKey) => ({...acc, [metaKey]: get(newData, ['json',...byIdAddress, item[key].id, metaKey])}) , {})
+                                             .reduce((acc, attr) => ({...acc, [metaKeyFor(attr)]: get(newData, ['json',...byIdAddress, item[key].id, attr])}) , {})
 
-                item[key] = {...item[key], ...value, ...meta}
+                item[key] = {...item[key], ...value, ...meta,
+                    ...(value?.id === 'no-access' ? { no_access: true } : {})}
             }
 
         }

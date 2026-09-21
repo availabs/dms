@@ -18,6 +18,8 @@
 
 ## dama
 
+- [x] [Datasets: lifecycle-aware listing + sandbox-by-default with a promotion step](./tasks/current/datasets-lifecycle-listing-and-sandbox-promotion.md) — Phase 6 recs 2+3 out of the MitigateNY DaMa audit. The hide rule in `DatasetsList` is `cats.every(c => filtered.includes(c))`, so hiding one source requires denying *all* its categories — a ratchet that grew `hazmit_dama`'s deny list to **67 of 81 top-levels** and makes the proposed two-facet vocabulary impossible (a source carrying a subject *and* a lifecycle path can never be hidden without hiding its subject area). Invert to `some` over a closed 4-name lifecycle set (`hidden_categories`), push it server-side the way `hidden_source_types` already is, keep `filtered_categories` working as deprecated legacy. Then default new sources to `[["Sandbox"]]` in `createDamaSource` (one place, fixes all three upload callers) with a gated Promote action that requires a description + display_name + a shown category — **54 of 367 sources reached the catalog because nothing stood between "upload succeeded" and "everyone sees it"**. **Settled 2026-09-17:** `hidden_categories` is **per pattern** stored as a `{hide,show}` **delta** against library defaults (so a lifecycle added later propagates instead of freezing at pattern creation), the server keeps only the env-level volume floor (the Falcor route is env-keyed; per-pattern filtering is client-side and free at ~367 rows), and the settings UI is **redesigned** — design page [`datasets-settings.html`](../../../src/themes/transportny/TransportNY%20Design%20System/dms_design_system_v2/pages/datasets-settings.html). **BUILT + TESTED 2026-09-17 (uncommitted, not deployed):** 114 UDA tests green (+17), build clean, and **no env changes behaviour on deploy** — both new keys default to off.
+
 - [ ] [XLSX upload fails on empty inline-string cell](./tasks/current/xlsx-upload-empty-inlinestr-cell.md) — `read-excel-file@6.0.3` throws `Unsupported "inline string" cell value structure` on a blank cell typed `t="inlineStr"` with no `<is>` child; fix is a catch-and-sanitize retry in `excel.js`, not a library upgrade (v7+ is API-breaking for our usage).
 
 - [x] DAMA server port — task queue with host isolation + idempotent locking, GIS/CSV upload pipeline (GDAL), multi-pgEnv routing, UDA task/event Falcor routes, datatype plugin system, legacy migration script. All 7 phases shipped + production-verified. One non-blocking follow-up split out: [Remove `/events/query` + `newContextId` REST compat shim](./tasks/current/remove-events-query-shim.md).
@@ -734,6 +736,52 @@
       + iconStyles passthrough so lexical icon chips actually render their themed boxes.
 
 ### patterns/datasets
+
+- [ ] [Page load — the site bootstrap payload (+ 3 related fetch problems)](./tasks/current/site-bootstrap-payload-and-pattern-lookup.md) —
+      **3 of 4 FIXED 2026-09-17: data per `/cenrep` load 1,350,149 B → 453,318 B (−66%), and the
+      pattern lookup 123 ms → 1.0 ms.** (1) The site row's dead `themes` array — 480 kB of inline
+      theme JSON nothing reads — is gone from the format and deleted from the live MitigateNY site row
+      (owner-authorized; backup in `scratchpad/page-load-probe/`; 486,511 B → 6,143 B). (2) DB themes
+      now resolve **lazily by name**: the routing load asks `theme_refs` for names only (232 B instead
+      of 416 kB) and fetches a theme row only if a pattern selects it — MitigateNY selects none, and
+      `asm`/b3nson's `"b3 Theme"` still resolves (verified end-to-end). (3) `getSitePatterns`' seq scan
+      over 377,807 rows / 5.6 GB is fixed with a **trigram GIN index** in `migrate_dms_core.sql` — the
+      partial index I first proposed provably does NOT work (Postgres can't prove LIKE implication);
+      validated in a rolled-back transaction on dms3, 123 ms → 1.006 ms. Note: `pg_trgm` got installed
+      on dms3 as a side effect of that validation. **Still open:** finding 3
+      (`useDataSource` fetching `metadata` for every source in the env — 2.37 MB on county pages), the
+      110 pattern rows (209 kB, now the biggest item), and the 3-hop waterfall. Dev wall-clock
+      unchanged (~2.6 s to first card) — dev wall-clock is vite serving unbundled modules.
+      **Production build measured 2026-09-17** (`dist` + `vite preview`): first card **1216 ms cold /
+      1430 ms warm → 947-1005 ms cold / ~1170 ms warm**, long tasks 609 → ~420 ms, warm-load data
+      644,651 → 453,318 B. Two more fixes: (a) the localStorage-snapshot fast path replaced routes with
+      an equivalent array, recreating the router and **remounting the whole tree** — every page
+      refetched and rendered twice on every returning visit; (b) `hasNoAccessPatterns` never matched,
+      because ref expansion overwrites the `id: 'no-access'` marker it checks — so auth-blocked routing
+      stubs WERE persisted as snapshots, which is why warm boots rendered default-themed and then
+      remounted (this is fix 3 of `no-access-stub-default-theme.md`, DONE 2026-07-02, never working in
+      the field; its test used the unexpanded shape — `siteSnapshot.test.js` now covers the real one).
+      **Remaining in the trace:** ~40% client boot (index chunk 746 kB + eager maplibre 285 kB, 420 ms
+      long tasks), a six-level waterfall, and the 120 ms `sources.length` seq scan — the trigram index
+      that fixes it could NOT be applied to the live DB (sandbox refused `Modify Shared Resources`);
+      it needs an owner-run `CREATE INDEX CONCURRENTLY` or just a deploy. Uncommitted. Suites green
+      (97 uda / 28+12+16+23 / drift 23 / client vitest 477 passed, 2 pre-existing sync reds).
+
+- [ ] [Datasets — stop loading `file_upload` sources in the default list](./tasks/current/datasets-exclude-file-upload-sources.md) —
+      the landing page fetches **every** source in the env (`uda[env].sources.length` then
+      `byIndex[0..len-1]`) and only then drops the hidden ones client-side, so on `hazmit_dama`
+      it transfers **11,423 sources to render 366** — 11,057 are lexical/Card image-upload rows.
+      **BUILT + VERIFIED 2026-09-17 (uncommitted, not deployed): 11,423 → 366 rows, 3.08 MB → 196 KB.**
+      Server stamps `type='file_upload'` + `[["Uploaded File"]]` at creation (the client used to supply
+      them), `getSourcesLength`/`getSourceIdsByIndex` exclude by a new narrow
+      `settings.hidden_source_types` (default `['file_upload']`), and an unfiltered `sourcesAll`
+      sibling collection + a SettingsPage switch + an authed toolbar toggle keep them viewable on
+      purpose. **DAMA enumeration only** — DMS-internal `file_upload` rows are deliberate
+      document-as-dataset authoring (Freight Atlas plan PDFs, QA screenshot sets; 6 rows total), so
+      they stay listed. Fixed two `SettingsPage` bugs en route: a category click dropped every other
+      settings key, and a hidden category with no loaded source was un-unhideable. 97 UDA tests green
+      (4 new). Remaining: browser check of a fresh lexical/Card image upload. Split out of the
+      MitigateNY DaMa audit; owner call 2026-09-17.
 
 - [ ] [file_upload — retire the view page; Overview Versions card is the download surface](./tasks/current/file-upload-viewpage-metadata-conventions.md) — three shapes exist in the wild on pgEnv `file_upload` sources: a manifest TABLE of `file_type`/`dl_url` rows (1969, the only one rendering today), a `view.metadata.file` object with NO physical table (2000 + **2077, the live QA-screenshot source** — both currently throw `relation … does not exist`), and now a generated `metadata.download` map. `isDms` says where a row is STORED, not which shape it uses. **Final shape (owner call): the view page is DELETED** — `dataTypes/default/overview.jsx`'s Versions card now renders the Download per version via `downloadItemsForView`, reading generated exports (`metadata.download` / `data.download`) AND uploads (`metadata.file` / `data.file`), normalizing uda's string-projected json; one artifact → the button is the anchor, several → the existing dropdown. `InternalViewAttributes` gains `file`/`download`; `resolveInternalViewNames` parses them. Removed `ViewPage.jsx`, `ViewPage.theme.js`, the `view` slot and the `fileUploadView` theme registration. Owner confirmed downloads working 2026-07-27. Only casualty: source 1969's manifest-TABLE shape has no renderer (test source). Also fixed: the Overview Type row printed the storage row-type for DMS sources — SourcePage now passes a resolved `dataType` prop. **Second fix in the same task:** `SourcePage.jsx:113-114` hardcoded both dataType keys to `internal_table` for every DMS source, discarding the internal `data.type` — so the Freight Atlas Plan Library documents (2189904 the 2024 plan PDF, 2189906/08/10/12), all already `data.type: file_upload` with a real `data.file.dl_url`, rendered a Table page instead of their file. Now honours a registered `data.type`, else `internal_table`. Blast radius audited: 8 internal_table (unchanged) vs 7 file_upload (5 Plan Library + 2 QA-screenshot sources). ⚠ The trap: `source.type` is NOT usable here — the `source` format declares no `type` attribute, so a route-preloaded item carries the STORAGE row-type string, not `data.type` (and adding `type` to the format would alias one over the other). Resolved via a new `getInternalDataType()` in `dataTypes/default/utils.js` reading `uda[…].sources.byId[id].type`, held in `internalDataType` state.
 - [ ] [Datasets — URL-encode category links (`&` in names → empty categories)](./tasks/current/datasets-category-link-encoding.md) — `?cat=` links were built by raw interpolation, so category names with `&` (Economy & Demand, Environment & Equity, Safety & Crossings) truncated the query param and rendered empty despite having data. Fixed with a `catHref` encoder over all 7 link sites in `DatasetsList/index.jsx`; verified in dev. BC. Pending submodule commit + deploy + re-verify. (Corrects control-room ticket #136.)

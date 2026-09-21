@@ -9,6 +9,7 @@ import { getCachedSources, setCachedSources, hasCachedSources } from "../../util
 import { datasetsListTheme } from "./datasetsList.theme";
 import Breadcrumbs from "../../components/Breadcrumbs";
 import { FALLBACK_SWATCHES, catColor, splitCategories, catHref } from "../../utils/categoryColors";
+import { resolveHiddenForPattern, isSourceHidden } from "../../utils/lifecycle";
 
 export const isJson = (str)  => {
     try {
@@ -24,6 +25,11 @@ const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => 
 // Sentinel `cat` value for the "no category" sidebar filter — distinct from any
 // real category name, never appears in a source's `categories` array.
 const UNCATEGORIZED_CAT = '__uncategorized__';
+
+// Source type of a file upload (lexical inline images, the Card image column,
+// the file_upload CreatePage). The server excludes these from the default
+// `sources` enumeration — see dms-server `hidden_source_types`.
+const UPLOAD_SOURCE_TYPE = 'file_upload';
 
 /**
  * Extract plain text from a Lexical JSON description. The list view only
@@ -61,20 +67,25 @@ const typeBadge = (source = {}) => {
 };
 
 
-const getSources = async ({envs, falcor, parent, user}) => {
+// `collection` picks which server-side enumeration to read: 'sources' hides the
+// env's `settings.hidden_source_types` (default `file_upload` — one row per
+// lexical/Card image upload, which on a long-lived env is the great majority of
+// the table), 'sourcesAll' hides nothing. Both resolve to the same
+// `sources.byId` rows, so `$__path` still yields the source id either way.
+const getSources = async ({envs, falcor, parent, user, collection = 'sources'}) => {
     if(!envs || !Object.keys(envs)) return [];
-    console.log('[getSources] querying UDA for envs:', Object.keys(envs));
-    const lenRes = await falcor.get(['uda', Object.keys(envs), 'sources', 'length']);
-    console.log('[getSources] UDA lengths:', Object.keys(envs).map(e => `${e}: ${get(lenRes, ['json', 'uda', e, 'sources', 'length'])}`));
+    console.log('[getSources] querying UDA for envs:', Object.keys(envs), 'collection:', collection);
+    const lenRes = await falcor.get(['uda', Object.keys(envs), collection, 'length']);
+    console.log('[getSources] UDA lengths:', Object.keys(envs).map(e => `${e}: ${get(lenRes, ['json', 'uda', e, collection, 'length'])}`));
 
     const sources = await Promise.all(
         Object.keys(envs).map(async e => {
-            const len = get(lenRes, ['json', 'uda', e, 'sources', 'length']);
+            const len = get(lenRes, ['json', 'uda', e, collection, 'length']);
             if(!len) return [];
 
-            const r = await falcor.get(['uda', e, 'sources', 'byIndex', {from: 0, to: len - 1}, envs[e].srcAttributes]);
+            const r = await falcor.get(['uda', e, collection, 'byIndex', {from: 0, to: len - 1}, envs[e].srcAttributes]);
 
-            const valueGetter = (i, attr) => get(r, ['json', 'uda', e, 'sources', 'byIndex', i, attr])
+            const valueGetter = (i, attr) => get(r, ['json', 'uda', e, collection, 'byIndex', i, attr])
             return range(0, len-1).map(i => {
                 const env = e;
                 return {
@@ -85,7 +96,10 @@ const getSources = async ({envs, falcor, parent, user}) => {
                         }
                         return ({...acc, [attr]: value});
                     }, {}),
-                    source_id: get(r, ['json', 'uda', e, 'sources', 'byIndex', i, '$__path', 4]),
+                    // `$__path` is the RESOLVED path — always ['uda', env,
+                    // 'sources', 'byId', id] — so index 4 is the id whichever
+                    // collection was requested.
+                    source_id: get(r, ['json', 'uda', e, collection, 'byIndex', i, '$__path', 4]),
                     env, // to fetch data
                     srcEnv: e, // to refer back
                     isDms: envs[e].isDms // mostly to apply data->>
@@ -169,7 +183,14 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const {Layout, Icon, Button, Input} = UI;
     const swatches = t.categorySwatches || FALLBACK_SWATCHES;
     const cacheKey = `${format?.app}-${siteType}`;
-    const [sources, setSources] = useState(() => getCachedSources(cacheKey) || []);
+    // Uploaded-file sources are excluded by the server from the default
+    // enumeration (see getSources). Asking for them is explicit and separate
+    // from "Show all" — on an env like hazmit_dama it is an 11k-row fetch,
+    // which is not what someone reaching for a category filter wants.
+    const [showUploads, setShowUploads] = useState(false);
+    const collection = showUploads ? 'sourcesAll' : 'sources';
+    const sourcesCacheKey = `${cacheKey}-${collection}`;
+    const [sources, setSources] = useState(() => getCachedSources(sourcesCacheKey) || []);
     const [layerSearch, setLayerSearch] = useState("");
     const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
@@ -182,20 +203,35 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
     const [isListAll, setIsListAll] = useState(false);
+    // Lifecycle hiding is per PATTERN: one env can feed several catalogs (five
+    // apps bind hazmit_dama), and a curated county catalog and a developer's view
+    // want different hide sets. The pattern stores only a `{hide, show}` DELTA
+    // against the library defaults, so a lifecycle added later reaches existing
+    // patterns instead of freezing at the moment each was created.
+    const [settings, setSettings] = useState({});
+    const hiddenSet = useMemo(
+        () => resolveHiddenForPattern(settings, parent?.id),
+        [settings, parent?.id]
+    );
 
     useEffect(() => {
-        // Skip the fetch if we already rendered this list once during the
-        // session — Falcor still has the data and the module-level cache
-        // already populated `sources` synchronously via useState's initializer.
+        // Skip the fetch if we already loaded this collection once during the
+        // session — Falcor still has the data. The cached array is applied
+        // explicitly rather than relying on useState's initializer, which runs
+        // only on mount and so wouldn't restore anything when the upload
+        // toggle flips the key back to a collection already fetched.
         // Pages that mutate sources (CreatePage etc.) are responsible for
         // invalidating `['uda', env, 'sources']` and clearing `sourcesCache`
         // before navigating back here.
-        if (hasCachedSources(cacheKey)) return;
-        getSources({envs, falcor, apiLoad, user}).then(data => {
+        if (hasCachedSources(sourcesCacheKey)) {
+            setSources(getCachedSources(sourcesCacheKey) || []);
+            return;
+        }
+        getSources({envs, falcor, apiLoad, user, collection}).then(data => {
             setSources(data);
-            setCachedSources(cacheKey, data);
+            setCachedSources(sourcesCacheKey, data);
         });
-    }, [cacheKey]);
+    }, [sourcesCacheKey]);
 
     useEffect(() => {
         if (!pgEnv) return;
@@ -203,6 +239,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
             const settings = get(res, ["json", "uda", pgEnv, "settings"]);
             const parsed = typeof settings === 'string' ? JSON.parse(settings || '{}') : (settings || {});
             setFilteredCategories(parsed.filtered_categories || []);
+            setSettings(parsed);
         });
     }, [pgEnv]);
 
@@ -214,12 +251,33 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const visibleSources = useMemo(() => {
         if (isListAll || isSearching) return sources || [];
         return (sources || []).filter(source => {
-            const cats = (Array.isArray(source?.categories) ? source.categories : []).map(c => c[0]);
-            if (!cats.length) return false;
-            if (!filteredCategories.length) return true;
-            return !cats.every(c => filteredCategories.includes(c));
+            // Uploads are in `sources` only because they were explicitly asked
+            // for; re-hiding them via the category filter (envs routinely have
+            // `Uploaded File` in filtered_categories) would make the toggle
+            // look broken.
+            if (showUploads && source?.type === UPLOAD_SOURCE_TYPE) return true;
+            // `null` means uncategorized — hidden from the default view, same as
+            // before; the explicit Uncategorized filter below is the way to see them.
+            const hidden = isSourceHidden(source, hiddenSet, filteredCategories);
+            return hidden === false;
         });
-    }, [sources, filteredCategories, isListAll, isSearching]);
+    }, [sources, hiddenSet, filteredCategories, isListAll, isSearching, showUploads]);
+
+    // Sources parked in a hidden lifecycle, so the sidebar can offer them as
+    // explicit buckets. Without this a hidden dataset is unreachable from the
+    // list, which is worse than the clutter it was hidden to avoid — the uploader
+    // has nowhere to find what they just created.
+    const hiddenBuckets = useMemo(() => {
+        const acc = {};
+        for (const s of (sources || [])) {
+            if (showUploads && s?.type === UPLOAD_SOURCE_TYPE) continue;
+            for (const c of (Array.isArray(s?.categories) ? s.categories : [])) {
+                const top = Array.isArray(c) ? c[0] : c;
+                if (top && hiddenSet.has(top)) (acc[top] ??= []).push(s);
+            }
+        }
+        return acc;
+    }, [sources, hiddenSet, showUploads]);
 
     // Pool for the "Uncategorized" filter — independent of the above (which
     // only governs the default "All datasets" view), so the explicit filter
@@ -231,9 +289,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const categories = useMemo(() => [...new Set(
         (visibleSources || [])
             .reduce((acc, s) => [...acc, ...((Array.isArray(s?.categories) ? s?.categories : [])?.map(s1 => s1[0]) || [])], []))]
-            .filter(c => isListAll || !filteredCategories.includes(c))
+            .filter(c => isListAll || (!filteredCategories.includes(c) && !hiddenSet.has(c)))
             .sort(),
-    [visibleSources, filteredCategories, isListAll]);
+    [visibleSources, filteredCategories, hiddenSet, isListAll]);
 
     const categoriesCount = useMemo(() => categories.reduce((acc, cat) => {
         acc[cat] = (visibleSources || []).filter(p => p?.categories).filter(pattern => {
@@ -273,7 +331,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
 
     // sources after category-path + search + sort (the rendered set)
     const shownSources = useMemo(() => {
-        const base = cat1 === UNCATEGORIZED_CAT ? uncategorizedSources : (visibleSources || []);
+        const base = cat1 === UNCATEGORIZED_CAT ? uncategorizedSources
+            : (cat1 && hiddenSet.has(catParts[0])) ? (hiddenBuckets[catParts[0]] || [])
+            : (visibleSources || []);
         return base
             .filter(source => {
                 if (cat1 === UNCATEGORIZED_CAT || !cat1) return true;
@@ -287,7 +347,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                 return !(layerSearch.length > 2) || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
             })
             .sort((a, b) => (sort === 'asc' ? 1 : -1) * (a?.name || '').localeCompare(b?.name || ''));
-    }, [visibleSources, uncategorizedSources, cat1, catParts, layerSearch, sort]);
+    }, [visibleSources, uncategorizedSources, hiddenBuckets, hiddenSet, cat1, catParts, layerSearch, sort]);
 
     const VIEWS = [
         { key: 'grid',  d: 'M3.5 3.5h7v7h-7zM13.5 3.5h7v7h-7zM3.5 13.5h7v7h-7zM13.5 13.5h7v7h-7z' },
@@ -332,6 +392,14 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                     }
 
                     {user?.authed &&
+                        <Button type="plain"
+                                title={showUploads ? 'Hide uploaded files' : 'Show uploaded files'}
+                                onClick={() => setShowUploads(!showUploads)}>
+                            <Icon icon={showUploads ? 'EyeClosed' : 'Upload'} className={t.iconMd}/>
+                        </Button>
+                    }
+
+                    {user?.authed &&
                         <Link to={`${baseUrl}/settings`} title={'Settings'}><Icon icon="Settings" className={t.iconMd}/></Link>}
 
                     {user?.authed &&
@@ -344,6 +412,22 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         <span className={t.sidebarItemText}>All datasets</span>
                         <div className={t.sidebarBadge}>{(visibleSources || []).length}</div>
                     </Link>
+                    {/* Hidden lifecycle buckets — Sandbox first, since that is where every
+                        new dataset lands and where its creator will look for it. Shown to
+                        authed users without needing "Show all": a dataset you just uploaded
+                        should not require a mode switch to find. */}
+                    {user?.authed && Object.keys(hiddenBuckets).length > 0 &&
+                        <div className={t.sidebarHiddenGroup}>
+                            <div className={t.sidebarHiddenLabel}>Hidden</div>
+                            {Object.keys(hiddenBuckets).sort().map(cat => (
+                                <Link key={cat} to={catHref(cat)}
+                                      className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItemHidden}>
+                                    <span className={t.sidebarItemText}>{cat}</span>
+                                    <div className={t.sidebarBadge}>{hiddenBuckets[cat].length}</div>
+                                </Link>
+                            ))}
+                        </div>
+                    }
                     {isListAll && uncategorizedSources.length > 0 &&
                         <Link to={catHref(UNCATEGORIZED_CAT)} className={cat1 === UNCATEGORIZED_CAT ? t.sidebarItemActive : t.sidebarItem}>
                             <span className={t.sidebarItemText}>Uncategorized</span>

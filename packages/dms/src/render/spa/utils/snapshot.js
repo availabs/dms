@@ -12,7 +12,13 @@
 
 export function hasNoAccessPatterns(siteData) {
   return (siteData || []).some(row =>
-    (row?.patterns || []).some(p => p?.id === 'no-access')
+    (row?.patterns || []).some(p =>
+      // `no_access` is the surviving marker: ref expansion overwrites `id` with
+      // the real row id (see api/proecessNewData.js), so checking `id` alone
+      // never matched and stub snapshots were persisted anyway. `id` stays in
+      // the check for any caller that hands us unexpanded server rows.
+      p?.no_access === true || p?.id === 'no-access'
+    )
   );
 }
 
