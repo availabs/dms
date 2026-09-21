@@ -2,6 +2,7 @@
 
 ## cli
 
+- [x] [Falcor client dies on a dead pooled keep-alive socket](./tasks/current/cli-falcor-client-keepalive-retry.md) — DONE 2026-09-21. Any tool that left >~5s between two requests on one client (e.g. `cr_sync.mjs`, which blocks in `execFileSync` CLI calls between reads) got a bare `fetch failed` with no `cause`, reading like the server was down while it served fine. `request()` now retries once on a connection-level rejection; `ECONNREFUSED` still fails fast. Safe for writes — fetch only rejects that way when the request never reached the server. Measured: 2s gap OK, 8s/20s gaps failed before and pass after.
 - [x] [CLI hangs on every command (Windows) — `findConfigFile` infinite loop](./tasks/completed/cli-config-windows-infinite-loop.md) — `config.js`'s `while (dir !== '/')` never terminated on Windows (`dirname('C:\')==='C:\'`), so every `dms` command spun forever before making a request. Fixed to break on `dirname(dir)===dir` (POSIX `/` + Windows drive roots). Verified: `raw get`/`page list`/`page show` now return promptly; POSIX unchanged.
 
 ## themes
@@ -558,10 +559,12 @@
 
 ### patterns/mapeditor
 
+- [x] [Add Layer modal freezes the page on open](./tasks/completed/mapeditor-add-layer-modal-freeze.md) — `SourceSelector`'s modal mounted `SourcesList`, which unbounded-fetched every source and rendered them all as `<SourceThumb>`, each independently fetching its own views regardless of selection, with an unstable effect-dependency array (`falcorCache`/`source` object) causing a fetch→re-render→refetch loop across every rendered source — a real freeze, not just lag. Fixed: gated the views fetch on `isActiveSource` + stable deps, windowed the rendered list to 30 with "Load more", removed a duplicate unconditional all-sources fetch in `index.jsx`. Server-side pagination for DMS-hosted (non-DAMA) envs and a real sources search route are still open follow-ups.
 - [x] [Layers panel "..." menu button not opening (layer delete unreachable)](./tasks/completed/mapeditor-layer-menu-dots-not-opening.md) — `MenuDots` icon component ignored injected props (no `{...props}` spread, no `forwardRef`), so `Popup`'s `cloneElement`-injected `onClick` never reached the DOM and clicking "..." did nothing — the delete/zoom-to-fit/duplicate menu was simply unreachable, not broken. Fixed by wrapping `LayerMenu`'s button in `<Button type="plain">`, matching the already-working `LayerInfo` pattern. Also covers the Legend panel and Layer Editor's own "..." menus, which share `LayerMenu`. `map_dama`'s separate `SymbologyMenu` may have the same bug independently — not touched.
 
 ### patterns/page
 
+- [x] [`autoNumber` create-default broken on external (DAMA) sources](./tasks/current/add-item-create-defaults.md) — **FIXED 2026-09-21 (follow-up section), UI submit not yet re-run.** Reported as "the new-administrator modal errors on submit" (wcdb `/admin/administrators`). `applyCreateDefaults` hardcoded the DMS JSONB shape `data->>'col'` into its max query, which is invalid SQL against an external source's real table (`column "data" does not exist`); the error arrives inside a 200 and `dmsDataLoader` swallows it, so `+(undefined) || 0` filled the column with **1** — a duplicate key on a PK column. Now picks the expression by source kind, wraps the max in `coalesce(…, 0)` so an empty source stays distinguishable from a failed lookup, and leaves the column unset (loud `console.error`) instead of guessing. Affects every add-modal on the wcdb admin pages (`dj_id`, `event_id`, `admin_id`, `sort`, `post_id`, `show_id`).
 - [x] [Bounded numeric display controls — clamp on write, blank = unset](./tasks/current/numeric-control-clamp-and-unset.md) —
       **IMPLEMENTED 2026-08-25, live UI pass still open.** Reported as "setting inner padding on a
       bar graph makes the bars disappear." Root cause was two defects in one write path: (1) numeric

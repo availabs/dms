@@ -1462,6 +1462,23 @@ const buildJoinParam = (layerProps) => {
     return "";
   }
 
+  // `layer.join` feeds TWO consumers: this function (which bakes joined columns into the
+  // tile as feature properties) and the hover/click interaction path, which resolves join
+  // outputs on demand from the join source by key. A layer that only wants the SECOND -
+  // joined columns it shows in a popup but never paints or filters by - has no use for the
+  // tile half, and the tile half is not free: the server runs the join whether or not any
+  // column is baked, because an unused LEFT JOIN over a CTE is not something Postgres can
+  // plan away. Measured on macroview's PM3 layer, tile 6/18/23: 1.41s with no join param,
+  // 30s (server timeout, empty tile) with a join carrying an EMPTY `tileColumns`.
+  //
+  // Deliberately an explicit flag rather than inferring "no tileColumns means hover-only":
+  // a layer may legitimately carry no tile columns and still need the tile join, because
+  // collectActiveJoinFilterGroups below pushes filters on joined columns into the tile
+  // query. Inferring would silently break those.
+  if (joinConfig.hoverOnly) {
+    return "";
+  }
+
   const queryConfig = joinConfig.query || {};
   const groupBy = Array.isArray(queryConfig?.groupBy) ? queryConfig.groupBy : [];
   const columns = Array.isArray(queryConfig?.columns) ? queryConfig.columns : [];

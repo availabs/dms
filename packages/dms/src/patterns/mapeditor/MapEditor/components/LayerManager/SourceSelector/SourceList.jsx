@@ -19,6 +19,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
   const lengthPath = ["uda", pgEnv, "sources", "byId", source.source_id, "views", "length"];
 
   useEffect(() => {
+    if (!isActiveSource) return;
     async function fetchData() {
       const resp = await falcor.get(lengthPath);
       await falcor.get([
@@ -29,7 +30,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
       ]);
     }
     fetchData();
-  }, [falcor, falcorCache, source, pgEnv]);
+  }, [falcor, pgEnv, source.source_id, isActiveSource]);
 
   const viewLength = useMemo(() => {
     return parseInt(get(falcorCache, lengthPath, 0))
@@ -165,6 +166,8 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
 };
 
 
+const SOURCES_PAGE_SIZE = 30;
+
 const SourcesList = ({selectedSource, setSource}) => {
   const [layerSearch, setLayerSearch] = useState("");
   const [cat1, setCat1] = useState();
@@ -172,8 +175,13 @@ const SourcesList = ({selectedSource, setSource}) => {
   const {pgEnv, baseUrl, useFalcor} = React.useContext(MapEditorContext);
   const { falcor, falcorCache } = useFalcor();
   const [sort, setSort] = useState('asc');
+  const [visibleCount, setVisibleCount] = useState(SOURCES_PAGE_SIZE);
   const sourceDataCat = 'Unknown'
   const isListAll = window.location.pathname.replace(`${baseUrl}/`, '')?.split('/')?.[0] === 'listall';
+
+  useEffect(() => {
+    setVisibleCount(SOURCES_PAGE_SIZE);
+  }, [layerSearch, cat1, cat2, sort]);
 
   useEffect(() => {
     async function fetchData() {
@@ -207,6 +215,39 @@ const SourcesList = ({selectedSource, setSource}) => {
     })?.length
     return acc;
   }, {})
+
+  const filteredSources = useMemo(() => {
+    return sources
+        .filter(source => {
+          return isListAll || (!isListAll && !source.categories?.find(cat => cat.includes(sourceDataCat)))
+        })
+        .filter(source => {
+          let output = true;
+          if (cat1) {
+            output = false;
+            (get(source, "categories", []) || [])
+                .forEach(site => {
+                  if (site[0] === cat1 && (!cat2 || site[1] === cat2)) {
+                    output = true;
+                  }
+                });
+          }
+          return output;
+        })
+        .filter(source => {
+          let searchTerm = (source.name + " " + (source?.categories || [])
+              .reduce((out,cat) => {
+                out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
+                return out
+              },'')) //get(source, "categories[0]", []).join(" "));
+          return !layerSearch.length > 2 || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
+        })
+        .sort((a,b) => {
+          const m = sort === 'asc' ? 1 : -1;
+          return m * a.name?.localeCompare(b.name)
+        })
+  }, [sources, isListAll, cat1, cat2, layerSearch, sort]);
+
   const actionButtonClassName = 'bg-transparent hover:bg-blue-100 rounded-sm p-2 ml-0.5 border-2'
   return (
     <SourcesLayout baseUrl={baseUrl} isListAll={isListAll} hideBreadcrumbs={true}>
@@ -262,46 +303,29 @@ const SourcesList = ({selectedSource, setSource}) => {
         </div>
         <div className={'w-3/4 flex flex-col space-y-1.5 ml-1.5 max-h-[65dvh] overflow-y-auto overflow-x-hidden scrollbar-sm'}>
           {
-            sources
-                .filter(source => {
-                  return isListAll || (!isListAll && !source.categories?.find(cat => cat.includes(sourceDataCat)))
-                })
-                .filter(source => {
-                  let output = true;
-                  if (cat1) {
-                    output = false;
-                    (get(source, "categories", []) || [])
-                        .forEach(site => {
-                          if (site[0] === cat1 && (!cat2 || site[1] === cat2)) {
-                            output = true;
-                          }
-                        });
-                  }
-                  return output;
-                })
-                .filter(source => {
-                  let searchTerm = (source.name + " " + (source?.categories || [])
-                      .reduce((out,cat) => {
-                        out += Array.isArray(cat) ? cat.join(' ') : typeof cat === 'string' ? cat : '';
-                        return out
-                      },'')) //get(source, "categories[0]", []).join(" "));
-                  return !layerSearch.length > 2 || searchTerm.toLowerCase().includes(layerSearch.toLowerCase());
-                })
-                .sort((a,b) => {
-                  const m = sort === 'asc' ? 1 : -1;
-                  return m * a.name?.localeCompare(b.name)
-                })
+            filteredSources
+                .slice(0, visibleCount)
                 .map((s, i) => (
                   <SourceThumb
                     cat1={cat1}
                     setCat1={setCat1}
-                    key={i}
+                    key={s.source_id ?? i}
                     source={s}
                     baseUrl={baseUrl}
                     selectedSource={selectedSource}
                     setSource={setSource}
                   />
                 ))
+          }
+          {
+            filteredSources.length > visibleCount &&
+              <button
+                type='button'
+                className='p-2 text-blue-500 hover:bg-blue-50 rounded-md border border-blue-200'
+                onClick={() => setVisibleCount(c => c + SOURCES_PAGE_SIZE)}
+              >
+                Load more ({filteredSources.length - visibleCount} remaining)
+              </button>
           }
         </div>
       </div>

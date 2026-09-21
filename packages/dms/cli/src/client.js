@@ -87,18 +87,42 @@ export function createFalcorClient(host, authToken) {
       headers['Authorization'] = `Bearer ${authToken}`;
     }
 
+    // ONE retry on a connection-level failure, because a pooled keep-alive socket can always
+    // be closed by the server between two requests and the client only finds out by trying.
+    //
+    // This is not theoretical: it made `cr_sync.mjs` fail reliably. That tool interleaves
+    // falcor reads with blocking `execFileSync` CLI calls, so the socket opened by one read
+    // sits idle for the whole subprocess fan-out. Past the server's keep-alive timeout
+    // (~5s by default) the server closes it, undici hands the dead socket to the next fetch,
+    // and it rejects as a bare `TypeError: fetch failed` with NO `cause` — which reads like
+    // the server is down when it is serving fine. Measured 2026-09-21: a 2s gap succeeds,
+    // an 8s gap fails every time.
+    //
+    // Retrying is safe here specifically because the failure is "the request never reached
+    // the server": fetch only rejects like this before any response is received. A request
+    // the server did process returns a response, which is handled below, not here. An
+    // ECONNREFUSED is a genuinely-down server and is NOT retried — it would just double the
+    // wait before the same message.
+    const connectionError = (error) => {
+      if (error.cause?.code === 'ECONNREFUSED') {
+        return new Error(`Connection refused: ${host}\nIs the DMS server running? Check --host option.`);
+      }
+      return null;
+    };
+
     let response;
     try {
-      response = await fetch(url, {
-        method: 'POST',
-        headers,
-        body,
-      });
+      response = await fetch(url, { method: 'POST', headers, body });
     } catch (error) {
-      if (error.cause?.code === 'ECONNREFUSED') {
-        throw new Error(`Connection refused: ${host}\nIs the DMS server running? Check --host option.`);
+      const refused = connectionError(error);
+      if (refused) throw refused;
+      try {
+        response = await fetch(url, { method: 'POST', headers, body });
+      } catch (retryError) {
+        const refusedOnRetry = connectionError(retryError);
+        if (refusedOnRetry) throw refusedOnRetry;
+        throw new Error(`Connection failed to ${host}: ${retryError.message} (retried once)`);
       }
-      throw new Error(`Connection failed to ${host}: ${error.message}`);
     }
 
     if (!response.ok) {
