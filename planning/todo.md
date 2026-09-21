@@ -2,6 +2,7 @@
 
 ## cli
 
+- [x] [Falcor client dies on a dead pooled keep-alive socket](./tasks/current/cli-falcor-client-keepalive-retry.md) — DONE 2026-09-21. Any tool that left >~5s between two requests on one client (e.g. `cr_sync.mjs`, which blocks in `execFileSync` CLI calls between reads) got a bare `fetch failed` with no `cause`, reading like the server was down while it served fine. `request()` now retries once on a connection-level rejection; `ECONNREFUSED` still fails fast. Safe for writes — fetch only rejects that way when the request never reached the server. Measured: 2s gap OK, 8s/20s gaps failed before and pass after.
 - [x] [CLI hangs on every command (Windows) — `findConfigFile` infinite loop](./tasks/completed/cli-config-windows-infinite-loop.md) — `config.js`'s `while (dir !== '/')` never terminated on Windows (`dirname('C:\')==='C:\'`), so every `dms` command spun forever before making a request. Fixed to break on `dirname(dir)===dir` (POSIX `/` + Windows drive roots). Verified: `raw get`/`page list`/`page show` now return promptly; POSIX unchanged.
 
 ## themes
