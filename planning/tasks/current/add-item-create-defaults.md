@@ -82,3 +82,60 @@ usePageParams re-sync fix).
 The section-config half (modal's ticket_id/status columns) lives in the DRAFT of /sitemgmt/page
 (2185886, rebuilt by build_cr_page.mjs). View-mode creates keep the old behavior until the page
 is published (human). The core addItem/applyCreateDefaults half ships with the bundle either way.
+
+---
+
+## Follow-up (2026-09-21) — `autoNumber` was DMS-only, and guessed 1 when it failed
+
+**Status: FIXED in `getData.js`; corrected SQL verified live read-only; UI submit NOT yet re-run**
+**Origin:** user report — the "Add a role" modal on wcdb `/admin/administrators` errors on submit.
+
+### What was wrong
+
+Two defects, both in `applyCreateDefaults` (`dataWrapper/getData.js`):
+
+1. **The max query was hardcoded to the DMS JSONB shape.** The attribute was
+   `max(nullif(regexp_replace((data->>'<col>'), …)))`. `data->>` only exists for DMS's own
+   `data_items` rows; an external (DAMA) source is a real Postgres table with real columns, so
+   the query is invalid SQL there. Confirmed against `dmsserver.availabs.org`, source 12
+   (`wcdb-dama`, WCDB Administrators):
+   `{"$type":"error","value":{"message":"column \"data\" does not exist"}}`.
+2. **A failed lookup was indistinguishable from an empty source.** The error atom arrives
+   inside a **200** response and `dmsDataLoader` swallows it (`api/index.js:320`), so
+   `rows[0][attr]` came back absent → `+(undefined) || 0` → `0` → the column was filled with
+   **1**. Every consumer above therefore got id 1 on every create.
+
+On wcdb the two compound: `admin_id` is the table's real PRIMARY KEY
+(`uda…sources.byId.12.pkeyInfo` → `{hasPkey:true, pkeyColumn:"admin_id"}`) and rows 1..25
+already exist, so `createExternalRow`'s INSERT dies on a duplicate key — the "server error on
+submit" the user saw. Every add-modal on the wcdb admin pages is affected, not just this one:
+`dj_id`, `event_id`, `admin_id`, `sort`, `post_id`, `show_id` all carry `autoNumber`
+(`scripts/wcdb-admin/seed-wcdb-admin-pages.mjs`).
+
+### The fix
+
+- Pick the column expression by source kind — `src.isDms ?? !!(src.app && src.type)`, the same
+  signal the `format` line above it already trusts. DMS → `(data->>'col')` (byte-identical SQL
+  to before, so no BC change for the control-room consumers); external → `("col")::text`.
+- Wrap the max in `coalesce(…, 0)`. This is what makes "empty source" (→ `0`, numbering starts
+  at `autoNumberStart`) distinguishable from "the lookup never landed" (→ nothing at the path).
+- On no-usable-max, **leave the column unset** and `console.error` naming the column — the
+  documented backstop — instead of inventing a number. A fabricated id collides on a PK column,
+  and the collision reads as a data problem rather than the broken lookup it actually is. The
+  log is no longer dev-only: it is the only channel, since `Card`'s add button has no error UI.
+
+### Verified (2026-09-21)
+
+- [x] Old expression errors on an external source — live read, `column "data" does not exist`.
+- [x] New expression returns the real max on live wcdb sources: `admin_id` → 25, `sort` → 25
+      (view 12), `post_id` → 7 (view 13) — i.e. next ids 26 / 26 / 8.
+- [x] `npx eslint` on the file: only the 5 pre-existing errors (unused `orderBy`/`meta`,
+      `process` no-undef); the edit removed one of the `process.env` uses.
+- [ ] **Submit the "Add a role" modal end-to-end.** Not run: it now writes a real row to the
+      hosted wcdb/prod DB, which needs the user's go-ahead (see [[wcdb-live-writes]]).
+- [ ] Regression-check a DMS-internal consumer (Page-QA add-ticket modal, `ticket_id` start
+      101) — SQL is unchanged for that branch, but the no-guess path is new.
+
+### Files
+
+- `src/dms/packages/dms/src/patterns/page/components/sections/components/dataWrapper/getData.js`

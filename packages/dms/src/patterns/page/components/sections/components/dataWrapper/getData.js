@@ -113,7 +113,8 @@ const evaluateAST = (node, values) => {
 // add-new form Card often carries a never-match filter so only the form
 // renders). Non-numeric stored values are ignored by the max rather than fatal.
 // On fetch failure the create proceeds without the number — sync-side healing
-// (e.g. cr_sync ticket hygiene) remains the backstop.
+// (e.g. cr_sync ticket hygiene) remains the backstop. It must never GUESS one:
+// see the coalesce()/null handling in applyCreateDefaults for why.
 const CREATE_DEFAULT_FNS = {
     today: () => new Date().toISOString().slice(0, 10),
     // "YYYY-MM-DD HH:MM:SS" (UTC) — not raw ISO: cells display the value verbatim, and the
@@ -153,7 +154,18 @@ export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalS
             continue;
         }
         if (!c.autoNumber) continue;
-        const attr = `max(nullif(regexp_replace((data->>'${c.name}'), '[^0-9]', '', 'g'), '')::bigint) as _autonum`;
+        // A DMS-internal source keeps its columns inside a `data` JSONB blob; an external
+        // (DAMA) source is a real table with real columns, where `data->>'col'` is invalid
+        // SQL ("column \"data\" does not exist"). That error arrives INSIDE a 200 response
+        // and dmsDataLoader swallows it, so until 2026-09-21 every autoNumber on an external
+        // source silently resolved to 1 — which on a PK column means the INSERT dies on a
+        // duplicate key (wcdb /admin/administrators "Add a role", source admin_id 1..25).
+        const isDmsSource = src.isDms ?? !!(src.app && src.type);
+        const colExpr = isDmsSource ? `(data->>'${c.name}')` : `("${c.name}")::text`;
+        // coalesce(..., 0) is what separates "the source is empty" (→ 0, start numbering)
+        // from "the lookup never landed" (→ nothing at this path). Without it the two are
+        // the same absent value, and the absent one is the dangerous one.
+        const attr = `coalesce(max(nullif(regexp_replace(${colExpr}, '[^0-9]', '', 'g'), '')::bigint), 0) as _autonum`;
         try {
             const rows = await apiLoad({
                 format,
@@ -165,10 +177,19 @@ export const applyCreateDefaults = async ({ columns, newItem, apiLoad, externalS
                 }],
             }, "/");
             const raw = rows?.[0]?.[attr];
-            const mx = +(raw?.value ?? raw) || 0;
+            const val = raw?.value ?? raw;
+            const mx = val === null || val === undefined || val === "" ? NaN : Number(val);
+            // No usable max => the query errored or never resolved. Leave the column unset
+            // (the documented backstop) rather than inventing a number: a fabricated id
+            // collides on a PK column, and a collision reads as a data problem, not as the
+            // broken lookup it actually is.
+            if (Number.isNaN(mx)) {
+                console.error(`autoNumber: no max returned for "${c.name}" — leaving it unset`, { attr, raw });
+                continue;
+            }
             data[c.name] = String(Math.max(mx, (+c.autoNumberStart || 1) - 1) + 1);
         } catch (e) {
-            if (process.env.NODE_ENV === "development") console.error("autoNumber fetch failed", e);
+            console.error(`autoNumber fetch failed for "${c.name}" — leaving it unset`, e);
         }
     }
     return data;
