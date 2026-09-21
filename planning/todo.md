@@ -561,6 +561,7 @@
 
 ### patterns/page
 
+- [x] [`autoNumber` create-default broken on external (DAMA) sources](./tasks/current/add-item-create-defaults.md) — **FIXED 2026-09-21 (follow-up section), UI submit not yet re-run.** Reported as "the new-administrator modal errors on submit" (wcdb `/admin/administrators`). `applyCreateDefaults` hardcoded the DMS JSONB shape `data->>'col'` into its max query, which is invalid SQL against an external source's real table (`column "data" does not exist`); the error arrives inside a 200 and `dmsDataLoader` swallows it, so `+(undefined) || 0` filled the column with **1** — a duplicate key on a PK column. Now picks the expression by source kind, wraps the max in `coalesce(…, 0)` so an empty source stays distinguishable from a failed lookup, and leaves the column unset (loud `console.error`) instead of guessing. Affects every add-modal on the wcdb admin pages (`dj_id`, `event_id`, `admin_id`, `sort`, `post_id`, `show_id`).
 - [x] [Bounded numeric display controls — clamp on write, blank = unset](./tasks/current/numeric-control-clamp-and-unset.md) —
       **IMPLEMENTED 2026-08-25, live UI pass still open.** Reported as "setting inner padding on a
       bar graph makes the bars disappear." Root cause was two defects in one write path: (1) numeric
