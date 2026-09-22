@@ -274,6 +274,8 @@
 
 ### patterns/page — map
 
+- [ ] [Hover popup font tokens inert under Tailwind v4](./tasks/current/hover-font-tokens-inert-under-tailwind-v4.md) — `toImportantClasses` builds `!`-prefixed class names at RUNTIME, and Tailwind v4 only emits classes it finds by scanning source, so a hover column's `valueFontStyle`/`headerFontStyle` silently does nothing (measured: `font-semibold` 600 vs `!font-semibold` 400). Core's own default label style (`textXS`) is inert too, in every theme, in both the page-map and mapeditor copies. Diagnosed + workaround shipped in transportnyv2; core fix is BC-risky and unstarted (2026-09-22).
+
 - [x] [Map tiles: expression dynamic-filters](./tasks/current/map-tile-expression-filters.md) — a serverSide dynamic-filter with an expression column_name (`data->>'x'`) blanked the whole layer: the `filter=` clause takes expressions fine, but the active filter's column_name was also appended to `cols=` where an expression can't be a tile property → empty tiles. `cols=` now keeps plain identifiers only (2026-08-27).
 
 ### ui/table
