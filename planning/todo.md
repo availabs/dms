@@ -742,6 +742,17 @@
 
 ### patterns/datasets
 
+- [ ] [Shrink the initial JS graph — split by pattern, section type, and editor surface](./tasks/current/bundle-split-initial-graph.md) —
+      **MEASURED 2026-09-22 via sourcemap attribution, not started.** Under Lighthouse-style throttling
+      the JS bundle, not the data layer, is what costs seconds: 1.47 MB over the wire, `index` alone
+      7.8 s at 1.6 Mbps. `index-*.js` is 2,542,472 B raw and **95% first-party**: section components
+      560 kB · mapeditor 291 kB · datasets pages 270 kB · lexical 231 kB · graph_new 172 kB · admin
+      137 kB. `vendor` (1,049,846 B) is 23% lexical family + 8% yjs/lib0 + 5% prismjs — all editor
+      surface. Ranked plan: (1) lazy pattern siteConfigs (~450 kB, `resolvePatterns()` is already
+      async), (2) lazy section components from ComponentRegistry keeping configs eager (~730 kB),
+      (3) on-demand maplibre (278 kB; `avl-map.jsx` already shows the pattern), (4) split editor-only
+      lexical plugins/prism/yjs from the view path (view DOES mount lexical — verified). Watch SSR.
+
 - [ ] [Page load — the site bootstrap payload (+ 3 related fetch problems)](./tasks/current/site-bootstrap-payload-and-pattern-lookup.md) —
       **3 of 4 FIXED 2026-09-17: data per `/cenrep` load 1,350,149 B → 453,318 B (−66%), and the
       pattern lookup 123 ms → 1.0 ms.** (1) The site row's dead `themes` array — 480 kB of inline
@@ -767,10 +778,13 @@
       remounted (this is fix 3 of `no-access-stub-default-theme.md`, DONE 2026-07-02, never working in
       the field; its test used the unexpanded shape — `siteSnapshot.test.js` now covers the real one).
       **Remaining in the trace:** ~40% client boot (index chunk 746 kB + eager maplibre 285 kB, 420 ms
-      long tasks), a six-level waterfall, and the 120 ms `sources.length` seq scan — the trigram index
-      that fixes it could NOT be applied to the live DB (sandbox refused `Modify Shared Resources`);
-      it needs an owner-run `CREATE INDEX CONCURRENTLY` or just a deploy. Uncommitted. Suites green
-      (97 uda / 28+12+16+23 / drift 23 / client vitest 477 passed, 2 pre-existing sync reds).
+      long tasks) and a six-level waterfall. **Trigram index APPLIED to live dms3 2026-09-22** (owner
+      permission): 106 schemas via `CREATE INDEX CONCURRENTLY`, no write locks, 0 invalid, live query
+      **123 ms → 1.2 ms**, `sources.length` 120 ms → 20 ms, **first card 947-1005 ms → 726-735 ms**,
+      FCP → ~496 ms. Index also added to the STARTUP sql (`db/sql/dms/dms.sql` + `table-resolver.js`'s
+      per-app DDL), restricted to `data_items` content tables so split dataset-row tables don't pay for
+      a useless GIN index. Code uncommitted. Suites green (uda 114 / 28+12+16+23 / drift 23 / client
+      vitest 477); pre-existing reds: 2 sync + 1 `resolveTable` naming in test:splitting.
 
 - [ ] [Datasets — stop loading `file_upload` sources in the default list](./tasks/current/datasets-exclude-file-upload-sources.md) —
       the landing page fetches **every** source in the env (`uda[env].sources.length` then
