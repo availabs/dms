@@ -112,7 +112,12 @@ const AuthLayout = ({children, theme, imgI}) => {
         <div className={pages.bareWrapper}>
             <div className={pages.bareBand}>
                 <div className="t6-sheet-fade" />
-                {children}
+                {/* `relative` lifts the page above the absolutely-positioned
+                    fade — without it the grid paints over every page's card
+                    (positioned elements paint after in-flow ones). */}
+                <div className={pages.bareContent ?? 'relative w-full'}>
+                    {children}
+                </div>
             </div>
         </div>
     )

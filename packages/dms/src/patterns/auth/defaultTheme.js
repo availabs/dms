@@ -27,6 +27,10 @@ const theme = {
         // content (`{children}`), so it shouldn't depend on inheritance to
         // not render transparent.
         bareBand: 'w-full flex-1 relative flex items-center justify-center px-6 py-16 bg-[var(--t-paper)]',
+        // Wraps the page (`{children}`) inside bareBand, above the
+        // t6-sheet-fade overlay — must stay positioned (`relative`) or the
+        // grid paints over the card on every auth page.
+        bareContent: 'relative w-full',
         sectionGroup: {
             default: {
                 // wrapper1/wrapper2/wrapper3/sideNavContainer* are dead weight
@@ -56,7 +60,7 @@ const theme = {
                 // `max-w-sm w-full` had nothing to size itself against — a
                 // block element sizes to its shrink-to-fit parent, not the
                 // viewport, so the card rendered narrower than max-w-sm
-                // actually allows. `w-full` on the form (a flex child of
+                // actually allows. `w-full` on the form (inside `bareContent`, within
                 // `bareBand`) is what lets it expand up to that cap.
                 formWrapper: "w-full",
                 iconMarkWrapper: "w-10 h-10 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] flex items-center justify-center text-[var(--t-cobalt)] mx-auto",
