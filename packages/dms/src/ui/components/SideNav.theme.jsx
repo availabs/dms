@@ -114,7 +114,7 @@ const sideNavTheme = {
       subMenuParentWrapper: "flex flex-col",
       subMenuTitle: 'hidden',
       // Bottom section (user menu, etc.)
-      bottomMenuWrapper: 'mt-auto border-t border-[var(--t-rule)] px-5 py-4 bg-[var(--t-paper)] flex flex-col items-start gap-2.5',
+      bottomMenuWrapper: 'mt-auto border-t border-[var(--t-rule)] px-5 py-1 bg-[var(--t-paper)] flex flex-col items-start gap-2.5',
       // Section divider
       sectionDivider: 'my-3 border-t border-[var(--t-rule)]',
       // Section heading

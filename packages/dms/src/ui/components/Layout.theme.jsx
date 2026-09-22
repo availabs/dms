@@ -309,7 +309,15 @@ export default  {
     "wrapper": `relative isolate flex min-h-svh w-full max-lg:flex-col`,
     "wrapper2": 'flex-1 flex items-start flex-col items-stretch max-w-full min-h-screen',
     "wrapper3": 'flex flex-1 items-start',
-    "childWrapper": 'flex-1 flex flex-col h-full'
+    // `min-w-0` — without it, this flex-row item (sibling of SideNav in
+    // wrapper3) can't shrink below its content's intrinsic width, so a wide
+    // child (e.g. a Table with many columns) pushes the whole Layout wider
+    // than the viewport instead of the child scrolling/wrapping inside it.
+    // This was the actual root cause of the ~66px overflow LayoutGroup's
+    // `adminContent` style used to paper over with a `max-w-[1200px]` cap
+    // (see LayoutGroup.theme.jsx) — fixing it here let that cap come off
+    // (2026-09-22, "overview/sites/themes/.../groups should be full width").
+    "childWrapper": 'flex-1 flex flex-col h-full min-w-0'
   }]
 }
 

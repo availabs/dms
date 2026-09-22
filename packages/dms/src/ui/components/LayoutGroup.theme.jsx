@@ -41,20 +41,15 @@ export const layoutGroupTheme = {
       // 2026-09-21 — "more padding than they need... overview page is a good
       // ref of how much it should be").
       name: "adminContent",
-      // Kept `max-w-[1200px]` from `content` (unlike the padding, which IS
-      // reduced to match Overview) — this LayoutGroup's own ancestor (Layout's
-      // childWrapper) measures ~66px wider than the actual viewport allows
-      // (pre-existing, traced live, not introduced here or by anything below
-      // LayoutGroup — every wrapper in THIS chain already carries `min-w-0`/
-      // `max-w-full` and it made no difference, confirming the excess width is
-      // set upstream in `Layout.jsx` itself). `content`'s cap was silently
-      // absorbing that excess; dropping it exposed a real overflow (`Add
-      // pattern` rendering off-screen, `scrollWidth` 1506px vs 1440px
-      // viewport) the moment a wide child (Sites' Table) asked for full
-      // width. Not worth chasing into `Layout.jsx` for a padding tweak —
-      // the cap is cheap insurance and doesn't affect the padding fix at all.
+      // No max-width — Sites/Themes/Users/Groups/Profile should render full
+      // width, matching the Pattern Editor's own pages (2026-09-22). This used
+      // to keep `max-w-[1200px]` as "cheap insurance" against a real overflow
+      // bug (Layout's `childWrapper` lacked `min-w-0`, so a wide child like
+      // Sites' Table pushed the whole Layout past the viewport) — that's now
+      // fixed at the source in Layout.theme.jsx's `childWrapper`, so the cap
+      // here is no longer needed.
       wrapper1: 'w-full flex-1 flex flex-row min-w-0',
-      wrapper2: 'flex flex-1 w-full min-w-0 max-w-[1200px] flex-col relative p-5 lg:p-8 font-sans text-base font-normal leading-relaxed text-[var(--t-ink)] min-h-[100px]',
+      wrapper2: 'flex flex-1 w-full min-w-0 flex-col relative p-5 lg:p-8 font-sans text-base font-normal leading-relaxed text-[var(--t-ink)] min-h-[100px]',
       wrapper3: ''
     },
     {

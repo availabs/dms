@@ -19,7 +19,7 @@ hardcoded `selectedTheme: "default"` (`patterns/admin/siteConfig.jsx`) — confi
 `planning/shared/tasks/current/tessera-default-theme.md`'s decision record — so this work targets the
 one shared tessera-default look, not a per-project reskin.
 
-## Current status (2026-09-21) — read this first before resuming
+## Current status (2026-09-22) — read this first before resuming
 
 ### Done in earlier sessions (full detail in `tessera-component-theme-port.md`)
 
@@ -726,17 +726,82 @@ described above:
   mode also confirmed, zero console errors throughout. Cleared the test attribute and unlinked the
   fixture afterward.
 
+### Done THIS session (2026-09-22) — ThemeToggle relocated, then "view site" removed entirely
+
+User asked to move the `ThemeToggle` off the sidenav's `bottomMenu` (where it sat next to
+`UserMenu` via `Layout.theme.jsx`'s global default) onto "where view site is," then in a fast
+follow-up asked to (a) remove "view site" entirely (not just relocate it) and (b) fix
+Users/Profile/Groups, which still had the old ThemeToggle+UserMenu sidebar pairing with no toggle
+anywhere else — a separate pattern config (`patterns/auth/siteConfig.jsx`'s `AdminLayout`) the
+first pass never touched.
+
+- `patterns/admin/siteConfig.jsx` (`adminConfig`) and `patternConfig` — both now override
+  `theme.layout.options.sideNav.bottomMenu` to `[{type:"UserMenu"}]` (mirrors the existing
+  `theme.logo` mutation precedent in the same function), dropping `ThemeToggle` from the sidebar.
+- `patterns/auth/siteConfig.jsx` (`manageAuthConfig`) — same `bottomMenu` override added, so
+  Users/Profile/Groups match.
+- `ThemeToggle` moved into each pattern's own top breadcrumb bar instead: `AdminBreadcrumb`
+  (`patterns/admin/siteConfig.jsx`), `Breadcrumbs` (`patternEditor/index.jsx`), and `AdminLayout`
+  (`patterns/auth/siteConfig.jsx`) all render it inside a new `breadcrumbActions` wrapper (flex +
+  gap, mirrored across `siteConfig.theme.js`/`patternEditor.theme.js`/`defaultTheme.js`'s
+  `authPages.manage`).
+- "View site" removed completely per follow-up direction — the `<Link to='/'>` + its `ArrowUpRight`
+  icon and the `breadcrumbViewSite` theme key are gone from both admin breadcrumbs (auth's
+  `AdminLayout` never had one). Dead `Icon`/`Link` imports/destructures cleaned up where they became
+  unused.
+- **Then, per explicit follow-up ("use themecontext to get the component")**: `ThemeToggle` was
+  being imported directly (`import ThemeToggle from '.../ui/components/ThemeToggle'`) in all three
+  consumers — against the codebase's own "always access UI components through `ThemeContext`,
+  never via direct imports" convention. Registered `ThemeToggle` on the shared `UI` object
+  (`ui/index.js`) and switched all three call sites to `const { ThemeToggle } = useContext(ThemeContext).UI`
+  instead (widget-registry's own direct import in `ui/widgets/index.jsx` is unrelated and untouched
+  — that's resolving a `{type:"ThemeToggle"}` config entry, not rendering the component inline).
+- Verified live at every step (temp admin-pattern fixture, create+link+unlink+delete cycle) on
+  Sites, Pattern Editor tabs, Users, Profile, Groups: exactly one toggle button per page, zero
+  "view site" text nodes, dark-mode toggling persists across navigation, zero new console errors.
+
+### Done THIS session (2026-09-22, continued) — 7 pages made full width, root-caused a previously-deferred bug
+
+User asked for Overview/Sites/Themes-list/Theme-edit/Profile/Users/Groups to render full width.
+These were capped by `LayoutGroup.theme.jsx`'s `adminContent` style's `max-w-[1200px]` — which the
+2026-09-21 padding-fix session (see above) had deliberately kept as "cheap insurance" against a
+real, unfixed overflow bug rather than chasing the root cause. This session chased it:
+
+- **Root cause**: `ui/components/Layout.jsx`'s `wrapper3` (`flex flex-1 items-start`) has `SideNav`
+  and `childWrapper` as its two flex-row children; `childWrapper` had no `min-w-0`. A flex item's
+  default `min-width` is `auto` — it won't shrink below its content's intrinsic width, so a wide
+  descendant (Sites' patterns `Table`, once it was allowed to ask for 100% width) pushed
+  `childWrapper`, and the whole `Layout`, past the viewport instead of fitting inside it. That's
+  the "~66px" the deferred-bug memory tracked — not a fixed offset, it scaled with whatever content
+  wanted to be that wide.
+- **Fix**: added `min-w-0` to `childWrapper` in `ui/components/Layout.theme.jsx`'s default style.
+  With the real constraint fixed at the source, removed the `max-w-[1200px]` safety cap from
+  `adminContent` entirely (`ui/components/LayoutGroup.theme.jsx`). Also dropped a second,
+  independent `max-w-7xl` cap that Sites (`path:""`) and Themes-list (`path:"themes"`) had at their
+  own `SectionGroup` level (`patterns/admin/siteConfig.jsx`) — added `maxWidth="w-full"`, matching
+  Theme-edit's pre-existing override.
+- **Verified live**: no horizontal overflow (`document.documentElement.scrollWidth` vs
+  `clientWidth`) on any of the 7 pages at 1440px, populated with real linked patterns (not the
+  empty-table case the original bug report used). Also spot-checked a regular non-admin site page
+  (`/content`, same global default `Layout` style) — no regression, `min-w-0` only removes an
+  artificial floor on shrinking, never forces anything narrower than before.
+- Memory `project_layout_childwrapper_width_overflow.md` updated to FIXED with the full trace —
+  read that file if this class of overflow resurfaces anywhere else under `Layout`.
+
 ## Not started / next steps
 
-1. **Create-site flow** — still not designed (`patterns/admin/pages/createSite.jsx`), per the original
+1. **MNY admin reskin** (**pick this up next session**) — MNY's own admin surface (`mny_admin`
+   theme) still hasn't had its own pass; everything done so far is the shared tessera-default look
+   only. Confirmed earlier (`tessera-component-theme-port.md`) that `mny_admin`'s auth-page theming
+   is correct via its `{...mny, ...theme, Icons}` shallow-spread inheritance, so MNY's login/signup
+   pages are fine — this is specifically about the Sites/Themes/Pattern-Editor admin surface, which
+   MNY doesn't override at all today (always renders the shared tessera default, same as every other
+   project, by design). Scope this out at the start of that session: which pages/components get an
+   MNY-specific look, whether there's an existing MNY mockup or design reference to work from, and
+   whether it's a full parallel `mny_admin`-namespaced theme pass or a targeted set of overrides.
+2. **Create-site flow** — still not designed (`patterns/admin/pages/createSite.jsx`), per the original
    admin-port blocker list. Still on the default (un-fixed) `SectionGroup` card/padding at its
    `create` route in `siteConfig.jsx` — same padding-stacking bug pattern, not yet touched.
-2. **MNY admin reskin** — MNY's own admin surface (`mny_admin` theme) still hasn't had its own pass;
-   everything this session touched is the shared tessera-default look only. Confirmed earlier
-   (`tessera-component-theme-port.md`) that `mny_admin`'s auth-page theming is correct via its
-   `{...mny, ...theme, Icons}` shallow-spread inheritance, so MNY's login/signup pages are fine — this
-   is specifically about the Sites/Themes/Pattern-Editor admin surface, which MNY doesn't override at
-   all (always renders the shared tessera default, same as every other project, by design).
 3. Per the standing insulation-pass lesson (`[[feedback_no_concurrent_git_stash_parallel_agents]]`'s
    sibling risk, not the stash issue itself): whenever any of the above lands, check whether any
    project's own admin.theme.js-equivalent silently relies on a key this pass changed. Not checked yet
@@ -747,6 +812,7 @@ described above:
 ## To resume in a future session
 
 Say: **"Continue the admin pattern v6 port — see
-`src/dms/planning/tasks/current/admin-pattern-v6-port.md`."** Then say which of the "Not started" items
-above to pick up — all five mockup-covered tabs (Overview, Access, Pages, Activity, Data) plus Page
-Templates and Format Manager are now done; remaining threads are Create-site and the MNY admin reskin.
+`src/dms/planning/tasks/current/admin-pattern-v6-port.md`."** The shared tessera-default admin
+surface is now fully ported (all 7 mockup-covered tabs, the ThemeToggle/breadcrumb chrome cleanup,
+and the full-width pass are all done) — **next session should pick up item 1, the MNY admin
+reskin**, before Create-site.

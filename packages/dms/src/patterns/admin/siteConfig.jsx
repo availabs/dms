@@ -184,8 +184,10 @@ const adminConfig = ({
               // Pattern Editor's own pages). `padding="p-0"` — SectionGroup's own
               // `defaultPadding` (p-4) was stacking on top of the outer LayoutGroup's
               // padding, giving this page far more inset than Overview's; matches
-              // `patternConfig`'s own `padding="p-0"` precedent below.
-              <SectionGroup card={false} padding="p-0">
+              // `patternConfig`'s own `padding="p-0"` precedent below. `maxWidth="w-full"` —
+              // this page (and Themes/Users/Groups/Profile) should render full width
+              // (2026-09-22), matching ThemeEdit's own existing override below.
+              <SectionGroup card={false} padding="p-0" maxWidth="w-full">
                 <SiteEdit {...props} />
               </SectionGroup>
             ),
@@ -206,8 +208,9 @@ const adminConfig = ({
               // `card={false}` — ThemeList's own `header` already renders flush, and its
               // `tableWrapper` already carries its own card; the default `card` was
               // wrapping both in a second, redundant outer box (same fix as SiteEdit above).
-              // `padding="p-0"` — same excess-padding fix as SiteEdit above.
-              <SectionGroup card={false} padding="p-0">
+              // `padding="p-0"` — same excess-padding fix as SiteEdit above. `maxWidth="w-full"`
+              // — full width, same as SiteEdit above (2026-09-22).
+              <SectionGroup card={false} padding="p-0" maxWidth="w-full">
                 <ThemeList {...props} />
               </SectionGroup>
             ),
