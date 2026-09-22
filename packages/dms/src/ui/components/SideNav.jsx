@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useMatch, useNavigate, Link } from "react-router";
+import { useNavigate, Link, useLocation, matchPath } from "react-router";
 import Icon from './Icon'
 import { MobileMenu } from './TopNav'
 import { ThemeContext, getComponentTheme } from '../useTheme'
@@ -170,42 +170,56 @@ export const SideNavItem = ({
 		return navItem.path;
 	}, [navItem?.path]);
 
-	const subTos = React.useMemo(() => {
-		const subs = subMenus.reduce((a, c) => {
-			if (Array.isArray(c.path)) {
-				a.push(...c.path);
-			} else if (c.path) {
-				a.push(c.path);
-			}
-			return a;
-		}, []);
-		return [...To, ...subs];
-	}, [To, subMenus]);
+	const { pathname } = useLocation();
 
 	// Absolute destinations (a `rootPath` cross-pattern item resolved to a full URL, or
-	// an authored external link) are not router paths, so useMatch can't take them
+	// an authored external link) are not router paths, so matchPath can't take them
 	// directly. Match same-origin ones by pathname so the item still highlights while
-	// you're browsing that section; foreign origins never match. Mirrors TopNav's
-	// `matchBase` — the two renderers had drifted, and only TopNav handled this.
-	const matchBase = React.useMemo(() => {
-		const p = subTos[0] || '';
-		if (!ABSOLUTE_URL.test(p)) return p;
+	// you're browsing that section; foreign origins never match.
+	const toPathname = React.useCallback((p) => {
+		if (!ABSOLUTE_URL.test(p || '')) return p || '';
 		try {
 			const u = new URL(p, typeof window === 'undefined' ? 'http://x' : window.location.origin);
 			return (typeof window === 'undefined' || u.origin === window.location.origin) ? u.pathname : '';
 		} catch { return ''; }
-	}, [subTos]);
+	}, []);
 
-	const routeMatch = Boolean(useMatch({ path: `${matchBase}/*`, end: true }));
+	// A leaf item (no subMenus) matches its own path EXACTLY — appending a
+	// wildcard would also match every route nested under the same prefix,
+	// which for a root-level item (e.g. an admin pattern's "Sites" item,
+	// whose own path IS the admin baseUrl and therefore a literal prefix of
+	// every other admin page) meant it showed "always active" once the
+	// sidenav's active state became visually loud (2026-09-20). A parent
+	// header (has subMenus) matches if pathname is under ANY of its
+	// children's paths — not just the first, which is what the previous
+	// single `subTos[0]` pick actually checked; for a header with no path of
+	// its own (e.g. "Auth", which is pure subMenus) that pick landed on
+	// `undefined` for its OWN slot and matched literally everything.
+	const ownPath = toPathname(To[0]);
+	const routeMatch = React.useMemo(() => {
+		if (ownPath && matchPath({ path: subMenus.length ? `${ownPath}/*` : ownPath, end: true }, pathname)) {
+			return true;
+		}
+		return subMenus.some(c => {
+			const paths = Array.isArray(c.path) ? c.path : (c.path ? [c.path] : []);
+			return paths.some(p => {
+				const cp = toPathname(p);
+				return cp && matchPath({ path: `${cp}/*`, end: true }, pathname);
+			});
+		});
+	}, [ownPath, subMenus, pathname, toPathname]);
 
-	const linkClasses = theme?.navitemSide;
-	const activeClasses = theme?.navitemSideActive
+	const linkClasses = theme?.[`navitemSide_level_${depth+1}`] || theme?.navitemSide;
+	const activeClasses = theme?.[`navitemSideActive_level_${depth+1}`] || theme?.navitemSideActive
 
 	const isActive = routeMatch || active
 	const navClass = isActive ? activeClasses : linkClasses;
   const icon = navItem.icon || theme?.[`forcedIcon_level_${depth + 1}`] || theme?.forcedIcon;
 
-  const [showSubMenu, setShowSubMenu] = React.useState(routeMatch && subMenuActivate !== 'onHover' );
+  // `navItem.defaultOpen`: an author can pin a parent header's submenu open
+  // regardless of the current route (e.g. admin's "Auth" group) — otherwise
+  // unchanged, still gated by subMenuActivate for the onHover case.
+  const [showSubMenu, setShowSubMenu] = React.useState(navItem?.defaultOpen || (routeMatch && subMenuActivate !== 'onHover'));
 
 	// Label / section-divider row: an item with no navigable target, no onClick,
 	// and no subMenus renders as plain styled text — no Link, no hover chrome.
@@ -241,7 +255,7 @@ export const SideNavItem = ({
 					className={`${navClass}`}
 				>
 					<div className={theme?.[`menuItemWrapper_level_${depth+1}`] || theme?.menuItemWrapper}>
-          <div className='flex-1 flex items-center justify-between' >
+          <div className={theme?.navItemRow}>
 						{ !icon ? null : (
 								<Icon
 									icon={icon}

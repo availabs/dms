@@ -39,7 +39,18 @@ function resolveSubdomainFilters(rawFilters, subdomain) {
     return parsed[subdomain] || parsed['*'] || [];          // new format
 }
 
-function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
+// Exported — the admin pattern's own access gates (editSite.jsx,
+// patternEditor/index.jsx) need this same resolution, not just route
+// building here. A raw `pattern.authPermissions` is either the "old" flat
+// `{groups,users}` shape, or the "new" subdomain-keyed shape
+// (PatternPermissionsEditor writes this: `{"<subdomain-or-*>": {groups,users}}`,
+// each value independently JSON-stringified) — reading it as a flat object
+// without unwrapping the subdomain/`*` layer first (as those two admin call
+// sites used to) finds no top-level `.groups`/`.users` on ANY pattern that's
+// ever been edited through the current Permissions UI, so `isUserAuthed`
+// silently denies everyone but a site admin regardless of what's actually
+// granted underneath (found 2026-09-20 — mitigat-ny-prod pattern 1006405).
+export function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
     const parsed = parseIfJSON(rawAuth || '{}', {});
     if (parsed['*'] !== undefined)                          // new format
         return parseIfJSON(parsed[subdomain] || parsed['*'] || {});

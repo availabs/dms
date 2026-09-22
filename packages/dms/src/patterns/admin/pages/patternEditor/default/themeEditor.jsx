@@ -1,7 +1,6 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
 import Frame from 'react-frame-component'
 import {useImmer} from 'use-immer';
-import {useNavigate} from 'react-router';
 import {cloneDeep, get, set} from "lodash-es";
 
 import {ThemeContext, mergeTheme} from "../../../../../ui/useTheme";
@@ -36,27 +35,6 @@ const compOptions = [
     {label: 'Modal', value: 'Modal'},
 ];
 
-const initialFramContent = `
-						  <!DOCTYPE html>
-						  <html lang="en">
-							<head>
-								<meta charset="UTF-8" />
-								<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-								<script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
-								<style type="text/tailwindcss">
-								  @custom-variant dark (&:where(.dark, .dark *));
-								</style>
-								<style>
-								@import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
-								</style>
-
-							</head>
-							<body>
-							  <div id="root" class=""></div>
-							</body>
-						  </html>
-						`
-
 function ControlRenderer({config, state, setState}) {
     const {UI, theme} = useContext(ThemeContext);
     const t = { ...themeEditorTheme, ...(theme?.admin?.themeEditor || {}) }
@@ -80,7 +58,7 @@ function ControlRenderer({config, state, setState}) {
         })
     //console.log('Fieldset controls', controls)
     return (
-        <div>
+        <div className={t.controlGroup}>
             <div className={t.controlLabel}>{config?.label || ''}</div>
             <FieldSet components={controls}/>
         </div>
@@ -103,7 +81,6 @@ export function PatternThemeEditor({
     useEffect(() => { import('../../../../../ui/docs').then(m => setComponentDocs(m.default)); }, []);
 
     // themes is an array of {name, theme, id}
-    const navigate = useNavigate();
     const {themes, themesLoader, UI, theme} = useContext(ThemeContext);
     const t = { ...themeEditorTheme, ...(theme?.admin?.themeEditor || {}) }
     const {baseUrl, user, apiUpdate} = React.useContext(AdminContext) || {};
@@ -166,6 +143,13 @@ export function PatternThemeEditor({
     //const compFromProps = useMemo(() => compOptions.find(c => c.value.toLowerCase() === component?.toLowerCase())?.value, [component]);
     const [currentComponent, setCurrentComponent] = useState('PageView')
     const [currentComponentPropsIdx, setCurrentComponentPropsIdx] = useState(0);
+    // 'preview' | 'json' — replaces the old always-visible debug <pre>, which sat as a
+    // sibling below the sidebar+frame row inside this component's fixed-height wrapper
+    // with no cap of its own, so it ate the flex space the sidebar/frame needed and
+    // squeezed both into a ~240px sliver (confirmed live via DOM measurement while
+    // designing design_system_v6/pages/admin-pattern-theme.html). Tabbing it inside the
+    // frame pane keeps the feature without it ever competing for layout space.
+    const [previewTab, setPreviewTab] = useState('preview');
 
     useEffect(() => {
         const newBase = mergeTheme(
@@ -225,7 +209,7 @@ export function PatternThemeEditor({
                             options={compOptions}
                         />
                     </div>
-                    <div>
+                    <div className={t.exampleSelectorWrapper}>
                         <MultiSelect singleSelectOnly searchable={false} value={currentComponentPropsIdx}
                                 onChange={value => setCurrentComponentPropsIdx(value)}
                                 options={
@@ -238,7 +222,6 @@ export function PatternThemeEditor({
                         />
                     </div>
                 </div>
-                <button onClick={() => navigate(-1)}>back</button>
             </div>
             <div className={t.body}>
                 <div className={t.sidebar}>
@@ -258,15 +241,15 @@ export function PatternThemeEditor({
                         />
                     </div>
                     <div className={t.sidebarActions}>
-                        <Button onClick={() => onSubmit(currentTheme)}>Save</Button>
-                        <Button onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>Reset</Button>
-                        <Button onClick={() => setPatternTheme({layout: {options: baseTheme?.layout?.options}})}>Full
-                            Reset</Button>
+                        <Button className={t.btnSave} onClick={() => onSubmit(currentTheme)}>save</Button>
+                        <Button className={t.btnReset} onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>reset</Button>
+                        <Button className={t.btnFullReset} onClick={() => setPatternTheme({layout: {options: baseTheme?.layout?.options}})}>full reset</Button>
                     </div>
                     <div className={t.sidebarControls}>
                         {
                             (themeSettings?.[currentThemeSetting] || [])
-                                .map(conf => <ControlRenderer
+                                .map((conf, i) => <ControlRenderer
+                                    key={conf?.label || i}
                                     config={conf}
                                     state={currentTheme}
                                     setState={setPatternTheme}
@@ -275,11 +258,63 @@ export function PatternThemeEditor({
                     </div>
                 </div>
                 <div className={t.frameWrapper}>
+                    <div className={t.frameTabBar}>
+                        <button
+                            className={previewTab === 'preview' ? t.frameTabActive : t.frameTab}
+                            onClick={() => setPreviewTab('preview')}
+                        >preview</button>
+                        <button
+                            className={previewTab === 'json' ? t.frameTabActive : t.frameTab}
+                            onClick={() => setPreviewTab('json')}
+                        >raw overrides</button>
+                    </div>
+                    {previewTab === 'json' ? (
+                        <pre className={t.debugPre}>{JSON.stringify(patternTheme, null, 3)}</pre>
+                    ) : (
                     <Frame
                         className={t.frame}
-                        initialContent={initialFramContent}
+                        initialContent={`
+              <!DOCTYPE html>
+              <html>
+                <head>
+                    <meta charset="UTF-8" />
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+                    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+                    <style type="text/tailwindcss">
+                      @custom-variant dark (&:where(.dark, .dark *));
+                    </style>
+                    <style>
+                    @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
+                    </style>
+                    <link href="/fonts/proxima-nova/stylesheet.css" rel="stylesheet">
+                    ${/* The frame is a separate document — the parent's injected
+                        --t-* token stylesheet (ui/defaultTheme.js's
+                        'dms-default-tokens' entry) and any theme-specific
+                        <link>/<style> font tags never cross that boundary, so a
+                        component previewed here that reads var(--t-*) (every
+                        Phase-A-ported primitive) rendered with undefined tokens.
+                        currentTheme.fonts already carries the full merged list
+                        (mergeTheme concatenates 'fonts' arrays), so replaying
+                        each entry into this frame's own <head> fixes it for
+                        whichever theme is actually being edited — same fix as
+                        admin/pages/themes/editTheme.jsx's live preview. */
+                    (currentTheme?.fonts || [])
+                      .map(f => f?.type === 'google' && f?.href
+                        ? `<link rel="stylesheet" href="${f.href}">`
+                        : f?.type === 'style' && f?.content
+                          ? `<style id="${f.id || ''}">${f.content}</style>`
+                          : '')
+                      .join('\n')}
+                    <style>body { font-family: "IBM Plex Sans", system-ui, sans-serif; background: var(--t-paper, #fff); color: var(--t-ink, inherit); }</style>
+                </head>
+                <body>
+                  <div id="root" class=""></div>
+                </body>
+              </html>
+            `}
                     >
                         <ThemeContext.Provider value={{theme: currentTheme, UI}}>
+                            { !componentDocs ? null :
                             <ComponentRenderer
                                 Component={
                                     componentDocs?.[currentComponent]?.component ||
@@ -292,13 +327,13 @@ export function PatternThemeEditor({
                                     componentDocs?.[currentComponent]?.props ||
                                     componentDocs?.[currentComponent]
                                 }
-                            />
+                            /> }
                         </ThemeContext.Provider>
                     </Frame>
+                    )}
                 </div>
 
             </div>
-            <pre className={t.debugPre}>{JSON.stringify(patternTheme, null, 3)}</pre>
         </div>
     )
 }

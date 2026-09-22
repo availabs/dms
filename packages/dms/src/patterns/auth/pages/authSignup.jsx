@@ -29,11 +29,16 @@ export default function AuthSignup({ disableSignup }) {
     const { AUTH_HOST, PROJECT_NAME, baseUrl, isMultiTenant, siteType } = React.useContext(AuthContext);
     const siteTemplates = theme?.site_templates ?? [];
     const pageTemplates = theme?.page_templates ?? [];
-    const { FieldSet, Button } = UI;
+    const { FieldSet, Button, Icon } = UI;
     const navigate = useNavigate();
     const { falcor } = useFalcor();
 
     const sectionGroupTheme = theme?.auth?.authPages?.sectionGroup?.default || {};
+    const iconMarkEl = sectionGroupTheme.iconMarkWrapper && (
+      <span className={sectionGroupTheme.iconMarkWrapper}>
+        <Icon icon="Tile" className={sectionGroupTheme.iconMark} />
+      </span>
+    );
 
     // Detect whether we are on root domain in multi-tenant mode
     const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
@@ -48,7 +53,8 @@ export default function AuthSignup({ disableSignup }) {
     if (disableSignup) {
         return (
             <div className={sectionGroupTheme.pageWrapper}>
-                <div className={sectionGroupTheme.pageTitle}>Sign Up Disabled</div>
+                {iconMarkEl}
+                <div className={sectionGroupTheme.pageTitle}>Sign up disabled</div>
                 <p className={sectionGroupTheme.disabledNotice ?? 'text-sm text-gray-500'}>Sign up is not available. Please contact an administrator.</p>
             </div>
         );
@@ -161,39 +167,40 @@ export default function AuthSignup({ disableSignup }) {
 
         return (
             <div className={sectionGroupTheme.pageWrapper}>
-                <div className={sectionGroupTheme.pageTitle}>Create Account</div>
+                {iconMarkEl}
+                <div className={sectionGroupTheme.pageTitle}>Create account</div>
 
                 <FieldSet
                     components={[
                         {
                             type: 'Input',
-                            label: 'Organization Name',
+                            label: 'organization name',
                             value: tenantForm.name,
                             onChange: (e) => setTenantForm({ ...tenantForm, name: e.target.value }),
                         },
                         {
                             type: 'Input',
-                            label: 'Subdomain',
+                            label: 'subdomain',
                             value: tenantForm.subdomain,
                             onChange: (e) => setTenantForm({ ...tenantForm, subdomain: e.target.value }),
                         },
                         {
                             type: 'Input',
-                            label: 'Email',
+                            label: 'email',
                             value: credentials.email,
                             onChange: (e) => setCredentials({ ...credentials, email: e.target.value }),
                         },
                         {
                             type: 'Input',
                             input_type: 'password',
-                            label: 'Password',
+                            label: 'password',
                             value: credentials.password,
                             onChange: (e) => setCredentials({ ...credentials, password: e.target.value }),
                         },
                         {
                             type: 'Input',
                             input_type: 'password',
-                            label: 'Verify Password',
+                            label: 'verify password',
                             value: credentials.verifyPassword,
                             onChange: (e) => setCredentials({ ...credentials, verifyPassword: e.target.value }),
                         },
@@ -215,14 +222,14 @@ export default function AuthSignup({ disableSignup }) {
                     onClick={handleTenantSignup}
                 >
                     <span className={sectionGroupTheme.actionText}>
-                        {submitting ? 'Creating…' : 'Create Account'}
+                        {submitting ? 'creating…' : 'create account'}
                     </span>
                 </Button>
 
                 <div className={sectionGroupTheme.prompt}>
                     Already have an account?{' '}
                     <span>
-                        <Link to={`${baseUrl}/login`} className={sectionGroupTheme.forgotPasswordText}>Sign in</Link>
+                        <Link to={`${baseUrl}/login`} className={sectionGroupTheme.forgotPasswordText}>sign in</Link>
                     </span>
                 </div>
             </div>
@@ -230,30 +237,34 @@ export default function AuthSignup({ disableSignup }) {
     }
 
     // ── Standard single-user signup (unchanged) ───────────────────────────────
-    if (status) return <div>{status}</div>;
+    // Previously a bare unstyled <div> — no pageWrapper, so the status
+    // message rendered with no background/border/padding at all (looked
+    // "transparent" against the page instead of a card).
+    if (status) return <div className={sectionGroupTheme.pageWrapper}>{status}</div>;
     return (
         <div className={sectionGroupTheme.pageWrapper}>
-            <div className={sectionGroupTheme.pageTitle}>Sign Up</div>
+            {iconMarkEl}
+            <div className={sectionGroupTheme.pageTitle}>Sign up</div>
 
             <FieldSet
                 components={[
                     {
                         type: 'Input',
-                        label: 'Email',
+                        label: 'email',
                         value: credentials.email,
                         onChange: (e) => setCredentials({ ...credentials, email: e.target.value }),
                     },
                     {
                         type: 'Input',
                         input_type: 'password',
-                        label: 'Password',
+                        label: 'password',
                         value: credentials.password,
                         onChange: (e) => setCredentials({ ...credentials, password: e.target.value }),
                     },
                     {
                         type: 'Input',
                         input_type: 'password',
-                        label: 'Verify Password',
+                        label: 'verify password',
                         value: credentials.verifyPassword,
                         onChange: (e) => setCredentials({ ...credentials, verifyPassword: e.target.value }),
                     },
@@ -287,13 +298,13 @@ export default function AuthSignup({ disableSignup }) {
                         });
                 }}
             >
-                <span className={sectionGroupTheme.actionText}>Sign up</span>
+                <span className={sectionGroupTheme.actionText}>sign up</span>
             </Button>
 
             <div className={sectionGroupTheme.prompt}>
                 Already have an account?{' '}
                 <span>
-                    <Link to={`${baseUrl}/login`} className={sectionGroupTheme.forgotPasswordText}>Sign in</Link>
+                    <Link to={`${baseUrl}/login`} className={sectionGroupTheme.forgotPasswordText}>sign in</Link>
                 </span>
             </div>
         </div>

@@ -86,16 +86,15 @@ function FilterRows({ filters = [], onChange }) {
                     }
                 ]}
             />
-            <Button onClick={() => onChange([])}>clear all filters</Button>
+            <Button className={t.clearAllBtn} onClick={() => onChange([])}>clear all filters</Button>
         </div>
     );
 }
 
 export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) => {
-    const { UI, theme } = useContext(ThemeContext);
+    const { theme } = useContext(ThemeContext);
     const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
     const { apiUpdate, app, API_HOST } = useContext(AdminContext);
-    const { FieldSet, Button } = UI;
 
     const normalised = normaliseFilters(value?.filters);
     const [tmpFilters, setTmpFilters] = useState(normalised);
@@ -180,9 +179,12 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
     };
 
     return (
-        <div className={t.wrapper}>
-            <label className={t.label}>Filters</label>
+        <div className={t.outerWrapper}>
+            <div className={t.header}>
+                <span className={t.headerTitle}>Filters</span>
+            </div>
 
+            <div className={t.wrapper}>
             {Object.entries(tmpFilters).map(([subdomain, filters]) => {
                 const sync = syncState[subdomain];
                 return (
@@ -193,30 +195,34 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
                         </span>
                         {subdomain !== '*' && (
                             <button
+                                type={'button'}
                                 className={t.subdomainRemoveBtn}
                                 onClick={() => removeSubdomain(subdomain)}
                             >
                                 remove subdomain
                             </button>
                         )}
-                        <Button
-                            buttonType="plain"
+                        <button
+                            type={'button'}
+                            className={t.syncBtn}
                             disabled={hasUnsavedChanges || sync?.syncing || !filters.length}
                             title={hasUnsavedChanges ? 'Save filter changes before syncing' : 'Reconcile this filter group into every page (draft-only)'}
                             onClick={() => syncGroup(subdomain)}
                         >
-                            {sync?.syncing ? `Syncing… ${Math.round((sync.progress || 0) * 100)}%` : 'Sync to Pages'}
-                        </Button>
+                            {sync?.syncing ? `syncing… ${Math.round((sync.progress || 0) * 100)}%` : 'sync to pages'}
+                        </button>
                     </div>
-                    {sync?.message && (
-                        <div className={sync.isError ? t.syncMessageError : t.syncMessageSuccess}>
-                            {sync.message}
-                        </div>
-                    )}
-                    <FilterRows
-                        filters={filters}
-                        onChange={(updated) => updateSubdomainFilters(subdomain, updated)}
-                    />
+                    <div className={t.subdomainBody}>
+                        {sync?.message && (
+                            <div className={sync.isError ? t.syncMessageError : t.syncMessageSuccess}>
+                                {sync.message}
+                            </div>
+                        )}
+                        <FilterRows
+                            filters={filters}
+                            onChange={(updated) => updateSubdomainFilters(subdomain, updated)}
+                        />
+                    </div>
                 </div>
                 );
             })}
@@ -230,37 +236,33 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
                     onKeyDown={e => e.key === 'Enter' && addSubdomain()}
                 />
                 <button
+                    type={'button'}
                     className={t.addSubdomainBtn}
                     onClick={addSubdomain}
                 >
-                    Add subdomain
+                    + add subdomain
                 </button>
             </div>
 
-            <FieldSet
-                className={t.saveGrid}
-                components={[
-                    {
-                        type: 'Spacer',
-                        customTheme: { field: 'bg-white col-span-10 ' }
-                    },
-                    {
-                        type: 'Button',
-                        children: <span>Reset</span>,
-                        buttonType: 'plain',
-                        disabled: isEqual(tmpFilters, normalised),
-                        onClick: () => setTmpFilters(normalised),
-                        customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
-                    },
-                    {
-                        type: 'Button',
-                        children: <span>Save</span>,
-                        disabled: isEqual(tmpFilters, normalised),
-                        onClick: () => apiUpdate({ data: { id: value.id, filters: tmpFilters } }),
-                        customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
-                    }
-                ]}
-            />
+            <div className={t.saveGrid}>
+                <button
+                    type={'button'}
+                    className={t.btnReset}
+                    disabled={isEqual(tmpFilters, normalised)}
+                    onClick={() => setTmpFilters(normalised)}
+                >
+                    reset
+                </button>
+                <button
+                    type={'button'}
+                    className={t.btnSave}
+                    disabled={isEqual(tmpFilters, normalised)}
+                    onClick={() => apiUpdate({ data: { id: value.id, filters: tmpFilters } })}
+                >
+                    save changes
+                </button>
+            </div>
+            </div>
         </div>
     );
 };

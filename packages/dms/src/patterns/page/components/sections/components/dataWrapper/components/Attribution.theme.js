@@ -1,7 +1,7 @@
 export const attributionTheme = {
-    wrapper: 'w-full p-1 pt-[16px] flex gap-1 text-xs text-gray-900',
+    wrapper: 'inline-flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.08em] text-[var(--t-pencil)]',
     label: '',
-    link: '',
+    link: 'text-[var(--t-graphite)] hover:text-[var(--t-ink)] underline underline-offset-[2px]',
     // Per-row separator (the vertical rule between "Attribution:" rows when a
     // section joins multiple sources). Was hardcoded inline at every Attribution.jsx
     // call site; a theme that doesn't set this key falls back to this exact

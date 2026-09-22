@@ -14,57 +14,60 @@ export const tableTheme = {
             headerLeftGutter: 'flex justify-between sticky left-0 z-[1]',
             headerWrapper: 'flex justify-between',
             // The sticky header / footer bands of a scrolling table (Virtual.jsx).
-            // Opaque so rows cannot show through; dark themes repaint them.
-            stickyHeader: 'top-0 sticky z-[5] bg-white',
-            stickyBottom: 'bottom-0 sticky z-[5] bg-white',
-            headerCellContainer: 'w-full font-semibold px-3 py-1 content-center text-sm font-semibold text-gray-600',
-            headerCellContainerBgSelected: 'bg-blue-100 text-gray-900',
-            headerCellContainerBg: 'bg-gray-50 text-gray-500',
-            colResizer: "z-5 -ml-2 w-[1px] hover:w-[2px] bg-gray-200 hover:bg-gray-400",
+            // Opaque so rows cannot show through; dark themes repaint them. Ported
+            // from tessera-theme-v6.js's `table` (2026-09-16) — var(--t-*) tokens so
+            // this, the library's own base/fallback table, is dark-mode aware like
+            // every other Phase-A-ported component instead of hardcoded light grays.
+            stickyHeader: 'top-0 sticky z-[5] bg-[var(--t-panel)]',
+            stickyBottom: 'bottom-0 sticky z-[5] bg-[var(--t-panel)]',
+            headerCellContainer: 'w-full font-mono px-3 py-1 content-center text-[10px] uppercase tracking-[0.08em] text-[var(--t-pencil)]',
+            headerCellContainerBgSelected: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
+            headerCellContainerBg: 'bg-[var(--t-well)] text-[var(--t-pencil)]',
+            colResizer: "z-5 -ml-2 w-[1px] hover:w-[2px] bg-[var(--t-rule)] hover:bg-[var(--t-rule-strong)]",
 
             wrapText: 'whitespace-pre-wrap',
-            cell: 'relative flex items-center min-h-[35px]  border border-slate-50',
-            cellInner: `w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1 font-[400] text-[14px]  leading-[18px] text-slate-600`,
-            cellBgOdd: 'bg-gray-50 hover:bg-gray-100',
-            cellBgEven: 'bg-white hover:bg-gray-100',
-            cellBg: 'bg-white hover:bg-gray-100',
-            cellBgSelected: 'bg-blue-50 hover:bg-blue-100',
-            totalCell: 'hover:bg-gray-150',
-            cellEditableTextBox: 'absolute border focus:outline-none min-w-[180px] min-h-[50px] z-[10] whitespace-pre-wrap',
+            cell: 'relative flex items-center min-h-[35px] border border-[var(--t-rule)]',
+            cellInner: `w-full min-h-full flex flex-wrap items-center truncate py-0.5 px-1 font-sans font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]`,
+            cellBgOdd: 'bg-[var(--t-well)] hover:bg-[var(--t-rule)]',
+            cellBgEven: 'bg-[var(--t-panel)] hover:bg-[var(--t-well)]',
+            cellBg: 'bg-[var(--t-panel)] hover:bg-[var(--t-well)]',
+            cellBgSelected: 'bg-[var(--t-cobalt-soft)] hover:bg-[var(--t-cobalt-soft)]',
+            totalCell: 'hover:bg-[var(--t-well)]',
+            cellEditableTextBox: 'absolute border border-[var(--t-cobalt)] bg-[var(--t-panel)] focus:outline-none min-w-[180px] min-h-[50px] z-[10] whitespace-pre-wrap',
             cellFrozenCol: '',
-            cellInvalid: 'bg-red-50 hover:bg-red-100',
-            gutterCellWrapper: `flex text-xs items-center justify-center cursor-pointer sticky left-0 z-[1]`,
-            gutterCellWrapperNotSelected: 'bg-gray-50 text-gray-500',
-            gutterCellWrapperSelected: 'bg-blue-100 text-gray-900',
+            cellInvalid: 'bg-[var(--t-brick-soft)] hover:bg-[var(--t-brick-soft)]',
+            gutterCellWrapper: `flex font-mono text-[10px] items-center justify-center cursor-pointer sticky left-0 z-[1]`,
+            gutterCellWrapperNotSelected: 'bg-[var(--t-well)] text-[var(--t-pencil)]',
+            gutterCellWrapperSelected: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
 
             paginationInfoContainer: '',
-            paginationPagesInfo: 'font-[500] text-[12px] uppercase text-[#2d3e4c] leading-[18px]',
-            paginationRowsInfo: 'text-xs',
-            paginationContainer: 'w-full p-2 flex items-center justify-between',
+            paginationPagesInfo: 'font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--t-graphite)]',
+            paginationRowsInfo: 'font-mono text-[11px] text-[var(--t-pencil)]',
+            paginationContainer: 'w-full p-2 flex items-center justify-between border-t border-[var(--t-rule)]',
             paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
-            pageRangeItem: 'cursor-pointer px-3  text-[#2D3E4C] py-1  text-[12px] hover:bg-slate-50 font-[500] rounded  uppercase leading-[18px]',
+            pageRangeItem: 'cursor-pointer px-3 text-[var(--t-graphite)] py-1 font-mono text-[11px] hover:bg-[var(--t-well)] uppercase tracking-[0.06em] rounded-md',
             pageRangeItemInactive: '',
-            pageRangeItemActive: 'bg-slate-100 ',
+            pageRangeItemActive: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
 
-            totalRow: 'bg-gray-100 sticky bottom-0 z-[3]',
-            stripedRow: 'even:bg-gray-50',
+            totalRow: 'bg-[var(--t-well)] sticky bottom-0 z-[3] border-t border-[var(--t-rule-strong)]',
+            stripedRow: 'even:bg-[var(--t-well)]',
             // Neutral default accent applied to a whole row by the `conditional_row_style`
             // Spreadsheet provider (left edge + faint tint). A brand theme overrides this by
             // defining its own `styleKey` (e.g. `rowAccentAmber`) and pointing the provider at it.
-            rowAccent: 'border-l-4 border-gray-400 bg-gray-50',
+            rowAccent: 'border-l-4 border-[var(--t-pencil)] bg-[var(--t-well)]',
             // Default accent for the `row_highlight` provider's 'accent' style (the active
-            // master-detail row, e.g. a click-to-switch selector). Neutral blue; brand themes
-            // override. Its cells go transparent (TableCell) so this tint + left edge shows.
-            rowHighlightAccent: 'bg-blue-50 shadow-[inset_3px_0_0_#2563eb]',
+            // master-detail row, e.g. a click-to-switch selector). Its cells go transparent
+            // (TableCell) so this tint + left edge shows.
+            rowHighlightAccent: 'bg-[var(--t-cobalt-soft)] shadow-[inset_3px_0_0_var(--t-cobalt)]',
 
-            openOutContainer: 'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-white h-full float-right',
+            openOutContainer: 'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-[var(--t-panel)] h-full float-right border-l border-[var(--t-rule)]',
             openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
-            openOutHeader: 'font-semibold text-gray-600',
+            openOutHeader: 'font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--t-graphite)]',
             openOutCloseIconContainer: 'w-full flex justify-end',
-            openOutCloseIconWrapper: 'w-fit h-fit p-[8px] text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer',
+            openOutCloseIconWrapper: 'w-fit h-fit p-[8px] text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full cursor-pointer hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
             openOutCloseIcon: 'XMark',
-            openOutContainerWrapperBgColor: '#00000066',
-            openOutIconWrapper: 'px-2 cursor-pointer bg-transparent text-gray-500 hover:text-gray-600',
+            openOutContainerWrapperBgColor: 'var(--t-scrim)',
+            openOutIconWrapper: 'px-2 cursor-pointer bg-transparent text-[var(--t-pencil)] hover:text-[var(--t-graphite)]',
             openOutBelowRow: false,
             openOutHideTitle: false,
 
@@ -73,19 +76,19 @@ export const tableTheme = {
             // instead of the floating right-side drawer. Neutral library defaults — a brand
             // theme overrides these keys to restyle the panel. Same openOut fields as the
             // drawer (label + value), reusing TableCell's extraction.
-            openOutInlineRow: 'w-full bg-gray-50 border-y border-gray-100',
+            openOutInlineRow: 'w-full bg-[var(--t-well)] border-y border-[var(--t-rule)]',
             openOutInlinePanel: 'grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 p-4',
             openOutInlineField: 'flex flex-col gap-0.5',
-            openOutInlineLabel: 'text-xs font-semibold uppercase tracking-wide text-gray-500',
-            openOutInlineValue: 'text-sm text-gray-700',
+            openOutInlineLabel: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
+            openOutInlineValue: 'font-sans text-sm text-[var(--t-ink)]',
 
-            pivotGroupHeader: 'bg-gray-100 text-gray-700 text-center border-b border-r border-gray-200',
+            pivotGroupHeader: 'bg-[var(--t-well)] text-[var(--t-graphite)] text-center border-b border-r border-[var(--t-rule)]',
 
             headerCellWrapper: 'relative w-full',
             headerCellBtn: 'group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer',
             headerCellLabel: 'truncate select-none',
-            headerCellBtnActive: 'bg-gray-300',
-            headerCellFnIconClass: 'text-gray-400',
+            headerCellBtnActive: 'bg-[var(--t-cobalt-soft)]',
+            headerCellFnIconClass: 'text-[var(--t-pencil)]',
             headerCellCountIcon: 'TallyMark',
             headerCellListIcon: 'LeftToRightListBullet',
             headerCellSumIcon: 'Sum',
@@ -93,23 +96,38 @@ export const tableTheme = {
             headerCellGroupIcon: 'Group',
             headerCellSortAscIcon: 'SortAsc',
             headerCellSortDescIcon: 'SortDesc',
-            headerCellMenuIcon: 'ArrowDown',
-            headerCellMenuIconClass: 'text-gray-400 group-hover:text-gray-600 transition ease-in-out duration-200 print:hidden',
+            headerCellMenuIcon: 'ChevronDown',
+            headerCellMenuIconClass: 'text-[var(--t-pencil)] group-hover:text-[var(--t-graphite)] transition ease-in-out duration-200 print:hidden',
             headerCellIconWrapper: 'flex items-center',
-            headerCellMenu: 'py-0.5 flex flex-col gap-0.5 items-center px-1 text-xs text-gray-600 font-regular max-h-[500px] min-w-[180px] ' +
-                'z-[10] overflow-auto scrollbar-sm bg-white divide-y divide-gray-100 rounded-md shadow-lg ring-1 ring-black ring-opacity-5',
-            headerCellControlWrapper: 'w-full group px-2 py-1 flex justify-between items-center rounded-md hover:bg-gray-100',
-            headerCellControlLabel: 'w-fit font-regular text-gray-500 cursor-default',
-            headerCellControl: 'p-0.5 w-full rounded-md bg-white group-hover:bg-gray-100 cursor-pointer'
+            headerCellMenu: 'py-0.5 flex flex-col gap-0.5 items-center px-1 font-mono text-[11px] text-[var(--t-graphite)] max-h-[500px] min-w-[180px] ' +
+                'z-[10] overflow-auto scrollbar-sm bg-[var(--t-panel)] divide-y divide-[var(--t-rule)] rounded-md shadow-[var(--t-shadow-drag)] border border-[var(--t-rule)]',
+            headerCellControlWrapper: 'w-full group px-2 py-1 flex justify-between items-center rounded-md hover:bg-[var(--t-well)]',
+            headerCellControlLabel: 'w-fit font-mono text-[11px] text-[var(--t-pencil)] cursor-default',
+            headerCellControl: 'p-0.5 w-full rounded-md bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] cursor-pointer'
+        },
+        {
+            // A roomier cell style — opt in per-`<Table>` via `activeStyle="roomy"`
+            // (forwarded straight through by TableCell.jsx like any other
+            // activeStyle). Only `cell`/`cellInner` differ; every other key
+            // inherits from styles[0]. Matches the tessera design-system
+            // mockups' own table density (`px-3 py-2.5`, e.g.
+            // design_system_v6/pages/admin-users.html), which is roomier than
+            // this base/fallback table's compact default (`py-0.5 px-1`) —
+            // added for the auth manage pages' Users/Groups tables
+            // (2026-09-17) rather than changing the shared default, since that
+            // default is used by every table across the whole app.
+            name: 'roomy',
+            cell: 'relative flex items-center min-h-[42px] border border-[var(--t-rule)]',
+            cellInner: 'w-full min-h-full flex flex-wrap items-center truncate px-3 py-2.5 font-sans font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]',
         },
         {
             name: 'below-row',
             // openOut opens inline below the row instead of a fixed right-side drawer.
             // All other keys inherit from styles[0].
-            openOutContainer: 'w-full flex flex-col bg-white',
+            openOutContainer: 'w-full flex flex-col bg-[var(--t-panel)]',
             openOutContainerWrapper: 'w-full',
             openOutContainerWrapperBgColor: 'transparent',
-            openOutHeader: 'font-semibold text-gray-600',
+            openOutHeader: 'font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--t-graphite)]',
             openOutCloseIconContainer: 'hidden',
             openOutCloseIconWrapper: '',
             openOutCloseIcon: 'XMark',

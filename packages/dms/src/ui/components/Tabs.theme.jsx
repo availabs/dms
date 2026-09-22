@@ -6,14 +6,14 @@ export const tabsTheme = {
   },
   styles: [
     {
-      tabGroup: 'flex flex-col-reverse',
-      tablist: 'flex gap-4',
+      tabGroup: 'w-full',
+      tablist: 'flex items-center gap-0 border-b border-[var(--t-rule)]',
       tab: `
-    py-1 px-3 font-semibold text-slate-600 focus:outline-none border-b-2 border-white text-xs hover:text-slate-900
-    aria-selected:border-blue-500 aria-selected:bg-white/10 hover:bg-white/5 aria-selected:hover:bg-white/10 focus-visible:outline-1 focus-visible:outline-white
+    cursor-pointer font-mono text-[13px] font-medium px-4 py-2.5 text-[var(--t-graphite)] hover:text-[var(--t-ink)] border-b-2 border-transparent -mb-px transition-colors duration-150
+    aria-selected:text-[var(--t-cobalt)] aria-selected:border-[var(--t-cobalt)]
   `,
       tabpanels: 'w-full h-screen max-h-screen overflow-y-auto scrollbar-sm',
-      tabpanel: 'rounded-xl bg-white/5'
+      tabpanel: 'pt-6'
     },
     {
       tabGroup: 'flex flex-row divide-x divide-slate-300',

@@ -7,9 +7,7 @@ export const buttonTheme = {
   styles: [
     {
       name: 'default Buttons',
-      button: `cursor-pointer inline-flex items-center gap-2  bg-gray-700 py-1.5  text-sm/6 font-semibold text-white shadow-inner shadow-white/10 focus:outline-none hover:bg-gray-600 transition-colors focus-visible:outline-1 focus-visible:outline-white
-        rounded-lg
-        px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]
+      button: `cursor-pointer inline-flex items-center justify-center gap-2 font-sans text-sm font-medium leading-none px-4 py-2.5 rounded-md border border-transparent bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] hover:bg-[var(--t-cobalt-deep)] active:bg-[var(--t-cobalt-deep)] focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-cobalt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150
       `,
     },
     {

@@ -3,12 +3,11 @@ import {Link} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { patternEditorTheme } from './patternEditor.theme'
-import { isUserAuthed } from '../../utils';
+import { hasPatternManageAccess } from '../../utils';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
-import { PatternFilterEditor } from "./default/filterEditor";
-import { PatternPermissionsEditor } from "./default/permissionsEditor";
+import { PatternAccessEditor } from "./default/accessEditor";
 import { PatternPagesEditor } from "./pages/pagesEditor";
 import { SourcesTab } from "./pages/sourcesTab";
 import { ActivityTab } from "./pages/activityTab";
@@ -29,14 +28,12 @@ const navPages = [
     component: PatternThemeEditor
   },
   {
-    name: 'Filters',
-    path: `filters`,
-    component: PatternFilterEditor
-  },
-  {
-    name: 'Permissions',
+    // Access = permissions (who can manage this pattern) + row filters
+    // (which data rows its sections can see), merged onto one page per
+    // design_system_v6/pages/admin-pattern-access.html (2026-09-20).
+    name: 'Access',
     path: `permissions`,
-    component: PatternPermissionsEditor
+    component: PatternAccessEditor
   }
 ]
 
@@ -59,14 +56,21 @@ const activityTab = {
 }
 
 const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
-  const { baseUrl, parentBaseUrl, app, user, authPermissions } = React.useContext(AdminContext);
+  const { baseUrl, parentBaseUrl, app, user } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
 
+  // This gate used to check the generic site-level `authPermissions` from
+  // AdminContext instead of THIS pattern's own — meaning a non-admin user
+  // was denied here based on a value that has nothing to do with what's
+  // actually configured on the pattern they're opening (and, since that
+  // site-level value is typically never set, denied unconditionally for
+  // every pattern). See patterns/admin/utils.js's `hasPatternManageAccess`
+  // for the full rationale — mirrors editSite.jsx's per-row check (2026-09-20).
   const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
-  const hasAccess = isAdmin || isUserAuthed(user, authPermissions);
+  const hasAccess = hasPatternManageAccess(user, isAdmin, item.authPermissions, item.subdomain);
   if (!hasAccess) {
     return <div className={t.noAccess}>You do not have permission to manage this pattern.</div>;
   }
@@ -83,17 +87,15 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
     ] : [])
   ];
   const PageComp = pages.find(d => d.path === page)?.component || pages[0].component
+  const currentTabName = pages.find(d => d.path === page)?.name || page;
     return (
       <div className={t.wrapper}>
-        <Breadcrumbs baseUrl={baseUrl} parentBaseUrl={parentBaseUrl} pattern={item} page={page}/>
-          <div className={t.navRow}>
-            <Nav
-              navPages={pages}
-              page={page}
-              baseUrl={baseUrl}
-              id={id}
-            />
-          </div>
+        <Breadcrumbs
+          parentBaseUrl={parentBaseUrl}
+          patternUrl={`${baseUrl}/${id}/overview`}
+          patternName={item.name}
+          tabName={currentTabName}
+        />
           <div className={t.content}>
             <PageComp
                 app={item.app}
@@ -112,76 +114,24 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
 
 export default PatternEditor
 
-const Nav = ({baseUrl, navPages, page, id}) => {
-  const { theme } = React.useContext(ThemeContext);
-  const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
-  return (
-    <nav className={t.nav}>
-    {
-      navPages
-        .map(p => (
-          <Link key={p.name}
-                className={p.path.toLowerCase() === page ? t.navItemActive : t.navItemInactive}
-                to={`${baseUrl}/${id}/${p?.path}`}
-              >
-            <div className={t.navItemInner}>
-              <span className={t.navItemText}>{p.name}</span>
-            </div>
-          </Link>))
-    }
-    </nav>
-  )
-}
-
-const Breadcrumbs = ({baseUrl, parentBaseUrl, pattern, page}) => {
-    const {UI} = React.useContext(AdminContext);
+// `admin / <pattern name> / <tab>` — matches design_system_v6/pages/
+// admin-pattern-overview.html's header trail and siteConfig.jsx's own
+// AdminBreadcrumb (Sites/Themes level), replacing the old OL/LI +
+// SVG-triangle-separator markup, which also had a real bug: its map callback
+// shadowed the outer `page` string param with the loop variable of the same
+// name, so the trail's second segment (`page.name`/`page.path` on a plain
+// string) always rendered blank (2026-09-20).
+const Breadcrumbs = ({parentBaseUrl, patternUrl, patternName, tabName}) => {
     const { theme } = React.useContext(ThemeContext);
     const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
-    const {Icon} = UI;
 
   return (
-      <nav className={t.breadcrumbNav} aria-label="Breadcrumb">
-        <ol className={t.breadcrumbOl}>
-          <li className={t.breadcrumbLi}>
-            <div className={t.breadcrumbLiInner}>
-              <Link to={`${parentBaseUrl || '/'}`} className={t.breadcrumbHomeLink}>
-                  <Icon icon={'Database'} className={t.breadcrumbHomeIcon} />
-                  <span className="sr-only">Data Sources</span>
-            </Link>
-          </div>
-        </li>
-        {[pattern, page].filter(p => p).map((page,i) => (
-          <li key={i} className={t.breadcrumbLi}>
-            <div className={t.breadcrumbLiInner}>
-              <svg
-                className={t.breadcrumbSeparator}
-                viewBox="0 0 30 44"
-                preserveAspectRatio="none"
-                fill="currentColor"
-                xmlns="http://www.w3.org/2000/svg"
-                aria-hidden="true"
-              >
-                <path d="M.293 0l22 22-22 22h1.414l22-22-22-22H.293z" />
-              </svg>
-              {page.path ?
-                <Link
-                  to={page.path}
-                  className={t.breadcrumbLink}
-                  aria-current={page.current ? 'page' : undefined}
-                >
-                  {page.name}
-                </Link> :
-                <div
-                  className={t.breadcrumbLink}
-                  aria-current={page.current ? 'page' : undefined}
-                >
-                  {page.name}
-                </div>
-              }
-            </div>
-          </li>
-        ))}
-      </ol>
-    </nav>
+      <div className={t.breadcrumbBar}>
+        <Link to={parentBaseUrl || '/'} className={t.breadcrumbHomeLink}>admin</Link>
+        <span className={t.breadcrumbSep}>/</span>
+        <Link to={patternUrl} className={t.breadcrumbLink}>{patternName || 'pattern'}</Link>
+        <span className={t.breadcrumbSep}>/</span>
+        <span className={t.breadcrumbCurrent}>{tabName}</span>
+      </div>
   )
 }

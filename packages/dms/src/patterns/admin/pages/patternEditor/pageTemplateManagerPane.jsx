@@ -93,35 +93,66 @@ export default function PageTemplateManagerPane({ app, type, apiLoad, apiUpdate 
 
   return (
     <div className={t.wrapper}>
-      {error && <div className={t.error}>{error}</div>}
-
-      <div className={t.sectionTitle}>Built-in Templates</div>
-      <Table
-        columns={builtinColumns}
-        data={themeTemplates}
-        isEdit={false}
-        allowEdit={false}
-        gridRef={builtinGridRef}
-      />
-
-      <div className={t.sectionTitleSpaced}>
-        Your Templates
-        {templates.length > 0 && <span className={t.sectionCount}>({templates.length})</span>}
+      <div className={t.header}>
+        <div className={t.headerTitleWrap}>
+          <div className={t.headerTitleRow}>
+            <h1 className={t.headerTitle}>Page Templates</h1>
+          </div>
+          <p className={t.headerSubtitle} aria-hidden="true">&nbsp;</p>
+        </div>
+        <div className={t.statsBar}>
+          <div className={t.statCell}>
+            <p className={t.statValue}>{themeTemplates.length + templates.length}</p>
+            <p className={t.statLabel}>total</p>
+          </div>
+          <div className={t.statCell}>
+            <p className={t.statValue}>{themeTemplates.length}</p>
+            <p className={t.statLabel}>built-in</p>
+          </div>
+          <div className={t.statCell}>
+            <p className={`${t.statValue} text-[var(--t-cobalt)]`}>{templates.length}</p>
+            <p className={t.statLabel}>saved</p>
+          </div>
+        </div>
       </div>
 
-      {!loading && templates.length === 0 ? (
-        <div className={t.empty}>
-          No user templates yet. Save a page as a template from the Settings pane.
+      {error && <div className={t.error}>{error}</div>}
+
+      <div className={t.section}>
+        <div className={t.sectionTitleRow}>
+          <h2 className={t.sectionTitle}>Built-in Templates</h2>
         </div>
-      ) : (
         <Table
-          columns={userColumns}
-          data={templates}
+          columns={builtinColumns}
+          data={themeTemplates}
           isEdit={false}
           allowEdit={false}
-          gridRef={userGridRef}
+          gridRef={builtinGridRef}
         />
-      )}
+      </div>
+
+      <div className={t.section}>
+        <div className={t.sectionTitleRow}>
+          <h2 className={t.sectionTitle}>
+            Your Templates
+            {templates.length > 0 && <span className={t.sectionCount}> ({templates.length})</span>}
+          </h2>
+        </div>
+
+        {!loading && templates.length === 0 ? (
+          <div className={t.empty}>
+            No user templates yet. Save a page as a template from the Settings pane.
+          </div>
+        ) : (
+          <Table
+            columns={userColumns}
+            data={templates}
+            isEdit={false}
+            allowEdit={false}
+            gridRef={userGridRef}
+          />
+        )}
+      </div>
     </div>
   );
 }
