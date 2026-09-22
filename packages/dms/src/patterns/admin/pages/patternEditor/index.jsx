@@ -122,7 +122,8 @@ export default PatternEditor
 // name, so the trail's second segment (`page.name`/`page.path` on a plain
 // string) always rendered blank (2026-09-20).
 const Breadcrumbs = ({parentBaseUrl, patternUrl, patternName, tabName}) => {
-    const { theme } = React.useContext(ThemeContext);
+    const { theme, UI } = React.useContext(ThemeContext);
+    const { ThemeToggle } = UI || {};
     const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
 
   return (
@@ -132,6 +133,10 @@ const Breadcrumbs = ({parentBaseUrl, patternUrl, patternName, tabName}) => {
         <Link to={patternUrl} className={t.breadcrumbLink}>{patternName || 'pattern'}</Link>
         <span className={t.breadcrumbSep}>/</span>
         <span className={t.breadcrumbCurrent}>{tabName}</span>
+        <span className='flex-1' />
+        <div className={t.breadcrumbActions}>
+          <ThemeToggle />
+        </div>
       </div>
   )
 }

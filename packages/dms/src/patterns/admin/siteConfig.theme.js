@@ -30,5 +30,8 @@ export const adminChromeTheme = {
     breadcrumbHome: 't-metaMD text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
     breadcrumbSep: 't-metaMD text-[var(--t-pencil)]',
     breadcrumbCurrent: 't-metaMD text-[var(--t-cobalt)]',
-    breadcrumbViewSite: 'hidden sm:inline-flex items-center gap-1.5 text-sm text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-md px-3 py-1.5 hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
+    // holds the ThemeToggle on the trailing end of the breadcrumb bar (moved
+    // here from the sidenav's bottomMenu, which now only carries UserMenu —
+    // 2026-09-22).
+    breadcrumbActions: 'flex items-center gap-2',
 }

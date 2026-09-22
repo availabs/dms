@@ -1,5 +1,5 @@
 import React from "react";
-import { Link, useLocation } from 'react-router'
+import { useLocation } from 'react-router'
 
 import { cloneDeep } from "lodash-es";
 import { ThemeContext, mergeTheme, getPatternTheme } from "../../ui/useTheme";
@@ -21,15 +21,15 @@ import ThemeEdit from "./pages/themes/editTheme";
 import PatternEditor from "./pages/patternEditor";
 //import ThemeManager from './pages/themeManager/index.jsx'
 
-// "admin / <page>" breadcrumb + a "view site" link, matching the mockups'
+// "admin / <page>" breadcrumb + the ThemeToggle, matching the mockups'
 // header band. Not the shared Layout's own TopNav — that's gated by a single
 // GLOBAL layout.options.topNav.size, so enabling it here would turn it on
 // for every page in the app, not just the admin pattern's own pages.
 const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme' };
 const AdminBreadcrumb = ({ theme, baseUrl }) => {
   const location = useLocation();
-  const { UI } = React.useContext(ThemeContext) || {};
-  const { Icon } = UI || {};
+  const { UI: contextUI } = React.useContext(ThemeContext) || {};
+  const { ThemeToggle } = contextUI || {};
   const t = { ...adminChromeTheme, ...(theme?.admin?.chrome || {}) };
   const rest = location.pathname.slice(baseUrl.length).split('/').filter(Boolean);
   const crumb = PAGE_LABELS[rest[0] || ''] || rest[0] || 'overview';
@@ -39,10 +39,9 @@ const AdminBreadcrumb = ({ theme, baseUrl }) => {
       <span className={t.breadcrumbSep}>/</span>
       <span className={t.breadcrumbCurrent}>{crumb}</span>
       <span className='flex-1' />
-      <Link to='/' className={t.breadcrumbViewSite}>
-        view site
-        <Icon icon='ArrowUpRight' className='w-3.5 h-3.5' />
-      </Link>
+      <div className={t.breadcrumbActions}>
+        <ThemeToggle />
+      </div>
     </div>
   );
 };
@@ -122,6 +121,12 @@ const adminConfig = ({
   const projectThemeName = patternData?.theme?.selectedTheme;
   const projectLogo = projectThemeName && themes?.[projectThemeName]?.logo;
   theme.logo = projectLogo ? cloneDeep(projectLogo) : { ...theme.logo, img: '', logoAltImg: '', title: 'Admin' };
+
+  // ThemeToggle moved into AdminBreadcrumb next to "view site" (2026-09-22) —
+  // the sidenav's own bottomMenu default (Layout.theme.jsx) pairs it with
+  // UserMenu, which admin no longer wants; drop it here so only UserMenu
+  // remains at the bottom of the sidenav.
+  theme.layout.options.sideNav.bottomMenu = [{ type: "UserMenu" }];
 
   // console.log('admin siteconfig API', API_HOST)
   return {
@@ -262,7 +267,9 @@ const patternConfig = ({
           size: "compact",
           nav: "main",
           topMenu: [{ type: "Logo" }],
-          bottomMenu: [{ type: "ThemeToggle" }, { type: "UserMenu" }],
+          // ThemeToggle moved into the Pattern Editor's own Breadcrumbs, next
+          // to "view site" (2026-09-22) — only UserMenu stays here.
+          bottomMenu: [{ type: "UserMenu" }],
         },
       },
     },

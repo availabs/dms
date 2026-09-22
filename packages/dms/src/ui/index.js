@@ -32,6 +32,7 @@ import NavigableMenu from "./components/navigableMenu";
 import DraggableList from "./components/DraggableList";
 import Popup from "./components/Popup";
 import DndList from "./components/DndList";
+import ThemeToggle from "./components/ThemeToggle";
 import ColumnTypes from "./columnTypes/index.jsx";
 import { MultiSelectEdit as MultiSelect } from "./components/MultiSelect";
 
@@ -60,6 +61,7 @@ const UI = {
 	Pill,
   Popup,
   DndList,
+  ThemeToggle,
 
 	// --- Forms
 	FieldSet,

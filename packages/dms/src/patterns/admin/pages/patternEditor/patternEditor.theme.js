@@ -23,4 +23,8 @@ export const patternEditorTheme = {
     breadcrumbLink: 't-metaMD text-[var(--t-graphite)] hover:text-[var(--t-ink)] truncate',
     breadcrumbSep: 't-metaMD text-[var(--t-pencil)]',
     breadcrumbCurrent: 't-metaMD text-[var(--t-cobalt)]',
+    // ThemeToggle, matching siteConfig.jsx's own AdminBreadcrumb (same key) —
+    // moved here from the sidenav's bottomMenu, which now only carries
+    // UserMenu (2026-09-22).
+    breadcrumbActions: 'flex items-center gap-2',
 }

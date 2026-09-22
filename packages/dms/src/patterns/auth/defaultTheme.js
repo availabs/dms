@@ -127,6 +127,11 @@ const theme = {
             breadcrumbHome: "t-metaMD text-[var(--t-graphite)] hover:text-[var(--t-ink)]",
             breadcrumbSep: "t-metaMD text-[var(--t-pencil)]",
             breadcrumbCurrent: "t-metaMD text-[var(--t-cobalt)]",
+            // holds the ThemeToggle on the trailing end of the breadcrumb bar
+            // (moved here from the sidenav's bottomMenu, which now only
+            // carries UserMenu — 2026-09-22), matching
+            // patterns/admin/siteConfig.theme.js's own `breadcrumbActions`.
+            breadcrumbActions: "flex items-center gap-2",
             // `pageWrapper`/`profileWrapper` now wrap ONLY the content below the title
             // (the table for users/groups, the Reset-Password action for profile) — NOT
             // the title itself. Previously both lived inside the same card, so the whole

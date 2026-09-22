@@ -18,6 +18,8 @@ let authImgI = null;
 
 const AdminLayout = ({menuItems, children, theme, Menu, adminPath}) => {
     const {Layout, LayoutGroup} = UI;
+    const { UI: contextUI } = React.useContext(ThemeContext) || {};
+    const { ThemeToggle } = contextUI || {};
     const location = useLocation();
     // A theme may name the Layout / LayoutGroup styles these pages use
     // (`auth.authPages.manageLayoutStyle` / `manageLayoutGroupStyle`) and swap
@@ -58,6 +60,10 @@ const AdminLayout = ({menuItems, children, theme, Menu, adminPath}) => {
                         )}
                         <span className={m.breadcrumbSep}>/</span>
                         <span className={m.breadcrumbCurrent}>{crumb}</span>
+                        <span className='flex-1' />
+                        <div className={m.breadcrumbActions}>
+                            <ThemeToggle />
+                        </div>
                     </div>
                 )}
                 <LayoutGroup activeStyle={pages.manageLayoutGroupStyle}>
@@ -256,6 +262,13 @@ const manageAuthConfig = ({
     // const projectThemeName = pattern?.theme?.selectedTheme;
     // const projectLogo = projectThemeName && themes?.[projectThemeName]?.logo; // here you actually get logo, but showing it breaks continuity from admin pages
     theme.logo = { ...theme.logo, img: '', logoAltImg: '', title: 'Admin' };
+
+    // ThemeToggle moved into AdminLayout's own breadcrumb bar, matching
+    // patterns/admin/siteConfig.jsx's identical change (2026-09-22) — the
+    // sidenav's own bottomMenu default (Layout.theme.jsx) pairs it with
+    // UserMenu, which these manage pages no longer want; drop it here so
+    // only UserMenu remains at the bottom of the sidenav.
+    theme.layout.options.sideNav.bottomMenu = [{ type: "UserMenu" }];
 
     // // A theme's own auth pass may already define the nav it wants for these
     // // manage pages (see mny/auth.js's `navOptions` — sideNav on, topNav off,
