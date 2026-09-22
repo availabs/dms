@@ -779,6 +779,29 @@ any DMS page, not just reports. What's specific to reports:
   route-creation tool) hit the generic blank-dark-rectangle/`resize_window`
   issue described in the generic doc — nothing report-specific about the fix
   itself, just naming the sections in this codebase that hit it.
+- **MacroView's own chrome is gated behind that same resize** (2026-09-22).
+  The bottom-left `Download N rows` pill lives in `mapChrome.jsx`, so on
+  `/npmrds/macro` it is simply ABSENT from the DOM until the map has drawn —
+  a `querySelector` for it right after load finds nothing and that is not a
+  failure, just the un-resized state. Wait, `resize_window`, wait, then look.
+- **The macro download builder carries `data-mv` hooks** (the same convention
+  as `data-mv="geo-results"` in `controlsPanel.jsx`): `column-menu`,
+  `column-search`, `column-results`, `column-count`, and for the grouped
+  measure menu `column-group` (+ a `data-group` family key),
+  `column-group-toggle`, `column-subgroup`, `column-add-all`. The MEASURE menu
+  is grouped and collapsed by default (so a fresh open renders zero rows —
+  that is correct, not a failure); the METADATA menu is a flat list. Use those instead of
+  matching Tailwind class strings. Driving it from `javascript_tool`:
+  `Download N rows` → `Add measure column`, and **the click and the DOM read
+  must be two separate tool calls** — React has not re-rendered when a single
+  call clicks and then reads, so the menu reads as absent and a second click
+  in the next call toggles it shut again. Both mistakes look identical to
+  "the feature is broken". A third, learned the hard way 2026-09-22: **if the
+  human is clicking in the same tab you are reading, the state flaps between
+  calls** and looks like a state bug — and **editing a source file after the
+  tab has loaded triggers an HMR remount that resets component state**
+  mid-run. Reload after an edit before drawing conclusions, and use your own
+  tab (`feedback_use_own_scratch_page_for_ui_testing`).
 - **A page built before `_measurePick` existed has NO recoverable
   measure/resolution/comparisonMode on any of its AVL Graph sections** — not
   just some of them. `report_build.mjs --from-page` flags every such section
