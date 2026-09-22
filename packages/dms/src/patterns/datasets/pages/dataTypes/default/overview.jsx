@@ -1,4 +1,4 @@
-import React, {useMemo, useState, useContext} from 'react'
+import React, {useMemo, useState, useContext, useEffect} from 'react'
 import {DatasetsContext} from "../../../context";
 import {ThemeContext, getComponentTheme} from "../../../../../ui/useTheme";
 import SourceCategories from "../../DatasetsList/categories";
@@ -8,6 +8,7 @@ import { getExternalEnv } from "../../../utils/datasources";
 import { OUTPUT_FILE_TYPES } from "../../../components/ExternalVersionControls";
 import { sourceOverviewTheme } from "./sourceOverview.theme";
 import { FALLBACK_SWATCHES, catColor, splitCategories } from "../../../utils/categoryColors";
+import { SANDBOX_CATEGORY, resolveHiddenForPattern, promotionBlockers } from "../../../utils/lifecycle";
 
 // Every place a view can carry a downloadable artifact, in one list so the Versions card is the
 // single download surface (a file_upload source therefore needs no page of its own):
@@ -59,7 +60,7 @@ export default function Overview ({
   isDms,
   dataType
 }) {
-    const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST} = useContext(DatasetsContext);
+    const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST, parent} = useContext(DatasetsContext);
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const pgEnv = getExternalEnv(datasources);
@@ -100,6 +101,40 @@ export default function Overview ({
     const categoriesValue = Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : [];
     const swatches = t.catSwatches || FALLBACK_SWATCHES;
     const { tops: catTops, subs: catSubs } = splitCategories({ categories: categoriesValue });
+
+    // Env settings carry the lifecycle deltas and the promotion gate. Read here
+    // rather than threaded through props so this card works on every data type.
+    const [settings, setSettings] = useState({});
+    useEffect(() => {
+        if (!pgEnv || !falcor) return;
+        falcor.get(['uda', pgEnv, 'settings']).then(res => {
+            const raw = res?.json?.uda?.[pgEnv]?.settings;
+            try { setSettings(typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {})); }
+            catch { setSettings({}); }
+        });
+    }, [pgEnv, falcor]);
+
+    // ── promotion ─────────────────────────────────────────────────────────
+    // A source parked in a hidden lifecycle (Sandbox, by default, for anything
+    // created without categories) is invisible in the catalog. Promotion is
+    // self-service: swap the sandbox path for a subject area. The gate is the
+    // point — the moment someone wants their dataset in the catalog is the only
+    // moment they will write a description for it.
+    const hiddenSet = resolveHiddenForPattern(settings, parent?.id);
+    const inSandbox = categoriesValue.some(c => (Array.isArray(c) ? c[0] : c) === SANDBOX_CATEGORY);
+    const blockers = promotionBlockers(source, categoriesValue, hiddenSet, settings?.promotion_requires);
+    const promote = () => {
+        // Drop ONLY the sandbox path. Stripping every hidden lifecycle would also
+        // clear a legitimate permanent placement — a source can be both `Sandbox`
+        // (not yet reviewed) and `Data Processing` (an ETL intermediate), and
+        // promoting it out of the sandbox must not un-mark it as pipeline.
+        const next = categoriesValue.filter(c => (Array.isArray(c) ? c[0] : c) !== SANDBOX_CATEGORY);
+        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id});
+    };
+    const returnToSandbox = () => {
+        const next = [...categoriesValue.filter(c => (Array.isArray(c) ? c[0] : c) !== SANDBOX_CATEGORY), [SANDBOX_CATEGORY]];
+        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id});
+    };
 
     return (
             <div className={t.grid}>
@@ -227,6 +262,34 @@ export default function Overview ({
                             </div>
                         )}
                         <div className={t.catHelp}>Drives placement in the catalog rail and the public site nav.</div>
+
+                        {/* Promotion — only shown while the source is actually parked. */}
+                        {isAdmin && inSandbox ? (
+                            <div className={t.promoBox}>
+                                <div className={t.promoTitle}>Not in the catalog yet</div>
+                                <div className={t.promoHint}>
+                                    This dataset is in <strong>{SANDBOX_CATEGORY}</strong>, so it does not appear in
+                                    the catalog or the site nav. Promote it when it is ready to be found.
+                                </div>
+                                {blockers.length ? (
+                                    <ul className={t.promoBlockers}>
+                                        {blockers.map(b => <li key={b.key} className={t.promoBlocker}>{b.label}</li>)}
+                                    </ul>
+                                ) : null}
+                                <button className={blockers.length ? t.promoBtnDisabled : t.promoBtn}
+                                        disabled={blockers.length > 0}
+                                        title={blockers.length ? 'Add the missing details first' : 'Move this dataset into the catalog'}
+                                        onClick={promote}>
+                                    Promote to catalog
+                                </button>
+                            </div>
+                        ) : null}
+                        {isAdmin && !inSandbox && categoriesValue.length ? (
+                            <button className={t.demoteBtn} onClick={returnToSandbox}
+                                    title={`Take this dataset out of the catalog and return it to ${SANDBOX_CATEGORY}`}>
+                                Return to {SANDBOX_CATEGORY}
+                            </button>
+                        ) : null}
                     </div>
 
                     {/* Versions · per-view download menu (OUTPUT_FILE_TYPES) */}

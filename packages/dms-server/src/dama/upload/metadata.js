@@ -14,6 +14,50 @@ const DEFAULT_SCHEMA = 'gis_datasets';
 // us comfortably under 63.
 const MAX_NAME_SLUG_LEN = 40;
 
+// Where a source with no categories of its own lands.
+//
+// A source created with NULL categories is invisible in the default listing and
+// impossible to govern — 137 of 367 sources on hazmit_dama are in that state, and
+// 54 of them are dev leftovers that reached the catalog because nothing stood
+// between "upload succeeded" and "everyone sees it". Defaulting to the sandbox
+// lifecycle puts a new source SOMEWHERE: findable under Sandbox, excluded from
+// the curated catalog until a human promotes it.
+//
+// Applied here rather than in each upload route because `createDamaSource` is the
+// single INSERT into data_manager.sources — the three callers (file_upload,
+// two GIS publish paths) all pass categories straight from the client, so a
+// route-level default would be a convention, not a guarantee.
+//
+// Per ENV, not per pattern: a source is created in an env before it belongs to
+// any pattern, so there is no pattern to read. `settings.default_new_source_categories`
+// overrides; an explicit [] restores the old behaviour (arrive uncategorized).
+const DEFAULT_NEW_SOURCE_CATEGORIES = [['Sandbox']];
+
+// Types that are already governed by `settings.hidden_source_types` and carry
+// their own marker category. Adding `Sandbox` to 11,067 upload rows would be
+// noise, and they are excluded from the enumeration server-side anyway.
+const NO_DEFAULT_CATEGORY_TYPES = ['file_upload'];
+
+/**
+ * Categories to stamp on a source created without any. Reads
+ * `settings.default_new_source_categories`; an explicit `[]` means "leave them
+ * null" and is honoured, a missing/malformed value falls back to the default.
+ */
+async function getDefaultNewSourceCategories(pgEnv) {
+  try {
+    // Required lazily: uda.tasks.controller pulls in the task machinery, and
+    // this module is loaded by the upload routes at boot.
+    const { getSettings } = require('../../routes/uda/uda.tasks.controller');
+    const raw = await getSettings(pgEnv);
+    const settings = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+    const cats = settings?.default_new_source_categories;
+    if (!Array.isArray(cats)) return DEFAULT_NEW_SOURCE_CATEGORIES;
+    return cats.filter(c => Array.isArray(c) && c.length && typeof c[0] === 'string');
+  } catch {
+    return DEFAULT_NEW_SOURCE_CATEGORIES;
+  }
+}
+
 // Plain-identifier guard for anything interpolated into DDL (see cloneViewTable).
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -46,7 +90,16 @@ async function createDamaSource(values, pgEnv) {
 
   const statisticsJson = statistics ? JSON.stringify(statistics) : null;
   const metadataJson = metadata ? JSON.stringify(metadata) : null;
-  const categoriesJson = categories ? JSON.stringify(categories) : null;
+
+  // Sandbox-by-default (see DEFAULT_NEW_SOURCE_CATEGORIES). Only when the caller
+  // supplied nothing — an explicit choice always wins.
+  const hasCategories = Array.isArray(categories) && categories.length;
+  const effectiveCategories = hasCategories
+    ? categories
+    : (NO_DEFAULT_CATEGORY_TYPES.includes(type) ? null : await getDefaultNewSourceCategories(pgEnv));
+  const categoriesJson = effectiveCategories && effectiveCategories.length
+    ? JSON.stringify(effectiveCategories)
+    : null;
   const authPermissionsJson = JSON.stringify(authPermissions);
 
   // Try insert, on duplicate name append _N suffix
@@ -252,6 +305,8 @@ async function ensureSchema(db, schemaName) {
 
 module.exports = {
   createDamaSource,
+  getDefaultNewSourceCategories,
+  DEFAULT_NEW_SOURCE_CATEGORIES,
   createDamaView,
   cloneViewTable,
   ensureSchema,

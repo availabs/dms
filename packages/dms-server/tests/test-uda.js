@@ -1015,6 +1015,261 @@ async function testDamaModeSourcesCrud() {
   pass('DAMA sources cleanup complete');
 }
 
+async function testDamaHiddenSourceTypes() {
+  console.log('\n--- DAMA Mode: hidden source types ---');
+
+  const { getDb } = require('../src/db/index');
+  const { setSettings } = require('../src/routes/uda/uda.tasks.controller');
+  const db = getDb(DAMA_DB);
+  const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+
+  const { rows: [real] } = await db.query(
+    `INSERT INTO ${tbl} (name, type) VALUES ($1, $2) RETURNING source_id AS id`,
+    ['Hidden Types Real Source', 'csv']
+  );
+  const { rows: [upload] } = await db.query(
+    `INSERT INTO ${tbl} (name, type) VALUES ($1, $2) RETURNING source_id AS id`,
+    ['Hidden Types Upload Source', 'file_upload']
+  );
+
+  const lengthOf = async (collection) => {
+    const res = await graph.getAsync([['uda', DAMA_DB, collection, 'length']]);
+    return res.jsonGraph.uda[DAMA_DB][collection].length;
+  };
+  const idsOf = async (collection, len) => {
+    const res = await graph.getAsync([
+      ['uda', DAMA_DB, collection, 'byIndex', { from: 0, to: len - 1 }, 'value']
+    ]);
+    const byIndex = res.jsonGraph.uda[DAMA_DB][collection].byIndex;
+    return Object.values(byIndex)
+      .map(ref => ref?.value?.[4])
+      .filter(id => id != null)
+      .map(Number);
+  };
+
+  // Default (no `hidden_source_types` set): file_upload is excluded.
+  const defaultLen = await lengthOf('sources');
+  const defaultIds = await idsOf('sources', defaultLen);
+  assert(defaultIds.includes(real.id), 'default listing should include a normal source');
+  assert(!defaultIds.includes(upload.id), 'default listing should exclude a file_upload source');
+  assert(defaultIds.length === defaultLen,
+    `length (${defaultLen}) must agree with byIndex (${defaultIds.length}) — a mismatch leaves null holes in the list`);
+  pass('file_upload sources are excluded from sources.length/byIndex by default');
+
+  // sourcesAll is the same enumeration with nothing hidden.
+  const allLen = await lengthOf('sourcesAll');
+  const allIds = await idsOf('sourcesAll', allLen);
+  assert(allIds.includes(upload.id), 'sourcesAll should include the file_upload source');
+  assert(allLen === defaultLen + 1, `sourcesAll (${allLen}) should be one longer than sources (${defaultLen})`);
+  pass('sourcesAll returns the unfiltered enumeration');
+
+  // An explicit empty list means "hide nothing" and must beat the default.
+  // The test harness is a bare Falcor Router (no model cache), so a settings
+  // write is visible to the very next get.
+  await setSettings(DAMA_DB, JSON.stringify({ hidden_source_types: [] }));
+  const shownLen = await lengthOf('sources');
+  assert(shownLen === allLen, `with hidden_source_types: [] sources (${shownLen}) should match sourcesAll (${allLen})`);
+  pass('an explicit hidden_source_types: [] is honoured over the default');
+
+  await setSettings(DAMA_DB, JSON.stringify({}));
+  await db.query(`DELETE FROM ${tbl} WHERE source_id = ANY($1)`, [[real.id, upload.id]]);
+  pass('hidden source type cleanup complete');
+}
+
+async function testDamaModeHiddenCategories() {
+  console.log('\n--- DAMA Mode: hidden categories (lifecycle listing) ---');
+
+  const { getDb } = require('../src/db/index');
+  const { setSettings } = require('../src/routes/uda/uda.tasks.controller');
+  const db = getDb(DAMA_DB);
+  const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+
+  // Three shapes that matter:
+  //  prod    — a subject area only, must always show
+  //  sandbox — a lifecycle name only, must hide when that name is hidden
+  //  both    — a subject area AND a lifecycle name. This is the one the OLD
+  //            `every` rule could never hide without also hiding the subject
+  //            area, and it is why the rule had to become `some`.
+  const mk = async (name, categories) => {
+    const { rows: [r] } = await db.query(
+      `INSERT INTO ${tbl} (name, type, categories) VALUES ($1, $2, $3) RETURNING source_id AS id`,
+      [name, 'csv_dataset', categories === null ? null : JSON.stringify(categories)]
+    );
+    return r.id;
+  };
+  // Defensive pre-clean: an aborted earlier run must not poison this one.
+  await db.query(`DELETE FROM ${tbl} WHERE name LIKE 'HC %'`);
+  try {
+    const prod    = await mk('HC Production Source', [['Built Environment', 'BILD']]);
+    const sandbox = await mk('HC Sandbox Source', [['Sandbox']]);
+    const both    = await mk('HC Mixed Source', [['Built Environment', 'BILD'], ['Data Processing', 'Buildings']]);
+    const noCats  = await mk('HC Uncategorized Source', null);
+
+    const lengthOf = async (collection) => {
+      const res = await graph.getAsync([['uda', DAMA_DB, collection, 'length']]);
+      return res.jsonGraph.uda[DAMA_DB][collection].length;
+    };
+    const idsOf = async (collection) => {
+      const len = await lengthOf(collection);
+      const res = await graph.getAsync([
+        ['uda', DAMA_DB, collection, 'byIndex', { from: 0, to: len - 1 }, 'value']
+      ]);
+      const byIndex = res.jsonGraph.uda[DAMA_DB][collection].byIndex;
+      const ids = Object.values(byIndex).map(ref => ref?.value?.[4]).filter(id => id != null).map(Number);
+      return { len, ids };
+    };
+
+    // Default is EMPTY — an env that has not opted in must be untouched.
+    await setSettings(DAMA_DB, JSON.stringify({}));
+    const base = await idsOf('sources');
+    assert(base.ids.includes(prod) && base.ids.includes(sandbox) && base.ids.includes(both) && base.ids.includes(noCats),
+      'with no hidden_categories set, every source is listed');
+    pass('hidden_categories defaults to empty — no env changes behaviour on deploy');
+
+    // Hiding one lifecycle name hides that source and nothing else.
+    await setSettings(DAMA_DB, JSON.stringify({ hidden_categories: ['Sandbox'] }));
+    const sb = await idsOf('sources');
+    assert(!sb.ids.includes(sandbox), 'a Sandbox source is excluded');
+    assert(sb.ids.includes(prod) && sb.ids.includes(both), 'other sources are untouched');
+    assert(sb.ids.length === sb.len,
+      `length (${sb.len}) must agree with byIndex (${sb.ids.length}) — a mismatch leaves null holes in the list`);
+    pass('hidden_categories excludes by category top-level');
+
+    // THE REGRESSION LOCK for the rule change: ANY, not EVERY. `both` carries a
+    // shown subject area as well as the hidden lifecycle name; the old rule kept
+    // it visible, the new rule hides it.
+    await setSettings(DAMA_DB, JSON.stringify({ hidden_categories: ['Data Processing'] }));
+    const dp = await idsOf('sources');
+    assert(!dp.ids.includes(both),
+      'a source carrying BOTH a shown area and a hidden lifecycle must hide — the rule is ANY, not EVERY');
+    assert(dp.ids.includes(prod), 'the shown subject area itself is not hidden by association');
+    pass('the hide rule is ANY of the top-levels, not EVERY');
+
+    // Only the TOP-LEVEL matters — a subcategory colliding with a hidden name must not hide.
+    await setSettings(DAMA_DB, JSON.stringify({ hidden_categories: ['Buildings'] }));
+    const sub = await idsOf('sources');
+    assert(sub.ids.includes(both), 'a match on a SUBcategory must not hide the source');
+    pass('only categories[i][0] is matched');
+
+    // Uncategorized rows are not swept up by the server — the client decides.
+    await setSettings(DAMA_DB, JSON.stringify({ hidden_categories: ['Sandbox', 'Data Processing'] }));
+    const un = await idsOf('sources');
+    assert(un.ids.includes(noCats), 'a source with NULL categories is not excluded server-side');
+    pass('NULL categories are left to the client');
+
+    // sourcesAll still bypasses everything.
+    const all = await idsOf('sourcesAll');
+    assert(all.ids.includes(sandbox) && all.ids.includes(both), 'sourcesAll ignores hidden_categories');
+    pass('sourcesAll returns the unfiltered enumeration');
+
+    // byId is never filtered — a hidden source must still load on its own page.
+    const byId = await graph.getAsync([['uda', DAMA_DB, 'sources', 'byId', sandbox, 'name']]);
+    assert(byId.jsonGraph.uda[DAMA_DB].sources.byId[sandbox]?.name === 'HC Sandbox Source',
+      'a hidden source must still resolve through sources.byId');
+    pass('sources.byId is not filtered');
+
+    // Malformed value falls back to the default (empty) rather than throwing.
+    await setSettings(DAMA_DB, JSON.stringify({ hidden_categories: 'Sandbox' }));
+    const bad = await idsOf('sources');
+    assert(bad.len === base.len, `a malformed hidden_categories should fall back to the default (${bad.len} vs ${base.len})`);
+    pass('a malformed hidden_categories falls back to the default');
+
+    // Types and categories compose — both clauses in one WHERE, params in order.
+    const { rows: [up] } = await db.query(
+      `INSERT INTO ${tbl} (name, type, categories) VALUES ($1, $2, $3) RETURNING source_id AS id`,
+      ['HC Upload Source', 'file_upload', JSON.stringify([['Uploaded File']])]
+    );
+    await setSettings(DAMA_DB, JSON.stringify({ hidden_categories: ['Sandbox'] }));
+    const combo = await idsOf('sources');
+    assert(!combo.ids.includes(up), 'the default hidden TYPE still applies alongside hidden categories');
+    assert(!combo.ids.includes(sandbox), 'the hidden CATEGORY still applies alongside hidden types');
+    pass('hidden types and hidden categories compose in one query');
+
+    await setSettings(DAMA_DB, JSON.stringify({}));
+    await db.query(`DELETE FROM ${tbl} WHERE name LIKE 'HC %'`);
+    pass('hidden categories cleanup complete');
+  } finally {
+    // A failed assertion must not leave rows behind — they poison the next
+    // run, and the tests that run BEFORE this one, with phantom sources.
+    await setSettings(DAMA_DB, JSON.stringify({}));
+    await db.query(`DELETE FROM ${tbl} WHERE name LIKE 'HC %'`);
+  }
+}
+
+
+async function testDamaModeNewSourceDefaults() {
+  console.log('\n--- DAMA Mode: new-source category defaults (sandbox by default) ---');
+
+  const { getDb } = require('../src/db/index');
+  const { setSettings } = require('../src/routes/uda/uda.tasks.controller');
+  const { createDamaSource } = require('../src/dama/upload/metadata');
+  const db = getDb(DAMA_DB);
+  const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+
+  const catsOf = async (id) => {
+    const { rows: [r] } = await db.query(`SELECT categories FROM ${tbl} WHERE source_id = $1`, [id]);
+    const c = r.categories;
+    return typeof c === 'string' ? JSON.parse(c) : c;
+  };
+  // Defensive pre-clean: an aborted earlier run must not poison this one.
+  await db.query(`DELETE FROM ${tbl} WHERE name LIKE 'NSD %'`);
+  try {
+    const made = [];
+    const mk = async (values) => { const r = await createDamaSource(values, DAMA_DB); made.push(r.source_id); return r; };
+
+    await setSettings(DAMA_DB, JSON.stringify({}));
+
+    // No categories supplied → lands in Sandbox.
+    const bare = await mk({ name: 'NSD Bare Source', type: 'csv_dataset' });
+    assert(JSON.stringify(await catsOf(bare.source_id)) === JSON.stringify([['Sandbox']]),
+      'a source created with no categories lands in Sandbox');
+    pass('new sources default to Sandbox');
+
+    // An explicit choice always wins.
+    const chosen = await mk({ name: 'NSD Chosen Source', type: 'csv_dataset', categories: [['Built Environment', 'BILD']] });
+    assert(JSON.stringify(await catsOf(chosen.source_id)) === JSON.stringify([['Built Environment', 'BILD']]),
+      'supplied categories are untouched');
+    pass('an explicit category beats the default');
+
+    // Upload rows are excluded — they carry their own marker and are hidden by type.
+    const upload = await mk({ name: 'NSD Upload Source', type: 'file_upload' });
+    assert(await catsOf(upload.source_id) == null,
+      'a file_upload source does not get Sandbox stamped on it');
+    pass('file_upload rows are exempt from the default');
+
+    // An env can opt out entirely and get the old behaviour back.
+    await setSettings(DAMA_DB, JSON.stringify({ default_new_source_categories: [] }));
+    const optOut = await mk({ name: 'NSD Opt Out Source', type: 'csv_dataset' });
+    assert(await catsOf(optOut.source_id) == null,
+      'an explicit [] restores the pre-change behaviour (arrive uncategorized)');
+    pass('default_new_source_categories: [] is honoured');
+
+    // A custom landing place is honoured.
+    await setSettings(DAMA_DB, JSON.stringify({ default_new_source_categories: [['Staging']] }));
+    const custom = await mk({ name: 'NSD Custom Source', type: 'csv_dataset' });
+    assert(JSON.stringify(await catsOf(custom.source_id)) === JSON.stringify([['Staging']]),
+      'a configured landing category is used');
+    pass('a custom default landing category is honoured');
+
+    // Malformed setting falls back rather than throwing.
+    await setSettings(DAMA_DB, JSON.stringify({ default_new_source_categories: 'Sandbox' }));
+    const malformed = await mk({ name: 'NSD Malformed Source', type: 'csv_dataset' });
+    assert(JSON.stringify(await catsOf(malformed.source_id)) === JSON.stringify([['Sandbox']]),
+      'a malformed setting falls back to the default');
+    pass('a malformed default_new_source_categories falls back');
+
+    await setSettings(DAMA_DB, JSON.stringify({}));
+    await db.query(`DELETE FROM ${tbl} WHERE name LIKE 'NSD %'`);
+    pass('new-source default cleanup complete');
+  } finally {
+    // A failed assertion must not leave rows behind — they poison the next
+    // run, and the tests that run BEFORE this one, with phantom sources.
+    await setSettings(DAMA_DB, JSON.stringify({}));
+    await db.query(`DELETE FROM ${tbl} WHERE name LIKE 'NSD %'`);
+  }
+}
+
+
 async function testDamaModeViewsCrud() {
   console.log('\n--- DAMA Mode: Views CRUD ---');
 
@@ -1807,6 +2062,9 @@ async function run() {
 
     // DAMA mode tests
     await testDamaModeSourcesCrud();
+    await testDamaHiddenSourceTypes();
+    await testDamaModeHiddenCategories();
+    await testDamaModeNewSourceDefaults();
     await testDamaModeViewsCrud();
 
     console.log(`\n=== UDA Tests: ${testsPassed} passed, ${testsFailed} failed ===`);
