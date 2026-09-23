@@ -151,13 +151,19 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
         const draft_sections = (pageSpec.wireSource && wiredContext)
           ? baseSections.map(s => wireSection(s, wiredContext.sourceId, wiredContext.viewId, wiredContext.attrs, wiredContext.env, wiredContext.app, wiredContext.sourceSlug, wiredContext.srcEnv))
           : baseSections;
+        const draft_section_groups = tmpl?.draft_section_groups ?? [];
+        // Created already published (mirrors editFunctions.publish: published '' +
+        // draft copied to live) so a fresh site's base URL renders for visitors.
         await falcor.call(['dms', 'data', 'create'], [app, `${patternSlug}|page`, {
           title: pageSpec.title,
           url_slug: nameToSlug(pageSpec.title),
           index: 0,
-          published: 'draft',
+          published: '',
+          has_changes: false,
           draft_sections,
-          draft_section_groups: tmpl?.draft_section_groups ?? [],
+          draft_section_groups,
+          sections: structuredClone(draft_sections),
+          section_groups: structuredClone(draft_section_groups),
         }]);
       }
     }

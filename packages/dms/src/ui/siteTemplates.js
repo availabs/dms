@@ -7,7 +7,7 @@ export const defaultSiteTemplates = [
       {
         pattern_type: 'page',
         name: 'Pages',
-        base_url: 'pages',
+        base_url: '/',
         pages: [{ template: 'blank', title: 'Page 1' }]
       }
     ]
@@ -20,7 +20,7 @@ export const defaultSiteTemplates = [
       {
         pattern_type: 'page',
         name: 'Report',
-        base_url: 'report',
+        base_url: '/',
         pages: [{ template: 'narrative', title: 'Report' }]
       }
     ]
@@ -59,7 +59,7 @@ export const defaultSiteTemplates = [
       {
         pattern_type: 'page',
         name: 'Dashboard',
-        base_url: 'dashboard',
+        base_url: '/',
         pages: [{ template: 'dashboard', title: 'Dashboard', wireSource: true }]
       }
     ]

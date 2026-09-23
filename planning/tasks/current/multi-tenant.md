@@ -158,6 +158,18 @@ No changes to: `createSite.jsx`, `dmsDataLoader`, `dmsDataEditor`, `dms.route.js
 
 ---
 
+### Follow-up — Template landing page at `/`, published (2026-09-23)
+
+Problem: after signup the tenant lands on `/`, but template page patterns were mounted at
+`/pages` / `/report` / `/dashboard` and their page was created `published: 'draft'`, so `/`
+had nothing to show a visitor.
+
+- [x] `ui/siteTemplates.js` — every template page pattern now uses `base_url: '/'` (datasets stays at `data`).
+  Safe because every caller (authSignup, editSite tenant-add, createSite) provisions onto a brand-new site.
+- [x] `utils/tenantProvisioning.js` — template pages are created published (`published: ''`,
+  `has_changes: false`, `sections`/`section_groups` cloned from the drafts — same shape as `editFunctions.publish`).
+- [ ] Live check: sign up with Simple Site / Report / Dashboard, confirm `/` renders the page logged-out.
+
 ## Downstream Flow Verification (from design doc)
 
 Once `tenantConfig.app = "acme"` is set, all downstream code is unchanged:
