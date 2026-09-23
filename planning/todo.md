@@ -2,6 +2,7 @@
 
 ## cli
 
+- [ ] [`dms page create` defaults every page to `index '0'`](./tasks/current/cli-page-create-default-index.md) — filed 2026-09-23. The UI assigns highest sibling index + 1; the CLI hardcodes `'0'` (`commands/page.js:197`), so every script-built top-level page ties, and a bare `/<pattern>/edit` resolves the root ambiguously (sitemgmt: the Publish button read the wrong page). Workaround in the TransportNY QA builders; the sitemgmt rows were re-indexed by hand.
 - [x] [Falcor client dies on a dead pooled keep-alive socket](./tasks/current/cli-falcor-client-keepalive-retry.md) — DONE 2026-09-21. Any tool that left >~5s between two requests on one client (e.g. `cr_sync.mjs`, which blocks in `execFileSync` CLI calls between reads) got a bare `fetch failed` with no `cause`, reading like the server was down while it served fine. `request()` now retries once on a connection-level rejection; `ECONNREFUSED` still fails fast. Safe for writes — fetch only rejects that way when the request never reached the server. Measured: 2s gap OK, 8s/20s gaps failed before and pass after.
 - [x] [CLI hangs on every command (Windows) — `findConfigFile` infinite loop](./tasks/completed/cli-config-windows-infinite-loop.md) — `config.js`'s `while (dir !== '/')` never terminated on Windows (`dirname('C:\')==='C:\'`), so every `dms` command spun forever before making a request. Fixed to break on `dirname(dir)===dir` (POSIX `/` + Windows drive roots). Verified: `raw get`/`page list`/`page show` now return promptly; POSIX unchanged.
 
@@ -866,6 +867,7 @@
 
 ### patterns/auth
 
+- [ ] [Expired session shows "You do not have permission" instead of login](./tasks/current/expired-session-shows-no-permission.md) — from TransportNY ticket #2224917 (2026-09-23). `view.jsx`/`edit/index.jsx` choose login vs no-permission from the client's `user.authed`, which likely stays `true` after the server-side token expires; plus `edit/index.jsx:292-295` never redirects an unauthed user to login. Not reproduced yet.
 - [x] Fix `/groups/byproject` response shape — dms-server returns plain array, client expects `{ groups: [...] }` wrapper with synthetic "public" group
 - [ ] [Email redesign](./tasks/current/email-redesign.md) — redesign transactional emails (signup welcome, forgot password, password-changed confirmation) to match auth page visual identity; wire up email sending in 3 handler stubs
 - [x] [View As](./tasks/completed/view-as.md) — admin can impersonate any project user client-side; all permission checks use the viewAs user's groups; mutations blocked via globalThis flag; fixed banner with exit; works in single-tenant + multi-tenant

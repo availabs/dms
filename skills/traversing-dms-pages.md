@@ -283,6 +283,16 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   (2026-08-31, mitigat-ny-prod).
 - **Edit URL puts `edit` first**: `/edit/<slug>`, not `<slug>/edit`. The wrong
   shape silently falls back to the site's default/index page.
+- **A bare pattern URL (`/<pattern>/edit`, no slug) is unreliable when several pages share
+  `index`.** It resolves "the root page" by `index`, and nothing keeps `index` unique: `dms page create` defaults to `'0'`, so every
+  script-built `sitemgmt` page was `index '0'` with no parent (re-indexed 0-4 on 2026-09-23; the QA
+  builders now pass an index, and the CLI default is filed as `cli-page-create-default-index.md`). Found
+  live 2026-09-23: at `/sitemgmt/edit` the owner saw the overview's draft content, but the Publish
+  button read "No Changes" while the overview row had `has_changes: true`. The only full page row
+  the browser fetched was the ticket page (2185870, `has_changes: false`), so the content and the
+  edit pane appear to come from different pages (inferred from a network capture, not traced in the
+  router). `/sitemgmt/edit/overview` showed "Publish" correctly. Always use `/edit/<slug>`, and
+  never judge publish state from a bare pattern URL.
 - **Any unresolvable slug silently falls back to the home/index page** —
   rather than erroring. A typo'd slug and an actual permission denial render
   identically (full rich content, no error text). Don't over-interpret a
