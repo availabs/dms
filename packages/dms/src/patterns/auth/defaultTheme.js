@@ -203,7 +203,7 @@ const theme = {
             // The Add User / Add Group modal's submit button — matches headerAction's
             // cobalt primary look (this happens to be UI.Button's own default too,
             // but set explicitly so it stays correct if that default ever changes).
-            modalAction: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-4 py-2",
+            modalAction: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--t-cobalt)]",
             // The table-header search inputs (Input's className is also a full
             // replacement, same as Button) — compact, since they sit inside a
             // table header cell rather than a form.
