@@ -12,7 +12,7 @@ import { sourcesTabTheme } from './sourcesTab.theme';
 
 function OriginCell({ value }) {
     const s = sourcesTabTheme;
-    return <span className={value === 'Internal' ? s.originDms : s.originExt}>{value}</span>;
+    return <span className={s.origin}>{value}</span>;
 }
 
 function UsedByCell({ value }) {
@@ -105,9 +105,15 @@ export function SourcesTab({ value, apiLoad, falcor }) {
         setSectionsLoading(true);
         setSections([]);
 
-        // Fetch sources and pages in parallel; sources can render immediately.
+        // Fetch sources and pages in parallel; sources can render immediately. Both
+        // legs need their own `.catch` — without one, a single failed/misconfigured
+        // env's falcor call (e.g. a stale pgEnv with no reachable UDA service) rejects
+        // the whole `Promise.all` and `setLoading(false)` below never runs, leaving the
+        // tab spinning on "Loading sources…" forever with no error surfaced. Found live
+        // verifying this tab against a test fixture whose fallback pgEnv had no UDA
+        // service running.
         const [sources, pageItems] = await Promise.all([
-            getSources(falcor, envs),
+            getSources(falcor, envs).catch(() => []),
             apiLoad({
                 format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },
                 children: [{ action: 'list', path: '/*' }],
@@ -219,63 +225,92 @@ export function SourcesTab({ value, apiLoad, falcor }) {
 
     return (
         <div className={p.wrapper}>
+            {/* header: pattern identity + source/active/orphaned stats */}
+            <div className={p.header}>
+                <div className={p.headerTitleWrap}>
+                    <div className={p.headerTitleRow}>
+                        <h1 className={p.headerTitle}>Data</h1>
+                    </div>
+                    <p className={p.headerSubtitle} aria-hidden="true">&nbsp;</p>
+                </div>
+                <div className={p.statsBar}>
+                    <div className={p.statCell}>
+                        <p className={p.statValue}>{sourceRows.length}</p>
+                        <p className={p.statLabel}>sources</p>
+                    </div>
+                    <div className={p.statCell}>
+                        <p className={`${p.statValue} text-[var(--t-go)]`}>{activeCount}</p>
+                        <p className={p.statLabel}>active</p>
+                    </div>
+                    <div className={p.statCell}>
+                        <p className={`${p.statValue} text-[var(--t-amber)]`}>{orphanedCount}</p>
+                        <p className={p.statLabel}>orphaned</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* toolbar: row 1 is full-width search + refresh (matches the Sites list's
+                search+add row); row 2 is the status/origin filters + summary counts */}
             <div className={p.toolbar}>
-                <div className="w-44">
-                    <UI.Select
-                        value={statusFilter}
-                        onChange={val => setStatusFilter(val ?? '')}
-                        placeholder={`All status (${sourceRows.length})`}
-                        options={[
-                            { label: `Active (${activeCount})`, value: 'Active' },
-                            { label: `Orphaned (${orphanedCount})`, value: 'Orphaned' },
-                        ]}
-                        allowDeselect
-                    />
+                <div className={p.toolbarRow1}>
+                    <div className={p.searchWrap}>
+                        <svg className={p.searchIcon} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                        <input
+                            type="text"
+                            className={p.searchInput}
+                            placeholder="Search sources…"
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <button className={p.ghostBtn} onClick={loadAll}>Refresh</button>
                 </div>
 
-                <div className="w-44">
-                    <UI.Select
-                        value={originFilter}
-                        onChange={val => setOriginFilter(val ?? '')}
-                        placeholder={`All origins (${sourceRows.length})`}
-                        options={[
-                            { label: `Internal (${internalCount})`, value: 'Internal' },
-                            { label: `External (${externalCount})`, value: 'External' },
-                        ]}
-                        allowDeselect
-                    />
+                <div className={p.toolbarRow2}>
+                    <div className="w-44">
+                        <UI.Select
+                            value={statusFilter}
+                            onChange={val => setStatusFilter(val ?? '')}
+                            placeholder={`All status (${sourceRows.length})`}
+                            options={[
+                                { label: `Active (${activeCount})`, value: 'Active' },
+                                { label: `Orphaned (${orphanedCount})`, value: 'Orphaned' },
+                            ]}
+                            allowDeselect
+                        />
+                    </div>
+
+                    <div className="w-44">
+                        <UI.Select
+                            value={originFilter}
+                            onChange={val => setOriginFilter(val ?? '')}
+                            placeholder={`All origins (${sourceRows.length})`}
+                            options={[
+                                { label: `Internal (${internalCount})`, value: 'Internal' },
+                                { label: `External (${externalCount})`, value: 'External' },
+                            ]}
+                            allowDeselect
+                        />
+                    </div>
+
+                    <div className="flex-1" />
+
+                    <span className={p.footerInline}>
+                        {sourceRows.length} source{sourceRows.length !== 1 ? 's' : ''}
+                        {internalCount > 0 && ` · ${internalCount} internal`}
+                        {externalCount > 0 && ` · ${externalCount} external`}
+                        {orphanedCount > 0 && ` · ${orphanedCount} orphaned`}
+                        {(search || statusFilter || originFilter) && ` · ${filteredRows.length} matching`}
+                        {sectionsLoading && (
+                            <span className={s.sectionsLoadingBadge}>
+                                <span className={s.sectionsLoadingDot} />
+                                loading section counts…
+                            </span>
+                        )}
+                    </span>
                 </div>
-
-                <div className={p.searchWrap}>
-                    <svg className={p.searchIcon} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
-                    </svg>
-                    <input
-                        type="text"
-                        className={p.searchInput}
-                        placeholder="Search sources…"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                    />
-                </div>
-
-                <div style={{ flex: 1 }} />
-
-                <span className={p.footerInline}>
-                    {sourceRows.length} source{sourceRows.length !== 1 ? 's' : ''}
-                    {internalCount > 0 && ` · ${internalCount} internal`}
-                    {externalCount > 0 && ` · ${externalCount} external`}
-                    {orphanedCount > 0 && ` · ${orphanedCount} orphaned`}
-                    {(search || statusFilter || originFilter) && ` · ${filteredRows.length} matching`}
-                    {sectionsLoading && (
-                        <span className={s.sectionsLoadingBadge}>
-                            <span className={s.sectionsLoadingDot} />
-                            loading section counts…
-                        </span>
-                    )}
-                </span>
-
-                <button className={p.ghostBtn} onClick={loadAll}>Refresh</button>
             </div>
 
             {orphanedCount > 0 && !statusFilter && (

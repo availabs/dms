@@ -39,7 +39,18 @@ function resolveSubdomainFilters(rawFilters, subdomain) {
     return parsed[subdomain] || parsed['*'] || [];          // new format
 }
 
-function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
+// Exported — the admin pattern's own access gates (editSite.jsx,
+// patternEditor/index.jsx) need this same resolution, not just route
+// building here. A raw `pattern.authPermissions` is either the "old" flat
+// `{groups,users}` shape, or the "new" subdomain-keyed shape
+// (PatternPermissionsEditor writes this: `{"<subdomain-or-*>": {groups,users}}`,
+// each value independently JSON-stringified) — reading it as a flat object
+// without unwrapping the subdomain/`*` layer first (as those two admin call
+// sites used to) finds no top-level `.groups`/`.users` on ANY pattern that's
+// ever been edited through the current Permissions UI, so `isUserAuthed`
+// silently denies everyone but a site admin regardless of what's actually
+// granted underneath (found 2026-09-20 — mitigat-ny-prod pattern 1006405).
+export function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
     const parsed = parseIfJSON(rawAuth || '{}', {});
     if (parsed['*'] !== undefined)                          // new format
         return parseIfJSON(parsed[subdomain] || parsed['*'] || {});
@@ -88,12 +99,11 @@ function getPatternMounts(pattern) {
 //console.log('hola', pageConfig)
 
 /**
- * Distinct theme names actually referenced by a site's pattern rows — the
- * site's own selections plus 'mny_admin', which patterns/auth/siteConfig.jsx's
- * manageAuthConfig hardcodes for the /auth/manage panel every auth pattern
- * gets (patterns/admin/siteConfig.jsx uses selectedTheme: "default", which
- * needs no theme module — it resolves to the library's own baked-in
- * defaultTheme). Used to resolve only the theme(s) a site needs instead of
+ * Distinct theme names actually referenced by a site's pattern rows. The
+ * admin pages and the auth manage pages need nothing extra: they render the
+ * library's own baked-in defaultTheme plus the auth pattern's theme's `admin`
+ * key (getAdminTheme), and the auth pattern's theme is already collected
+ * here like any other pattern's. Used to resolve only the theme(s) a site needs instead of
  * loading every theme in the registry. See planning/shared/bundle-size-log.md.
  */
 export function collectThemeNames(siteData) {
@@ -106,7 +116,6 @@ export function collectThemeNames(siteData) {
         // patterns select their DB theme (`mny-admin-db`) only this way, and
         // missing it silently default-themes them.
         if (p?.theme?.settings?.theme?.theme) names.add(p.theme.settings.theme.theme);
-        if (p?.pattern_type === 'auth') names.add('mny_admin');
     });
     return [...names];
 }
@@ -415,6 +424,9 @@ export function pattern2routes (siteData, props) {
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     authBaseUrl,
+                    // the site's one auth pattern — admin pages take their logo
+                    // from its theme's `admin` key (see getAdminTheme)
+                    authPattern,
                     datasources: patternDatasources,
                     dmsEnvs,
                     dmsEnvById,

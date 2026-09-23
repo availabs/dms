@@ -37,18 +37,19 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
             style={{ paddingLeft: _depth * 26 }}
         >
             {/* drag handle — visible on row hover */}
-            <span className="text-gray-300 cursor-grab w-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-xs select-none mr-0.5">
+            <span className="text-[var(--t-pencil)] cursor-grab w-3.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-xs select-none mr-0.5">
                 ⠿
             </span>
 
             {/* expand / collapse caret */}
             {_hasChildren ? (
                 <button
-                    className="w-[18px] h-[18px] rounded flex-shrink-0 inline-flex items-center justify-center text-gray-400 hover:bg-gray-200 hover:text-gray-700 text-[10px] cursor-pointer border-none bg-transparent"
+                    className="w-[18px] h-[18px] rounded flex-shrink-0 inline-flex items-center justify-center text-[var(--t-pencil)] hover:bg-[var(--t-well)] hover:text-[var(--t-graphite)] text-[10px] cursor-pointer border-none bg-transparent"
                     onClick={handleCaretClick}
                     title={_isExpanded ? 'Collapse' : 'Expand'}
                 >
-                    {_isExpanded ? '▼' : '▶'}
+                    {/* ▾/▸, not ▼/▶ — ▶ renders as an orange color emoji on some platforms */}
+                    {_isExpanded ? '▾' : '▸'}
                 </button>
             ) : (
                 <span className="w-[18px] h-[18px] flex-shrink-0 inline-flex" />
@@ -61,8 +62,8 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
             <span
                 className={`font-semibold truncate cursor-pointer ${
                     _isGhost
-                        ? 'text-gray-300 italic font-normal'
-                        : 'text-gray-800 hover:text-gray-600'
+                        ? 'text-[var(--t-pencil)] italic font-normal'
+                        : 'text-[var(--t-ink)] hover:text-[var(--t-graphite)]'
                 }`}
                 title={title}
             >
@@ -71,7 +72,7 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
 
             {/* child count badge */}
             {_hasChildren && (
-                <span className="ml-1.5 text-[10px] text-gray-400 bg-gray-100 rounded-full px-1.5 font-semibold flex-shrink-0">
+                <span className="ml-1.5 text-[10px] text-[var(--t-pencil)] bg-[var(--t-well)] rounded-full px-1.5 font-semibold flex-shrink-0">
                     {_childCount}
                 </span>
             )}
@@ -89,14 +90,14 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
 
             {/* ghost chip */}
             {_isGhost && (
-                <span className="ml-1.5 text-[10px] text-gray-500 bg-gray-100 rounded-full px-1.5 font-semibold flex-shrink-0">
+                <span className="ml-1.5 text-[10px] text-[var(--t-pencil)] bg-[var(--t-well)] rounded-full px-1.5 font-semibold flex-shrink-0">
                     ghost
                 </span>
             )}
 
             {/* url slug */}
             {!_isGhost && _slug && (
-                <span className="ml-2 text-[11px] font-mono text-gray-400 truncate flex-shrink min-w-0 max-w-[160px]">
+                <span className="ml-2 text-[11px] font-mono text-[var(--t-pencil)] truncate flex-shrink min-w-0 max-w-[160px]">
                     {_slug}
                 </span>
             )}

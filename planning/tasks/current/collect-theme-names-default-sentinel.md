@@ -1,3 +1,12 @@
+> **SUPERSEDED, reverted 2026-09-15.** The user redirected: instead of making the `'default'`
+> sentinel resolve to a named theme module via the loader registry, tessera_v6's actual values are
+> being ported directly into the library's own `.theme.js` component files (the ones
+> `ui/defaultTheme.js` and each pattern's `defaultTheme.js` aggregate from) — "update the places
+> where defaultTheme is built from." That makes tessera *be* the library baseline outright, so this
+> loader-registry indirection is unnecessary ("that way we don't need the default loader"). The
+> `collectThemeNames` change described below has been reverted to its original form. See
+> [`tessera-component-theme-port.md`](./tessera-component-theme-port.md) for the actual work.
+
 # `collectThemeNames` never requests the `'default'` theme sentinel
 
 ## Objective

@@ -13,7 +13,7 @@ const DOT = "[&::before]:content-[''] [&::before]:size-1.5 [&::before]:rounded-f
 export const pillTheme = {
     options: { activeStyle: 0 },
     styles: [
-        { name: 'default', wrapper: `${BASE} text-gray-400` },
+        { name: 'default', wrapper: `inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full font-mono text-[10px] uppercase tracking-[0.08em] bg-[var(--t-well)] text-[var(--t-graphite)] border border-[var(--t-rule)]` },
         { name: 'gray',    wrapper: `${BASE} text-gray-400` },
         { name: 'orange',  wrapper: `${BASE} bg-orange-500/15 text-orange-700 hover:bg-orange-500/25` },
         { name: 'blue',    wrapper: `${BASE} bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` },

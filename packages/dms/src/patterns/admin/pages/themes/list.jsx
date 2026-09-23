@@ -36,19 +36,26 @@ function ThemeList ({
 
 	const attrToAddNew = ['name', 'theme'];
 	const columns = [
-		{name: 'name', display_name: 'Theme name', show: true, type: 'text'},
+		{name: 'name', display_name: 'Theme name', show: true, type: 'ui',
+			Comp: (d) => (
+				<div className={d.className}>
+					<Link to={d.row.manage_url} className={t.themeName}>{d.row.name}</Link>
+				</div>
+			)
+		},
 
     {
-      name: 'edit', display_name: 'Edit', show: true, type: 'ui',
+      name: 'edit', display_name: 'Actions', show: true, type: 'ui',
+		size: 150,
       Comp: (d) => (
         <div className={t.cellActions}>
           <Link to={d?.row?.manage_url || ''} className={t.editLink}>
-            <Icon icon='PencilEditSquare' className={t.iconMd} /><span className={t.iconLabel}>Edit</span>
+            <Icon icon='PencilEditSquare' className={t.iconMd} />
           </Link>
           <div
             onClick={async () => { setEditingItem(d.row)}}
             className={t.settingsLink}>
-            <Icon icon='' className={t.iconMd} /><span className={t.iconLabel}>Settings</span>
+            <Icon icon='Settings' className={t.iconMd} />
           </div>
 
         </div>
@@ -81,28 +88,35 @@ function ThemeList ({
 		<div className={t.wrapper}>
 			<div className={t.header}>
 				<div className={t.headerTitle}>Themes</div>
-				<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add theme </Button>
+				<div className={t.toolbar}>
+					<div className={t.searchWrapper}>
+						<Icon icon='Search' className={t.searchIcon} />
+						<Input type={'text'} className={t.searchInput} value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter themes…'} />
+					</div>
+					<Button className={t.addButton} onClick={() => setAddingNew(true)}>
+						<Icon icon='Plus' className={t.iconSm} /> add theme
+					</Button>
+				</div>
 			</div>
-			<div className={t.searchBar}>
-				<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeHolder={'Filter themes'} />
-
-				{/*<Button className={'shrink-0'} onClick={() => onSubmit([])}> Clear themes </Button>*/}
+			<div className={t.tableWrapper}>
+				<Table columns={columns}
+					   data={data}
+					   isEdit={false}
+					   gridRef={gridRef}
+					   activeStyle='rules'
+				/>
 			</div>
-			<Table columns={columns}
-				   data={data}
-				   isEdit={false}
-				   gridRef={gridRef}
-			/>
 
 			<Modal open={addingNew} setOpen={setAddingNew}>
 				<div className={t.modalForm}>
+					<div className={t.modalTitle}>Add a theme</div>
 					{
 						attrToAddNew
 							.map((attrKey, i) => {
 								return (
 									<Input
 										value={newItem?.[attrKey]}
-										placeHolder={attrKey}
+										placeholder={attrKey}
 										onChange={(v) => setNewItem({...newItem, [attrKey]: v.target.value})}
 										key={`${attrKey}-${i}`}
 									/>
@@ -115,7 +129,7 @@ function ThemeList ({
 							className={t.btnAdd}
 							onClick={() => addNewValue({...newItem, theme_id: nameToSlug(newItem.name || '')})}
 						>
-							Add
+							add
 						</button>
 					</div>
 				</div>
@@ -123,6 +137,7 @@ function ThemeList ({
 
 			<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
 				<div className={t.modalForm}>
+					<div className={t.modalTitle}>Theme settings</div>
 					{
 						attrToAddNew
 							.map((attrKey, i) => {
@@ -147,7 +162,7 @@ function ThemeList ({
 								setEditingItem(undefined)
 							}}
 						>
-							Save
+							save
 						</Button>
 
 						<Button
@@ -158,8 +173,10 @@ function ThemeList ({
 								setEditingItem(undefined)
 							}}
 						>
-							Cancel
+							cancel
 						</Button>
+
+						<span className='flex-1' />
 
 						<Button
 							className={t.btnDuplicate}

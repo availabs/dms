@@ -42,6 +42,9 @@ function createFileUploadDmsHandler(controller) {
     const fields = {};
     let savedFilePath = null;
     let originalFileName = null;
+    // Resolves once the temp file is fully flushed. Busboy's 'finish' only means the
+    // request is parsed — the WriteStream may still be writing.
+    let fileWritten = null;
 
     busboy.on('field', (name, value) => {
       fields[name] = value;
@@ -51,7 +54,12 @@ function createFileUploadDmsHandler(controller) {
       originalFileName = info.filename;
       const tempPath = path.join(os.tmpdir(), `dms-fileupload-${randomUUID()}`);
       savedFilePath = tempPath;
-      stream.pipe(fs.createWriteStream(tempPath));
+      const ws = fs.createWriteStream(tempPath);
+      fileWritten = new Promise((resolve, reject) => {
+        ws.on('finish', resolve);
+        ws.on('error', reject);
+      });
+      stream.pipe(ws);
     });
 
     busboy.on('finish', async () => {
@@ -62,6 +70,7 @@ function createFileUploadDmsHandler(controller) {
         if (!savedFilePath) {
           return res.status(400).json({ ok: false, error: 'No file uploaded' });
         }
+        await fileWritten;
 
         const {
           owner_id, owner_ref, owner_instance,

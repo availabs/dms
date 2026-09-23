@@ -8,6 +8,15 @@ const NON_PAGE_OPTIONS = [
   { kind: 'forms',    label: 'Forms',    desc: 'Collect user-submitted data' },
 ]
 const AUTH_OPTION = { kind: 'auth', label: 'Auth', desc: 'Authentication and access control' }
+// Same type→color mapping as the Sites table's pattern_type pill
+// (editSite.jsx's TYPE_PILL_KEY) — kept as its own copy here since it colors
+// a different theme's tag classes, not editSiteTheme's.
+const TAG_CLASS_KEY = {
+  page: 'tagPage',
+  datasets: 'tagDatasets',
+  auth: 'tagAuth',
+  forms: 'tagForms',
+}
 
 function getDefaultName(card, pageTemplates) {
   if (card.kind === 'datasets') return 'Data'
@@ -89,6 +98,7 @@ export function AddPatternPicker({ authExists, onAdd }) {
             onClick={() => select(opt)}
           >
             <div className={t.optName}>{opt.label}</div>
+            <span className={`${t.optTag} ${t[TAG_CLASS_KEY[opt.kind]] || ''}`}>{opt.kind}</span>
             <div className={t.optDesc}>{opt.desc}</div>
           </div>
         ))}
@@ -113,8 +123,8 @@ export function AddPatternPicker({ authExists, onAdd }) {
               className={sel ? t.optCardSelected : t.optCard}
               onClick={() => select(card)}
             >
-              <span className={sel ? t.pageTagSelected : t.pageTag}>page</span>
               <div className={t.optName}>{tmpl.name}</div>
+              <span className={`${t.optTag} ${t.tagPage}`}>page</span>
               <div className={t.optDesc}>{tmpl.description}</div>
             </div>
           )

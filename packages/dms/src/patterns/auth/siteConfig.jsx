@@ -1,6 +1,7 @@
 import React from "react";
+import {Link, useLocation} from "react-router";
 import UI from "../../ui";
-import {getPatternTheme, ThemeContext} from "../../ui/useTheme";
+import {getPatternTheme, getAdminTheme, ThemeContext} from "../../ui/useTheme";
 import DefaultMenu from "./components/menu"
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
@@ -15,19 +16,58 @@ import {cloneDeep, merge} from "lodash-es";
 
 let authImgI = null;
 
-const AdminLayout = ({menuItems, children, theme, Menu}) => {
+const AdminLayout = ({menuItems, children, theme, Menu, adminPath}) => {
     const {Layout, LayoutGroup} = UI;
+    const { UI: contextUI } = React.useContext(ThemeContext) || {};
+    const { ThemeToggle } = contextUI || {};
+    const location = useLocation();
     // A theme may name the Layout / LayoutGroup styles these pages use
     // (`auth.authPages.manageLayoutStyle` / `manageLayoutGroupStyle`) and swap
     // the nav items (`auth.authPages.manage.menuItems`). Unset, the pattern's
     // default layout options and the manager's Sites / Themes / Auth menu
     // apply, exactly as before 2026-09-13.
     const pages = theme?.auth?.authPages || {};
+    // Manage pages (Users/Groups/Profile) get their own themed page background
+    // (`manage.container`) instead of unconditionally reusing the auth
+    // login/signup pages' `container` — that one is a hardcoded light-gray
+    // gradient (never themed, since it predates dark mode) and AdminLayout
+    // always renders through the "default" theme (see manageAuthConfig
+    // below), so leaving it wired to `container` painted every project's
+    // Users/Groups/Profile page with a literal near-white background behind
+    // the (correctly dark-mode-aware) panel cards, regardless of theme.
+    // Falls back to `container` for BC — a theme that hasn't set
+    // `manage.container` yet (MNY hasn't reskinned these pages) renders
+    // exactly as before.
+    const containerClass = pages.manage?.container ?? pages.container;
+    const m = pages.manage || {};
+    // "admin / <page>" breadcrumb (mockups' `<header>` band) — not the shared
+    // Layout's own TopNav (that's gated by a single GLOBAL `layout.options.
+    // topNav.size`, so enabling it here would turn it on for every page in
+    // the app, not just these three). Rendered as a plain themed bar instead,
+    // scoped to just AdminLayout. The current-page label is just the last
+    // path segment — every manage route (`users`/`groups`/`profile`) already
+    // reads correctly as-is, no label map needed.
+    const crumb = location.pathname.split('/').filter(Boolean).pop() || '';
     return (
-        <div className={pages.container}>
-            <Layout navItems={pages.manage?.menuItems || menuItems} Menu={Menu} activeStyle={pages.manageLayoutStyle}>
+        <div className={containerClass}>
+            <Layout navItems={pages.manage?.menuItems || menuItems} Menu={Menu} activeStyle={pages.manageLayoutStyle} sideNavActiveStyle='admin'>
+                {m.breadcrumbBar && (
+                    <div className={m.breadcrumbBar}>
+                        {adminPath ? (
+                            <Link to={adminPath} className={m.breadcrumbHome}>admin</Link>
+                        ) : (
+                            <span className={m.breadcrumbHome}>admin</span>
+                        )}
+                        <span className={m.breadcrumbSep}>/</span>
+                        <span className={m.breadcrumbCurrent}>{crumb}</span>
+                        <span className='flex-1' />
+                        <div className={m.breadcrumbActions}>
+                            <ThemeToggle />
+                        </div>
+                    </div>
+                )}
                 <LayoutGroup activeStyle={pages.manageLayoutGroupStyle}>
-                    {children}
+                    <div className={m.contentWrapper}>{children}</div>
                 </LayoutGroup>
             </Layout>
         </div>
@@ -36,21 +76,50 @@ const AdminLayout = ({menuItems, children, theme, Menu}) => {
 
 const AuthLayout = ({children, theme, imgI}) => {
     const {Layout, LayoutGroup} = UI;
+    const pages = theme?.auth?.authPages || {};
+    const sg = pages.sectionGroup?.default || {};
+    // mny's own theme (mny/auth.js) sets a real `wrapper4ImgList` — that's
+    // the signal it wants the existing two-column split (form + a rotating
+    // hazard-photo panel) preserved exactly as it renders today. Every theme
+    // that doesn't set one (the default/tessera path, and any theme that
+    // hasn't done its own auth-page pass yet) gets the mockups' single
+    // centered card instead, with NO SideNav/TopNav chrome at all — Layout's
+    // sidenav/topnav visibility is one GLOBAL on/off switch
+    // (`layout.options.sideNav.size`), not something one `<Layout>` instance
+    // can turn off on its own, so the bare path skips Layout entirely rather
+    // than fighting that gate (2026-09-18).
+    const isSplit = Array.isArray(sg.wrapper4ImgList) && sg.wrapper4ImgList.length > 0;
+
+    if (isSplit) {
+        return (
+            <Layout activeStyle={'auth'} topNavActiveStyle={'auth'}>
+                <LayoutGroup activeStyle={'auth'}>
+                    <div className={sg.wrapper3}>
+                        {children}
+                    </div>
+                    <div className={sg.wrapper4}>
+                        <div
+                            className={sg.wrapper4Img}
+                            style={{ backgroundImage: `url(${sg.wrapper4ImgList[imgI]})` }}
+                        />
+                    </div>
+                </LayoutGroup>
+            </Layout>
+        )
+    }
 
     return (
-        <Layout activeStyle={'auth'} topNavActiveStyle={'auth'}>
-            <LayoutGroup activeStyle={'auth'}>
-                <div className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper3}>
+        <div className={pages.bareWrapper}>
+            <div className={pages.bareBand}>
+                <div className="t6-sheet-fade" />
+                {/* `relative` lifts the page above the absolutely-positioned
+                    fade — without it the grid paints over every page's card
+                    (positioned elements paint after in-flow ones). */}
+                <div className={pages.bareContent ?? 'relative w-full'}>
                     {children}
                 </div>
-                <div className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper4}>
-                    <div
-                        className={theme?.auth?.authPages?.sectionGroup?.default?.wrapper4Img}
-                        style={{ backgroundImage: `url(${theme?.auth?.authPages?.sectionGroup?.default?.wrapper4ImgList?.[imgI]})` }}
-                    />
-                </div>
-            </LayoutGroup>
-        </Layout>
+            </div>
+        </div>
     )
 }
 const authConfig = ({
@@ -138,10 +207,15 @@ const manageAuthConfig = ({
   ssrCollect,
 }) => {
 
+    // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — a
+    // theme's own icon set merges with, rather than replaces, this base set
+    // (see Icon.jsx / theme.Icons), so these render everywhere without
+    // needing per-theme icon work.
     const menuItems = [
         {
             name: 'Sites',
-            path: `${adminPath}`
+            path: `${adminPath}`,
+            icon: 'Home'
         },
         // {
         //     name: 'Datasets',
@@ -149,7 +223,8 @@ const manageAuthConfig = ({
         // },
         {
             name: 'Themes',
-            path: `${adminPath}/themes`
+            path: `${adminPath}/themes`,
+            icon: 'Fill'
         },
         // {
         //     name: 'Team',
@@ -157,18 +232,23 @@ const manageAuthConfig = ({
         // },
         {
             name: 'Auth',
+            icon: 'AccessControl',
+            defaultOpen: true,
             subMenus: [
                 {
                     name: 'Profile',
-                    path: `${baseUrl}/manage/profile`
+                    path: `${baseUrl}/manage/profile`,
+                    icon: 'UserCircle'
                 },
                 {
                     name: 'Users',
-                    path: `${baseUrl}/manage/users`
+                    path: `${baseUrl}/manage/users`,
+                    icon: 'User'
                 },
                 {
                     name: 'Groups',
-                    path: `${baseUrl}/manage/groups`
+                    path: `${baseUrl}/manage/groups`,
+                    icon: 'Group'
                 }
             ]
         }
@@ -178,18 +258,49 @@ const manageAuthConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-    // The manage pages follow the auth pattern's OWN theme, like the login pages
-    // above. `mny_admin` is only the fallback for a pattern with no
-    // `selectedTheme` — that was the hardcoded value here until 2026-09-12, so a
-    // site that never set one renders exactly as before.
-    const managePattern = pattern?.theme?.selectedTheme
-        ? pattern
-        : {...pattern, theme: {...(pattern?.theme || {}), selectedTheme: 'mny_admin'}};
-    const theme = getPatternTheme(themes, managePattern, ssrCollect);
+    // Same theme as the admin pattern's pages (Sites/Themes/Pattern Editor):
+    // the library default plus this auth pattern's theme's `admin` key (its
+    // logo) — see getAdminTheme. The login pages above use the auth theme
+    // whole (incl. its `auth` key); these manage pages don't.
+    const theme = getAdminTheme(themes, pattern, ssrCollect);
+    // Emails sent from these pages (Users: add user / reset password) carry the
+    // auth theme's branding, like the login pages' emails — not the admin theme's.
+    const authTheme = getPatternTheme(themes, pattern);
+    const emailTheme = {
+        ...(authTheme?.auth?.emailTheme || {}),
+        logoUrl:   authTheme?.auth?.emailTheme?.logoUrl || authTheme?.logo?.img || '',
+        logoTitle: authTheme?.logo?.title || '',
+    };
+
+    // ThemeToggle moved into AdminLayout's own breadcrumb bar, matching
+    // patterns/admin/siteConfig.jsx's identical change (2026-09-22) — the
+    // sidenav's own bottomMenu default (Layout.theme.jsx) pairs it with
+    // UserMenu, which these manage pages no longer want; drop it here so
+    // only UserMenu remains at the bottom of the sidenav.
+    theme.layout.options.sideNav.bottomMenu = [{ type: "UserMenu" }];
+
+    // // A theme's own auth pass may already define the nav it wants for these
+    // // manage pages (see mny/auth.js's `navOptions` — sideNav on, topNav off,
+    // // matching the /list/pages and /list/themes admin look) but `theme.auth`
+    // // is a separate branch from `theme.layout` that Layout.jsx never reads on
+    // // its own. Splice it into `layout.options` here, scoped to just this
+    // // manage-page theme object (login/signup and the rest of the site build
+    // // their own `theme` separately and keep the theme's global layout.options
+    // // untouched). A theme that hasn't set `auth.navOptions` (the common case)
+    // // falls through with `theme.layout.options` exactly as resolved before.
+    // if (theme?.auth?.navOptions?.sideNav || theme?.auth?.navOptions?.topNav) {
+    //     theme.layout = {
+    //         ...theme.layout,
+    //         options: {
+    //             ...theme.layout?.options,
+    //             sideNav: theme.auth.navOptions.sideNav || theme.layout?.options?.sideNav,
+    //             topNav: theme.auth.navOptions.topNav || theme.layout?.options?.topNav,
+    //         },
+    //     };
+    // }
 
     theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
     theme.navOptions.sideNav.dropdown = 'top'
-
   // ----------------------
   return {
     app,
@@ -200,7 +311,7 @@ const manageAuthConfig = ({
         type: (props) => {
           return (
               <ThemeContext.Provider value={{theme, UI}}>
-                  <AdminLayout menuItems={menuItems} theme={theme} Menu={() => <>{rightMenu}</>}>
+                  <AdminLayout menuItems={menuItems} theme={theme} Menu={() => <>{rightMenu}</>} adminPath={adminPath}>
                           {props.children}
                   </AdminLayout>
               </ThemeContext.Provider>
@@ -210,7 +321,7 @@ const manageAuthConfig = ({
         path: `/*`,
         children: [
           {
-            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} />,
+            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} />,
             reqPermissions: ['auth-users'],
             path: "users",
           },

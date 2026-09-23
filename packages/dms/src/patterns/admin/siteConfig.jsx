@@ -1,12 +1,11 @@
 import React from "react";
-// import {useLocation} from 'react-router'
+import { useLocation } from 'react-router'
 
 import { cloneDeep } from "lodash-es";
-import { ThemeContext, mergeTheme, getPatternTheme } from "../../ui/useTheme";
+import { ThemeContext, mergeTheme, getAdminTheme } from "../../ui/useTheme";
 import { AdminContext } from "./context";
-import { sectionGroupTheme } from './siteConfig.theme';
+import { sectionGroupTheme, adminChromeTheme } from './siteConfig.theme';
 import UI from "../../ui";
-import defaultTheme from "../../ui/defaultTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
 
 import ErrorPage from "./components/errorPage.jsx";
@@ -21,17 +20,43 @@ import ThemeEdit from "./pages/themes/editTheme";
 import PatternEditor from "./pages/patternEditor";
 //import ThemeManager from './pages/themeManager/index.jsx'
 
+// "admin / <page>" breadcrumb + the ThemeToggle, matching the mockups'
+// header band. Not the shared Layout's own TopNav — that's gated by a single
+// GLOBAL layout.options.topNav.size, so enabling it here would turn it on
+// for every page in the app, not just the admin pattern's own pages.
+const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme' };
+const AdminBreadcrumb = ({ theme, baseUrl }) => {
+  const location = useLocation();
+  const { UI: contextUI } = React.useContext(ThemeContext) || {};
+  const { ThemeToggle } = contextUI || {};
+  const t = { ...adminChromeTheme, ...(theme?.admin?.chrome || {}) };
+  const rest = location.pathname.slice(baseUrl.length).split('/').filter(Boolean);
+  const crumb = PAGE_LABELS[rest[0] || ''] || rest[0] || 'overview';
+  return (
+    <div className={t.breadcrumbBar}>
+      <span className={t.breadcrumbHome}>admin</span>
+      <span className={t.breadcrumbSep}>/</span>
+      <span className={t.breadcrumbCurrent}>{crumb}</span>
+      <span className='flex-1' />
+      <div className={t.breadcrumbActions}>
+        <ThemeToggle />
+      </div>
+    </div>
+  );
+};
+
 const SectionGroup = ({
   children,
   maxWidth,
   padding,
+  card = true,
   ...props
 }) => {
   const { theme } = React.useContext(ThemeContext) || {}
   const t = { ...sectionGroupTheme, ...(theme?.admin?.sectionGroup || {}) }
   return (
-    <div className={t.outer}>
-      <div className={`${t.inner} ${padding || t.defaultPadding}`}>
+    <div className={card ? t.outer : t.outerPlain}>
+      <div className={`${card ? t.inner : t.innerPlain} ${padding || t.defaultPadding}`}>
         <div className={`${t.content} ${maxWidth || t.defaultMaxWidth}`}>
           {children}
         </div>
@@ -51,11 +76,13 @@ const adminConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
   pattern: patternData,
+  authPattern,
   authPermissions = {},
   isMultiTenant = false,
   pgEnv = '',
   ssrCollect,
 }) => {
+  console.log('pd?', patternData)
   const format = cloneDeep(adminFormat);
   format.app = app;
   // Build full site type: instance name + :site kind suffix.
@@ -74,10 +101,16 @@ const adminConfig = ({
   baseUrl = baseUrl === "/" ? "" : baseUrl;
 
   //console.log('defaultTheme', theme)
-  let theme = getPatternTheme(themes, {
-    ...patternData,
-    theme: { selectedTheme: "default" },
-  }, ssrCollect);
+  // Always the library default (tessera_v6), same for every project; only
+  // the auth pattern's theme's `admin` key (its logo) is layered on — see
+  // getAdminTheme.
+  let theme = getAdminTheme(themes, authPattern, ssrCollect);
+
+  // ThemeToggle moved into AdminBreadcrumb next to "view site" (2026-09-22) —
+  // the sidenav's own bottomMenu default (Layout.theme.jsx) pairs it with
+  // UserMenu, which admin no longer wants; drop it here so only UserMenu
+  // remains at the bottom of the sidenav.
+  theme.layout.options.sideNav.bottomMenu = [{ type: "UserMenu" }];
 
   // console.log('admin siteconfig API', API_HOST)
   return {
@@ -111,8 +144,13 @@ const adminConfig = ({
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
-                <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                  <LayoutGroup>{props.children}</LayoutGroup>
+                <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>} sideNavActiveStyle='admin'>
+                  <AdminBreadcrumb theme={theme} baseUrl={baseUrl} />
+                  {/* `adminContent` matches Pattern Editor's own content padding (p-5 lg:p-8) —
+                      the default `content` style's bigger py-8/pl-12 band padding was stacking
+                      with SectionGroup's own padding below, giving Sites/Themes' titles much
+                      more inset than Overview's (flagged live, 2026-09-21). */}
+                  <LayoutGroup activeStyle="adminContent">{props.children}</LayoutGroup>
                 </Layout>
               </ThemeContext.Provider>
             </AdminContext.Provider>
@@ -123,7 +161,17 @@ const adminConfig = ({
         children: [
           {
             type: (props) => (
-              <SectionGroup>
+              // `card={false}` — SiteEdit's own title (identityWrapper) renders flush on
+              // the page background, with the table as its own local card (`tableCard`);
+              // the default `card` wraps the WHOLE page in one box, merging the two
+              // (flagged live, 2026-09-21 — matches the same fix already applied to the
+              // Pattern Editor's own pages). `padding="p-0"` — SectionGroup's own
+              // `defaultPadding` (p-4) was stacking on top of the outer LayoutGroup's
+              // padding, giving this page far more inset than Overview's; matches
+              // `patternConfig`'s own `padding="p-0"` precedent below. `maxWidth="max-w-5xl"` —
+              // the same content cap as the Pattern Editor's pages (Overview's own
+              // `max-w-5xl`), shared by Themes/Users/Groups/Profile (2026-09-22).
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <SiteEdit {...props} />
               </SectionGroup>
             ),
@@ -141,7 +189,12 @@ const adminConfig = ({
           },
           {
             type: (props) => (
-              <SectionGroup>
+              // `card={false}` — ThemeList's own `header` already renders flush, and its
+              // `tableWrapper` already carries its own card; the default `card` was
+              // wrapping both in a second, redundant outer box (same fix as SiteEdit above).
+              // `padding="p-0"` — same excess-padding fix as SiteEdit above. `maxWidth="max-w-5xl"`
+              // — same content cap as SiteEdit above (2026-09-22).
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <ThemeList {...props} />
               </SectionGroup>
             ),
@@ -186,6 +239,8 @@ const patternConfig = ({
   isMultiTenant = false,
   pgEnv = '',
   datasources = [],
+  authPattern,
+  ssrCollect,
 }) => {
   const format = cloneDeep(pattern);
   format.app = app;
@@ -194,13 +249,17 @@ const patternConfig = ({
   baseUrl = `${parentBaseUrl}/manage_pattern`;
 
   //console.log('admin PatternConfig', themes)
-  let theme = mergeTheme(defaultTheme, {
+  // Same base as adminConfig (default theme + the auth theme's `admin.logo`),
+  // so the Pattern Editor's logo matches Sites/Themes.
+  let theme = mergeTheme(getAdminTheme(themes, authPattern, ssrCollect), {
     layout: {
       options: {
         sideNav: {
           size: "compact",
           nav: "main",
           topMenu: [{ type: "Logo" }],
+          // ThemeToggle moved into the Pattern Editor's own Breadcrumbs, next
+          // to "view site" (2026-09-22) — only UserMenu stays here.
           bottomMenu: [{ type: "UserMenu" }],
         },
       },
@@ -218,8 +277,23 @@ const patternConfig = ({
       {
         type: (props) => {
           const { Layout } = UI;
-          const { user, apiUpdate } = props;
+          const { user, apiUpdate, dataItems = [], params = {} } = props;
           const menuItems = getMenuItems(parentBaseUrl, authPath, props.user);
+          // `props` here comes from the SAME EditWrapper every route node goes
+          // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
+          // unfiltered loader result for this format (every sibling pattern),
+          // regardless of this node's own `action`. This node's own path is
+          // the wildcard `/*`, so `params` only carries the raw remainder
+          // (`params['*']`, e.g. "12/overview") — the child route's own
+          // `:id/:page?` pattern is what names it `id` one level down
+          // (patternEditor/index.jsx). Parsing that first segment here avoids
+          // a second fetch just to know which pattern is currently open, so
+          // its own tab links can join the sidenav (2026-09-20).
+          const currentId = (params['*'] || '').split('/')[0];
+          const currentPattern = currentId && dataItems.find(d => String(d.id) === currentId);
+          if (currentPattern) {
+            menuItems.push(...buildPatternMenuItems(baseUrl, currentId, currentPattern));
+          }
 
           return (
             <AdminContext.Provider
@@ -244,8 +318,8 @@ const patternConfig = ({
               }}
             >
               <ThemeContext.Provider value={{ theme, themes, themesLoader, UI }}>
-                <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>}>
-                  <SectionGroup maxWidth={""}>{props.children}</SectionGroup>
+                <Layout navItems={menuItems} Menu={() => <>{rightMenu}</>} sideNavActiveStyle='admin'>
+                  <SectionGroup maxWidth="w-full" padding="p-0" card={false}>{props.children}</SectionGroup>
                 </Layout>
               </ThemeContext.Provider>
             </AdminContext.Provider>
@@ -275,10 +349,15 @@ const patternConfig = ({
 export default [adminConfig, patternConfig];
 
 const getMenuItems = (baseUrl, authPath, user) => {
+  // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
+  // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
+  // menu when reached via the auth pattern, kept in sync here so the sidenav
+  // looks identical regardless of which pattern's wrapper mounted it.
   let menuItems = [
     {
       name: "Sites",
       path: `${baseUrl}`,
+      icon: 'Home',
     },
     // {
     //     name: 'Datasets',
@@ -287,27 +366,71 @@ const getMenuItems = (baseUrl, authPath, user) => {
     {
       name: "Themes",
       path: `${baseUrl}/themes`,
+      icon: 'Fill',
     },
   ];
 
   if (user?.authed) {
     menuItems.push({
       name: "Auth",
+      icon: 'AccessControl',
+      defaultOpen: true,
       subMenus: [
         {
           name: "Profile",
           path: `${authPath}/manage/profile`,
+          icon: 'UserCircle',
         },
         {
           name: "Users",
           path: `${authPath}/manage/users`,
+          icon: 'User',
         },
         {
           name: "Groups",
           path: `${authPath}/manage/groups`,
+          icon: 'Group',
         },
       ],
     });
   }
   return menuItems;
+};
+
+// The currently-open pattern's own tabs, joined into the SAME sidenav as a
+// second flat (non-collapsible) group below the site items — matching
+// design_system_v6/pages/admin-pattern-*.html: "the open pattern gets its
+// own sidenav group... there is NO separate tab strip — the sidenav IS the
+// tab nav". Path segments match patternEditor/index.jsx's own `pages` array
+// exactly (this only changes what the LINK is labeled/iconed, never the
+// route); "access"/"data" are this group's names for the existing
+// Permissions/Data-Sources tabs, per the mockups' own comments identifying
+// them as the same features — "Access" also absorbed the old standalone
+// "Filters" tab (admin-pattern-access.html's own second section is row
+// filters), so there's no separate Filters entry anymore; its content still
+// lives at the same `permissions` route (patternEditor/index.jsx's
+// PatternAccessEditor renders both) (2026-09-20). Icon names verified
+// against ui/icons/icon_defs.jsx — this file doesn't ship "Chevron*" or
+// "Clock" (only "ClockIcon"), the exact mistake fixed in SideNav.theme.jsx
+// earlier today; don't repeat it.
+const buildPatternMenuItems = (baseUrl, id, pattern) => {
+  const isPage = pattern.pattern_type === 'page';
+  const tab = (name, path, icon) => ({ name, path: `${baseUrl}/${id}/${path}`, icon });
+  return [
+    // No path/onClick/subMenus — SideNavItem's "label row" branch, styled via
+    // the 'admin' SideNav style's `navLabel` (added alongside this).
+    { name: `pattern · ${pattern.name || id}` },
+    tab('Overview', 'overview', 'InfoCircle'),
+    ...(isPage ? [tab('Pages', 'pages', 'Pages')] : []),
+    tab('Access', 'permissions', 'Lock'),
+    ...(isPage ? [tab('Data', 'sources', 'Database'), tab('Activity', 'activity', 'ClockIcon')] : []),
+    tab('Theme', 'theme', 'AdjustmentsHorizontal'),
+    // Custom, site-specific extra tabs a pattern's own data can define
+    // (patternEditor/index.jsx spreads `item.pages` the same way).
+    ...(pattern.pages || []).map(p => tab(p.name, p.path, p.icon || 'Page')),
+    ...(isPage ? [
+      tab('Page Templates', 'page_templates', 'Page'),
+      tab('Format Manager', 'edit_pattern', 'Settings'),
+    ] : []),
+  ];
 };

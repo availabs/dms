@@ -60,7 +60,7 @@ function ControlRenderer({ config, state, setState }) {
     })
   //console.log('Fieldset controls', controls)
   return (
-    <div>
+    <div className={t.controlGroup}>
       <div className={t.controlLabel}>{ config?.label || ''}</div>
       <FieldSet components={controls} />
     </div>
@@ -149,7 +149,7 @@ function ComponentList ({
      			    options={compOptions}
        	    />
 					</div>
-					<div>
+					<div className={t.exampleSelectorWrapper}>
 			      <MultiSelect singleSelectOnly searchable={false} value={currentComponentPropsIdx}
      					onChange={value => setCurrentComponentPropsIdx(value)}
      					options={
@@ -159,7 +159,8 @@ function ComponentList ({
    					/>
 					</div>
 				</div>
-				<button onClick={() => navigate(-1)}>back</button>
+				<span className='flex-1' />
+				<button className={t.backButton} onClick={() => navigate(-1)}>back</button>
 			</div>
 			<div className={t.body}>
 				<div className={t.sidebar}>
@@ -176,14 +177,15 @@ function ComponentList ({
    					/>
       		</div>
  					<div className={t.sidebarActions}>
-						<Button className={'w-fit'} onClick={() => onSubmit(currentTheme)}>Save</Button>
-						<Button className={'w-fit'} onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>Reset</Button>
+						<Button className={t.btnSave} onClick={() => onSubmit(currentTheme)}>save</Button>
+						<Button className={t.btnReset} onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>reset</Button>
  					</div>
   				<div className={t.sidebarControls}>
-            { currentThemeSetting }
+            <div className={t.controlLabel}>{ currentThemeSetting }</div>
             {
               (themeSettings?.[currentThemeSetting] || [])
-                .map(conf => <ControlRenderer
+                .map((conf, i) => <ControlRenderer
+                  key={conf?.label || i}
                   config={conf}
                   state={currentTheme}
                   setState={setCurrentTheme}
@@ -208,6 +210,24 @@ function ComponentList ({
                     @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400..700&family=Grape+Nuts&family=Oswald:wght@200..700&family=Rock+Salt&family=Shadows+Into+Light+Two&display=swap');
                     </style>
                     <link href="/fonts/proxima-nova/stylesheet.css" rel="stylesheet">
+                    ${/* The frame is a separate document — the parent's injected
+                        --t-* token stylesheet (ui/defaultTheme.js's
+                        'dms-default-tokens' entry) and any theme-specific
+                        <link>/<style> font tags never cross that boundary, so a
+                        component previewed here that reads var(--t-*) (every
+                        Phase-A-ported primitive) rendered with undefined tokens.
+                        currentTheme.fonts already carries the full merged list
+                        (mergeTheme concatenates 'fonts' arrays), so replaying
+                        each entry into this frame's own <head> fixes it for
+                        whichever theme is actually being edited. */
+                    (currentTheme?.fonts || [])
+                      .map(f => f?.type === 'google' && f?.href
+                        ? `<link rel="stylesheet" href="${f.href}">`
+                        : f?.type === 'style' && f?.content
+                          ? `<style id="${f.id || ''}">${f.content}</style>`
+                          : '')
+                      .join('\n')}
+                    <style>body { font-family: "IBM Plex Sans", system-ui, sans-serif; background: var(--t-paper, #fff); color: var(--t-ink, inherit); }</style>
                 </head>
                 <body>
                   <div id="root" class=""></div>

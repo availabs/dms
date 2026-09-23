@@ -46,7 +46,13 @@ export const avlGraphTheme = {
             // Built-in breathing room so the plot doesn't sit flush against the
             // section edge; a brand overrides via its own avlGraph `padding` token.
             padding: "p-4",
-            chartDefaults: ChartDefaults,
+            // colors.value ported from tessera-theme-v6.js's top-level `avlGraph`
+            // export (its `palette` array) — the one concept tessera's avlGraph
+            // theme shares with this file's shape. Rest of ChartDefaults (margin,
+            // axis typography, etc.) is this library's own, tessera has no
+            // equivalent for those. Only style[0] (default/Light Mode) touched —
+            // Dark Mode keeps the shared ChartDefaults base untouched.
+            chartDefaults: { ...ChartDefaults, colors: { type: "palette", value: ["#0A46D8", "#1F8A4C", "#B97516", "#CA3214", "#50545C"] } },
             ...SharedThemeOptions
         },
         { name: "Dark Mode",

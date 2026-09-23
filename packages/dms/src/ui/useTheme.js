@@ -49,9 +49,26 @@ function mergeComponentStyles(baseStyles, overrideStyles) {
     mergedDefault._replace = [...replaceKeys];
   }
 
+  // Non-default styles are matched by NAME, not index, so unrelated styles
+  // at the same array position never cross-contaminate (the original bug
+  // this function existed to fix). An override style replaces a base style
+  // of the same name; every base-only named style (one the override array
+  // doesn't mention at all) is preserved as-is. Previously this took the
+  // override's tail wholesale, so any site theme that redeclares this
+  // component's styles array — even just its own 'default' — silently wiped
+  // out every named style the dms package itself ships at that component key
+  // (e.g. MultiSelect's 'accent' chip variant), and `activeStyle: '<name>'`
+  // no-op'd back to styles[0] with no error (found 2026-09-17).
+  const overrideRest = overrideStyles.slice(1).map(s => cloneDeep(s));
+  const overrideNames = new Set(overrideRest.map(s => s?.name).filter(Boolean));
+  const baseRest = baseStyles.slice(1)
+    .filter(s => !overrideNames.has(s?.name))
+    .map(s => cloneDeep(s));
+
   return [
     mergedDefault,
-    ...overrideStyles.slice(1).map(s => cloneDeep(s)),
+    ...baseRest,
+    ...overrideRest,
   ];
 }
 
@@ -92,6 +109,20 @@ export function mergeTheme(base, override) {
     // Component styles arrays: merge default (index 0), take rest from override
     if (isComponentStylesArray(base[key]) && isComponentStylesArray(override[key])) {
       result[key] = mergeComponentStyles(base[key], override[key]);
+      continue;
+    }
+
+    // `fonts` (the loadThemeFonts injection list — <link>/<style> descriptors,
+    // see ui/useTheme.js's loadThemeFonts) is additive, not positional: a
+    // plain lodash array-merge combines base[i] with override[i] by INDEX,
+    // which silently corrupts or drops entries whenever the two themes'
+    // fonts arrays differ in length or ordering (e.g. the base default
+    // theme's CSS-token stylesheet landing at whatever index a project's
+    // own theme happens to also populate). Concatenate instead — every
+    // entry an ancestor theme wants injected still gets injected.
+    // loadThemeFonts's own per-id DOM dedup makes a repeated id harmless.
+    if (Array.isArray(base[key]) && Array.isArray(override[key]) && key === 'fonts') {
+      result[key] = [...base[key], ...override[key]];
       continue;
     }
 
@@ -143,6 +174,40 @@ export const getPatternTheme = (themes, pattern, ssrCollect) => {
 
   return merged;
 }
+
+/**
+ * Theme for the admin surfaces — the admin pattern (Sites/Themes/Pattern
+ * Editor) and the auth pattern's manage pages (Users/Groups/Profile).
+ *
+ * These always render the library default (tessera_v6) — the same look for
+ * every project. The only per-project input is the `admin` key of the theme
+ * the site's auth pattern selects (the same way the login pages read that
+ * theme's `auth` key), plus the auth pattern's own `theme.admin` overrides.
+ * The rest of that theme is never applied here, so adding an `admin` key to a
+ * theme can't change anything outside admin.
+ *
+ *   admin.logo  — merged over the default logo. Without one, the logo is
+ *                 blanked to an "Admin" title.
+ *   admin.*     — any other key merges into the default `theme.admin`
+ *                 per-page overrides (patternEditor, editSite, ...).
+ *
+ * See planning/tasks/current/admin-theme-per-project.md.
+ */
+export const getAdminTheme = (themes, authPattern, ssrCollect) => {
+  const theme = getPatternTheme(themes, { theme: { selectedTheme: 'default' } }, ssrCollect);
+  // same selection precedence as getPatternTheme
+  const name = authPattern?.theme?.selectedTheme || authPattern?.theme?.settings?.theme?.theme;
+  const { logo, ...adminOverrides } = mergeTheme(
+    (name && themes?.[name]?.admin) || {},
+    authPattern?.theme?.admin || {},
+  );
+  delete adminOverrides._replace;
+  if (Object.keys(adminOverrides).length) theme.admin = mergeTheme(theme.admin, adminOverrides);
+  theme.logo = logo
+    ? mergeTheme(theme.logo, logo)
+    : { ...theme.logo, img: '', logoAltImg: '', title: 'Admin' };
+  return theme;
+};
 
 /* ---------- Theme font loading ----------------------------------------------
    A theme may declare a `fonts` array; entries take one of these shapes:
