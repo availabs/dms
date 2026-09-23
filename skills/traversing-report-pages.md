@@ -784,6 +784,26 @@ any DMS page, not just reports. What's specific to reports:
   `/npmrds/macro` it is simply ABSENT from the DOM until the map has drawn —
   a `querySelector` for it right after load finds nothing and that is not a
   failure, just the un-resized state. Wait, `resize_window`, wait, then look.
+- **MacroView "Get to a segment" hooks + how to read the map** (2026-09-23,
+  ticket 2224873). Search results are `data-mv="search-result"`, the pinned
+  selection is `data-mv="selected-segment"` (its ✕ is the `button` inside it),
+  worst-N rows are `data-mv="worst-row"` behind `data-mv="worst-toggle"` —
+  each with `data-mv-tmc`. To assert a camera move or an overlay, get the
+  maplibre instance by walking React fibers up from `.maplibregl-map` and
+  scanning `memoizedProps`/`memoizedState` for an object with `getZoom` +
+  `querySourceFeatures`; the `report_probe.mjs` eval
+  `src/themes/transportny/scripts/report_probe_fixtures/evals/macro_get_to_segment.mjs`
+  (header has the command; needs `--auth`, the anonymous page is the login
+  screen) does it and reports zoom/center, the `macroview-selected-segment-*` layers,
+  layer order and a `styledata` counter (a redraw loop between plugin
+  overlays shows as a count that keeps climbing while idle). **Don't look a
+  segment up in the tiles**: a PM3 tile feature carries only the columns
+  core put in `?cols=` (the data column + active filter columns; geography
+  filters then run client-side via `setFilter`, only the year is a server-side
+  `&filter=year=YYYY` on the tile URL), e.g.
+  `{lottr_amp_lottr: "1.87"}` — `querySourceFeatures(..., {filter: ["==",
+  ["get","tmc"], …]})` matches 0 of ~40k features. Geometry comes from a UDA
+  side query (`ST_AsGeoJSON(wkb_geometry)`, see macroview `stats.js`).
 - **The macro download builder carries `data-mv` hooks** (the same convention
   as `data-mv="geo-results"` in `controlsPanel.jsx`): `column-menu`,
   `column-search`, `column-results`, `column-count`, and for the grouped
