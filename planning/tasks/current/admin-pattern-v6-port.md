@@ -788,9 +788,26 @@ real, unfixed overflow bug rather than chasing the root cause. This session chas
 - Memory `project_layout_childwrapper_width_overflow.md` updated to FIXED with the full trace —
   read that file if this class of overflow resurfaces anywhere else under `Layout`.
 
+## State as of 2026-09-22 (later): shared content width cap
+
+The user reversed the full-width pass: every admin page should use the Pattern Editor Overview's
+content cap, `max-w-5xl` (1024px, left-aligned).
+- **Sites and Themes list:** `SectionGroup maxWidth` changed from `w-full` to `max-w-5xl`
+  (`patterns/admin/siteConfig.jsx`).
+- **Every Pattern Editor tab:** a new `contentInner` key (`patternEditor.theme.js`) wraps
+  `PageComp` in `patternEditor/index.jsx`.
+- **Users/Groups/Profile:** a new `manage.contentWrapper` key (`patterns/auth/defaultTheme.js`)
+  wraps `AdminLayout`'s children.
+- **Breadcrumb bars stay full width.**
+- **Not capped:** ThemeEdit and Create, which the user didn't list.
+
+Verified live on shaun-test-app at 1600px on all 13 pages (Sites, Themes, Users, Groups, Profile,
+plus the 8 Pattern Editor tabs). The cap is 1024px wide at x=272 on every page, with no overflow and
+no page errors.
+
 ## Not started / next steps
 
-1. **MNY admin reskin** (**pick this up next session**) — MNY's own admin surface (`mny_admin`
+1. **MNY admin reskin** — **now planned as its own task: [`admin-theme-per-project.md`](./admin-theme-per-project.md)** (scope decided 2026-09-22: logo only — the auth pattern's theme's `admin.logo` overrides the default for admin + manage pages; colors/fonts stay default). Original note: MNY's own admin surface (`mny_admin`
    theme) still hasn't had its own pass; everything done so far is the shared tessera-default look
    only. Confirmed earlier (`tessera-component-theme-port.md`) that `mny_admin`'s auth-page theming
    is correct via its `{...mny, ...theme, Icons}` shallow-spread inheritance, so MNY's login/signup
@@ -816,3 +833,10 @@ Say: **"Continue the admin pattern v6 port — see
 surface is now fully ported (all 7 mockup-covered tabs, the ThemeToggle/breadcrumb chrome cleanup,
 and the full-width pass are all done) — **next session should pick up item 1, the MNY admin
 reskin**, before Create-site.
+
+## State as of 2026-09-23: Pages tab carets + table borders
+
+- `treeNode.jsx` / `sectionsChip.jsx`: carets `▶`/`▼` → `▸`/`▾`. `▶` (U+25B6) renders as an orange color emoji on some platforms, which was the "orange bg" on the expand-page / expand-sections icons. Sections chip hover moved off amber to `--t-rule-strong` / `--t-well`.
+- `table.theme.jsx` `below-row` style (used only by the Pages tab): `cell` is horizontal rules only, `border-y-[0.5px]` (stacked rows meet at a 1px seam; was 1px all sides = 2px seams + vertical rules).
+- Verified live on shaun-test-app pattern 1 (temp child page + section created and deleted afterward).
+- Same treatment extended to the other admin tables: `roomy` style (Sites list, tenants, Users, Groups; used only by admin pages) and a new `rules` style (default density, horizontal rules only) for the Themes list. Verified all 5 tables live: 0 side borders, no errors.

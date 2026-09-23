@@ -175,6 +175,40 @@ export const getPatternTheme = (themes, pattern, ssrCollect) => {
   return merged;
 }
 
+/**
+ * Theme for the admin surfaces — the admin pattern (Sites/Themes/Pattern
+ * Editor) and the auth pattern's manage pages (Users/Groups/Profile).
+ *
+ * These always render the library default (tessera_v6) — the same look for
+ * every project. The only per-project input is the `admin` key of the theme
+ * the site's auth pattern selects (the same way the login pages read that
+ * theme's `auth` key), plus the auth pattern's own `theme.admin` overrides.
+ * The rest of that theme is never applied here, so adding an `admin` key to a
+ * theme can't change anything outside admin.
+ *
+ *   admin.logo  — merged over the default logo. Without one, the logo is
+ *                 blanked to an "Admin" title.
+ *   admin.*     — any other key merges into the default `theme.admin`
+ *                 per-page overrides (patternEditor, editSite, ...).
+ *
+ * See planning/tasks/current/admin-theme-per-project.md.
+ */
+export const getAdminTheme = (themes, authPattern, ssrCollect) => {
+  const theme = getPatternTheme(themes, { theme: { selectedTheme: 'default' } }, ssrCollect);
+  // same selection precedence as getPatternTheme
+  const name = authPattern?.theme?.selectedTheme || authPattern?.theme?.settings?.theme?.theme;
+  const { logo, ...adminOverrides } = mergeTheme(
+    (name && themes?.[name]?.admin) || {},
+    authPattern?.theme?.admin || {},
+  );
+  delete adminOverrides._replace;
+  if (Object.keys(adminOverrides).length) theme.admin = mergeTheme(theme.admin, adminOverrides);
+  theme.logo = logo
+    ? mergeTheme(theme.logo, logo)
+    : { ...theme.logo, img: '', logoAltImg: '', title: 'Admin' };
+  return theme;
+};
+
 /* ---------- Theme font loading ----------------------------------------------
    A theme may declare a `fonts` array; entries take one of these shapes:
 

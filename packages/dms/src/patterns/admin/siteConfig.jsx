@@ -2,11 +2,10 @@ import React from "react";
 import { useLocation } from 'react-router'
 
 import { cloneDeep } from "lodash-es";
-import { ThemeContext, mergeTheme, getPatternTheme } from "../../ui/useTheme";
+import { ThemeContext, mergeTheme, getAdminTheme } from "../../ui/useTheme";
 import { AdminContext } from "./context";
 import { sectionGroupTheme, adminChromeTheme } from './siteConfig.theme';
 import UI from "../../ui";
-import defaultTheme from "../../ui/defaultTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
 
 import ErrorPage from "./components/errorPage.jsx";
@@ -77,6 +76,7 @@ const adminConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
   pattern: patternData,
+  authPattern,
   authPermissions = {},
   isMultiTenant = false,
   pgEnv = '',
@@ -101,26 +101,10 @@ const adminConfig = ({
   baseUrl = baseUrl === "/" ? "" : baseUrl;
 
   //console.log('defaultTheme', theme)
-  let theme = getPatternTheme(themes, {
-    ...patternData,
-    theme: { selectedTheme: "default" },
-  }, ssrCollect);
-
-  // The admin panel intentionally always uses "default" (tessera_v6) for its
-  // layout/styling, same for every project (see
-  // planning/shared/tasks/current/tessera-default-theme.md — "i do want
-  // admin panels to look the same for all projects"). The logo is the one
-  // exception: if this project has its OWN theme configured for this admin
-  // pattern (patternData.theme.selectedTheme — discarded above for
-  // everything else), and that theme defines its own `logo`, use it instead
-  // of tessera_v6's brand mark. If there's no project theme configured, or
-  // it doesn't define its own logo, render no logo at all rather than
-  // falling back to tessera's mark — `themes[name]` holds each theme's raw
-  // module (pre-merge), so `.logo` is only present when that theme actually
-  // sets one of its own.
-  const projectThemeName = patternData?.theme?.selectedTheme;
-  const projectLogo = projectThemeName && themes?.[projectThemeName]?.logo;
-  theme.logo = projectLogo ? cloneDeep(projectLogo) : { ...theme.logo, img: '', logoAltImg: '', title: 'Admin' };
+  // Always the library default (tessera_v6), same for every project; only
+  // the auth pattern's theme's `admin` key (its logo) is layered on — see
+  // getAdminTheme.
+  let theme = getAdminTheme(themes, authPattern, ssrCollect);
 
   // ThemeToggle moved into AdminBreadcrumb next to "view site" (2026-09-22) —
   // the sidenav's own bottomMenu default (Layout.theme.jsx) pairs it with
@@ -184,10 +168,10 @@ const adminConfig = ({
               // Pattern Editor's own pages). `padding="p-0"` — SectionGroup's own
               // `defaultPadding` (p-4) was stacking on top of the outer LayoutGroup's
               // padding, giving this page far more inset than Overview's; matches
-              // `patternConfig`'s own `padding="p-0"` precedent below. `maxWidth="w-full"` —
-              // this page (and Themes/Users/Groups/Profile) should render full width
-              // (2026-09-22), matching ThemeEdit's own existing override below.
-              <SectionGroup card={false} padding="p-0" maxWidth="w-full">
+              // `patternConfig`'s own `padding="p-0"` precedent below. `maxWidth="max-w-5xl"` —
+              // the same content cap as the Pattern Editor's pages (Overview's own
+              // `max-w-5xl`), shared by Themes/Users/Groups/Profile (2026-09-22).
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <SiteEdit {...props} />
               </SectionGroup>
             ),
@@ -208,9 +192,9 @@ const adminConfig = ({
               // `card={false}` — ThemeList's own `header` already renders flush, and its
               // `tableWrapper` already carries its own card; the default `card` was
               // wrapping both in a second, redundant outer box (same fix as SiteEdit above).
-              // `padding="p-0"` — same excess-padding fix as SiteEdit above. `maxWidth="w-full"`
-              // — full width, same as SiteEdit above (2026-09-22).
-              <SectionGroup card={false} padding="p-0" maxWidth="w-full">
+              // `padding="p-0"` — same excess-padding fix as SiteEdit above. `maxWidth="max-w-5xl"`
+              // — same content cap as SiteEdit above (2026-09-22).
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <ThemeList {...props} />
               </SectionGroup>
             ),
@@ -255,6 +239,8 @@ const patternConfig = ({
   isMultiTenant = false,
   pgEnv = '',
   datasources = [],
+  authPattern,
+  ssrCollect,
 }) => {
   const format = cloneDeep(pattern);
   format.app = app;
@@ -263,7 +249,9 @@ const patternConfig = ({
   baseUrl = `${parentBaseUrl}/manage_pattern`;
 
   //console.log('admin PatternConfig', themes)
-  let theme = mergeTheme(defaultTheme, {
+  // Same base as adminConfig (default theme + the auth theme's `admin.logo`),
+  // so the Pattern Editor's logo matches Sites/Themes.
+  let theme = mergeTheme(getAdminTheme(themes, authPattern, ssrCollect), {
     layout: {
       options: {
         sideNav: {

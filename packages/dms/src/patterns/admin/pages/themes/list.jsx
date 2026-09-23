@@ -103,6 +103,7 @@ function ThemeList ({
 					   data={data}
 					   isEdit={false}
 					   gridRef={gridRef}
+					   activeStyle='rules'
 				/>
 			</div>
 

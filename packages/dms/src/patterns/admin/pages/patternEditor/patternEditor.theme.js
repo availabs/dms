@@ -13,6 +13,9 @@ export const patternEditorTheme = {
     wrapper: 'h-full flex flex-col w-full',
     noAccess: 'flex items-center justify-center h-48 text-sm text-[var(--t-pencil)]',
     content: 'flex-1 flex flex-col p-5 lg:p-8',
+    // every tab's content width — Overview's own `max-w-5xl` cap, applied to all
+    // tabs (and matched by Sites/Themes/Users/Groups/Profile) (2026-09-22).
+    contentInner: 'flex-1 flex flex-col w-full min-w-0 max-w-5xl',
 
     // Breadcrumbs — `admin / <pattern name> / <tab>`, matching
     // design_system_v6/pages/admin-pattern-overview.html's header trail and
