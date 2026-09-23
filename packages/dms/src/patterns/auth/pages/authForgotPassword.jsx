@@ -48,7 +48,7 @@ export default function AuthForgotPassword (props) {
                 onClick={async () => {
                 const emailTheme = {
                     ...(theme?.auth?.emailTheme || {}),
-                    logoUrl:    theme?.logo?.img   || '',
+                    logoUrl:    theme?.auth?.emailTheme?.logoUrl || theme?.logo?.img || '', // a theme's email logo beats the (possibly relative) site logo
                     logoTitle:  theme?.logo?.title || PROJECT_NAME,
                     siteOrigin: window.location.origin,
                 };
