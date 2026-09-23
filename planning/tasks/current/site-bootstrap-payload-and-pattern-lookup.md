@@ -6,7 +6,8 @@
 > a real logged-in Chromium against a local dms-server + vite on the live mercury DB, so these are
 > observed numbers, not estimates.
 
-**STATUS (2026-09-17): findings 1, 2 and 4 SHIPPED and measured. Finding 3 still open.**
+**STATUS (2026-09-22): findings 1, 2, 4 SHIPPED + the trigram index APPLIED TO LIVE `dms3`.
+Finding 3 still open.** Production-build first card on `/cenrep`: **1216 ms → 726-735 ms**.
 Data requests on `/cenrep` went from **1,350,149 B to 453,318 B per load (−66%)**, and the
 `getSitePatterns` lookup from **123 ms to 1.0 ms**. Code uncommitted, not deployed; the MitigateNY
 site-row cleanup IS applied to the live row (owner-authorized, backup on disk). See "What shipped".
@@ -289,7 +290,38 @@ Its test — `packages/dms/tests/siteSnapshot.test.js` — passed all along beca
 **unexpanded** server shape (`id: 'no-access'`), which is not the shape the guard ever sees. Two cases
 in the ref-expanded shape are added there now (8 tests, green); they fail against the old guard.
 
-### Where the remaining ~1.0 s goes (final trace)
+### With the index live (2026-09-22) — final trace
+
+Owner granted permission, so `ix_data_items_type_trgm` was built on all **106** `dms3` schemas with
+`CREATE INDEX CONCURRENTLY` (no write lock on `data_items`), 0 invalid, largest 17 MB
+(`dms_mitigat_ny_prod`). On the live table the `getSitePatterns` query went **123 ms → 1.219 ms**
+(Bitmap Index Scan, `Index Cond: (type ~~ '%|datasets:pattern')`), 2-4 ms per round trip, same 1 row.
+
+Page effect, same harness:
+
+| | before this task | after themes+mount fixes | + index live |
+|---|---|---|---|
+| first card | — | 947-1005 ms | **726-735 ms** |
+| FCP | — | 584-644 ms | **488-500 ms** |
+| `sources.length` | 127-164 ms | 120 ms | **20 ms** |
+| internal `sources.byIndex` | 132 ms | 103 ms | **42 ms** |
+| long tasks | 609 ms | 404-432 ms | 403 ms |
+
+```
+   0→ 267ms   JS parse/eval/boot · FCP ~496 ms · 403 ms long tasks
+ 267→ 275ms   site row (8 ms)
+ 284→ 296ms   dmsEnvs (12 ms)
+ 300→ 320ms   110 pattern rows (20 ms)
+ 328→ 341ms   theme names (13 ms)
+ 490→ 513ms   form-manager length (23 ms)
+ 561→ 581ms   sources.length (20 ms)      ← was 120 ms
+ 589→ 641ms   sources.byIndex 368 (51 ms) + internal 52 (42 ms)
+      ~735ms  first card painted
+```
+
+Client boot is now the majority of the remaining time.
+
+### Where the ~1.0 s went before the index
 
 ```
    0→ 390ms   JS download (49 ms on localhost) + parse/eval/boot · FCP 584-644 ms · 404 ms long tasks
@@ -310,8 +342,7 @@ Roughly 40% client boot, 40% a six-level waterfall, 12% the one un-indexed query
 1. **One less waterfall level for the source list.** `sources.length` then `sources.byIndex[0..len-1]`
    is two serial hops for one list, and `length` is the request that triggers the pattern seq scan
    (127-164 ms of the trace above). A single "give me the sources" route removes a whole level.
-2. **The trigram index on the live DB** (ready in `migrate_dms_core.sql`, validated at 123 ms → 1 ms)
-   would take ~130-250 ms out of the waterfall. Applying it was **denied** to me — see Progress log.
+2. ~~The trigram index on the live DB~~ — **DONE 2026-09-22** (see above).
 3. **`maplibre` out of the eager graph** — 285 kB encoded / 1.05 MB raw parsed on every page,
    map or not.
 4. **The `index` chunk** — 746 kB encoded / 2.5 MB raw is most of the 609 ms of long tasks.
@@ -446,3 +477,20 @@ Don't chase it, and don't quote dev totals as production ones.
   needs an owner-run `CREATE INDEX CONCURRENTLY` (or just a deploy, which runs the migration).
   Unrelated pre-existing reds: `syncDeltaConvergence.test.js` 2/7 (imports only sync-manager →
   yjs-store/sync-scope/type-utils; nothing this work touches).
+- 2026-09-22 — **Trigram index applied to live `dms3`** with owner permission: 106 schemas,
+  `CREATE INDEX CONCURRENTLY` (no write lock), 0 invalid, 17 MB on the biggest table, live query
+  123 ms → 1.219 ms. `/cenrep` first card **947-1005 ms → 726-735 ms**, FCP → ~496 ms,
+  `sources.length` 120 ms → 20 ms.
+- 2026-09-22 — **Index added to the startup SQL, not just the migration** (owner request):
+  `db/sql/dms/dms.sql` (fresh shared `dms.data_items`) and `db/table-resolver.js`
+  `buildCreateTableSQL` (fresh per-app table in split mode), each in its own `DO ... EXCEPTION`
+  block so a database that cannot install pg_trgm still gets its table with a warning.
+  **Restricted to `data_items` content tables** — the same builder creates split dataset-row tables
+  (`data_items__{type}`) holding millions of rows with ONE constant `type` value, where a trigram
+  index indexes nothing and taxes every bulk insert. Generated DDL verified against `dms3` in a
+  rolled-back transaction (runs, idempotent, correct indexes).
+- 2026-09-22 — Note for whoever measures next: `.env` now points at `npmrdsv5/dev2` and `dist/` is an
+  npmrdsv5 build, so the MNY harness builds to `dist-mny/` (`vite build --outDir dist-mny`) and is
+  served with `vite preview --outDir dist-mny`. Pre-existing red in `test:splitting`
+  (`resolveTable` naming assertion) is unrelated — both table-resolver hunks here are inside
+  `buildCreateTableSQL`.
