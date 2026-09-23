@@ -1,7 +1,7 @@
 import React from "react";
 import {Link, useLocation} from "react-router";
 import UI from "../../ui";
-import {getPatternTheme, ThemeContext} from "../../ui/useTheme";
+import {getPatternTheme, getAdminTheme, ThemeContext} from "../../ui/useTheme";
 import DefaultMenu from "./components/menu"
 import AuthLogin from "./pages/authLogin";
 import AuthLogout from "./pages/authLogout";
@@ -67,7 +67,7 @@ const AdminLayout = ({menuItems, children, theme, Menu, adminPath}) => {
                     </div>
                 )}
                 <LayoutGroup activeStyle={pages.manageLayoutGroupStyle}>
-                    {children}
+                    <div className={m.contentWrapper}>{children}</div>
                 </LayoutGroup>
             </Layout>
         </div>
@@ -258,15 +258,11 @@ const manageAuthConfig = ({
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
-    // The manage pages follow the auth pattern's OWN theme, like the login pages
-    // above. `mny_admin` is only the fallback for a pattern with no
-    // `selectedTheme` — that was the hardcoded value here until 2026-09-12, so a
-    // site that never set one renders exactly as before.
-    const managePattern =  {...pattern, theme: {selectedTheme: 'default'}};
-    const theme = getPatternTheme(themes, managePattern, ssrCollect);
-    // const projectThemeName = pattern?.theme?.selectedTheme;
-    // const projectLogo = projectThemeName && themes?.[projectThemeName]?.logo; // here you actually get logo, but showing it breaks continuity from admin pages
-    theme.logo = { ...theme.logo, img: '', logoAltImg: '', title: 'Admin' };
+    // Same theme as the admin pattern's pages (Sites/Themes/Pattern Editor):
+    // the library default plus this auth pattern's theme's `admin` key (its
+    // logo) — see getAdminTheme. The login pages above use the auth theme
+    // whole (incl. its `auth` key); these manage pages don't.
+    const theme = getAdminTheme(themes, pattern, ssrCollect);
 
     // ThemeToggle moved into AdminLayout's own breadcrumb bar, matching
     // patterns/admin/siteConfig.jsx's identical change (2026-09-22) — the

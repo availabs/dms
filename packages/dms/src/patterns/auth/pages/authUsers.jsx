@@ -64,6 +64,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     const { Modal, Input, Button, Icon } = UI;
     const m = useManageTheme();
     const [email, setEmail] = useState("");
+    useEffect(() => { if (open) setEmail(""); }, [open]);
 
     return (
         <Modal open={open} setOpen={setOpen}>
@@ -80,7 +81,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
                     onChange={e => setEmail(e.target.value)}
                     placeHolder="Enter user email"
                 />
-                <Button className={m.modalAction} onClick={() => onAdd(email)}>
+                <Button className={m.modalAction} disabled={loading} onClick={() => onAdd(email)}>
                     {loading ? "Adding" : status || "Add"}
                 </Button>
             </div>
@@ -98,7 +99,10 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     const [addingNew, setAddingNew] = useState(false);
     const [loadingAdd, setLoadingAdd] = useState(false);
     const [editUser, setEditUser] = useState(null);
-    const [status, setStatus] = useState('');
+    const [addStatus, setAddStatus] = useState('');
+    const [resetStatus, setResetStatus] = useState('');
+    // locks the reset button while the request is in flight and after it succeeds
+    const [resetLocked, setResetLocked] = useState(false);
     const { UI } = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, baseUrl, viewAsUser, setViewAsUser } = React.useContext(AuthContext);
     const canViewAs = (user?.groups || []).some(g => g === `${app} Admin`)
@@ -117,6 +121,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
     const handleAddUser = async (email) => {
         setLoadingAdd(true);
+        setAddStatus('');
         const res = await callAuthServer(`${AUTH_HOST}/signup/assign/group`, {
             token: user.token,
             email,
@@ -126,11 +131,11 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
         if(!res.error){
             await loadUsers();
-            setLoadingAdd(false);
             setAddingNew(false);
         }else{
-            setStatus(res.error)
+            setAddStatus(res.error)
         }
+        setLoadingAdd(false);
     };
 
     /* ---------------------- Load Data (parallel) ---------------------- */
@@ -244,7 +249,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
         },
         {
             name: '', display_name: '', show: true, type: 'ui',
-            Comp: d => <div className={d.className}><Button className={m.rowAction} onClick={() => setEditUser(d.row)}>reset password</Button></div>
+            Comp: d => <div className={d.className}><Button className={m.rowAction} onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
         },
     ];
 
@@ -337,7 +342,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                         <p className={m.headerStatsLabel}>groups</p>
                     </div>
                 </div>
-                <Button className={m.headerAction} onClick={() => setAddingNew(true)}>Add new</Button>
+                <Button className={m.headerAction} onClick={() => { setAddStatus(''); setAddingNew(true); }}>Add new</Button>
             </div>
 
             <div className={m.pageWrapper}>
@@ -380,7 +385,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 setOpen={setAddingNew}
                 onAdd={handleAddUser}
                 loading={loadingAdd}
-                status={status}
+                status={addStatus}
             />
 
             {/* Reset password modal */}
@@ -393,16 +398,20 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 </div>
                 <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?
-                    <Button className={m.modalAction} onClick={async () => {
+                    <Button className={m.modalAction} disabled={resetLocked} onClick={async () => {
+                        setResetLocked(true);
+                        setResetStatus('sending');
                         const res = await callAuthServer(`${AUTH_HOST}/password/reset`, {
                             project_name: PROJECT_NAME,
                             email: editUser?.email,
                             host: `${window?.location?.host}`,
-                            url: `${baseUrl}/login`
+                            // absolute, like handleAddUser's: the server only prefixes a relative url with emailTheme.siteOrigin, which isn't sent here
+                            url: `${window.location.origin}${baseUrl}/login`
                         });
-                        setStatus(res.error || res.message);
+                        setResetStatus(res.error || res.message);
+                        if (res.error) setResetLocked(false);
                     }}>
-                        {status || "reset"}
+                        {resetStatus || "reset"}
                     </Button>
                 </div>
             </Modal>

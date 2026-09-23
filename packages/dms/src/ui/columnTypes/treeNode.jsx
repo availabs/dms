@@ -48,7 +48,8 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
                     onClick={handleCaretClick}
                     title={_isExpanded ? 'Collapse' : 'Expand'}
                 >
-                    {_isExpanded ? '▼' : '▶'}
+                    {/* ▾/▸, not ▼/▶ — ▶ renders as an orange color emoji on some platforms */}
+                    {_isExpanded ? '▾' : '▸'}
                 </button>
             ) : (
                 <span className="w-[18px] h-[18px] flex-shrink-0 inline-flex" />

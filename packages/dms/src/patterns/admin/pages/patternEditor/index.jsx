@@ -97,6 +97,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
           tabName={currentTabName}
         />
           <div className={t.content}>
+           <div className={t.contentInner}>
             <PageComp
                 app={item.app}
                 type={item.type}
@@ -107,6 +108,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
                 apiLoad={apiLoad}
                 falcor={falcor}
             />
+           </div>
           </div>
       </div>
     )

@@ -99,12 +99,11 @@ function getPatternMounts(pattern) {
 //console.log('hola', pageConfig)
 
 /**
- * Distinct theme names actually referenced by a site's pattern rows — the
- * site's own selections plus 'mny_admin', which patterns/auth/siteConfig.jsx's
- * manageAuthConfig hardcodes for the /auth/manage panel every auth pattern
- * gets (patterns/admin/siteConfig.jsx uses selectedTheme: "default", which
- * needs no theme module — it resolves to the library's own baked-in
- * defaultTheme). Used to resolve only the theme(s) a site needs instead of
+ * Distinct theme names actually referenced by a site's pattern rows. The
+ * admin pages and the auth manage pages need nothing extra: they render the
+ * library's own baked-in defaultTheme plus the auth pattern's theme's `admin`
+ * key (getAdminTheme), and the auth pattern's theme is already collected
+ * here like any other pattern's. Used to resolve only the theme(s) a site needs instead of
  * loading every theme in the registry. See planning/shared/bundle-size-log.md.
  */
 export function collectThemeNames(siteData) {
@@ -117,7 +116,6 @@ export function collectThemeNames(siteData) {
         // patterns select their DB theme (`mny-admin-db`) only this way, and
         // missing it silently default-themes them.
         if (p?.theme?.settings?.theme?.theme) names.add(p.theme.settings.theme.theme);
-        if (p?.pattern_type === 'auth') names.add('mny_admin');
     });
     return [...names];
 }
@@ -426,6 +424,9 @@ export function pattern2routes (siteData, props) {
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     authBaseUrl,
+                    // the site's one auth pattern — admin pages take their logo
+                    // from its theme's `admin` key (see getAdminTheme)
+                    authPattern,
                     datasources: patternDatasources,
                     dmsEnvs,
                     dmsEnvById,

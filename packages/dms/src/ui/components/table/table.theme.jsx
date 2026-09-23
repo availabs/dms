@@ -116,14 +116,22 @@ export const tableTheme = {
             // added for the auth manage pages' Users/Groups tables
             // (2026-09-17) rather than changing the shared default, since that
             // default is used by every table across the whole app.
+            // Horizontal rules only, 0.5px each side (1px seam between rows).
             name: 'roomy',
-            cell: 'relative flex items-center min-h-[42px] border border-[var(--t-rule)]',
+            cell: 'relative flex items-center min-h-[42px] border-x-0 border-y-[0.5px] border-[var(--t-rule)]',
             cellInner: 'w-full min-h-full flex flex-wrap items-center truncate px-3 py-2.5 font-sans font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]',
+        },
+        {
+            // The default density with horizontal rules only — admin Themes list.
+            name: 'rules',
+            cell: 'relative flex items-center min-h-[35px] border-x-0 border-y-[0.5px] border-[var(--t-rule)]',
         },
         {
             name: 'below-row',
             // openOut opens inline below the row instead of a fixed right-side drawer.
+            // Horizontal rules only, 0.5px each side so stacked rows meet at a 1px seam.
             // All other keys inherit from styles[0].
+            cell: 'relative flex items-center min-h-[35px] border-x-0 border-y-[0.5px] border-[var(--t-rule)]',
             openOutContainer: 'w-full flex flex-col bg-[var(--t-panel)]',
             openOutContainerWrapper: 'w-full',
             openOutContainerWrapperBgColor: 'transparent',

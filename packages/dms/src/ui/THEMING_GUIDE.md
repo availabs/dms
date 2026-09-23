@@ -581,6 +581,43 @@ boots with exactly its built-in contents. The default-export of
 `ui/columnTypes/index.jsx` keeps the same object identity across the
 boot — every existing consumer keeps working unchanged.
 
+## Admin logo (`admin.logo`)
+
+The admin surfaces render the library default theme (tessera_v6) for every project. These are
+the admin pattern (Sites, Themes, Pattern Editor) and the auth manage pages (Users, Groups,
+Profile).
+
+The one per-project input is the `admin` key of **the theme the site's auth pattern selects**.
+This is the same selection the login pages use; they read that theme's `auth` key. Nothing else
+from that theme reaches admin, so adding an `admin` key changes nothing outside admin. The
+resolver is `getAdminTheme()` in `useTheme.js`.
+
+```js
+admin: {
+  logo: {                // merged over the default logo (Logo.theme.js)
+    img: "",
+    logoAltImg: "inline-flex h-7 w-[110px] shrink-0 bg-[var(--t-ink)] [mask:url('/themes/x/logo_mask.svg')_left_center/contain_no-repeat] [-webkit-mask:url('/themes/x/logo_mask.svg')_left_center/contain_no-repeat]",
+    title: "",
+  },
+  // any other key merges into the default theme.admin per-page overrides (patternEditor, editSite, …)
+}
+```
+
+- **No `admin.logo`:** the header shows no mark, just the "Admin" title.
+- **`admin.logo: {}`:** keeps the default tessera mark.
+- **The auth pattern's own `theme.admin`** (edited per pattern) overrides the theme's.
+- **Single-color marks:** use a CSS mask, as above, so the mark recolors for dark mode. The admin
+  header is light in light mode and dark in dark mode, so a white-only asset would vanish.
+  - If the SVG has no `viewBox`, or has lots of padding, add a `*_mask.svg` copy with a tight
+    `viewBox`. Leave the public-site asset alone.
+  - To keep a brand color, use `bg-[#hex] dark:bg-[#hex]`.
+- **Multi-color or "never recolor" marks:** use `img`, in a chip that reads on both grounds
+  (see landbank).
+- **Don't set `logoWrapper`.** The header band stays identical across projects.
+- **Themes that spread another theme** (`mny_admin` = `{...mny, ...theme}`): if the outer theme
+  has its own `admin` key, that key replaces the inner one. Carry the logo over
+  (`logo: mny.admin.logo`).
+
 ## Troubleshooting
 
 **Theme not applying:**
