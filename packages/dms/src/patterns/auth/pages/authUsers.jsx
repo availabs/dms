@@ -405,7 +405,8 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                             project_name: PROJECT_NAME,
                             email: editUser?.email,
                             host: `${window?.location?.host}`,
-                            url: `${baseUrl}/login`
+                            // absolute, like handleAddUser's: the server only prefixes a relative url with emailTheme.siteOrigin, which isn't sent here
+                            url: `${window.location.origin}${baseUrl}/login`
                         });
                         setResetStatus(res.error || res.message);
                         if (res.error) setResetLocked(false);
