@@ -166,7 +166,8 @@ console.log("uploadFile::response", json);
         		falcor.invalidate(["dms", "data", app, "byId", json.view_id]),
         	]).finally(() => {
         		clearDatasetsListCache();
-        		navigate(`${ baseUrl }/source/${ json.source_id }`);
+        		// /dms-admin/:app/file_upload always creates a DMS-internal source.
+        		navigate(`${ baseUrl }/internal_source/${ json.source_id }`);
         	});
         }
         else {

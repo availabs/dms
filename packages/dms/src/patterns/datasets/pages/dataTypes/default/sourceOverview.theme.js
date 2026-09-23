@@ -38,6 +38,12 @@ export const sourceOverviewTheme = {
     reqYes:         'text-emerald-500',
     reqNo:          'text-gray-300',
     tdEmpty:        'px-4 py-6 text-center text-sm text-gray-400',
+    // file_upload: File card body (reuses colCard/colHeader chrome)
+    fileBody:       'px-4 py-3 space-y-3',
+    fileRow:        'space-y-1',
+    fileName:       'text-sm font-medium text-gray-900',
+    fileUrl:        'block font-mono text-xs text-blue-700 hover:underline break-all',
+    fileEmpty:      'py-3 text-center text-sm text-gray-400',
     colFooter:      'w-full px-4 py-2 border-t border-gray-100 bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-400 hover:text-gray-700',
 
     // At a glance card

@@ -96,6 +96,7 @@ export default function Overview ({
     // latest view == current (SourcePage treats views[last] as latest); display newest-first
     const latestId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
     const orderedViews = [...views].reverse();
+    const currentFiles = dataType === 'file_upload' && views.length ? downloadItemsForView(views[views.length - 1], DAMA_HOST) : [];
 
     // categories — colored area pills (view) + the SourceCategories editor (edit)
     const categoriesValue = Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : [];
@@ -157,7 +158,26 @@ export default function Overview ({
                         </div>
                     </div>
 
-                    {/* Columns summary (config.attributes / metadata.columns) */}
+                    {/* file_upload: an uploaded file has no columns, so show the current version's
+                        file link plainly instead of the columns summary. */}
+                    {dataType === 'file_upload' ? (
+                    <div className={t.colCard}>
+                        <div className={t.colHeader}>
+                            <span className={t.colHeaderTitle}>File</span>
+                        </div>
+                        <div className={t.fileBody}>
+                            {currentFiles.length ? currentFiles.map((item, i) => (
+                                <div key={i} className={t.fileRow}>
+                                    <div className={t.fileName}>{item.label}</div>
+                                    <a href={item.url} target="_blank" rel="noopener noreferrer" className={t.fileUrl}>{item.url}</a>
+                                </div>
+                            )) : (
+                                <div className={t.fileEmpty}>No file attached</div>
+                            )}
+                        </div>
+                    </div>
+                    ) : (
+                    /* Columns summary (config.attributes / metadata.columns) */
                     <div className={t.colCard}>
                         <div className={t.colHeader}>
                             <span className={t.colHeaderTitle}>Columns · {columns?.length || 0}</span>
@@ -199,6 +219,7 @@ export default function Overview ({
                             </button>
                         )}
                     </div>
+                    )}
                 </div>
 
                 {/* ── SIDE ─────────────────────────────────────────── */}
