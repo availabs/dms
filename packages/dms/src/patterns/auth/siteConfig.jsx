@@ -263,6 +263,14 @@ const manageAuthConfig = ({
     // logo) — see getAdminTheme. The login pages above use the auth theme
     // whole (incl. its `auth` key); these manage pages don't.
     const theme = getAdminTheme(themes, pattern, ssrCollect);
+    // Emails sent from these pages (Users: add user / reset password) carry the
+    // auth theme's branding, like the login pages' emails — not the admin theme's.
+    const authTheme = getPatternTheme(themes, pattern);
+    const emailTheme = {
+        ...(authTheme?.auth?.emailTheme || {}),
+        logoUrl:   authTheme?.auth?.emailTheme?.logoUrl || authTheme?.logo?.img || '',
+        logoTitle: authTheme?.logo?.title || '',
+    };
 
     // ThemeToggle moved into AdminLayout's own breadcrumb bar, matching
     // patterns/admin/siteConfig.jsx's identical change (2026-09-22) — the
@@ -313,7 +321,7 @@ const manageAuthConfig = ({
         path: `/*`,
         children: [
           {
-            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} />,
+            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} />,
             reqPermissions: ['auth-users'],
             path: "users",
           },

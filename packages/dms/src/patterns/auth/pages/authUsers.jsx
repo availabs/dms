@@ -89,7 +89,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     );
 }
 
-export default function UsersAdmin({ app = '', authPermissions = {} }) {
+export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme: authEmailTheme = {} }) {
     const [groups, setGroups] = useState([]);
     const [users, setUsers] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -111,6 +111,9 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     const { Modal, Table, Button, Icon } = UI;
     const m = useManageTheme();
 
+    // siteOrigin resolves a relative logoUrl server-side; logoTitle falls back like the login pages'
+    const emailTheme = { ...authEmailTheme, logoTitle: authEmailTheme.logoTitle || PROJECT_NAME, siteOrigin: window.location.origin };
+
     const loadUsers = async () => {
         const uRes = await callAuthServer(`${AUTH_HOST}/users/byProject`, {
             token: user.token,
@@ -126,7 +129,8 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
             token: user.token,
             email,
             url: `${window.location.origin}${baseUrl}/login`,
-            project: PROJECT_NAME
+            project: PROJECT_NAME,
+            emailTheme
         });
 
         if(!res.error){
@@ -405,8 +409,8 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                             project_name: PROJECT_NAME,
                             email: editUser?.email,
                             host: `${window?.location?.host}`,
-                            // absolute, like handleAddUser's: the server only prefixes a relative url with emailTheme.siteOrigin, which isn't sent here
-                            url: `${window.location.origin}${baseUrl}/login`
+                            url: `${window.location.origin}${baseUrl}/login`,
+                            emailTheme
                         });
                         setResetStatus(res.error || res.message);
                         if (res.error) setResetLocked(false);
