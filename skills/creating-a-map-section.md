@@ -248,6 +248,14 @@ Registering *is* the opt-in: intersect what you would write with the registered 
 it is empty, so the same plugin on a page with no `filters` simply stops persisting instead of
 navigating against a URL nobody owns.
 
+⚠ **The registry lives on the page row, so it does not survive a page being re-created.** When
+npmrds `/macro` was rebuilt as a new page (2214566, 2026-08-24) its `filters` were not copied from
+the old one, and every URL param went silently dead for a month — deep links ignored, nothing
+written — because "no registered keys" is exactly the opt-out path above, so nothing errors. When a
+plugin's URL state stops working, read the serving page's row (`dms raw get <id>` → `data.filters`)
+before debugging the plugin, and confirm WHICH page serves the slug first (the old copy may still
+exist under another slug).
+
 ⚠ `values` must be `[]`, **never `""`**. `convertToUrlParams` skips an empty ARRAY but happily emits
 `key=` for `[""]` — the empty-leaf bug class (`reference_dms_page_variable_empty_leaf_bug`).
 
@@ -317,8 +325,8 @@ controls" effect, writing on that same commit emits a transient wrong URL and co
 navigation. Gate the write on "the driving value did not change this render".
 
 Worked example: `src/themes/transportny/components/macroview/urlState.js` (pure encode/decode) +
-the READ/WRITE effects and the dynamic-filter reconciler in its `comp.jsx`; page 2101931's
-`filters` array is the registry. Instrument ping-pong by wrapping `history.pushState` /
+the READ/WRITE effects and the dynamic-filter reconciler in its `comp.jsx`; the live `/macro`
+page's (2214566) `filters` array is the registry. Instrument ping-pong by wrapping `history.pushState` /
 `replaceState` in a Playwright `addInitScript` and asserting the count settles.
 
 ## 8. Both symbology homes
