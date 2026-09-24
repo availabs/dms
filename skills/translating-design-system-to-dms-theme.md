@@ -306,8 +306,8 @@ theme via `mergeTheme()`:
   override the codebase default's `styles[0]` keys one-by-one. You
   *can* leave a key out and inherit the codebase default — but
   it's safer to specify every key your design depends on. The
-  codebase default is the Catalyst look; inheriting it leaks
-  Catalyst aesthetics into your brand.
+  codebase default is the tessera look (since 2026-09-22; Catalyst
+  before that); inheriting it leaks tessera aesthetics into your brand.
 - **`styles[1..n]` come from whichever theme defines them.** No
   index collisions: your "dark" style at index 1 does not inherit
   from the codebase's "dark" style at index 1 — it inherits from
@@ -316,6 +316,22 @@ theme via `mergeTheme()`:
 **Rule of thumb:** produce a **complete** `styles[0]` for every
 primitive the brand uses. Don't rely on inherited keys from the
 default theme unless you've verified they match the brand.
+
+**A "complete" theme goes stale when the library adds keys.** When a
+component turns a hard-coded class into a theme key, a theme written
+before that change has no value for it and silently picks up the new
+default. The 2026-09-22 tessera port did this across several
+components. TransportNY hit it three times: the auth `bare*` frame
+([implementing-an-auth-login-page.md](./implementing-an-auth-login-page.md) §4);
+SideNav `navItemRow`, whose default `gap-2.5` stacked on the brand's
+icon `mr-3`; and the injected `dms-default-tokens` style's
+`:root { color-scheme: light }`, which forced a light page scrollbar
+(overridden with `html:root { color-scheme: normal }` in a theme
+`fonts` style block). If a brand looks different locally than on an
+older deployed build, diff the component's `.theme` file around the
+deploy date for newly added keys, then restate the old value on the
+brand theme. `navitemSide_level_N` / `menuIconSide_level_N` came in
+the same commit and outrank the unleveled key for nested items.
 
 ---
 
