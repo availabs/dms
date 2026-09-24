@@ -404,6 +404,14 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   direct `dms raw update` on a draft SECTION never sets the page's `has_changes`. The draft really
   differs; the button just can't see it. Set `has_changes: true` on the page row (`dms section create`
   does this itself). And **Discard** is enabled alongside Publish: it throws the draft away.
+- **The left rail isn't always the page tree, and a leaf only highlights on its exact URL.** A
+  pattern with `layout.options.sideNav.nav: "secondary"` renders an AUTHORED item list
+  (`navOptions.secondaryNav.navItems`, e.g. TransportNY NPMRDS: Home / Macro View / Reports /
+  MAP-21), whose items have no `subMenus` even when the page tree does (65 report pages are children of
+  Reports). Since 2026-09-22 a SideNav leaf matches its own path exactly, so no highlight on
+  `/npmrds/reports/<report>` is current behavior, not a stale render. Read the item's real props from
+  the fiber (`a[href]` → `__reactFiber*` → walk `.return` to `memoizedProps.navItem`) rather than
+  inferring from the DOM. Tracked: `src/dms/planning/tasks/current/nav-active-state-most-specific-match.md`.
 
 ## 5. Extending this doc
 
