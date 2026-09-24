@@ -389,6 +389,11 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   the bug. Count in-flight requests to the API host and wait until zero for ~2 s AND two reads of
   the section text agree (Playwright: `request` → +1, `requestfinished`/`requestfailed` → −1,
   filtered to the API origin; poll every 500 ms, 60 s cap).
+- **Publish reads "No Changes" after a CLI write.** The edit toolbar's Publish is
+  `disabled={!hasChanges}` (`pagesPane.jsx`: `item.published === 'draft' || item.has_changes`), and a
+  direct `dms raw update` on a draft SECTION never sets the page's `has_changes`. The draft really
+  differs; the button just can't see it. Set `has_changes: true` on the page row (`dms section create`
+  does this itself). And **Discard** is enabled alongside Publish: it throws the draft away.
 
 ## 5. Extending this doc
 

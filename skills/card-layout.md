@@ -1033,6 +1033,18 @@ bare `flex` (⇒ row). If a theme declares `headerValueLayout:'row'` but ships n
 `itemFlexRow`, the DOM stays column and the wrong axis is emitted — that is the same
 theme bug that already breaks the header/value width split; fix the theme.
 
+**Lining up a rule across SIBLING Card sections — the same `cellsRowsTemplate` on each.**
+Separate sections can't share a grid, so a divider (e.g. a cell's `border-b`) lands wherever each
+card's content puts it. Give every card in the row the same template of
+`minmax(<px>, max-content)` rows above the rule, the minimums set to the tallest natural row at
+the widths that matter (measure DOM rects per width; don't eyeball a screenshot). Short content
+pads to the shared height, tall content still grows (no clipping). Trade-off: where every card's
+content is shorter, the minimums add whitespace. Worked example (2026-09-24): TSMO home's hero
+KPI cards, `minmax(54px, max-content) minmax(54px, max-content) minmax(72px, max-content)` → the
+note divider at 214px at 1440/1680/1920 (it had ranged 141–198). A multi-section *stack* (e.g.
+fused doorway cards) aligns a bottom link the other way: give the link its own section, so the
+links share one grid row of the page.
+
 **"Spread the slack, but NOT into THIS row" — `display.cellsRowsTemplate`**
 (shipped 2026-08-14). `'stretch'` spreads the leftover **equally** over every row,
 which is wrong whenever the rows are not interchangeable — a header strip must not
@@ -1093,11 +1105,18 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 
 **`row` is not an invitation to render everything from one cell.** If you find yourself reading more than one or two fields off `row`, that's a smell that the composite belongs as separate Card cells. See the "When NOT to configure further" section above.
 
-## Edit-mode controls
+## Edit-mode controls and the empty-state fallback
 
 `display.allowEditInView` and `liveEdit` toggle inline editing. `allowAdddNew` adds a synthetic "new row" entry at the end of `data` and renders an `add` button.
 
 `display.useBlankRowFallback` is opt-in. When **on** and the query returns 0 rows, `getData.js` synthesizes a single row with each column's `blankDefault`. Sections that didn't opt in stay at `length: 0, data: []`. Useful when a card is the *only* thing on the page and you want it to render scaffolding even when empty.
+
+**This is the Card's empty-state primitive — reach for it before hand-writing SQL that forces a
+row** (dropping the GROUP BY, `case when count(1) = 0 …` guards). The query stays as it is, and
+the fallback text is author-editable: **Empty Default** in each column's toolbar, shown once the
+flag is on. Worked example: TSMO home's full-year PM3 cards when a partial year is selected
+(#2225147, 2026-09-24). If the missing value would collapse its row (a `stat_value` renders
+nothing for null), hold the row with a `cellsRowsTemplate` minimum.
 
 ## Defaults that bite
 

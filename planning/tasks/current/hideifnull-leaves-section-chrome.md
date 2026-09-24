@@ -1,7 +1,9 @@
 # "Hide if No Data" leaves the section's chrome (empty bordered/white box)
 
-> **Status:** NOT STARTED — scoped 2026-09-24, awaiting an owner decision (it changes live
-> MitigateNY rendering). Surfaced by TransportNY ticket **#2225147** (split from #2214477).
+> **Status:** NOT STARTED — scoped 2026-09-24. Surfaced by TransportNY ticket **#2225147**, where the
+> owner chose option B instead (explain in place via `useBlankRowFallback`; resolved + published
+> 2026-09-24), so nothing drives this now. It stays open as a standalone library defect; any fix
+> needs an owner call because it changes live MitigateNY rendering.
 
 ## Symptom
 
