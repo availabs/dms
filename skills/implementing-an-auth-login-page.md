@@ -110,22 +110,49 @@ actionButton: "<your primary button classes> w-full justify-center",
 actionText:   "<text classes matching the button>",
 ```
 
-## 4. The page frame: AuthLayout + the LayoutGroup `auth` style
+## 4. The page frame: AuthLayout's two paths
 
-`patterns/auth/siteConfig.jsx` `AuthLayout` renders
-`<Layout activeStyle='auth'><LayoutGroup activeStyle='auth'> [wrapper3 form] [wrapper4 hero] </LayoutGroup></Layout>`.
-So three frames stack around the form:
+`patterns/auth/siteConfig.jsx` `AuthLayout` picks a frame by one signal: whether
+`auth.authPages.sectionGroup.default.wrapper4ImgList` is a non-empty array (2026-09-22).
+
+**Bare path (no `wrapper4ImgList`, which is every theme but mny):** no `Layout`, no
+`LayoutGroup`, no sidenav/topnav:
+`div.bareWrapper > div.bareBand > [div.t6-sheet-fade] + div.bareContent > page`.
+
+1. **`auth.authPages.bareWrapper`**: the full-height page (bg, and any ink/font the
+   old `Layout` outerWrapper supplied).
+2. **`auth.authPages.bareBand`**: the centering band. It contains the library's
+   `.t6-sheet-fade` graph-paper overlay, which is not a theme key. To hide it, put
+   `[&>.t6-sheet-fade]:hidden` on the band.
+3. **`auth.authPages.bareContent`**: the column. The default is `relative w-full`,
+   **uncapped**. Keep `relative` (it sits above the overlay), and add a `max-w-*` here
+   unless your `pageWrapper` carries its own. The library default `pageWrapper` has
+   `max-w-sm`, but a brand that overrode it to `w-full` expecting a `LayoutGroup` cap
+   renders edge to edge.
+4. **`pageWrapper`** is the form's own flex stack/card.
+
+The library defaults for these three keys are tessera's (paper ground plus the grid).
+**A theme that did its auth pass before 2026-09-22 and centered the form on the
+`layoutGroup` `auth` style silently loses that style**: it's no longer rendered. That
+happened to TransportNY (full-width form on graph paper until `bare*` was set) and to wcdb.
+Restate the pane/centering/width on the `bare*` keys; see `transportny/themev2.js` and
+`wcdb/auth.theme.js`.
+
+**Split path (`wrapper4ImgList` set, mny):** the old frame,
+`<Layout activeStyle='auth'><LayoutGroup activeStyle='auth'> [wrapper3 form] [wrapper4 hero] </LayoutGroup></Layout>`:
 
 1. **LayoutGroup `auth` style** (`theme.layoutGroup` styles → `name: "auth"`):
-   `wrapper1` = the full pane (set the page bg, center the form), `wrapper2` = the
-   inner column (set `max-w-[...]`). **If this is a white card AND `pageWrapper` is
-   also a card, you get a double-card** — pick one. For a borderless "form on the
-   pane" mockup, make `wrapper2` a plain centered container.
-2. **`authPages.sectionGroup.default.wrapper3`** wraps the form (`w-full` pass-through),
-   **`wrapper4`** is a hero-image side panel — `hidden` if the mockup has none.
+   `wrapper1` = the full pane, `wrapper2` = the inner column. **If this is a white card
+   AND `pageWrapper` is also a card, you get a double-card**, so pick one.
+2. **`authPages.sectionGroup.default.wrapper3`** wraps the form, and **`wrapper4`** is
+   the hero-image side panel.
 3. **`pageWrapper`** is the form's own flex stack.
 
 ## 5. The 64-px / compact sidenav rail is PATTERN config, not theme
+
+> **Split path only.** The bare path (step 4) renders no `Layout`, so the sign-in page
+> has no rail at all. That's deliberate in the library ("NO SideNav/TopNav chrome").
+> The rail still shows on the manage pages (`AdminLayout`).
 
 The auth mockup's icon rail is the `Layout` sidenav, configured on the **pattern**
 (`pattern.theme.layout.options.sideNav` — e.g. `size: "compact"`, `topMenu: [{type:'Logo'}]`),
@@ -210,9 +237,10 @@ them and nothing changes (`planning/tasks/completed/auth-pages-themeable-chrome.
 | Account menu (`components/menu.jsx`, the manage pages' right menu) | `auth.userMenu.{avatar, avatarIcon, loginLink, header, headerEmail, headerGroup, trigger}` |
 | `AdminLayout` outer wrapper | `auth.authPages.container` (pre-existing) |
 
-The manage pages take the pattern's DEFAULT layout options — the same ones the login
-notch reads. A sidenav on that pattern shows on the sign-in page too, so put the manage
-links in the topNav (`nav: "main"`; `AuthLayout` passes no navItems, so login stays clean).
+The manage pages take the pattern's DEFAULT layout options. Before 2026-09-22 the login
+notch read the same ones, so a sidenav on the pattern showed on the sign-in page too, and
+manage links went in the topNav (`nav: "main"`). Today only the split path (mny) renders
+`Layout` on sign-in; the bare path shows no nav chrome at all (step 4).
 
 ## Worked example — TransportNY (2026-06-03)
 
