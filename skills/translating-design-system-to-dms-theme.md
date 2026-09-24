@@ -308,10 +308,15 @@ theme via `mergeTheme()`:
   it's safer to specify every key your design depends on. The
   codebase default is the tessera look (since 2026-09-22; Catalyst
   before that); inheriting it leaks tessera aesthetics into your brand.
-- **`styles[1..n]` come from whichever theme defines them.** No
-  index collisions: your "dark" style at index 1 does not inherit
-  from the codebase's "dark" style at index 1 — it inherits from
-  *your* `styles[0]`.
+- **`styles[1..n]` are matched by name, not index.** Your "dark"
+  style at index 1 does not merge with the codebase's style at index
+  1. It replaces a codebase style of the same name, and inherits
+  missing keys from *your* `styles[0]`. Your styles keep your indices.
+  Codebase-only named styles (e.g. sidenav `admin`, multiselect
+  `accent`) are appended after yours, so pick those by name, never by
+  index. Page settings and theme editors store numeric indices, which
+  is why your own order must not shift (2026-09-24 fix in
+  `mergeComponentStyles`).
 
 **Rule of thumb:** produce a **complete** `styles[0]` for every
 primitive the brand uses. Don't rely on inherited keys from the
