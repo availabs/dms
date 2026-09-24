@@ -389,6 +389,16 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   the bug. Count in-flight requests to the API host and wait until zero for ~2 s AND two reads of
   the section text agree (Playwright: `request` → +1, `requestfinished`/`requestfailed` → −1,
   filtered to the API origin; poll every 500 ms, 60 s cap).
+- **A Card cell that renders as an empty box is usually a column the server silently rejected** —
+  not a render bug. UDA `sanitizeName` drops any attribute containing `;` or a SQL keyword
+  (`update`, `select`, `cast`…), even inside a quoted prose literal, and answers it as an empty atom
+  `{"$type":"atom"}`; the Card still reserves the cell's height. Confirm from the `/graph` response
+  (the row key is the raw SQL expression), not the DOM. Easy to miss: a stat card just loses its
+  caption (TSMO `incident_view` Estimated cost, 2026-09-24). Tracked:
+  `src/dms/planning/tasks/current/uda-constant-columns-and-long-attribute-keys.md`.
+- **`innerText` returns CSS-transformed text.** A header styled `text-transform: uppercase` reads
+  back as `ALL LANES OPEN`, so a case-sensitive `innerText.includes('All lanes open')` reports it
+  missing. Match case-insensitively, or use `textContent` (the source string).
 - **Publish reads "No Changes" after a CLI write.** The edit toolbar's Publish is
   `disabled={!hasChanges}` (`pagesPane.jsx`: `item.published === 'draft' || item.has_changes`), and a
   direct `dms raw update` on a draft SECTION never sets the page's `has_changes`. The draft really
