@@ -745,6 +745,26 @@ key** — set `normalName` explicitly on the seg calcs and reference that (with 
 > Card: a `layout-container` node (`templateColumns: "items-center
 > grid-cols-[auto_1fr]"`) holding two `layout-item`s. Narrow cards need a short
 > kicker so it doesn't wrap. (Used on every §02–§05 reliability/congestion card top.)
+>
+> **Side-by-side compound cards: both headers must be the SAME primitive.** When one
+> header needs data (a live corridor name) it has to be a Card, and a lexical header
+> beside it does not match: the lexical theme's `p-4` + the layout-container's `mt-2`
+> made a 60px strip next to a 36px Card, so the grid row took 60px, the titles sat
+> 23px apart and the Card's chrome ended 23px above its table (TSMO incident view,
+> 2026-09-24). Make the static one a Card too (`origin:'static'` cells + the
+> `selectOnly` seed from "An all-static card still fires a query"), and give EVERY
+> piece of both stacks (header, body, footer) section `height:'fill'`. Without it a
+> chrome box is content-height and detaches from the piece below whenever its
+> neighbour is taller.
+>
+> **Mixed font sizes on one Card row don't center by themselves.** Each value leaf is
+> `min-h-[20px]` with its text top-aligned (`card.theme` `valueWrapper`), so a 10.5px
+> mono `kicker` sits ~1.5px above a 15px Oswald `cardTitleSM` beside it, and the
+> whole row sits high in its strip. `cellsVAlign`/`cellsContentVAlign` can't fix it
+> (the leaves are all 20px). Split `cellPaddingTop`/`cellPaddingBottom` unevenly per
+> font, keeping the sum constant so the strip height doesn't move. Measured on the
+> TransportNY fonts (canvas `measureText` cap centers, 46px strip): `cardTitleSM`
+> 12/10, `metaAccent` 13/9, `kicker` 14/8.
 
 ## Data-only columns: `selectOnly` (the phantom-cell gotcha)
 
