@@ -3,6 +3,9 @@
 > **Status:** FILED 2026-09-23, **not started.** Workaround in place for the TransportNY QA builders
 > (`src/themes/transportny/qa_skills/tools/lib/page_index.mjs`, passed as `--data {"index": …}`), which
 > is why this is a library task and not an urgent one.
+> **2026-09-24:** a second pattern hit it — all 10 tsmo2 pages were `index '0'` (created before the
+> builder workaround); re-indexed by hand. The router inconsistency that turns a tie into a broken page
+> is now its own task: [`page-root-resolution-index-tie.md`](./page-root-resolution-index-tie.md).
 
 ## Objective
 
@@ -39,8 +42,16 @@ The sitemgmt rows were re-indexed by hand the same day (0-4).
 ## Related, not in scope
 
 - The root-page resolution picking content and edit-pane item from different pages when indexes
-  tie looks like its own inconsistency in the page router. Worth a separate look if ties remain
-  possible after this fix (e.g. pages created before it).
+  tie is its own inconsistency in the page router. Worth a separate look if ties remain
+  possible after this fix (e.g. pages created before it). **Traced 2026-09-24** (second occurrence,
+  tsmo2 `/tsmo`: all 10 top-level pages were `index '0'`, year selector dead at the bare URL only): the
+  server's `searchOne` (`dms-server/src/routes/dms/dms.controller.js`, `url_slug=''` UNION ALL
+  `defaultSearch`, `LIMIT 1`, no `ORDER BY`) returned Incident View 2182470 for the view route's
+  full-attribute fetch, while `dms-manager/wrapper.jsx:34` picked Home 1431215 via `defaultSort` and
+  rendered it from the list route's slim attributes (sections, no `filters`). Candidate BC fix: make
+  both sides deterministic and identical (e.g. `ORDER BY id` in the defaultSearch arm, and the same
+  tiebreak in `defaultSort`), or have the wrapper prefer the row the view fetch returned. Full write-up:
+  `skills/traversing-dms-pages.md` (bare pattern URL bullet).
 - `page list`'s default `limit 50` also affects scripts that find-or-create a page by slug from a
   bare `page list`: on a pattern with more than 50 pages the lookup can miss an existing page and
   create a duplicate.

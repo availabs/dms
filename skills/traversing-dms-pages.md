@@ -283,16 +283,20 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   (2026-08-31, mitigat-ny-prod).
 - **Edit URL puts `edit` first**: `/edit/<slug>`, not `<slug>/edit`. The wrong
   shape silently falls back to the site's default/index page.
-- **A bare pattern URL (`/<pattern>/edit`, no slug) is unreliable when several pages share
-  `index`.** It resolves "the root page" by `index`, and nothing keeps `index` unique: `dms page create` defaults to `'0'`, so every
-  script-built `sitemgmt` page was `index '0'` with no parent (re-indexed 0-4 on 2026-09-23; the QA
-  builders now pass an index, and the CLI default is filed as `cli-page-create-default-index.md`). Found
-  live 2026-09-23: at `/sitemgmt/edit` the owner saw the overview's draft content, but the Publish
-  button read "No Changes" while the overview row had `has_changes: true`. The only full page row
-  the browser fetched was the ticket page (2185870, `has_changes: false`), so the content and the
-  edit pane appear to come from different pages (inferred from a network capture, not traced in the
-  router). `/sitemgmt/edit/overview` showed "Publish" correctly. Always use `/edit/<slug>`, and
-  never judge publish state from a bare pattern URL.
+- **A bare pattern URL (`/<pattern>` or `/<pattern>/edit`, no slug) breaks when several top-level
+  pages share `index '0'`.** Nothing keeps `index` unique: `dms page create` defaults to `'0'` (filed as
+  `cli-page-create-default-index.md`). The root page is resolved TWICE, independently (traced 2026-09-24):
+  the view/edit route's full-attribute fetch asks the server (`searchOne` in `dms.controller.js`:
+  `url_slug = ''` UNION ALL `index='0' AND no parent`, `LIMIT 1`, **no ORDER BY**), while the client picks
+  its own `item` as the first `!parent && index==0` row in `defaultSort` order (`dms-manager/wrapper.jsx`).
+  With a tie they can disagree, and the client then renders its pick from the parent list route's SLIM
+  copy — `sections` present (looks right), but no `filters`/`theme`/`sidebar` and no edit-pane state.
+  Seen twice: `/sitemgmt/edit` 2026-09-23 (overview content, Publish read "No Changes" — the full row
+  fetched was the ticket page; re-indexed 0-4 that day) and `/tsmo` 2026-09-24 (Home rendered, server
+  returned Incident View 2182470; Home's `year` page filter never registered, so the year chip did
+  nothing, while `/tsmo/home` worked). Diagnose: capture the `searchOne` response id vs the page id the
+  view POSTs to `/track/visit`. Fix: exactly one top-level page at `index '0'`. Always use
+  `/edit/<slug>`, and never judge publish state or filters from a bare pattern URL.
 - **Any unresolvable slug silently falls back to the home/index page** —
   rather than erroring. A typo'd slug and an actual permission denial render
   identically (full rich content, no error text). Don't over-interpret a
