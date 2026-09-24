@@ -368,6 +368,27 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   silently until something downstream chokes on the garbage year. Fix: `left_click` once on the
   field (focuses the first, month sub-field), then `type` digits ONLY, no separators, e.g.
   `"06012024"` — native date inputs auto-advance MM→DD→YYYY as you type each 2-or-4-digit group.
+- **Clicking a single-select filter's ×.** In the `MultiSelect` trigger the × is a bare `<span>`
+  wrapping the `XMark` icon, rendered ONLY while a value is selected, immediately BEFORE the caret
+  `<span>` (`ArrowDown`). Inside a Filter section (`[id="<section id>"]`), take the icon-bearing
+  spans (`span > svg` → parent) and click the second-to-last; when only one remains, the select is
+  empty. Its click handler calls `stopPropagation` and emits `[]`, so it never opens the menu.
+- **A page-variable clear used to depend on history** (fixed 2026-09-24,
+  `src/dms/planning/tasks/completed/cleared-page-variable-resets-to-default.md`): clearing a
+  URL-bound variable restored its registered default only when the clear CHANGED the URL; a second
+  × on a bare URL left `[]` and widened every reacting section. Repro any page-variable bug from a
+  fresh load AND from a second clear — they took different code paths. After the fix a clear of a
+  defaulted variable lands on `?key=<default>`.
+- **"Hide if No Data" (`display.hideIfNull`) can't be checked in edit mode, and doesn't hide
+  section chrome.** It never hides while `editPageMode` (so authors can see the section), so only
+  a published/view render shows it. Even there it only blanks the component: a section whose
+  border/bg/radius is on the section row keeps an empty box (`sectionArray.jsx` draws the chrome
+  from the saved row). Tracked: `src/dms/planning/tasks/current/hideifnull-leaves-section-chrome.md`.
+- **Settle on "API idle + text stable", not a fixed wait.** On the TSMO home a year change fires
+  ~26 API requests (a cold load ~42–57); a 2.5 s wait snapshotted cards mid-update and misread
+  the bug. Count in-flight requests to the API host and wait until zero for ~2 s AND two reads of
+  the section text agree (Playwright: `request` → +1, `requestfinished`/`requestfailed` → −1,
+  filtered to the API origin; poll every 500 ms, 60 s cap).
 
 ## 5. Extending this doc
 
