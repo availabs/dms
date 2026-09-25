@@ -1,11 +1,73 @@
 # UDA: constant-valued columns vanish on ungrouped-aggregate cards; one attribute key came back mutated
 
-> **Status:** 🔍 DIAGNOSED, NOT FIXED (2026-08-24). Two independent defects in the UDA
-> query/Falcor-attribute path, both isolated from live responses on `tsmo2/home`. Both look
-> **additive and BC** to fix. Symptom is worked around at the page level (see "Current workaround"),
-> so nothing is blocked — but the defects are silent, so other pages will keep hitting them.
+> **Status:** 🔍 ROOT-CAUSED, NOT FIXED (updated 2026-09-24). Bug 1 is **not** about
+> ungrouped-aggregate mode — it is the server's `sanitizeName` injection guard rejecting whole column
+> expressions (see "Root cause" directly below; it supersedes the 2026-08-24 "Current state" framing
+> and proposed change 1). It was **live on published client pages**: three TSMO notes rendered
+> blank — reworded without `;` 2026-09-24, published + verified by the owner the same day.
+> **This is now a DMS-core-only task.** Control-room ticket 2214562 was RESOLVED 2026-09-24 (owner call) for
+> the client-facing symptoms; the library defect lives only here. Scope reminder: only columns whose text
+> reaches SQL (Card/data columns) are affected — rich-text (lexical) sections and `origin:"static"` columns
+> never do (e.g. incident_view's "How one incident is measured" lexical section contains `;` and renders fine). Bug 2 is still unisolated, but the same guard is the lead suspect.
 > **Origin:** TransportNY control-room ticket **2214562** (filed while resolving **2214516**, where
 > three Data Freshness cards silently rendered no note text at all).
+
+## Root cause (2026-09-24) — supersedes the bug-1 analysis below
+
+`dms-server/src/routes/uda/utils.js` `sanitizeName()` (lines 23–36) returns `false` for any string
+that contains one of `select|create|drop|update|delete|insert|alter|exec|union|cast` as a whole word
+(`\bkw\b`, case-insensitive) **or a `;` anywhere** — including inside a quoted string literal. The
+row-data queries run every requested attribute through it and silently drop the rejects:
+`query_sets/postgres.js:228/342/567`, `query_sets/clickhouse.js:213/348/591`
+(`sanitizeName(attributes).filter(f => f)`). A dropped attribute is answered as an empty Falcor atom
+`{"$type":"atom"}` → blank cell, no error anywhere.
+
+The 2026-08-24 "grouped cards are unaffected" contrast was coincidence: the grouped card's text had no
+keyword/`;`, the Data Freshness notes read `…closures update continuously…`. Grouping is irrelevant.
+
+**Live replay** (2026-09-24, local dms-server, `uda.npmrds2.viewsById.1947.options.{}.dataByIndex[0]`,
+one request, three literal columns):
+
+| Attribute | Result |
+|---|---|
+| `'Interim 20 per veh-hr, class-weighted' as s_plain` | value |
+| `'Interim 20 per veh-hr; class-weighted' as s_semi` | empty atom |
+| `'closures update continuously' as s_kw` | empty atom |
+
+**Blast radius** (every `columns[]` entry on a section referenced by a page's `sections`/
+`draft_sections` in `dms_npmrdsv5`, skipping `origin:"static"`/`type:"formula"`, same test as
+`sanitizeName`): 16 sections on 5 pages.
+- **Client-facing, published, blank today (all `;` inside prose):** `tsmo2/incident_view` sections
+  2197456 (`note`: "Only timestamps present on the TRANSCOM record…; all-lanes-open on ~43%…") and
+  2197460 (`s`: "Interim $20/veh-hr; class-weighted VOT…"); `tsmo2/workzones_v2` section 2198170
+  (`foot`: "…on the backfill list; durations from estimated_duration_mins."). Draft twins:
+  2197402, 2197406, 2198064.
+- `sandbox2/lehd_od` + `sandbox2/test`: scalar subqueries `(SELECT … FROM gis_datasets…)` in
+  calculated columns. This is the guard doing its intended job — the fix must keep rejecting these.
+- `status/issue_tracker` section 2174053 (+ draft 2172711): a Spreadsheet column named `Delete` —
+  rejected on the bare name. Not yet checked whether that column is actually queried.
+
+**Browser-verified** (2026-09-24, `/tsmo/incident_view?event_id=ORI1237738292`, local): the Estimated
+cost stat card renders `ESTIMATED COST / $414 k` then an empty 20px cell where the subtitle belongs —
+its two sibling stat cards both show captions, so the gap is plain once pointed out; the Response
+Timeline card ends after the timestamps with no footnote. `/graph` returned `{"$type":"atom"}` for
+both attributes. Nobody had noticed: a missing caption doesn't read as broken.
+
+**Page-level workaround applied 2026-09-24 (owner call — the library fix is still open):** the three
+TSMO notes were reworded without `;` in their owning builders and the drafts rebuilt
+(`build_tsmo2_incident_view.mjs`, `build_tsmo2_workzones_v2.mjs`; each note section's `data` snapshot
+cleared, since it held `null` for the note). Isolation replay: each note as written → empty atom, the
+same text with only `;`→`,` → value, so `;` was the sole trigger (`$`, `—`, `~`, `%`, `/`, parens are
+fine). New wording: "…events, and all-lanes-open on ~43%." · "Interim $20/veh-hr — class-weighted…" ·
+"…on the backfill list. Durations from…". Server returns all three. **Published + verified by the owner
+2026-09-24.** Replay gotcha: two attributes with the SAME alias in one request let a
+rejected one borrow its sibling's value (response rows are keyed by alias) — give every probe column its
+own alias.
+
+**Bug 2 lead:** this task's own description of the mutated 196-char note says it contained a `;`, and
+the ~700-char `pm3_sub` counterexample that works contains none. So that note was certainly rejected
+by the guard; whether the guard also explains the *mutated key* (`.'`→`_'`, alias dropped) is not
+yet verified. Re-test bug 2 only after the guard fix lands.
 
 ## Objective
 
@@ -102,9 +164,27 @@ Any future debugging here should use a **short** expression to avoid conflating 
 
 ## Proposed changes
 
-1. **Bug 1** — in the ungrouped-aggregate branch of the query builder, emit constant-valued
-   expressions instead of dropping them (a constant is trivially valid in an aggregate `SELECT`).
-   Failing that, detect the case and surface an authoring error rather than returning an empty atom.
+1. **Bug 1 (revised 2026-09-24 — the original "ungrouped branch" change would have fixed nothing)** —
+   in `sanitizeName`, blank out properly terminated single-quoted literals (`'…'`, honouring `''`
+   escapes) before the keyword and `;` checks; an unterminated quote stays a reject. Content inside a
+   terminated literal cannot execute, so this does not weaken the guard: `(SELECT …)` subqueries and
+   bare keywords are still rejected. Keep it additive — every other caller (group by, order by,
+   table/schema names) gets the same, strictly more permissive-only-inside-literals behaviour.
+   **Safety constraints — the stripper must never think text is inside a literal when the database
+   thinks it is outside**, or it opens a bypass that today's guard blocks:
+   - **Backslashes.** ClickHouse (and PG `E'…'`) treat `\'` as an escaped quote. `'x\'' ; drop …'`
+     is one literal to a naive `''`-aware stripper but ends after `x\''` to ClickHouse, putting
+     `; drop …` outside. Rule: a literal whose body contains `\` is not blanked (checked as today).
+   - **Comments.** `/* ' */ ; drop … /* ' */` — a stripper sees one literal, PG sees two comments
+     and a live `; drop`. Rule: if the expression contains `--` or `/*` anywhere, don't strip at all
+     (behave exactly as today).
+   - Dollar-quoting (`$$…$$`) and double-quoted identifiers are never stripped (checked as today).
+   Net: never less strict than today; more permissive only for plain terminated `'…'` literals.
+   NB the guard is a keyword blacklist over author expressions interpolated verbatim, so it is not a
+   real security boundary (e.g. `pg_read_file('…')` passes it today) — out of scope here, but the fix
+   must not weaken it further.
+   Then make a rejection visible instead of an empty atom (at minimum a server log line naming the
+   attribute; ideally an error the section can show).
 2. **Bug 2** — isolate the trigger first (the ~700-char `pm3_sub` counterexample rules out a plain
    length cap). Then either encode/hash the affected keys (keeping a stable client-side mapping so
    `Card.jsx`'s lookup still resolves) or reject the shape loudly at author time. The silent

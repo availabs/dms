@@ -59,6 +59,15 @@ function mergeComponentStyles(baseStyles, overrideStyles) {
   // out every named style the dms package itself ships at that component key
   // (e.g. MultiSelect's 'accent' chip variant), and `activeStyle: '<name>'`
   // no-op'd back to styles[0] with no error (found 2026-09-17).
+  //
+  // The override's styles keep their authored positions and the base-only
+  // styles are appended after them. Several pickers store a style's INDEX
+  // (the page Settings sidenav style, every `*.theme` editor's
+  // `options.activeStyle`), and those indices were authored against the site
+  // theme's own array. Placing base-only styles first shifted every one of
+  // them (e.g. TransportNY's `compact` sidenav moved from 1 to 2, so pages
+  // storing 1 got the library's `admin` rail). Base-only styles are picked
+  // by name, so their position doesn't matter.
   const overrideRest = overrideStyles.slice(1).map(s => cloneDeep(s));
   const overrideNames = new Set(overrideRest.map(s => s?.name).filter(Boolean));
   const baseRest = baseStyles.slice(1)
@@ -67,8 +76,8 @@ function mergeComponentStyles(baseStyles, overrideStyles) {
 
   return [
     mergedDefault,
-    ...baseRest,
     ...overrideRest,
+    ...baseRest,
   ];
 }
 
