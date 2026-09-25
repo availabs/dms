@@ -9,9 +9,12 @@
  */
 
 import {
-  startServer, stopServer, runCli, seed,
-  describe, test, assert, assertEqual, assertIncludes, pass, summary,
+  startServer, stopServer, authenticate, runCli, seed, HOST,
+  describe, describeAsync, test, assert, assertEqual, assertIncludes, pass, summary,
 } from './harness.js';
+import { joinRoom, peekRoom, seedRoom } from './room-client.js';
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let server;
 let manifest;
@@ -21,6 +24,7 @@ async function run() {
 
   console.log('Setup:');
   server = await startServer();
+  await authenticate();
 
   console.log('Seeding:');
   manifest = seed();
@@ -240,6 +244,112 @@ async function run() {
     const showResult = runCli(`section show ${sectionId}`);
     assertEqual(showResult.json.title, 'Hero Updated via Stdin', 'title was updated via stdin');
     pass();
+  });
+
+  // ================================================================
+  // PHASE 4 — Page-structure room sync (Bug 20)
+  // ================================================================
+  // A page's live-edit Yjs room wins over the DB once it has content, so a
+  // CLI write to draft_sections must also update the room — else the next
+  // browser section save reverts the page to the room's stale list.
+
+  await describeAsync('Phase 4 — Page-structure room sync', async () => {
+    const about = manifest.pages.find((p) => p.title === 'About');
+    const pageId = about.id;
+    const dbIds = () => {
+      const row = runCli(`raw get ${pageId}`).json;
+      const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+      return (data.draft_sections || []).map((s) => String(s.id));
+    };
+    const stubsOf = (ids, ref) => ids.map((id) => ({ id, ref }));
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    // Long enough for the server to persist + destroy an emptied room, so the
+    // next join reloads from yjs_states (tests persistence, not just memory).
+    const PERSIST_MS = 1500;
+
+    test('never-written room: CLI leaves it alone (no_room), room stays empty');
+    let r = runCli(`section create ${pageId} --element-type lexical --title 'R1'`);
+    assertEqual(r.json?.room_sync?.status, 'no_room', 'room_sync status');
+    await sleep(PERSIST_MS);
+    let peek = await peekRoom(HOST, pageId);
+    if (assert(peek.empty, 'room still never-written (browser will seed from DB)')) pass();
+
+    // Reproduce the incident: a browser opens the page and seeds the room
+    // from the current (1-section) draft, then leaves.
+    const ref = r.json && `cli-test+${r.json.type}`;
+    const seeded = dbIds();
+    await seedRoom(HOST, pageId, stubsOf(seeded, ref));
+    await sleep(PERSIST_MS);
+
+    test('incident repro: section create on a seeded room repairs it');
+    r = runCli(`section create ${pageId} --element-type lexical --title 'R2'`);
+    assertEqual(r.json?.room_sync?.status, 'repaired', 'room_sync status');
+    r = runCli(`section create ${pageId} --element-type lexical --title 'R3'`);
+    assertEqual(r.json?.room_sync?.status, 'repaired', 'second create also repaired');
+    await sleep(PERSIST_MS);
+    peek = await peekRoom(HOST, pageId);
+    let ok = assertEqual(dbIds().length, 3, 'DB has 3 draft sections');
+    ok = assert(same(peek.ids, dbIds()), `persisted room ${JSON.stringify(peek.ids)} == DB ${JSON.stringify(dbIds())}`) && ok;
+    if (ok) pass();
+
+    test('in-sync room: page update --set title reports in_sync, room unchanged');
+    r = runCli(`page update ${pageId} --set title='About Renamed'`);
+    assertEqual(r.json?.room_sync?.status, 'in_sync', 'room_sync status');
+    peek = await peekRoom(HOST, pageId);
+    if (assert(same(peek.ids, dbIds()), 'room still == DB')) pass();
+
+    test('--no-room-sync skips sync; sync-room --check detects stale; sync-room repairs');
+    r = runCli(`--no-room-sync section create ${pageId} --element-type lexical --title 'R4'`);
+    ok = assertEqual(r.json?.room_sync, undefined, 'no room_sync in output');
+    await sleep(PERSIST_MS);
+    let chk = runCli(`page sync-room ${pageId} --check`, { expectError: true });
+    ok = assertEqual(chk.exitCode, 1, '--check exits 1 when stale') && ok;
+    ok = assertIncludes(chk.stdout, '"stale"', '--check reports stale') && ok;
+    peek = await peekRoom(HOST, pageId);
+    ok = assertEqual(peek.ids.length, 3, '--check did not write') && ok;
+    r = runCli(`page sync-room ${pageId}`);
+    ok = assertEqual(r.json?.room_sync?.status, 'repaired', 'sync-room repairs') && ok;
+    r = runCli(`page sync-room ${pageId} --check`);
+    ok = assertEqual(r.json?.room_sync?.status, 'in_sync', 'then in_sync (exit 0)') && ok;
+    if (ok) pass();
+
+    test('live browser in the room: CLI delete is applied to the live doc and persisted');
+    const live = await joinRoom(HOST, pageId);
+    ok = assert(same(live.ids(), dbIds()), 'live member starts in sync');
+    const victim = dbIds()[1];
+    r = runCli(`section delete ${victim} --page ${pageId}`);
+    ok = assertEqual(r.json?.room_sync?.status, 'repaired', 'room_sync status') && ok;
+    await sleep(300); // let the live member drain the relayed update
+    ok = assert(same(live.ids(), dbIds()), `live doc ${JSON.stringify(live.ids())} == DB ${JSON.stringify(dbIds())}`) && ok;
+    ok = assert(!live.ids().includes(victim), 'deleted section gone from live doc') && ok;
+    await live.leave();
+    await sleep(PERSIST_MS);
+    peek = await peekRoom(HOST, pageId);
+    ok = assert(same(peek.ids, dbIds()), 'persisted after the live member left') && ok;
+    if (ok) pass();
+
+    test('raw update: page row with draft_sections syncs; non-page row does not');
+    const reordered = [...dbIds()].reverse();
+    r = runCli(`raw update ${pageId} --data '${JSON.stringify({ draft_sections: stubsOf(reordered, ref) })}'`);
+    ok = assertEqual(r.json?.room_sync?.status, 'repaired', 'page row repaired (reorder)');
+    peek = await peekRoom(HOST, pageId);
+    ok = assert(same(peek.ids, reordered), 'room has the new order') && ok;
+    r = runCli(`raw update ${manifest.sections[0].id} --set title='Hero Raw'`);
+    ok = assertEqual(r.json?.room_sync, undefined, 'section row: no room sync') && ok;
+    if (ok) pass();
+
+    test('full replace to empty draft_sections empties the room (not "never-written")');
+    r = runCli(`page update ${pageId} --data '{"draft_sections":[]}'`);
+    ok = assertEqual(r.json?.room_sync?.status, 'repaired', 'room_sync status');
+    await sleep(PERSIST_MS);
+    peek = await peekRoom(HOST, pageId);
+    ok = assert(!peek.empty && peek.ids.length === 0, `room written and empty (empty=${peek.empty}, ids=${peek.ids})`) && ok;
+    if (ok) pass();
+
+    test('sync-room on a missing page fails with exit 1');
+    chk = runCli('page sync-room 99999999', { expectError: true });
+    ok = assertEqual(chk.exitCode, 1, 'exit code');
+    if (assert(/failed|not found/i.test(chk.stdout + chk.stderr), 'reports failure') && ok) pass();
   });
 
   const exitCode = summary();

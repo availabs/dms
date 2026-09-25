@@ -38,6 +38,9 @@ IndexedDB schema + purpose-built async storage API, run directly on the main thr
 
 **`dumpAll()`** — dev debug helper, dumps all three object stores via `console.table`. Wired to `globalThis.__dmsSyncDump()`.
 
+### `page-structure-provider.js`
+Binds a page's `draft_sections` to a shared `Y.Array` in a per-page collab room (keyed by the page id, same relay as section rich-text rooms). `sectionArray.jsx`'s add/edit/remove/move apply ops to it and send its merged contents as `draft_sections`. **Once the room has content it wins over the database** — it only seeds from `draft_sections` while never-written (`knownEmpty`), and the server persists it indefinitely (`yjs_states`). So any writer that changes `draft_sections` outside the room leaves it stale, and the next browser section save reverts the page to it (Bug 20 in `planning/tasks/current/concurrent-page-editing-data-loss.md`). The CLI syncs the room after its writes (`cli/src/utils/room-sync.js`, `dms page sync-room`); Discard, the section-groups/settings panes, template apply, and raw-SQL scripts do **not** yet.
+
 ### `sync-scope.js`
 Registry of `(app, type)` pairs that are synced locally. Seeded at bootstrap from server response. `isLocal(app, type)` is the routing decision: if true, reads serve from local IndexedDB instead of Falcor. Key exports: `addToScope`, `isLocal`, `getSyncedTypes`, `clearScope`.
 

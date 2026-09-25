@@ -15,6 +15,7 @@ import {
 } from '../utils/data.js';
 import { pageTypeFor, componentTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
+import { afterDraftSectionsWrite, syncPageRoom } from '../utils/room-sync.js';
 
 /**
  * Resolve which pattern's pages we're operating on.
@@ -254,8 +255,29 @@ export async function update(idOrSlug, config, options = {}) {
     }
 
     await falcor.call(['dms', 'data', 'edit'], [config.app, id, data]);
+    const roomSync = 'draft_sections' in data ? await afterDraftSectionsWrite(config, id) : undefined;
 
-    output({ id, updated: data, message: 'Page updated' }, options);
+    output({ id, updated: data, message: 'Page updated', ...(roomSync && { room_sync: roomSync }) }, options);
+  } catch (error) {
+    outputError(error);
+  }
+}
+
+/**
+ * Check / repair a page's live-edit (page-structure) room against its
+ * database draft_sections. See utils/room-sync.js. Exits 1 on `failed`, and
+ * on `stale` with --check, so scripts can detect stuck pages.
+ */
+export async function syncRoom(idOrSlug, config, options = {}) {
+  try {
+    const falcor = makeClient(config);
+    const pattern = await resolvePagePattern(falcor, config, options.pattern);
+    const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
+    const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
+
+    const result = await syncPageRoom(config, id, { check: !!options.check });
+    output({ id, room_sync: result }, options);
+    if (result.status === 'failed' || result.status === 'stale') process.exitCode = 1;
   } catch (error) {
     outputError(error);
   }
@@ -365,4 +387,4 @@ export async function remove(idOrSlug, config, options = {}) {
   }
 }
 
-export default { list, show, dump, create, update, publish, unpublish, remove };
+export default { list, show, dump, create, update, syncRoom, publish, unpublish, remove };

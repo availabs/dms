@@ -103,6 +103,7 @@
 
 ## ssr
 
+- [ssr-multi-tenant-resolution.md](./tasks/completed/ssr-multi-tenant-resolution.md) - SSR resolved the master app for every host, so a tenant subdomain's first load server-rendered `404 - Not Found` until hydration corrected it. `handler.jsx` now passes `isMultiTenant` into the shared `dmsSiteFactory()` (threaded from `mountSSR()`), and a new `onResolvedSiteData` callback gives SSR the tenant-scoped `siteData` for `__dmsSSRData` instead of a separate master-only fetch. Implemented 2026-08-27; confirmed fixed by the user (2026-09-24)
 - [ssr-basic.md](./tasks/completed/ssr-basic.md) - SSR Phase 1: platform-agnostic core (`render/ssr2/handler.jsx`), Express adapter (`render/ssr2/express/`), `mountSSR()` integration into dms-server (`DMS_SSR` env var), `getSubdomain` fix (window bug + localhost production fix), client hydration via `defaultData`/`hydrationData`, two-build system (Vite client + server), per-host route caching, Lexical SSR fixes, linkedom DOM stubs, 8x faster SSR build (2026-02-27)
 
 ## local-first

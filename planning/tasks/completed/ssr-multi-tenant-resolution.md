@@ -1,6 +1,6 @@
 # SSR: resolve the correct tenant per request, not the master app
 
-## Status: IMPLEMENTED 2026-08-27 (all 4 file changes from "Proposed Changes" below landed as specified). Both the client build and the dedicated SSR build (`npm run build:ssr`) compile cleanly. **Live verification against a real multi-tenant deployment is still outstanding** — see "Testing Checklist"; this requires infra access (a running SSR container, a real or seeded tenant subdomain) not available in this session.
+## Status: DONE, confirmed fixed by the user 2026-09-24. Implemented 2026-08-27 (all 4 file changes from "Proposed Changes" landed as specified; client and SSR builds compile cleanly). The unticked live items in the Testing Checklist were not individually re-run in the closing session. Closure rests on the user's confirmation that tenant subdomains now server-render their own site.
 
 ## Objective
 

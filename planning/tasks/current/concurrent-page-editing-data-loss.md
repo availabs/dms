@@ -2268,61 +2268,6 @@ Static read of `sync-manager.js`, `page-structure-provider.js`, `idb-store.js`, 
 
 **Fix applied (2026-09-14):** `pagesEditor.jsx` now re-fetches immediately before every destructive write. Added `fetchFreshPage(falcor, app, pageId)` and `fetchFreshCompById(falcor, app, refs)` (both invalidate the specific Falcor `byId` cache entries and re-`get` them, mirroring the CLI's `page publish` command's own re-fetch-before-clone pattern in `cli/src/commands/page.js`). `publishPage`, `discardPage`, and `duplicatePage` all call these before reading `draft_sections`/`sections`/other page fields, replacing reads of the possibly-stale `page` param and `compById` React state with a fresh server read. `publishSelected` (bulk publish) calls `publishPage` per page in a loop, so it inherits the fix automatically — no separate bulk-path change needed. Step 3 above (`sectionArray.jsx`) remains open.
 
-<<<<<<< HEAD
-## Bug 19 — a page whose `url_slug` is literally `view` (or `edit`) never resolved its section refs from local IndexedDB, rendering permanently blank on client-side navigation — FOUND, ROOT-CAUSED, AND FIXED (2026-09-15)
-
-**Symptom as reported:** MitigateNY's county Actions pattern — `http://cayuga.localhost:5173/actions/view?id=1103571` — renders blank when reached by clicking through from the Actions Dashboard (or any other page that links to it), but renders correctly on a hard refresh of the same URL.
-
-**Reproduced live** (Playwright, `cayuga.localhost:5173`, `mitigat-ny-prod`/`prod`, `VITE_DMS_SYNC=1`): load `/actions`, wait for the pattern bootstrap, click an `/actions/view?id=…` link → `document.body.innerText.length` drops from 3503 to **54** (the sidenav only) and stays there indefinitely (probed to 20s — not a slow load). Hard-reloading that same URL gives 1951 chars of real content. The DOM confirms the shape precisely: all **11 section wrappers are present with their correct ids** (`2448165`–`2448175`), each containing exactly `<div class=""></div>` — i.e. `SectionView`'s `if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null` guard (`section.jsx:481`) firing on every one, because each section is still a bare `{id, ref}` stub.
-
-**Root cause** — `api/index.js`'s `loadFromLocalDB()`, in the `activeSlug` derivation that decides which items get their `dms-format` child refs resolved (`needsRefResolution`). The code took the active view/edit child config's splat param and then ran a leading-`(edit|view)/?` strip over it:
-
-```js
-const wildcardParam = activeViewEdit?.params?.['*'] || <parent config's param> || '';
-const strippedWildcard = wildcardParam.replace(/^(edit|view)(\/|$)/, '');
-const activeSlug = strippedWildcard || strippedPath || '';
-```
-
-That strip is wrong for the child config, because **the child's splat is already the clean slug**: the edit route is declared as `edit/*` (page `siteConfig.jsx`), so React Router has itself consumed the `edit/` segment, and the view route is plain `/*`, so its splat is the raw `url_slug` with no prefix at all. Only the *fallbacks* (the parent `/*` config's param, e.g. `"edit/know_the_environment"`, and the raw request `path`) can still carry a mode prefix.
-
-So for a page whose `url_slug` **is** `view`, the regex's `(\/|$)` alternation matched the bare word and ate the entire slug. Instrumented live:
-
-```
-[sync:slug] path= "/view" wildcardParam= "view" activeViewEditParams= {"*":"view"} activeId= undefined activeSlug= ""
-```
-
-With `activeSlug === ''`, `needsRefResolution()` fell through to its home-page rule (`!activeSlug && !activeId && !item.parent && item.index == 0`) plus `idx === 0` — so it resolved refs for the *default* page and left the `view` page's own `sections` unresolved. Note `activeId` does **not** rescue this: it reads `activeViewEdit?.params?.id` (a *route* param), whereas `?id=1103571` here is a search param used as a page variable, so it is always `undefined` on this route.
-
-**Why refresh masked it.** `dmsDataLoader` only takes the local-IndexedDB path when `sync.isLocal(app, type)` is already true. On a hard load the pattern isn't in sync scope yet, so the loader falls through to Falcor (fully-resolved sections) and fires `bootstrapPattern` in the background. Every *subsequent* client-side navigation is served from local IndexedDB and hits the bug. This is why it presents as "blank when navigated to, fine on refresh" — and also why it was mildly timing-sensitive on a direct load: once the background bootstrap finishes, the `onInvalidate` → router `revalidate()` re-runs the loader, which can re-render the same URL blank without any navigation at all.
-
-**Same bug class as the 2026-09-09 trailing-strip removal** (which truncated slugs whose *last* segment was `edit`/`view`, e.g. `forms/participation/edit`). That pass fixed the trailing half and left the leading half applied to a param that never needed it.
-
-**Fix** (`packages/dms/src/api/index.js`): use the active view/edit child config's splat param **verbatim**, and apply `stripModePrefix()` only to the parent-config and `path` fallbacks.
-
-```js
-const stripModePrefix = (slug) => (slug || '').replace(/^(edit|view)(\/|$)/, '');
-const childWildcard = activeViewEdit?.params?.['*'] || '';
-const parentWildcard = activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
-const activeSlug = childWildcard
-  || stripModePrefix(parentWildcard)
-  || stripModePrefix((path || '').replace(/^\//, ''))
-  || '';
-```
-
-**Live verification** (same Playwright harness, post-fix):
-
-| step | before | after |
-|---|---|---|
-| cold load `/actions/dashboard` | 3503 | 3503 |
-| SPA click → `/actions/view?id=1103568` | **54 (blank)** | **1951** |
-| SPA back → `/actions/dashboard` | 3503 | 3503 |
-| SPA click → `/actions/view?id=1103579` | **54 (blank)** | **2191** |
-| hard reload on the view page | 1951 | 2191 |
-
-`[sync:slug]` now logs `activeSlug= "view"` on `/actions/view`, and the edit route was checked for regressions on the same instrumentation: `path= "/edit/view" childWildcard= "view" → activeSlug= "view"` — confirming directly that React Router hands the `edit/*` child a prefix-free splat, which is the premise the fix rests on. All instrumentation (`_DEV` flag and the temporary `[sync:slug]` log) was reverted; the shipped diff is the `activeSlug` block only.
-
-**Observation, not part of this fix:** the `[sync:ref]` warnings show some *other* pages' `draft_sections` children missing from the local mirror entirely (e.g. item `2265531`, 5/5 not found). That only affects edit mode, is a separate question from this bug (the view path reads `sections`, which resolved correctly post-fix), and was not chased. Possibly related to Bug 18's staleness family.
-=======
 ### Second owner correction (2026-09-14): single-page editor, not bulk admin panel
 
 **Owner said**: 656 did not click Discard in the bulk admin panel. They had visited this same page in the **single-page editor** the previous day (09/10), came back today (09/11), navigated to it again, and simply **started editing and added one new section** — nothing more. The owner suspects that action alone caused sync to silently rewrite the whole page to an older version.
@@ -2447,9 +2392,136 @@ This is gap #2 exactly as theorized in the "Second owner correction" section abo
 **Resolution**: owner ran `window.__dmsSyncAPI.resetAndRebootstrap()` (public API, exposed on `globalThis` via `api/index.js:20`) from the console — clears local IndexedDB and forces a full fresh cold bootstrap. Confirmed fixed: "feels fine now," older pages did not return on further navigation.
 
 **Not a defect in anything this task file is tracking** — this is the inherent limitation of any delta-since-revision design: a change that doesn't go through the audited write path (direct DB edit, raw script, out-of-band fixture reset) is invisible to `change_log`-based sync forever, by construction, not by bug. Recorded here only so a future session hitting the same symptom on `shaun-test-app` doesn't re-diagnose it as a new Bug-18-family issue — check for this cause (test data created/modified outside the running app) before assuming a sync-code regression, and `resetAndRebootstrap()` is the correct fix when it is the cause.
->>>>>>> 2d51c6530d2df2b43c7fce0d6e435eaac1d9fe23
+
+## Bug 19 — a page whose `url_slug` is literally `view` (or `edit`) never resolved its section refs from local IndexedDB, rendering permanently blank on client-side navigation — FOUND, ROOT-CAUSED, AND FIXED (2026-09-15)
+
+**Symptom as reported:** MitigateNY's county Actions pattern — `http://cayuga.localhost:5173/actions/view?id=1103571` — renders blank when reached by clicking through from the Actions Dashboard (or any other page that links to it), but renders correctly on a hard refresh of the same URL.
+
+**Reproduced live** (Playwright, `cayuga.localhost:5173`, `mitigat-ny-prod`/`prod`, `VITE_DMS_SYNC=1`): load `/actions`, wait for the pattern bootstrap, click an `/actions/view?id=…` link → `document.body.innerText.length` drops from 3503 to **54** (the sidenav only) and stays there indefinitely (probed to 20s — not a slow load). Hard-reloading that same URL gives 1951 chars of real content. The DOM confirms the shape precisely: all **11 section wrappers are present with their correct ids** (`2448165`–`2448175`), each containing exactly `<div class=""></div>` — i.e. `SectionView`'s `if (!value?.element?.['element-type'] && !value?.element?.['element-data']) return null` guard (`section.jsx:481`) firing on every one, because each section is still a bare `{id, ref}` stub.
+
+**Root cause** — `api/index.js`'s `loadFromLocalDB()`, in the `activeSlug` derivation that decides which items get their `dms-format` child refs resolved (`needsRefResolution`). The code took the active view/edit child config's splat param and then ran a leading-`(edit|view)/?` strip over it:
+
+```js
+const wildcardParam = activeViewEdit?.params?.['*'] || <parent config's param> || '';
+const strippedWildcard = wildcardParam.replace(/^(edit|view)(\/|$)/, '');
+const activeSlug = strippedWildcard || strippedPath || '';
+```
+
+That strip is wrong for the child config, because **the child's splat is already the clean slug**: the edit route is declared as `edit/*` (page `siteConfig.jsx`), so React Router has itself consumed the `edit/` segment, and the view route is plain `/*`, so its splat is the raw `url_slug` with no prefix at all. Only the *fallbacks* (the parent `/*` config's param, e.g. `"edit/know_the_environment"`, and the raw request `path`) can still carry a mode prefix.
+
+So for a page whose `url_slug` **is** `view`, the regex's `(\/|$)` alternation matched the bare word and ate the entire slug. Instrumented live:
+
+```
+[sync:slug] path= "/view" wildcardParam= "view" activeViewEditParams= {"*":"view"} activeId= undefined activeSlug= ""
+```
+
+With `activeSlug === ''`, `needsRefResolution()` fell through to its home-page rule (`!activeSlug && !activeId && !item.parent && item.index == 0`) plus `idx === 0` — so it resolved refs for the *default* page and left the `view` page's own `sections` unresolved. Note `activeId` does **not** rescue this: it reads `activeViewEdit?.params?.id` (a *route* param), whereas `?id=1103571` here is a search param used as a page variable, so it is always `undefined` on this route.
+
+**Why refresh masked it.** `dmsDataLoader` only takes the local-IndexedDB path when `sync.isLocal(app, type)` is already true. On a hard load the pattern isn't in sync scope yet, so the loader falls through to Falcor (fully-resolved sections) and fires `bootstrapPattern` in the background. Every *subsequent* client-side navigation is served from local IndexedDB and hits the bug. This is why it presents as "blank when navigated to, fine on refresh" — and also why it was mildly timing-sensitive on a direct load: once the background bootstrap finishes, the `onInvalidate` → router `revalidate()` re-runs the loader, which can re-render the same URL blank without any navigation at all.
+
+**Same bug class as the 2026-09-09 trailing-strip removal** (which truncated slugs whose *last* segment was `edit`/`view`, e.g. `forms/participation/edit`). That pass fixed the trailing half and left the leading half applied to a param that never needed it.
+
+**Fix** (`packages/dms/src/api/index.js`): use the active view/edit child config's splat param **verbatim**, and apply `stripModePrefix()` only to the parent-config and `path` fallbacks.
+
+```js
+const stripModePrefix = (slug) => (slug || '').replace(/^(edit|view)(\/|$)/, '');
+const childWildcard = activeViewEdit?.params?.['*'] || '';
+const parentWildcard = activeConfigs?.reduce((slug, c) => slug || c.params?.['*'], null) || '';
+const activeSlug = childWildcard
+  || stripModePrefix(parentWildcard)
+  || stripModePrefix((path || '').replace(/^\//, ''))
+  || '';
+```
+
+**Live verification** (same Playwright harness, post-fix):
+
+| step | before | after |
+|---|---|---|
+| cold load `/actions/dashboard` | 3503 | 3503 |
+| SPA click → `/actions/view?id=1103568` | **54 (blank)** | **1951** |
+| SPA back → `/actions/dashboard` | 3503 | 3503 |
+| SPA click → `/actions/view?id=1103579` | **54 (blank)** | **2191** |
+| hard reload on the view page | 1951 | 2191 |
+
+`[sync:slug]` now logs `activeSlug= "view"` on `/actions/view`, and the edit route was checked for regressions on the same instrumentation: `path= "/edit/view" childWildcard= "view" → activeSlug= "view"` — confirming directly that React Router hands the `edit/*` child a prefix-free splat, which is the premise the fix rests on. All instrumentation (`_DEV` flag and the temporary `[sync:slug]` log) was reverted; the shipped diff is the `activeSlug` block only.
+
+**Observation, not part of this fix:** the `[sync:ref]` warnings show some *other* pages' `draft_sections` children missing from the local mirror entirely (e.g. item `2265531`, 5/5 not found). That only affects edit mode, is a separate question from this bug (the view path reads `sections`, which resolved correctly post-fix), and was not chased. Possibly related to Bug 18's staleness family.
+
+## Bug 20 — a page's persisted page-structure room outlives every `draft_sections` write that bypasses it, so each browser section save reverts the page to the room's stale list — ROOT-CAUSED; CLI path FIXED (2026-09-25), all other writers FLAGGED
+
+**Report (owner, 2026-09-25):** on `county_template.localhost:5173/guide/edit/platform_guide/start_here` (`mitigat-ny-prod`, page **2711376**, pattern `planning_guide`), any save to any section left a blank page with one old section in it — `2711375`, the default "Page Title / Start writing your content here." section the page was created with.
+
+### Evidence (change_log via `GET /sync/delta`, and a read-only join of the page's room)
+
+- The server's persisted room for page 2711376 held exactly `[{"id":"2711375"}]` — one Yjs client in its state vector — while `draft_sections` in the database had 43 entries.
+- Timeline (all times 2026-09-24 UTC unless noted):
+  - 17:36:40 — user 16 (Windows Chrome, 169.226.97.167) creates the page from template; `draft_sections = [2711375]`. The DB only ever equals `[2711375]` from here until 17:58:54.
+  - 17:58:54–18:05:46 — **user agent `node`**, user 1, same IP: 225 page updates + 215 `|component` inserts, in 5 runs of "clear to `[]`, then append one section at a time with `has_changes: true`" — exactly `cli/src/commands/section.js` `create`'s insert-then-append shape. None of it touches the room.
+  - 18:10:30–18:12:14 — user 16 publishes (43 sections) and edits page settings only (`hide_in_nav`, sidebar, theme). No section saves, so no room read. The publish proves user 16's client already held the fresh 43-entry draft.
+  - 18:13:01 — user 16's first section save writes `draft_sections = [2711375]`. Had the room been empty then, `reseedIfEmpty(value)` would have seeded it with the (fresh) 43, so the room must already have held `[2711375]` — seeded during 17:36–17:58, the only window the DB matched.
+  - 18:13 → 2026-09-25 13:30 — 8 cycles of "save writes `[2711375]`" → **Discard** rewrites `draft_sections` as fresh clones of the 43 published sections (new contiguous ids each time: 2711636…, 2711679…, … 2711980…) → next save reverts again. Discard (`editFunctions.jsx` `discardChanges`) is itself a plain `apiUpdate` that never touches the room, so it could never clear the stale room either.
+- Not established: who ran the CLI (no local session transcript references the page; different machine), or the room's exact seed time (yjs_states has no per-update timestamps) — the seed window above is inferred.
+
+### Root cause
+
+`page-structure-provider.js` + `sectionArray.jsx` treat the room as the source of truth once it has content: `save`/`remove`/`moveItem` send `room.sectionsArray.toArray()` as `draft_sections`, and `trySeed`/`reseedIfEmpty` only seed a room whose `knownEmpty === true && length === 0`. The server persists room state indefinitely (`ws.js` `flushYjsState` → `yjs_states`). Nothing invalidates or updates the room when `draft_sections` is written any other way, so the room silently diverges and wins. **This does not need the CLI** — Discard alone does it on any page someone has edited with sync on (the room keeps the pre-discard ids, and the next section save undoes the Discard).
+
+### Every writer that bypasses the room
+
+A. Through `change_log` (Falcor `dms.controller.js` `appendChangeLog`, or `/sync/push`, both → `ws.js` `notifyChange`):
+1. In-app `draft_sections` writers: Discard, section-groups pane, settings pane, template apply / new-page-from-template, duplicate page, admin `pagesEditor.jsx`.
+2. CLI: `section create`, `section delete --page`, `page update`, `raw update` — **FIXED below.**
+3. Rich-text section content written outside the collab editor (CLI `section update`, template sync, a sync-OFF build editing the same section) — the same bug class for the per-section Lexical collab room (`richtext/index.jsx` → `collaboration.js`, `shouldBootstrap` only seeds an empty room). **Inferred from code, not reproduced.**
+4. Page/section delete leaves an orphan `yjs_states` row (harmless).
+
+B. Not through `change_log`: dms-server raw-SQL scripts (`migrate-site`, `consolidate-page-history`, `extract-images`, `migrate-to-dmsenv`, `migrate-type-system`, `cleanup-stale-dmsenv-refs`, …), direct DB edits, restores. **FLAGGED — deferred by owner.**
+
+### Fix shipped: CLI (2026-09-25)
+
+`cli/src/utils/room-sync.js` — after a CLI write to a page's `draft_sections`: re-read the page with a fresh client; join its room over `/sync/subscribe`; leave if never written (`no_room` — the browser seeds from the DB itself); else replace the Y.Array with the DB's `{id, ref}` stubs in one transaction if they differ; wait 750 ms; leave; re-join to verify (`repaired` / `in_sync` / `failed`). Hooked into `section create`, `section delete --page`, `page update` (when `draft_sections` is in the written data — including every `--set` read-modify-write), `raw update` (page rows only). Output gains `room_sync`; a failure warns on stderr with the repair command and exits 0 (the DB write succeeded). New: global `--no-room-sync`; `dms page sync-room <id> [--check]` (check exits 1 on `stale`). CLI deps: `yjs`, `ws`.
+
+- **Leave-early race — plausible, not reproduced.** `ws.js` handles messages concurrently; `yjs-update` awaits `getOrCreateYDoc` while `leave-room` is synchronous, and a last-member leave encodes the doc for persistence synchronously. If both frames land in one socket read, the leave could persist before the update applies. Tried 6/6 with a 0 ms wait on local SQLite: never lost. The 750 ms wait + verify re-join stay as cheap insurance (`failed` is reported, not silent).
+- Known limits: a browser concurrently inserting a section while the CLI replaces the room loses that insert from the room (the CLI's own read-modify-write DB write already had the same race); CLI `section update` (rich text) is not covered; non-atomic DB write → room write (failure is surfaced, not silent).
+
+### Also found (FLAGGED, not fixed)
+
+- **The sync WebSocket has no authentication.** `ws.js` never checks credentials: anyone who can reach `/sync/subscribe` can join any item's room and rewrite it — and the next editor's section save then persists the attacker's list to `draft_sections`. (The prod repair below was done unauthenticated.) Security issue, separate from this bug.
+- Server-side reconcile (the in-app writers + rich-text rooms) was designed and reviewed with the owner but deferred; failure modes found in review, for whoever picks it up: Falcor `appendChangeLog` → `_notifyChange` runs *before* `commitTransaction` (`dms.controller.js:850/852`, `:1015/1016`), so a reconcile hooked there acts on uncommitted data; overwriting the room with a late stale save from a room client makes Bug 1 losses permanent (proposed guard: skip only strict-subset writes during recent room activity); deleting `yjs_states` must coordinate with `yjsDocLoads`, `scheduleFlush`, and `cleanupRoom`'s flush-on-leave or the stale state is written back; clearing Lexical rooms raises the frequency of the two-joiners-both-bootstrap duplication race; multi-process deployments break the "no clients in room" test.
+
+### Found while testing: Falcor/CLI writes are never live-broadcast (FOUND, ROOT-CAUSED, NOT FIXED — 2026-09-25)
+
+Owner observed an open `/edit/page_3` tab needed a refresh to show sections the CLI had just added. Verified live: a WS client subscribed to `shaun-test-app` (app + `pages|page` pattern, same messages `sync-manager.js` sends) received **zero** `change` messages while the CLI created a page and a section on dmsserver.availabs.org.
+
+Root cause: two different controller instances. `routes/dms/dms.route.js:13` builds its own `createController(DMS_DB_ENV)` and serves every Falcor route from it (`:522 module.exports = createRoutes(controller)`), while `index.js:381-386` calls `setNotifyChange(notifyChange)` on `dms.controller.js`'s module-level `defaultController` (`:1245`) — on the stated but false assumption (`index.js:382-384` comment) that the route uses that same instance. So the Falcor path's `_notifyChange` is always null: `appendChangeLog` writes `change_log` but never broadcasts. Only `/sync/push` writes broadcast. The route's separate instance predates sync (`3e5debbd`, 2026-02-06); the wiring was wrong from sync's first commit (`d62b4f36`, 2026-03-09). `dms.controller.js:45`'s comment already notes the two instances exist (for the page-delete hook, which is why that hook is module-level).
+
+Impact: every Falcor write — CLI, sync-off browsers, any sync-on client write that falls back to Falcor (see Bug 17), admin tooling — reaches other open tabs only on their next delta catch-up (reload / navigation / visibility revalidation), never live. Very likely the unexplained half of Bug 18 mechanism 1 ("the live WS broadcast didn't update it either — not yet root-caused").
+
+Independent of Bug 20: the page-structure room itself IS updated live (E2 above — an open, un-refreshed tab's save kept the CLI's section), so the fix holds even while the UI is visibly stale.
+
+Fix direction (not applied): make `dms.route.js` use the shared `defaultController`, or wire `setNotifyChange` onto the route's instance. Things to handle when enabling it: `_notifyChange` fires before `commitTransaction` in the Falcor path (a rolled-back write would be broadcast); Falcor writes have no `myRevisions` echo suppression (a sync-on client's own Falcor-fallback write would echo back — `applyRemote` no-ops unchanged keys, so likely harmless); broadcast volume rises (bulk writes; split-table rows are already stripped by `stripSplitRowData`).
+
+### Owner's manual browser checks on `shaun-test-app` `/edit/page_3` (2026-09-25, after the CLI fix)
+
+- CLI adds, then edit + save in the browser → all sections kept. ✅
+- CLI adds, then **SPA navigation** away and back (no reload) → CLI sections **not shown** (stale local mirror; Falcor writes aren't broadcast — see above). Owner then added a section in that stale tab → saved `draft_sections` correctly kept both CLI sections (change_log rev 1587425: 8 entries), but the tab couldn't render them until reload. ⚠️ display-only.
+- CLI adds while the tab is **closed**, then open a new tab → CLI sections shown (startup delta catch-up reads them from `change_log`). ✅
+
+Net: no data loss in any scenario after the fix; the remaining gap is the live-display one (Falcor broadcast bug).
+
+### Prod repair (2026-09-25)
+
+Page 2711376's room was replaced with the 43 current `draft_sections` stubs (one `yjs-update`; page row backed up first to the session scratchpad). Verified `room 43 == db 43`. A read-only scan of all 50 `planning_guide` pages found only 2711376 stuck (scan left empty `yjs_states` rows for never-joined pages — harmless, empty state vector = still seedable).
+
+### Testing
+
+- [x] CLI integration suite (local SQLite, `DMS_TEST_SERVER_DIR` sqlite-only server copy): 29/29, including 7 new Phase 4 room tests — never-written room untouched; incident repro (seeded stale room → `section create` repairs, persisted); `--set` → `in_sync`; `--no-room-sync` + `sync-room --check` (exit 1) + repair; live room member receives a CLI delete and the result persists after it leaves; `raw update` page vs non-page; replace to `[]` leaves a written-but-empty room; missing page → exit 1. Also fixed the pre-existing suite failure (deletes now require auth — harness creates an admin via `/init/setup` and passes `--auth-token`).
+- [x] Live CLI against `shaun-test-app` on dmsserver.availabs.org (Postgres, deployed server), 2026-09-25: 47/47 — existing read commands (site show/tree, pattern list, page list/show/dump, section list, dataset list), full page lifecycle (create/show by slug/update/publish/unpublish/delete), section create/list/show/dump/update (incl. stdin)/delete, plus every Phase 4 room scenario above; throwaway page 54519 + sections verified deleted.
+- [x] **Real-browser end-to-end** (headless Chromium, the actual app on a local Vite dev server with `VITE_DMS_APP=shaun-test-app VITE_DMS_TYPE=test VITE_DMS_SYNC=1`, against the deployed server), 2026-09-25: 17/17. E1 — opening the page in edit mode seeds the room (confirmed `[S1]`); CLI adds S2, S3 (`repaired`); editing + saving S1 in the real editor keeps all three in `draft_sections` and saves the new text. E2 — a tab left open while the CLI adds S4, then edits + saves S2 without reloading, keeps S4. E3 (control) — the same flow with `--no-room-sync` **reproduces the original bug** (the browser save drops S5), proving the test detects it. All throwaway pages/sections verified deleted; `shaun-test-app` back to its original 3 pages.
+- Observed while automating (not fixed, not investigated): with sync on, text typed into a rich-text section within ~1–2 s of clicking its Edit pencil is partly overwritten (typed "ALPHA edited…" → editor showed "ALPH") — consistent with the section's Lexical collab room finishing its sync (1 s empty-doc fallback in `collaboration.js`) after typing starts. Waiting ~5 s avoided it. Possibly real user-facing character loss; same family as Bug 2.
 
 ## Testing checklist
+
+- [ ] **Bug 20 — persisted page-structure room outlives `draft_sections` writes that bypass it; every browser section save reverts to the stale room list (prod `mitigat-ny-prod` page 2711376, 2026-09-24/25).** CLI path fixed (`cli/src/utils/room-sync.js`; local suite 29/29, live Postgres 47/47, real-browser e2e 17/17 incl. a control that reproduces the bug); prod page repaired. Open: in-app writers (Discard, panes, templates), rich-text rooms, and raw-SQL scripts flagged; sync WebSocket has no auth (security). See Bug 20 section.
 
 - [x] **Bug 19 — a page whose `url_slug` is literally `view`/`edit` never resolved its section refs from local IndexedDB, blanking the page on every client-side navigation (fine on refresh) — fixed.** `loadFromLocalDB()`'s leading-`(edit|view)` strip was being applied to the active view/edit child route's splat param, which React Router already hands over prefix-free; for MitigateNY's `/actions/view?id=…` action-detail page that collapsed `activeSlug` to `''`, so `needsRefResolution()` never matched the page and every section rendered as an empty stub. Strip now applies only to the parent-config/`path` fallbacks. Verified live on `cayuga.localhost` (blank 54 chars → 1951/2191 chars across two different actions, dashboard round-trip and hard reload unaffected; edit route re-checked). See Bug 19's write-up above.
 

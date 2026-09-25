@@ -11,6 +11,7 @@ import {
   makeClient, fetchById, fetchAll, parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
 import { output, outputError } from '../utils/output.js';
+import { afterDraftSectionsWrite } from '../utils/room-sync.js';
 
 const ATTRS = ['id', 'app', 'type', 'data', 'created_at', 'updated_at'];
 
@@ -176,7 +177,14 @@ export async function update(id, config, options = {}) {
       : [config.app, numId, data];
     await falcor.call(['dms', 'data', 'edit'], editArgs);
 
-    output({ id: numId, updated: data, message: 'Item updated' }, options);
+    // Only page rows have a structure room; a raw write can target anything.
+    let roomSync;
+    if ('draft_sections' in data) {
+      const row = await fetchById(makeClient(config), config.app, numId, ['id', 'type']);
+      if (row?.type?.endsWith('|page')) roomSync = await afterDraftSectionsWrite(config, numId);
+    }
+
+    output({ id: numId, updated: data, message: 'Item updated', ...(roomSync && { room_sync: roomSync }) }, options);
   } catch (error) {
     outputError(error);
   }

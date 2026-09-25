@@ -160,6 +160,23 @@ This remains unresolved.
 
 ---
 
+## Open Issue: Removed tenants permanently burn their subdomain (flagged 2026-09-23, not fixed)
+
+`/list` "Remove tenant" (`editSite.jsx` TenantList delete modal) only drops the ref from the master
+site's `tenants` array. Left behind: the `main|<slug>:tenant` row in the master app, the tenant app's
+site/patterns/pages (and `dms_<slug>` schema in per-app mode), and the auth project + `<slug> Admin/Public`
+groups + memberships.
+
+Consequences:
+- Old subdomain shows `Tenant "<slug>" not found` (`dmsSiteFactory.jsx` only searches the `tenants` refs).
+- Re-creating the same subdomain (signup or `/list`) passes the client check, then fails at
+  `POST /init/setup` with `Project "<slug>" is already initialized.` (`auth.js` initSetup). If that were
+  bypassed, the Phase 1 server guard would still reject it, because it counts the orphaned `:tenant` row.
+- No UI to restore or purge; the name is gone for good.
+
+Decision needed: "remove" = **suspend** (relabel + add restore) vs **delete** (new server endpoint to drop
+tenant row + auth project/group links, optional tenant-data purge). Traced from code, not live-reproduced.
+
 ## Testing Checklist
 
 - [x] Server rejects duplicate tenant create via both `/list` and signup paths
