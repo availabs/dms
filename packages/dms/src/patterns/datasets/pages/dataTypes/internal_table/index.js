@@ -1,9 +1,10 @@
-import Table from "../gis_dataset/pages/table"
-import Upload from "../internal/pages/upload";
-import Validate from "../internal/pages/validate";
-import Metadata from "../gis_dataset/pages/metadata";
-import Admin from "../internal/pages/admin";
-import SourceCreate from "./pages/sourceCreate";
+import {
+    Table, Metadata,
+    InternalUpload as Upload,
+    InternalValidate as Validate,
+    InternalAdmin as Admin,
+    InternalTableCreate as SourceCreate,
+} from "../lazyPages";
 
 const InternalTableConfig = {
     admin: {

@@ -750,16 +750,18 @@
 
 ### patterns/datasets
 
-- [ ] [Shrink the initial JS graph — split by pattern, section type, and editor surface](./tasks/current/bundle-split-initial-graph.md) —
-      **MEASURED 2026-09-22 via sourcemap attribution, not started.** Under Lighthouse-style throttling
-      the JS bundle, not the data layer, is what costs seconds: 1.47 MB over the wire, `index` alone
-      7.8 s at 1.6 Mbps. `index-*.js` is 2,542,472 B raw and **95% first-party**: section components
-      560 kB · mapeditor 291 kB · datasets pages 270 kB · lexical 231 kB · graph_new 172 kB · admin
-      137 kB. `vendor` (1,049,846 B) is 23% lexical family + 8% yjs/lib0 + 5% prismjs — all editor
-      surface. Ranked plan: (1) lazy pattern siteConfigs (~450 kB, `resolvePatterns()` is already
-      async), (2) lazy section components from ComponentRegistry keeping configs eager (~730 kB),
-      (3) on-demand maplibre (278 kB; `avl-map.jsx` already shows the pattern), (4) split editor-only
-      lexical plugins/prism/yjs from the view path (view DOES mount lexical — verified). Watch SSR.
+- [ ] **Deferred — JS bundle split follow-ups** (task CLOSED 2026-09-24, see [bundle-split-initial-graph.md](./tasks/completed/bundle-split-initial-graph.md) → *Remaining*).
+      Revisit after the page-load task below shows whether JS is still the bottleneck. Highest value: **TransportNY's
+      `vite.config.js` `manualChunks` (`dms` + catch-all `vendor` buckets) re-merges every split — it gets none of the win
+      until that changes.** Then DOM-neutral splits (lexical view-mounted pickers, section menu built only for editors,
+      graph/map `controls`); owner decisions: lexical floating plugins, prism/CodeNode, icon subsetting.
+
+- [ ] [Boot chain — fewer serial hops before first render](./tasks/current/boot-chain-fewer-serial-hops.md) —
+      options 1–4 from the page-load task's render-delay analysis: batch dms-format ref expansion
+      (`loadDmsFormats` does one round trip per attribute), don't await section chunks in the page loader,
+      `modulepreload` the site's theme chunk, merge each theme once per route build. MNY `/`: 9 serial hops
+      after the JS today. **IMPLEMENTED + VERIFIED 2026-09-24, not committed/deployed** — 9 → 4 hops; real-throttle
+      hero render −420 ms desktop / −1.44 s mobile; DOM/SSR/crawl identical. Lighthouse flat (bandwidth-bound on `/`).
 
 - [ ] [Page load — the site bootstrap payload (+ 3 related fetch problems)](./tasks/current/site-bootstrap-payload-and-pattern-lookup.md) —
       **3 of 4 FIXED 2026-09-17: data per `/cenrep` load 1,350,149 B → 453,318 B (−66%), and the

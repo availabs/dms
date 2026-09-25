@@ -86,7 +86,7 @@ document the `pg_trgm` recipe; **B** as a clean follow-on; `tsvector` only if a 
 
 ## First consumer / validation
 
-[TSMO Incident Search](../../../../../../planning/transportny/tasks/current/tsmo-incident-search-page-build.md)
+[TSMO Incident Search](../../../../../planning/transportny/tasks/current/tsmo-incident-search-page-build.md)
 (transcom 956/1947, millions of rows) — exercises both the authoring win (many columns × table +
 count sections) and the perf path. Build it on the manual pattern first if this lands later; migrate
 to the one-leaf form when shipped.

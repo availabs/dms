@@ -12,8 +12,13 @@ import { getInstance } from "../../utils/type-utils"
 
 import MapEditorFormat from "./mapeditor.format"
 
-import MapEditor,{ RegisterPlugin } from "./MapEditor"
-import MapViewer from "./MapEditor/MapViewer"
+import { RegisterPlugin } from "./MapEditor/pluginRegistry"
+import { lazyComponent } from "../../utils/lazyComponent"
+
+// Code-split: the editor + viewer (and maplibre with them) load only when a
+// mapeditor route renders. See planning/tasks/completed/bundle-split-initial-graph.md.
+const MapEditor = lazyComponent('mapeditor/MapEditor', () => import("./MapEditor"))
+const MapViewer = lazyComponent('mapeditor/MapViewer', () => import("./MapEditor/MapViewer"))
 
 const mapeditorConfig = ({
 	app, type: patternType,

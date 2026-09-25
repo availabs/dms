@@ -343,10 +343,105 @@ Roughly 40% client boot, 40% a six-level waterfall, 12% the one un-indexed query
    is two serial hops for one list, and `length` is the request that triggers the pattern seq scan
    (127-164 ms of the trace above). A single "give me the sources" route removes a whole level.
 2. ~~The trigram index on the live DB~~ — **DONE 2026-09-22** (see above).
-3. **`maplibre` out of the eager graph** — 285 kB encoded / 1.05 MB raw parsed on every page,
-   map or not.
-4. **The `index` chunk** — 746 kB encoded / 2.5 MB raw is most of the 609 ms of long tasks.
+3. ~~**`maplibre` out of the eager graph**~~ — **DONE 2026-09-24** in
+   [`bundle-split-initial-graph.md`](../completed/bundle-split-initial-graph.md): maplibre loads only on
+   pages with a Map section.
+4. ~~**The `index` chunk**~~ — **largely DONE 2026-09-24** (same task): eager JS 1,393,628 → 636,077 B
+   gzip. Real Slow-4G + 4× CPU on MNY `/`: FCP/LCP 13.5 s → 10.2 s. Long-task time (~2.0 s under 4× CPU)
+   did NOT move, so the remaining client-boot cost is render work, not parsing dead code.
 5. Finding 3 below, and the 110-pattern projection.
+
+## Lighthouse diagnosis of `/` (2026-09-24) — what actually drives the score
+
+Owner's Lighthouse on the built MNY `dist` (served on :3000, after the bundle split) was FCP 1.6 s /
+LCP 4.9 s / TBT 720 ms — the **desktop** preset (reproduced here: 43 score, FCP 1.6 s, LCP 5.2 s, TBT
+580 ms). Mobile preset on the same build: score 27, FCP 8.3 s, **LCP 30.9 s**, TBT 3.2 s. Lighthouse
+12.8.2 via `npx`, Playwright's Chromium, controlled experiments on scratch copies of `dist`:
+
+| desktop preset | score | FCP | LCP | TBT |
+|---|---|---|---|---|
+| `dist` as built | 43 | 1.6 s | 5.2 s | 590 ms |
+| hero image recompressed (3.8 MB PNG → 385 kB WebP, same size) | 63 | 1.6 s | 2.8 s | 280 ms |
+| + `<link rel=preload as=image fetchpriority=high>` for the hero | 60 | 1.6 s | 2.7 s | 340 ms |
+| + the 4.57 MB sources request blocked (finding 3) | **74** | 1.6 s | **2.7 s** | **120 ms** |
+| only the sources request blocked (hero untouched) | 65 | 1.5 s | 5.2 s | 140 ms |
+| **mobile**, `dist` as built → all three | 27 → 40 | 8.3 → 8.0 s | **30.9 → 14.7 s** | 3,170 → 700 ms |
+
+**1. LCP is the home hero, and its background is a 3.8 MB PNG.** `mny_landing_green.png` (1536×1024)
+is set on the MNY header's hero div as an inline `background: url(...)` — an option value in
+`mnyHeader/consts.js`, stored in the page's saved header section. 69% of LCP was *load delay*: the
+image can't be requested until React has rendered the hero (~1.06 s into an unthrottled load). Page
+weight is 6.3 MB, only ~0.7 MB of it JS. Siblings: `mny_landing.png` 10.4 MB, `mny_landing_dark.png`
+3.6 MB; hazard `.webp` thumbnails 250-440 kB each (Lighthouse: ~1 MB offscreen savings).
+
+**2. TBT is Falcor digesting finding 3's response, not JS parsing.** The home page downloads 6.58 MB
+of *uncompressed* JSON (317 kB on the wire); **4.57 MB is one request** —
+`uda.hazmit_dama.sources.byIndex[0..12190][name, metadata]` (176 kB gzipped, so it looks harmless in
+the network panel). A sourcemap-attributed CPU profile of the load: Falcor + falcor-path-utils +
+avl-falcor ≈ 540 ms of 1.56 s busy (35%, unthrottled), running at the root of response callbacks
+(cache merge), plus GC 152 ms. React itself is 99 ms. Lighthouse labels it "vendor" script evaluation
+because Falcor lives in that chunk. Blocking that single request drops TBT 580 → 140 ms.
+Also on `/`: page rows 774 kB uncompressed, `test_meta_forms` sources 478 kB, two 264 kB `byId` ranges.
+
+**3. What's left of LCP after 1+2 is render delay (2.6 s desktop / 14.2 s mobile)** — the time for the
+SPA to boot and walk the serial chain: JS → site row (4 requests) → theme chunk → page data (3) →
+section chunks → render. Only fewer hops (waterfall work, below) or server-rendered/prerendered HTML
+moves this part.
+
+Smaller items seen: lodash `merge` in `ui/useTheme.js` ≈ 107 ms (theme merge per pattern config ×110
+patterns in `pattern2routes`); Tailwind's browser runtime ≈ 83 ms + style recalcs (deliberate — runtime
+theme classes); `font-awesome all.min.css` (105 kB) is render-blocking (Lighthouse: ~3.3 s on mobile);
+the bundle split's page loader *awaits* the page's section chunks, one extra serial hop before render.
+
+**Revised priority for this task:** (a) the hero image — content/asset fix, no code; (b) finding 3 —
+now measured as the TBT driver on the home page, not only county pages; (c) waterfall depth / render
+delay.
+
+## Render-delay chain on `/` — what each hop waits for, and the options (2026-09-24)
+
+Observed request order (Lighthouse desktop run, unthrottled trace; API is the real dmsserver):
+
+| # | at (ms) | request | why it waits for the previous one |
+|---|---|---|---|
+| 0 | 21→116 | JS (`index`, `vendor`) | — (then ~170 ms eval + boot) |
+| 1 | 287→332 | site row | needs the JS |
+| 2 | 341→347 | site's `dms_envs` refs | **doesn't** — serial only because `loadDmsFormats` awaits one attribute at a time |
+| 3 | 351→382 | site's 110 `patterns` refs | same |
+| 4 | 409→419 | site's `theme_refs` names | same |
+| 5 | 427→473 | theme chunk(s) | needs pattern rows (which theme names are selected) |
+|   | 473→656 | *(route building: `pattern2routes` × 110 patterns incl. ~100 ms of theme deep-merges, router init)* | |
+| 6 | 656→760 | page list, 500 pages (774 kB uncompressed) | needs the router (route → loader) |
+| 7 | 812→844 | home `draft_sections` | **doesn't** need 8 — same one-attribute-at-a-time loop; also not needed in view mode |
+| 8 | 849→873 | home `sections` | needs 6 (section ids come from the page row) |
+| 9 | 877→897 | section chunks (graph) | needs 8 — and the loader *awaits* it (bundle-split P3) |
+|   | 897→1030 | *(render)* | |
+| 10 | 1058 | hero image request | needs the rendered hero |
+
+Root cause of hops 2–4 and 7: `api/proecessNewData.js` `loadDmsFormats` does
+`for (const key of dmsKeys) { … await falcor.get(…) }` — one round trip per dms-format attribute, in
+series, though every key's ref ids are already on the row. `processNewData` also awaits items one by one
+and always expands item `i === 0` as well as the active ids (unverified whether that adds a hop on
+non-first pages).
+
+Options, cheapest first (hop counts after the JS arrives: today 9):
+1. **Batch ref expansion** — one `falcor.get` for all dms-format keys of an item (and across items).
+   Library change in `api/`, benefits every site: site 4 → 2 hops, page 3 → 2. BC: same data shape.
+2. **Don't await section chunks in the page loader** — −1 hop (bundle-split follow-up 9).
+3. **`modulepreload` the site's theme chunk** from `index.html` at build (theme name known per site
+   build) — the theme downloads with the main JS instead of after the pattern rows.
+4. **Memoize the per-pattern theme merge** in `pattern2routes`/`getPatternTheme` — 110 identical merges
+   for ~3 distinct themes; CPU on the critical path (~100 ms unthrottled, ~4× on mobile).
+5. **Inline the site bootstrap at deploy** (`deploy-mnyprod` writes site row + pattern rows + theme names
+   into `dist/index.html` as boot data → `DmsSite`'s existing `defaultData` fast path) — removes hops 1–4
+   on cold loads, the same shortcut returning visitors already get from the localStorage snapshot. The
+   full fetch still runs and replaces routes if data changed (`appliedSiteDataRef`). Needs the
+   no-access-stub guard and a staleness story.
+6. **Server-side expansion** (one call returning a row with its refs expanded — site, or page + sections)
+   — the structural version of 1; dms-server + client change.
+7. **Prerender `/` at deploy** with the existing SSR handler — LCP stops depending on JS and data at all
+   (hero URL is in the HTML). `/` already SSRs and hydrates cleanly (bundle-split verification); most
+   inner pages don't (portal bug). Netlify needs a route that serves the prerendered file for `/` while
+   `/* /index.html` stays the empty shell.
 
 ## Finding 3 — `dataWrapper` pulls `metadata` for every source in the env — STILL OPEN
 
@@ -494,3 +589,17 @@ Don't chase it, and don't quote dev totals as production ones.
   served with `vite preview --outDir dist-mny`. Pre-existing red in `test:splitting`
   (`resolveTable` naming assertion) is unrelated — both table-resolver hunks here are inside
   `buildCreateTableSQL`.
+- 2026-09-24 — Cross-reference: "Still on the table" items 3 (maplibre) and 4 (index chunk) were done by
+  [`bundle-split-initial-graph.md`](../completed/bundle-split-initial-graph.md). Not re-measured on `/cenrep`
+  with this harness yet; the next measurement here should use a build that includes it.
+- 2026-09-24 — **Lighthouse diagnosis of `/`** (see the section above). LCP = 3.8 MB hero PNG discovered
+  late; TBT = Falcor merging the 4.57 MB (uncompressed) finding-3 sources response. Measured fixes on
+  scratch copies of `dist`: desktop 43 → 74, LCP 5.2 → 2.7 s, TBT 590 → 120 ms; mobile LCP 30.9 → 14.7 s.
+  Remaining LCP is render delay (the serial boot chain). Nothing changed in the repo or on the site.
+- 2026-09-24 — **Render-delay chain mapped** (section above): 9 serial hops after the JS on `/`, 4 of them
+  serial only because `loadDmsFormats` expands one attribute per round trip. Options 1–7 recorded; nothing
+  changed.
+- 2026-09-24 — Render-delay options 1–4 implemented in
+  [`boot-chain-fewer-serial-hops.md`](./boot-chain-fewer-serial-hops.md): 9 → 4 serial hops; real-throttle hero
+  render −420 ms desktop / −1.44 s mobile. Lighthouse flat — its LCP on `/` is bandwidth-bound (2.78 MB
+  before LCP, 1.48 MB images: 1 MB of offscreen, oversized hazard illustrations is the next lever).

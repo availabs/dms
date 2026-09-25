@@ -21,7 +21,7 @@ that is to hand-author `theme.navOptions.secondaryNav.navItems` on the pattern r
 [nav-rootpath-items.md](./nav-rootpath-items.md)), which takes the nav out of the author's hands
 and has to be re-hand-maintained in every cloned pattern.
 
-Consumer: [MitigateNY county template ⇄ actions pattern](../../../../../../planning/mitigateny/tasks/current/county-template-actions-nav-links.md),
+Consumer: [MitigateNY county template ⇄ actions pattern](../../../../../planning/mitigateny/tasks/current/county-template-actions-nav-links.md),
 which is **blocked on this task**.
 
 ## Scope
@@ -309,7 +309,7 @@ currently-broken link (`/baseUrl/https://…`) into a working one.
 ### Round 2 — 2026-09-09, two bugs found by the first real consumer
 
 The MitigateNY conversion
-([county-template-actions-nav-links.md](../../../../../../planning/mitigateny/tasks/current/county-template-actions-nav-links.md))
+([county-template-actions-nav-links.md](../../../../../planning/mitigateny/tasks/current/county-template-actions-nav-links.md))
 exercised this on a page with real history and broke it twice. Both fixed here.
 
 - [x] **A link page's leftover url-bound page variables cancel the redirect.** The MNY county

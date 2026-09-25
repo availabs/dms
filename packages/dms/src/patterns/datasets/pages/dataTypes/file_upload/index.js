@@ -1,4 +1,4 @@
-import CreatePage from "./CreatePage";
+import { FileUploadCreate as CreatePage } from "../lazyPages";
 
 // No `view` page and no `defaultPages`: an uploaded file has nothing to table, map or describe.
 // Its artifact is surfaced by the Versions card on the source Overview, which reads the upload's

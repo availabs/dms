@@ -11,7 +11,6 @@ import {CharacterLimitPlugin} from '@lexical/react/LexicalCharacterLimitPlugin';
 import {CheckListPlugin} from '@lexical/react/LexicalCheckListPlugin';
 import {ClearEditorPlugin} from '@lexical/react/LexicalClearEditorPlugin';
 
-import {CollaborationPlugin} from '@lexical/react/LexicalCollaborationPlugin';
 import {LexicalErrorBoundary} from '@lexical/react/LexicalErrorBoundary';
 import {HistoryPlugin} from '@lexical/react/LexicalHistoryPlugin';
 import {HorizontalRulePlugin} from '@lexical/react/LexicalHorizontalRulePlugin';
@@ -23,11 +22,8 @@ import * as React from 'react';
 import {useEffect, useState} from 'react';
 import {CAN_USE_DOM} from './shared/canUseDOM';
 
-import {createCollabProvider} from './collaboration';
 import {useSharedHistoryContext} from './context/useSharedHistoryContext';
 import TableCellNodes from './nodes/TableCellNodes';
-import ActionsPlugin from './plugins/ActionsPlugin';
-import AutocompletePlugin from './plugins/AutocompletePlugin';
 //import AutoEmbedPlugin from './plugins/AutoEmbedPlugin';
 import AutoLinkPlugin from './plugins/AutoLinkPlugin';
 import CodeHighlightPlugin from './plugins/CodeHighlightPlugin';
@@ -54,8 +50,6 @@ import TableCellResizer from './plugins/TableCellResizer';
 import TableHoverActionsPlugin from './plugins/TableHoverActionsPlugin';
 //import TableOfContentsPlugin from './plugins/TableOfContentsPlugin';
 import {TablePlugin as NewTablePlugin} from './plugins/TablePlugin';
-import ToolbarPlugin from './plugins/ToolbarPlugin';
-import TreeViewPlugin from './plugins/TreeViewPlugin';
 //import YouTubePlugin from './plugins/YouTubePlugin';
 import ContentEditable from './ui/ContentEditable';
 import Placeholder from './ui/Placeholder';
@@ -63,6 +57,18 @@ import InlineImagePlugin from "./plugins/InlineImagePlugin";
 import ButtonPlugin from './plugins/ButtonPlugin'
 import CollapsibleNoPreviewPlugin from "./plugins/CollapsibleNoPreviewPlugin";
 import PageBreakPlugin from './plugins/PageBreakPlugin';
+import {lazyComponent} from '../../../../utils/lazyComponent';
+
+// Code-split: plugins a read-only editor never mounts — the toolbar (editable
+// only), collaboration (collab only; pulls in yjs), and the flag-gated
+// autocomplete / actions / tree-view plugins. View mode renders exactly as
+// before; these load on first use. See
+// planning/tasks/completed/bundle-split-initial-graph.md.
+const ToolbarPlugin = lazyComponent('lexical/ToolbarPlugin', () => import('./plugins/ToolbarPlugin'));
+const CollabPlugin = lazyComponent('lexical/CollabPlugin', () => import('./CollabPlugin'));
+const AutocompletePlugin = lazyComponent('lexical/AutocompletePlugin', () => import('./plugins/AutocompletePlugin'));
+const ActionsPlugin = lazyComponent('lexical/ActionsPlugin', () => import('./plugins/ActionsPlugin'));
+const TreeViewPlugin = lazyComponent('lexical/TreeViewPlugin', () => import('./plugins/TreeViewPlugin'));
 
 // const skipCollaborationInit =
 //     // @ts-expect-error
@@ -156,9 +162,8 @@ export default function Editor(props): JSX.Element {
                 {isRichText ? (
                     <>
                         {isCollab ? (
-                            <CollaborationPlugin
+                            <CollabPlugin
                                 id={collabId || 'main'}
-                                providerFactory={createCollabProvider}
                                 shouldBootstrap={true}
                                 initialEditorState={collabInitialState}
                                 username={collabUsername}

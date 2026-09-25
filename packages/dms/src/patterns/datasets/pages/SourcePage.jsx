@@ -10,7 +10,7 @@ import Breadcrumbs from "../components/Breadcrumbs";
 import Overview from "./dataTypes/default/overview"
 import Admin from "./dataTypes/default/admin"
 import Version from "./dataTypes/default/version"
-import Metadata from "./dataTypes/gis_dataset/pages/metadata"
+import { Metadata } from "./dataTypes/lazyPages"
 
 const fixedPages = ['overview', 'admin']
 const viewDependentPages = ['table', 'upload', 'validate', 'map']

@@ -3,14 +3,18 @@ import {Link, useLocation} from "react-router";
 import UI from "../../ui";
 import {getPatternTheme, getAdminTheme, ThemeContext} from "../../ui/useTheme";
 import DefaultMenu from "./components/menu"
-import AuthLogin from "./pages/authLogin";
-import AuthLogout from "./pages/authLogout";
-import AuthSignup from "./pages/authSignup";
-import AuthUsers from "./pages/authUsers";
-import AuthGroups from "./pages/authGroups";
-import AuthResetPassword from "./pages/authResetPassword";
-import AuthForgotPassword from "./pages/authForgotPassword";
-import Profile from "./pages/profile";
+import { lazyComponent } from "../../utils/lazyComponent";
+
+// Code-split: auth pages load only when an auth route renders. See
+// planning/tasks/completed/bundle-split-initial-graph.md.
+const AuthLogin = lazyComponent('auth/AuthLogin', () => import("./pages/authLogin"));
+const AuthLogout = lazyComponent('auth/AuthLogout', () => import("./pages/authLogout"));
+const AuthSignup = lazyComponent('auth/AuthSignup', () => import("./pages/authSignup"));
+const AuthUsers = lazyComponent('auth/AuthUsers', () => import("./pages/authUsers"));
+const AuthGroups = lazyComponent('auth/AuthGroups', () => import("./pages/authGroups"));
+const AuthResetPassword = lazyComponent('auth/AuthResetPassword', () => import("./pages/authResetPassword"));
+const AuthForgotPassword = lazyComponent('auth/AuthForgotPassword', () => import("./pages/authForgotPassword"));
+const Profile = lazyComponent('auth/Profile', () => import("./pages/profile"));
 import {cloneDeep, merge} from "lodash-es";
 
 

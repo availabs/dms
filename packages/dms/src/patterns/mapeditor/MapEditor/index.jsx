@@ -32,7 +32,8 @@ import { buildLayerUdaFilterOptions, extractState, fetchBoundsForFilter, setDefa
 
 export const SymbologyContext = React.createContext(undefined);
 
-export const PLUGIN_TYPE = 'plugin'
+import { PLUGIN_TYPE } from './pluginRegistry'
+export { PLUGIN_TYPE, PluginLibrary, RegisterPlugin } from './pluginRegistry'
 
 /**
  * Returns the join-authored tile columns that should be treated as runtime
@@ -237,11 +238,6 @@ const buildJoinOptions = (layerConfig, dataColumn = null) => {
  *       path: `['active-layers'][${PM3_LAYER_KEY}]`,
  *     }]
  */
-export const PluginLibrary = {};
-
-export const RegisterPlugin = (name, plugin) => {
-  PluginLibrary[name] = plugin
-}
 
 export const INITIAL_PLUGIN_DATA_STATE = {
   'default-legend': true,
