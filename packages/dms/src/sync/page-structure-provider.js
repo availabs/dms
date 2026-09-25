@@ -65,6 +65,50 @@ function base64ToUint8(base64) {
 // server relay.
 const rooms = new Map(); // pageItemId -> { doc, sectionsArray, refCount, readyPromise, knownEmpty, ... }
 
+// Room lifecycle subscribers (joined / ready / left) — used by room-health.js
+// to know which page's structure room this tab currently has open, without
+// the page editor having to plumb its item id anywhere.
+const roomListeners = new Set();
+function notifyRoomsChanged() {
+  for (const fn of roomListeners) {
+    try { fn(); } catch (err) { console.error('[page-structure-provider] listener error:', err); }
+  }
+}
+export function onStructureRoomsChange(fn) {
+  roomListeners.add(fn);
+  return () => roomListeners.delete(fn);
+}
+
+/**
+ * Snapshot of the page-structure rooms this tab has open: one entry per page,
+ * `stubs` being the room's current (merged) array.
+ */
+export function getStructureRooms() {
+  return [...rooms.entries()].map(([pageId, r]) => ({
+    pageId, ready: r.ready, knownEmpty: r.knownEmpty,
+    lastRemoteOpAt: r.lastRemoteOpAt, lastLocalAt: r.lastLocalAt,
+    stubs: r.sectionsArray.toArray(),
+  }));
+}
+
+/**
+ * Replace an open room's whole array with `stubs` (`{id, ref}`), as ONE Yjs
+ * transaction relayed to every peer and persisted by the server like any other
+ * op. For room-health.js's "update room from saved" repair — the room only
+ * reads the database while never-written, so a room left stale by a write
+ * that bypassed it (CLI, Discard, a sync-off build) never corrects itself.
+ * Returns false if this tab doesn't have that room open and ready.
+ */
+export function replaceStructureRoomContents(pageId, stubs) {
+  const room = rooms.get(String(pageId));
+  if (!room?.ready) return false;
+  room.doc.transact(() => {
+    room.sectionsArray.delete(0, room.sectionsArray.length);
+    room.sectionsArray.push(stubs);
+  });
+  return true;
+}
+
 function connect(pageItemId) {
   const doc = new Y.Doc();
   const sectionsArray = doc.getArray('draft_sections');
@@ -77,6 +121,8 @@ function connect(pageItemId) {
     clearTimeout(room.step1Timeout);
     clearTimeout(room.step2Timeout);
     resolveReady();
+    room.ready = true;
+    notifyRoomsChanged();
   }
   // Fail-safe for step1 itself never arriving. NOT a short/"expected fast
   // path" timeout — found live (2026-08-24) that step1 can be delayed just
@@ -105,10 +151,16 @@ function connect(pageItemId) {
   const room = {
     doc, sectionsArray, refCount: 0, readyPromise, lastRemoteAt: 0,
     knownEmpty: null, step1Timeout, step2Timeout: null,
+    // For room-health.js: `ready` mirrors readyPromise synchronously;
+    // `lastLocalAt` is this tab's own most recent structural op.
+    // `lastRemoteOpAt` is the last REAL peer op; unlike `lastRemoteAt` it is not
+    // stamped at connect time (that stamp exists only for waitForQuiet).
+    ready: false, lastLocalAt: 0, lastRemoteOpAt: 0,
   };
 
   const docUpdateHandler = (update, origin) => {
     if (origin === 'remote') return;
+    room.lastLocalAt = Date.now();
     const ws = getWS();
     if (ws && ws.readyState === 1) {
       ws.send(JSON.stringify({ type: 'yjs-update', itemId: pageItemId, update: uint8ToBase64(update) }));
@@ -171,6 +223,7 @@ function connect(pageItemId) {
       if (msg.type === 'yjs-update') {
         Y.applyUpdate(doc, base64ToUint8(msg.update), 'remote');
         room.lastRemoteAt = Date.now();
+        room.lastRemoteOpAt = room.lastRemoteAt;
       }
     } catch (err) {
       console.error('[page-structure-provider] message error:', err);
@@ -310,6 +363,7 @@ export function joinPageStructureRoom(pageItemId, seedSections) {
   if (!room) {
     room = connect(key);
     rooms.set(key, room);
+    notifyRoomsChanged();
   }
   room.refCount += 1;
 
@@ -356,6 +410,7 @@ export function joinPageStructureRoom(pageItemId, seedSections) {
       room.refCount -= 1;
       if (room.refCount <= 0) {
         rooms.delete(key);
+        notifyRoomsChanged();
         room._teardown();
       }
     },

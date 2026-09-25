@@ -751,6 +751,24 @@ export async function checkIdsExist(falcor, app, ids) {
   );
 }
 
+// Fetch one item's CURRENT server row, bypassing every client-side cache: the Falcor
+// cache (invalidated first, both the app-namespaced and legacy byId paths) and, since it
+// calls the Falcor route directly rather than going through dmsDataLoader, the sync
+// layer's local IndexedDB mirror too — which can lag the server indefinitely for writes
+// that aren't live-broadcast (e.g. CLI/Falcor writes; see concurrent-page-editing-data-
+// loss.md, Bug 20). Used by sync/room-health.js to compare a page's live-edit room
+// against what is actually saved. Returns `{ id, type, data }` (data parsed) or null.
+export async function loadItemFresh(falcor, app, id, attrs = ['id', 'type', 'data']) {
+  if (!falcor?.get || !app || id == null) return null;
+  await falcor.invalidate(['dms', 'data', app, 'byId', id]);
+  await falcor.invalidate(['dms', 'data', 'byId', id]);
+  const res = await falcor.get(['dms', 'data', app, 'byId', id, attrs]);
+  const row = get(res, ['json', 'dms', 'data', app, 'byId', id]);
+  if (!row?.type) return null;
+  const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
+  return { ...row, data };
+}
+
 const api = {
   dmsDataLoader,
   dmsDataEditor,
@@ -758,6 +776,7 @@ const api = {
   udaCreateView,
   udaUpdateSourceMetadata,
   checkIdsExist,
+  loadItemFresh,
 }
 
 export default api

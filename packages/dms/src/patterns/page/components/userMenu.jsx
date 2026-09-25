@@ -5,6 +5,7 @@ import { AuthContext } from "../../auth/context";
 import { ThemeContext, getComponentTheme } from "../../../ui/useTheme";
 import {userMenuTheme} from './userMenu.theme'
 import { isUserAuthed } from "../../../utils/auth";
+import { loadItemFresh } from "../../../api";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -14,12 +15,24 @@ const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
 
 const syncStatusKey = (status) => status ? `${status.charAt(0).toUpperCase()}${status.slice(1)}` : null
 
-const UserMenu = ({activeStyle, syncStatus}) => {
+// How often a tab becoming visible again may re-check the page room.
+const ROOM_RECHECK_MS = 30000;
+
+// Defaults for ONLY the room-health keys, spread under the site theme so a site
+// theme that predates them still renders the red ring / rows. Deliberately not
+// the whole default style: site themes that override pages.userMenu (mny admin,
+// tessera v6, landbank, wcdb, transportny) must keep rendering exactly as before.
+const roomHealthThemeDefaults = Object.fromEntries(
+  Object.entries(userMenuTheme.styles[0]).filter(([k]) => k === 'syncRingStale' || k.startsWith('syncRoom'))
+);
+
+const UserMenu = ({activeStyle, syncStatus, roomStale}) => {
     const { theme, UI } = useContext(ThemeContext)
     const { user } = useContext(AuthContext)
     const { Icon } = UI;
-    const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
-    const ringKey = syncStatus ? `syncRing${syncStatusKey(syncStatus)}` : null
+    const menuTheme = { ...roomHealthThemeDefaults, ...(getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]) }
+    // A stale page room outranks connection status: saving here would revert the page.
+    const ringKey = roomStale ? 'syncRingStale' : syncStatus ? `syncRing${syncStatusKey(syncStatus)}` : null
 
     return (
       <div className={menuTheme.userMenuContainer}>
@@ -71,11 +84,11 @@ const EditControl = ({activeStyle}) => {
 
 export default function UserMenuContainer ({title, children, activeStyle, navigableMenuActiveStyle}) {
   const { user, viewAsUser, setViewAsUser } = React.useContext(AuthContext) || {}
-  const { baseUrl = '', app, authPermissions } = React.useContext(CMSContext) || {}
+  const { baseUrl = '', app, authPermissions, falcor } = React.useContext(CMSContext) || {}
   const { theme, UI } = React.useContext(ThemeContext) || {}
   const { NavigableMenu, Icon } = UI;
   const location = useLocation();
-  const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
+  const menuTheme = { ...roomHealthThemeDefaults, ...(getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]) }
 
   const isAdmin = React.useMemo(
     () => (user?.groups || []).some(g => g === `${app} Admin`)
@@ -103,6 +116,95 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
     });
     return () => { cancelled = true; unsubStatus(); unsubCollab(); };
   }, []);
+
+  // Page-room health (sync/room-health.js): is the page room this tab has open
+  // (edit mode only) the same as the page's saved sections? Checked once when
+  // the room becomes ready, and again when the tab becomes visible (throttled).
+  // The saved row is read fresh from the server — never the local mirror.
+  const [roomHealth, setRoomHealth] = React.useState({ status: 'idle' });
+  const roomHealthApi = React.useRef(null);
+  const fetchSaved = React.useCallback((pageId) => loadItemFresh(falcor, app, pageId), [falcor, app]);
+
+  React.useEffect(() => {
+    if (!DMS_SYNC_ENABLED || !falcor || !app) return;
+    let cancelled = false;
+    let unsubs = [];
+    import('../../../sync/room-health.js').then((mod) => {
+      if (cancelled) return;
+      roomHealthApi.current = mod;
+      let checkedPage = null;
+      const check = () => mod.checkRoomHealth(fetchSaved);
+      unsubs.push(mod.onRoomHealthChange(setRoomHealth));
+      unsubs.push(mod.onPageRoomChange(() => {
+        const room = mod.currentPageRoom();
+        if (!room) { checkedPage = null; return; }
+        if (room.pageId !== checkedPage) { checkedPage = room.pageId; check(); }
+      }));
+      const onVisible = () => {
+        if (document.visibilityState !== 'visible' || !mod.currentPageRoom()) return;
+        if (Date.now() - (mod.getRoomHealth().checkedAt || 0) > ROOM_RECHECK_MS) check();
+      };
+      document.addEventListener('visibilitychange', onVisible);
+      unsubs.push(() => document.removeEventListener('visibilitychange', onVisible));
+      // A room may already be open (menu mounted after the editor).
+      const room = mod.currentPageRoom();
+      if (room) { checkedPage = room.pageId; check(); }
+    });
+    return () => { cancelled = true; unsubs.forEach((u) => u()); };
+  }, [falcor, app, fetchSaved]);
+
+  const roomBusy = ['checking', 'repairing'].includes(roomHealth.status);
+  const handleRoomCheck = React.useCallback(() => {
+    if (!roomBusy) roomHealthApi.current?.checkRoomHealth(fetchSaved);
+  }, [roomBusy, fetchSaved]);
+  const handleRoomRepair = React.useCallback(() => {
+    if (!roomBusy) roomHealthApi.current?.repairRoom(fetchSaved);
+  }, [roomBusy, fetchSaved]);
+
+  const roomHealthLabel = {
+    checking: 'Checking page room…',
+    repairing: 'Updating page room…',
+    ok: 'Page room matches saved sections',
+    busy: 'Page is being edited — check again in a moment',
+    stale: `Page room differs from saved sections (saved ${roomHealth.savedCount} · room ${roomHealth.roomCount} · ${roomHealth.common} in common). Saving a section here would revert the saved version.`,
+    error: `Page room check failed: ${roomHealth.error}`,
+  }[roomHealth.status];
+
+  const roomHealthItems = roomHealth.status !== 'idle' && roomHealthLabel
+    ? [
+        {
+          type: () => (
+            <div className={roomHealth.status === 'stale' ? menuTheme.syncRoomStaleWrapper : menuTheme.syncRoomWrapper}>
+              <Icon
+                icon={roomHealth.status === 'ok' ? 'CircleCheck' : roomHealth.status === 'stale' || roomHealth.status === 'error' ? 'Alert' : 'Refresh'}
+                className={menuTheme.syncRoomIcon}
+              />
+              <span className={menuTheme.syncRoomLabel}>{roomHealthLabel}</span>
+            </div>
+          ),
+        },
+        ...(roomHealth.status === 'stale' ? [{
+          type: () => (
+            <div className={`${menuTheme.syncRoomRepair} ${roomBusy ? menuTheme.syncRoomActionDisabled : ''}`} onClick={handleRoomRepair}>
+              <Icon icon={'Refresh'} className={menuTheme.syncRoomIcon} />
+              <span className={menuTheme.syncRoomLabel}>
+                {roomHealth.peerActive
+                  ? 'Someone else is editing this page — update room from saved anyway'
+                  : 'Update room from saved'}
+              </span>
+            </div>
+          ),
+        }] : []),
+        {
+          type: () => (
+            <div className={`${menuTheme.syncRoomAction} ${roomBusy ? menuTheme.syncRoomActionDisabled : ''}`} onClick={handleRoomCheck}>
+              <Icon icon={'Refresh'} className={menuTheme.syncRoomIcon} />
+              <span className={menuTheme.syncRoomLabel}>Check page room again</span>
+            </div>
+          ),
+        },
+      ]
+    : [];
 
   const syncLabel = syncStatus === 'syncing' && syncPending > 0
     ? `Syncing (${syncPending})`
@@ -145,6 +247,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
             </div>
           ),
         },
+        ...roomHealthItems,
       ]
     : [];
 
@@ -222,7 +325,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
                 activeStyle={navigableMenuActiveStyle}
               >
                 <div className={menuTheme.userMenuWrapper}>
-                  <UserMenu activeStyle={activeStyle} syncStatus={syncStatus} />
+                  <UserMenu activeStyle={activeStyle} syncStatus={syncStatus} roomStale={roomHealth.status === 'stale'} />
                 </div>
               </NavigableMenu>
               <EditControl activeStyle={activeStyle} />

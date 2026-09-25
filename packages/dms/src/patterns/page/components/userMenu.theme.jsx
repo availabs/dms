@@ -21,6 +21,9 @@ export const userMenuTheme = {
       syncRingRecovering: 'ring-orange-500',
       syncRingError: 'ring-red-500',
       syncRingDisconnected: 'ring-slate-300',
+      // Overrides the status ring when this page's live-edit room differs from
+      // its saved sections (sync/room-health.js) — a save here would revert them.
+      syncRingStale: 'ring-red-500',
 
       // Sync status row inside the dropdown menu
       syncStatusWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500',
@@ -39,6 +42,15 @@ export const userMenuTheme = {
       syncClearWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500 cursor-pointer hover:bg-slate-50',
       syncClearWrapperDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
       syncClearLabel: 'flex-1',
+
+      // Page room health rows (sync/room-health.js): status line + actions.
+      syncRoomWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500',
+      syncRoomStaleWrapper: 'flex items-start gap-2 px-3 py-2 text-xs text-red-600',
+      syncRoomIcon: 'size-3 flex-shrink-0',
+      syncRoomLabel: 'flex-1',
+      syncRoomAction: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-600 cursor-pointer hover:bg-slate-50',
+      syncRoomRepair: 'flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 cursor-pointer hover:bg-red-50',
+      syncRoomActionDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
 
       // EditControl component
       editControlWrapper: 'flex justify-center items-center p-2',
@@ -76,6 +88,7 @@ const themeClasses = {
     "syncRingRecovering",
     "syncRingError",
     "syncRingDisconnected",
+    "syncRingStale",
     "syncStatusWrapper",
     "syncStatusDot",
     "syncStatusLabel",
@@ -89,6 +102,13 @@ const themeClasses = {
     "syncClearWrapper",
     "syncClearWrapperDisabled",
     "syncClearLabel",
+    "syncRoomWrapper",
+    "syncRoomStaleWrapper",
+    "syncRoomIcon",
+    "syncRoomLabel",
+    "syncRoomAction",
+    "syncRoomRepair",
+    "syncRoomActionDisabled",
   ],
   "editControl": [
     "editControlWrapper",
