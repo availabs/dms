@@ -189,8 +189,8 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
               <Icon icon={'Refresh'} className={menuTheme.syncRoomIcon} />
               <span className={menuTheme.syncRoomLabel}>
                 {roomHealth.peerActive
-                  ? 'Someone else is editing this page — update room from saved anyway'
-                  : 'Update room from saved'}
+                  ? 'Someone else is editing this page — update room from database anyway'
+                  : 'Update room from database'}
               </span>
             </div>
           ),
