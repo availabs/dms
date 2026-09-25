@@ -177,6 +177,31 @@ function healRoomDuplicates(room) {
     return arr.toArray();
 }
 
+// The room holds bare `{id, ref}` stubs (see save()'s comment for why), but the
+// page's own state must not: rendering stubs blanks every section until the
+// loader revalidates with resolved content — a visible flash on each save/
+// remove/move, and a remount (so a re-fetch) of any section that loads data on
+// mount, triggered by a save to a DIFFERENT section. So before handing the
+// room's merged order to local state / onChange, put back the content this
+// component already has for each id. `overrides` wins (the section just edited
+// or created). An id with no local content (a peer's section this tab hasn't
+// loaded yet) stays a stub, exactly as before. Content objects carry no
+// `_dirty`, so dmsDataEditor re-sends refs only — no extra child writes.
+function resolveRoomEntries(stubs, value, overrides = {}) {
+    const known = new Map();
+    for (const s of Array.isArray(value) ? value : []) {
+        if (s && typeof s === 'object' && s.id != null) known.set(String(s.id), s);
+    }
+    for (const [id, s] of Object.entries(overrides)) known.set(String(id), s);
+    return stubs.map((stub) => {
+        const content = known.get(String(stub?.id));
+        if (!content) return stub;
+        const resolved = { ...content, id: stub.id, ref: stub.ref ?? content.ref };
+        delete resolved._dirty;
+        return resolved;
+    });
+}
+
 const Edit = ({ value, onChange, attr, group, siteType }) => {
     const {hash} = useLocation();
     const { editPane, format, item  } =  React.useContext(PageContext) || {}
@@ -321,12 +346,15 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
             // name — getInstance("pages|page") is null, not "pages").
             const componentType = `${getParent(item.type)}|component`;
             const syncAPI = globalThis.__dmsSyncAPI;
+            // Content for the section this save touched, for resolveRoomEntries.
+            const overrides = {};
             if (edit.type === 'update') {
                 const targetId = edit.value?.id;
                 const stripped = { ...edit.value };
                 for (const k of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by']) delete stripped[k];
                 if (targetId != null) {
                     await syncAPI.localUpdate(targetId, stripped);
+                    overrides[targetId] = edit.value;
                 }
                 action = `edited section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
                 // Membership doesn't change on an update — nothing to insert/delete
@@ -344,6 +372,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                     })
                 };
                 const newId = await syncAPI.localCreate(item.app, componentType, newSectionData);
+                overrides[newId] = { ...newSectionData, id: newId, ref: `${item.app}+${componentType}` };
                 room.doc.transact(() => {
                     const insertAt = Math.min(Math.max(edit.index, 0), arr.length);
                     arr.insert(insertAt, [{ id: newId, ref: `${item.app}+${componentType}` }]);
@@ -354,7 +383,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
             // reading back and sending — see page-structure-provider.js's
             // waitForQuiet for why this is load-bearing, not cosmetic.
             await room.settle();
-            const merged = healRoomDuplicates(room);
+            const merged = resolveRoomEntries(healRoomDuplicates(room), value, overrides);
             cancel()
             setValues([...merged, ''])
             onChange(merged, action)
@@ -404,7 +433,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 if (idx >= 0 && idx < arr.length) arr.delete(idx, 1);
             });
             await room.settle();
-            const merged = healRoomDuplicates(room);
+            const merged = resolveRoomEntries(healRoomDuplicates(room), value);
             cancel()
             onChange(merged, action)
             return;
@@ -451,7 +480,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 arr.insert(to, [moved]);
             });
             await room.settle();
-            onChange(healRoomDuplicates(room))
+            onChange(resolveRoomEntries(healRoomDuplicates(room), value))
             return;
         }
 
