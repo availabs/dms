@@ -1,4 +1,4 @@
-import { HEIGHT_OPTIONS, PANEL_POSITION_OPTIONS } from "../index.jsx";
+import { HEIGHT_OPTIONS, PANEL_POSITION_OPTIONS } from "../constants.js";
 
 /**
  * Returns the inline "more" settings shown on the main Map Settings screen.

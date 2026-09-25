@@ -499,6 +499,14 @@ expression is **silently dropped** from SELECT and GROUP BY (the card renders
 one ungrouped row and null labels — that's the symptom to recognize). Counts
 stay live; refresh the list when the ranking shifts.
 
+⚠ **The keyword check covers string literals too.** It is a whole-word, case-insensitive
+regex over the whole expression (`\b(select|create|drop|update|delete|insert|alter|exec|union|cast)\b`),
+so a calculated column whose *display text* contains one of those words —
+`'…closures update continuously' as note`, `'… select a completed year' as msg` — is dropped the
+same way: the falcor atom comes back with no value and the cell renders blank, grouped or not.
+Reword (`choose`; `updated` is fine — whole words only) or move fixed prose into a static column
+(`origin: 'static'`, which never enters the query). Found 2026-09-24 on TSMO home (#2214562).
+
 ---
 
 ## 3.5 Data Fetch Mode — cache / smart / force (set it deliberately)
@@ -558,6 +566,14 @@ A: No. Drop `data: []` (or omit) and let the renderer load on
 first paint. The cached `data` is only useful when you want
 instant view-mode rendering before the first query resolves;
 seed scripts usually shouldn't pretend to know the rows.
+
+**Q: I changed a section's columns by hand and a new cell is blank — but only at the page's
+default filter value.**
+A: The section's saved `element-data.data` still holds rows from the OLD query, and at the
+default (saved) filter state the section renders that snapshot without querying. Old column keys
+still resolve, new ones don't. Clear it (`data: []`) whenever you change columns outside the
+UI. Seen 2026-09-24 on TSMO home's §01 reliability stat: the new year line was missing at 2025
+(the saved filter) and fine at 2026.
 
 **Q: How do I know which view a source has?**
 A: For DAMA sources, every existing card pointing at that source

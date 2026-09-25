@@ -745,6 +745,26 @@ key** — set `normalName` explicitly on the seg calcs and reference that (with 
 > Card: a `layout-container` node (`templateColumns: "items-center
 > grid-cols-[auto_1fr]"`) holding two `layout-item`s. Narrow cards need a short
 > kicker so it doesn't wrap. (Used on every §02–§05 reliability/congestion card top.)
+>
+> **Side-by-side compound cards: both headers must be the SAME primitive.** When one
+> header needs data (a live corridor name) it has to be a Card, and a lexical header
+> beside it does not match: the lexical theme's `p-4` + the layout-container's `mt-2`
+> made a 60px strip next to a 36px Card, so the grid row took 60px, the titles sat
+> 23px apart and the Card's chrome ended 23px above its table (TSMO incident view,
+> 2026-09-24). Make the static one a Card too (`origin:'static'` cells + the
+> `selectOnly` seed from "An all-static card still fires a query"), and give EVERY
+> piece of both stacks (header, body, footer) section `height:'fill'`. Without it a
+> chrome box is content-height and detaches from the piece below whenever its
+> neighbour is taller.
+>
+> **Mixed font sizes on one Card row don't center by themselves.** Each value leaf is
+> `min-h-[20px]` with its text top-aligned (`card.theme` `valueWrapper`), so a 10.5px
+> mono `kicker` sits ~1.5px above a 15px Oswald `cardTitleSM` beside it, and the
+> whole row sits high in its strip. `cellsVAlign`/`cellsContentVAlign` can't fix it
+> (the leaves are all 20px). Split `cellPaddingTop`/`cellPaddingBottom` unevenly per
+> font, keeping the sum constant so the strip height doesn't move. Measured on the
+> TransportNY fonts (canvas `measureText` cap centers, 46px strip): `cardTitleSM`
+> 12/10, `metaAccent` 13/9, `kicker` 14/8.
 
 ## Data-only columns: `selectOnly` (the phantom-cell gotcha)
 
@@ -1033,6 +1053,18 @@ bare `flex` (⇒ row). If a theme declares `headerValueLayout:'row'` but ships n
 `itemFlexRow`, the DOM stays column and the wrong axis is emitted — that is the same
 theme bug that already breaks the header/value width split; fix the theme.
 
+**Lining up a rule across SIBLING Card sections — the same `cellsRowsTemplate` on each.**
+Separate sections can't share a grid, so a divider (e.g. a cell's `border-b`) lands wherever each
+card's content puts it. Give every card in the row the same template of
+`minmax(<px>, max-content)` rows above the rule, the minimums set to the tallest natural row at
+the widths that matter (measure DOM rects per width; don't eyeball a screenshot). Short content
+pads to the shared height, tall content still grows (no clipping). Trade-off: where every card's
+content is shorter, the minimums add whitespace. Worked example (2026-09-24): TSMO home's hero
+KPI cards, `minmax(54px, max-content) minmax(54px, max-content) minmax(72px, max-content)` → the
+note divider at 214px at 1440/1680/1920 (it had ranged 141–198). A multi-section *stack* (e.g.
+fused doorway cards) aligns a bottom link the other way: give the link its own section, so the
+links share one grid row of the page.
+
 **"Spread the slack, but NOT into THIS row" — `display.cellsRowsTemplate`**
 (shipped 2026-08-14). `'stretch'` spreads the leftover **equally** over every row,
 which is wrong whenever the rows are not interchangeable — a header strip must not
@@ -1093,11 +1125,18 @@ A column type's `ViewComp` receives (`CompWrapper` in `Card.jsx` ~318):
 
 **`row` is not an invitation to render everything from one cell.** If you find yourself reading more than one or two fields off `row`, that's a smell that the composite belongs as separate Card cells. See the "When NOT to configure further" section above.
 
-## Edit-mode controls
+## Edit-mode controls and the empty-state fallback
 
 `display.allowEditInView` and `liveEdit` toggle inline editing. `allowAdddNew` adds a synthetic "new row" entry at the end of `data` and renders an `add` button.
 
 `display.useBlankRowFallback` is opt-in. When **on** and the query returns 0 rows, `getData.js` synthesizes a single row with each column's `blankDefault`. Sections that didn't opt in stay at `length: 0, data: []`. Useful when a card is the *only* thing on the page and you want it to render scaffolding even when empty.
+
+**This is the Card's empty-state primitive — reach for it before hand-writing SQL that forces a
+row** (dropping the GROUP BY, `case when count(1) = 0 …` guards). The query stays as it is, and
+the fallback text is author-editable: **Empty Default** in each column's toolbar, shown once the
+flag is on. Worked example: TSMO home's full-year PM3 cards when a partial year is selected
+(#2225147, 2026-09-24). If the missing value would collapse its row (a `stat_value` renders
+nothing for null), hold the row with a `cellsRowsTemplate` minimum.
 
 ## Defaults that bite
 

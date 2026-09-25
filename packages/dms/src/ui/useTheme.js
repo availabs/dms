@@ -59,6 +59,15 @@ function mergeComponentStyles(baseStyles, overrideStyles) {
   // out every named style the dms package itself ships at that component key
   // (e.g. MultiSelect's 'accent' chip variant), and `activeStyle: '<name>'`
   // no-op'd back to styles[0] with no error (found 2026-09-17).
+  //
+  // The override's styles keep their authored positions and the base-only
+  // styles are appended after them. Several pickers store a style's INDEX
+  // (the page Settings sidenav style, every `*.theme` editor's
+  // `options.activeStyle`), and those indices were authored against the site
+  // theme's own array. Placing base-only styles first shifted every one of
+  // them (e.g. TransportNY's `compact` sidenav moved from 1 to 2, so pages
+  // storing 1 got the library's `admin` rail). Base-only styles are picked
+  // by name, so their position doesn't matter.
   const overrideRest = overrideStyles.slice(1).map(s => cloneDeep(s));
   const overrideNames = new Set(overrideRest.map(s => s?.name).filter(Boolean));
   const baseRest = baseStyles.slice(1)
@@ -67,8 +76,8 @@ function mergeComponentStyles(baseStyles, overrideStyles) {
 
   return [
     mergedDefault,
-    ...baseRest,
     ...overrideRest,
+    ...baseRest,
   ];
 }
 
@@ -138,6 +147,31 @@ export function mergeTheme(base, override) {
   return result;
 }
 
+// `defaultTheme ⊕ themes[selection]` — the expensive half of getPatternTheme
+// (mergeTheme deep-clones at every level), and identical for every pattern
+// that selects the same theme. Route building calls getPatternTheme once per
+// pattern against ONE theme registry object (MitigateNY: 110 patterns, ~3
+// themes), so cache per registry object + selection. The cached object is
+// never handed out: getPatternTheme's own final mergeTheme clones it, and the
+// layout options are cloned before they're written onto a pattern. A new
+// registry object (every pattern2routes run builds one) starts a fresh cache.
+// See planning/tasks/current/boot-chain-fewer-serial-hops.md.
+const baseThemeCache = new WeakMap()
+function getBaseTheme(themes, selection) {
+  const perRegistry = themes && typeof themes === 'object'
+    ? (baseThemeCache.get(themes) || baseThemeCache.set(themes, new Map()).get(themes))
+    : null
+  let entry = perRegistry?.get(selection)
+  if (!entry) {
+    const base = mergeTheme(defaultTheme, themes?.[selection] || {})
+    const layoutOptions = base?.layout?.options
+    delete base?.layout?.options
+    entry = { base, layoutOptions }
+    perRegistry?.set(selection, entry)
+  }
+  return entry
+}
+
 export const getPatternTheme = (themes, pattern, ssrCollect) => {
   let patternSelection = (
     pattern?.theme?.selectedTheme || //current Theme Setting
@@ -145,15 +179,11 @@ export const getPatternTheme = (themes, pattern, ssrCollect) => {
     'default'
   )
 
-  let baseTheme = mergeTheme(
-    defaultTheme,
-    themes?.[patternSelection] || {},
-  )
+  const { base: baseTheme, layoutOptions } = getBaseTheme(themes, patternSelection)
 
   if (!pattern?.theme?.layout?.options) {
-    set(pattern, 'theme.layout.options', cloneDeep(baseTheme?.layout?.options))
+    set(pattern, 'theme.layout.options', cloneDeep(layoutOptions))
   }
-  delete  baseTheme?.layout?.options
   const merged = mergeTheme(
     baseTheme,
     pattern?.theme || {}

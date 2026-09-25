@@ -9,7 +9,6 @@ import { SectionEdit, SectionView } from './section'
 import { isJson } from './section_utils'
 import { sectionArrayTheme } from './sectionArray.theme'
 import {useImmer} from "use-immer";
-import { joinPageStructureRoom } from '../../../../sync/page-structure-provider.js'
 import { getParent } from '../../../../utils/type-utils.js'
 
 // ── Per-section chrome (border / radius / margin) ────────────────────────────
@@ -211,13 +210,26 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     // the provider's own ref-counting. `null` when sync is off, which is the
     // signal save/remove/moveItem below use to fall back to the original
     // plain-array behavior unchanged.
+    //
+    // The provider (and yjs with it) is imported on demand: only a sync-enabled
+    // client ever joins, and by the time `__dmsSyncAPI` exists that client has
+    // already loaded yjs and the sync manager (sync/index.js imports both), so
+    // this is one small fetch. Until it resolves, `roomRef` stays null — the
+    // same plain-array fallback as sync-off.
+    // See planning/tasks/completed/bundle-split-initial-graph.md.
     const roomRef = React.useRef(null);
     React.useEffect(() => {
         if (!item?.id || !globalThis.__dmsSyncAPI) return;
-        const room = joinPageStructureRoom(item.id, value);
-        roomRef.current = room;
+        let room = null;
+        let cancelled = false;
+        import('../../../../sync/page-structure-provider.js').then(({ joinPageStructureRoom }) => {
+            if (cancelled) return;
+            room = joinPageStructureRoom(item.id, value);
+            roomRef.current = room;
+        });
         return () => {
-            room.disconnect();
+            cancelled = true;
+            room?.disconnect();
             roomRef.current = null;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps -- join once per page, not on every `value` change

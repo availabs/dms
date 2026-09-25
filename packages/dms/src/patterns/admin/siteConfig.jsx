@@ -13,11 +13,16 @@ import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
 
-import SiteEdit from "./pages/editSite";
-import NewSite from "./pages/createSite";
-import ThemeList from "./pages/themes/list";
-import ThemeEdit from "./pages/themes/editTheme";
-import PatternEditor from "./pages/patternEditor";
+import { lazyComponent } from "../../utils/lazyComponent";
+
+// Code-split: the admin pattern is mounted on every site (pattern2routes
+// always adds it), so its pages must not ride in the eager bundle. See
+// planning/tasks/completed/bundle-split-initial-graph.md.
+const SiteEdit = lazyComponent('admin/SiteEdit', () => import("./pages/editSite"));
+const NewSite = lazyComponent('admin/NewSite', () => import("./pages/createSite"));
+const ThemeList = lazyComponent('admin/ThemeList', () => import("./pages/themes/list"));
+const ThemeEdit = lazyComponent('admin/ThemeEdit', () => import("./pages/themes/editTheme"));
+const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages/patternEditor"));
 //import ThemeManager from './pages/themeManager/index.jsx'
 
 // "admin / <page>" breadcrumb + the ThemeToggle, matching the mockups'

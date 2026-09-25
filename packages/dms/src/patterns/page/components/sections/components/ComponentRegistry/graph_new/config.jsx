@@ -3,6 +3,7 @@ import { Graph, DomainEditor } from './index'
 import { getComponentTheme } from '../../../../../../../ui/useTheme'
 import { getColorRange, SchemeOptions } from '../../../../../../../ui/components/graph_new/colorSchemeUnifier'
 import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
+import { LazyGraph } from "../../../../../../../ui/components/graph_new/lazyGraph";
 
 const DefaultPalette = getColorRange(20, "div7");
 
@@ -782,6 +783,8 @@ const graphConfig = {
         ]
     },
     componentFunctions,
+    // Loads the code-split graph (UI.Graph) ahead of render (page loader).
+    preload: () => LazyGraph.preload(),
     "EditComp": Graph,
     "ViewComp": Graph,
 }

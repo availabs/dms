@@ -591,6 +591,38 @@ export const getPageVariableRegistry = (item, patternFilters=[]) => {
     return applyDerivedPageVariables([...authored, ...derived]);
 }
 
+/**
+ * Which of the page variables a control is clearing (`updatePageStateFilters`' `removeFilter`
+ * map) should RESET to their registered default rather than empty. Returns
+ * `{ [searchKey]: defaultValues[] }` — only URL-bound variables whose registry entry carries a
+ * non-empty `values`. Everything else keeps the long-standing clear-to-[] behavior.
+ *
+ * A cleared URL-bound variable is dropped from the query string, and a URL without the key
+ * means "the registered default": the URL→pageState pass (updatePageStateFiltersOnSearchParamChange)
+ * rebuilds from the registry, and a fresh load of the bare URL navigates to `?key=<default>`
+ * (initNavigateUsingSearchParams). So clearing only ever landed on the default when the clear
+ * CHANGED the URL. When the key was already absent (a second clear, or a page opened with other
+ * params) there was no navigation, the [] stuck, and every reacting section widened to no
+ * constraint — a state no URL can reproduce. Ticket 2214477 (TSMO home): the second × on the year
+ * control left most cards on 2026 and the full-year PM3 cards on 2025. Resetting here makes every
+ * clear land where the first one already did.
+ *
+ * Default values are normalized the way initNavigateUsingSearchParams normalizes them for the URL
+ * (a bare string → a one-element array), so pageState and the query string agree.
+ */
+export const resolveClearedPageVariables = (removeFilter = {}, pageFilters = [], registry = []) => {
+    const resets = {};
+    Object.keys(removeFilter || {}).filter(searchKey => removeFilter[searchKey]).forEach(searchKey => {
+        const current = (pageFilters || []).find(f => f.searchKey === searchKey);
+        if (!current?.useSearchParams) return;
+        const raw = (registry || []).find(f => f.searchKey === searchKey)?.values;
+        const defaults = (Array.isArray(raw) ? raw : [raw])
+            .filter(v => v !== null && v !== undefined && String(v).length);
+        if (defaults.length) resets[searchKey] = defaults;
+    });
+    return resets;
+}
+
 
 export const updatePageStateFiltersOnSearchParamChange = ({searchParams, item, patternFilters, setPageState}) => {
     // Extract filters from the URL

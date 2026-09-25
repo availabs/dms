@@ -5,7 +5,7 @@
 > has **no scheduling at all**. This task adds it — server-side cron execution of data-type loaders,
 > an **authorable UI for creating/editing cron runs**, and a **run-history UI to understand and
 > interrogate past runs**. Cross-links: ETL migration
-> [`planning/transportny/tasks/current/migrate-data-type-etl-to-dms.md`](../../../../../../planning/transportny/tasks/current/migrate-data-type-etl-to-dms.md)
+> [`planning/transportny/tasks/current/migrate-data-type-etl-to-dms.md`](../../../../../planning/transportny/tasks/current/migrate-data-type-etl-to-dms.md)
 > (the §Scheduling seams were built for this task), legacy UI reference
 > `transportNY/src/pages/TransportNYDataTypes/schedule/{create,list,publish}.jsx`.
 

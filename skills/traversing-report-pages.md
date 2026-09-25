@@ -822,6 +822,21 @@ any DMS page, not just reports. What's specific to reports:
   tab has loaded triggers an HMR remount that resets component state**
   mid-run. Reload after an edit before drawing conclusions, and use your own
   tab (`feedback_use_own_scratch_page_for_ui_testing`).
+- **Exercising the macro builder's SUCCESS path locally** (2026-09-24, ticket
+  2224870). `POST …/pm3/create-download` 404s on a local stack (the pm3 datatype
+  is not mounted), so a real Build only ever reaches the error branch. Stub it
+  in Playwright — `page.route(url => url.href.includes("create-download"), …)`
+  fulfilling `200 {}` with `access-control-allow-*` headers (the call is
+  cross-origin, 5173 → 3001) — and the client runs exactly as if the server
+  accepted it, with nothing queued anywhere. The eval
+  `src/themes/transportny/scripts/report_probe_fixtures/evals/macro_download_selection.mjs`
+  does it. What to expect after a Build: the builder closes, the dock pill reads
+  `Preparing download…`, and reopening shows the SAME columns with the submit
+  held at `Building your file…` (disabled) until the file lands. The selection
+  also survives a reload: it is stored per viewer in localStorage under
+  `macroview.download.v1.<source_id>` (2135 today), so a probe that starts
+  from a clean context starts from the three defaults (`tmc`, `county`, the
+  active measure), and a reused browser profile may not.
 - **A page built before `_measurePick` existed has NO recoverable
   measure/resolution/comparisonMode on any of its AVL Graph sections** — not
   just some of them. `report_build.mjs --from-page` flags every such section

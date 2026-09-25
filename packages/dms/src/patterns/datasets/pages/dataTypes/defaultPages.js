@@ -17,11 +17,7 @@
  *      plugin authors know it exists.
  */
 
-import Table from "./gis_dataset/pages/table";
-import Map from "./gis_dataset/pages/Map";
-import Metadata from "./gis_dataset/pages/metadata";
-import SchedulePage from "./schedule/SchedulePage";
-import RunsPage from "./schedule/RunsPage";
+import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage } from "./lazyPages";
 
 const defaultPages = {
   table: {
