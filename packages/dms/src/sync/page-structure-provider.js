@@ -94,7 +94,7 @@ export function getStructureRooms() {
 /**
  * Replace an open room's whole array with `stubs` (`{id, ref}`), as ONE Yjs
  * transaction relayed to every peer and persisted by the server like any other
- * op. For room-health.js's "update room from saved" repair — the room only
+ * op. For room-health.js's "update room from database" repair — the room only
  * reads the database while never-written, so a room left stale by a write
  * that bypassed it (CLI, Discard, a sync-off build) never corrects itself.
  * Returns false if this tab doesn't have that room open and ready.
