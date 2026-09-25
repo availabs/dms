@@ -1,5 +1,7 @@
 # Task: DMS MCP Server — Claude Tool for DMS Content Management
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "(no status line; Phases 1-4 planned, nothing checked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Progress tracking**: This document is the source of truth for implementation status. Update phase headers, checklists, and design notes as work is completed. See `planning/planning-rules.md` for details.
 
 ## Objective

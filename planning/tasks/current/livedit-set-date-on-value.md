@@ -1,5 +1,7 @@
 # liveEdit `setDateOnValue` — stamp a companion date field when a column is set to a value
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "IN PROGRESS (2026-07-15)"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** IN PROGRESS (2026-07-15)
 **Topic:** patterns/page (dataWrapper liveEdit) + ui (editable columns)
 **Origin (Alex, 2026-07-15):** On the Control Room ticket page, changing a ticket's status to

@@ -1,7 +1,9 @@
 # Datasets pattern — lifecycle-aware default listing + sandbox-by-default with a promotion step
 
+**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "STATUS (2026-09-17): BUILT + TESTED. Uncommitted, not deployed.") · **Release:** deploy — commit + dms-server deploy, then live pass on hazmit_dama · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Split out of the MitigateNY DaMa audit
-> ([`planning/mitigateny/tasks/current/hazmit-dama-source-audit.md`](../../../../../planning/mitigateny/tasks/current/hazmit-dama-source-audit.md)),
+> ([`planning/mitigateny/tasks/completed/hazmit-dama-source-audit.md`](../../../../../planning/mitigateny/tasks/completed/hazmit-dama-source-audit.md)),
 > Phase 6 recommendations 2 and 3. Sibling of
 > [`datasets-exclude-file-upload-sources.md`](./datasets-exclude-file-upload-sources.md), which
 > established the server-side-exclusion shape these two reuse.

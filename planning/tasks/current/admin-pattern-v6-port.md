@@ -1,5 +1,7 @@
 # Admin pattern v6 port — Pattern Editor redesign + access-control fixes
 
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing (was: "Current status (2026-09-22) … State as of 2026-09-23: Pages tab carets + table borders") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 **Project:** DMS library (`src/dms` submodule)
 
 This is the dedicated task file for "admin's port," previously tracked only as a deferred bullet in
@@ -16,7 +18,7 @@ tessera_v6, following the `design_system_v6/pages/admin-*.html` mockups, while p
 existing functionality (per repeated explicit user direction throughout this effort — every pass below
 double-checks feature parity, not just visual match). The admin panel always renders under the
 hardcoded `selectedTheme: "default"` (`patterns/admin/siteConfig.jsx`) — confirmed intentional, see
-`planning/shared/tasks/current/tessera-default-theme.md`'s decision record — so this work targets the
+`planning/shared/tasks/completed/tessera-default-theme.md`'s decision record — so this work targets the
 one shared tessera-default look, not a per-project reskin.
 
 ## Current status (2026-09-22) — read this first before resuming

@@ -1,5 +1,7 @@
 # Task: Fix BarGraph "Color by Value" + named Scheme producing invalid/flat colors
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "Status: code fix DONE + rebuilt; function-level verified; live browser check NOT done") · **Release:** review — live browser pixel check on a scratch report · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 ## Objective
 
 `graph_new`'s Bar Graph "Color by Value" toggle (`colors.byValue`, added in the

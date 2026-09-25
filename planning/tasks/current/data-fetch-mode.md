@@ -1,5 +1,7 @@
 # Task: Data Fetch Mode — 3-behavior selector
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "(no status line; all Files items checked, Testing checklist unchecked)"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Replace the two confusing/broken data-fetch toggles in the section menu (Card, Spreadsheet, Graph) with a single 3-option select that cleanly expresses the three supported behaviors.

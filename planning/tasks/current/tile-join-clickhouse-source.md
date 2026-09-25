@@ -1,5 +1,7 @@
 # Tile/colorDomain joins: ClickHouse join sources (old-reports Route Map M1)
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "BUILT & LIVE-VERIFIED 2026-07-15 (awaiting first real consumer: M2 converter speed choropleth)"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 ## Status: BUILT & LIVE-VERIFIED 2026-07-15 (awaiting first real consumer: M2 converter speed choropleth)
 
 Parent effort: `old-reports-conversion.md` Route Map work plan (scope detail in

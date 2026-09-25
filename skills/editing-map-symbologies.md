@@ -6,7 +6,7 @@ without the editor UI. Covers the data model, the MapLibre style-spec surface th
 symbology, the Freight Atlas style system, and safe write paths.
 
 Architecture background: `src/dms/planning/research/map-stack-architecture.md`. Worked consumer:
-the Freight Atlas map (`planning/transportny/tasks/current/freight-atlas-symbology-restyle.md` in
+the Freight Atlas map (`planning/transportny/tasks/completed/freight-atlas-symbology-restyle.md` in
 the workspace hub).
 
 ## 1. Where symbologies live (TWO homes — know which you're editing)

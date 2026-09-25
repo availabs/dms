@@ -1,5 +1,7 @@
 # Card layout model — simplify to a predictable box model
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "Concrete changes — status 2026-07-02 … Deferred: transportny parity (needs the visual audit…)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Motivated by the landbank design-alignment work (2026-07-01/02, see
 > `planning/landbank/tasks/current/landbank-seed-design-pages.md` in the root
 > planning repo). Matching three list cards to a mockup required diagnosing

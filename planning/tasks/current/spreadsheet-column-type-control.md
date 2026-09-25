@@ -1,5 +1,7 @@
 # Spreadsheet — add a Column Type control to the per-column header controls
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "Change (done) … Control added; live verify pending.") · **Release:** review — live verify in edit mode · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 Let an author change a Spreadsheet column's `type` (the columnType that drives both the
 view and the inline edit widget) from the column header edit controls. Previously the

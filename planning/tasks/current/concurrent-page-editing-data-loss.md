@@ -1,5 +1,7 @@
 # Page-editing data loss and blanking under sync (concurrent races + single-user re-bootstrap bug)
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing (was: "live stress testing found four confirmed, reproducible bugs; two now fixed … (Bugs 1,4-13,15,17-19 F…") · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu
+
 ## Objective
 
 Determine whether DMS page editing (create page → add/update/delete sections →

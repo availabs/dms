@@ -1,5 +1,7 @@
 # `stacked_bar` columnType — segmented distribution bar (+ count legend)
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "BUILT + LIVE-VERIFIED (2026-07-08) — pending transportNY core sync"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status: BUILT + LIVE-VERIFIED (2026-07-08) — pending transportNY core sync**
 **Origin:** control-room overview liveness (see
 `planning/transportny/tasks/current/cr-overview-live-cards.md` in the workspace root hub). The

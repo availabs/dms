@@ -1,5 +1,7 @@
 # Duration value format (M:SS) for travel-time axes and tooltips
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+
 **Status:** NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work
 (`dms-template/planning/transportny/tasks/completed/report-spec-and-build-script.md`), since the vocabulary is
 where the per-measure format choice belongs.

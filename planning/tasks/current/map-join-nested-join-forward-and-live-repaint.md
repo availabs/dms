@@ -1,5 +1,7 @@
 # Map layer join: forward nested join + apply live-rebroken paint (old-reports Route Map M2 prereq)
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built (was: "BUILT & LIVE-VERIFIED 2026-07-15 (first consumer: converted reports 1071, 168)") · **Release:** review — choropleth regression check pending; server-crash hardening gap logged · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 ## Status: BUILT & LIVE-VERIFIED 2026-07-15 (first consumer: converted reports 1071, 168)
 
 Parent effort: `old-reports-conversion.md` Route Map work plan (scope detail in

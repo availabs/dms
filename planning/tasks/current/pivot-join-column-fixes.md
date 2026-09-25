@@ -1,5 +1,7 @@
 # dataWrapper: pivot + join fixes (join threading + qualified-column double-prefix)
 
+**Initiatives:** [tny_npmrds_product_redesign](../../../../../planning/initiatives/tny_npmrds_product_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "[x] Both fixes applied to working tree (2026-07-17). [ ] Committed (user). [ ] Regression spot-check…") · **Release:** commit — user commit, after a regression spot-check · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Library sub-task of** `planning/transportny/tasks/current/build-route-comparison-page.md`
 (Task 1.4 spike). Two general dataWrapper bugs surfaced the first time **pivot** was combined with
 a **join** (a pgFederated CH↔PG join, but the bugs are join-generic). Both fixes applied to the

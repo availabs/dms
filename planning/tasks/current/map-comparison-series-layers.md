@@ -1,5 +1,7 @@
 # Map section: comparison-series-driven symbology layers (old-reports Route Map M0a)
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built (was: "BUILT & LIVE-VERIFIED 2026-07-14 (first consumer: converted report 641, page 2190998)") · **Release:** review — needs a manual pass editing routes/dates through the RRL UI · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 ## Status: BUILT & LIVE-VERIFIED 2026-07-14 (first consumer: converted report 641, page 2190998)
 
 Parent effort: `old-reports-conversion.md` Route Map work plan v2.1/v2.2 (scope detail in

@@ -1,5 +1,7 @@
 # Mount-aware site-absolute links + retired-subdomain redirects
 
+**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** done (was: "BUILT & LIVE-VERIFIED 2026-08-27 (uncommitted) · BC"; not moved: a different copy of this doc already exists in tasks/completed/ — merge the two by hand, then delete this one) · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu
+
 > **Status: BUILT & LIVE-VERIFIED 2026-08-27** (uncommitted) · **BC** · driven by the TransportNY
 > subdomain→path consolidation
 > ([`planning/transportny/tasks/current/subdomain-to-path-consolidation.md`](../../../../../planning/transportny/tasks/current/subdomain-to-path-consolidation.md)

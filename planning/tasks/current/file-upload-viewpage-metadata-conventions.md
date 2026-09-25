@@ -1,5 +1,7 @@
 # file_upload — retire the view page; the Overview Versions card is the download surface
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "Final design (BUILT 2026-07-27, uncommitted) — downloads on the Overview") · **Release:** commit — submodule commit; external 2000/2077 and Type-row checks open · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 A `file_upload` source should just work when given that type: no table/map/metadata pages, and its

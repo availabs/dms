@@ -1,5 +1,7 @@
 # `data_bar` column type — in-cell horizontal bar
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "Outcome: data_bar columnType shipped (dms submodule). transportnyv2 brand override … uncommitted the…"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 A reusable client column type that renders a horizontal **data bar** in a

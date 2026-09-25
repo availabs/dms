@@ -1,5 +1,7 @@
 # Robust Audit Logging
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built (was: "Phase 1 ✅ DONE (2026-06-30) … Phase 2 ✅ DONE … Phase 3 ✅ DONE") · **Release:** deploy — manual verification on mitigat-ny-prod after the dms-server deploy · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Replace the thin `created_by` user-id field in `change_log` with full request context — IP address, user agent (browser/OS/script detection), and auth state — so that every mutation is attributable even when no user is logged in. Add a separate page-visit log table. Motivated by June 28 2026 incident where 9 pages were deleted by an unauthenticated caller with no trace beyond a blank `created_by`.

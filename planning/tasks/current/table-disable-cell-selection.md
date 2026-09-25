@@ -1,5 +1,7 @@
 # Table view-mode affordance hygiene — `display.disableCellSelection`, column `disableSort`, and the empty-header-menu guard
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "IN PROGRESS (2026-07-27) · all three BC-additive") · **Release:** sync — transportNY vendored-dms sync · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** IN PROGRESS (2026-07-27) · all three BC-additive · driven by TransportNY tickets
 > **#170 / #171** (cell-selection highlight) and **#164** (pointless sort control), see
 > `planning/transportny/tasks/current/qa-human-intervention-queue.md`.

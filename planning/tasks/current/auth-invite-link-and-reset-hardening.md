@@ -1,5 +1,7 @@
 # Auth: invite-link add-user flow + password-reset hardening
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "NOT STARTED — design under review (user thinking it over, 2026-09-24)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Status: NOT STARTED — design under review (user thinking it over, 2026-09-24)
 
 Nothing is implemented. The "Open Questions" section lists the decisions still to make before Phase 1.

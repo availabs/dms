@@ -1,5 +1,7 @@
 # Datasets pattern — URL-encode category links (`&` in category names → empty categories)
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "fix implemented + verified in dev (2026-07-17). Pending: dms submodule commit + build/deploy, then v…") · **Release:** deploy — submodule commit + deploy, then re-verify on freight_data · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** fix implemented + verified in dev (2026-07-17). Pending: dms submodule commit + build/deploy, then verify on the deployed freight_data site. BC.
 
 ## Objective

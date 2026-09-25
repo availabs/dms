@@ -1,5 +1,7 @@
 # Phase 3: Documentation and Migration
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** blocked:dependency (was: "(no status line; nothing checked; prerequisite: Phase 2 complete)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Document the textSettings system, provide migration guides for existing themes, and update the theme editor to include textSettings configuration.

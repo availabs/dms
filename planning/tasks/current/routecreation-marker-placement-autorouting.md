@@ -1,5 +1,7 @@
 # Route Creation: Marker Placement / Auto-Routing Mode
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) · **Status:** next (was: "Status update (2026-07-30) — … this file remains the record of Phase 1's own design/decisions") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+
 ## Status update (2026-07-30) — read before the rest of this file
 
 This umbrella plan (and its "Cross-repo note" below) predates a major restructuring: on

@@ -1,5 +1,7 @@
 # Task: Page hierarchy columns
 
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** next (was: "Status: [ ] page_is_root.jsx created … [ ] Tested in browser (all unchecked)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Add 4 new column types that surface page tree information in a pages Spreadsheet:

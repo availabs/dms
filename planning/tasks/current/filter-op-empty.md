@@ -1,5 +1,7 @@
 # Filter system: `empty` / `notempty` operation (is-null / has-a-value)
 
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "NOT STARTED"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** NOT STARTED
 **Topic:** patterns/page (filters) + dms-server (UDA)
 **Driver:** MNY Action Prioritize Phase 3 #4.

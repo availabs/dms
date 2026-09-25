@@ -1,5 +1,7 @@
 # Site Management: Pages Editor Tab
 
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** next (was: "Status — updated 2026-06-21 … (all rows DONE; Pending Work: section preview)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 A **Pages** tab inside the pattern editor (`/admin/manage/pattern/:id/pages`) that gives admins a full tree view of all pages in a pattern — publish state, nav visibility, section breakdown — with functional controls for adding pages, reordering, toggling nav visibility, and page-level actions.

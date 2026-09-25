@@ -1,5 +1,7 @@
 # Delete `mnyHeader` from the library — it now ships with the mny theme
 
+**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) · **Status:** next (was: "READY, blocked only on a pre-flight · Raised: 2026-09-09") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Topic:** patterns/page — ComponentRegistry · **Status:** READY, blocked only on a pre-flight ·
 **Raised:** 2026-09-09
 

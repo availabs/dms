@@ -38,4 +38,4 @@ Companion data fix (workspace-level, not library):
 `dms-template/scratchpad/fa-symbology-restyle/surface_provenance.mjs` recomposed 35
 Freight Atlas source descriptions as multi-paragraph Lexical (original text + bold
 "Provenance" block + check-for-new-data line) and mirrored `metadata.columns[*].description`
-→ `.desc`. See `planning/transportny/tasks/current/freight-atlas-symbology-restyle.md`.
+→ `.desc`. See `planning/transportny/tasks/completed/freight-atlas-symbology-restyle.md`.

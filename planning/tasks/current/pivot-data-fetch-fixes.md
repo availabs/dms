@@ -1,5 +1,7 @@
 # dataWrapper pivot: data-fetch range + join-key fixes
 
+**Initiatives:** [tny_npmrds_product_redesign](../../../../../planning/initiatives/tny_npmrds_product_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "[x] Applied to working tree (2026-07-17). [ ] Committed (user). [ ] Non-pivot regression eyeball.") · **Release:** commit — user commit, after a non-pivot and graph regression check · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Library sub-task of** `planning/transportny/tasks/current/build-route-comparison-page.md`
 (surfaced while building the Route Comparison pivot page). Three bugs in
 `…/dataWrapper/getData.js` that prevented a **pivot cross-tab with a join** from rendering.

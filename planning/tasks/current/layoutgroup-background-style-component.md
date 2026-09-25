@@ -1,5 +1,7 @@
 # LayoutGroup: optional `Background` component on a layoutGroup style
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** built (was: "(no status line; all Files and Testing items checked)") · **Release:** sync — LayoutGroup.jsx to transportNY vendored dms · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Let a theme's `layoutGroup.styles[]` entry carry an optional React component under the

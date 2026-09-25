@@ -1,5 +1,7 @@
 # Map Component Unification (`map/` + `map_dama/` → single component)
 
+**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built (was: "P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending)") · **Release:** commit — header says uncommitted; the retire/shim work must ride the transportNY sync · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
+
 ## Status: P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending) — follow-up to `mapeditor-uda-migration.md`
 
 ## 2026-08-07: P5 approach changed — permanent lazy shim, not a one-shot script + delete
@@ -192,7 +194,7 @@ regression shots of the old map_dama page + tsmo2/npmrds — all unchanged):
 > BC-focused unification recommendations and a redesigned multi-symbology view panel) is in
 > [research/map-stack-architecture.md](../../research/map-stack-architecture.md) — read it before
 > starting this task. First consumer/driver: the Freight Atlas map redesign
-> (workspace `planning/transportny/tasks/current/freight-atlas-map-redesign.md`).
+> (workspace `planning/transportny/tasks/completed/freight-atlas-map-redesign.md`).
 
 ## Objective
 

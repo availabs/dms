@@ -1,5 +1,7 @@
 # Remove `/events/query` + `newContextId` REST compat shim
 
+**Initiatives:** [dms_retire_falcor_etl](../../../../../planning/initiatives/dms_retire_falcor_etl.md) · **Status:** next (was: "NOT STARTED — non-blocking follow-up from `dama-server-port`") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Status: NOT STARTED — non-blocking follow-up from `dama-server-port`
 
 ## Objective

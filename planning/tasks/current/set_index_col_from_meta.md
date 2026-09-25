@@ -1,5 +1,7 @@
 # Set Index Column from Metadata UI
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** done (was: "Phase 1 … ✓ Phase 2 … ✓ Phase 3 … ✓ Phase 4 … ✓ (no status header)"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Add a toggle on the metadata page that lets users mark a column as an index on both `internal_table` (DMS) and external (DAMA) data sources. Back the toggle with a dedicated UDA CALL route so the DDL (CREATE/DROP INDEX) is atomic and server-validated.

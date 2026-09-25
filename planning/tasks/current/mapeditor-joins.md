@@ -1,5 +1,7 @@
 # MapEditor Joins (tile-level linked-data join via a dataWrapper-style query)
 
+**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "Phase 1 — Server: extract a reusable SQL builder — NOT STARTED (no status header; every phase reads …"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Let a MapEditor author **join a second analytical view into a rendered geometry layer by key, so the joined columns become vector-tile feature properties** — at which point the *existing* MapLibre styling (choropleth / categories / graduated circles) and hover/click popups work on the joined columns with no further changes.

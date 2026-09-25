@@ -1,5 +1,7 @@
 # Tenant Subdomain Uniqueness
 
+**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** blocked:decision (was: "Phase 1 — Server-side guard (validation + uniqueness) — COMPLETE … Open Issue: Error Display … This …") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Prevent duplicate subdomains when tenants are created via either entry point: the platform admin `/list` page (`TenantList`) or the self-serve signup page (`AuthSignup`). Currently neither enforces uniqueness reliably, which leads to two tenants silently sharing the same `app` namespace.

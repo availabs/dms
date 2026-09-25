@@ -1,5 +1,7 @@
 # Set Primary Key Column from Metadata UI
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "implemented and live-confirmed working (set, remove, and badge/switch sync against a real external s…") · **Release:** review — remaining isEditable live tests · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 **Status: implemented and live-confirmed working (set, remove, and badge/switch sync against a real external source) — 2026-07-07. One known limitation remains deliberately unfixed (console-only error notification, deferred to the team — see below). A few lower-priority checklist items are still unexercised (see Testing Checklist).**
 
 ## Objective

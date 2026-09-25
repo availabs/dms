@@ -6112,7 +6112,7 @@ independent defects — not a data-range coincidence — found by reading the ac
 
 **RESOLVED (2026-07-08) — the ClickHouse unfiltered-probe-query hazard that paused this task is fixed.**
 Client-side preventive gating (Option B, `buildUdaConfig.js`'s `skipFetch`) implemented and
-live-verified in `planning/tasks/current/clickhouse-unfiltered-probe-hazard.md` — stray unscoped
+live-verified in `planning/tasks/completed/clickhouse-unfiltered-probe-hazard.md` — stray unscoped
 queries no longer fire at all. Routine Playwright-driven page loads for round 6's 1061/1045/874
 verification produced zero stray `system.processes` entries (not re-checked exhaustively, but no
 hang/timeout symptoms observed across 3 report loads + 5 raw `dms raw get` calls each).

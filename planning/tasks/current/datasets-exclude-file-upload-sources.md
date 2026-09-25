@@ -1,7 +1,9 @@
 # Datasets pattern — stop loading `file_upload` sources in the default source list
 
+**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "STATUS (2026-09-17): BUILT + VERIFIED against live envs; uncommitted, not deployed.") · **Release:** deploy — commit + dms-server deploy; transportNY vendored copy syncs after · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Split out of the MitigateNY DaMa audit
-> ([`planning/mitigateny/tasks/current/hazmit-dama-source-audit.md`](../../../../../planning/mitigateny/tasks/current/hazmit-dama-source-audit.md)),
+> ([`planning/mitigateny/tasks/completed/hazmit-dama-source-audit.md`](../../../../../planning/mitigateny/tasks/completed/hazmit-dama-source-audit.md)),
 > where the file-upload population was measured: **11,057 of 11,423 `hazmit_dama` sources are
 > `file_upload` rows** — 97% of the catalog, and the reason the datasets landing page is slow on that
 > env. Owner call (2026-09-17): don't inventory them, fix the loader.

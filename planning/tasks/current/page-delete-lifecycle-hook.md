@@ -1,5 +1,7 @@
 # Page-delete lifecycle hook — close the `reports_snap_2` orphan hole at its source
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** built (was: "Status 2026-09-04: CODE + TESTS DONE.") · **Release:** deploy — dms-server deploy with DMS_PAGE_DELETE_HOOK set, plus PG test and live verify · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status 2026-09-04: CODE + TESTS DONE.** Written in response to Ryan re-reporting the orphan bug
 biting the new `/npmrds/reports/list` page (which has no client-side band-aid available), and
 asking for "the real solution," not another band-aid. Scoped, then implemented same session after

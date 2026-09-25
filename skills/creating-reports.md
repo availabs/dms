@@ -367,7 +367,7 @@ for the underlying state machine and the known Settings-gear visibility bug.)
 a route, click the pencil next to Date Range, and a preset row (AM Peak/PM Peak/PM Peak
 (alt)/Midday/All Day) appears next to the date+time inputs. Applies to whichever graphs
 the route feeds — AVL Graph, Route Map, and Route Info Box all read the same route-level
-window. See `planning/transportny/tasks/current/report-route-ui-parity-gaps.md` gap #11 for the
+window. See `planning/transportny/tasks/completed/report-route-ui-parity-gaps.md` gap #11 for the
 design and live verification, including a correction of an earlier (same-day) claim that
 Route Map/Info Box needed separate wiring — they didn't.
 
@@ -403,7 +403,7 @@ Picker choreography to wire it through the UI instead of a spec's `comparisonMod
 The click-path's silent-failure modes and missing controls (RRL rename, the graphIds
 pill, the difference-graph anchor coin-flip, and others — peak-hour filtering closed
 2026-07-28, `weekdays` closed 2026-07-30) are tracked and ranked in
-`planning/transportny/tasks/current/report-route-ui-parity-gaps.md` rather than listed here — that
+`planning/transportny/tasks/completed/report-route-ui-parity-gaps.md` rather than listed here — that
 file is Phase C of the report-spec arc, closing them off one at a time now that the
 spec format makes each one an enumerable, checkable gap (does a control exist for this
 spec field?) instead of tribal knowledge.

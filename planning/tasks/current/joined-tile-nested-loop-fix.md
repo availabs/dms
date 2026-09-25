@@ -1,5 +1,7 @@
 # Joined map tiles — nested-loop blowup in the MVT join query
 
+**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** next (was: "DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status: DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.** The code change was backed out
 on 2026-09-18 once macroview stopped using a tile join at all (it resolves its columns on hover
 instead), leaving the fix with no consumer. This document is kept because **the bug is real, still

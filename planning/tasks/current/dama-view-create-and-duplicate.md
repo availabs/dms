@@ -1,5 +1,7 @@
 # Create / duplicate a DAMA source version (and the WCDB schedule version picker)
 
+**Initiatives:** [wcdb_station_pages](../../../../../planning/initiatives/wcdb_station_pages.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "(no status line) Server + Falcor + deployed-server round-trips verified 2026-08-23; browser click-th…") · **Release:** review — browser click-through; Publish still does not write view_id to the public section · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Give an external (DAMA) dataset a way to gain a **new version** without an upload —

@@ -1,5 +1,7 @@
 # Length query fails on a calculated group-by under comparison series
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "DONE — both consequences fixed, SQL-verified against live ClickHouse, and live-confirmed by the user…") · **Release:** sync — manual port to transportNY; PG path unverified · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status:** DONE — both consequences fixed, SQL-verified against live ClickHouse, and
 **live-confirmed by the user 2026-07-27** ("looks good"). Postgres path and the
 hour/weekday/month resolutions remain unexercised (see Verification). Own task per `feedback_isolate_shared_code_changes` — this is shared UDA

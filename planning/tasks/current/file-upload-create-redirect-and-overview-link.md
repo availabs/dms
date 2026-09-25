@@ -1,5 +1,7 @@
 # file_upload — post-upload redirect, temp-file flush race, plain file link on the Overview
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "STATUS (2026-09-23): BUILT + VERIFIED (re-applied); uncommitted, not deployed.") · **Release:** deploy — commit + dms-server deploy; browser upload test outstanding · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **STATUS (2026-09-23): BUILT + VERIFIED (re-applied); uncommitted, not deployed.** The first pass was lost in a
 branch merge (only the `themev2.js` keys survived) and was re-applied identically. A real browser upload through the
 redirect is still untested, and so is a pgEnv spot-check. The server fix needs a dms-server deploy (dev `.env` → `dmsserver.availabs.org`).

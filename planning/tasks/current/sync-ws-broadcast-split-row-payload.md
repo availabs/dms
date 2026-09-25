@@ -1,5 +1,7 @@
 # Sync WebSocket broadcast ships full dataset-row payloads the pull path deliberately excludes
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built (was: "Implemented 2026-09-10. Server + client + local-mirror purge done, 15 new unit tests … one live-brow…") · **Release:** review — live-browser confirmation that dataset views still refresh · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** Implemented 2026-09-10. Server + client + local-mirror purge done, 15 new unit tests
 (6 confirmed red against the pre-change handler); one live-browser confirmation still open.
 **Split out of:** [`sync-delta-change-log-bloat.md`](./sync-delta-change-log-bloat.md), where this

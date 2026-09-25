@@ -58,7 +58,7 @@ Added `X-Requested-With` header check before `/graph` in `src/index.js`. The Fal
 
 ### Implementation
 
-See task file: `planning/tasks/current/server-side-auth.md`
+See task file: `planning/tasks/completed/server-side-auth.md`
 
 Key files changed:
 - `src/routes/dms/auth.js` (new) — `isUserAuthed`, `resolveAuthPermissions`

@@ -1,5 +1,7 @@
 # Tenant Signup — Production Readiness
 
+**Initiatives:** [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) (primary), [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next (was: "(no status line) five-phase plan written 2026-09-23; nothing checked off") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Make the multi-tenant journey production ready, from an anonymous visitor landing on the root domain,

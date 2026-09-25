@@ -357,7 +357,7 @@ curated Reports page's pair one level down.
 ### QuickControls (the header pill row): layout controls, Table's multi-measure Measure pill, Difference-mode gating
 
 Built/extended 2026-08-20 — full design record in
-`planning/transportny/tasks/current/report-authoring-ux-overhaul.md` Tier
+`planning/transportny/tasks/completed/report-authoring-ux-overhaul.md` Tier
 5A/5D/5E. The pill row above a self-bound AVL Graph/Spreadsheet/Map section
 now splits into two independently-aligned groups sharing one row (a
 `rowWrapper` with two flex-sibling children, not one `justify-end` list):

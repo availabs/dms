@@ -1,5 +1,7 @@
 # Map hover popup font tokens are silently inert under Tailwind v4
 
+**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** next (was: "DIAGNOSED + measured, NOT FIXED. A workaround exists in one consumer (transportnyv2); the core fix ……") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status: DIAGNOSED + measured, NOT FIXED.** A workaround exists in one consumer
 (`transportnyv2`); the core fix is a behaviour change for every existing consumer and needs a BC
 assessment before it is attempted. · **Topic:** patterns/page (ComponentRegistry/map) ·

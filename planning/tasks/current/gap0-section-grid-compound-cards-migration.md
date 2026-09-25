@@ -1,5 +1,7 @@
 # Migrate to a gap-0 section grid + per-section spacing/border/radius (B1-refined) — transportNY theme, design-system docs, mockups, and skills
 
+**Initiatives:** [tny_npmrds_product_redesign](../../../../../planning/initiatives/tny_npmrds_product_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "core SHIPPED & verified (2026-06-01); docs/mockup/skills in progress.") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Topic:** patterns/page (`sectionArray`) + themes (transportny) + design-system docs + skills.
 **Status:** core SHIPPED & verified (2026-06-01); docs/mockup/skills in progress.
 **Depends on / informed by:**

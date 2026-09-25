@@ -1,5 +1,7 @@
 # Falcor response exceeds V8's max string length and kills the process
 
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** built (was: "Items 1-3 + the request-logger fix IMPLEMENTED and tested 2026-09-16, awaiting deploy.") · **Release:** deploy — dms-server deploy (production was crash-looping) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** Items 1-3 + the request-logger fix IMPLEMENTED and tested 2026-09-16, awaiting
 deploy. Item 4's code fixes are in; item 4's one-time **data cleanup is still outstanding** and
 now tracked separately as

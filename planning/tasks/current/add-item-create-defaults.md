@@ -1,5 +1,7 @@
 # addItem create-time defaults — `autoNumber` + `defaultValue` column attrs
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** built (was: "FIXED in getData.js; corrected SQL verified live read-only; UI submit NOT yet re-run") · **Release:** review — wcdb modal E2E submit; publish /sitemgmt/page draft; transportNY core sync · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status: BUILT + E2E-VERIFIED (2026-07-09) — pending human publish of /sitemgmt/page + transportNY core sync**
 **Origin:** user report — tickets created via the Page-QA add-ticket modal get no `ticket_id`
 until the next `cr_sync` heal, so the ticket-detail link (`/sitemgmt/ticket?id=`) is broken

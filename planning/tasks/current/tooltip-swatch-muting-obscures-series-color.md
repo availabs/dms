@@ -1,5 +1,7 @@
 # Tooltip swatch muting makes a series unidentifiable
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "NOT STARTED — logged 2026-09-14, deferred by owner") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status:** NOT STARTED — logged 2026-09-14, deferred by owner from
 [`avlgraph-legend-and-padding-theming.md`](./avlgraph-legend-and-padding-theming.md) item 3 so that
 pass could close with a tight change set. **Pre-existing defect, not a regression from that work.**

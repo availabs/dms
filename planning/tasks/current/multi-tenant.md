@@ -1,5 +1,7 @@
 # Multi-Tenant DMS
 
+**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** doing (was: "Phase 1–5 COMPLETE; Follow-up — Template landing page at `/`, published (2026-09-23)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Extend DMS so a single deployment can serve multiple isolated tenants, each on their own subdomain, each with their own data schema and auth project. Single-tenant deployments are fully unaffected.
