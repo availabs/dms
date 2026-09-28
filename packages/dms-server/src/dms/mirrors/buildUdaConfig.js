@@ -1479,12 +1479,16 @@ const buildUdaConfig = ({
       {},
     );
 
+  // Send a column's meta_lookup unless it's explicitly a data column. The
+  // metadata editor's behaviour types are data | meta | calculated, and a
+  // calculated column can carry a lookup too (its display stays "calculated").
+  // Legacy external sources still store data-variable / meta-variable / geoid-variable.
   const meta = columns
     .filter(
       (column) =>
         column.show &&
-        ["meta-variable", "geoid-variable", "meta"].includes(column.display) &&
-        column.meta_lookup,
+        column.meta_lookup &&
+        !["data", "data-variable"].includes(column.display),
     )
     .reduce(
       (acc, column) => ({ ...acc, [column.name]: column.meta_lookup }),

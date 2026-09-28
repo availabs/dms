@@ -39,11 +39,13 @@ export default function Pagination ({totalLength, filteredLength, pageSize, useP
         paginationRange.push(i);
     }
     const showPaginationStats = false;
-    if(paginationRange.length === 1 || (!usePagination && !showPaginationStats) ) return null;
+    // totalPages <= 1 (not paginationRange.length === 1): with 0 rows the range is
+    // empty, which slipped past the old check and rendered "Page 1 of 0 / Rows 1 to 0 of 0".
+    if(totalPages <= 1 || (!usePagination && !showPaginationStats) ) return null;
     return (
         <div className={theme?.paginationContainer}>
             {
-                usePagination ? paginationRange.length === 1 ? null : (
+                usePagination ? (
                     <>
                         <div className={theme?.paginationInfoContainer}>
                             <div className={theme?.paginationPagesInfo}> Page {currentPage+1} of {totalPages} </div>
