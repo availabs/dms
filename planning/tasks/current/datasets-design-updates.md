@@ -1,5 +1,7 @@
 # Datasets pattern — implement design updates (DataManager redesign)
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** blocked:decision (was: "Phase 0 IN PROGRESS · Phases 1-3 DONE (pending live verify) · 4-5 DONE · 6-7 PARTIAL · 8 BLOCKED on …") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 Port the converged TransportNY mockup of the **datasets pattern (DataManager)** into the live
 `patterns/datasets` code. Two intertwined dimensions:

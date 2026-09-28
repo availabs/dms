@@ -32,9 +32,11 @@ cli/
 │   │   └── tree.js         # Box-drawing tree (site hierarchy, page trees)
 │   └── utils/
 │       ├── data.js         # Shared Falcor helpers (fetchAll, fetchById, resolveIdOrSlug, etc.)
-│       └── output.js       # Output routing (stdout/file, format dispatch)
+│       ├── output.js       # Output routing (stdout/file, format dispatch)
+│       └── room-sync.js    # Syncs a page's live-edit Yjs room after draft_sections writes (WebSocket)
 ├── test/
-│   ├── run.js              # Integration test runner (21 tests)
+│   ├── run.js              # Integration test runner (29 tests)
+│   ├── room-client.js      # Browser stand-in for a page's live-edit room (tests)
 │   ├── harness.js          # Test harness (server lifecycle, CLI runner, assertions)
 │   ├── seed.js             # Seed script (populates test DB via Falcor HTTP)
 │   └── fixtures/           # Test data (site, patterns, pages, sections, datasets)
@@ -235,3 +237,7 @@ dms section create <page-id> --pattern <pattern-id> --data "$(cat /tmp/section.j
 The `--element-type` flag sets `data['element-type']` at top level, which is the **old** format. For production sections, pass the full nested structure via `--data` instead.
 
 Other element types: `Spreadsheet`, `Card`, `Header`, `Graph`, `Selector`.
+
+## Live-edit room sync (must keep in step with the browser)
+
+Any command that writes a page's `draft_sections` must call `afterDraftSectionsWrite(config, pageId)` (`src/utils/room-sync.js`) after the write. With sync on, the browser treats the page's Yjs room as the source of truth for its section list once the room has content (`packages/dms/src/sync/page-structure-provider.js`, `sectionArray.jsx`); a database-only write leaves the room stale and the next browser section save silently reverts it. `room-sync.js` mirrors that provider's wire protocol — change both together. See `planning/tasks/current/concurrent-page-editing-data-loss.md`, Bug 20.

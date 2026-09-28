@@ -1,5 +1,7 @@
 # allowAdddNew form-card fixes — editable:false honor + page-param re-sync
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "✅ BUILT + VERIFIED (2026-07-07). Two small BC changes") · **Release:** sync — Card.jsx + dataWrapper to transportNY with pending core batch · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** ✅ BUILT + VERIFIED (2026-07-07). Two small BC changes, surfaced by the control-room
 > Page-QA "Add ticket" modal (task `planning/transportny/tasks/current/qa-page-add-ticket-modal.md`,
 > skill `skills/modal-section-group.md`).

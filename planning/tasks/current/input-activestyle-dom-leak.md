@@ -1,5 +1,7 @@
 # Input/Textarea: `activeStyle` theming key leaked onto the DOM element
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "✅ FIXED + VERIFIED (2026-07-07). One-line BC fix ×2.") · **Release:** sync — Input.jsx to transportNY vendored dms with pending core batch · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** ✅ FIXED + VERIFIED (2026-07-07). One-line BC fix ×2.
 > **Origin:** QA-agent ticket #102 on tsmo2 incident_search — "React does not recognize the
 > `activeStyle` prop on a DOM element" on every load.

@@ -9,12 +9,16 @@ import UI from "../../ui"
 
 // pages
 import ErrorPage from "./pages/dataTypes/default/error";
-import DatasetsList from "./pages/DatasetsList"
-import CreatePage from "./pages/CreatePage";
-import SettingsPage from "./pages/SettingsPage";
-import SourcePage from "./pages/SourcePage";
-import UdaTasks from "./pages/Tasks/UdaTasks";
-import UdaTaskPage from "./pages/Tasks/UdaTaskPage";
+import { lazyComponent } from "../../utils/lazyComponent";
+
+// Code-split: datasets pages load only when a datasets route renders. See
+// planning/tasks/completed/bundle-split-initial-graph.md.
+const DatasetsList = lazyComponent('datasets/DatasetsList', () => import("./pages/DatasetsList"));
+const CreatePage = lazyComponent('datasets/CreatePage', () => import("./pages/CreatePage"));
+const SettingsPage = lazyComponent('datasets/SettingsPage', () => import("./pages/SettingsPage"));
+const SourcePage = lazyComponent('datasets/SourcePage', () => import("./pages/SourcePage"));
+const UdaTasks = lazyComponent('datasets/UdaTasks', () => import("./pages/Tasks/UdaTasks"));
+const UdaTaskPage = lazyComponent('datasets/UdaTaskPage', () => import("./pages/Tasks/UdaTaskPage"));
 
 // datasets -- move to library/registry import
 import csv_dataset from "./pages/dataTypes/csv_dataset";

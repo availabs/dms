@@ -1,5 +1,7 @@
 # Cascade source/view deletes — stop orphaning dmsEnv refs and child rows
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "Status 2026-08-05: code + tests DONE (all suites green). Prod repair EXECUTED … Remaining: deploy th…") · **Release:** deploy — dms-server deploy, then browser check of the datasets list · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu
+
 **Status 2026-08-05: code + tests DONE (all suites green). Prod repair EXECUTED and
 verified same day (user-approved): env 1676363 pruned 15→10 refs, all resolving;
 orphan view 2189914 deleted; both mirrored into change_log. Row backups:

@@ -1,5 +1,7 @@
 # Port tessera_v6 into the library's own default component themes
 
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing (was: "Current status (2026-09-15) — … NOT started: Phase B") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Make "no theme selected" (and every gap any OTHER project's theme leaves unfilled) resolve to
@@ -9,8 +11,8 @@ update the places where defaultTheme is built from. that should in theory make i
 theme is provided, default theme (tessera) is used" and "that way we don't need the default loader."
 
 This supersedes the loader-registry approach in
-[`collect-theme-names-default-sentinel.md`](./collect-theme-names-default-sentinel.md) (reverted) and
-[`planning/shared/tasks/current/tessera-default-theme.md`](../../../../planning/shared/tasks/current/tessera-default-theme.md)
+[`collect-theme-names-default-sentinel.md`](../completed/collect-theme-names-default-sentinel.md) (reverted) and
+[`planning/shared/tasks/completed/tessera-default-theme.md`](../../../../../planning/shared/tasks/completed/tessera-default-theme.md)
 (superseded) — both left in place with pointers here, not deleted.
 
 ## Current status (2026-09-15) — read this first before resuming

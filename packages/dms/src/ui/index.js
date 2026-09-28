@@ -36,7 +36,9 @@ import ThemeToggle from "./components/ThemeToggle";
 import ColumnTypes from "./columnTypes/index.jsx";
 import { MultiSelectEdit as MultiSelect } from "./components/MultiSelect";
 
-import Graph from "./components/graph_new"
+// Code-split: graph_new (+ its d3 deps) loads only when a graph renders. See
+// planning/tasks/completed/bundle-split-initial-graph.md.
+import { LazyGraph as Graph } from "./components/graph_new/lazyGraph";
 
 const UI = {
 	// --- Layout

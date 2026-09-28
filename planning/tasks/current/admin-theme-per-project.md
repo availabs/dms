@@ -1,5 +1,7 @@
 # Per-project admin logo via a theme's `admin` key (selected by the auth pattern)
 
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** built (was: "IMPLEMENTED + verified live 2026-09-22 (SPA). Uncommitted. Open: SSR check, and the theme-editor che…") · **Release:** review — live logo sizing pass with the owner + SSR check, then commit · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 **Status: IMPLEMENTED + verified live 2026-09-22 (SPA). Uncommitted. Open: SSR check, and the theme-editor check for a pattern-level `theme.admin`.** Split out of
 [`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md)'s "Not started / next steps" item 1 (MNY
 admin reskin).

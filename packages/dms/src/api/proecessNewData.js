@@ -67,16 +67,12 @@ export async function processNewData (dataCache, activeIdsIntOrStr, stopFullData
     if(format?.defaultSort) {
         newData = format.defaultSort(newData)
     }
-    let i = 0
-    for(const d in newData) {
-        if(activeIds === 'loadAll' || activeIds.includes(+newData[d].id) || i === 0) {
-            //console.time(`load dms formats ${newData[d].id}`)
-            //console.log('load dms data', activeIds, newData[d].id)
-            await loadDmsFormats(newData[d],dmsAttrsConfigs, format, falcor, dataByApp);
-            //console.timeEnd(`load dms formats ${newData[d].id}`)
-        }
-        i++;
-    }
+    // Expand the selected items' dms-format refs concurrently — each item's
+    // expansion is independent, and awaiting them one by one added a round trip
+    // per item to the page load. See planning/tasks/current/boot-chain-fewer-serial-hops.md.
+    await Promise.all(newData
+        .filter((item, i) => activeIds === 'loadAll' || activeIds.includes(+item.id) || i === 0)
+        .map(item => loadDmsFormats(item, dmsAttrsConfigs, format, falcor, dataByApp)));
 
     return newData
 }
@@ -113,6 +109,15 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
 
     // console.log('loadDmsFormats item:', item.id, item.type , 'dmsKeys', dmsKeys, dmsAttrsConfigs, format, dmsSubFormats)
 
+    // Every key's ref ids are already on the item, so all keys are fetched in
+    // ONE falcor.get — the old loop awaited a round trip per dms-format
+    // attribute, in series (site boot: dms_envs → patterns → theme_refs; a page:
+    // draft_sections → sections). Per key the work is unchanged: same request
+    // paths, same assignment, and sub-format recursion still runs BEFORE a ref's
+    // value is spread into `item[key]` (the spread is shallow, so recursion that
+    // reassigns a key on `value` must land first). See
+    // planning/tasks/current/boot-chain-fewer-serial-hops.md.
+    const plans = [];
     for (const key of dmsKeys) {
         const dmsFormatRequests = []
         const subApp = dmsAttrsConfigs[key].format.split('+')[0]
@@ -147,9 +152,6 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
         // `x` here; the default list has no such entries, so it is unchanged.
         const attrsToFetch = dmsAttrsConfigs[key].refAttributes
             || ['data', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by']
-        const metaKeyFor = (attr) => attr.includes('data ->> ')
-            ? attr.split('->>')[1].trim().replace(/[']/g, '')
-            : attr
         if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
             for (let ref of item[key]) {
                 if(ref.id) {
@@ -164,27 +166,54 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
         }
 
         if(dmsFormatRequests.length > 0) {
-            let newData;
+            plans.push({ key, dmsFormatRequests, byIdAddress, dmsSubAttrsConfigs, attrsToFetch })
+        }
+    }
+    if (!plans.length) return;
 
-            try{
-                newData = await falcor.get(...dmsFormatRequests)
-            }catch (e){
-                console.error('Error getting data')
-            }
+    let newData;
+    try{
+        newData = await falcor.get(...plans.flatMap(p => p.dmsFormatRequests))
+    }catch (e){
+        console.error('Error getting data')
+    }
 
+    const metaKeyFor = (attr) => attr.includes('data ->> ')
+        ? attr.split('->>')[1].trim().replace(/[']/g, '')
+        : attr
+
+    // One combined get materializes each row once, so a row id referenced more
+    // than once (e.g. under two keys) would share one `value` object — separate
+    // gets used to hand each reference its own copy. Clone on repeat to keep that.
+    const seen = new Set();
+    const valueOf = (byIdAddress, id) => get(newData, ['json',...byIdAddress, id, 'data'])
+    const takeValue = (byIdAddress, id) => {
+        const k = `${byIdAddress.join('/')}/${id}`;
+        const v = valueOf(byIdAddress, id);
+        if (seen.has(k)) return cloneDeep(v);
+        seen.add(k);
+        return v;
+    }
+
+    // Sub-format recursion for every ref of every key, concurrently (each row
+    // once — each mutates only its own `value`), and before any assignment below.
+    const recursed = new Set();
+    await Promise.all(plans
+        .filter(p => Object.keys(p.dmsSubAttrsConfigs).length > 0 && typeof item?.[p.key]?.[Symbol.iterator] === 'function')
+        .flatMap(p => [...item[p.key]]
+            .filter(ref => ref.id && !recursed.has(`${p.byIdAddress.join('/')}/${ref.id}`) && recursed.add(`${p.byIdAddress.join('/')}/${ref.id}`))
+            .map(ref => loadDmsFormats(valueOf(p.byIdAddress, ref.id), p.dmsSubAttrsConfigs, dmsSubFormats[p.key], falcor))));
+
+    for (const { key, byIdAddress, attrsToFetch } of plans) {
             // if dmstype isArray
             if(typeof item?.[key]?.[Symbol.iterator] === 'function') {
                 let index = 0
                 for (let ref of item[key]) {
                     if(ref.id) {
-                        let value = get(newData, ['json',...byIdAddress, ref.id, 'data'])
+                        let value = takeValue(byIdAddress, ref.id)
                         const meta = attrsToFetch.filter(a => a !== 'data')
                                                      .reduce((acc, attr) => ({...acc, [metaKeyFor(attr)]: get(newData, ['json',...byIdAddress, ref.id, attr])}) , {})
 
-                        // if new item has dms-format data, recursively fetch
-                        if(Object.keys(dmsSubAttrsConfigs).length > 0){
-                            await loadDmsFormats(value, dmsSubAttrsConfigs, dmsSubFormats[key], falcor)
-                        }
                         // `id: ref.id` last is deliberate (the ref's id is the
                         // real row id), but it also ERASES the server's
                         // `data.id = 'no-access'` marker for an auth-blocked row
@@ -200,15 +229,13 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
                 }
             // dmstype not array
             } else {
-                let value = get(newData, ['json',...byIdAddress, item[key].id, 'data'])
+                let value = takeValue(byIdAddress, item[key].id)
                 const meta = attrsToFetch.filter(a => a !== 'data')
                                              .reduce((acc, attr) => ({...acc, [metaKeyFor(attr)]: get(newData, ['json',...byIdAddress, item[key].id, attr])}) , {})
 
                 item[key] = {...item[key], ...value, ...meta,
                     ...(value?.id === 'no-access' ? { no_access: true } : {})}
             }
-
-        }
     }
     //console.log('item', item)
 }

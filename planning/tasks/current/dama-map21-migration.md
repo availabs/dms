@@ -1,5 +1,7 @@
 # DAMA `map21` migration to the dms-server plugin system + HPMS TTM 2023 spec output
 
+**Initiatives:** [dms_retire_falcor_etl](../../../../../planning/initiatives/dms_retire_falcor_etl.md) · **Status:** next (was: "IMPLEMENTED — registered, smoke-tested fast-fail path on sqlite … Full prod smoke test against npmrd…") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Status: IMPLEMENTED — registered, smoke-tested fast-fail path on sqlite, HPMS 2023 spec validator confirmed against external validator. Full prod smoke test against `npmrds2` ClickHouse + real prod source still pending (would write to `data_manager.sources`, deferred to a controlled run).
 
 ## Implementation notes (2026-04-26)

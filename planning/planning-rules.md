@@ -7,7 +7,7 @@ This document describes the structure and conventions for the DMS planning direc
 ```
 src/dms/
 ├── planning/
-│   ├── roadmap.md           # High-level roadmap and vision
+│   ├── roadmap.md           # (never created — the lab-wide portfolio will live in dms-template/planning/)
 │   ├── todo.md              # Active tasks organized by topic
 │   ├── completed.md         # Completed tasks organized by topic
 │   ├── planning-rules.md    # This file - structure documentation

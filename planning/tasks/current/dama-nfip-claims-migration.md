@@ -1,5 +1,7 @@
 # DAMA `enhance_nfip_claims_v2` migration to the dms-server plugin system
 
+**Initiatives:** [dms_retire_falcor_etl](../../../../../planning/initiatives/dms_retire_falcor_etl.md) · **Status:** built (was: "NOT STARTED — first concrete plugin built on the new bootstrap path") · **Release:** review — confirm smoke test / client call-site update, then update doc and close · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Status: NOT STARTED — first concrete plugin built on the new bootstrap path
 
 ## Depends on

@@ -1,5 +1,7 @@
 # First-class multi-column search filter
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "Created from the TSMO Incident Search planning work … Not started. (2026-06-22)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Make "a single search box that matches across several columns" a **first-class, declarative**
@@ -86,7 +88,7 @@ document the `pg_trgm` recipe; **B** as a clean follow-on; `tsvector` only if a 
 
 ## First consumer / validation
 
-[TSMO Incident Search](../../../../../../planning/transportny/tasks/current/tsmo-incident-search-page-build.md)
+[TSMO Incident Search](../../../../../planning/transportny/tasks/current/tsmo-incident-search-page-build.md)
 (transcom 956/1947, millions of rows) — exercises both the authoring win (many columns × table +
 count sections) and the perf path. Build it on the manual pattern first if this lands later; migrate
 to the one-leaf form when shipped.

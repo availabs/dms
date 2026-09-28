@@ -74,6 +74,7 @@ The `host` field is required for all commands. The `app` and `type` fields are r
 --output <file>       Write output to file instead of stdout
 --pretty              Pretty-print JSON (default when stdout is a TTY)
 --compact             Compact JSON (default when piped)
+--no-room-sync        Don't sync a page's live-edit room after writing its draft_sections
 ```
 
 ## Commands
@@ -132,7 +133,23 @@ dms page unpublish <id-or-slug>
 
 # Delete a page
 dms page delete <id-or-slug>
+
+# Check / repair a page's live-edit room against its draft_sections
+dms page sync-room <id-or-slug> --check   # report only; exits 1 if "stale"
+dms page sync-room <id-or-slug>           # repair
 ```
+
+**Live-edit room sync.** With local-first sync on, a page opened in edit mode joins a shared Yjs room holding its `draft_sections`, and once that room has content the browser trusts it over the database: the next section save sends the room's list back as `draft_sections`. So every CLI write that changes a page's `draft_sections` — `section create`, `section delete --page`, `page update`, and `raw update` on a page row — also updates that room, and reports the result as `room_sync` in its output:
+
+| `room_sync.status` | Meaning |
+|---|---|
+| `no_room` | Nobody has edited the page with sync on yet; the browser will seed from the database. Nothing to do. |
+| `in_sync` | Room already matched. |
+| `repaired` | Room was replaced with the database's list. |
+| `stale` | (`sync-room --check` only) Room differs; not written. |
+| `failed` | Room couldn't be synced (see `error`). The database write still happened — the command warns on stderr and exits 0; run `dms page sync-room <id>`. |
+
+Skipping it (`--no-room-sync`) is for bulk runs: do the writes, then one `dms page sync-room <id>` at the end. Don't leave a page un-synced — a browser save would silently revert it. Rich-text section content (`section update`) lives in a different room type the CLI can't rebuild and is **not** covered.
 
 **Slug resolution:** Pages can be referenced by numeric ID or URL slug. Numeric values are treated as IDs; strings are resolved via `url_slug` search.
 
@@ -311,16 +328,19 @@ The CLI includes an integration test suite that runs against a local SQLite-back
 
 ```bash
 cd packages/dms/cli
-npm test          # Run all 21 integration tests
+npm test          # Run all integration tests (29)
 npm run test:seed # Just run the seed script
 ```
 
 The test suite:
 1. Deletes any existing test database
 2. Starts dms-server with `DMS_DB_ENV=cli-test`
-3. Seeds test data via Falcor HTTP
-4. Runs CLI commands and verifies output
-5. Stops the server
+3. Creates a test admin (`POST /init/setup`) and logs in — deletes require an authenticated user
+4. Seeds test data via Falcor HTTP
+5. Runs CLI commands and verifies output (Phase 4 drives the live-edit room over the sync WebSocket via `test/room-client.js`)
+6. Stops the server
+
+The server also starts task polling for **every** `dama`-role config in `dms-server/src/db/configs/`. If your local configs point at a shared/remote database, point the harness at a dms-server copy whose `db/configs` holds only local sqlite configs: `DMS_TEST_SERVER_DIR=/path/to/dms-server-copy NODE_PATH=<repo>/node_modules npm test`.
 
 Tests cover all commands across all phases (raw, site, pattern, page, section, dataset).
 

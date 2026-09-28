@@ -141,7 +141,11 @@ This keeps Falcor as an implementation detail of the API layer, making component
 
 ## Task Management
 
-All tasks are tracked in the `planning/` directory following a consistent workflow.
+All **library** tasks are tracked in the `planning/` directory following a consistent workflow.
+
+> Cross-project planning for the AVAIL lab — client/site tasks, weekly plans, and (soon) the
+> portfolio and initiatives — lives in the consuming app's hub, `dms-template/planning/` (see its
+> `planning-rules.md`). Library tasks stay here and link to that hub rather than copying from it.
 
 ### Directory Structure
 

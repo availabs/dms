@@ -1,5 +1,7 @@
 # Filter bar: author-controlled clear (×) for single-select pickers — `filter.allowClear`
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "IN PROGRESS (2026-07-27) · BC-additive (opt-in, default off) · driven by TransportNY #161") · **Release:** review — 3 remaining verification checks, then commit · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** IN PROGRESS (2026-07-27) · BC-additive (opt-in, default off) · driven by TransportNY
 > **#161** + two owner requirements: *"when making it single select it still needs to be clearable
 > (with the x) so we can get back to full state"* and *"it might be better if the year control didn't

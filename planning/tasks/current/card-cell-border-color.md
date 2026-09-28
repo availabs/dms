@@ -1,5 +1,7 @@
 # Card cell enrichment: `cellBorderColor` — per-cell accent (left) border
 
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "NOT STARTED"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** NOT STARTED
 **Topic:** patterns/page (Card)
 **Driver:** MNY Action Prioritize Phase 3 #3.

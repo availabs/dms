@@ -8,6 +8,7 @@ import {
     buildSearchString,
     mergeFilters,
     getPageVariableRegistry,
+    resolveClearedPageVariables,
     initNavigateUsingSearchParams,
     updatePageStateFiltersOnSearchParamChange
 } from './_utils'
@@ -133,6 +134,14 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
     }, [setPageState]);
 
     const updatePageStateFilters = (filters, removeFilter={}) => {
+        // A cleared URL-bound variable with a registered default resets to that default instead of
+        // emptying (see resolveClearedPageVariables) — rewrite those keys as a set-to-default.
+        const resets = resolveClearedPageVariables(removeFilter, pageState.filters, getPageVariableRegistry(item, patternFilters));
+        const resetKeys = Object.keys(resets);
+        if(resetKeys.length){
+            filters = [...filters.filter(f => !resets[f.searchKey]), ...resetKeys.map(searchKey => ({searchKey, values: resets[searchKey]}))];
+            removeFilter = Object.fromEntries(Object.entries(removeFilter).filter(([searchKey]) => !resets[searchKey]));
+        }
         const searchParamFilters = pageState.filters.filter(f => f.useSearchParams && !removeFilter[f.searchKey]).map(f => filters.find(updatedFilter => updatedFilter.searchKey === f.searchKey) || f)
         const nonSearchParamFilters = filters
             .filter(({searchKey}) => {
@@ -141,7 +150,7 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
             })
         // set non navigable filters
         const searchKeysToRemove = Object.keys(removeFilter).filter(searchKey => removeFilter[searchKey])
-        if(nonSearchParamFilters?.length || searchKeysToRemove?.length){
+        if(nonSearchParamFilters?.length || searchKeysToRemove?.length || resetKeys.length){
             setPageState(page => {
                 nonSearchParamFilters.forEach(f => {
                     const idx = page.filters.findIndex(({searchKey}) => searchKey === f.searchKey);
@@ -154,6 +163,16 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
                     const idx = page.filters.findIndex(({searchKey}) => searchKey === sk);
                     if(idx >= 0) {
                         page.filters[idx].values = [];
+                    }
+                })
+
+                // Written even when the URL already carries the default (so there is no navigation and no
+                // URL→pageState pass): the clearing control has already emptied its own leaf and only
+                // re-syncs from a pageState.filters change (usePageFilterSync). A fresh array guarantees one.
+                resetKeys.forEach(sk => {
+                    const idx = page.filters.findIndex(({searchKey}) => searchKey === sk);
+                    if(idx >= 0) {
+                        page.filters[idx].values = [...resets[sk]];
                     }
                 })
             })
