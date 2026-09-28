@@ -19,7 +19,7 @@ import {PlainTextPlugin} from '@lexical/react/LexicalPlainTextPlugin';
 import {RichTextPlugin} from '@lexical/react/LexicalRichTextPlugin';
 import {TablePlugin} from '@lexical/react/LexicalTablePlugin';
 import * as React from 'react';
-import {useEffect, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {CAN_USE_DOM} from './shared/canUseDOM';
 
 import {useSharedHistoryContext} from './context/useSharedHistoryContext';
@@ -109,11 +109,15 @@ export default function Editor(props): JSX.Element {
     const [isSmallWidthViewport, setIsSmallWidthViewport] =
         useState<boolean>(false);
 
-    const onRef = (_floatingAnchorElem: HTMLDivElement) => {
+    // Stable identity is load-bearing: React re-invokes a callback ref whenever
+    // the function changes, and the setState here then re-renders → new ref →
+    // setState again. Fast typing keeps updates queued so React can't bail out on
+    // the same element, and it loops into "Maximum update depth exceeded".
+    const onRef = useCallback((_floatingAnchorElem: HTMLDivElement | null) => {
         if (_floatingAnchorElem !== null) {
             setFloatingAnchorElem(_floatingAnchorElem);
         }
-    };
+    }, []);
 
 
     useEffect(() => {
