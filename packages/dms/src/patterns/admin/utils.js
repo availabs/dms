@@ -1,3 +1,5 @@
+import { resolveSubdomainAuthPermissions } from '../../render/spa/utils/index.js';
+
 export function parseIfJSON(text, fallback = {}) {
   try {
     if (text && typeof text === 'object') return text;
@@ -39,4 +41,23 @@ export function isUserAuthed(user, authPermissions = {}) {
       })
   ];
   return userPerms.some(p => p === '*');
+}
+
+// Whether `user` may MANAGE a pattern in the admin panel (Sites list row,
+// Pattern Editor) — an app admin always can; otherwise the pattern's own
+// `authPermissions` (PatternPermissionsEditor's subdomain-keyed save shape —
+// resolved here via `resolveSubdomainAuthPermissions`, not a naive
+// `parseIfJSON`, which never finds a top-level `.groups`/`.users` on that
+// shape) needs an explicit `'*'` grant for this user. A pattern with no
+// grants at all — never configured (`rawAuthPermissions` falsy) OR
+// explicitly saved with empty `groups`/`users` (the exact shape found on
+// mitigat-ny-prod pattern 1006405) — is unrestricted rather than
+// admin-only: nothing about it was ever locked down, so it shouldn't read as
+// locked (2026-09-20).
+export function hasPatternManageAccess(user, isAdmin, rawAuthPermissions, subdomain) {
+  if (isAdmin) return true;
+  const resolved = resolveSubdomainAuthPermissions(rawAuthPermissions, subdomain);
+  const hasAnyGrant = Object.keys(resolved?.groups || {}).length > 0 || Object.keys(resolved?.users || {}).length > 0;
+  if (!hasAnyGrant) return true;
+  return isUserAuthed(user, resolved);
 }

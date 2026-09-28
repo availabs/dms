@@ -6,8 +6,8 @@ export const dataCardTheme = {
         {
             name: 'default',
 
-            header: 'w-full',
-            value: 'w-full',
+            header: 'font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--t-pencil)]',
+            value: 'font-sans text-sm text-[var(--t-ink)] tabular-nums',
             valueWrapper: 'min-h-[20px]',
             description: 'w-full text-xs font-light',
 
@@ -21,7 +21,7 @@ export const dataCardTheme = {
             subWrapperCompactView: 'flex flex-col rounded-[12px]',
             subWrapperSimpleView: 'grid',
 
-            headerValueWrapper: 'w-full rounded-[12px] flex items-center justify-center p-2',
+            headerValueWrapper: 'flex flex-col gap-1 px-1 py-1',
             headerValueWrapperCompactView: 'py-0',
             headerValueWrapperSimpleView: '',
             // Bare wrapper used when a column type declares cardHints.fullBleed.

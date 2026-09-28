@@ -223,7 +223,33 @@ function buildCreateTableSQL(schema, table, dbType, seqName) {
     // be unique after truncation. We use different prefixes to avoid collisions.
     const tbl = pgIdent(table);
     const idxName = pgIdent(`ix_${table}`);
+    const trgmIdxName = pgIdent(`ix_${table}_type_trgm`);
     const fqn = `${schema}.${tbl}`;
+    // The trigram index serves the LEADING-wildcard `type` lookups
+    // (`type LIKE '%|x:pattern'` in getSitePatterns and friends) that the plain
+    // (app, type) btree cannot: without it those seq-scan the whole table —
+    // 123 ms on a 377k-row data_items, vs 1.2 ms with it.
+    // sql/dms/migrate_dms_core.sql adds it to existing tables; this is the path
+    // a NEW app's table takes.
+    //
+    // CONTENT tables only. This same builder creates split dataset-row tables
+    // (`data_items__{type}`), which hold millions of rows that all share ONE
+    // `type` value — a trigram index there indexes nothing and just taxes every
+    // bulk insert.
+    //
+    // pg_trgm needs elevated privileges to install, so the index is attempted
+    // in its own exception-guarded block: a database whose operator cannot
+    // install the extension still gets its table (just with the slow scans),
+    // instead of table creation failing outright.
+    const trgmIndexSQL = table === 'data_items' ? `
+      DO $$
+      BEGIN
+        CREATE EXTENSION IF NOT EXISTS pg_trgm;
+        CREATE INDEX IF NOT EXISTS ${trgmIdxName}
+          ON ${fqn} USING gin (type gin_trgm_ops);
+      EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'Could not create the trigram index on ${fqn} (%). Pattern/type lookups will seq-scan until pg_trgm is installed.', SQLERRM;
+      END $$;` : '';
     return `
       CREATE TABLE IF NOT EXISTS ${fqn} (
         id bigint NOT NULL DEFAULT nextval('${seqName}'::regclass) PRIMARY KEY,
@@ -236,7 +262,7 @@ function buildCreateTableSQL(schema, table, dbType, seqName) {
         updated_by integer
       );
       CREATE INDEX IF NOT EXISTS ${idxName}
-        ON ${fqn} (app, type);
+        ON ${fqn} (app, type);${trgmIndexSQL}
     `;
   }
 

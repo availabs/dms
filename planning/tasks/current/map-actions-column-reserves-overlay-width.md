@@ -1,5 +1,7 @@
 # AvlMap: the map-actions column reserves overlay width, so edge-pinned panels stop short
 
+**Initiatives:** [tny_pm3_macroview_cmp](../../../../../planning/initiatives/tny_pm3_macroview_cmp.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "IMPLEMENTED, opt-in"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Topic:** ui (`ui/components/map`) · **Created:** 2026-08-17 · **Status:** IMPLEMENTED, opt-in
 **Files:** `packages/dms/src/ui/components/map/avl-map.jsx` ·
 `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx` ·

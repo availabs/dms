@@ -799,6 +799,17 @@ async function revalidateLoadedScopes(force = false) {
   await Promise.all(jobs);
 }
 
+/**
+ * Force an immediate delta re-check of every loaded pattern (+ skeleton),
+ * ignoring the wake TTL. For callers that know this tab's local mirror is
+ * behind the server — e.g. room-health.js after repairing a page's structure
+ * room, since the writes that made it stale (CLI/Falcor, sync-off builds) are
+ * never live-broadcast to this tab (Bug 20's broadcast finding).
+ */
+export function revalidateNow() {
+  return revalidateLoadedScopes(true);
+}
+
 async function catchUp() {
   await catchUpUnscoped();
   // Backstop for gap #2 — see revalidateLoadedScopes()'s doc comment. Runs

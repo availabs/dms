@@ -55,7 +55,7 @@
     "directory": "packages/dms-server"
   },
   "author": "AVAIL",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "bugs": {
     "url": "https://github.com/availabs/dms/issues"
   },

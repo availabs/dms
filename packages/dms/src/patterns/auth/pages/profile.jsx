@@ -21,7 +21,7 @@ export default function Profile (props) {
     const {theme, UI} = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null)
-    const {Modal, Table, Input, Button} = UI;
+    const {Icon} = UI;
 
     useEffect(() => {
         async function loadGroups(){
@@ -72,8 +72,11 @@ export default function Profile (props) {
         profileWrapper: "flex flex-col",
         headerRow: "w-full flex justify-between border-b-2 border-blue-400",
         headerTitle: "text-2xl font-semibold text-gray-700",
+        avatar: "hidden",
         notice: "",
         profileLink: "",
+        profileActions: "",
+        profileActionsLabel: "hidden",
         ...(theme?.auth?.authPages?.manage || {}),
     };
     if(!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>
@@ -81,9 +84,15 @@ export default function Profile (props) {
     return (
         <div className={m.profileWrapper}>
             <div className={m.headerRow}>
+                <span className={m.avatar}>{(user.email || '?')[0].toUpperCase()}</span>
                 <div className={m.headerTitle}>{user.email}</div>
             </div>
-            <Link to={`${baseUrl}/password/reset`} className={m.profileLink}>Reset Password</Link>
+            <div className={m.profileActions}>
+                <Link to={`${baseUrl}/password/reset`} className={m.profileLink}>
+                    <Icon icon="Key" className="w-4 h-4" />
+                    Reset Password
+                </Link>
+            </div>
         </div>
     )
 }

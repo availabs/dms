@@ -1,5 +1,7 @@
 # graph_new BarGraph — optional time/linear x-axis (proportional spacing)
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "✅ DONE + VERIFIED (2026-07-16). … (Not yet synced into transportNY's vendored src/modules/dms") · **Release:** sync — graph_new BarGraph to transportNY vendored dms · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** ✅ DONE + VERIFIED (2026-07-16). `scaleTime` added to `ScaleMap`; `BarGraph.jsx` gained
 an opt-in non-band positioning branch (extent domain, computed bar width from min adjacent gap,
 centered `barPos`) + dynamic AxisBottom/AxisLeft type; `GraphComponent.jsx` passes

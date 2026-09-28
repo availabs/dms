@@ -357,7 +357,7 @@ curated Reports page's pair one level down.
 ### QuickControls (the header pill row): layout controls, Table's multi-measure Measure pill, Difference-mode gating
 
 Built/extended 2026-08-20 — full design record in
-`planning/transportny/tasks/current/report-authoring-ux-overhaul.md` Tier
+`planning/transportny/tasks/completed/report-authoring-ux-overhaul.md` Tier
 5A/5D/5E. The pill row above a self-bound AVL Graph/Spreadsheet/Map section
 now splits into two independently-aligned groups sharing one row (a
 `rowWrapper` with two flex-sibling children, not one `justify-end` list):
@@ -779,6 +779,82 @@ any DMS page, not just reports. What's specific to reports:
   route-creation tool) hit the generic blank-dark-rectangle/`resize_window`
   issue described in the generic doc — nothing report-specific about the fix
   itself, just naming the sections in this codebase that hit it.
+- **Measuring map TILE loads (2026-09-28, route-creation ticket 2225750).**
+  MapLibre fetches vector tiles from web workers, so
+  `performance.getEntriesByType('resource')` in the page shows ZERO tile
+  requests even while the map draws. Listen on the browser context instead:
+  `page.context().on('requestfinished', r => …r.timing().responseEnd)`
+  catches worker traffic. To force the tile loads you want, reach the map
+  instance via the fiber walk in
+  `report_probe_fixtures/evals/macro_get_to_segment.mjs`, resize twice, then
+  `map.jumpTo({center, zoom})`. For a server-side speed comparison, don't time
+  `graph.availabs.org`: its tiles route is wrapped in `memoize-fs` (a disk
+  cache that never expires, keyed on view/z/x/y/`cols`/`filter`), so any tile
+  someone has already loaded is instant. Time the local dms-server instead
+  (`/dama-admin/<pgEnv>/tiles/…`, no tile cache), or reorder `cols` to force a
+  cache miss. A slow tile at high zoom usually means the view's table has no
+  GiST index on `wkb_geometry`; confirm with `EXPLAIN ANALYZE` on the tile
+  SQL (`dbq.py dama`). If `report_probe.mjs --auth` lands on the "Welcome
+  back." login screen, the default token file is stale: pass
+  `--auth <file>` with a fresh token from `qa_auth.mjs token`.
+- **MacroView's own chrome is gated behind that same resize** (2026-09-22).
+  The bottom-left `Download N rows` pill lives in `mapChrome.jsx`, so on
+  `/npmrds/macro` it is simply ABSENT from the DOM until the map has drawn —
+  a `querySelector` for it right after load finds nothing and that is not a
+  failure, just the un-resized state. Wait, `resize_window`, wait, then look.
+- **MacroView "Get to a segment" hooks + how to read the map** (2026-09-23,
+  ticket 2224873). Search results are `data-mv="search-result"`, the pinned
+  selection is `data-mv="selected-segment"` (its ✕ is the `button` inside it),
+  worst-N rows are `data-mv="worst-row"` behind `data-mv="worst-toggle"` —
+  each with `data-mv-tmc`. To assert a camera move or an overlay, get the
+  maplibre instance by walking React fibers up from `.maplibregl-map` and
+  scanning `memoizedProps`/`memoizedState` for an object with `getZoom` +
+  `querySourceFeatures`; the `report_probe.mjs` eval
+  `src/themes/transportny/scripts/report_probe_fixtures/evals/macro_get_to_segment.mjs`
+  (header has the command; needs `--auth`, the anonymous page is the login
+  screen) does it and reports zoom/center, the `macroview-selected-segment-*` layers,
+  layer order and a `styledata` counter (a redraw loop between plugin
+  overlays shows as a count that keeps climbing while idle). **Don't look a
+  segment up in the tiles**: a PM3 tile feature carries only the columns
+  core put in `?cols=` (the data column + active filter columns; geography
+  filters then run client-side via `setFilter`, only the year is a server-side
+  `&filter=year=YYYY` on the tile URL), e.g.
+  `{lottr_amp_lottr: "1.87"}` — `querySourceFeatures(..., {filter: ["==",
+  ["get","tmc"], …]})` matches 0 of ~40k features. Geometry comes from a UDA
+  side query (`ST_AsGeoJSON(wkb_geometry)`, see macroview `stats.js`).
+- **The macro download builder carries `data-mv` hooks** (the same convention
+  as `data-mv="geo-results"` in `controlsPanel.jsx`): `column-menu`,
+  `column-search`, `column-results`, `column-count`, and for the grouped
+  measure menu `column-group` (+ a `data-group` family key),
+  `column-group-toggle`, `column-subgroup`, `column-add-all`. The MEASURE menu
+  is grouped and collapsed by default (so a fresh open renders zero rows —
+  that is correct, not a failure); the METADATA menu is a flat list. Use those instead of
+  matching Tailwind class strings. Driving it from `javascript_tool`:
+  `Download N rows` → `Add measure column`, and **the click and the DOM read
+  must be two separate tool calls** — React has not re-rendered when a single
+  call clicks and then reads, so the menu reads as absent and a second click
+  in the next call toggles it shut again. Both mistakes look identical to
+  "the feature is broken". A third, learned the hard way 2026-09-22: **if the
+  human is clicking in the same tab you are reading, the state flaps between
+  calls** and looks like a state bug — and **editing a source file after the
+  tab has loaded triggers an HMR remount that resets component state**
+  mid-run. Reload after an edit before drawing conclusions, and use your own
+  tab (`feedback_use_own_scratch_page_for_ui_testing`).
+- **Exercising the macro builder's SUCCESS path locally** (2026-09-24, ticket
+  2224870). `POST …/pm3/create-download` 404s on a local stack (the pm3 datatype
+  is not mounted), so a real Build only ever reaches the error branch. Stub it
+  in Playwright — `page.route(url => url.href.includes("create-download"), …)`
+  fulfilling `200 {}` with `access-control-allow-*` headers (the call is
+  cross-origin, 5173 → 3001) — and the client runs exactly as if the server
+  accepted it, with nothing queued anywhere. The eval
+  `src/themes/transportny/scripts/report_probe_fixtures/evals/macro_download_selection.mjs`
+  does it. What to expect after a Build: the builder closes, the dock pill reads
+  `Preparing download…`, and reopening shows the SAME columns with the submit
+  held at `Building your file…` (disabled) until the file lands. The selection
+  also survives a reload: it is stored per viewer in localStorage under
+  `macroview.download.v1.<source_id>` (2135 today), so a probe that starts
+  from a clean context starts from the three defaults (`tmc`, `county`, the
+  active measure), and a reused browser profile may not.
 - **A page built before `_measurePick` existed has NO recoverable
   measure/resolution/comparisonMode on any of its AVL Graph sections** — not
   just some of them. `report_build.mjs --from-page` flags every such section

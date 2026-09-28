@@ -1,5 +1,7 @@
 # Multi-Tenant DMS
 
+**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** doing (was: "Phase 1–5 COMPLETE; Follow-up — Template landing page at `/`, published (2026-09-23)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Extend DMS so a single deployment can serve multiple isolated tenants, each on their own subdomain, each with their own data schema and auth project. Single-tenant deployments are fully unaffected.
@@ -157,6 +159,18 @@ No changes to: `createSite.jsx`, `dmsDataLoader`, `dmsDataEditor`, `dms.route.js
 - [ ] `DMS_SPLIT_MODE=per-app` gives each tenant its own schema (`dms_acme`)
 
 ---
+
+### Follow-up — Template landing page at `/`, published (2026-09-23)
+
+Problem: after signup the tenant lands on `/`, but template page patterns were mounted at
+`/pages` / `/report` / `/dashboard` and their page was created `published: 'draft'`, so `/`
+had nothing to show a visitor.
+
+- [x] `ui/siteTemplates.js` — every template page pattern now uses `base_url: '/'` (datasets stays at `data`).
+  Safe because every caller (authSignup, editSite tenant-add, createSite) provisions onto a brand-new site.
+- [x] `utils/tenantProvisioning.js` — template pages are created published (`published: ''`,
+  `has_changes: false`, `sections`/`section_groups` cloned from the drafts — same shape as `editFunctions.publish`).
+- [ ] Live check: sign up with Simple Site / Report / Dashboard, confirm `/` renders the page logged-out.
 
 ## Downstream Flow Verification (from design doc)
 

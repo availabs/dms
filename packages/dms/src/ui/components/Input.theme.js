@@ -1,11 +1,11 @@
 export const inputTheme = {
-  input: 'relative w-full block appearance-none rounded-lg px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing[3])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)] text-base/6 text-zinc-950 placeholder:text-zinc-500 sm:text-sm/6 dark:text-white border border-zinc-950/10 hover:border-zinc-950/20 dark:border-white/10 dark:hover:border-white/20 bg-transparent dark:bg-white/5 focus:outline-none aria-invalid:border-red-500 aria-invalid:hover:border-red-500 aria-invalid:dark:border-red-500 aria-invalid:hover:dark:border-red-500 disabled:border-zinc-950/20 dark:hover:disabled:border-white/15 disabled:dark:border-white/15 disabled:dark:bg-white/[2.5%] dark:[color-scheme:dark]',
-  inputContainer: 'group flex relative w-full before:absolute before:inset-px before:rounded-[calc(theme(borderRadius.lg)-1px)] before:bg-white before:shadow dark:before:hidden after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-inset after:ring-transparent sm:after:focus-within:ring-2 sm:after:focus-within:ring-blue-500 has-[:disabled]:opacity-50 before:has-[:disabled]:bg-zinc-950/5 before:has-[:disabled]:shadow-none before:has-[[aria-invalid=true]]:shadow-red-500/10',
-  textarea: 'relative block h-full w-full appearance-none rounded-lg px-[calc(--spacing(3.5)-1px)] py-[calc(--spacing(2.5)-1px)] sm:px-[calc(--spacing(3)-1px)] sm:py-[calc(--spacing(1.5)-1px)] text-base/6 text-zinc-950 placeholder:text-zinc-500 sm:text-sm/6 dark:text-white border border-zinc-950/10 hover:border-zinc-950/20 dark:border-white/10 dark:hover:border-white/20 bg-transparent dark:bg-white/5 focus:outline-hidden aria-invalid:border-red-500 aria-invalid:hover:border-red-500 dark:aria-invalid:border-red-600 dark:aria-invalid:hover:border-red-600 disabled:border-zinc-950/20 dark:disabled:border-white/15 dark:disabled:bg-white/2.5 dark:hover:disabled:border-white/15 resize-y',
-  confirmButtonContainer: 'absolute right-0 hidden group-hover:flex items-center',
-  editButton: 'py-1.5 px-2 text-slate-400 hover:text-blue-500 cursor-pointer bg-white/10',
-  cancelButton:'text-slate-400 hover:text-red-500 cursor-pointer  py-1.5 pr-1 ',
-  confirmButton:'text-green-500 hover:text-white hover:bg-green-500 cursor-pointer rounded-full'
+  input: 'w-full font-sans text-sm text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded-md px-3 py-2.5 placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] focus:outline-none focus:border-[var(--t-cobalt)] focus:ring-1 focus:ring-[var(--t-cobalt)] aria-invalid:border-[var(--t-brick)] disabled:opacity-50 transition-colors duration-150',
+  inputContainer: 'flex-1 relative w-full',
+  textarea: 'w-full font-sans text-sm text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded-md px-3 py-2.5 placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] focus:outline-none focus:border-[var(--t-cobalt)] focus:ring-1 focus:ring-[var(--t-cobalt)] resize-y min-h-[6rem] transition-colors duration-150',
+  confirmButtonContainer: 'absolute right-0 top-0 bottom-0 hidden group-hover:flex items-center gap-1 pr-1',
+  editButton: 'p-1 text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
+  cancelButton:'p-1 text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer',
+  confirmButton:'p-1 text-[var(--t-go)] hover:text-[var(--t-ink)] cursor-pointer'
 
 }
 

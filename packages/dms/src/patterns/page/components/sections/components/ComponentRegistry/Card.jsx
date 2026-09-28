@@ -220,6 +220,22 @@ export const CardSection = ({
         return res;
     }, [removeItem, closeModalOnDeleteKey, clearActionParam, deletePublishCfg?.paramKey, setActionParam]);
 
+    // save_publish provider + closeModalOnSave — the same pair for a form-edit save (the
+    // Save button a record shows when `liveEdit` is off). Only the form path is wrapped:
+    // a live-edit keystroke (`attribute` set) saves on a debounce and must not close the
+    // modal mid-typing. A failed apiUpdate rejects past us, so the modal stays open.
+    const closeModalOnSaveKey = state.display?.closeModalOnSave;
+    const savePublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'save_publish' && p.enabled);
+    const updateItemWrapped = useCallback(async (value, attribute, d) => {
+        const res = await updateItem?.(value, attribute, d);
+        if (!attribute) {
+            if (closeModalOnSaveKey) clearActionParam?.(closeModalOnSaveKey);
+            // a timestamp, not the row id: saving the same row twice must re-trigger subscribers
+            if (savePublishCfg?.paramKey) setActionParam?.(savePublishCfg.paramKey, `saved:${d?.id}:${Date.now()}`);
+        }
+        return res;
+    }, [updateItem, closeModalOnSaveKey, clearActionParam, savePublishCfg?.paramKey, setActionParam]);
+
     const clickSaveSubCfg = state.display?._functions?.subscribers?.find(s => s.functionId === 'click_save' && s.enabled);
     const clickSaveParam = clickSaveSubCfg && pageState
         ? pageState.filters.find(f => f.searchKey === clickSaveSubCfg.paramKey && f.type === 'action')
@@ -251,7 +267,7 @@ export const CardSection = ({
                      ...(clickSaveSubCfg ? { clickSaveActive: true } : {}),
                      ...(Object.keys(activeColumns).length ? { activeColumns } : {}),
                  }}
-                 isEdit={isEdit} updateItem={updateItem} addItem={(closeModalOnAddKey || addPublishCfg) ? addItemWrapped : addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
+                 isEdit={isEdit} updateItem={(closeModalOnSaveKey || savePublishCfg) ? updateItemWrapped : updateItem} addItem={(closeModalOnAddKey || addPublishCfg) ? addItemWrapped : addItem} newItem={newItem} setNewItem={setNewItem} allowEdit={allowEdit}
                  removeItem={(closeModalOnDeleteKey || deletePublishCfg) ? removeItemWrapped : removeItem}
                  activeStyle={state.display?.cardStyle || activeStyle}
                  formatFunctions={formatFunctions}

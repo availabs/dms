@@ -13,7 +13,7 @@ export default function AuthGroups (props) {
     const {theme, UI } = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null);
-    const {Table, Input, Modal, Button} = UI;
+    const {Table, Input, Modal, Button, Icon} = UI;
     // Manage-page chrome from `theme.auth.authPages.manage`; fallbacks are the
     // literals this page carried before the keys existed.
     const m = {
@@ -23,6 +23,9 @@ export default function AuthGroups (props) {
         headerTitle: "text-2xl font-semibold text-gray-700",
         headerAction: "shrink-0",
         tableHeaderCell: "flex gap-3 items-center",
+        modalHeader: "flex items-center justify-between mb-2",
+        modalTitle: "text-lg font-semibold text-gray-700",
+        modalCloseBtn: "text-gray-400 hover:text-gray-700",
         modalBody: "flex flex-row gap-3",
         notice: "",
         rowAction: undefined, modalAction: undefined, headerInput: undefined,
@@ -50,19 +53,21 @@ export default function AuthGroups (props) {
     if(!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>
 
     return (
-        <div className={m.pageWrapper}>
+        <>
+            {/* Title flush on the page background — NOT inside pageWrapper's card, which
+                wraps only the table below (same fix as authUsers.jsx). */}
             <div className={m.headerOuter}>
-                <div className={m.headerRow}>
-                    <div className={m.headerTitle}>Groups</div>
-                </div>
-                <Button className={m.headerAction} onClick={() => setAddingNew(true)}> Add new </Button>
+                <div className={m.headerTitle}>Groups</div>
+                <span className="flex-1" />
+                <Button className={m.headerAction} onClick={() => setAddingNew(true)}>Add new</Button>
             </div>
 
-
+            <div className={m.pageWrapper}>
                     <Table gridRef={gridRef}
                            data={groups.filter(r => !searchGroup || r.name.toLowerCase().includes(searchGroup))}
                            columns={groupColumns}
                            allowEdit={true}
+                           activeStyle="roomy"
                            controls={{header: {displayFn: (attribute) => (
                                        <div className={m.tableHeaderCell}>
                                            {attribute.display_name}
@@ -75,8 +80,15 @@ export default function AuthGroups (props) {
                                    )}}}
                            // customTheme={{tableContainer1: 'flex flex-col no-wrap min-h-[40px] max-h-[700px] overflow-y-auto'}}
                     />
+            </div>
 
             <Modal open={addingNew} setOpen={setAddingNew}>
+                <div className={m.modalHeader}>
+                    <div className={m.modalTitle}>Add a group</div>
+                    <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setAddingNew(false)}>
+                        <Icon icon="XMark" />
+                    </button>
+                </div>
                 <div className={m.modalBody}>
                     <Input type={'text'}
                            value={newGroup.name}
@@ -108,6 +120,6 @@ export default function AuthGroups (props) {
                     }}>{status || 'Add'}</Button>
                 </div>
             </Modal>
-        </div>
+        </>
     )
 }

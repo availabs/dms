@@ -83,9 +83,18 @@ async function analyzeLayer(filePath, layerName) {
     return analyzeWithOgrinfo(filePath, layerName);
   }
 
-  // GIS files: use gdal-async
+  // GIS files: use gdal-async. Its bundled driver set is narrower than a
+  // full GDAL build (e.g. no XLSX/ODS), so a format it can't open falls
+  // back to ogrinfo rather than surfacing gdal-async's raw open error.
   if (gdalAvailable) {
-    return analyzeWithGdal(filePath, layerName);
+    try {
+      return await analyzeWithGdal(filePath, layerName);
+    } catch (err) {
+      if (ogrInfoAvailable()) {
+        return analyzeWithOgrinfo(filePath, layerName);
+      }
+      throw err;
+    }
   }
 
   // Fallback: ogrinfo handles any OGR-supported format
@@ -181,7 +190,14 @@ async function analyzeWithGdal(filePath, layerName) {
  * Uses AUTODETECT_TYPE=YES with AUTODETECT_SIZE_LIMIT=0 (scan entire file).
  */
 function analyzeWithOgrinfo(filePath, layerName) {
+  // See the matching comment in gis-publish.js: GDAL's spreadsheet drivers
+  // default to AUTO header detection, which often misdetects a genuine
+  // header row as a data row. FORCE it via the GDAL config var (not an
+  // -oo open option, which is a no-op for this).
+  const headerConfigVar = { '.xlsx': 'OGR_XLSX_HEADERS', '.xlsm': 'OGR_XLSX_HEADERS', '.xls': 'OGR_XLS_HEADERS' }[path.extname(filePath).toLowerCase()];
+
   const args = [
+    ...(headerConfigVar ? ['--config', headerConfigVar, 'FORCE'] : []),
     '-oo', 'AUTODETECT_TYPE=YES',
     '-oo', 'AUTODETECT_SIZE_LIMIT=0',
     '-so', '-ro', '-al',

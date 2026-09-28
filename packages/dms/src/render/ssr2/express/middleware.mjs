@@ -47,8 +47,11 @@ export function createSSRMiddleware({ getHandler, getTemplate }) {
       // defaultData: site data for building routes synchronously on the client.
       // hydrationData: not needed here — StaticRouterProvider embeds
       // window.__staticRouterHydrationData automatically.
+      // lazy: ids of the code-split components this HTML contains — the
+      // client loads them before hydrateRoot (utils/lazyComponent.js).
       const ssrPayload = {
         defaultData: result.siteData || null,
+        lazy: result.lazy || [],
       }
       const serializedData = JSON.stringify(ssrPayload)
         .replace(/</g, '\\u003c')

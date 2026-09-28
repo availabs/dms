@@ -183,7 +183,7 @@ function PatternEdit({
 	const {UI, theme} = useContext(ThemeContext)
 	const t = { ...patternListTheme, ...(theme?.admin?.patternList || {}) }
 	const { falcor } = useFalcor();
-	const {Table, Input, Button, Modal} = UI;
+	const {Table, Input, Button, Modal, Icon} = UI;
 	const gridRef = useRef(null);
 	const [search, setSearch] = useState('');
 	const [addingNew, setAddingNew] = useState(false);
@@ -328,15 +328,21 @@ function PatternEdit({
 				<div className={t.editHeader}>
 					<div className={t.editTitle}>Sites</div>
 				</div>
-				<div className={'w-full flex'}>
-					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
-					<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add site </Button>
+				<div className={t.toolbar}>
+					<div className={t.searchInputWrapper}>
+						<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter sites…'} />
+					</div>
+					<Button className={t.addButton} onClick={() => setAddingNew(true)}>
+						<Icon icon="Plus" className="w-3.5 h-3.5" /> add site
+					</Button>
 				</div>
-				<Table columns={columns}
-					   data={data}
-					   isEdit={false}
-					   gridRef={gridRef}
-				/>
+				<div className={t.tableWrapper}>
+					<Table columns={columns}
+						   data={data}
+						   isEdit={false}
+						   gridRef={gridRef}
+					/>
+				</div>
 
 				<Modal open={addingNew} setOpen={setAddingNew}>
 					<AddPatternPicker
@@ -404,6 +410,8 @@ function PatternEdit({
 							>
 								cancel
 							</Button>
+
+							<span className='flex-1' />
 
 							<Button
 								className={t.btnDuplicate}

@@ -24,7 +24,15 @@ Two registered map section types (`ComponentRegistry/index.jsx`):
 ## 2. Pre-flight: verify your tile sources (5 minutes, saves hours)
 
 Tiles are served per-VIEW from the dama server:
-`https://graph.availabs.org/dama-admin/{pgEnv}/tiles/{view_id}/{z}/{x}/{y}/t.pbf?cols=<c1,c2>`
+`https://dmsserver.availabs.org/dama-admin/{pgEnv}/tiles/{view_id}/{z}/{x}/{y}/t.pbf?cols=<c1,c2>`
+
+Use the production dms-server origin above in anything you store. Not `graph.availabs.org` (the
+old avail-falcor server: no `join=` support, a disk tile cache that never expires, being retired;
+many views' `metadata.tiles` still name it, so rewrite the origin when you copy one). Not
+`http://localhost:3001` either — a stored localhost URL draws only on a machine running
+dms-server (509 `npmrds_sub` rows were found baked that way on 2026-09-28). Every NPMRDS tile URL
+checked on 2026-09-28 was byte-identical on the two public hosts, except that an EMPTY tile is
+`200` + 0 bytes on graph and `204` on dms-server.
 
 - `curl -w "%{http_code} %{size_download}"` a real z/x/y. **200 + bytes = the view has geometry;
   204 empty = it doesn't** (tabular views 204 — you need a different view or a join).
@@ -248,6 +256,14 @@ Registering *is* the opt-in: intersect what you would write with the registered 
 it is empty, so the same plugin on a page with no `filters` simply stops persisting instead of
 navigating against a URL nobody owns.
 
+⚠ **The registry lives on the page row, so it does not survive a page being re-created.** When
+npmrds `/macro` was rebuilt as a new page (2214566, 2026-08-24) its `filters` were not copied from
+the old one, and every URL param went silently dead for a month — deep links ignored, nothing
+written — because "no registered keys" is exactly the opt-out path above, so nothing errors. When a
+plugin's URL state stops working, read the serving page's row (`dms raw get <id>` → `data.filters`)
+before debugging the plugin, and confirm WHICH page serves the slug first (the old copy may still
+exist under another slug).
+
 ⚠ `values` must be `[]`, **never `""`**. `convertToUrlParams` skips an empty ARRAY but happily emits
 `key=` for `[""]` — the empty-leaf bug class (`reference_dms_page_variable_empty_leaf_bug`).
 
@@ -317,8 +333,8 @@ controls" effect, writing on that same commit emits a transient wrong URL and co
 navigation. Gate the write on "the driving value did not change this render".
 
 Worked example: `src/themes/transportny/components/macroview/urlState.js` (pure encode/decode) +
-the READ/WRITE effects and the dynamic-filter reconciler in its `comp.jsx`; page 2101931's
-`filters` array is the registry. Instrument ping-pong by wrapping `history.pushState` /
+the READ/WRITE effects and the dynamic-filter reconciler in its `comp.jsx`; the live `/macro`
+page's (2214566) `filters` array is the registry. Instrument ping-pong by wrapping `history.pushState` /
 `replaceState` in a Playwright `addInitScript` and asserting the count settles.
 
 ## 8. Both symbology homes

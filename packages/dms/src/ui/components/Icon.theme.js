@@ -1,5 +1,5 @@
 export default {
-    iconWrapper: '',
-    icon: 'size-6 fill-none'
+    iconWrapper: 'inline-flex items-center justify-center',
+    icon: 'w-4 h-4 stroke-[var(--t-ink)]'
 
 }

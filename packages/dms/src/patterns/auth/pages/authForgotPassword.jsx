@@ -10,22 +10,30 @@ export default function AuthForgotPassword (props) {
     const [status, setStatus] = React.useState('');
     const { theme, UI } = React.useContext(ThemeContext);
     const { user, PROJECT_NAME, AuthAPI, defaultRedirectUrl, baseUrl} = React.useContext(AuthContext);
-    const { FieldSet, Button } = UI;
+    const { FieldSet, Button, Icon } = UI;
     const navigate = useNavigate();
-
-    if(status) return <div>{status}</div>
 
     const sectionGroupTheme = theme?.auth?.authPages?.sectionGroup?.default || {};
 
+    // Previously a bare unstyled <div> — no pageWrapper, so the status
+    // message rendered with no background/border/padding at all (looked
+    // "transparent" against the page instead of a card).
+    if(status) return <div className={sectionGroupTheme.pageWrapper}>{status}</div>
+
     return (
         <div className={sectionGroupTheme.pageWrapper}>
-            <div className={sectionGroupTheme.pageTitle}>Reset Password</div>
+            {sectionGroupTheme.iconMarkWrapper && (
+              <span className={sectionGroupTheme.iconMarkWrapper}>
+                <Icon icon="Tile" className={sectionGroupTheme.iconMark} />
+              </span>
+            )}
+            <div className={sectionGroupTheme.pageTitle}>Reset password</div>
 
             <FieldSet
                 components={[
                     {
                         type:'Input',
-                        label: 'Email',
+                        label: 'email',
                         value: credentials.email,
                         onChange: (e) => {
                             setCredentials({...credentials, email: e.target.value})
@@ -40,7 +48,7 @@ export default function AuthForgotPassword (props) {
                 onClick={async () => {
                 const emailTheme = {
                     ...(theme?.auth?.emailTheme || {}),
-                    logoUrl:    theme?.logo?.img   || '',
+                    logoUrl:    theme?.auth?.emailTheme?.logoUrl || theme?.logo?.img || '', // a theme's email logo beats the (possibly relative) site logo
                     logoTitle:  theme?.logo?.title || PROJECT_NAME,
                     siteOrigin: window.location.origin,
                 };
@@ -60,7 +68,7 @@ export default function AuthForgotPassword (props) {
                         setStatus('Cannot contact authentication server.')
                         console.error('Cannot contact authentication server.');
                     });
-            }}> <span className={sectionGroupTheme.actionText}>Reset</span> </Button>
+            }}> <span className={sectionGroupTheme.actionText}>reset</span> </Button>
         </div>
     )
 }

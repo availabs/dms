@@ -41,7 +41,16 @@ const MANAGE_DEFAULTS = {
     headerRow: "w-full flex justify-between border-b-2 border-blue-400",
     headerTitle: "text-2xl font-semibold text-gray-700",
     headerAction: "shrink-0",
+    headerStats: "flex items-stretch gap-3",
+    headerStatsItem: "",
+    headerStatsValue: "text-xl font-semibold",
+    headerStatsLabel: "text-xs text-gray-500",
+    headerSubtitleSpacer: "text-sm",
     tableHeaderCell: "flex gap-3 items-center",
+    metaText: "text-gray-500 text-sm",
+    modalHeader: "flex items-center justify-between mb-2",
+    modalTitle: "text-lg font-semibold text-gray-700",
+    modalCloseBtn: "text-gray-400 hover:text-gray-700",
     modalBody: "flex flex-row gap-3",
     notice: "",
 };
@@ -52,12 +61,19 @@ const useManageTheme = () => {
 
 function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     const { UI } = React.useContext(ThemeContext);
-    const { Modal, Input, Button } = UI;
+    const { Modal, Input, Button, Icon } = UI;
     const m = useManageTheme();
     const [email, setEmail] = useState("");
+    useEffect(() => { if (open) setEmail(""); }, [open]);
 
     return (
         <Modal open={open} setOpen={setOpen}>
+            <div className={m.modalHeader}>
+                <div className={m.modalTitle}>Add a user</div>
+                <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setOpen(false)}>
+                    <Icon icon="XMark" />
+                </button>
+            </div>
             <div className={m.modalBody}>
                 <Input
                     type="text"
@@ -65,7 +81,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
                     onChange={e => setEmail(e.target.value)}
                     placeHolder="Enter user email"
                 />
-                <Button className={m.modalAction} onClick={() => onAdd(email)}>
+                <Button className={m.modalAction} disabled={loading} onClick={() => onAdd(email)}>
                     {loading ? "Adding" : status || "Add"}
                 </Button>
             </div>
@@ -73,7 +89,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     );
 }
 
-export default function UsersAdmin({ app = '', authPermissions = {} }) {
+export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme: authEmailTheme = {} }) {
     const [groups, setGroups] = useState([]);
     const [users, setUsers] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -83,14 +99,20 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     const [addingNew, setAddingNew] = useState(false);
     const [loadingAdd, setLoadingAdd] = useState(false);
     const [editUser, setEditUser] = useState(null);
-    const [status, setStatus] = useState('');
+    const [addStatus, setAddStatus] = useState('');
+    const [resetStatus, setResetStatus] = useState('');
+    // locks the reset button while the request is in flight and after it succeeds
+    const [resetLocked, setResetLocked] = useState(false);
     const { UI } = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, baseUrl, viewAsUser, setViewAsUser } = React.useContext(AuthContext);
     const canViewAs = (user?.groups || []).some(g => g === `${app} Admin`)
       || isUserAuthed({ user, authPermissions, reqPermissions: ['view-as'] });
     const gridRef = useRef(null);
-    const { Modal, Table, Button } = UI;
+    const { Modal, Table, Button, Icon } = UI;
     const m = useManageTheme();
+
+    // siteOrigin resolves a relative logoUrl server-side; logoTitle falls back like the login pages'
+    const emailTheme = { ...authEmailTheme, logoTitle: authEmailTheme.logoTitle || PROJECT_NAME, siteOrigin: window.location.origin };
 
     const loadUsers = async () => {
         const uRes = await callAuthServer(`${AUTH_HOST}/users/byProject`, {
@@ -102,20 +124,22 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
     const handleAddUser = async (email) => {
         setLoadingAdd(true);
+        setAddStatus('');
         const res = await callAuthServer(`${AUTH_HOST}/signup/assign/group`, {
             token: user.token,
             email,
             url: `${window.location.origin}${baseUrl}/login`,
-            project: PROJECT_NAME
+            project: PROJECT_NAME,
+            emailTheme
         });
 
         if(!res.error){
             await loadUsers();
-            setLoadingAdd(false);
             setAddingNew(false);
         }else{
-            setStatus(res.error)
+            setAddStatus(res.error)
         }
+        setLoadingAdd(false);
     };
 
     /* ---------------------- Load Data (parallel) ---------------------- */
@@ -198,28 +222,38 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
 
     const userColumns = [
         {name: 'email', display_name: 'User', show: true, type: 'text'},
-        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name)},
+        // `activeStyle: 'accent'` selects MultiSelect.theme.js's cobalt-accented
+        // chip variant for this column only — the shared 'default' style (used
+        // by every other multiselect in the app) is untouched.
+        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name), activeStyle: 'accent'},
+        // `className` here is TableCell's own computed cell class (cellInner +
+        // background + selection state) — a custom `type: 'ui'` Comp is handed
+        // it like every other cell, but unlike `text`/`multiselect` columns
+        // nothing applies it automatically, so it must be spread onto a
+        // wrapping element or the column loses cellInner's padding entirely.
         {name: 'created_at', display_name: 'Created', show: true, type: 'ui',
-            Comp: ({ row }) => <span>{fmtDate(row.created_at)}</span>},
+            Comp: ({ row, className }) => <div className={className}><span className={m.metaText}>{fmtDate(row.created_at)}</span></div>},
         {name: 'last_login', display_name: 'Last Login', show: true, type: 'ui',
-            Comp: ({ row }) => <span>{fmtDate(row.last_login)}</span>},
+            Comp: ({ row, className }) => <div className={className}><span className={m.metaText}>{fmtDate(row.last_login)}</span></div>},
         {
             name: 'view_as', display_name: '', show: canViewAs, type: 'ui',
-            Comp: ({ row }) => {
+            Comp: ({ row, className }) => {
                 const isActive = viewAsUser?.email === row.email;
                 return (
-                    <Button
-                        className={m.rowAction}
-                        onClick={() => setViewAsUser(isActive ? null : { ...row, groups: [...new Set([...(row.groups || []), 'public'])], authed: true, isAuthenticating: false })}
-                    >
-                        {isActive ? 'Viewing As' : 'View As'}
-                    </Button>
+                    <div className={className}>
+                        <Button
+                            className={m.rowAction}
+                            onClick={() => setViewAsUser(isActive ? null : { ...row, groups: [...new Set([...(row.groups || []), 'public'])], authed: true, isAuthenticating: false })}
+                        >
+                            {isActive ? 'Viewing As' : 'View As'}
+                        </Button>
+                    </div>
                 );
             }
         },
         {
             name: '', display_name: '', show: true, type: 'ui',
-            Comp: d => <Button className={m.rowAction} onClick={() => setEditUser(d.row)}>reset password</Button>
+            Comp: d => <div className={d.className}><Button className={m.rowAction} onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
         },
     ];
 
@@ -282,13 +316,40 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
     if (!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>;
 
     return (
-        <div className={m.pageWrapper}>
-
+        <>
+            {/* Title flush on the page background — NOT inside pageWrapper's card, which
+                wraps only the table below (matches design_system_v6/pages/admin-users.html's
+                separate "users-header" and "users-table" sections; previously both lived
+                inside pageWrapper, reading as one page-length white box). */}
             <div className={m.headerRow}>
-                <div className={m.headerTitle}>Users</div>
-                <Button className={m.headerAction} onClick={() => setAddingNew(true)}>Add new</Button>
+                <div className="min-w-0">
+                    <div className={m.headerTitle}>Users</div>
+                    {/* Blank line under the title — mimics Sites' identityWrapper, whose title
+                        always has a real second line (the site's domain, `identitySubtitle`)
+                        giving its own title block roughly the same height as its boxed stats.
+                        Users has nothing real to put there, but needs the same height so its
+                        title vertically aligns with the boxed stats sitting next to it in this
+                        row (without this, the stats box is taller than a bare one-line title,
+                        so the row grows to fit it and the title sits visibly lower than every
+                        other page's — flagged live, 2026-09-21). `aria-hidden` + non-breaking
+                        space: decorative only, holds its own line-height, nothing to announce. */}
+                    <p className={m.headerSubtitleSpacer} aria-hidden="true">&nbsp;</p>
+                </div>
+                <span className="flex-1" />
+                <div className={m.headerStats}>
+                    <div className={m.headerStatsItem}>
+                        <p className={m.headerStatsValue}>{users.length}</p>
+                        <p className={m.headerStatsLabel}>users</p>
+                    </div>
+                    <div className={m.headerStatsItem}>
+                        <p className={m.headerStatsValue}>{groups.length}</p>
+                        <p className={m.headerStatsLabel}>groups</p>
+                    </div>
+                </div>
+                <Button className={m.headerAction} onClick={() => { setAddStatus(''); setAddingNew(true); }}>Add new</Button>
             </div>
 
+            <div className={m.pageWrapper}>
             {/* <Table data={filteredRequests} columns={requestsColumns} controls={requestsTableControls} customTheme={customTableTheme} /> */}
 
             <Table
@@ -296,6 +357,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 data={filteredUsers}
                 columns={userColumns}
                 allowEdit={true}
+                activeStyle="roomy"
                 updateItem={async (_, __, e) => {
                     const original = users.find(u => u.email === e.email);
 
@@ -319,6 +381,7 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 }}
                 controls={usersTableControls}
             />
+            </div>
 
             {/* Add user modal */}
             <AddUserModal
@@ -326,26 +389,36 @@ export default function UsersAdmin({ app = '', authPermissions = {} }) {
                 setOpen={setAddingNew}
                 onAdd={handleAddUser}
                 loading={loadingAdd}
-                status={status}
+                status={addStatus}
             />
 
             {/* Reset password modal */}
             <Modal open={Boolean(editUser)} setOpen={setEditUser}>
+                <div className={m.modalHeader}>
+                    <div className={m.modalTitle}>Reset password</div>
+                    <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setEditUser(null)}>
+                        <Icon icon="XMark" />
+                    </button>
+                </div>
                 <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?
-                    <Button className={m.modalAction} onClick={async () => {
+                    <Button className={m.modalAction} disabled={resetLocked} onClick={async () => {
+                        setResetLocked(true);
+                        setResetStatus('sending');
                         const res = await callAuthServer(`${AUTH_HOST}/password/reset`, {
                             project_name: PROJECT_NAME,
                             email: editUser?.email,
                             host: `${window?.location?.host}`,
-                            url: `${baseUrl}/login`
+                            url: `${window.location.origin}${baseUrl}/login`,
+                            emailTheme
                         });
-                        setStatus(res.error || res.message);
+                        setResetStatus(res.error || res.message);
+                        if (res.error) setResetLocked(false);
                     }}>
-                        {status || "reset"}
+                        {resetStatus || "reset"}
                     </Button>
                 </div>
             </Modal>
-        </div>
+        </>
     );
 }

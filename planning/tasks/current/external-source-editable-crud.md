@@ -1,5 +1,7 @@
 # External Source Editable CRUD
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "Status (2026-07-08): implemented, stub-DB verified, not yet live-tested.") · **Release:** review — run the live Postgres/browser checklist · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 **Status (2026-07-08): implemented, stub-DB verified, not yet live-tested.** No Postgres or browser was reachable in this sandbox (same constraint as [[set_primary_col_from_meta]]); Docker was present but its daemon wasn't running, so the `test:pg` path couldn't be used either. See "Verification Notes" at the end of this file.
 
 **Update (2026-07-08, same day): three bugs found from the requester's own live testing, all fixed.** These surfaced from clicking through a real external+editable source in a real browser — the requester did the live testing this sandbox couldn't do. See "Bugs Found During Live Testing" below, added right after the main Proposed Changes section.

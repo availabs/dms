@@ -195,25 +195,25 @@ function renderSectionRow(s, i, { viewUrl, setPreviewSection, isPublished, t }) 
             <span className="truncate">
                 {s._sourceName
                     ? <span className={t.srcLabel}>{s._sourceName}</span>
-                    : <span className="text-gray-300 text-xs">—</span>}
+                    : <span className="text-[var(--t-pencil)] text-xs">—</span>}
             </span>
             <span>
                 {s._viewChip
                     ? <span className={s._viewChip.stale ? t.viewChipStale : s._viewChip.fresh ? t.viewChipFresh : t.viewChipOk}>
                         v{s._viewChip.view}{s._viewChip.fresh ? ' ✓' : ''}
                       </span>
-                    : <span className="text-gray-300 text-xs">—</span>}
+                    : <span className="text-[var(--t-pencil)] text-xs">—</span>}
             </span>
             <span>
                 {levelNum != null
                     ? <span className={`${t.levelPill} ${levelNum === 0 ? t.levelHidden : t.levelHeading}`}>
                         {levelNum === 0 ? 'hidden' : `H${levelNum}`}
                       </span>
-                    : <span className="text-gray-300 text-xs">—</span>}
+                    : <span className="text-[var(--t-pencil)] text-xs">—</span>}
             </span>
             <span className="flex justify-end">
                 <button
-                    className={t.ghostBtn || 'text-[10px] border border-gray-200 rounded px-2 py-0.5 bg-white text-gray-500 cursor-pointer'}
+                    className={t.ghostBtn || 'text-[10px] border border-[var(--t-rule)] rounded px-2 py-0.5 bg-[var(--t-panel)] text-[var(--t-graphite)] cursor-pointer'}
                     onClick={setPreviewSection ? () => setPreviewSection({ ...s, _pageViewUrl: viewUrl }) : undefined}
                 >
                     Preview
@@ -316,13 +316,13 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
     const modeBtn = (id, label) => (
         <button
             key={id}
-            className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === id ? 'bg-gray-100 text-gray-800' : 'bg-transparent text-gray-400'}`}
+            className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === id ? 'bg-[var(--t-well)] text-[var(--t-ink)]' : 'bg-transparent text-[var(--t-pencil)]'}`}
             onClick={() => setMode(id)}
         >{label}</button>
     );
 
     const modeToggle = (
-        <div className="inline-flex bg-white border border-gray-200 rounded-full p-0.5">
+        <div className="inline-flex bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-full p-0.5">
             {modeBtn('draft',     'Draft')}
             {modeBtn('published', 'Published')}
         </div>
@@ -693,6 +693,24 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         return map;
     }, [pages]);
 
+    // Header stat strip: total pages, live (non-draft) pages, deepest nav level.
+    const pageStats = useMemo(() => {
+        let maxDepth = 0;
+        const depthOf = (p, seen = new Set()) => {
+            if (p.parent == null || p.parent === '' || seen.has(String(p.id))) return 0;
+            const parent = byId[String(p.parent)];
+            if (!parent) return 0;
+            seen.add(String(p.id));
+            return 1 + depthOf(parent, seen);
+        };
+        pages.forEach(p => { maxDepth = Math.max(maxDepth, depthOf(p)); });
+        return {
+            total: pages.length,
+            published: pages.filter(p => p.published !== 'draft').length,
+            levelsDeep: pages.length ? maxDepth + 1 : 0,
+        };
+    }, [pages, byId]);
+
     const tableData = useMemo(() => buildFlatTree({
         pages, byId, expandedIds, sectionsByPageId, lens, search, scope, toggleExpandRef, typeFilter, srcFilter, slugFreq
     }), [pages, byId, expandedIds, sectionsByPageId, lens, search, scope, typeFilter, srcFilter, slugFreq]);
@@ -758,7 +776,18 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
             history: appendHistoryEntry(freshPage.history, 'published changes.', user),
         };
 
-        const formatAttributes = [];
+        // `history` must be resolved into a real `{id, ref}` pointer (a `page-edit` row), the
+        // same way the single-page editor's own publish/discard get it via page.format.js's
+        // default attributes list — this bulk panel builds its own narrower `formatAttributes`
+        // per call and previously omitted `history` entirely, so it was written as an inert
+        // inline blob instead, which is why Activity tab (and "Last Published") always read
+        // empty for pages managed exclusively through this panel. See memory
+        // `project_page_history_duplicated_patterns_bug.md`.
+        const formatAttributes = [{
+            key: 'history',
+            type: 'dms-format',
+            format: `${value.app}+${patternInstance}|page-edit`,
+        }];
         if (newSections.length > 0) {
             publishData.sections = newSections;
             formatAttributes.push({
@@ -791,12 +820,19 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
             .filter(Boolean)
             .map(stripCompIdentity);
 
-        const formatAttributes = revertedSections.length > 0 ? [{
-            key: 'draft_sections',
+        const formatAttributes = [{
+            key: 'history',
             type: 'dms-format',
-            isArray: true,
-            format: `${value.app}+${patternInstance}|component`,
-        }] : [];
+            format: `${value.app}+${patternInstance}|page-edit`,
+        }];
+        if (revertedSections.length > 0) {
+            formatAttributes.push({
+                key: 'draft_sections',
+                type: 'dms-format',
+                isArray: true,
+                format: `${value.app}+${patternInstance}|component`,
+            });
+        }
 
         await apiUpdate({
             data: {
@@ -833,14 +869,19 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         const newTitle = (freshPage.title || 'Page') + ' Copy';
         const url_slug = computeUrlSlug(newTitle, pages, newIndex, freshPage.parent);
 
-        const formatAttributes = clonedSections.length > 0 ? [
-            {
+        const formatAttributes = [{
+            key: 'history',
+            type: 'dms-format',
+            format: `${value.app}+${patternInstance}|page-edit`,
+        }];
+        if (clonedSections.length > 0) {
+            formatAttributes.push({
                 key: 'draft_sections',
                 type: 'dms-format',
                 isArray: true,
                 format: `${value.app}+${patternInstance}|component`,
-            },
-        ] : [];
+            });
+        }
 
         await apiUpdate({
             data: {
@@ -1086,29 +1127,42 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
         const hasChanges = needsPublish(page);
         const pageSlug = page.url_slug || '';
         const editUrl = value.base_url && pageSlug ? `${value.base_url}/edit/${pageSlug}` : null;
+        const viewUrl = value.base_url && pageSlug ? `${value.base_url}/${pageSlug}` : null;
 
         return (
-            <UI.Popup
-                button={<button className={t.actionsMenuBtn}>⋯</button>}
-                preferredPosition="bottom"
-            >
-                {({ setOpen }) => (
-                    <div className={t.actionsMenu}>
-                        {hasChanges && (
-                            <>
-                                <button className={t.actionsMenuItem} onClick={() => { publishPage(page); setOpen(false); }}>Publish</button>
-                                <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDiscard}`} onClick={() => { discardPage(page); setOpen(false); }}>Discard</button>
-                            </>
-                        )}
-                        {editUrl && (
-                            <button className={t.actionsMenuItem} onClick={() => { navigate(editUrl); setOpen(false); }}>Edit</button>
-                        )}
-                        <button className={t.actionsMenuItem} onClick={() => { duplicatePage(page); setOpen(false); }}>Duplicate</button>
-                        <div className={t.actionsMenuSep} />
-                        <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDelete}`} onClick={() => { setDeletingPage(page); setOpen(false); }}>Delete</button>
-                    </div>
+            <span className={t.rowActions}>
+                {viewUrl && (
+                    <a href={viewUrl} target="_blank" rel="noopener noreferrer" aria-label="View page" className={t.rowIconBtn}>
+                        <UI.Icon icon="Eye" className="w-4 h-4" />
+                    </a>
                 )}
-            </UI.Popup>
+                {editUrl && (
+                    <button aria-label="Edit page" className={t.rowIconBtn} onClick={() => navigate(editUrl)}>
+                        <UI.Icon icon="PencilIcon" className="w-4 h-4" />
+                    </button>
+                )}
+                <UI.Popup
+                    button={<button aria-label="More actions" className={t.actionsMenuBtn}>⋯</button>}
+                    preferredPosition="bottom"
+                >
+                    {({ setOpen }) => (
+                        <div className={t.actionsMenu}>
+                            {hasChanges && (
+                                <>
+                                    <button className={t.actionsMenuItem} onClick={() => { publishPage(page); setOpen(false); }}>Publish</button>
+                                    <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDiscard}`} onClick={() => { discardPage(page); setOpen(false); }}>Discard</button>
+                                </>
+                            )}
+                            {editUrl && (
+                                <button className={t.actionsMenuItem} onClick={() => { navigate(editUrl); setOpen(false); }}>Edit</button>
+                            )}
+                            <button className={t.actionsMenuItem} onClick={() => { duplicatePage(page); setOpen(false); }}>Duplicate</button>
+                            <div className={t.actionsMenuSep} />
+                            <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDelete}`} onClick={() => { setDeletingPage(page); setOpen(false); }}>Delete</button>
+                        </div>
+                    )}
+                </UI.Popup>
+            </span>
         );
     }, [t, UI, value.base_url, navigate, publishPage, discardPage, duplicatePage, setDeletingPage]);
 
@@ -1124,7 +1178,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
           allowEditInView: true, trueValue: false },
         { name: '_sectionCount',   display_name: 'Sections',  show: true, type: 'sections_chip',  size: 90,
           openOutTrigger: true },
-        { name: '_actions',        display_name: ' ',                 show: true, type: 'ui',             size: 40,
+        { name: '_actions',        display_name: ' ',                 show: true, type: 'ui',             size: 96,
             Comp: PageActionsComp },
         { name: '_sections',       display_name: 'Sections',  show: true, type: 'ui',
           Comp: SectionsPanelComp, openOut: true },
@@ -1132,7 +1186,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
     const lenses = [
         { id: 'all',     label: 'All Pages' },
-        { id: 'queue',   label: 'To Publish',  count: counts.queue },
+        { id: 'queue',   label: 'To Publish',  count: counts.queue, warn: true },
         { id: 'empty',   label: 'Empty',        count: counts.empty },
         { id: 'orphans', label: 'Orphans',      count: counts.orphans, warn: true },
         { id: 'hidden',  label: 'Off Nav',      count: counts.hidden },
@@ -1142,124 +1196,158 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
     return (
         <div className={t.wrapper}>
+            {/* header: pattern identity + page/published/depth stats */}
+            <div className={t.header}>
+                <div className={t.headerTitleWrap}>
+                    <div className={t.headerTitleRow}>
+                        <h1 className={t.headerTitle}>Pages</h1>
+                    </div>
+                    <p className={t.headerSubtitle}>
+                        {pageStats.total} page{pageStats.total !== 1 ? 's' : ''} · nav order · the tree is the source of truth
+                    </p>
+                </div>
+                <div className={t.statsBar}>
+                    <div className={t.statCell}>
+                        <p className={t.statValue}>{pageStats.total}</p>
+                        <p className={t.statLabel}>pages</p>
+                    </div>
+                    <div className={t.statCell}>
+                        <p className={t.statValue}>{pageStats.published}</p>
+                        <p className={t.statLabel}>published</p>
+                    </div>
+                    <div className={t.statCell}>
+                        <p className={t.statValue}>{pageStats.levelsDeep}</p>
+                        <p className={t.statLabel}>levels deep</p>
+                    </div>
+                </div>
+            </div>
+
             {/* toolbar */}
             <div className={t.toolbar}>
-                <div className={t.lensBar}>
-                    {lenses.map(l => {
-                        const isActive = lens === l.id;
-                        return (
-                            <button
-                                key={l.id}
-                                className={isActive ? t.lensChipActive : t.lensChip}
-                                onClick={() => setLens(l.id)}
-                            >
-                                {l.label}
-                                {l.count != null && (
-                                    <span className={isActive ? t.lensCountActive : t.lensCount}>
-                                        {l.count}
-                                    </span>
-                                )}
-                            </button>
-                        );
-                    })}
+                {/* row 1: search (grows) + the primary "add page" action right next to it — matches
+                    the mockup's `pages-toolbar` row */}
+                <div className={t.toolbarRow1}>
+                    <div className={t.searchWrap}>
+                        <svg className={t.searchIcon} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                            <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
+                        </svg>
+                        <input
+                            type="text"
+                            className={t.searchInput}
+                            placeholder={scope === 'sections' ? 'Search sections & sources…' : 'Search page titles…'}
+                            value={search}
+                            onChange={e => setSearch(e.target.value)}
+                        />
+                    </div>
+                    <button
+                        className={t.addBtn}
+                        onClick={handleAddPage}
+                        disabled={saving}
+                    >
+                        {saving ? 'Adding…' : '+ New Page'}
+                    </button>
                 </div>
 
-                <div className={t.divider} />
-
-                <div className={t.scopeSeg}>
-                    {['pages', 'sections'].map(s => (
-                        <button
-                            key={s}
-                            className={scope === s ? t.scopeBtnActive : t.scopeBtn}
-                            onClick={() => {
-                                setScope(s);
-                                setSearch('');
-                                setTypeFilter('');
-                                setSrcFilter('');
-                            }}
-                        >
-                            {s.charAt(0).toUpperCase() + s.slice(1)}
-                        </button>
-                    ))}
-                </div>
-
-                <div className={`${t.searchWrap} relative`}>
-                    <svg className={t.searchIcon} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                        <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
-                    </svg>
-                    <input
-                        type="text"
-                        className={t.searchInput}
-                        placeholder={scope === 'sections' ? 'Search sections & sources…' : 'Search page titles…'}
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                    />
-                </div>
-
-                {scope === 'sections' && (
-                    <>
-                        <div className="w-36">
-                            <UI.Select
-                                value={typeFilter}
-                                onChange={val => setTypeFilter(val ?? '')}
-                                placeholder="All types"
-                                options={sectionFilterOptions.types.map(type => ({ label: type, value: type }))}
-                                allowDeselect
-                            />
-                        </div>
-                        <div className="w-52">
-                            <UI.Select
-                                value={srcFilter}
-                                onChange={val => setSrcFilter(val ?? '')}
-                                placeholder="All sections"
-                                options={[
-                                    { label: `Any data source (${sectionFilterOptions.anySourceCount})`, value: '__any__' },
-                                    ...sectionFilterOptions.sources.map(([name, count]) => ({ label: `${name} (${count})`, value: name })),
-                                ]}
-                                allowDeselect
-                            />
-                        </div>
-                    </>
-                )}
-
-                {hasActiveFilters && (
-                    <button className={t.clearFiltersBtn} onClick={clearFilters}>✕ Clear Filters</button>
-                )}
-
-                {lens === 'queue' && counts.queue > 0 && (
-                    <>
-                        <button className={t.ghostBtn} onClick={selectAllInQueue}>Select All ({counts.queue})</button>
-                        {selectedIds.size > 0 && (
-                            <>
-                                <button className={t.ghostBtn} onClick={clearSelection}>Clear Selection</button>
+                {/* row 2: lens/quick-filter chips + scope + secondary controls */}
+                <div className={t.toolbarRow2}>
+                    <div className={t.lensBar}>
+                        {lenses.map(l => {
+                            const isActive = lens === l.id;
+                            const activeClass = l.warn ? t.lensChipActiveWarn : t.lensChipActive;
+                            return (
                                 <button
-                                    className={t.addBtn}
-                                    onClick={publishSelected}
-                                    disabled={publishingSelected}
+                                    key={l.id}
+                                    className={isActive ? activeClass : t.lensChip}
+                                    onClick={() => setLens(l.id)}
                                 >
-                                    {publishingSelected ? 'Publishing…' : `Publish Selected (${selectedIds.size})`}
+                                    {l.label}
+                                    {l.count != null && (
+                                        <span className={isActive ? t.lensCountActive : t.lensCount}>
+                                            {l.count}
+                                        </span>
+                                    )}
                                 </button>
-                            </>
-                        )}
-                        {publishSelectedResult && (
-                            <span className={t.lensCount}>{publishSelectedResult}</span>
-                        )}
-                    </>
-                )}
+                            );
+                        })}
+                    </div>
 
-                <div className="flex-1" />
+                    <div className={t.divider} />
 
-                <button className={t.ghostBtn} onClick={expandAll}>Expand All</button>
-                <button className={t.ghostBtn} onClick={collapseAll}>Collapse All</button>
-                <button className={t.ghostBtn} onClick={() => setSectionsExpanded(true)}>Expand Sections</button>
-                <button className={t.ghostBtn} onClick={() => setSectionsExpanded(false)}>Collapse Sections</button>
-                <button
-                    className={t.addBtn}
-                    onClick={handleAddPage}
-                    disabled={saving}
-                >
-                    {saving ? 'Adding…' : '+ New Page'}
-                </button>
+                    <div className={t.scopeSeg}>
+                        {['pages', 'sections'].map(s => (
+                            <button
+                                key={s}
+                                className={scope === s ? t.scopeBtnActive : t.scopeBtn}
+                                onClick={() => {
+                                    setScope(s);
+                                    setSearch('');
+                                    setTypeFilter('');
+                                    setSrcFilter('');
+                                }}
+                            >
+                                {s.charAt(0).toUpperCase() + s.slice(1)}
+                            </button>
+                        ))}
+                    </div>
+
+                    {scope === 'sections' && (
+                        <>
+                            <div className="w-36">
+                                <UI.Select
+                                    value={typeFilter}
+                                    onChange={val => setTypeFilter(val ?? '')}
+                                    placeholder="All types"
+                                    options={sectionFilterOptions.types.map(type => ({ label: type, value: type }))}
+                                    allowDeselect
+                                />
+                            </div>
+                            <div className="w-52">
+                                <UI.Select
+                                    value={srcFilter}
+                                    onChange={val => setSrcFilter(val ?? '')}
+                                    placeholder="All sections"
+                                    options={[
+                                        { label: `Any data source (${sectionFilterOptions.anySourceCount})`, value: '__any__' },
+                                        ...sectionFilterOptions.sources.map(([name, count]) => ({ label: `${name} (${count})`, value: name })),
+                                    ]}
+                                    allowDeselect
+                                />
+                            </div>
+                        </>
+                    )}
+
+                    {hasActiveFilters && (
+                        <button className={t.clearFiltersBtn} onClick={clearFilters}>✕ Clear Filters</button>
+                    )}
+
+                    {lens === 'queue' && counts.queue > 0 && (
+                        <>
+                            <button className={t.ghostBtn} onClick={selectAllInQueue}>Select All ({counts.queue})</button>
+                            {selectedIds.size > 0 && (
+                                <>
+                                    <button className={t.ghostBtn} onClick={clearSelection}>Clear Selection</button>
+                                    <button
+                                        className={t.addBtn}
+                                        onClick={publishSelected}
+                                        disabled={publishingSelected}
+                                    >
+                                        {publishingSelected ? 'Publishing…' : `Publish Selected (${selectedIds.size})`}
+                                    </button>
+                                </>
+                            )}
+                            {publishSelectedResult && (
+                                <span className={t.lensCount}>{publishSelectedResult}</span>
+                            )}
+                        </>
+                    )}
+
+                    <div className="flex-1" />
+
+                    <button className={t.ghostBtn} onClick={expandAll}>Expand All</button>
+                    <button className={t.ghostBtn} onClick={collapseAll}>Collapse All</button>
+                    <button className={t.ghostBtn} onClick={() => setSectionsExpanded(true)}>Expand Sections</button>
+                    <button className={t.ghostBtn} onClick={() => setSectionsExpanded(false)}>Collapse Sections</button>
+                </div>
             </div>
 
             {/* table */}

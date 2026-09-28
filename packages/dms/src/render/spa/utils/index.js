@@ -1,6 +1,6 @@
 /* global process */
 import React from 'react'
-import { cloneDeep } from "lodash-es"
+import { cloneDeep, get } from "lodash-es"
 import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
 import { parseIfJSON } from '../../../patterns/page/pages/_utils';
@@ -39,7 +39,18 @@ function resolveSubdomainFilters(rawFilters, subdomain) {
     return parsed[subdomain] || parsed['*'] || [];          // new format
 }
 
-function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
+// Exported — the admin pattern's own access gates (editSite.jsx,
+// patternEditor/index.jsx) need this same resolution, not just route
+// building here. A raw `pattern.authPermissions` is either the "old" flat
+// `{groups,users}` shape, or the "new" subdomain-keyed shape
+// (PatternPermissionsEditor writes this: `{"<subdomain-or-*>": {groups,users}}`,
+// each value independently JSON-stringified) — reading it as a flat object
+// without unwrapping the subdomain/`*` layer first (as those two admin call
+// sites used to) finds no top-level `.groups`/`.users` on ANY pattern that's
+// ever been edited through the current Permissions UI, so `isUserAuthed`
+// silently denies everyone but a site admin regardless of what's actually
+// granted underneath (found 2026-09-20 — mitigat-ny-prod pattern 1006405).
+export function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
     const parsed = parseIfJSON(rawAuth || '{}', {});
     if (parsed['*'] !== undefined)                          // new format
         return parseIfJSON(parsed[subdomain] || parsed['*'] || {});
@@ -88,12 +99,11 @@ function getPatternMounts(pattern) {
 //console.log('hola', pageConfig)
 
 /**
- * Distinct theme names actually referenced by a site's pattern rows — the
- * site's own selections plus 'mny_admin', which patterns/auth/siteConfig.jsx's
- * manageAuthConfig hardcodes for the /auth/manage panel every auth pattern
- * gets (patterns/admin/siteConfig.jsx uses selectedTheme: "default", which
- * needs no theme module — it resolves to the library's own baked-in
- * defaultTheme). Used to resolve only the theme(s) a site needs instead of
+ * Distinct theme names actually referenced by a site's pattern rows. The
+ * admin pages and the auth manage pages need nothing extra: they render the
+ * library's own baked-in defaultTheme plus the auth pattern's theme's `admin`
+ * key (getAdminTheme), and the auth pattern's theme is already collected
+ * here like any other pattern's. Used to resolve only the theme(s) a site needs instead of
  * loading every theme in the registry. See planning/shared/bundle-size-log.md.
  */
 export function collectThemeNames(siteData) {
@@ -101,9 +111,52 @@ export function collectThemeNames(siteData) {
     const names = new Set();
     patterns.forEach(p => {
         if (p?.theme?.selectedTheme) names.add(p.theme.selectedTheme);
-        if (p?.pattern_type === 'auth') names.add('mny_admin');
+        // Legacy pre-v0 selection path. getPatternTheme() honours it, so anything
+        // that pre-resolves themes by name has to see it too — two dms_avail
+        // patterns select their DB theme (`mny-admin-db`) only this way, and
+        // missing it silently default-themes them.
+        if (p?.theme?.settings?.theme?.theme) names.add(p.theme.settings.theme.theme);
     });
     return [...names];
+}
+
+/**
+ * DB-authored themes (`data_manager`-free: they're `:theme` DMS rows listed in
+ * the site row's `theme_refs`) for the names a site actually selects.
+ *
+ * The site load asks for `theme_refs` with a name-only projection (see
+ * dmsSiteFactory), because a theme row's `data` is 100-300 kB and a site has
+ * several: MitigateNY was shipping 832 kB of theme rows per page load and
+ * selecting NONE of them (its patterns all name code themes — mnyv1 /
+ * mny_admin / default). So fetch the full row only for a name some pattern
+ * selects: zero rows on MitigateNY and npmrdsv5, one on dms_asm ("b3 Theme")
+ * and dms_avail (`mny-admin-db`).
+ *
+ * Refs that already carry their `theme` content (SSR hydration, or any caller
+ * still loading the site with full expansion) are used as-is, no fetch.
+ */
+async function resolveDbThemes(siteData, names, { falcor, app } = {}) {
+    const refs = (siteData || []).reduce((acc, row) => [...acc, ...(row?.theme_refs || [])], []);
+    if (!refs.length) return {};
+
+    const wanted = new Set(names);
+    const out = {};
+    const toFetch = [];
+    for (const ref of refs) {
+        if (!ref?.name || !wanted.has(ref.name)) continue;
+        const already = parseIfJSON(ref.theme);
+        if (already) out[ref.name] = already;
+        else if (ref.id != null) toFetch.push(ref);
+    }
+    if (!toFetch.length || !falcor || !app) return out;
+
+    const res = await falcor.get(['dms', 'data', app, 'byId', toFetch.map(r => r.id), ['data']]);
+    for (const ref of toFetch) {
+        const data = get(res, ['json', 'dms', 'data', app, 'byId', ref.id, 'data']);
+        const theme = parseIfJSON(data?.theme);
+        if (theme) out[ref.name] = theme;
+    }
+    return out;
 }
 
 /**
@@ -112,10 +165,20 @@ export function collectThemeNames(siteData) {
  * callers, or an already-resolved SSR-hydration value) or the lazy loader
  * function exported by src/themes/index.js, in which case only the theme
  * names collectThemeNames finds in siteData are dynamically imported.
+ *
+ * `opts.falcor` + `opts.app` additionally resolve DB-authored themes by name
+ * (see resolveDbThemes); without them only already-expanded refs are used, so
+ * callers that don't pass them behave exactly as before.
  */
-export async function resolveThemes(themesConfig, siteData) {
-    if (typeof themesConfig !== 'function') return themesConfig || { default: {} };
-    return await themesConfig(collectThemeNames(siteData));
+export async function resolveThemes(themesConfig, siteData, opts = {}) {
+    const names = collectThemeNames(siteData);
+    const codeThemes = typeof themesConfig === 'function'
+        ? await themesConfig(names)
+        : (themesConfig || { default: {} });
+    const dbThemes = await resolveDbThemes(siteData, names, opts);
+    // DB themes win on a name collision — same precedence pattern2routes has
+    // always applied when it merged fully-expanded theme_refs.
+    return Object.keys(dbThemes).length ? { ...codeThemes, ...dbThemes } : codeThemes;
 }
 
 export function pattern2routes (siteData, props) {
@@ -147,9 +210,15 @@ export function pattern2routes (siteData, props) {
     // for weird double subdomain tld
     SUBDOMAIN = ['www', 'hazardmitigation'].includes(SUBDOMAIN) ? '' : SUBDOMAIN;
 
+    // Fully-expanded theme refs only. The site load now asks for `theme_refs`
+    // with a name-only projection and resolveThemes() fetches the selected
+    // theme's content into `themes` — a name-only ref here carries no `theme`,
+    // and writing `{[name]: undefined}` into the registry would SHADOW the
+    // resolved entry and silently default-theme the pattern that selected it.
     const dbThemes = (siteData?.[0]?.theme_refs || [])
       .reduce((out,theme) => {
-          out[theme.name] = parseIfJSON(theme.theme)
+          const parsed = parseIfJSON(theme.theme)
+          if (parsed) out[theme.name] = parsed
           return out
       }, {})
     //console.log('patterns2routes',dbThemes)
@@ -355,6 +424,9 @@ export function pattern2routes (siteData, props) {
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
                     authBaseUrl,
+                    // the site's one auth pattern — admin pages take their logo
+                    // from its theme's `admin` key (see getAdminTheme)
+                    authPattern,
                     datasources: patternDatasources,
                     dmsEnvs,
                     dmsEnvById,

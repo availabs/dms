@@ -32,7 +32,7 @@ export const PatternPermissionsEditor = ({
     const { UI, theme } = React.useContext(ThemeContext);
     const t = { ...permissionsEditorTheme, ...(theme?.admin?.permissionsEditor || {}) }
     const { user, apiUpdate } = React.useContext(AdminContext) || {};
-    const { FieldSet, Permissions } = UI;
+    const { Permissions } = UI;
     const permissionDomain = attributes?.authPermissions?.permissionDomain;
 
     const inputValue = cloneDeep(parseIfJSON(value));
@@ -60,8 +60,17 @@ export const PatternPermissionsEditor = ({
         setNewSubdomain('');
     };
 
+    const isDirty = !isEqual(tmpAuthPermissions, normalised);
+    // Domain vocabulary summary (mockup: "domain: * · view-page · create · update") —
+    // same list every subdomain group's permission MultiSelect offers.
+
     return (
-        <div className={t.wrapper}>
+        <div className={t.outerWrapper}>
+            <div className={t.header}>
+                <span className={t.headerTitle}>Permissions</span>
+            </div>
+
+            <div className={t.wrapper}>
             {Object.entries(tmpAuthPermissions).map(([subdomain, perms]) => (
                 <div key={subdomain} className={t.subdomainSection}>
                     <div className={t.subdomainHeader}>
@@ -70,6 +79,7 @@ export const PatternPermissionsEditor = ({
                         </span>
                         {subdomain !== '*' && (
                             <button
+                                type={'button'}
                                 className={t.subdomainRemoveBtn}
                                 onClick={() => removeSubdomain(subdomain)}
                             >
@@ -77,15 +87,17 @@ export const PatternPermissionsEditor = ({
                             </button>
                         )}
                     </div>
-                    <Permissions
-                        value={perms || {}}
-                        user={user}
-                        getUsers={AuthAPI?.getUsers}
-                        getGroups={AuthAPI?.getGroups}
-                        onChange={(v) => updateSubdomainPermissions(subdomain, v)}
-                        permissionDomain={permissionDomain}
-                        defaultPermission={defaultPermission}
-                    />
+                    <div className={t.subdomainBody}>
+                        <Permissions
+                            value={perms || {}}
+                            user={user}
+                            getUsers={AuthAPI?.getUsers}
+                            getGroups={AuthAPI?.getGroups}
+                            onChange={(v) => updateSubdomainPermissions(subdomain, v)}
+                            permissionDomain={permissionDomain}
+                            defaultPermission={defaultPermission}
+                        />
+                    </div>
                 </div>
             ))}
 
@@ -98,37 +110,34 @@ export const PatternPermissionsEditor = ({
                     onKeyDown={e => e.key === 'Enter' && addSubdomain()}
                 />
                 <button
+                    type={'button'}
                     className={t.addSubdomainBtn}
                     onClick={addSubdomain}
                 >
-                    Add subdomain
+                    + add subdomain
                 </button>
             </div>
 
-            <FieldSet
-                className={t.saveGrid}
-                components={[
-                    {
-                        type: 'Spacer',
-                        customTheme: { field: 'bg-white col-span-10 ' }
-                    },
-                    {
-                        type: 'Button',
-                        children: <span>Reset</span>,
-                        buttonType: 'plain',
-                        disabled: isEqual(tmpAuthPermissions, normalised),
-                        onClick: () => setTmpAuthPermissions(normalised),
-                        customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
-                    },
-                    {
-                        type: 'Button',
-                        children: <span>Save</span>,
-                        disabled: isEqual(tmpAuthPermissions, normalised),
-                        onClick: () => apiUpdate({ data: { id: value.id, authPermissions: tmpAuthPermissions } }),
-                        customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
-                    }
-                ]}
-            />
+            <div className={t.saveGrid}>
+                <span className='flex-1' />
+                <button
+                    type={'button'}
+                    className={t.btnReset}
+                    disabled={!isDirty}
+                    onClick={() => setTmpAuthPermissions(normalised)}
+                >
+                    reset
+                </button>
+                <button
+                    type={'button'}
+                    className={t.btnSave}
+                    disabled={!isDirty}
+                    onClick={() => apiUpdate({ data: { id: value.id, authPermissions: tmpAuthPermissions } })}
+                >
+                    save changes
+                </button>
+            </div>
+            </div>
         </div>
     );
 };

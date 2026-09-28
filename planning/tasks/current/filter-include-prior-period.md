@@ -1,5 +1,7 @@
 # Task: Filter leaf "include prior period" — vs-prior deltas from a single page filter
 
+**Initiatives:** [tny_npmrds_product_redesign](../../../../../planning/initiatives/tny_npmrds_product_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "Phase 3 — card recipe + live test: DONE & VERIFIED LIVE. … Remaining: move task → completed/, update…"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Let a **single-select page filter** on a numeric/ordinal period column (e.g.

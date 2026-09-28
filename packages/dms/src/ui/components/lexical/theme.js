@@ -20,39 +20,39 @@ export const lexicalTheme = {
     editorScroller: "min-h-[150px] border-0 flex relative outline-0 z-0 resize-y",
     viewScroller: "border-0 flex relative outline-0 z-0 resize-none",
     editorContainer: "relative block min-h-[50px]",
-    editorShell: "font-['Proxima_Nova'] font-[400] text-[1rem] text-slate-700 leading-[22.4px]",
+    editorShell: "font-sans text-base leading-[1.6] text-[var(--t-ink)]",
     card: 'overflow-hidden p-[12px] shadow-[0px_0px_6px_0px_rgba(0,0,0,0.02),0px_2px_4px_0px_rgba(0,0,0,0.08)]',
-    paragraph: "-ml-8 pl-8 relative",
+    paragraph: "font-sans text-base leading-[1.6] text-[var(--t-ink)] mb-4",
     contentEditable: 'border-none relative [tab-size:1] outline-none outline-0',
-    quote: "m-0 mb-2 font-['Oswald'] text-[30px] leading-[36px] text-[#2D3E4C] border-l-4 border-[#37576B] pl-4 pb-[12px]",
+    quote: "border-l-2 border-[var(--t-cobalt)] pl-4 text-[var(--t-graphite)] font-sans text-lg leading-[1.6] my-4",
 
     // Headings (flat)
-    heading_h1: "font-semibold text-3xl scroll-mt-36 font-display",
-    heading_h2: "font-medium text-xl scroll-mt-36 font-display",
-    heading_h3: "font-medium text-lg scroll-mt-36 font-display",
-    heading_h4: "font-medium scroll-mt-36 font-display",
-    heading_h5: "scroll-mt-36 font-display",
-    heading_h6: "scroll-mt-36 font-display",
+    heading_h1: "t-displayHero text-[var(--t-ink)] scroll-mt-36 mt-0 mb-4",
+    heading_h2: "t-displayXL text-[var(--t-ink)] scroll-mt-36 mt-0 mb-3",
+    heading_h3: "t-displayLG text-[var(--t-ink)] scroll-mt-36 mt-0 mb-3",
+    heading_h4: "t-displayMD text-[var(--t-ink)] scroll-mt-36 mt-0 mb-2",
+    heading_h5: "t-displaySM text-[var(--t-ink)] scroll-mt-36 mt-0 mb-1",
+    heading_h6: "t-displaySM text-[var(--t-ink)] scroll-mt-36 mt-0 mb-1",
 
     // Text formatting (flat)
-    text_bold: "font-[700]",
-    text_code: "bg-gray-200 px-1 py-0.5 font-mono text-[94%]",
+    text_bold: "font-semibold",
+    text_code: "font-mono text-[0.92em] bg-[var(--t-well)] border border-[var(--t-rule)] px-1 py-0.5 rounded",
     text_italic: "italic",
     text_strikethrough: "line-through",
     text_subscript: "align-sub text-[0.8em]",
     text_superscript: "align-super text-[0.8em]",
-    text_underline: "underline",
+    text_underline: "underline underline-offset-[3px]",
     text_underlineStrikethrough: "underline line-through",
 
     // Block cursor
     blockCursor: `block pointer-events-none absolute content-[''] after:absolute after:-top-[2px] after:w-[20px] after:border-t-[1px_solid_black]`,
     characterLimit: "inline !bg-[#ffbbbb]",
-    layoutContainer: 'grid gap-[10px]',
-    layoutItem: "px-2 py-4 min-w-0 max-w-full",
-    layoutItemEditable: "border border-dashed border-slate-300 rounded-lg",
+    layoutContainer: 'grid gap-3 mt-2',
+    layoutItem: "min-w-0 max-w-full",
+    layoutItemEditable: "border border-dashed border-[var(--t-rule)]",
 
     // Code block
-    code: `bg-[rgb(240,_242,_245)] font-[Menlo,_Consolas,_Monaco,_monospace] block pl-[52px] pr-[8px] py-[8px] leading-[1.53] text-[13px] m-0 mt-[8px] mb-[8px] [tab-size:2] relative after:content-[attr(data-gutter)] after:absolute after:bg-[#eee] after:left-[0] after:top-[0] after:border-r-[1px_solid_#ccc] after:p-[8px] after:text-[#777] after:whitespace-pre-wrap after:text-right after:min-w-[25px]`,
+    code: `font-mono text-sm bg-[var(--t-board)] text-[var(--t-chalk)] border border-[var(--t-board-2)] p-4 rounded-md overflow-x-auto my-4`,
 
     // Code highlight (flat)
     codeHighlight_atrule: "text-[#07a]",
@@ -94,19 +94,19 @@ export const lexicalTheme = {
     image: "editor-image",
     indent: "PlaygroundEditorTheme__indent",
     inlineImage: "inline-editor-image",
-    link: "text-[rgb(33,111,219)] no-underline inline-block hover:underline hover:cursor-pointer",
+    link: "text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)] underline underline-offset-[3px]",
 
     // List (flat)
-    list_listitem: "mx-[32px]",
+    list_listitem: "font-sans text-base leading-[1.6] text-[var(--t-ink)] mb-1",
     list_listitemChecked: "PlaygroundEditorTheme__listItemChecked",
     list_listitemUnchecked: "PlaygroundEditorTheme__listItemUnchecked",
-    list_nested_listitem: "list-none before:hidden after:hidden",
+    list_nested_listitem: "list-none",
     list_olDepth_0: "list-outside list-decimal m-0 p-0",
     list_olDepth_1: "m-0 p-0 list-outside list-alpha",
     list_olDepth_2: "m-0 p-0 list-outside list-lower-alpha",
     list_olDepth_3: "m-0 p-0 list-outside list-upper-roman",
     list_olDepth_4: "m-0 p-0 list-outside list-lower-roman",
-    list_ul: "m-0 p-0 list-outside list-disc",
+    list_ul: "font-sans list-disc pl-6 mb-4 marker:text-[var(--t-pencil)]",
 
     // Token (flat)
     token_comment: "text-slate-500",
@@ -421,8 +421,8 @@ export const lexicalTheme = {
     excalidrawButton_selected: "outline outline-2 outline-[rgb(60,132,244)] user-select-none",
 
     // HR (flat)
-    hr_base: "p-[2px] border-none my-4 cursor-pointer relative",
-    hr_after: "absolute left-0 right-0 h-[2px] bg-[#ccc] leading-[2px]",
+    hr_base: "p-[1px] border-none my-6 cursor-pointer relative",
+    hr_after: "absolute left-0 right-0 h-px bg-[var(--t-rule)] leading-[1px]",
     hr_selected: "outline-[2px] outline-solid outline-[#3c84f4] select-none",
 
     spacer: "tracking[-2px]",

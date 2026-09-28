@@ -1,7 +1,7 @@
 # The DMS map stack — mapeditor, `map`, `map_dama`: architecture + unification recommendations
 
 > Research pass 2026-07-10, driven by the Freight Atlas map redesign
-> (`planning/transportny/tasks/current/freight-atlas-map-redesign.md` in the workspace root hub).
+> (`planning/transportny/tasks/completed/freight-atlas-map-redesign.md` in the workspace root hub).
 > Refines the existing story [map-component-unification.md](../tasks/current/map-component-unification.md).
 > Live data references: section **2175271** (pattern 2175436 `freightatlas2_copy`, page `freight_atlas`) —
 > the only production consumer of `map_dama`.

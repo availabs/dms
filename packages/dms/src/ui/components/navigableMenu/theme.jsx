@@ -5,13 +5,13 @@ const navigableMenuTheme = {
   "styles": [{
     "name": "default",
     // Trigger button
-    "button": "px-1 py-0.5 hover:cursor-pointer text-gray-500 hover:text-gray-700",
+    "button": "inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--t-well)] cursor-pointer transition-colors duration-150",
     "buttonHidden": "flex sm:hidden group-hover:flex",
     "icon": "Menu",
-    "iconWrapper": "size-6",
+    "iconWrapper": "w-4 h-4 stroke-[var(--t-ink)]",
 
     // Menu container
-    "menuWrapper": "bg-white border w-80 p-1 min-h-[75px] rounded-md shadow-md",
+    "menuWrapper": "bg-[var(--t-panel)] border border-[var(--t-rule)] min-w-[16rem] p-1 rounded-lg shadow-[var(--t-shadow-drag)]",
 
     // Menu header
     "menuHeaderWrapper": "flex px-2 py-1 justify-between",
@@ -22,25 +22,25 @@ const navigableMenuTheme = {
     "backIconWrapper": "size-4",
     "closeButton": "w-fit",
     "menuCloseIcon": "XMark",
-    "menuCloseIconWrapper": "hover:cursor-pointer size-4",
+    "menuCloseIconWrapper": "cursor-pointer w-4 h-4 stroke-[var(--t-graphite)] hover:stroke-[var(--t-ink)]",
 
     // Menu items
     "menuItemsWrapper": "max-h-[80vh] overflow-y-auto scrollbar-sm",
-    "menuItem": "group flex w-full gap-1 items-center justify-between px-2 py-1 rounded-md text-sm text-slate-800",
-    "menuItemHover": "hover:bg-blue-300",
-    "menuItemIconLabelWrapper": "flex flex-1 items-center gap-1",
-    "menuItemIconWrapper": "min-w-5 size-5 stroke-slate-500 group-hover:stroke-slate-800",
+    "menuItem": "group flex items-center justify-between px-3 py-2 text-sm font-sans text-[var(--t-ink)] cursor-pointer rounded-md",
+    "menuItemHover": "hover:bg-[var(--t-well)]",
+    "menuItemIconLabelWrapper": "flex flex-grow items-center gap-2",
+    "menuItemIconWrapper": "w-4 h-4 stroke-[var(--t-graphite)] group-hover:stroke-[var(--t-ink)]",
     "menuItemLabel": "",
     "menuItemLabelLink": "cursor-pointer",
 
     // Submenu indicators
-    "subMenuIcon": "ArrowRight",
-    "subMenuIconWrapper": "place-self-center",
-    "valueSubmenuIconWrapper": "flex gap-0.5",
-    "valueWrapper": "p-0.5 rounded-md bg-gray-100 text-gray-900 text-sm whitespace-nowrap overflow-hidden text-ellipsis max-w-[120px]",
+    "subMenuIcon": "ChevronRight",
+    "subMenuIconWrapper": "place-self-center w-3.5 h-3.5 stroke-[var(--t-pencil)]",
+    "valueSubmenuIconWrapper": "flex gap-1 items-center",
+    "valueWrapper": "px-1.5 py-0.5 font-mono text-xs text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)] rounded tabular-nums",
 
     // Separator
-    "separator": "w-full border-b",
+    "separator": "w-full border-b border-[var(--t-rule)] my-1",
 
     // Breadcrumbs
     "breadcrumbWrapper": "flex items-center flex-wrap gap-1 px-2 py-1 text-sm text-gray-500 overflow-x-auto",

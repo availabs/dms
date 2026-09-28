@@ -15,7 +15,7 @@ export default function Modal ({open, setOpen, initialFocus, children, className
 
     const overlay = (
         <div role="dialog" aria-modal="true" className="fixed inset-0 z-30">
-            <div className="fixed inset-0 bg-gray-500/75" aria-hidden="true" />
+            <div className={theme.backdrop} aria-hidden="true" />
             <div className="fixed inset-0 z-10 overflow-y-auto">
                 <div
                     onClick={close}

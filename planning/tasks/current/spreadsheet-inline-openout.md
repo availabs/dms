@@ -1,5 +1,7 @@
 # Spreadsheet: inline-expand row detail (`openOutMode: 'inline'`)
 
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "IMPLEMENTED (library) — pending live verification on page 2262755"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** IMPLEMENTED (library) — pending live verification on page 2262755 (orchestrator wires `openOutMode:'inline'` + mny theme styling)
 **Topic:** patterns/page (Spreadsheet / Table)
 **Driver:** MNY Action Prioritize design alignment, Phase 3 follow-up.

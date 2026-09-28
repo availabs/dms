@@ -50,11 +50,20 @@ Draft-only: this never publishes. `navLabel`s set on **draft** rows show the rai
 
 ## Gating (which band the rail attaches to)
 
-The rail renders next to the band that holds the nav sections — specifically the group of
-the **first section carrying a `navLabel`** (`sections.find(s => s.navLabel)?.group`), with
-a `'default'` fallback for legacy docs pages. This is robust to pages whose bands all share
-`position: 'content'` (differing only by `theme`), where "first content group" would wrongly
-land on a header band.
+The rail renders next to ONE band, picked in this order (`sectionGroup.jsx`):
+1. a group flagged **`railHost: true`** — explicit, wins over everything (for pages whose first
+   content band is a breadcrumb/header, not the main content; e.g. the sitemgmt Page QA page);
+2. the group of the **first section carrying a `navLabel`** (`sections.find(s => s.navLabel)?.group`);
+3. the first `position: 'content'` band, then the legacy `'default'` name.
+
+(2) is robust to pages whose bands all share `position: 'content'` (differing only by `theme`),
+where "first content band" would wrongly land on a header band.
+
+**The rail-host band is at least one viewport tall when the brand's `contentRow` carries
+`min-h-screen`** (transportny's does — see Theme keys). So don't move content OUT of the rail-host
+band into a following full-width band to get it out from beside the rail: whatever stays behind
+(if shorter than the viewport) leaves a blank gap above the moved band. Found 2026-09-23 moving the
+Page QA tickets table below its Page-status rail — a ~500px gap under a short stories list; reverted.
 
 ## Theme keys (`pages.sectionGroup`)
 
@@ -63,7 +72,9 @@ Layout (owns the content↔rail two columns — **this lives in the pages theme,
 byte-identical):
 - `contentRow` — the flex row wrapping `[content][rail]`. **Must be `items-stretch`** so the
   rail column is full band height and its inner `sticky` has room to pin (`items-start`
-  collapses the column and kills sticky).
+  collapses the column and kills sticky). transportny adds `min-h-screen`
+  (`themev2.js` `pages.sectionGroup`), which floors the rail-host band at one viewport — see
+  Gating for what that does to a short band.
 - `contentCol` — `flex-1 min-w-0` (content takes the remaining width).
 - `sideNavContainer1/2/3` — rail width + responsive (`hidden xl:block`), the **sticky**
   wrapper (`sticky top-[Npx] h-[calc(100vh-…)]` — tune `top` for the page header offset),

@@ -11,6 +11,9 @@ const { jsonMerge } = require('#db/query-utils.js');
 const { resolveTable, sanitize } = require('#db/table-resolver.js');
 const { getInstance } = require('#db/type-utils.js');
 const querySets = require('./query_sets');
+// Env settings live with the tasks controller (same `data_manager.settings` /
+// `dms.settings` read); it doesn't require this module, so there's no cycle.
+const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 
@@ -18,9 +21,145 @@ const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
 // ================================================= Source Functions ================================================
 
-async function getSourcesLength(env) {
+// Source types excluded from the default `sources` collection when the env's
+// settings don't say otherwise. A DAMA `file_upload` source is one row per
+// uploaded image — every lexical InlineImage and Card image-column upload POSTs
+// to /dama-admin/:pgEnv/file_upload — so on a long-lived env they outnumber
+// real datasets by orders of magnitude (11,057 of 11,423 on hazmit_dama), and
+// every list surface fetched all of them just to discard them client-side.
+//
+// Two deliberate limits:
+//   - `sources.byId` is NOT filtered. A single upload source must still load on
+//     its own page; only the *enumeration* hides rows.
+//   - DMS-internal sources are NOT filtered (see getSourcesLength). Their
+//     `file_upload` rows come from the datasets "add a file" CreatePage — a
+//     deliberate authoring act producing a curated document-as-dataset (the
+//     Freight Atlas plan PDFs, QA screenshot sets) — and there are single
+//     digits of them, so hiding them costs curated surfaces and saves nothing.
+const DEFAULT_HIDDEN_SOURCE_TYPES = ['file_upload'];
+
+/**
+ * Source types to exclude from the default source enumeration for an env.
+ * Reads `settings.hidden_source_types`; an explicit `[]` means "hide nothing"
+ * and is honoured, while a missing/malformed value falls back to the default.
+ */
+async function getHiddenSourceTypes(env) {
+  let settings;
+  try {
+    const raw = await getSettings(env);
+    settings = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+  } catch {
+    return DEFAULT_HIDDEN_SOURCE_TYPES;
+  }
+  const types = settings?.hidden_source_types;
+  if (!Array.isArray(types)) return DEFAULT_HIDDEN_SOURCE_TYPES;
+  return types.filter(t => typeof t === 'string' && t.length);
+}
+
+// Category top-levels that mean "how alive is this dataset" rather than "what is
+// it about". Status is encoded by PLACEMENT: a source in none of these is
+// production; there is no `Active` tag.
+//
+// This is the ENV-level floor only. Per-PATTERN hiding is applied client-side —
+// the Falcor route is keyed `uda[env].sources`, not by pattern, so a per-pattern
+// predicate cannot be pushed into this SQL without a pattern-scoped collection.
+// The split is deliberate rather than a limitation: the volume lever here is
+// `hidden_source_types` (11,423 rows → 367 on hazmit_dama), and filtering the
+// remaining few hundred per pattern in the browser costs nothing measurable.
+//
+// Default is EMPTY, not the lifecycle list: an env that has not opted in must
+// behave exactly as it does today. The client applies the lifecycle defaults.
+// Mirror of `patterns/datasets/utils/lifecycle.js` LIFECYCLE_DEFAULTS in the dms
+// package — the two packages do not share code, so keep them in sync.
+const LIFECYCLE_CATEGORIES = ['Sandbox', 'Archive', 'Data Processing', 'Uploaded File'];
+const DEFAULT_HIDDEN_CATEGORIES = [];
+
+/**
+ * Category top-levels to exclude from the default source enumeration for an env.
+ * Same contract as getHiddenSourceTypes: an explicit `[]` means "hide nothing",
+ * a missing/malformed value falls back to the default.
+ */
+async function getHiddenCategories(env) {
+  let settings;
+  try {
+    const raw = await getSettings(env);
+    settings = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
+  } catch {
+    return DEFAULT_HIDDEN_CATEGORIES;
+  }
+  const cats = settings?.hidden_categories;
+  if (!Array.isArray(cats)) return DEFAULT_HIDDEN_CATEGORIES;
+  return cats.filter(c => typeof c === 'string' && c.length);
+}
+
+/**
+ * Predicate excluding sources carrying ANY of `cats` as a category TOP-LEVEL.
+ *
+ * ANY, not EVERY. The legacy `filtered_categories` list hid a source only when
+ * every one of its top-levels was listed — which meant hiding anything required
+ * listing its neighbours too, and is why hazmit_dama's list reached 67 of 81
+ * names. It also makes a two-facet vocabulary impossible: a source carrying both
+ * a subject path and a lifecycle path could never be hidden without hiding its
+ * subject area too.
+ *
+ * `categories` is a JSONB array of breadcrumb paths — [["Area","Sub"], …] — so
+ * the top-level of each path is `->>0`. SQLite has no jsonb_array_elements;
+ * `json_each(categories)` yields each path as `value`, and `json_extract(value,
+ * '$[0]')` is its head (same shape the DMS controller uses for `$.sections`).
+ */
+function hiddenCategoryClause(cats, dbType, paramIndex) {
+  if (!cats.length) return { sql: '', params: [] };
+  const sql = dbType === 'postgres'
+    ? `NOT EXISTS (
+         SELECT 1 FROM jsonb_array_elements(COALESCE(categories, '[]'::jsonb)) AS cat
+         WHERE cat->>0 = ANY($${paramIndex})
+       )`
+    : `NOT EXISTS (
+         SELECT 1 FROM json_each(COALESCE(categories, '[]')) AS cat
+         WHERE json_extract(cat.value, '$[0]') = ANY($${paramIndex})
+       )`;
+  return { sql, params: [cats] };
+}
+
+/**
+ * WHERE fragment excluding hidden source types from a DAMA sources query.
+ * Written as `NOT (type = ANY($1))` with no cast so the SQLite adapter's
+ * `= ANY($n)` → `IN (?, …)` rewrite still matches it. Returns an empty fragment
+ * when nothing is hidden — `IN ()` is not portable.
+ */
+function hiddenTypeClause(types) {
+  if (!types.length) return { where: '', params: [] };
+  return {
+    where: `WHERE (type IS NULL OR NOT (type = ANY($1)))`,
+    params: [types],
+  };
+}
+
+/**
+ * Combined WHERE for the default source enumeration: hidden types AND hidden
+ * category top-levels. Returns an empty fragment when nothing is hidden — `IN ()`
+ * is not portable, which is why the clauses are assembled rather than templated.
+ */
+function hiddenSourceClause(types, cats, dbType) {
+  const parts = [];
+  const params = [];
+  if (types.length) {
+    params.push(types);
+    parts.push(`(type IS NULL OR NOT (type = ANY($${params.length})))`);
+  }
+  if (cats.length) {
+    params.push(cats);
+    const { sql } = hiddenCategoryClause(cats, dbType, params.length);
+    parts.push(sql);
+  }
+  return { where: parts.length ? `WHERE ${parts.join(' AND ')}` : '', params };
+}
+
+async function getSourcesLength(env, { includeHidden = false } = {}) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
 
+  // DMS-internal sources are enumerated from the pattern's own `sources` array
+  // and are not filtered by type — see DEFAULT_HIDDEN_SOURCE_TYPES.
   if (isDms) {
     const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return 0;
@@ -29,17 +168,22 @@ async function getSourcesLength(env) {
     return sources.length;
   }
 
+  const hiddenTypes = includeHidden ? [] : await getHiddenSourceTypes(env);
+  const hiddenCats = includeHidden ? [] : await getHiddenCategories(env);
   const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const { where, params } = hiddenSourceClause(hiddenTypes, hiddenCats, db.type);
   const { rows: [{ num_sources }] } = await db.query(
-    `SELECT COUNT(1)::INTEGER AS num_sources FROM ${tbl}`
+    `SELECT COUNT(1)::INTEGER AS num_sources FROM ${tbl} ${where}`,
+    params
   );
   return num_sources;
 }
 
-async function getSourceIdsByIndex(env, indices) {
+async function getSourceIdsByIndex(env, indices, { includeHidden = false } = {}) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
   const num = indices.to - indices.from + 1;
 
+  // Unfiltered, to match getSourcesLength's DMS branch.
   if (isDms) {
     const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return [];
@@ -53,9 +197,13 @@ async function getSourceIdsByIndex(env, indices) {
       .map(s => +s.id);
   }
 
+  const hiddenTypes = includeHidden ? [] : await getHiddenSourceTypes(env);
+  const hiddenCats = includeHidden ? [] : await getHiddenCategories(env);
   const tbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const { where, params } = hiddenSourceClause(hiddenTypes, hiddenCats, db.type);
   const { rows } = await db.query(
-    `SELECT source_id AS id FROM ${tbl} ORDER BY 1 LIMIT ${+num} OFFSET ${indices.from}`
+    `SELECT source_id AS id FROM ${tbl} ${where} ORDER BY 1 LIMIT ${+num} OFFSET ${indices.from}`,
+    params
   );
   return rows.map(r => +r.id);
 }
@@ -237,18 +385,27 @@ async function getViewById(env, ids, attributes) {
 async function getViewBySrcCategories (env, category){
   const {db} = await getEssentials({ env });
   const tbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
+  // `data_manager.sources` was hardcoded here even on the SQLite adapter, where
+  // neither the schema nor jsonb_array_elements exists — so this could only ever
+  // work on postgres. Both halves are now dialect-aware.
+  const srcTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const catMatch = db.type === 'postgres'
+    ? `EXISTS (
+         SELECT 1
+         FROM jsonb_array_elements(COALESCE(categories, '[]'::jsonb)) AS outer_elem,
+              jsonb_array_elements_text(outer_elem) AS inner_elem
+         WHERE inner_elem = $1
+       )`
+    : `EXISTS (
+         SELECT 1 FROM json_each(COALESCE(categories, '[]')) AS cat,
+                       json_each(cat.value) AS part
+         WHERE part.value = $1
+       )`;
   const sql = `SELECT *
                 FROM ${tbl}
-                WHERE version IS NOT NULL 
+                WHERE version IS NOT NULL
                 AND source_id IN (
-                  SELECT source_id
-                  FROM data_manager.sources
-                  WHERE EXISTS (
-                    SELECT 1
-                    FROM jsonb_array_elements(categories) AS outer_elem,
-                        jsonb_array_elements_text(outer_elem) AS inner_elem
-                    WHERE inner_elem = $1
-                  )
+                  SELECT source_id FROM ${srcTbl} WHERE ${catMatch}
               );`;
 
   const { rows } = await db.query(sql, [category]);
@@ -937,6 +1094,9 @@ module.exports = {
   getSourceIdsByIndex,
   getSourceById,
   updateSource,
+  getHiddenCategories,
+  hiddenCategoryClause,
+  LIFECYCLE_CATEGORIES,
   setIndexColumn,
   setPrimaryKeyColumn,
   getSourcePrimaryKeyInfo,
@@ -960,5 +1120,7 @@ module.exports = {
 
   // Exported for testing
   translatePgToSqlite,
-  resolveIdAttribute
+  resolveIdAttribute,
+  getHiddenSourceTypes,
+  DEFAULT_HIDDEN_SOURCE_TYPES
 };

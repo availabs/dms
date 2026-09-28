@@ -1,5 +1,7 @@
 # Author-editable tables in a page section — inline data (A) + internal table (B)
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "2026-06-09 — Task created from the freight-atlas content-pages work + the assessment doc. Not starte…") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Assessment / source of truth for the analysis: [`research/spreadsheet-inline-and-internal-table-authoring.md`](../../research/spreadsheet-inline-and-internal-table-authoring.md).
 > Origin: building the freight-atlas **"What changed, 2019 → 2024"** table (a 5×3 static table currently
 > shipped as a lexical rich-text section) — see `planning/transportny/tasks/current/freight-atlas-content-pages.md`

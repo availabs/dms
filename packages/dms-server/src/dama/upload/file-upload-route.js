@@ -17,6 +17,13 @@ const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', 
 const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
 const MAX_IMAGE_DIM = 1400;
 
+// Upload marker. `type` is what the source enumeration filters on
+// (uda.controller `hidden_source_types`), the category is what the datasets UI
+// groups uploads under. The DMS-backed route (file-upload-dms-route.js)
+// hardcodes the same type on its `data` payload.
+const UPLOAD_SOURCE_TYPE = 'file_upload';
+const UPLOAD_CATEGORY = 'Uploaded File';
+
 /**
  * POST /dama-admin/:pgEnv/file_upload
  */
@@ -27,6 +34,9 @@ function fileUpload(req, res) {
   const fields = {};
   let savedFilePath = null;
   let originalFileName = null;
+  // Resolves once the temp file is fully flushed. Busboy's 'finish' only means the
+  // request is parsed — the WriteStream may still be writing.
+  let fileWritten = null;
 
   busboy.on('field', (name, value) => {
     fields[name] = value;
@@ -36,7 +46,12 @@ function fileUpload(req, res) {
     originalFileName = info.filename;
     const tempPath = path.join(os.tmpdir(), `dms-fileupload-${randomUUID()}`);
     savedFilePath = tempPath;
-    stream.pipe(fs.createWriteStream(tempPath));
+    const ws = fs.createWriteStream(tempPath);
+    fileWritten = new Promise((resolve, reject) => {
+      ws.on('finish', resolve);
+      ws.on('error', reject);
+    });
+    stream.pipe(ws);
   });
 
   busboy.on('finish', async () => {
@@ -44,9 +59,10 @@ function fileUpload(req, res) {
       if (!savedFilePath) {
         return res.status(400).json({ ok: false, error: 'No file uploaded' });
       }
+      await fileWritten;
 
       const {
-        source_name, source_id: existingSourceId, type = 'file_upload',
+        source_name, source_id: existingSourceId,
         file_name, file_type, directory, description, categories, user_id,
       } = fields;
 
@@ -89,11 +105,21 @@ function fileUpload(req, res) {
         if (!source_name || source_name.length < 4) {
           return res.status(400).json({ ok: false, error: 'source_name must be at least 4 characters' });
         }
+        // The upload marker is set HERE, not taken from the request: the
+        // default source enumeration hides `type = 'file_upload'`
+        // (uda.controller `hidden_source_types`), so a caller that omitted or
+        // renamed the type would silently add a row to every dataset list. The
+        // `Uploaded File` category is merged in for the same reason — it is
+        // what the datasets UI groups uploads under, and every pre-existing
+        // upload row carries it.
         const parsedCats = categories ? JSON.parse(categories) : null;
+        const extraCats = Array.isArray(parsedCats)
+          ? parsedCats.filter(c => Array.isArray(c) && c[0] !== UPLOAD_CATEGORY)
+          : [];
         const source = await createDamaSource({
           name: source_name,
-          type,
-          categories: parsedCats,
+          type: UPLOAD_SOURCE_TYPE,
+          categories: [[UPLOAD_CATEGORY], ...extraCats],
           user_id: user_id ? +user_id : null,
         }, pgEnv);
         source_id = source.source_id;

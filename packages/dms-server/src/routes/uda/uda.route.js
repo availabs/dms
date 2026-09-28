@@ -82,6 +82,66 @@ module.exports = [
     },
   },
 
+  // --------------------------------- sourcesAll.length ---------------------------------
+  // `sources` hides the env's `settings.hidden_source_types` (default
+  // `file_upload`); `sourcesAll` is the same enumeration with nothing hidden,
+  // for admin surfaces that ask for everything on purpose. Falcor routes are
+  // static path patterns, so "include hidden" has to be a path segment rather
+  // than an argument. Both collections resolve to the same `sources.byId`
+  // rows, so nothing about attribute fetching changes.
+  {
+    route: `uda[{keys:envs}].sourcesAll.length`,
+    get: async function(pathSet) {
+      try {
+        const { envs } = pathSet;
+        const result = [];
+
+        for (const env of envs) {
+          const numRows = await getSourcesLength(env, { includeHidden: true });
+          result.push({
+            path: ["uda", env, "sourcesAll", "length"],
+            value: +numRows,
+          });
+        }
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sourcesAll.byIndex ---------------------------------
+  {
+    route: `uda[{keys:envs}].sourcesAll.byIndex[{integers:indices}]`,
+    get: async function(pathSet) {
+      try {
+        const { envs, indices } = pathSet;
+        const result = [];
+
+        for (const env of envs) {
+          const idsByIdx = await getSourceIdsByIndex(
+            env,
+            { from: indices[0], to: indices[indices.length - 1] },
+            { includeHidden: true }
+          );
+
+          indices.forEach((srcIdx, ii) => {
+            const id = idsByIdx[ii];
+            result.push({
+              path: ["uda", env, "sourcesAll", "byIndex", srcIdx],
+              value: $ref(["uda", env, "sources", "byId", id]),
+            });
+          });
+        }
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
+
   // --------------------------------- sources.byId ---------------------------------
   {
     route: `uda[{keys:envs}].sources.byId[{integers:ids}][{keys:attributes}]`,

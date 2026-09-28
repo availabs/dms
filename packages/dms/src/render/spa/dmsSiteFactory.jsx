@@ -88,6 +88,17 @@ export function DmsSite (config) {
     // fix existed. The full fetch is always authoritative once it lands.
     const routesFinalizedRef = useRef(false);
 
+    // The site data the currently-mounted routes were built from, as JSON.
+    // The fast path below builds routes from the localStorage snapshot; when the
+    // full fetch then lands with BYTE-IDENTICAL data, replacing the routes array
+    // rebuilds the router and REMOUNTS the whole tree — which refetches every
+    // page's data and renders it twice. On MitigateNY /cenrep that was ~300 ms
+    // and 191 kB of duplicate source fetching on every warm load (i.e. every
+    // visit after the first). Comparing the full site data — not just route
+    // paths — keeps a genuinely stale snapshot (an edited pattern, a new theme
+    // selection) replacing the routes as before; only an exact match is skipped.
+    const appliedSiteDataRef = useRef(null);
+
     // Fast-path theme resolution for the lazy-themes case: compute routes from
     // already-available cached/default data as soon as the needed theme(s)
     // resolve, without waiting for the full network fetch below.
@@ -97,12 +108,13 @@ export function DmsSite (config) {
         if (!cached?.length) return;
         let isStale = false;
         (async () => {
-            const resolvedThemes = await resolveThemes(themes, cached);
+            const resolvedThemes = await resolveThemes(themes, cached, { falcor, app: dmsConfig?.app });
             if (isStale || routesFinalizedRef.current) return;
             // `themes` (still the raw lazy loader here) doubles as adminThemesLoader
             // so the admin pattern-theme-picker (themeEditor.jsx) can fetch the full
             // theme registry even if opened before the full fetch below completes.
             setDynamicRoutes(pattern2routes(cached, { ...routeProps, themes: resolvedThemes, adminThemesLoader: themes }));
+            try { appliedSiteDataRef.current = JSON.stringify(cached); } catch { appliedSiteDataRef.current = null; }
             setLoading(false);
         })();
         return () => { isStale = true };
@@ -117,8 +129,16 @@ export function DmsSite (config) {
             // subset of routes (e.g., SSR pre-rendered one pattern but the
             // site has others). The fetch fills in any missing routes.
             // console.time('dmsSite - loading Dynamic Routes', )
+            // dmsSiteFactory returns ROUTES; the site data it loaded comes back
+            // through this callback (the SSR handler uses the same hook), and is
+            // what the snapshot comparison below needs.
+            let fetchedSiteData = null;
             const routes = await dmsSiteFactory({
                 ...routeProps,
+                onResolvedSiteData: (resolvedApp, resolvedType, resolvedData) => {
+                    fetchedSiteData = resolvedData;
+                    routeProps.onResolvedSiteData?.(resolvedApp, resolvedType, resolvedData);
+                },
                 // Single-tenant: fires with the same value resolvedSyncApp already
                 // had (no-op re-render). Multi-tenant: this is the first time the
                 // correct (tenant) app is known — see resolvedSyncApp's init below.
@@ -139,7 +159,20 @@ export function DmsSite (config) {
                 const isRedundantSSRRefetch = hydrationData
                     && routes.length === dynamicRoutes.length
                     && routes.every((r, i) => r.path === dynamicRoutes[i]?.path);
-                if (!isRedundantSSRRefetch) setDynamicRoutes(routes);
+                // Same reasoning for the snapshot fast path (see
+                // appliedSiteDataRef): if it already mounted routes built from
+                // identical site data, swapping in an equivalent array only buys
+                // a remount.
+                let siteDataJson = null;
+                try { siteDataJson = fetchedSiteData ? JSON.stringify(fetchedSiteData) : null; }
+                catch { /* keep null → always apply */ }
+                const isRedundantSnapshotRefetch = siteDataJson != null
+                    && appliedSiteDataRef.current != null
+                    && appliedSiteDataRef.current === siteDataJson;
+                if (!isRedundantSSRRefetch && !isRedundantSnapshotRefetch) {
+                    setDynamicRoutes(routes);
+                    appliedSiteDataRef.current = siteDataJson;
+                }
                 setLoading(false);
                 // console.timeEnd('dmsSite - loading Dynamic Routes')
             }
@@ -278,6 +311,17 @@ export default async function dmsSiteFactory(config) {
     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteInstance)
     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteInstance)
 
+    // Routing only needs to know WHICH theme each `theme_refs` entry is, not its
+    // content: resolveThemes() below fetches the full row for the name a pattern
+    // actually selects. Without this the site load expands every theme row —
+    // 832 kB per page load on MitigateNY, which selects none of them. Set on
+    // this function's own deep clone, so the admin theme editor (which loads the
+    // site row through the admin pattern's route config) still gets the full
+    // expansion it edits against.
+    const siteAttributes = Object.values(dmsConfigUpdated.format?.attributes || {});
+    const themeRefsAttr = siteAttributes.find(a => a?.key === 'theme_refs');
+    if (themeRefsAttr) themeRefsAttr.refAttributes = ["data ->> 'name'"];
+
     falcor = falcor || falcorGraph(API_HOST)
     let data = await dmsDataLoader(falcor, dmsConfigUpdated, `/`);
     // Skipped when patterns came back as no-access stubs (auth hiccup) —
@@ -293,7 +337,7 @@ export default async function dmsSiteFactory(config) {
     // before building routes. adminThemesLoader carries the raw, unresolved
     // loader through for the one consumer (themeEditor.jsx) that needs every
     // theme name. See planning/shared/bundle-size-log.md.
-    const resolvedThemes = await resolveThemes(config.themes, data);
+    const resolvedThemes = await resolveThemes(config.themes, data, { falcor, app: dmsConfigUpdated.app });
     const resolvedConfig = { ...config, themes: resolvedThemes, adminThemesLoader: config.themes };
 
     if (!isMultiTenant) {
@@ -351,6 +395,11 @@ export default async function dmsSiteFactory(config) {
     tenantDmsConfigUpdated.registerFormats = updateRegisteredFormats(tenantDmsConfigUpdated.registerFormats, tenantApp, siteInstance)
     tenantDmsConfigUpdated.attributes = updateAttributes(tenantDmsConfigUpdated.attributes, tenantApp, siteInstance)
 
+    // Same name-only `theme_refs` projection as the master load above.
+    const tenantThemeRefsAttr = Object.values(tenantDmsConfigUpdated.format?.attributes || {})
+        .find(a => a?.key === 'theme_refs');
+    if (tenantThemeRefsAttr) tenantThemeRefsAttr.refAttributes = ["data ->> 'name'"];
+
     // Step 4 — load the tenant's own site (lives in dms_<tenantApp> schema)
     const tenantData = await dmsDataLoader(falcor, tenantDmsConfigUpdated, '/');
     persistSiteSnapshot(
@@ -360,7 +409,7 @@ export default async function dmsSiteFactory(config) {
     )
 
     // Step 5 — build routes scoped to the tenant
-    const tenantResolvedThemes = await resolveThemes(config.themes, tenantData);
+    const tenantResolvedThemes = await resolveThemes(config.themes, tenantData, { falcor, app: tenantDmsConfigUpdated.app });
     onResolvedSyncApp?.(tenantApp);
     onResolvedSiteData?.(tenantApp, siteType, tenantData);
     return pattern2routes(tenantData, { ...resolvedConfig, dmsConfig: tenantDmsConfig, themes: tenantResolvedThemes })

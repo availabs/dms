@@ -1,26 +1,37 @@
 export const filterTheme = {
-    filterLabel: 'py-0.5 text-gray-500 font-medium',
-    loadingText: 'pl-0.5 font-thin text-gray-500',
-    filterSettingsWrapperInline: 'w-2/3',
+    // Ported from tessera-theme-v6.js's top-level `filters` export, styles[0]
+    // ("panel", the default/activeStyle:0 entry). tessera's `chip` style
+    // (styles[1]) is a distinct named variant, not ported here per the
+    // styles[]-array porting rule (this file has no styles[] wrapper of its
+    // own, so only matching flat keys' values are replaced).
+    filterLabel: 'font-mono text-[10px] font-medium uppercase tracking-[0.08em] text-[var(--t-pencil)]',
+    loadingText: 'font-mono text-xs text-[var(--t-pencil)]',
+    filterSettingsWrapperInline: 'flex items-center gap-2',
     filterSettingsWrapperStacked: 'w-full',
-    labelWrapperInline: 'w-1/3 text-xs',
-    labelWrapperStacked: 'w-full text-xs',
-    input: 'w-full max-h-[150px] flex text-xs overflow-auto scrollbar-sm border rounded-md bg-white p-2 text-nowrap',
-    settingPillsWrapper: 'flex flex-row flex-wrap gap-1',
-    settingPill: 'px-1 py-0.5 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded-md',
-    settingLabel: 'text-gray-900 font-regular min-w-fit',
-    filtersWrapper: 'w-full py-6 flex flex-col rounded-md',
+    labelWrapperInline: 'shrink-0 inline-flex items-center gap-1',
+    labelWrapperStacked: 'w-full',
+    input: 'w-full font-sans text-sm border border-[var(--t-rule-strong)] rounded-md bg-[var(--t-panel)] text-[var(--t-ink)] p-2',
+    settingPillsWrapper: 'flex flex-wrap gap-1.5',
+    settingPill: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] bg-[var(--t-panel)] border border-[var(--t-rule)] text-[var(--t-graphite)]',
+    settingLabel: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
+    filtersWrapper: 'w-full p-3 flex flex-col gap-2 rounded-lg bg-[var(--t-well)] border border-[var(--t-rule)]',
 
     // Round pill that toggles the filter panel open/closed. Pulled out of inline
     // JSX so themes can resize / reposition it (or set display:none) without
     // touching the component. Used by both RenderFilters and ExternalFilters.
+    // NOT ported from tessera (`hidden`/`hidden`) — that's tessera's OWN filter
+    // panel deliberately having no expand/collapse affordance at all, not a
+    // portable "look." Several other projects (mny's default filter style,
+    // wcdb — neither overrides these) actively use a visible toggle to
+    // expand/collapse the panel; inheriting `hidden` silently deleted that
+    // working control. Kept as the pre-port library default.
     toggleButton: 'w-fit -mt-4 p-2 border rounded-full self-end',
     toggleIcon: 'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer',
     // Grid wrapper holding the rendered filter / condition rows.
-    conditionsGrid: 'grid',
+    conditionsGrid: 'grid gap-2',
     // Per-row layout, parameterized by display.placement.
-    conditionRowInline: 'w-full flex flex-row items-center gap-1',
-    conditionRowStacked: 'w-full flex flex-col items-center gap-1',
+    conditionRowInline: 'inline-flex items-center gap-1.5 w-fit',
+    conditionRowStacked: 'flex flex-col gap-1',
 
     // Needs-value TOGGLE chip — the viewer control for a unary `empty`/`notempty`
     // external leaf (ExternalFilters). A unary op has no value input, so this

@@ -8,6 +8,7 @@ import {
 import { falcorGraph } from '@availabs/avl-falcor'
 
 import dmsSiteFactory from '../spa/dmsSiteFactory.jsx'
+import { preloadAllLazyComponents, collectRenderedLazyComponents } from '../../utils/lazyComponent.js'
 
 // Stub `window` and `document` for SSR — many components access window.location,
 // window.localStorage, document.createElement, etc. during render.
@@ -34,6 +35,11 @@ if (typeof globalThis.window === 'undefined') {
     removeEventListener: () => {},
     navigator: { userAgent: '' },
     matchMedia: () => ({ matches: false, addListener: () => {}, removeListener: () => {} }),
+    // Node's own URL (has createObjectURL). maplibre-gl runs
+    // `window.URL.createObjectURL(new Blob(...))` at import time whenever
+    // `window` exists — and it's now imported lazily, AFTER this stub is
+    // installed (code-split Map section; see utils/lazyComponent.js).
+    URL: globalThis.URL,
   }
 }
 
@@ -121,7 +127,7 @@ export function createSSRHandler({
   /**
    * Render a Web Request to HTML.
    * @param {Request} request - Web standard Request object
-   * @returns {Promise<{ html: string, status: number, headers: object, siteData: object|null, themeFontsHtml: string }>}
+   * @returns {Promise<{ html: string, status: number, headers: object, siteData: object|null, themeFontsHtml: string, lazy: string[] }>}
    */
   async function render(request) {
     const url = new URL(request.url)
@@ -144,12 +150,19 @@ export function createSSRHandler({
 
     const router = createStaticRouter(handler.dataRoutes, context)
 
-    const html = renderToString(
+    // Code-split components (utils/lazyComponent.js) must be loaded before
+    // renderToString, which never waits for a Suspense boundary — it would
+    // emit the fallback instead of the content. Memoized per component, so
+    // this is a no-op after the first request. The ids that actually render
+    // go to the client (`lazy`), which loads the same chunks before
+    // hydrateRoot so its first render matches this HTML.
+    await preloadAllLazyComponents()
+    const [html, lazy] = collectRenderedLazyComponents(() => renderToString(
       React.createElement(StaticRouterProvider, {
         router,
         context,
       })
-    )
+    ))
 
     // Collect headers from the deepest matching route
     const headers = { 'Content-Type': 'text/html; charset=utf-8' }
@@ -169,6 +182,7 @@ export function createSSRHandler({
       headers,
       siteData,
       themeFontsHtml,
+      lazy,
     }
   }
 

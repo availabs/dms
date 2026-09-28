@@ -209,15 +209,34 @@ async function preloadSectionsArray(falcor, sections, filterMap, label) {
 }
 
 /**
+ * The page a loader result is for: the row whose url_slug matches, or the
+ * site's root page (no parent, index 0) for an empty slug. Only rows that
+ * carry sections count.
+ */
+export function findPageItem(data, slug = '') {
+    const hasSections = d => (Array.isArray(d.sections) && d.sections.length) ||
+                             (Array.isArray(d.draft_sections) && d.draft_sections.length)
+    return slug
+        ? (data || []).find(d => d.url_slug === slug && hasSections(d))
+        : (data || []).find(d => !d.parent && d.index == 0 && hasSections(d))
+}
+
+/**
+ * Every section element-type on a page (published and draft), for
+ * preloading the page's code-split section components.
+ */
+export function pageSectionTypes(pageItem) {
+    return [...(pageItem?.sections || []), ...(pageItem?.draft_sections || [])]
+        .map(s => s?.element?.['element-type'])
+        .filter(Boolean)
+}
+
+/**
  * Pre-load dataWrapper data for all eligible sections on a page.
  * Called from the page pattern's preload hook in dmsPageFactory's loader.
  */
 export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '') {
-    const hasSections = d => (Array.isArray(d.sections) && d.sections.length) ||
-                             (Array.isArray(d.draft_sections) && d.draft_sections.length)
-    const pageItem = slug
-        ? data.find(d => d.url_slug === slug && hasSections(d))
-        : data.find(d => !d.parent && d.index == 0 && hasSections(d))
+    const pageItem = findPageItem(data, slug)
     if (!pageItem) return data
 
     const url = new URL(requestUrl)

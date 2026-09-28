@@ -1,5 +1,7 @@
 # Empty `filter`/`exclude` leaf → no-op (don't emit `IN ()`)
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "Fix (IMPLEMENTED) … Live verification on congestion_v2 … Blocked on a fresh tsmo2 dev auth") · **Release:** review — live verify on congestion_v2 + UDA test suite · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 A dataWrapper filter leaf with op `filter` (or `exclude`) and an **empty value**

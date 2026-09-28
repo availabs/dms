@@ -1,5 +1,7 @@
 # SSR Phase 2: Streaming Server-Side Rendering
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "(no status line; testing checklist all unchecked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Upgrade the basic SSR from Phase 1 (`renderToString`) to streaming SSR (`renderToPipeableStream`). The server sends the HTML shell (nav, layout, CSS links) immediately and streams in page content as loaders resolve. This improves time-to-first-byte (TTFB) and perceived performance — users see the page skeleton instantly while data-heavy sections load.

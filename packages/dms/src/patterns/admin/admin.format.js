@@ -1,5 +1,16 @@
-import PatternList from './components/patternList'
+import { lazyComponent } from '../../utils/lazyComponent'
+
 import TenantList from './components/tenantList'
+
+// Code-split: the pattern list renders only on admin pages, but this format is
+// imported eagerly (adminConfig builds every site's root dmsConfig). Same
+// { EditComp, ViewComp } shape the module default-exports.
+// See planning/tasks/completed/bundle-split-initial-graph.md.
+const loadPatternList = () => import('./components/patternList')
+const PatternList = {
+  EditComp: lazyComponent('admin/PatternList.Edit', () => loadPatternList().then(m => ({ default: m.default.EditComp }))),
+  ViewComp: lazyComponent('admin/PatternList.View', () => loadPatternList().then(m => ({ default: m.default.ViewComp }))),
+}
 
 export const themeFormat = {
   app: 'admin',
@@ -184,10 +195,14 @@ const patternAdminFormat = {
       format: 'admin+tenant',
       DisplayComp: TenantList
     },
-    {
-      key: 'themes',
-      type: 'json'
-    },
+    // NOTE: there is no `themes` attribute. Site rows created before the
+    // ref-based theme model still carry a `data.themes` array holding every
+    // theme's full JSON inline (470 kB on mitigat-ny-prod, 444 kB on avail),
+    // but nothing reads it — `theme_refs` below is the live model, and both the
+    // renderer (render/spa/utils.js) and the admin theme pages resolve themes
+    // through that. Declaring it here only round-tripped half a megabyte of
+    // dead weight through every site save. See
+    // planning/tasks/current/site-bootstrap-payload-and-pattern-lookup.md.
     {
       key: 'theme_refs',
       type: 'dms-format',

@@ -67,6 +67,10 @@ const iconList = [
   { icon: "Printer" },
   { icon: "Add" },
   { icon: "XMark" },
+  { icon: "Key" },
+  { icon: "Lock" },
+  { icon: "ArrowUpRight" },
+  { icon: "Tile" },
   { icon: "AdjustmentsHorizontal" },
   { icon: "LinkSquare" },
   { icon: "Link" },
@@ -121,6 +125,8 @@ const iconList = [
   { icon: "Home" },
   { icon: "MapLayers" },
   { icon: "Spinner" },
+  { icon: "Sun" },
+  { icon: "Moon" },
 
 ]
 

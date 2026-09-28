@@ -9,34 +9,36 @@ import { settingsEditorTheme } from './settings.theme'
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
-// www:/freightatlas). Saved through the section's normal Save button as
-// `locations`. "www" counts as the root domain, matching site routing.
+// www:/freightatlas). Saved through the page-level Save bar as `locations`.
 // See planning/tasks/current/pattern-multi-location-mounts.md.
 function LocationsEditor({ value, onChange }) {
-  const { UI } = useContext(ThemeContext);
+  const { UI, theme } = useContext(ThemeContext);
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
   const { Input, Button } = UI;
   const rows = Array.isArray(value) ? value : [];
   const update = (i, key, v) => onChange(rows.map((r, ri) => ri === i ? { ...r, [key]: v } : r));
   return (
-    <div className={'w-full flex flex-col gap-1 pt-2'}>
-      <span className={'text-sm font-medium text-slate-700'}>Additional Locations</span>
-      <span className={'text-xs text-slate-400'}>
-        Also serve this pattern at these subdomain + base URL pairs ("www" = the root domain).
-      </span>
-      {rows.map((loc, i) => (
-        <div key={i} className={'w-full flex items-center gap-2'}>
-          <Input value={loc?.subdomain || ''} placeholder={'subdomain (e.g. www)'}
-                 onChange={e => update(i, 'subdomain', e.target.value)} />
-          <Input value={loc?.base_url || ''} placeholder={'base URL (e.g. /freightatlas)'}
-                 onChange={e => update(i, 'base_url', e.target.value)} />
-          <Button type={'plain'} title={'remove location'}
-                  onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
-        </div>
-      ))}
-      <Button type={'plain'} className={'w-fit'} title={'add location'}
-              onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
-        + add location
-      </Button>
+    <div className={t.card}>
+      <div className={t.cardHeader}>
+        <span className={t.cardHeaderLabel}>additional locations</span>
+        <span className={t.cardHeaderHint}>also serve this pattern at these subdomain + base URL pairs ("www" = the root domain)</span>
+      </div>
+      <div className={t.listSection}>
+        {rows.map((loc, i) => (
+          <div key={i} className={t.listRow}>
+            <Input value={loc?.subdomain || ''} placeholder={'subdomain (e.g. www)'}
+                   onChange={e => update(i, 'subdomain', e.target.value)} />
+            <Input value={loc?.base_url || ''} placeholder={'base URL (e.g. /freightatlas)'}
+                   onChange={e => update(i, 'base_url', e.target.value)} />
+            <button type={'button'} className={t.listRemoveBtn} title={'remove location'}
+                    onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>remove</button>
+          </div>
+        ))}
+        <button type={'button'} className={t.listAddBtn}
+                onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
+          + add location
+        </button>
+      </div>
     </div>
   );
 }
@@ -46,37 +48,35 @@ function LocationsEditor({ value, onChange }) {
 // primary base URL on the root domain instead of 404ing, so links to the old host
 // keep working after a move onto a path (e.g. tsmo2:/ → www:/tsmo). A subdomain
 // the pattern still mounts is ignored — the live route always wins. Saved through
-// the section's normal Save button as `retired_subdomains`.
+// the page-level Save bar as `retired_subdomains`.
 // See utils/retiredSubdomain.js.
 function RetiredSubdomainsEditor({ value, onChange }) {
-  const { UI } = useContext(ThemeContext);
-  const { Input, Button } = UI;
+  const { UI, theme } = useContext(ThemeContext);
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
+  const { Input } = UI;
   const rows = Array.isArray(value) ? value : [];
   return (
-    <div className={'w-full flex flex-col gap-1 pt-2'}>
-      <span className={'text-sm font-medium text-slate-700'}>Retired Subdomains</span>
-      <span className={'text-xs text-slate-400'}>
-        Old subdomains for this pattern — each redirects to its base URL on the root domain.
-      </span>
-      {rows.map((sub, i) => (
-        <div key={i} className={'w-full flex items-center gap-2'}>
-          <Input value={sub || ''} placeholder={'subdomain (e.g. tsmo2)'}
-                 onChange={e => onChange(rows.map((r, ri) => ri === i ? e.target.value : r))} />
-          <Button type={'plain'} title={'remove subdomain'}
-                  onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
-        </div>
-      ))}
-      <Button type={'plain'} className={'w-fit'} title={'add retired subdomain'}
-              onClick={() => onChange([...rows, ''])}>
-        + add retired subdomain
-      </Button>
+    <div className={t.card}>
+      <div className={t.cardHeader}>
+        <span className={t.cardHeaderLabel}>retired subdomains</span>
+        <span className={t.cardHeaderHint}>old subdomains for this pattern — each redirects to its base URL on the root domain</span>
+      </div>
+      <div className={t.listSection}>
+        {rows.map((sub, i) => (
+          <div key={i} className={t.listRow}>
+            <Input value={sub || ''} placeholder={'subdomain (e.g. tsmo2)'}
+                   onChange={e => onChange(rows.map((r, ri) => ri === i ? e.target.value : r))} />
+            <button type={'button'} className={t.listRemoveBtn} title={'remove subdomain'}
+                    onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>remove</button>
+          </div>
+        ))}
+        <button type={'button'} className={t.listAddBtn}
+                onClick={() => onChange([...rows, ''])}>
+          + add retired subdomain
+        </button>
+      </div>
     </div>
   );
-}
-
-
-const customTheme = {
-    field: 'pb-2 flex flex-col col-span-9'
 }
 
 /**
@@ -128,7 +128,6 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
     if (/^\d+$/.test(parts[parts.length - 1])) return '';
     return parts.length >= minParts ? parts[0] : '';
   })();
-  console.log('tenantsub', tenantSub, isMultiTenant)
   const { FieldSet, Button, Icon } = UI;
   const navigate = useNavigate();
   const [tmpValue, setTmpValue] = useImmer(value);
@@ -137,6 +136,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   const [duplicateProgress, setDuplicateProgress] = useState(0);
 
   const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
+  const isDirty = !isEqual(tmpValue, value);
 
   const siteFormat = { app, type: siteType, attributes: [] };
 
@@ -243,8 +243,31 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
     return (
       <div className={t.wrapper}>
-        <div className={t.section}>
-          <span className={t.sectionTitle}>Pattern Settings</span>
+        <div className={t.header}>
+          <span className={t.headerTitle}>{value.name || 'Pattern'}</span>
+          {!!value.pattern_type && (
+            <span className={t.headerTypePill}>{Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type}</span>
+          )}
+          <span className={t.headerSubtitle}>{value.type} · id {value.id} · {value.base_url || '/'} on {value.subdomain || '*'}</span>
+        </div>
+
+        <div className={isDirty ? t.saveBarDirty : t.saveBar}>
+          <span className={isDirty ? t.saveBarTextDirty : t.saveBarText}>
+            {isDirty ? 'unsaved changes — applies to identity, locations, and retired subdomains below' : 'no unsaved changes'}
+          </span>
+          <span className='flex-1' />
+          <button type={'button'} className={t.btnReset} disabled={!isDirty} onClick={() => setTmpValue(value)}>
+            reset
+          </button>
+          <button type={'button'} className={t.btnSave} disabled={!isDirty} onClick={() => apiUpdate({ data: tmpValue })}>
+            save changes
+          </button>
+        </div>
+
+        <div className={t.card}>
+          <div className={t.cardHeader}>
+            <span className={t.cardHeaderLabel}>identity</span>
+          </div>
             <FieldSet
                 className={t.fieldGrid}
                 components={[
@@ -253,18 +276,14 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       type: 'Input',
                       value: value.type || '',
                       disabled: true,
-                      customTheme: { field: 'pb-2 flex flex-col col-span-6' }
+                      customTheme: { field: t.fieldRow, label: t.fieldLabel }
                     },
                     {
                       label: 'Pattern Type',
                       type: 'Input',
                       value: Array.isArray(value.pattern_type) ? value.pattern_type[0] : (value.pattern_type || ''),
                       disabled: true,
-                      customTheme: { field: 'pb-2 flex flex-col col-span-3' }
-                    },
-                    {
-                      type: 'Spacer',
-                      customTheme: { field: 'col-span-3' }
+                      customTheme: { field: t.fieldRow, label: t.fieldLabel }
                     },
                     {
                       label: 'Name',
@@ -274,7 +293,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       onChange: e => setTmpValue(draft => {
                         draft.name = e.target.value
                       }),
-                      customTheme
+                      customTheme: { field: t.fieldRow, label: t.fieldLabel }
                     },
                     {
                       label: 'Subdomain',
@@ -285,7 +304,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       onChange: e => setTmpValue(draft => {
                         draft.subdomain = e.target.value
                       }),
-                      customTheme
+                      customTheme: { field: t.fieldRowNarrow, label: t.fieldLabel }
                     },
                     {
                       label: 'Base Url',
@@ -295,7 +314,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       onChange: e => setTmpValue(draft => {
                         draft.base_url = e.target.value
                       }),
-                      customTheme
+                      customTheme: { field: t.fieldRowNarrow, label: t.fieldLabel }
                     },
                     {
                       label: 'HTML Title',
@@ -305,43 +324,20 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                       onChange: e => setTmpValue(draft => {
                         draft.html_title = e.target.value
                       }),
-                      customTheme
-                    },
-                    {
-                      type: 'Spacer',
-                      customTheme: { field: 'bg-white col-span-3 ' }
-                    },
-                    {
-                      type: 'Spacer',
-                      customTheme: { field: 'bg-white col-span-7 ' }
-                    },
-                    {
-                      type: 'Button',
-                      children: <span>Reset</span>,
-                      buttonType: 'plain',
-                      disabled: isEqual(tmpValue,value),
-                      value: tmpValue.base_url,
-                      onClick: () => setTmpValue(draft => value),
-                      customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
-                    },
-                    {
-                      type: 'Button',
-                      children: <span>Save</span>,
-                      disabled: isEqual(tmpValue,value),
-                      onClick: () => apiUpdate({data:tmpValue}),
-                      customTheme: { field: 'pb-2 col-span-1 flex justify-end' }
+                      customTheme: { field: t.fieldRowFull, label: t.fieldLabel }
                     },
                 ]}
             />
-            <LocationsEditor
-              value={tmpValue.locations}
-              onChange={(locations) => setTmpValue(draft => { draft.locations = locations; })}
-            />
-            <RetiredSubdomainsEditor
-              value={tmpValue.retired_subdomains}
-              onChange={(subs) => setTmpValue(draft => { draft.retired_subdomains = subs; })}
-            />
         </div>
+
+        <LocationsEditor
+          value={tmpValue.locations}
+          onChange={(locations) => setTmpValue(draft => { draft.locations = locations; })}
+        />
+        <RetiredSubdomainsEditor
+          value={tmpValue.retired_subdomains}
+          onChange={(subs) => setTmpValue(draft => { draft.retired_subdomains = subs; })}
+        />
 
         {showDmsEnvConfig && (
           <DmsEnvConfig
@@ -353,67 +349,85 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
             type={type}
             siteType={siteType}
             apiUpdate={apiUpdate}
+            isPage={value.pattern_type === 'page'}
           />
-        )}
-
-        {value.pattern_type === 'page' && (
-          <PagePatternSettings value={tmpValue} onChange={setTmpValue} />
         )}
 
         {value.pattern_type === 'auth' && (
           <AuthPatternSettings value={tmpValue} onChange={setTmpValue} />
         )}
 
-        <div className={t.dangerSection}>
-          <span className={t.dangerLabel}>Danger Zone</span>
-          <div className={t.dangerActions}>
-            <button
-              className={t.btnDuplicate}
-              disabled={isDuplicating}
-              onClick={handleDuplicate}
-            >
-              <Icon icon='Copy' className={t.iconSm}/>
-              {isDuplicating ? `Duplicating... ${Math.round(duplicateProgress * 100)}%` : 'Duplicate'}
-            </button>
-
-            {!confirmDelete ? (
-              <button
-                className={t.btnDelete}
-                onClick={() => setConfirmDelete(true)}
-              >
-                <Icon icon='TrashCan' className={t.iconSm}/>
-                Delete
-              </button>
-            ) : (
-              <div className={t.confirmRow}>
-                <span className={t.confirmText}>Are you sure?</span>
-                <button
-                  className={t.btnConfirmDelete}
-                  onClick={handleDelete}
-                >
-                  Confirm Delete
-                </button>
-                <button
-                  className={t.btnCancelDelete}
-                  onClick={() => setConfirmDelete(false)}
-                >
-                  Cancel
-                </button>
+        <div className={t.dangerCard}>
+          <div className={t.dangerHeader}>
+            <Icon icon='Alert' className={t.iconSm} />
+            <span className={t.dangerHeaderLabel}>danger zone</span>
+          </div>
+          <div className={t.dangerBody}>
+            <div className={t.dangerRow}>
+              <div className='min-w-0 flex-1'>
+                <p className={t.dangerRowTitle}>duplicate this pattern</p>
+                {isDuplicating && (
+                  <div className={t.duplicateProgressBox}>
+                    <p className={t.duplicateProgressText}>duplicating… {Math.round(duplicateProgress * 100)}%</p>
+                    <div className={t.duplicateProgressBar}>
+                      <div className={t.duplicateProgressFill} style={{ width: `${Math.round(duplicateProgress * 100)}%` }} />
+                    </div>
+                  </div>
+                )}
               </div>
-            )}
+              <button
+                className={t.btnDuplicate}
+                disabled={isDuplicating}
+                onClick={handleDuplicate}
+              >
+                <Icon icon='Copy' className={t.iconSm}/>
+                {isDuplicating ? 'duplicating…' : 'duplicate'}
+              </button>
+            </div>
+
+            <div className={t.dangerRow}>
+              <div className='min-w-0 flex-1'>
+                <p className={t.dangerRowTitle}>delete this pattern</p>
+              </div>
+              {!confirmDelete ? (
+                <button
+                  className={t.btnDelete}
+                  onClick={() => setConfirmDelete(true)}
+                >
+                  <Icon icon='TrashCan' className={t.iconSm}/>
+                  delete pattern…
+                </button>
+              ) : (
+                <div className={t.confirmRow}>
+                  <span className={t.confirmText}>are you sure?</span>
+                  <button
+                    className={t.btnConfirmDelete}
+                    onClick={handleDelete}
+                  >
+                    confirm delete
+                  </button>
+                  <button
+                    className={t.btnCancelDelete}
+                    onClick={() => setConfirmDelete(false)}
+                  >
+                    cancel
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
     )
 }
 
-function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, type, siteType, apiUpdate }) {
+function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, type, siteType, apiUpdate, isPage }) {
   const [newEnvName, setNewEnvName] = useState('');
   const [creating, setCreating] = useState(false);
   const [localEnvs, setLocalEnvs] = useState(initialDmsEnvs);
   const { UI, theme } = useContext(ThemeContext);
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const { MultiSelect, Input, Button } = UI;
+  const { MultiSelect, Input, Button, Switch } = UI;
 
   const envOptions = [
     { label: 'None (legacy)', value: '' },
@@ -464,14 +478,14 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
   };
 
   return (
-    <div className={t.section}>
-      <span className={t.sectionTitle}>Data Environment</span>
-      <p className={t.sectionDesc}>
-        Select which data environment this pattern uses for internal sources.
-      </p>
+    <div className={t.card}>
+      <div className={t.cardHeader}>
+        <span className={t.cardHeaderLabel}>data environment</span>
+        <span className={t.cardHeaderHint}>which data environment this pattern uses for internal sources</span>
+      </div>
       <div className={t.envGrid}>
         <div className={t.envColWide}>
-          <label className={t.envLabel}>DMS Environment</label>
+          <label className={t.envLabel}>dms environment</label>
           <MultiSelect
             singleSelectOnly
             searchable={false}
@@ -481,7 +495,7 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
           />
         </div>
         <div className={t.envColMid}>
-          <label className={t.envLabel}>Create New Environment</label>
+          <label className={t.envLabel}>create new environment</label>
           <div className={t.envInputRow}>
             <Input
               value={newEnvName}
@@ -491,40 +505,21 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
             <Button
               disabled={!newEnvName.trim() || creating}
               onClick={handleCreateEnv}
-            >{creating ? 'Creating...' : 'Create'}</Button>
+            >{creating ? 'creating…' : 'create'}</Button>
           </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-function PagePatternSettings({ value, onChange }) {
-  const { UI, theme } = useContext(ThemeContext);
-  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const { FieldSet } = UI;
-
-  return (
-    <div className={t.section}>
-      <span className={t.sectionTitle}>Page Pattern Settings</span>
-      <p className={t.sectionDesc}>
-        Pre-load section data on page navigation (router loader phase). When off,
-        sections fetch their data after mount.
-      </p>
-      <FieldSet
-        className={t.fieldGrid}
-        components={[
-          {
-            label: 'Preload Data',
-            type: 'Switch',
-            enabled: value.preload_data === true,
-            size: 'small',
-            setEnabled: e => onChange(draft => { draft.preload_data = !!e }),
-            className: 'self-center',
-            customTheme: { field: 'pb-2 col-span-12' },
-          },
-        ]}
-      />
+      {isPage && (
+        <div className={t.envSwitchRow}>
+          <span className={t.envSwitchLabel}>preload data</span>
+          <Switch
+            size={'small'}
+            enabled={value.preload_data === true}
+            setEnabled={e => onChange(draft => { draft.preload_data = !!e })}
+          />
+          <span className={t.envSwitchHint}>{value.preload_data ? 'on — router loader phase' : 'off — sections fetch on view'}</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -532,25 +527,22 @@ function PagePatternSettings({ value, onChange }) {
 function AuthPatternSettings({ value, onChange }) {
   const { UI, theme } = useContext(ThemeContext);
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const { FieldSet } = UI;
+  const { Switch } = UI;
 
   return (
-    <div className={t.section}>
-      <span className={t.sectionTitle}>Auth Pattern Settings</span>
-      <FieldSet
-        className={t.fieldGrid}
-        components={[
-          {
-            label: 'Disable Signup',
-            type: 'Switch',
-            enabled: value.disable_signup === true,
-            size: 'small',
-            setEnabled: e => onChange(draft => { draft.disable_signup = !!e }),
-            className: 'self-center',
-            customTheme: { field: 'pb-2 col-span-12' },
-          },
-        ]}
-      />
+    <div className={t.card}>
+      <div className={t.cardHeader}>
+        <span className={t.cardHeaderLabel}>auth pattern settings</span>
+      </div>
+      <div className={t.settingsGrid}>
+        <Switch
+          size={'small'}
+          enabled={value.disable_signup === true}
+          setEnabled={e => onChange(draft => { draft.disable_signup = !!e })}
+        />
+        <span className={t.settingsLabel}>disable signup</span>
+      </div>
     </div>
   );
 }
+

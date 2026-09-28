@@ -1,5 +1,7 @@
 # Phase 2: Propagate textSettings to Core Components
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "(no status line; nothing checked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 After establishing textSettings in Phase 1 with Lexical, propagate the shared typography system to all core DMS UI components for consistent text styling across the entire application.

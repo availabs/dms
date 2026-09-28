@@ -1,6 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
-import {ThemeContext} from "../useTheme";
+import {ThemeContext, getComponentTheme} from "../useTheme";
 import {cloneDeep} from "lodash-es";
+import {permissionsTheme as defaultPermissionsTheme} from "./Permissions.theme";
 
 const parseIfJSON = strValue => {
     try {
@@ -16,26 +17,14 @@ const defaultPermissionsDomain = [
     {label: 'update', value: 'update'},
 ]
 
-const permissionsTheme = {
-    componentWrapper: '',
-    selectWrapper: 'shadow-md rounded-md place-content-center p-4 w-full',
-    selectLabel: 'text-xl text-gray-900 font-semibold',
-    select: 'w-1/2',
-    valueWrapper: 'flex flex-col gap-4 p-2 hover:bg-gray-100 rounded-md',
-    valueWrapperInherited: 'flex flex-col gap-4 p-2 bg-gray-100 rounded-md',
-    valueSubWrapper: 'flex flex-wrap',
-    valueSubWrapperInherited: 'flex flex-col hover:bg-gray-50 rounded-md',
-    title: 'font-semibold',
-    removeBtn: 'w-fit'
-}
-
 export default function Permissions ({
     value, inheritedValue, user, getUsers, getGroups, onChange,
     permissionDomain = defaultPermissionsDomain,
     defaultPermission = []
 }) {
-    const { UI } = useContext(ThemeContext) || {};
-    const { MultiSelect, Button, Pill, ColumnTypes } = UI;
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const permissionsTheme = { ...defaultPermissionsTheme, ...getComponentTheme(themeFromContext, 'permissions') };
+    const { MultiSelect, Button, Pill, ColumnTypes, Icon } = UI;
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
@@ -102,25 +91,31 @@ export default function Permissions ({
     return (
         <div className={permissionsTheme.componentWrapper}>
             <div className={permissionsTheme.selectWrapper}>
-                <label className={permissionsTheme.selectLabel}>User Access Controls</label>
-                <MultiSelect className={permissionsTheme.select}
-                        singleSelectOnly
-                        searchable={false}
-                        options={[{label: 'Add user access', value: undefined}, ...users
-                            .filter(u => !(u.id in inheritedUsers))
-                            .map(u => ({label: u.email, value: u.id}))]}
-                        onChange={v => {
-                            const clonedValue = cloneDeep(tmpValue);
-                            const newAuth = {
-                                ...clonedValue,
-                                users: {
-                                    ...(clonedValue?.users || {}),
-                                    [v]: defaultPermission || [],
-                                },
-                            };
-                            applyChanges(newAuth)
-                        }}
-                />
+                <div className={permissionsTheme.headerRow}>
+                    <label className={permissionsTheme.selectLabel}>User Access Controls</label>
+                    <span className='flex-1' />
+                    <div className={permissionsTheme.addAccessWrapper}>
+                        <MultiSelect activeStyle='addAccess'
+                                placeholder='add user access'
+                                singleSelectOnly
+                                searchable={true}
+                                options={[{label: 'Add user access', value: undefined}, ...users
+                                    .filter(u => !(u.id in inheritedUsers))
+                                    .map(u => ({label: u.email, value: u.id}))]}
+                                onChange={v => {
+                                    const clonedValue = cloneDeep(tmpValue);
+                                    const newAuth = {
+                                        ...clonedValue,
+                                        users: {
+                                            ...(clonedValue?.users || {}),
+                                            [v]: defaultPermission || [],
+                                        },
+                                    };
+                                    applyChanges(newAuth)
+                                }}
+                        />
+                    </div>
+                </div>
 
                 <div className={permissionsTheme.valueWrapperInherited}>
                     {
@@ -133,7 +128,7 @@ export default function Permissions ({
                                     <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_user_${userId}`}>
                                         <div className='flex items-center gap-2'>
                                             <div className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
-                                            {isDisabled && <span className='text-xs text-red-600 font-semibold'>Disabled</span>}
+                                            {isDisabled && <span className={permissionsTheme.disabledLabel}>Disabled</span>}
                                             {!isDisabled &&
                                                 <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedUser(userId)} />
                                             }
@@ -142,21 +137,24 @@ export default function Permissions ({
                                             }
                                         </div>
                                         {!isDisabled &&
-                                            <ColumnTypes.multiselect.EditComp
-                                                value={effectivePermissions}
-                                                multiple={true}
-                                                options={permissionDomain}
-                                                onChange={e => {
-                                                    const clonedValue = cloneDeep(tmpValue);
-                                                    const newAuth = {
-                                                        ...clonedValue,
-                                                        users: {
-                                                            ...(clonedValue?.users || {}),
-                                                            [userId]: e
-                                                        },
-                                                    };
-                                                    applyChanges(newAuth)
-                                                }}/>
+                                            <div className={permissionsTheme.valueEditorWrapper}>
+                                                <ColumnTypes.multiselect.EditComp
+                                                    activeStyle='plain'
+                                                    value={effectivePermissions}
+                                                    multiple={true}
+                                                    options={permissionDomain}
+                                                    onChange={e => {
+                                                        const clonedValue = cloneDeep(tmpValue);
+                                                        const newAuth = {
+                                                            ...clonedValue,
+                                                            users: {
+                                                                ...(clonedValue?.users || {}),
+                                                                [userId]: e
+                                                            },
+                                                        };
+                                                        applyChanges(newAuth)
+                                                    }}/>
+                                            </div>
                                         }
                                     </div>
                                 );
@@ -171,30 +169,34 @@ export default function Permissions ({
                                 <div className={permissionsTheme.valueSubWrapper} key={`permissions_user_local_${userId}`}>
                                     <div
                                         className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
-                                    <ColumnTypes.multiselect.EditComp
-                                        value={permissions}
-                                        multiple={true}
-                                        options={permissionDomain}
-                                        onChange={e => {
-                                            const clonedValue = cloneDeep(tmpValue);
-                                            const newAuth = {
-                                                ...clonedValue,
-                                                users: {
-                                                    ...(clonedValue?.users || {}),
-                                                    [userId]: e
-                                                },
-                                            };
-                                            applyChanges(newAuth)
-                                        }}/>
+                                    <div className={permissionsTheme.valueEditorWrapper}>
+                                        <ColumnTypes.multiselect.EditComp
+                                            activeStyle='plain'
+                                            value={permissions}
+                                            multiple={true}
+                                            options={permissionDomain}
+                                            onChange={e => {
+                                                const clonedValue = cloneDeep(tmpValue);
+                                                const newAuth = {
+                                                    ...clonedValue,
+                                                    users: {
+                                                        ...(clonedValue?.users || {}),
+                                                        [userId]: e
+                                                    },
+                                                };
+                                                applyChanges(newAuth)
+                                            }}/>
+                                    </div>
 
                                     <Button className={permissionsTheme.removeBtn}
+                                            title='Remove grant' aria-label='Remove grant'
                                             onClick={() => {
                                                 const newAuth = cloneDeep(tmpValue);
 
                                                 delete newAuth.users[userId];
 
                                                 applyChanges(newAuth)
-                                            }}>remove</Button>
+                                            }}><Icon icon='TrashCan' className={permissionsTheme.removeIcon}/></Button>
                                 </div>)
                             )
                     }
@@ -202,26 +204,32 @@ export default function Permissions ({
             </div>
 
             <div className={permissionsTheme.selectWrapper}>
-                <label className={permissionsTheme.selectLabel}>Group Access Controls</label>
-                <MultiSelect className={permissionsTheme.select}
-                        singleSelectOnly
-                        searchable={false}
-                        options={[{label: 'Add group access', value: undefined}, ...groups
-                            .filter(g => !(g.name in inheritedGroups))
-                            .map(g => ({label: g.name, value: g.name}))]}
-                        onChange={v => {
-                            const clonedValue = cloneDeep(tmpValue);
-                            const newAuth = {
-                                ...clonedValue,
-                                groups: {
-                                    ...(clonedValue?.groups || {}),
-                                    [v]: defaultPermission || [],
-                                },
-                            };
+                <div className={permissionsTheme.headerRow}>
+                    <label className={permissionsTheme.selectLabel}>Group Access Controls</label>
+                    <span className='flex-1' />
+                    <div className={permissionsTheme.addAccessWrapper}>
+                        <MultiSelect activeStyle='addAccess'
+                                placeholder='add group access'
+                                singleSelectOnly
+                                searchable={true}
+                                options={[{label: 'Add group access', value: undefined}, ...groups
+                                    .filter(g => !(g.name in inheritedGroups))
+                                    .map(g => ({label: g.name, value: g.name}))]}
+                                onChange={v => {
+                                    const clonedValue = cloneDeep(tmpValue);
+                                    const newAuth = {
+                                        ...clonedValue,
+                                        groups: {
+                                            ...(clonedValue?.groups || {}),
+                                            [v]: defaultPermission || [],
+                                        },
+                                    };
 
-                            applyChanges(newAuth)
-                        }}
-                />
+                                    applyChanges(newAuth)
+                                }}
+                        />
+                    </div>
+                </div>
 
                 <div className={permissionsTheme.valueWrapperInherited}>
                     {
@@ -234,7 +242,7 @@ export default function Permissions ({
                                     <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_group_${groupName}`}>
                                         <div className='flex items-center gap-2'>
                                             <div className={permissionsTheme.title}>{groupName}</div>
-                                            {isDisabled && <span className='text-xs text-red-600 font-semibold'>Disabled</span>}
+                                            {isDisabled && <span className={permissionsTheme.disabledLabel}>Disabled</span>}
                                             {!isDisabled &&
                                                 <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedGroup(groupName)} />
                                             }
@@ -243,21 +251,24 @@ export default function Permissions ({
                                             }
                                         </div>
                                         {!isDisabled &&
-                                            <ColumnTypes.multiselect.EditComp
-                                                value={effectivePermissions}
-                                                multiple={true}
-                                                options={permissionDomain}
-                                                onChange={e => {
-                                                    const clonedValue = cloneDeep(tmpValue);
-                                                    const newAuth = {
-                                                        ...clonedValue,
-                                                        groups: {
-                                                            ...(clonedValue?.groups || {}),
-                                                            [groupName]: e
-                                                        },
-                                                    };
-                                                    applyChanges(newAuth)
-                                                }}/>
+                                            <div className={permissionsTheme.valueEditorWrapper}>
+                                                <ColumnTypes.multiselect.EditComp
+                                                    activeStyle='plain'
+                                                    value={effectivePermissions}
+                                                    multiple={true}
+                                                    options={permissionDomain}
+                                                    onChange={e => {
+                                                        const clonedValue = cloneDeep(tmpValue);
+                                                        const newAuth = {
+                                                            ...clonedValue,
+                                                            groups: {
+                                                                ...(clonedValue?.groups || {}),
+                                                                [groupName]: e
+                                                            },
+                                                        };
+                                                        applyChanges(newAuth)
+                                                    }}/>
+                                            </div>
                                         }
                                     </div>
                                 );
@@ -271,30 +282,34 @@ export default function Permissions ({
                             .map(([groupName, permissions]) => (
                                     <div className={permissionsTheme.valueSubWrapper} key={`permissions_group_local_${groupName}`}>
                                         <div className={permissionsTheme.title}>{groupName}</div>
-                                        <ColumnTypes.multiselect.EditComp
-                                            value={permissions}
-                                            multiple={true}
-                                            options={permissionDomain}
-                                            onChange={e => {
-                                                const clonedValue = cloneDeep(tmpValue)
-                                                const newAuth = {
-                                                    ...clonedValue,
-                                                    groups: {
-                                                        ...(clonedValue?.groups || {}),
-                                                        [groupName]: e
-                                                    },
-                                                };
+                                        <div className={permissionsTheme.valueEditorWrapper}>
+                                            <ColumnTypes.multiselect.EditComp
+                                                activeStyle='plain'
+                                                value={permissions}
+                                                multiple={true}
+                                                options={permissionDomain}
+                                                onChange={e => {
+                                                    const clonedValue = cloneDeep(tmpValue)
+                                                    const newAuth = {
+                                                        ...clonedValue,
+                                                        groups: {
+                                                            ...(clonedValue?.groups || {}),
+                                                            [groupName]: e
+                                                        },
+                                                    };
 
-                                                applyChanges(newAuth)
-                                            }}/>
+                                                    applyChanges(newAuth)
+                                                }}/>
+                                        </div>
                                         <Button className={permissionsTheme.removeBtn}
+                                                title='Remove grant' aria-label='Remove grant'
                                                 onClick={() => {
                                                     const newAuth = cloneDeep(tmpValue);
 
                                                     delete newAuth.groups[groupName];
 
                                                     applyChanges(newAuth)
-                                                }}>remove</Button>
+                                                }}><Icon icon='TrashCan' className={permissionsTheme.removeIcon}/></Button>
                                     </div>
                                 )
                             )

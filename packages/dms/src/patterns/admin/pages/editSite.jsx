@@ -7,7 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
-import { isUserAuthed, parseIfJSON } from '../utils';
+import { isUserAuthed, parseIfJSON, hasPatternManageAccess } from '../utils';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
 import SiteTemplatePicker from './SiteTemplatePicker'
@@ -88,13 +88,6 @@ function SiteEdit ({
 	if (isPlatformAdmin) {
 		return (
 			<>
-				<TenantList
-					value={item?.['tenants'] || []}
-					format={format}
-					attributes={attributes['tenants']?.attributes || {}}
-					onChange={(v) => updateAttribute('tenants', v)}
-					onSubmit={data => updateData(data, 'tenants')}
-				/>
 				<PatternList
 					value={item?.['patterns']}
 					format={format}
@@ -102,6 +95,14 @@ function SiteEdit ({
 					attributes={attributes['patterns'].attributes}
 					onChange={(v) => updateAttribute('patterns', v)}
 					onSubmit={data => updateData(data, 'patterns')}
+					siteName={item?.site_name || item?.name}
+				/>
+				<TenantList
+					value={item?.['tenants'] || []}
+					format={format}
+					attributes={attributes['tenants']?.attributes || {}}
+					onChange={(v) => updateAttribute('tenants', v)}
+					onSubmit={data => updateData(data, 'tenants')}
 				/>
 			</>
 		)
@@ -117,12 +118,28 @@ function SiteEdit ({
 			  onSubmit={data => {
 		  updateData(data, 'patterns')
 	  }}
+			siteName={item?.site_name || item?.name}
 		/>
 	)
 }
 
 export default SiteEdit
 
+
+// Pill color per pattern_type — 'forms' is dashed/muted rather than solid
+// since patterns/index.js has that registration commented out (creatable via
+// AddPatternPicker, but not currently routable). Anything not in this map
+// (including missing/blank pattern_type) falls back to the '?' unknown pill.
+const TYPE_PILL_KEY = {
+	page: 'typePillPage',
+	datasets: 'typePillDatasets',
+	auth: 'typePillAuth',
+	mapeditor: 'typePillMapeditor',
+	forms: 'typePillForms',
+};
+// Chip/sort order for the toolbar's type filter row — real types first (in
+// the same order as AddPatternPicker offers them), '?' last.
+const TYPE_ORDER = ['page', 'datasets', 'auth', 'forms', 'mapeditor'];
 
 function PatternList({
 	 Component,
@@ -133,9 +150,10 @@ function PatternList({
 	 value = [],
 	 format,
 	 apiLoad,
+	 siteName,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = React.useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user} = React.useContext(AdminContext);
 	const {UI, theme} = React.useContext(ThemeContext)
 	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
@@ -144,6 +162,8 @@ function PatternList({
 	const siteInstance = getInstance(siteType) || siteType;
 	const gridRef = React.useRef(null);
 	const [search, setSearch] = React.useState('');
+	const [typeFilter, setTypeFilter] = React.useState(null);
+	const [sortBy, setSortBy] = React.useState('name');
 	const [addingNew, setAddingNew] = React.useState(false);
 	const [editingItem, setEditingItem] = React.useState(undefined);
 	const [isDuplicating, setIsDuplicating] = React.useState(false);
@@ -151,82 +171,144 @@ function PatternList({
 	const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
 	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
 	//console.log('test 123', location)
+
+	// See patterns/admin/utils.js's `hasPatternManageAccess` for the full
+	// rationale (2026-09-20) — an app admin always has access; a pattern
+	// with no real grants (never configured, or configured but empty) is
+	// unrestricted; otherwise its `authPermissions` (subdomain-keyed —
+	// PatternPermissionsEditor's save shape) decides.
+	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+	const hasPatternAccess = (row) => hasPatternManageAccess(user, isAdmin, row.authPermissions, row.subdomain);
+
+	// SEARCH_SHORTCUT_ID: Input isn't a forwardRef component, so a `/`
+	// keyboard shortcut (matches the mockup's kbd hint) focuses it by id
+	// instead of a ref.
+	const SEARCH_INPUT_ID = 'site-pattern-search';
+	React.useEffect(() => {
+		const onKeyDown = (e) => {
+			if (e.key !== '/') return;
+			const active = document.activeElement;
+			const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+			if (isTyping) return;
+			e.preventDefault();
+			document.getElementById(SEARCH_INPUT_ID)?.focus();
+		};
+		document.addEventListener('keydown', onKeyDown);
+		return () => document.removeEventListener('keydown', onKeyDown);
+	}, []);
+
 	const columns = [
-		{name: 'name', display_name: 'Name', show: true, type: 'text'},
-		{name: 'base_url', display_name: 'Base URL', show: true, type: 'ui',
-      Comp: (d) => {
-        const host = window.location.host
-        const protocol = host.includes('localhost') ? 'http' : 'https'
-        const sub = d.row.subdomain
-        const needsSub = sub && sub !== '*'
-        // Strip existing subdomain (first segment) to get the base domain,
-        // but only if the current host actually has a subdomain.
-        const parts = host.split('.')
-        const isLocalhost = host.includes('localhost')
-        // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
-        // as a subdomain; real TLDs are never all-digits.
-        const isIPv4Host = /^\d+$/.test(parts[parts.length - 1])
-        const hasSubdomain = !isIPv4Host && (isLocalhost ? parts.length >= 2 : parts.length > 2)
-        const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host
-        const targetHost = needsSub ? `${sub}.${baseDomain}` : host
-        const baseUrl = d.row.base_url
-        if (!baseUrl) return <span className={t.emptyValue}>—</span>
-        const normalizedUrl = baseUrl.startsWith('/') ? baseUrl : `/${baseUrl}`
-        return (
-          <Link
-            to={`${protocol}://${targetHost}${normalizedUrl}`}
-            className={t.baseUrlLink}
-          >
-            {baseUrl}
-          </Link>
-        )
-      }
+		{name: 'name', display_name: 'Pattern', show: true, type: 'ui',
+			// `d.className` is TableCell's own cellInner class (padding, background,
+			// selection state) — a custom `type: 'ui'` Comp has to apply it itself
+			// (unlike `text`/`multiselect` columns, which get it automatically), so
+			// it's put on a wrapping div and the link/span carries its own
+			// typography instead of fighting over the same className.
+			Comp: (d) => (
+				<div className={d.className}>
+					{d.row.edit_url && hasPatternAccess(d.row) ? (
+						<Link to={d.row.edit_url} className={t.patternName}>{d.row.name}</Link>
+					) : (
+						<span className={t.patternNamePlain}>{d.row.name}</span>
+					)}
+				</div>
+			)
+		},
+		{name: 'pattern_type', display_name: 'Type', show: true, type: 'ui',
+			Comp: (d) => {
+				const type = d.row.pattern_type;
+				const pillClass = t[TYPE_PILL_KEY[type]] || t.typePillUnknown;
+				return (
+					<div className={d.className}>
+						<span className={`${t.typePill} ${pillClass}`}>{type || '?'}</span>
+					</div>
+				);
+			}
 		},
 		{name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text'},
-		// {name: 'updated_at', display_name: 'Updated', show: true, type: 'text', formatFn: 'date'},
-		// {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
-		// 		return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
-		// 	}},
-		{name: 'edit', display_name: 'Edit', show: true, type: 'ui',
+		{name: 'base_url', display_name: 'Base URL', show: true, type: 'ui',
+			Comp: (d) => {
+				const host = window.location.host;
+				const protocol = host.includes('localhost') ? 'http' : 'https';
+				const sub = d.row.subdomain;
+				const needsSub = sub && sub !== '*';
+				// Strip existing subdomain (first segment) to get the base domain,
+				// but only if the current host actually has a subdomain.
+				const parts = host.split('.');
+				const isLocalhost = host.includes('localhost');
+				// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
+				// as a subdomain; real TLDs are never all-digits.
+				const isIPv4Host = /^\d+$/.test(parts[parts.length - 1]);
+				const hasSubdomain = !isIPv4Host && (isLocalhost ? parts.length >= 2 : parts.length > 2);
+				const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host;
+				const targetHost = needsSub ? `${sub}.${baseDomain}` : host;
+				const rawUrl = d.row.base_url;
+				if (!rawUrl) return <span className={t.emptyValue}>—</span>;
+				const normalizedUrl = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
+				return (
+					<Link to={`${protocol}://${targetHost}${normalizedUrl}`} className={t.baseUrlLink}>
+						{rawUrl}
+					</Link>
+				);
+			}
+		},
+		{name: 'actions', display_name: '', show: true, type: 'ui',
       Comp: (d) => {
+        if (!hasPatternAccess(d.row)) {
+          return (
+            <div className={t.noAccessBadge}>
+              <Icon icon='Lock' className={t.iconSm} />
+              no access
+            </div>
+          );
+        }
+        // A site needs exactly one auth pattern — duplicating or deleting it
+        // through this list is never a valid action, so only Edit shows.
+        const isAuthType = d.row.pattern_type === 'auth';
         return (
           <div className={t.cellActions}>
-            <Link to={d?.row?.edit_url || ''} className={t.editLink}>
-              <Icon icon='PencilEditSquare' className={t.iconSm}/><span className={t.iconLabel}>Edit</span>
+            <Link to={d?.row?.edit_url || ''} className={t.editLink} title='Edit pattern' aria-label='Edit pattern'>
+              <Icon icon='PencilEditSquare' className={t.iconSm}/>
             </Link>
-            <button
-              className={t.duplicateBtn}
-              title='Duplicate'
-              disabled={isDuplicating}
-              onClick={async () => {
-                setIsDuplicating(true);
-                const { name: newName, slug: newSlug, suffix } = nextAvailableCopyName(d.row.name, await getFreshSiblingSlugs());
-                const oldInstance = getInstance(d.row.type) || d.row?.base_url?.replace(/\//g, '');
-                const dataToCopy = {
-                  app: d.row.app,
-                  base_url: d.row.base_url ? `${d.row.base_url}${suffix}` : `/${newSlug}`,
-                  subdomain: d.row.subdomain,
-                  config: d.row.config,
-                  name: newName,
-                  pattern_type: d.row.pattern_type,
-                  auth_level: d.row.auth_level,
-                  filters: d.row.filters,
-                  theme: d.row.theme,
-                };
-                await duplicate({oldInstance, newInstance: newSlug}, dataToCopy);
-              }}
-            >
-              <Icon icon='Copy' className={t.iconSm}/>
-            </button>
-            <button
-              className={t.deleteBtn}
-              title='Delete'
-              onClick={() => setDeletingItem(d.row)}
-            >
-              <Icon icon='TrashCan' className={t.iconSm}/>
-            </button>
+            {!isAuthType && (
+              <button
+                className={t.duplicateBtn}
+                title='Duplicate pattern'
+                aria-label='Duplicate pattern'
+                disabled={isDuplicating}
+                onClick={async () => {
+                  setIsDuplicating(true);
+                  const { name: newName, slug: newSlug, suffix } = nextAvailableCopyName(d.row.name, await getFreshSiblingSlugs());
+                  const oldInstance = getInstance(d.row.type) || d.row?.base_url?.replace(/\//g, '');
+                  const dataToCopy = {
+                    app: d.row.app,
+                    base_url: d.row.base_url ? `${d.row.base_url}${suffix}` : `/${newSlug}`,
+                    subdomain: d.row.subdomain,
+                    config: d.row.config,
+                    name: newName,
+                    pattern_type: d.row.pattern_type,
+                    auth_level: d.row.auth_level,
+                    filters: d.row.filters,
+                    theme: d.row.theme,
+                  };
+                  await duplicate({oldInstance, newInstance: newSlug}, dataToCopy);
+                }}
+              >
+                <Icon icon='Copy' className={t.iconSm}/>
+              </button>
+            )}
+            {!isAuthType && (
+              <button
+                className={t.deleteBtn}
+                title='Delete pattern'
+                aria-label='Delete pattern'
+                onClick={() => setDeletingItem(d.row)}
+              >
+                <Icon icon='TrashCan' className={t.iconSm}/>
+              </button>
+            )}
           </div>
-        )
+        );
       }
 		}
 	]
@@ -320,30 +402,118 @@ function PatternList({
 		}
 	}
 
-	const data = value
-		.map(v => ({
-            ...v,
-            name: v.name || 'undefined',
-            edit_url: `${baseUrl}/manage_pattern/${v.id}`,
-        }))
-		.filter(v => !search || v.name.toLowerCase().includes(search.toLowerCase()));
-	const authExists = data.some(d => d.pattern_type === 'auth')
+	const allData = value.map(v => ({
+		...v,
+		name: v.name || 'undefined',
+		edit_url: `${baseUrl}/manage_pattern/${v.id}`,
+	}));
+
+	// Stats + type chips describe the WHOLE site, so they're computed from
+	// allData — search/type-filter only narrow what the table itself shows.
+	const totalPatterns = allData.length;
+	const typeCounts = allData.reduce((acc, d) => {
+		const k = d.pattern_type || '?';
+		acc[k] = (acc[k] || 0) + 1;
+		return acc;
+	}, {});
+	const uniqueTypes = Object.keys(typeCounts).length;
+	const noAccessCount = allData.filter(d => !hasPatternAccess(d)).length;
+	const chipTypes = [...TYPE_ORDER.filter(k => typeCounts[k]), ...(typeCounts['?'] ? ['?'] : [])];
+	const authExists = allData.some(d => d.pattern_type === 'auth')
+
+	const q = search.trim().toLowerCase();
+	let data = !q ? allData : allData.filter(v =>
+		v.name.toLowerCase().includes(q) ||
+		(v.base_url || '').toLowerCase().includes(q) ||
+		(v.subdomain || '').toLowerCase().includes(q)
+	);
+	if (typeFilter) data = data.filter(v => (v.pattern_type || '?') === typeFilter);
+	const SORT_COMPARATORS = {
+		name: (a, b) => a.name.localeCompare(b.name),
+		type: (a, b) => (a.pattern_type || '?').localeCompare(b.pattern_type || '?'),
+		subdomain: (a, b) => (a.subdomain || '').localeCompare(b.subdomain || ''),
+		base_url: (a, b) => (a.base_url || '').localeCompare(b.base_url || ''),
+	};
+	data = [...data].sort(SORT_COMPARATORS[sortBy] || SORT_COMPARATORS.name);
+	const SORT_CYCLE = { name: 'type', type: 'subdomain', subdomain: 'base_url', base_url: 'name' };
+	const SORT_LABEL = { name: 'name', type: 'type', subdomain: 'subdomain', base_url: 'base url' };
 
 	return (
 			<div className={t.wrapper}>
-				<div className={t.header}>
-					<div className={t.headerTitle}>Sites</div>
-					<Button className={'shrink-0'} onClick={() => setAddingNew(true)}> Add site </Button>
+				<div className={t.identityWrapper}>
+					<div className='min-w-0'>
+						<div className={t.identityTitle}>{siteName || app}</div>
+						<p className={t.identitySubtitle}>{window.location.host}</p>
+					</div>
+					<span className='flex-1' />
+					<div className={t.statsStrip}>
+						<div className={t.statItem}>
+							<p className={t.statValue}>{totalPatterns}</p>
+							<p className={t.statLabel}>patterns</p>
+						</div>
+						<div className={t.statItem}>
+							<p className={t.statValue}>{uniqueTypes}</p>
+							<p className={t.statLabel}>types</p>
+						</div>
+						{noAccessCount > 0 && (
+							<div className={t.statItem}>
+								<p className={t.statValueWarn}>{noAccessCount}</p>
+								<p className={t.statLabel}>no access</p>
+							</div>
+						)}
+					</div>
 				</div>
-				<div className={t.searchBar}>
-					<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'Filter sites'} />
+
+				<div className={t.toolbarRow}>
+					<div className={t.searchWrapper}>
+						<Icon icon='Search' className={t.searchIcon} />
+						<Input
+							id={SEARCH_INPUT_ID}
+							type={'text'}
+							className={t.searchInput}
+							value={search}
+							onChange={e => setSearch(e.target.value)}
+							placeholder={`filter ${totalPatterns} pattern${totalPatterns === 1 ? '' : 's'} by name, url, or subdomain...`}
+						/>
+						<span className={t.searchKbdHint}>/</span>
+					</div>
+					<Button className={t.addPatternBtn} onClick={() => setAddingNew(true)}>
+						<Icon icon='Plus' className={t.iconSm} />
+						Add pattern
+					</Button>
 				</div>
-				<Table
-				  columns={columns}
-					data={data}
-					isEdit={false}
-					gridRef={gridRef}
-				/>
+
+				<div className={t.toolbarFilterRow}>
+					<span className={t.filterCount}>patterns · {data.length}</span>
+					<button className={t.sortBtn} onClick={() => setSortBy(SORT_CYCLE[sortBy])}>
+						sort: {SORT_LABEL[sortBy] || sortBy}
+						<Icon icon='ChevronDown' className='w-3 h-3' />
+					</button>
+					<div className={t.chipsWrapper}>
+						<button className={!typeFilter ? t.chipActive : t.chip} onClick={() => setTypeFilter(null)}>
+							all {totalPatterns}
+						</button>
+						{chipTypes.map(k => (
+							<button
+								key={k}
+								className={typeFilter === k ? t.chipActive : (k === 'forms' ? t.chipInactive : t.chip)}
+								onClick={() => setTypeFilter(typeFilter === k ? null : k)}
+							>
+								{k} {typeCounts[k]}
+							</button>
+						))}
+					</div>
+				</div>
+
+				<div className={t.tableCard}>
+					<Table
+					  columns={columns}
+						data={data}
+						isEdit={false}
+						gridRef={gridRef}
+						activeStyle='roomy'
+					/>
+				</div>
 
 				<Modal open={Boolean(editingItem)} setOpen={setEditingItem}>
 					<div className={t.modalForm}>
@@ -505,6 +675,21 @@ function TenantList({
 	const [submitting, setSubmitting] = React.useState(false);
 	const [deletingItem, setDeletingItem] = React.useState(undefined);
 	const [error, setError] = React.useState('');
+	const [search, setSearch] = React.useState('');
+
+	const TENANT_SEARCH_INPUT_ID = 'site-tenant-search';
+	React.useEffect(() => {
+		const onKeyDown = (e) => {
+			if (e.key !== '/') return;
+			const active = document.activeElement;
+			const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
+			if (isTyping) return;
+			e.preventDefault();
+			document.getElementById(TENANT_SEARCH_INPUT_ID)?.focus();
+		};
+		document.addEventListener('keydown', onKeyDown);
+		return () => document.removeEventListener('keydown', onKeyDown);
+	}, []);
 
 	// Build base domain from current host (we are on the root domain here)
 	const host = window.location.host;
@@ -635,15 +820,47 @@ function TenantList({
 		}
 	};
 
+	const q = search.trim().toLowerCase();
+	const tenantData = !q ? value : value.filter(v =>
+		(v.name || '').toLowerCase().includes(q) ||
+		(v.subdomain || '').toLowerCase().includes(q)
+	);
+
 	return (
 		<div className={t.wrapper}>
-			<div className={t.header}>
-				<div className={t.headerTitle}>Tenants</div>
-				<Button className={t.btnNoShrink} onClick={() => { setAddingNew(true); setError(''); setNewItem({ name: '', subdomain: '', email: '', password: '' }); setSelectedTemplateId('simple_site'); }}>
+			<div className={t.identityWrapper}>
+				<div className={t.identityTitle}>Tenants</div>
+				<span className='flex-1' />
+				<div className={t.statsStrip}>
+					<div className={t.statItem}>
+						<p className={t.statValue}>{value.length}</p>
+						<p className={t.statLabel}>tenants</p>
+					</div>
+				</div>
+			</div>
+
+			<div className={t.toolbarRow}>
+				<div className={t.searchWrapper}>
+					<Icon icon='Search' className={t.searchIcon} />
+					<Input
+						id={TENANT_SEARCH_INPUT_ID}
+						type='text'
+						className={t.searchInput}
+						value={search}
+						onChange={e => setSearch(e.target.value)}
+						placeholder={`filter ${value.length} tenant${value.length === 1 ? '' : 's'} by name or subdomain`}
+					/>
+					<span className={t.searchKbdHint}>/</span>
+				</div>
+				<Button className={t.addPatternBtn} onClick={() => { setAddingNew(true); setError(''); setNewItem({ name: '', subdomain: '', email: '', password: '' }); setSelectedTemplateId('simple_site'); }}>
+					<Icon icon='Plus' className={t.iconSm} />
 					Add tenant
 				</Button>
 			</div>
-			<Table columns={columns} data={value} isEdit={false} />
+
+			<div className={t.tableCard}>
+				<Table columns={columns} data={tenantData} isEdit={false} activeStyle='roomy' />
+			</div>
 
 			<Modal open={addingNew} setOpen={setAddingNew}>
 				<div className={t.tenantModalForm}>

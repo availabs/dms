@@ -29,123 +29,176 @@ export const multiselectTheme = {
             mainWrapper: 'group relative block w-full h-full',
             disabled: 'opacity-50 pointer-events-none cursor-not-allowed',
 
-            // Trigger / input shell. Padding mirrors Catalyst's Listbox button —
-            // `calc(theme(spacing.X)-1px)` so the inset border lines up at the
-            // pixel grid; `pr-7` reserves space for the absolutely-positioned
-            // caret on the right edge.
+            // Trigger / input shell.
             inputWrapper: [
-                'relative flex flex-wrap items-center gap-1 w-full min-h-11 sm:min-h-9 rounded-lg cursor-pointer',
-                'pl-[calc(theme(spacing[3.5])-1px)] pr-[calc(theme(spacing.7)-1px)] sm:pl-[calc(theme(spacing.3)-1px)]',
-                'py-[calc(theme(spacing[2.5])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]',
-                'border border-zinc-950/10 hover:border-zinc-950/20 dark:border-white/10 dark:hover:border-white/20',
-                'bg-white dark:bg-white/5',
-                'text-base/6 sm:text-sm/6 text-zinc-950 dark:text-white',
-                'focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-inset',
-                'transition-colors duration-150 ease-in-out',
+                'relative flex flex-wrap items-center gap-1 w-full min-h-9 rounded-md cursor-pointer',
+                'pl-3 pr-7 py-1.5',
+                'border border-[var(--t-rule-strong)] hover:border-[var(--t-graphite)]',
+                'bg-[var(--t-panel)]',
+                'font-sans text-sm text-[var(--t-ink)]',
+                'focus-within:ring-1 focus-within:ring-[var(--t-cobalt)] focus-within:border-[var(--t-cobalt)]',
+                'transition-colors duration-150',
             ].join(' '),
 
-            // Caret-down chevron, absolutely positioned at the right edge so it
-            // sits flush against the trigger boundary (Catalyst pattern). The
-            // `pr-2` matches Catalyst Select / Listbox; the icon itself sizes
-            // via `size-5 sm:size-4` and uses zinc stroke for low contrast.
+            // Caret-down chevron, absolutely positioned at the right edge.
             caretWrapper: 'pointer-events-none absolute inset-y-0 right-0 flex items-center pr-2',
-            caretIcon: 'size-5 sm:size-4 stroke-zinc-500 dark:stroke-zinc-400',
+            caretIcon: 'w-4 h-4 stroke-[var(--t-graphite)]',
 
-            // Search input inside the open menu. Matches Catalyst Input padding
-            // ramp so it feels like an input, not a cramped text field.
+            // Search input inside the open menu.
             input: [
-                'block w-full appearance-none rounded-md focus:outline-none',
-                'px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)]',
-                'sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]',
-                'text-base/6 sm:text-sm/6',
-                'border border-zinc-950/10 hover:border-zinc-950/20 dark:border-white/10',
-                'bg-white text-zinc-950 placeholder:text-zinc-500',
-                'dark:bg-white/5 dark:text-white',
-                'focus:ring-2 focus:ring-blue-500 focus:ring-inset',
+                'block w-full appearance-none rounded-none focus:outline-none',
+                'px-3 py-1.5',
+                'font-sans text-sm',
+                'border-b border-[var(--t-rule)]',
+                'bg-[var(--t-panel)] text-[var(--t-ink)] placeholder:text-[var(--t-pencil)]',
             ].join(' '),
 
             // Status line when displayDetailedValues is false ("N selected").
-            statusWrapper: 'flex items-center text-base/6 sm:text-sm/6 text-zinc-700 dark:text-zinc-300',
+            statusWrapper: 'flex items-center font-sans text-sm text-[var(--t-graphite)]',
 
             // Single-select mode (singleSelectOnly=true). The selected value
             // renders as inline text in the trigger — no pill chip, no remove
             // button — mirroring Catalyst Listbox / Select trigger typography.
-            singleValue: 'truncate text-base/6 sm:text-sm/6 text-zinc-950 dark:text-white',
-            singlePlaceholder: 'truncate text-base/6 sm:text-sm/6 text-zinc-500 dark:text-zinc-400',
+            singleValue: 'truncate font-sans text-sm text-[var(--t-ink)]',
+            singlePlaceholder: 'truncate font-sans text-sm text-[var(--t-pencil)]',
 
             // Clear × for single-select with allowDeselect — absolutely positioned
             // just left of the caret (which sits at right-0). Glyph reuses
             // removeIconName / removeIconClass.
             singleClearWrapper: 'absolute inset-y-0 right-6 flex items-center cursor-pointer text-zinc-500 hover:text-red-600',
 
-            // Selected-value chip. Catalyst Badge `zinc` color set.
+            // Selected-value chip.
             tokenWrapper: [
-                'inline-flex items-center gap-x-1 rounded-md px-1.5 py-0.5',
-                'text-sm/5 sm:text-xs/5 font-medium',
-                'bg-zinc-600/10 text-zinc-700 hover:bg-zinc-600/20',
-                'dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10',
-                'transition-colors duration-150 ease-in-out',
+                'inline-flex items-center gap-x-1 rounded-full px-2 py-0.5',
+                'font-mono text-xs font-normal',
+                'bg-[var(--t-well)] text-[var(--t-ink)]',
+                'border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]',
+                'transition-colors duration-150',
                 'whitespace-nowrap',
             ].join(' '),
 
             // Clickable × button on each chip — styles the wrapper button; the
             // actual glyph is rendered as `<Icon icon={removeIconName} ... />`
             // (see `removeIconName` / `removeIconClass`).
-            removeIcon: 'inline-flex items-center self-center cursor-pointer text-zinc-500 hover:text-red-600',
+            removeIcon: 'inline-flex items-center self-center cursor-pointer text-[var(--t-pencil)] hover:text-[var(--t-brick)]',
             removeIconName: 'XMark',
-            removeIconClass: 'size-3.5 sm:size-3',
+            removeIconClass: 'w-3 h-3',
 
             // Dropdown menu shells. menuWrapper is the floating popup;
             // alwaysOpenMenuWrapper is rendered inline below the input when
             // keepMenuOpen is true; tabularMenuWrapper lays options out as a
-            // flat row of pills inline. p-1 padding matches Catalyst
-            // ListboxOptions; the menu items themselves provide the visual
-            // breathing room via their own padding.
+            // flat row of pills inline.
             menuWrapper: [
-                'isolate min-w-[var(--button-width,8rem)] p-1 rounded-xl',
-                'bg-white/95 backdrop-blur-xl dark:bg-zinc-800/95',
-                'shadow-lg ring-1 ring-zinc-950/10 dark:ring-inset dark:ring-white/10',
+                'isolate min-w-[var(--button-width,12rem)] p-1 rounded-lg',
+                'bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]',
             ].join(' '),
             alwaysOpenMenuWrapper: [
-                'w-full p-1 rounded-xl z-20',
-                'bg-white dark:bg-zinc-800',
-                'ring-1 ring-zinc-950/10 dark:ring-inset dark:ring-white/10',
+                'w-full p-1 rounded-lg z-20',
+                'bg-[var(--t-panel)] border border-[var(--t-rule)]',
             ].join(' '),
             tabularMenuWrapper: [
-                'flex flex-row flex-wrap gap-1.5 p-1.5 w-full rounded-xl z-20',
-                'bg-white dark:bg-zinc-800',
-                'ring-1 ring-zinc-950/10 dark:ring-inset dark:ring-white/10',
+                'flex flex-row flex-wrap gap-1.5 p-1.5 w-full rounded-lg z-20',
+                'bg-[var(--t-panel)] border border-[var(--t-rule)]',
             ].join(' '),
 
             // Scrollable list of options inside the menu (compact / expanded modes).
             // mt-1 separates it from the search input above.
-            optionsWrapper: 'mt-1 max-h-[300px] overflow-auto scrollbar-sm',
+            optionsWrapper: 'mt-1 max-h-[300px] overflow-auto',
 
-            // A single option row. Mirrors Catalyst ListboxOption density:
-            // generous top/bottom padding on mobile, tighter on sm.
+            // A single option row.
             menuItem: [
                 'flex items-center gap-2 rounded-md cursor-pointer outline-none',
-                'pl-2 pr-3.5 py-2.5 sm:pl-1.5 sm:pr-3 sm:py-1.5',
-                'text-base/6 sm:text-sm/6 text-zinc-950 dark:text-white',
-                'hover:bg-blue-500 hover:text-white',
-                'transition-colors duration-100 ease-in-out',
+                'px-2 py-1.5',
+                'font-sans text-sm text-[var(--t-ink)]',
+                'hover:bg-[var(--t-well)]',
+                'transition-colors duration-150',
             ].join(' '),
 
             // Tabular mode container + per-pill option.
             smartMenuWrapper: 'flex flex-wrap gap-1',
             smartMenuItem: [
-                'inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-medium cursor-pointer',
-                'bg-blue-500/10 text-blue-700 hover:bg-blue-500/20',
-                'dark:bg-blue-500/15 dark:text-blue-300 dark:hover:bg-blue-500/25',
-                'transition-colors duration-150 ease-in-out',
+                'inline-flex items-center rounded-full px-2 py-0.5 font-mono text-xs font-normal cursor-pointer',
+                'bg-[var(--t-well)] text-[var(--t-ink)]',
+                'hover:border-[var(--t-rule-strong)] border border-[var(--t-rule)]',
+                'transition-colors duration-150',
             ].join(' '),
 
             // Error / invalid-values display.
-            error: 'p-1 text-xs text-red-700 dark:text-red-400 font-medium',
+            error: 'p-1 font-sans text-xs text-[var(--t-brick)] font-medium',
 
             // Selected-row check icon shown when displayDetailedValues=false.
-            selectedValueIconName: 'CircleCheck',
-            selectedValueIcon: 'size-4 text-blue-600 dark:text-blue-400',
+            selectedValueIconName: 'Check',
+            selectedValueIcon: 'w-4 h-4 text-[var(--t-cobalt)]',
+        },
+        // A cobalt-accented chip variant — opt in per-column via `activeStyle:
+        // 'accent'` on the column config (forwarded through by TableCell.jsx,
+        // resolved by MultiSelectView/MultiSelectEdit via getComponentTheme).
+        // Only `tokenWrapper` differs; every other key inherits from styles[0].
+        // Added for the auth manage pages' Groups column (2026-09-16) — kept
+        // here rather than in `authPages.manage` since it's a MultiSelect
+        // variant, not page chrome, and any other page can opt into the same
+        // accent chip without duplicating it.
+        {
+            name: 'accent',
+            tokenWrapper: [
+                'inline-flex items-center gap-x-1 rounded-full px-2 py-0.5',
+                'font-mono text-xs font-normal',
+                'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
+                'border border-[var(--t-cobalt-line)] hover:border-[var(--t-cobalt)]',
+                'transition-colors duration-150',
+                'whitespace-nowrap',
+            ].join(' '),
+        },
+        // A chromeless trigger — no border, no ring, no panel background —
+        // for a MultiSelect used as an ALREADY-SET value editor sitting
+        // inline in a row that has its own visual boundary (e.g. Permissions.
+        // jsx's per-grant permission-domain pills: "public [View Page] …" —
+        // the row itself, not each control in it, should read as the
+        // boundary). Only the trigger + caret differ; the dropdown menu
+        // itself (menuWrapper/menuItem/etc.) still inherits styles[0]'s
+        // normal panel/border look once open (2026-09-20).
+        {
+            name: 'plain',
+            inputWrapper: [
+                'relative flex flex-wrap items-center gap-1 w-full min-h-0 rounded-md cursor-pointer',
+                'pl-0 pr-5 py-0.5',
+                'bg-transparent',
+                'font-sans text-sm text-[var(--t-ink)]',
+                'transition-colors duration-150',
+            ].join(' '),
+            singlePlaceholder: 'truncate font-sans text-sm text-[var(--t-pencil)]',
+            caretIcon: 'w-3.5 h-3.5 stroke-[var(--t-pencil)]',
+        },
+        // Small pill-button trigger for Permissions.jsx's "add user access" /
+        // "add group access" pickers, matching design_system_v6/pages/
+        // admin-pattern-access.html's `<button class="... border ...
+        // rounded-md px-2 py-1">add user/group access <chevron></button>`
+        // exactly — a self-contained bordered pill (not a full-width input),
+        // auto-sized to its own label. One shared style for both pickers
+        // (was two — a cobalt-accented 'addUserAccess' and a neutral
+        // 'addGroupAccess' — the neutral one was correct per design, so
+        // that's the only look now). `caretWrapper` is a plain sibling flex
+        // item here (not the default style's absolutely-positioned overlay,
+        // which only makes sense inside a `w-full` box) so text+chevron lay
+        // out side by side inside ONE bordered `mainWrapper`. `menuWrapper`
+        // gets a wider min-width than styles[0]'s 12rem default: the open
+        // menu's inline `width` (MultiSelect.jsx's `computeMenuStyle`) is
+        // set to the TRIGGER's own bounding width, and this trigger is
+        // narrow (`w-fit`, sized to its own short label) — CSS min-width
+        // still wins over a smaller inline width, so this is enough to stop
+        // long emails/group names from needing horizontal scroll without
+        // touching that positioning logic (2026-09-20).
+        {
+            name: 'addAccess',
+            mainWrapper: 'group relative inline-flex items-center gap-1 w-fit h-fit rounded-md border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] px-2 py-1 cursor-pointer transition-colors duration-150',
+            inputWrapper: 'relative flex items-center gap-1 w-fit min-h-0 cursor-pointer',
+            singlePlaceholder: 't-metaXS text-[var(--t-graphite)] whitespace-nowrap',
+            caretWrapper: 'flex items-center',
+            caretIcon: 'w-3 h-3 stroke-[var(--t-graphite)]',
+            menuWrapper: [
+                'isolate min-w-[22rem] p-1 rounded-lg',
+                'bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]',
+            ].join(' '),
         },
     ],
 };

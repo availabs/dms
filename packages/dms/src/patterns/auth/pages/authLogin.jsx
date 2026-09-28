@@ -12,7 +12,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
     const [error, setError] = useState('');
     const { theme, UI } = React.useContext(ThemeContext);
     const { baseUrl, setUser, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
-    const { FieldSet, Button } = UI;
+    const { FieldSet, Button, Icon } = UI;
     // console.log('auth context aapi', AuthAPI)
 
     const submit = React.useCallback(e => {
@@ -39,7 +39,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
     const t = theme?.auth?.authPages?.sectionGroup?.default || {};
     const sectionGroupTheme = t;
     return (
-        <form onSubmit={ submit }>
+        <form onSubmit={ submit } className={t.formWrapper}>
             <div className={t.pageWrapper}>
                 {/* Brand line — renders only when the theme provides `brandWrapper` (BC:
                     themes without it render nothing here, exactly as before). */}
@@ -50,9 +50,17 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                   </div>
                 )}
 
+                {/* Icon mark — renders only when the theme sets `iconMarkWrapper`
+                    (BC: themes without it render nothing here, exactly as before). */}
+                {t.iconMarkWrapper && (
+                  <span className={t.iconMarkWrapper}>
+                    <Icon icon="Tile" className={t.iconMark} />
+                  </span>
+                )}
+
                 {/* Title block. When the theme sets `headingText` it renders the
                     kicker + headline (+ accent) + subtitle; otherwise it falls back to the
-                    original single `pageTitle` "Sign In" (BC). */}
+                    original single `pageTitle` "Sign in" (BC). */}
                 {t.headingText ? (
                   <div className={t.headingBlock}>
                     {t.kickerText && <span className={t.kicker}>{t.kickerText}</span>}
@@ -63,13 +71,13 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                     {t.subtitleText && <p className={t.subtitle}>{t.subtitleText}</p>}
                   </div>
                 ) : (
-                  <div className={t.pageTitle}>Sign In</div>
+                  <div className={t.pageTitle}>Sign in</div>
                 )}
                 <FieldSet
                     components={[
                         {
                             type:'Input',
-                            label: 'Email',
+                            label: 'email',
                             value: credentials.email,
                             onChange: (e) => {
                                 setCredentials({...credentials, email: e.target.value})
@@ -77,12 +85,12 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                         },{
                             type:'Input',
                             input_type: 'password',
-                            label: 'Password',
+                            label: 'password',
                             value: credentials.password,
                             // Forgot link sits inline on the password label row (better tab
-                            // order than a link between the password field and Sign In).
+                            // order than a link between the password field and Sign in).
                             labelAccessory: (
-                                <Link to={`${baseUrl}/password/forgot`} className={t.forgotPasswordText}>Forgot?</Link>
+                                <Link to={`${baseUrl}/password/forgot`} className={t.forgotPasswordText}>forgot?</Link>
                             ),
                             onChange: (e) => {
                                 setCredentials({...credentials, password: e.target.value})
@@ -98,7 +106,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                     buttonType="submit"
                     className={sectionGroupTheme.actionButton}
                 >
-                    <span className={sectionGroupTheme.actionText}>Sign In</span>
+                    <span className={sectionGroupTheme.actionText}>sign in</span>
                 </Button>
 
                 {/* Optional "or" divider + SSO button — render only when the theme opts in
@@ -118,7 +126,7 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                 {!disableSignup && (
                   <div className={sectionGroupTheme.prompt}>
                     Don't have an account?
-                    <span className={sectionGroupTheme.forgotPasswordText}><Link to={`${baseUrl}/signup`}>Sign up</Link></span>
+                    <span className={sectionGroupTheme.forgotPasswordText}><Link to={`${baseUrl}/signup`}>sign up</Link></span>
                   </div>
                 )}
 

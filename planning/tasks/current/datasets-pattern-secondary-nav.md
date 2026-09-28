@@ -1,5 +1,7 @@
 # Datasets pattern — consume `theme.navOptions.secondaryNav` like the page pattern
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "Implemented … verified live with Playwright … Uncommitted in the submodule — awaiting the owner's re…") · **Release:** review — owner review, then submodule commit · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Driven by the Freight Atlas shared-nav task
 > (`planning/transportny/tasks/current/freight-atlas-secondary-nav.md` in the workspace root planning
 > hub): the `freight_data` datasets pattern (2186526) must render the same secondary sidenav as the

@@ -372,6 +372,34 @@ export const XMark = (props) => (
   </svg>
 )
 
+export const ArrowUpRight = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.5 17.5l11-11M8.5 6.5h9v9" />
+  </svg>
+)
+
+export const Tile = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8 2.5v19M16 2.5v19M2.5 8h19M2.5 16h19" opacity="0.45" />
+    <rect x="9.2" y="9.2" width="5.6" height="5.6" rx="1.1" fill="currentColor" stroke="none" transform="rotate(-8 12 12)" />
+  </svg>
+)
+
+export const Key = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <circle cx="8.5" cy="15.5" r="4" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M11.5 12.5L19 5M16.5 7.5l2.5 2.5M19 5l2 2" />
+  </svg>
+)
+
+export const Lock = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <rect x="5.5" y="10.5" width="13" height="9.5" rx="2" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M8.5 10.5v-3a3.5 3.5 0 0 1 7 0v3" />
+    <circle cx="12" cy="15" r="1.2" fill="currentColor" stroke="none" />
+  </svg>
+)
+
 export const AdjustmentsHorizontal = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
@@ -685,5 +713,20 @@ export const Spinner = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" {...props}>
     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
+  </svg>
+)
+
+// Dark-mode toggle glyphs — generic (not brand-specific), so ThemeToggle
+// (default-enabled in every SideNav's bottomMenu, Layout.theme.jsx) renders
+// correctly for every project, not just themes with their own icon set.
+export const Sun = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v2.25m6.364.386-1.591 1.591M21 12h-2.25m-.386 6.364-1.591-1.591M12 18.75V21m-4.773-4.227-1.591 1.591M5.25 12H3m4.227-4.773L5.636 5.636M15.75 12a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0Z" />
+  </svg>
+)
+
+export const Moon = (props) => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
   </svg>
 )
