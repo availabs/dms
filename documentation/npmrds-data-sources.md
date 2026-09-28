@@ -205,8 +205,11 @@ negligible; gap-log per-map misses at conversion time.
 **Host caveat**: tile URLs are baked per-view in `metadata.tiles` and most say
 `graph.availabs.org` — whose tile route does NOT implement the symbology `join=` param. The
 dms-server tile route (`dmsserver.availabs.org`, `dms-server/src/dama/tiles/tiles.rest.js`)
-DOES. Rewrite the origin when emitting joined layers. Full join mechanics:
-`planning/research/references/map-joins.md`.
+DOES. **Rewrite the origin to `https://dmsserver.availabs.org` when emitting ANY layer** (since
+2026-09-28 — not just joined ones): graph's tile route is a never-expiring disk cache and is being
+retired, and every NPMRDS view checked served byte-identical tiles on both hosts. The converter
+(`route_map.py` `TILE_HOST`) and `composeMapConfig.js` (`PLAIN_TILE_HOST`) both emit it. Full join
+mechanics: `planning/research/references/map-joins.md`.
 
 ## DAMA schema reference (live, confirmed 2026-07-08 against `npmrds2`)
 
