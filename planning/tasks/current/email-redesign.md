@@ -1,5 +1,7 @@
 # Email Redesign
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** built (was: "Status: COMPLETE") · **Release:** review — email testing checklist never run; then close · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Status: COMPLETE
 
 See research doc: `planning/research/email-design.md`

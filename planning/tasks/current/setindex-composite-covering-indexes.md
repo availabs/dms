@@ -1,5 +1,7 @@
 # `setIndexColumn` — composite / covering / partial indexes
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next (was: "Composite / covering filter indexes (`setIndexColumn`) … (no status header; checklist all unchecked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Make the platform's built-in "index this column" action support **composite,

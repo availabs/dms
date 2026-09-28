@@ -86,7 +86,7 @@ filter-option loads cheap by:
 
 This is the platform-level ("Tier 3") fix behind the congestion page's slow
 year/region filters — see
-`planning/transportny/tasks/current/tsmo-congestion-filter-perf.md` for the field
+`planning/transportny/tasks/completed/tsmo-congestion-filter-perf.md` for the field
 measurements. It generalizes to every large-table dashboard (reliability,
 incident search over millions of transcom rows).
 

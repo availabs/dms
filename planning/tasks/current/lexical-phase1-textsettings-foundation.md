@@ -1,5 +1,7 @@
 # Phase 1: Lexical + textSettings Foundation
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** built (was: "Status — Completed (theme move, useLexicalTheme, textSettings, SSR) · Remaining: replace custom UI c…") · **Release:** review — run the testing checklist, confirm UI-replacement item, then close · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Status
 
 ### Completed

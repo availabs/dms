@@ -1,5 +1,7 @@
 # PK removal rejects the very constraint it exists to remove (`ogc_fid`)
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next (was: "NOT STARTED · Created: 2026-08-13") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** NOT STARTED
 **Created:** 2026-08-13
 **Topic:** dama

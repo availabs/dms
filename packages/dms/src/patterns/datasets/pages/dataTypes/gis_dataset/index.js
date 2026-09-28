@@ -1,7 +1,4 @@
-import CreatePage from "./pages/Create";
-import Map from "./pages/Map";
-import Table from "./pages/table";
-import Metadata from "./pages/metadata"
+import { GisCreate as CreatePage, GisMap as Map, Table, Metadata } from "../lazyPages";
 
 const GisDatasetConfig = {
     table: {

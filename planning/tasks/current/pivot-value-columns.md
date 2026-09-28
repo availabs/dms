@@ -1,5 +1,7 @@
 # dataWrapper pivot: multi-value columns (valueColumns[])
 
+**Initiatives:** [tny_npmrds_product_redesign](../../../../../planning/initiatives/tny_npmrds_product_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "[x] Applied to working tree (2026-07-17). [ ] Committed (user). [ ] `card-layout.md` doc. [ ] author…") · **Release:** commit — user commit, plus card-layout doc and UI eyeball · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Library sub-task of** `planning/transportny/tasks/current/build-route-comparison-page.md`
 (Task 2 / enrichment E1). Lets a Spreadsheet/Graph **pivot** spread MULTIPLE metrics per pivot
 combo (each with its own aggregate) — e.g. Speed·avg, Travel-time·avg, Delay·sum side-by-side

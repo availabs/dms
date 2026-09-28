@@ -1,5 +1,7 @@
 # Site Management: Activity Log / Recent Changes
 
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** built (was: "(no status line; testing checklist all unchecked)") · **Release:** review — built differently from the plan; doc needs reconciling and testing · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 A reverse-chronological feed of content changes across the site — page edits, section edits, publishes, and new page creation. Gives admins visibility into who changed what and when, without needing direct database access.

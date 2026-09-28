@@ -1,5 +1,7 @@
 # Control room served stale ticket statuses — `fetchMode: smart` on live data
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "✅ FIXED 2026-07-29 by configuration (`fetchMode: 'force'` on three control-room sections). No librar…") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** ✅ FIXED 2026-07-29 by configuration (`fetchMode: 'force'` on three control-room
 > sections). No library change. One documentation/UX gap left open below.
 > **Origin:** ticket 2191409 was `Resolved` in the database, but `/sitemgmt/tickets` kept rendering

@@ -1,5 +1,7 @@
 # `date` columnType: normalize mixed raw date-string formats
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "LIBRARY CODE COMPLETE — awaiting live verification") · **Release:** review — live verify on MNY components 2527762 / 1077908, then commit · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 **Status:** LIBRARY CODE COMPLETE — awaiting live verification
 **Topic:** ui (columnTypes)
 **Driver:** MitigateNY `DHSES_County_Database` external source — `plan_approval_date`/`expiration_date`/

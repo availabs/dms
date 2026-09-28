@@ -1,5 +1,7 @@
 # Card context menus — consolidate, organize, align vocabulary
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "Owner request (2026-07-02, follow-up to card-layout-model-simplification.md)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Owner request (2026-07-02, follow-up to
 > [card-layout-model-simplification.md](./card-layout-model-simplification.md)):
 > "consolidate the context menus for both card itself as well as the cell

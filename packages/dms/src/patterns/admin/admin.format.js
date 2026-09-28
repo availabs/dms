@@ -1,5 +1,16 @@
-import PatternList from './components/patternList'
+import { lazyComponent } from '../../utils/lazyComponent'
+
 import TenantList from './components/tenantList'
+
+// Code-split: the pattern list renders only on admin pages, but this format is
+// imported eagerly (adminConfig builds every site's root dmsConfig). Same
+// { EditComp, ViewComp } shape the module default-exports.
+// See planning/tasks/completed/bundle-split-initial-graph.md.
+const loadPatternList = () => import('./components/patternList')
+const PatternList = {
+  EditComp: lazyComponent('admin/PatternList.Edit', () => loadPatternList().then(m => ({ default: m.default.EditComp }))),
+  ViewComp: lazyComponent('admin/PatternList.View', () => loadPatternList().then(m => ({ default: m.default.ViewComp }))),
+}
 
 export const themeFormat = {
   app: 'admin',

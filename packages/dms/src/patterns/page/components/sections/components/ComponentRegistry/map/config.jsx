@@ -1,6 +1,11 @@
 import React from 'react'
-import { MapSection } from './index'
 import { MapControls } from './settings/controls.jsx'
+import { lazyComponent } from '../../../../../../../utils/lazyComponent'
+
+// Code-split: the map section (MapEditor internals + maplibre) loads only when
+// a page actually has a Map section; this config (controls, metadata) stays
+// eager. See planning/tasks/completed/bundle-split-initial-graph.md.
+const MapSection = lazyComponent('section/Map', () => import('./index').then(m => ({ default: m.MapSection })))
 
 const getData = async () => {
     return {}
@@ -83,6 +88,8 @@ export default {
     getData,
     componentFunctions,
     controls: MapControls,
+    // Loads the code-split MapSection ahead of render (page loader).
+    preload: () => MapSection.preload(),
     "EditComp": props => <MapSection {...props} isEdit={true} />,
     "ViewComp": props => <MapSection {...props} isEdit={false} />
 }

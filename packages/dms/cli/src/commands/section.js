@@ -14,6 +14,7 @@ import {
 } from '../utils/data.js';
 import { pageTypeFor, componentTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
+import { afterDraftSectionsWrite } from '../utils/room-sync.js';
 
 async function resolvePagePattern(falcor, config, patternFlag) {
   if (patternFlag) {
@@ -191,12 +192,14 @@ export async function create(pageIdOrSlug, config, options = {}) {
       draft_sections: draftSections,
       has_changes: true,
     }]);
+    const roomSync = await afterDraftSectionsWrite(config, pageId);
 
     output({
       id: sectionId,
       page_id: pageId,
       type: sectionType,
       message: 'Section created and attached to page',
+      ...(roomSync && { room_sync: roomSync }),
     }, options);
   } catch (error) {
     outputError(error);
@@ -254,6 +257,7 @@ export async function remove(sectionId, config, options = {}) {
   try {
     const falcor = makeClient(config);
     const numId = parseInt(sectionId, 10);
+    let roomSync;
 
     if (options.page) {
       const pattern = await resolvePagePattern(falcor, config, options.pattern);
@@ -275,6 +279,7 @@ export async function remove(sectionId, config, options = {}) {
       }]);
 
       await falcor.call(['dms', 'data', 'delete'], [config.app, sectionType, numId]);
+      roomSync = await afterDraftSectionsWrite(config, pageId);
     } else {
       // No page context — read the section's own type/app to issue delete.
       const section = await fetchById(falcor, config.app, numId, ['id', 'app', 'type']);
@@ -285,7 +290,7 @@ export async function remove(sectionId, config, options = {}) {
       await falcor.call(['dms', 'data', 'delete'], [section.app, section.type, numId]);
     }
 
-    output({ id: numId, message: 'Section deleted' }, options);
+    output({ id: numId, message: 'Section deleted', ...(roomSync && { room_sync: roomSync }) }, options);
   } catch (error) {
     outputError(error);
   }

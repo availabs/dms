@@ -1,5 +1,7 @@
 # Expand client column-types into a user-facing interaction system
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "(no status line; Phase 0-8 plan, nothing checked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Turn `src/dms/packages/dms/src/ui/columnTypes/index.jsx` from a thin

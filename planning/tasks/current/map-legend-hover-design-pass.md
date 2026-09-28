@@ -1,5 +1,7 @@
 # Map legend + hover design pass (map component ⊕ mapeditor)
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built (was: "in progress 2026-07-13") · **Release:** commit — built uncommitted; transportny themev2 map theme rides the sync · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status: in progress 2026-07-13** · Owner ask: legends should match the DS design
 (`freight-atlas-map.html` legend card), the legend's info icon (→ source page) needs a design
 update + more prominence, and the hover component must be themed/designed to fit the DS.

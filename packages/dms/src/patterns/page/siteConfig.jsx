@@ -3,7 +3,7 @@ import { get } from "lodash-es";
 import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
-import { preloadPageSections } from "../../api/preloadSectionData.js";
+import { preloadPageSections, findPageItem, pageSectionTypes } from "../../api/preloadSectionData.js";
 
 // components
 import cmsFormat from "./page.format.js";
@@ -13,7 +13,7 @@ import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { MountContext } from "../../ui/mountContext.js";
 import { registerWidget } from "../../ui/widgets";
-import { registerComponents } from './components/sections/componentRegistry';
+import { registerComponents, preloadSectionComponents } from './components/sections/componentRegistry';
 import { registerSectionMenuExtensions } from './components/sections/sectionMenuExtensions';
 import { registerSectionHeaderExtensions } from './components/sections/sectionHeaderExtensions';
 import { registerColumnType } from "../../ui/columnTypes";
@@ -33,9 +33,13 @@ import DefaultMenu from "./components/userMenu";
 
 // pages
 import PageView from "./pages/view";
-import PageEdit from "./pages/edit";
 import ErrorPage from "./pages/error";
-import { RegisterPlugin } from "../mapeditor/MapEditor"
+import { RegisterPlugin } from "../mapeditor/MapEditor/pluginRegistry"
+import { lazyComponent } from "../../utils/lazyComponent";
+
+// Code-split: the page editor only loads for an edit route. See
+// planning/tasks/completed/bundle-split-initial-graph.md.
+const PageEdit = lazyComponent('page/PageEdit', () => import("./pages/edit"));
 
 // Register page pattern widgets
 registerWidget('UserMenu', { label: 'User Menu', component: DefaultMenu })
@@ -145,13 +149,19 @@ const pagesConfig = ({
   return {
     siteType,
     format: format,
-    ...(preloadEnabled && {
-      preload: (falcor, data, request, params) => {
-        const raw = params?.['*'] || '';
-        const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
-        return preloadPageSections(falcor, data, request.url, patternFilters, slug);
-      },
-    }),
+    // Runs in the route loader after the page's rows load. Starts fetching the
+    // code-split chunks of the page's section types (Map, Graph, …) as early as
+    // they're known — but does NOT wait for them: awaiting put a chunk download
+    // in front of the whole page's first render, including sections (the hero)
+    // that don't need it. A lazy section shows its Suspense fallback until its
+    // chunk lands. See boot-chain-fewer-serial-hops.md (and
+    // bundle-split-initial-graph.md for the chunks themselves).
+    preload: async (falcor, data, request, params) => {
+      const raw = params?.['*'] || '';
+      const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
+      preloadSectionComponents(pageSectionTypes(findPageItem(data, slug)));
+      return preloadEnabled ? preloadPageSections(falcor, data, request.url, patternFilters, slug) : data;
+    },
     baseUrl,
     API_HOST,
     children: [

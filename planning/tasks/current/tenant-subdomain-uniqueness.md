@@ -1,5 +1,7 @@
 # Tenant Subdomain Uniqueness
 
+**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** blocked:decision (was: "Phase 1 — Server-side guard (validation + uniqueness) — COMPLETE … Open Issue: Error Display … This …") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Prevent duplicate subdomains when tenants are created via either entry point: the platform admin `/list` page (`TenantList`) or the self-serve signup page (`AuthSignup`). Currently neither enforces uniqueness reliably, which leads to two tenants silently sharing the same `app` namespace.
@@ -159,6 +161,23 @@ When the server guard rejects with a duplicate subdomain error, the client shows
 This remains unresolved.
 
 ---
+
+## Open Issue: Removed tenants permanently burn their subdomain (flagged 2026-09-23, not fixed)
+
+`/list` "Remove tenant" (`editSite.jsx` TenantList delete modal) only drops the ref from the master
+site's `tenants` array. Left behind: the `main|<slug>:tenant` row in the master app, the tenant app's
+site/patterns/pages (and `dms_<slug>` schema in per-app mode), and the auth project + `<slug> Admin/Public`
+groups + memberships.
+
+Consequences:
+- Old subdomain shows `Tenant "<slug>" not found` (`dmsSiteFactory.jsx` only searches the `tenants` refs).
+- Re-creating the same subdomain (signup or `/list`) passes the client check, then fails at
+  `POST /init/setup` with `Project "<slug>" is already initialized.` (`auth.js` initSetup). If that were
+  bypassed, the Phase 1 server guard would still reject it, because it counts the orphaned `:tenant` row.
+- No UI to restore or purge; the name is gone for good.
+
+Decision needed: "remove" = **suspend** (relabel + add restore) vs **delete** (new server endpoint to drop
+tenant row + auth project/group links, optional tenant-data purge). Traced from code, not live-reproduced.
 
 ## Testing Checklist
 
