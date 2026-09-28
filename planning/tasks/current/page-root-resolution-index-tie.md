@@ -1,5 +1,7 @@
 # Page pattern: bare-URL root page resolves inconsistently when top-level indexes tie
 
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** next (was: "FILED 2026-09-24, not started (owner: no core change for now, fix the data instead)") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 > **Status:** FILED 2026-09-24, **not started** (owner: no core change for now, fix the data instead).
 > Data workaround in place: tsmo2 re-indexed 2026-09-24, sitemgmt 2026-09-23, and `cr_sync.mjs` now
 > warns `⚠ INDEX TIE <pattern>` for tracked TransportNY patterns. Sibling task, which removes the most

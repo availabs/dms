@@ -1,5 +1,7 @@
 # Page load — the site bootstrap payload (and two related fetch problems)
 
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** doing (was: "STATUS (2026-09-22): findings 1, 2, 4 SHIPPED + the trigram index APPLIED TO LIVE `dms3`. Finding 3 …") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > Diagnosis task, opened 2026-09-17 after the `file_upload` exclusion
 > ([`datasets-exclude-file-upload-sources.md`](./datasets-exclude-file-upload-sources.md)) cut the
 > MitigateNY datasets list from 11,423 sources to 366 and the page was **still** slow. Measured with

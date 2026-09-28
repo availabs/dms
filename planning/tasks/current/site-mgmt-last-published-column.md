@@ -1,5 +1,7 @@
 # Site Management: Last Published Column
 
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** built (was: "(no status line; testing checklist all unchecked)") · **Release:** review — built differently from the plan; doc needs reconciling and testing · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 A `last_published` column in the pages management Spreadsheet showing when a page was last published and by whom. Gives authors context on how stale a draft is or when a live page was last pushed.

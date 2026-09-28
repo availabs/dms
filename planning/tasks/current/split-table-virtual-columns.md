@@ -1,5 +1,7 @@
 # Split Table Virtual Columns & Indexes
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next (was: "(no status line; all phase checkboxes unchecked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Add virtual columns and indexes to dataset split tables based on the source's `config.attributes`. This gives B-tree index speed for filtering, sorting, and grouping on dataset columns — currently all queries do full table scans via `data->>'column'` expressions.

@@ -1,5 +1,7 @@
 # CSV upload parser: respect quoted-field newlines
 
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next (was: "(no status line; all files/testing items unchecked; current state verified 2026-05-08)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 The DAMA CSV upload pipeline (`csv-publish` worker) currently splits the CSV stream with `split2` on `\n`, which treats every line break as a record boundary. RFC-4180 explicitly permits embedded `\r\n` and `\n` inside double-quoted fields, and well-formed exports from real systems (the WCDB schedule export, for one) carry editorial newlines inside description columns. Today, those uploads either fail outright (column count mismatch on continuation lines) or silently truncate the field and shift every subsequent column by one — both producing garbage in the per-view table.

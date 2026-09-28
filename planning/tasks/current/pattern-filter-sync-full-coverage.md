@@ -1,5 +1,7 @@
 # pattern-filter-sync — full coverage (published scope, pageFilters, clearKeys)
 
+**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing (was: "Plan: [x] filter-leaf-walk … [x] Re-verified … [ ] Client: expose scope … [ ] Tests") · **Created by:** unknown · **Edited by:** —
+
 ## Objective
 
 Make one `sync-filters` run leave **no trace of the source pattern's filter values** in a freshly

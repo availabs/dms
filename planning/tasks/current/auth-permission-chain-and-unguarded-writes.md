@@ -1,5 +1,7 @@
 # Auth: the route-chain ACL is overwritten not merged, and `dms.data.edit` has no authorization
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:decision (was: "DIAGNOSED 2026-07-29, not fixed … Nothing here has been changed for defects A-C. They need an owner …") · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu
+
 > **Status:** DIAGNOSED 2026-07-29, **not fixed** · surfaced while working TransportNY QA ticket row
 > 2197778 (landing page links to two sign-in-walled destinations). Defect B is security-relevant and
 > deserves triage ahead of the original ticket. **Defect D added 2026-09-05**: a concrete, fully

@@ -1,5 +1,7 @@
 # Card: link-cell style doubling fix + per-column headerValueLayout override
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "✅ BUILT + VERIFIED (2026-07-06). Two small BC changes in ui/components/Card.jsx") · **Release:** sync — Card.jsx to transportNY with pending core batch · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** ✅ BUILT + VERIFIED (2026-07-06). Two small BC changes in `ui/components/Card.jsx`,
 > both surfaced by the control-room tickets page.
 

@@ -1,5 +1,7 @@
 # Pattern Creation Refresh Bug
 
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "Root Cause Analysis (partial — not yet confirmed)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Fix the bug where creating a new pattern in the admin pattern list shows a new row with blank data, requiring a full page refresh to see the correct data.

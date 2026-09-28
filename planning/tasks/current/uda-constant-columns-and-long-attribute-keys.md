@@ -1,5 +1,7 @@
 # UDA: constant-valued columns vanish on ungrouped-aggregate cards; one attribute key came back mutated
 
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "🔍 DIAGNOSED, NOT FIXED (2026-08-24).") · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu
+
 > **Status:** 🔍 ROOT-CAUSED, NOT FIXED (updated 2026-09-24). Bug 1 is **not** about
 > ungrouped-aggregate mode — it is the server's `sanitizeName` injection guard rejecting whole column
 > expressions (see "Root cause" directly below; it supersedes the 2026-08-24 "Current state" framing

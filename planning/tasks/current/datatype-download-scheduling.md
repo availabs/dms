@@ -1,5 +1,7 @@
 # Scheduled data-loader runs — cron scheduling + run-history UI for the datasets pattern
 
+**Initiatives:** [dms_retire_falcor_etl](../../../../../planning/initiatives/dms_retire_falcor_etl.md) · **Status:** built (was: "P1 — Server core — DONE (2026-06-10) · P2 DONE · P3 — UI DONE (2026-06-10) · Still to do (P4 — later…") · **Release:** review — owner acceptance run on dev, then deploy · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > DMS-library task (dms-server + datasets pattern). Driven by the TransportNY data-type migration:
 > the legacy dama system ran npmrds/transcom ingestion on pg-boss cron schedules; the new task runner
 > has **no scheduling at all**. This task adds it — server-side cron execution of data-type loaders,

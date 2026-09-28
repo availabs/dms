@@ -1,5 +1,7 @@
 # Auth: an expired session shows "You do not have permission" instead of redirecting to login
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next (was: "FILED 2026-09-23, not started, not reproduced.") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 > **Status:** FILED 2026-09-23, **not started, not reproduced.** Moved here from TransportNY control-room
 > ticket #2224917 ("Logout Redirect", client-filed 2026-09-22, Minor), which was Closed on the ticket
 > board because the fix lives in this library, not on any page.

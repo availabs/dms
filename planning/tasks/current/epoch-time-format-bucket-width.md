@@ -1,5 +1,7 @@
 # `epoch_time` x-axis formatter hardcodes a 5-minute bucket width
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "DONE — implemented, module-verified, and live-confirmed by the user 2026-07-27") · **Release:** sync — manual port to transportNY · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+
 **Status:** DONE — implemented, module-verified, and **live-confirmed by the user 2026-07-27**
 ("looks good"). Isolated library change, deliberately kept separate
 from the report-spec work that motivated it (`dms-template/planning/transportny/tasks/completed/report-spec-and-build-script.md`)

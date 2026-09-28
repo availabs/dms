@@ -1,5 +1,7 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) · **Status:** doing (was: "Latest work (2026-09-16): Info Box + Route Compare multi-measure support (step 1 / 1b) and the conve…") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 > **Arc entry point:** this file is the source of truth for the CONVERTER. For where conversion
 > sits in the wider Routes/Reports arc — what's open for 1.0, the verification commands, and the
 > cross-cutting gotchas — start at

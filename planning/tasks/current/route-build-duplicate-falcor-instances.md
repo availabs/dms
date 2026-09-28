@@ -1,5 +1,7 @@
 # Perf: fast-path + full-fetch route rebuilds duplicate the entire page data fetch (separate Falcor instances)
 
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** next (was: "NOT STARTED (scoped 2026-09-02).") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Status
 
 NOT STARTED (scoped 2026-09-02). Split out from

@@ -1,5 +1,7 @@
 # AVL Graph — graph-chrome theming (legend, card padding, admin surface)
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** doing (was: "PASS 1 DONE · PASS 2 items 1 + 2 DONE … item 3 (tooltip) DONE 2026-09-14 … item 4 (padding) NOT star…") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status:** PASS 1 DONE · **PASS 2 items 1 + 2 DONE, live-verified and owner-reviewed 2026-09-11**
 (legend class tokens + back-compat suite; legend caption = author `title` / automatic `unit`, with a
 Settings-drawer control) · **item 3 (tooltip) DONE 2026-09-14, live-verified + owner-reviewed** — 6 tokens across all six graph types, Sunburst/Treemap + Bar/Pie merged, GridGraph highlight unified, 443 tests green · **item 4 (padding) NOT started** · pass 3 not started ·

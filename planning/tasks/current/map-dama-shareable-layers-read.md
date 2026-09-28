@@ -1,5 +1,7 @@
 # map_dama: shareable-link READ (`?layers=` / `f_<id>=`) — opt-in
 
+**Initiatives:** [tny_freight_atlas_redesign](../../../../../planning/initiatives/tny_freight_atlas_redesign.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "BUILT (2026-07-13) — verification via throwaway publish in the freightatlas2 QA run"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status: BUILT (2026-07-13) — verification via throwaway publish in the freightatlas2 QA run**
 **Origin:** control-room ticket #106 — the Freight Atlas gallery's new design (2026-07-13)
 deep-links every map-figure tile to `/freight_atlas?layers=<symbology_ids>` (dataset

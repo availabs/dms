@@ -26,7 +26,8 @@ program
   .option('--format <fmt>', 'Output format: json, summary, tree', 'json')
   .option('--output <file>', 'Write output to file')
   .option('--pretty', 'Pretty-print JSON output')
-  .option('--compact', 'Compact JSON output');
+  .option('--compact', 'Compact JSON output')
+  .option('--no-room-sync', "Skip syncing a page's live-edit room after writing its draft_sections (see `page sync-room`)");
 
 // Helper: --set collector (shared across update commands)
 const collectSet = (val, prev) => prev ? [...prev, val] : [val];
@@ -39,6 +40,7 @@ function getConfig(cmd) {
     app: opts.app,
     type: opts.type,
     authToken: opts.authToken,
+    roomSync: opts.roomSync,
   });
 }
 
@@ -252,6 +254,17 @@ pageCmd
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
     await page.update(idOrSlug, config, { ...getOutputOptions(cmd), ...options });
+  });
+
+pageCmd
+  .command('sync-room <id-or-slug>')
+  .description("Make a page's live-edit room match its draft_sections (repairs pages whose browser saves revert CLI/Discard edits)")
+  .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
+  .option('--check', 'Report only (status "stale" if out of sync); never write')
+  .action(async (idOrSlug, options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app', 'type']);
+    await page.syncRoom(idOrSlug, config, { ...getOutputOptions(cmd), ...options });
   });
 
 pageCmd

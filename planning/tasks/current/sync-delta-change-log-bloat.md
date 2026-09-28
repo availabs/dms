@@ -1,5 +1,7 @@
 # Sync delta / change_log bloat + non-convergence — full-app delta OOM'd the server, and `catchUp()` can never advance past it
 
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built (was: "Items A, B, 1, 3, 4 + the 'no-access' push loop all implemented 2026-09-10.") · **Release:** deploy — dms-server deploy, live stale-profile pass, operator change_log vacuum · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status:** Items A, B, 1, 3, 4 + the `"no-access"` push loop all implemented 2026-09-10.
 Code complete and unit-tested; the live convergence + reclaim checks in the Testing Checklist
 still need a real browser and an operator-scheduled vacuum.

@@ -1,5 +1,7 @@
 # CLI: `dms page create` defaults every page to `index '0'`
 
+**Initiatives:** [dms_cli_agent_tooling](../../../../../planning/initiatives/dms_cli_agent_tooling.md) · **Status:** next (was: "FILED 2026-09-23, not started. Workaround in place for the TransportNY QA builders") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 > **Status:** FILED 2026-09-23, **not started.** Workaround in place for the TransportNY QA builders
 > (`src/themes/transportny/qa_skills/tools/lib/page_index.mjs`, passed as `--data {"index": …}`), which
 > is why this is a library task and not an urgent one.

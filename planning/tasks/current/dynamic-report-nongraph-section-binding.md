@@ -1,5 +1,7 @@
 # Dynamic-Report route binding doesn't reach Map/Spreadsheet section types
 
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "Status (2026-08-07, Round 3): Item 1 DONE + live-verified … Item 2 DONE … Item 4 could NOT be reprod…") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+
 **Status (2026-08-07, Round 3): Item 1 DONE + live-verified — the Map Routes pill now renders and
 is correctly scoped (Routes + When only, no Measure/Aggregate/Mode).** Item 2 DONE + live-verified
 (Round 2). Item 4 (Info Box/Route Compare "never render") could NOT be reproduced live — see below,

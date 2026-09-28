@@ -15,7 +15,13 @@ const __dirname = dirname(__filename);
 
 const CLI_DIR = resolve(__dirname, '..');
 const CLI_BIN = join(CLI_DIR, 'bin', 'dms.js');
-const SERVER_DIR = resolve(__dirname, '..', '..', '..', 'dms-server');
+// DMS_TEST_SERVER_DIR: run a different dms-server checkout (e.g. a copy whose
+// db/configs holds only local sqlite configs, when this checkout's gitignored
+// configs point at an unreachable remote — the server blocks on startup
+// connecting to every `dama`-role config it finds).
+const SERVER_DIR = process.env.DMS_TEST_SERVER_DIR
+  ? resolve(process.env.DMS_TEST_SERVER_DIR)
+  : resolve(__dirname, '..', '..', '..', 'dms-server');
 const SERVER_ENTRY = join(SERVER_DIR, 'src', 'index.js');
 const SQLITE_PATH = join(SERVER_DIR, 'src', 'db', 'data', 'cli-test.sqlite');
 
@@ -76,6 +82,32 @@ export async function startServer() {
   throw new Error(`Server failed to start after ${maxAttempts * 500}ms. Output:\n${serverOutput}`);
 }
 
+// Session token for the test admin — set by authenticate(). Deletes require
+// an authenticated user (dms.route.js / sync.js "Authentication required to
+// delete items"), so every CLI call runs logged in.
+let AUTH_TOKEN = null;
+
+/**
+ * Create the test admin on the fresh DB (POST /init/setup) and log in.
+ */
+export async function authenticate() {
+  const creds = { email: 'cli-test@test.com', password: 'CliTestPass1', project: APP };
+  const post = async (path, body) => {
+    const res = await fetch(`${HOST}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify(body),
+    });
+    return res.json();
+  };
+  const setup = await post('/init/setup', creds);
+  if (setup.error) throw new Error(`init/setup failed: ${setup.error}`);
+  const login = await post('/login', creds);
+  if (!login.user?.token) throw new Error(`login failed: ${JSON.stringify(login)}`);
+  AUTH_TOKEN = login.user.token;
+  console.log(`  Logged in as ${creds.email}`);
+}
+
 /**
  * Stop the server
  */
@@ -94,7 +126,7 @@ export function stopServer(server) {
  * @returns {{ stdout: string, stderr: string, exitCode: number, json: any }}
  */
 export function runCli(args, opts = {}) {
-  const baseArgs = `--host ${HOST} --app ${APP} --type ${TYPE}`;
+  const baseArgs = `--host ${HOST} --app ${APP} --type ${TYPE}${AUTH_TOKEN ? ` --auth-token ${AUTH_TOKEN}` : ''}`;
   const cmd = `node ${CLI_BIN} ${baseArgs} ${args}`;
 
   try {
@@ -149,6 +181,15 @@ export function seed() {
 export function describe(name, fn) {
   console.log(`\n  ${name}`);
   fn();
+}
+
+/**
+ * Async test group — for tests that need awaits between CLI calls
+ * (e.g. a live WebSocket room member).
+ */
+export async function describeAsync(name, fn) {
+  console.log(`\n  ${name}`);
+  await fn();
 }
 
 /**
@@ -211,7 +252,9 @@ export function summary() {
   return failed > 0 ? 1 : 0;
 }
 
+export { HOST };
+
 export default {
-  startServer, stopServer, runCli, seed, describe, test,
+  startServer, stopServer, authenticate, runCli, seed, describe, describeAsync, test,
   assert, assertEqual, assertIncludes, pass, summary,
 };

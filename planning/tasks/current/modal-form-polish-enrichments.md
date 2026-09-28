@@ -1,5 +1,7 @@
 # Modal/create-form polish enrichments + input placeholder bug fix
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "BUILT + VERIFIED (2026-07-15)"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+
 **Status: BUILT + VERIFIED (2026-07-15)**
 **Origin:** control-room Page-QA Add-ticket modal redesign (Alex: only title/severity/description,
 bigger+darker labels, tighter/friendlier; then "modal doesn't close on add"; then "show the new

@@ -1,5 +1,7 @@
 # XLSX upload fails on empty inline-string cell
 
+**Initiatives:** [mny_county_plan_transcription](../../../../../planning/initiatives/mny_county_plan_transcription.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "(no status line; Chosen approach … testing checklist unchecked)") · **Release:** deploy — dms-server deploy, then live re-upload check · **Created by:** ssangdod@albany.edu · **Edited by:** —
+
 ## Objective
 
 Fix `.xlsx` upload analysis failing with `Unsupported "inline string" cell value structure: <c r="A15" t="inlineStr"></c>` when a workbook contains a cell explicitly typed `t="inlineStr"` but with no `<is>` child (a legal-but-unusual "empty inline string" cell).

@@ -114,7 +114,7 @@ meta / shapefile-enhanced twin (CH view 983) on `tmc`: speed =
 `direction` + `county`. Builder:
 `scratchpad/npmrdsv5-tsmo2/build_tsmo_corridor_view.mjs`
 (`GRID_JOIN()` + `speedGridGraph()`); task:
-`planning/transportny/tasks/current/tsmo-corridor-view-page-build.md`
+`planning/transportny/tasks/completed/tsmo-corridor-view-page-build.md`
 (records the `tmclinear`-isn't-unique and year-pin gotchas).
 
 ## Common failures

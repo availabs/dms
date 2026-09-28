@@ -1,5 +1,7 @@
 # Card: numeric 0 / falsy cell values render blank
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "✅ FIXED + VERIFIED (2026-07-06). BC bugfix, one line. … Remaining: sync Card.jsx to transportNY") · **Release:** sync — Card.jsx to transportNY vendored dms · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** ✅ FIXED + VERIFIED (2026-07-06). BC bugfix, one line. Verified: tickets summary
 > Blocker/Polish boxes render `0`; control-room overview renders clean (its 0-count stage cards now
 > show `0` too — the same bug, now fixed); no console errors. **Remaining:** sync `Card.jsx` to

@@ -1,5 +1,7 @@
 # `flow_step` columnType — lifecycle flow-strip boxes
 
+**Initiatives:** [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "✅ BUILT (2026-07-06). BC, additive.") · **Release:** sync — flow_step.jsx + index.jsx + themev2.js to transportNY · **Created by:** amuro@albany.edu · **Edited by:** —
+
 > **Status:** ✅ BUILT (2026-07-06). BC, additive.
 > **Origin:** TransportNY control-room tickets page — the `sitemgmt-tickets.html` mockup's
 > "Where tickets stand" flow strip (dot · label · count boxes with `›` connectors and an

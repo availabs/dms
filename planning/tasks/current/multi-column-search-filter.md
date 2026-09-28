@@ -1,5 +1,7 @@
 # First-class multi-column search filter
 
+**Initiatives:** [tny_tsmo_v2_suite](../../../../../planning/initiatives/tny_tsmo_v2_suite.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "Created from the TSMO Incident Search planning work … Not started. (2026-06-22)") · **Created by:** amuro@albany.edu · **Edited by:** —
+
 ## Objective
 
 Make "a single search box that matches across several columns" a **first-class, declarative**
