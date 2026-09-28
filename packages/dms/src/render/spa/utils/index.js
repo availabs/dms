@@ -308,12 +308,21 @@ export function pattern2routes (siteData, props) {
       if (env.id) dmsEnvById[env.id] = env;
     }
 
+    // Source links (Attribution, "view source") need a mount that serves
+    // source/:id and internal_source/:id — only the `datasets` pattern type does
+    // (forms is no longer registered, mapeditor has no such routes).
+    const datasetsMount = (p) => {
+      const trimmed = (p?.base_url || '').replace(/^\/|\/$/g, '');
+      return trimmed ? `/${trimmed}` : '';
+    };
+    const firstDatasetsPattern = datasetPatterns.find(p => p.pattern_type === 'datasets');
+
     // Build per-pattern datasources based on dmsEnvId (or fall back to legacy)
     function buildDatasources(pattern) {
       const external = (pgEnvs || []).map(env => ({
         type: 'external',
         env,
-        baseUrl: damaBaseUrl || '',
+        baseUrl: damaBaseUrl || datasetsMount(firstDatasetsPattern),
         label: 'external',
         srcAttributes: ['name', 'metadata'],
         viewAttributes: ['version', '_modified_timestamp'],
@@ -339,10 +348,15 @@ export function pattern2routes (siteData, props) {
           if (seenDmsEnvIds.has(dsDmsEnvId)) continue;
           seenDmsEnvIds.add(dsDmsEnvId);
         }
+        // Link through the datasets pattern sharing this dmsEnv. The env key itself
+        // is left as-is since sections persist it as srcEnv.
+        const linkPattern = dsPattern.pattern_type === 'datasets' ? dsPattern
+            : datasetPatterns.find(p => p.pattern_type === 'datasets' && dsDmsEnvId && p.dmsEnvId === dsDmsEnvId)
+            || firstDatasetsPattern;
         internal.push({
           type: 'internal',
           env: `${app}+${getInstance(dsPattern.type) || dsPattern.doc_type}`,
-          baseUrl: '/cenrep',
+          baseUrl: datasetsMount(linkPattern),
           label: 'managed',
           isDms: true,
           srcAttributes: ['app', 'name', 'config', 'default_columns'],
