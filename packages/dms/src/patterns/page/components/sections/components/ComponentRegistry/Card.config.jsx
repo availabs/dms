@@ -466,6 +466,13 @@ export const componentFunctions = {
             args: [],
         },
         {
+            id: 'save_publish',
+            label: 'Save: Publish Saved Row',
+            description: 'After a form-edit Save (Live Edit off), publishes `saved:<id>:<time>` to a page action param — pair with a Refetch Data subscriber so other sections over the same source show the edit without a reload.',
+            trigger: 'save',
+            args: [],
+        },
+        {
             id: 'load_publish',
             label: 'On Load: Publish Derived Row',
             description: 'When data loads, derive a row (first/max/min over a metric) and publish one or more of its column values to page action params — e.g. an event-header Card publishes the event\'s date/year for downstream sections. Publishes only after a live fetch (never from the Card\'s saved seed rows); re-publishes when the data changes.',
@@ -702,6 +709,10 @@ const buildControls = (theme) => ({
                 displayCdn: ({ display }) => display.allowDelete },
             { type: 'input', inputType: 'text', label: 'Close modal on delete (param key)', key: 'closeModalOnDelete',
                 displayCdn: ({ display }) => display.allowDelete },
+            // The Save button's twin: in an edit modal, a successful form save clears this
+            // param and closes the modal. Pair with a `save_publish` provider for the refetch.
+            { type: 'input', inputType: 'text', label: 'Close modal on save (param key)', key: 'closeModalOnSave',
+                displayCdn: ({ display }) => display.allowEditInView && !display.liveEdit },
             { type: 'select', label: 'Data Fetch Mode', key: 'fetchMode',
               options: [
                 { label: 'Cache (use preloaded data)', value: 'cache' },
