@@ -24,7 +24,15 @@ Two registered map section types (`ComponentRegistry/index.jsx`):
 ## 2. Pre-flight: verify your tile sources (5 minutes, saves hours)
 
 Tiles are served per-VIEW from the dama server:
-`https://graph.availabs.org/dama-admin/{pgEnv}/tiles/{view_id}/{z}/{x}/{y}/t.pbf?cols=<c1,c2>`
+`https://dmsserver.availabs.org/dama-admin/{pgEnv}/tiles/{view_id}/{z}/{x}/{y}/t.pbf?cols=<c1,c2>`
+
+Use the production dms-server origin above in anything you store. Not `graph.availabs.org` (the
+old avail-falcor server: no `join=` support, a disk tile cache that never expires, being retired;
+many views' `metadata.tiles` still name it, so rewrite the origin when you copy one). Not
+`http://localhost:3001` either — a stored localhost URL draws only on a machine running
+dms-server (509 `npmrds_sub` rows were found baked that way on 2026-09-28). Every NPMRDS tile URL
+checked on 2026-09-28 was byte-identical on the two public hosts, except that an EMPTY tile is
+`200` + 0 bytes on graph and `204` on dms-server.
 
 - `curl -w "%{http_code} %{size_download}"` a real z/x/y. **200 + bytes = the view has geometry;
   204 empty = it doesn't** (tabular views 204 — you need a different view or a join).
