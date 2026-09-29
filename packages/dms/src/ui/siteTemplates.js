@@ -33,7 +33,8 @@ export const defaultSiteTemplates = [
       {
         pattern_type: 'datasets',
         name: 'Data',
-        base_url: 'data',
+        // Matches the user menu's default "Datasets" link (userMenu.jsx: path '/datasets').
+        base_url: 'datasets',
         sources: [{
           name: 'dataset',
           source_type: 'internal_table',

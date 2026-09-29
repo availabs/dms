@@ -1,9 +1,9 @@
 import React from 'react';
-import {Link} from 'react-router'
+import {Link, useLocation, useNavigate} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { patternEditorTheme } from './patternEditor.theme'
-import { hasPatternManageAccess } from '../../utils';
+import { hasPatternManageAccess, isUserAuthed } from '../../utils';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
@@ -56,11 +56,40 @@ const activityTab = {
 }
 
 const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
-  const { baseUrl, parentBaseUrl, app, user } = React.useContext(AdminContext);
+  const { baseUrl, parentBaseUrl, app, user, authPath, authPermissions } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
   const [tmpItem, setTmpItem] = React.useState(item);
   const {id, page='overview'} = params;
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Same site-level gate as the pattern list (editSite.jsx's SiteEdit):
+  // logged-out users go to login, users without site admin access go home.
+  // The per-pattern check below alone let anonymous users in, since a pattern
+  // with no grants is treated as unrestricted.
+  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+  const hasSiteAccess = isAdmin || isUserAuthed(user, authPermissions);
+
+  React.useEffect(() => {
+    if (!user?.authed) {
+      navigate(`${authPath}/login`, { state: { from: location.pathname } })
+      return
+    }
+
+    // user is optimistically seeded from localStorage on refresh with a
+    // placeholder groups:['public'] while the real groups load async
+    // (see auth/providers.jsx) — don't judge access on that stale state.
+    if (user?.isAuthenticating) return
+
+    if (!hasSiteAccess) {
+      navigate('/')
+    }
+  }, [user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups)])
+
+  if (!user?.authed || user?.isAuthenticating || !hasSiteAccess) {
+    return null
+  }
 
   // This gate used to check the generic site-level `authPermissions` from
   // AdminContext instead of THIS pattern's own — meaning a non-admin user
@@ -69,7 +98,6 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
   // site-level value is typically never set, denied unconditionally for
   // every pattern). See patterns/admin/utils.js's `hasPatternManageAccess`
   // for the full rationale — mirrors editSite.jsx's per-row check (2026-09-20).
-  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
   const hasAccess = hasPatternManageAccess(user, isAdmin, item.authPermissions, item.subdomain);
   if (!hasAccess) {
     return <div className={t.noAccess}>You do not have permission to manage this pattern.</div>;
