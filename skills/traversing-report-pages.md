@@ -408,6 +408,37 @@ inside the popover, the rows are the `<button>`s under the `routes · pick any`
 label, with the name in the 3rd `<span>` and the date range in the 4th (each
 row also carries the resolved name as its own `title` as of 2026-09-16).
 
+**The same rule now covers the Add Graph modal and RRL's side labels
+(2026-09-29, ticket #2224879).** `AddGraphModal`'s route checklist and its
+Difference-mode anchor options used to print the raw `r.name`, so a Dynamic
+Report showed `%n (%y)` there even with `?routes=` supplied. They now go
+through `routeDisplayLabel`, as do RRL's "base for N routes" pills, the
+"Derived from X" note, the derive editor's "based on X's current dates" preview,
+and the "date span copied · X" clipboard strip. RRL's route search also matches
+the resolved label, not only the stored template. Each modal row also shows the
+route's date span, because with no `?routes=` every slot's name is the same
+`%n (%y)` placeholder and the dates are the only way to tell them apart. Probe
+hook: the checklist is the `nextElementSibling` of the leaf element whose text is
+exactly `Routes for this graph`. Each row is a `<button>`; the name is the
+`span[title]` and the date span is that span's next sibling. Verified on
+`edit/reports/single_route` (placeholder + distinct dates),
+`edit/reports/single_route?routes=2216791` ("Route 5 Part (2023)" …) and
+`edit/reports/one_week_study?routes=2207838&asOf=2025-07-23`.
+
+**Correction, same day:** the derive-editor preview did NOT resolve after that pass.
+`ReportRouteList.jsx`'s `derivableSiblings` rebuilds each entry as `{route_comp_id, name, startDate,
+endDate}`, which drops `catalogRouteName`, so `routeDisplayLabel` on it can only return the raw
+template. **Any slimmed-down route copy must carry a precomputed `label`.** Both `derivableSiblings`
+and the slot-group info (`routeGroupInfoByCompId`, now `{ siblings: [{label, templateName, startDate,
+endDate}], color }`) do so now. The Derive From `<select>` options read `label · M/D/YYYY → M/D/YYYY`
+(no dates on "Today (view time)"), and the closed select carries the full label as its `title`. The
+slot-group note inside an open row reads "Same route as the other N rows in this group — only the
+dates differ:", followed by one entry per sibling: the full label, then a muted "dates · template" line.
+Probe: open a row with `button[title="Edit route"]`; the note is the `div` whose text starts
+`Same route as`; its `nextElementSibling` is the list. The select is the one next to the `Derive From:`
+`<label>`. Verified on `edit/reports/test_single_route_copy?routes=2224878` (real names) and without
+`?routes=` (placeholders plus distinct dates).
+
 ### Dynamic Reports: the toggle, and the no-param entry gate
 
 Any report page can be flipped into a **Dynamic Report** — one shared page,

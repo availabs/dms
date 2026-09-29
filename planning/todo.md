@@ -580,6 +580,10 @@
 
 ## patterns
 
+### patterns/qa
+
+- [ ] [`qa` pattern type — ticketing / delivery QA as a library feature](./tasks/current/qa-pattern-type.md) — planned 2026-09-29, awaiting go-ahead. Rebuilds TransportNY's control room as an Add Pattern feature; core first on the `qa_test` app, then TransportNY ported onto it. Design: dms-template `research/qa-ticketing-system/`.
+
 ### patterns/mapeditor
 
 - [x] [Add Layer modal freezes the page on open](./tasks/completed/mapeditor-add-layer-modal-freeze.md) — `SourceSelector`'s modal mounted `SourcesList`, which unbounded-fetched every source and rendered them all as `<SourceThumb>`, each independently fetching its own views regardless of selection, with an unstable effect-dependency array (`falcorCache`/`source` object) causing a fetch→re-render→refetch loop across every rendered source — a real freeze, not just lag. Fixed: gated the views fetch on `isActiveSource` + stable deps, windowed the rendered list to 30 with "Load more", removed a duplicate unconditional all-sources fetch in `index.jsx`. Server-side pagination for DMS-hosted (non-DAMA) envs and a real sources search route are still open follow-ups.
