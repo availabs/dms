@@ -2,6 +2,43 @@
 
 This document describes the structure and conventions for the DMS planning directory.
 
+## Initiatives, the header line and Created by
+
+This folder holds the **task docs for the `@availabs/dms` library**. The lab's portfolio,
+strategies and initiatives live in the consuming app's canonical hub, **`dms-template/planning/`**
+(`portfolio.md`, `initiatives/`). **Library tasks link to those initiatives and never copy their
+content.** No initiative or portfolio docs live here. The full rules are Rules 2 and 3 of
+`dms-template/planning/planning-rules.md`. In short:
+
+- **Check it isn't already tracked.** Search this folder's and `dms-template/planning/*/tasks/current/`
+  for the work before creating a task. If one exists, offer to update it instead.
+- **Every task links to an initiative.** Before writing a new task doc, pick its initiatives from
+  `dms-template/planning/initiatives/README.md`. A library task built for a client effort takes that
+  client's initiative as primary, and the platform initiative for its area as secondary; purely
+  platform work takes a `dms_*` or `plat_*` initiative.
+  - With one clear match, tell the user which initiative you linked and why.
+  - With no clear match, ask them before writing the file, offering the best candidates and
+    "Create a new initiative". The new initiative doc goes in `dms-template/planning/initiatives/`.
+  - Never link silently on a guess.
+- **Every task carries one header line directly under its `# Title`.** It's the status of record:
+
+  ```markdown
+  **Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing · **Created by:** you@albany.edu · **Edited by:** —
+  ```
+
+  - **Links:** from `planning/tasks/{current,completed}/` they climb five levels to dms-template's
+    `planning/initiatives/`. In copies of this submodule outside dms-template, such as transportNY's
+    vendored copy, the links dangle; that's expected.
+  - **Status:** one of `next`, `doing`, `blocked:decision|data|dependency`, `built`, `done` or
+    `dropped`. `built` adds `**Release:** <commit|deploy|sync|publish|review> — note`.
+  - **Created by:** the Claude account email of the person whose session created the task. If the
+    session has none, ask once.
+  - **Edited by:** add your email when you edit someone else's task.
+  - Replace the line in place; don't stack another under it.
+- **After creating a task, changing its header line, or moving it,** run
+  `node planning/shared/scripts/refresh_initiatives.mjs` from the **dms-template root**. It reads
+  these headers too, and rebuilds the initiative docs and the portfolio.
+
 ## Directory Structure
 
 ```
@@ -58,7 +95,8 @@ Completed tasks organized by the same topic hierarchy, with dates:
 
 ### Task Files (tasks/current/ and tasks/completed/)
 
-Detailed task documents should include:
+Every task doc opens with its title and the header line (see
+[above](#initiatives-the-header-line-and-created-by)). Detailed task documents should include:
 - **Objective** - What the task accomplishes
 - **Scope** - What's included/excluded
 - **Current State** - How things work now
@@ -88,7 +126,9 @@ Changes to pattern implementations, organized by pattern:
 ## Workflow
 
 1. New tasks are added to `todo.md` under the appropriate topic
-2. When starting work on a task, create a detailed task file in `tasks/current/`
+2. When starting work on a task, create a detailed task file in `tasks/current/`, with the header line
+   and its initiatives linked (tell the user which, or ask them). Then run the refresh from the
+   dms-template root.
 3. **CRITICAL — Update the task document as you work (not just at the end):**
    - Convert plain list items (`-`) to checklists (`- [x]` / `- [ ]`) as items are completed
    - Add brief evidence or notes next to completed items (file paths, key decisions)
@@ -98,7 +138,8 @@ Changes to pattern implementations, organized by pattern:
    - The task document is the **source of truth** for implementation status, not just the original plan
    - **After completing each phase or finishing a work session, update the task file BEFORE moving on.** This is non-negotiable — skipping this step causes duplicate work in future sessions.
 4. When work is completed:
-   - Move the task file to `tasks/completed/`
+   - Set the header line's status to `done`, move the task file to `tasks/completed/` and fix its
+     inbound links, then run the refresh from the dms-template root
    - Move the task entry from `todo.md` to `completed.md` with the completion date
    - Link to the task file in `completed.md`
    - **If the task created or configured data inside the DMS** (a new section type, a new dataset shape, a configured pattern with non-obvious wiring, a recurring authoring workflow), **consider extracting a skill** to `src/dms/skills/`. See "When to extract a skill" below.

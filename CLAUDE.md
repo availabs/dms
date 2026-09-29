@@ -143,9 +143,18 @@ This keeps Falcor as an implementation detail of the API layer, making component
 
 All **library** tasks are tracked in the `planning/` directory following a consistent workflow.
 
-> Cross-project planning for the AVAIL lab — client/site tasks, weekly plans, and (soon) the
-> portfolio and initiatives — lives in the consuming app's hub, `dms-template/planning/` (see its
+> Cross-project planning for the AVAIL lab (client/site tasks, weekly plans, the portfolio and the
+> initiatives) lives in the consuming app's hub, `dms-template/planning/` (see its
 > `planning-rules.md`). Library tasks stay here and link to that hub rather than copying from it.
+>
+> **Creating or updating a library task?**
+> - Link it to an initiative in `dms-template/planning/initiatives/` and tell the user which one. If
+>   nothing fits clearly, ask.
+> - Add the one-line header under the title: Initiatives · Status · Created by (the session's Claude
+>   account email) · Edited by.
+> - Run `node planning/shared/scripts/refresh_initiatives.mjs` from the dms-template root.
+>
+> See this folder's `planning/planning-rules.md`, section "Initiatives, the header line and Created by".
 
 ### Directory Structure
 
