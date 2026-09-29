@@ -13,7 +13,7 @@ pages nobody was watching."
 | Layer | What it checks | Tool | Status |
 |---|---|---|---|
 | 1. Pure-function unit tests | Date-range math, SQL-expression builders, color/quantile logic — no DB/browser | `pytest` under `convert_old_reports_lib/tests/` | **Not built yet** — see `planning/transportny/tasks/current/converter-vocabulary-unit-tests.md` |
-| 2. Structural page-render regression | Does a real page still render the same sections/errors/query shapes it did last time | `node scripts/npmrds-reports/probe_corpus.mjs` | **Built, live** |
+| 2. Structural page-render regression | Does a real page still render the same sections/errors/query shapes it did last time | `node src/themes/transportny/scripts/probe_corpus.mjs` | **Built, live** |
 | 3. Known-good-value spot check | Does a specific measure's *number* still match an independently-computed ground truth | Layer 2's `expectedValue` field, one PoC entry so far | **Built, live** (1 entry: `golden_corpus_bargraph`) |
 
 This doc covers layers 2 and 3. Design history and the bugs found building them are in
@@ -23,7 +23,7 @@ want the "why," not just the "how."
 ## 2. Run it (the thing to do before/after a change)
 
 ```bash
-node scripts/npmrds-reports/probe_corpus.mjs
+node src/themes/transportny/scripts/probe_corpus.mjs
 ```
 
 Exit 0 = every corpus entry matches its baseline. Exit 1 = something changed — read the printed
@@ -82,32 +82,32 @@ mentioned in the task file's history):
   above is `report_build.mjs`'s `computeTargetSlug()`/`toSnakeCase()`, not a manifest-only patch.
 
 If you see a finding that looks like neither of these, it's real — go look at the actual page
-(`node scripts/npmrds-reports/report_probe.mjs <url> --bodies` for full detail) before assuming the
+(`node src/themes/transportny/scripts/report_probe.mjs <url> --bodies` for full detail) before assuming the
 tool is wrong.
 
 ## 4. Keeping it in sync when a schema/shape change ships (the actual ask this doc exists to answer)
 
-Every manifest entry (`scripts/npmrds-reports/report_probe_fixtures/golden-corpus.json`) has a
+Every manifest entry (`src/themes/transportny/scripts/report_probe_fixtures/golden-corpus.json`) has a
 `covers` array tagging the real field/function names it exercises — not prose, the literal
 identifier (`display._measurePick.routeIds`, `sidebarHideInView`, `measure.speed`). **When you
 change one of those fields, `grep` the manifest for its name:**
 
 ```bash
-grep -n "_measurePick" scripts/npmrds-reports/report_probe_fixtures/golden-corpus.json
+grep -n "_measurePick" src/themes/transportny/scripts/report_probe_fixtures/golden-corpus.json
 ```
 
 That tells you exactly which corpus entries are at risk. Run just those before your change
 (confirm they pass on the old code), make the change, run them again:
 
 ```bash
-node scripts/npmrds-reports/probe_corpus.mjs --only golden_corpus_linegraph,dynamic_report_one_week_study
+node src/themes/transportny/scripts/probe_corpus.mjs --only golden_corpus_linegraph,dynamic_report_one_week_study
 ```
 
 If it now fails, that's expected — read the finding, confirm it's the change you intended, then
 re-baseline **only those entries**, never a blanket `--capture`:
 
 ```bash
-node scripts/npmrds-reports/probe_corpus.mjs --capture --only golden_corpus_linegraph
+node src/themes/transportny/scripts/probe_corpus.mjs --capture --only golden_corpus_linegraph
 ```
 
 This is a deliberate, visible action — the tool never re-baselines silently on its own, whether the
@@ -149,7 +149,7 @@ Manifest entry shape (see the existing entries for real examples — 9 as of 202
 Add the entry, then:
 
 ```bash
-node scripts/npmrds-reports/probe_corpus.mjs --capture --only <new_key>
+node src/themes/transportny/scripts/probe_corpus.mjs --capture --only <new_key>
 ```
 
 Read the captured baseline once by hand (`report_probe_fixtures/baselines/<key>.json`) to confirm
