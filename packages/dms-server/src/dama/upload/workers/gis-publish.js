@@ -213,6 +213,15 @@ module.exports = async function gisPublishWorker(ctx) {
   // -----------------------------------------------------------------------
   // Step 2: ogr2ogr creates temp table and loads data
   // -----------------------------------------------------------------------
+  // GDAL's spreadsheet drivers default to AUTO header detection, which
+  // frequently guesses wrong (e.g. a header row of all-string cells gets
+  // read as data, columns come out named Field1/Field2/... instead of the
+  // real headers) — confirmed via `CPL_DEBUG=ON ogrinfo`: "Sheet1 has no
+  // header line" even though row 1 clearly is one. FORCE makes GDAL always
+  // treat row 1 as the header. This is a GDAL config option (`--config`),
+  // NOT a dataset open option (`-oo HEADERS=FORCE` is silently a no-op here).
+  const HEADER_CONFIG_VAR = { '.xlsx': 'OGR_XLSX_HEADERS', '.xlsm': 'OGR_XLSX_HEADERS', '.xls': 'OGR_XLS_HEADERS' }[path.extname(filePath).toLowerCase()];
+
   const args = [
     '-F', 'PostgreSQL', pgStr,
     '-preserve_fid',
@@ -220,6 +229,7 @@ module.exports = async function gisPublishWorker(ctx) {
     '-overwrite',
     '-t_srs', 'EPSG:4326',
     '--config', 'PG_USE_COPY', 'YES',
+    ...(HEADER_CONFIG_VAR ? ['--config', HEADER_CONFIG_VAR, 'FORCE'] : []),
     ...(promoteToMulti ? ['-nlt', 'PROMOTE_TO_MULTI'] : []),
     '-lco', `SCHEMA=${table_schema}`,
     // Keep source field names exactly as-is. The copy step matches temp

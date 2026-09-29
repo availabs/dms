@@ -18,12 +18,12 @@ const syncStatusKey = (status) => status ? `${status.charAt(0).toUpperCase()}${s
 // How often a tab becoming visible again may re-check the page room.
 const ROOM_RECHECK_MS = 30000;
 
-// Defaults for ONLY the room-health keys, spread under the site theme so a site
-// theme that predates them still renders the red ring / rows. Deliberately not
+// Defaults for ONLY the room-health and discard-local-data keys, spread under the
+// site theme so a site theme that predates them still renders the red ring / rows. Deliberately not
 // the whole default style: site themes that override pages.userMenu (mny admin,
 // tessera v6, landbank, wcdb, transportny) must keep rendering exactly as before.
 const roomHealthThemeDefaults = Object.fromEntries(
-  Object.entries(userMenuTheme.styles[0]).filter(([k]) => k === 'syncRingStale' || k.startsWith('syncRoom'))
+  Object.entries(userMenuTheme.styles[0]).filter(([k]) => k === 'syncRingStale' || k.startsWith('syncRoom') || k.startsWith('syncDiscard'))
 );
 
 const UserMenu = ({activeStyle, syncStatus, roomStale}) => {
@@ -86,7 +86,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
   const { user, viewAsUser, setViewAsUser } = React.useContext(AuthContext) || {}
   const { baseUrl = '', app, authPermissions, falcor } = React.useContext(CMSContext) || {}
   const { theme, UI } = React.useContext(ThemeContext) || {}
-  const { NavigableMenu, Icon } = UI;
+  const { NavigableMenu, Icon, DeleteModal } = UI;
   const location = useLocation();
   const menuTheme = { ...roomHealthThemeDefaults, ...(getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]) }
 
@@ -217,6 +217,44 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
     setSyncPending(await getPendingCount());
   }, [syncPending]);
 
+  // "Discard local data": throw away this browser's mirror of this app and
+  // reload from the server — for when the mirror has drifted in a way sync
+  // doesn't heal (e.g. a page the server deleted still rendering here).
+  // This browser only: it can't fix a stale page room (that lives on the
+  // server — use "Update room from database"). Offline it would leave nothing
+  // to read, so it's disabled then. The full reload is deliberate, not
+  // navigation: it's what drops the in-memory sync state (Yjs docs, scope,
+  // in-flight bootstraps) that would otherwise write the old view back.
+  const [discarding, setDiscarding] = React.useState(false);
+  // null = modal closed; otherwise this app's unsent-edit summary for the prompt.
+  const [discardPrompt, setDiscardPrompt] = React.useState(null);
+  const discardDisabled = discarding || ['disconnected', 'recovering'].includes(syncStatus);
+  const handleDiscardClick = React.useCallback(async () => {
+    if (discardDisabled) return;
+    const { getPendingSummary } = await import('../../../sync/sync-manager.js');
+    setDiscardPrompt(await getPendingSummary());
+  }, [discardDisabled]);
+  const handleDiscardConfirm = React.useCallback(async () => {
+    setDiscarding(true);
+    try {
+      const { discardLocalData } = await import('../../../sync/sync-manager.js');
+      await discardLocalData();
+    } catch (err) {
+      console.error('[sync] discard local data failed:', err);
+      setDiscarding(false);
+      setDiscardPrompt(prev => prev && { ...prev, error: err.message });
+      return;
+    }
+    window.location.reload();
+  }, []);
+  const discardPromptText = discardPrompt && [
+    "This browser's copy of the site will be deleted and reloaded from the server.",
+    discardPrompt.total > 0 && `${discardPrompt.total} unsent edit${discardPrompt.total === 1 ? '' : 's'} will be discarded.`,
+    discardPrompt.creates > 0 && `${discardPrompt.creates} of them create${discardPrompt.creates === 1 ? 's an item that exists' : ' items that exist'} only in this browser and will be lost.`,
+    'Other open tabs of this site will reload too.',
+    discardPrompt.error && `Discard failed: ${discardPrompt.error}`,
+  ].filter(Boolean).join(' ');
+
   const syncMenuItems = syncStatus
     ? [
         { type: 'separator' },
@@ -243,6 +281,19 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
               <Icon icon={'TrashCan'} className={menuTheme.syncCollabIcon} />
               <span className={menuTheme.syncClearLabel}>
                 {syncPending > 0 ? `Clear pending mutations (${syncPending})` : 'No pending mutations'}
+              </span>
+            </div>
+          ),
+        },
+        {
+          type: () => (
+            <div
+              className={`${menuTheme.syncDiscardWrapper} ${discardDisabled ? menuTheme.syncDiscardWrapperDisabled : ''}`}
+              onClick={discardDisabled ? undefined : handleDiscardClick}
+            >
+              <Icon icon={'TrashCan'} className={menuTheme.syncCollabIcon} />
+              <span className={menuTheme.syncDiscardLabel}>
+                {discarding ? 'Discarding local data…' : 'Discard local data'}
               </span>
             </div>
           ),
@@ -333,6 +384,14 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
           </div>
         )
       }
+      {/* Outside the dropdown: the menu closes on click, the modal must not. */}
+      <DeleteModal
+        title={'Discard local data'}
+        prompt={discardPromptText}
+        open={!!discardPrompt}
+        setOpen={(v) => { if (!v && !discarding) setDiscardPrompt(null); }}
+        onDelete={handleDiscardConfirm}
+      />
     </>
   )
 }

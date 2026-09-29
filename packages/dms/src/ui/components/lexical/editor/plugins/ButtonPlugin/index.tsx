@@ -26,6 +26,12 @@ import {
 } from '../../nodes/ButtonNode';
 
 
+// What a button did before "Is External" existed: a full http(s):// or // URL
+// opened in a new tab; site paths and `sub://` platform links stayed in the tab.
+// Pre-selects the toggle for legacy buttons so re-saving one doesn't change it.
+const defaultIsExternal = (path?: string): boolean =>
+  typeof path === 'string' && /^(https?:)?\/\//.test(path);
+
 export const INSERT_BUTTON_COMMAND: LexicalCommand<ButtonPayload> =
   createCommand('INSERT_BUTTON_COMMAND');
 
@@ -45,6 +51,7 @@ export function InsertButtonDialog({
     paramKey?: string;
     paramValue?: string;
     icon?: string;
+    isExternal?: boolean;
     nodeKey?: string;
   };
 }): JSX.Element {
@@ -87,6 +94,9 @@ export function InsertButtonDialog({
   const [paramKey, setParamKey] = useState(initialValues?.paramKey || '');
   const [paramValue, setParamValue] = useState(initialValues?.paramValue || '');
   const [icon, setIcon] = useState(initialValues?.icon || '');
+  const [isExternal, setIsExternal] = useState(
+    initialValues?.isExternal ?? defaultIsExternal(initialValues?.path),
+  );
 
   useEffect(() => {
     hasModifier.current = false;
@@ -100,7 +110,7 @@ export function InsertButtonDialog({
   }, [activeEditor]);
 
   const handleOnClick = () => {
-    const payload = {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon};
+    const payload = {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon, isExternal};
     activeEditor.update(() => {
       if (initialValues?.nodeKey) {
         const newNode = $createButtonNode(payload);
@@ -268,6 +278,24 @@ export function InsertButtonDialog({
             />
           )}
           <span className="text-sm">Keep search params</span>
+        </label>
+      )}
+
+      {actionType === 'navigate' && (
+        <label className="flex items-center gap-2 cursor-pointer">
+          {Switch ? (
+            <Switch
+              enabled={isExternal}
+              setEnabled={(checked: boolean) => setIsExternal(checked)}
+            />
+          ) : (
+            <input
+              type="checkbox"
+              checked={isExternal}
+              onChange={(e) => setIsExternal(e.target.checked)}
+            />
+          )}
+          <span className="text-sm">Is External (open in new tab)</span>
         </label>
       )}
 

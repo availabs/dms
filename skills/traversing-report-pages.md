@@ -779,6 +779,24 @@ any DMS page, not just reports. What's specific to reports:
   route-creation tool) hit the generic blank-dark-rectangle/`resize_window`
   issue described in the generic doc — nothing report-specific about the fix
   itself, just naming the sections in this codebase that hit it.
+- **Measuring map TILE loads (2026-09-28, route-creation ticket 2225750).**
+  MapLibre fetches vector tiles from web workers, so
+  `performance.getEntriesByType('resource')` in the page shows ZERO tile
+  requests even while the map draws. Listen on the browser context instead:
+  `page.context().on('requestfinished', r => …r.timing().responseEnd)`
+  catches worker traffic. To force the tile loads you want, reach the map
+  instance via the fiber walk in
+  `report_probe_fixtures/evals/macro_get_to_segment.mjs`, resize twice, then
+  `map.jumpTo({center, zoom})`. For a server-side speed comparison, don't time
+  `graph.availabs.org`: its tiles route is wrapped in `memoize-fs` (a disk
+  cache that never expires, keyed on view/z/x/y/`cols`/`filter`), so any tile
+  someone has already loaded is instant. Time the local dms-server instead
+  (`/dama-admin/<pgEnv>/tiles/…`, no tile cache), or reorder `cols` to force a
+  cache miss. A slow tile at high zoom usually means the view's table has no
+  GiST index on `wkb_geometry`; confirm with `EXPLAIN ANALYZE` on the tile
+  SQL (`dbq.py dama`). If `report_probe.mjs --auth` lands on the "Welcome
+  back." login screen, the default token file is stale: pass
+  `--auth <file>` with a fresh token from `qa_auth.mjs token`.
 - **MacroView's own chrome is gated behind that same resize** (2026-09-22).
   The bottom-left `Download N rows` pill lives in `mapChrome.jsx`, so on
   `/npmrds/macro` it is simply ABSENT from the DOM until the map has drawn —

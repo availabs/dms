@@ -1,6 +1,6 @@
 import React, {useContext} from "react";
 import {Link} from "react-router";
-import {ComponentContext} from "../../../../../context";
+import {CMSContext, ComponentContext} from "../../../../../context";
 import {ThemeContext} from "../../../../../../../ui/useTheme";
 import {legacyStateToBuildInput} from "../buildUdaConfig";
 import {attributionTheme} from "./Attribution.theme";
@@ -8,6 +8,7 @@ import { calculateIsJoinPresent } from "../utils/joinUtils";
 
 export const Attribution = () => {
     const { state: { externalSource, join } } = useContext(ComponentContext);
+    const { datasources } = useContext(CMSContext) || {};
     const { theme = { attribution: attributionTheme } } = React.useContext(ThemeContext) || {}
     // baseUrl is now included in externalSource by useDataSource.js
     const isJoinPresent = calculateIsJoinPresent(join);
@@ -18,20 +19,26 @@ export const Attribution = () => {
 
     let attribRows = [];
     if(!externalSource) return null;
-    const { source_id, name, view_name, view_id, updated_at, baseUrl, isDms } = externalSource;
+    const { name, view_name, view_id, updated_at } = externalSource;
     const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
     const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
 
-    // Internal (isDms) sources are always mounted at /cenrep/internal_source,
-    // regardless of whatever baseUrl was persisted on this externalSource
-    // (older saves stored the now-defunct /forms base).
-    // todo this should come from siteconfig
-    const sourceHref = (srcIsDms, srcBaseUrl, id) =>
-        srcIsDms ? `/cenrep/internal_source/${id}` : `${srcBaseUrl || ""}/source/${id}`;
+    // Sources link into the datasets pattern that serves them. Resolve its current
+    // mount from the site's datasources by srcEnv rather than trusting the persisted
+    // baseUrl — older saves stored the defunct /forms base (internal) or "" (external).
+    const sourceHref = (src) => {
+        const dsType = src.isDms ? 'internal' : 'external';
+        const baseUrl =
+            (datasources || []).find(ds => ds.type === dsType && ds.env === src.srcEnv)?.baseUrl
+            ?? (datasources || []).find(ds => ds.type === dsType)?.baseUrl
+            ?? src.baseUrl
+            ?? '';
+        return `${baseUrl}/${src.isDms ? 'internal_source' : 'source'}/${src.source_id}`;
+    };
 
     //Always add a link to the "main" data source
     attribRows.push(
-        <Link key="ds_attribution_link" className={`${theme.attribution.link} ${divider}`} to={sourceHref(isDms, baseUrl, source_id)}>
+        <Link key="ds_attribution_link" className={`${theme.attribution.link} ${divider}`} to={sourceHref(externalSource)}>
             {name} ({view_name || view_id}) {updatedTimeString ? `(${updatedTimeString})` : null}
         </Link>,
     );
@@ -55,12 +62,12 @@ export const Attribution = () => {
                 return;
             }
             const attribSource = curJoinSource?.sourceInfo;
-            const { source_id, name, view_name, updated_at, baseUrl, isDms } = attribSource;
+            const { name, view_name, updated_at } = attribSource;
 
             const dateOptions = { year: "numeric", month: "long", day: "numeric", hour: "numeric", minute: "numeric" };
             const updatedTimeString = updated_at ? new Date(updated_at).toLocaleString(undefined, dateOptions) : null;
             attribRows.push((
-                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} ${divider}`} to={sourceHref(isDms, baseUrl, source_id)}>
+                <Link key={`${sourceAlias}_attribution`} className={`${theme.attribution.link} ${divider}`} to={sourceHref(attribSource)}>
                     <span className="capitalize">({mergeStrategy || "Join"})</span> {name} ({view_name || curJoinSource.view}) {updatedTimeString ? `(${updatedTimeString})` : null}
                 </Link>
             ));

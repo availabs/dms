@@ -16,7 +16,7 @@ import {
   getDistinctAppTypesByApp, getDistinctAppTypesByAppAndPatternPrefix,
   upsertItemNow, upsertItemsFromServer, applyChangeBatch,
   deleteItem, deleteItemsByIds, updateItemData, createItemOffline,
-  reassignItemId, sqliteNow, resetDB,
+  reassignItemId, sqliteNow, resetDB, discardAppData,
   addPendingMutation, deletePendingMutationById, findFirstPendingMutation,
   countAllPendingMutations, getAllPendingMutationsOrdered,
   removeState,
@@ -146,6 +146,7 @@ export function configure(app, apiHost, siteType = '') {
   _apiHost = apiHost || '';
   _siteType = siteType;
   installVisibilityWatcher();
+  installDiscardListener();
   if (_DEV) console.log(`[sync] configure: app=${app} apiHost=${_apiHost} siteType=${siteType}`);
 }
 
@@ -1225,6 +1226,65 @@ export async function resetAndRebootstrap() {
   } finally {
     _recovering = false;
   }
+}
+
+// --- Discard local data (user menu) ---
+//
+// The manual escape hatch for a local mirror that has drifted from the server
+// in a way sync can't heal on its own — e.g. a page the server deleted that
+// this browser still serves (found 2026-09-28: page 54519, created and deleted
+// by an agent's CLI test run, kept rendering on `/`). See
+// planning/tasks/current/sync-discard-local-data.md.
+//
+// Deliberately NOT resetAndRebootstrap(): that wipes every app on the origin,
+// leaves the in-memory Yjs docs and in-flight bootstraps/pushes of the old
+// state running, and other tabs keep writing their pre-reset view back. Here
+// the caller reloads the page right after, and every other tab of this app is
+// told to reload too, so all in-memory state is rebuilt from the server.
+const DISCARD_CHANNEL = 'dms-sync-discard';
+
+// One instance per tab, used both to listen and to post: a BroadcastChannel
+// instance never receives its own messages, so posting through it tells every
+// OTHER tab without reloading this one out from under the caller.
+let _discardChannel = null;
+function installDiscardListener() {
+  if (_discardChannel) return;
+  if (typeof BroadcastChannel === 'undefined') return; // non-browser environment (tests)
+  _discardChannel = new BroadcastChannel(DISCARD_CHANNEL);
+  _discardChannel.onmessage = (e) => {
+    if (e.data?.app !== _app) return;
+    console.warn('[sync] local data discarded in another tab — reloading');
+    window.location.reload();
+  };
+}
+
+/**
+ * This app's queued, not-yet-pushed edits — for the confirm prompt before a
+ * discard. `creates` are offline-created items (temp ids): their only copy is
+ * local, so discarding loses them outright rather than just the latest edit.
+ */
+export async function getPendingSummary() {
+  const rows = (await getAllPendingMutationsOrdered()).filter(r => r.app === _app);
+  return { total: rows.length, creates: rows.filter(r => r.action === 'I').length };
+}
+
+/**
+ * Delete this app's local mirror (rows, queued edits, watermarks) and tell
+ * other tabs to reload. The CALLER must reload this tab straight after —
+ * nothing here rebuilds in-memory state (scope, Yjs docs, loaded patterns).
+ */
+export async function discardLocalData() {
+  // Stop live changes landing in the store while it's being emptied, and
+  // stop onclose from scheduling a reconnect.
+  if (ws) {
+    ws.onclose = null;
+    ws.close();
+    ws = null;
+  }
+  const removed = await discardAppData(_app);
+  console.warn(`[sync] discarded local data for ${_app}: ${removed.items} rows, ${removed.mutations} pending edits`);
+  _discardChannel?.postMessage({ app: _app });
+  return removed;
 }
 
 // --- Pending count ---

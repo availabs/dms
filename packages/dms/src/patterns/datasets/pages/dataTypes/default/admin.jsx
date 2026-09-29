@@ -202,14 +202,19 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     );
 };
 
+const getCreatePage = source => {
+
+}
+
 const AddExternalVersionBtn = ({source}) => {
     const {UI, damaDataTypes} = useContext(DatasetsContext);
     const {Modal, Button} = UI;
     const [showModal, setShowModal] = useState(false);
 
-    const sourceType = source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
-    const sourceDataType = source?.type; // csv / gis / analysis
-    const sourcePages = damaDataTypes[sourceType] || damaDataTypes[sourceDataType] || {};
+    const createdWith = source?.metadata?.createdWith || null;
+    const sourceCat = source?.categories?.[0]?.[0]; // source identifier. this is how the source is named in the script. this used to be type.
+    const sourceType = source?.type; // csv / gis / analysis
+    const sourcePages = damaDataTypes[createdWith] || damaDataTypes[sourceCat] || damaDataTypes[sourceType] || {};
     const CreatePage = sourcePages?.sourceCreate?.component;
 
     return (

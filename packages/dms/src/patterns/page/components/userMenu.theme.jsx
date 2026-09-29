@@ -43,6 +43,12 @@ export const userMenuTheme = {
       syncClearWrapperDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
       syncClearLabel: 'flex-1',
 
+      // "Discard local data" action row, right below "Clear pending mutations".
+      // Disabled while offline (nothing to reload from) or already discarding.
+      syncDiscardWrapper: 'flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 cursor-pointer hover:bg-red-50',
+      syncDiscardWrapperDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
+      syncDiscardLabel: 'flex-1',
+
       // Page room health rows (sync/room-health.js): status line + actions.
       syncRoomWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500',
       syncRoomStaleWrapper: 'flex items-start gap-2 px-3 py-2 text-xs text-red-600',
@@ -102,6 +108,9 @@ const themeClasses = {
     "syncClearWrapper",
     "syncClearWrapperDisabled",
     "syncClearLabel",
+    "syncDiscardWrapper",
+    "syncDiscardWrapperDisabled",
+    "syncDiscardLabel",
     "syncRoomWrapper",
     "syncRoomStaleWrapper",
     "syncRoomIcon",

@@ -66,7 +66,7 @@ function resolveButtonStyleName(
 // (moved there 2026-07-29 when dataItemsNav became a second consumer — see
 // planning/tasks/current/nav-subdomain-links.md). BC: only `sub://` paths are affected.
 
-function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, actionType, paramKey, paramValue, icon}) {
+function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, actionType, paramKey, paramValue, icon, isExternal}) {
   const isEditable = useLexicalEditable();
   const [editor] = useLexicalComposerContext();
   const [modal, showModal] = useModal();
@@ -105,7 +105,7 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
         <InsertButtonDialog
           activeEditor={editor}
           onClose={onClose}
-          initialValues={{linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon, nodeKey}}
+          initialValues={{linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon, isExternal, nodeKey}}
         />
       ));
       return;
@@ -115,6 +115,17 @@ function ButtonComponent({nodeKey, linkText, path, keepSearchParams, style, acti
       return;
     }
     if (!linkPath) return;
+    // Author-set "Is External" wins: new tab when on, same tab when off. Unset
+    // (buttons saved before the toggle existed) falls through to the old
+    // behaviour below, which the dialog also pre-selects via defaultIsExternal.
+    if (isExternal === true) {
+      window.open(linkPath, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    if (isExternal === false && /^(https?:)?\/\//.test(linkPath)) {
+      window.location.assign(linkPath);
+      return;
+    }
     if (!/^(https?:)?\/\//.test(linkPath)) {
       navigate(linkPath);
     } else if (isPlatformLink) {
@@ -172,6 +183,7 @@ export interface ButtonPayload {
     paramKey?: string;
     paramValue?: string;
     icon?: string;
+    isExternal?: boolean;
 }
 
 export type SerializedButtonNode = Spread<
@@ -184,6 +196,7 @@ export type SerializedButtonNode = Spread<
     paramKey?: string;
     paramValue?: string;
     icon?: string;
+    isExternal?: boolean;
   },
   SerializedDecoratorNode
 >;
@@ -198,8 +211,10 @@ function convertButtonElement(
   const paramKey = domNode.getAttribute('data-lexical-button-param-key') || undefined;
   const paramValue = domNode.getAttribute('data-lexical-button-param-value') || undefined;
   const icon = domNode.getAttribute('data-lexical-button-icon') || undefined;
+  const target = domNode.getAttribute('target');
+  const isExternal = target === '_blank' ? true : target === '_self' ? false : undefined;
   if (linkText) {
-    const node = $createButtonNode({linkText, path, style, actionType, paramKey, paramValue, icon});
+    const node = $createButtonNode({linkText, path, style, actionType, paramKey, paramValue, icon, isExternal});
     return {node};
   }
   return null;
@@ -214,13 +229,14 @@ export class ButtonNode extends DecoratorNode {
   __paramKey: string;
   __paramValue: string;
   __icon: string;
+  __isExternal: boolean | undefined;
 
   static getType(): string {
     return 'button';
   }
 
   static clone(node: ButtonNode): ButtonNode {
-    return new ButtonNode(node.__linkText, node.__keepSearchParams, node.__path, node.__style, node.__actionType, node.__paramKey, node.__paramValue, node.__icon, node.__key);
+    return new ButtonNode(node.__linkText, node.__keepSearchParams, node.__path, node.__style, node.__actionType, node.__paramKey, node.__paramValue, node.__icon, node.__isExternal, node.__key);
   }
 
   static importJSON(serializedNode): ButtonNode {
@@ -233,6 +249,7 @@ export class ButtonNode extends DecoratorNode {
       paramKey: serializedNode.paramKey,
       paramValue: serializedNode.paramValue,
       icon: serializedNode.icon,
+      isExternal: serializedNode.isExternal,
     });
 
     return node;
@@ -251,10 +268,11 @@ export class ButtonNode extends DecoratorNode {
       paramKey: this.__paramKey,
       paramValue: this.__paramValue,
       icon: this.__icon,
+      isExternal: this.__isExternal,
     };
   }
 
-  constructor(linkText: string, keepSearchParams: boolean, path?: string, style?: string, actionType?: 'navigate' | 'setParam', paramKey?: string, paramValue?: string, icon?: string, key?: NodeKey) {
+  constructor(linkText: string, keepSearchParams: boolean, path?: string, style?: string, actionType?: 'navigate' | 'setParam', paramKey?: string, paramValue?: string, icon?: string, isExternal?: boolean, key?: NodeKey) {
     super(key);
     this.__linkText = linkText;
     this.__keepSearchParams = keepSearchParams;
@@ -264,6 +282,7 @@ export class ButtonNode extends DecoratorNode {
     this.__paramKey = paramKey;
     this.__paramValue = paramValue;
     this.__icon = icon || '';
+    this.__isExternal = isExternal;
   }
 
   createDOM(config: EditorConfig): HTMLElement {
@@ -290,6 +309,12 @@ export class ButtonNode extends DecoratorNode {
       if (this.__paramValue) element.setAttribute('data-lexical-button-param-value', this.__paramValue);
     }
     if (this.__icon) element.setAttribute('data-lexical-button-icon', this.__icon);
+    if (this.__isExternal === true) {
+      element.setAttribute('target', '_blank');
+      element.setAttribute('rel', 'noopener noreferrer');
+    } else if (this.__isExternal === false) {
+      element.setAttribute('target', '_self');
+    }
     element.textContent = this.__linkText;
     return {element};
   }
@@ -329,6 +354,7 @@ export class ButtonNode extends DecoratorNode {
         paramKey={this.__paramKey}
         paramValue={this.__paramValue}
         icon={this.__icon}
+        isExternal={this.__isExternal}
       />
     );
   }
@@ -339,8 +365,8 @@ export class ButtonNode extends DecoratorNode {
 }
 
 export function $createButtonNode(payload): ButtonNode {
-  const {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon} = payload
-  return new ButtonNode(linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon);
+  const {linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon, isExternal} = payload
+  return new ButtonNode(linkText, keepSearchParams, path, style, actionType, paramKey, paramValue, icon, isExternal);
 }
 
 export function $isButtonNode(
