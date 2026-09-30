@@ -1,7 +1,6 @@
 /**
  * Adding a `qa` install (phase 2): which data environment its datasets go in, what gets created,
- * the URL check that runs before its pattern row exists, and the Tickets page binding to the
- * install's own tickets dataset. The dataset-name check goes to the server
+ * and the URL check that runs before its pattern row exists. The dataset-name check goes to the server
  * (dms.sourceIdBySlug) and is verified live, not here.
  *
  * See planning/tasks/current/qa-pattern-type.md.
@@ -12,7 +11,6 @@
 import { describe, it, expect } from "vitest";
 import { pickQaEnvironment, planQaDatasets, qaPreflight } from "../src/patterns/qa/install";
 import { QA_DATASETS } from "../src/patterns/qa/datasets";
-import { buildQaPages } from "../src/patterns/qa/pages";
 
 const env = (id, name = "default") => ({ id, type: `site|${name}:dmsenv`, name });
 
@@ -82,27 +80,5 @@ describe("qaPreflight URL check", () => {
   it("treats a pattern on every sub-domain as clashing on any sub-domain", async () => {
     expect(await qaPreflight({ falcor: null, app: "a", instance: "x", siblings, pattern: { base_url: "shared", subdomain: "tsmo" } }))
       .toMatch(/"Everywhere"/);
-  });
-});
-
-describe("Tickets page binding", () => {
-  const tickets = { slug: "phase2_tickets", source_id: 101, view_id: 102 };
-  const pattern = { name: "Phase2", qa: { datasets: { tickets } } };
-
-  it("keeps the placeholder when the install has no datasets", () => {
-    const [ticketsPage] = buildQaPages({ name: "QA" }, "qa_test");
-    expect(ticketsPage.sections.map((s) => s.element["element-type"])).toEqual(["lexical"]);
-  });
-
-  it("binds a Spreadsheet to the install's own tickets dataset", () => {
-    const [ticketsPage] = buildQaPages(pattern, "qa_test");
-    const list = ticketsPage.sections.find((s) => s.element["element-type"] === "Spreadsheet");
-    const data = JSON.parse(list.element["element-data"]);
-    expect(data.externalSource).toMatchObject({
-      isDms: true, app: "qa_test", type: "phase2_tickets", source_id: 101, view_id: 102, env: "qa_test+phase2_tickets",
-    });
-    expect(data.display).toMatchObject({ allowAdddNew: true, allowEditInView: true });
-    expect(list.trackingId).toBe("qa_tickets_list");
-    expect(list).not.toHaveProperty("id");
   });
 });

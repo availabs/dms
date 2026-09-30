@@ -15,6 +15,13 @@ import QaShell from "./pages/shell";
 const qaConfig = (props) => {
   const pageCfg = pageConfig[0]({ ...props, hasEditor: false });
   const [shell] = pageCfg.children;
+  // What the code pages need from the route config: the app (loaded pattern rows don't carry it),
+  // the install's own URL for links, and the site's Datasets patterns (for the add-ticket link).
+  const pagesContext = {
+    app: props.app,
+    baseUrl: props.baseUrl === "/" ? "" : props.baseUrl,
+    datasetPatterns: props.datasetPatterns || [],
+  };
 
   return {
     ...pageCfg,
@@ -27,7 +34,7 @@ const qaConfig = (props) => {
     // Starts downloading the page's section-type chunks, as the page pattern's
     // preload does. The loader's rows pass through untouched.
     preload: async (falcor, data, request, params) => {
-      const page = findQaPage(buildQaPages(props.pattern, props.app), params?.['*'] || '');
+      const page = findQaPage(buildQaPages(props.pattern, pagesContext), params?.['*'] || '');
       preloadSectionComponents(pageSectionTypes(page));
       return data;
     },
@@ -37,7 +44,7 @@ const qaConfig = (props) => {
         type: (shellProps) => <QaShell Shell={shell.type} {...shellProps} />,
         children: [
           {
-            type: (routeProps) => <QaPageView {...routeProps} pattern={props.pattern} app={props.app} />,
+            type: (routeProps) => <QaPageView {...routeProps} pattern={props.pattern} pagesContext={pagesContext} />,
             path: "/*",
             action: "view",
             authPermissions: props.authPermissions,

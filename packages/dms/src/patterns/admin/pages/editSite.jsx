@@ -121,7 +121,9 @@ function SiteEdit ({
 				console.error('Could not re-read site patterns before saving; saving the list as shown:', err)
 			}
 		}
-		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
+		// Returned so a caller can wait for the save itself, not just the re-read above:
+		// the QA install writes the site row after it (patterns/qa/install.js).
+		return apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 
 	if (isLoading || dataItems === undefined || !resolvedId || !user?.authed || !hasAccess) {

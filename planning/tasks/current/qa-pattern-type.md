@@ -137,7 +137,7 @@ that have to exist first.
 |---|---|---|---|
 | 1 | 2 (part) | Skeleton type: registration, admin-style code pages, no edit route | DONE 2026-09-30 |
 | 2 | 3 + 4 | Ticket record + install hook: schemas in code, datasets created per install, refs on the pattern row | DONE 2026-09-30 |
-| 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | NOT STARTED |
+| 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | 3a DONE, 3b next |
 | 4 | 5 | Derived values without a sync, incl. track-on-publish | NOT STARTED |
 | 5 | 6 | Configure page | NOT STARTED |
 | 6 | 7 | Widget (signed out too) + `dms qa` CLI | NOT STARTED |
@@ -436,13 +436,170 @@ connection: `falcor-express` logged "Client disconnected" after its 4th dataset,
 
 **Rough effort:** 3–4 days.
 
-### Phase 3: The control-room pages as code — NOT STARTED (outline)
+### Upstream changes pulled 2026-09-30 (checked before phase 3)
 
-- Port `src/themes/transportny/qa_skills/tools/builds/build_cr_{overview,tickets,page,design}.mjs` into
-  `patterns/qa/pages/*.js` as `(install) => page`. Same native Card / Spreadsheet / Filter / Graph / lexical
-  configs; `externalSource` built from `qa.datasets`; `SITE_LABELS`, pill colours and labels from install
-  settings; `randomUUID()` group names → constants.
-- Switches gate pages and sections; nav follows.
+- **Admin pattern is now a saved row** (`bde2825f`, [admin-pattern-data-row.md](../completed/admin-pattern-data-row.md)):
+  `{instance}|admin:pattern` sits in the site's `patterns`, backfilled on an admin's first load; saved admin rows are
+  folded into the in-code admin pattern, never routed. QA routing is unchanged. Its notes confirm two things phase 2
+  found independently: a pattern-list save rewrites refs to a generic string, and reads must use
+  `dms.data[app].byId`.
+- **Merge regression, fixed 2026-09-30:** the same commit rewrote `editSite.jsx` `updateData` (now re-reads and merges
+  the site's refs first, `mergeSitePatternRefs`) and dropped phase 2's `return`, so the QA install's `await saved`
+  waited only for the re-read. `return apiUpdate(...)` restored. Full `packages/dms/tests` 574/577, the same 3
+  unrelated failures.
+- **Planned, affects later phases:** [site-ref-list-atomic-ops.md](./site-ref-list-atomic-ops.md) adds a server call
+  that adds one ref to a site list (`dms_envs` included); when it ships, `createDefaultEnvironment` should use it.
+  [admin-granular-permissions.md](./admin-granular-permissions.md) adds a permission dropdown per pattern type in the
+  Access tab; QA's Access tab (phase 5) will need a `qa` list.
+- **Private installs and the site snapshot:** `persistSiteSnapshot` saves nothing when any pattern comes back as a
+  no-access stub (`render/spa/utils/snapshot.js:13-27`), so a private QA install makes every anonymous boot of its
+  site wait for the full fetch, as any private pattern already does. Check before the TransportNY port whether its
+  site already has a private pattern.
+- **UDA filter fix** (`ccf9f3e9`, [uda-filter-expr-alias-where.md](./uda-filter-expr-alias-where.md), built): filters on
+  `expr as alias` columns. TransportNY's ticket facets are all plain columns, so the port isn't affected.
+
+### Phase 3a: Ticket list + ticket page as code — DONE (2026-09-30, live-verified on `qa_test`, uncommitted)
+
+**Goal:** Each install's Tickets page and Ticket page become the control room's two ticket pages, built in code
+from `src/themes/transportny/qa_skills/tools/builds/build_cr_tickets.mjs` (425 lines, read in full 2026-09-30) and
+bound to the install's own datasets. The phase 2 stand-in list goes away.
+
+**What the builder makes (the reference)**
+- **Tickets (`/tickets`)**, six groups (breadcrumb, header, summary, flow charts, filters, table):
+  - breadcrumb and a `// site management` + "Tickets." header;
+  - "+ Add ticket": a static link Card to the Datasets admin's table tab of the tickets source;
+  - "Where tickets stand": `flow_step` boxes (Triage › In progress › In review › Resolved/closed), a severity-weighted
+    resolution % with a `data_bar`, open-by-severity counts, found-by-source counts;
+  - two `AVL Graph` BarGraphs on a time axis: tickets opened / day, resolved / day;
+  - four `Filter` facets writing page variables: status, severity, source, site (`surface`, labels from `SITE_LABELS`);
+  - the table (`Spreadsheet`, newest first): `#` link to the ticket page, severity/source/status/site pills, title, page,
+    reporter, updated; the four page variables filter it; download on.
+  - page `filters` registry: `status`, `severity`, `source`, `surface` (URL-bound).
+- **Ticket (`/ticket?id=`)**, four groups; every section filtered by the `id` page variable (`requireResolved`):
+  - breadcrumb (`… / #id`), header (pills, "All tickets" link, title, target page link, page stage);
+  - body Card: `description`, `steps`, `expected`, `actual`, `suggested_solution`, `resolution` as editable textareas,
+    `screenshot` as an image, `env` (live edit);
+  - Details rail Card (live edit): **status** (editable pill + `setDateOnValue` → `resolved_date`), source, **assignee**,
+    reporter, severity, priority, category, effort, duplicate-of link, verified, verified by, target page, opened,
+    resolved, updated;
+  - comments card.
+  - page `filters` registry: `id`.
+
+**Port rules**
+- New `patterns/qa/pages/tickets.js` and `ticket.js`, each `(ctx) => page`, plus `pages/helpers.js` for the
+  builder's section helpers (`dw`, `col`, `pcol`, `calc`, `lexical`, …). `ctx = {app, pattern, baseUrl, datasets,
+  siteLabels, datasetsLink}` built once in `qaConfig`; `buildQaPages` assembles the list.
+- Every binding comes from `pattern.qa.datasets.tickets` (`isDms`, `app`, `type: slug`, `source_id`, `view_id`,
+  `env`/`srcEnv` = `<app>+<slug>`), keeping the builder's declared `columns` list (filter/group-by columns must be
+  declared, per its note). No `npmrdsv5`, `sitemgmt_*` or `2184923` string survives (a unit test greps for them).
+- Links: `/sitemgmt/…` → `${baseUrl}/…` (ticket, tickets, `page?key=`). The Page QA page arrives in 3b; until then
+  its link lands on Tickets (the unknown-URL fallback).
+- "+ Add ticket": links to `/<datasets pattern>/internal_source/<tickets source_id>/table` when a Datasets pattern
+  uses the install's environment (`props.datasetPatterns`, matched on `dmsEnvId`); otherwise not shown.
+- Status groups come from the ticket record, not string lists: OPEN = kinds triage/active/waiting, CLOSED =
+  done/canceled (`DEFAULT_STATUSES`). The flow boxes keep TransportNY's four. Pill colour maps (`SEV_PILL`,
+  `STATUS_PILL`, …) move to `pages/helpers.js` (presentation, not the record).
+- Site labels: `pattern.qa.siteLabels` when set (the TransportNY port seeds its `SITE_LABELS`; phase 5's Configure
+  edits it), else raw `surface` values with no `meta_lookup`.
+- Fixed group names and `trackingId`s per section (e.g. `qa_tickets_flow`, `qa_ticket_rail`); no `randomUUID`.
+- Look: the builder's `valueFontStyle` tokens (`kicker`, `btnPrimary`, `displayLG`, …) and group themes
+  (`breadcrumb`, `header`) are TransportNY theme keys. They're kept; a site whose theme lacks one renders it plainly.
+  TransportNY keeps its look at the port.
+
+**The status-change writes: DEFERRED (owner, 2026-09-30).** Build the pages first; decide the behaviour, and whether
+it's (a) or (b), once they exist and DMS-side changes have settled. Until then the pages are ported as TransportNY has
+them, minus config that does nothing: the status pill's `setDateOnValue` is dropped (only the section editor reads
+it, and QA pages have no editor; owner, 2026-09-30), the rail keeps the Card's live edit, and the history dataset
+stays empty. **Still wanted (owner):** `resolved_date` stamping on resolve/close, or something close to it, is part of
+the deferred work, not dropped. The options, for when it's picked up:
+When a ticket's status (or assignee) changes, three things should happen together: save the field; stamp
+`resolved_date` when status moves to a done/canceled kind (clear it when reopened); write one history row
+`{row_id, field, old_value, new_value, user_id, user_email, at, via: 'ui'}`. Today's rail only saves the field (the
+stamp never runs in view mode, finding 3) and can drop it (the half-second bug, finding 4: all rail fields share one
+section).
+- **(a) QA-owned control — recommended while TransportNY must stay untouched.** A small `qa_tracked` column type,
+  registered by the qa pattern (the page pattern registers `filter_control` the same way). It renders the base type
+  (status pill or text input) and, on a change, saves `{id, field, resolved_date?}` in one `apiUpdate` and creates the
+  history row, straight away (no shared timer, so it can't be dropped). It shows its own value until the next
+  refetch, and doesn't call the Card's live-edit save for that cell. Used for status and assignee (and stage in 3b).
+  - Cost: QA code with its own small save path; other rail fields (severity, priority, …) stay on the Card's live
+    edit, bug and all, exactly as on TransportNY today.
+  - To confirm at build: the edit control can reach `apiUpdate` (PageContext) and the signed-in user.
+- **(b) Library fix.** Fix View `updateItem` (per-row pending saves; honour `setDateOnValue`) and add an opt-in
+  `changeLog` column option; QA pages then just configure status/assignee.
+  - Cleaner, and any author gets it. But it changes TransportNY's Card pages: quick edits stop being dropped and
+    status flips start stamping `resolved_date` (both what its docs already claim). Logged in
+    `card-liveedit-shared-debounce-drops-saves.md`.
+
+**Tests (vitest)**
+- Both pages: every data section's `externalSource` is the install's tickets dataset; no TransportNY identifiers;
+  links start with `baseUrl`; page `filters` registries; unique fixed `trackingId`s; OPEN/CLOSED derived from kinds.
+- "+ Add ticket" present only with a Datasets pattern on the install's environment.
+- The chosen write path: (a) the control's save payload + history row from a row/old/new/user; or (b) the
+  `updateItem` changes.
+
+**Live check on `qa_test`**
+- Seed ~8 tickets in Phase2 across statuses/severities/sources (CLI `dms raw create`).
+- `/phase2/tickets`: summary counts and bar match the seeded rows; charts render; each facet filters the table and
+  sets its URL parameter; a `#` link opens `/phase2/ticket?id=<row>`.
+- `/phase2/ticket?id=`: header, body and rail show the ticket; editing a textarea persists after reload.
+- Status → Resolved: persisted, `resolved_date` stamped, one history row; back to Triage clears the date. Assignee
+  change writes a history row. Quick status-then-assignee both persist (with (a) for those two fields).
+- `/qa4`, `/phase3a` (no tickets) render empty states without errors.
+
+**Rough size:** 3–4 days for the two pages; (a) adds about a day, (b) about the same plus TransportNY regression checks.
+
+**Built (2026-09-30)**
+- `patterns/qa/pages/helpers.js` (the builder's section/column helpers, pill maps, `OPEN_STATUSES`/`CLOSED_STATUSES`
+  from the kinds, `sqlText` for names inside SQL literals), `tickets.js`, `ticket.js`; `buildQaPages(pattern, {app,
+  baseUrl, datasetPatterns})` returns them when `qa.datasets.tickets` is set, else the placeholder pages ("This
+  install's datasets aren't set up yet."). `qaConfig` builds that context once (`props.app`, `props.baseUrl`,
+  `props.datasetPatterns`). The phase 2 stand-in list is gone.
+- Dropped as dead config (owner): the status pill's `setDateOnValue` (only the section editor reads it).
+- **Design note: section sizes are theme vocabulary.** The builder's numeric sizes (`3`, `6`, `9`, `12`) are
+  TransportNY's 12-column keys (`themev2.js` replaces the default map). The library default theme only knows `1/3`,
+  `1/2`, `2/3`, `1` on a 6-column grid (`sectionArray.theme.jsx`), and `"1"` means opposite widths in the two. On a
+  default-theme site the charts and facets fall back to full width and stack. Kept as TransportNY's (its first real
+  install); nothing in the library maps sizes across themes today (the page templates use fractions, which have the
+  opposite problem on TransportNY's theme).
+- **Design note: every rail field is editable in place,** reporter/opened/updated included: the builder enables
+  `allowEditInView` on the whole rail section, not just the workflow fields. Faithful to the builder; not compared
+  with TransportNY's live page.
+
+**Tests — DONE 2026-09-30**
+- [x] vitest `tests/qaTicketPages.test.js` (13): pages and slugs; every data section on the install's tickets
+  dataset; no `sitemgmt`/`npmrdsv5`/`2184923`/`2184924`/`/datasources`; links under `baseUrl`; URL-variable registries;
+  Ticket-page `id` filter on every data section; fixed unique trackingIds and deterministic output; OPEN/CLOSED from
+  kinds; no `setDateOnValue`; add-ticket link only with a matching Datasets pattern; site labels on/off; placeholder
+  without datasets. The two phase 2 stand-in tests were removed from `qaInstall.test.js`.
+- [x] Full `packages/dms/tests` 586/589, the same 3 unrelated failures.
+
+**Live check on `qa_test` — DONE 2026-09-30**
+- [x] 7 tickets seeded into Phase2 (rows 99–105; with #76, 8 in all).
+- [x] `/phase2/tickets`: Triage 2 › In progress 1 › In review 1 › Resolved/closed 3; resolution 22% (4 of 18,
+  severity-weighted); open Blocker 1 / Major 2 / Minor 1 / Polish 0 / Feature 0; found by AI 1 / Dev 2 / Client 2;
+  "5 open · 3 done"; both charts; 8 rows newest first, each `#` linking to `/phase2/ticket?id=<row>`. No console,
+  page or SQL errors.
+- [x] Filters: `?status=Triage` → #100, #76; `?severity=Major&source=client` → #99.
+- [x] `/phase2/ticket?id=99`: breadcrumb `Phase2 / Tickets / #99`, header pills, title, target page; body and rail
+  show the row. A resolution typed in the body persisted (`dms dataset query 43 --pattern 41` → "Moved the legend
+  below the map.").
+- [x] Empty installs (`/qa4`, `/phase3a`), no datasets (`/qa`) and a missing ticket (`?id=999999`) render without
+  errors.
+- [x] Preview under TransportNY's theme: Phase2 (41) given `theme.selectedTheme: 'transportnyv2'`; the pages match the
+  control room's layout (charts side by side, four facets in a row). That theme's sidenav carries TransportNY's
+  hard-coded "Report an issue", which writes to TransportNY's tickets: not clicked.
+- Not driven in automation: the rail's click-to-edit fields (Card inline editing; clicking the value didn't open an
+  input under Playwright). Check by hand.
+- Console warnings on the Ticket page (`customName`, `hideHeader`, `valueFontStyle`, `allowEditInView` passed to DOM
+  elements) come from `Card.jsx` passing column props to the edit inputs (`Card.jsx:372-381`), library code.
+
+**3b (outline, planned after 3a):** Overview (`build_cr_overview.mjs`, 210 lines) and Page QA (`build_cr_page.mjs`,
+329 lines, with the page-stage control → history). The Design page (`build_cr_design.mjs`) moves to TransportNY's
+theme at the port (phase 8).
+
+**Phase 3 carry-overs (from the original outline):**
+- Switches gate pages and sections; nav follows. Until Configure (phase 5) every switch is on.
 - Theme-added pages: merge `theme.qa.pages` (code, never DB). TransportNY's Design page moves there in phase 8.
 
 ### Phases 4–7 — NOT STARTED
