@@ -63,6 +63,9 @@ const pagesConfig = ({
   API_HOST,
   DAMA_HOST,
   ssrCollect,
+  // false for a pattern type that reuses this config without the page editor
+  // (the qa type); hides the view↔edit toggle in the user menu.
+  hasEditor = true,
   ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern, ssrCollect)
@@ -189,6 +192,7 @@ const pagesConfig = ({
               authPermissions,
               authBaseUrl,
               mapeditorKeys,
+              hasEditor,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
                 if (!customAuthPermissions) {
                   return isUserAuthed({ user, authPermissions, reqPermissions });

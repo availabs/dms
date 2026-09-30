@@ -584,7 +584,7 @@
 
 ### patterns/qa
 
-- [ ] [`qa` pattern type — ticketing / delivery QA as a library feature](./tasks/current/qa-pattern-type.md) — planned 2026-09-29, awaiting go-ahead. Rebuilds TransportNY's control room as an Add Pattern feature; core first on the `qa_test` app, then TransportNY ported onto it. Design: dms-template `research/qa-ticketing-system/`.
+- [ ] [`qa` pattern type — ticketing / delivery QA as a library feature](./tasks/current/qa-pattern-type.md) — planned 2026-09-29; phase 1 (skeleton type, admin-style code pages) in progress 2026-09-30. Rebuilds TransportNY's control room as an Add Pattern feature; core first on the `qa_test` app, then TransportNY ported onto it. Design: dms-template `research/qa-ticketing-system/`.
 
 ### patterns/mapeditor
 

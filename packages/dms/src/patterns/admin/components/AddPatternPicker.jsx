@@ -6,6 +6,7 @@ import { patternPickerTheme } from './AddPatternPicker.theme'
 const NON_PAGE_OPTIONS = [
   { kind: 'datasets', label: 'Datasets', desc: 'Connect and manage data sources' },
   { kind: 'forms',    label: 'Forms',    desc: 'Collect user-submitted data' },
+  { kind: 'qa',       label: 'Ticketing / QA', desc: 'Issue reports, tickets and page QA' },
 ]
 const AUTH_OPTION = { kind: 'auth', label: 'Auth', desc: 'Authentication and access control' }
 // Same type→color mapping as the Sites table's pattern_type pill
@@ -16,12 +17,14 @@ const TAG_CLASS_KEY = {
   datasets: 'tagDatasets',
   auth: 'tagAuth',
   forms: 'tagForms',
+  qa: 'tagQa',
 }
 
 function getDefaultName(card, pageTemplates) {
   if (card.kind === 'datasets') return 'Data'
   if (card.kind === 'forms')    return 'Forms'
   if (card.kind === 'auth')     return 'Auth'
+  if (card.kind === 'qa')       return 'QA'
   if (card.kind === 'page') {
     if (card.templateId === 'blank') return 'Pages'
     return pageTemplates.find(pt => pt.id === card.templateId)?.name ?? 'Pages'

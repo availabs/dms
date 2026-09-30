@@ -52,7 +52,7 @@ const UserMenu = ({activeStyle, syncStatus, roomStale}) => {
 const EditControl = ({activeStyle}) => {
   const { theme, UI } = useContext(ThemeContext)
   const { user } = useContext(AuthContext) || {}
-  const { isUserAuthed = () => false,  baseUrl='/'  } = useContext(CMSContext) || {}
+  const { isUserAuthed = () => false,  baseUrl='/', hasEditor = true } = useContext(CMSContext) || {}
   const location = useLocation()
   const { Icon } = UI
   const menuTheme = getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]
@@ -64,6 +64,7 @@ const EditControl = ({activeStyle}) => {
   //console.log('test', edit,urlpath,location?.pathname, baseUrl)
     return <>
       {(
+        hasEditor &&
         user?.authed &&
         isUserAuthed([
             'create-page',

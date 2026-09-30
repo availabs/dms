@@ -363,6 +363,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
             <span className={t.dangerHeaderLabel}>danger zone</span>
           </div>
           <div className={t.dangerBody}>
+            {/* A qa install can't be duplicated: the copy takes a fixed field list
+                and would drop the install's own settings and dataset refs. */}
+            {value.pattern_type !== 'qa' && (
             <div className={t.dangerRow}>
               <div className='min-w-0 flex-1'>
                 <p className={t.dangerRowTitle}>duplicate this pattern</p>
@@ -384,6 +387,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                 {isDuplicating ? 'duplicating…' : 'duplicate'}
               </button>
             </div>
+            )}
 
             <div className={t.dangerRow}>
               <div className='min-w-0 flex-1'>

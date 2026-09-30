@@ -19,6 +19,7 @@ export const patternPickerTheme = {
   // Dashed, like the table's forms pill — patterns/index.js has that
   // registration commented out (creatable but not currently routable).
   tagForms: 'border border-dashed border-[var(--t-rule-strong)] text-[var(--t-pencil)]',
+  tagQa: 'bg-[var(--t-marker-soft)] text-[var(--t-ink)]',
   dividerRow: 'col-span-3 flex items-center gap-2 py-1',
   dividerLine: 'flex-1 h-px bg-[var(--t-rule)]',
   dividerLabel: 'text-[9px] font-semibold uppercase tracking-widest text-[var(--t-pencil)] whitespace-nowrap',

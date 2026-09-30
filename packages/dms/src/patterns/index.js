@@ -4,6 +4,7 @@ import adminConfig from './admin/siteConfig'
 import authConfig from './auth/siteConfig'
 import datasetsConfig from './datasets/siteConfig'
 import mapeditorConfig from './mapeditor/siteConfig'
+import qaConfig from './qa/siteConfig'
 
 const patterns = {
   page: pageConfig,
@@ -11,7 +12,8 @@ const patterns = {
   admin: adminConfig,
   auth: authConfig,
   datasets: datasetsConfig,
-  mapeditor: mapeditorConfig
+  mapeditor: mapeditorConfig,
+  qa: qaConfig
 }
 
 export async function resolvePatterns() {

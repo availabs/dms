@@ -136,10 +136,11 @@ const TYPE_PILL_KEY = {
 	auth: 'typePillAuth',
 	mapeditor: 'typePillMapeditor',
 	forms: 'typePillForms',
+	qa: 'typePillQa',
 };
 // Chip/sort order for the toolbar's type filter row — real types first (in
 // the same order as AddPatternPicker offers them), '?' last.
-const TYPE_ORDER = ['page', 'datasets', 'auth', 'forms', 'mapeditor'];
+const TYPE_ORDER = ['page', 'datasets', 'auth', 'forms', 'qa', 'mapeditor'];
 
 function PatternList({
 	 Component,
@@ -264,13 +265,16 @@ function PatternList({
         }
         // A site needs exactly one auth pattern — duplicating or deleting it
         // through this list is never a valid action, so only Edit shows.
+        // A qa install can't be duplicated either: the copy takes a fixed field
+        // list and would drop the install's own settings and dataset refs.
         const isAuthType = d.row.pattern_type === 'auth';
+        const canDuplicate = !isAuthType && d.row.pattern_type !== 'qa';
         return (
           <div className={t.cellActions}>
             <Link to={d?.row?.edit_url || ''} className={t.editLink} title='Edit pattern' aria-label='Edit pattern'>
               <Icon icon='PencilEditSquare' className={t.iconSm}/>
             </Link>
-            {!isAuthType && (
+            {canDuplicate && (
               <button
                 className={t.duplicateBtn}
                 title='Duplicate pattern'

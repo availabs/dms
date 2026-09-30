@@ -76,7 +76,8 @@ export const pattern = {
           {value: 'page', label: 'Page'},
           {value: 'forms', label: 'Forms'},
           {value: 'datasets', label: 'Datasets'},
-          {value: 'mapeditor', label: 'Map Editor'}
+          {value: 'mapeditor', label: 'Map Editor'},
+          {value: 'qa', label: 'Ticketing / QA'}
         ],
     },
     // doc_type: uuid string to identify pattern entries in db

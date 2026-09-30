@@ -412,6 +412,17 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   `/npmrds/reports/<report>` is current behavior, not a stale render. Read the item's real props from
   the fiber (`a[href]` → `__reactFiber*` → walk `.return` to `memoizedProps.navItem`) rather than
   inferring from the DOM. Tracked: `src/dms/planning/tasks/current/nav-active-state-most-specific-match.md`.
+- **The admin renders a blank panel on a hard load with an injected token.** `report_probe.mjs --auth`
+  on `/list` (Sites) or `/list/manage_pattern/<id>` shows the sidebar and user menu but an empty content
+  area, with no errors. Clicking the in-app **Sites** link renders it; reach the pattern editor by
+  clicking the row's `a[href="/list/manage_pattern/<id>"]` from there (2026-09-30, `qa_test`).
+- **A newly added pattern reads `undefined` / `?` in the Sites table until a reload.** `addNewValue`
+  (`editSite.jsx`) appends a bare `{ref, id}` to the site's `patterns`, for every pattern type. Reload to
+  see its name, pill and base URL; check the row with `dms site tree`, not the table right after Add.
+- **Page visits are invisible in the probe dump unless tracked.** `/track/visit` answers 204, so the
+  harness logs it as `non200: 204` (not an error), and a dump lists non-graph calls only in
+  `badResponses`. Pass `--track track/visit` to record every visit POST with its `pageId`. The token
+  injection also loads the site root first, which can log a visit for the root page (2026-09-30).
 
 ## 5. Extending this doc
 

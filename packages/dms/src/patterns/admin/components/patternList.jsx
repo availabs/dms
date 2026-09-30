@@ -413,6 +413,9 @@ function PatternEdit({
 
 							<span className='flex-1' />
 
+							{/* A qa install can't be duplicated: the copy takes a fixed field
+							    list and would drop the install's own settings and dataset refs. */}
+							{editingItem.pattern_type !== 'qa' && (
 							<Button
 								className={t.btnDuplicate}
 								type={'plain'}
@@ -444,6 +447,7 @@ function PatternEdit({
 								}}
 							> {isDuplicating ? `duplicating... ${Math.round(duplicateProgress * 100)}%` : 'duplicate'}
 							</Button>
+							)}
 							<Button
 								className={t.btnRemove}
 								type={'plain'}

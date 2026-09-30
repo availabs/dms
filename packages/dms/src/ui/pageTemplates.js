@@ -1,7 +1,7 @@
 // ── Lexical helpers ──────────────────────────────────────────────────────────
 // element-data shape: { text: <lexical-state>, bgColor, isCard, showToolbar }
 
-function lexicalElementData(lexicalState) {
+export function lexicalElementData(lexicalState) {
   return JSON.stringify({
     text: lexicalState,
     bgColor: 'rgba(0,0,0,0)',
@@ -54,7 +54,7 @@ function articleLexicalState() {
 }
 
 // Multi-node Lexical state: heading (h1) + one or more body paragraphs
-function headingBodyLexicalState(heading, ...paragraphs) {
+export function headingBodyLexicalState(heading, ...paragraphs) {
   return {
     root: {
       children: [

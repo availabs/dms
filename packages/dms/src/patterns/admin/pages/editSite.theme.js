@@ -60,6 +60,7 @@ export const editSiteTheme = {
     typePillDatasets: 'text-[var(--t-go)] bg-[var(--t-go-soft)]',
     typePillAuth: 'text-[var(--t-amber)] bg-[var(--t-amber-soft)]',
     typePillMapeditor: 'text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)]',
+    typePillQa: 'text-[var(--t-ink)] bg-[var(--t-marker-soft)]',
     // Dashed, like chipInactive — same "not currently routable" signal.
     typePillForms: 'text-[var(--t-pencil)] border border-dashed border-[var(--t-rule-strong)]',
     typePillUnknown: 'text-[var(--t-brick)] bg-[var(--t-brick-soft)]',
