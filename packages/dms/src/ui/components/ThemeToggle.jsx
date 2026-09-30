@@ -5,6 +5,18 @@ import { themeToggleTheme } from './ThemeToggle.theme'
 
 const STORAGE_KEY = 'dms-color-scheme'
 
+// Turns dark mode on when the viewer saved "dark" (or saved nothing and the OS
+// prefers dark). Returns whether it did. dmsSiteFactory.jsx calls this once
+// before the first render; the toggle's mount effect calls it too.
+export function applySavedColorScheme () {
+  if (typeof document === 'undefined') return false
+  let stored
+  try { stored = window.localStorage.getItem(STORAGE_KEY) } catch (e) { /* noop */ }
+  const prefersDark = stored ? stored === 'dark' : window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
+  if (prefersDark) document.documentElement.setAttribute('data-theme', 'dark')
+  return !!prefersDark
+}
+
 export default function ThemeToggleComp(props) {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
   const theme = { ...themeToggleTheme, ...getComponentTheme(themeFromContext, 'themeToggle', props.activeStyle) }
@@ -13,13 +25,7 @@ export default function ThemeToggleComp(props) {
   )
 
   React.useEffect(() => {
-    let stored
-    try { stored = window.localStorage.getItem(STORAGE_KEY) } catch (e) { /* noop */ }
-    const prefersDark = stored ? stored === 'dark' : window.matchMedia?.('(prefers-color-scheme: dark)')?.matches
-    if (prefersDark) {
-      document.documentElement.setAttribute('data-theme', 'dark')
-      setIsDark(true)
-    }
+    if (applySavedColorScheme()) setIsDark(true)
   }, [])
 
   const toggle = () => {

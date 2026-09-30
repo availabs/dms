@@ -9,6 +9,13 @@ import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_ut
 import { pattern2routes, getSubdomain, resolveThemes } from './utils'
 import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
+import { applySavedColorScheme } from '../../ui/components/ThemeToggle';
+
+// Apply the saved dark/light choice before the first render. Otherwise every
+// load paints light until a ThemeToggle mounts and its effect runs. Skipped
+// when hydrating server HTML: the server rendered light, and the toggle's first
+// client render must match it, so there its mount effect applies it as before.
+if (typeof window !== 'undefined' && !window.__dmsSSRData) applySavedColorScheme()
 
 // Stable reference for the default empty routes array — avoids re-creating the
 // router on every DmsSite render when no extra routes are passed as a prop.
