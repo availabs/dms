@@ -2,6 +2,7 @@ import React, {useContext, useMemo, useState} from "react";
 import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {ComponentContext, PageContext} from "../../context";
 import {ConditionValueInput} from "./ConditionValueInput";
+import {filterConditionColumns} from "./components/dataWrapper/components/filters/utils";
 import {getColumnLabel} from "./controls_utils";
 import {filterTheme} from "./components/dataWrapper/components/filters/RenderFilters.theme";
 
@@ -68,6 +69,12 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
     const showToggle = state?.display?.hideExternalToggle !== true;
 
     const columns = state?.externalSource?.columns || [];
+    // Leaves resolve against the section's columns first (calculated columns live only
+    // there); labels stay source-first below so existing filter labels don't change.
+    const conditionColumns = useMemo(
+        () => filterConditionColumns(state?.columns, state?.externalSource?.columns),
+        [state?.columns, state?.externalSource?.columns]
+    );
     const filterGroups = state?.filters;
 
     const externalConditions = useMemo(
@@ -207,7 +214,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
             {toggleButton}
             <div className={`${theme.filters.conditionsGrid} ${gridClasses[gridSize]}`}>
                 {externalConditions.map(({ node, path, siblingConditions }) => {
-                    const column = columns.find(c => c.name === node.col);
+                    const column = columns.find(c => c.name === node.col) || conditionColumns.find(c => c.name === node.col);
                     const label = node.displayName || (column ? getColumnLabel(column) : node.col);
 
                     return (
@@ -233,7 +240,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                                     <ConditionValueInput
                                         node={node}
                                         path={path}
-                                        columns={columns}
+                                        columns={conditionColumns}
                                         updateNodeAtPath={updateNodeAtPath}
                                         siblingConditions={siblingConditions}
                                         activeStyle={theme.filters.controlStyle}
@@ -248,7 +255,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                 <div className={theme.filters.activeTokensWrapper}>
                     {showActiveTokens
                         ? activeTokens.map(({ node, path }) => {
-                            const column = columns.find(c => c.name === node.col);
+                            const column = columns.find(c => c.name === node.col) || conditionColumns.find(c => c.name === node.col);
                             const label = node.displayName || (column ? getColumnLabel(column) : node.col);
                             return (
                                 <span key={path.join('.')} className={theme.filters.activeToken}>

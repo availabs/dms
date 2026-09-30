@@ -1624,24 +1624,33 @@ export const buildUdaConfig = ({
       return acc;
     }, {});
 
-  // Map legacy flat filters to server refs
-  const mappedFilter = Object.keys(legacyFilters.filter || {}).reduce(
-    (acc, columnName) => {
+  // Map legacy flat filters to server refs. A MULTISELECT column's values can be JSON arrays
+  // (e.g. a calculated `to_jsonb(array[…])::text as category` column, or a DMS multiselect
+  // field), where the flat `col = ANY(values)` never matches a single picked value — so, like
+  // mapFilterGroupCols does for filterGroups leaves, its filter/exclude values go out as
+  // array_contains / array_not_contains leaves instead (server: JSON-array membership, and a
+  // non-array value is treated as a one-element array, so scalar columns match as before).
+  // Null sentinels keep the flat path for IS NULL handling.
+  // See src/dms/planning/tasks/current/uda-filter-expr-alias-where.md
+  const legacyArrayLeaves = [];
+  const mapLegacyFlat = (legacyOp, arrayOp) =>
+    Object.keys(legacyFilters[legacyOp] || {}).reduce((acc, columnName) => {
       const col = getColumn(columnName);
-      if (col) acc[col.refName] = legacyFilters.filter[columnName];
+      if (!col) return acc;
+      const values = legacyFilters[legacyOp][columnName];
+      const realValues = (Array.isArray(values) ? values : [values])
+        .map((v) => v?.value ?? v)
+        .filter((v) => v != null && v !== "");
+      const hasNullSentinel = realValues.includes("null") || realValues.includes("not null");
+      if (col.type === "multiselect" && realValues.length && !hasNullSentinel) {
+        legacyArrayLeaves.push({ op: arrayOp, col: col.refName, value: realValues });
+      } else {
+        acc[col.refName] = values;
+      }
       return acc;
-    },
-    {},
-  );
-
-  const mappedExclude = Object.keys(legacyFilters.exclude || {}).reduce(
-    (acc, columnName) => {
-      const col = getColumn(columnName);
-      if (col) acc[col.refName] = legacyFilters.exclude[columnName];
-      return acc;
-    },
-    {},
-  );
+    }, {});
+  const mappedFilter = mapLegacyFlat("filter", "array_contains");
+  const mappedExclude = mapLegacyFlat("exclude", "array_not_contains");
 
   // Map legacy comparison filters (gt, gte, lt, lte, like) to server refs
   const comparisonFilters = {};
@@ -1688,7 +1697,15 @@ export const buildUdaConfig = ({
   // 8. Assemble final options
   const options = {
     join: isJoinPresent ? buildJoin({join, externalSource}) : null,
-    filterGroups: finalFilterGroups,
+    filterGroups: legacyArrayLeaves.length
+      ? {
+          op: "AND",
+          groups: [
+            ...(finalFilterGroups?.groups?.length ? [finalFilterGroups] : []),
+            ...legacyArrayLeaves,
+          ],
+        }
+      : finalFilterGroups,
     groupBy: mappedGroupBy,
     ...(Object.keys(groupByAliasExprs).length > 0 && { groupByAliasExprs }),
     orderBy: mappedOrderBy,
@@ -1734,10 +1751,18 @@ export const buildUdaConfig = ({
 
     options.seriesKey = comparisonSeries.seriesKey || "__series";
     const activeVariants = effectiveVariants.filter((v) => v && v.label);
-    options.seriesVariants = activeVariants.map((v) => ({
-        label: v.label,
-        filterGroups: resolveArmTree(mergeVariantFilters(baseForArms, v.filters || {})),
-    }));
+    options.seriesVariants = activeVariants.map((v) => {
+        const armTree = resolveArmTree(mergeVariantFilters(baseForArms, v.filters || {}));
+        // Legacy multiselect column filters became filterGroups leaves above; the fan-out only
+        // reads each arm's own filterGroups, so every arm carries them too (the flat legacy
+        // filter/exclude objects already apply to all arms server-side).
+        return {
+            label: v.label,
+            filterGroups: legacyArrayLeaves.length
+                ? { op: "AND", groups: [...(armTree?.groups?.length ? [armTree] : []), ...legacyArrayLeaves] }
+                : armTree,
+        };
+    });
     // Combine mode — { mode: 'difference', invert?: true } asks the server to
     // join each non-anchor arm to the first (anchor/"Main") arm on the group-by
     // columns and return `anchor - variant` value columns instead of the
