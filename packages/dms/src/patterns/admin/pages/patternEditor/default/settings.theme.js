@@ -65,6 +65,9 @@ export const settingsEditorTheme = {
     // Simple type-gated settings cards (Page/Auth)
     settingsGrid: 'p-4 flex items-center gap-3',
     settingsLabel: 't-metaSM text-[var(--t-graphite)]',
+    // qa pattern block: link to the Datasets pattern listing the install's datasets, and a failed re-run
+    qaLink: 't-metaSM text-[var(--t-cobalt)] hover:underline',
+    qaError: 't-metaSM text-[var(--t-brick)]',
 
     // Danger zone
     dangerCard: 'border border-[var(--t-brick)] rounded-lg overflow-hidden',

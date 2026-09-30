@@ -419,6 +419,12 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
 - **A newly added pattern reads `undefined` / `?` in the Sites table until a reload.** `addNewValue`
   (`editSite.jsx`) appends a bare `{ref, id}` to the site's `patterns`, for every pattern type. Reload to
   see its name, pill and base URL; check the row with `dms site tree`, not the table right after Add.
+- **A signed-in hard load of a groups-only pattern can land on `/`.** On a refresh the user starts as a placeholder
+  (`groups: ['public']`, `isAuthenticating: true`), and `defaultCheckAuth` has no guard for it, so a route that
+  renders before sign-in finishes gets sent home. Page patterns usually render late enough to escape; a user-id grant
+  (e.g. BetaPage's `users: {993: ['*']}`) also hides it. To see what the check decided, drop a temporary
+  `console.error` in `dms-manager/_auth.js` and read the probe's `consoleErrors`. Tracked:
+  `src/dms/planning/tasks/current/route-auth-check-judges-placeholder-user.md` (2026-09-30).
 - **Page visits are invisible in the probe dump unless tracked.** `/track/visit` answers 204, so the
   harness logs it as `non200: 204` (not an error), and a dump lists non-graph calls only in
   `badResponses`. Pass `--track track/visit` to record every visit POST with its `pageId`. The token

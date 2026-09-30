@@ -2,7 +2,8 @@
 
 **Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
-Phase 1 DONE and live-verified on `qa_test` (2026-09-30); phase 2 not started. Changes stay **uncommitted** (owner).
+Phase 1 DONE, live-verified on `qa_test` and committed by the owner (2026-09-30: library `4919d419`, dms-template
+`e2b3e2e`). Phase 2 DONE and live-verified 2026-09-30, uncommitted. Phase 3 next.
 
 **Design and decisions:** `research/qa-ticketing-system/README.md` (plan v4) and `feature-roadmap.md`, both in the
 dms-template repo root. This file is the implementation plan and the source of truth for build status. The code
@@ -83,6 +84,36 @@ activity feed), server-side hooks, the throwaway DB, agents, server-side authori
     block (`AuthPatternSettings`, `settings.jsx`) is the other precedent, for a few fields.
   - To check at phase 5: whether an install's own admins who aren't site admins can reach it. The pattern editor
     checks per-pattern manage access (`hasPatternManageAccess`), but the Sites list checks site-level access.
+- **Phase 2 review (owner, 2026-09-30):**
+  - **Name check: the server read route is approved** (phase 2 step 3).
+  - **TransportNY's current control room must be unaffected, and isn't to be fixed here.** It works standalone. So
+    no change to the shared view-mode save path (`dataWrapper` View `updateItem`) in phase 2; the planned step 0
+    (debounce + `setDateOnValue` in view mode) is dropped.
+  - **Shared data environment, not one per install** (reverses the 2026-09-29 "own environment" confirmation). An
+    install registers its datasets in an existing environment of the site, the way page patterns read datasets from
+    the site's Datasets patterns' environments (`render/spa/utils/index.js:265`, `buildDatasources` 321-360) and two
+    Datasets patterns can share one (deduplicated by `dmsEnvId`). TransportNY's control-room datasets sit in its shared
+    `datasets_env` today. One environment must exist; the install refuses otherwise.
+  - **Change history: the writer moves to phase 3 (owner OK).** Phase 2 creates only the history dataset, as part of
+    the ticket record. Phase 3 decides how rows get written, next to the ticket controls, preferably inside QA code
+    rather than the shared save path.
+  - **The half-second Card save bug is logged**, not fixed:
+    [`card-liveedit-shared-debounce-drops-saves.md`](./card-liveedit-shared-debounce-drops-saves.md) (also records
+    that `setDateOnValue` never runs in view mode).
+  - **Open for phase 3: how QA stamps `resolved_date`.** Either phase 3's status control stamps it in QA's own write
+    path (with the history writer), or the logged library fix makes `setDateOnValue` work in view mode, which also
+    changes TransportNY's Card pages. Owner call then.
+  - **A site with no data environment gets a `default` one (owner, 2026-09-30).** Background: No pattern type refuses for lack of a Datasets pattern:
+    page patterns just have no internal datasets to pick (`buildDatasources`), a Datasets pattern with no environment
+    keeps sources on its own row (legacy, `sourceCreate.jsx:72`), and only the "Dashboard" site template creates an
+    environment (`default`, `ui/siteTemplates.js`, via `tenantProvisioning.js:171-180`). So the install creates a
+    `default` environment and links it to the site, as that template does, and Add Pattern always works.
+- **Resumable installs + no auto Datasets pattern (owner, 2026-09-30, after `qa4`'s install was cut off by a dropped
+  connection).** (1) The install writes the pattern row's record first and after each dataset; (2) a re-run adopts
+  existing `<install>_<key>` datasets instead of refusing; (3) a "Datasets: N of 5 · Create missing" row on a QA
+  pattern's Overview in `/list` re-runs it (the first piece of the phase 5 Configure tab). For a site with no Datasets
+  pattern, nothing extra is created (option a): an admin who wants to browse the tables adds one and picks the
+  environment; the Overview row links to the Datasets pattern that uses the install's environment, when there is one.
 - **Initiative (2026-09-30):** new `dms_qa_ticketing` (primary); `tny_control_room_qa` secondary, since
   TransportNY's control room is the hardcoded first pass this replaces and phases 7–8 port its data. The owner
   rejected `dms_page_editor_admin` (that one is the admin's page/site editing).
@@ -94,7 +125,7 @@ activity feed), server-side hooks, the throwaway DB, agents, server-side authori
   Stored as internal datasets like today's `sitemgmt_*`. No core change to create or read it; the change history
   probably needs one small generic addition to the section edit path (confirm at phase 2 start; precedent: the
   same-row `setDateOnValue` column option, `build_cr_tickets.mjs:382`).
-- **Leave all changes uncommitted.**
+- **Leave all changes uncommitted; the owner commits.** (Phase 1 committed by the owner 2026-09-30.)
 
 ## Build order (phases)
 
@@ -105,7 +136,7 @@ that have to exist first.
 | Phase | README step | What | Status |
 |---|---|---|---|
 | 1 | 2 (part) | Skeleton type: registration, admin-style code pages, no edit route | DONE 2026-09-30 |
-| 2 | 3 + 4 | Ticket record + install hook: schemas in code, datasets created per install, refs on the pattern row | NOT STARTED |
+| 2 | 3 + 4 | Ticket record + install hook: schemas in code, datasets created per install, refs on the pattern row | DONE 2026-09-30 |
 | 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | NOT STARTED |
 | 4 | 5 | Derived values without a sync, incl. track-on-publish | NOT STARTED |
 | 5 | 6 | Configure page | NOT STARTED |
@@ -213,29 +244,197 @@ pieces has precedent: `patterns/datasets/components/ValidateComp.jsx:6-28` impor
 
 ---
 
-### Phase 2: Ticket record + install hook — NOT STARTED (outline)
+### Phase 2: Ticket record + install step — DONE (2026-09-30, live-verified on `qa_test`, uncommitted), incl. the resumable-install follow-up
 
-- **Schemas in code** (`patterns/qa/schema/`): tickets, pages, stories, tracked patterns, change history. Column
-  names, types and value lists copied exactly from TransportNY's `sitemgmt_*` sources' `config.attributes`
-  (read them before writing), plus additive columns: `outcome`, `reporter_name`, `reporter_email`, `legacy_id`.
-- **Status kinds, default statuses and outcomes are constants in `patterns/qa/`** (owner, 2026-09-29), the same
-  for every install. The DB holds only each ticket's value. The install/upgrade step writes the column options on
-  the source row from these constants, so the datasets admin and CLI see the same lists; code stays the source of
-  truth. Per-install renamed statuses (a new-features item) would live in the install's settings, still mapped to
-  the fixed kinds in code.
-- **Status kinds:** triage, active, waiting, done, canceled. TransportNY's seven statuses are the default list,
-  each mapped to a kind.
-- **Outcomes:** fixed, workaround, backlog, feature request, out of scope, duplicate, won't fix.
-- **Change history dataset:** ticket, field, old value, new value, who, when. Written by the controls, the CLI
-  and the runbook through one module.
-- **Install hook** (`patterns/qa/install.js`), called after the pattern row is created, from one shared helper
-  used by both `addNewValue` copies:
-  - refuse a URL another pattern already uses;
-  - create a dmsEnv owned by the install and the datasets for the ticked switches, under `<instance>_<name>`
-    slugs; refuse any slug that already exists in the app (`type LIKE '%|<slug>:source'`);
-  - store `qa.datasets = {tickets: {slug, source_id, view_id}, …}` and `qa.switches` on the pattern row;
-  - reuse `tenantProvisioning.js:171-233` / `sourceCreate.jsx:34-79`.
-- **Integrity check at load:** the newest source for each stored slug is still the stored `source_id`.
+**Goal:** Adding a QA pattern creates five datasets in the site's existing data environment: TransportNY's exact
+columns plus a few additive ones. It stores their references on the pattern row. Status kinds, default statuses and
+outcomes live in code. A stand-in list on the Tickets page proves the binding live. No change to how other patterns
+save data.
+
+**Findings that shape it (2026-09-30, all VERIFIED unless marked)**
+1. **Dataset names, not ids, route rows.** Source types are `<env>|<nameToSlug(name)>:source`
+   (`sourceCreate.jsx:39-40`, `tenantProvisioning.js:183-184`); the UUID `doc_type` types are legacy (library
+   `CLAUDE.md`). A row's type `<slug>|<viewId>:data` carries no source id. The server takes the newest source with
+   that slug in the app (`lookupSourceId`, `dms-server/src/routes/dms/dms.controller.js:150-172`; cached, evicted on
+   source create at 1019-1022) and names the table `data_items__s<sourceId>_v<viewId>_<slug>`
+   (`db/table-resolver.js:108-118`). A second same-named source strands the first's rows in favor of a new, empty
+   table. Nothing guards this today; the datasets UI creates without a check (`sourceCreate.jsx:34-79`).
+2. **No client route answers "does slug X exist in the app".** `dms.data` routes take an exact type
+   (`routes/dms/dms.route.js`); `uda[env].sourcesAll` is per environment (`routes/uda/uda.route.js:93-146`).
+3. **`setDateOnValue` only works in the section's Edit component** (`dataWrapper/index.jsx:352-356`, inside `Edit`
+   204-464). View mode's `updateItem` (609-633) never reads it, so a pill flip on a live page never stamps
+   `resolved_date`. This contradicts `src/themes/transportny/qa_skills/qa-process.md` ("honoured by core liveEdit"),
+   and fits the README's 29 closed tickets with no date.
+4. **View-mode live edits share one debounce timer per section** (`liveEditTimerRef`, 628-631). A second live edit
+   in the same section within 500 ms cancels the first one's save. Data loss, independent of QA.
+5. **Every view-mode dataset write goes through View `updateItem` / `addItem` / `removeItem`** (609 / 656 / 684) →
+   `apiUpdate` → `dmsDataEditor` (`api/index.js:422`): Card liveEdit, form save, add, delete; Spreadsheet cell, paste,
+   add, delete. Only `updateItem` has both the stored row (`state.data`, before the optimistic update) and the user
+   (`_cmsCtx.user`); `dmsDataEditor` has neither.
+6. **The server can't diff.** `setDataById` does a blind `jsonMerge` (`dms.controller.js:821-857`), and `change_log`
+   keeps no data for split types (`table-resolver.js:55-59`). Server hooks are out of scope, so the history is written
+   by the client control and, later, the CLI, as README step 3 decided.
+7. **The whole pattern row reaches `props.pattern`.** `disable_signup` and `dmsEnvId` aren't in the admin format's
+   pattern attributes, yet both are read live (`auth/siteConfig.jsx:177-187`, `render/spa/utils/index.js`).
+8. **New patterns are private by default elsewhere:** `createSite.jsx:73` and `tenantProvisioning.js:137` write
+   `{groups: {'<X> Admin': ['*'], public: []}, users: {}}`. Add Pattern writes no permissions, and
+   `render/spa/utils/index.js:400-408` then grants the public `view-page`.
+9. **TransportNY's source rows** are `{name, type: 'internal_table', views: [{id, ref}], config: '{"attributes": [...]}'}`,
+   each attribute `{name, display_name, type, options: [{label, value}], required}`, with no `auth_permissions`.
+   Snapshots: `scratchpad/qa-ticketing/source_{2184923,2184889,2186440,2186148}.json` (tickets, pages, stories,
+   patterns).
+
+**Step 0 — dropped (owner, 2026-09-30).** Findings 3 and 4 are recorded, not fixed: TransportNY's control room stays
+as it is, and phase 2 doesn't touch the shared view-mode save path.
+
+**Step 1 — the ticket record in code — DONE 2026-09-30** (`patterns/qa/ticketRecord.js`, `patterns/qa/datasets.js`;
+TransportNY's columns generated from the source snapshots, also saved as `tests/fixtures/sitemgmtAttributes.json`;
+`tests/qaTicketRecord.test.js` 12/12)
+- `patterns/qa/ticketRecord.js`:
+  - `STATUS_KINDS = ['triage', 'active', 'waiting', 'done', 'canceled']`.
+  - `DEFAULT_STATUSES`, TransportNY's seven with their kinds, from `qa-process.md:163-171`: Triage → triage;
+    In progress, In review → active; Needs decision, Needs data → waiting; Resolved → done ("fixed and verified");
+    Closed → canceled ("off the board without a fix").
+  - `OUTCOMES`: Fixed, Workaround, Backlog, Feature request, Out of scope, Duplicate, Won't fix (value = label, as
+    for statuses).
+  - `statusKind(status, statuses = DEFAULT_STATUSES)`.
+- `patterns/qa/datasets.js`: one entry per dataset, `{key, name, attributes}`, slug `<install>_<key>`:
+  - `tickets`: TransportNY's 31 attributes verbatim; `status` options from `DEFAULT_STATUSES`; `severity` gains
+    `Feature` (offered by the Report-an-issue modal since 2026-09-29, missing from the stored options); plus
+    `outcome` (select, `OUTCOMES`), `reporter_name`, `reporter_email`, `legacy_id`.
+  - `pages` (24), `stories` (5), `patterns` (9, the covered sub-sites): verbatim, plus `legacy_id`.
+  - `history`: `row_id`, `field`, `old_value`, `new_value`, `user_id`, `user_email`, `at`, `via` (`ui` / `cli` /
+    `agent`).
+
+**Step 2 — the install step (`patterns/qa/install.js`, client-side `falcor.call`s like `tenantProvisioning.js`) — DONE
+2026-09-30**
+- Built as: `qaPreflight`, `pickQaEnvironment`, `planQaDatasets` (pure), `ensureQaDatasets`, `installQa`. Hooked
+  into `editSite.jsx` `addNewValue` for `pattern_type === 'qa'`: the pre-check before the row create, then (after the
+  row) `await` the site save, `installQa`, and `revalidate()`. `updateData` / the `onSubmit` prop now return the
+  save's promise (was discarded; no other caller used the return).
+- **Design note: the Sites page's save sends its whole copy of the site** (`api/index.js` `attributeKeys =
+  Object.keys(row)`; `dms_envs` is a dms-format attribute, `admin.format.js:213-217`), so a `dms_envs` edit made
+  while that save is in flight, or before the page reloads, would be overwritten by the stale list. Hence the
+  ordering: the patterns save lands first, the install edits only `dms_envs` (partial edit, as the pattern editor's
+  "create new environment" does), then the route data reloads.
+- **Design note: the Sites page's copy of the site never refreshes in-session** (found live 2026-09-30). The
+  wrapper's matcher finds no item for an empty URL, so a revalidation leaves `SiteEdit`'s `item` as loaded, which is
+  also why a new row reads `undefined / ?` until a reload. And a Sites save rewrites dms-format refs to the format's
+  type (`qa_test+pattern`), so a ref's type string isn't the row's type. So the install reads the site, its
+  environments (real `type`) and each environment's current `sources` through `loadItemFresh` (`api/index.js`), by
+  id, never from the admin context; the Sites page passes `siteId`. A first `revalidate()` call was removed (no-op).
+  - Remaining edge: a site that stores an explicit empty `dms_envs: []` holds it in the page's copy, so a later save
+    in the same session would write `[]` back over a `default` environment just created. A site with no key at all
+    (e.g. `qa_test`) is safe: the loader only hydrates keys that exist (`api/proecessNewData.js:207-226`). Reload the
+    Sites page after adding a QA install to be sure.
+- **Design note: the unrouted `patternList.jsx` copy of `addNewValue` is not hooked.** Nothing renders it
+  (`patternList.theme.js` header), so the hook couldn't be tested; the plan's "both copies" is dropped.
+- `planQaInstall({app, siteInstance, instance, name})` is pure: it returns the ordered list of creates/edits. The
+  executor runs them. Tests assert the list.
+- **Before the pattern row is created**, `qaPreflight` refuses: a base URL + subdomain another pattern on the site
+  uses; any `<install>_<key>` slug that already exists in the app (step 3).
+- **Which environment:** the site's Datasets pattern's (`firstDatasetsPattern.dmsEnvId`, the same default
+  `buildDatasources` uses), else the site's first `dms_envs` entry. None at all → create a `default` environment
+  linked from the site's `dms_envs`, as the Dashboard template does (owner, 2026-09-30). Picking another
+  environment belongs in Configure (phase 5).
+- **After it's created** (`editSite.jsx` `addNewValue`, for `pattern_type === 'qa'`; the unrouted `patternList.jsx`
+  copy calls the same helper):
+  1. the QA pattern's `dmsEnvId` set to that environment (the precedent Datasets/Forms patterns follow; the server's
+     env lookup reads it, feasibility §5).
+  2. per dataset: source `${envInstance}|${slug}:source` `{name, type: 'internal_table', config: JSON.stringify({attributes})}`;
+     view `${slug}|v1:view` `{name: 'version 1'}`; the source's `views` and the env's `sources` refs in the
+     datasets-UI shape (`sourceCreate.jsx:67-77`). The datasets then show in the site's Datasets admin, as
+     TransportNY's do today.
+  3. the pattern row gets `qa: {version: 1, datasets: {tickets: {slug, source_id, view_id}, …}}` and
+     `authPermissions` `{groups: {'<app> Admin': ['*'], public: []}, users: {}}` (finding 8).
+- `ensureQaDatasets` is the same executor. It skips datasets already recorded whose slug still resolves to the
+  recorded source, so a partial failure can be re-run, and phase 5's switches reuse it.
+- No tables yet: a split table is created on its first row write (library `CLAUDE.md`).
+
+**Step 3 — the slug check — DONE 2026-09-30 (owner approved the route)**
+- Built: `controller.getSourceIdBySlug` (the new-format branch of `lookupSourceId`, pulled out as
+  `lookupSourceIdBySlug`, same SQL and cache), route `dms.sourceIdBySlug[{keys:apps}][{keys:slugs}]` returning the id or
+  `null` (null precedent: `searchOne`), client `api/sourceIdBySlug.js` (invalidates the cached answer first).
+  Live: `npmrdsv5` `sitemgmt_tickets` → 2184923, an unused name → null.
+- **Recommended (chosen):** one small read route in dms-server, `dms.sourceIdBySlug[{keys:apps}][{keys:slugs}]` → the newest
+  source id or null. It uses the same query the server routes rows with (`lookupSourceId`), so it's exact and
+  app-wide. Phase 3's load-time check ("each recorded slug still resolves to its recorded source") reuses it. It
+  needs a dms-server deploy before the TransportNY port.
+- **Alternative:** a client-only check across this site's environments and patterns. No server change, but it
+  misses sources owned by another site in the same app (multi-tenant apps).
+
+**Step 4 — change history: dataset only (owner OK, 2026-09-30).** Phase 2 creates the `history` dataset with the
+ticket record and writes nothing to it. Phase 3 decides how rows get written, next to the ticket controls, preferably
+inside QA code. The earlier plan (a generic `changeLog` column option in View `updateItem`) is set aside: it would
+change the save path every page uses.
+
+**Step 5 — a stand-in list on the Tickets page (phase 3 preview, replaced there) — DONE 2026-09-30**
+- **Design note: `buildQaPages(pattern, app)`.** Loaded pattern rows don't carry `app` (the first build queried
+  `uda["undefined+phase2_tickets"]`), so the app comes from the QA config's `props.app`.
+- **Design note: two auth-timing workarounds, found live.** QA pages load so fast they render while sign-in is still
+  resolving. (1) The route check judged the placeholder user and sent a groups-only admin to `/`; `qaConfig` now
+  supplies a `checkAuth` that waits while `user.isAuthenticating` (a config hook `DmsManager` already reads).
+  (2) The shell kept the placeholder user in `CMSContext` behind the wrapper's cached render, so `PageView` stayed
+  blank; `pages/shell.jsx` renders the shell with the live `AuthContext` user. Both are library defects, logged in
+  [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md), not fixed there.
+- When `pattern.qa.datasets` is set, `buildQaPages` puts two Spreadsheets on Tickets:
+  - one over the install's tickets (title, severity, status, assignee, opened), with the Spreadsheet's own add-row,
+    so a ticket can be created from the page.
+- Binding shape from `build_cr_tickets.mjs:23-57` (`isDms`, `app`, `type`, `source_id`, `view_id`, `env`, `srcEnv`),
+  built from the pattern row, no hard-coded ids. An install without datasets keeps the placeholder text.
+
+**Follow-up: resumable installs — DONE 2026-09-30** (owner-approved after `qa4`'s install was cut off by a dropped
+connection: `falcor-express` logged "Client disconnected" after its 4th dataset, leaving no record on the row)
+- The install runs in the browser, like the site templates and the Datasets admin's create. Leaving the page (tab
+  close, reload, lost connection) stops it at the last finished step; in-app navigation doesn't.
+- `installQa` now writes the row first (`dmsEnvId`, an empty `qa.datasets`, permissions only if the row has none),
+  then after each dataset lists it in the environment (`addToEnvironment`, fresh read, de-duplicated) and updates
+  `qa.datasets`. A re-run adopts any existing `<install>_<key>` source (`planQaDatasets`' `existing` →
+  `adoptSourceId`; the pre-check makes those only this install's) and creates the rest. It reuses the recorded
+  environment when it still exists.
+- Overview block `QaPatternSettings` (`settings.jsx`, next to `AuthPatternSettings`): "datasets: N of 5 linked ·
+  M left by an interrupted set-up · K missing", a **finish set-up** button, and a "browse them in Datasets" link when a
+  Datasets pattern uses the install's environment. The draft (`tmpValue`) takes the install's writes, because the
+  Overview's Save sends the whole draft. Theme keys `qaLink`, `qaError` in `settings.theme.js`.
+- [x] Live: `qa4` (77) finished from its Overview: tickets 78, pages 80, stories 82, patterns 84 adopted, history 86
+  created; each `qa4_*` source created once (server log); now private; environment 42 lists 20 distinct sources.
+- [x] Live: "Phase5" (88) cut off 1.8 s after Add → the row recorded tickets (89), environment 42 and permissions;
+  pages (91) existed unrecorded; the Overview read "1 of 5 linked · 1 left by an interrupted set-up · 3 missing";
+  finish set-up adopted 91 and created 93/95/97; each `phase5_*` source exists once.
+- [x] vitest `qaInstall.test.js` +1 (adopt vs create plan); 40/40 across the three QA files.
+- Not checked: the Datasets link (no Datasets pattern in `qa_test` uses environment 42). The one console warning on
+  the Overview (`customTheme` passed to a DOM element) comes from its identity fields (`settings.jsx:283-300`),
+  unchanged code.
+
+**Tests — DONE 2026-09-30**
+- [x] vitest `tests/qaTicketRecord.test.js` (12): kinds, statuses, outcomes; TransportNY's columns verbatim (fixture
+  `tests/fixtures/sitemgmtAttributes.json`); only status/severity options change; additions appended.
+- [x] vitest `tests/qaInstall.test.js` (12): environment pick (Datasets pattern's → first → none); the create plan's
+  names, types and payloads; re-run skips recorded datasets; URL clash incl. a `*` sub-domain; the Tickets binding.
+- [x] vitest `tests/qaPattern.test.js` (17, phase 1) still pass. Full `packages/dms/tests`: 545/548, the same 3
+  unrelated failures as before.
+- [x] dms-server: `test-controller`, `test-workflow`, `test-graph` pass; `test-table-splitting` 152/152 with its
+  `resolveTable` unit skipped. That unit fails independently (a no-source-id fallback name `_vv1` vs the test's `_v1`,
+  in `db/table-resolver.js`, unchanged) and stops the script before the routing tests.
+
+**Live check on `qa_test` — DONE 2026-09-30**
+- [x] "Phase2" (row 41) on a site with no environment: `default` environment 42 created and linked from the site's
+  `dms_envs`; sources 43/45/47/49/51 with views 44/46/48/50/52; tickets source has 35 columns (31 + 4); pattern row
+  has `dmsEnvId: 42`, `qa.datasets`, `authPermissions` `{qa_test Admin: *, public: []}`. No alert, no console error.
+- [x] "Phase3a" (53) and "Phase3b" (64) added in ONE page session: both reused environment 42 (no second
+  `default`); environment 42 lists 15 sources; the site still links only 42 (its ref rewritten to `qa_test+dmsenv`
+  by the Sites save, as expected).
+- [x] Refusals: a stray source `collide_tickets` (row 75, deleted after) → "Collide" refused with "A dataset named
+  collide_tickets already exists in this app."; URL `alphapage` → "…already used by the "AlphaPage" pattern."; no
+  create call fired either time.
+- [x] `/phase2` signed out → `/auth/login`; signed in → the stand-in list over `qa_test+phase2_tickets`.
+- [x] A ticket added from the list's add row (`dms.data.create` `phase2_tickets|44:data`) shows after a reload.
+- [x] `/qa3` (a phase-1 install, no datasets) keeps its placeholder; BetaPage, AlphaPage, the admin unaffected.
+- Not checked: "listed in the Datasets admin". `qa_test` has no Datasets pattern, so nothing lists environment 42.
+- Dev-mode React unknown-prop warnings (`customName`, `menuPosition`, …) on the list come from the Spreadsheet's
+  edit/add-row inputs (INFERRED: BetaPage's Spreadsheet without them logs none), not QA code.
+
+**Rough effort:** 3–4 days.
 
 ### Phase 3: The control-room pages as code — NOT STARTED (outline)
 

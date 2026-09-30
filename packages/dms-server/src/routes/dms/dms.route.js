@@ -185,6 +185,21 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       },
     },
     {
+      // The source a dataset name routes to in an app (controller.getSourceIdBySlug), or null.
+      route: "dms.sourceIdBySlug[{keys:apps}][{keys:slugs}]",
+      get: async function(pathSet) {
+        const [, , apps, slugs] = pathSet;
+        const response = [];
+        for (const app of apps) {
+          for (const slug of slugs) {
+            const id = await controller.getSourceIdBySlug(app, slug);
+            response.push({ path: ["dms", "sourceIdBySlug", app, slug], value: id ? +id : null });
+          }
+        }
+        return response;
+      },
+    },
+    {
       route: "dms.data[{keys:appKeys}].searchOne[{keys:searchkeys}]",
       get: function(pathSet) {
         const [, , keys,,searchkeys] = pathSet;

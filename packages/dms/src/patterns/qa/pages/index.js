@@ -19,6 +19,33 @@ const textSection = (trackingId, heading, ...paragraphs) => ({
   },
 })
 
+// A stand-in list of the install's tickets, bound to its own tickets dataset, so a new
+// install can be checked end to end. Phase 3 replaces it with the real ticket list.
+// Binding shape from TransportNY's control-room builder (build_cr_tickets.mjs, TICKETS_SRC).
+const LIST_COLUMNS = [['title', 'Title'], ['severity', 'Severity'], ['status', 'Status'], ['assignee', 'Assignee'], ['opened', 'Opened']]
+const ticketListSection = (app, pattern, tickets) => ({
+  title: '', level: '0', group: CONTENT_GROUP.name, trackingId: 'qa_tickets_list',
+  element: {
+    'element-type': 'Spreadsheet',
+    'element-data': JSON.stringify({
+      externalSource: {
+        isDms: true, app, type: tickets.slug, name: `${pattern.name} — Tickets`,
+        source_id: tickets.source_id, view_id: tickets.view_id,
+        env: `${app}+${tickets.slug}`, srcEnv: `${app}+${tickets.slug}`,
+        columns: LIST_COLUMNS.map(([name]) => ({ name, display_name: name, type: 'text' })),
+      },
+      columns: LIST_COLUMNS.map(([name, label]) => ({ name, customName: label, show: true, justify: 'left' })),
+      filters: { op: 'AND', groups: [] },
+      display: {
+        usePagination: true, pageSize: 25, readyToLoad: true, fetchMode: 'smart', showAttribution: false,
+        allowEditInView: true, allowAdddNew: true, addNewBehaviour: 'append',
+      },
+      data: [],
+      join: { sources: {} },
+    }),
+  },
+})
+
 const codePage = ({ sections, ...page }) => ({
   ...page,
   section_groups: [{ ...CONTENT_GROUP }],
@@ -30,12 +57,16 @@ const codePage = ({ sections, ...page }) => ({
 // Every page has a non-empty url_slug, as on a page pattern: the nav links by
 // slug (an empty one falls through to the page id, which code pages lack), and
 // the bare pattern URL shows the `index: 0` page.
-// `pattern` is the install's pattern row; later phases read its settings here.
-export function buildQaPages(pattern) {
+// `pattern` is the install's pattern row; its `qa.datasets` bind the data sections. `app` is
+// the site's app (loaded pattern rows don't carry it).
+export function buildQaPages(pattern, app) {
+  const tickets = pattern?.qa?.datasets?.tickets
   return [
     codePage({
       title: 'Tickets', url_slug: 'tickets', index: 0,
-      sections: [textSection('qa_tickets_intro', 'Tickets', 'Placeholder for the ticket list.')],
+      sections: tickets
+        ? [textSection('qa_tickets_intro', 'Tickets', 'Stand-in list of this install\'s tickets.'), ticketListSection(app, pattern, tickets)]
+        : [textSection('qa_tickets_intro', 'Tickets', 'Placeholder for the ticket list.')],
     }),
     codePage({
       title: 'Ticket', url_slug: 'ticket', index: 1, hide_in_nav: true,

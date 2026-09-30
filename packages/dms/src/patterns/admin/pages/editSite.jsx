@@ -7,6 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
+import { qaPreflight, installQa } from '../../qa/install';
 import { isUserAuthed, parseIfJSON, hasPatternManageAccess } from '../utils';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
@@ -76,7 +77,7 @@ function SiteEdit ({
 	}, [resolvedId, user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), dataItems, isLoading])
 
 	const updateData = (data, attrKey) => {
-		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
+		return apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 
 	if (isLoading || dataItems === undefined || !resolvedId || !user?.authed || !hasAccess) {
@@ -90,6 +91,7 @@ function SiteEdit ({
 			<>
 				<PatternList
 					value={item?.['patterns']}
+					siteId={item?.id}
 					format={format}
 					apiLoad={apiLoad}
 					attributes={attributes['patterns'].attributes}
@@ -111,13 +113,12 @@ function SiteEdit ({
 	return (
 	  <PatternList
       value={item?.['patterns']}
+			siteId={item?.id}
 			format={format}
 			apiLoad={apiLoad}
 			attributes={attributes['patterns'].attributes}
 	    onChange={(v) => updateAttribute('patterns', v)}
-			  onSubmit={data => {
-		  updateData(data, 'patterns')
-	  }}
+			  onSubmit={data => updateData(data, 'patterns')}
 			siteName={item?.site_name || item?.name}
 		/>
 	)
@@ -152,6 +153,7 @@ function PatternList({
 	 format,
 	 apiLoad,
 	 siteName,
+	 siteId,
 	 ...rest
 }) {
 	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user} = React.useContext(AdminContext);
@@ -350,6 +352,15 @@ function PatternList({
 		const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
 		if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 
+		// A QA install also refuses a URL or a dataset name that's already taken.
+		if (data.pattern_type === 'qa') {
+			const problem = await qaPreflight({ falcor, app, instance: slug, pattern: data, siblings: value });
+			if (problem) {
+				alert(problem);
+				return;
+			}
+		}
+
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
 			['dms', 'data', 'create'],
@@ -361,7 +372,21 @@ function PatternList({
 		if (newId) {
 			const newData = [...value, { ref: `${app}+${patternType}`, id: +newId }];
 			onChange(newData);
-			onSubmit(newData);
+			const saved = onSubmit(newData);
+			// A QA install creates its datasets and may add an environment to the site's
+			// dms_envs. This save sends the page's whole copy of the site, so it must land
+			// before the install writes the site row.
+			if (data.pattern_type === 'qa') {
+				await saved;
+				try {
+					await installQa({
+						falcor, app, siteId, siteInstance, patternId: +newId,
+						instance: slug, installName: data.name, patterns: value,
+					});
+				} catch (err) {
+					alert(`The "${data.name}" pattern was added, but creating its datasets failed: ${err.message}`);
+				}
+			}
 		}
 
 		if (newId && templateId) {

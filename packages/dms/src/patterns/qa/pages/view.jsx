@@ -12,9 +12,9 @@ import { buildQaPages, findQaPage } from "./index";
 //   one visit's page state (immer freezes it) never carries into the next.
 // - Keyed by slug so each page mounts with its own page state: PageView re-reads
 //   page variables only when item.id changes, and code pages have no id.
-export default function QaPageView({ pattern, ...props }) {
+export default function QaPageView({ pattern, app, ...props }) {
   const slug = useParams()['*'] || '';
-  const pages = React.useMemo(() => buildQaPages(pattern), [pattern, slug]);
+  const pages = React.useMemo(() => buildQaPages(pattern, app), [pattern, app, slug]);
   const item = findQaPage(pages, slug);
   return <PageView key={slug} {...props} item={item} dataItems={pages} />;
 }

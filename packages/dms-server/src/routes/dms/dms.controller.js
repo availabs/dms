@@ -147,29 +147,36 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * and legacy format ({docType}-{viewId} → look up by data.doc_type).
    * Returns sourceId (number) or null if not found (graceful fallback).
    */
+  /**
+   * The source a dataset name (slug) resolves to: the newest source in the app whose type
+   * ends in `|<slug>:source`, or null. Split-table routing uses this, so it decides which
+   * source a `<slug>|<view>:data` row belongs to.
+   */
+  async function lookupSourceIdBySlug(app, slug) {
+    const cacheKey = `${app}:${slug}`;
+    if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
+
+    try {
+      const table = await mainTable(app);
+      const rows = await dms_db.promise(
+        `SELECT id FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
+        [app, slug]
+      );
+      const sourceId = rows[0]?.id || null;
+      _sourceIdCache.set(cacheKey, sourceId);
+      return sourceId;
+    } catch {
+      _sourceIdCache.set(cacheKey, null);
+      return null;
+    }
+  }
+
   async function lookupSourceId(app, type) {
     if (!isSplitType(type)) return null;
 
     // New format: {source}|{view}:data
     const newParsed = parseSplitDataType(type);
-    if (newParsed) {
-      const cacheKey = `${app}:${newParsed.source}`;
-      if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
-
-      try {
-        const table = await mainTable(app);
-        const rows = await dms_db.promise(
-          `SELECT id FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
-          [app, newParsed.source]
-        );
-        const sourceId = rows[0]?.id || null;
-        _sourceIdCache.set(cacheKey, sourceId);
-        return sourceId;
-      } catch {
-        _sourceIdCache.set(cacheKey, null);
-        return null;
-      }
-    }
+    if (newParsed) return lookupSourceIdBySlug(app, newParsed.source);
 
     // Legacy format: {docType}-{viewId}
     const parsed = parseType(type);
@@ -385,6 +392,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
      * @param {Function} fn - (app, msg) => void
      */
     setNotifyChange(fn) { _notifyChange = fn; },
+
+    /**
+     * The source id rows of dataset `slug` route to in `app`, or null (see lookupSourceIdBySlug).
+     * Lets a client refuse to create a dataset whose name is already taken in the app.
+     */
+    getSourceIdBySlug: (app, slug) => lookupSourceIdBySlug(app, slug),
 
     /**
      * Look up the resolved authPermissions object for a pattern identified

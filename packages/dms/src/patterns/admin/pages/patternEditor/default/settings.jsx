@@ -1,11 +1,15 @@
-import React, {useContext, useState} from "react";
+import React, {useContext, useEffect, useState} from "react";
 import { useImmer } from "use-immer";
 import { isEqual } from "lodash-es";
-import { useNavigate } from "react-router";
+import { Link, useNavigate, useRevalidator } from "react-router";
+import { useFalcor } from "@availabs/avl-falcor";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../utils/type-utils";
 import { settingsEditorTheme } from './settings.theme'
+import { installQa } from "../../../../qa/install";
+import { QA_DATASETS, qaDatasetSlug } from "../../../../qa/datasets";
+import { getSourceIdsBySlug } from "../../../../../api/sourceIdBySlug";
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
@@ -357,6 +361,10 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           <AuthPatternSettings value={tmpValue} onChange={setTmpValue} />
         )}
 
+        {value.pattern_type === 'qa' && (
+          <QaPatternSettings value={tmpValue} onChange={setTmpValue} apiLoad={apiLoad} />
+        )}
+
         <div className={t.dangerCard}>
           <div className={t.dangerHeader}>
             <Icon icon='Alert' className={t.iconSm} />
@@ -524,6 +532,89 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
           <span className={t.envSwitchHint}>{value.preload_data ? 'on — router loader phase' : 'off — sections fetch on view'}</span>
         </div>
       )}
+    </div>
+  );
+}
+
+// A QA install's datasets: how many its row links, how many exist but aren't linked (left by
+// an interrupted set-up), how many are missing; a button that finishes the set-up
+// (patterns/qa/install.js adopts what exists and creates the rest); and a link to the Datasets
+// pattern that lists them, when one uses the install's environment.
+function QaPatternSettings({ value, onChange, apiLoad }) {
+  const { app, type, siteType } = useContext(AdminContext);
+  const { theme } = useContext(ThemeContext);
+  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
+  const { falcor } = useFalcor();
+  const { revalidate } = useRevalidator();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [datasetsUrl, setDatasetsUrl] = useState(null);
+  const [found, setFound] = useState(null); // { [key]: sourceId | null } for the unlinked ones
+
+  const unlinked = QA_DATASETS.filter(d => !value?.qa?.datasets?.[d.key]);
+  const linked = QA_DATASETS.length - unlinked.length;
+  const leftOver = found ? unlinked.filter(d => found[d.key]).length : 0;
+  const missing = found ? unlinked.length - leftOver : unlinked.length;
+
+  useEffect(() => {
+    if (!unlinked.length) return setFound({});
+    const instance = getInstance(value.type);
+    getSourceIdsBySlug(falcor, app, unlinked.map(d => qaDatasetSlug(instance, d.key)))
+      .then(ids => setFound(Object.fromEntries(unlinked.map(d => [d.key, ids[qaDatasetSlug(instance, d.key)]]))));
+  }, [linked]);
+
+  useEffect(() => {
+    if (!value?.dmsEnvId) return;
+    loadSitePatterns(apiLoad, app, siteType).then(patterns => {
+      const datasets = patterns.find(p => p?.pattern_type === 'datasets' && +p.dmsEnvId === +value.dmsEnvId);
+      setDatasetsUrl(datasets ? `/${`${datasets.base_url || ''}`.replace(/^\/+|\/+$/g, '')}` : null);
+    });
+  }, [value?.dmsEnvId]);
+
+  const createMissing = async () => {
+    setBusy(true);
+    setError('');
+    try {
+      const site = await loadSiteData(apiLoad, app, siteType);
+      const result = await installQa({
+        falcor, app, siteId: site?.id, siteInstance: getInstance(siteType) || type,
+        patternId: value.id, instance: getInstance(value.type), installName: value.name,
+        patterns: await loadSitePatterns(apiLoad, app, siteType),
+      });
+      // The Overview's Save sends this whole draft, so it takes the install's writes too.
+      onChange(draft => {
+        draft.dmsEnvId = result.env.id;
+        draft.qa = { version: 1, datasets: result.datasets };
+        if (result.authPermissions) draft.authPermissions = result.authPermissions;
+      });
+      revalidate();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className={t.card}>
+      <div className={t.cardHeader}>
+        <span className={t.cardHeaderLabel}>ticketing / qa</span>
+        <span className={t.cardHeaderHint}>the datasets this install keeps its tickets, pages and history in</span>
+      </div>
+      <div className={t.settingsGrid}>
+        <span className={t.settingsLabel}>
+          datasets: {linked} of {QA_DATASETS.length} linked
+          {leftOver > 0 && ` · ${leftOver} left by an interrupted set-up`}
+          {missing > 0 && ` · ${missing} missing`}
+        </span>
+        {unlinked.length > 0 && (
+          <button type={'button'} className={t.btnSave} disabled={busy || !found} onClick={createMissing}>
+            {busy ? 'finishing…' : 'finish set-up'}
+          </button>
+        )}
+        {datasetsUrl && <Link to={datasetsUrl} className={t.qaLink}>browse them in Datasets</Link>}
+        {error && <span className={t.qaError}>{error}</span>}
+      </div>
     </div>
   );
 }
