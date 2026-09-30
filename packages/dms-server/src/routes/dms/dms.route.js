@@ -61,7 +61,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
             // row (not its pages): a user granted only edit-pattern must be able
             // to open it in the Pattern Editor. Page reads below stay
             // view-page-only, so admin permissions never expose page content.
-            // (dms planning/tasks/current/admin-granular-permissions.md)
+            // (dms planning/tasks/completed/admin-granular-permissions.md)
             blocked = !isUserAuthed({ user, reqPermissions: PATTERN_READ_PERMISSIONS, authPermissions });
           }
         } else if (kind === 'page') {

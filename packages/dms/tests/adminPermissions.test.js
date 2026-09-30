@@ -1,7 +1,7 @@
 /**
  * Admin panel granular permissions — siteCan / patternCan / patternActions
  * against the access matrix in
- * planning/tasks/current/admin-granular-permissions.md.
+ * planning/tasks/completed/admin-granular-permissions.md.
  *
  * Run: npx vitest run packages/dms/tests/adminPermissions.test.js
  */

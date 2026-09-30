@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule) · **Topics:** dms-server (sync), api (client sync)
 
 > Found 2026-09-30 while implementing
-> [admin-granular-permissions.md](./admin-granular-permissions.md), which widened the Falcor pattern read
+> [admin-granular-permissions.md](../completed/admin-granular-permissions.md), which widened the Falcor pattern read
 > gate and needed to know whether sync applies the same gate. It doesn't apply any.
 
 ## Objective

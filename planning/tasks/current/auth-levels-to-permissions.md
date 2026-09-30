@@ -8,7 +8,7 @@
 
 DMS is moving from numeric **auth levels** (a group's `auth_level` 0–10 per project, and the user's max
 across their groups) to **named permissions** granted on pattern rows (`authPermissions`). The site
-admin panel ([admin-granular-permissions.md](./admin-granular-permissions.md)) and datasets sources
+admin panel ([admin-granular-permissions.md](../completed/admin-granular-permissions.md)) and datasets sources
 (pattern ⊕ source) already use permissions. The **auth server** still decides almost everything by
 level, and the **dama admin endpoints** decide nothing at all.
 
@@ -163,7 +163,7 @@ equivalent rule.
   them in the Phase 2 "level or permission" form so they don't need redoing.
 - [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md):
   defect A (route checks) and defect B (`dms.data.edit`) are the DMS-data half of the same move.
-- [admin-granular-permissions.md](./admin-granular-permissions.md): defines `auth-users`,
+- [admin-granular-permissions.md](../completed/admin-granular-permissions.md): defines `auth-users`,
   `auth-groups`, `view-as` in the Access editor, and hides the Users/Groups links by them.
 
 ## Testing checklist

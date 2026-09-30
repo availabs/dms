@@ -2,7 +2,7 @@
 
 Who can do what in the admin panel (the Sites/pattern list, the Pattern Editor, Themes, Tenants) and
 in the auth manage pages. Implemented in `packages/dms/src/utils/adminPermissions.js`; planned in
-`planning/tasks/current/admin-granular-permissions.md`.
+`planning/tasks/completed/admin-granular-permissions.md`.
 
 > **Every check here is UI-only.** `dms.data.edit` has no server-side authorization, so a user denied
 > in the admin panel can still write through Falcor or the CLI. See

@@ -148,7 +148,7 @@ async function main() {
   // A user granted only edit-pattern (or edit-pattern-permissions /
   // delete-pattern) must be able to read the pattern row, or the admin list and
   // Pattern Editor can't show it. Its pages stay view-page-only.
-  // (dms planning/tasks/current/admin-granular-permissions.md, Phase 4)
+  // (dms planning/tasks/completed/admin-granular-permissions.md, Phase 4)
   const ADMIN_PERMS_TYPE = 'prod|managed:pattern';
   const managedCreate = await admin.callAsync(
     ['dms', 'data', 'create'],

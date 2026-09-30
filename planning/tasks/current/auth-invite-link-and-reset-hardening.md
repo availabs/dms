@@ -8,7 +8,7 @@ Nothing is implemented. The "Open Questions" section lists the decisions still t
 
 ## Update 2026-09-30 — reproduced live, callers inventoried
 
-Found again while testing [admin-granular-permissions.md](./admin-granular-permissions.md):
+Found again while testing [admin-granular-permissions.md](../completed/admin-granular-permissions.md):
 
 - **Reproduced:** on a scratch sqlite dms-server, one unauthenticated
   `POST /signup/assign/group {email, password, project: 'permtest', group: 'permtest Admin'}` added an

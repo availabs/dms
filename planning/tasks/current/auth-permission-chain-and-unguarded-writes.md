@@ -28,7 +28,7 @@
 
 ## Update 2026-09-30 — seen again from the admin panel; defect C resolved
 
-From [admin-granular-permissions.md](./admin-granular-permissions.md) (live test on a scratch sqlite
+From [admin-granular-permissions.md](../completed/admin-granular-permissions.md) (live test on a scratch sqlite
 server):
 - **Defect A, seen from the admin side:** a logged-in user with no `auth-users` grant on the auth pattern
   opens `/auth/manage/users` by URL. The page renders, and only the auth server limits the data (0
@@ -129,7 +129,7 @@ directly to the row. Per this repo's author-empowerment principle, that gap is i
 
 `/auth/manage/users` and `/auth/manage/groups` now check `auth-users` / `auth-groups` inside the page
 (`patterns/auth/pages/useManagePageGate.js`). So those two routes no longer depend on defect A being
-fixed. Details and live results are in [admin-granular-permissions.md](./admin-granular-permissions.md).
+fixed. Details and live results are in [admin-granular-permissions.md](../completed/admin-granular-permissions.md).
 Datasets' `view-sources` and the other routes listed here are still affected.
 
 ## Decision 2026-09-30 (user): datasets visibility comes from permissions, per source

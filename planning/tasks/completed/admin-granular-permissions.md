@@ -1,10 +1,10 @@
 # Admin panel: granular permissions for the pattern list and Pattern Editor
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — uncommitted in the dms submodule; Phase 4 also needs a dms-server deploy · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** done (2026-09-30; committed, pushed, dms-server deployed) · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 **Project:** DMS library (`src/dms` submodule) · **Topic:** patterns/admin
 
-> **Builds on [admin-pattern-data-row.md](../completed/admin-pattern-data-row.md)** (implemented 2026-09-29).
+> **Builds on [admin-pattern-data-row.md](./admin-pattern-data-row.md)** (implemented 2026-09-29).
 > The site-level permissions below (`view-pattern-list`, `create-pattern`, `manage-themes`,
 > `manage-tenants`) now live on the **admin row**. When the admin row grants nothing (`hasAuthGrants`,
 > which ignores `public`), they fall back to the auth pattern.
@@ -50,7 +50,7 @@ the new pattern-level permissions (see Compatibility → server read gate). With
 only `edit-pattern` can't even load the pattern.
 
 **Out:** server-side **write** enforcement. `dms.data.edit` has no authorization at all (defect B in
-[auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md)), so
+[auth-permission-chain-and-unguarded-writes.md](../current/auth-permission-chain-and-unguarded-writes.md)), so
 every admin gate in this task is UI-only. A user who is denied here can still write through Falcor or
 the CLI. This task should say so and not claim more. Content permissions inside patterns
 (`view-page`, `edit-page`, `view-sources`, …) keep their current meaning.
@@ -439,7 +439,7 @@ left both pages open to anyone logged in who typed the URL.
     auth-server requests.
 - **What the page gate does and doesn't do:** it decides who can *open* the pages. What the Users page
   *lists* is still decided by the auth server by group level. A user with `auth-users` but a level-0
-  group sees the page with 0 users. That's [auth-levels-to-permissions.md](./auth-levels-to-permissions.md).
+  group sees the page with 0 users. That's [auth-levels-to-permissions.md](../current/auth-levels-to-permissions.md).
 - **Verified live:** 15 new checks in the Playwright suite; the full suite passes 117/117.
   - lister and nobody → `/`
   - useradmin: Users stays open, Groups → `/`
@@ -452,14 +452,14 @@ left both pages open to anyone logged in who typed the URL.
 
 All three are tracked elsewhere, with this session's evidence added to each:
 1. **Route `reqPermissions` never block:** this is defect A in
-   [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md)
+   [auth-permission-chain-and-unguarded-writes.md](../current/auth-permission-chain-and-unguarded-writes.md)
    (blocked on a product decision). That task's defect C is resolved by Phase 3 here. This task's
    Users/Groups link hiding is the only client-side gate on those pages until A is fixed.
 2. **`POST /signup/assign/group` lets anyone join any existing group, including `${project} Admin`:**
-   already Phase 1 of [auth-invite-link-and-reset-hardening.md](./auth-invite-link-and-reset-hardening.md).
+   already Phase 1 of [auth-invite-link-and-reset-hardening.md](../current/auth-invite-link-and-reset-hardening.md).
    A live repro, the caller inventory and the avail-falcor copy were added there.
 3. **Sync does no per-user permission filtering:** new task
-   [sync-per-user-permission-filtering.md](./sync-per-user-permission-filtering.md).
+   [sync-per-user-permission-filtering.md](../current/sync-per-user-permission-filtering.md).
 
 ## Testing checklist
 

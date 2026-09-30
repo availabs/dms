@@ -55,7 +55,7 @@ server-side operation closes:
 - Goes through the same change-log / WebSocket broadcast path as `dms.data.edit`, so sync clients'
   local stores and page-structure rooms pick up the change.
 - Auth: require an authenticated user (like `dms.data.delete`). Once
-  [admin-granular-permissions.md](./admin-granular-permissions.md) lands, check site-level
+  [admin-granular-permissions.md](../completed/admin-granular-permissions.md) lands, check site-level
   permissions here (`create-pattern` for add, `delete-pattern` for remove). This would be the first
   server-side enforcement for these writes; see defect B in
   [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md).

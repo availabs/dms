@@ -4,7 +4,7 @@
 // pattern2routes into AdminContext.authPermissions) and what they may do TO
 // ONE PATTERN (that pattern's own `authPermissions`).
 //
-// See planning/tasks/current/admin-granular-permissions.md for the access
+// See planning/tasks/completed/admin-granular-permissions.md for the access
 // matrix these functions implement.
 //
 // Every check here is UI-only: `dms.data.edit` has no server-side
