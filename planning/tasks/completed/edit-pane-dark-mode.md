@@ -1,6 +1,6 @@
 # Page edit sidebar is unreadable in dark mode
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** built · **Release:** commit — uncommitted in the dms submodule, owner to review and commit · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -87,3 +87,4 @@ Second, smaller: every page load shows a short light-mode flash before dark mode
     the old look.
   - Light flash: page loaded in a hidden same-origin iframe with a MutationObserver: `data-theme="dark"` set
     at 1210 ms, first `#root` content at 1270 ms. Dark is on before anything paints.
+- 2026-09-30: owner reviewed and committed (dms `17a6f7f9`). Done; follow-ups above carried to `todo.md`.
