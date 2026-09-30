@@ -86,6 +86,17 @@ export const isCalculatedCol = (col, attributes) => {
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
 }
 
+// The column list ConditionValueInput resolves filter leaves against: the section's own
+// columns first (its display config — a calculated `<sql> as <alias>` column exists ONLY
+// there, and the main query resolves leaves the same way, see buildUdaConfig's
+// getFilterColumn), then any source column the section doesn't carry. Passing just the source
+// schema left a calc-column leaf unresolved, so every sibling filter's option list sent it
+// verbatim (`<sql> as <alias> = ANY(...)` → "syntax error at or near as") and came back empty.
+export const filterConditionColumns = (sectionColumns = [], sourceColumns = []) => {
+    const names = new Set(sectionColumns.map(c => c.name));
+    return [...sectionColumns, ...sourceColumns.filter(c => !names.has(c.name))];
+}
+
 export const isSystemCol = (col, attributes) => {
     const attr = (attributes || []).find(attr => attr.name === col);
     if(!attr) return false;

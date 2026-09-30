@@ -508,17 +508,29 @@ async function simpleFilter(ctx, options, attributes, indices) {
   return rows;
 }
 
-// Per-table IDX column cache. DAMA gis_datasets tables use `ogc_fid`; DMS
-// data_items uses `id`. Looking up dynamically lets the same route serve both.
+// Two different "which column identifies a row" answers, cached separately. They used to share
+// one cache, and dataById's stored index column overwrote the primary key that
+// resolveIdAttribute (uda.controller.js) reads — see uda-feature-id-vs-row-key.md.
+//   resolvePrimaryKey       the ROW KEY: the declared PRIMARY KEY ('id' when there is none).
+//                           A requested `id` attribute and every uda.data.* write key on it.
+//   resolveFeatureIdColumn  the column a vector tile's feature id refers to, for dataById.
+// Entries expire after KEY_CACHE_TTL_MS, so a table whose PK changes is picked up without a
+// server restart.
+const KEY_CACHE_TTL_MS = Number(process.env.DMS_UDA_KEY_CACHE_TTL_MS ?? 60000);
 const _pkCache = new Map();
+const _featureIdCache = new Map();
 
-async function resolvePrimaryKey(db, schema, table, storedIdx = null) {
+function fromCache(cache, key) {
+  const hit = cache.get(key);
+  if (!hit) return undefined;
+  if (Date.now() - hit.at >= KEY_CACHE_TTL_MS) { cache.delete(key); return undefined; }
+  return hit.value;
+}
+
+async function resolvePrimaryKey(db, schema, table) {
   const key = `${schema}.${table}`;
-  if (storedIdx) {
-    _pkCache.set(key, storedIdx);
-    return storedIdx;
-  }
-  if (_pkCache.has(key)) return _pkCache.get(key);
+  const hit = fromCache(_pkCache, key);
+  if (hit !== undefined) return hit;
 
   let pk = 'id';
   if (db.type === 'postgres') {
@@ -536,8 +548,38 @@ async function resolvePrimaryKey(db, schema, table, storedIdx = null) {
       // Table may not exist or pg_index lookup may fail — fall back to 'id'.
     }
   }
-  _pkCache.set(key, pk);
+  _pkCache.set(key, { value: pk, at: Date.now() });
   return pk;
+}
+
+// A map popup (or the datasets map page) holds the id a vector tile gave the feature, and
+// tiles.rest.js always emits ogc_fid as that id (ST_AsMVT(…, 'ogc_fid')). So dataById looks rows
+// up by: an explicit metadata `isIndex` column when the source declares one, else ogc_fid when the
+// table has it, else the row key. For almost every DAMA table ogc_fid IS the primary key and
+// nothing changes; it matters when the PK was moved to another column (Actions Cleaned 12453 →
+// action_id, 2026-09-29).
+async function resolveFeatureIdColumn(db, schema, table, storedIdx = null) {
+  if (storedIdx) return storedIdx;
+  const key = `${schema}.${table}`;
+  const hit = fromCache(_featureIdCache, key);
+  if (hit !== undefined) return hit;
+
+  let col = null;
+  if (db.type === 'postgres') {
+    try {
+      const { rows } = await db.query(
+        `SELECT 1 FROM information_schema.columns
+         WHERE table_schema = $1 AND table_name = $2 AND column_name = 'ogc_fid'`,
+        [schema, table]
+      );
+      if (rows.length) col = 'ogc_fid';
+    } catch (e) {
+      // fall through to the row key
+    }
+  }
+  if (!col) col = await resolvePrimaryKey(db, schema, table);
+  _featureIdCache.set(key, { value: col, at: Date.now() });
+  return col;
 }
 
 // Unlike resolvePrimaryKey(), this never guesses 'id' — it returns the real
@@ -569,7 +611,9 @@ async function dataById(ctx, ids, attributes) {
 
   // For DMS, the split table's SQL PK is always 'id'; the stored primaryKeyColumn
   // is a data field name (inside the JSONB 'data' column) and should not override it.
-  const idxCol = await resolvePrimaryKey(db, table_schema, table_name, isDms ? null : idxColumn);
+  const idxCol = isDms
+    ? await resolvePrimaryKey(db, table_schema, table_name)
+    : await resolveFeatureIdColumn(db, table_schema, table_name, idxColumn);
   const sql = `SELECT ${idxCol} AS id, ${sanitizedAttrs.map((c) => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE ${idxCol} = ANY($1)`;
   const { rows } = await db.query(sql, [ids.map((id) => +id)]);
   return rows;
@@ -582,6 +626,7 @@ module.exports = {
   buildSimpleFilterSql,
   detectRealPrimaryKey,
   resolvePrimaryKey,
+  resolveFeatureIdColumn,
   // Exported for testing
   translatePgToSqlite,
 };
