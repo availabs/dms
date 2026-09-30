@@ -207,6 +207,50 @@ async function main() {
   t('a group with no grant still gets the pattern stub', () =>
     assert.strictEqual(outsiders.pattern?.id, 'no-access'));
 
+  // --- A content pattern whose instance is `admin` shares the admin row's type ---
+  // mitigat-ny-prod: page pattern 566466 and the backfilled admin row 2724987
+  // are both `prod|admin:pattern`. Pages (`admin|page`) must be judged by the
+  // content pattern's grants, never the admin row's (found 2026-09-30).
+  const COLL_TYPE = 'prod|admin:pattern';
+  const collPat = Object.keys((await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, COLL_TYPE, {
+    name: 'admin', base_url: '/admin', pattern_type: 'page', subdomain: '*',
+    authPermissions: { '*': JSON.stringify({ groups: { 'Site Admin': ['*'], Viewers: ['view-page'], public: [] }, users: {} }) },
+  }])).jsonGraph?.dms?.data?.byId || {})[0];
+  const collPage = Object.keys((await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, 'admin|page',
+    { title: 'Admin Page', url_slug: 'admin-page', index: 0 }])).jsonGraph?.dms?.data?.byId || {})[0];
+  // the admin row comes later (higher id), with no grants — as the backfill leaves it
+  const collAdmin = Object.keys((await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, COLL_TYPE, {
+    name: 'Admin', base_url: 'list', pattern_type: 'admin', subdomain: '*',
+  }])).jsonGraph?.dms?.data?.byId || {})[0];
+  assert(collPat && collPage && collAdmin && +collAdmin > +collPat, 'collision rows created, admin row newest');
+
+  const readPage = async (graph) => {
+    const d = (await graph.getAsync([['dms', 'data', TEST_APP, 'byId', collPage, ['data', 'type']]]))
+      .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[collPage]?.data;
+    return d?.$type === 'atom' ? d.value : d;
+  };
+  const viewerG = createTestGraph(DB_NAME, { user: { id: 60, email: 'viewer@test.com', groups: ['Viewers'], authed: true } });
+  await viewerG.ready;
+  const isFull = v => v && v !== 'no-access' && (typeof v === 'string' ? JSON.parse(v) : v).title === 'Admin Page';
+
+  console.log('content pattern sharing the admin row type (admin row empty):');
+  const v1 = await readPage(viewerG), s1 = await readPage(stranger), a1 = await readPage(anon);
+  t('viewer (view-page on the content pattern) reads its page', () => assert(isFull(v1), JSON.stringify(v1)));
+  t('ungranted user is blocked (not let in by the empty admin row)', () => assert.strictEqual(s1, 'no-access'));
+  t('anonymous is blocked (not let in by the empty admin row)', () => assert.strictEqual(a1, 'no-access'));
+
+  await admin.callAsync(['dms', 'data', 'edit'], [TEST_APP, collAdmin, {
+    authPermissions: { '*': JSON.stringify({ groups: { 'Site Admin': ['*'], Viewers: ['view-pattern-list'], public: [] }, users: {} }) },
+  }]);
+  console.log('…after site-level grants on the admin row:');
+  const v2 = await readPage(viewerG), s2 = await readPage(stranger);
+  t('viewer still reads the page (admin row grants are ignored for pages)', () => assert(isFull(v2), JSON.stringify(v2)));
+  t('ungranted user still blocked', () => assert.strictEqual(s2, 'no-access'));
+
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'admin|page', collPage]);
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, COLL_TYPE, collAdmin]);
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, COLL_TYPE, collPat]);
+
   // Cleanup
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'managed|page', pageId]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, ADMIN_PERMS_TYPE, managedId]);

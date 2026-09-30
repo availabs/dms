@@ -389,6 +389,27 @@ session scratchpad `suite.mjs` + `seed-v2.mjs` (not committed).
    `UI.Permissions` keeps its own copy of the value, so the edited grants stayed on screen and the next
    edit re-applied them. `permissionsEditor.jsx` now remounts the picker on reset.
 
+4. **Pages judged by the admin row when a content pattern's instance is `admin`** (found by the user
+   on mitigat-ny-prod, 2026-09-30; caused by the admin-row task's type choice).
+   - **The collision:** page pattern 566466 is `prod|admin:pattern`, and so is the backfilled admin row
+     2724987 (the admin row is always `{site}|admin:pattern`).
+   - **The mechanism:** the server finds a page's parent pattern by type string, newest id first
+     (`dms.controller.js` `getPatternAuthPermissions`, used by every page read: byId, length, byIndex,
+     options). So pages `admin|page` were judged by the admin row:
+     - while it was empty ("no restrictions"), they were **readable by anyone, including anonymous
+       users**
+     - once it had site-level grants, users with `view-page` on 566466 but not on the admin row (DHSES
+       on prod) were **blocked**
+   - Both reproduced locally.
+   - **Fix:** that lookup now skips rows whose `pattern_type` is `admin` or `auth`; neither kind has
+     pages. No retyping or migration is needed. The client already tells them apart by `pattern_type`.
+   - **Tests:** 5 cases added to `dms-server/tests/test-pattern-stub.js`, which now passes 24/24 on a
+     fresh sqlite. With the old lookup, 3 of them fail exactly as prod behaved.
+   - `test-auth.js` has one failure ("users by project returns array") that also fails on the old
+     code: a test/handler mismatch, not related.
+   - **Needs a dms-server deploy.** Until then, pages under 566466 on prod follow the admin row's
+     grants.
+
 **Things the suite showed about behaviour (not bugs in this task):**
 - **The Access editor seeds `public: ['view-page']`, and the server counts `public` for everyone.** So a
   pattern whose grants were saved through the Access tab stays publicly readable (pattern row and
