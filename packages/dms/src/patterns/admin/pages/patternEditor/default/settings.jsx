@@ -8,6 +8,7 @@ import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../utils/type-utils";
 import { settingsEditorTheme } from './settings.theme'
+import { patternActions } from '../../../../../utils/adminPermissions'
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
@@ -116,7 +117,7 @@ async function loadSitePatterns(apiLoad, app, siteType) {
 }
 
 export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest}) => {
-  const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {}, isMultiTenant } = useContext(AdminContext);
+  const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {}, isMultiTenant, user, authPermissions } = useContext(AdminContext);
   const { UI, theme } = useContext(ThemeContext)
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
   const tenantSub = (() => {
@@ -143,6 +144,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   // mounted anywhere but its own base URL, and moving that URL moves the admin
   // panel itself — so the save asks for a second click first.
   const isAdminPattern = value.pattern_type === 'admin';
+  // Same Delete/Duplicate rules as the pattern list's row actions (never for
+  // auth/admin rows). See utils/adminPermissions.js.
+  const can = patternActions(user, app, authPermissions, value);
   const adminPathChanged = isAdminPattern && (tmpValue.base_url || '') !== (value.base_url || '');
   const [confirmAdminMove, setConfirmAdminMove] = useState(false);
   const saveChanges = () => {
@@ -392,13 +396,14 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           <AuthPatternSettings value={tmpValue} onChange={setTmpValue} />
         )}
 
-        {!isAdminPattern && (
+        {(can.duplicate || can.delete) && (
         <div className={t.dangerCard}>
           <div className={t.dangerHeader}>
             <Icon icon='Alert' className={t.iconSm} />
             <span className={t.dangerHeaderLabel}>danger zone</span>
           </div>
           <div className={t.dangerBody}>
+            {can.duplicate && (
             <div className={t.dangerRow}>
               <div className='min-w-0 flex-1'>
                 <p className={t.dangerRowTitle}>duplicate this pattern</p>
@@ -420,7 +425,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                 {isDuplicating ? 'duplicating…' : 'duplicate'}
               </button>
             </div>
+            )}
 
+            {can.delete && (
             <div className={t.dangerRow}>
               <div className='min-w-0 flex-1'>
                 <p className={t.dangerRowTitle}>delete this pattern</p>
@@ -451,6 +458,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
         )}

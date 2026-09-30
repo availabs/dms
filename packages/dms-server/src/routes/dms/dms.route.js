@@ -13,6 +13,9 @@ const { getKind, getParent } = require('#db/type-utils.js');
 const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 
 
+// Any one of these lets a user read a (non-auth, non-admin) pattern row.
+const PATTERN_READ_PERMISSIONS = ['view-page', 'edit-pattern', 'edit-pattern-permissions', 'delete-pattern'];
+
 /**
  * Create DMS Falcor routes with a specific controller
  * @param {Object} controller - DMS controller instance (from createController)
@@ -54,7 +57,12 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const pattern_type = row.data?.pattern_type || row?.pattern_type;
           if (pattern_type !== 'auth' && pattern_type !== 'admin') {
             const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions });
+            // The admin panel's pattern-level permissions also load the pattern
+            // row (not its pages): a user granted only edit-pattern must be able
+            // to open it in the Pattern Editor. Page reads below stay
+            // view-page-only, so admin permissions never expose page content.
+            // (dms planning/tasks/current/admin-granular-permissions.md)
+            blocked = !isUserAuthed({ user, reqPermissions: PATTERN_READ_PERMISSIONS, authPermissions });
           }
         } else if (kind === 'page') {
           // Merge pattern-level and page-level authPermissions.

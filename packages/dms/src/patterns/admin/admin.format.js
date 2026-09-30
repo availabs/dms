@@ -134,17 +134,9 @@ export const pattern = {
       type: "json",
       required: false,
       default: [],
-        permissionDomain: [
-            // some defaults to take care of in implementation:
-            // if you create, you get view and edit
-            // each page created gets created with default permissions (if set in pattern), and assign full access (*) to the user who created it
-          {label: '*', value: '*'},
-          {label: 'View Page', value: 'view-page'},
-          {label: 'Edit Page Content', value: 'edit-page'},
-          {label: 'Create Page', value: 'create-page'},
-          {label: 'Edit Page Permissions', value: 'edit-page-permissions'},
-          {label: 'Publish Page', value: 'publish-page'},
-        ]
+      // The Access editor's options depend on the pattern's type (site-level
+      // for admin, auth routes for auth, pattern admin + content for the
+      // rest): permissionOptionsFor in utils/adminPermissions.js.
     },
     { key: 'config',
       placeholder: 'please select a type',

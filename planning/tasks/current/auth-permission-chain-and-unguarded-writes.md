@@ -1,6 +1,6 @@
 # Auth: the route-chain ACL is overwritten not merged, and `dms.data.edit` has no authorization
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:decision (was: "DIAGNOSED 2026-07-29, not fixed … Nothing here has been changed for defects A-C. They need an owner …") · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next (decision made 2026-09-30, see "Decision" section; was: blocked:decision, before that: "DIAGNOSED 2026-07-29, not fixed … Nothing here has been changed for defects A-C. They need an owner …") · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu, shaunak.sangdod@gmail.com
 
 > **Status:** DIAGNOSED 2026-07-29, **not fixed** · surfaced while working TransportNY QA ticket row
 > 2197778 (landing page links to two sign-in-walled destinations). Defect B is security-relevant and
@@ -25,6 +25,25 @@
   handling, and the 8-pattern/5-app blast radius. Treat these as strong leads, not settled facts.
 
 ---
+
+## Update 2026-09-30 — seen again from the admin panel; defect C resolved
+
+From [admin-granular-permissions.md](./admin-granular-permissions.md) (live test on a scratch sqlite
+server):
+- **Defect A, seen from the admin side:** a logged-in user with no `auth-users` grant on the auth pattern
+  opens `/auth/manage/users` by URL. The page renders, and only the auth server limits the data (0
+  users, but the group list came back). Same mechanism as below (`getReqAuth` overwrites
+  `authPermissions` with the child route's `{}`).
+  - **Mitigation shipped:** the admin and auth-manage sidenavs now hide the Users/Groups links unless the
+    user holds `auth-users`/`auth-groups` on the auth pattern. The URL still opens.
+  - **When A is fixed:** those two routes will start redirecting such users. That's intended, and the
+    links already match.
+- **Defect C is resolved** (uncommitted as of 2026-09-30). The pattern Access editor now offers a
+  permission list per pattern type (`patterns/admin/permissions.js` `permissionOptionsFor`). Datasets
+  patterns offer `view-sources` plus the source permissions, and keep `view-page` ("View Pattern")
+  because the server needs it to load the pattern row. `admin.format.js`'s single `permissionDomain` is
+  gone. So once A is fixed, an author can grant `view-sources` without writing to the row directly.
+- The product decision and the datasets blast radius below still gate the fix for A.
 
 ## Defect A — `authPermissions` is overwritten down the route chain (the ticket's root cause)
 
@@ -105,6 +124,29 @@ editor (`patterns/admin/admin.format.js:117-127`, bound to a constrained multise
 `ui/components/Permissions.jsx:148`) offers only page permissions regardless of pattern type. So even
 with defect A fixed, an author cannot grant this through the UI; the 2186526 grant had to be written
 directly to the row. Per this repo's author-empowerment principle, that gap is itself a defect.
+
+## Update 2026-09-30 — Auth → Users / Groups gated in-component
+
+`/auth/manage/users` and `/auth/manage/groups` now check `auth-users` / `auth-groups` inside the page
+(`patterns/auth/pages/useManagePageGate.js`). So those two routes no longer depend on defect A being
+fixed. Details and live results are in [admin-granular-permissions.md](./admin-granular-permissions.md).
+Datasets' `view-sources` and the other routes listed here are still affected.
+
+## Decision 2026-09-30 (user): datasets visibility comes from permissions, per source
+
+> **Answer to the product question below:** the datasets pattern is not "public" or "private" as a
+> whole. **Each source's own `authPermissions` decide who can read it. A source with none set inherits
+> the datasets pattern's permissions.** That is already the model client- and server-side
+> (pattern ⊕ source: `datasets/siteConfig.jsx` `mergeAuthPermissions`, server `uda/sourceAuth.js`), so
+> defect A can now be fixed to honour it:
+> - route-level checks must merge the pattern's `authPermissions` down the chain instead of letting a
+>   child's `{}` overwrite them (defect A);
+> - a public catalog is then expressed purely as data: grant `public: ['view-sources']` (and
+>   `view-source` on the sources that should be readable) on the pattern or per source, through the Access
+>   editor, which offers these since 2026-09-30 (defect C resolved);
+> - admin-only datasets pages (`create`, `settings`, `tasks`, …) still need their own in-component or
+>   route requirements, as listed below.
+> Status can move from `blocked:decision` to `next` once defect B's triage (independent) is scheduled.
 
 ## The product decision this is blocked on
 

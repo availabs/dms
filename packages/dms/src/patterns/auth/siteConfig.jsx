@@ -4,6 +4,9 @@ import UI from "../../ui";
 import {getPatternTheme, getAdminTheme, ThemeContext} from "../../ui/useTheme";
 import DefaultMenu from "./components/menu"
 import { lazyComponent } from "../../utils/lazyComponent";
+import { useAuth } from "./context";
+import { isUserAuthed } from "../../utils/auth";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES } from "../../utils/adminPermissions";
 
 // Code-split: auth pages load only when an auth route renders. See
 // planning/tasks/completed/bundle-split-initial-graph.md.
@@ -20,8 +23,14 @@ import {cloneDeep, merge} from "lodash-es";
 
 let authImgI = null;
 
-const AdminLayout = ({menuItems, children, theme, Menu, adminPath}) => {
+const AdminLayout = ({buildMenuItems, children, theme, Menu, adminPath}) => {
     const {Layout, LayoutGroup} = UI;
+    // The live user from AuthContext, not the route's `props.user`: these
+    // manage routes load no data, so nothing re-renders the route wrapper once
+    // the real groups replace the placeholder `['public']` seeded on refresh,
+    // and permission-gated links would stay hidden (found 2026-09-30).
+    const { user } = useAuth();
+    const menuItems = buildMenuItems(user);
     const { UI: contextUI } = React.useContext(ThemeContext) || {};
     const { ThemeToggle } = contextUI || {};
     const location = useLocation();
@@ -209,6 +218,7 @@ const manageAuthConfig = ({
   pattern,
   adminThemeSource,
   authPermissions = {},
+  adminAuthPermissions = {},
   rightMenu = <DefaultMenu />,
   ssrCollect,
 }) => {
@@ -217,21 +227,25 @@ const manageAuthConfig = ({
     // theme's own icon set merges with, rather than replaces, this base set
     // (see Icon.jsx / theme.Icons), so these render everywhere without
     // needing per-theme icon work.
-    const menuItems = [
-        {
+    // Only the links `user` can use — same rules as the admin pattern's own
+    // sidenav (patterns/admin/siteConfig.jsx getMenuItems): Sites/Themes read
+    // the site-level admin grants, Users/Groups this auth pattern's grants
+    // with the rule their routes' reqPermissions declare.
+    const buildMenuItems = (user) => [
+        ...(siteCan(user, app, adminAuthPermissions, VIEW_PATTERN_LIST) ? [{
             name: 'Sites',
             path: `${adminPath}`,
             icon: 'Home'
-        },
+        }] : []),
         // {
         //     name: 'Datasets',
         //     path: `${adminPath}/datasets`
         // },
-        {
+        ...(siteCan(user, app, adminAuthPermissions, MANAGE_THEMES) ? [{
             name: 'Themes',
             path: `${adminPath}/themes`,
             icon: 'Fill'
-        },
+        }] : []),
         // {
         //     name: 'Team',
         //     path:`${adminPath}/team`
@@ -246,16 +260,16 @@ const manageAuthConfig = ({
                     path: `${baseUrl}/manage/profile`,
                     icon: 'UserCircle'
                 },
-                {
+                ...(isUserAuthed({ user, reqPermissions: ['auth-users'], authPermissions }) ? [{
                     name: 'Users',
                     path: `${baseUrl}/manage/users`,
                     icon: 'User'
-                },
-                {
+                }] : []),
+                ...(isUserAuthed({ user, reqPermissions: ['auth-groups'], authPermissions }) ? [{
                     name: 'Groups',
                     path: `${baseUrl}/manage/groups`,
                     icon: 'Group'
-                }
+                }] : [])
             ]
         }
     ];
@@ -318,7 +332,7 @@ const manageAuthConfig = ({
         type: (props) => {
           return (
               <ThemeContext.Provider value={{theme, UI}}>
-                  <AdminLayout menuItems={menuItems} theme={theme} Menu={() => <>{rightMenu}</>} adminPath={adminPath}>
+                  <AdminLayout buildMenuItems={buildMenuItems} theme={theme} Menu={() => <>{rightMenu}</>} adminPath={adminPath}>
                           {props.children}
                   </AdminLayout>
               </ThemeContext.Provider>
@@ -333,7 +347,7 @@ const manageAuthConfig = ({
             path: "users",
           },
           {
-            type: props => <AuthGroups {...props} />,
+            type: props => <AuthGroups {...props} authPermissions={authPermissions} />,
             reqPermissions: ['auth-groups'],
             path: "groups",
           },

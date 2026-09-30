@@ -1,3 +1,46 @@
+// Same as patterns/page/pages/_utils parseIfJSON; kept local so this module
+// stays import-free (see resolveSubdomainAuthPermissions below).
+function parseIfJSON(text, fallback = {}) {
+    try {
+        if (text && typeof text === 'object') return text;
+        if (typeof text !== 'string' || !text) return fallback;
+        return JSON.parse(text);
+    } catch {
+        return fallback;
+    }
+}
+
+// Used by route building (render/spa/utils/index.js pattern2routes) and the
+// admin panel's access checks (utils/adminPermissions.js). A raw
+// `pattern.authPermissions` is either the "old" flat `{groups,users}` shape, or the "new" subdomain-keyed shape
+// (PatternPermissionsEditor writes this: `{"<subdomain-or-*>": {groups,users}}`,
+// each value independently JSON-stringified) — reading it as a flat object
+// without unwrapping the subdomain/`*` layer first (as those two admin call
+// sites used to) finds no top-level `.groups`/`.users` on ANY pattern that's
+// ever been edited through the current Permissions UI, so `isUserAuthed`
+// silently denies everyone but a site admin regardless of what's actually
+// granted underneath (found 2026-09-20 — mitigat-ny-prod pattern 1006405).
+export function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
+    const parsed = parseIfJSON(rawAuth || '{}', {});
+    if (parsed['*'] !== undefined)                          // new format
+        return parseIfJSON(parsed[subdomain] || parsed['*'] || {});
+    return parseIfJSON(parsed);                                          // old format
+}
+
+// Whether a raw `authPermissions` value (flat or subdomain-keyed, string or
+// object) grants anything to a user or a non-public group. An admin row that
+// doesn't falls back to the auth pattern's permissions — see pattern2routes.
+// `public` is ignored because the Access editor (permissionsEditor.jsx) seeds
+// `public: ['view-page']` into every value it saves: without this, merely
+// saving the admin row's Access tab would cut it off from the auth pattern.
+export function hasAuthGrants(rawAuth, subdomain = '') {
+    if (!rawAuth) return false;
+    const resolved = resolveSubdomainAuthPermissions(rawAuth, subdomain);
+    const nonEmpty = ([, perms]) => (Array.isArray(perms) ? perms.length > 0 : Boolean(perms));
+    return Object.entries(resolved?.users || {}).some(nonEmpty)
+        || Object.entries(resolved?.groups || {}).filter(([g]) => g !== 'public').some(nonEmpty);
+}
+
 // Merge an `override` authPermissions onto a `base` (inheritance: pattern ⊕ page, or pattern ⊕
 // source). For each group/user key in the override: `[]` DISABLES the inherited grant, a non-empty
 // array REPLACES it. Returns a new object; with no override returns the base unchanged.

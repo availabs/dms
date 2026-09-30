@@ -5,8 +5,9 @@ import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { permissionsEditorTheme } from './permissionsEditor.theme';
-import { parseIfJSON, isUserAuthed } from '../../../utils';
-import { hasAuthGrants } from '../../../../../render/spa/utils/index.js';
+import { parseIfJSON } from '../../../utils';
+import { hasAuthGrants } from '../../../../../utils/auth.js';
+import { permissionOptionsFor, siteCan, isAppAdmin } from '../../../../../utils/adminPermissions';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 
@@ -32,15 +33,22 @@ export const PatternPermissionsEditor = ({
     const { AuthAPI } = React.useContext(AuthContext) || {};
     const { UI, theme } = React.useContext(ThemeContext);
     const t = { ...permissionsEditorTheme, ...(theme?.admin?.permissionsEditor || {}) }
-    const { user, apiUpdate, app } = React.useContext(AdminContext) || {};
+    const { user, apiUpdate, app, adminRowHasGrants } = React.useContext(AdminContext) || {};
     const { Permissions } = UI;
-    const permissionDomain = attributes?.authPermissions?.permissionDomain;
 
     const inputValue = cloneDeep(parseIfJSON(value));
+    // Options for this pattern's type. Saved values outside the list stay
+    // (MultiSelect keeps unknown values), so nothing stored is dropped.
+    const permissionDomain = permissionOptionsFor(inputValue?.pattern_type, { adminRowHasGrants });
     const normalised = normaliseAuthPermissions(inputValue?.authPermissions);
 
     const [tmpAuthPermissions, setTmpAuthPermissions] = React.useState(normalised);
     const [newSubdomain, setNewSubdomain] = React.useState('');
+    // UI.Permissions keeps its own copy of `value` and never re-reads the prop,
+    // so "reset" cleared the pending save but left the edited grants on screen;
+    // the next edit then re-applied them (found 2026-09-30). Bumping this key on
+    // reset remounts it from the restored value.
+    const [resetKey, setResetKey] = React.useState(0);
 
     const updateSubdomainPermissions = (subdomain, perms) => {
         setTmpAuthPermissions(prev => ({ ...prev, [subdomain]: perms }));
@@ -71,9 +79,8 @@ export const PatternPermissionsEditor = ({
     const isAdminPattern = inputValue?.pattern_type === 'admin';
     const adminGrantsSaved = isAdminPattern && hasAuthGrants(normalised);
     const adminGrantsPending = isAdminPattern && hasAuthGrants(tmpAuthPermissions);
-    const isAppAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
-    const wouldLockOut = adminGrantsPending && !isAppAdmin
-        && !isUserAuthed(user, parseIfJSON(tmpAuthPermissions['*'], {}));
+    const wouldLockOut = adminGrantsPending && !isAppAdmin(user, app)
+        && !siteCan(user, app, tmpAuthPermissions['*'], '*');
     // Domain vocabulary summary (mockup: "domain: * · view-page · create · update") —
     // same list every subdomain group's permission MultiSelect offers.
 
@@ -92,7 +99,7 @@ export const PatternPermissionsEditor = ({
 
             <div className={t.wrapper}>
             {Object.entries(tmpAuthPermissions).map(([subdomain, perms]) => (
-                <div key={subdomain} className={t.subdomainSection}>
+                <div key={`${subdomain}-${resetKey}`} className={t.subdomainSection}>
                     <div className={t.subdomainHeader}>
                         <span className={t.subdomainBadge}>
                             subdomain: {subdomain === '*' ? 'none' : subdomain}
@@ -147,7 +154,7 @@ export const PatternPermissionsEditor = ({
                     type={'button'}
                     className={t.btnReset}
                     disabled={!isDirty}
-                    onClick={() => setTmpAuthPermissions(normalised)}
+                    onClick={() => { setTmpAuthPermissions(normalised); setResetKey(k => k + 1); }}
                 >
                     reset
                 </button>

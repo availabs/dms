@@ -1,14 +1,15 @@
 import React, {useContext, useEffect, useMemo, useState} from 'react'
 import Frame from 'react-frame-component'
 import { useImmer } from 'use-immer';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import defaultTheme from '../../../../ui/defaultTheme'
 
 import { cloneDeep, get, set } from "lodash-es";
 
 import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
 import { AdminContext } from "../../context";
-import { isUserAuthed, parseIfJSON } from '../../utils';
+import { parseIfJSON } from '../../utils';
+import { siteCan, MANAGE_THEMES } from '../../../../utils/adminPermissions';
 import { editThemeTheme } from './editTheme.theme';
 const DefaultComp = () => <div>Component not registered.</div>
 const ComponentRenderer = ({Component=DefaultComp, props}) => <Component {...props} />;
@@ -87,7 +88,8 @@ function ComponentList ({
 	const navigate = useNavigate();
 	const { UI, theme: themeFromContext } = useContext(ThemeContext);
 	const t = { ...editThemeTheme, ...(themeFromContext?.admin?.editTheme || {}) }
-	const { baseUrl, app, user, authPermissions } = React.useContext(AdminContext) || {};
+	const { baseUrl, authPath, app, user, authPermissions } = React.useContext(AdminContext) || {};
+	const location = useLocation();
 
 	const { MultiSelect, Button } = UI;
 	const theme = defaultTheme
@@ -116,9 +118,19 @@ function ComponentList ({
 		setCurrentComponent(compFromProps || 'PageView')
 	}, [compFromProps])
 
-  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
-  if (!isAdmin && !isUserAuthed(user, authPermissions)) {
-    return <div className={t.noAccess || 'flex items-center justify-center h-48 text-sm text-gray-400'}>You do not have permission to manage themes.</div>;
+  // Same redirects as the pattern list: logged out → login, no manage-themes
+  // → home. Not judged while the user's real groups are still loading.
+  const canManageThemes = siteCan(user, app, authPermissions, MANAGE_THEMES);
+  React.useEffect(() => {
+    if (!user?.authed) {
+      navigate(`${authPath}/login`, { state: { from: location.pathname } })
+      return
+    }
+    if (user?.isAuthenticating) return
+    if (!canManageThemes) navigate('/')
+  }, [user?.authed, user?.isAuthenticating, canManageThemes])
+  if (!user?.authed || user?.isAuthenticating || !canManageThemes) {
+    return null;
   }
 
 	const onSubmit = (updateCurrentTheme) => {

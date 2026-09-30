@@ -63,6 +63,9 @@ export default function Permissions ({
 
     const inheritedUsers = inheritedParsedValue?.users || {};
     const inheritedGroups = inheritedParsedValue?.groups || {};
+    // The users list only loads for accounts allowed to list users; fall back
+    // to the id so a grant row is never blank.
+    const userLabel = userId => users.find(u => +u.id === +userId)?.email || `user ${userId}`;
 
     const disableInheritedUser = userId => {
         const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(tmpValue));
@@ -127,7 +130,7 @@ export default function Permissions ({
                                 return (
                                     <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_user_${userId}`}>
                                         <div className='flex items-center gap-2'>
-                                            <div className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
+                                            <div className={permissionsTheme.title} title={userLabel(userId)}>{userLabel(userId)}</div>
                                             {isDisabled && <span className={permissionsTheme.disabledLabel}>Disabled</span>}
                                             {!isDisabled &&
                                                 <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedUser(userId)} />
@@ -168,7 +171,7 @@ export default function Permissions ({
                             .map(([userId, permissions]) => (
                                 <div className={permissionsTheme.valueSubWrapper} key={`permissions_user_local_${userId}`}>
                                     <div
-                                        className={permissionsTheme.title}>{users.find(u => +u.id === +userId)?.email}</div>
+                                        className={permissionsTheme.title} title={userLabel(userId)}>{userLabel(userId)}</div>
                                     <div className={permissionsTheme.valueEditorWrapper}>
                                         <ColumnTypes.multiselect.EditComp
                                             activeStyle='plain'
@@ -241,7 +244,7 @@ export default function Permissions ({
                                 return (
                                     <div className={permissionsTheme.valueSubWrapperInherited} key={`permissions_group_${groupName}`}>
                                         <div className='flex items-center gap-2'>
-                                            <div className={permissionsTheme.title}>{groupName}</div>
+                                            <div className={permissionsTheme.title} title={groupName}>{groupName}</div>
                                             {isDisabled && <span className={permissionsTheme.disabledLabel}>Disabled</span>}
                                             {!isDisabled &&
                                                 <Pill color={'orange'} text={'Disable'} onClick={() => disableInheritedGroup(groupName)} />
@@ -281,7 +284,7 @@ export default function Permissions ({
                             .filter(([groupName]) => !(groupName in inheritedGroups))
                             .map(([groupName, permissions]) => (
                                     <div className={permissionsTheme.valueSubWrapper} key={`permissions_group_local_${groupName}`}>
-                                        <div className={permissionsTheme.title}>{groupName}</div>
+                                        <div className={permissionsTheme.title} title={groupName}>{groupName}</div>
                                         <div className={permissionsTheme.valueEditorWrapper}>
                                             <ColumnTypes.multiselect.EditComp
                                                 activeStyle='plain'

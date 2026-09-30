@@ -144,7 +144,72 @@ async function main() {
   t('a non-admin restricted pattern is still stubbed (exemption is admin-only)', () =>
     assert.strictEqual(anonData?.id, 'no-access'));
 
+  // --- Admin-panel pattern permissions load the pattern row, not its pages ---
+  // A user granted only edit-pattern (or edit-pattern-permissions /
+  // delete-pattern) must be able to read the pattern row, or the admin list and
+  // Pattern Editor can't show it. Its pages stay view-page-only.
+  // (dms planning/tasks/current/admin-granular-permissions.md, Phase 4)
+  const ADMIN_PERMS_TYPE = 'prod|managed:pattern';
+  const managedCreate = await admin.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, ADMIN_PERMS_TYPE, {
+      name: 'Managed', base_url: '/managed', pattern_type: 'page', subdomain: '*',
+      authPermissions: {
+        groups: {
+          'Site Admin': ['*'],
+          public: [],
+          Editors: ['edit-pattern'],
+          Keepers: ['edit-pattern-permissions'],
+          Deleters: ['delete-pattern'],
+          Viewers: ['view-page'],
+        },
+        users: {},
+      },
+    }]
+  );
+  const managedId = Object.keys(managedCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  assert(managedId, 'managed pattern row created');
+  const pageCreate = await admin.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, 'managed|page', { title: 'Secret page', url_slug: 'secret', index: 0 }]
+  );
+  const pageId = Object.keys(pageCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  assert(pageId, 'page row created');
+
+  const asGroup = async (group) => {
+    const g = createTestGraph(DB_NAME, { user: { id: 50, email: `${group}@test.com`, groups: [group], authed: true } });
+    await g.ready;
+    // A blocked page's `data` is the bare string 'no-access', not an atom.
+    const read = async (rowId) => {
+      const data = (await g.getAsync([['dms', 'data', TEST_APP, 'byId', rowId, ['data', 'type']]]))
+        .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[rowId]?.data;
+      return data?.$type === 'atom' ? data.value : data;
+    };
+    return { pattern: await read(managedId), page: await read(pageId) };
+  };
+
+  console.log('pattern-level admin permissions (pattern row vs its pages):');
+  for (const group of ['Editors', 'Keepers', 'Deleters']) {
+    const { pattern, page } = await asGroup(group);
+    t(`${group}: reads the full pattern row`, () => {
+      assert.notStrictEqual(pattern?.id, 'no-access');
+      assert.strictEqual(pattern?.name, 'Managed');
+    });
+    t(`${group}: its pages are still blocked`, () =>
+      assert.strictEqual(page, 'no-access'));
+  }
+  const viewers = await asGroup('Viewers');
+  t('Viewers (view-page): pattern row and pages both readable (unchanged)', () => {
+    assert.strictEqual(viewers.pattern?.name, 'Managed');
+    assert.strictEqual(viewers.page?.title, 'Secret page');
+  });
+  const outsiders = await asGroup('Outsiders');
+  t('a group with no grant still gets the pattern stub', () =>
+    assert.strictEqual(outsiders.pattern?.id, 'no-access'));
+
   // Cleanup
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'managed|page', pageId]);
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, ADMIN_PERMS_TYPE, managedId]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, ADMIN_TYPE, adminId]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, PATTERN_TYPE, id]);
 

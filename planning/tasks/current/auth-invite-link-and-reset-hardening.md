@@ -1,10 +1,52 @@
 # Auth: invite-link add-user flow + password-reset hardening
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "NOT STARTED — design under review (user thinking it over, 2026-09-24)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "NOT STARTED — design under review (user thinking it over, 2026-09-24)") · **Created by:** ssangdod@albany.edu · **Edited by:** shaunak.sangdod@gmail.com
 
 ## Status: NOT STARTED — design under review (user thinking it over, 2026-09-24)
 
 Nothing is implemented. The "Open Questions" section lists the decisions still to make before Phase 1.
+
+## Update 2026-09-30 — reproduced live, callers inventoried
+
+Found again while testing [admin-granular-permissions.md](./admin-granular-permissions.md):
+
+- **Reproduced:** on a scratch sqlite dms-server, one unauthenticated
+  `POST /signup/assign/group {email, password, project: 'permtest', group: 'permtest Admin'}` added an
+  **existing** user (correct password) to the project's **existing** Admin group. Their next login
+  carried `permtest Admin`, i.e. full site admin. So the hole isn't limited to creating new groups: it
+  joins any existing group, at any auth level. (The membership was removed afterwards; scratch data
+  only.)
+- **Every caller found, and what each one sends:**
+
+  | Caller | Context | Sends `group`? | Sends `password`? | Sends `token`? |
+  |---|---|---|---|---|
+  | `patterns/auth/pages/authSignup.jsx:276` | public self-signup form | no | yes | no |
+  | `patterns/auth/pages/authUsers.jsx:128` | admin "Add user" (Auth → Users) | no | no (server generates and emails one) | yes, ignored by the server |
+  | `dms-server/tests/test-auth.js:621` | test | yes, `'testproj Public'` (the default anyway) | yes | no |
+  | `vite-dmstest/node_modules/@availabs/dms` (published package) and `hazarddata-dms` (vendored copy) | same two pages, older versions | no | same as above | same |
+
+  **No known caller passes `group`**, so forcing unauthenticated calls into `${project} Public` breaks no
+  workflow in these repos. The test passes the default explicitly and would still pass.
+- **Second server with the same code:** the legacy `avail-falcor` auth server
+  (`auth/handlers/utils/auth.utils.js:248`, route `auth/routes/auth.routes.js:98`) has the identical
+  handler, which dms-server's was ported from. Sites whose `AUTH_HOST` is the default
+  `https://graph.availabs.org` (`render/spa/dmsSiteFactory.jsx:39`) use that server. dms-template passes
+  `AUTH_HOST={API_HOST}` (dms-server). **Phase 1 has to patch both**, or state that avail-falcor is out of
+  scope. Unknown: whether any non-DMS client of avail-falcor passes `group`. Log the `group` param for a
+  while before rejecting there.
+- **Phase 1's `signupAssignGroup` guard doesn't need Open Question 1 answered.** Both answers reject
+  anonymous calls into a non-public group and anonymous calls without a password. Only the
+  *authenticated* admin mode depends on the answer. Consider splitting the anonymous guard (and the
+  `passwordReset` one-liner) out so they can ship now.
+- **What would break:**
+  - An anonymous call with no password (only `authUsers.jsx` sends one, and it has a token) → still
+    works as long as the token is honoured and checked for authority (≥ 5 on the project, like
+    `signupAccept`).
+  - An anonymous self-signup → unchanged: the public group, with a password.
+  - A logged-in admin adding a user → unchanged if the token check passes. An admin below level 5 would
+    newly be refused. Check who uses Add user today.
+  - An existing user joining a second project's public group through self-signup (correct password) →
+    unchanged.
 
 ## Objective
 

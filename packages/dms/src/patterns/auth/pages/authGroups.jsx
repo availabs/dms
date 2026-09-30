@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from "react";
 import {useNavigate, useLocation} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
+import { useManagePageGate } from "./useManagePageGate";
 
 export default function AuthGroups (props) {
     const location = useLocation();
@@ -13,6 +14,8 @@ export default function AuthGroups (props) {
     const {theme, UI } = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, AuthAPI, defaultRedirectUrl } = React.useContext(AuthContext);
     const gridRef = useRef(null);
+    // auth-groups on the auth pattern (in-page; the route check doesn't block).
+    const canManage = useManagePageGate('auth-groups', props.authPermissions);
     const {Table, Input, Modal, Button, Icon} = UI;
     // Manage-page chrome from `theme.auth.authPages.manage`; fallbacks are the
     // literals this page carried before the keys existed.
@@ -33,6 +36,7 @@ export default function AuthGroups (props) {
     };
 
     useEffect(() => {
+        if (!canManage) return;
         async function loadGroups(){
             await AuthAPI.getGroups({ user }).then(res => {
                 if(res.error){
@@ -44,13 +48,14 @@ export default function AuthGroups (props) {
         }
 
         loadGroups();
-    }, [PROJECT_NAME]);
+    }, [PROJECT_NAME, canManage]);
 
     const groupColumns = [
         {name: 'name', display_name: 'Group', show: true, type: 'text'},
         {name: 'num_members', display_name: '# Members', show: true, type: 'text'},
     ]
     if(!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>
+    if (!canManage) return null;
 
     return (
         <>
