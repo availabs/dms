@@ -1,8 +1,12 @@
 import React, {useEffect, useState} from 'react'
 import {createPortal} from 'react-dom'
 import Icon from './Icon'
+import { ThemeContext, getComponentTheme } from '../useTheme.js'
+import { drawerTheme } from './Drawer.theme'
 
-export default function Drawer ({ open, setOpen, width='max-w-64', children, closeOnClick=true }) {
+export default function Drawer ({ open, setOpen, width='max-w-64', children, closeOnClick=true, activeStyle }) {
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
+  const theme = { ...drawerTheme, ...getComponentTheme(themeFromContext, 'drawer', activeStyle) }
   const [slidIn, setSlidIn] = useState(false);
   const [render, setRender] = useState(open);
 
@@ -39,12 +43,12 @@ export default function Drawer ({ open, setOpen, width='max-w-64', children, clo
   const overlay = (
     <div
       role="dialog"
-      className={`fixed right-0 top-0 bottom-0 ${width} bg-white shadow-lg z-50 transition-transform duration-500 ${slidIn ? 'translate-x-0' : 'translate-x-full'}`}
+      className={`fixed right-0 top-0 bottom-0 ${width} ${theme.panel} z-50 transition-transform duration-500 ${slidIn ? 'translate-x-0' : 'translate-x-full'}`}
     >
       <div className="absolute right-2 top-2">
         <button
           type="button"
-          className="relative rounded-md bg-white text-gray-400 hover:text-gray-500 focus:outline-none"
+          className={theme.closeButton}
           onClick={() => setOpen?.(false)}
         >
           <span className="absolute -inset-2.5" />

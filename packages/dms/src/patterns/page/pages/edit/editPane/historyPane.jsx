@@ -55,13 +55,13 @@ function HistoryList({history, onChange}) {
                   'absolute left-0 top-0 flex w-6 justify-center'
               )}
           >
-            <div className="w-px bg-gray-200"/>
+            <div className="w-px bg-[var(--t-rule)]"/>
           </div>
           <>
-            <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
-              <Icon icon={'Add'} width={10} height={10} className={'text-gray-400 hover:text-gray-500 cursor-pointer'} />
+            <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-[var(--t-panel)]">
+              <Icon icon={'Add'} width={10} height={10} className={'text-[var(--t-pencil)] hover:text-[var(--t-graphite)] cursor-pointer'} />
             </div>
-            <input className="flex-auto py-0.5 text-xs leading-5 text-gray-500 rounded-md"
+            <input className="flex-auto py-0.5 text-xs leading-5 text-[var(--t-graphite)] rounded-md"
                    type={'text'}
                    placeholder={'add a comment'}
                    value={comment}
@@ -88,20 +88,20 @@ function HistoryList({history, onChange}) {
                             'absolute left-0 top-0 flex w-6 justify-center'
                         )}
                     >
-                      <div className="w-px bg-gray-200"/>
+                      <div className="w-px bg-[var(--t-rule)]"/>
                     </div>
-                    <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-white">
-                      <div className="h-1.5 w-1.5 rounded-full bg-gray-100 ring-1 ring-gray-300"/>
+                    <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-[var(--t-panel)]">
+                      <div className="h-1.5 w-1.5 rounded-full bg-[var(--t-well)] ring-1 ring-[var(--t-rule-strong)]"/>
                     </div>
-                    <div className={`${isComment ? 'border p-2 rounded-md' : ''} w-full`}>
-                      <p className={`flex-auto py-0.5 text-xs leading-5 text-gray-500`}>
-                        <span className="font-medium text-gray-900">{historyItem.user}</span>
+                    <div className={`${isComment ? 'border border-[var(--t-rule)] p-2 rounded-md' : ''} w-full`}>
+                      <p className={`flex-auto py-0.5 text-xs leading-5 text-[var(--t-graphite)]`}>
+                        <span className="font-medium text-[var(--t-ink)]">{historyItem.user}</span>
                         <span className={'ml-0.5'}>{isComment ? 'commented' : historyItem.action}</span>
                         <time dateTime={historyItem.time}
-                              className={`float-right flex-none py-0.5 text-xs leading-5 text-gray-500`}>
+                              className={`float-right flex-none py-0.5 text-xs leading-5 text-[var(--t-graphite)]`}>
                           {timeAgo(historyItem.time)}
                         </time>
-                        {isComment ? <span className={'block text-sm/6 text-gray-500'}>{commentText}</span> : null}
+                        {isComment ? <span className={'block text-sm/6 text-[var(--t-graphite)]'}>{commentText}</span> : null}
                       </p>
                     </div>
 

@@ -15,6 +15,7 @@ import {fieldTheme} from "./components/FieldSet.theme";
 import {dialogTheme} from "./components/Dialog.theme";
 import {dialogActionsTheme} from "./components/DialogActions.theme";
 import {modalTheme} from "./components/Modal.theme";
+import {drawerTheme} from "./components/Drawer.theme";
 import {labelTheme} from "./components/Label";
 import {pillTheme} from "./components/Pill.theme";
 import {permissionsTheme} from "./components/Permissions.theme";
@@ -223,6 +224,7 @@ const components = {
     dialog: dialogTheme,
     dialogActions: dialogActionsTheme,
     modal: modalTheme,
+    drawer: drawerTheme,
     label: labelTheme,
     pill: pillTheme,
     permissions: permissionsTheme,

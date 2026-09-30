@@ -247,6 +247,8 @@
 
 ### ui/theming
 
+- [x] ~~[Page edit sidebar unreadable in dark mode + light flash on load](./tasks/completed/edit-pane-dark-mode.md)~~ — done 2026-09-30 (`17a6f7f9`)
+- [ ] Dark-mode follow-ups from the edit-sidebar fix ([details](./tasks/completed/edit-pane-dark-mode.md#follow-ups-not-done-here)): colored `Pill` variants have no dark colors; `index.html`'s runtime Tailwind `dark:` variant lacks the `[data-theme="dark"]` match
 - [x] ~~[`collectThemeNames` never requests the `'default'` theme sentinel](tasks/completed/collect-theme-names-default-sentinel.md)~~ — **SUPERSEDED + reverted 2026-09-15**, see below.
 - [ ] [Port tessera_v6 into the library's own default component themes](./tasks/current/tessera-component-theme-port.md) — the real mechanism (per user direction): edit the CONTENT of `ui/defaultTheme.js`'s ~32 per-component `.theme.js` sibling files (plus, in a later Phase B, the `patterns/page`/`datasets`/`auth` pattern-level ones) so tessera_v6's values ARE the library's own default/fallback theme, rather than routing through a loader-registry sentinel. **Phase A DONE 2026-09-15**: 24 of 30 UI-primitive files ported (6 left untouched, zero safe key-name overlap — table.theme.jsx/draggableNav.jsx/nestableInHouse/map.theme.js need a real semantic-mapping design pass, not a mechanical port; pageTemplates/siteTemplates have no tessera design at all). **Critical fix shipped in the same pass**: `mergeTheme()` now concatenates `fonts` arrays instead of index-merging them (was silently corrupting/dropping entries), and `ui/defaultTheme.js` gained a `fonts` entry injecting the CSS custom-properties + `.t-*` type-token layer (duplicated from tessera's `_shared.css`, decorative brand chrome deliberately excluded) — without this, every ported class string would have resolved to nothing for the exact "no theme selected" case this task targets. Live rendering verification still pending (not yet run against a dev server). **Follow-up 2026-09-15**: per user direction, fixed the source instead — `table`/`nestable`/`map` in `tessera-theme-v6.js` itself were design-system placeholder shapes sharing zero real keys with the actual components (table/nestable/map); rewrote all 3 key-for-key against the real component files (new `nestableInHouse` const added too, was missing), so tessera's own site now themes these correctly and a future library-port pass has something real to port from. Build+lint verified clean. Phase B (page/datasets/auth pattern components) and admin's port (blocked on missing designs) not started.
 
@@ -580,6 +582,10 @@
 - [ ] Phase 3: Documentation and migration (update docs, create migration guide, add textSettings to theme editor)
 
 ## patterns
+
+### patterns/qa
+
+- [ ] [`qa` pattern type — ticketing / delivery QA as a library feature](./tasks/current/qa-pattern-type.md) — planned 2026-09-29, awaiting go-ahead. Rebuilds TransportNY's control room as an Add Pattern feature; core first on the `qa_test` app, then TransportNY ported onto it. Design: dms-template `research/qa-ticketing-system/`.
 
 ### patterns/mapeditor
 
