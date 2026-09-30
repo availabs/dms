@@ -4,8 +4,18 @@
 // project's admin a user is looking at. Using the tokens (rather than plain Tailwind
 // grays) is what makes this page dark-mode aware, matching the Table right below it.
 export const editSiteTheme = {
-    // PatternList / TenantList shared
-    wrapper: 'flex flex-1 flex-col w-full overflow-auto',
+    // PatternList / TenantList shared. Content-height, NOT `flex-1 overflow-auto`:
+    // on the platform root both lists render one after the other, and as
+    // flex-1 scroll boxes they split the page height equally. With few patterns
+    // that gave a big empty gap above Tenants, and the tenant box was shorter
+    // than its own table, so the card below clipped the last rows out of reach
+    // (reproduced 2026-09-29: 40 tenants, 3 patterns, 768px tall → tenants
+    // 36-40 unreachable). The page scrolls instead; each table still scrolls
+    // inside its own max-height (table.theme's `tableContainer`).
+    wrapper: 'flex flex-col w-full',
+    // TenantList's wrapper — the same, plus the space that flex-1 used to leave
+    // between it and the patterns table above.
+    tenantWrapper: 'flex flex-col w-full mt-12',
     header: 'w-full flex items-center justify-between border-b-2 border-[var(--t-cobalt)] pb-2',
     headerTitle: 'text-2xl font-semibold text-[var(--t-ink)]',
     searchBar: 'w-full flex',
@@ -44,7 +54,9 @@ export const editSiteTheme = {
     // merged into it (flagged live, 2026-09-21). `SectionGroup` now renders this
     // route with `card={false}`, so the table needs its own card, matching
     // admin-site.html's separate "patterns-table" section.
-    tableCard: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden mt-3',
+    // `shrink-0`: as a flex child with `overflow-hidden` it could otherwise be
+    // squeezed below its table's height and clip the bottom rows (see `wrapper`).
+    tableCard: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden mt-3 shrink-0',
     // 'forms' patterns are creatable but not currently registered/routable
     // (patterns/index.js has that entry commented out) — dashed instead of
     // solid so an author isn't surprised when visiting one does nothing.
@@ -59,6 +71,7 @@ export const editSiteTheme = {
     typePillPage: 'text-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)]',
     typePillDatasets: 'text-[var(--t-go)] bg-[var(--t-go-soft)]',
     typePillAuth: 'text-[var(--t-amber)] bg-[var(--t-amber-soft)]',
+    typePillAdmin: 'text-[var(--t-amber)] bg-[var(--t-amber-soft)]',
     typePillMapeditor: 'text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)]',
     typePillQa: 'text-[var(--t-ink)] bg-[var(--t-marker-soft)]',
     // Dashed, like chipInactive — same "not currently routable" signal.

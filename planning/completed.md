@@ -278,6 +278,7 @@
 
 ### patterns/admin
 
+- [admin-pattern-data-row.md](./tasks/completed/admin-pattern-data-row.md) - The admin pattern is now a saved `{instance}|admin:pattern` row holding base URL, site-level permissions and admin theme; empty fields fall back to the old in-code sources. Every site-creation path creates it (`createCorePatterns`), and existing sites get it on the first admin-list load by a user with list access. Also fixed a stale-list bug that wiped auth/admin refs after create-site (three-way merge; server-side fix filed as `site-ref-list-atomic-ops.md`), made the server never stub admin rows, and fixed the list page's table scroll. Committed in `bde2825f`; the dms-server change needs a deploy. (2026-09-30)
 - [site-mgmt-data-sources-inventory.md](./tasks/completed/site-mgmt-data-sources-inventory.md) - Data Sources tab in pattern editor: shows all sources in the pattern's dmsEnv with usage counts, internal/external origin, orphaned detection (2026-06-21)
 - [site-mgmt-site-health-audit.md](./tasks/completed/site-mgmt-site-health-audit.md) - Site health lenses merged into the pages editor tab: Empty, Orphans, Dupe Slugs, Stale Drafts, Off Nav, To Publish lenses cover all four planned health categories (2026-06-21)
 - [site-mgmt-page-duplication.md](./tasks/completed/site-mgmt-page-duplication.md) - Page Duplicate action implemented as a per-row button in the pages editor (2026-06-21)

@@ -117,7 +117,35 @@ async function main() {
     assert.deepStrictEqual(permittedData?.config, { attributes: [{ key: 'secret-schema' }] });
   });
 
+  // --- The site's admin pattern row is never stubbed ---
+  // It only holds routing/branding config the stub returns anyway; stubbing it
+  // for anonymous boots stopped the client caching its site snapshot. Even with
+  // `public` removed from its grants, it comes back whole. (Admin pattern as a
+  // saved row: dms planning/tasks/current/admin-pattern-data-row.md.)
+  const ADMIN_TYPE = 'prod|admin:pattern';
+  const adminCreate = await admin.callAsync(
+    ['dms', 'data', 'create'],
+    [TEST_APP, ADMIN_TYPE, {
+      name: 'Admin', base_url: 'list', pattern_type: 'admin', subdomain: '*',
+      theme: THEME, authPermissions: AUTH,
+    }]
+  );
+  const adminId = Object.keys(adminCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  assert(adminId, 'admin pattern row created');
+  const anonAdmin = (await anon.getAsync([['dms', 'data', TEST_APP, 'byId', adminId, ['data', 'type']]]))
+    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[adminId]?.data?.value;
+  console.log('anonymous request for the admin pattern row (restricted, no public grant):');
+  t('returns the full row, not the stub', () => {
+    assert.notStrictEqual(anonAdmin?.id, 'no-access');
+    assert.strictEqual(anonAdmin?.pattern_type, 'admin');
+    assert.strictEqual(anonAdmin?.base_url, 'list');
+    assert.deepStrictEqual(anonAdmin?.theme, THEME);
+  });
+  t('a non-admin restricted pattern is still stubbed (exemption is admin-only)', () =>
+    assert.strictEqual(anonData?.id, 'no-access'));
+
   // Cleanup
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, ADMIN_TYPE, adminId]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, PATTERN_TYPE, id]);
 
   console.log(`\npattern-stub tests: ${pass} passed, ${fail} failed`);

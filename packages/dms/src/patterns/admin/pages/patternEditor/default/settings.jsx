@@ -3,6 +3,7 @@ import { useImmer } from "use-immer";
 import { isEqual } from "lodash-es";
 import { Link, useNavigate, useRevalidator } from "react-router";
 import { useFalcor } from "@availabs/avl-falcor";
+import { readSitePatternRefs, mergeSitePatternRefs } from "../../../../../utils/tenantProvisioning";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../utils/type-utils";
@@ -141,15 +142,41 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
   const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
   const isDirty = !isEqual(tmpValue, value);
+  // The site's admin pattern row: it can't be duplicated or deleted, isn't
+  // mounted anywhere but its own base URL, and moving that URL moves the admin
+  // panel itself — so the save asks for a second click first.
+  const isAdminPattern = value.pattern_type === 'admin';
+  const adminPathChanged = isAdminPattern && (tmpValue.base_url || '') !== (value.base_url || '');
+  const [confirmAdminMove, setConfirmAdminMove] = useState(false);
+  const saveChanges = () => {
+    if (adminPathChanged && !confirmAdminMove) { setConfirmAdminMove(true); return; }
+    setConfirmAdminMove(false);
+    apiUpdate({ data: tmpValue });
+  };
 
   const siteFormat = { app, type: siteType, attributes: [] };
+
+  // `loadSiteData` goes through apiLoad — with sync on, the local store's copy,
+  // which misses refs written straight to the server (createSite's core refs,
+  // the admin backfill). Merge the edited list against the server's before
+  // writing, so delete/duplicate can't drop them (see mergeSitePatternRefs).
+  const { falcor } = useFalcor();
+  const withServerRefs = async (site, edited, removed = []) => {
+    try {
+      const server = await readSitePatternRefs(falcor, app, site.id);
+      return mergeSitePatternRefs({ edited, baseline: site.patterns || [], server, removed });
+    } catch (err) {
+      console.error('Could not re-read site patterns before saving; saving the list as loaded:', err);
+      return edited;
+    }
+  };
 
   const handleDelete = async () => {
       const site = await loadSiteData(apiLoad, app, siteType);
       if (!site) return;
 
       const rawPatterns = site.patterns || [];
-      const updatedPatterns = rawPatterns.filter(p => +p.id !== +value.id);
+      const updatedPatterns = await withServerRefs(site, rawPatterns.filter(p => +p.id !== +value.id), [value.id]);
 
       await apiUpdate({
           data: { id: site.id, patterns: updatedPatterns },
@@ -231,8 +258,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
               const site = await loadSiteData(apiLoad, app, siteType);
               if (site) {
                   const rawPatterns = site.patterns || [];
+                  const patterns = await withServerRefs(site, [...rawPatterns, { ref: `${app}+${patternType}`, id: +newId }]);
                   await apiUpdate({
-                      data: { id: site.id, patterns: [...rawPatterns, { ref: `${app}+${patternType}`, id: +newId }] },
+                      data: { id: site.id, patterns },
                       config: { format: siteFormat },
                       skipNavigate: true
                   });
@@ -257,14 +285,16 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
         <div className={isDirty ? t.saveBarDirty : t.saveBar}>
           <span className={isDirty ? t.saveBarTextDirty : t.saveBarText}>
-            {isDirty ? 'unsaved changes — applies to identity, locations, and retired subdomains below' : 'no unsaved changes'}
+            {confirmAdminMove
+              ? `the admin panel will move to /${`${tmpValue.base_url || ''}`.replace(/^\/+/, '')} on the next page load — save again to confirm`
+              : isDirty ? 'unsaved changes — applies to identity, locations, and retired subdomains below' : 'no unsaved changes'}
           </span>
           <span className='flex-1' />
-          <button type={'button'} className={t.btnReset} disabled={!isDirty} onClick={() => setTmpValue(value)}>
+          <button type={'button'} className={t.btnReset} disabled={!isDirty} onClick={() => { setConfirmAdminMove(false); setTmpValue(value); }}>
             reset
           </button>
-          <button type={'button'} className={t.btnSave} disabled={!isDirty} onClick={() => apiUpdate({ data: tmpValue })}>
-            save changes
+          <button type={'button'} className={t.btnSave} disabled={!isDirty} onClick={saveChanges}>
+            {confirmAdminMove ? 'confirm move' : 'save changes'}
           </button>
         </div>
 
@@ -302,7 +332,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                     {
                       label: 'Subdomain',
                       type: 'Input',
-                        disabled: tenantSub?.length,
+                        disabled: tenantSub?.length || isAdminPattern,
                       placeholder: '',
                       value: tmpValue.subdomain,
                       onChange: e => setTmpValue(draft => {
@@ -334,14 +364,18 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
             />
         </div>
 
-        <LocationsEditor
-          value={tmpValue.locations}
-          onChange={(locations) => setTmpValue(draft => { draft.locations = locations; })}
-        />
-        <RetiredSubdomainsEditor
-          value={tmpValue.retired_subdomains}
-          onChange={(subs) => setTmpValue(draft => { draft.retired_subdomains = subs; })}
-        />
+        {!isAdminPattern && (
+          <>
+            <LocationsEditor
+              value={tmpValue.locations}
+              onChange={(locations) => setTmpValue(draft => { draft.locations = locations; })}
+            />
+            <RetiredSubdomainsEditor
+              value={tmpValue.retired_subdomains}
+              onChange={(subs) => setTmpValue(draft => { draft.retired_subdomains = subs; })}
+            />
+          </>
+        )}
 
         {showDmsEnvConfig && (
           <DmsEnvConfig
@@ -365,6 +399,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           <QaPatternSettings value={tmpValue} onChange={setTmpValue} apiLoad={apiLoad} />
         )}
 
+        {!isAdminPattern && (
         <div className={t.dangerCard}>
           <div className={t.dangerHeader}>
             <Icon icon='Alert' className={t.iconSm} />
@@ -429,6 +464,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
             </div>
           </div>
         </div>
+        )}
       </div>
     )
 }

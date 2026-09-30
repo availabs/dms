@@ -5,7 +5,8 @@ import { AuthContext } from "../../../../auth/context";
 import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { permissionsEditorTheme } from './permissionsEditor.theme';
-import { parseIfJSON } from '../../../utils';
+import { parseIfJSON, isUserAuthed } from '../../../utils';
+import { hasAuthGrants } from '../../../../../render/spa/utils/index.js';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 
@@ -31,7 +32,7 @@ export const PatternPermissionsEditor = ({
     const { AuthAPI } = React.useContext(AuthContext) || {};
     const { UI, theme } = React.useContext(ThemeContext);
     const t = { ...permissionsEditorTheme, ...(theme?.admin?.permissionsEditor || {}) }
-    const { user, apiUpdate } = React.useContext(AdminContext) || {};
+    const { user, apiUpdate, app } = React.useContext(AdminContext) || {};
     const { Permissions } = UI;
     const permissionDomain = attributes?.authPermissions?.permissionDomain;
 
@@ -61,6 +62,18 @@ export const PatternPermissionsEditor = ({
     };
 
     const isDirty = !isEqual(tmpAuthPermissions, normalised);
+
+    // The site's admin pattern row: until it grants something itself, site
+    // access comes from the auth pattern (render/spa/utils/index.js
+    // pattern2routes / hasAuthGrants). Once it does, a save that doesn't
+    // leave the saving user with `*` would lock them out of the admin panel —
+    // blocked, unless they're in the `${app} Admin` group (always let in).
+    const isAdminPattern = inputValue?.pattern_type === 'admin';
+    const adminGrantsSaved = isAdminPattern && hasAuthGrants(normalised);
+    const adminGrantsPending = isAdminPattern && hasAuthGrants(tmpAuthPermissions);
+    const isAppAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
+    const wouldLockOut = adminGrantsPending && !isAppAdmin
+        && !isUserAuthed(user, parseIfJSON(tmpAuthPermissions['*'], {}));
     // Domain vocabulary summary (mockup: "domain: * · view-page · create · update") —
     // same list every subdomain group's permission MultiSelect offers.
 
@@ -68,6 +81,13 @@ export const PatternPermissionsEditor = ({
         <div className={t.outerWrapper}>
             <div className={t.header}>
                 <span className={t.headerTitle}>Permissions</span>
+                {isAdminPattern && (
+                    <span className={t.headerHint}>
+                        {adminGrantsSaved
+                            ? 'admin panel access'
+                            : 'admin access comes from the auth pattern until a user or group is granted here'}
+                    </span>
+                )}
             </div>
 
             <div className={t.wrapper}>
@@ -119,6 +139,9 @@ export const PatternPermissionsEditor = ({
             </div>
 
             <div className={t.saveGrid}>
+                {wouldLockOut && (
+                    <span className={t.lockoutWarning}>saving this would remove your own access to the admin panel — grant yourself or one of your groups *</span>
+                )}
                 <span className='flex-1' />
                 <button
                     type={'button'}
@@ -131,7 +154,7 @@ export const PatternPermissionsEditor = ({
                 <button
                     type={'button'}
                     className={t.btnSave}
-                    disabled={!isDirty}
+                    disabled={!isDirty || wouldLockOut}
                     onClick={() => apiUpdate({ data: { id: value.id, authPermissions: tmpAuthPermissions } })}
                 >
                     save changes

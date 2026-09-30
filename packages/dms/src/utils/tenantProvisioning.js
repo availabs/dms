@@ -91,6 +91,188 @@ export function wireSection(section, sourceId, viewId, attrs, env, app, sourceSl
   return section;
 }
 
+// The admin pattern row: `{instance}|admin:pattern`, one per site. Before it
+// existed the admin pattern was built in code on every load
+// (render/spa/utils/index.js `pattern2routes`), and that is still the fallback:
+// any field left empty here — `authPermissions`, `theme`, even `base_url` —
+// resolves exactly as it did before the row existed. See
+// planning/tasks/current/admin-pattern-data-row.md.
+export const adminPatternType = (siteInstance) => `${siteInstance}|admin:pattern`;
+
+// `adminPath` is a route path ('/list', '/'); pattern rows store `base_url`
+// without the leading slash ('auth', 'list'), except the root, stored as '/'.
+export const adminPathToBaseUrl = (adminPath) =>
+  `${adminPath || ''}`.replace(/^\/+|\/+$/g, '') || '/';
+
+// A tenant's admin row names the tenant's subdomain (as its auth row does) — it
+// is the tenant's own admin, stored in the tenant's app and referenced from the
+// tenant's own site row. A single-tenant site (or the platform root) uses '*'.
+export const buildAdminPatternData = ({ adminPath, subdomain } = {}) => ({
+  pattern_type: 'admin',
+  name: 'Admin',
+  subdomain: subdomain || '*',
+  ...(adminPath ? { base_url: adminPathToBaseUrl(adminPath) } : {}),
+});
+
+const createdId = (res) => Object.keys(res?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
+
+/**
+ * Creates the two patterns every site needs — auth and admin — and registers
+ * them on the site row straight away, so an interrupted flow still leaves a
+ * site that routes. Every site-creation path (createSite.jsx, TenantList's add
+ * tenant in editSite.jsx, authSignup.jsx) goes through here.
+ *
+ * @param {object} falcor
+ * @param {object} opts
+ * @param {string} opts.app            - Target app (the site's app, or the tenant slug)
+ * @param {string} opts.siteInstance   - Site instance prefix (e.g. "main")
+ * @param {string|number} opts.siteId  - The site row to register the refs on
+ * @param {string} opts.adminGroupName - `${adminGroupName} Admin` gets `*` on the auth pattern
+ * @param {string} [opts.subdomain]    - The auth and admin patterns' subdomain (tenants only)
+ * @param {string} [opts.adminPath]    - The admin route path ('/list'); omitted → the
+ *   admin row has no `base_url` and falls back to the `adminPath` prop
+ *
+ * @returns {Array} pattern refs, auth first then admin — pass as `initialPatternRefs`
+ */
+export async function createCorePatterns(falcor, { app, siteInstance, siteId, adminGroupName, subdomain, adminPath }) {
+  const authType = `${siteInstance}|auth:pattern`;
+  const authRes = await falcor.call(['dms', 'data', 'create'], [app, authType, {
+    pattern_type: 'auth',
+    name: 'Auth',
+    base_url: 'auth',
+    ...(subdomain ? { subdomain } : {}),
+    authPermissions: JSON.stringify({ groups: { [`${adminGroupName} Admin`]: ['*'], public: [] }, users: {} }),
+  }]);
+  const authId = createdId(authRes);
+  if (!authId) throw new Error('Failed to create auth pattern');
+
+  const adminType = adminPatternType(siteInstance);
+  const adminRes = await falcor.call(['dms', 'data', 'create'], [app, adminType, buildAdminPatternData({ adminPath, subdomain })]);
+  const adminId = createdId(adminRes);
+  if (!adminId) throw new Error('Failed to create admin pattern');
+
+  const refs = [
+    { ref: `${app}+${authType}`, id: +authId },
+    { ref: `${app}+${adminType}`, id: +adminId },
+  ];
+  if (siteId) await falcor.call(['dms', 'data', 'edit'], [app, +siteId, { patterns: refs }]);
+  return refs;
+}
+
+const unwrapData = (d) => {
+  if (d?.$type === 'atom') d = d.value;
+  if (typeof d === 'string') { try { d = JSON.parse(d); } catch { d = null; } }
+  return d && typeof d === 'object' ? d : null;
+};
+
+// The site row's current `patterns` refs, read fresh from the server — the
+// loader's copy (and Falcor's cache) can be stale, and the backfill below must
+// never decide "no admin row yet" from a stale list. Each ref comes back with
+// its row's `pattern_type`: the ref string can't be trusted for that, because
+// saving the site's pattern list rewrites every ref to the generic
+// `${app}+${instance}|pattern` (api/updateDMSAttrs.js). A pattern the user
+// can't view still reports `pattern_type` through the server's no-access stub.
+// The site row's `patterns` refs as the SERVER has them right now. Callers that
+// rewrite the list must not trust their own loaded copy: with local sync on it
+// comes from the local store, which never sees writes made straight through
+// Falcor (createSite's core/template refs, the admin backfill).
+// `attr` is any ref-list attribute of the site row — `patterns` or `tenants`
+// (tenant signup appends tenants straight to the server the same way).
+export async function readSitePatternRefs(falcor, app, siteId, attr = 'patterns') {
+  // App-namespaced path: the legacy `dms.data.byId` path returns null data on
+  // a per-app split server (found against a live cli-test sqlite server).
+  const byId = ['dms', 'data', app, 'byId'];
+  await falcor.invalidate([...byId, siteId]);
+  const siteRes = await falcor.get([...byId, siteId, 'data']);
+  const site = unwrapData(siteRes?.json?.dms?.data?.[app]?.byId?.[siteId]?.data);
+  if (!site) throw new Error(`Could not read site ${siteId}`);
+  return Array.isArray(site[attr]) ? site[attr].filter(r => +r?.id > 0) : [];
+}
+
+/**
+ * Three-way merge for a write of the site's `patterns` list, so a save made
+ * from a stale copy can't silently drop refs someone else added meanwhile.
+ *
+ * - `edited`:   the list about to be written (may include new, id-less items)
+ * - `baseline`: the list the editor started from (what it loaded)
+ * - `server`:   the list on the server now (readSitePatternRefs)
+ *
+ * Anything the editor removed (in `baseline`, not in `edited`) stays removed.
+ * Anything on the server the editor never saw (not in `baseline` or `edited`)
+ * is kept, placed first — that's where core rows (auth, admin) are written.
+ * Returns `edited` with those refs prepended.
+ *
+ * Found live 2026-09-29: right after /list/create with sync on, the list page's
+ * copy lacked the auth/admin refs, and adding a pattern wiped both.
+ */
+// `removed`: ids the caller is deleting even if its stale `baseline` never had
+// them (e.g. deleting a pattern whose ref only the server knows about).
+export function mergeSitePatternRefs({ edited = [], baseline = [], server = [], removed = [] }) {
+  const ids = (list) => new Set(list.map(r => +r?.id).filter(id => id > 0));
+  const seen = new Set([...ids(baseline), ...ids(edited), ...removed.map(Number)]);
+  const kept = server.filter(r => +r?.id > 0 && !seen.has(+r.id));
+  return kept.length ? [...kept.map(({ ref, id }) => ({ ref, id })), ...edited] : edited;
+}
+
+async function readSitePatterns(falcor, app, siteId) {
+  const byId = ['dms', 'data', app, 'byId'];
+  const refs = await readSitePatternRefs(falcor, app, siteId);
+  if (!refs.length) return [];
+  const ids = refs.map(r => +r.id);
+  await falcor.invalidate([...byId, ids]);
+  const res = await falcor.get([...byId, ids, 'data']);
+  return refs.map(r => ({
+    ...r,
+    pattern_type: unwrapData(res?.json?.dms?.data?.[app]?.byId?.[r.id]?.data)?.pattern_type,
+  }));
+}
+
+const isAdminEntry = (p) => p?.pattern_type === 'admin';
+// the stored ref exactly as it was, minus the pattern_type looked up above
+const toRef = ({ pattern_type, ...ref }) => ref;
+
+/**
+ * First-load backfill for sites created before the admin pattern was a saved
+ * row: creates `{instance}|admin:pattern` and registers it on the site. Called
+ * once per admin-list page load, only for a user who has passed that page's
+ * site-access gate (editSite.jsx), and only when the site has no admin row.
+ *
+ * The row is created with no `authPermissions` and no `theme`, so both keep
+ * falling back to the auth pattern exactly as before; only `base_url` (the
+ * admin path in use right now) is pinned.
+ *
+ * Two admins opening the list at the same moment can both get here. Each
+ * re-reads the site before writing and backs off if an admin ref has appeared;
+ * if both writes still land, the last write wins (one admin ref), and the
+ * loser — whose ref is no longer on the site — deletes its own orphaned row.
+ * pickAdminPattern() resolves any leftover duplicate to the lowest id.
+ *
+ * On a tenant subdomain, `app` is the tenant's app and `siteId` the tenant's
+ * own site, so the tenant gets its own admin row; pass the tenant's
+ * `subdomain` so the row names it.
+ *
+ * @returns {Promise<{ref, id}|null>} the new ref, or null if nothing was created
+ */
+export async function backfillAdminPattern(falcor, { app, siteInstance, siteId, adminPath, subdomain }) {
+  if ((await readSitePatterns(falcor, app, siteId)).some(isAdminEntry)) return null;
+
+  const type = adminPatternType(siteInstance);
+  const res = await falcor.call(['dms', 'data', 'create'], [app, type, buildAdminPatternData({ adminPath, subdomain })]);
+  const id = createdId(res);
+  if (!id) throw new Error('Failed to create admin pattern');
+  const ref = { ref: `${app}+${type}`, id: +id };
+  const discard = () => falcor.call(['dms', 'data', 'delete'], [app, type, +id]);
+
+  const current = await readSitePatterns(falcor, app, siteId);
+  if (current.some(isAdminEntry)) { await discard(); return null; }
+  await falcor.call(['dms', 'data', 'edit'], [app, +siteId, { patterns: [ref, ...current.map(toRef)] }]);
+
+  const after = await readSitePatterns(falcor, app, siteId);
+  if (!after.some(r => +r.id === +id)) { await discard(); return null; }
+  console.info(`[dms] backfilled admin pattern ${id} on site ${siteId}`);
+  return ref;
+}
+
 /**
  * Creates all non-auth patterns specified by a site template.
  *
