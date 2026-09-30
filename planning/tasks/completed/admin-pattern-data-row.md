@@ -1,6 +1,6 @@
 # Admin pattern as a saved pattern row (with first-load backfill)
 
-**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** doing (implemented 2026-09-29, uncommitted; not yet checked in a browser) · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** done (2026-09-30; committed in `bde2825f`, dms-server deploy by the user) · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 **Project:** DMS library (`src/dms` submodule) · **Topic:** patterns/admin
 
@@ -50,9 +50,9 @@ Phases 1-4 are implemented and uncommitted.
 path, the first-load backfill, and how the admin row appears in the pattern list and Pattern Editor.
 
 **Out:** the granular permission vocabulary. That lives in
-[admin-granular-permissions.md](./admin-granular-permissions.md), which should build on this task
+[admin-granular-permissions.md](../current/admin-granular-permissions.md), which should build on this task
 (site-level permissions live on the admin row). Server-side provisioning is out too: see
-[tenant-signup-production-readiness.md](./tenant-signup-production-readiness.md). If provisioning
+[tenant-signup-production-readiness.md](../current/tenant-signup-production-readiness.md). If provisioning
 moves to the server, the admin-row creation moves with it.
 
 ## Current state (read 2026-09-29)
@@ -181,7 +181,7 @@ that doesn't have one.
 page the same behaviour, so nothing is gained by creating it earlier. Writing on an anonymous page
 view would mean site-structure writes driven by public traffic, including SSR renders and crawlers.
 It only works at all because `dms.data.edit` is unguarded (defect B in
-[auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md)),
+[auth-permission-chain-and-unguarded-writes.md](../current/auth-permission-chain-and-unguarded-writes.md)),
 which is a hole slated to be closed.
 
 - [x] In `editSite.jsx` `SiteEdit`, run a one-time effect **after** the site gate passes (user is
@@ -189,7 +189,7 @@ which is a hole slated to be closed.
   1. If `item.patterns` already has an admin row, stop.
   2. Re-read the site row's `patterns` fresh from the server (invalidate Falcor first; the cached
      copy can be stale, see
-     [sync-admin-pattern-save-stale.md](./sync-admin-pattern-save-stale.md)). If an admin row is
+     [sync-admin-pattern-save-stale.md](../current/sync-admin-pattern-save-stale.md)). If an admin row is
      there now, stop.
   3. Create the admin row with `name: 'Admin'`, `base_url` set to the current `adminPath`, and
      `subdomain` set to the in-code object's value. Leave `authPermissions` and `theme` empty
@@ -282,12 +282,12 @@ auth ref the same way, so it could already wipe auth before this task.
   - If the server re-read fails, the list is saved as shown and an error is logged, as before.
   - This replaces the narrower "keep the backfilled admin ref" guard.
   - It's a stopgap. The real fix is server-side atomic add/remove:
-    [site-ref-list-atomic-ops.md](./site-ref-list-atomic-ops.md), which also lists the merge's
+    [site-ref-list-atomic-ops.md](../current/site-ref-list-atomic-ops.md), which also lists the merge's
     known holes.
 - [x] 4 unit tests for the merge, including the exact wipe scenario.
-- [ ] Re-test in the browser: create a site, then add a pattern immediately without reloading.
+- [x] Re-test in the browser: create a site, then add a pattern immediately without reloading.
   Auth and admin should both be listed on landing and survive the add.
-- [ ] Repair the user's test site: its auth row still exists but isn't referenced. Add its ref back
+- [x] ~~Repair the user's test site:~~ (not needed, per the user) its auth row still exists but isn't referenced. Add its ref back
   to the site's `patterns` (CLI), and optionally delete the orphaned first admin row.
 
 ## Open risks / follow-ups
@@ -313,6 +313,18 @@ auth ref the same way, so it could already wipe auth before this task.
   window is the same size as any concurrent site-row save today.
 
 ## Testing checklist
+
+> **At completion (2026-09-30), the unticked items below were never tested.** They were judged
+> non-blocking and left as-is, not verified:
+> - backfill not firing for logged-out users or users without access
+> - logged-out redirect to login after a backfill
+> - the list's delete-doesn't-return check
+> - the Access tab's gate switch and lock-out block
+> - clearing the admin theme
+> - SSR
+> - the `pattern2routes` end-to-end fallback unit test
+>
+> The test seeds (`cli/test/seed.js`, dms-server tests) also don't create an admin row yet.
 
 - [x] Unit (`adminPatternRow.test.js`), `pattern2routes`:
   - no admin row
@@ -354,8 +366,8 @@ auth ref the same way, so it could already wipe auth before this task.
   - backfill on an existing tenant's subdomain
   - Add tenant from the site list creates the tenant's admin row
   - tenant signup creates the tenant's admin row
-- [ ] New site via `/list/create` (single-tenant bootstrap): **failed first time (stale-list wipe,
-  see the bug section above); fixed, needs a re-test.**
+- [x] New site via `/list/create` (single-tenant bootstrap): failed the first time (stale-list
+  wipe, see the bug section above); fixed and re-tested (user, 2026-09-30).
 - [x] Platform root of a multi-tenant deployment: the backfill created only the root site's admin
   row, and no tenant admin rows (user, 2026-09-29).
 - [x] Admin row Overview base-URL move (user, 2026-09-29).
@@ -371,14 +383,14 @@ auth ref the same way, so it could already wipe auth before this task.
   stub keeps `base_url`).
 - [x] Admin row Overview: base URL move with "confirm move" confirmed by the user.
 - [ ] Admin row Access tab:
-  - [ ] shows the "comes from the auth pattern" hint
+  - [x] shows the "comes from the auth pattern" hint, and changes once a permission is granted
   - [ ] saving with only the default public entry keeps access coming from the auth pattern
   - [ ] granting a group `*` switches the site gate to the admin row; a user with only the auth
     pattern's grant loses list access; `${app} Admin` members keep it
   - [ ] a save that would drop your own `*` is blocked with the warning
-- [ ] Admin row Theme tab: selecting a theme with an `admin.logo` changes the logo on the admin
+- [x] Admin row Theme tab: selecting a theme with an `admin.logo` changes the logo on the admin
   pages and the auth manage pages; clearing it falls back to the auth pattern's.
-- [ ] Pattern list: the admin row shows the `admin` pill and chip, with no Delete or Duplicate.
+- [x] Pattern list: the admin row shows the `admin` pill and chip, with no Delete or Duplicate.
 - [ ] SSR (if a deployment uses it): SSR and SPA resolve the same admin `base_url`.
 - [x] Local sync mode: no second admin row across the user's tests.
 

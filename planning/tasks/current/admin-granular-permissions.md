@@ -4,7 +4,7 @@
 
 **Project:** DMS library (`src/dms` submodule) · **Topic:** patterns/admin
 
-> **Builds on [admin-pattern-data-row.md](./admin-pattern-data-row.md)** (implemented 2026-09-29).
+> **Builds on [admin-pattern-data-row.md](../completed/admin-pattern-data-row.md)** (implemented 2026-09-29).
 > The site-level permissions below (`view-pattern-list`, `create-pattern`, `manage-themes`,
 > `manage-tenants`) now live on the **admin row**. When the admin row grants nothing (`hasAuthGrants`,
 > which ignores `public`), they fall back to the auth pattern.

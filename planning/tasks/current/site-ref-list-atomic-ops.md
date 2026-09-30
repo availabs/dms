@@ -17,7 +17,7 @@ Every change to a site's pattern list today is a read-modify-write done on the c
 takes the list it has, edits it, and sends the whole list back through `dms.data.edit`. Whatever the
 server gained in the meantime is silently lost.
 
-**Found live 2026-09-29, while testing** [admin-pattern-data-row.md](./admin-pattern-data-row.md):
+**Found live 2026-09-29, while testing** [admin-pattern-data-row.md](../completed/admin-pattern-data-row.md):
 right after `/list/create` with sync on, the list page's local copy lacked the auth and admin refs
 (they had been written straight to the server). Adding a pattern then wiped both, leaving the site
 with no auth pattern.
