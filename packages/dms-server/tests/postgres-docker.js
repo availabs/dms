@@ -220,8 +220,9 @@ async function runTests(testScript) {
       // Run all parameterized tests (skip test-sqlite.js and test-controller.js — SQLite-specific).
       // test-uda.js: its DMS-mode half runs on PG (DMS_TEST_DB), exercising the UDA
       // query path; its DAMA-mode half stays on SQLite within
-      // this run (no dama-postgres-test config — DAMA_TEST_DB defaults to dama-sqlite-test).
-      for (const test of ['tests/test-graph.js', 'tests/test-workflow.js', 'tests/test-uda.js', 'tests/test-auth.js']) {
+      // this run (DAMA_TEST_DB defaults to dama-sqlite-test). test-uda-feature-id.js is
+      // PostgreSQL-DAMA-only and defaults to the dama-postgres-test config (same container).
+      for (const test of ['tests/test-graph.js', 'tests/test-workflow.js', 'tests/test-uda.js', 'tests/test-uda-feature-id.js', 'tests/test-auth.js']) {
         console.log(`\n========== ${test} ==========\n`);
         const code = await spawnAsync(process.execPath, [test], env);
         if (code !== 0) {

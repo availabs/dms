@@ -5,6 +5,7 @@ import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {PageContext, ComponentContext} from "../../context";
 import {getColumnLabel, isEqualColumns} from "./controls_utils";
 import {ConditionValueInput} from "./ConditionValueInput";
+import {filterConditionColumns} from "./components/dataWrapper/components/filters/utils";
 import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
 import { isTimeColumnType } from "./components/dataWrapper/utils/timeFilter";
 import { complexFiltersTheme } from "./ComplexFilters.theme";
@@ -107,6 +108,12 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
         ...(state.columns || []).filter(c => c.systemCol),
         ...(state.externalSource?.columns || [])
     ];
+    // What the value editor resolves leaves against (section columns first — see
+    // filterConditionColumns); the column picker above keeps listing `columns`.
+    const conditionColumns = useMemo(
+        () => filterConditionColumns(state.columns, state.externalSource?.columns),
+        [state.columns, state.externalSource?.columns]
+    );
     const isGrouping = (state.columns || []).some(c => c.group);
 
     const seed = value ?? state?.filters;
@@ -543,7 +550,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                         <ConditionValueInput
                             node={node}
                             path={path}
-                            columns={columns}
+                            columns={conditionColumns}
                             updateNodeAtPath={updateNodeAtPath}
                             siblingConditions={siblingConditions}
                         />
