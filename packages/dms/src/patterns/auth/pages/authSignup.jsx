@@ -6,7 +6,7 @@ import { ThemeContext } from "../../../ui/useTheme";
 import { AuthContext } from "../context";
 import { callAuthServer } from "../api";
 import { nameToSlug, getInstance } from "../../../utils/type-utils";
-import { provisionTemplatePatterns } from "../../../utils/tenantProvisioning";
+import { provisionTemplatePatterns, createCorePatterns } from "../../../utils/tenantProvisioning";
 import SiteTemplatePicker from "../../admin/pages/SiteTemplatePicker";
 
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'mail', 'smtp', 'ftp', 'dev', 'staging', 'test', 'app', 'portal'];
@@ -19,7 +19,7 @@ function validateSubdomain(slug) {
     return null;
 }
 
-export default function AuthSignup({ disableSignup }) {
+export default function AuthSignup({ disableSignup, adminPath }) {
     const [credentials, setCredentials] = React.useState({ email: '', password: '', verifyPassword: '' });
     const [tenantForm, setTenantForm] = React.useState({ name: '', subdomain: '' });
     const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
@@ -118,28 +118,19 @@ export default function AuthSignup({ disableSignup }) {
                 const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
                 if (!tenantSiteId) throw new Error('Failed to create tenant site');
 
-                // 5. Create tenant's auth pattern
-                const authPatternType = `${siteInstance}|auth:pattern`;
-                const authPatternRes = await falcor.call(
-                    ['dms', 'data', 'create'],
-                    [slug, authPatternType, {
-                        pattern_type: 'auth',
-                        name: 'Auth',
-                        base_url: 'auth',
-                        subdomain: slug,
-                        authPermissions: JSON.stringify({
-                            groups: { [`${slug} Admin`]: ['*'], public: [] },
-                            users: {}
-                        }),
-                    }]
-                );
-                const authPatternId = Object.keys(authPatternRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
-                if (!authPatternId) throw new Error('Failed to create auth pattern');
+                // 5. Create the tenant's auth + admin patterns and register them on its site
+                const corePatternRefs = await createCorePatterns(falcor, {
+                    app: slug,
+                    siteInstance,
+                    siteId: tenantSiteId,
+                    adminGroupName: slug,
+                    subdomain: slug,
+                    adminPath,
+                });
 
                 // 6. Create template patterns then update tenant site with all refs.
                 // siteId/initialPatternRefs make provisioning register each pattern
                 // on the tenant site as it's created (crash-safe).
-                const authPatternRef = { ref: `${slug}+${authPatternType}`, id: +authPatternId };
                 const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
                     app: slug,
                     siteInstance,
@@ -149,9 +140,9 @@ export default function AuthSignup({ disableSignup }) {
                     adminGroupName: slug,
                     subdomain: slug,
                     siteId: tenantSiteId,
-                    initialPatternRefs: [authPatternRef],
+                    initialPatternRefs: corePatternRefs,
                 });
-                const allPatternRefs = [authPatternRef, ...templateRefs];
+                const allPatternRefs = [...corePatternRefs, ...templateRefs];
                 const siteUpdate = { patterns: allPatternRefs };
                 if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
                 await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);

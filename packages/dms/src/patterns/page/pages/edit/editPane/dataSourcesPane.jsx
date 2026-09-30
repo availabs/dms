@@ -17,19 +17,19 @@ function DataSourceCard({ dataSource, selected, onSelect, onRemove, Icon, Pill }
 
     return (
         <div
-            className={`p-2 rounded border cursor-pointer ${selected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:border-gray-300'}`}
+            className={`p-2 rounded border cursor-pointer ${selected ? 'border-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)]' : 'border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]'}`}
             onClick={onSelect}
         >
             <div className="flex items-center justify-between">
                 <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium truncate">{dataSource.name || 'Unnamed Source'}</div>
-                    <div className="text-xs text-gray-500 truncate">
+                    <div className="text-xs text-[var(--t-graphite)] truncate">
                         {sourceName ? `${sourceName} · ` : ''}{columnCount} columns
                     </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-2">
                     <button
-                        className="p-1 rounded hover:bg-red-50 text-gray-400 hover:text-red-500"
+                        className="p-1 rounded hover:bg-[var(--t-brick-soft)] text-[var(--t-pencil)] hover:text-[var(--t-brick)]"
                         onClick={(e) => { e.stopPropagation(); onRemove(); }}
                         title="Remove"
                     >
@@ -91,12 +91,12 @@ function DataSourceEditor({ dataSource, setDataSource }) {
     });
 
     return (
-        <div className="flex flex-col gap-3 p-2 border rounded bg-white">
+        <div className="flex flex-col gap-3 p-2 border border-[var(--t-rule)] rounded bg-[var(--t-panel)]">
             {/* Name */}
             <div className="flex items-center gap-2">
-                <label className="text-xs text-gray-600 shrink-0">Name</label>
+                <label className="text-xs text-[var(--t-graphite)] shrink-0">Name</label>
                 <input
-                    className="flex-1 px-2 py-1 text-sm border rounded"
+                    className="flex-1 px-2 py-1 text-sm border border-[var(--t-rule)] rounded"
                     value={editState.name || ''}
                     onChange={e => setEditState(draft => { draft.name = e.target.value; })}
                     placeholder="Data source name"
@@ -105,9 +105,9 @@ function DataSourceEditor({ dataSource, setDataSource }) {
 
             {/* Source picker */}
             <div className="flex flex-col gap-1">
-                <label className="text-xs text-gray-600">Source</label>
+                <label className="text-xs text-[var(--t-graphite)]">Source</label>
                 <select
-                    className="px-2 py-1 text-sm border rounded"
+                    className="px-2 py-1 text-sm border border-[var(--t-rule)] rounded"
                     value={activeSource || ''}
                     onChange={e => onSourceChange(e.target.value)}
                 >
@@ -121,9 +121,9 @@ function DataSourceEditor({ dataSource, setDataSource }) {
             {/* Version picker */}
             {views.length > 0 && (
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-600">Version</label>
+                    <label className="text-xs text-[var(--t-graphite)]">Version</label>
                     <select
-                        className="px-2 py-1 text-sm border rounded"
+                        className="px-2 py-1 text-sm border border-[var(--t-rule)] rounded"
                         value={activeView || ''}
                         onChange={e => onViewChange(e.target.value)}
                     >
@@ -137,7 +137,7 @@ function DataSourceEditor({ dataSource, setDataSource }) {
             {/* Column manager */}
             {editState.externalSource?.columns?.length > 0 && (
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-600">Columns ({(editState.columns || []).filter(c => c.show).length} visible)</label>
+                    <label className="text-xs text-[var(--t-graphite)]">Columns ({(editState.columns || []).filter(c => c.show).length} visible)</label>
                     <ColumnManager
                         dwAPI={dwAPI}
                         resolvedControls={{}}
@@ -151,7 +151,7 @@ function DataSourceEditor({ dataSource, setDataSource }) {
             {/* Filter editor */}
             {editState.externalSource?.columns?.length > 0 && (
                 <div className="flex flex-col gap-1">
-                    <label className="text-xs text-gray-600">Filters</label>
+                    <label className="text-xs text-[var(--t-graphite)]">Filters</label>
                     <ComplexFilters state={dwAPI.state} setState={dwAPI.setState} />
                 </div>
             )}
@@ -195,7 +195,7 @@ function DataSourcesPane() {
             <div className="relative mt-2 flex-1 px-4 sm:px-6 w-full max-h-[calc(100vh_-_135px)] overflow-y-auto scrollbar-sm">
                 <div className="flex flex-col gap-2">
                     {sourceList.length === 0 && (
-                        <div className="text-sm text-gray-400 text-center py-4">
+                        <div className="text-sm text-[var(--t-pencil)] text-center py-4">
                             No data sources configured. Click "Add" to create one.
                         </div>
                     )}

@@ -129,6 +129,7 @@ const AuthLayout = ({children, theme, imgI}) => {
 const authConfig = ({
   app = "default-app",
   baseUrl = '/dms_auth',
+  adminPath,
     pattern,
   themes = {},
   ssrCollect,
@@ -183,7 +184,7 @@ const authConfig = ({
               path: "logout",
           },
           {
-              type: props => <AuthSignup {...props} disableSignup={!!pattern?.disable_signup} />,
+              type: props => <AuthSignup {...props} disableSignup={!!pattern?.disable_signup} adminPath={adminPath} />,
               path: "signup",
           },
             {
@@ -206,6 +207,7 @@ const manageAuthConfig = ({
   adminPath='/',
   themes = {},
   pattern,
+  adminThemeSource,
   authPermissions = {},
   rightMenu = <DefaultMenu />,
   ssrCollect,
@@ -266,7 +268,8 @@ const manageAuthConfig = ({
     // the library default plus this auth pattern's theme's `admin` key (its
     // logo) — see getAdminTheme. The login pages above use the auth theme
     // whole (incl. its `auth` key); these manage pages don't.
-    const theme = getAdminTheme(themes, pattern, ssrCollect);
+    // (or the saved admin row's theme, once it selects one — pattern2routes).
+    const theme = getAdminTheme(themes, adminThemeSource || pattern, ssrCollect);
     // Emails sent from these pages (Users: add user / reset password) carry the
     // auth theme's branding, like the login pages' emails — not the admin theme's.
     const authTheme = getPatternTheme(themes, pattern);

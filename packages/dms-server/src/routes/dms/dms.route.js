@@ -40,9 +40,19 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         let blocked = false;
 
         if (kind === 'pattern') {
-          // Auth patterns (login page) are always publicly accessible.
+          // Auth patterns (login page) are always publicly accessible. So is the
+          // site's admin pattern row (`{instance}|admin:pattern`): it only holds
+          // routing/branding config (base_url, subdomain, theme, authPermissions)
+          // that the no-access stub below already returns, and hiding it only
+          // stubs it in anonymous boots, which stops the client caching its site
+          // snapshot (persistSiteSnapshot). Access to the admin PANEL is decided
+          // client-side by the site-level permissions, not by this read.
+          // ⚠ Never store anything secret on an auth or admin pattern row — it
+          // is readable by everyone.
+          // NB: this does NOT extend to pages — getPatternAuthPermissions
+          // (dms.controller.js) still only exempts auth.
           const pattern_type = row.data?.pattern_type || row?.pattern_type;
-          if (pattern_type !== 'auth') {
+          if (pattern_type !== 'auth' && pattern_type !== 'admin') {
             const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
             blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions });
           }

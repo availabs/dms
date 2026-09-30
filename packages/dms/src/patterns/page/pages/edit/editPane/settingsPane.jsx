@@ -126,14 +126,14 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
             const autoVars = (pageState?.filters || []).filter(f => f.auto);
             if (!autoVars.length) return null;
             return (
-              <div className={'mt-3 border-t border-gray-200 pt-2 flex flex-col gap-1'}>
-                <div className={'text-xs font-semibold text-gray-500'}>Auto-registered variables</div>
-                <div className={'text-xs text-gray-400 pb-1'}>Owned by a section on this page (e.g. a shareable map). Read-only.</div>
+              <div className={'mt-3 border-t border-[var(--t-rule)] pt-2 flex flex-col gap-1'}>
+                <div className={'text-xs font-semibold text-[var(--t-graphite)]'}>Auto-registered variables</div>
+                <div className={'text-xs text-[var(--t-pencil)] pb-1'}>Owned by a section on this page (e.g. a shareable map). Read-only.</div>
                 {autoVars.map((f, i) => (
                   <div key={`auto_var_${f.searchKey || i}`} className={'grid grid-cols-3 gap-1 text-sm'}>
                     <div className={'font-mono truncate'}>{f.searchKey}</div>
-                    <div className={'text-gray-500 truncate'}>{Array.isArray(f.values) ? f.values.join(', ') : String(f.values ?? '')}</div>
-                    <div className={'text-gray-400 text-xs self-center'}>{f.useSearchParams ? 'URL' : ''}</div>
+                    <div className={'text-[var(--t-graphite)] truncate'}>{Array.isArray(f.values) ? f.values.join(', ') : String(f.values ?? '')}</div>
+                    <div className={'text-[var(--t-pencil)] text-xs self-center'}>{f.useSearchParams ? 'URL' : ''}</div>
                   </div>
                 ))}
               </div>
@@ -233,8 +233,8 @@ function SaveAsTemplateSection() {
   };
 
   return (
-    <div className='flex flex-col gap-2 pt-4 border-t mt-4'>
-      <div className='text-xs font-medium text-gray-500 uppercase tracking-wider'>Save as Template</div>
+    <div className='flex flex-col gap-2 pt-4 border-t border-[var(--t-rule)] mt-4'>
+      <div className='text-xs font-medium text-[var(--t-graphite)] uppercase tracking-wider'>Save as Template</div>
       <Input
         placeholder='Template name…'
         value={name}
@@ -252,8 +252,8 @@ function SaveAsTemplateSection() {
         {existing && pendingOverwrite && (
           <span className='text-xs text-amber-600'>Replace &quot;{existing.name}&quot;?</span>
         )}
-        {saved && <span className='text-xs text-green-600'>Saved!</span>}
-        {error && <span className='text-xs text-red-500'>{error}</span>}
+        {saved && <span className='text-xs text-[var(--t-go)]'>Saved!</span>}
+        {error && <span className='text-xs text-[var(--t-brick)]'>{error}</span>}
         <div className='flex gap-1 ml-auto'>
           {!existing && (
             <Button disabled={!trimmedName || saving} onClick={() => save(null)}>
@@ -503,7 +503,7 @@ const togglePageSetting = async (item,type, value='', apiUpdate) => {
 //   //     {hasChanges && (
 //   //       <Menu
 //   //         items={[{
-//   //           name: (<span className='text-red-400'>Discard Changes</span>),
+//   //           name: (<span className='text-[var(--t-brick)]'>Discard Changes</span>),
 //   //           // onClick: () =>  discardChanges(user,item, apiUpdate)}
 //   //         ]}
 //   //       >

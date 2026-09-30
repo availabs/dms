@@ -76,7 +76,7 @@ editorial-slots.md`'s "Removal" section for the full record. A fresh Report
 Page now has exactly **2 sections** (`ReportPageHeader`, `ReportRouteList`)
 and zero data/visual sections — the first graph always comes from RRL's own
 "+ Add Graph", never a pre-existing slot. The template itself is now a
-git-committed spec (`scripts/npmrds-reports/page_template_specs/
+git-committed spec (`src/themes/transportny/scripts/page_template_specs/
 report_page.json`), built via `report_page_template_build.mjs` the same way
 `report_build.mjs` builds pages from `dynamic_report_specs/*.json` — edit the
 spec and `--apply` it rather than hand-editing the template row. Re-verify
@@ -112,6 +112,13 @@ not a flat catalog list:
   navigating this modal via DOM query, don't assume the first
   `t.routeList`-shaped block you find is the route list — the category pill
   row now comes first in `view === 'root'`.
+- **Clicking confirm from automation (2026-09-29):** the modal's *title* is the text "Add Routes", but the
+  confirm *button* reads **"Add N Route(s)"** ("Add 1 Route") — so `getByText("Add Routes")` clicks the
+  heading `DIV` and silently does nothing. Target `button` filtered by `/^Add \d+ Routes?$/`. Selecting a
+  row works with a mouse click at its checkbox's box (`.check()` times out). And a Dynamic Report's URL reads
+  `?routes=&asOf=` **as soon as the page loads** (the page writes its registered filter params, empty), so an
+  empty `routes=` after a click doesn't mean the confirm handler produced it. Log the URL before and after the
+  click. A good confirm gives e.g. `?routes=2224878&asOf=2026-09-08` and closes the modal.
 
 #### 2026-08-25 redesign: prominence sort, "mine"/"curated"/"auto-generated" facets, fragment collapse
 
@@ -408,6 +415,37 @@ inside the popover, the rows are the `<button>`s under the `routes · pick any`
 label, with the name in the 3rd `<span>` and the date range in the 4th (each
 row also carries the resolved name as its own `title` as of 2026-09-16).
 
+**The same rule now covers the Add Graph modal and RRL's side labels
+(2026-09-29, ticket #2224879).** `AddGraphModal`'s route checklist and its
+Difference-mode anchor options used to print the raw `r.name`, so a Dynamic
+Report showed `%n (%y)` there even with `?routes=` supplied. They now go
+through `routeDisplayLabel`, as do RRL's "base for N routes" pills, the
+"Derived from X" note, the derive editor's "based on X's current dates" preview,
+and the "date span copied · X" clipboard strip. RRL's route search also matches
+the resolved label, not only the stored template. Each modal row also shows the
+route's date span, because with no `?routes=` every slot's name is the same
+`%n (%y)` placeholder and the dates are the only way to tell them apart. Probe
+hook: the checklist is the `nextElementSibling` of the leaf element whose text is
+exactly `Routes for this graph`. Each row is a `<button>`; the name is the
+`span[title]` and the date span is that span's next sibling. Verified on
+`edit/reports/single_route` (placeholder + distinct dates),
+`edit/reports/single_route?routes=2216791` ("Route 5 Part (2023)" …) and
+`edit/reports/one_week_study?routes=2207838&asOf=2025-07-23`.
+
+**Correction, same day:** the derive-editor preview did NOT resolve after that pass.
+`ReportRouteList.jsx`'s `derivableSiblings` rebuilds each entry as `{route_comp_id, name, startDate,
+endDate}`, which drops `catalogRouteName`, so `routeDisplayLabel` on it can only return the raw
+template. **Any slimmed-down route copy must carry a precomputed `label`.** Both `derivableSiblings`
+and the slot-group info (`routeGroupInfoByCompId`, now `{ siblings: [{label, templateName, startDate,
+endDate}], color }`) do so now. The Derive From `<select>` options read `label · M/D/YYYY → M/D/YYYY`
+(no dates on "Today (view time)"), and the closed select carries the full label as its `title`. The
+slot-group note inside an open row reads "Same route as the other N rows in this group — only the
+dates differ:", followed by one entry per sibling: the full label, then a muted "dates · template" line.
+Probe: open a row with `button[title="Edit route"]`; the note is the `div` whose text starts
+`Same route as`; its `nextElementSibling` is the list. The select is the one next to the `Derive From:`
+`<label>`. Verified on `edit/reports/test_single_route_copy?routes=2224878` (real names) and without
+`?routes=` (placeholders plus distinct dates).
+
 ### Dynamic Reports: the toggle, and the no-param entry gate
 
 Any report page can be flipped into a **Dynamic Report** — one shared page,
@@ -634,6 +672,16 @@ into the component itself. See `ReportRouteList/README.md`'s "View-mode visibili
 `planning/transportny/tasks/current/dynamic-reports-and-route-tags.md` item 3's "View-mode visibility"
 section for the full history.
 
+**The sidebar rail collapses via a marker, not by emptiness — including while the entry gate is open
+(fixed 2026-09-29).** On report pages the RRL sits in a 340px left rail (`sectionGroup.jsx`,
+`w-[340px] … has-[.dms-rail-collapsed]:hidden!`, only when the page has `sidebarHideInView`). The rail
+hides only when it contains RRL's `span.hidden.dms-rail-collapsed` marker. Before 2026-09-29 RRL rendered
+the marker *instead of* the entry-gate modal, so on a Dynamic Report with no `?routes=` the empty rail
+showed as a big white column behind the picker. Now the marker always renders in view mode. Check it with
+`getComputedStyle(document.querySelector('[class*="w-[340px]"]')).display` — expect `none` in view mode,
+both with the gate open and after routes resolve. Pages without `sidebarHideInView` keep their rail by
+design.
+
 ### RRL row mutation (pencil/reorder/trash/name/date-edit) — page-level `/edit/` is enough, no separate `SectionEdit` needed
 
 **Superseded 2026-08-19, re-confirmed live 2026-09-04** — this section used to say a row's pencil/
@@ -765,7 +813,7 @@ any DMS page, not just reports. What's specific to reports:
   `/npmrds` at the start".)
 - **`report_<old_id>`-style slugs are a deprecated/unstable scheme**
   (title-derived, recomputed on every title save) — get a real,
-  currently-valid slug from `scripts/npmrds-reports/pick_test_report.py`
+  currently-valid slug from `src/themes/transportny/scripts/pick_test_report.py`
   instead of guessing one. (The general "unresolvable slug silently falls
   back to home" fact this interacts with is in the generic doc.)
 - **`ReportRouteList`'s `findSelfBoundGraphs` (and its other section
@@ -1016,7 +1064,7 @@ exploratory.
 | Reading/writing DMS content itself (pages, sections, sources) rather than rendered output | `dms` CLI, per repo `CLAUDE.md` — not either browser tool |
 | A read-only DB check (old/new/dama Postgres, ClickHouse) | `dbq.py <old|new|dama|ch>` — never hand-roll a psql/urllib one-off |
 | "Is the stack even up" | `preflight.py` first, always — before any of the above |
-| Confirming a report/graph code change didn't break already-working pages (before/after any change to `report_build.mjs`, `convert_old_reports_lib/*`, RRL/`useGraphPublish.js`, the Report Page template, or graph rendering) | `node scripts/npmrds-reports/probe_corpus.mjs` — see `regression-testing-npmrds-reports.md` |
+| Confirming a report/graph code change didn't break already-working pages (before/after any change to `report_build.mjs`, `convert_old_reports_lib/*`, RRL/`useGraphPublish.js`, the Report Page template, or graph rendering) | `node src/themes/transportny/scripts/probe_corpus.mjs` — see `regression-testing-npmrds-reports.md` |
 | A section is blank and the browser console only shows a generic "Error fetching data" with no SQL detail | `grep -n "ClickHouseError" scratchpad/npmrds-sub/dms-server.log \| tail` — the dev server's own log has the exact failing query and ClickHouse error `type` (`AMBIGUOUS_IDENTIFIER`, `MULTIPLE_EXPRESSIONS_FOR_ALIAS`, etc.); check the log's own timestamp against wall-clock time — it can just as easily surface an old, never-recomposed section's error as a fresh one |
 
 `claude-in-chrome`'s `javascript_tool` closes the gap when you need

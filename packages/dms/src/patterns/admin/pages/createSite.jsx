@@ -5,7 +5,7 @@ import { useNavigate, useNavigation } from "react-router";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { getInstance } from '../../../utils/type-utils';
-import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
+import { provisionTemplatePatterns, createCorePatterns } from '../../../utils/tenantProvisioning';
 import { createSiteTheme } from './createSite.theme'
 import SiteTemplatePicker from './SiteTemplatePicker'
 
@@ -63,27 +63,15 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
 				if (!siteResult?.id) throw new Error('Site row was not created.');
 
-				// 2. Create the auth pattern and register it on the site right away
+				// 2. Create the auth + admin patterns and register them on the site right away
 				const siteInstance = getInstance(siteType) || siteType;
-				const authPatternType = `${siteInstance}|auth:pattern`;
-				const authData = {
-					pattern_type: 'auth',
-					name: 'Auth',
-					base_url: 'auth',
-					authPermissions: JSON.stringify({ groups: { [`${PROJECT_NAME} Admin`]: ['*'], public: [] }, users: {} }),
-				};
-				const patternRes = await falcor.call(
-					["dms", "data", "create"],
-					[app, authPatternType, authData]
-				);
-				const newPatternId = Object.keys(patternRes?.json?.dms?.data?.byId || {})
-					.find(k => k !== '$__path');
-				const authPatternRefs = newPatternId
-					? [{ ref: `${app}+${authPatternType}`, id: +newPatternId }]
-					: [];
-				if (authPatternRefs.length) {
-					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, { patterns: authPatternRefs }]);
-				}
+				const corePatternRefs = await createCorePatterns(falcor, {
+					app,
+					siteInstance,
+					siteId: siteResult.id,
+					adminGroupName: PROJECT_NAME,
+					adminPath: baseUrl || '/',
+				});
 
 				// 3. Create template patterns (page, datasets, etc.). Passing
 				// siteId makes provisioning register each pattern on the site
@@ -99,15 +87,20 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					pageTemplates,
 					adminGroupName: PROJECT_NAME,
 					siteId: siteResult.id,
-					initialPatternRefs: authPatternRefs,
+					initialPatternRefs: corePatternRefs,
 				});
-				const allPatternRefs = [...authPatternRefs, ...templatePatternRefs];
+				const allPatternRefs = [...corePatternRefs, ...templatePatternRefs];
 
-				// 4. Final consolidated write of all pattern refs (and env refs if any)
+				// 4. Final consolidated write of all pattern refs (and env refs if any).
+				// Through apiUpdate, not falcor.call: the site row itself was created
+				// through apiUpdate (the local store, with sync on), and the list page
+				// we land on reads that same copy. The refs written straight to the
+				// server above never reach it, so the list showed no auth/admin rows
+				// and its next save wiped them (found live 2026-09-29).
 				if (allPatternRefs.length) {
-					const siteUpdate = { patterns: allPatternRefs };
+					const siteUpdate = { id: +siteResult.id, patterns: allPatternRefs };
 					if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
-					await falcor.call(["dms", "data", "edit"], [app, +siteResult.id, siteUpdate]);
+					await apiUpdate({ data: siteUpdate, skipNavigate: true });
 				}
 
 				// 5. Auto-login so the user lands directly on the admin edit page

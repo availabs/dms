@@ -24,7 +24,7 @@ function AddPageButton () {
 
     return (
         <>
-          <div className='border px-4 py-2 rounded '>
+          <div className='border border-[var(--t-rule)] px-4 py-2 rounded '>
             <Button onClick={() => setPickerOpen(true)} className={'w-full'} disabled={loading}>
               {loading ? 'Adding Page' : '+ Add Page'}
             </Button>
@@ -99,7 +99,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                                 onClick: () => setShowRename(true)
                             },
                             {
-                                name: (<span className='text-red-400'>Delete</span>),
+                                name: (<span className='text-[var(--t-brick)]'>Delete</span>),
                                 onClick: () =>  {
 
                                     setShowDelete(true)
@@ -125,12 +125,12 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                             }
                         } : undefined,
                           {
-                          name: (<span className='text-red-400'>Delete</span>),
+                          name: (<span className='text-[var(--t-brick)]'>Delete</span>),
                           onClick: () => setShowDelete(true)
                         }
                       ].filter(f => f)}
                     >
-                      <div className='flex items-center text-slate-300 hover:text-slate-600 rounded-full hover:bg-blue-300'>
+                      <div className='flex items-center text-[var(--t-pencil)] hover:text-[var(--t-graphite)] rounded-full hover:bg-[var(--t-cobalt-soft)]'>
                         <Icon icon={'EllipsisVertical'} className='size-5' />
                       </div>
                     </NavigableMenu>
@@ -192,15 +192,15 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
       initialFocus={cancelButtonRef}
     >
       <div className="sm:flex sm:items-start">
-        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-          <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
+        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[var(--t-brick-soft)] sm:mx-0 sm:h-10 sm:w-10">
+          <i className="fa fa-danger h-6 w-6 text-[var(--t-brick)]" aria-hidden="true" />
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-          <h3 className="text-base font-semibold leading-6 text-gray-900">
+          <h3 className="text-base font-semibold leading-6 text-[var(--t-ink)]">
               {title || `Delete ${item.title || ''} ${item.id}`}
           </h3>
           <div className="mt-2">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-[var(--t-graphite)]">
                 {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
               from our servers forever. This action cannot be undone.`}
             </p>
@@ -279,11 +279,11 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
       initialFocus={cancelButtonRef}
     >
       <div className="sm:flex sm:items-start">
-        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-blue-100 sm:mx-0 sm:h-10 sm:w-10">
-          <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
+        <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-[var(--t-cobalt-soft)] sm:mx-0 sm:h-10 sm:w-10">
+          <i className="fa fa-danger h-6 w-6 text-[var(--t-brick)]" aria-hidden="true" />
         </div>
         <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left w-full">
-          <h3 className="text-base font-semibold leading-6 text-gray-900">
+          <h3 className="text-base font-semibold leading-6 text-[var(--t-ink)]">
               Rename {item.title}
           </h3>
           <div className="mt-2 w-full">
@@ -341,7 +341,7 @@ export function PublishButton () {
       {/*hasChanges && (
         <Menu
           items={[{
-            name: (<span className='text-red-400'>Discard Changes</span>),
+            name: (<span className='text-[var(--t-brick)]'>Discard Changes</span>),
             onClick: () =>  }
           ]}
         >

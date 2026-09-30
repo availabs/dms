@@ -34,6 +34,7 @@ export const permissionsEditorTheme = {
     // Save/Reset.
     saveGrid: 'px-4 py-2.5 flex flex-wrap items-center gap-3',
     domainSummary: 't-metaXS text-[var(--t-pencil)]',
+    lockoutWarning: 't-metaXS text-[var(--t-brick)]',
     btnReset: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3.5 py-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
     btnSave: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
 

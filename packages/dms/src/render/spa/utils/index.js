@@ -57,6 +57,36 @@ export function resolveSubdomainAuthPermissions(rawAuth, subdomain) {
     return parseIfJSON(parsed);                                          // old format
 }
 
+// Whether a raw `authPermissions` value (flat or subdomain-keyed, string or
+// object) grants anything to a user or a non-public group. An admin row that
+// doesn't falls back to the auth pattern's permissions — see pattern2routes.
+// `public` is ignored because the Access editor (permissionsEditor.jsx) seeds
+// `public: ['view-page']` into every value it saves: without this, merely
+// saving the admin row's Access tab would cut it off from the auth pattern.
+export function hasAuthGrants(rawAuth, subdomain = '') {
+    if (!rawAuth) return false;
+    const resolved = resolveSubdomainAuthPermissions(rawAuth, subdomain);
+    const nonEmpty = ([, perms]) => (Array.isArray(perms) ? perms.length > 0 : Boolean(perms));
+    return Object.entries(resolved?.users || {}).some(nonEmpty)
+        || Object.entries(resolved?.groups || {}).filter(([g]) => g !== 'public').some(nonEmpty);
+}
+
+// Whether a pattern selects a theme (same selection paths as getPatternTheme)
+// or carries admin-only theme overrides.
+export function hasThemeSelection(pattern) {
+    const theme = parseIfJSON(pattern?.theme, pattern?.theme);
+    return Boolean(theme?.selectedTheme || theme?.settings?.theme?.theme || theme?.admin);
+}
+
+// The site's saved admin pattern row. A site should have at most one; if two
+// admins' first-load backfills raced and both wrote one, every client settles
+// on the lowest id so they all agree on which row is live.
+export function pickAdminPattern(patterns = []) {
+    const admins = (patterns || []).filter(p => p?.pattern_type === 'admin');
+    if (admins.length < 2) return admins[0];
+    return [...admins].sort((a, b) => (+a.id || Infinity) - (+b.id || Infinity))[0];
+}
+
 /**
  * A pattern's mount list: the primary {subdomain, base_url} pair plus any
  * additional `locations` rows, so one pattern can be served at more than one
@@ -240,6 +270,17 @@ export function pattern2routes (siteData, props) {
     const authBaseUrl = authPath
       || (authPattern?.base_url ? `/${authPattern.base_url.replace(/^\/|\/$/g, '')}` : '/auth');
 
+    // The site's saved admin pattern row (`{instance}|admin:pattern`), if it
+    // has one — see planning/tasks/current/admin-pattern-data-row.md. It only
+    // overrides what it actually sets; every empty field falls back to what
+    // the in-code admin pattern below has always used, so a site with no row
+    // (or a freshly backfilled, empty one) routes exactly as before.
+    const sitePatterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []);
+    const savedAdminPattern = pickAdminPattern(sitePatterns);
+    if (savedAdminPattern?.base_url) {
+        adminPath = `/${`${savedAdminPattern.base_url}`.replace(/^\/+|\/+$/g, '')}`;
+    }
+
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
       type: siteType,
@@ -249,16 +290,23 @@ export function pattern2routes (siteData, props) {
       //format: pattern?.config,
       pattern: {},
       pattern_type: 'admin',
-      subdomain: "*",
-      authPermissions: authPattern?.authPermissions || "{}",
+      subdomain: savedAdminPattern?.subdomain || "*",
+      authPermissions: hasAuthGrants(savedAdminPattern?.authPermissions, SUBDOMAIN || '')
+        ? savedAdminPattern.authPermissions
+        : (authPattern?.authPermissions || "{}"),
       theme: themes['default'],
-      themes
+      themes,
+      // Only an explicit html_title — not `name` — so admin pages keep no tab
+      // title of their own unless an author sets one (as before the row existed).
+      ...(savedAdminPattern?.html_title ? { html_title: savedAdminPattern.html_title } : {}),
     }
+    // Admin chrome (logo, admin.* overrides) — the admin row's theme once it
+    // selects one, the auth pattern's until then (getAdminTheme).
+    const adminThemeSource = hasThemeSelection(savedAdminPattern) ? savedAdminPattern : authPattern;
   const patterns = [
     AdminPattern,
-    ...(siteData
-      .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
-      || [])
+    // saved admin rows are folded into AdminPattern above, never routed themselves
+    ...sitePatterns.filter(p => p?.pattern_type !== 'admin')
   ];
 
     // Build datasetPatterns once (for backwards compatibility with other patterns)
@@ -441,6 +489,8 @@ export function pattern2routes (siteData, props) {
                     // the site's one auth pattern — admin pages take their logo
                     // from its theme's `admin` key (see getAdminTheme)
                     authPattern,
+                    // …unless the saved admin row selects a theme of its own
+                    adminThemeSource,
                     datasources: patternDatasources,
                     dmsEnvs,
                     dmsEnvById,

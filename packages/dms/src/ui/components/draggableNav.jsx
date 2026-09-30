@@ -7,13 +7,13 @@ import Button from "./Button"
 
 export const nestableTheme = {
     container: `max-w-full max-h-full  pb-6 `,
-    navListContainer: 'h-full border-l  pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] min-h-[calc(100vh_-_155px)]',
-    navItemContainer: 'text-slate-600 border-l px-2 border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
-    navItemContainerActive: 'bg-white text-blue-500  border-l px-2 rounded border-y border-slate-300 flex items-center gap-1 cursor-pointer group group-hover:bg-blue-100',
+    navListContainer: 'h-full border-l border-[var(--t-rule)] pt-3 pl-2 overflow-auto max-h-[calc(100vh_-_155px)] min-h-[calc(100vh_-_155px)]',
+    navItemContainer: 'text-[var(--t-graphite)] border-l px-2 border-y rounded border-transparent flex items-center gap-1 cursor-pointer group group-hover:bg-[var(--t-cobalt-soft)]',
+    navItemContainerActive: 'bg-[var(--t-panel)] text-[var(--t-cobalt)]  border-l px-2 rounded border-y border-[var(--t-rule-strong)] flex items-center gap-1 cursor-pointer group group-hover:bg-[var(--t-cobalt-soft)]',
     navLink: `flex-1 px-2 py-2 font-light text-ellipsis`,
     subList: 'pl-[30px]',
-    collapseIcon: 'text-gray-400 hover:text-gray-500',
-    dragBefore: 'before:absolute before:top-0 before:left-0 before:right-0 before:bottom-0 before:bg-blue-300 before:border-dashed before:rounded before:border before:border-blue-600',
+    collapseIcon: 'text-[var(--t-pencil)] hover:text-[var(--t-graphite)]',
+    dragBefore: 'before:absolute before:top-0 before:left-0 before:right-0 before:bottom-0 before:bg-[var(--t-cobalt-soft)] before:border-dashed before:rounded before:border before:border-[var(--t-cobalt)]',
 }
 
 const getParentSlug = (item, dataItems) => {

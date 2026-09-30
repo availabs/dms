@@ -101,7 +101,7 @@ export function EditPane () {
 function LoadingDisplay () {
   const { busy } =  React.useContext(PageContext) || {}
   return (
-    <div className={`fixed bottom-4 right-4 p-6 border rounded bg-white shadow ${busy?.loading > 0 || busy?.updating > 0 ? 'block' : 'hidden'} `}>
+    <div className={`fixed bottom-4 right-4 p-6 border border-[var(--t-rule)] rounded bg-[var(--t-panel)] text-[var(--t-ink)] shadow ${busy?.loading > 0 || busy?.updating > 0 ? 'block' : 'hidden'} `}>
         <div>{busy?.updating > 0 && `Updating... ${busy?.updating}`}</div>
         <div>{busy?.loading > 0 && `Loading... ${busy?.loading}`}</div>
     </div>
