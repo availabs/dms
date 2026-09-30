@@ -4,9 +4,9 @@ import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
 import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
-import { Link, useLocation, useNavigate, useNavigation } from 'react-router'
+import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
-import { provisionTemplatePatterns } from '../../../utils/tenantProvisioning';
+import { provisionTemplatePatterns, createCorePatterns, backfillAdminPattern, readSitePatternRefs, mergeSitePatternRefs } from '../../../utils/tenantProvisioning';
 import { isUserAuthed, parseIfJSON, hasPatternManageAccess } from '../utils';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
@@ -35,7 +35,7 @@ function SiteEdit ({
    format,
 }) {
 
-	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant } = React.useContext(AdminContext) || {}
+	const { baseUrl, authPath, app, type: siteType, user, authPermissions, isMultiTenant } = React.useContext(AdminContext) || {}
 	const navigate = useNavigate()
 	const { state: navState } = useNavigation()
 
@@ -75,7 +75,51 @@ function SiteEdit ({
 		}
 	}, [resolvedId, user?.authed, user?.isAuthenticating, JSON.stringify(user?.groups), dataItems, isLoading])
 
-	const updateData = (data, attrKey) => {
+	// First-load backfill of the saved admin pattern row, for sites created
+	// before every site got one (see utils/tenantProvisioning.js
+	// backfillAdminPattern and planning/tasks/current/admin-pattern-data-row.md).
+	// Only here — the admin list page — and only once the site gate above has
+	// passed, so it's always a user with list access doing the write, never an
+	// anonymous page view. The loaded `item.patterns` is only a cheap first
+	// check; backfillAdminPattern re-reads the site from the server itself.
+	const { falcor } = useFalcor()
+	const { revalidate } = useRevalidator()
+	const backfillStartedRef = React.useRef(false)
+	const siteHasAdminPattern = (item?.patterns || []).some(p => p?.pattern_type === 'admin')
+	React.useEffect(() => {
+		if (backfillStartedRef.current) return
+		if (isLoading || !resolvedId || !user?.authed || user?.isAuthenticating || !hasAccess) return
+		if (siteHasAdminPattern) return
+		backfillStartedRef.current = true
+		backfillAdminPattern(falcor, {
+			app,
+			siteInstance: getInstance(siteType) || siteType,
+			siteId: resolvedId,
+			adminPath: baseUrl || '/',
+			// On a tenant subdomain this is the tenant's own site (and app), so the
+			// tenant gets its own admin row, naming its subdomain like its auth row.
+			// Single-tenant sites and the platform root keep '*'.
+			subdomain: isMultiTenant ? getSubdomainFromHost() : '',
+		})
+			.then(ref => { if (ref) revalidate() })
+			.catch(err => console.error('Admin pattern backfill failed:', err))
+	}, [isLoading, resolvedId, user?.authed, user?.isAuthenticating, hasAccess, siteHasAdminPattern])
+
+	const updateData = async (data, attrKey) => {
+		// `item.patterns` can be stale — with sync on it's the local store's copy,
+		// which never sees refs written straight to the server (createSite's
+		// auth/admin/template refs, the admin backfill). Writing it as-is dropped
+		// them. Merge against the server's list first: keep what the server has
+		// that this page never loaded, but not what the user just removed.
+		// Same for `tenants`: tenant signup appends to it straight on the server.
+		if (['patterns', 'tenants'].includes(attrKey) && Array.isArray(data)) {
+			try {
+				const server = await readSitePatternRefs(falcor, app, resolvedId, attrKey)
+				data = mergeSitePatternRefs({ edited: data, baseline: item?.[attrKey] || [], server })
+			} catch (err) {
+				console.error('Could not re-read site patterns before saving; saving the list as shown:', err)
+			}
+		}
 		apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 
@@ -134,12 +178,13 @@ const TYPE_PILL_KEY = {
 	page: 'typePillPage',
 	datasets: 'typePillDatasets',
 	auth: 'typePillAuth',
+	admin: 'typePillAdmin',
 	mapeditor: 'typePillMapeditor',
 	forms: 'typePillForms',
 };
 // Chip/sort order for the toolbar's type filter row — real types first (in
 // the same order as AddPatternPicker offers them), '?' last.
-const TYPE_ORDER = ['page', 'datasets', 'auth', 'forms', 'mapeditor'];
+const TYPE_ORDER = ['page', 'datasets', 'auth', 'admin', 'forms', 'mapeditor'];
 
 function PatternList({
 	 Component,
@@ -262,9 +307,10 @@ function PatternList({
             </div>
           );
         }
-        // A site needs exactly one auth pattern — duplicating or deleting it
-        // through this list is never a valid action, so only Edit shows.
-        const isAuthType = d.row.pattern_type === 'auth';
+        // A site needs exactly one auth pattern and one admin pattern —
+        // duplicating or deleting either through this list is never a valid
+        // action, so only Edit shows.
+        const isAuthType = ['auth', 'admin'].includes(d.row.pattern_type);
         return (
           <div className={t.cellActions}>
             <Link to={d?.row?.edit_url || ''} className={t.editLink} title='Edit pattern' aria-label='Edit pattern'>
@@ -777,23 +823,15 @@ function TenantList({
 			const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
 			if (!tenantSiteId) throw new Error('Failed to create tenant site');
 
-			// 5. Create tenant's auth pattern
-			const authPatternType = `${siteInstance}|auth:pattern`;
-			const authPatternRes = await falcor.call(
-				['dms', 'data', 'create'],
-				[slug, authPatternType, {
-					pattern_type: 'auth',
-					name: 'Auth',
-					base_url: 'auth',
-					subdomain: slug,
-					authPermissions: JSON.stringify({
-						groups: { [`${slug} Admin`]: ['*'], public: [] },
-						users: {}
-					}),
-				}]
-			);
-			const authPatternId = Object.keys(authPatternRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
-			if (!authPatternId) throw new Error('Failed to create auth pattern');
+			// 5. Create the tenant's auth + admin patterns and register them on its site
+			const corePatternRefs = await createCorePatterns(falcor, {
+				app: slug,
+				siteInstance,
+				siteId: tenantSiteId,
+				adminGroupName: slug,
+				subdomain: slug,
+				adminPath: baseUrl || '/',
+			});
 
 			// 6. Create template patterns then update tenant site with all refs
 			const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
@@ -805,7 +843,7 @@ function TenantList({
 				adminGroupName: slug,
 				subdomain: slug,
 			});
-			const allPatternRefs = [{ ref: `${slug}+${authPatternType}`, id: +authPatternId }, ...templateRefs];
+			const allPatternRefs = [...corePatternRefs, ...templateRefs];
 			const siteUpdate = { patterns: allPatternRefs };
 			if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
 			await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);
@@ -827,7 +865,7 @@ function TenantList({
 	);
 
 	return (
-		<div className={t.wrapper}>
+		<div className={t.tenantWrapper}>
 			<div className={t.identityWrapper}>
 				<div className={t.identityTitle}>Tenants</div>
 				<span className='flex-1' />

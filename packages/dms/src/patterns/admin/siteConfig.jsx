@@ -82,6 +82,7 @@ const adminConfig = ({
   dmsEnvById = {},
   pattern: patternData,
   authPattern,
+  adminThemeSource,
   authPermissions = {},
   isMultiTenant = false,
   pgEnv = '',
@@ -109,7 +110,7 @@ const adminConfig = ({
   // Always the library default (tessera_v6), same for every project; only
   // the auth pattern's theme's `admin` key (its logo) is layered on — see
   // getAdminTheme.
-  let theme = getAdminTheme(themes, authPattern, ssrCollect);
+  let theme = getAdminTheme(themes, adminThemeSource || authPattern, ssrCollect);
 
   // ThemeToggle moved into AdminBreadcrumb next to "view site" (2026-09-22) —
   // the sidenav's own bottomMenu default (Layout.theme.jsx) pairs it with
@@ -245,6 +246,7 @@ const patternConfig = ({
   pgEnv = '',
   datasources = [],
   authPattern,
+  adminThemeSource,
   ssrCollect,
 }) => {
   const format = cloneDeep(pattern);
@@ -256,7 +258,7 @@ const patternConfig = ({
   //console.log('admin PatternConfig', themes)
   // Same base as adminConfig (default theme + the auth theme's `admin.logo`),
   // so the Pattern Editor's logo matches Sites/Themes.
-  let theme = mergeTheme(getAdminTheme(themes, authPattern, ssrCollect), {
+  let theme = mergeTheme(getAdminTheme(themes, adminThemeSource || authPattern, ssrCollect), {
     layout: {
       options: {
         sideNav: {
