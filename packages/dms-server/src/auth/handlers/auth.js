@@ -203,24 +203,19 @@ async function signupRequestVerified(db, { token, password }) {
   if (+(rows[0]?.count || 0) !== 1) throw new Error('Could not find request');
 
   // Transaction: accept request, create user, assign to group
-  await db.beginTransaction();
-  try {
-    await db.query(
+  const passwordHash = hashPassword(password);
+  await db.withTransaction(async (tx) => {
+    await tx.query(
       "UPDATE signup_requests SET state = 'accepted', resolved_by = 'signup-verified' WHERE user_email = $1 AND project_name = $2",
       [email, project]
     );
-    const passwordHash = hashPassword(password);
-    await q.createUser(db, email, passwordHash);
-    await q.assignUserToGroup(db, email, group, 'signup-verified');
-    await db.commitTransaction();
+    await q.createUser(tx, email, passwordHash);
+    await q.assignUserToGroup(tx, email, group, 'signup-verified');
+  });
 
-    const { rows: users } = await q.getUserByEmail(db, email);
-    const user = await buildUserObject(db, email, passwordHash, project, users[0]?.id);
-    return { message: 'Your request has been completed.', user };
-  } catch (e) {
-    await db.rollbackTransaction();
-    throw e;
-  }
+  const { rows: users } = await q.getUserByEmail(db, email);
+  const user = await buildUserObject(db, email, passwordHash, project, users[0]?.id);
+  return { message: 'Your request has been completed.', user };
 }
 
 /** POST /signup/accept — admin accepts a signup request */
@@ -247,29 +242,24 @@ async function signupAccept(db, { token, group_name, user_email, project_name })
   );
   if (+(reqRows[0]?.count || 0) !== 1) throw new Error('Could not find request.');
 
-  await db.beginTransaction();
-  try {
-    await q.updateSignupRequest(db, user_email, project_name, 'accepted', userData.email);
+  await db.withTransaction(async (tx) => {
+    await q.updateSignupRequest(tx, user_email, project_name, 'accepted', userData.email);
 
     // Check if user already exists
-    const { rows: existingUsers } = await q.getUserByEmail(db, user_email);
+    const { rows: existingUsers } = await q.getUserByEmail(tx, user_email);
     if (existingUsers.length) {
-      await q.assignUserToGroup(db, user_email, group_name, userData.email);
-      // Email notification would go here (Phase 5)
+      await q.assignUserToGroup(tx, user_email, group_name, userData.email);
+      // Email notification would go here (Phase 5) — after the transaction, not inside it
     } else {
       // Create new user with generated password
       const newPassword = passwordGen();
       const newPasswordHash = hashPassword(newPassword);
-      await q.createUser(db, user_email, newPasswordHash);
-      await q.assignUserToGroup(db, user_email, group_name, userData.email);
-      // Email with password would go here (Phase 5)
+      await q.createUser(tx, user_email, newPasswordHash);
+      await q.assignUserToGroup(tx, user_email, group_name, userData.email);
+      // Email with password would go here (Phase 5) — after the transaction, not inside it
     }
-    await db.commitTransaction();
-    return { message: `Signup request for ${user_email} has been accepted.` };
-  } catch (e) {
-    await db.rollbackTransaction();
-    throw e;
-  }
+  });
+  return { message: `Signup request for ${user_email} has been accepted.` };
 }
 
 /** POST /signup/reject — admin rejects a signup request */
@@ -348,21 +338,16 @@ async function acceptInvite(db, { token, password }) {
   );
   if (+(rows[0]?.count || 0) !== 1) throw new Error('Could not find awaiting request.');
 
-  await db.beginTransaction();
-  try {
-    const passwordHash = hashPassword(password);
-    await q.createUser(db, email, passwordHash);
-    await q.assignUserToGroup(db, email, group, invited_by);
-    await q.updateSignupRequest(db, email, project, 'accepted', invited_by);
-    await db.commitTransaction();
+  const passwordHash = hashPassword(password);
+  await db.withTransaction(async (tx) => {
+    await q.createUser(tx, email, passwordHash);
+    await q.assignUserToGroup(tx, email, group, invited_by);
+    await q.updateSignupRequest(tx, email, project, 'accepted', invited_by);
+  });
 
-    const { rows: users } = await q.getUserByEmail(db, email);
-    const user = await buildUserObject(db, email, passwordHash, project, users[0]?.id);
-    return { message: 'Your invite has been completed.', user };
-  } catch (e) {
-    await db.rollbackTransaction();
-    throw e;
-  }
+  const { rows: users } = await q.getUserByEmail(db, email);
+  const user = await buildUserObject(db, email, passwordHash, project, users[0]?.id);
+  return { message: 'Your invite has been completed.', user };
 }
 
 /** POST /password/set — set initial password (from token link) */
@@ -454,21 +439,16 @@ async function createUser(db, { token, email, password, project, group }) {
   email = email.toLowerCase();
   const passwordHash = hashPassword(password);
 
-  await db.beginTransaction();
-  try {
-    await q.createUser(db, email, passwordHash);
-    await q.assignUserToGroup(db, email, group, userData.email);
+  await db.withTransaction(async (tx) => {
+    await q.createUser(tx, email, passwordHash);
+    await q.assignUserToGroup(tx, email, group, userData.email);
     // Update any existing signup request to accepted
-    await db.query(
+    await tx.query(
       "UPDATE signup_requests SET state = 'accepted', resolved_by = $1 WHERE user_email = $2 AND project_name = $3",
       [userData.email, email, project]
     );
-    await db.commitTransaction();
-    return { message: 'New user successfully created.' };
-  } catch (e) {
-    await db.rollbackTransaction();
-    throw e;
-  }
+  });
+  return { message: 'New user successfully created.' };
 }
 
 /** POST /init/setup — initial project setup (create project + admin + public groups + user) */
@@ -479,11 +459,10 @@ async function initSetup(db, { email, password, project }) {
   const groupAdmin = `${project} Admin`;
   const groupPublic = `${project} Public`;
 
-  await db.beginTransaction();
-  try {
+  const userEmail = await db.withTransaction(async (tx) => {
     // A project with groups already linked is fully initialized — refuse, so
     // this endpoint can't be used to grab admin on an existing project.
-    const { rows: linkRows } = await db.query(
+    const { rows: linkRows } = await tx.query(
       'SELECT count(1) AS count FROM groups_in_projects WHERE project_name = $1',
       [project]
     );
@@ -492,7 +471,7 @@ async function initSetup(db, { email, password, project }) {
     }
 
     // Check if user already exists
-    const { rows } = await q.getUserByEmail(db, email);
+    const { rows } = await q.getUserByEmail(tx, email);
     let userEmail;
     if (rows[0] && comparePassword(password, rows[0].password)) {
       userEmail = rows[0].email;
@@ -500,7 +479,7 @@ async function initSetup(db, { email, password, project }) {
       throw new Error('A user with this email already exists. Please use the correct password.');
     } else {
       const passwordHash = hashPassword(password);
-      await q.createUser(db, email, passwordHash);
+      await q.createUser(tx, email, passwordHash);
       userEmail = email;
     }
 
@@ -508,19 +487,16 @@ async function initSetup(db, { email, password, project }) {
     // project row are global and can survive a deleted project or an earlier
     // partial setup — this run completes whatever is missing instead of
     // aborting the whole transaction on the first duplicate key.
-    await q.ensureGroup(db, groupAdmin, null, 'init_setup_script');
-    await q.ensureGroup(db, groupPublic, null, 'init_setup_script');
-    await q.ensureProject(db, project, 'init_setup_script');
-    await q.ensureGroupInProject(db, groupAdmin, project, 10, 'init_setup_script');
-    await q.ensureGroupInProject(db, groupPublic, project, 0, 'init_setup_script');
-    await q.ensureUserInGroup(db, userEmail, groupAdmin, 'init_setup_script');
+    await q.ensureGroup(tx, groupAdmin, null, 'init_setup_script');
+    await q.ensureGroup(tx, groupPublic, null, 'init_setup_script');
+    await q.ensureProject(tx, project, 'init_setup_script');
+    await q.ensureGroupInProject(tx, groupAdmin, project, 10, 'init_setup_script');
+    await q.ensureGroupInProject(tx, groupPublic, project, 0, 'init_setup_script');
+    await q.ensureUserInGroup(tx, userEmail, groupAdmin, 'init_setup_script');
 
-    await db.commitTransaction();
-    return { user: { email: userEmail } };
-  } catch (e) {
-    await db.rollbackTransaction();
-    throw e;
-  }
+    return userEmail;
+  });
+  return { user: { email: userEmail } };
 }
 
 /** POST /requests — get signup requests visible to authenticated user */
@@ -565,74 +541,71 @@ async function signupAssignGroup(db, { email, password, project, group, url, ema
     generatedPassword = passwordGen();
   }
 
-  await db.beginTransaction();
-  try {
+  const userEmail = await db.withTransaction(async (tx) => {
     // Check if user exists
-    const { rows } = await q.getUserByEmail(db, email);
+    const { rows } = await q.getUserByEmail(tx, email);
     let userEmail;
     if (rows[0] && password && comparePassword(password, rows[0].password)) {
       userEmail = rows[0].email;
     } else {
       const passwordHash = hashPassword(password || generatedPassword);
-      await q.createUser(db, email, passwordHash);
+      await q.createUser(tx, email, passwordHash);
       userEmail = email;
     }
 
     // Check if group exists, create if not
-    const { rows: groupRows } = await db.query('SELECT count(1) AS count FROM groups WHERE name = $1', [groupName]);
+    const { rows: groupRows } = await tx.query('SELECT count(1) AS count FROM groups WHERE name = $1', [groupName]);
     if (+(groupRows[0]?.count || 0) === 0) {
-      await q.createGroup(db, groupName, null, 'signup_accept_script');
-      await q.assignGroupToProject(db, groupName, project, 0, 'signup_accept_script');
+      await q.createGroup(tx, groupName, null, 'signup_accept_script');
+      await q.assignGroupToProject(tx, groupName, project, 0, 'signup_accept_script');
     } else if (groupName === `${project} Public`) {
       // The default public group may exist globally (e.g. left over from a
       // deleted project) without being linked to this project. Without the
       // link, signup reports success but login fails with "no access".
-      await q.ensureGroupInProject(db, groupName, project, 0, 'signup_accept_script');
+      await q.ensureGroupInProject(tx, groupName, project, 0, 'signup_accept_script');
     }
 
-    await q.assignUserToGroup(db, userEmail, groupName, 'signup_accept_script');
-    await db.commitTransaction();
+    await q.assignUserToGroup(tx, userEmail, groupName, 'signup_accept_script');
+    return userEmail;
+  });
 
-    const loginUrl = url
-      ? (url.startsWith('http') ? url : `${emailTheme.siteOrigin || ''}${url}`)
-      : null;
+  // Committed — the email sends run outside the transaction (they are network calls).
+  const loginUrl = url
+    ? (url.startsWith('http') ? url : `${emailTheme.siteOrigin || ''}${url}`)
+    : null;
 
-    if (generatedPassword) {
-      console.log('generated pwd')
-      await sendEmail(
-        userEmail,
-        'Your account has been created',
-        `Your account has been created. Temporary password: ${generatedPassword}. Please sign in and change it.`,
-        buildEmailHtml({
-          title: 'Welcome',
-          body: `Your account has been created.<br><br>Your temporary password is:<br><strong style="font-size:16px">${generatedPassword}</strong><br><br>Please sign in and change your password.`,
-          ctaText: loginUrl ? 'Sign In' : undefined,
-          ctaUrl:  loginUrl || undefined,
-          footer: 'You received this because an account was created for your email address.',
-          theme: emailTheme,
-        })
-      );
-    } else {
-      console.log('pwd already set')
-      await sendEmail(
-        userEmail,
-        'Your account has been created',
-        'Your account has been created. You can now sign in.',
-        buildEmailHtml({
-          title: 'Welcome',
-          body: 'Your account has been created. You can now sign in.',
-          ctaText: loginUrl ? 'Sign In' : undefined,
-          ctaUrl:  loginUrl || undefined,
-          theme: emailTheme,
-        })
-      );
-    }
-
-    return { message: 'success!' };
-  } catch (e) {
-    await db.rollbackTransaction();
-    throw e;
+  if (generatedPassword) {
+    console.log('generated pwd')
+    await sendEmail(
+      userEmail,
+      'Your account has been created',
+      `Your account has been created. Temporary password: ${generatedPassword}. Please sign in and change it.`,
+      buildEmailHtml({
+        title: 'Welcome',
+        body: `Your account has been created.<br><br>Your temporary password is:<br><strong style="font-size:16px">${generatedPassword}</strong><br><br>Please sign in and change your password.`,
+        ctaText: loginUrl ? 'Sign In' : undefined,
+        ctaUrl:  loginUrl || undefined,
+        footer: 'You received this because an account was created for your email address.',
+        theme: emailTheme,
+      })
+    );
+  } else {
+    console.log('pwd already set')
+    await sendEmail(
+      userEmail,
+      'Your account has been created',
+      'Your account has been created. You can now sign in.',
+      buildEmailHtml({
+        title: 'Welcome',
+        body: 'Your account has been created. You can now sign in.',
+        ctaText: loginUrl ? 'Sign In' : undefined,
+        ctaUrl:  loginUrl || undefined,
+        theme: emailTheme,
+      })
+    );
   }
+
+  return { message: 'success!' };
 }
 
 module.exports = {

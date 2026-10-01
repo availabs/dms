@@ -383,7 +383,8 @@ async function run() {
   ok('users has projects', Array.isArray(users[0]?.projects));
 
   // Users by project
-  const usersByProj = await post('/users/byProject', { token: adminToken, project: 'testproj' });
+  // The handler returns { users: [...] } (the client reads uRes.users — authUsers.jsx).
+  const usersByProj = (await post('/users/byProject', { token: adminToken, project: 'testproj' })).users;
   ok('users by project returns array', Array.isArray(usersByProj));
   ok('users by project contains admin', usersByProj.some(u => u.email === 'admin@test.com'));
 

@@ -1,6 +1,6 @@
 # Atomic add/remove for the site row's ref lists (server side)
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** planned · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** planned · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library (`src/dms` submodule) · **Topic:** dms-server
 
@@ -52,6 +52,7 @@ server-side operation closes:
   - **Postgres:** a single `UPDATE … SET data = jsonb_set(data, '{attr}', …)` built from the
     current value in the same statement, or `SELECT … FOR UPDATE` in a transaction.
   - **SQLite:** a transaction (writes are serialized) around read-modify-write.
+  - **Note (2026-09-30):** until [`dms-server-real-transactions.md`](./dms-server-real-transactions.md) lands, neither adapter's `beginTransaction` is a real transaction (Postgres: pooled connections; SQLite: one shared connection). Prefer the single-statement form, or build on `withTransaction` once it exists.
 - Goes through the same change-log / WebSocket broadcast path as `dms.data.edit`, so sync clients'
   local stores and page-structure rooms pick up the change.
 - Auth: require an authenticated user (like `dms.data.delete`). Once

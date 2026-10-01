@@ -1,6 +1,6 @@
 # Datasets — authoritative views: record which view of a source should be bound, and why
 
-**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** deploy — dms-server FIRST, then the frontend (a new client asking an old server for `authority` gets a caught error and reads undecided, so the order only matters for the logs); transportNY vendored copy syncs after · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Project:** DMS library · **Topic:** patterns/datasets + api (dms-server) · **Started:** 2026-09-30
 
@@ -282,15 +282,79 @@ The stale-binding detector reads `authority` for every bound source. A binding i
 
 - [x] **Phase 1 — Design.** Current state, design and decisions D1–D10, answered by the owner
       2026-09-30 (D1 revised to "inside `metadata`").
-- [ ] **Phase 2 — Server.** The two calls + validation + auth, the `metadata.authority` guard on the
-      generic `updateSource` path (DaMa + DMS, Postgres + SQLite), the derived `authority` attribute,
-      tests.
-- [ ] **Phase 3 — Datasets pattern UI.** Badges, undecided chip, Mark/Clear, version-page status,
-      default view (D9).
-- [ ] **Phase 4 — Pickers.** Mark authoritative views in the dataWrapper and map view pickers; then
-      feed the existing stale chips (`_viewChip`, `sectionsChip.staleCount`).
-- [ ] **Phase 5 — Script contract + docs.** A documented read shape for the stale-binding detector,
-      plus a skill/doc page.
+- [x] **Phase 2 — Server — DONE 2026-09-30.**
+  - `src/routes/uda/authority.js` (new): the shape and the pure rules — `readAuthority`, `applySet`,
+    `applyClear`, `normalizeKey`, `parseJsonish`.
+  - `uda.controller.js`:
+    - `getSourceById` gains the derived `authority` attribute, read in JS because a DMS
+      `data.metadata` may be an object or JSON text;
+    - `readSourceMetadata` / `casWriteSourceMetadata` / `mutateSourceMetadata`, a compare-and-swap
+      on the stored metadata text with 5 retries;
+    - `setAuthoritativeView` / `clearAuthoritativeView`;
+    - the `updateSource` guard: a generic `metadata` write keeps the stored `authority` and ignores
+      an incoming one.
+  - `uda.route.js`: `uda.sources.setAuthoritativeView` / `clearAuthoritativeView` calls, gated on
+    login + `update-source`.
+  - **Design note — CAS, not transactions:** the pg adapter runs every `db.query` on a pool, so
+    `BEGIN`/`COMMIT` through it can land on different connections. The existing `BEGIN` uses in
+    `uda.tasks.controller.js` have the same flaw (not fixed here).
+  - **Design note — DMS metadata write:** uses `jsonb_set` / `json_set`, not `jsonMerge`. SQLite's
+    `json_patch` merges nested objects, so clearing `authority` would not remove it.
+  - **Fix found on the way — `sourceAuth.js`:** on SQLite, `auth_permissions` arrives as JSON text,
+    so `getSourceAuthPermissions` returned a string, `.groups` was undefined, and **every guarded
+    source write on a SQLite DaMa env was refused whatever the grant**. It now parses the string.
+    Postgres (jsonb → object) was unaffected.
+  - **Tests** (`tests/test-uda.js`, +17): pure rules; DaMa (SQLite) set / replace / refuse (foreign
+    view, table-less view, no note, keyed-on-single, single-on-keyed, no grant, unauthenticated) /
+    guard / clear / keyed; DMS internal set / read / refuse / guard / clear, with metadata stored as
+    JSON text.
+  - **Results:** UDA 132/132. `npm test` all green. `test-source-auth` 16/16.
+  - **Not run:** Postgres (`npm run test:pg`, needs Docker).
+- [x] **Phase 3 — Datasets pattern UI — DONE 2026-09-30.**
+  - `components/AuthorityControl.jsx` (new): `AuthorityBadge` plus the per-view status and
+    Mark/Clear form. The form handles a required note, an "one per key" toggle, key rows with
+    suggested names, and fixed key names on an already-keyed source. It writes through the `api/`
+    helpers.
+  - `default/overview.jsx`: the Versions card gets the undecided chip, an authoritative badge
+    beside `latest` (was `current`), the primary download button on the authoritative view when
+    one is set, and the control on every row for `update-source` users.
+  - `default/version.jsx`: badge, the control, and the D9 default view.
+  - `SourcePage.jsx`: the D9 default view, a ★ marker in the version selector, and an `authority`
+    fetch for route-preloaded DMS items.
+  - `default/utils.js`: `getSourceAuthority`, read in its own request and resolving null on
+    failure. **Design note:** `authority` is deliberately NOT in `External/InternalSourceAttributes`.
+    A server that predates it treats it as a DaMa column, the SQL fails, and Falcor caches the
+    error for the whole request.
+  - Theme keys `verAuth*` / `verUndecidedChip` in the default `sourceOverview.theme.js` and in
+    `src/themes/transportny/themev2.js`.
+  - **Live check** (the running `npmrdsv5` dev server against the production API, signed in as the
+    dev account, source 104, read-only; nothing clicked but Cancel):
+    - the undecided chip, `latest` and **Mark authoritative…** render, 0 console errors;
+    - the form opens in the transportny2 styling, and Save stays disabled until a note is entered.
+  - **Bug the live check caught:** `readAuthority` took a source's own `views` array (its versions
+    list) for an authority record, so every version read as authoritative. It now recognises a
+    source by its other fields.
+- [x] **Phase 4 — Pickers — DONE 2026-09-30** (except the stale chips, below).
+  - `dataWrapper/useDataSource.js`:
+    - `getSourceAuthorities` fetches per env, separately, and swallows failures;
+    - authority is kept in an `authorityBySource` map, **never on the source objects**, which
+      `getSources` merges into the section's persisted `externalSource`;
+    - view options (and join views) sort authoritative first with a ★ label;
+    - the single authoritative view is preselected only after the AUTHOR picks a source
+      (`pendingAuthorityPreselect` ref), so existing bindings are never touched.
+  - `mapeditor/.../SourceSelector/SourceList.jsx`: the same sort, a ★ authoritative badge, and the
+    same preselect-on-open rule.
+- [ ] **Phase 4b — stale chips (follow-up, not started).** Feed `pagesEditor.utils.js` `_viewChip`
+      (`stale`/`fresh`) and `ui/columnTypes/sectionsChip.jsx` `staleCount` from authority. This needs
+      the admin pages editor to load authority for every bound (srcEnv, source); `enrichSection` is
+      synchronous and has none. Not needed for the MitigateNY rebinding, so it was left out of this
+      pass.
+- [x] **Phase 5 — Script contract + docs — DONE 2026-09-30.**
+  - Skill [`src/dms/skills/marking-authoritative-views.md`](../../../skills/marking-authoritative-views.md)
+    (indexed under "Authoring at the pattern level"): the record, the rules, the author flow, the
+    two calls, the direct-SQL read for scripts, and the three gotchas.
+  - Script contract: DaMa `metadata->'authority'`; DMS `data->'metadata'`, parsed as object or
+    JSON text.
 
 ## Files requiring changes
 
@@ -322,21 +386,21 @@ The stale-binding detector reads `authority` for every bound source. A binding i
 ## Testing checklist
 
 **Server (`test-uda.js`, Postgres + SQLite, DaMa + DMS)**
-- [ ] mark a single authority; mark keyed authority over one and two key names
-- [ ] reject: a view from another source, mixed keyed and unkeyed entries, inconsistent key names,
-      a missing note
-- [ ] re-marking a key replaces the entry; clearing removes it; `set_by`/`set_at` come from the server
-- [ ] **guard:** a generic `metadata` write (the metadata editor's full-blob save) leaves
+- [x] mark a single authority; mark keyed authority (one key name; two names covered by the pure-rule test)
+- [x] reject: a view from another source, a table-less view, mixed keyed and unkeyed entries,
+      inconsistent key names, a missing note
+- [x] re-marking a key replaces the entry; clearing removes it; `set_by`/`set_at` come from the server
+- [x] **guard:** a generic `metadata` write (the metadata editor's full-blob save) leaves
       `metadata.authority` intact, and an `authority` inside a generic payload is ignored
-- [ ] a user without `update-source` is refused
-- [ ] unmarked sources read `authority: null`
+- [x] a user without `update-source` is refused; unauthenticated is refused
+- [x] unmarked sources read `authority: null` — SQLite 132/132 and Postgres 133/133 (DMS + DaMa both on PG)
 
 **Client**
-- [ ] unmarked sources look and pick as before, apart from the undecided chip
-- [ ] single and keyed badges; `latest` still shown when it differs
+- [x] unmarked sources look as before apart from the undecided chip (live, source 104); picking unchanged by construction (preselect only fires when authority is set)
+- [ ] single and keyed badges; `latest` still shown when it differs — **needs the deployed server** (helpers unit-checked)
 - [ ] the picker preselects only when there is exactly one authoritative view; the map `SourceList`
-      marks and sorts
-- [ ] datasets pages open the authoritative view when set (D9)
+      marks and sorts — **needs the deployed server** (`singleAuthoritativeViewId` / `sortAuthoritativeFirst` unit-checked)
+- [ ] datasets pages open the authoritative view when set (D9) — **needs the deployed server** (`preferredViewId` unit-checked)
 
 **Fixtures** (each expressible on a copy of `hazmit_dama` or in SQLite)
 - [ ] `367` (older view authoritative) · `1610` (one of 13 same-day views) · `88` (kept, with note)
@@ -359,3 +423,8 @@ The stale-binding detector reads `authority` for every bound source. A binding i
   rewritten. No schema change is needed any more. Added a required server guard: generic `metadata`
   writes preserve `metadata.authority`. Defaults taken: note required, no history in v1, re-marking
   replaces. Status → `next`.
+- 2026-09-30 — **Phases 3–5 built.** UI, pickers, skill page. Live read-only check on the `npmrdsv5` dev
+  server (source 104) caught and fixed the `readAuthority` "a source's views list is not an authority
+  record" bug. `npm run build` is clean. Phase 4b (stale chips in the admin pages editor) is split out
+  as a follow-up. Status → `built`; release = dms-server deploy, then frontend. The marked-state
+  UI checks wait on that deploy.

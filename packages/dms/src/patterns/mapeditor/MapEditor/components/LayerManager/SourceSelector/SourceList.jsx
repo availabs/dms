@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { get } from "lodash-es";
 import SourcesLayout from "../../../../SourceLayout";
 import { MapEditorContext } from "../../../../context"
@@ -7,6 +7,7 @@ import { DEFAULT_SOURCE } from "../SourceSelector";
 import { dmsColumnTypes } from "../../../../../../"
 import { makeLexicalFormat } from "../../../../utils";
 import { ThemeContext } from "../../../../../../ui/themeContext";
+import { readAuthority, isAuthoritative, keyLabel, singleAuthoritativeViewId, sortAuthoritativeFirst } from "../../../../../datasets/utils/authority";
 
 const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
   const { pgEnv, baseUrl, useFalcor } = React.useContext(MapEditorContext);
@@ -17,6 +18,10 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
 
   const isActiveSource = selectedSource?.sourceId === source.source_id;
   const lengthPath = ["uda", pgEnv, "sources", "byId", source.source_id, "views", "length"];
+  const authorityPath = ["uda", pgEnv, "sources", "byId", source.source_id, "authority"];
+  // Set when the author opens this source; once its views + authority load, preselect the single
+  // authoritative view (the same rule as the section picker). Never touches an existing selection.
+  const pendingPreselect = useRef(false);
 
   useEffect(() => {
     if (!isActiveSource) return;
@@ -30,7 +35,12 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
       ]);
     }
     fetchData();
+    // authoritative views (datasets/utils/authority.js) — its own request, so a dms-server that
+    // predates the attribute can't fail the views fetch
+    falcor.get(authorityPath).catch(() => {});
   }, [falcor, pgEnv, source.source_id, isActiveSource]);
+
+  const authority = useMemo(() => readAuthority(get(falcorCache, authorityPath)), [falcorCache, source.source_id]);
 
   const viewLength = useMemo(() => {
     return parseInt(get(falcorCache, lengthPath, 0))
@@ -42,6 +52,17 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
     )).map(d => getAttributes(get(falcorCache, d.value, {})))
     .sort((a,b) => new Date(b?._created_timestamp) - new Date(a?._created_timestamp));
   }, [falcorCache, source.source_id]);
+
+  // authoritative views first (newest-first within each group)
+  const orderedViews = useMemo(() => sortAuthoritativeFirst(authority, sourceViews, v => v.view_id), [authority, sourceViews]);
+
+  useEffect(() => {
+    if (!pendingPreselect.current || !isActiveSource || selectedSource?.viewId) return;
+    const authViewId = singleAuthoritativeViewId(authority);
+    if (authViewId == null || !sourceViews.some(v => +v.view_id === +authViewId)) return;
+    pendingPreselect.current = false;
+    setSource({ ...selectedSource, viewId: +authViewId });
+  }, [authority, sourceViews, isActiveSource]);
 
   const Lexical = dmsColumnTypes.lexical.ViewComp;
 
@@ -60,6 +81,7 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
             if (viewLength === 1 && sourceViews.length === 1) {
               newSource.viewId = sourceViews[0].view_id;
             }
+            pendingPreselect.current = newSource.viewId == null;
             setSource(newSource);
           } else {
             setSource({ ...DEFAULT_SOURCE, add: true });
@@ -118,8 +140,9 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
             <div className="border-bottom border-black border-b-2 pl-[3px] col-span-2">Last modified</div>
           </div>
           {
-            sourceViews.map((view, i) => {
+            orderedViews.map((view, i) => {
               const isActiveView = activeViewId === view.view_id;
+              const authEntry = isAuthoritative(authority, view.view_id);
               const isDarkRow = i % 2 == 0;
 
               const rowColorClass = isActiveView
@@ -145,6 +168,12 @@ const SourceThumb = ({ source, selectedSource, setSource, cat1, setCat1 }) => {
                   >
                     <div>
                       {view.version ?? view.view_id}
+                      {authEntry && (
+                        <span className="ml-2 inline-flex items-center px-1.5 rounded border border-blue-300 bg-blue-50 text-[10px] uppercase tracking-wide text-blue-800"
+                              title={authEntry.note || ''}>
+                          ★ authoritative{keyLabel(authEntry.key) ? ` · ${keyLabel(authEntry.key)}` : ''}
+                        </span>
+                      )}
                     </div>
                   </div>
                   <div className="flex items-center col-span-2">

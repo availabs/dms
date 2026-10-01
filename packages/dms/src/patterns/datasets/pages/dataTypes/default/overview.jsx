@@ -9,6 +9,8 @@ import { OUTPUT_FILE_TYPES } from "../../../components/ExternalVersionControls";
 import { sourceOverviewTheme } from "./sourceOverview.theme";
 import { FALLBACK_SWATCHES, catColor, splitCategories } from "../../../utils/categoryColors";
 import { SANDBOX_CATEGORY, resolveHiddenForPattern, promotionBlockers } from "../../../utils/lifecycle";
+import { isAuthoritative, authorityState } from "../../../utils/authority";
+import AuthorityControl, { AuthorityBadge } from "../../../components/AuthorityControl";
 
 // Every place a view can carry a downloadable artifact, in one list so the Versions card is the
 // single download surface (a file_upload source therefore needs no page of its own):
@@ -93,8 +95,13 @@ export default function Overview ({
     const visibleColumns = showAllColumns ? columns : (columns || []).slice(0, COLUMN_PREVIEW);
     const isColRequired = (col) => col?.required === true || col?.nullable === false || /not\s*null/i.test(col?.constraints || '');
 
-    // latest view == current (SourcePage treats views[last] as latest); display newest-first
+    // latest view = views[last] (SourcePage's order); display newest-first
     const latestId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
+    // Authoritative views: the ones pages should bind (utils/authority.js). Undecided sources keep
+    // the old "latest is primary" presentation plus an undecided chip; marked sources promote the
+    // authoritative view instead.
+    const authState = authorityState(source);
+    const authEnvKey = isDms ? `${format?.app}+${source?.type}` : pgEnv;
     const orderedViews = [...views].reverse();
     const currentFiles = dataType === 'file_upload' && views.length ? downloadItemsForView(views[views.length - 1], DAMA_HOST) : [];
 
@@ -317,6 +324,10 @@ export default function Overview ({
                     <div className={t.verCard}>
                         <div className={t.verHeader}>
                             <span className={t.verHeaderTitle}>Versions</span>
+                            {views.length > 0 && authState === 'undecided' && (
+                                <span className={t.verUndecidedChip}
+                                      title="No view is marked authoritative yet, so pages have no recorded view to bind">undecided</span>
+                            )}
                             <span className={t.verHeaderCount}>{views.length} {views.length === 1 ? 'version' : 'versions'}</span>
                         </div>
                         <div className={t.verList}>
@@ -325,6 +336,8 @@ export default function Overview ({
                                 const viewId = isDms ? view?.id : view?.view_id;
                                 const available = downloadItemsForView(view, DAMA_HOST);
                                 const isCurrent = viewId != null && viewId === latestId;
+                                const authEntry = isAuthoritative(source, viewId);
+                                const isPrimary = authState === 'undecided' ? isCurrent : !!authEntry;
                                 const open = openDownload === viewId;
                                 return (
                                     <div key={viewId || i} className={t.verRow}>
@@ -332,7 +345,8 @@ export default function Overview ({
                                             <div className={t.verRowMain}>
                                                 <div className={t.verNameRow}>
                                                     <Link to={`${pageBaseUrl}/${id}/version/${viewId}`} className={t.verName}>{view?.name || (viewId != null ? `v${viewId}` : 'No Name')}</Link>
-                                                    {isCurrent && <span className={t.verCurrentBadge}>current</span>}
+                                                    <AuthorityBadge t={t} entry={authEntry}/>
+                                                    {isCurrent && <span className={t.verCurrentBadge}>latest</span>}
                                                 </div>
                                                 <div className={t.verMeta}>
                                                     {view?.row_count ? `${Number(view.row_count).toLocaleString()} rows · ` : ''}
@@ -345,7 +359,7 @@ export default function Overview ({
                                                 <div className={t.verDownloadWrap}>
                                                     <a href={available[0].url} download
                                                        title={available[0].label}
-                                                       className={isCurrent ? t.verDownloadBtnPrimary : t.verDownloadBtn}>
+                                                       className={isPrimary ? t.verDownloadBtnPrimary : t.verDownloadBtn}>
                                                         <Icon icon="Download" className={t.verDownloadIcon}/>Download
                                                     </a>
                                                 </div>
@@ -353,7 +367,7 @@ export default function Overview ({
                                             {available.length > 1 && (
                                                 <div className={t.verDownloadWrap}>
                                                     <button type="button"
-                                                            className={isCurrent ? t.verDownloadBtnPrimary : t.verDownloadBtn}
+                                                            className={isPrimary ? t.verDownloadBtnPrimary : t.verDownloadBtn}
                                                             onClick={() => setOpenDownload(open ? null : viewId)}>
                                                         <Icon icon="Download" className={t.verDownloadIcon}/>Download
                                                         <Icon icon={open ? "CaretUp" : "CaretDown"} className={t.verCaretIcon}/>
@@ -370,6 +384,9 @@ export default function Overview ({
                                                 </div>
                                             )}
                                         </div>
+                                        <AuthorityControl t={t} source={source} setSource={setSource} viewId={viewId}
+                                                          viewLabel={view?.name || (viewId != null ? `v${viewId}` : '')}
+                                                          envKey={authEnvKey} canEdit={isAdmin} falcor={falcor}/>
                                     </div>
                                 )
                             })}

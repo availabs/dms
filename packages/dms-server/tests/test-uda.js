@@ -2006,6 +2006,217 @@ async function testBuildJoinPgFederated() {
 
 // ================================================= Test Runner ===================================================
 
+// ============================================ authoritative views ============================================
+
+// A Falcor call that throws may reject, or resolve with an $error node — treat both as "refused".
+async function expectRefused(promise, re, label) {
+  let msg = null;
+  try {
+    const res = await promise;
+    const s = JSON.stringify(res || {});
+    if (s.includes('"$type":"error"')) msg = s;
+  } catch (e) {
+    msg = e && (e.message || JSON.stringify(e));
+  }
+  assert(msg !== null, `${label}: expected the call to be refused`);
+  if (re) assert(re.test(msg), `${label}: refusal should mention ${re} — got ${String(msg).slice(0, 200)}`);
+}
+
+function testAuthorityUnit() {
+  console.log('\n--- Authoritative views: pure rules ---');
+  const { applySet, applyClear, readAuthority, normalizeKey } = require('../src/routes/uda/authority');
+  const user = { email: 'curator@test.com' };
+
+  const one = applySet(null, { view_id: 7, note: 'the QA\'d build' }, user);
+  assert(one.views.length === 1 && one.views[0].view_id === 7 && !one.views[0].key, 'single entry, no key');
+  assert(one.views[0].set_by === 'curator@test.com' && one.views[0].set_at, 'stamps who and when');
+  const replaced = applySet(one, { view_id: 8, note: 'rebuilt' }, user);
+  assert(replaced.views.length === 1 && replaced.views[0].view_id === 8, 're-marking the single view replaces it');
+  pass('single authority: set, then replace');
+
+  let threw = null;
+  try { applySet(one, { view_id: 9, key: { year: '2024' }, note: 'x' }, user); } catch (e) { threw = e.message; }
+  assert(/single authoritative view/.test(threw || ''), 'keyed onto single is refused');
+  threw = null;
+  try { applySet(null, { view_id: 9, note: '  ' }, user); } catch (e) { threw = e.message; }
+  assert(/note/.test(threw || ''), 'a blank note is refused');
+  threw = null;
+  try { normalizeKey({ Year: 2024 }); } catch (e) { threw = e.message; }
+  assert(/snake_case/.test(threw || ''), 'non-snake_case key names are refused');
+  pass('refuses keyed-on-single, blank notes and bad key names');
+
+  let keyed = applySet(null, { view_id: 1, key: { year: 2023 }, note: 'a' }, user);
+  keyed = applySet(keyed, { view_id: 2, key: { year: '2024' }, note: 'b' }, user);
+  keyed = applySet(keyed, { view_id: 3, key: { year: '2024' }, note: 'c' }, user);
+  assert(keyed.views.length === 2, `two key values, got ${keyed.views.length}`);
+  assert(keyed.views.find(e => e.key.year === '2024').view_id === 3, 'same key value replaces');
+  threw = null;
+  try { applySet(keyed, { view_id: 4, key: { region: 'NY' }, note: 'd' }, user); } catch (e) { threw = e.message; }
+  assert(/keyed by \(year\)/.test(threw || ''), 'different key names are refused');
+  const cleared = applyClear(keyed, { key: { year: '2023' } });
+  assert(cleared.views.length === 1 && cleared.views[0].key.year === '2024', 'clear removes one key value');
+  assert(applyClear(one, {}) === null, 'clearing the single entry leaves nothing');
+  pass('keyed authority: one view per key value, consistent key names, clear by key');
+
+  assert(readAuthority(null) === null && readAuthority('{}') === null, 'undecided reads as null');
+  assert(readAuthority(JSON.stringify(JSON.stringify({ authority: one })))?.views?.[0]?.view_id === 7,
+    'reads metadata stored as JSON text holding JSON text');
+  pass('readAuthority: undecided is null; tolerates double-encoded metadata');
+}
+
+async function testDamaModeAuthoritativeViews() {
+  console.log('\n--- DAMA Mode: authoritative views ---');
+  const { getDb } = require('../src/db/index');
+  const db = getDb(DAMA_DB);
+  const srcTbl = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const viewTbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
+  const metadata = { columns: [{ name: 'geoid', type: 'text' }], isEditable: false };
+
+  // The source check is strict (no grant ⇒ refused), so the test source grants the harness
+  // user's `admin` group `update-source`; `other` grants nothing.
+  const grant = JSON.stringify({ groups: { admin: ['update-source'] } });
+  const { rows: [src] } = await db.query(
+    `INSERT INTO ${srcTbl} (name, type, metadata, auth_permissions) VALUES ($1, $2, $3, $4) RETURNING source_id AS id`,
+    ['Authority Test Source', 'csv', JSON.stringify(metadata), grant]
+  );
+  const { rows: [other] } = await db.query(
+    `INSERT INTO ${srcTbl} (name, type) VALUES ($1, $2) RETURNING source_id AS id`, ['Authority Other', 'csv']);
+  const mkView = async (sid, name) => (await db.query(
+    `INSERT INTO ${viewTbl} (source_id, table_schema, table_name, version) VALUES ($1, 'public', $2, $2) RETURNING view_id AS id`,
+    [sid, name])).rows[0].id;
+  // Postgres checks that an authoritative view's table exists (to_regclass); give the test views real tables.
+  const PG_TABLES = ['auth_v1', 'auth_v2', 'auth_other'];
+  if (db.type === 'postgres') for (const t of PG_TABLES) await db.query(`CREATE TABLE IF NOT EXISTS public.${t} (id int)`);
+  const v1 = await mkView(src.id, 'auth_v1');
+  const v2 = await mkView(src.id, 'auth_v2');
+  const vOther = await mkView(other.id, 'auth_other');
+  const { rows: [noTable] } = await db.query(
+    `INSERT INTO ${viewTbl} (source_id, version) VALUES ($1, 'no table') RETURNING view_id AS id`, [src.id]);
+
+  const readAuth = async () => (await graph.getAsync([['uda', DAMA_DB, 'sources', 'byId', src.id, 'authority']]))
+    .jsonGraph.uda[DAMA_DB].sources.byId[src.id].authority;
+  const unwrap = (a) => (a && a.$type === 'atom' ? a.value : a);
+
+  assert(unwrap(await readAuth()) == null, 'unmarked source reads authority null');
+  pass('unmarked source: authority is null (undecided)');
+
+  const setRes = await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v1, note: 'v1 is the QA\'d build' }]);
+  const echoed = unwrap(setRes.jsonGraph.uda[DAMA_DB].sources.byId[src.id].authority);
+  assert(echoed?.views?.[0]?.view_id === +v1, 'call echoes the new authority');
+  const stored = unwrap(await readAuth());
+  assert(stored.views.length === 1 && stored.views[0].view_id === +v1, 'authority persisted');
+  assert(stored.views[0].set_by === 'test@test.com', `set_by from the request user, got ${stored.views[0].set_by}`);
+  pass('setAuthoritativeView marks the single view and stamps who/when');
+
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: vOther, note: 'x' }]), /not a view of source/, 'foreign view');
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: noTable.id, note: 'x' }]), /no data table/, 'view without a table');
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v2 }]), /note/, 'missing note');
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v2, key: { year: '2024' }, note: 'x' }]), /single authoritative view/, 'keyed onto single');
+  pass('refuses a foreign view, a table-less view, a missing note and keyed-on-single');
+
+  // The generic metadata write (the metadata editor saves the whole blob) must keep authority,
+  // and must not be able to write it.
+  await graph.setAsync({
+    jsonGraph: { uda: { [DAMA_DB]: { sources: { byId: { [src.id]: {
+      metadata: JSON.stringify({ ...metadata, isEditable: true, authority: { views: [{ view_id: v2, note: 'sneaky' }] } }),
+    } } } } } },
+    paths: [['uda', DAMA_DB, 'sources', 'byId', src.id, 'metadata']],
+  });
+  const { rows: [afterGeneric] } = await db.query(`SELECT metadata FROM ${srcTbl} WHERE source_id = $1`, [src.id]);
+  const meta2 = typeof afterGeneric.metadata === 'string' ? JSON.parse(afterGeneric.metadata) : afterGeneric.metadata;
+  assert(meta2.isEditable === true, 'the generic write still lands its own change');
+  assert(meta2.authority?.views?.length === 1 && meta2.authority.views[0].view_id === +v1,
+    `generic metadata write kept the stored authority, got ${JSON.stringify(meta2.authority)}`);
+  pass('generic metadata write preserves authority and cannot overwrite it');
+
+  await graph.callAsync(['uda', 'sources', 'clearAuthoritativeView'], [DAMA_DB, src.id, {}]);
+  assert(unwrap(await readAuth()) == null, 'clear leaves the source undecided');
+  const { rows: [afterClear] } = await db.query(`SELECT metadata FROM ${srcTbl} WHERE source_id = $1`, [src.id]);
+  const meta3 = typeof afterClear.metadata === 'string' ? JSON.parse(afterClear.metadata) : afterClear.metadata;
+  assert(!('authority' in meta3) && meta3.columns?.length === 1, 'clear removes only authority');
+  pass('clearAuthoritativeView removes the key and keeps the rest of metadata');
+
+  await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v1, key: { year: '2023' }, note: '2023 parcels' }]);
+  await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v2, key: { year: '2024' }, note: '2024 parcels' }]);
+  const keyed = unwrap(await readAuth());
+  assert(keyed.views.length === 2 && keyed.views.every(e => e.key && e.key.year), 'two keyed entries');
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v1, note: 'x' }]), /keyed by \(year\)/, 'single onto keyed');
+  pass('keyed authority over one key name; refuses an unkeyed mark on a keyed source');
+
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, other.id, { view_id: vOther, note: 'x' }]), /not authorized/, 'source without an update-source grant');
+  pass('a source that does not grant update-source refuses the mark');
+
+  const anon = createTestGraph(DMS_DB, { user: null });
+  await anon.ready;
+  await expectRefused(anon.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, src.id, { view_id: v1, note: 'x' }]), /Authentication required/, 'unauthenticated');
+  pass('unauthenticated set is refused');
+
+  await db.query(`DELETE FROM ${srcTbl} WHERE source_id = ANY($1)`, [[src.id, other.id]]);
+  if (db.type === 'postgres') for (const t of PG_TABLES) await db.query(`DROP TABLE IF EXISTS public.${t}`);
+  pass('DAMA authority cleanup complete');
+}
+
+async function testDmsModeAuthoritativeViews() {
+  console.log('\n--- DMS Mode: authoritative views ---');
+  const PATTERN_INSTANCE = 'authpat';
+  const env = `${TEST_APP}+${PATTERN_INSTANCE}`;
+  const created = [];
+  const create = async (type, data) => {
+    const r = await graph.callAsync(['dms', 'data', 'create'], [TEST_APP, type, data]);
+    const id = +Object.keys(r.jsonGraph.dms.data.byId)[0];
+    created.push([type, id]);
+    return id;
+  };
+  const siteId = await create(`${TEST_APP}:site`, { patterns: [] });
+  const patternId = await create(`${TEST_APP}|${PATTERN_INSTANCE}:pattern`, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [] });
+  const v1 = await create('auth_src|v1:view', { name: 'v1' });
+  const v2 = await create('auth_src|v2:view', { name: 'v2' });
+  // metadata stored as JSON TEXT, the way the client's wire helper writes DMS attributes
+  const srcId = await create(`${PATTERN_INSTANCE}|auth_src:source`, {
+    name: 'Auth Src', views: [{ id: v1 }, { id: v2 }], metadata: JSON.stringify({ note_for_test: true }),
+  });
+  await graph.callAsync(['dms', 'data', 'edit'], [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [{ id: srcId }] }]);
+  await graph.callAsync(['dms', 'data', 'edit'], [TEST_APP, siteId, { patterns: [{ id: patternId }] }]);
+
+  const unwrap = (a) => (a && a.$type === 'atom' ? a.value : a);
+  const readAuth = async () => unwrap((await graph.getAsync([['uda', env, 'sources', 'byId', srcId, 'authority']]))
+    .jsonGraph.uda[env].sources.byId[srcId].authority);
+
+  assert((await readAuth()) == null, 'unmarked DMS source reads null');
+  await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'], [env, srcId, { view_id: v2, note: 'v2 has the fixes' }]);
+  const a = await readAuth();
+  assert(a?.views?.[0]?.view_id === v2, `DMS authority persisted, got ${JSON.stringify(a)}`);
+  pass('DMS source: set + read through the derived attribute (metadata stored as JSON text)');
+
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [env, srcId, { view_id: 999999, note: 'x' }]), /not a view of source/, 'DMS foreign view');
+  pass('DMS source: refuses a view the source does not list');
+
+  await graph.setAsync({
+    jsonGraph: { uda: { [env]: { sources: { byId: { [srcId]: { metadata: JSON.stringify({ note_for_test: false }) } } } } } },
+    paths: [['uda', env, 'sources', 'byId', srcId, 'metadata']],
+  });
+  assert((await readAuth())?.views?.[0]?.view_id === v2, 'DMS generic metadata write kept authority');
+  pass('DMS source: generic metadata write preserves authority');
+
+  await graph.callAsync(['uda', 'sources', 'clearAuthoritativeView'], [env, srcId, {}]);
+  assert((await readAuth()) == null, 'DMS clear leaves the source undecided');
+  pass('DMS source: clear');
+
+  for (const [type, id] of created.reverse()) await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, type, id]);
+  pass('DMS authority cleanup complete');
+}
+
 async function run() {
   console.log('=== UDA Routes Integration Tests ===\n');
   console.log(`DMS database: ${DMS_DB}`);
@@ -2066,6 +2277,11 @@ async function run() {
     await testDamaModeHiddenCategories();
     await testDamaModeNewSourceDefaults();
     await testDamaModeViewsCrud();
+
+    // authoritative views (metadata.authority)
+    testAuthorityUnit();
+    await testDamaModeAuthoritativeViews();
+    await testDmsModeAuthoritativeViews();
 
     console.log(`\n=== UDA Tests: ${testsPassed} passed, ${testsFailed} failed ===`);
     if (testsFailed > 0) process.exit(1);

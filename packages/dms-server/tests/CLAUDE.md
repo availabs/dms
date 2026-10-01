@@ -99,6 +99,9 @@ DMS_TEST_DB=dms-postgres-test node tests/test-graph.js
 | test-graph.js | Yes | Yes | Via `DMS_TEST_DB` env var |
 | test-workflow.js | Yes | Yes | Via `DMS_TEST_DB` env var |
 | test-auth.js | Yes | Yes | Via `DMS_AUTH_DB_ENV` + `DMS_DB_ENV` env vars |
+| test-transactions.js | Yes | Yes | `withTransaction` contract + converted call sites; via `DMS_TEST_DB` |
+| test-transactions-pg.js | No | Yes | PG-only: pg_stat_activity, per-backend trace, Bug 14 repro, DAMA deletes |
+| test-transaction-guard.js | n/a | n/a | No DB: fails on hand-rolled BEGIN / old transaction API outside the adapters |
 
 ## Test Graph Harness
 

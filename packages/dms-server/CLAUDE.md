@@ -105,6 +105,39 @@ SELECT app || '+' || type AS key
 - Use `$N` style parameters everywhere. The SQLite adapter converts them automatically, including handling parameter reuse (e.g., `$4, $4`).
 - The SQLite adapter auto-stringifies objects on write and auto-parses JSON strings on read, so controller code doesn't need to handle JSON serialization differences.
 
+## Transactions: `db.withTransaction(fn)` only
+
+A multi-statement write that must land whole goes through the adapter's `withTransaction`, with
+**every** statement inside on the `tx` handle:
+
+```js
+const rows = await dms_db.withTransaction(async (tx) => {
+  const rows = await tx.promise(`UPDATE ... RETURNING *`, [data, id]);
+  await appendChangeLog(tx, ...);            // helpers take the executor, not the adapter
+  tx.afterCommit(() => notify(rows[0]));     // side effects that must not see a rollback
+  return rows;
+});
+```
+
+- **Postgres** runs `fn` on one dedicated pooled connection: `BEGIN` → `fn(tx)` → `COMMIT`, or
+  `ROLLBACK` on error.
+- **SQLite** has one shared connection. A FIFO lock gives the transaction sole use of it, and
+  other callers' `query()` calls wait until it ends.
+- **`tx` has:** `type`, `query`, `promise`, `withTransaction` (nested, runs inline) and
+  `afterCommit(cb)` (runs after `COMMIT`, never on rollback).
+- **Never call the adapter (`db.query` / `dms_db.promise`) inside the block.**
+  - On SQLite it throws, because it would otherwise deadlock on the lock.
+  - On Postgres it runs outside the transaction, on another pooled connection, with a warning.
+- **Keep blocks short.** Email and network calls go after the block. Table/sequence DDL
+  (`mainTable`, `ensureForWrite`) goes before it, since the `ensure*` "exists" cache must not
+  record a `CREATE` that rolls back.
+- **`BEGIN` / `COMMIT` through `query()` is not a transaction on Postgres.** Each statement draws
+  its own pooled connection. The old `beginTransaction` / `commitTransaction` /
+  `rollbackTransaction` now throw. `tests/test-transaction-guard.js` (part of `npm test`) fails
+  the build if either pattern appears outside `src/db/adapters/` and `src/scripts/`.
+- Background: `planning/tasks/current/dms-server-real-transactions.md`, Bug 14. Reproduced on the
+  Docker harness: 156 of 160 acknowledged concurrent writes lost before the fix.
+
 ## Database Configs
 
 Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are required** — there is no inference, no legacy fallback, no default. A missing or invalid field throws at config load time. This is intentional: an omitted `type` used to silently route a config into the wrong role (or no role), leaving the caller staring at "relation X does not exist" errors.

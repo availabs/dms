@@ -3,7 +3,8 @@ import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
 import {dataItemsNav} from "../../../utils/nav";
-import {getSourceData, resolveInternalViewNames, getInternalDataType, parseIfJson} from "./dataTypes/default/utils";
+import {getSourceData, resolveInternalViewNames, getInternalDataType, getSourceAuthority, parseIfJson} from "./dataTypes/default/utils";
+import {preferredViewId, authorityMarker} from "../utils/authority";
 import { getExternalEnv } from "../utils/datasources";
 import { sourcePageTheme } from "./sourcePage.theme";
 import Breadcrumbs from "../components/Breadcrumbs";
@@ -113,6 +114,16 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
         return () => { cancelled = true };
     }, [isDms, id, falcor, sourceFormat.app, sourceFormat.type])
 
+    // Route-preloaded DMS items don't carry the derived `authority` attribute — read it once.
+    useEffect(() => {
+        if (!isDms || !item || !id) return;
+        let cancelled = false;
+        getSourceAuthority({ pgEnv: `${sourceFormat.app}+${sourceFormat.type}`, falcor, source_id: id })
+            .then(authority => { if (!cancelled) setSource(s => ({...s, authority})) })
+            .catch(() => {});
+        return () => { cancelled = true };
+    }, [isDms, item, id, falcor, sourceFormat.app, sourceFormat.type])
+
     const sourceLoaded = !!(source.id || source.source_id);
 
     // Per-source access: pattern ⊕ this source's own authPermissions override (see datasets.format.js).
@@ -152,12 +163,14 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const views = source.views || [];
     const showVersionSelector = viewDependentPages.includes(page);
 
-    // Auto-navigate to latest view when on a view-dependent page without a view_id
+    // Auto-navigate when on a view-dependent page without a view_id: to the authoritative view when
+    // one is marked (utils/authority.js), else to the latest view as before.
     const latestViewId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
+    const defaultViewId = preferredViewId(source, views, v => (isDms ? v?.id : v?.view_id)) ?? latestViewId;
     useEffect(() => {
-        if (!showVersionSelector || view_id || !latestViewId) return;
-        navigate(`${pageBaseUrl}/${id}/${page}/${latestViewId}`, {replace: true});
-    }, [showVersionSelector, view_id, latestViewId])
+        if (!showVersionSelector || view_id || !defaultViewId) return;
+        navigate(`${pageBaseUrl}/${id}/${page}/${defaultViewId}`, {replace: true});
+    }, [showVersionSelector, view_id, defaultViewId])
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
 
@@ -193,7 +206,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                                                     className={t.versionSelect}
                                                     value={view_id}>
                                                 <option key={'default'} value={undefined}>No version selected</option>
-                                                {views.map(view => <option key={view.view_id} value={view.view_id}>{view.name || view.view_id}</option>)}
+                                                {views.map(view => <option key={view.view_id} value={view.view_id}>{(view.name || view.view_id) + authorityMarker(source, view.view_id)}</option>)}
                                             </select>
                                         </>
                                     )}

@@ -6,6 +6,8 @@ const {
   getSourceIdsByIndex,
   getSourceById,
   updateSource,
+  setAuthoritativeView,
+  clearAuthoritativeView,
   setIndexColumn,
   setPrimaryKeyColumn,
   getSourcePrimaryKeyInfo,
@@ -529,6 +531,68 @@ module.exports = [
         ];
       } catch (err) {
         console.error('[uda] sources.setPrimaryKey error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.setAuthoritativeView (call) ---------------------------------
+  // Args: [env, sourceId, { view_id, key?, note }]
+  // Marks the view pages should bind (see ./authority.js). Without `key` it is the source's single
+  // authoritative view; with `key` (e.g. { year: '2024' }) it is the authoritative view for that
+  // key value. Replaces the entry with the same key; `note` (why this view) is required.
+  // Gated on `update-source`, like any other modification of the source. This is the only write
+  // path for metadata.authority — generic metadata writes preserve it (updateSource).
+  {
+    route: `uda.sources.setAuthoritativeView`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to mark an authoritative view');
+        const [env, sourceId, entry = {}] = args;
+        const { db } = await getEssentials({ env });
+        const authed = await isUserAuthedForSource({
+          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
+        });
+        if (!authed) {
+          console.log('uda: UNAUTHORIZED authoritative view set', sourceId, this.user && this.user.email);
+          throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
+        }
+        const authority = await setAuthoritativeView(env, +sourceId, entry, this.user);
+        return [
+          { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
+          { path: ['uda', env, 'sources', 'byId', +sourceId, 'metadata'], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.setAuthoritativeView error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.clearAuthoritativeView (call) ---------------------------------
+  // Args: [env, sourceId, { key? }]
+  // Removes the authoritative view for `key` (no key = the single entry). Same gate as set.
+  {
+    route: `uda.sources.clearAuthoritativeView`,
+    call: async function(callPath, args) {
+      try {
+        if (!this.user) throw new Error('Authentication required to clear an authoritative view');
+        const [env, sourceId, opts = {}] = args;
+        const { db } = await getEssentials({ env });
+        const authed = await isUserAuthedForSource({
+          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
+        });
+        if (!authed) {
+          console.log('uda: UNAUTHORIZED authoritative view clear', sourceId, this.user && this.user.email);
+          throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
+        }
+        const authority = await clearAuthoritativeView(env, +sourceId, opts);
+        return [
+          { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
+          { path: ['uda', env, 'sources', 'byId', +sourceId, 'metadata'], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.clearAuthoritativeView error:', err.message);
         throw err;
       }
     },

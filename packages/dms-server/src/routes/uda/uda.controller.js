@@ -16,6 +16,7 @@ const querySets = require('./query_sets');
 const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
+const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -212,8 +213,22 @@ async function getSourceById(env, ids, attributes) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
 
   // Filter out 'value' — it's a Falcor internal property from $ref resolution, not a real column
-  const sanitizedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
-  if (!sanitizedAttrs.length) return [];
+  const requestedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
+  if (!requestedAttrs.length) return [];
+
+  // `authority` is DERIVED (metadata.authority, see ./authority.js), so pickers and lists can read
+  // the authoritative views without fetching the whole metadata blob. It is read in JS because a
+  // DMS source's `data.metadata` may be stored as an object or as JSON text.
+  const wantsAuthority = requestedAttrs.includes('authority');
+  const sanitizedAttrs = requestedAttrs.filter(a => a !== 'authority');
+  const withAuthority = (rows) => {
+    if (!wantsAuthority) return rows;
+    for (const r of rows) {
+      r.authority = readAuthority(r.__authority_meta);
+      delete r.__authority_meta;
+    }
+    return rows;
+  };
 
   if (isDms) {
     const dbCols = ['id', 'app', 'type', 'data', 'created_at', 'created_by', 'updated_at', 'updated_by'];
@@ -229,13 +244,18 @@ async function getSourceById(env, ids, attributes) {
         : a === 'source_id' ? `COALESCE(data->>'source_id', CAST(id AS TEXT)) AS source_id`
         : `data->>'${a}' AS ${quoteAlias(a)}`
     );
+    if (wantsAuthority) {
+      formattedAttrs.push(db.type === 'postgres'
+        ? `data->'metadata' AS "__authority_meta"`
+        : `json_extract(data, '$.metadata') AS "__authority_meta"`);
+    }
 
     const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `SELECT ${formattedAttrs.join(', ')} FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [ids.map(Number)]
     );
-    return rows;
+    return withAuthority(rows);
   }
 
   // DAMA: select specific columns from data_manager.sources.
@@ -247,15 +267,164 @@ async function getSourceById(env, ids, attributes) {
   // 'row_type' is a DMS-only attribute (see above) — data_manager.sources has no such column
   const dataAttrs = sanitizedAttrs.filter(a => a !== 'id' && a !== 'row_type');
   const colList = dataAttrs.length ? `, ${dataAttrs.map(a => `"${a}"`).join(', ')}` : '';
+  const authCol = wantsAuthority ? `, metadata AS "__authority_meta"` : '';
   const { rows } = await db.query(
-    `SELECT source_id AS id${colList} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
+    `SELECT source_id AS id${colList}${authCol} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
     [ids.map(Number)]
   );
+  return withAuthority(rows);
+}
+
+// ------------------------------------------- source metadata compare-and-swap -------------------------------------------
+//
+// Two writers replace a source's WHOLE metadata blob (the datasets metadata editor and
+// udaUpdateSourceMetadata), and the authority calls rewrite it too. A write computed from a stale
+// read would silently undo someone else's change, and the pg adapter runs each query on a pool,
+// so BEGIN/COMMIT through db.query is not a transaction. Instead every metadata write here is a
+// compare-and-swap: read the stored value, compute the new blob, and write only if the stored
+// value is still the one that was read. On a conflict, re-read and retry.
+// db.withTransaction(fn) now exists (dms-server-real-transactions.md); CAS stays deliberately —
+// it guards a read-modify-write without holding a pooled connection or any lock while it runs.
+
+const METADATA_CAS_ATTEMPTS = 5;
+
+// The stored metadata as text (the CAS token) plus its parsed value ({} when absent or not an object).
+async function readSourceMetadata(ess, sourceId) {
+  const { isDms, db, app, splitMode } = ess;
+  let sql;
+  if (isDms) {
+    const tbl = await dmsMainTable(db, app, splitMode);
+    sql = db.type === 'postgres'
+      ? `SELECT (data->'metadata')::text AS meta_text FROM ${tbl} WHERE id = $1`
+      : `SELECT json_extract(data, '$.metadata') AS meta_text FROM ${tbl} WHERE id = $1`;
+  } else {
+    sql = db.type === 'postgres'
+      ? `SELECT metadata::text AS meta_text FROM data_manager.sources WHERE source_id = $1`
+      : `SELECT metadata AS meta_text FROM sources WHERE source_id = $1`;
+  }
+  const { rows } = await db.query(sql, [+sourceId]);
+  if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+  const token = rows[0].meta_text ?? null;
+  const parsed = parseJsonish(token);
+  return { token, meta: parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {} };
+}
+
+// Write `next` only if the stored metadata is still `token`. Returns the updated rows ([] = conflict).
+async function casWriteSourceMetadata(ess, sourceId, token, next) {
+  const { isDms, db, app, splitMode } = ess;
+  let sql;
+  if (isDms) {
+    const tbl = await dmsMainTable(db, app, splitMode);
+    // Replace data.metadata wholesale. Not jsonMerge: SQLite's json_patch merges nested objects,
+    // so a key removed from metadata (clearing authority) would survive.
+    sql = db.type === 'postgres'
+      ? `UPDATE ${tbl} SET data = jsonb_set(COALESCE(data, '{}'::jsonb), '{metadata}', $1::jsonb, true)
+           WHERE id = $2 AND (data->'metadata')::text IS NOT DISTINCT FROM $3::text RETURNING *`
+      : `UPDATE ${tbl} SET data = json_set(COALESCE(data, '{}'), '$.metadata', json($1))
+           WHERE id = $2 AND json_extract(data, '$.metadata') IS $3 RETURNING *`;
+  } else {
+    sql = db.type === 'postgres'
+      ? `UPDATE data_manager.sources SET metadata = $1::jsonb
+           WHERE source_id = $2 AND metadata::text IS NOT DISTINCT FROM $3::text RETURNING *`
+      : `UPDATE sources SET metadata = $1 WHERE source_id = $2 AND metadata IS $3 RETURNING *`;
+  }
+  const { rows } = await db.query(sql, [JSON.stringify(next), +sourceId, token]);
   return rows;
 }
 
+async function mutateSourceMetadata(ess, sourceId, mutate) {
+  for (let attempt = 0; attempt < METADATA_CAS_ATTEMPTS; attempt++) {
+    const { token, meta } = await readSourceMetadata(ess, sourceId);
+    const rows = await casWriteSourceMetadata(ess, sourceId, token, mutate(meta));
+    if (rows.length) return rows;
+  }
+  throw new Error(`Source ${sourceId}: metadata kept changing during the write; try again`);
+}
+
+// ------------------------------------------------ authoritative views ------------------------------------------------
+
+// The view must belong to the source. For DAMA it must also name a table that exists: 72 views on
+// hazmit_dama point at nothing, and marking one of those authoritative would bless a broken binding.
+async function assertViewOfSource(ess, sourceId, viewId) {
+  const { isDms, db, app, splitMode } = ess;
+  if (!Number.isFinite(+viewId)) throw new Error('authority: `view_id` is required');
+  if (isDms) {
+    const tbl = await dmsMainTable(db, app, splitMode);
+    const sql = db.type === 'postgres'
+      ? `SELECT data->'views' AS views FROM ${tbl} WHERE id = $1`
+      : `SELECT json_extract(data, '$.views') AS views FROM ${tbl} WHERE id = $1`;
+    const { rows } = await db.query(sql, [+sourceId]);
+    if (!rows.length) throw new Error(`Source ${sourceId} not found`);
+    const refs = parseJsonish(rows[0].views);
+    if (!Array.isArray(refs) || !refs.some(v => +(v?.id ?? v) === +viewId)) {
+      throw new Error(`View ${viewId} is not a view of source ${sourceId}`);
+    }
+    return;
+  }
+  const tbl = db.type === 'postgres' ? 'data_manager.views' : 'views';
+  const { rows } = await db.query(
+    `SELECT source_id, table_schema, table_name FROM ${tbl} WHERE view_id = $1`, [+viewId]);
+  if (!rows.length || +rows[0].source_id !== +sourceId) {
+    throw new Error(`View ${viewId} is not a view of source ${sourceId}`);
+  }
+  const { table_schema, table_name } = rows[0];
+  if (!table_name) throw new Error(`View ${viewId} has no data table`);
+  if (db.type === 'postgres') {
+    const { rows: [t] } = await db.query(`SELECT to_regclass($1) IS NOT NULL AS ok`,
+      [`"${table_schema || 'public'}"."${table_name}"`]);
+    if (!t?.ok) throw new Error(`View ${viewId}'s table ${table_schema}.${table_name} does not exist`);
+  }
+}
+
+/**
+ * Mark `view_id` as the source's authoritative view (or, with `key`, the authoritative view for
+ * that key value), replacing the entry with the same key. `note` is required. Returns the new
+ * authority record. The caller checks `update-source` on the source.
+ */
+async function setAuthoritativeView(env, sourceId, entry = {}, user) {
+  const ess = await getEssentials({ env });
+  await assertViewOfSource(ess, sourceId, entry.view_id);
+  let result = null;
+  await mutateSourceMetadata(ess, sourceId, (meta) => {
+    result = applySet(readAuthority(meta), entry, user);
+    return { ...meta, authority: result };
+  });
+  return result;
+}
+
+/** Clear the authoritative view for `key` (no key = the single entry). Returns the new record or null. */
+async function clearAuthoritativeView(env, sourceId, { key } = {}) {
+  const ess = await getEssentials({ env });
+  let result = null;
+  await mutateSourceMetadata(ess, sourceId, (meta) => {
+    result = applyClear(readAuthority(meta), { key });
+    const { authority, ...rest } = meta;
+    return result ? { ...rest, authority: result } : rest;
+  });
+  return result;
+}
+
+
+
 async function updateSource(env, sourceId, updates) {
-  const { isDms, db, app, splitMode } = await getEssentials({ env });
+  const ess = await getEssentials({ env });
+  const { isDms, db, app, splitMode } = ess;
+
+  // A generic write that carries `metadata` replaces the whole blob. It must never change or drop
+  // `metadata.authority`: only setAuthoritativeView / clearAuthoritativeView write that. Keep the
+  // stored authority, ignore any incoming one, and write metadata by compare-and-swap.
+  if (Object.prototype.hasOwnProperty.call(updates, 'metadata')) {
+    const { metadata, ...rest } = updates;
+    const incoming = parseJsonish(metadata);
+    const rows = await mutateSourceMetadata(ess, sourceId, (stored) => {
+      const next = incoming && typeof incoming === 'object' && !Array.isArray(incoming) ? { ...incoming } : {};
+      delete next.authority;
+      if (stored.authority !== undefined) next.authority = stored.authority;
+      return next;
+    });
+    if (!Object.keys(rest).length) return rows;
+    updates = rest;
+  }
 
   if (isDms) {
     const patch = {};
@@ -1094,6 +1263,8 @@ module.exports = {
   getSourceIdsByIndex,
   getSourceById,
   updateSource,
+  setAuthoritativeView,
+  clearAuthoritativeView,
   getHiddenCategories,
   hiddenCategoryClause,
   LIFECYCLE_CATEGORIES,

@@ -306,27 +306,22 @@ async function claimDueSchedules(pgEnv) {
     return rows;
   }
 
-  // SQLite: plain BEGIN IMMEDIATE transaction — single-writer database, so a
-  // write lock is the whole story (no SKIP LOCKED equivalent, none needed).
-  const rawDb = db.getPool();
-  rawDb.exec('BEGIN IMMEDIATE');
-  try {
-    const { rows } = await db.query(`
+  // SQLite: one withTransaction (BEGIN IMMEDIATE under the adapter's lock) — single-writer
+  // database, so a write lock is the whole story (no SKIP LOCKED equivalent, none needed), and
+  // the lock keeps other callers' queries on the shared connection out of it.
+  return db.withTransaction(async (tx) => {
+    const { rows } = await tx.query(`
       SELECT * FROM ${table}
       WHERE enabled = 1 AND next_fire_at IS NOT NULL AND next_fire_at <= $1
     `, [now]);
     if (rows.length > 0) {
       const ids = rows.map((r) => r.schedule_id);
-      await db.query(
+      await tx.query(
         `UPDATE ${table} SET next_fire_at = NULL WHERE schedule_id IN (${ids.map((_, i) => `$${i + 1}`).join(',')})`,
         ids);
     }
-    rawDb.exec('COMMIT');
     return rows;
-  } catch (err) {
-    rawDb.exec('ROLLBACK');
-    throw err;
-  }
+  });
 }
 
 /**
