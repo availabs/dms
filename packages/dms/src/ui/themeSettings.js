@@ -3,6 +3,7 @@ import { layoutGroupSettings } from './components/LayoutGroup.theme'
 import {sideNavsettings} from './components/SideNav.theme'
 import {topNavsettings} from './components/TopNav.theme'
 import { logoSettings } from './components/Logo.theme'
+import { themeToggleSettings } from './components/ThemeToggle.theme'
 import { buttonSettings } from './components/Button.theme'
 import { cardSettings } from "./components/card.theme";
 import { tableSettings } from "./components/table/table.theme";
@@ -26,6 +27,7 @@ export default (theme) => {
     sidenav: sideNavsettings(theme),
     topnav: topNavsettings(theme),
     logo: logoSettings,
+    themeToggle: themeToggleSettings,
     button: buttonSettings(theme),
     card: cardSettings(theme),
     table: tableSettings(theme),

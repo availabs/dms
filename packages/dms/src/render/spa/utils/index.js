@@ -12,6 +12,7 @@ import patternTypes from '../../../patterns'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
 import PatternTitle from './PatternTitle'
+import PatternColorScheme, { getPatternColorScheme } from './PatternColorScheme'
 
 
 export const getSubdomain = (host) => {
@@ -511,12 +512,14 @@ export function pattern2routes (siteData, props) {
                 const titleValue = (typeof pattern?.html_title === 'string' && pattern.html_title.trim())
                     || pattern?.name
                     || '';
+                const defaultColorScheme = getPatternColorScheme(themes, pattern);
                 return ({
                   ...route,
                   Component: (props) => React.createElement(
                     React.Fragment,
                     null,
                     React.createElement(PatternTitle, { title: titleValue }),
+                    React.createElement(PatternColorScheme, { defaultColorScheme }),
                     React.createElement(InnerComponent, props)
                   )
                 })

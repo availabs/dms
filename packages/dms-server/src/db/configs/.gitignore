@@ -6,3 +6,6 @@
 
 # Keep test configs (used by automated tests)
 !*-test*.config.json
+
+# role:"dama" configs are auto-loaded by the server at startup; keep this one local-only
+dama-postgres-test.config.json
