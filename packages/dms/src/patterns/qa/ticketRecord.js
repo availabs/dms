@@ -31,6 +31,9 @@ export const OUTCOMES = [
   "Won't fix",
 ]
 
+// The delivery stages a tracked page moves through (the pages dataset's `stage` options).
+export const PAGE_STAGES = ['Proposed', 'Design', 'Implemented', 'QA', 'Dev Acceptance', 'Client Acceptance']
+
 export function statusKind(status, statuses = DEFAULT_STATUSES) {
   return statuses.find(s => s.value === status)?.kind
 }

@@ -75,8 +75,8 @@ describe("buildQaPages", () => {
 describe("findQaPage", () => {
   const pages = buildQaPages(pattern);
 
-  it("resolves the bare URL (empty slug) to the index-0 page", () => {
-    expect(findQaPage(pages, "").title).toBe("Tickets");
+  it("resolves the bare URL (empty slug) to the index-0 page, the Overview", () => {
+    expect(findQaPage(pages, "").title).toBe("Overview");
   });
 
   it("gives every page a non-empty slug, since the nav links by slug", () => {
@@ -90,16 +90,16 @@ describe("findQaPage", () => {
   });
 
   it("falls back to the index-0 page for an unknown slug, as a page pattern does", () => {
-    expect(findQaPage(pages, "no_such_page").title).toBe("Tickets");
-    expect(findQaPage(pages, "edit").title).toBe("Tickets");
+    expect(findQaPage(pages, "no_such_page").title).toBe("Overview");
+    expect(findQaPage(pages, "edit").title).toBe("Overview");
   });
 });
 
 describe("nav over QA pages", () => {
   it("lists only the pages not hidden from the nav", () => {
     const nav = dataItemsNav(buildQaPages(pattern), "/qa").filter((d) => !d.hideInNav);
-    expect(nav.map((d) => d.name.trim())).toEqual(["Tickets"]);
-    expect(nav[0].path).toBe("/qa/tickets");
+    expect(nav.map((d) => d.name.trim())).toEqual(["Overview", "Tickets"]);
+    expect(nav.map((d) => d.path)).toEqual(["/qa/overview", "/qa/tickets"]);
   });
 });
 

@@ -416,6 +416,11 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   on `/list` (Sites) or `/list/manage_pattern/<id>` shows the sidebar and user menu but an empty content
   area, with no errors. Clicking the in-app **Sites** link renders it; reach the pattern editor by
   clicking the row's `a[href="/list/manage_pattern/<id>"]` from there (2026-09-30, `qa_test`).
+- **The probe token is per app, and the wrong one fails quietly.** Bare `--auth` injects the npmrdsv5 token
+  (`.dms-auth-token`). On another app (e.g. `qa_test`) the user menu still shows the dev account, but the server
+  returns pattern rows without their settings, so the page renders as if unconfigured (a `qa` install shows "datasets
+  aren't set up yet"). Mint the app's own token (`scratchpad/npmrds-sub/mint_token.sh <app>` →
+  `.dms-auth-token-<app>`) and pass its path to `--auth` (2026-09-30).
 - **A newly added pattern reads `undefined` / `?` in the Sites table until a reload.** `addNewValue`
   (`editSite.jsx`) appends a bare `{ref, id}` to the site's `patterns`, for every pattern type. Reload to
   see its name, pill and base URL; check the row with `dms site tree`, not the table right after Add.

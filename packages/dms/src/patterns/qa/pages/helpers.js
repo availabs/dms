@@ -1,4 +1,4 @@
-import { DEFAULT_STATUSES } from '../ticketRecord'
+import { DEFAULT_STATUSES, PAGE_STAGES } from '../ticketRecord'
 
 // Section and column shapes for the QA pages, ported from TransportNY's control-room builders
 // (src/themes/transportny/qa_skills/tools/builds/build_cr_*.mjs), which author the same native
@@ -25,7 +25,23 @@ export const CATEGORY_PILL = { bug: 'red', style: 'amber', data: 'blue', content
 export const STAGE_PILL = {
   Proposed: 'zinc', Design: 'slate', Implemented: 'amber', QA: 'blue', 'Dev Acceptance': 'ink', 'Client Acceptance': 'green',
 }
+export const BUILD_PILL = { 'Not started': 'slate', 'In progress': 'amber', 'Built (draft)': 'blue', Published: 'green' }
+export const DATA_PILL = { Real: 'green', Partial: 'amber', Mock: 'slate' }
+export const STORY_PILL = { proposed: 'amber', accepted: 'blue', verified: 'green' }
+export const SOURCE_KEY_PILL = { ai: 'blue', dev: 'slate', client: 'ink', qa: 'zinc' }
 export const staticOptions = (map) => Object.keys(map).map((v) => ({ label: v, value: v }))
+
+// ── page stages: bar colours, short labels, and the Overview tiles' who-does-it line ──
+export const STAGE_HEX = {
+  Proposed: '#a1a1aa', Design: '#8b5cf6', Implemented: '#f59e0b', QA: '#38bdf8', 'Dev Acceptance': '#14b8a6', 'Client Acceptance': '#10b981',
+}
+export const STAGE_SHORT = { Proposed: 'proposed', Design: 'design', Implemented: 'impl', QA: 'qa', 'Dev Acceptance': 'dev', 'Client Acceptance': 'client' }
+export const STAGE_WHO = {
+  Proposed: 'we scope the user stories', Design: 'we design the page', Implemented: 'our team builds it', QA: 'we test + fix',
+  'Dev Acceptance': 'our team signs off', 'Client Acceptance': 'you review + approve',
+}
+// A page's position in the stage order, for sorting without a stored stage_order.
+export const STAGE_RANK = `(case data->>'stage' ${PAGE_STAGES.map((s, i) => `when '${s}' then ${i + 1}`).join(' ')} else 0 end)`
 
 // ── status groups, from the ticket record's kinds ──
 const statusesOf = (kinds) => DEFAULT_STATUSES.filter(s => kinds.includes(s.kind)).map(s => s.value)
@@ -62,12 +78,18 @@ const TICKET_COLUMNS = [
   'ticket_id', 'title', 'page_key', 'severity', 'priority', 'status', 'source', 'assignee', 'reporter', 'opened', 'updated',
   'description', 'steps', 'expected', 'actual', 'env', 'comments', 'surface', 'page_name', 'page_route', 'page_stage',
 ]
-export const ticketsSource = ({ app, pattern, tickets }) => ({
-  isDms: true, app, type: tickets.slug, name: `${pattern.name} — Tickets`,
-  source_id: tickets.source_id, view_id: tickets.view_id,
-  env: `${app}+${tickets.slug}`, srcEnv: `${app}+${tickets.slug}`,
-  columns: TICKET_COLUMNS.map(name => ({ name, display_name: name, type: 'text' })),
+// One of the install's datasets (`ref` = {slug, source_id, view_id} from qa.datasets) as a section's source.
+export const datasetSource = ({ app, pattern }, ref, label, columns) => ({
+  isDms: true, app, type: ref.slug, name: `${pattern.name} — ${label}`,
+  source_id: ref.source_id, view_id: ref.view_id,
+  env: `${app}+${ref.slug}`, srcEnv: `${app}+${ref.slug}`,
+  columns: columns.map(name => ({ name, display_name: name, type: 'text' })),
 })
+export const ticketsSource = (ctx) => datasetSource(ctx, ctx.tickets, 'Tickets', TICKET_COLUMNS)
+export const pagesSource = (ctx) => datasetSource(ctx, ctx.datasets.pages, 'Pages', [
+  'page_key', 'surface', 'surface_label', 'name', 'route', 'url', 'description', 'build', 'data', 'owner', 'updated', 'stage',
+])
+export const storiesSource = (ctx) => datasetSource(ctx, ctx.datasets.stories, 'Stories', ['story', 'stage', 'source', 'sort_order', 'page_key'])
 
 // A data section's element-data over `source`.
 export const dataWrapper = (source) => ({ columns, filters = [], display = {} }) => JSON.stringify({

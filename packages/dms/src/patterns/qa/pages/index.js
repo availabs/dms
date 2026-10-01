@@ -1,6 +1,8 @@
 import { lexicalElementData, headingBodyLexicalState } from '../../../ui/pageTemplates'
 import { ticketsPage } from './tickets'
 import { ticketPage } from './ticket'
+import { overviewPage } from './overview'
+import { pageQaPage } from './pageQa'
 
 // The pages of a `qa` install, defined in code — the same page shape the page
 // pattern renders (PageView → SectionGroup → sections), but never stored as rows.
@@ -42,27 +44,34 @@ const addTicketUrl = (pattern, tickets, datasetPatterns = []) => {
 // `index: 0` page.
 // `pattern` is the install's pattern row; its `qa.datasets` bind the data sections. `app`,
 // `baseUrl` and `datasetPatterns` come from the route config (loaded pattern rows don't carry app).
-export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [] } = {}) {
-  const tickets = pattern?.qa?.datasets?.tickets
-  if (!tickets) {
+// `sites`: the covered sub-sites (coveredSites below), or null until they've loaded.
+export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [], sites = null } = {}) {
+  const datasets = pattern?.qa?.datasets || {}
+  const tickets = datasets.tickets
+  if (!tickets || !datasets.pages || !datasets.stories) {
     // An install whose datasets aren't set up yet (see its Overview in the admin).
+    const notYet = 'This install\'s datasets aren\'t set up yet.'
     return [
-      codePage({
-        title: 'Tickets', url_slug: 'tickets', index: 0,
-        sections: [textSection('qa_tickets_intro', 'Tickets', 'This install\'s datasets aren\'t set up yet.')],
-      }),
-      codePage({
-        title: 'Ticket', url_slug: 'ticket', index: 1, hide_in_nav: true,
-        sections: [textSection('qa_ticket_intro', 'Ticket', 'This install\'s datasets aren\'t set up yet.')],
-      }),
+      codePage({ title: 'Overview', url_slug: 'overview', index: 0, sections: [textSection('qa_overview_intro', 'Overview', notYet)] }),
+      codePage({ title: 'Tickets', url_slug: 'tickets', index: 1, sections: [textSection('qa_tickets_intro', 'Tickets', notYet)] }),
+      codePage({ title: 'Ticket', url_slug: 'ticket', index: 2, hide_in_nav: true, sections: [textSection('qa_ticket_intro', 'Ticket', notYet)] }),
     ]
   }
   const ctx = {
-    app, pattern, baseUrl, tickets,
+    app, pattern, baseUrl, datasets, tickets, sites,
     siteLabels: pattern.qa.siteLabels || {},
     addTicketUrl: addTicketUrl(pattern, tickets, datasetPatterns),
   }
-  return [ticketsPage(ctx), ticketPage(ctx)]
+  return [overviewPage(ctx), ticketsPage(ctx), ticketPage(ctx), pageQaPage(ctx)]
+}
+
+// The covered sub-sites the Overview shows: the covered-sites dataset's enabled rows ('yes', as
+// TransportNY's control room stores them), in sort_order.
+export const COVERED_SITE_COLUMNS = ['pattern', 'surface', 'surface_label', 'sort_order', 'enabled']
+export function coveredSites(rows = []) {
+  return rows
+    .filter((r) => r?.enabled === 'yes' && r.surface)
+    .sort((a, b) => (+a.sort_order || 0) - (+b.sort_order || 0))
 }
 
 // The page for a URL slug (the route's `*` param); a trailing slash is ignored.

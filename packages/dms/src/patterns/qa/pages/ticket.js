@@ -116,7 +116,7 @@ export function ticketPage(ctx) {
   }))
 
   return {
-    title: 'Ticket', url_slug: 'ticket', index: 1, hide_in_nav: true,
+    title: 'Ticket', url_slug: 'ticket', index: 2, hide_in_nav: true,
     section_groups: [
       group(G.crumb, 0, 'breadcrumb', 'Breadcrumb'),
       group(G.hdr, 1, 'header', 'Header'),

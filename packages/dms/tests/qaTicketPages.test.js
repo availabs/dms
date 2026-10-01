@@ -12,21 +12,28 @@ import { buildQaPages } from "../src/patterns/qa/pages";
 import { OPEN, CLOSED, OPEN_STATUSES, CLOSED_STATUSES } from "../src/patterns/qa/pages/helpers";
 
 const tickets = { slug: "phase2_tickets", source_id: 43, view_id: 44 };
-const pattern = { name: "Phase2", dmsEnvId: 42, qa: { version: 1, datasets: { tickets } } };
+const datasets = {
+  tickets, pages: { slug: "phase2_pages", source_id: 45, view_id: 46 }, stories: { slug: "phase2_stories", source_id: 47, view_id: 48 },
+  patterns: { slug: "phase2_patterns", source_id: 49, view_id: 50 }, history: { slug: "phase2_history", source_id: 51, view_id: 52 },
+};
+const pattern = { name: "Phase2", dmsEnvId: 42, qa: { version: 1, datasets } };
+const pageBySlug = (pages, slug) => pages.find((p) => p.url_slug === slug);
 const ctx = { app: "qa_test", baseUrl: "/phase2" };
 const byType = (page, type) => page.sections.filter((s) => s.element["element-type"] === type);
 const dataOf = (s) => JSON.parse(s.element["element-data"]);
 const dataSections = (page) => page.sections.filter((s) => s.element["element-type"] !== "lexical");
 
 describe("ticket pages", () => {
-  const [list, detail] = buildQaPages(pattern, ctx);
+  const all = buildQaPages(pattern, ctx);
+  const list = pageBySlug(all, "tickets");
+  const detail = pageBySlug(all, "ticket");
 
   it("builds the Tickets list and the hidden Ticket page", () => {
-    expect([list.title, list.url_slug, list.index]).toEqual(["Tickets", "tickets", 0]);
+    expect([list.title, list.url_slug, list.index]).toEqual(["Tickets", "tickets", 1]);
     expect([detail.title, detail.url_slug, detail.hide_in_nav]).toEqual(["Ticket", "ticket", true]);
   });
 
-  it("binds every data section to the install's own tickets dataset", () => {
+  it("binds every data section on these two pages to the install's own tickets dataset", () => {
     [list, detail].forEach((page) =>
       dataSections(page).forEach((s) => {
         expect(dataOf(s).externalSource).toMatchObject({
@@ -68,6 +75,7 @@ describe("ticket pages", () => {
       page.sections.forEach((s) => expect(groups).toContain(s.group));
     });
     expect(JSON.stringify(buildQaPages(pattern, ctx))).toBe(JSON.stringify(buildQaPages(pattern, ctx)));
+    expect(all.map((p) => p.url_slug)).toEqual(["overview", "tickets", "ticket", "page"]);
   });
 
   it("builds open and closed from the status kinds", () => {
@@ -83,18 +91,18 @@ describe("ticket pages", () => {
 });
 
 describe("add-ticket link", () => {
-  const titleSizes = (pages) => pages[0].sections.find((s) => s.trackingId === "qa_tickets_title").size;
+  const titleSizes = (pages) => pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_title").size;
 
   it("links to the Datasets admin's table when a Datasets pattern shares the environment", () => {
     const pages = buildQaPages(pattern, { ...ctx, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 42, base_url: "/data/" }] });
-    const add = pages[0].sections.find((s) => s.trackingId === "qa_tickets_add");
+    const add = pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_add");
     expect(dataOf(add).columns[0].location).toBe("/data/internal_source/43/table");
     expect(titleSizes(pages)).toBe("9");
   });
 
   it("is left out otherwise", () => {
     const pages = buildQaPages(pattern, { ...ctx, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 7, base_url: "data" }] });
-    expect(pages[0].sections.find((s) => s.trackingId === "qa_tickets_add")).toBeUndefined();
+    expect(pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_add")).toBeUndefined();
     expect(titleSizes(pages)).toBe("12");
   });
 });
@@ -102,7 +110,7 @@ describe("add-ticket link", () => {
 describe("site labels", () => {
   it("maps surface values when the install sets labels", () => {
     const labelled = { ...pattern, qa: { ...pattern.qa, siteLabels: { tsmo2: "TSMO" } } };
-    const [list] = buildQaPages(labelled, ctx);
+    const list = pageBySlug(buildQaPages(labelled, ctx), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
     expect(table.columns.find((c) => c.normalName === "site").name).toContain("when 'tsmo2' then 'TSMO'");
     const facet = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_facet_site"));
@@ -110,7 +118,7 @@ describe("site labels", () => {
   });
 
   it("shows raw values when it sets none", () => {
-    const [list] = buildQaPages(pattern, ctx);
+    const list = pageBySlug(buildQaPages(pattern, ctx), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
     expect(table.columns.find((c) => c.customName === "Site").name).toBe("surface");
   });
@@ -119,7 +127,7 @@ describe("site labels", () => {
 describe("an install without datasets", () => {
   it("keeps placeholder pages", () => {
     const pages = buildQaPages({ name: "QA" }, ctx);
-    expect(pages.map((p) => p.url_slug)).toEqual(["tickets", "ticket"]);
+    expect(pages.map((p) => p.url_slug)).toEqual(["overview", "tickets", "ticket"]);
     pages.forEach((p) => expect(byType(p, "lexical")).toHaveLength(p.sections.length));
   });
 });

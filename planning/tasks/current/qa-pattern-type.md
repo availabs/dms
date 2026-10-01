@@ -2,8 +2,18 @@
 
 **Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
-Phase 1 DONE, live-verified on `qa_test` and committed by the owner (2026-09-30: library `4919d419`, dms-template
-`e2b3e2e`). Phase 2 DONE and live-verified 2026-09-30, uncommitted. Phase 3 next.
+Phases 1–3 DONE and live-verified on `qa_test` (2026-09-30). Committed by the owner: phase 1 (library `4919d419`,
+dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`). **Phase 3b is uncommitted.**
+
+**▶ Next session, start here.** Nothing is in progress. The owner picks what's next; don't start without asking:
+- **The deferred status-change work** (phase 3a, "The status-change writes"): history rows, `resolved_date` stamping,
+  and now the stage control's refresh (phase 3b, "Owner's hand check").
+- **Phase 4:** derived values (live per-page ticket counts) and track-on-publish.
+- **Phase 5:** the Configure tab in `/list`, so covered sites and labels stop being hand-seeded.
+- The Design page feature is wanted later as an install feature (phase 3b decisions).
+
+Test data on `qa_test` is disposable: Phase2 (41) holds the seeded sites, pages, stories and tickets (#99–105, #76,
+#121, #122, #101), and QA/QA2/QA3/qa4/phase3a/phase3b/phase5 are spare installs.
 
 **Design and decisions:** `research/qa-ticketing-system/README.md` (plan v4) and `feature-roadmap.md`, both in the
 dms-template repo root. This file is the implementation plan and the source of truth for build status. The code
@@ -41,7 +51,13 @@ activity feed), server-side hooks, the throwaway DB, agents, server-side authori
     format. Both are read by `render/spa/utils/index.js:39, 56`; qa code must resolve permissions through that
     path, never parse the flat shape directly.
   - The app has its own id sequence (rows 1–37) and schema `dms_qa_test`.
-  - CLI access: the dev account is in `qa_test Admin`; mint with the dev mint script, `project: "qa_test"`.
+  - CLI access: the dev account is in `qa_test Admin`; mint with the dev mint script, `project: "qa_test"`
+    (`scratchpad/npmrds-sub/mint_token.sh qa_test` → `.dms-auth-token-qa_test`).
+  - **Browser probes need that token too:** `report_probe.mjs <url> --host http://localhost:5173 --auth
+    scratchpad/npmrds-sub/.dms-auth-token-qa_test`. Bare `--auth` loads the npmrdsv5 token: the page still shows the
+    dev account signed in, but the server returns pattern rows without their settings, so every install renders
+    the "datasets aren't set up yet" placeholder (2026-09-30). The unauthenticated CLI shows the same stripped row
+    (`updated_at: no-access`); read `dms_qa_test.data_items` with `dbq.py new` to see the real one.
 - **Known CLI quirk (not ours to fix here):** `dms site tree` labels `published: ''` pages `[draft]`;
   `dms page list` classifies them correctly (`cli/src/commands/page.js:61`). Any "is published" check in qa code
   must treat `''` as published.
@@ -137,7 +153,7 @@ that have to exist first.
 |---|---|---|---|
 | 1 | 2 (part) | Skeleton type: registration, admin-style code pages, no edit route | DONE 2026-09-30 |
 | 2 | 3 + 4 | Ticket record + install hook: schemas in code, datasets created per install, refs on the pattern row | DONE 2026-09-30 |
-| 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | 3a DONE, 3b next |
+| 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | 3a + 3b DONE (Design page deferred) |
 | 4 | 5 | Derived values without a sync, incl. track-on-publish | NOT STARTED |
 | 5 | 6 | Configure page | NOT STARTED |
 | 6 | 7 | Widget (signed out too) + `dms qa` CLI | NOT STARTED |
@@ -244,7 +260,7 @@ pieces has precedent: `patterns/datasets/components/ValidateComp.jsx:6-28` impor
 
 ---
 
-### Phase 2: Ticket record + install step — DONE (2026-09-30, live-verified on `qa_test`, uncommitted), incl. the resumable-install follow-up
+### Phase 2: Ticket record + install step — DONE (2026-09-30, live-verified on `qa_test`, committed `3392cb9b`), incl. the resumable-install follow-up
 
 **Goal:** Adding a QA pattern creates five datasets in the site's existing data environment: TransportNY's exact
 columns plus a few additive ones. It stores their references on the pattern row. Status kinds, default statuses and
@@ -458,7 +474,7 @@ connection: `falcor-express` logged "Client disconnected" after its 4th dataset,
 - **UDA filter fix** (`ccf9f3e9`, [uda-filter-expr-alias-where.md](./uda-filter-expr-alias-where.md), built): filters on
   `expr as alias` columns. TransportNY's ticket facets are all plain columns, so the port isn't affected.
 
-### Phase 3a: Ticket list + ticket page as code — DONE (2026-09-30, live-verified on `qa_test`, uncommitted)
+### Phase 3a: Ticket list + ticket page as code — DONE (2026-09-30, live-verified on `qa_test`, committed `3e27b5d2`)
 
 **Goal:** Each install's Tickets page and Ticket page become the control room's two ticket pages, built in code
 from `src/themes/transportny/qa_skills/tools/builds/build_cr_tickets.mjs` (425 lines, read in full 2026-09-30) and
@@ -524,6 +540,8 @@ section).
   refetch, and doesn't call the Card's live-edit save for that cell. Used for status and assignee (and stage in 3b).
   - Cost: QA code with its own small save path; other rail fields (severity, priority, …) stay on the Card's live
     edit, bug and all, exactly as on TransportNY today.
+  - It would also fix Page QA's stage refresh (phase 3b, "Owner's hand check"): the control publishes after its
+    save, so the progress bar refetches.
   - To confirm at build: the edit control can reach `apiUpdate` (PageContext) and the signed-in user.
 - **(b) Library fix.** Fix View `updateItem` (per-row pending saves; honour `setDateOnValue`) and add an opt-in
   `changeLog` column option; QA pages then just configure status/assignee.
@@ -594,13 +612,153 @@ section).
 - Console warnings on the Ticket page (`customName`, `hideHeader`, `valueFontStyle`, `allowEditInView` passed to DOM
   elements) come from `Card.jsx` passing column props to the edit inputs (`Card.jsx:372-381`), library code.
 
-**3b (outline, planned after 3a):** Overview (`build_cr_overview.mjs`, 210 lines) and Page QA (`build_cr_page.mjs`,
-329 lines, with the page-stage control → history). The Design page (`build_cr_design.mjs`) moves to TransportNY's
-theme at the port (phase 8).
+### Phase 3b: Overview + Page QA as code — DONE (2026-09-30, live-verified on `qa_test`, uncommitted)
+
+**Goal:** Each install gets the control room's other two pages, built in code from `build_cr_overview.mjs`
+(210 lines) and `build_cr_page.mjs` (329 lines), both read in full 2026-09-30, and bound to its own `pages`,
+`stories`, `tickets` and `patterns` datasets. The Overview becomes the install's home page.
+
+**What the builders make (the reference)**
+- **Overview (`/overview`), TransportNY's "CONTROL ROOM" home:**
+  - breadcrumb; header (`// site management · QA workflow`, "CONTROL ROOM.", a stat line
+    `N patterns · N pages · N accepted · N open / N done tickets` whose numbers are **baked in at build time**);
+  - "How delivery works": six live stage tiles (one-row aggregate Cards over `pages`: count per stage + label +
+    who-line copy);
+  - **one compound card per tracked sub-site**, built from the enabled `sitemgmt_patterns` rows **read at build
+    time**: title + `surface · N pages`, a `stacked_bar` stage distribution, a `stacked_bar` tickets done/open, and
+    that site's pages table (Page → Page QA link, stage pill, `open_bugs`, live-page link, design link), sorted by
+    `stage_order`.
+- **Page QA (`/page?key=<page_key>`):**
+  - header Card over `pages` keyed by `?key=`: eyebrow, page name, a QA ⇄ Design toggle (Design links to
+    `/sitemgmt/design?key=`), "View live page ↗", description;
+  - main band (the rail host): "Features & user stories" (a `stories` Spreadsheet with an editable status pill) and
+    "Tickets" (a header Card whose "+ Add ticket" publishes an action param, and the page's tickets with an editable
+    status pill, refreshed after a create);
+  - right rail (`position: 'sidebar'`, page `sidebar: 'right'`): "Page status" — an editable stage `select`
+    (live edit), a `stage_progress` 6-node bar, facts (surface, route, owner, updated, build, data), and work
+    completed (severity-weighted %, `data_bar`, closed/open);
+  - an **add-ticket modal** group (`isModal`, `modalParamKey: 'addticket'`): an `allowAdddNew` Card with title /
+    severity / description, create-time defaults (`autoNumber` ticket_id from 101, status Triage, source client,
+    reporter = user, opened/updated = now, surface and page_route split from `page_key` on `:`), closing on add and
+    refreshing the tickets (`add_publish` → `data_refresh`).
+  - page `filters` registry: `key`.
+
+**Decisions (owner, 2026-09-30): (A) and the Overview as home, both approved.** The **Design page feature** (a per-page
+design mockup and the QA ⇄ Design toggle) is wanted as an install feature later, the roadmap's "Design mockups"
+switch, not TransportNY's particular designs. It stays out of the base install for now. This supersedes the README's
+"the Design page moves into TransportNY's theme, as a theme-added page".
+1. **Where the Overview's per-site cards come from.** The builder read the tracked sites at build time; code pages
+   have no build step.
+   - **(A) recommended:** read the install's `patterns` dataset (enabled rows, by `sort_order`) when the Overview
+     renders, then build one card per site. The dataset stays the one source for "which sub-sites this install
+     covers": Configure (phase 5) edits it, the Report-an-issue button (phase 6) reads it signed out (pattern rows
+     reach signed-out visitors stripped), and the TransportNY port copies its rows. Cost: the Overview's site cards
+     appear after one small fetch.
+   - **(C) simpler:** drop the per-site cards for one pages table with a site facet and a site column; fully live,
+     no fetch, but it no longer looks like TransportNY's Overview.
+2. **The Overview becomes the install's home** (index 0, the bare install URL), Tickets second, Ticket and Page QA
+   hidden — TransportNY's order. (Default unless you say otherwise.)
+
+**Port rules (beyond 3a's)**
+- New `pages/overview.js` and `pages/pageQa.js`; the shared helpers gain the stage constants. `PAGE_STAGES`
+  (Proposed → Client Acceptance) moves into `ticketRecord.js` beside the statuses, matching the `pages` schema's
+  `stage` options; stage colours, pills and the tiles' who-line copy go in `helpers.js`.
+- **Dropped, as it would do nothing yet:**
+  - the Design link and the QA ⇄ Design toggle: they come back with the Design page feature (see decisions above).
+    "View live page ↗" stays.
+  - the pages table's `open_bugs` column and its `stage_order` sort: both are written only by TransportNY's sync.
+    Live per-page ticket counts are phase 4 (derived values). The table sorts by stage through a `CASE` on `stage`
+    instead, which needs no sync.
+- **Counts are live.** Code pages have no build step, so there is nothing to bake: the header stat line is one-row
+  aggregate Cards (pages: `N pages · N accepted`; tickets: `N open / N done`), and the site count comes from the
+  fetched site list. This is the feature itself, not a design choice (owner, 2026-09-30).
+- The add-ticket modal ports as-is (all native: `allowAdddNew`, `autoNumber`, `defaultFn`, `defaultFrom`,
+  `click_publish` / `add_publish` / `data_refresh`, `isModal`). It keeps TransportNY's `surface:route` page-key
+  convention; how page keys get made for new installs is phase 4's track-on-publish.
+- The stage select, story status and ticket status stay native live edits (the status-change writes stay deferred;
+  a stage change is the third field that will want a history row).
+- Links: `/sitemgmt/…` → `${baseUrl}/…`; breadcrumbs name the install.
+
+**Tests (vitest)**
+- Overview with a given site list: one group per site (fixed names from the surface, e.g. `overview_site_tsmo2`),
+  each card's sections filtered by that surface; no site list → no site cards; stage tiles for every `PAGE_STAGES`;
+  header counts are aggregate calcs, not literals.
+- Page QA: every data section keyed on `?key=` (`page_key`); modal group flags; create-time defaults; no Design
+  link; no `open_bugs`/`stage_order`; rail group `position: 'sidebar'` and page `sidebar: 'right'`.
+- Both: install datasets only, no TransportNY identifiers, links under `baseUrl`, fixed unique trackingIds.
+
+**Live check on `qa_test` (Phase2, still on the TransportNY theme for the real look)**
+- Seed: 3 covered sites in `phase2_patterns`, ~8 pages in `phase2_pages` across stages (page keys `surface:route`),
+  a few stories, and re-point the seeded tickets' `page_key`/`surface` at them.
+- `/phase2` opens the Overview: stage tiles match the seeded stages; one card per enabled site with the right page
+  count and bars; a site's page links open Page QA.
+- `/phase2/page?key=…`: header, stories, tickets, the rail; stage select and story status save on change;
+  "+ Add ticket" opens the modal, a new ticket appears in the list without a reload and carries the defaults.
+- Empty installs (no sites, no pages) render without errors.
+
+**Rough size:** 3–4 days (Overview ~1 incl. the site fetch; Page QA ~1.5 incl. the modal; tests + live ~1).
+
+**Built (2026-09-30)**
+- `ticketRecord.js` `PAGE_STAGES`; `helpers.js` stage colours/short labels/who-lines, `STAGE_RANK`, build/data/story
+  pills, `datasetSource` (+ `pagesSource`, `storiesSource`); new `pages/overview.js`, `pages/pageQa.js`.
+- `buildQaPages(pattern, {app, baseUrl, datasetPatterns, sites})` → Overview (index 0, home), Tickets (1), Ticket (2,
+  hidden), Page QA (3, hidden); the placeholder set (Overview/Tickets/Ticket) until tickets, pages and stories exist.
+  `coveredSites(rows)` keeps enabled (`'yes'`) rows with a surface, in `sort_order`.
+- Site list (decision A): `pages/view.jsx` reads the covered-sites rows once through new `api/datasetRows.js`
+  (`loadDatasetRows`: the UDA `length` + `dataByIndex` reads TransportNY's Overview builder makes) and rebuilds the
+  pages when they arrive; site cards are absent until then.
+- Left out, as planned: the Design toggle and links, `open_bugs`, `stage_order`. The kicker copy's "AI flags
+  issues" became "issues get flagged" (not every install has an agent).
+- **Design note: Spreadsheet helper columns need fixed widths.** A zero-width sort/fetch helper (`stage_rank`,
+  `page_key`) only stays hidden with `autoResize: false`; with auto-resize on, both showed as columns. The site
+  pages tables set explicit widths.
+
+**Tests — DONE 2026-09-30**
+- [x] vitest `tests/qaOverviewPages.test.js` (17): `coveredSites`; Overview is home and reads only pages + tickets;
+  one live tile per stage; counts in SQL; one 4-section card group per site, each filtered by surface; no site cards
+  before load; stage-rank sort + Page QA links; no `stage_order`/`open_bugs`/design/TransportNY ids. Page QA: hidden,
+  `sidebar: 'right'`, rail and modal group flags, `key` variable; reads pages/stories/tickets; every data section
+  keyed on `?key=` (but the modal and its header); modal defaults; no Design toggle; ticket links in-install; stage
+  options = `PAGE_STAGES` = the pages schema's.
+- [x] Updated for the new order: `qaPattern.test.js` (home = Overview; nav Overview, Tickets) and
+  `qaTicketPages.test.js` (pages found by slug; full dataset fixture). 85 QA tests across 6 files pass; full
+  `packages/dms/tests` 602/605, the same 3 unrelated failures.
+
+**Live check on `qa_test` — DONE 2026-09-30 (Phase2 on the TransportNY theme)**
+- [x] Seeded: 4 covered sites (TSMO, NPMRDS, Freight Atlas enabled; Docs `no`), 8 pages across all stages
+  (`surface:route` keys), 3 stories and 2 tickets on `tsmo2:corridor`.
+- [x] `/phase2` opens the Overview: "3 sites", "8 pages · 2 accepted", "6 open / 4 done tickets"; tiles 1/1/1/2/1/2;
+  cards TSMO (3 pages, 1 done · 3 open), NPMRDS (3, 1 · 2), Freight Atlas (2, 1 · 0), Docs absent; pages sorted by
+  stage, linking to `/phase2/page?key=…`. No console, page or SQL errors.
+- [x] `/phase2/page?key=tsmo2:corridor`: header + "View live page ↗"; 3 stories in order; tickets #122, #121; rail
+  "QA", step 4 of 6, facts, work completed 60% (1 closed, 1 open).
+- [x] "+ Add ticket" opens the modal; submitting created `phase2_tickets|44:data` with `ticket_id 101`, Triage,
+  client, the user's email, now, `surface tsmo2`, `page_route /corridor`, `page_key tsmo2:corridor`; the modal
+  closed and #101 appeared without a reload.
+- [x] `/qa4`, `/phase3a` (no sites or pages), `/qa` (no datasets) and an unknown key render without errors.
+- Not driven in automation (custom dropdowns): the modal's severity pick (the test ticket saved without one), the
+  stage control, the story and ticket status pills.
+
+**Owner's hand check — 2026-09-30**
+- [x] "+ Add ticket" opens the form; a ticket filed with a severity picked saved and appeared. (An earlier "no form"
+  report was a stale view; the automated re-check with the qa_test token also opens it.)
+- [x] Story and ticket status pills look right.
+- [x] A ticket status changed in the Ticket page's rail shows on the Tickets list after a refresh (phase 3a's rail).
+- [ ] **Open: the stage dropdown saves, but nothing else on the page reacts.** The progress bar ("STEP N OF 6") and
+  anything else keyed on the stage keep the old value until a reload. Cause: the stage control and the progress bar
+  are separate sections, and nothing announces the save. `save_publish` fires only on a form save and deliberately
+  skips live-edit saves (`Card.jsx:223-237`: a live-edit keystroke must not close a modal mid-typing).
+  TransportNY's page is built the same way (`build_cr_page.mjs:207-223`), so it has the same gap. Two ways to fix,
+  for the owner to pick with the deferred status-change writes:
+  - in QA's own status/stage control (option (a) there), which publishes after its save;
+  - or a core change: let `save_publish` fire for a live-edit save of a discrete control (select, pill), not a
+    text keystroke. That would also apply to TransportNY's Card pages.
+
 
 **Phase 3 carry-overs (from the original outline):**
 - Switches gate pages and sections; nav follows. Until Configure (phase 5) every switch is on.
-- Theme-added pages: merge `theme.qa.pages` (code, never DB). TransportNY's Design page moves there in phase 8.
+- Theme-added pages: merge `theme.qa.pages` (code, never DB). The Design page is no longer planned there: it
+  becomes an install feature (owner, 2026-09-30).
 
 ### Phases 4–7 — NOT STARTED
 
