@@ -104,6 +104,13 @@ export const componentFunctions = {
             ],
         },
         {
+            id: 'save_publish',
+            label: 'Save: Publish Saved Row',
+            description: 'After a cell edit of a pick-from-a-list column (pill, select, radio, checkbox, switch; not a typed one) is saved, publishes `saved:<id>:<time>` to a page action param — pair with a Refetch Data subscriber so other sections over the same source show the edit without a reload.',
+            trigger: 'save',
+            args: [],
+        },
+        {
             id: 'conditional_row_style',
             label: 'Conditional Row Style',
             description: 'Accent a whole row when one of its columns matches a condition (e.g. county_priority empty → left-edge + tint). The Style Key names a `theme.table` style (e.g. `rowAccentAmber`); a neutral `rowAccent` default ships in the library.',

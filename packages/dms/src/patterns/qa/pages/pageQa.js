@@ -1,6 +1,6 @@
 import { PAGE_STAGES } from '../ticketRecord'
 import {
-  T, crumb, cardTitle, SEV_PILL, STATUS_PILL, SOURCE_KEY_PILL, STORY_PILL, BUILD_PILL, DATA_PILL, STAGE_HEX, OPEN, CLOSED, W, TNUM,
+  T, crumb, cardTitle, SEV_PILL, STATUS_PILL, SOURCE_KEY_PILL, STORY_PILL, BUILD_PILL, DATA_PILL, STAGE_HEX, OPEN, CLOSED, CLOSED_STATUSES, W, TNUM,
   pagesSource, storiesSource, ticketsSource, dataWrapper, col, pcol, stat, staticCell, group, section, pageVariable,
 } from './helpers'
 
@@ -84,15 +84,24 @@ export function pageQaPage(ctx) {
         col('title', 'Ticket', withHeader({ size: 300, wrapText: true, stretch: true })),
         pcol('severity', 'Sev', SEV_PILL, withHeader({ size: 92, justify: 'right' })),
         pcol('source', 'Source', SOURCE_KEY_PILL, withHeader({ size: 92, justify: 'right' })),
-        pcol('status', 'Status', STATUS_PILL, withHeader({ size: 130, justify: 'right', allowEditInView: true })),
+        // closing stamps resolved_date (the first close's date is kept), reopening clears it
+        pcol('status', 'Status', STATUS_PILL, withHeader({
+          size: 130, justify: 'right', allowEditInView: true, setDateOnValue: { field: 'resolved_date', values: CLOSED_STATUSES },
+        })),
         dayCol('opened', 'Opened'),
         dayCol('updated', 'Updated'),
+        // fetched so a Resolved → Closed change sees the existing date (and keeps it); zero width
+        { name: 'resolved_date', customName: '', show: true, hideHeader: true, size: 0 },
       ],
       filters: [byKey],
-      // refetch when the modal's add_publish bumps 'tickets_v', so a new ticket appears without a reload
+      // refetch when the modal's add_publish bumps 'tickets_v', so a new ticket appears without a reload;
+      // a status change publishes 'tickets_v' too, which refreshes Work completed
       display: {
         usePagination: true, pageSize: 25, fetchMode: 'smart', autoResize: false,
-        _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'tickets_v' }] },
+        _functions: {
+          providers: [{ functionId: 'save_publish', enabled: true, paramKey: 'tickets_v' }],
+          subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'tickets_v' }],
+        },
       },
     }),
   }))
@@ -112,8 +121,11 @@ export function pageQaPage(ctx) {
         },
       ],
       filters: [byKey],
-      // live edit: the stage saves on change
-      display: { usePagination: false, pageSize: 1, cellsGridSize: 1, cellsGridGap: 1, cellsPadding: 0, cardsPadding: 14, headerValueLayout: 'col', cardBorder: false, allowEditInView: true, liveEdit: true },
+      // live edit: the stage saves on change, then publishes 'page_v' so the progress bar refetches
+      display: {
+        usePagination: false, pageSize: 1, cellsGridSize: 1, cellsGridGap: 1, cellsPadding: 0, cardsPadding: 14, headerValueLayout: 'col', cardBorder: false, allowEditInView: true, liveEdit: true,
+        _functions: { providers: [{ functionId: 'save_publish', enabled: true, paramKey: 'page_v' }] },
+      },
     }),
   }))
   S.push(section({
@@ -121,7 +133,10 @@ export function pageQaPage(ctx) {
     data: dwPages({
       columns: [{ name: 'stage', customName: '', type: 'stage_progress', stages: PAGE_STAGES, stageHex: STAGE_HEX, show: true, justify: 'left', hideHeader: true }],
       filters: [byKey],
-      display: { usePagination: false, pageSize: 1, cellsGridSize: 1, cellsGridGap: 8, cardsPadding: 14, headerValueLayout: 'col', cardBorder: false },
+      display: {
+        usePagination: false, pageSize: 1, cellsGridSize: 1, cellsGridGap: 8, cardsPadding: 14, headerValueLayout: 'col', cardBorder: false,
+        _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'page_v' }] },
+      },
     }),
   }))
   const fact = (name, label, over = {}) => col(name, label, { hideHeader: false, headerFontStyle: T.label, valueFontStyle: T.value, justify: 'right', ...over })

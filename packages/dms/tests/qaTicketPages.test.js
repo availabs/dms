@@ -85,8 +85,14 @@ describe("ticket pages", () => {
     expect(CLOSED).toBe("('Resolved','Closed')");
   });
 
-  it("leaves out the status pill's date stamp, which only the section editor runs", () => {
-    expect(JSON.stringify(detail)).not.toContain("setDateOnValue");
+  it("stamps resolved_date from the rail's status pill and refreshes the header after a rail pick", () => {
+    const rail = dataOf(detail.sections.find((s) => s.trackingId === "qa_ticket_rail"));
+    expect(rail.columns.find((c) => c.name === "status").setDateOnValue).toEqual({ field: "resolved_date", values: CLOSED_STATUSES });
+    expect(rail.columns.some((c) => c.name === "resolved_date")).toBe(true);
+    expect(rail.display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "ticket_v" }]);
+    const header = dataOf(detail.sections.find((s) => s.trackingId === "qa_ticket_header"));
+    expect(header.display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "ticket_v" }]);
+    expect(header.columns.find((c) => c.name === "status").setDateOnValue).toBeUndefined();
   });
 });
 

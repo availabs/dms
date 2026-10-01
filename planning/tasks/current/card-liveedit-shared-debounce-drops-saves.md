@@ -1,9 +1,15 @@
 # Card liveEdit: one shared save timer per section drops quick edits
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
-Logged 2026-09-30, found while planning phase 2 of [`qa-pattern-type.md`](./qa-pattern-type.md). Not scheduled:
-the owner wants TransportNY's current control room left as it is, and a fix changes how its Card pages save.
+Logged 2026-09-30, found while planning phase 2 of [`qa-pattern-type.md`](./qa-pattern-type.md).
+
+**Built 2026-10-01 (uncommitted)** as option (b) of that task's status-change writes (owner approved; the TransportNY
+effects are fixes). Per-row pending saves + flush on unmount (`dataWrapper/utils/liveEditSaves.js`
+`createPendingSaves`, View `updateItem`), and `setDateOnValue` now runs on live pages. Live-verified on `qa_test`:
+two picks 334 ms apart → one merged save, both kept; the committed code dropped the first (reproduced). Pick then
+navigate inside the window: the committed code sent nothing, the new code saves at unmount. Details, tests and the
+pre-push TransportNY checks: `qa-pattern-type.md`, "The status-change writes". Move to completed once committed.
 
 ## Objective
 
@@ -47,6 +53,6 @@ Two live edits in one Card section within half a second should both be saved. To
 
 ## Testing checklist
 
-- [ ] Unit: two live edits on different rows within 500 ms → two saves; two fields on one row → one merged save.
-- [ ] Live: a Card with two live-edit pills, flip both quickly, reload, both persisted.
+- [x] Unit: two live edits on different rows within 500 ms → two saves; two fields on one row → one merged save (`tests/liveEditSaves.test.js`).
+- [x] Live: a Card with two live-edit pills, flip both quickly, reload, both persisted (QA Ticket rail, row 150).
 - [ ] A Card without live edit, and Spreadsheet cell edits, behave as before.

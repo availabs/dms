@@ -11,6 +11,7 @@ import { describe, it, expect } from "vitest";
 import { buildQaPages, coveredSites } from "../src/patterns/qa/pages";
 import { PAGE_STAGES } from "../src/patterns/qa/ticketRecord";
 import { QA_DATASETS } from "../src/patterns/qa/datasets";
+import { CLOSED_STATUSES } from "../src/patterns/qa/pages/helpers";
 
 const datasets = {
   tickets: { slug: "phase2_tickets", source_id: 43, view_id: 44 },
@@ -137,6 +138,18 @@ describe("Page QA", () => {
   it("offers the page stages in the stage control", () => {
     const stage = dataOf(page.sections.find((s) => s.trackingId === "qa_page_stage")).columns.find((c) => c.name === "stage");
     expect(stage.options.map((o) => o.value)).toEqual(PAGE_STAGES);
+  });
+
+  it("stamps resolved_date from the tickets table, and refreshes the rail after a status or stage pick", () => {
+    const section = (id) => dataOf(page.sections.find((s) => s.trackingId === id));
+    const tickets = section("qa_page_tickets");
+    expect(tickets.columns.find((c) => c.name === "status").setDateOnValue).toEqual({ field: "resolved_date", values: CLOSED_STATUSES });
+    // the stored date is loaded (zero width) so Resolved → Closed keeps it
+    expect(tickets.columns.find((c) => c.name === "resolved_date")).toMatchObject({ show: true, size: 0 });
+    expect(tickets.display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "tickets_v" }]);
+    expect(section("qa_page_work").display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "tickets_v" }]);
+    expect(section("qa_page_stage").display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "page_v" }]);
+    expect(section("qa_page_progress").display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "page_v" }]);
   });
 });
 

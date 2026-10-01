@@ -468,7 +468,7 @@ export const componentFunctions = {
         {
             id: 'save_publish',
             label: 'Save: Publish Saved Row',
-            description: 'After a form-edit Save (Live Edit off), publishes `saved:<id>:<time>` to a page action param — pair with a Refetch Data subscriber so other sections over the same source show the edit without a reload.',
+            description: 'After a form-edit Save, or a Live Edit of a pick-from-a-list cell (pill, select, radio, checkbox, switch; not a typed one), publishes `saved:<id>:<time>` to a page action param — pair with a Refetch Data subscriber so other sections over the same source show the edit without a reload.',
             trigger: 'save',
             args: [],
         },

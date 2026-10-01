@@ -10,6 +10,7 @@ import ActionControls from "./controls/ActionControls";
 import {ComponentContext, PageContext} from '../../../../../context'
 import {ThemeContext} from "../../../../../../../ui/useTheme"
 import {isEqualColumns} from "../../dataWrapper/utils/utils";
+import {changedColumns, isDiscreteColumnType} from "../../dataWrapper/utils/liveEditSaves";
 import AddFormulaColumn from "../../../AddFormulaColumn";
 import AddCalculatedColumn from "../../../AddCalculatedColumn";
 //import {tableTheme} from "../../../../../../../ui/components/table/theme";
@@ -29,6 +30,20 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
     // (e.g. county_priority empty → amber left-edge + tint). The args descriptor is threaded to
     // the Table, which resolves the styleKey against the live table theme and evaluates per row.
     const rowStyleCfg = display._functions?.providers?.find(p => p.functionId === 'conditional_row_style' && p.enabled);
+    // save_publish: once a saved edit changed a pick-from-a-list column (pill, select, …), publish
+    // `saved:<id>:<time>` so data_refresh subscribers refetch. A typed edit doesn't (a refetch would
+    // reset a cell still being typed in). A cell's save sends its whole row without naming the
+    // column, so the changed columns come from comparing it with the stored row.
+    const savePublishCfg = display._functions?.providers?.find(p => p.functionId === 'save_publish' && p.enabled);
+    const updateItemWrapped = useCallback(async (value, attribute, d) => {
+        const rows = Array.isArray(d) ? d : [d];
+        const changedPick = attribute
+            ? isDiscreteColumnType(attribute.type)
+            : rows.some(row => changedColumns(columns, data.find(r => r.id === row?.id), row).some(c => isDiscreteColumnType(c.type)));
+        const res = await updateItem?.(value, attribute, d);
+        if (changedPick && savePublishCfg?.paramKey) setActionParam?.(savePublishCfg.paramKey, `saved:${rows[0]?.id}:${Date.now()}`);
+        return res;
+    }, [updateItem, columns, data, savePublishCfg?.paramKey, setActionParam]);
 
     const onRowMouseEnter = useCallback((rowData) => {
         if (!providerCfg || !setActionParam) return;
@@ -178,7 +193,7 @@ export const RenderTable = ({cms_context, isEdit, updateItem, removeItem, addIte
                   allowEdit={allowEdit} isEdit={isEdit} loading={loading}
                   gridRef={gridRef}
                   theme={theme} paginationActive={paginationActive}
-                  updateItem={updateItem} removeItem={removeItem}
+                  updateItem={savePublishCfg ? updateItemWrapped : updateItem} removeItem={removeItem}
                   newItem={newItem} setNewItem={setNewItem} addItem={addItem}
                   numColSize={numColSize} gutterColSize={gutterColSize} frozenColClass={frozenColClass} frozenCols={frozenCols}
                   currentPage={currentPage}

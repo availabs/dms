@@ -3,14 +3,16 @@
 **Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 Phases 1–3 DONE and live-verified on `qa_test` (2026-09-30). Committed by the owner: phase 1 (library `4919d419`,
-dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (`2450f728`). **The default-theme
-restyle and test-data reset (2026-10-01) are uncommitted.**
+dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (`2450f728`), and the default-theme
+restyle (`3a80c516`, 2026-10-01; the test-data reset was DB-only).
 
-**▶ Next session, start here.** Nothing is in progress. The owner picks what's next; don't start without asking:
-- **The owner's look check of the default-theme restyle** (`/qa` and its pages; section "Default-theme restyle and
-  test-data reset"), incl. whether to fix Card's `valueFontStyle` size clash in the library.
-- **The deferred status-change work** (phase 3a, "The status-change writes"): history rows, `resolved_date` stamping,
-  and now the stage control's refresh (phase 3b, "Owner's hand check").
+**▶ Next session, start here.** Option (b) parts 1–3 for status-change writes are BUILT and live-verified, uncommitted
+(2026-10-01; section "The status-change writes"). Before the owner pushes, remind them to test TransportNY's control
+room, one MNY live-edit page and wcdb's `station_admin` form save. Otherwise the owner picks what's next:
+- **A dedicated design pass** on the QA pages is planned soon (owner, 2026-10-01; the restyle passed the look check
+  "for now"). Card's `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") belongs there.
+- **Status-change work still deferred** (phase 3a, "The status-change writes"): part 4 (change history, commit on
+  blur) and story-status tracking. `resolved_date` stamping and the stage refresh are done (option (b) parts 1–3).
 - **Phase 4:** derived values (live per-page ticket counts) and track-on-publish.
 - **Phase 5:** the Configure tab in `/list`, so covered sites and labels stop being hand-seeded.
 - The Design page feature is wanted later as an install feature (phase 3b decisions).
@@ -28,7 +30,7 @@ TSMO/NPMRDS/Freight Atlas seed, and spares QA/QA2/QA3/QA4/Phase3a/Phase3b/Phase5
 dms-template repo root. This file is the implementation plan and the source of truth for build status. The code
 seam is traced in `research/qa-ticketing-system/pattern-type-feasibility.md`.
 
-## Default-theme restyle and test-data reset — DONE 2026-10-01 (uncommitted)
+## Default-theme restyle and test-data reset — DONE 2026-10-01 (committed `3a80c516`)
 
 **Why (owner, 2026-10-01):** the TransportNY lookalike data and look on `qa_test` made the feature hard to work on.
 Stop using data that mimics TransportNY, and give the QA pages a look of their own, using the defaults.
@@ -84,7 +86,7 @@ too; not QA); the 7 React unknown-prop console errors on the Ticket page (phase 
 - [x] Live (probe, `qa_test` token): `/qa`, `/qa/tickets`, `/qa/ticket?id=149`, `/qa/page?key=alphapage:page_1`: no
   page, SQL or non-200 errors; counts match the seed (6 pages · 1 accepted, 4 open / 2 done, one page per stage,
   33% resolution, AlphaPage 1 done · 1 open, BetaPage 1 done · 3 open).
-- [ ] Owner's look check.
+- [x] Owner's look check (2026-10-01): fine for now; a dedicated design pass comes later.
 
 ## Objective
 
@@ -610,11 +612,136 @@ section).
   - It would also fix Page QA's stage refresh (phase 3b, "Owner's hand check"): the control publishes after its
     save, so the progress bar refetches.
   - To confirm at build: the edit control can reach `apiUpdate` (PageContext) and the signed-in user.
+  - **Confirmed in code (2026-10-01, read-only; nothing built):**
+    - A cell type gets `value`, `onChange`, the whole `row` (with `id`) and its column's props, in a Card cell
+      (`ui/components/Card.jsx:371-382`) and a Spreadsheet cell (`ui/components/table/components/TableCell.jsx:575-586`).
+      Both read the one `ui/columnTypes` registry; `registerColumnType` is the hook (`filter_control` precedent,
+      `patterns/page/siteConfig.jsx:26`).
+    - View's `ComponentContext` exposes `state`, `setState`, `apiLoad`, `apiUpdate` (`dataWrapper/index.jsx:737`).
+      The cell saves through `apiUpdate` and patches `state.data` itself; Card re-copies its record on a data change
+      (`Card.jsx:771-773`), the table cell too (`TableCell.jsx:343`). The user: `CMSContext.user` (QA's shell passes
+      the live one, `patterns/qa/pages/shell.jsx`). `PageContext.setActionParam` publishes for `data_refresh`.
+    - The two save paths it bypasses differ: Card live edit = one 500 ms timer per section, sends `{id, field}`;
+      Spreadsheet cell = its own 500 ms timer, sends the whole row's editable columns from that cell's copy.
+    - Where the tracked fields live: ticket status in the Ticket rail (Card) and Page QA's tickets table
+      (Spreadsheet); assignee in the rail (text); page stage in Page QA's rail (Card, `pages` dataset); story status
+      in Page QA's stories table (Spreadsheet, `stories` dataset).
+  - **Owner answers (2026-10-01), whichever option is built:** Resolved → Closed keeps the first resolved date;
+    text fields (assignee) commit on blur, one history row per commit. No `updated` stamp: every row, split tables
+    included, has native `created_at/created_by/updated_at/updated_by` (`dms-server/src/db/table-resolver.js:255-262`),
+    set on every edit by `setDataById` (`dms.controller.js:853-854`); show it with a custom column named `updated_at`
+    (a bare name is the row column, a data field is `data->>'x'`; `buildUdaConfig.js:39-46`). Live: rows 149–154 carry
+    them. The record's own `updated` field then only holds imported TransportNY dates (phase 7).
+  - **Still open:** story status tracked too? The `history` `dataset` column (row ids come from the schema's one
+    sequence, `table-resolver.js:255, 303`, so `row_id` alone is unique; the column only saves an app-wide feed a
+    lookup). And whether (a) at all: no existing cell type saves its own data (19 built-in display types, 1
+    pattern-registered `filter_control`, 16 theme-added on wcdb/landbank/tessera; the two that write anything write
+    page filters), so (a) would be the first.
+  - **Visible today:** "Done / day" (`tickets.js:100`) groups by `resolved_date`, so a ticket resolved in the UI never
+    appears in it.
 - **(b) Library fix.** Fix View `updateItem` (per-row pending saves; honour `setDateOnValue`) and add an opt-in
   `changeLog` column option; QA pages then just configure status/assignee.
   - Cleaner, and any author gets it. But it changes TransportNY's Card pages: quick edits stop being dropped and
     status flips start stamping `resolved_date` (both what its docs already claim). Logged in
     `card-liveedit-shared-debounce-drops-saves.md`.
+  - **Leaning (b) (owner, 2026-10-01).** The TransportNY effects are fixes and OK. **Remind the owner to test
+    TransportNY before pushing** (control-room ticket rail and Page QA pills; plus one MNY live-edit page and wcdb's
+    `station_admin` form save). Nothing built yet; plan detail below, not yet approved.
+  - **Blast radius (DB scan of all 116 `dms_*` schemas, component rows, 2026-10-01):**
+    - `setDateOnValue`: only `dms_npmrdsv5`, 8 `sitemgmt|component` rows (the control room). In code, only
+      `build_cr_tickets.mjs:390`; TransportNY's CLI restamps on every closing status (`cr.mjs` `buildTicketPatch`).
+    - live edit on (`liveEdit` + `allowEditInView`): `mitigat_ny_prod` 5798 rows / 68 patterns (many likely orphan
+      copies), `wcdb` 136 / 1, `shaun_test_app` 44 / 10, `npmrdsv5` 32 / 2, `asm` 10 / 2.
+    - `save_publish`: only `dms_wcdb`, 3 `station_admin` rows (1965809, 1969577, 1969588), all form saves with live
+      edit off, so a live-edit publish doesn't reach them. The Spreadsheet offers no `save_publish` today (its
+      providers: `click_publish`, `load_publish`; `spreadsheet/config.jsx`).
+  - **Plan detail (proposed):**
+    1. Per-row pending saves in View's live-edit branch (merge fields per row, one timer per row) and flush on
+       unmount. Today's unmount effect (`dataWrapper/index.jsx:490-491`) cancels the pending save despite its "Flush"
+       comment, so leaving a page within 500 ms of an edit loses it. `updateItem` returns a promise that settles
+       when that row's save lands.
+    2. `setDateOnValue` in View, both branches: the live edit (Card) and the bulk one (Spreadsheet cells, form
+       saves; `TableCell.jsx:351-353` always uses it, so Page QA's tickets table needs it). One shared helper, also
+       used by Edit, with the keep-first rule: stamp on entering `values`, keep on moving within them, clear on
+       leaving. The old value comes from a ref of the section's rows (the callback's deps omit `state.data`).
+    3. `save_publish` after a live-edit save of a discrete control (select, pill, radio, checkbox, boolean, switch),
+       never a text one (a refetch mid-typing resets the field: `Card.jsx:771-773`). `closeModalOnSave` stays
+       form-only. Add `save_publish` to the Spreadsheet, firing only when the changed columns are discrete.
+    4. (Separable; decide before phase 7) change history: `commitOn: 'blur'` for text inputs (`text.jsx`), and an
+       opt-in `changeLog` column option writing `{row_id, field, old_value, new_value, user_id, user_email, at, via}`
+       to a target dataset, through one helper the `dms qa` CLI reuses.
+    - QA config after: `setDateOnValue` on both status pills (closed kinds), `save_publish` / `data_refresh` keys on
+      Page QA, native `updated_at` via a custom column; drop the `qaTicketPages` "no setDateOnValue" assertion.
+  - **Owner (2026-10-01):** part 4 (change history, commit on blur) deferred. Story status is to be tracked too, with
+    part 4. No TransportNY edits (`src/themes/transportny/`, incl. `cr.mjs`'s restamp): that site is handled ad hoc.
+  - **Core code estimate for parts 1–3 (outside `patterns/qa`; estimates, nothing written):**
+
+    | File | Change | Lines |
+    |---|---|---|
+    | new `dataWrapper/utils/liveEditSaves.js` | keep-first stamp rule, changed-columns diff, per-row pending saves, discrete type list | +75 |
+    | `dataWrapper/index.jsx` View | live edit → pending saves + stamp; bulk branch stamps; rows ref; flush on unmount | +25 / −12 |
+    | `dataWrapper/index.jsx` Edit | inline stamp → the helper (same rule in both modes) | +3 / −7 |
+    | `ComponentRegistry/Card.jsx` | `save_publish` after a discrete live edit | +4 |
+    | `ComponentRegistry/Card.config.jsx` | `save_publish` description | 1 edited |
+    | `spreadsheet/index.jsx` | `save_publish` wrapper (diff against `state.data`) | +14 |
+    | `spreadsheet/config.jsx` | `save_publish` provider entry | +7 |
+    | new `tests/liveEditSaves.test.js` | stamp rule, diff, pending saves (fake timers) | +90 |
+    | `sections/component-actions.md` | `save_publish` docs | ~5 |
+
+    Only caller that awaits `updateItem`: Card's wrapper (`ComponentRegistry/Card.jsx:230`), so the live-edit branch
+    returning a promise is safe. Closes `card-liveedit-shared-debounce-drops-saves.md` when built.
+  - **Building parts 1–3 (owner approved 2026-10-01, Edit-mode row included). Core code written, uncommitted:**
+    - [x] new `dataWrapper/utils/liveEditSaves.js`: `isDiscreteColumnType`, `rawValue`, `setDateOnValueStamp`
+      (keep-first), `changedColumns`, `dateStampsForRow`, `createPendingSaves`.
+    - [x] View `updateItem`: live edit → `pendingSavesRef.current.queue(rowId, patch)` (per-row timer, merged
+      fields, undefined keys dropped so a merge can't blank an earlier field), stamp from the stored row
+      (`rowsRef`); bulk branch adds `dateStampsForRow` stamps to the save and the optimistic update; unmount
+      `flushAll()` replaces `clearTimeout`. Flush is safe after leaving: `apiUpdate` returns early for DMS dataset
+      rows (`dms-manager/wrapper.jsx:89-92`); an editable external table gets one `revalidate()`.
+    - [x] Edit `updateItem`: inline stamp → `setDateOnValueStamp` (old row from `state.data`).
+    - [x] `ComponentRegistry/Card.jsx`: `save_publish` also after a discrete live edit; `Card.config.jsx` text.
+    - [x] `spreadsheet/config.jsx` `save_publish` provider; `spreadsheet/index.jsx` wrapper (used only when the
+      provider is on), publishing when a changed column is discrete.
+    - [x] unit tests: new `tests/liveEditSaves.test.js` 20/20. Full `packages/dms/tests` 626/629, the same 3 unrelated
+      failures (`avlGraphThemeDefaults` golden, `syncDeltaConvergence` ×2).
+    - [x] **Live, core alone (no QA config change), test ticket #102 row 150 on install 126:** probe
+      `scratchpad/qa_test/probes/rail_quick_edits.mjs` (picks in the Ticket rail; `PICKS`, `GAP_MS`, `NAV_AFTER`).
+      - status → Resolved then priority → Later, 334 ms apart: ONE save `{id:150, status:"Resolved",
+        priority:"Later"}`, both in the DB. Same picks on the committed `index.jsx` (swapped in, then restored):
+        only `{priority:"Later"}` sent, status stayed Triage. Bug reproduced, fix confirmed.
+      - pick then click "All tickets" within the window: the rail unmounts ~1.1 s later (the router waits for the
+        next page's data). Committed file: no save at all; new file: the save goes out at unmount.
+      - picks >500 ms apart: two saves, as before. Row 150 restored to Triage / Next after each run.
+    - [x] QA config: Ticket rail status `setDateOnValue` (`resolved_date`, `CLOSED_STATUSES`) + `save_publish`
+      `ticket_v`, header `data_refresh` `ticket_v`; Page QA tickets table status `setDateOnValue` + `save_publish`
+      `tickets_v` (Work completed already subscribes) + a zero-width `resolved_date` column (so Resolved → Closed
+      sees the stored date); stage select `save_publish` `page_v`, progress bar `data_refresh` `page_v`. Tests:
+      `qaTicketPages` (the "no setDateOnValue" assertion became the wiring check), `qaOverviewPages` +1.
+      QA + helper suites 93/93; full `packages/dms/tests` 627/630, the same 3 unrelated failures.
+    - [x] **Live with the QA config (install 126):**
+      - Ticket rail #102 (row 150): Triage → Resolved stamped `2026-10-01 16:24:59`; → Closed sent only the status,
+        date kept; → Triage sent `resolved_date: ""`. The header badges followed each change without a reload.
+      - Page QA `alphapage:page_1`, tickets table #101 (row 149): → Resolved stamped (whole-row save) and Work
+        completed went 0% → 100% (Closed 0 → 1) without a reload; → Closed kept the date; → In progress cleared it.
+      - Stage select (page row 141): QA → Dev Acceptance, the progress bar went STEP 4 → STEP 5 OF 6 without a
+        reload (closes phase 3b's open hand-check item). All test rows restored (150 Triage/Next, 149 In progress,
+        141 QA, no dates).
+      - Error sweep `/qa`, `/qa/tickets`, `/qa/ticket?id=150`, `/qa/page?key=alphapage:page_1`, `/alphapage/page_1`:
+        no page/SQL errors, no non-200 except AlphaPage's `/track/visit` 204. The Ticket page's 7 console warnings
+        are the known unknown-prop set (`customName`, `show`, `allowEditInView`, `hideHeader`, `valueFontStyle`,
+        `hideControls`, `showBorder`); none is new. The zero-width `resolved_date` header measures 0 px, like
+        `idsort`. dms-server log clean.
+    - [x] docs: `sections/component-actions.md` (write providers; `save_publish` after discrete live edits).
+    - Actual size: core runtime +165 / −28 in 6 files (helpers 92 lines); tests +161 new, +21 / −2 QA.
+    - Repo-wide grep: no `liveEditTimerRef` left; `save_publish` only in these library files and the QA pages;
+      `setDateOnValue` only in the library, QA, and TransportNY's builder/CLI (untouched).
+    - **Not done (follow-ups):** the native `updated_at` swap (the `updated` field shows in 5 places: Ticket rail,
+      Tickets `updated_day`, Page QA tickets table, Page-status facts on `pages`, and the add-ticket modal writes it);
+      a full page reload/tab close inside the 500 ms window still drops the pending save (no `pagehide` flush; only
+      in-app navigation unmounts); the editor's bulk branch (Spreadsheet in edit mode) still doesn't stamp.
+    - **Before the owner pushes: test TransportNY** (control-room ticket rail: status → Resolved stamps; status then
+      priority quickly, both stick; Page QA pills), one MNY county page with live edit, wcdb `station_admin` form
+      save.
 
 **Tests (vitest)**
 - Both pages: every data section's `externalSource` is the install's tickets dataset; no TransportNY identifiers;
@@ -811,7 +938,7 @@ switch, not TransportNY's particular designs. It stays out of the base install f
   report was a stale view; the automated re-check with the qa_test token also opens it.)
 - [x] Story and ticket status pills look right.
 - [x] A ticket status changed in the Ticket page's rail shows on the Tickets list after a refresh (phase 3a's rail).
-- [ ] **Open: the stage dropdown saves, but nothing else on the page reacts.** The progress bar ("STEP N OF 6") and
+- [x] **Fixed 2026-10-01 (option (b) part 3): the stage dropdown saves, but nothing else on the page reacts.** The progress bar ("STEP N OF 6") and
   anything else keyed on the stage keep the old value until a reload. Cause: the stage control and the progress bar
   are separate sections, and nothing announces the save. `save_publish` fires only on a form save and deliberately
   skips live-edit saves (`Card.jsx:223-237`: a live-edit keystroke must not close a modal mid-typing).

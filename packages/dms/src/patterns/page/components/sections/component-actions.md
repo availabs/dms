@@ -44,6 +44,15 @@ reload-driving consumer. **Never wire a `hover` provider's key into a reload-dri
 (e.g. comparison series): hover fires on every `mouseenter` (the map layer publishes on
 mouse-move), so it would reload data continuously. Hover providers must stay visual-only.
 
+The write providers (`add_publish`, `delete_publish`, `save_publish`) are discrete triggers too:
+each publishes a fresh value once its write has landed, so a `data_refresh` subscriber refetches
+exactly once per write. `save_publish` (Card and Spreadsheet) fires after a form save, and after a
+live edit only when the edited cell is a pick-from-a-list type (`select`, `multiselect`, `radio`,
+`checkbox`, `boolean`, `switch`, `status_pill`, `priority_tier`; `isDiscreteColumnType` in
+`dataWrapper/utils/liveEditSaves.js`). A typed live edit never publishes: a refetch while someone is
+still typing would reset the field they're in. E.g. Page QA's stage select publishes `page_v` and
+its progress bar subscribes, so the bar moves when the stage is saved.
+
 **Filter entry shape for an action param:**
 ```js
 {

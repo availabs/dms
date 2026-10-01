@@ -8,6 +8,7 @@ import { migrateToV2 } from "./migrateToV2";
 import { nameToSlug } from "../../../../../../utils/type-utils";
 import {useHandleClickOutside, isCalculatedCol} from "./utils/utils";
 import { getData, applyCreateDefaults } from "./getData";
+import { createPendingSaves, dateStampsForRow, rawValue, setDateOnValueStamp } from "./utils/liveEditSaves";
 import { useDataLoader } from "./useDataLoader";
 import { usePageFilterSync } from "./usePageFilterSync";
 import { useColumnOptions } from "./useColumnOptions";
@@ -349,14 +350,12 @@ const Edit = forwardRef((props, ref) => {
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
             : state?.externalSource;
         if(attribute?.name){
-            // setDateOnValue (opt-in, backward-compatible): when this column is live-edited to a
-            // value in `values`, also stamp a companion `field` with the current datetime; clear
-            // it (empty string) when edited to any other value. Enables e.g. a status pill
-            // recording a `resolved_date` the moment status flips to Resolved/Closed.
+            // setDateOnValue (opt-in): stamp a companion date field when this column is live-edited
+            // into `values`, keep the first date when it moves between them, clear it otherwise.
+            // Enables e.g. a status pill recording `resolved_date` when status flips to Resolved/Closed.
             const sdov = attribute.setDateOnValue;
-            const stamp = sdov?.field
-                ? { [sdov.field]: (sdov.values || []).includes(value) ? new Date().toISOString().slice(0, 19).replace('T', ' ') : '' }
-                : null;
+            const oldRow = state?.data?.find(r => r.id === d.id);
+            const stamp = setDateOnValueStamp(sdov, rawValue(oldRow?.[attribute.name]), value, rawValue(oldRow?.[sdov?.field]));
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
                 if(idx !== -1){
@@ -480,15 +479,26 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     const [state, setState] = useImmer(migrateToV2(value || '', initialState(component?.defaultState), component?.name, component?.type));
 
     const [newItem, setNewItem] = useState({})
-    const liveEditTimerRef = useRef(null);
+    // the stored rows, for a save's old values (updateItem's deps don't include state.data)
+    const rowsRef = useRef(state?.data);
+    rowsRef.current = state?.data;
+    const apiUpdateRef = useRef(apiUpdate);
+    apiUpdateRef.current = apiUpdate;
+    const pendingSavesRef = useRef(null);
+    if (!pendingSavesRef.current) {
+        pendingSavesRef.current = createPendingSaves({
+            delay: 500,
+            send: (data, format) => apiUpdateRef.current({data, config: {format}}),
+        });
+    }
     const groupByColumnsLength = useMemo(() => state?.columns?.filter(({group}) => group).length, [state?.columns]);
     const isValidState = Boolean(state?.externalSource?.source_id || state?.externalSource?.isDms);
     const Comp = useMemo(() => state?.display?.hideSection && !editPageMode ? () => <></> : component.ViewComp, [component, state?.display?.hideSection]);
     const setReadyToLoad = useCallback(() => setState(draft => {if (!draft) return; if (!draft.display) draft.display = {}; draft.display.readyToLoad = true}), [setState]);
     const allowEdit = groupByColumnsLength ? false : (state?.externalSource?.isDms || state?.externalSource?.isEditable) && state?.display?.allowEditInView && Boolean(apiUpdate);
 
-    // Flush pending live edit on unmount
-    useEffect(() => () => clearTimeout(liveEditTimerRef.current), []);
+    // Send pending live edits on unmount, so leaving the page right after an edit doesn't drop it
+    useEffect(() => () => pendingSavesRef.current.flushAll(), []);
 
     // Sync when value changes (route change, external edit)
     useEffect(() => {
@@ -614,39 +624,47 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
             ? {...state?.externalSource, type: `${sourceType}|${state?.externalSource.view_id}:data`}
             : state?.externalSource;
         if(attribute?.name){
-            // Live edit: update local state immediately, debounce server call
+            // Live edit: update local state immediately; the save waits 500 ms for more edits to
+            // the same row, which merge into it. Pending saves are kept per row, so an edit to
+            // another row never cancels this one. Resolves when this row's save lands.
+            const oldRow = rowsRef.current?.find(r => r.id === d.id);
+            const sdov = attribute.setDateOnValue;
+            const stamp = setDateOnValueStamp(sdov, rawValue(oldRow?.[attribute.name]), value, rawValue(oldRow?.[sdov?.field]));
             setState(draft => {
                 const idx = draft.data.findIndex(draftD => draftD.id === d.id);
                 if(idx !== -1){
-                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value}
+                    draft.data[idx] = {...(draft.data[idx] || {}), ...d, [attribute.name]: value, ...(stamp || {})}
                 }
             })
             const dataToUpdateDB = editableColumns.reduce((acc, col) => {
                     acc[col.name] = d[col.name]?.originalValue || d[col.name];
                     return acc;
-                }, {id: d.id})
-            clearTimeout(liveEditTimerRef.current);
-            liveEditTimerRef.current = setTimeout(() => {
-                apiUpdate({data: {...dataToUpdateDB, [attribute.name]: value}, config: {format: dataFormat}})
-            }, 500);
+                }, {})
+            // only the fields this edit carries: an undefined key would overwrite a field merged
+            // from an earlier edit to the row
+            const patch = Object.fromEntries(Object.entries(dataToUpdateDB).filter(([, v]) => v !== undefined));
+            return pendingSavesRef.current.queue(d.id, {...patch, [attribute.name]: value, ...(stamp || {})}, dataFormat);
         }else{
             // Bulk/form save: send immediately
             const dataToUpdateState = Array.isArray(d) ? d : [d];
-            const dataToUpdateDB = dataToUpdateState?.map(row => {
-                return editableColumns.reduce((acc, col) => {
+            // setDateOnValue: a changed column stamps (or clears) its date field
+            const stamps = dataToUpdateState.map(row => dateStampsForRow(editableColumns, rowsRef.current?.find(r => r.id === row.id), row));
+            const dataToUpdateDB = dataToUpdateState?.map((row, rowIdx) => {
+                return {...editableColumns.reduce((acc, col) => {
                         acc[col.name] = row[col.name]?.originalValue || row[col.name];
                         return acc;
-                    }, {id: row.id})
+                    }, {id: row.id}), ...stamps[rowIdx]}
             })
 
             setState(draft => {
-                dataToUpdateState?.forEach(dtu => {
+                dataToUpdateState?.forEach((dtu, rowIdx) => {
                     const i = draft.data.findIndex(dI => dI.id === dtu.id);
                     if(i === -1) return;
 
                     Object.keys(dtu).forEach(col => {
                         draft.data[i][col] = dtu[col];
                     })
+                    Object.assign(draft.data[i], stamps[rowIdx]);
                 });
             });
 

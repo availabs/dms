@@ -1,5 +1,5 @@
 import {
-  T, cardTitle, SEV_PILL, PRIO_PILL, STATUS_PILL, SOURCE_PILL, CATEGORY_PILL, STAGE_PILL, TNUM, SOURCE_CASE, sqlText,
+  T, cardTitle, SEV_PILL, PRIO_PILL, STATUS_PILL, SOURCE_PILL, CATEGORY_PILL, STAGE_PILL, TNUM, SOURCE_CASE, sqlText, CLOSED_STATUSES,
   ticketsSource, dataWrapper, col, pcol, staticCell, WHITE_CARD, CARD_TOP, CARD_BOTTOM, group, section, pageVariable,
 } from './helpers'
 
@@ -52,6 +52,8 @@ export function ticketPage(ctx) {
     ], {
       cellsTracksTemplate: 'max-content max-content max-content max-content max-content minmax(0,1fr)',
       cellsGridGap: 10, cellsRowGap: 6, cellsPadding: 0, cardsPadding: 0, cardBorder: false, cellsVAlign: 'center',
+      // refetch after a rail pill/select change, so the badges match
+      _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'ticket_v' }] },
     }),
   }))
 
@@ -83,7 +85,8 @@ export function ticketPage(ctx) {
     trackingId: 'qa_ticket_rail', group: G.body, size: '1/3', type: 'Card', ...WHITE_CARD,
     data: detail([
       staticCell('dtitle', 'Details', { valueFontStyle: T.heading, cellBorderBottom: true }),
-      pcol('status', 'status', STATUS_PILL, efld()),
+      // closing stamps resolved_date (the first close's date is kept), reopening clears it
+      pcol('status', 'status', STATUS_PILL, efld({ setDateOnValue: { field: 'resolved_date', values: CLOSED_STATUSES } })),
       rcalc(`${SOURCE_CASE} as src`, 'source', { type: 'status_pill', pillColors: SOURCE_PILL, hideHeader: false, headerFontStyle: T.label, cellBorderBottom: true }),
       col('assignee', 'assignee', efld({ valueFontStyle: T.value })),
       col('reporter', 'reporter', fld({ valueFontStyle: T.value })),
@@ -105,7 +108,11 @@ export function ticketPage(ctx) {
       col('resolved_date', 'resolved', fld({ valueFontStyle: T.value })),
       col('updated', 'updated', { hideHeader: false, headerFontStyle: T.label, valueFontStyle: T.value }),
       col('page_key', '', { hideHeader: true, hideValue: true }),
-    ], { cellsGridSize: 1, cellsRowGap: 6, cardsPadding: 14, headerValueLayout: 'col', liveEdit: true, allowEditInView: true }),
+    ], {
+      cellsGridSize: 1, cellsRowGap: 6, cardsPadding: 14, headerValueLayout: 'col', liveEdit: true, allowEditInView: true,
+      // a pill/select change publishes 'ticket_v' once saved; the header refetches on it
+      _functions: { providers: [{ functionId: 'save_publish', enabled: true, paramKey: 'ticket_v' }] },
+    }),
   }))
 
   S.push(section({ trackingId: 'qa_ticket_comments_title', group: G.com, type: 'lexical', data: cardTitle('Comments'), ...CARD_TOP }))

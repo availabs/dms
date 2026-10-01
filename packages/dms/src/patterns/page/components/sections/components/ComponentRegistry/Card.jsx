@@ -2,6 +2,7 @@ import React, { useCallback, useContext, useEffect, useMemo, useRef, useState } 
 import { ComponentContext, PageContext } from "../../../../context";
 import { ThemeContext } from "../../../../../../ui/useTheme";
 import { formatFunctions } from "../dataWrapper/utils/utils";
+import { isDiscreteColumnType } from "../dataWrapper/utils/liveEditSaves";
 import AddFormulaColumn from "../../AddFormulaColumn";
 import AddCalculatedColumn from "../../AddCalculatedColumn";
 
@@ -221,17 +222,21 @@ export const CardSection = ({
     }, [removeItem, closeModalOnDeleteKey, clearActionParam, deletePublishCfg?.paramKey, setActionParam]);
 
     // save_publish provider + closeModalOnSave — the same pair for a form-edit save (the
-    // Save button a record shows when `liveEdit` is off). Only the form path is wrapped:
-    // a live-edit keystroke (`attribute` set) saves on a debounce and must not close the
-    // modal mid-typing. A failed apiUpdate rejects past us, so the modal stays open.
+    // Save button a record shows when `liveEdit` is off). A live edit (`attribute` set) never
+    // closes the modal (it would close mid-typing), and publishes only for a pick-from-a-list
+    // cell (pill, select, …), once its save lands: a refetch while someone is still typing would
+    // reset the field. A failed apiUpdate rejects past us, so the modal stays open.
     const closeModalOnSaveKey = state.display?.closeModalOnSave;
     const savePublishCfg = state.display?._functions?.providers?.find(p => p.functionId === 'save_publish' && p.enabled);
     const updateItemWrapped = useCallback(async (value, attribute, d) => {
         const res = await updateItem?.(value, attribute, d);
+        // a timestamp, not the row id: saving the same row twice must re-trigger subscribers
+        const publishSaved = () => savePublishCfg?.paramKey && setActionParam?.(savePublishCfg.paramKey, `saved:${d?.id}:${Date.now()}`);
         if (!attribute) {
             if (closeModalOnSaveKey) clearActionParam?.(closeModalOnSaveKey);
-            // a timestamp, not the row id: saving the same row twice must re-trigger subscribers
-            if (savePublishCfg?.paramKey) setActionParam?.(savePublishCfg.paramKey, `saved:${d?.id}:${Date.now()}`);
+            publishSaved();
+        } else if (isDiscreteColumnType(attribute.type)) {
+            publishSaved();
         }
         return res;
     }, [updateItem, closeModalOnSaveKey, clearActionParam, savePublishCfg?.paramKey, setActionParam]);
