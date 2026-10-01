@@ -97,24 +97,24 @@ describe("add-ticket link", () => {
     const pages = buildQaPages(pattern, { ...ctx, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 42, base_url: "/data/" }] });
     const add = pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_add");
     expect(dataOf(add).columns[0].location).toBe("/data/internal_source/43/table");
-    expect(titleSizes(pages)).toBe("9");
+    expect(titleSizes(pages)).toBe("2/3");
   });
 
   it("is left out otherwise", () => {
     const pages = buildQaPages(pattern, { ...ctx, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 7, base_url: "data" }] });
     expect(pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_add")).toBeUndefined();
-    expect(titleSizes(pages)).toBe("12");
+    expect(titleSizes(pages)).toBe("1");
   });
 });
 
 describe("site labels", () => {
   it("maps surface values when the install sets labels", () => {
-    const labelled = { ...pattern, qa: { ...pattern.qa, siteLabels: { tsmo2: "TSMO" } } };
+    const labelled = { ...pattern, qa: { ...pattern.qa, siteLabels: { alphapage: "Alpha" } } };
     const list = pageBySlug(buildQaPages(labelled, ctx), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
-    expect(table.columns.find((c) => c.normalName === "site").name).toContain("when 'tsmo2' then 'TSMO'");
+    expect(table.columns.find((c) => c.normalName === "site").name).toContain("when 'alphapage' then 'Alpha'");
     const facet = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_facet_site"));
-    expect(JSON.parse(facet.columns[0].meta_lookup)).toEqual({ tsmo2: "TSMO" });
+    expect(JSON.parse(facet.columns[0].meta_lookup)).toEqual({ alphapage: "Alpha" });
   });
 
   it("shows raw values when it sets none", () => {

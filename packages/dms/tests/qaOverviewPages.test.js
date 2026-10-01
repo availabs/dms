@@ -21,8 +21,8 @@ const datasets = {
 };
 const pattern = { name: "Phase2", dmsEnvId: 42, qa: { version: 1, datasets } };
 const sites = [
-  { pattern: "tsmo2", surface: "tsmo2", surface_label: "TSMO", sort_order: "1", enabled: "yes" },
-  { pattern: "npmrds", surface: "npmrds", surface_label: "NPMRDS", sort_order: "2", enabled: "yes" },
+  { pattern: "alphapage", surface: "alphapage", surface_label: "AlphaPage", sort_order: "1", enabled: "yes" },
+  { pattern: "betapage", surface: "betapage", surface_label: "BetaPage", sort_order: "2", enabled: "yes" },
 ];
 const ctx = { app: "qa_test", baseUrl: "/phase2", sites };
 const pageBySlug = (slug, c = ctx) => buildQaPages(pattern, c).find((p) => p.url_slug === slug);
@@ -58,11 +58,11 @@ describe("Overview", () => {
     expect(sourceSlugs(overview)).toEqual(["phase2_pages", "phase2_tickets"]);
   });
 
-  it("has one live tile per page stage", () => {
-    PAGE_STAGES.forEach((stage) => {
-      const tile = overview.sections.find((s) => dataOf(s)?.columns?.some?.((c) => c.staticValue === stage));
-      expect(tile.size).toBe("2");
-    });
+  it("counts pages per stage in one card, one live cell per stage", () => {
+    const card = dataOf(overview.sections.find((s) => s.trackingId === "qa_overview_stages"));
+    expect(card.columns.map((c) => c.display_name)).toEqual(PAGE_STAGES);
+    card.columns.forEach((c, i) => expect(c.name).toContain(`= '${PAGE_STAGES[i]}'`));
+    expect(card.display.cellsGridSize).toBe(PAGE_STAGES.length);
   });
 
   it("counts in SQL, not numbers baked into the page", () => {
@@ -89,7 +89,7 @@ describe("Overview", () => {
   });
 
   it("sorts each site's pages by stage without a stored stage_order, and links to Page QA", () => {
-    const table = dataOf(overview.sections.find((s) => s.trackingId === "qa_overview_tsmo2_pages"));
+    const table = dataOf(overview.sections.find((s) => s.trackingId === "qa_overview_alphapage_pages"));
     expect(table.columns[0]).toMatchObject({ normalName: "stage_rank", sort: "asc" });
     expect(table.columns.find((c) => c.customName === "Page")).toMatchObject({ location: "/phase2/page?key=", searchParamsCol: "page_key" });
     const all = JSON.stringify(overview);

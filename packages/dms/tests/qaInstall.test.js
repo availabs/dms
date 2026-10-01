@@ -78,7 +78,7 @@ describe("qaPreflight URL check", () => {
   });
 
   it("treats a pattern on every sub-domain as clashing on any sub-domain", async () => {
-    expect(await qaPreflight({ falcor: null, app: "a", instance: "x", siblings, pattern: { base_url: "shared", subdomain: "tsmo" } }))
+    expect(await qaPreflight({ falcor: null, app: "a", instance: "x", siblings, pattern: { base_url: "shared", subdomain: "docs" } }))
       .toMatch(/"Everywhere"/);
   });
 });

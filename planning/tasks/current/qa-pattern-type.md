@@ -3,21 +3,88 @@
 **Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 Phases 1–3 DONE and live-verified on `qa_test` (2026-09-30). Committed by the owner: phase 1 (library `4919d419`,
-dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`). **Phase 3b is uncommitted.**
+dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (`2450f728`). **The default-theme
+restyle and test-data reset (2026-10-01) are uncommitted.**
 
 **▶ Next session, start here.** Nothing is in progress. The owner picks what's next; don't start without asking:
+- **The owner's look check of the default-theme restyle** (`/qa` and its pages; section "Default-theme restyle and
+  test-data reset"), incl. whether to fix Card's `valueFontStyle` size clash in the library.
 - **The deferred status-change work** (phase 3a, "The status-change writes"): history rows, `resolved_date` stamping,
   and now the stage control's refresh (phase 3b, "Owner's hand check").
 - **Phase 4:** derived values (live per-page ticket counts) and track-on-publish.
 - **Phase 5:** the Configure tab in `/list`, so covered sites and labels stop being hand-seeded.
 - The Design page feature is wanted later as an install feature (phase 3b decisions).
 
-Test data on `qa_test` is disposable: Phase2 (41) holds the seeded sites, pages, stories and tickets (#99–105, #76,
-#121, #122, #101), and QA/QA2/QA3/qa4/phase3a/phase3b/phase5 are spare installs.
+**Test install (2026-10-01): `QA` (pattern row 126, `/qa`), on the library default theme.** Its data is `qa_test`'s
+own sub-sites and pages, not TransportNY lookalikes: covered sites AlphaPage, BetaPage (Pages listed, disabled); the
+6 real AlphaPage/BetaPage pages across all six stages (`alphapage:page_1`, `betapage:page_1/child_chart`, …); 3
+stories on `alphapage:page_1`; tickets #101–106 (rows 149–154), people at `example.com`. Seed file:
+`scratchpad/qa_test/seed_2026-10-01.json`. Datasets `qa_tickets` (127/128), `qa_pages` (129/130), `qa_stories`
+(131/132), `qa_patterns` (133/134), `qa_history` (135/136), all in environment 42. The old installs (Phase2 with its
+TSMO/NPMRDS/Freight Atlas seed, and spares QA/QA2/QA3/QA4/Phase3a/Phase3b/Phase5) were deleted that day; see
+"Default-theme restyle and test-data reset" below.
 
 **Design and decisions:** `research/qa-ticketing-system/README.md` (plan v4) and `feature-roadmap.md`, both in the
 dms-template repo root. This file is the implementation plan and the source of truth for build status. The code
 seam is traced in `research/qa-ticketing-system/pattern-type-feasibility.md`.
+
+## Default-theme restyle and test-data reset — DONE 2026-10-01 (uncommitted)
+
+**Why (owner, 2026-10-01):** the TransportNY lookalike data and look on `qa_test` made the feature hard to work on.
+Stop using data that mimics TransportNY, and give the QA pages a look of their own, using the defaults.
+
+**Test data reset.** Backed up first to `scratchpad/qa_test/backup_2026-10-01/` (`rows.json`: site 1, environment
+42, the 8 install rows, their 50 source/view rows; plus Phase2's 4 non-empty split tables). Then: site 1's `patterns`
+cut to Auth, Pages, AlphaPage, BetaPage; environment 42's `sources` emptied; `dms raw delete` on install rows 38–41,
+53, 64, 77, 88 and source/view rows 43–98. Not dropped: the 10 old split tables (`data_items__s43_v44_phase2_tickets`
+… `__s84_v85_qa4_patterns`), now referenced by nothing (the CLI has no table drop; the Datasets admin's
+`uda.sources.delete` would have, but there's no Datasets pattern on `qa_test`). Then a fresh install from Add
+Pattern (`QA`, row 126) and the seed above. The same visit to the Sites page also created an Admin pattern (row 125,
+`/list`): the admin pattern's recent backfill (`backfillAdminPattern`, `patterns/admin/pages/editSite.jsx:89`), kept.
+- Each install that ran its dataset step made 10 rows (5 datasets × source + view); split tables appear only on a
+  dataset's first row write.
+
+**The look: the library default theme's vocabulary only** (`patterns/qa/pages/*`). Quick decisions, owner-delegated:
+- Text: the default textSettings keys through one map, `T` in `helpers.js` (`text3XLBold` page titles, `textLGBold`
+  card titles, `caption` secondary text, `body` prose, `textXS` labels). Lexical titles via `crumb` / `pageTitle` /
+  `cardTitle`. Dropped: the `// kicker` lines, the gold period, TransportNY's `meta*`/`display*`/`prose*`/`btn*`/
+  `stat*` tokens.
+- Layout: every group is a `content` band (the default `header` layout group is a 200px unpadded band); 2–4 bands a
+  page instead of 4–6; sizes are the default grid's fractions (`1/2`, `1/3`, `2/3`, `1`; `section()` defaults to
+  `1`). The Overview's six stage tiles became one 6-cell "Pages by stage" Card. Facets sit 2×2.
+- Pills: the default pill styles (`red`, `orange`, `blue`, `green`, `gray`) instead of `slate`/`amber`/`zinc`/`ink`.
+- Charts: the graph theme's own fonts, axes and background; only the series colour and a 14px title. Titles
+  "Opened / day", "Done / day" (longer ones wrap in the graph's title box).
+- Dropped TransportNY-only style names that fall back to the default anyway: `cardStyle: 'rowaligned'`,
+  `tableStyle: 'flush'`, `filterStyle: 'filter_panel_light'`, the rail's `offset: 13`, `barColorKey: 'success'`.
+- Copy: the Overview's agency voice ("we build it / you review + approve") is gone; the modal caption is "Describe
+  what you saw on this page."
+- **Unchanged:** every data binding, SQL calc, filter, the modal's create-time defaults, and the ticket record
+  (statuses, stages, `client`/`dev`/`ai` sources) — those are the data model the TransportNY port depends on.
+
+**Finding: on the default theme a Card cell's `valueFontStyle` sets weight but not size.** Card puts its own `value`
+class (`font-sans text-sm …`, `ui/components/card.theme.jsx:10`) and the textSettings token on the same element
+(`Card.jsx:620`), and `text-sm` wins over every other size. TransportNY's tokens use `!` to win. Headers aren't
+affected (the token sits on an inner span). Worked around in QA, not fixed: figures render through the `stat_value`
+column type (`stat()` in `helpers.js`; it sizes an inner span), and data-bound titles (Page QA's page name, a
+ticket's title, site card titles) stay body-size bold. A library fix (drop the size from the default `value` class,
+or put the token on an inner span) changes every default-theme Card, so it needs its own blast-radius check first.
+
+**Known look gaps left as-is:** the Ticket page's rail and body show every field as a plain input (the card-wide
+`allowEditInView` from phase 3a; read-only fields like reporter/opened included); multi-line steps fold onto one line
+(the default textarea view is `whitespace-normal`); every page's sidebar header reads "Admin" (site-wide, AlphaPage
+too; not QA); the 7 React unknown-prop console errors on the Ticket page (phase 3a's `Card.jsx` note).
+
+**Tests**
+- [x] New `tests/qaDefaultTheme.test.js` (4): every text style, section size, group theme and pill colour the pages
+  name exists in the library default theme. Fails 4/4 on the pre-restyle pages, passes on the new ones.
+- [x] `qaOverviewPages` (stage card replaces the tile test), `qaTicketPages` (sizes `2/3`/`1`), fixtures `tsmo2`/
+  `npmrds` → `alphapage`/`betapage`, `qaInstall` subdomain `tsmo` → `docs`. QA suites 72/72; full
+  `packages/dms/tests` 613/616, the same 3 unrelated failures.
+- [x] Live (probe, `qa_test` token): `/qa`, `/qa/tickets`, `/qa/ticket?id=149`, `/qa/page?key=alphapage:page_1`: no
+  page, SQL or non-200 errors; counts match the seed (6 pages · 1 accepted, 4 open / 2 done, one page per stage,
+  33% resolution, AlphaPage 1 done · 1 open, BetaPage 1 done · 3 open).
+- [ ] Owner's look check.
 
 ## Objective
 
@@ -44,8 +111,8 @@ activity feed), server-side hooks, the throwaway DB, agents, server-side authori
   production DB, made through `/list/create` with `VITE_DMS_APP=qa_test` / `VITE_DMS_TYPE=qa_test` in the root
   `.env` (the TransportNY block is commented out beside it).
   - Patterns: `Auth` (2), `Pages` (3, `/`), `AlphaPage` (5, `/alphapage`, public `view-page`), `BetaPage` (7,
-    `/betapage`, admin-only). Added by the phase 1 live check (2026-09-30): `QA` (38, `/qa`) and `QA2` (39,
-    `/qa2`), both `pattern_type: 'qa'`; delete them from the Sites table to reset. AlphaPage has 2 pages, BetaPage has 2 plus 2 children under `page_1`
+    `/betapage`, admin-only), `Admin` (125, `/list`, the admin backfill, 2026-10-01) and the test install `QA` (126,
+    `/qa`, 2026-10-01). The phase 1–3 installs (38–41, 53, 64, 77, 88) were deleted 2026-10-01. AlphaPage has 2 pages, BetaPage has 2 plus 2 children under `page_1`
     (`page_1/child_chart`, `page_1/dup_no_chart`). All 7 pages are published (`published: ''`).
   - AlphaPage/BetaPage store `authPermissions` in the per-subdomain format `{"*": "<json>"}`, Pages in the flat
     format. Both are read by `render/spa/utils/index.js:39, 56`; qa code must resolve permissions through that
@@ -518,9 +585,9 @@ bound to the install's own datasets. The phase 2 stand-in list goes away.
 - Site labels: `pattern.qa.siteLabels` when set (the TransportNY port seeds its `SITE_LABELS`; phase 5's Configure
   edits it), else raw `surface` values with no `meta_lookup`.
 - Fixed group names and `trackingId`s per section (e.g. `qa_tickets_flow`, `qa_ticket_rail`); no `randomUUID`.
-- Look: the builder's `valueFontStyle` tokens (`kicker`, `btnPrimary`, `displayLG`, …) and group themes
-  (`breadcrumb`, `header`) are TransportNY theme keys. They're kept; a site whose theme lacks one renders it plainly.
-  TransportNY keeps its look at the port.
+- Look (superseded 2026-10-01, see "Default-theme restyle"): the builder's TransportNY theme keys (`kicker`,
+  `btnPrimary`, `displayLG`, …, group themes `breadcrumb`/`header`) were kept at first; the pages now use only the
+  library default theme's keys. TransportNY's own look at the port is an open question (a theme-level override).
 
 **The status-change writes: DEFERRED (owner, 2026-09-30).** Build the pages first; decide the behaviour, and whether
 it's (a) or (b), once they exist and DMS-side changes have settled. Until then the pages are ported as TransportNY has
@@ -612,7 +679,7 @@ section).
 - Console warnings on the Ticket page (`customName`, `hideHeader`, `valueFontStyle`, `allowEditInView` passed to DOM
   elements) come from `Card.jsx` passing column props to the edit inputs (`Card.jsx:372-381`), library code.
 
-### Phase 3b: Overview + Page QA as code — DONE (2026-09-30, live-verified on `qa_test`, uncommitted)
+### Phase 3b: Overview + Page QA as code — DONE (2026-09-30, live-verified on `qa_test`, committed `2450f728`)
 
 **Goal:** Each install gets the control room's other two pages, built in code from `build_cr_overview.mjs`
 (210 lines) and `build_cr_page.mjs` (329 lines), both read in full 2026-09-30, and bound to its own `pages`,

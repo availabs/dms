@@ -1,13 +1,13 @@
 import { PAGE_STAGES } from '../ticketRecord'
 import {
-  text, styled, lexical, GOLD, STAGE_PILL, STAGE_HEX, STAGE_SHORT, STAGE_WHO, STAGE_RANK, OPEN, CLOSED, st, sqlText,
-  pagesSource, ticketsSource, dataWrapper, calc, staticCell, group, section,
+  T, crumb, pageTitle, cardTitle, STAGE_PILL, STAGE_HEX, STAGE_SHORT, STAGE_RANK, OPEN, CLOSED, st, sqlText,
+  pagesSource, ticketsSource, dataWrapper, calc, stat, staticCell, group, section,
 } from './helpers'
 
-// The Overview, the install's home page: header with live counts, the "How delivery works"
-// stage tiles, and one card per covered sub-site (its page count, stage bar, tickets bar and
-// pages). Ported from build_cr_overview.mjs. `ctx` is 3a's plus `datasets` and `sites`: the
-// enabled rows of the install's covered-sites dataset, or null until they've loaded.
+// The Overview, the install's home page: header with live counts, pages by stage, and one card
+// per covered sub-site (its page count, stage bar, tickets bar and pages). Ported from
+// build_cr_overview.mjs. `ctx` is 3a's plus `datasets` and `sites`: the enabled rows of the
+// install's covered-sites dataset, or null until they've loaded.
 export function overviewPage(ctx) {
   const dwPages = dataWrapper(pagesSource(ctx))
   const dwTickets = dataWrapper(ticketsSource(ctx))
@@ -17,69 +17,55 @@ export function overviewPage(ctx) {
   }
   const agg = (sql, alias, over = {}) => calc(sql, alias, { hideHeader: true, ...over })
   const stageCount = (stage) => `(count(*) filter (where (data->>'stage') = '${stage}'))::text`
-  const G = { crumb: 'overview_crumb', hdr: 'overview_header', how: 'overview_stages' }
-  const groups = [
-    group(G.crumb, 0, 'breadcrumb', 'Breadcrumb'),
-    group(G.hdr, 1, 'header', 'Header'),
-    group(G.how, 2, 'content', 'How delivery works'),
-  ]
+  const G = { hdr: 'overview_header', how: 'overview_stages' }
+  const groups = [group(G.hdr, 0, 'Header'), group(G.how, 1, 'Pages by stage')]
   const sites = ctx.sites || []
   const S = []
 
-  S.push(section({ trackingId: 'qa_overview_crumb', group: G.crumb, type: 'lexical', data: lexical(styled('metaXS', text(`${ctx.pattern.name}     /     Overview`))) }))
+  S.push(section({ trackingId: 'qa_overview_crumb', group: G.hdr, type: 'lexical', data: crumb(ctx.pattern.name, 'Overview') }))
   S.push(section({
     trackingId: 'qa_overview_title', group: G.hdr, type: 'lexical',
-    data: lexical(
-      styled('kicker', text(`// ${`${ctx.pattern.name}`.toLowerCase()} · QA workflow${ctx.sites ? ` · ${sites.length} site${sites.length === 1 ? '' : 's'}` : ''}`)),
-      styled('displayLG', text('Overview'), text('.', 0, GOLD)),
-    ),
+    data: pageTitle('Overview', ctx.sites ? `${sites.length} site${sites.length === 1 ? '' : 's'} covered` : ''),
   }))
-  // live counts (the builder baked these in at build time)
+  // live counts
   S.push(section({
-    trackingId: 'qa_overview_page_counts', group: G.hdr, size: '6', type: 'Card',
+    trackingId: 'qa_overview_page_counts', group: G.hdr, size: '1/2', type: 'Card',
     data: dwPages({
-      columns: [agg(`(count(*)::text || ' pages · ' || ${stageCount('Client Acceptance')} || ' accepted') as page_counts`, 'page_counts', { valueFontStyle: 'metaSM' })],
+      columns: [agg(`(count(*)::text || ' pages · ' || ${stageCount('Client Acceptance')} || ' accepted') as page_counts`, 'page_counts', { valueFontStyle: T.value })],
       display: { ...AGG, cardsPadding: 0 },
     }),
   }))
   S.push(section({
-    trackingId: 'qa_overview_ticket_counts', group: G.hdr, size: '6', type: 'Card',
+    trackingId: 'qa_overview_ticket_counts', group: G.hdr, size: '1/2', type: 'Card',
     data: dwTickets({
-      columns: [agg(`((count(*) filter (where ${st()} in ${OPEN}))::text || ' open / ' || (count(*) filter (where ${st()} in ${CLOSED}))::text || ' done tickets') as ticket_counts`, 'ticket_counts', { valueFontStyle: 'metaSM' })],
+      columns: [agg(`((count(*) filter (where ${st()} in ${OPEN}))::text || ' open / ' || (count(*) filter (where ${st()} in ${CLOSED}))::text || ' done tickets') as ticket_counts`, 'ticket_counts', { valueFontStyle: T.value })],
       display: { ...AGG, cardsPadding: 0 },
     }),
   }))
 
-  // ── How delivery works: one live tile per stage ──
+  // ── pages by stage: one card, one live count per stage ──
+  S.push(section({ trackingId: 'qa_overview_stages_title', group: G.how, type: 'lexical', data: cardTitle('Pages by stage') }))
   S.push(section({
-    trackingId: 'qa_overview_stages_title', group: G.how, type: 'lexical',
-    data: lexical(styled('kicker', text('// how delivery works — issues get flagged · we fix & sign off · you approve'))),
-  }))
-  PAGE_STAGES.forEach((stage) => S.push(section({
-    trackingId: `qa_overview_stage_${STAGE_SHORT[stage]}`, group: G.how, size: '2', type: 'Card', bg: 'white', border: 'full', height: 'fill',
+    trackingId: 'qa_overview_stages', group: G.how, type: 'Card', bg: 'white', border: 'full',
     data: dwPages({
-      columns: [
-        agg(`${stageCount(stage)} as n_stage`, 'n_stage', { valueFontStyle: 'statXL' }),
-        staticCell('lbl', stage, { valueFontStyle: 'metaSM' }),
-        staticCell('who', STAGE_WHO[stage], { valueFontStyle: 'metaXS' }),
-      ],
-      display: AGG,
+      columns: PAGE_STAGES.map((stage) => stat(`${stageCount(stage)} as n_${STAGE_SHORT[stage]}`, stage, { headerFontStyle: T.label })),
+      display: { ...AGG, cellsGridSize: PAGE_STAGES.length, cellsGridGap: 12, headerValueLayout: 'col' },
     }),
-  })))
+  }))
 
   // ── one compound card per covered site: identity → stage bar → tickets bar → pages ──
   sites.forEach((site, i) => {
     const key = `${site.surface}`.replace(/[^a-z0-9_]/gi, '_')
     const g = `overview_site_${key}`
-    groups.push(group(g, 3 + i, 'content', site.surface_label || site.surface))
+    groups.push(group(g, 2 + i, site.surface_label || site.surface))
     const bySite = [{ col: 'surface', op: 'filter', value: [site.surface] }]
     S.push(section({
       trackingId: `qa_overview_${key}_title`, group: g, type: 'Card',
       bg: 'white', border: { top: true, left: true, right: true }, radius: { tl: true, tr: true }, padding: { bottom: '0' },
       data: dwPages({
         columns: [
-          staticCell('ttl', site.surface_label || site.surface, { valueFontStyle: 'displaySM' }),
-          agg(`('${sqlText(site.surface)} · ' || count(*) || ' page' || (case when count(*) = 1 then '' else 's' end)) as meta`, 'meta', { valueFontStyle: 'metaXS' }),
+          staticCell('ttl', site.surface_label || site.surface, { valueFontStyle: T.heading }),
+          agg(`('${sqlText(site.surface)} · ' || count(*) || ' page' || (case when count(*) = 1 then '' else 's' end)) as meta`, 'meta', { valueFontStyle: T.meta }),
         ],
         filters: bySite, display: AGG,
       }),
