@@ -50,7 +50,7 @@ Phases 1-4 are implemented and uncommitted.
 path, the first-load backfill, and how the admin row appears in the pattern list and Pattern Editor.
 
 **Out:** the granular permission vocabulary. That lives in
-[admin-granular-permissions.md](../current/admin-granular-permissions.md), which should build on this task
+[admin-granular-permissions.md](./admin-granular-permissions.md), which should build on this task
 (site-level permissions live on the admin row). Server-side provisioning is out too: see
 [tenant-signup-production-readiness.md](../current/tenant-signup-production-readiness.md). If provisioning
 moves to the server, the admin-row creation moves with it.

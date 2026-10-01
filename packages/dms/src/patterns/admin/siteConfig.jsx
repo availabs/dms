@@ -12,6 +12,8 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
+import { isUserAuthed } from "../../utils/auth";
 
 import { lazyComponent } from "../../utils/lazyComponent";
 
@@ -84,6 +86,7 @@ const adminConfig = ({
   authPattern,
   adminThemeSource,
   authPermissions = {},
+  authPatternPermissions = {},
   isMultiTenant = false,
   pgEnv = '',
   ssrCollect,
@@ -129,7 +132,7 @@ const adminConfig = ({
         type: (props) => {
           const { user, apiUpdate } = props;
           const { Layout, LayoutGroup } = UI;
-          const menuItems = getMenuItems(baseUrl, authPath, props.user);
+          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, authPatternPermissions });
           return (
             <AdminContext.Provider
               value={{
@@ -242,6 +245,8 @@ const patternConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
   authPermissions = {},
+  authPatternPermissions = {},
+  adminRowHasGrants = false,
   isMultiTenant = false,
   pgEnv = '',
   datasources = [],
@@ -285,7 +290,7 @@ const patternConfig = ({
         type: (props) => {
           const { Layout } = UI;
           const { user, apiUpdate, dataItems = [], params = {} } = props;
-          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user);
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, authPatternPermissions });
           // `props` here comes from the SAME EditWrapper every route node goes
           // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
           // unfiltered loader result for this format (every sibling pattern),
@@ -299,7 +304,8 @@ const patternConfig = ({
           const currentId = (params['*'] || '').split('/')[0];
           const currentPattern = currentId && dataItems.find(d => String(d.id) === currentId);
           if (currentPattern) {
-            menuItems.push(...buildPatternMenuItems(baseUrl, currentId, currentPattern));
+            const can = perm => patternCan(user, app, authPermissions, currentPattern, perm);
+            menuItems.push(...buildPatternMenuItems(baseUrl, currentId, currentPattern, can));
           }
 
           return (
@@ -319,6 +325,7 @@ const patternConfig = ({
                 dmsEnvs,
                 dmsEnvById,
                 authPermissions,
+                adminRowHasGrants,
                 isMultiTenant,
                 pgEnv,
                 datasources,
@@ -355,29 +362,36 @@ const patternConfig = ({
 
 export default [adminConfig, patternConfig];
 
-const getMenuItems = (baseUrl, authPath, user) => {
+// Only the links this user can use (utils/adminPermissions.js). Sites and
+// Themes read the site-level grants; Users and Groups read the auth pattern's
+// own grants with the rule its routes' reqPermissions declare (any logged-in
+// user while the auth pattern grants nothing beyond public). NB: those route
+// checks don't actually block today — dms-manager/_auth.js getReqAuth drops
+// the pattern's authPermissions — so hiding the link is the only gate.
+const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, authPatternPermissions } = {}) => {
   // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
   // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
   // menu when reached via the auth pattern, kept in sync here so the sidenav
   // looks identical regardless of which pattern's wrapper mounted it.
   let menuItems = [
-    {
+    ...(siteCan(user, app, authPermissions, VIEW_PATTERN_LIST) ? [{
       name: "Sites",
       path: `${baseUrl}`,
       icon: 'Home',
-    },
+    }] : []),
     // {
     //     name: 'Datasets',
     //     path: `${baseUrl}/datasets`
     // },
-    {
+    ...(siteCan(user, app, authPermissions, MANAGE_THEMES) ? [{
       name: "Themes",
       path: `${baseUrl}/themes`,
       icon: 'Fill',
-    },
+    }] : []),
   ];
 
   if (user?.authed) {
+    const canAuth = perm => isUserAuthed({ user, reqPermissions: [perm], authPermissions: authPatternPermissions || {} });
     menuItems.push({
       name: "Auth",
       icon: 'AccessControl',
@@ -388,16 +402,16 @@ const getMenuItems = (baseUrl, authPath, user) => {
           path: `${authPath}/manage/profile`,
           icon: 'UserCircle',
         },
-        {
+        ...(canAuth(AUTH_USERS) ? [{
           name: "Users",
           path: `${authPath}/manage/users`,
           icon: 'User',
-        },
-        {
+        }] : []),
+        ...(canAuth(AUTH_GROUPS) ? [{
           name: "Groups",
           path: `${authPath}/manage/groups`,
           icon: 'Group',
-        },
+        }] : []),
       ],
     });
   }
@@ -420,24 +434,32 @@ const getMenuItems = (baseUrl, authPath, user) => {
 // against ui/icons/icon_defs.jsx — this file doesn't ship "Chevron*" or
 // "Clock" (only "ClockIcon"), the exact mistake fixed in SideNav.theme.jsx
 // earlier today; don't repeat it.
-const buildPatternMenuItems = (baseUrl, id, pattern) => {
+// `can(perm)`: whether the user holds that pattern-level permission — only
+// the tabs they can use are listed (patternEditor/index.jsx filters the same
+// way with tabPermission).
+const buildPatternMenuItems = (baseUrl, id, pattern, can) => {
   const isPage = pattern.pattern_type === 'page';
-  const tab = (name, path, icon) => ({ name, path: `${baseUrl}/${id}/${path}`, icon });
+  const tabs = [
+    ['Overview', 'overview', 'InfoCircle'],
+    ...(isPage ? [['Pages', 'pages', 'Pages']] : []),
+    ['Access', 'permissions', 'Lock'],
+    ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon']] : []),
+    ['Theme', 'theme', 'AdjustmentsHorizontal'],
+    // Custom, site-specific extra tabs a pattern's own data can define
+    // (patternEditor/index.jsx spreads `item.pages` the same way).
+    ...(pattern.pages || []).map(p => [p.name, p.path, p.icon || 'Page']),
+    ...(isPage ? [
+      ['Page Templates', 'page_templates', 'Page'],
+      ['Format Manager', 'edit_pattern', 'Settings'],
+    ] : []),
+  ]
+    .filter(([, path]) => can(tabPermission(path)))
+    .map(([name, path, icon]) => ({ name, path: `${baseUrl}/${id}/${path}`, icon }));
+  if (!tabs.length) return [];
   return [
     // No path/onClick/subMenus — SideNavItem's "label row" branch, styled via
     // the 'admin' SideNav style's `navLabel` (added alongside this).
     { name: `pattern · ${pattern.name || id}` },
-    tab('Overview', 'overview', 'InfoCircle'),
-    ...(isPage ? [tab('Pages', 'pages', 'Pages')] : []),
-    tab('Access', 'permissions', 'Lock'),
-    ...(isPage ? [tab('Data', 'sources', 'Database'), tab('Activity', 'activity', 'ClockIcon')] : []),
-    tab('Theme', 'theme', 'AdjustmentsHorizontal'),
-    // Custom, site-specific extra tabs a pattern's own data can define
-    // (patternEditor/index.jsx spreads `item.pages` the same way).
-    ...(pattern.pages || []).map(p => tab(p.name, p.path, p.icon || 'Page')),
-    ...(isPage ? [
-      tab('Page Templates', 'page_templates', 'Page'),
-      tab('Format Manager', 'edit_pattern', 'Settings'),
-    ] : []),
+    ...tabs,
   ];
 };

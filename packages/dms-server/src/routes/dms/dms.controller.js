@@ -411,16 +411,23 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     async getPatternAuthPermissions(app, patternParent, subdomain = '') {
       const table = await mainTable(app);
       const rows = await dms_db.promise(
-        `SELECT data FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC LIMIT 1`,
+        `SELECT data FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC`,
         [app, patternParent]
       );
-      if (!rows[0]) return null;
-      const data = typeof rows[0].data === 'string'
-        ? JSON.parse(rows[0].data)
-        : (rows[0].data || {});
-      // Auth patterns are always publicly accessible — they contain the login page.
-      if (data.pattern_type === 'auth') return null;
-      return resolveAuthPermissions(data.authPermissions, subdomain);
+      // A page's parent is the CONTENT pattern with this instance name. The
+      // site's admin row is always typed `{site}|admin:pattern` and the auth row
+      // is usually `{site}|auth:pattern`, so a content pattern whose instance is
+      // `admin`/`auth` shares their type string (mitigat-ny-prod: page pattern
+      // 566466 vs admin row 2724987, found 2026-09-30). Neither kind has pages,
+      // so skip them by `pattern_type` — otherwise the newest row wins and the
+      // pages are judged by the admin row's (site-level) grants, or by nothing
+      // at all while it's empty. No content pattern → unrestricted, as before
+      // (auth patterns were always treated as public here).
+      const parent = rows
+        .map(r => (typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})))
+        .find(d => d.pattern_type !== 'admin' && d.pattern_type !== 'auth');
+      if (!parent) return null;
+      return resolveAuthPermissions(parent.authPermissions, subdomain);
     },
 
     getFormat: appKeys => {

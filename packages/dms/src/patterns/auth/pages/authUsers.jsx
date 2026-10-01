@@ -4,6 +4,7 @@ import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 import {isEqual} from "lodash-es";
 import { isUserAuthed } from "../../../utils/auth";
+import { useManagePageGate } from "./useManagePageGate";
 
 const InputControl = ({show, value, onChange, placeHolder, className}) => {
     const { UI } = React.useContext(ThemeContext);
@@ -110,6 +111,8 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
     const gridRef = useRef(null);
     const { Modal, Table, Button, Icon } = UI;
     const m = useManageTheme();
+    // auth-users on the auth pattern (in-page; the route check doesn't block).
+    const canManage = useManagePageGate('auth-users', authPermissions);
 
     // siteOrigin resolves a relative logoUrl server-side; logoTitle falls back like the login pages'
     const emailTheme = { ...authEmailTheme, logoTitle: authEmailTheme.logoTitle || PROJECT_NAME, siteOrigin: window.location.origin };
@@ -144,7 +147,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
 
     /* ---------------------- Load Data (parallel) ---------------------- */
     useEffect(() => {
-        if (!PROJECT_NAME) return;
+        if (!PROJECT_NAME || !canManage) return;
 
         const load = async () => {
             const [gRes, uRes, rRes] = await Promise.all([
@@ -168,7 +171,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
         };
 
         load();
-    }, [PROJECT_NAME, AUTH_HOST, user.token, user.email]);
+    }, [PROJECT_NAME, AUTH_HOST, user.token, user.email, canManage]);
     /* --------------------------- Table columns --------------------------- */
 
     // const requestsColumns = [
@@ -314,6 +317,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
     /* -------------------------------- Render -------------------------------- */
 
     if (!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>;
+    if (!canManage) return null;
 
     return (
         <>
