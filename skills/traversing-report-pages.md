@@ -504,9 +504,17 @@ same check `PageEdit` runs). Otherwise `Make a copy` IS the big button and there
 beside it. Logic: `ReportPageHeader/reportEditAccess.js`. Consequences when driving it:
 - The 12 curated templates (`/reports/snapshot`, `weekly_average`, …) carry **no** `user:` tag, so
   nobody — AVAIL included — sees Edit on them; go to `/edit/reports/<slug>` directly.
-- Client groups on `npmrds_sub` (NYSDOT, NPMRDS New Users, NYSAMPO, …) are `view-page` only, so a
-  client user never sees Edit, even on their own copy. Before this gate, Edit sent them into
-  `/edit/*` and the route guard bounced them to `/` (tickets #2225990/#2225988).
+- **Who can edit what (2026-10-02 permission model).** Client groups on `npmrds_sub` (NYSDOT,
+  NPMRDS New Users, NYSAMPO, …) hold `view-page` + `create-page` on the pattern; a report's creator
+  gets `*` on that one page through the page row's `authPermissions` (`{users: {<id>: ['*']}}`,
+  stamped by Create Report / Make a copy, backfilled by `scripts/backfill_report_owner_grants.mjs`).
+  `create-page` gets a client into `/edit/*` on ANY page (the route guard reads only pattern grants),
+  so the report components lock themselves on the page-merged `edit-page` check instead: on a page
+  they don't own, the header fields/tags, the route list's mutations and QuickControls are read-only,
+  and Done leaves without publishing. Core section menus are NOT locked (a section with no
+  permissions of its own is editable by anyone in the editor — `sectionMenu.jsx`). Before any of
+  this, client groups were `view-page` only and Edit/Create Report bounced them to `/` (tickets
+  #2225990/#2225988).
 - The primary slot is empty until the catalog row loads (~1s); wait for it before asserting.
 - Admin "View as" reproduces another user's buttons faithfully (it swaps the user object the page
   factory and `CMSContext` see), but it lives in React state: a reload or a typed URL silently drops
