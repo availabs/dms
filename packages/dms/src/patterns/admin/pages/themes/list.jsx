@@ -1,11 +1,11 @@
 import React, {useContext, useRef, useState} from 'react'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
-import { Link, useLocation } from 'react-router'
+import { Link, useLocation, useNavigate } from 'react-router'
 import { cloneDeep } from 'lodash-es';
 import { nameToSlug } from '../../../../utils/type-utils';
 import { themeListTheme } from './list.theme';
-import { isUserAuthed } from '../../utils';
+import { siteCan, MANAGE_THEMES } from '../../../../utils/adminPermissions';
 
 function ThemeList ({
    item={},
@@ -17,6 +17,7 @@ function ThemeList ({
 }) {
 	// themes is an array of {name, theme, id}
 	const location = useLocation()
+	const navigate = useNavigate()
 	const { baseUrl, authPath, app, user, authPermissions } = React.useContext(AdminContext) || {};
   const { UI, theme } = React.useContext(ThemeContext) || {};
   const t = { ...themeListTheme, ...(theme?.admin?.themeList || {}) }
@@ -28,9 +29,19 @@ function ThemeList ({
 	const gridRef = useRef(null);
 	const {Modal, Input, Button, Table, Icon} = UI;
 
-  const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
-  if (!isAdmin && !isUserAuthed(user, authPermissions)) {
-    return <div className={t.noAccess || 'flex items-center justify-center h-48 text-sm text-gray-400'}>You do not have permission to manage themes.</div>;
+  // Same redirects as the pattern list: logged out → login, no manage-themes
+  // → home. Not judged while the user's real groups are still loading.
+  const canManageThemes = siteCan(user, app, authPermissions, MANAGE_THEMES);
+  React.useEffect(() => {
+    if (!user?.authed) {
+      navigate(`${authPath}/login`, { state: { from: location.pathname } })
+      return
+    }
+    if (user?.isAuthenticating) return
+    if (!canManageThemes) navigate('/')
+  }, [user?.authed, user?.isAuthenticating, canManageThemes])
+  if (!user?.authed || user?.isAuthenticating || !canManageThemes) {
+    return null;
   }
 
 

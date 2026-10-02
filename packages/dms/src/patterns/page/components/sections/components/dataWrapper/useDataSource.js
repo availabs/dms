@@ -6,6 +6,7 @@ import { EXTERNAL_SOURCE_KEY } from "./schema";
 import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
 import { SchemaManager } from "./SchemaManager";
 import { calculateIsJoinPresent } from "./utils/joinUtils"
+import { singleAuthoritativeViewId, sortAuthoritativeFirst, authorityMarker } from "../../../../../datasets/utils/authority";
 
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
@@ -84,6 +85,29 @@ const getSources = async ({ envs, falcor }) => {
     return sources.flat();
 };
 
+// Authoritative views per source (patterns/datasets/utils/authority.js), fetched in a separate
+// request per env so a dms-server that predates the attribute can't fail the source list. Kept OUT
+// of the source objects: those get merged into the section's persisted externalSource.
+const getSourceAuthorities = async ({ sources, falcor }) => {
+    const byEnv = {};
+    for (const s of sources) {
+        if (s?.srcEnv && s?.source_id != null) (byEnv[s.srcEnv] ??= []).push(+s.source_id);
+    }
+    const out = {};
+    await Promise.all(Object.entries(byEnv).map(async ([env, ids]) => {
+        try {
+            const res = await falcor.get(["uda", env, "sources", "byId", ids, "authority"]);
+            for (const id of ids) {
+                const a = get(res, ["json", "uda", env, "sources", "byId", id, "authority"]);
+                if (a) out[id] = a;
+            }
+        } catch {
+            // older server or no permission: every source reads as undecided
+        }
+    }));
+    return out;
+};
+
 const getViews = async ({ envs, sourceId, srcEnv, falcor }) => {
     if (!srcEnv || !sourceId) return [];
 
@@ -131,6 +155,11 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const isJoinPresent = calculateIsJoinPresent(join);
     const [sources, setSources] = useState([]);
     const [views, setViews] = useState([]);
+    // source_id → authority record ({views}); see getSourceAuthorities
+    const [authorityBySource, setAuthorityBySource] = useState({});
+    // Set when the AUTHOR picks a source, consumed once that source's views load: preselect its
+    // single authoritative view. Never fires on load, so existing bindings are left alone.
+    const pendingAuthorityPreselect = useRef(null);
     const [joinViewsByAlias, setJoinViewsByAlias] = useState({});
     const sourceId = (state?.externalSource?.source_id);
     const viewId = (state?.externalSource?.view_id);
@@ -181,6 +210,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         const timeoutId = setTimeout(() => {
             getSources({ envs, falcor }).then((data) => {
                 setSources(data);
+                getSourceAuthorities({ sources: data, falcor }).then(setAuthorityBySource);
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
@@ -238,6 +268,23 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
             getViews({envs, sourceId, srcEnv, falcor})
                 .then((data) => {
                     setViews(data);
+                    // The author just chose this source: preselect its single authoritative view.
+                    if (pendingAuthorityPreselect.current != null && +pendingAuthorityPreselect.current === +sourceId) {
+                        pendingAuthorityPreselect.current = null;
+                        const authViewId = singleAuthoritativeViewId(authorityBySource[+sourceId]);
+                        const view = authViewId != null && data.find((v) => +v.view_id === +authViewId);
+                        if (view) {
+                            setState((draft) => {
+                                if (!draft?.[EXTERNAL_SOURCE_KEY] || draft[EXTERNAL_SOURCE_KEY].view_id) return;
+                                draft[EXTERNAL_SOURCE_KEY] = {
+                                    ...draft[EXTERNAL_SOURCE_KEY],
+                                    view_id: view.view_id,
+                                    view_name: view.version || view.name,
+                                    updated_at: view._modified_timestamp || view.updated_at,
+                                };
+                            });
+                        }
+                    }
                 })
         }, 300);
 
@@ -309,6 +356,7 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
                     draft[EXTERNAL_SOURCE_KEY] = { ...match, baseUrl, type: sourceType };
                 }
             });
+            if (match) pendingAuthorityPreselect.current = match.source_id;
         },
         [sources, app, type, pageColumns, sectionColumns, setState, datasources, envs]
     );
@@ -443,18 +491,28 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         })
     ], [sources, app, type, envs]);
 
+    // Authoritative views sort first and carry a ★ marker; everything stays selectable.
     const viewOptions = useMemo(
-        () => views.map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id})),
-        [views]
+        () => {
+            const authority = authorityBySource[+sourceId];
+            return sortAuthoritativeFirst(authority, views, (v) => v.view_id)
+                .map(({view_id, name, version}) => ({
+                    key: view_id,
+                    label: `${name || version || view_id}${authorityMarker(authority, view_id)}`,
+                }));
+        },
+        [views, authorityBySource, sourceId]
     );
 
     const joinViewOptionsByAlias = useMemo(() => {
         const result = {};
         Object.keys(joinViewsByAlias).forEach(alias => {
-            result[alias] = joinViewsByAlias[alias].map(({view_id, name, version}) => ({key: view_id, label: name || version || view_id}));
+            const authority = authorityBySource[+joinSources[alias]?.source];
+            result[alias] = sortAuthoritativeFirst(authority, joinViewsByAlias[alias], (v) => v.view_id)
+                .map(({view_id, name, version}) => ({key: view_id, label: `${name || version || view_id}${authorityMarker(authority, view_id)}`}));
         });
         return result;
-    }, [joinViewsByAlias]);
+    }, [joinViewsByAlias, authorityBySource, joinSources]);
     const removeJoinSource = useCallback(
         (alias) => {
             setState((draft) => {

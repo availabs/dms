@@ -93,7 +93,7 @@ async function claimTaskById(taskId, pgEnv) {
 
 /**
  * Claim the next queued task for this host. Returns the task row or null.
- * Uses row-level locking (PG: FOR UPDATE SKIP LOCKED, SQLite: BEGIN IMMEDIATE).
+ * Uses row-level locking (PG: FOR UPDATE SKIP LOCKED, SQLite: withTransaction / BEGIN IMMEDIATE).
  */
 async function claimNextTask(pgEnv) {
   const db = getDb(pgEnv);
@@ -116,36 +116,29 @@ async function claimNextTask(pgEnv) {
     return rows[0] || null;
   }
 
-  // SQLite: BEGIN IMMEDIATE for exclusive write lock
-  const rawDb = db.getPool();
-  rawDb.exec('BEGIN IMMEDIATE');
-  try {
-    const selectResult = await db.query(`
+  // SQLite: SELECT + UPDATE as one withTransaction (BEGIN IMMEDIATE under the adapter's lock),
+  // so no other caller's query on the shared connection can land between them — a raw
+  // getPool() BEGIN with awaits inside could not guarantee that.
+  return db.withTransaction(async (tx) => {
+    const selectResult = await tx.query(`
       SELECT task_id FROM ${table}
       WHERE status = 'queued' AND host_id = $1
       ORDER BY queued_at ASC
       LIMIT 1
     `, [hostId]);
 
-    if (selectResult.rows.length === 0) {
-      rawDb.exec('COMMIT');
-      return null;
-    }
+    if (selectResult.rows.length === 0) return null;
 
     const taskId = selectResult.rows[0].task_id;
-    const { rows } = await db.query(`
+    const { rows } = await tx.query(`
       UPDATE ${table}
       SET status = 'running', started_at = datetime('now'), worker_pid = $1
       WHERE task_id = $2
       RETURNING *
     `, [process.pid, taskId]);
 
-    rawDb.exec('COMMIT');
     return rows[0] || null;
-  } catch (err) {
-    rawDb.exec('ROLLBACK');
-    throw err;
-  }
+  });
 }
 
 /**

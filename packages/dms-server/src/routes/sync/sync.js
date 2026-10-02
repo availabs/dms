@@ -518,11 +518,18 @@ function createSyncRoutes(dbName) {
       const { user = null } = req.availAuthContext || {};
       const userId = user?.id || null;
 
-      await dms_db.beginTransaction();
-      try {
-        let resultItem;
+      if (action !== 'I' && action !== 'U' && action !== 'D') {
+        return res.status(400).json({ error: `Unknown action: ${action}` });
+      }
 
-        const pushTable = await mainTable(item.app);
+      // Table/sequence DDL and the change_log existence check run BEFORE the transaction: DDL
+      // inside one that rolls back would leave ensureTable's cache claiming a table that isn't
+      // there, and on SQLite a plain dms_db query inside the block would wait on its own lock.
+      const pushTable = await mainTable(item.app);
+      const changeLogReady = await hasChangeLog();
+
+      const outcome = await dms_db.withTransaction(async (tx) => {
+        let resultItem;
 
         if (action === 'I') {
           // Create — use ON CONFLICT for idempotent retries
@@ -530,25 +537,26 @@ function createSyncRoutes(dbName) {
 
           if (item.id) {
             // Client-provided ID (e.g., from pending queue retry)
-            await dms_db.promise(
+            await tx.promise(
               `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
                VALUES ($1, $2, $3, $4, $5, $5)
                ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = ${now()}, updated_by = excluded.updated_by`,
               [item.id, item.app, item.type, dataStr, userId]
             );
-            const rows = await dms_db.promise(
+            const rows = await tx.promise(
               `SELECT * FROM ${pushTable} WHERE id = $1`, [item.id]
             );
             resultItem = rows[0];
           } else {
-            // Allocate ID from the correct sequence (per-app or global)
-            const newId = await allocateId(dms_db, item.app, dbType, splitMode);
-            await dms_db.promise(
+            // Allocate ID from the correct sequence (per-app or global); mainTable() above
+            // already ensured the sequence, so this is a cache hit, not DDL.
+            const newId = await allocateId(tx, item.app, dbType, splitMode);
+            await tx.promise(
               `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
                VALUES ($1, $2, $3, $4, $5, $5)`,
               [newId, item.app, item.type, dataStr, userId]
             );
-            const rows = await dms_db.promise(
+            const rows = await tx.promise(
               `SELECT * FROM ${pushTable} WHERE id = $1`, [newId]
             );
             resultItem = rows[0];
@@ -556,7 +564,7 @@ function createSyncRoutes(dbName) {
 
         } else if (action === 'U') {
           const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
-          const rows = await dms_db.promise(
+          const rows = await tx.promise(
             `UPDATE ${pushTable}
              SET data = ${jsonMerge('data', '$1', dbType)},
                updated_at = ${now()},
@@ -566,26 +574,21 @@ function createSyncRoutes(dbName) {
             [dataStr, userId, item.id]
           );
           resultItem = rows[0];
-          if (!resultItem) {
-            await dms_db.rollbackTransaction();
-            return res.status(404).json({ error: 'Item not found' });
-          }
+          // The UPDATE matched nothing, so there is nothing to roll back.
+          if (!resultItem) return { notFound: true };
 
-        } else if (action === 'D') {
-          await dms_db.promise(
+        } else {
+          await tx.promise(
             `DELETE FROM ${pushTable} WHERE id = $1`,
             [item.id]
           );
           resultItem = { id: item.id, app: item.app, type: item.type };
-        } else {
-          await dms_db.rollbackTransaction();
-          return res.status(400).json({ error: `Unknown action: ${action}` });
         }
 
         // Write change_log (skip if table doesn't exist — sync not fully set up)
         let revision = null;
-        if (await hasChangeLog()) {
-          const revRows = await dms_db.promise(
+        if (changeLogReady) {
+          const revRows = await tx.promise(
             `INSERT INTO ${tbl('change_log')} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
              RETURNING revision;`,
@@ -598,30 +601,32 @@ function createSyncRoutes(dbName) {
           revision = revRows[0]?.revision;
         }
 
-        await dms_db.commitTransaction();
+        return { resultItem, revision };
+      });
 
-        // Broadcast via WebSocket (notify is set from ws.js)
-        const broadcastMsg = { type: 'change', revision, action, item: resultItem };
-        const dataKB = resultItem.data ? +(JSON.stringify(resultItem.data).length / 1024).toFixed(1) : 0;
-        console.log(`[sync/push] ${action} app=${resultItem.app} type=${resultItem.type} id=${resultItem.id} ${dataKB}KB rev=${revision}`);
-        logEntry({
-          _type: 'sync-push',
-          timestamp: new Date().toISOString(),
-          action,
-          itemId: resultItem.id,
-          app: resultItem.app,
-          itemType: resultItem.type,
-          dataKB,
-        });
-        if (createSyncRoutes._notifyChange) {
-          createSyncRoutes._notifyChange(resultItem.app, broadcastMsg);
-        }
-
-        res.json({ item: resultItem, revision: Number(revision) });
-      } catch (err) {
-        await dms_db.rollbackTransaction();
-        throw err;
+      if (outcome.notFound) {
+        return res.status(404).json({ error: 'Item not found' });
       }
+      const { resultItem, revision } = outcome;
+
+      // Committed — broadcast via WebSocket (notify is set from ws.js)
+      const broadcastMsg = { type: 'change', revision, action, item: resultItem };
+      const dataKB = resultItem.data ? +(JSON.stringify(resultItem.data).length / 1024).toFixed(1) : 0;
+      console.log(`[sync/push] ${action} app=${resultItem.app} type=${resultItem.type} id=${resultItem.id} ${dataKB}KB rev=${revision}`);
+      logEntry({
+        _type: 'sync-push',
+        timestamp: new Date().toISOString(),
+        action,
+        itemId: resultItem.id,
+        app: resultItem.app,
+        itemType: resultItem.type,
+        dataKB,
+      });
+      if (createSyncRoutes._notifyChange) {
+        createSyncRoutes._notifyChange(resultItem.app, broadcastMsg);
+      }
+
+      res.json({ item: resultItem, revision: Number(revision) });
     } catch (err) {
       console.error('[sync/push] error:', err.message);
       res.status(500).json({ error: 'Internal server error' });

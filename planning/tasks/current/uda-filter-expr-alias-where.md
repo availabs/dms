@@ -3,7 +3,7 @@
 **Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) · **Status:** built · **Release:** deploy — frontend (dataWrapper filters); commit — submodule · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Topic:** dms-server (uda) / dataWrapper filters · **Created:** 2026-09-30 · **Found in:**
-[mny-actions-alignment.md](../../../../../planning/mitigateny/tasks/current/mny-actions-alignment.md)
+[mny-actions-alignment.md](../../../../../planning/mitigateny/tasks/completed/mny-actions-alignment.md)
 (Phase 3 step 6)
 
 ## Objective

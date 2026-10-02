@@ -569,6 +569,23 @@ describe("buildUdaConfig", () => {
     expect(options.meta).toEqual({ county: "county_name" });
   });
 
+  it("meta: list fn keys the lookup by the aliased SELECT expression", () => {
+    const input = basicDamaInput();
+    input.columns[1].group = true;
+    input.columns.push({
+      name: "coalesce(a, b) as hazard",
+      origin: "calculated-column",
+      display: "calculated",
+      meta_lookup: '{"hurricane":"Hurricane"}',
+      show: true,
+      fn: "list",
+    });
+    const { options, attributes } = buildUdaConfig(input);
+    const listAttr = "array_to_string(array_agg(distinct coalesce(a, b)), ', ') as hazard_list";
+    expect(attributes).toContain(listAttr);
+    expect(options.meta).toEqual({ [listAttr]: '{"hurricane":"Hurricane"}' });
+  });
+
   it("filterGroups: maps column names and passes through", () => {
     const input = basicDamaInput();
     input.filters = {

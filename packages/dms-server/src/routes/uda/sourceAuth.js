@@ -66,7 +66,14 @@ async function getSourceAuthPermissions(db, sourceId) {
             [sourceId]
         );
         if (!rows.length) return undefined;
-        return rows[0].ap == null ? {} : rows[0].ap; // column exists but null/default → enforce as {}
+        const ap = rows[0].ap;
+        if (ap == null) return {}; // column exists but null/default → enforce as {}
+        // SQLite returns the JSON column as text (the adapter only parses `data`/`attributes`);
+        // unparsed, `.groups` is undefined and every guarded write is refused whatever the grant.
+        if (typeof ap === 'string') {
+            try { return JSON.parse(ap) || {}; } catch { return {}; }
+        }
+        return ap;
     } catch (e) {
         return undefined; // column doesn't exist yet
     }

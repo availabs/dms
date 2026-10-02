@@ -1491,7 +1491,16 @@ const buildUdaConfig = ({
         !["data", "data-variable"].includes(column.display),
     )
     .reduce(
-      (acc, column) => ({ ...acc, [column.name]: column.meta_lookup }),
+      (acc, column) => ({
+        ...acc,
+        // The server applies a lookup to the row key matching the trailing alias of
+        // the meta key. list/max rename that alias (`x as x_list`), so key those by
+        // the actual SELECT expression or the lookup silently misses. sum/avg/count
+        // produce numbers, not codes, so they stay unmapped.
+        [["list", "max"].includes(column.fn)
+          ? reqName({ ...(getColumn(column.name) || {}), ...column }, isDms)
+          : column.name]: column.meta_lookup,
+      }),
       {},
     );
 

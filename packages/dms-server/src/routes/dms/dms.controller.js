@@ -130,35 +130,35 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * Get the main (non-split) table for an app, ensuring it exists.
    * Legacy mode: data_items
    * Per-app mode: data_items__{app} (auto-created if needed)
+   *
+   * `q` is the executor: dms_db, or the `tx` handle when called inside withTransaction. The
+   * ensure* calls are cached no-ops after the first call per table — write paths call
+   * mainTable()/ensureForWrite() BEFORE opening a transaction so its DDL never runs inside one
+   * (a rolled-back CREATE would leave the cache claiming a table that doesn't exist).
    */
-  async function mainTable(app) {
+  async function mainTable(app, q = dms_db) {
     const resolved = resolveTable(app, '', dbType, splitMode);
     // In per-app mode, ensure the app's table + sequence exist.
     // ensureTable() no-ops for the shared dms.data_items (legacy mode).
     const seqName = getSequenceName(app, dbType, splitMode);
-    await ensureSequence(dms_db, app, dbType, splitMode);
-    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    await ensureSequence(q, app, dbType, splitMode);
+    await ensureTable(q, resolved.schema, resolved.table, dbType, seqName);
     return resolved.fullName;
   }
 
   /**
-   * Look up the source record ID for a split type's source.
-   * Handles both new format ({source}|{view}:data → look up by type LIKE '%|{source}:source')
-   * and legacy format ({docType}-{viewId} → look up by data.doc_type).
-   * Returns sourceId (number) or null if not found (graceful fallback).
-   */
-  /**
    * The source a dataset name (slug) resolves to: the newest source in the app whose type
    * ends in `|<slug>:source`, or null. Split-table routing uses this, so it decides which
    * source a `<slug>|<view>:data` row belongs to.
+   * `q`: dms_db, or `tx` inside withTransaction (see mainTable).
    */
-  async function lookupSourceIdBySlug(app, slug) {
+  async function lookupSourceIdBySlug(app, slug, q = dms_db) {
     const cacheKey = `${app}:${slug}`;
     if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
 
     try {
-      const table = await mainTable(app);
-      const rows = await dms_db.promise(
+      const table = await mainTable(app, q);
+      const rows = await q.promise(
         `SELECT id FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':source' ORDER BY id DESC LIMIT 1`,
         [app, slug]
       );
@@ -171,12 +171,19 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     }
   }
 
-  async function lookupSourceId(app, type) {
+  /**
+   * Look up the source record ID for a split type's source.
+   * Handles both new format ({source}|{view}:data → look up by type LIKE '%|{source}:source')
+   * and legacy format ({docType}-{viewId} → look up by data.doc_type).
+   * Returns sourceId (number) or null if not found (graceful fallback).
+   * `q`: dms_db, or `tx` inside withTransaction (see mainTable).
+   */
+  async function lookupSourceId(app, type, q = dms_db) {
     if (!isSplitType(type)) return null;
 
     // New format: {source}|{view}:data
     const newParsed = parseSplitDataType(type);
-    if (newParsed) return lookupSourceIdBySlug(app, newParsed.source);
+    if (newParsed) return lookupSourceIdBySlug(app, newParsed.source, q);
 
     // Legacy format: {docType}-{viewId}
     const parsed = parseType(type);
@@ -186,8 +193,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     if (_sourceIdCache.has(cacheKey)) return _sourceIdCache.get(cacheKey);
 
     try {
-      const table = await mainTable(app);
-      const rows = await dms_db.promise(
+      const table = await mainTable(app, q);
+      const rows = await q.promise(
         `SELECT id FROM ${table} WHERE app = $1 AND lower(${jsonField('data', 'doc_type')}) = lower($2) AND (type LIKE '%|source' OR type LIKE '%:source') ORDER BY id DESC LIMIT 1`,
         [app, parsed.docType]
       );
@@ -235,11 +242,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   /**
    * Append to change_log and notify sync subscribers.
-   * Called after each mutation (create/update/delete) to data_items.
+   * Called after each mutation (create/update/delete) to data_items, always inside the
+   * mutation's withTransaction: `tx` is the transaction handle, and the WebSocket broadcast is
+   * deferred to tx.afterCommit so subscribers never hear about a write that then rolls back.
    */
-  async function appendChangeLog(itemId, app, type, action, data, userId, reqMeta) {
+  async function appendChangeLog(tx, itemId, app, type, action, data, userId, reqMeta) {
     const tbl = dbType === 'postgres' ? 'dms.change_log' : 'change_log';
-    const rows = await dms_db.promise(
+    const rows = await tx.promise(
       `INSERT INTO ${tbl} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING revision;`,
@@ -248,16 +257,18 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     );
     const revision = rows[0]?.revision;
     if (_notifyChange) {
-      const msg = { type: 'change', revision, action, item: action === 'D' ? { id: itemId, app, type } : { id: itemId, app, type, data } };
-      const dataSize = data ? (typeof data === 'string' ? data.length : JSON.stringify(data).length) : 0;
-      logEntry({
-        _type: 'sync-notify-falcor',
-        timestamp: new Date().toISOString(),
-        action, itemId, app, type,
-        dataKB: +(dataSize / 1024).toFixed(1),
-        revision,
+      tx.afterCommit(() => {
+        const msg = { type: 'change', revision, action, item: action === 'D' ? { id: itemId, app, type } : { id: itemId, app, type, data } };
+        const dataSize = data ? (typeof data === 'string' ? data.length : JSON.stringify(data).length) : 0;
+        logEntry({
+          _type: 'sync-notify-falcor',
+          timestamp: new Date().toISOString(),
+          action, itemId, app, type,
+          dataKB: +(dataSize / 1024).toFixed(1),
+          revision,
+        });
+        _notifyChange(app, msg);
       });
-      _notifyChange(app, msg);
     }
     return revision;
   }
@@ -273,12 +284,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * Remove {ref, id} entries pointing at a deleted child from parent ref arrays
    * (`data.sources` on dmsEnv/pattern rows, `data.views` on source rows).
    * The datasets list is rendered FROM those arrays, so entries left behind
-   * render as ghost rows for items that no longer exist.
+   * render as ghost rows for items that no longer exist. Runs inside deleteData's transaction.
    */
-  async function removeIdFromRefArrays(app, arrayKey, parentKinds, childId, userId, reqMeta) {
-    const table = await mainTable(app);
+  async function removeIdFromRefArrays(tx, app, arrayKey, parentKinds, childId, userId, reqMeta) {
+    const table = await mainTable(app, tx);
     const kindsClause = parentKinds.map(k => `type LIKE '%:${k}'`).join(' OR ');
-    const parents = await dms_db.promise(
+    const parents = await tx.promise(
       `SELECT id, type, data FROM ${table} WHERE app = $1 AND (${kindsClause});`,
       [app]
     );
@@ -290,7 +301,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const kept = refs.filter(r => String(r?.id ?? r) !== String(childId));
       if (kept.length === refs.length) continue;
 
-      const rows = await dms_db.promise(
+      const rows = await tx.promise(
         `UPDATE ${table}
          SET data = ${jsonMerge('data', '$1', dbType)},
            updated_at = ${now()},
@@ -300,7 +311,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         [JSON.stringify({ [arrayKey]: kept }), userId, parent.id]
       );
       if (rows[0]) {
-        await appendChangeLog(rows[0].id, rows[0].app, rows[0].type, 'U', rows[0].data, userId, reqMeta);
+        await appendChangeLog(tx, rows[0].id, rows[0].app, rows[0].type, 'U', rows[0].data, userId, reqMeta);
       }
     }
   }
@@ -308,14 +319,15 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   /**
    * Drop a view's data split table (valid + invalid rows share it). sourceId is
    * passed explicitly — during a source cascade the source row is already gone,
-   * so lookupSourceId can't resolve it.
+   * so lookupSourceId can't resolve it. Runs inside deleteData's transaction (a rollback restores
+   * the table; the forgotten cache entry just means the next write re-runs ensureTable).
    */
-  async function dropViewDataTable(app, sourceInstance, viewId, sourceId) {
+  async function dropViewDataTable(tx, app, sourceInstance, viewId, sourceId) {
     const dataType = `${sourceInstance}|${viewId}:data`;
     const resolved = resolveTable(app, dataType, dbType, splitMode, sourceId);
     // Only ever drop dedicated split tables, never a shared data_items table
     if (!resolved.table.startsWith('data_items__')) return;
-    await dms_db.promise(`DROP TABLE IF EXISTS ${resolved.fullName};`);
+    await tx.promise(`DROP TABLE IF EXISTS ${resolved.fullName};`);
     forgetTable(resolved.schema, resolved.table);
   }
 
@@ -325,37 +337,37 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * array. New-format (`:source`) rows only — legacy colon-less types are
    * handled by the deprecation migration, not here.
    */
-  async function cascadeSourceDelete(row, userId, reqMeta) {
+  async function cascadeSourceDelete(tx, row, userId, reqMeta) {
     const instance = getInstance(row.type);
-    const table = await mainTable(row.app);
+    const table = await mainTable(row.app, tx);
 
     if (instance) {
-      const views = await dms_db.promise(
+      const views = await tx.promise(
         `SELECT id, type FROM ${table} WHERE app = $1 AND type LIKE $2 ESCAPE '\\';`,
         [row.app, `${escapeLike(instance)}|%:view`]
       );
       for (const view of views) {
-        await dropViewDataTable(row.app, instance, view.id, row.id);
-        await dms_db.promise(`DELETE FROM ${table} WHERE id = $1;`, [view.id]);
-        await appendChangeLog(view.id, row.app, view.type, 'D', null, userId, reqMeta);
+        await dropViewDataTable(tx, row.app, instance, view.id, row.id);
+        await tx.promise(`DELETE FROM ${table} WHERE id = $1;`, [view.id]);
+        await appendChangeLog(tx, view.id, row.app, view.type, 'D', null, userId, reqMeta);
       }
       _sourceIdCache.delete(`${row.app}:${instance}`);
     }
 
-    await removeIdFromRefArrays(row.app, 'sources', ['dmsenv', 'pattern'], row.id, userId, reqMeta);
+    await removeIdFromRefArrays(tx, row.app, 'sources', ['dmsenv', 'pattern'], row.id, userId, reqMeta);
   }
 
   /**
    * A deleted view drops its data split table and vacates its {ref, id} entry
    * in the parent source's `data.views` array.
    */
-  async function cascadeViewDelete(row, userId, reqMeta) {
+  async function cascadeViewDelete(tx, row, userId, reqMeta) {
     const sourceInstance = getParent(row.type);
     if (sourceInstance && !sourceInstance.includes('|')) {
-      const sourceId = await lookupSourceId(row.app, `${sourceInstance}|${row.id}:data`);
-      await dropViewDataTable(row.app, sourceInstance, row.id, sourceId);
+      const sourceId = await lookupSourceId(row.app, `${sourceInstance}|${row.id}:data`, tx);
+      await dropViewDataTable(tx, row.app, sourceInstance, row.id, sourceId);
     }
-    await removeIdFromRefArrays(row.app, 'views', ['source'], row.id, userId, reqMeta);
+    await removeIdFromRefArrays(tx, row.app, 'views', ['source'], row.id, userId, reqMeta);
   }
 
   /**
@@ -366,16 +378,22 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * reports_snap_2 catalog row cleanup — can run without dms-server ever
    * knowing that relationship exists. A hook failure is logged, never
    * thrown: it must not block or roll back the page's own deletion.
+   *
+   * The hook runs AFTER deleteData's transaction commits (tx.afterCommit), with the plain dms_db:
+   * it only fires for a delete that actually happened, and a failing hook statement can't abort
+   * the page delete's own transaction (on Postgres any failed statement inside it would).
    */
-  async function cascadePageDelete(row, userId, reqMeta) {
+  function cascadePageDelete(tx, row, userId, reqMeta) {
     const hook = getPageDeleteHook();
     if (!hook) return;
-    try {
-      await hook(row, { userId, reqMeta, dms_db, resolveTable, jsonField, dbType, splitMode });
-      console.log(`[page-delete-hook] dispatched for ${row.app}/${row.type}#${row.id}`);
-    } catch (e) {
-      console.error(`[page-delete-hook] failed for ${row.app}/${row.type}#${row.id}: ${e.message}`);
-    }
+    tx.afterCommit(async () => {
+      try {
+        await hook(row, { userId, reqMeta, dms_db, resolveTable, jsonField, dbType, splitMode });
+        console.log(`[page-delete-hook] dispatched for ${row.app}/${row.type}#${row.id}`);
+      } catch (e) {
+        console.error(`[page-delete-hook] failed for ${row.app}/${row.type}#${row.id}: ${e.message}`);
+      }
+    });
   }
 
   return {
@@ -407,16 +425,23 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     async getPatternAuthPermissions(app, patternParent, subdomain = '') {
       const table = await mainTable(app);
       const rows = await dms_db.promise(
-        `SELECT data FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC LIMIT 1`,
+        `SELECT data FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC`,
         [app, patternParent]
       );
-      if (!rows[0]) return null;
-      const data = typeof rows[0].data === 'string'
-        ? JSON.parse(rows[0].data)
-        : (rows[0].data || {});
-      // Auth patterns are always publicly accessible — they contain the login page.
-      if (data.pattern_type === 'auth') return null;
-      return resolveAuthPermissions(data.authPermissions, subdomain);
+      // A page's parent is the CONTENT pattern with this instance name. The
+      // site's admin row is always typed `{site}|admin:pattern` and the auth row
+      // is usually `{site}|auth:pattern`, so a content pattern whose instance is
+      // `admin`/`auth` shares their type string (mitigat-ny-prod: page pattern
+      // 566466 vs admin row 2724987, found 2026-09-30). Neither kind has pages,
+      // so skip them by `pattern_type` — otherwise the newest row wins and the
+      // pages are judged by the admin row's (site-level) grants, or by nothing
+      // at all while it's empty. No content pattern → unrestricted, as before
+      // (auth patterns were always treated as public here).
+      const parent = rows
+        .map(r => (typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})))
+        .find(d => d.pattern_type !== 'admin' && d.pattern_type !== 'auth');
+      if (!parent) return null;
+      return resolveAuthPermissions(parent.authPermissions, subdomain);
     },
 
     getFormat: appKeys => {
@@ -845,8 +870,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       }
       const userId = get(user, "id", null);
 
-      await dms_db.beginTransaction();
-      try {
+      const rows = await dms_db.withTransaction(async (tx) => {
         const sql = `
           UPDATE ${table}
           SET data = ${jsonMerge('data', '$1', dbType)},
@@ -857,18 +881,15 @@ function createController(dbName = 'dms-sqlite', options = {}) {
             ${typeCast('created_at', 'TEXT', dbType)}, created_by,
             ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
         `;
-        const rows = await dms_db.promise(sql, [data, userId, id]);
+        const rows = await tx.promise(sql, [data, userId, id]);
         if (rows[0]) {
           const item = rows[0];
-          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
+          await appendChangeLog(tx, item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
         }
-        await dms_db.commitTransaction();
-        _tagsCache.clear();
         return rows;
-      } catch (err) {
-        await dms_db.rollbackTransaction();
-        throw err;
-      }
+      });
+      _tagsCache.clear();
+      return rows;
     },
 
     setMassData: async (app, type, column, maps, user) => {
@@ -914,8 +935,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const table = app ? await mainTable(app) : tableName('data_items');
       const userId = get(user, "id", null);
 
-      await dms_db.beginTransaction();
-      try {
+      return dms_db.withTransaction(async (tx) => {
         const sql = `
           UPDATE ${table}
           SET type = $1,
@@ -926,17 +946,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
             ${typeCast('created_at', 'TEXT', dbType)}, created_by,
             ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
         `;
-        const rows = await dms_db.promise(sql, [type, userId, id]);
+        const rows = await tx.promise(sql, [type, userId, id]);
         if (rows[0]) {
           const item = rows[0];
-          await appendChangeLog(item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
+          await appendChangeLog(tx, item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
         }
-        await dms_db.commitTransaction();
         return rows;
-      } catch (err) {
-        await dms_db.rollbackTransaction();
-        throw err;
-      }
+      });
     },
 
     setDataByIdOld: (items, user) =>
@@ -996,13 +1012,16 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         }
       }
 
-      await dms_db.beginTransaction();
-      try {
+      // ensureForWrite (above) ran the table/sequence DDL outside the transaction, so
+      // allocateId's ensureSequence below is a cache hit. Allocating inside the transaction
+      // (rather than as its own auto-committing statement) means a failed write doesn't burn an
+      // id; the SQLite lock is what makes concurrent allocations distinct.
+      const rows = await dms_db.withTransaction(async (tx) => {
         let rows;
 
         // SQLite split tables need explicit ID allocation (no AUTOINCREMENT)
         if (dbType === 'sqlite' && resolved.table !== 'data_items') {
-          const id = await allocateId(dms_db, app, dbType, splitMode);
+          const id = await allocateId(tx, app, dbType, splitMode);
           const sql = `
             INSERT INTO ${resolved.fullName}(id, app, type, data, created_by, updated_by)
             VALUES ($1, $2, $3, $4, $5, $5)
@@ -1010,7 +1029,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
               ${typeCast('created_at', 'TEXT', dbType)}, created_by,
               ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
           `;
-          rows = await dms_db.promise(sql, [id, app, type, data, userId]);
+          rows = await tx.promise(sql, [id, app, type, data, userId]);
         } else {
           // PostgreSQL split tables use DEFAULT nextval() from shared sequence.
           // Default data_items uses its own AUTOINCREMENT/sequence.
@@ -1021,37 +1040,36 @@ function createController(dbName = 'dms-sqlite', options = {}) {
               ${typeCast('created_at', 'TEXT', dbType)}, created_by,
               ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
           `;
-          rows = await dms_db.promise(sql, [app, type, data, userId]);
+          rows = await tx.promise(sql, [app, type, data, userId]);
         }
 
         const item = rows[0];
-        await appendChangeLog(item.id, item.app, item.type, 'I', item.data, userId, reqMeta);
-        await dms_db.commitTransaction();
-        _tagsCache.clear();
-        // When a new source is created, evict any stale cache entry so the next
-        // data-row write looks up the correct (newest) source ID from the DB.
-        if (getKind(type) === 'source') {
-          const slug = getInstance(type);
-          if (slug) _sourceIdCache.delete(`${app}:${slug}`);
-        }
+        await appendChangeLog(tx, item.id, item.app, item.type, 'I', item.data, userId, reqMeta);
         return rows;
-      } catch (err) {
-        await dms_db.rollbackTransaction();
-        throw err;
+      });
+      _tagsCache.clear();
+      // When a new source is created, evict any stale cache entry so the next
+      // data-row write looks up the correct (newest) source ID from the DB.
+      if (getKind(type) === 'source') {
+        const slug = getInstance(type);
+        if (slug) _sourceIdCache.delete(`${app}:${slug}`);
       }
+      return rows;
     },
 
     deleteData: async (app, type, ids, user, reqMeta = null) => {
       const resolved = await ensureForRead(app, type);
       const userId = get(user, "id", null);
+      // The cascades below resolve the app's main table inside the transaction; ensure it (DDL)
+      // out here so that is a cache hit.
+      await mainTable(app);
 
-      await dms_db.beginTransaction();
-      try {
+      const result = await dms_db.withTransaction(async (tx) => {
         const arrayResult = buildArrayComparison('id', ids, dbType);
         // Snapshot the doomed rows first — cascade decisions key off each row's
         // actual type string; the `type` argument only resolves the table and
         // often doesn't match it (clients pass e.g. 'datasets_env|source').
-        const doomed = await dms_db.promise(
+        const doomed = await tx.promise(
           `SELECT id, app, type FROM ${resolved.fullName} WHERE ${arrayResult.sql};`,
           arrayResult.values
         );
@@ -1061,11 +1079,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           DELETE FROM ${resolved.fullName}
           WHERE ${arrayResult.sql};
         `;
-        const result = await dms_db.promise(sql, arrayResult.values);
+        const result = await tx.promise(sql, arrayResult.values);
 
         // Log each deleted ID under the row's real type when we have it
         for (const id of ids) {
-          await appendChangeLog(id, app, doomedTypes.get(String(id)) || type, 'D', null, userId, reqMeta);
+          await appendChangeLog(tx, id, app, doomedTypes.get(String(id)) || type, 'D', null, userId, reqMeta);
         }
 
         // Deleting a source or view must also delete its dependents and vacate
@@ -1073,24 +1091,21 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // ghost entries in the datasets list and orphans view rows/split tables.
         for (const row of doomed) {
           const kind = typeof row.type === 'string' && row.type.includes(':') ? getKind(row.type) : null;
-          if (kind === 'source') await cascadeSourceDelete(row, userId, reqMeta);
-          else if (kind === 'view') await cascadeViewDelete(row, userId, reqMeta);
+          if (kind === 'source') await cascadeSourceDelete(tx, row, userId, reqMeta);
+          else if (kind === 'view') await cascadeViewDelete(tx, row, userId, reqMeta);
           // Pages are colon-less by design (`{pattern}|page`), not legacy —
           // checked by literal suffix rather than widening the `includes(':')`
           // guard above, which exists specifically to keep genuinely-legacy
           // (pre-refactor, colon-less) types out of cascade dispatch.
           else if (typeof row.type === 'string' && row.type.endsWith('|page')) {
-            await cascadePageDelete(row, userId, reqMeta);
+            cascadePageDelete(tx, row, userId, reqMeta);
           }
         }
 
-        await dms_db.commitTransaction();
-        _tagsCache.clear();
         return result;
-      } catch (err) {
-        await dms_db.rollbackTransaction();
-        throw err;
-      }
+      });
+      _tagsCache.clear();
+      return result;
     },
 
     /**

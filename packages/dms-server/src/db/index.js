@@ -84,44 +84,45 @@ const runMigrationFile = async (dbConnection, sqlDir, baseName) => {
 };
 
 /**
+ * Run one create_* schema script as a single transaction: every table in it is
+ * created, or none is. The file is read before the transaction opens (no I/O
+ * while it holds the connection). SQLite executes one statement per call, so
+ * its variant is split on ";" and run statement by statement on `tx`.
+ *
+ * @param {Object} dbConnection - Database adapter instance
+ * @param {string} sqlDir - Directory under src/db (e.g. "sql/dama")
+ * @param {string} baseName - File base name; `.sqlite.sql` / `.sql` picks the dialect
+ */
+const runSchemaScript = async (dbConnection, sqlDir, baseName) => {
+  const sqlFile = dbConnection.type === "sqlite" ? `${baseName}.sqlite.sql` : `${baseName}.sql`;
+  const sql = await readFileAsync(join(__dirname, sqlDir, sqlFile), { encoding: "utf8" });
+
+  await dbConnection.withTransaction(async (tx) => {
+    if (tx.type === "sqlite") {
+      const statements = sql.split(";").filter(s => s.trim());
+      for (const stmt of statements) {
+        await tx.query(stmt + ";");
+      }
+    } else {
+      await tx.query(sql);
+    }
+  });
+};
+
+/**
  * Initialize auth tables for the database
  * @param {Object} dbConnection - Database adapter instance
  */
 const initAuth = async (dbConnection) => {
   const db = dbConnection.getDb();
-  const dbType = dbConnection.type;
 
   // Check if users table exists
   const exists = await dbConnection.tableExists("public", "users");
 
   if (!exists) {
     console.time(`auth db init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite" ? "auth_tables.sqlite.sql" : "auth_tables.sql";
-      const sqlPath = join(__dirname, "sql/auth", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      // SQLite doesn't support multiple statements in one query easily
-      // Split and execute for SQLite
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`auth db init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/auth", "auth_tables");
+    console.timeEnd(`auth db init ${db}`);
   }
 
 };
@@ -149,31 +150,8 @@ const initDms = async (dbConnection) => {
 
   if (!tablesExist) {
     console.time(`dms db init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite" ? "dms.sqlite.sql" : "dms.sql";
-      const sqlPath = join(__dirname, "sql/dms", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      // SQLite doesn't support multiple statements in one query easily
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`dms db init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/dms", "dms");
+    console.timeEnd(`dms db init ${db}`);
   }
 
 };
@@ -192,30 +170,8 @@ const initSync = async (dbConnection) => {
 
   if (!exists) {
     console.time(`sync db init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite" ? "change_log.sqlite.sql" : "change_log.sql";
-      const sqlPath = join(__dirname, "sql/dms", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`sync db init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/dms", "change_log");
+    console.timeEnd(`sync db init ${db}`);
   }
 
 };
@@ -245,32 +201,8 @@ const initDama = async (dbConnection) => {
 
   if (!tablesExist) {
     console.time(`dama db init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite"
-        ? "create_dama_core_tables.sqlite.sql"
-        : "create_dama_core_tables.sql";
-      const sqlPath = join(__dirname, "sql/dama", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`dama db init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/dama", "create_dama_core_tables");
+    console.timeEnd(`dama db init ${db}`);
   }
 };
 
@@ -291,32 +223,8 @@ const initDamaTasks = async (dbConnection) => {
 
   if (!tablesExist) {
     console.time(`dama tasks init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite"
-        ? "create_dama_task_tables.sqlite.sql"
-        : "create_dama_task_tables.sql";
-      const sqlPath = join(__dirname, "sql/dama", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`dama tasks init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/dama", "create_dama_task_tables");
+    console.timeEnd(`dama tasks init ${db}`);
   }
 };
 
@@ -367,32 +275,8 @@ const initDamaSchedules = async (dbConnection) => {
 
   if (!tablesExist) {
     console.time(`dama schedules init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite"
-        ? "create_dama_schedule_tables.sqlite.sql"
-        : "create_dama_schedule_tables.sql";
-      const sqlPath = join(__dirname, "sql/dama", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`dama schedules init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/dama", "create_dama_schedule_tables");
+    console.timeEnd(`dama schedules init ${db}`);
   }
 };
 
@@ -421,30 +305,8 @@ const initDmsTasks = async (dbConnection) => {
 
   if (!tablesExist) {
     console.time(`dms tasks init ${db}`);
-    await dbConnection.beginTransaction();
-
-    try {
-      const sqlFile = dbType === "sqlite" ? "dms_tasks.sqlite.sql" : "dms_tasks.sql";
-      const sqlPath = join(__dirname, "sql/dms", sqlFile);
-      const sql = await readFileAsync(sqlPath, { encoding: "utf8" });
-
-      if (dbType === "sqlite") {
-        const statements = sql.split(";").filter(s => s.trim());
-        for (const stmt of statements) {
-          if (stmt.trim()) {
-            await dbConnection.query(stmt + ";");
-          }
-        }
-      } else {
-        await dbConnection.query(sql);
-      }
-
-      await dbConnection.commitTransaction();
-      console.timeEnd(`dms tasks init ${db}`);
-    } catch (error) {
-      await dbConnection.rollbackTransaction();
-      throw error;
-    }
+    await runSchemaScript(dbConnection, "sql/dms", "dms_tasks");
+    console.timeEnd(`dms tasks init ${db}`);
   }
 };
 

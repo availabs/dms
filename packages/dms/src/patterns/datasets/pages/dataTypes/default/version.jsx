@@ -1,7 +1,10 @@
 import React, {useContext, useEffect, useState} from "react";
 import {useNavigate} from "react-router";
 import { DatasetsContext } from '../../../context'
-import { ThemeContext } from "../../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
+import { sourceOverviewTheme } from "./sourceOverview.theme";
+import { preferredViewId, isAuthoritative } from "../../../utils/authority";
+import AuthorityControl, { AuthorityBadge } from "../../../components/AuthorityControl";
 import {getSourceData, updateVersionData} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
 import {cloneDeep} from "lodash-es";
@@ -77,10 +80,12 @@ const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
     )
 }
 
-export default function ManageForm ({ status, apiLoad, apiUpdate, format, source, params, isDms }) {
+export default function ManageForm ({ status, apiLoad, apiUpdate, format, source, setSource, params, isDms }) {
     const {id} = params;
     const navigate = useNavigate();
-    const { app, baseUrl, pageBaseUrl, theme, falcor, datasources } = React.useContext(DatasetsContext) || {}
+    const { app, baseUrl, pageBaseUrl, theme, falcor, datasources, isUserAuthed } = React.useContext(DatasetsContext) || {}
+    const { theme: fullTheme } = React.useContext(ThemeContext) || {};
+    const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const pgEnv = getExternalEnv(datasources);
     const {UI} = React.useContext(ThemeContext) || {}
     const {Input} = UI;
@@ -88,10 +93,12 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
 
     useEffect(() => {
         if(!params.view_id && source?.views?.length){
-            const recentView = Math.max(...source.views.map(({id, view_id}) => view_id || id));
+            // the authoritative view when one is marked, else the most recent as before
+            const recentView = preferredViewId(source, source.views, v => v.view_id || v.id)
+                ?? Math.max(...source.views.map(({id, view_id}) => view_id || id));
             navigate(`${pageBaseUrl}/${params.id}/version/${recentView}`)
         }
-    }, [source.views]);
+    }, [source.views, source.authority]);
 
     useEffect(() => {
         const newView = (source?.views || []).find(v => +(v.view_id || v.id) === +params.view_id) || {};
@@ -104,7 +111,17 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
             <div>
                     <div className={'overflow-auto flex flex-1 gap-2 w-full flex-col relative text-md font-light leading-7 p-4'}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        <div className={'w-full text-lg text-gray-500 border-b'}>{source?.name} - {currentView?.version || currentView?.name || currentView?.view_id || currentView?.id}</div>
+                        <div className={'w-full text-lg text-gray-500 border-b flex items-center gap-2'}>
+                            <span>{source?.name} - {currentView?.version || currentView?.name || currentView?.view_id || currentView?.id}</span>
+                            <AuthorityBadge t={t} entry={isAuthoritative(source, params.view_id)}/>
+                        </div>
+                        {params.view_id && setSource && (
+                            <AuthorityControl t={t} source={source} setSource={setSource} viewId={+params.view_id}
+                                              viewLabel={currentView?.version || currentView?.name}
+                                              envKey={isDms ? `${format?.app}+${source?.type}` : pgEnv}
+                                              canEdit={isUserAuthed ? isUserAuthed(['update-source']) : false}
+                                              falcor={falcor}/>
+                        )}
                         <div className={'flex gap-12'}>
                             <div className={'flex-grow'}>
                                 <label>Version</label>

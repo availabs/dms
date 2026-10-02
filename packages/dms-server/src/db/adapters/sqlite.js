@@ -1,7 +1,13 @@
 const Database = require("better-sqlite3");
 const { dirname } = require("path");
 const { mkdirSync, existsSync } = require("fs");
+const { AsyncLocalStorage } = require("node:async_hooks");
 const { captureQueryError } = require('../../middleware/request-logger');
+
+const OLD_TX_API_ERROR =
+  "beginTransaction/commitTransaction/rollbackTransaction were removed: they ran BEGIN/COMMIT on " +
+  "the one shared connection, so every other request's queries landed inside the open " +
+  "transaction. Use db.withTransaction(async (tx) => { ... }) and run every statement on tx.";
 
 /**
  * SQLite Database Adapter
@@ -14,6 +20,16 @@ class SqliteAdapter {
     this.filename = config.filename;
     this.database = config.filename;
     this.config = config;
+
+    // One connection is shared by every caller, so a transaction must own it outright. The lock
+    // is FIFO: withTransaction holds it for its whole duration; a plain query() runs immediately
+    // when nobody holds or waits for it, and otherwise waits its turn. _lockDepth counts holders
+    // plus waiters.
+    this._lockTail = Promise.resolve();
+    this._lockDepth = 0;
+    // Set for the async lifetime of each withTransaction(fn) — lets query() recognise a call from
+    // inside the transaction that should have gone through tx (it would otherwise deadlock).
+    this._txScope = new AsyncLocalStorage();
 
     try {
       // Ensure directory exists
@@ -184,12 +200,50 @@ class SqliteAdapter {
   }
 
   /**
-   * Execute a query
+   * Execute a query. Waits while a withTransaction(fn) holds the connection, so it is never part
+   * of, or rolled back with, another caller's transaction. Inside withTransaction, use `tx`.
    * @param {string|Object} sql - SQL query string or query object with { text, values }
    * @param {Array} values - Query parameters (optional if sql is an object)
    * @returns {Promise<{rows: Array, rowCount: number}>}
    */
   async query(sql, values) {
+    const scope = this._txScope.getStore();
+    if (scope && scope.open) {
+      throw new Error(
+        "<SqliteAdapter> query() on the adapter inside its own withTransaction — it would wait " +
+        "for the lock that transaction holds. Use tx.query / tx.promise inside the block."
+      );
+    }
+    if (this._lockDepth === 0) return this._execute(sql, values);
+    const release = await this._acquireLock();
+    try {
+      return this._execute(sql, values);
+    } finally {
+      release();
+    }
+  }
+
+  /** FIFO lock; resolves to a release function (idempotent). */
+  _acquireLock() {
+    this._lockDepth++;
+    let releaseHeld;
+    const held = new Promise((resolve) => { releaseHeld = resolve; });
+    const ready = this._lockTail;
+    this._lockTail = ready.then(() => held);
+    let released = false;
+    return ready.then(() => () => {
+      if (released) return;
+      released = true;
+      this._lockDepth--;
+      releaseHeld();
+    });
+  }
+
+  /**
+   * Run one statement synchronously on the connection (no locking — callers own that).
+   * @returns {{rows: Array, rowCount: number, lastInsertRowid?: number}}
+   */
+  _execute(sql, values) {
     try {
       let queryText = typeof sql === "object" ? sql.text : sql;
       let queryValues = typeof sql === "object" ? sql.values : values;
@@ -303,24 +357,108 @@ class SqliteAdapter {
   }
 
   /**
-   * Begin a transaction
+   * Run fn(tx) as one real transaction: take the adapter lock, BEGIN IMMEDIATE, fn(tx), COMMIT —
+   * or ROLLBACK and rethrow if fn (or COMMIT) throws. Other callers' queries wait until it ends.
+   *
+   * `tx` is the handle every statement inside the block must use — `tx.query`, `tx.promise`,
+   * `tx.type`, `tx.withTransaction(f)` (nested: runs f(tx) inline) and `tx.afterCommit(cb)`
+   * (runs cb after a successful COMMIT and after the lock is released, never on rollback; errors
+   * are logged, not thrown). The handle throws if used after the transaction has ended.
+   *
+   * @template T
+   * @param {(tx: Object) => Promise<T>} fn
+   * @returns {Promise<T>} fn's result, after COMMIT
    */
-  async beginTransaction() {
-    this.db.exec("BEGIN;");
+  async withTransaction(fn) {
+    const outer = this._txScope.getStore();
+    if (outer && outer.open) {
+      throw new Error(
+        "withTransaction() called on the adapter inside its own open transaction — " +
+        "use tx.withTransaction(fn) to nest (it runs inline)."
+      );
+    }
+
+    const release = await this._acquireLock();
+    const state = { open: true, afterCommit: [] };
+    const tx = this._makeTx(state);
+    let result;
+    try {
+      if (this.db.inTransaction) {
+        throw new Error(
+          "<SqliteAdapter> the connection is already inside a transaction withTransaction did not " +
+          "open (a raw BEGIN via getPool()?) — refusing to run inside it."
+        );
+      }
+      this.db.exec("BEGIN IMMEDIATE");
+      try {
+        result = await this._txScope.run(state, () => fn(tx));
+        this.db.exec("COMMIT");
+      } catch (err) {
+        // SQLite rolls back by itself on some errors (SQLITE_FULL, SQLITE_IOERR, …).
+        if (this.db.inTransaction) {
+          try {
+            this.db.exec("ROLLBACK");
+          } catch (rollbackErr) {
+            console.error(`<SqliteAdapter> ROLLBACK failed:`, rollbackErr.message);
+          }
+        }
+        throw err;
+      }
+    } finally {
+      state.open = false;
+      release();
+    }
+
+    await runAfterCommit(state.afterCommit);
+    return result;
   }
 
-  /**
-   * Commit a transaction
-   */
-  async commitTransaction() {
-    this.db.exec("COMMIT;");
+  _makeTx(state) {
+    const adapter = this;
+    const ensureOpen = () => {
+      if (!state.open) throw new Error("Transaction handle used after its transaction ended.");
+    };
+    const tx = {
+      type: this.type,
+      database: this.database,
+      async query(sql, values) {
+        ensureOpen();
+        return adapter._execute(sql, values);
+      },
+      async promise(sql, values) {
+        return (await tx.query(sql, values)).rows;
+      },
+      async withTransaction(fn) {
+        ensureOpen();
+        return fn(tx);
+      },
+      afterCommit(cb) {
+        ensureOpen();
+        state.afterCommit.push(cb);
+      },
+    };
+    return tx;
   }
 
-  /**
-   * Rollback a transaction
-   */
-  async rollbackTransaction() {
-    this.db.exec("ROLLBACK;");
+  // Removed — see OLD_TX_API_ERROR. They throw rather than disappear so a stale caller fails
+  // loudly with the fix in the message, instead of "is not a function".
+  beginTransaction() { throw new Error(OLD_TX_API_ERROR); }
+  commitTransaction() { throw new Error(OLD_TX_API_ERROR); }
+  rollbackTransaction() { throw new Error(OLD_TX_API_ERROR); }
+}
+
+/**
+ * Run the callbacks registered with tx.afterCommit(), in order. The transaction has already
+ * committed, so a failing callback is logged, never thrown — it must not make a committed write
+ * look failed to the caller.
+ */
+async function runAfterCommit(callbacks) {
+  for (const cb of callbacks) {
+    try {
+      await cb();
+    } catch (err) {
+      console.error(`<withTransaction> afterCommit callback failed:`, err.message);
+    }
   }
 }
 

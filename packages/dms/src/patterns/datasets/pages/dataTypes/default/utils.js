@@ -50,6 +50,21 @@ export async function resolveInternalViewNames ({pgEnv, falcor, rawViews}) {
     });
 }
 
+// The derived `authority` attribute (metadata.authority — see utils/authority.js), read in its OWN
+// request and never in the shared attribute lists: a dms-server that predates it treats it as a
+// DAMA column, the SQL fails, and the error would take the whole attribute request (and Falcor's
+// cached nodes) down with it. Resolves null on any failure, i.e. "undecided".
+export async function getSourceAuthority ({pgEnv, falcor, source_id}) {
+    if (!source_id) return null;
+    const reqPath = ['uda', pgEnv, 'sources', 'byId', +source_id, 'authority'];
+    try {
+        const res = await falcor.get(reqPath);
+        return get(res, ['json', ...reqPath], null) ?? null;
+    } catch {
+        return null;
+    }
+}
+
 // A DMS source's dataType ('file_upload', 'internal_table', …) lives in the row's `data.type`.
 // The `source` FORMAT (datasets.format.js) does not declare a `type` attribute — deliberately,
 // since `item.type` is the STORAGE row-type string (`{dmsenv}|{instance}:source`) and the two
@@ -87,7 +102,8 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms
         // The URL/route id IS the DMS row id — take it as canonical and
         // ignore whatever `id`/`source_id` legacy migrations left in data.
         // Keep `source_id` exposed for legacy callers but mirror the row id.
-        setSource({...res, id: +source_id, source_id: +source_id, views, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
+        const authority = await getSourceAuthority({ pgEnv, falcor, source_id });
+        setSource({...res, id: +source_id, source_id: +source_id, views, authority, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
 
 }
 

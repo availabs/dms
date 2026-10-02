@@ -8,7 +8,8 @@ import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'r
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns, backfillAdminPattern, readSitePatternRefs, mergeSitePatternRefs } from '../../../utils/tenantProvisioning';
 import { qaPreflight, installQa } from '../../qa/install';
-import { isUserAuthed, parseIfJSON, hasPatternManageAccess } from '../utils';
+import { parseIfJSON } from '../utils';
+import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
 import SiteTemplatePicker from './SiteTemplatePicker'
@@ -45,8 +46,9 @@ function SiteEdit ({
 	}
 
 	const resolvedId = item?.id
-	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`)
-	const hasAccess = isAdmin || isUserAuthed(user, authPermissions)
+	// The list page is the admin panel's entry point: view-pattern-list (or
+	// site `*` / `${app} Admin`). See utils/adminPermissions.js.
+	const hasAccess = siteCan(user, app, authPermissions, VIEW_PATTERN_LIST)
 	// navState === 'loading' means a loader is in-flight (e.g. router just recreated by
 	// dmsSiteFactory). dataItems is [] by default in wrapper.jsx until the loader
 	// resolves, so we must not treat [] as "no site" while loading.
@@ -132,7 +134,7 @@ function SiteEdit ({
 
 	const isPlatformAdmin = isMultiTenant && !getSubdomainFromHost();
 
-	if (isPlatformAdmin) {
+	if (isPlatformAdmin && siteCan(user, app, authPermissions, MANAGE_TENANTS)) {
 		return (
 			<>
 				<PatternList
@@ -203,7 +205,7 @@ function PatternList({
 	 siteId,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user} = React.useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user, authPermissions} = React.useContext(AdminContext);
 	const {UI, theme} = React.useContext(ThemeContext)
 	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
@@ -222,13 +224,10 @@ function PatternList({
 	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', 'filters', 'authPermissions'];
 	//console.log('test 123', location)
 
-	// See patterns/admin/utils.js's `hasPatternManageAccess` for the full
-	// rationale (2026-09-20) — an app admin always has access; a pattern
-	// with no real grants (never configured, or configured but empty) is
-	// unrestricted; otherwise its `authPermissions` (subdomain-keyed —
-	// PatternPermissionsEditor's save shape) decides.
-	const isAdmin = (user?.groups || []).some(g => g === `${app} Admin`);
-	const hasPatternAccess = (row) => hasPatternManageAccess(user, isAdmin, row.authPermissions, row.subdomain);
+	// What this user may do to each row: site-level grants (AdminContext) plus
+	// the row's own authPermissions. See utils/adminPermissions.js.
+	const rowActions = (row) => patternActions(user, app, authPermissions, row);
+	const canCreatePattern = siteCan(user, app, authPermissions, CREATE_PATTERN);
 
 	// SEARCH_SHORTCUT_ID: Input isn't a forwardRef component, so a `/`
 	// keyboard shortcut (matches the mockup's kbd hint) focuses it by id
@@ -256,7 +255,7 @@ function PatternList({
 			// typography instead of fighting over the same className.
 			Comp: (d) => (
 				<div className={d.className}>
-					{d.row.edit_url && hasPatternAccess(d.row) ? (
+					{d.row.edit_url && rowActions(d.row).open ? (
 						<Link to={d.row.edit_url} className={t.patternName}>{d.row.name}</Link>
 					) : (
 						<span className={t.patternNamePlain}>{d.row.name}</span>
@@ -304,7 +303,8 @@ function PatternList({
 		},
 		{name: 'actions', display_name: '', show: true, type: 'ui',
       Comp: (d) => {
-        if (!hasPatternAccess(d.row)) {
+        const can = rowActions(d.row);
+        if (can.locked) {
           return (
             <div className={t.noAccessBadge}>
               <Icon icon='Lock' className={t.iconSm} />
@@ -313,18 +313,16 @@ function PatternList({
           );
         }
         // A site needs exactly one auth pattern and one admin pattern —
-        // duplicating or deleting either through this list is never a valid
-        // action, so only Edit shows.
-        // A qa install can't be duplicated either: the copy takes a fixed field
-        // list and would drop the install's own settings and dataset refs.
-        const isAuthType = ['auth', 'admin'].includes(d.row.pattern_type);
-        const canDuplicate = !isAuthType && d.row.pattern_type !== 'qa';
+        // patternActions never offers Duplicate or Delete for either (nor
+        // Duplicate for a qa install).
         return (
           <div className={t.cellActions}>
-            <Link to={d?.row?.edit_url || ''} className={t.editLink} title='Edit pattern' aria-label='Edit pattern'>
-              <Icon icon='PencilEditSquare' className={t.iconSm}/>
-            </Link>
-            {canDuplicate && (
+            {can.edit && (
+              <Link to={d?.row?.edit_url || ''} className={t.editLink} title='Edit pattern' aria-label='Edit pattern'>
+                <Icon icon='PencilEditSquare' className={t.iconSm}/>
+              </Link>
+            )}
+            {can.duplicate && (
               <button
                 className={t.duplicateBtn}
                 title='Duplicate pattern'
@@ -351,7 +349,7 @@ function PatternList({
                 <Icon icon='Copy' className={t.iconSm}/>
               </button>
             )}
-            {!isAuthType && (
+            {can.delete && (
               <button
                 className={t.deleteBtn}
                 title='Delete pattern'
@@ -494,7 +492,7 @@ function PatternList({
 		return acc;
 	}, {});
 	const uniqueTypes = Object.keys(typeCounts).length;
-	const noAccessCount = allData.filter(d => !hasPatternAccess(d)).length;
+	const noAccessCount = allData.filter(d => rowActions(d).locked).length;
 	const chipTypes = [...TYPE_ORDER.filter(k => typeCounts[k]), ...(typeCounts['?'] ? ['?'] : [])];
 	const authExists = allData.some(d => d.pattern_type === 'auth')
 
@@ -554,10 +552,12 @@ function PatternList({
 						/>
 						<span className={t.searchKbdHint}>/</span>
 					</div>
-					<Button className={t.addPatternBtn} onClick={() => setAddingNew(true)}>
-						<Icon icon='Plus' className={t.iconSm} />
-						Add pattern
-					</Button>
+					{canCreatePattern && (
+						<Button className={t.addPatternBtn} onClick={() => setAddingNew(true)}>
+							<Icon icon='Plus' className={t.iconSm} />
+							Add pattern
+						</Button>
+					)}
 				</div>
 
 				<div className={t.toolbarFilterRow}>

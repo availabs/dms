@@ -403,14 +403,14 @@ async function testBatchProcessing() {
   const src = await openDb(SRC_FILE);
 
   // Insert 1500 rows (exceeds BATCH_SIZE of 1000)
-  await src.query('BEGIN');
-  for (let i = 1; i <= 1500; i++) {
-    await src.query(
-      `INSERT INTO data_items (id, app, type, data) VALUES ($1, $2, $3, $4)`,
-      [i, TEST_APP, 'row', JSON.stringify({ n: i })]
-    );
-  }
-  await src.query('COMMIT');
+  await src.withTransaction(async (tx) => {
+    for (let i = 1; i <= 1500; i++) {
+      await tx.query(
+        `INSERT INTO data_items (id, app, type, data) VALUES ($1, $2, $3, $4)`,
+        [i, TEST_APP, 'row', JSON.stringify({ n: i })]
+      );
+    }
+  });
   await src.end();
 
   // Run copy

@@ -397,8 +397,7 @@ async function deleteInternalSource(env, sourceId) {
   const { rows: dmsEnvRows } = await db.query(dmsEnvSql, dmsEnvParams);
 
   // 5-7. Data deletes inside a transaction
-  await db.query('BEGIN');
-  try {
+  const { deletedViewCount, deletedSource, deletedTasks } = await db.withTransaction(async (tx) => {
     for (const envRow of dmsEnvRows) {
       const data = typeof envRow.data === 'string' ? JSON.parse(envRow.data) : (envRow.data || {});
       const before = (data.sources || []).length;
@@ -406,7 +405,7 @@ async function deleteInternalSource(env, sourceId) {
       const removed = before - newSources.length;
       if (removed > 0) {
         const newData = { ...data, sources: newSources };
-        await db.query(
+        await tx.query(
           `UPDATE ${mainTbl} SET data = $1 WHERE id = $2 AND app = $3`,
           [JSON.stringify(newData), envRow.id, app]
         );
@@ -416,51 +415,48 @@ async function deleteInternalSource(env, sourceId) {
 
     let deletedViewCount = 0;
     if (viewIds.length) {
-      const r = await db.query(
+      const r = await tx.query(
         `DELETE FROM ${mainTbl} WHERE id = ANY($1::INT[]) AND app = $2`,
         [viewIds, app]
       );
       deletedViewCount = r.rowCount ?? r.rows?.length ?? 0;
     }
 
-    const srcDel = await db.query(
+    const srcDel = await tx.query(
       `DELETE FROM ${mainTbl} WHERE id = $1 AND app = $2`,
       [sourceId, app]
     );
     const deletedSource = (srcDel.rowCount ?? srcDel.rows?.length ?? 0) > 0;
 
     // dms.tasks lives in the same DMS db. task_events cascades via FK.
-    const taskTableName = db.type === 'postgres' ? 'dms.tasks' : 'dms_tasks';
-    const tasksDel = await db.query(
+    const taskTableName = tx.type === 'postgres' ? 'dms.tasks' : 'dms_tasks';
+    const tasksDel = await tx.query(
       `DELETE FROM ${taskTableName} WHERE app = $1 AND source_id = $2`,
       [app, sourceId]
     );
     const deletedTasks = tasksDel.rowCount ?? tasksDel.rows?.length ?? 0;
 
-    await db.query('COMMIT');
+    return { deletedViewCount, deletedSource, deletedTasks };
+  });
 
-    console.log(
-      `[uda.sources.delete] DMS source ${app}+${sourceSlug} id=${sourceId} cleaned up — ` +
-      `views=${deletedViewCount}, tables=${dropped_tables.length}, ` +
-      `dmsEnvs=${dmsEnvs_updated.length}, tasks=${deletedTasks}, warnings=${warnings.length}`
-    );
+  console.log(
+    `[uda.sources.delete] DMS source ${app}+${sourceSlug} id=${sourceId} cleaned up — ` +
+    `views=${deletedViewCount}, tables=${dropped_tables.length}, ` +
+    `dmsEnvs=${dmsEnvs_updated.length}, tasks=${deletedTasks}, warnings=${warnings.length}`
+  );
 
-    return {
-      source_id: sourceId,
-      app,
-      source_slug: sourceSlug,
-      deleted_source: deletedSource,
-      deleted_views: viewIds,
-      deleted_view_count: deletedViewCount,
-      deleted_tasks: deletedTasks,
-      dropped_tables,
-      dmsEnvs_updated,
-      warnings,
-    };
-  } catch (err) {
-    try { await db.query('ROLLBACK'); } catch {}
-    throw err;
-  }
+  return {
+    source_id: sourceId,
+    app,
+    source_slug: sourceSlug,
+    deleted_source: deletedSource,
+    deleted_views: viewIds,
+    deleted_view_count: deletedViewCount,
+    deleted_tasks: deletedTasks,
+    dropped_tables,
+    dmsEnvs_updated,
+    warnings,
+  };
 }
 
 /**
@@ -486,23 +482,19 @@ async function softDeleteSource(env, sourceId) {
     [sourceId]
   );
 
-  await db.query(`BEGIN`);
-  try {
-    await db.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
-    const { rowCount } = await db.query(
+  const rowCount = await db.withTransaction(async (tx) => {
+    await tx.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
+    const { rowCount } = await tx.query(
       `DELETE FROM data_manager.sources WHERE source_id = $1`,
       [sourceId]
     );
-    await db.query(`COMMIT`);
-    return {
-      source_id: sourceId,
-      deleted_source: rowCount > 0,
-      deleted_views: viewRows.map(r => r.view_id),
-    };
-  } catch (err) {
-    await db.query(`ROLLBACK`);
-    throw err;
-  }
+    return rowCount;
+  });
+  return {
+    source_id: sourceId,
+    deleted_source: rowCount > 0,
+    deleted_views: viewRows.map(r => r.view_id),
+  };
 }
 
 /**
@@ -582,31 +574,27 @@ async function hardDeleteSource(env, sourceId) {
   }
 
   // 4. Delete metadata rows (views, tasks, source) in a transaction
-  await db.query(`BEGIN`);
-  try {
-    const { rowCount: deletedTasks } = await db.query(
+  const { deletedTasks, deletedSource } = await db.withTransaction(async (tx) => {
+    const { rowCount: deletedTasks } = await tx.query(
       `DELETE FROM data_manager.tasks WHERE source_id = $1`,
       [sourceId]
     );
-    await db.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
-    const { rowCount: deletedSource } = await db.query(
+    await tx.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
+    const { rowCount: deletedSource } = await tx.query(
       `DELETE FROM data_manager.sources WHERE source_id = $1`,
       [sourceId]
     );
-    await db.query(`COMMIT`);
-    return {
-      source_id: sourceId,
-      deleted_source: deletedSource > 0,
-      deleted_views: viewRows.map(r => r.view_id),
-      deleted_tasks: deletedTasks,
-      dropped_tables,
-      removed_files,
-      warnings,
-    };
-  } catch (err) {
-    await db.query(`ROLLBACK`);
-    throw err;
-  }
+    return { deletedTasks, deletedSource };
+  });
+  return {
+    source_id: sourceId,
+    deleted_source: deletedSource > 0,
+    deleted_views: viewRows.map(r => r.view_id),
+    deleted_tasks: deletedTasks,
+    dropped_tables,
+    removed_files,
+    warnings,
+  };
 }
 
 module.exports = {

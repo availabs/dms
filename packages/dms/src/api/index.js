@@ -731,6 +731,33 @@ export async function udaUpdateSourceMetadata(falcor, { env, source_id, mutate }
 	return next;
 }
 
+/**
+ * Mark `view_id` as a source's authoritative view — the one pages should bind — with the reason.
+ * Without `key` it is the single authoritative view; with `key` (e.g. { year: '2024' }) it is the
+ * authoritative view for that key value. Replaces the entry with the same key. The server
+ * validates (view belongs to the source, note present, key shape), stamps who/when, and gates on
+ * `update-source`. Returns the new authority record `{views}`.
+ * See patterns/datasets/utils/authority.js for the shape.
+ */
+export async function udaSetAuthoritativeView(falcor, { env, source_id, view_id, key, note }) {
+	if (!falcor) throw new Error("No falcor client");
+	if (!env || !source_id || view_id == null) throw new Error("env, source_id and view_id are required");
+	const entry = { view_id: +view_id, note, ...(key && Object.keys(key).length ? { key } : {}) };
+	const res = await falcor.call(["uda", "sources", "setAuthoritativeView"], [env, +source_id, entry]);
+	await falcor.invalidate(["uda", env, "sources", "byId", +source_id, "metadata"]);
+	return get(res, ["json", "uda", env, "sources", "byId", +source_id, "authority"]) ?? null;
+}
+
+/** Clear a source's authoritative view for `key` (no key = the single one). Returns the new record or null. */
+export async function udaClearAuthoritativeView(falcor, { env, source_id, key }) {
+	if (!falcor) throw new Error("No falcor client");
+	if (!env || !source_id) throw new Error("env and source_id are required");
+	const res = await falcor.call(["uda", "sources", "clearAuthoritativeView"],
+		[env, +source_id, key && Object.keys(key).length ? { key } : {}]);
+	await falcor.invalidate(["uda", env, "sources", "byId", +source_id, "metadata"]);
+	return get(res, ["json", "uda", env, "sources", "byId", +source_id, "authority"]) ?? null;
+}
+
 // Batched existence check — given an app and a list of ids, returns the Set of ids (as strings)
 // that currently exist as data_items rows for that app, regardless of kind/type. Bypasses
 // dmsDataLoader/createRequest's 'edit'/'view' action path (which derives exactly one id-ref per

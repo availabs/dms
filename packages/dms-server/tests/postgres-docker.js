@@ -222,7 +222,10 @@ async function runTests(testScript) {
       // query path; its DAMA-mode half stays on SQLite within
       // this run (DAMA_TEST_DB defaults to dama-sqlite-test). test-uda-feature-id.js is
       // PostgreSQL-DAMA-only and defaults to the dama-postgres-test config (same container).
-      for (const test of ['tests/test-graph.js', 'tests/test-workflow.js', 'tests/test-uda.js', 'tests/test-uda-feature-id.js', 'tests/test-auth.js']) {
+      // test-transactions.js is the DB-agnostic withTransaction suite (here on PG);
+      // test-transactions-pg.js is the PG-only half (pg_stat_activity, per-backend tracing,
+      // the Bug 14 repro, DAMA source deletes on dama-postgres-test).
+      for (const test of ['tests/test-graph.js', 'tests/test-workflow.js', 'tests/test-uda.js', 'tests/test-uda-feature-id.js', 'tests/test-auth.js', 'tests/test-transactions.js', 'tests/test-transactions-pg.js']) {
         console.log(`\n========== ${test} ==========\n`);
         const code = await spawnAsync(process.execPath, [test], env);
         if (code !== 0) {

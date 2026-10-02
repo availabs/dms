@@ -1,9 +1,0 @@
-{
-  "type": "postgres",
-  "role": "dama",
-  "host": "localhost",
-  "port": 5499,
-  "database": "dms_test",
-  "user": "dms_test",
-  "password": "dms_test"
-}
