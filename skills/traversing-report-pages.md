@@ -492,9 +492,25 @@ NPMRDS-theme feature, not core DMS). The essentials for navigating one live:
 
 `ReportPageHeader`'s action row carries a copy button in BOTH view and edit mode (between Print
 and Edit/Done), shown only to a signed-in user. **Its label is mode-dependent**: `Save as` in edit
-mode, `Save a copy` in view mode — "Save as" is contrastive and only reads correctly next to a
+mode, `Make a copy` in view mode — "Save as" is contrastive and only reads correctly next to a
 save (edit mode's Done), which a viewer doesn't have. Match on the `Copy` icon or the dialog, not
-on one literal label, when driving this headlessly. It opens `SaveAsReportModal`: a name field, a
+on one literal label, when driving this headlessly. The theme uppercases button text with CSS, so
+`innerText` reads `MAKE A COPY` / `EDIT` — match case-insensitively.
+
+**View mode shows Edit only to the report's owner (2026-10-02).** The big Edit button renders only
+when the report's `reports_snap_2` tags include the viewer's `user:<id>` **and** the viewer passes
+the page pattern's edit check (`create-page`/`edit-page`/`edit-page-permissions`/`publish-page`, the
+same check `PageEdit` runs). Otherwise `Make a copy` IS the big button and there's no compact copy
+beside it. Logic: `ReportPageHeader/reportEditAccess.js`. Consequences when driving it:
+- The 12 curated templates (`/reports/snapshot`, `weekly_average`, …) carry **no** `user:` tag, so
+  nobody — AVAIL included — sees Edit on them; go to `/edit/reports/<slug>` directly.
+- Client groups on `npmrds_sub` (NYSDOT, NPMRDS New Users, NYSAMPO, …) are `view-page` only, so a
+  client user never sees Edit, even on their own copy. Before this gate, Edit sent them into
+  `/edit/*` and the route guard bounced them to `/` (tickets #2225990/#2225988).
+- The primary slot is empty until the catalog row loads (~1s); wait for it before asserting.
+- Admin "View as" reproduces another user's buttons faithfully (it swaps the user object the page
+  factory and `CMSContext` see), but it lives in React state: a reload or a typed URL silently drops
+  back to your own login. Check the "Viewing as …" bar is showing. It opens `SaveAsReportModal`: a name field, a
 two-option report-type choice, and a live preview of the tags the copy will carry. It creates a NEW
 sibling report page and **never mutates the source**.
 
@@ -512,7 +528,7 @@ page first — but an author in `/edit/` can.
 
 **Driving it headlessly.** The dialog's controls are plain buttons, so `find`/`read_page` refs work:
 the name field is a `textbox "Name"`, the two type options are the next two buttons, then
-`Cancel` / `Save copy` (the dialog's own wording is "Save a copy" / "Save copy" in both modes —
+`Cancel` / `Make copy` (the dialog's own wording is "Make a copy" / "Make copy" in both modes —
 only the ACTION-ROW button label varies). After Save the page navigates to the copy in the **same mode you started
 in** (`/reports/<slug>` from view, `/edit/reports/<slug>` from edit), so assert on the URL to know
 it landed. A static result has **no `?routes=`** in the URL; a freshly-made dynamic copy opens
