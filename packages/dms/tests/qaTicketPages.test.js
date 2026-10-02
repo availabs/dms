@@ -63,7 +63,10 @@ describe("ticket pages", () => {
 
   it("filters every Ticket-page data section by the id variable", () => {
     dataSections(detail).forEach((s) =>
-      expect(dataOf(s).filters.groups).toEqual([expect.objectContaining({ col: "id", searchParamKey: "id", requireResolved: true })]));
+      // the header joins the pages, so its id column is alias-prefixed
+      expect(dataOf(s).filters.groups).toEqual([expect.objectContaining({
+        col: s.trackingId === "qa_ticket_header" ? "ds.id" : "id", searchParamKey: "id", requireResolved: true,
+      })]));
   });
 
   it("gives every section a fixed, unique trackingId and a known group", () => {
@@ -92,7 +95,7 @@ describe("ticket pages", () => {
     expect(rail.display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "ticket_v" }]);
     const header = dataOf(detail.sections.find((s) => s.trackingId === "qa_ticket_header"));
     expect(header.display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "ticket_v" }]);
-    expect(header.columns.find((c) => c.name === "status").setDateOnValue).toBeUndefined();
+    expect(header.columns.find((c) => c.name === "ds.status").setDateOnValue).toBeUndefined();
   });
 });
 
@@ -126,7 +129,7 @@ describe("site labels", () => {
   it("shows raw values when it sets none", () => {
     const list = pageBySlug(buildQaPages(pattern, ctx), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
-    expect(table.columns.find((c) => c.customName === "Site").name).toBe("surface");
+    expect(table.columns.find((c) => c.customName === "Site").name).toBe("ds.surface");
   });
 });
 

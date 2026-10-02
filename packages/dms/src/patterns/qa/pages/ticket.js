@@ -1,6 +1,6 @@
 import {
-  T, cardTitle, SEV_PILL, PRIO_PILL, STATUS_PILL, SOURCE_PILL, CATEGORY_PILL, STAGE_PILL, TNUM, SOURCE_CASE, sqlText, CLOSED_STATUSES,
-  ticketsSource, dataWrapper, col, pcol, staticCell, WHITE_CARD, CARD_TOP, CARD_BOTTOM, group, section, pageVariable,
+  T, cardTitle, SEV_PILL, PRIO_PILL, STATUS_PILL, SOURCE_PILL, CATEGORY_PILL, STAGE_PILL, TNUM, tnum, SOURCE_CASE, PAGE_DISP, sqlText, CLOSED_STATUSES,
+  ticketsSource, pagesByKey, dataWrapper, col, pcol, staticCell, WHITE_CARD, CARD_TOP, CARD_BOTTOM, group, section, pageVariable,
 } from './helpers'
 
 // The Ticket page (`ticket?id=<row id>`): breadcrumb, header, the ticket's body and Details rail
@@ -29,31 +29,39 @@ export function ticketPage(ctx) {
   }))
 
   // Header: badge row (+ All tickets) → title → target page line. Six max-content tracks and a
-  // stretch tail; full-row cells span 6.
+  // stretch tail; full-row cells span 6. The ticket's page is joined (`p`) for its live name and
+  // stage, so every column is alias-prefixed and the `?id=` filter reads `ds.id`.
   S.push(section({
     trackingId: 'qa_ticket_header', group: G.hdr, type: 'Card',
-    data: detail([
-      rcalc(`${TNUM} as num`, '', { valueFontStyle: T.strong }),
-      pcol('severity', '', SEV_PILL, { hideHeader: true }),
-      pcol('priority', '', PRIO_PILL, { hideHeader: true }),
-      pcol('status', '', STATUS_PILL, { hideHeader: true }),
-      rcalc("(case data->>'source' when 'ai' then 'AI found' when 'dev' then 'Dev found' when 'client' then 'Client found' else (data->>'source') end) as found", '',
-        { type: 'status_pill', pillColors: { 'AI found': 'blue', 'Dev found': 'gray', 'Client found': 'orange' } }),
-      staticCell('alltix', 'All tickets', { justify: 'right', isLink: true, location: `${ctx.baseUrl}/tickets`, searchParams: 'none' }),
-      col('title', '', { hideHeader: true, valueFontStyle: T.subtitle, cellSpan: 6 }),
-      staticCell('tgt', 'target ·', { valueFontStyle: T.bodySmall }),
-      { name: 'page_name', customName: '', show: true, hideHeader: true, isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'page_key' },
-      col('page_route', '', { hideHeader: true, valueFontStyle: T.value }),
-      staticCell('pis', '· page is', { valueFontStyle: T.bodySmall }),
-      pcol('page_stage', '', STAGE_PILL, { hideHeader: true }),
-      staticCell('fill', ' ', { valueFontStyle: T.bodySmall }),
-      // fetched for the page link's searchParamsCol, not shown
-      col('page_key', '', { hideHeader: true, hideValue: true }),
-    ], {
-      cellsTracksTemplate: 'max-content max-content max-content max-content max-content minmax(0,1fr)',
-      cellsGridGap: 10, cellsRowGap: 6, cellsPadding: 0, cardsPadding: 0, cardBorder: false, cellsVAlign: 'center',
-      // refetch after a rail pill/select change, so the badges match
-      _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'ticket_v' }] },
+    data: dw({
+      columns: [
+        rcalc(`${tnum('ds.id')} as num`, '', { valueFontStyle: T.strong }),
+        pcol('ds.severity', '', SEV_PILL, { hideHeader: true }),
+        pcol('ds.priority', '', PRIO_PILL, { hideHeader: true }),
+        pcol('ds.status', '', STATUS_PILL, { hideHeader: true }),
+        rcalc("(case data->>'source' when 'ai' then 'AI found' when 'dev' then 'Dev found' when 'client' then 'Client found' else (data->>'source') end) as found", '',
+          { type: 'status_pill', pillColors: { 'AI found': 'blue', 'Dev found': 'gray', 'Client found': 'orange' } }),
+        staticCell('alltix', 'All tickets', { justify: 'right', isLink: true, location: `${ctx.baseUrl}/tickets`, searchParams: 'none' }),
+        col('ds.title', '', { hideHeader: true, valueFontStyle: T.subtitle, cellSpan: 6 }),
+        staticCell('tgt', 'target ·', { valueFontStyle: T.bodySmall }),
+        rcalc(PAGE_DISP, '', { isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'ds.page_key' }),
+        // the route the ticket was filed from, its own (not the page's)
+        col('ds.page_route', '', { hideHeader: true, valueFontStyle: T.value }),
+        staticCell('pis', '· page is', { valueFontStyle: T.bodySmall }),
+        pcol('p.stage', '', STAGE_PILL, { hideHeader: true }),
+        staticCell('fill', ' ', { valueFontStyle: T.bodySmall }),
+        // fetched for the page link's searchParamsCol, not shown
+        col('ds.page_key', '', { hideHeader: true, hideValue: true }),
+      ],
+      filters: [{ col: 'ds.id', op: 'filter', value: [], usePageFilters: true, searchParamKey: 'id', requireResolved: true }],
+      join: pagesByKey(ctx),
+      display: {
+        usePagination: false, pageSize: 1, fetchMode: 'smart',
+        cellsTracksTemplate: 'max-content max-content max-content max-content max-content minmax(0,1fr)',
+        cellsGridGap: 10, cellsRowGap: 6, cellsPadding: 0, cardsPadding: 0, cardBorder: false, cellsVAlign: 'center',
+        // refetch after a rail pill/select change, so the badges match
+        _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'ticket_v' }] },
+      },
     }),
   }))
 
@@ -100,10 +108,11 @@ export function ticketPage(ctx) {
       },
       col('verified', 'verified', efld({ valueFontStyle: T.value })),
       col('verified_by', 'verified by', efld({ valueFontStyle: T.value })),
-      {
-        name: 'page_name', customName: 'target page', show: true, hideHeader: false, headerFontStyle: T.label, cellBorderBottom: true,
-        isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'page_key',
-      },
+      // The rail is a live-edit Card, so it can't join the pages (see joinDataset): the stored
+      // name, else the page key. The header above shows the page's live name.
+      rcalc("(case when (data->>'page_name') is null or (data->>'page_name') = '' then (data->>'page_key') else (data->>'page_name') end) as target_page", 'target page', {
+        hideHeader: false, headerFontStyle: T.label, cellBorderBottom: true, isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'page_key',
+      }),
       col('opened', 'opened', fld({ valueFontStyle: T.value })),
       col('resolved_date', 'resolved', fld({ valueFontStyle: T.value })),
       col('updated', 'updated', { hideHeader: false, headerFontStyle: T.label, valueFontStyle: T.value }),

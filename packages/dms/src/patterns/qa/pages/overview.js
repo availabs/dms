@@ -1,7 +1,7 @@
 import { PAGE_STAGES } from '../ticketRecord'
 import {
-  T, crumb, pageTitle, cardTitle, STAGE_PILL, STAGE_HEX, STAGE_SHORT, STAGE_RANK, OPEN, CLOSED, st, sqlText,
-  pagesSource, ticketsSource, dataWrapper, calc, stat, staticCell, group, section,
+  T, crumb, pageTitle, cardTitle, STAGE_PILL, STAGE_HEX, STAGE_SHORT, STAGE_RANK, OPEN, CLOSED, OPEN_COUNT, st, sqlText,
+  pagesSource, ticketsSource, dataWrapper, joinDataset, calc, stat, staticCell, group, section,
 } from './helpers'
 
 // The Overview, the install's home page: header with live counts, pages by stage, and one card
@@ -11,6 +11,7 @@ import {
 export function overviewPage(ctx) {
   const dwPages = dataWrapper(pagesSource(ctx))
   const dwTickets = dataWrapper(ticketsSource(ctx))
+  const ticketsByPage = joinDataset(ctx, ctx.tickets, 't', ['page_key', 'status', 'severity'], [['page_key', 'page_key']])
   const AGG = {
     usePagination: false, pageSize: 1, fetchMode: 'smart', cardBorder: false,
     cellsGridSize: 1, cellsGridGap: 0, cellsRowGap: 2, cellsPadding: 0, cardsPadding: 14,
@@ -101,20 +102,29 @@ export function overviewPage(ctx) {
         filters: bySite, display: AGG,
       }),
     }))
+    // Each page with its open-ticket count, read live: the tickets join on page_key and the rows
+    // group by page (TransportNY's sync stored this count as `open_bugs`). Joined, so every
+    // column is alias-prefixed (joinDataset).
     S.push(section({
       trackingId: `qa_overview_${key}_pages`, group: g, type: 'Spreadsheet',
       bg: 'white', border: { left: true, right: true, bottom: true }, radius: { bl: true, br: true }, padding: { top: '0' },
       data: dwPages({
         columns: [
-          // stage order, without a stored stage_order
-          { name: `${STAGE_RANK} as stage_rank`, type: 'calculated', normalName: 'stage_rank', display_name: '', customName: '', show: true, formatFn: ' ', hideHeader: true, size: 0, sort: 'asc' },
-          { name: 'name', customName: 'Page', show: true, justify: 'left', isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'page_key', size: 320, stretch: true },
-          { name: 'stage', customName: 'Stage', type: 'status_pill', pillColors: STAGE_PILL, show: true, justify: 'left', size: 160 },
-          { name: 'url', customName: 'Live page', show: true, justify: 'right', isLink: true, isLinkExternal: true, searchParams: 'none', linkText: 'view →', size: 110 },
+          // stage order, without a stored stage_order; an aggregate, as the rows are grouped
+          { name: `min${STAGE_RANK} as stage_rank`, type: 'calculated', normalName: 'stage_rank', display_name: '', customName: '', show: true, fn: 'exempt', formatFn: ' ', hideHeader: true, size: 0, sort: 'asc' },
+          { name: 'ds.name', customName: 'Page', show: true, group: true, justify: 'left', isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'ds.page_key', size: 320, stretch: true },
+          { name: 'ds.stage', customName: 'Stage', type: 'status_pill', pillColors: STAGE_PILL, show: true, group: true, justify: 'left', size: 160 },
+          calc(OPEN_COUNT, 'open_n', { customName: 'Open', justify: 'right', size: 80 }),
+          { name: 'ds.url', customName: 'Live page', show: true, group: true, justify: 'right', isLink: true, isLinkExternal: true, searchParams: 'none', linkText: 'view →', size: 110 },
           // fetched for the Page link's searchParamsCol; zero width, like stage_rank
-          { name: 'page_key', customName: '', show: true, hideHeader: true, size: 0 },
+          { name: 'ds.page_key', customName: '', show: true, group: true, hideHeader: true, size: 0 },
+          // Not shown; listed so the site filter resolves. Under a join a filter column must be
+          // one of the section's columns, alias-prefixed: a bare `surface` compiles to an ambiguous
+          // data->>'surface', and an unlisted `ds.surface` reaches the server as is.
+          { name: 'ds.surface', show: false },
         ],
-        filters: bySite,
+        filters: [{ col: 'ds.surface', op: 'filter', value: [site.surface] }],
+        join: ticketsByPage,
         // fixed widths, so the two helper columns stay at zero width
         display: { usePagination: true, pageSize: 50, fetchMode: 'smart', autoResize: false },
       }),

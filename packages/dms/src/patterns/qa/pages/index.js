@@ -65,14 +65,8 @@ export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [],
   return [overviewPage(ctx), ticketsPage(ctx), ticketPage(ctx), pageQaPage(ctx)]
 }
 
-// The covered sub-sites the Overview shows: the covered-sites dataset's enabled rows ('yes', as
-// TransportNY's control room stores them), in sort_order.
-export const COVERED_SITE_COLUMNS = ['pattern', 'surface', 'surface_label', 'sort_order', 'enabled']
-export function coveredSites(rows = []) {
-  return rows
-    .filter((r) => r?.enabled === 'yes' && r.surface)
-    .sort((a, b) => (+a.sort_order || 0) - (+b.sort_order || 0))
-}
+// The covered sub-sites the Overview shows (defined beside track-on-publish, which reads them too).
+export { coveredSites, COVERED_SITE_COLUMNS } from '../tracking'
 
 // The page for a URL slug (the route's `*` param); a trailing slash is ignored.
 // The bare URL and an unknown slug get the `index: 0` page, as on a page pattern

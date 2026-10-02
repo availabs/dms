@@ -4,16 +4,23 @@
 
 Phases 1–3 DONE and live-verified on `qa_test` (2026-09-30). Committed by the owner: phase 1 (library `4919d419`,
 dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (`2450f728`), and the default-theme
-restyle (`3a80c516`, 2026-10-01; the test-data reset was DB-only).
+restyle (`3a80c516`, 2026-10-01; the test-data reset was DB-only), and option (b) parts 1–3 (`0cdba46b`,
+2026-10-01). None of the library commits is pushed yet (2026-10-01: the submodule is 8 ahead of `origin/master`,
+these 6 plus 2 merges).
 
-**▶ Next session, start here.** Option (b) parts 1–3 for status-change writes are BUILT and live-verified, uncommitted
-(2026-10-01; section "The status-change writes"). Before the owner pushes, remind them to test TransportNY's control
-room, one MNY live-edit page and wcdb's `station_admin` form save. Otherwise the owner picks what's next:
+**▶ Next session, start here.** Option (b) parts 1–3 for status-change writes are BUILT, live-verified and committed
+(`0cdba46b`, 2026-10-01; section "The status-change writes"), not pushed. Before the owner pushes, remind them to
+test TransportNY's control room, one MNY live-edit page and wcdb's `station_admin` form save, and (phase 4) one
+publish in the editor and one with `dms page publish` on a site without a QA install. Otherwise the owner picks
+what's next:
 - **A dedicated design pass** on the QA pages is planned soon (owner, 2026-10-01; the restyle passed the look check
   "for now"). Card's `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") belongs there.
 - **Status-change work still deferred** (phase 3a, "The status-change writes"): part 4 (change history, commit on
   blur) and story-status tracking. `resolved_date` stamping and the stage refresh are done (option (b) parts 1–3).
-- **Phase 4:** derived values (live per-page ticket counts) and track-on-publish.
+- **Phase 4 — DONE 2026-10-01, uncommitted** (section "Phase 4"): live open counts on the Overview, a ticket's
+  page name and stage read live, track-on-publish from the editor and `dms page publish`. It adds one shared-code
+  item to the push test list: publish one page in the editor and one with `dms page publish` on a site without a
+  QA install (TransportNY); both should behave as before.
 - **Phase 5:** the Configure tab in `/list`, so covered sites and labels stop being hand-seeded.
 - The Design page feature is wanted later as an install feature (phase 3b decisions).
 
@@ -690,7 +697,7 @@ section).
 
     Only caller that awaits `updateItem`: Card's wrapper (`ComponentRegistry/Card.jsx:230`), so the live-edit branch
     returning a promise is safe. Closes `card-liveedit-shared-debounce-drops-saves.md` when built.
-  - **Building parts 1–3 (owner approved 2026-10-01, Edit-mode row included). Core code written, uncommitted:**
+  - **Building parts 1–3 (owner approved 2026-10-01, Edit-mode row included). Core code written, committed `0cdba46b`:**
     - [x] new `dataWrapper/utils/liveEditSaves.js`: `isDiscreteColumnType`, `rawValue`, `setDateOnValueStamp`
       (keep-first), `changedColumns`, `dateStampsForRow`, `createPendingSaves`.
     - [x] View `updateItem`: live edit → `pendingSavesRef.current.queue(rowId, patch)` (per-row timer, merged
@@ -954,13 +961,119 @@ switch, not TransportNY's particular designs. It stays out of the base install f
 - Theme-added pages: merge `theme.qa.pages` (code, never DB). The Design page is no longer planned there: it
   becomes an install feature (owner, 2026-09-30).
 
-### Phases 4–7 — NOT STARTED
+### Phase 4: Derived values and track-on-publish — DONE 2026-10-01 (live-verified on `qa_test`, uncommitted)
 
-See README steps 5–8. Notes to carry in:
+README step 5: the values TransportNY's `cr_sync.mjs` writes, read live or written at the right moment instead.
+Owner note at the start: DMS has a lot of join capability, mostly hand-written queries and custom columns (the NPMRDS
+Reports feature leans on them heavily); look there for examples if the joins give trouble.
+
+**Scope (what each sync-written value becomes):**
+- **Per-page ticket counts** (`open_bugs`, …): read live through a join. Only the open count is shown, as on
+  TransportNY's Overview (its "Open" column); `blockers`/`majors`/`rag` are only read by TransportNY's CLI
+  (`qa_state.mjs`), so they come with the `dms qa` CLI (phase 6), computed from the tickets the same way.
+- **A ticket's copy of its page's name and stage** (`page_name`, `page_stage`): read live from the pages dataset
+  through a join. Found at the start: the add-ticket modal never sets them (only the sync did), so a UI-filed
+  ticket shows a blank target page today. The ticket's own `page_route` stays the ticket's (the exact route filed from).
+- **Page rows for tracked patterns**: track-on-publish (below).
+- Not needed yet: `stage_order` (already a live `CASE`), `next_step` (no QA page shows it), the schema-upgrade step
+  (nothing adds a column yet; it comes with `dms qa upgrade`), design HTML (TransportNY-only).
+
+**1. Live open counts on the Overview — DONE, live-verified 2026-10-01**
+- Each covered site's pages table left-joins the install's tickets (`t`) on `page_key` and groups by page; new
+  "Open" column = `count(*) filter (where t.status in <open statuses>)`, every severity, TransportNY's rule
+  (`lib/cr.mjs` `boardCounts`). A page with no tickets has one all-null `t` row, which the filter leaves out.
+  Helpers: `joinDataset` + `OPEN_COUNT` (`pages/helpers.js`); `dataWrapper` takes a `join`.
+- **Join rules found building it** (the joined section is read-only):
+  - Plain columns are written alias-prefixed (`ds.name`, `ds.page_key`): rows come back keyed by that name
+    (`searchParamsCol: 'ds.page_key'`). A live-edit save would write those prefixed keys as fields, so no join on
+    an editable section.
+  - **A filter column must also be one of the section's columns, alias-prefixed.** A bare `surface` leaf compiles
+    to an unaliased `data->>'surface'` (ambiguous: both tables have `data`); an unlisted `ds.surface` reaches the
+    server as is ("column ds.surface does not exist"). Fixed with a hidden `{ name: 'ds.surface', show: false }`
+    column, which `mapFilterGroupCols` resolves to `ds.data->>'surface'` (the now-airing card's precedent: it filters
+    on its own columns). Library gap, not fixed: under a DMS join, `mapFilterGroupCols` could map an unlisted
+    `alias.col` through `attributeAccessorStr` itself (`buildUdaConfig.js`, `if (!col) return node`).
+  - Grouped, so the stage sort is an aggregate (`min(<stage CASE>)`, fn `exempt`).
+- Live (probe, `qa_test` token, `/qa`): no SQL/console errors; Open = 1 on AlphaPage Page 1, BetaPage child chart,
+  Page 1 (its Closed Major not counted) and dup no chart; empty on the two Blank pages (0 renders blank); the two
+  helper columns measure 0px wide.
+
+**2. A ticket's page name and stage, live — DONE, live-verified 2026-10-01**
+- The Ticket page's header and the Tickets table left-join the install's pages (`p`, `pagesByKey`) on `page_key`:
+  the target page shows `p.name` (else the raw page key, `PAGE_DISP`) and its stage pill `p.stage`. The ticket's own
+  `page_route` still shows (the route it was filed from).
+- Under the join a bare `id` is ambiguous, so the ticket number reads `ds.id` (`tnum('ds.id')`; `TNUM` = `tnum()`
+  elsewhere), and so do the header's `?id=` filter (`id` is a real column, so the raw `ds.id` leaf is right as is)
+  and the table's newest-first sort. The table's four URL filters keep their keys (`?status=` etc.; page filters
+  match on `searchParamKey`) on `ds.<col>` leaves, with hidden `ds.source` / `ds.surface` columns so they resolve.
+- The Details rail can't join (live-edit Card): its "target page" is the stored name, else the page key, so it's
+  never blank. It can go stale on a page rename; the header above it is live.
+- Aliases are free-form: the key under `join.sources` is the SQL alias as written (`as <alias>`, server
+  `buildJoin`), any plain identifier but `ds`. The section editor's join UI picks its own; hand-written ones here use
+  `t` (tickets) and `p` (pages).
+- Live (probe, `qa_test` token): `/qa/ticket?id=149` header "target · Page 1 /page_1 · page is QA", rail "Page 1",
+  no SQL errors (the 7 React unknown-prop console errors are the known ones above); `/qa/tickets` all 6 tickets,
+  newest first, live page names; `/qa/tickets?status=In review` exactly #104 and #102.
+
+**3. Track-on-publish — DONE, live-verified 2026-10-01**
+- New `patterns/qa/tracking.js`, `trackPublishedPage`: for each of the site's QA installs, read its covered sites;
+  if one covers the published page's pattern (enabled, and the slug passes a non-empty `include_slugs`) and the
+  install's pages dataset has no row for `<surface>:<slug>` yet, create one: `page_key`, `surface`,
+  `surface_label`, `name` (title), `route` (`/<slug>`), `url`, `build: Published`, `stage: Proposed`, `updated`.
+  A re-publish leaves an existing row (and its stage) alone. No I/O of its own (reads and writes are passed in),
+  so both publish paths share it, and the CLI can import it (no browser imports; `./ticketRecord.js` with the
+  extension, as Node needs). `coveredSites` / `COVERED_SITE_COLUMNS` moved here (re-exported from `pages/index.js`).
+- **A covered-sites row names its pattern by name, row id or instance.** TransportNY's rows use names
+  (`npmrds_sub`, `tsmo2`, `platform_docs`) and one id (`2175436`), because its sync looks patterns up with
+  `dms page list --pattern`; the test seed uses instances. All three match, so the port tracks the same pages.
+- **Editor:** `render/spa/utils/index.js` passes the site's `qa` pattern rows to every pattern config as
+  `qaPatterns` (beside `datasetPatterns`); the page config puts `qaTracking` = `{installs, patternKeys: [id, name,
+  instance]}` on `CMSContext`, null when the site has none; `PublishButton` passes it with `app`/`baseUrl`/`falcor`
+  to `publish()`, which calls `trackOnPublish` after its own save. Reads: `loadDatasetRows`; the write: `apiUpdate`
+  with the pages dataset's format, as a section's add-row does. `url` = the browser's origin + mount + slug.
+- **CLI:** `dms page publish` finds the site's `qa` patterns (`resolvePattern`), tracks the same way
+  (`falcor.call dms.data.create` with `<slug>|<view>:data`), and adds `qa_tracked: [{install, page_key}]` to its
+  output only when it tracked something (or failed). `url` = the mount path (`/alphapage/<slug>`); none for a
+  pattern on its own subdomain, since the CLI can't tell the host.
+- **Found building it:** a row created through `dmsDataEditor` invalidates only `dms.data`, not the dataset's
+  `uda` view, so a check-then-create could read a stale list and create a duplicate on a quick re-publish.
+  `loadDatasetRows` takes `fresh: true` (drops the view's cached reads first); tracking always uses it.
+- **Failures never fail the publish:** the editor logs a warning; the CLI reports it under `qa_tracked`.
+- Not done (later): rows for pages published before an install existed, or before a site was switched on (phase 5's
+  Configure, "turning a pattern on adds its published pages", can call `trackPublishedPage` per page); unpublish or
+  delete never removes a row (TransportNY's prune is opt-in too); `data`/`owner`/`qa` defaults left unset
+  (TransportNY's sync wrote `Mock`/`—`/`Needs QA`), so Page QA shows them blank until someone sets them.
+- **Blast radius (2026-10-01):** of 115 `dms_*` app schemas only `dms_qa_test` has a `qa` pattern (1 row, the QA
+  install). Everywhere else the editor's `qaTracking` is null (Publish unchanged) and the CLI makes one extra
+  pattern-list read and prints the same output. Every consumer grepped: `qaPatterns` (page config only),
+  `qaTracking` (`PublishButton` only), `publish(` (one live caller, `pagesPane.jsx`), `loadDatasetRows` (`fresh`
+  defaults off: QA's view unchanged); the five scripts that mention `dms page publish` don't parse its output.
+- Live (scratch pages in AlphaPage, deleted after): `dms page publish` → `qa_tracked: [{install: QA, page_key:
+  alphapage:qa_track_scratch_cli}]`, row created (url `/alphapage/qa_track_scratch_cli`); a second publish created
+  nothing. Editor Publish on a draft page → row `alphapage:qa_track_scratch_ui`, url
+  `http://localhost:5173/alphapage/qa_track_scratch_ui`; one row. Cleanup: rows 155–159 deleted, pages dataset
+  back to its 6 seeded rows.
+  - The probe can't hard-load an edit URL on AlphaPage: it lands on `/` (the placeholder-user route check,
+    `route-auth-check-judges-placeholder-user.md`). Loading the view page and navigating client-side
+    (`history.pushState` + `popstate`) reaches the editor (`traversing-dms-pages.md`).
+
+**Tests (phase 4)**
+- [x] New `tests/qaDerivedValues.test.js` (13): each joined section compiled through the real `buildUdaConfig`:
+  the Overview's open count (left join on `page_key`, grouped, open statuses only, any severity), the site filter
+  on `ds.data->>'surface'`; the ticket header and table read `p.name`/`p.stage`, keep `page_route`; the rail's
+  fallback; every joined section is read-only, and every compiled read, sort and filter names its table (no bare
+  `data->>` or `id`). Mutation check: putting back the bare `surface` filter fails 3 of them.
+- [x] New `tests/qaTracking.test.js` (11): the row shape, matching by name/id/instance, re-publish, disabled site,
+  another pattern's site, `include_slugs`, an install with stripped settings (no reads), several installs, no slug.
+- [x] Updated for the alias-prefixed names: `qaOverviewPages` (2), `qaTicketPages` (3). QA suites 97/97; full
+  `packages/dms/tests` 651/654, the same 3 unrelated failures (`avlGraphThemeDefaults` golden,
+  `syncDeltaConvergence` ×2).
+
+### Phases 5–7 — NOT STARTED
+
+See README steps 6–8. Notes to carry in:
 - **Configure (phase 5) is a qa tab in `/list`'s pattern editor, not a page in the install** (owner decisions
   above). Permissions use the existing Access tab.
-- **Track-on-publish (phase 4):** one helper called from both publish paths, `patterns/page/pages/edit/editFunctions.jsx:158`
-  and `cli/src/commands/page.js:289`, using the same "which install covers this sub-site" list as the widget.
 - **Signed-out filing (phase 6):** that covering list must be readable signed out (signed-out visitors get stub
   pattern rows with settings stripped). A honeypot field ships with the form.
 - **Rehearsal (phase 7):** copy through the CLI with new ids; keep old ids in `legacy_id`; rewrite the 19

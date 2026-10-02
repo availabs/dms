@@ -315,11 +315,13 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
 export function PublishButton () {
   const {item, apiUpdate, reqPermissions, pageState } =  React.useContext(PageContext) || {}
   const hasChanges = item.published === 'draft' || item.has_changes
-  const { user, authPermissions, isUserAuthed } = React.useContext(CMSContext) || {};
+  const { user, authPermissions, isUserAuthed, qaTracking, app, baseUrl, falcor } = React.useContext(CMSContext) || {};
   const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
   const { UI } = React.useContext(ThemeContext)
   const {Button} = UI;
   if(!isUserAuthed(['publish-page'], pageAuthPermissions)) return null;
+  // the QA installs to add the page to, when the site has any (editFunctions trackOnPublish)
+  const qa = qaTracking ? { ...qaTracking, app, baseUrl, falcor } : null;
   return (
     <div className='w-full flex justify-center gap-1 h-[40px]'>
       { hasChanges && (
@@ -332,7 +334,7 @@ export function PublishButton () {
       <Button
           disabled={!hasChanges}
           activeStyle={hasChanges ? 'active' : undefined}
-          onClick={() => publish(user,item, apiUpdate)}
+          onClick={() => publish(user,item, apiUpdate, qa)}
       >
         <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
 

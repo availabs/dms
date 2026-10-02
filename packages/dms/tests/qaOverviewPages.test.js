@@ -79,7 +79,9 @@ describe("Overview", () => {
       expect(inGroup).toHaveLength(4);
       inGroup.forEach((s) => {
         const d = dataOf(s);
-        expect(d.filters.groups).toContainEqual({ col: "surface", op: "filter", value: [site.surface] });
+        // the pages table joins the tickets, so its filter column is alias-prefixed
+        const surface = s.trackingId.endsWith("_pages") ? "ds.surface" : "surface";
+        expect(d.filters.groups).toContainEqual({ col: surface, op: "filter", value: [site.surface] });
       });
     });
   });
@@ -92,7 +94,7 @@ describe("Overview", () => {
   it("sorts each site's pages by stage without a stored stage_order, and links to Page QA", () => {
     const table = dataOf(overview.sections.find((s) => s.trackingId === "qa_overview_alphapage_pages"));
     expect(table.columns[0]).toMatchObject({ normalName: "stage_rank", sort: "asc" });
-    expect(table.columns.find((c) => c.customName === "Page")).toMatchObject({ location: "/phase2/page?key=", searchParamsCol: "page_key" });
+    expect(table.columns.find((c) => c.customName === "Page")).toMatchObject({ location: "/phase2/page?key=", searchParamsCol: "ds.page_key" });
     const all = JSON.stringify(overview);
     ["stage_order", "open_bugs", "design?key", "sitemgmt", "npmrdsv5"].forEach((x) => expect(all).not.toContain(x));
   });

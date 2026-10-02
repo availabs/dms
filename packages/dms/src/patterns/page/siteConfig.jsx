@@ -66,6 +66,8 @@ const pagesConfig = ({
   // false for a pattern type that reuses this config without the page editor
   // (the qa type); hides the view↔edit toggle in the user menu.
   hasEditor = true,
+  // the site's QA installs (render/spa/utils); see qaTracking below
+  qaPatterns = [],
   ...rest
 }) => {
   const theme = getPatternTheme(themes, pattern, ssrCollect)
@@ -147,6 +149,12 @@ const pagesConfig = ({
   Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
+  // What Publish needs to add a page to the QA installs that cover this pattern: the installs,
+  // and the ways a covered-sites row can name this pattern (patterns/qa/tracking.js). Null on a
+  // site without one, so publishing there does no extra reads.
+  const qaTracking = qaPatterns.length
+    ? { installs: qaPatterns, patternKeys: [pattern?.id, pattern?.name, type] }
+    : null;
   const preloadEnabled = pattern?.preload_data === true;
   // const rightMenuWithSearch = rightMenu; // for live site
   return {
@@ -193,6 +201,7 @@ const pagesConfig = ({
               authBaseUrl,
               mapeditorKeys,
               hasEditor,
+              qaTracking,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {
                 if (!customAuthPermissions) {
                   return isUserAuthed({ user, authPermissions, reqPermissions });

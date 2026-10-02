@@ -104,6 +104,46 @@ gotchas apply (`round(double,int)` → cast `::numeric`, etc.).
    live**: change the controlling page variable (or hit the page with a
    different `?param=`) and confirm the data refetches — no reseed.
 
+## Two DMS internal datasets (learned 2026-10-01, the `qa` install)
+
+Both sides `isDms: true`: the base is `externalSource`, the joined one
+`{ source, view, env: '<app>+<slug>', type: 'left', mergeStrategy:
+'join', sourceInfo: { isDms: true, env, source_id, view_id, columns },
+joinColumns }`. `ON` compiles to `ds.data->>'k' = t.data->>'k'`; the
+server resolves the joined split table from `<app>+<slug>` + view id the
+same way as the base.
+
+- **The alias is yours.** The key under `join.sources` goes into the SQL
+  as written (`LEFT JOIN … as <alias>`, server `uda/utils.js` `buildJoin`):
+  any plain identifier except `ds` (the base). The section editor's join UI
+  picks one for you; hand-written configs can name it (`t`, `p`, `meta`).
+- **Write plain columns `alias.col`** (`ds.name`, `p.stage`): rows come
+  back keyed by that name, so links use it too (`searchParamsCol:
+  'ds.page_key'`). Calc SQL can say bare `data->>'x'` (rewritten to the
+  calc's own source alias, `ds` by default) or `p.data->>'x'` explicitly.
+- **`id` is never rewritten.** A bare `(id)` in calc SQL, a sort on it or
+  a filter on it is ambiguous: write `ds.id`. As a filter column, raw
+  `ds.id` is right as is (it's a physical column).
+- **A filter column must be one of the section's own columns,
+  alias-prefixed.** A bare leaf (`surface`) compiles to an unaliased
+  `data->>'surface'` (`column reference "data" is ambiguous`); an
+  `alias.col` leaf the section doesn't list reaches the server verbatim
+  (`column ds.surface does not exist`). Add a hidden `{ name: 'ds.surface',
+  show: false }` column and the leaf resolves to `ds.data->>'surface'`. URL
+  filters keep their keys: page filters match on `searchParamKey`, so
+  `{ col: 'ds.status', searchParamKey: 'status' }` still reads `?status=`.
+- **Group to count** the joined side: plain columns `group: true`, the
+  count a calc with `fn: 'exempt'`, e.g.
+  `(count(*) filter (where t.data->>'status' in (…)))::text as open_n`
+  (a base row with no match has one all-null `t` row, which the filter
+  drops). Any other shown column needs an aggregate too, e.g. a sort key
+  `min(case ds.data->>'stage' … end) as stage_rank`.
+- **Keep joined sections read-only.** A live-edit save would write the
+  `alias.col` keys as field names.
+- Test by compiling the element-data through `buildUdaConfig` and
+  asserting on the SQL (`packages/dms/tests/qaDerivedValues.test.js`): no
+  read, sort or filter may contain a bare `data->>` or `id`.
+
 ## Worked example
 
 The TSMO **Corridor View** time-space speed grid — a live `GridGraph`
@@ -117,6 +157,10 @@ meta / shapefile-enhanced twin (CH view 983) on `tmc`: speed =
 `planning/transportny/tasks/completed/tsmo-corridor-view-page-build.md`
 (records the `tmclinear`-isn't-unique and year-pin gotchas).
 
+DMS↔DMS: the `qa` install's pages tables, ticket header and tickets list
+(`patterns/qa/pages/overview.js`, `ticket.js`, `tickets.js`; helpers
+`joinDataset` / `OPEN_COUNT` / `PAGE_DISP` in `pages/helpers.js`).
+
 ## Common failures
 
 | Symptom | Cause | Fix |
@@ -125,4 +169,6 @@ meta / shapefile-enhanced twin (CH view 983) on `tmc`: speed =
 | Counts/sums multiplied (≈N× too high) | per-version metadata view fanned the join out | pin the version column (`meta.year`) in `filters` |
 | `Unknown expression identifier 'X'` | wrong-engine SQL, or column isn't on the view you think | match the base view's engine dialect; verify the column exists |
 | Section renders but blank, `Error getting length` | querying a column that isn't real on the joined result (e.g. a synthetic per-cell field) | for computed/expanded grids without real columns, seed + `fetchMode:'cache'` instead (see incident-view); a *real* join like this should be `smart` |
+| `column reference "data" is ambiguous` / `column ds.x does not exist` (DMS↔DMS) | a filter on a bare column, or on an `alias.col` the section doesn't list | list the column (`show: false` is fine) alias-prefixed and filter on that name (see "Two DMS internal datasets") |
+| `column reference "id" is ambiguous` | bare `id` in calc SQL / sort / filter | write `ds.id` |
 | One "corridor"/group mixes unrelated rows | the group key isn't actually unique | add the disambiguating columns (e.g. `tmclinear` alone bundles both directions across counties → key on `tmclinear+direction+county`) |

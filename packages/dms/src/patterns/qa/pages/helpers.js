@@ -64,6 +64,10 @@ export const CLOSED_STATUSES = statusesOf(['done', 'canceled'])
 // The same lists as SQL `in` lists.
 export const OPEN = `(${OPEN_STATUSES.map(v => `'${v}'`).join(',')})`
 export const CLOSED = `(${CLOSED_STATUSES.map(v => `'${v}'`).join(',')})`
+// A tracked page's open tickets, over the tickets joined as `t` (rows grouped by page): every open
+// status, whatever the severity, as TransportNY's sync counted `open_bugs`. A page with no
+// tickets has one all-null `t` row, which the filter leaves out.
+export const OPEN_COUNT = `(count(*) filter (where t.data->>'status' in ${OPEN}))::text as open_n`
 
 // ── SQL fragments ──
 export const st = () => `(data->>'status')`
@@ -72,7 +76,9 @@ export const W = "(case (data->>'severity') when 'Blocker' then 5 when 'Major' t
 // Display number: the friendly ticket_id when set, else the DMS row id. Links and filters key on the
 // ROW id, so every ticket is openable the moment it exists. Comma-free CASE only: the UDA SELECT
 // list is comma-split.
-export const TNUM = `('#' || (case when (data->>'ticket_id') is null or (data->>'ticket_id') = '' then (id)::text else (data->>'ticket_id') end))`
+// `idRef`: `ds.id` in a joined section, where a bare `id` is ambiguous.
+export const tnum = (idRef = 'id') => `('#' || (case when (data->>'ticket_id') is null or (data->>'ticket_id') = '' then (${idRef})::text else (data->>'ticket_id') end))`
+export const TNUM = tnum()
 // Free text inside an SQL string literal: no quotes, and no commas (the SELECT list is comma-split).
 export const sqlText = (s) => `${s || ''}`.replace(/[',]/g, '')
 export const SOURCE_CASE = "(case data->>'source' when 'ai' then 'AI' when 'dev' then 'Dev' when 'client' then 'Client' else (data->>'source') end)"
@@ -104,13 +110,38 @@ export const pagesSource = (ctx) => datasetSource(ctx, ctx.datasets.pages, 'Page
   'page_key', 'surface', 'surface_label', 'name', 'route', 'url', 'description', 'build', 'data', 'owner', 'updated', 'stage',
 ])
 export const storiesSource = (ctx) => datasetSource(ctx, ctx.datasets.stories, 'Stories', ['story', 'stage', 'source', 'sort_order', 'page_key'])
+// A ticket's page, joined as `p` (joinDataset), for its live name and stage: tickets keep only
+// copies of them, which TransportNY's sync refreshed and nothing here writes.
+export const pagesByKey = (ctx) => joinDataset(ctx, ctx.datasets.pages, 'p', ['page_key', 'name', 'stage'], [['page_key', 'page_key']])
+// The ticket's page name, else its raw page key (a ticket whose page isn't tracked).
+export const PAGE_DISP = "(case when p.data->>'name' is null or p.data->>'name' = '' then data->>'page_key' else p.data->>'name' end) as page_disp"
 
-// A data section's element-data over `source`.
-export const dataWrapper = (source) => ({ columns, filters = [], display = {} }) => JSON.stringify({
+// A data section's element-data over `source`. `join`: extra sources by alias (joinDataset).
+export const dataWrapper = (source) => ({ columns, filters = [], display = {}, join }) => JSON.stringify({
   externalSource: source, columns, filters: { op: 'AND', groups: filters },
   display: { usePagination: true, pageSize: 25, readyToLoad: true, fetchMode: 'smart', showAttribution: false, striped: false, ...display },
-  data: [], join: { sources: {} },
+  data: [], join: { sources: join ? { ds: {}, ...join } : {} },
 })
+
+// One of the install's datasets left-joined onto a section's own source (alias `ds`), on
+// `[dsColumn, joinedColumn]` pairs; the values a sync used to copy between datasets, read live.
+// A joined section names its plain columns alias-prefixed (`ds.name`, `t.status`): every DMS table
+// has `id` and `data`, so bare names are ambiguous, and rows come back keyed by the prefixed name.
+// Joined sections stay read-only, since a live-edit save would write those prefixed keys as fields.
+export const joinDataset = (ctx, ref, alias, columns, on) => {
+  const env = `${ctx.app}+${ref.slug}`
+  return {
+    [alias]: {
+      source: ref.source_id, view: ref.view_id, env, type: 'left', mergeStrategy: 'join',
+      // the columns are required: the section menu reads them
+      sourceInfo: {
+        isDms: true, env, source_id: ref.source_id, view_id: ref.view_id,
+        columns: columns.map(name => ({ name, display_name: name, type: 'text', source_id: ref.source_id })),
+      },
+      joinColumns: on.map(([dsColumn, joinSourceColumn]) => ({ dsColumn, joinSourceColumn })),
+    },
+  }
+}
 export const col = (name, label, over = {}) => ({ name, customName: label, show: true, justify: 'left', ...over })
 export const pcol = (name, label, map, over = {}) => ({ name, customName: label, type: 'status_pill', pillColors: map, show: true, justify: 'left', ...over })
 // Aggregate calc (fn "exempt"). Row-level calcs must carry NO fn: getData's invalid-state guard

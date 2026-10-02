@@ -430,6 +430,12 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   (e.g. BetaPage's `users: {993: ['*']}`) also hides it. To see what the check decided, drop a temporary
   `console.error` in `dms-manager/_auth.js` and read the probe's `consoleErrors`. Tracked:
   `src/dms/planning/tasks/current/route-auth-check-judges-placeholder-user.md` (2026-09-30).
+  - **Edit URLs too (2026-10-01, `qa_test` AlphaPage):** a probe that hard-loads `/alphapage/edit/<slug>` ends
+    on `http://localhost:5173/` (check `page.url()` in an `--eval`: the dump's `url` is the requested one), with
+    an empty page and no edit toolbar, while a signed-in browser shows the toolbar. Workaround: load the VIEW page,
+    wait for sign-in (the user menu text), then navigate client-side:
+    `history.pushState({ idx: 1 }, '', '/alphapage/edit/<slug>'); dispatchEvent(new PopStateEvent('popstate', { state: { idx: 1 } }))`,
+    then wait for `button:has-text("Publish")`. The pencil is not an `<a href>`, so don't look for one.
 - **Page visits are invisible in the probe dump unless tracked.** `/track/visit` answers 204, so the
   harness logs it as `non200: 204` (not an error), and a dump lists non-graph calls only in
   `badResponses`. Pass `--track track/visit` to record every visit POST with its `pageId`. The token

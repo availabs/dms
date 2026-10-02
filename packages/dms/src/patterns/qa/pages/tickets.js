@@ -1,6 +1,6 @@
 import {
-  T, crumb, pageTitle, SEV_PILL, STATUS_PILL, SOURCE_PILL, staticOptions, OPEN, CLOSED, CLOSED_STATUSES, st, W, TNUM,
-  SOURCE_CASE, siteCase, ticketsSource, dataWrapper, col, pcol, calc, stat, staticCell,
+  T, crumb, pageTitle, SEV_PILL, STATUS_PILL, SOURCE_PILL, staticOptions, OPEN, CLOSED, CLOSED_STATUSES, st, W, tnum,
+  SOURCE_CASE, PAGE_DISP, siteCase, ticketsSource, pagesByKey, dataWrapper, col, pcol, calc, stat, staticCell,
   WHITE_CARD, CARD_TOP, CARD_MID, CARD_BOTTOM, group, section, pageVariable,
 } from './helpers'
 
@@ -125,39 +125,41 @@ export function ticketsPage(ctx) {
     hasLabels ? { display: 'meta-variable', meta_lookup: JSON.stringify(ctx.siteLabels) } : {}))
 
   // ── the tickets table, newest first ──
+  // Each ticket's page is joined (`p`) for its live name, so every column is alias-prefixed.
   S.push(section({
     trackingId: 'qa_tickets_table', group: G.tbl, type: 'Spreadsheet', ...WHITE_CARD,
     data: dw({
       columns: [
         // Newest first by row id (monotonic with creation), whatever the opened/updated string formats.
-        { name: '(id)::bigint as idsort', type: 'calculated', normalName: 'idsort', display_name: '', customName: '', show: true, formatFn: ' ', hideHeader: true, size: 0, sort: 'desc' },
+        { name: '(ds.id)::bigint as idsort', type: 'calculated', normalName: 'idsort', display_name: '', customName: '', show: true, formatFn: ' ', hideHeader: true, size: 0, sort: 'desc' },
         // Shows the friendly number; the link carries the row id.
         {
-          name: `${TNUM} as num`, type: 'calculated', normalName: 'num', display_name: '#', customName: '#', show: true, formatFn: ' ',
+          name: `${tnum('ds.id')} as num`, type: 'calculated', normalName: 'num', display_name: '#', customName: '#', show: true, formatFn: ' ',
           justify: 'right', size: 96, isLink: true, location: `${ctx.baseUrl}/ticket?id=`, searchParams: 'id',
         },
-        pcol('severity', 'Severity', SEV_PILL, { size: 100 }),
+        pcol('ds.severity', 'Severity', SEV_PILL, { size: 100 }),
         { name: `${SOURCE_CASE} as src`, type: 'status_pill', normalName: 'src', display_name: 'Source', customName: 'Source', show: true, formatFn: ' ', pillColors: SOURCE_PILL, justify: 'left', size: 88 },
-        pcol('status', 'Status', STATUS_PILL, { size: 116 }),
-        col('title', 'Ticket', { size: 280, wrapText: true, stretch: true }),
+        pcol('ds.status', 'Status', STATUS_PILL, { size: 116 }),
+        col('ds.title', 'Ticket', { size: 280, wrapText: true, stretch: true }),
         hasLabels
           ? {
             name: `${siteCase(ctx.siteLabels)} as site`, type: 'status_pill', normalName: 'site', display_name: 'Site', customName: 'Site', show: true, formatFn: ' ',
             pillColors: Object.fromEntries(Object.values(ctx.siteLabels).map((l) => [l, 'gray'])), justify: 'left', size: 124,
           }
-          : col('surface', 'Site', { size: 124 }),
-        // Page: the friendly page name, else the raw page key.
-        {
-          name: "(case when (data->>'page_name') is null or (data->>'page_name') = '' then (data->>'page_key') else (data->>'page_name') end) as page_disp",
-          type: 'calculated', normalName: 'page_disp', display_name: 'Page', customName: 'Page', show: true, formatFn: ' ', justify: 'left', size: 136,
-        },
-        col('reporter', 'Reporter', { size: 264 }),
+          : col('ds.surface', 'Site', { size: 124 }),
+        { name: PAGE_DISP, type: 'calculated', normalName: 'page_disp', display_name: 'Page', customName: 'Page', show: true, formatFn: ' ', justify: 'left', size: 136 },
+        col('ds.reporter', 'Reporter', { size: 264 }),
         {
           name: "substring((data->>'updated') from 1 for 10) as updated_day", type: 'calculated', normalName: 'updated_day',
           display_name: 'Updated', customName: 'Updated', show: true, formatFn: ' ', justify: 'left', size: 112,
         },
+        // Not shown; listed so the URL filters resolve (a joined section's filter columns must be
+        // its own, alias-prefixed: see the Overview's site tables).
+        { name: 'ds.source', show: false },
+        ...(hasLabels ? [{ name: 'ds.surface', show: false }] : []),
       ],
-      filters: ['status', 'severity', 'source', 'surface'].map((key) => ({ col: key, op: 'filter', value: [], usePageFilters: true, searchParamKey: key })),
+      filters: ['status', 'severity', 'source', 'surface'].map((key) => ({ col: `ds.${key}`, op: 'filter', value: [], usePageFilters: true, searchParamKey: key })),
+      join: pagesByKey(ctx),
       display: { usePagination: true, pageSize: 25, fetchMode: 'force', autoResize: false, allowDownload: true },
     }),
   }))

@@ -13,7 +13,9 @@ import {
   resolvePattern, findPatternByKind,
   parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
-import { pageTypeFor, componentTypeFor } from '../utils/types.js';
+import { pageTypeFor, componentTypeFor, patternInstance } from '../utils/types.js';
+import { trackPublishedPage } from '../../../src/patterns/qa/tracking.js';
+import { loadDatasetRows } from '../../../src/api/datasetRows.js';
 import { output, outputError } from '../utils/output.js';
 import { afterDraftSectionsWrite, syncPageRoom } from '../utils/room-sync.js';
 
@@ -284,6 +286,32 @@ export async function syncRoom(idOrSlug, config, options = {}) {
 }
 
 /**
+ * Add a just-published page to the site's QA installs that cover its pattern, as the editor's
+ * Publish does (src/patterns/qa/tracking.js). The live URL is the page's path on its pattern's
+ * mount; the CLI can't tell the host, so a pattern on its own subdomain gets none. A failure is
+ * reported and leaves the publish as it is.
+ */
+async function trackOnPublish(falcor, config, pattern, page) {
+  try {
+    const qaInstalls = (await resolvePattern(falcor, config))
+      .map((p) => ({ ...parseData(p.data), id: p.id }))
+      .filter((p) => p.pattern_type === 'qa');
+    if (!qaInstalls.length) return [];
+    const { name, base_url, subdomain } = parseData(pattern.data);
+    const path = `/${[`${base_url || ''}`.replace(/^\/+|\/+$/g, ''), page.url_slug].filter(Boolean).join('/')}`;
+    return await trackPublishedPage({
+      page, qaInstalls,
+      patternKeys: [pattern.id, name, patternInstance(pattern)],
+      url: !subdomain || subdomain === '*' ? path : undefined,
+      loadRows: (ref, columns) => loadDatasetRows(falcor, { env: `${config.app}+${ref.slug}`, viewId: ref.view_id, columns, fresh: true }),
+      createRow: (ref, data) => falcor.call(['dms', 'data', 'create'], [config.app, `${ref.slug}|${ref.view_id}:data`, data]),
+    });
+  } catch (error) {
+    return [{ error: `adding the page to its QA install failed: ${error.message}` }];
+  }
+}
+
+/**
  * Publish a page (copy draft_sections → sections).
  */
 export async function publish(idOrSlug, config, options = {}) {
@@ -343,8 +371,13 @@ export async function publish(idOrSlug, config, options = {}) {
     };
 
     await falcor.call(['dms', 'data', 'edit'], [config.app, id, updateData]);
+    const qaTracked = await trackOnPublish(falcor, config, pattern, d);
 
-    output({ id, message: `Page published (${publishedRefs.length} section${publishedRefs.length === 1 ? '' : 's'} copied)` }, options);
+    output({
+      id,
+      message: `Page published (${publishedRefs.length} section${publishedRefs.length === 1 ? '' : 's'} copied)`,
+      ...(qaTracked.length ? { qa_tracked: qaTracked } : {}),
+    }, options);
   } catch (error) {
     outputError(error);
   }
