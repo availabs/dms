@@ -73,6 +73,16 @@ rest of the loop:
 Fill the **last column honestly** — that split (config vs. new primitive) is the
 whole decision, and Step 2 is how you make it.
 
+> **Mockups that ship their own map.** Some mockups already carry this table as markup:
+> each element has `data-map="<what it becomes>"` and `data-map-kind` = `reuse` (an
+> existing piece, unchanged) · `qa` (a new named style only that feature's sections pick)
+> · `core` (a small library change, with a fallback named) · `planned` (placeholder) ·
+> `host` (the site's own layout). A review-bar "DMS map" switch outlines and labels them;
+> hover shows the full label. Start your inventory from those labels, then verify each
+> against the code. Worked example: the QA pattern's pages in dms-template
+> `src/themes/tessera/design_system_v6/pages/qa-*.html` (styles and switch in `_qa.css` /
+> `_qa-review.js`; plan in `planning/tasks/current/qa-design-implementation.md`).
+
 ---
 
 ## Step 2 — map: the decision ladder

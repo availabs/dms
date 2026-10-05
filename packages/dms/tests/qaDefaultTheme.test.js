@@ -18,10 +18,10 @@ import { pillTheme } from "../src/ui/components/Pill.theme";
 
 const datasets = Object.fromEntries(["tickets", "pages", "stories", "patterns", "history"]
   .map((key, i) => [key, { slug: `qa_${key}`, source_id: 10 + 2 * i, view_id: 11 + 2 * i }]));
-const pattern = { name: "QA", dmsEnvId: 42, qa: { version: 1, datasets, siteLabels: { alphapage: "Alpha" } } };
+const pattern = { name: "QA", dmsEnvId: 42, qa: { version: 1, datasets } };
 const sites = [{ pattern: "alphapage", surface: "alphapage", surface_label: "AlphaPage", sort_order: "1", enabled: "yes" }];
 const pages = buildQaPages(pattern, {
-  app: "qa_test", baseUrl: "/qa", sites, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 42, base_url: "data" }],
+  app: "qa_test", baseUrl: "/qa", sites, siteLabels: { alphapage: "Alpha" }, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 42, base_url: "data" }],
 });
 
 // Every value under `key` anywhere in the pages, element-data (and the lexical state inside it) included.

@@ -117,16 +117,15 @@ describe("add-ticket link", () => {
 });
 
 describe("site labels", () => {
-  it("maps surface values when the install sets labels", () => {
-    const labelled = { ...pattern, qa: { ...pattern.qa, siteLabels: { alphapage: "Alpha" } } };
-    const list = pageBySlug(buildQaPages(labelled, ctx), "tickets");
+  it("maps surface values to the covered-sites rows' labels", () => {
+    const list = pageBySlug(buildQaPages(pattern, { ...ctx, siteLabels: { alphapage: "Alpha" } }), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
     expect(table.columns.find((c) => c.normalName === "site").name).toContain("when 'alphapage' then 'Alpha'");
     const facet = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_facet_site"));
     expect(JSON.parse(facet.columns[0].meta_lookup)).toEqual({ alphapage: "Alpha" });
   });
 
-  it("shows raw values when it sets none", () => {
+  it("shows raw values when there are none", () => {
     const list = pageBySlug(buildQaPages(pattern, ctx), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
     expect(table.columns.find((c) => c.customName === "Site").name).toBe("ds.surface");

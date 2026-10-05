@@ -11,6 +11,7 @@ import { PatternAccessEditor } from "./default/accessEditor";
 import { PatternPagesEditor } from "./pages/pagesEditor";
 import { SourcesTab } from "./pages/sourcesTab";
 import { ActivityTab } from "./pages/activityTab";
+import { QaConfigureTab } from "./qa/configureTab";
 import FormatManager from './formatManager';
 import PageTemplateManagerPane from './pageTemplateManagerPane';
 
@@ -47,6 +48,13 @@ const sourcesTab = {
   name: 'Data Sources',
   path: 'sources',
   component: SourcesTab
+}
+
+// A QA install's own settings: its datasets, covered sites and ticket record.
+const qaConfigureTab = {
+  name: 'Configure',
+  path: 'configure',
+  component: QaConfigureTab
 }
 
 const activityTab = {
@@ -111,6 +119,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
   const allPages = [
     ...navPages,
     ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
+    ...(item.pattern_type === 'qa' ? [qaConfigureTab] : []),
     ...(item.pages || []),
     ...(item.pattern_type === 'page' ? [
       { path: 'page_templates', name: 'Page Templates', component: PageTemplateManagerPane },
@@ -138,7 +147,12 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
             {isTabDenied ? (
               <div className={t.noAccess}>You do not have permission to use this tab.</div>
             ) : (
+            // Keyed by the pattern: tabs seed their drafts from `value` once (the Overview's
+            // `useImmer(value)`, Format Manager's attributes), so moving to another pattern's tab
+            // without a reload (back/forward) would otherwise keep showing the previous pattern.
+            // A reload of the same pattern keeps its id, so saving doesn't remount the tab.
             <PageComp
+                key={item.id}
                 app={item.app}
                 type={item.type}
               value={item}
