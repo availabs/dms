@@ -147,7 +147,12 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
             {isTabDenied ? (
               <div className={t.noAccess}>You do not have permission to use this tab.</div>
             ) : (
+            // Keyed by the pattern: tabs seed their drafts from `value` once (the Overview's
+            // `useImmer(value)`, Format Manager's attributes), so moving to another pattern's tab
+            // without a reload (back/forward) would otherwise keep showing the previous pattern.
+            // A reload of the same pattern keeps its id, so saving doesn't remount the tab.
             <PageComp
+                key={item.id}
                 app={item.app}
                 type={item.type}
               value={item}

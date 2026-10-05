@@ -7,21 +7,20 @@ dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (
 restyle (`3a80c516`, 2026-10-01; the test-data reset was DB-only), option (b) parts 1–3 (`0cdba46b`,
 2026-10-01) and phase 4 (`8be023e9`, 2026-10-02). All pushed: on 2026-10-02 the submodule matched `origin/master`
 (`a32d9ae1`), and dms-template pointed at it. **Phase 5 (the Configure tab) BUILT and live-verified 2026-10-02,
-uncommitted** (section "Phase 5").
+committed `d590c66f` 2026-10-05** (section "Phase 5").
 
 **▶ Next session, start here.** Phases 1–4 and option (b) parts 1–3 are built, committed and pushed. The owner
 confirmed track-on-publish live on 2026-10-02 (a new page under a covered sub-site got its row on its own). The
 owner dropped the push-test reminders on 2026-10-02, so don't raise them. **Phase 5 is built and uncommitted:** the
-owner looks at `/list/manage_pattern/126/configure` and commits. Open from it: the Overview's stale draft after an
-in-app move between patterns (shared code, unfixed; section "Phase 5", "Found building it"). The owner then picks
-what's next:
+owner committed it (`d590c66f`, 2026-10-05). The Overview's stale draft after an in-app move between patterns is
+FIXED 2026-10-05, uncommitted (section "Phase 5", "Found building it"). The owner picks what's next:
 - **A dedicated design pass** on the QA pages is planned soon (owner, 2026-10-01; the restyle passed the look check
   "for now"). Card's `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") belongs there.
 - **Status-change work still deferred** (phase 3a, "The status-change writes"): part 4 (change history, commit on
   blur) and story-status tracking. `resolved_date` stamping and the stage refresh are done (option (b) parts 1–3).
 - **Phase 4 — DONE, committed `8be023e9`** (section "Phase 4"): live open counts on the Overview, a ticket's
   page name and stage read live, track-on-publish from the editor and `dms page publish`.
-- **Phase 5 — BUILT 2026-10-02, live-verified on `qa_test`, uncommitted** (section "Phase 5"; feature switches
+- **Phase 5 — DONE, committed `d590c66f` (2026-10-05)** (section "Phase 5"; feature switches
   moved to later). A Configure tab on the install's `manage_pattern` page in `/list`, so covered sites and labels
   stop being hand-seeded. It also closes
   phase 4's backfill gap ("turning a pattern on adds its published pages", via `trackPublishedPage`). Where the
@@ -241,7 +240,7 @@ that have to exist first.
 | 2 | 3 + 4 | Ticket record + install hook: schemas in code, datasets created per install, refs on the pattern row | DONE 2026-09-30 |
 | 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | 3a + 3b DONE (Design page deferred) |
 | 4 | 5 | Derived values without a sync, incl. track-on-publish | DONE 2026-10-01 (`8be023e9`) |
-| 5 | 6 | Configure tab on the install's `manage_pattern` page (covered sites, labels) | BUILT 2026-10-02 (live-verified, uncommitted) |
+| 5 | 6 | Configure tab on the install's `manage_pattern` page (covered sites, labels) | DONE 2026-10-02 (`d590c66f`) |
 | 6 | 7 | Widget (signed out too) + `dms qa` CLI; feature switches (moved from 5) | NOT STARTED |
 | 7 | 8 | Rehearsal: copy TransportNY's QA data into an install on `qa_test` | NOT STARTED |
 | 8 | 9 | TransportNY port (own task under `planning/transportny/`) | NOT STARTED |
@@ -1079,7 +1078,7 @@ Reports feature leans on them heavily); look there for examples if the joins giv
   `packages/dms/tests` 651/654, the same 3 unrelated failures (`avlGraphThemeDefaults` golden,
   `syncDeltaConvergence` ×2).
 
-### Phase 5: Configure tab on the install's `manage_pattern` page — BUILT 2026-10-02 (live-verified on `qa_test`, uncommitted)
+### Phase 5: Configure tab on the install's `manage_pattern` page — DONE 2026-10-02 (live-verified on `qa_test`, committed `d590c66f`)
 
 README step 6. **Owner answers at the start (2026-10-02):** (1) Configure is a **new sidebar tab on the QA install's
 own `manage_pattern` page** (`/list/manage_pattern/<id>/configure`), next to Overview, Access and Theme, the way page
@@ -1201,11 +1200,16 @@ consumer again before building.
   `syncDeltaConvergence` ×2).
 
 **Found building it**
-- **The Overview tab keeps the previous pattern's draft after an in-app move between two patterns** (back/forward,
-  or a client-side navigation): `PatternSettingsEditor` sets `tmpValue` once (`useImmer(value)`) and the editor
-  reuses the instance, so QA's Overview showed AlphaPage's row ("datasets: 0 of 5 linked · 5 missing"), and its
-  identity fields would too. Shared code, as it was, not fixed here: a `key={item.id}` on `PageComp`
-  (`patternEditor/index.jsx`) would fix every tab. Configure guards itself (keyed body).
+- **The Overview tab kept the previous pattern's draft after an in-app move between two patterns** (back/forward,
+  or a client-side navigation): `PatternSettingsEditor` sets `tmpValue` once (`useImmer(value)`, there since the
+  file's first commit `d16f0a65`, 2025-12-05) and the editor reused the instance, so QA's Overview showed
+  AlphaPage's row ("datasets: 0 of 5 linked · 5 missing"). **FIXED 2026-10-05 (owner asked), uncommitted:**
+  `key={item.id}` on `PageComp` (`patternEditor/index.jsx`), so each pattern mounts its tab fresh; a reload of the
+  same pattern keeps its id, so a Save doesn't remount. Also covers Format Manager
+  (`useState(value.additionalSectionAttributes)`). Live (probe, no reloads): AlphaPage → QA → BetaPage → back: name
+  field AlphaPage / QA / BetaPage / QA, QA's datasets "5 of 5 linked" both times. `PatternEditor` mounts every tab
+  and is imported only by the admin's `siteConfig.jsx`; no test imports it. Configure's own keyed body is now
+  redundant, kept.
 - A signed-in probe **hard load of `/list/...` renders blank** (sidebar Auth › Profile only); loading `/qa` and
   navigating client-side works (`traversing-dms-pages.md`).
 - The console's React "unknown prop `customTheme`" warning comes from the Overview's `FieldSet` / `filterEditor`,

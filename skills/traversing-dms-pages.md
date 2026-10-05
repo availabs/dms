@@ -419,11 +419,10 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   - 2026-10-02: on that hard load the sidebar may show only Auth › Profile (no Sites link to click). What works:
     load a view page (`/qa`), wait for the user menu's group text, then `history.pushState({ idx: 1 }, '',
     '/list/manage_pattern/<id>/<tab>'); dispatchEvent(new PopStateEvent('popstate', { state: { idx: 1 } }))`.
-- **Moving between two patterns' editor tabs without a reload keeps the first pattern's Overview draft.**
-  `PatternSettingsEditor` sets its draft once (`useImmer(value)`) and the editor reuses the instance, so a
-  client-side move from `/list/manage_pattern/5/overview` to `/126/overview` shows pattern 5's values (a QA
-  install's datasets card read "0 of 5 linked" on an install with 5). A fresh load is right. Not a data problem;
-  unfixed shared code (`qa-pattern-type.md`, phase 5 "Found building it"). The QA Configure tab is keyed by pattern.
+- **Moving between two patterns' editor tabs without a reload used to keep the first pattern's Overview draft**
+  (a QA install's datasets card read "0 of 5 linked" on an install with 5). FIXED 2026-10-05: the editor keys each
+  tab by pattern id (`patternEditor/index.jsx`). If a tab ever shows another pattern's values again, check that
+  key first.
 - **QA install's Configure tab (`/list/manage_pattern/<id>/configure`, 2026-10-02).** Cards reuse the Overview's
   classes (`div.overflow-hidden` cards, `t-metaSM` header labels). Covered-sites rows are `div.grid`; find one with
   `page.locator('div.grid', { has: page.locator('span:text-is("<pattern name>")') })`. In a row: the on/off switch
