@@ -11,6 +11,16 @@ const footerHref = (d) => (d?.nav_link
     ? resolveSubdomainPath(`${d.nav_link}`)
     : `/${d?.url_slug}`);
 
+// A child is listed under its parent's column unless it's hidden from nav or its footer
+// flag was explicitly turned off. Unset counts as shown, so existing columns keep their
+// children. The settings toggle writes `show_in_footer: false` when off; older pages may
+// carry the legacy `navOptions.show_in_footer` (`""` when off). Top-level wins when set.
+const isFooterChild = (d) => {
+    if (d?.hide_in_nav) return false;
+    const flag = d?.show_in_footer ?? d?.navOptions?.show_in_footer;
+    return flag === undefined || flag === null || flag === 'show';
+};
+
 export const Footer = () => {
     const {dataItems, item} = React.useContext(PageContext);
     const {state: {display}} = React.useContext(ComponentContext);
@@ -23,7 +33,7 @@ export const Footer = () => {
         // ))
     .map(parentItem => ({
         root: parentItem,
-        children: dataItems.filter(({parent}) => parent === parentItem.id)
+        children: dataItems.filter(child => child.parent === parentItem.id && isFooterChild(child))
     }));
 
     return (
