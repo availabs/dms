@@ -11,11 +11,13 @@ committed `d590c66f` 2026-10-05** (section "Phase 5").
 
 **▶ Next session, start here.** Phases 1–4 and option (b) parts 1–3 are built, committed and pushed. The owner
 confirmed track-on-publish live on 2026-10-02 (a new page under a covered sub-site got its row on its own). The
-owner dropped the push-test reminders on 2026-10-02, so don't raise them. **Phase 5 is built and uncommitted:** the
+owner dropped the push-test reminders on 2026-10-02, so don't raise them. **Phase 5 is built and committed:** the
 owner committed it (`d590c66f`, 2026-10-05). The Overview's stale draft after an in-app move between patterns is
-FIXED 2026-10-05, uncommitted (section "Phase 5", "Found building it"). The owner picks what's next:
-- **A dedicated design pass** on the QA pages is planned soon (owner, 2026-10-01; the restyle passed the look check
-  "for now"). Card's `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") belongs there.
+FIXED 2026-10-05, committed `5e075368` (section "Phase 5", "Found building it"). The owner picks what's next:
+- **Design pass — DONE 2026-10-05; implementing it is next:** [`qa-design-implementation.md`](./qa-design-implementation.md)
+  (status `next`). Mockups for all six pages, decisions and findings are in section "Design pass" below. Card's
+  `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") is folded into the QA-only Card
+  styles there.
 - **Status-change work still deferred** (phase 3a, "The status-change writes"): part 4 (change history, commit on
   blur) and story-status tracking. `resolved_date` stamping and the stage refresh are done (option (b) parts 1–3).
 - **Phase 4 — DONE, committed `8be023e9`** (section "Phase 4"): live open counts on the Overview, a ticket's
@@ -44,6 +46,100 @@ TSMO/NPMRDS/Freight Atlas seed, and spares QA/QA2/QA3/QA4/Phase3a/Phase3b/Phase5
 **Design and decisions:** `research/qa-ticketing-system/README.md` (plan v4) and `feature-roadmap.md`, both in the
 dms-template repo root. This file is the implementation plan and the source of truth for build status. The code
 seam is traced in `research/qa-ticketing-system/pattern-type-feasibility.md`.
+
+## Design pass — DONE 2026-10-05 (two rounds; implementation in [`qa-design-implementation.md`](./qa-design-implementation.md))
+
+The owner picked the design pass as the next work (2026-10-05). Output is HTML mockups for review; the owner then
+converts them to the code pages (`skills/transcribing-a-design-card-to-dms.md` is the matching skill, since the QA
+pages are Card sections defined in code, not CLI-created pages).
+
+**Owner decisions (2026-10-05):**
+- **Style source: Tessera `design_system_v6` (latest revision v6.7)**, the direction the library default theme is
+  being ported to (`dms_tessera_default_theme`). Not the AVAIL public site (`avail_site/v7`).
+- **Borrow layout and interaction from TransportNY's control room** (`TransportNY Design System/dms_design_system_v2/
+  pages/sitemgmt-*.html`), not its colours. Its chip filters replace the default dropdown filters.
+- **Theme keys are QA-only**, unless an existing key can be reused with no change. So the rail's edit-in-place field
+  look (today a thick black border, no padding) becomes a QA-only style, not a change to every live-edit Card.
+- **Staged:** round 1 = Ticket page, Tickets list, Report an issue (button + form, signed in and signed out). After
+  the owner's review, round 2 = Overview, Page QA, Configure tab, empty and not-set-up states.
+- Priority is the working feature set plus the Report-an-issue form; planned features (change history, my tickets)
+  show only as marked placeholders.
+- Very themable: every colour, border and padding goes through a small named token set; inferring a fresh install's
+  look from the host site's theme is an implementation detail for later.
+
+**Files:** `src/themes/tessera/design_system_v6/pages/qa-*.html` (next to the admin pattern's `admin-*.html`
+mockups, the precedent for a library pattern's mockups).
+
+**Round 1 — BUILT 2026-10-05, awaiting the owner's review.** Review artifact (cover + the three mockups):
+https://claude.ai/artifact/DJR2Cx44MEjVj35QtrLW74 (cover source `scratchpad/qa_test/design-pass/review.html`,
+shots beside it). Repo files, all uncommitted:
+- `pages/qa-ticket.html`, `pages/qa-tickets.html`, `pages/qa-report-issue.html`: plain HTML + Tailwind CDN on the
+  install's real tickets (#101–#106 as they stood 10-05). Every element carries `data-map` / `data-map-kind`
+  (reuse · qa · core · planned · host); the review bar's "DMS map" switch shows them.
+- `pages/_qa.css`: the QA tokens (`--qa-sev-*`, `--qa-kind-*`, `--qa-prio-*`), each defined from a Tessera base
+  token, plus a TransportNY skin demo that swaps only base tokens and fonts, and the review scaffolding.
+- `pages/_qa-review.js`: review-bar toggles (skin, map, page states). Never ships.
+- `ds-nav.js`: a "QA pages" group added.
+
+**Found while designing (facts for the conversion):**
+- **The rail's black border is `Card.jsx:376`:** `className={`${editMode ? 'border' : ''} ...`}` on every edit
+  component. A bare `border` under Tailwind 4 takes `currentColor`, hence black, and no theme key reaches it. Proposed
+  fix: a `dataCard` style key `editField` whose default is `'border'` (no change for any other Card); QA's styles set
+  the borderless-until-hover look.
+- **"please enter value…" is already overridable:** `Card.jsx:373` sets `placeholder` before spreading the column's
+  own props, so a column's `placeholder` wins today. No code change needed.
+- **Reusable as-is:** `stacked_bar` (built 2026-07-08) for found-by; `flow_step`, `data_bar`, `stat_value`;
+  `formatFn: date / datetime` (gives `09/24/2026 2:00 pm`); Card link cells with `activeOnSearchParam` + `cellActive`
+  for the All / Open / Closed shortcut; named-style pickers `cardStyle`, `filterStyle`, `tableStyle`, a column's
+  "Column Type Style" (`activeStyle`) and `pillColors` for every QA-only style.
+- **`stage_progress` exists** but hard-codes 20px dots and inline hex colours; the compact stage meter is a variant
+  of it plus theme keys, not a new type.
+- **Today's Tickets strip omits the waiting statuses** (Needs decision, Needs data); the mockup adds a Waiting count.
+- **Today's Done-per-day chart prints every day label twice** (time-axis ticks), a bug, not a design choice.
+- Small core additions the mockups assume, each listed on the cover with a fallback: `editField`, `kv_chips` (env
+  JSON), `comment_thread` (comments JSON), the `stage_progress` compact variant, status option groups by kind
+  (optional), the tick fix. The report widget itself is phase 6.
+
+**Owner answers to round 1 (2026-10-05), taken as a go on the direction:**
+1. **Status menu: flat list for now.** Grouping by kind ("would be cool") is wanted later; it needs option groups
+   in the shared select (core). The mockup now shows the flat list.
+2. **Report button placement: configurable**, theme or install, precedent decides. **Picked: the theme.**
+   Precedent: TransportNY's button is its `QuickLinks` widget placed by `layout.options.sideNav.bottomMenu`
+   (`src/themes/transportny/themev2.js` ~374), the same slots that place Logo / ThemeToggle / UserMenu
+   (`ui/components/Layout.jsx` `getMenu`), editable in the admin theme editor. So phase 6 builds a `ReportIssue`
+   widget registered in `ui/widgets/index.jsx`; a theme puts it in any nav slot, and "floating" is a widget option
+   (`{ type: 'ReportIssue', options: { placement: 'floating' } }`, `getWidget` already passes `options`). The
+   install only decides which pages show it (coverage), not where. Open for phase 6: a site that replaces
+   `bottomMenu` wholesale drops a default entry, so the library default needs a fallback.
+3. **Keep severity Feature** for ideas for now; the owner expects to drop it one day (a separate kind column).
+4. **Comments and history stay placeholders** in round 2.
+
+**Round 2 — BUILT 2026-10-05, awaiting the owner's review** (same artifact, version 2). New files, uncommitted:
+`pages/qa-overview.html` (states: live / no sites / not set up), `pages/qa-page.html` (AlphaPage / Page 1, with the
+New ticket modal), `pages/qa-configure.html` (admin v6 chrome; states: datasets missing, unsaved edits). Round 1
+pages now show the flat status list, the theme-placed `ReportIssue` widget and a "no matches" Tickets state. All six
+share one review nav; `ds-nav.js` lists them. Data checked live: the 7 tracked pages, routes and stages (incl.
+`alphapage:new_page_2`, added by track-on-publish) read from `dms_qa_test.data_items__s129_v130_qa_pages`.
+
+**Found in round 2:**
+- **Configure is a React tab, not sections:** `QaConfigureTab` (`patternEditor/qa/configureTab.jsx`), registered in
+  `patternEditor/index.jsx:54-57` + `admin/siteConfig.jsx:446` for `pattern_type === 'qa'` only, styled by
+  `admin.qaConfigure` (QA-only) over `admin.settingsEditor`. Its conversion edits that JSX and those keys.
+- **The `radio` column type isn't themable** (`ui/columnTypes/radio.jsx` hard-codes a local `theme` object; no
+  ThemeContext, no named styles, no per-option markers). The clickable stage list and the New ticket severity chips
+  need that core change; fallback is today's selects.
+- **Stage colours become one accent ramp** (`--qa-stage-*`, `color-mix` toward the panel, ending in success), replacing
+  `STAGE_HEX`'s six unrelated hexes; `stacked_bar` segments take `var(--qa-stage-*)`.
+- The probe harness couldn't render `/list/manage_pattern/126/configure` (blank content, sidenav only "Auth ›
+  Profile", no errors); the owner supplied a screenshot (`scratchpad/qa_test/design-pass/shots/before-qa-configure.png`).
+
+**Owner answers to round 2 (2026-10-05): both yes.** The "How delivery works" captions (who / what per stage,
+TransportNY's wording) ship as the library's default and become install-editable later, alongside the feature
+switches. The `radio` column type gets made themable, so the stage picker and severity chips ship.
+
+**Closed 2026-10-05:** the owner asked to move to implementation. The build plan (core enrichments → QA tokens and
+named styles → page conversions → Configure; Report an issue stays phase 6) is
+[`qa-design-implementation.md`](./qa-design-implementation.md).
 
 ## Default-theme restyle and test-data reset — DONE 2026-10-01 (committed `3a80c516`)
 
@@ -241,6 +337,7 @@ that have to exist first.
 | 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | 3a + 3b DONE (Design page deferred) |
 | 4 | 5 | Derived values without a sync, incl. track-on-publish | DONE 2026-10-01 (`8be023e9`) |
 | 5 | 6 | Configure tab on the install's `manage_pattern` page (covered sites, labels) | DONE 2026-10-02 (`d590c66f`) |
+| — | — | Design pass (mockups for all six pages) → its implementation, own task [`qa-design-implementation.md`](./qa-design-implementation.md) | design DONE 2026-10-05; implementation next |
 | 6 | 7 | Widget (signed out too) + `dms qa` CLI; feature switches (moved from 5) | NOT STARTED |
 | 7 | 8 | Rehearsal: copy TransportNY's QA data into an install on `qa_test` | NOT STARTED |
 | 8 | 9 | TransportNY port (own task under `planning/transportny/`) | NOT STARTED |
@@ -1203,7 +1300,7 @@ consumer again before building.
 - **The Overview tab kept the previous pattern's draft after an in-app move between two patterns** (back/forward,
   or a client-side navigation): `PatternSettingsEditor` sets `tmpValue` once (`useImmer(value)`, there since the
   file's first commit `d16f0a65`, 2025-12-05) and the editor reused the instance, so QA's Overview showed
-  AlphaPage's row ("datasets: 0 of 5 linked · 5 missing"). **FIXED 2026-10-05 (owner asked), uncommitted:**
+  AlphaPage's row ("datasets: 0 of 5 linked · 5 missing"). **FIXED 2026-10-05 (owner asked), committed `5e075368`:**
   `key={item.id}` on `PageComp` (`patternEditor/index.jsx`), so each pattern mounts its tab fresh; a reload of the
   same pattern keeps its id, so a Save doesn't remount. Also covers Format Manager
   (`useState(value.additionalSectionAttributes)`). Live (probe, no reloads): AlphaPage → QA → BetaPage → back: name
