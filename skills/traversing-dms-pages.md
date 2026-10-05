@@ -416,6 +416,20 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   on `/list` (Sites) or `/list/manage_pattern/<id>` shows the sidebar and user menu but an empty content
   area, with no errors. Clicking the in-app **Sites** link renders it; reach the pattern editor by
   clicking the row's `a[href="/list/manage_pattern/<id>"]` from there (2026-09-30, `qa_test`).
+  - 2026-10-02: on that hard load the sidebar may show only Auth › Profile (no Sites link to click). What works:
+    load a view page (`/qa`), wait for the user menu's group text, then `history.pushState({ idx: 1 }, '',
+    '/list/manage_pattern/<id>/<tab>'); dispatchEvent(new PopStateEvent('popstate', { state: { idx: 1 } }))`.
+- **Moving between two patterns' editor tabs without a reload used to keep the first pattern's Overview draft**
+  (a QA install's datasets card read "0 of 5 linked" on an install with 5). FIXED 2026-10-05: the editor keys each
+  tab by pattern id (`patternEditor/index.jsx`). If a tab ever shows another pattern's values again, check that
+  key first.
+- **QA install's Configure tab (`/list/manage_pattern/<id>/configure`, 2026-10-02).** Cards reuse the Overview's
+  classes (`div.overflow-hidden` cards, `t-metaSM` header labels). Covered-sites rows are `div.grid`; find one with
+  `page.locator('div.grid', { has: page.locator('span:text-is("<pattern name>")') })`. In a row: the on/off switch
+  is the `[aria-checked]` element; inputs in order are short key (disabled = locked), label, order; a page pattern
+  has a "every page" / "N pages" button that opens the page-limit picker. Header and message text render in
+  capitals (`innerText` returns them so), so match case-insensitively: the save bar reads "SAVED · ADDED 1 PAGE
+  FROM PAGES" after a backfill.
 - **The probe token is per app, and the wrong one fails quietly.** Bare `--auth` injects the npmrdsv5 token
   (`.dms-auth-token`). On another app (e.g. `qa_test`) the user menu still shows the dev account, but the server
   returns pattern rows without their settings, so the page renders as if unconfigured (a `qa` install shows "datasets

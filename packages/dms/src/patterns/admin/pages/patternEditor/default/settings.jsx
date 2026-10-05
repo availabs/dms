@@ -579,8 +579,10 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
 // A QA install's datasets: how many its row links, how many exist but aren't linked (left by
 // an interrupted set-up), how many are missing; a button that finishes the set-up
 // (patterns/qa/install.js adopts what exists and creates the rest); and a link to the Datasets
-// pattern that lists them, when one uses the install's environment.
-function QaPatternSettings({ value, onChange, apiLoad }) {
+// pattern that lists them, when one uses the install's environment. Shown on the Overview and on
+// the install's Configure tab (patternEditor/qa/configureTab.jsx); each tab's Save writes what
+// "finish set-up" adds to its draft.
+export function QaPatternSettings({ value, onChange, apiLoad }) {
   const { app, type, siteType } = useContext(AdminContext);
   const { theme } = useContext(ThemeContext);
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }

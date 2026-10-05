@@ -7,6 +7,7 @@ import { createSiteTheme } from './pages/createSite.theme'
 import { editSiteTheme } from './pages/editSite.theme'
 import { patternEditorTheme } from './pages/patternEditor/patternEditor.theme'
 import { settingsEditorTheme } from './pages/patternEditor/default/settings.theme'
+import { qaConfigureTheme } from './pages/patternEditor/qa/configureTab.theme'
 import { filterEditorTheme } from './pages/patternEditor/default/filterEditor.theme'
 import { permissionsEditorTheme } from './pages/patternEditor/default/permissionsEditor.theme'
 import { themeEditorTheme } from './pages/patternEditor/default/themeEditor.theme'
@@ -25,6 +26,7 @@ export default {
     editSite: editSiteTheme,
     patternEditor: patternEditorTheme,
     settingsEditor: settingsEditorTheme,
+    qaConfigure: qaConfigureTheme,
     filterEditor: filterEditorTheme,
     permissionsEditor: permissionsEditorTheme,
     themeEditor: themeEditorTheme,

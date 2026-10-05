@@ -442,6 +442,8 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can) => {
   const tabs = [
     ['Overview', 'overview', 'InfoCircle'],
     ...(isPage ? [['Pages', 'pages', 'Pages']] : []),
+    // patternEditor/index.jsx lists the same tab (qaConfigureTab).
+    ...(pattern.pattern_type === 'qa' ? [['Configure', 'configure', 'Settings']] : []),
     ['Access', 'permissions', 'Lock'],
     ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon']] : []),
     ['Theme', 'theme', 'AdjustmentsHorizontal'],

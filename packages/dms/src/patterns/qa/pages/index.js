@@ -44,8 +44,9 @@ const addTicketUrl = (pattern, tickets, datasetPatterns = []) => {
 // `index: 0` page.
 // `pattern` is the install's pattern row; its `qa.datasets` bind the data sections. `app`,
 // `baseUrl` and `datasetPatterns` come from the route config (loaded pattern rows don't carry app).
-// `sites`: the covered sub-sites (coveredSites below), or null until they've loaded.
-export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [], sites = null } = {}) {
+// `sites`: the covered sub-sites (coveredSites below), or null until they've loaded. `siteLabels`:
+// short key → label, from every covered-sites row (siteLabelsFrom below).
+export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [], sites = null, siteLabels = {} } = {}) {
   const datasets = pattern?.qa?.datasets || {}
   const tickets = datasets.tickets
   if (!tickets || !datasets.pages || !datasets.stories) {
@@ -59,14 +60,14 @@ export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [],
   }
   const ctx = {
     app, pattern, baseUrl, datasets, tickets, sites,
-    siteLabels: pattern.qa.siteLabels || {},
+    siteLabels,
     addTicketUrl: addTicketUrl(pattern, tickets, datasetPatterns),
   }
   return [overviewPage(ctx), ticketsPage(ctx), ticketPage(ctx), pageQaPage(ctx)]
 }
 
 // The covered sub-sites the Overview shows (defined beside track-on-publish, which reads them too).
-export { coveredSites, COVERED_SITE_COLUMNS } from '../tracking'
+export { coveredSites, siteLabelsFrom, COVERED_SITE_COLUMNS } from '../tracking'
 
 // The page for a URL slug (the route's `*` param); a trailing slash is ignored.
 // The bare URL and an unknown slug get the `index: 0` page, as on a page pattern
