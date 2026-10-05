@@ -273,7 +273,26 @@ async function setupAndListen() {
   // Mount plugin routes with shared helpers
   const tasks = require('./dama/tasks');
   const metadata = require('./dama/upload/metadata');
+  const lineage = require('./dama/lineage');
+  const damaDelete = require('./dama/delete');
+  const { isUserAuthedForSource } = require('./routes/uda/sourceAuth');
   const { getDb, loadConfig } = require('./db');
+  // Plugin routes are open unless they check, so a route that writes calls one of these first.
+  // Both answer the request themselves (401 / 403) and return null when the caller is refused.
+  const requireUser = (req, res) => {
+    const user = req.availAuthContext?.user;
+    if (!user) { res.status(401).json({ error: 'authentication required' }); return null; }
+    return user;
+  };
+  const requireSourcePermission = async (req, res, sourceId, perms) => {
+    const user = requireUser(req, res);
+    if (!user) return null;
+    const ok = await isUserAuthedForSource({
+      db: getDb(req.params.pgEnv), sourceId: +sourceId, reqPermissions: [].concat(perms), user,
+    });
+    if (!ok) { res.status(403).json({ error: `requires ${[].concat(perms).join(' or ')} on source ${sourceId}` }); return null; }
+    return user;
+  };
   mountDatatypeRoutes(app, {
     queueTask: tasks.queueTask,
     getTaskStatus: tasks.getTaskStatus,
@@ -282,6 +301,11 @@ async function setupAndListen() {
     createDamaSource: metadata.createDamaSource,
     createDamaView: metadata.createDamaView,
     ensureSchema: metadata.ensureSchema,
+    deleteDamaView: damaDelete.deleteDamaView,
+    getViewLineage: lineage.getViewLineage,
+    getSourceLineage: lineage.getSourceLineage,
+    requireUser,
+    requireSourcePermission,
     getDb,
     loadConfig,
     storage: require('./dama/storage'),

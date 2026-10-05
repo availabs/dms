@@ -17,6 +17,7 @@ const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
+const { getViewLineage, getSourceLineage } = require('../../dama/lineage');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -549,6 +550,24 @@ async function getViewById(env, ids, attributes) {
     [ids.map(Number)]
   );
   return rows;
+}
+
+// ------------------------------------------------ lineage (derived, read-only) ------------------------------------------------
+// Lineage lives on views (dama/lineage.js); a source's lineage is a roll-up of its views, computed
+// on read. DaMa only: DMS internal views record no lineage, so they read as empty.
+
+async function getViewLineageById(env, ids) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) return new Map(ids.map(id => [+id, { view_id: +id, inputs: [], produced_by: null, outputs: [] }]));
+  return getViewLineage(env, ids, { db });
+}
+
+async function getSourceLineageById(env, ids) {
+  const { isDms, db } = await getEssentials({ env });
+  if (isDms) {
+    return new Map(ids.map(id => [+id, { source_id: +id, views: [], input_source_ids: [], produced_source_ids: [], source_names: {} }]));
+  }
+  return getSourceLineage(env, ids, { db });
 }
 
 async function getViewBySrcCategories (env, category){
@@ -1283,6 +1302,8 @@ module.exports = {
   updateView,
   getViewBySrcCategories,
   createSourceView,
+  getViewLineageById,
+  getSourceLineageById,
 
   // Data queries
   simpleFilterLength,

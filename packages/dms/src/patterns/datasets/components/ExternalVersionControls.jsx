@@ -1,4 +1,3 @@
-import {Link} from "react-router";
 import React, {useContext, useEffect, useMemo, useState} from "react";
 import {DatasetsContext} from "../context";
 import {get} from "lodash-es";
@@ -425,12 +424,6 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     >
                         <i className={'fa fa-download'}/> Cache PM Tiles
                     </Button>
-                    <Link
-                        className={t.deleteViewLink}
-                        to={`${baseUrl}/source/${sourceId}/versions/${viewId}/delete`}
-                    >
-                        <i className={t.trashIcon}/> Delete View
-                    </Link>
                 </div>
             ) : (
                 ""

@@ -123,4 +123,23 @@ export const sourceOverviewTheme = {
     verAuthSave:           'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-blue-700 text-white hover:bg-blue-800',
     verAuthSaveDisabled:   'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-gray-100 text-gray-400 cursor-not-allowed',
     verAuthCancel:         'text-xs text-gray-500 hover:text-gray-800 hover:underline',
+
+    // ── view lineage + delete version (components/LineageControls.jsx, default/outputs.jsx) ──
+    verInputsChangedChip:  'inline-flex items-center px-1.5 h-4 rounded border border-violet-300 bg-violet-50 text-[9px] uppercase tracking-wide text-violet-800',
+    linCard:               'rounded-lg border border-gray-200 bg-white shadow-sm p-3 space-y-3',
+    linSection:            'space-y-1',
+    linLabel:              'text-xs uppercase tracking-wide text-gray-500',
+    linList:               'flex flex-col gap-1',
+    linItem:               'flex items-baseline gap-2 text-sm text-gray-800',
+    linLink:               'text-sm text-blue-700 hover:underline',
+    linMeta:               'text-xs text-gray-400',
+    linMissing:            'text-sm text-gray-400',
+    verDeleteBtn:          'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+    verDeleteDialog:       'space-y-3 p-1',
+    verDeleteTitle:        'text-base font-semibold text-gray-900',
+    verDeleteText:         'text-sm text-gray-600 leading-snug',
+    verDeleteRefusal:      'text-sm text-red-700 bg-red-50 rounded-md p-2 leading-snug',
+    verDeleteButtons:      'flex items-center justify-end gap-3',
+    verDeleteConfirm:      'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-red-700 text-white hover:bg-red-800 disabled:opacity-50',
+    verDeleteCancel:       'text-sm text-gray-500 hover:text-gray-800 hover:underline',
 }

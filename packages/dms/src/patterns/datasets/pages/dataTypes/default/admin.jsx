@@ -9,6 +9,7 @@ import SourceAccessEditor from "../../../components/SourceAccessEditor";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
 import { updateSourceData } from "./utils";
+import { udaDeleteSource } from "../../../../../api";
 
 const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
     const { theme } = useContext(ThemeContext) || {};
@@ -97,10 +98,12 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
 }
 
 /**
- * 3-option delete button for DAMA sources.
- * Cancel: close. Delete: soft (source+view rows only). Hard Delete: also drops
- * data tables, removes download files, and clears task history — requires the
- * user to type the source name to confirm.
+ * Delete button for DAMA sources. There is one Delete (owner decision 2026-10-02,
+ * dama-parent-child-etl-support.md): it removes the source, every view and its data table, download
+ * files and task history, and requires the user to type the source name. The server refuses while
+ * a view of another source was built from one of these views, or while this source's runs produced
+ * versions of other sources (it then offers to delete those too). To retire a source without
+ * deleting anything, put it in the Archive category instead.
  */
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const { theme } = useContext(ThemeContext) || {};
@@ -110,31 +113,32 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const [open, setOpen] = useState(false);
     const [typedName, setTypedName] = useState('');
     const [busy, setBusy] = useState(false);
-    const [err, setErr] = useState(null);
+    const [refusal, setRefusal] = useState(null);
     const navigate = useNavigate();
 
     const sourceId = source?.source_id || source?.id;
     const sourceName = source?.name || '';
     const nameMatches = typedName.trim() === sourceName.trim() && sourceName.length > 0;
 
-    const reset = () => { setTypedName(''); setErr(null); setBusy(false); };
+    const reset = () => { setTypedName(''); setRefusal(null); setBusy(false); };
     const close = () => { setOpen(false); reset(); };
 
-    const runDelete = async (hard) => {
-        if (!sourceId) { setErr('No source_id on this source'); return; }
-        setBusy(true); setErr(null);
+    const runDelete = async (cascade) => {
+        if (!sourceId) { setRefusal({error: 'No source_id on this source'}); return; }
+        setBusy(true); setRefusal(null);
         try {
-            const callPath = hard
-                ? ['uda', 'sources', 'hardDelete']
-                : ['uda', 'sources', 'delete'];
-            await falcor.call(callPath, [pgEnv, sourceId]);
+            const result = await udaDeleteSource(falcor, {env: pgEnv, source_id: sourceId, cascade});
+            if (!result || result.error) {
+                setRefusal(result || {error: 'The server did not answer the delete.'});
+                setBusy(false);
+                return;
+            }
             await falcor.invalidate(['uda', pgEnv, 'sources']);
             await falcor.invalidate(['uda', pgEnv, 'sources', 'byId', sourceId]);
             close();
             navigate(baseUrl);
         } catch (e) {
-            setErr(e?.message || String(e));
-        } finally {
+            setRefusal({error: e?.message || String(e)});
             setBusy(false);
         }
     };
@@ -148,17 +152,17 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
                 <div onClick={e => e.stopPropagation()}>
                     <div className={t.deleteModalTitle}>Delete source #{sourceId}</div>
                     <div className={t.deleteModalDesc}>
-                        <p>
-                            <span className={t.emphasisBold}>Delete</span> removes the source and view rows from <code>data_manager</code>.
-                            Per-view data tables and files remain and could be recovered by an admin.
-                        </p>
                         <p className={t.deleteModalDescHard}>
-                            <span className={t.emphasisBoldDanger}>Hard Delete</span> additionally drops each view's data table,
-                            removes download files from storage, and deletes task history. This cannot be undone.
+                            <span className={t.emphasisBoldDanger}>Delete</span> removes the source and every version,
+                            drops each version's data table, removes download files and deletes task history. This cannot be undone.
+                        </p>
+                        <p>
+                            To retire it without deleting anything, put it in the <span className={t.emphasisBold}>Archive</span> category
+                            on the Overview instead.
                         </p>
                     </div>
                     <div className={t.deleteModalConfirmLabel}>
-                        To confirm a <span className={t.emphasisBoldDanger}>Hard Delete</span>, type the source name
+                        To confirm, type the source name
                         <code className={t.codeInline}>{sourceName || '(unnamed)'}</code>:
                     </div>
                     <input
@@ -169,24 +173,27 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
                         autoFocus
                         className={t.deleteModalInput}
                     />
-                    {err ? <div className={t.errorText}>Error: {err}</div> : null}
+                    {refusal ? <div className={t.errorText}>{refusal.error}</div> : null}
                     <div className={t.deleteModalFooter}>
-                        <button
-                            type="button"
-                            disabled={busy || !nameMatches}
-                            className={t.deleteModalHardBtn}
-                            onClick={() => runDelete(true)}
-                        >
-                            {busy ? 'Working…' : 'Hard Delete'}
-                        </button>
-                        <button
-                            type="button"
-                            disabled={busy}
-                            className={t.deleteModalSoftBtn}
-                            onClick={() => runDelete(false)}
-                        >
-                            {busy ? 'Working…' : 'Delete'}
-                        </button>
+                        {refusal?.reason === 'has_outputs' ? (
+                            <button
+                                type="button"
+                                disabled={busy || !nameMatches}
+                                className={t.deleteModalHardBtn}
+                                onClick={() => runDelete(true)}
+                            >
+                                {busy ? 'Working…' : `Delete it and the ${refusal.details?.outputs?.length || ''} versions its runs produced`}
+                            </button>
+                        ) : (
+                            <button
+                                type="button"
+                                disabled={busy || !nameMatches}
+                                className={t.deleteModalHardBtn}
+                                onClick={() => runDelete(false)}
+                            >
+                                {busy ? 'Working…' : 'Delete'}
+                            </button>
+                        )}
                         <button
                             type="button"
                             disabled={busy}

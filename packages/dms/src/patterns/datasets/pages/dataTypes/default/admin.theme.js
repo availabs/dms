@@ -36,7 +36,6 @@ export const adminTheme = {
     deleteModalInput: 'mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-500',
     deleteModalFooter: 'mt-5 flex flex-row-reverse gap-2',
     deleteModalHardBtn: 'inline-flex justify-center rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-40',
-    deleteModalSoftBtn: 'inline-flex justify-center rounded-md bg-yellow-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-yellow-700 disabled:opacity-40',
     deleteModalCancelBtn: 'inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50',
 
     // Inline text emphasis

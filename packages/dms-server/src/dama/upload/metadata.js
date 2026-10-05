@@ -5,6 +5,7 @@
 
 const { getDb } = require('../../db');
 const { nameToSlug } = require('../../db/type-utils');
+const { normalizeProducedBy, assertViewsExist, parseDependencies } = require('../lineage');
 
 const DEFAULT_SCHEMA = 'gis_datasets';
 
@@ -42,13 +43,16 @@ const NO_DEFAULT_CATEGORY_TYPES = ['file_upload'];
  * Categories to stamp on a source created without any. Reads
  * `settings.default_new_source_categories`; an explicit `[]` means "leave them
  * null" and is honoured, a missing/malformed value falls back to the default.
+ * `db` is the caller's handle (a `tx` inside withTransaction): an adapter query
+ * from inside its own transaction throws on SQLite, which would silently fall
+ * back to the default here.
  */
-async function getDefaultNewSourceCategories(pgEnv) {
+async function getDefaultNewSourceCategories(pgEnv, db) {
   try {
     // Required lazily: uda.tasks.controller pulls in the task machinery, and
     // this module is loaded by the upload routes at boot.
     const { getSettings } = require('../../routes/uda/uda.tasks.controller');
-    const raw = await getSettings(pgEnv);
+    const raw = await getSettings(pgEnv, db);
     const settings = typeof raw === 'string' ? JSON.parse(raw || '{}') : (raw || {});
     const cats = settings?.default_new_source_categories;
     if (!Array.isArray(cats)) return DEFAULT_NEW_SOURCE_CATEGORIES;
@@ -62,13 +66,29 @@ async function getDefaultNewSourceCategories(pgEnv) {
 const SAFE_IDENTIFIER = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 /**
+ * A source's stored auth_permissions, parsed (SQLite returns the column as text).
+ * Throws when the source doesn't exist.
+ */
+async function readAuthPermissions(db, sourceId) {
+  const table = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
+  const { rows } = await db.query(`SELECT auth_permissions FROM ${table} WHERE source_id = $1`, [+sourceId]);
+  if (!rows.length) throw new Error(`authPermissionsFrom: source ${sourceId} does not exist`);
+  const ap = rows[0].auth_permissions;
+  if (typeof ap === 'string') { try { return JSON.parse(ap); } catch { return null; } }
+  return ap ?? null;
+}
+
+/**
  * Create a new source record.
  * @param {Object} values - { name, display_name, type, description, user_id, ... }
+ *   - `db`: optional handle to run on (a `tx` from withTransaction); default getDb(pgEnv).
+ *   - `authPermissionsFrom`: a source id whose auth_permissions the new source copies, e.g. a
+ *     pipeline's child sources copying the parent's. Ignored when `authPermissions` is given.
  * @param {string} pgEnv - Database config name
  * @returns {Object} Created source row
  */
 async function createDamaSource(values, pgEnv) {
-  const db = getDb(pgEnv);
+  const db = values.db || getDb(pgEnv);
   const table = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
 
   const { name, display_name, type, description, user_id, metadata, categories } = values;
@@ -85,7 +105,10 @@ async function createDamaSource(values, pgEnv) {
   // New-source default: PRIVATE + creator-owned (authPermissions string-permission model). The
   // creator gets full access; public is revoked (`public: []`) so the pattern's public:[view-source]
   // baseline can't expose a fresh upload — others are granted intentionally. (datasets-permissions-model)
-  const authPermissions = values.authPermissions ||
+  const inherited = !values.authPermissions && values.authPermissionsFrom != null
+    ? await readAuthPermissions(db, values.authPermissionsFrom)
+    : null;
+  const authPermissions = values.authPermissions || inherited ||
     { users: user_id ? { [user_id]: ['*'] } : {}, groups: { public: [] } };
 
   const statisticsJson = statistics ? JSON.stringify(statistics) : null;
@@ -96,25 +119,31 @@ async function createDamaSource(values, pgEnv) {
   const hasCategories = Array.isArray(categories) && categories.length;
   const effectiveCategories = hasCategories
     ? categories
-    : (NO_DEFAULT_CATEGORY_TYPES.includes(type) ? null : await getDefaultNewSourceCategories(pgEnv));
+    : (NO_DEFAULT_CATEGORY_TYPES.includes(type) ? null : await getDefaultNewSourceCategories(pgEnv, db));
   const categoriesJson = effectiveCategories && effectiveCategories.length
     ? JSON.stringify(effectiveCategories)
     : null;
   const authPermissionsJson = JSON.stringify(authPermissions);
 
-  // Try insert, on duplicate name append _N suffix
+  // Try insert, on duplicate name append _N suffix. Inside a caller's Postgres transaction a failed
+  // INSERT aborts the whole transaction, so each attempt runs under a savepoint there and a
+  // duplicate rolls back only that attempt. SQLite rolls back just the failed statement.
+  const savepoint = db.type === 'postgres' && typeof db.afterCommit === 'function'; // a withTransaction tx
   let sourceName = name;
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
+      if (savepoint) await db.query('SAVEPOINT dama_create_source');
       const { rows } = await db.query(`
         INSERT INTO ${table} (name, display_name, type, description, user_id, statistics, metadata, categories, auth_permissions)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *
       `, [sourceName, display_name || null, type || null, description || null, user_id || null,
           statisticsJson, metadataJson, categoriesJson, authPermissionsJson]);
+      if (savepoint) await db.query('RELEASE SAVEPOINT dama_create_source');
 
       return rows[0];
     } catch (err) {
+      if (savepoint) await db.query('ROLLBACK TO SAVEPOINT dama_create_source');
       if (err.code === '23505' || (err.message && err.message.includes('UNIQUE constraint'))) {
         // Duplicate name — append suffix and retry
         attempt++;
@@ -170,15 +199,26 @@ function buildViewTableName(source_id, view_id, source_name) {
 /**
  * Create a new view record with auto-generated table name.
  * Table goes in the gis_datasets schema by default.
- * @param {Object} values - { source_id, user_id, etl_context_id, metadata, view_dependencies }
+ * @param {Object} values - { source_id, user_id, etl_context_id, metadata, view_dependencies, produced_by }
+ *   - `view_dependencies`: the exact input view ids this view is built from. Every id must exist.
+ *   - `produced_by`: `{view_id, output?, stage?}`, the run view (a view of the pipeline's parent
+ *     source) that produced this view. Stored at `metadata.produced_by`; the run view must exist.
+ *     Lineage lives on views (see ../lineage.js), so neither is ever written to a source.
+ *   - `db`: optional handle to run on (a `tx` from withTransaction); default getDb(pgEnv).
  * @param {string} pgEnv - Database config name
  * @returns {Object} Created view row with table_schema and table_name set
  */
 async function createDamaView(values, pgEnv) {
-  const db = getDb(pgEnv);
+  const db = values.db || getDb(pgEnv);
   const table = db.type === 'postgres' ? 'data_manager.views' : 'views';
 
-  const { source_id, user_id, etl_context_id, metadata, view_dependencies } = values;
+  const { source_id, user_id, etl_context_id } = values;
+
+  const dependencies = values.view_dependencies == null ? null : parseDependencies(values.view_dependencies);
+  const producedBy = normalizeProducedBy(values.produced_by ?? values.metadata?.produced_by);
+  await assertViewsExist(db, dependencies || [], 'view_dependencies');
+  if (producedBy) await assertViewsExist(db, [producedBy.view_id], 'produced_by');
+  const metadata = producedBy ? { ...(values.metadata || {}), produced_by: producedBy } : values.metadata;
 
   // metadata is JSONB — explicit stringify (see createDamaSource note).
   // view_dependencies is INTEGER[] — pg driver handles arrays → PG array literals natively.
@@ -188,7 +228,7 @@ async function createDamaView(values, pgEnv) {
     INSERT INTO ${table} (source_id, user_id, etl_context_id, metadata, view_dependencies)
     VALUES ($1, $2, $3, $4, $5)
     RETURNING *
-  `, [source_id, user_id || null, etl_context_id || null, metadataJson, view_dependencies || null]);
+  `, [source_id, user_id || null, etl_context_id || null, metadataJson, dependencies]);
 
   const view = rows[0];
 

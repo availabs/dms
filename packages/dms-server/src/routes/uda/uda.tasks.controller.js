@@ -173,8 +173,8 @@ async function getTaskEventsByIndex(env, taskId, indices, attributes) {
 
 // --- Settings ---
 
-async function getSettings(env) {
-  const db = resolveDb(env);
+// `db` lets a caller inside withTransaction read through its `tx` (see getDefaultNewSourceCategories).
+async function getSettings(env, db = resolveDb(env)) {
   const table = settingsTable(db.type, env);
 
   try {
@@ -460,142 +460,29 @@ async function deleteInternalSource(env, sourceId) {
 }
 
 /**
- * Soft delete: removes the source and its view rows from data_manager.
- * Leaves per-view data tables, task history, and storage files intact.
- * Recoverable if the underlying data hasn't been separately dropped.
+ * Delete a source: every view and its data table (dropped by kind, Postgres VIEWs and ClickHouse
+ * included), its download files, its tasks and the source row. See dama/delete.js for what is
+ * refused (views elsewhere built from it, run outputs in other sources without `cascade`).
  *
- * For DMS env (env contains `+`), branches to `deleteInternalSource` — DMS
- * sources have no soft-vs-hard distinction (the data lives in split tables
- * managed entirely by DMS, so cleanup is unconditional).
+ * Owner decision 2026-10-02 (dama-parent-child-etl-support.md): there is one Delete and it drops
+ * tables; the old keep-tables "soft" delete is gone because it is how 1.3 TB of orphan tables built
+ * up on hazmit_dama. The recoverable path is the Archive lifecycle category. `hardDeleteSource` is
+ * kept as an alias for old clients.
+ *
+ * For DMS env (env contains `+`), branches to `deleteInternalSource` (split tables, dmsEnv refs,
+ * dms.tasks), which already cleaned up unconditionally.
+ *
+ * @param {Object} [opts] - { cascade = false, authorize(sourceIds) } — see deleteDamaSource.
  */
-async function softDeleteSource(env, sourceId) {
+async function softDeleteSource(env, sourceId, opts = {}) {
   if (isDmsEnv(env)) {
     return deleteInternalSource(env, sourceId);
   }
-  const db = resolveDb(env);
-  if (db.type !== 'postgres') {
-    throw new Error('Source delete is only supported on PostgreSQL (data_manager schema)');
-  }
-
-  const { rows: viewRows } = await db.query(
-    `SELECT view_id FROM data_manager.views WHERE source_id = $1`,
-    [sourceId]
-  );
-
-  const rowCount = await db.withTransaction(async (tx) => {
-    await tx.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
-    const { rowCount } = await tx.query(
-      `DELETE FROM data_manager.sources WHERE source_id = $1`,
-      [sourceId]
-    );
-    return rowCount;
-  });
-  return {
-    source_id: sourceId,
-    deleted_source: rowCount > 0,
-    deleted_views: viewRows.map(r => r.view_id),
-  };
+  const { deleteDamaSource } = require('../../dama/delete');
+  return deleteDamaSource(env, sourceId, { ...opts, db: resolveDb(env) });
 }
 
-/**
- * Hard delete: soft delete + drops each view's data table, removes associated
- * download files from storage, and deletes task rows that reference the source.
- *
- * Individual file/table errors are collected and reported in the result rather
- * than aborting — the intent is "wipe everything possible". The metadata row
- * deletions (views, tasks, source) run inside a transaction and roll back if
- * they fail; the external cleanup (DROP TABLE, storage.remove) runs before
- * the transaction so partial success is visible to the caller.
- *
- * For DMS env (env contains `+`), branches to `deleteInternalSource` —
- * already does the equivalent cleanup for the DMS-side data layout (split
- * tables, dmsEnv refs, dms.tasks). Lets the client call either route.
- */
-async function hardDeleteSource(env, sourceId) {
-  if (isDmsEnv(env)) {
-    return deleteInternalSource(env, sourceId);
-  }
-  const db = resolveDb(env);
-  if (db.type !== 'postgres') {
-    throw new Error('Source delete is only supported on PostgreSQL (data_manager schema)');
-  }
-
-  const warnings = [];
-  const dropped_tables = [];
-  const removed_files = [];
-
-  // 1. Fetch view metadata so we know which tables/files to clean up
-  const { rows: viewRows } = await db.query(`
-    SELECT view_id, table_schema, table_name, data_table, metadata
-    FROM data_manager.views WHERE source_id = $1
-  `, [sourceId]);
-
-  // 2. Drop each view's data table and remove per-view download files
-  const storage = (() => {
-    try { return require('../../dama/storage'); }
-    catch (e) { warnings.push(`storage module unavailable: ${e.message}`); return null; }
-  })();
-
-  for (const v of viewRows) {
-    if (v.table_schema && v.table_name) {
-      try {
-        await db.query(`DROP TABLE IF EXISTS "${v.table_schema}"."${v.table_name}"`);
-        dropped_tables.push(`${v.table_schema}.${v.table_name}`);
-      } catch (err) {
-        warnings.push(`failed to drop ${v.table_schema}.${v.table_name}: ${err.message}`);
-      }
-    }
-    const downloadUrls = (v.metadata && v.metadata.download) || {};
-    if (storage) {
-      for (const [fileType, url] of Object.entries(downloadUrls)) {
-        // URLs are returned from storage.getUrl(relPath); local is `/files/{rel}`.
-        const relPath = typeof url === 'string' ? url.replace(/^\/files\//, '') : null;
-        if (!relPath) continue;
-        try {
-          await storage.remove(relPath);
-          removed_files.push(relPath);
-        } catch (err) {
-          warnings.push(`failed to remove file ${relPath}: ${err.message}`);
-        }
-      }
-    }
-  }
-
-  // 3. Remove the source's entire storage folder (catches any stragglers under
-  // the `{pgEnv}/s_{source_id}/` convention used by create-download worker)
-  if (storage) {
-    const sourceDir = `${env}/s_${sourceId}`;
-    try {
-      await storage.remove(sourceDir);
-      removed_files.push(`${sourceDir}/*`);
-    } catch (err) {
-      warnings.push(`failed to remove source dir ${sourceDir}: ${err.message}`);
-    }
-  }
-
-  // 4. Delete metadata rows (views, tasks, source) in a transaction
-  const { deletedTasks, deletedSource } = await db.withTransaction(async (tx) => {
-    const { rowCount: deletedTasks } = await tx.query(
-      `DELETE FROM data_manager.tasks WHERE source_id = $1`,
-      [sourceId]
-    );
-    await tx.query(`DELETE FROM data_manager.views WHERE source_id = $1`, [sourceId]);
-    const { rowCount: deletedSource } = await tx.query(
-      `DELETE FROM data_manager.sources WHERE source_id = $1`,
-      [sourceId]
-    );
-    return { deletedTasks, deletedSource };
-  });
-  return {
-    source_id: sourceId,
-    deleted_source: deletedSource > 0,
-    deleted_views: viewRows.map(r => r.view_id),
-    deleted_tasks: deletedTasks,
-    dropped_tables,
-    removed_files,
-    warnings,
-  };
-}
+const hardDeleteSource = softDeleteSource;
 
 module.exports = {
   getTasksLength,

@@ -758,6 +758,77 @@ export async function udaClearAuthoritativeView(falcor, { env, source_id, key })
 	return get(res, ["json", "uda", env, "sources", "byId", +source_id, "authority"]) ?? null;
 }
 
+/**
+ * Lineage of DaMa views (dama-parent-child-etl-support.md G1): per view `{inputs, produced_by,
+ * outputs}` (see dms-server dama/lineage.js). Lineage lives on views; it is derived on the server and
+ * never stored on a source. Read in its own request, invalidated first because runs and deletes
+ * change it, and fault-tolerant: an older server reads `lineage` as a column and fails the request.
+ * Returns {[view_id]: lineage|null}.
+ */
+export async function udaGetViewsLineage(falcor, { env, view_ids }) {
+	const ids = [...new Set((view_ids || []).map(Number).filter(Boolean))];
+	if (!falcor || !env || !ids.length) return {};
+	try {
+		await falcor.invalidate(["uda", env, "views", "byId", ids, "lineage"]);
+		const res = await falcor.get(["uda", env, "views", "byId", ids, "lineage"]);
+		const byId = get(res, ["json", "uda", env, "views", "byId"], {});
+		return Object.fromEntries(ids.map(id => [id, byId?.[id]?.lineage ?? null]));
+	} catch {
+		return {};
+	}
+}
+
+/** A source's lineage roll-up (per-view input sources, `inputs_changed`, unions); null when unavailable. */
+export async function udaGetSourceLineage(falcor, { env, source_id }) {
+	if (!falcor || !env || !source_id) return null;
+	const path = ["uda", env, "sources", "byId", +source_id, "lineage"];
+	try {
+		await falcor.invalidate(path);
+		const res = await falcor.get(path);
+		return get(res, ["json", ...path], null) ?? null;
+	} catch {
+		return null;
+	}
+}
+
+/** Authority records for several sources ({[source_id]: {views}|null}). Fault-tolerant, own request. */
+export async function udaGetSourceAuthorities(falcor, { env, source_ids }) {
+	const ids = [...new Set((source_ids || []).map(Number).filter(Boolean))];
+	if (!falcor || !env || !ids.length) return {};
+	try {
+		const res = await falcor.get(["uda", env, "sources", "byId", ids, "authority"]);
+		const byId = get(res, ["json", "uda", env, "sources", "byId"], {});
+		return Object.fromEntries(ids.map(id => [id, byId?.[id]?.authority ?? null]));
+	} catch {
+		return {};
+	}
+}
+
+/**
+ * Delete a DaMa view and drop its table. The server refuses (result `{error, reason}`) while another
+ * view was built from it (`has_dependents`), while it is authoritative (`authoritative`), or while it
+ * is a run view whose outputs would be orphaned (`has_outputs`, unless `cascade`). Needs a signed-in
+ * user with `delete-source`. Returns the server's result atom.
+ */
+export async function udaDeleteView(falcor, { env, view_id, cascade = false }) {
+	if (!falcor) throw new Error("No falcor client");
+	if (!env || view_id == null) throw new Error("env and view_id are required");
+	const res = await falcor.call(["uda", "views", "delete"], [env, +view_id, { cascade: !!cascade }]);
+	return get(res, ["json", "uda", env, "views", "delete"]) ?? null;
+}
+
+/**
+ * Delete a DaMa source: every view and its table, its files, tasks and the row (one Delete since
+ * 2026-10-02; Archive is the recoverable path). Same refusals as udaDeleteView, for views outside the
+ * source. Returns the server's result atom.
+ */
+export async function udaDeleteSource(falcor, { env, source_id, cascade = false }) {
+	if (!falcor) throw new Error("No falcor client");
+	if (!env || !source_id) throw new Error("env and source_id are required");
+	const res = await falcor.call(["uda", "sources", "delete"], [env, +source_id, { cascade: !!cascade }]);
+	return get(res, ["json", "uda", env, "sources", "delete"]) ?? null;
+}
+
 // Batched existence check — given an app and a list of ids, returns the Set of ids (as strings)
 // that currently exist as data_items rows for that app, regardless of kind/type. Bypasses
 // dmsDataLoader/createRequest's 'edit'/'view' action path (which derives exactly one id-ref per

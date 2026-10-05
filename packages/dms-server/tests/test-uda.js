@@ -2166,6 +2166,172 @@ async function testDamaModeAuthoritativeViews() {
   pass('DAMA authority cleanup complete');
 }
 
+// ================================================= DaMa lineage + delete ================================================
+// dama-parent-child-etl-support.md G1/G5: lineage lives on views; delete drops tables.
+
+async function testDamaLineageAndDelete() {
+  console.log('\n--- DAMA Mode: view lineage + delete ---');
+  const { getDb } = require('../src/db/index');
+  const { createDamaView } = require('../src/dama/upload/metadata');
+  const db = getDb(DAMA_DB);
+  const isPg = db.type === 'postgres';
+  const srcTbl = isPg ? 'data_manager.sources' : 'sources';
+  const viewTbl = isPg ? 'data_manager.views' : 'views';
+  const unwrap = (a) => (a && a.$type === 'atom' ? a.value : a);
+  const sources = [];
+
+  const mkSource = async (name, grant = { groups: { admin: ['*'] } }) => {
+    const { rows: [r] } = await db.query(
+      `INSERT INTO ${srcTbl} (name, type, auth_permissions) VALUES ($1, 'csv', $2) RETURNING source_id AS id`,
+      [`${name} ${Date.now()}`, JSON.stringify(grant)]);
+    sources.push(+r.id);
+    return +r.id;
+  };
+  if (isPg) await db.query('CREATE SCHEMA IF NOT EXISTS gis_datasets');
+  // A view with a real table, made the way a worker makes one (createDamaView validates the lineage).
+  const mkView = async (source_id, extra = {}) => {
+    const v = await createDamaView({ source_id, ...extra }, DAMA_DB);
+    await db.query(isPg ? `CREATE TABLE gis_datasets."${v.table_name}" (id int)` : `CREATE TABLE "${v.table_name}" (id int)`);
+    return v;
+  };
+  const tableExists = async (name) => (isPg
+    ? (await db.query(`SELECT to_regclass($1) IS NOT NULL AS ok`, [`gis_datasets."${name}"`])).rows[0].ok
+    : (await db.query(`SELECT count(*) AS n FROM sqlite_master WHERE name = $1`, [name])).rows[0].n > 0);
+  const viewLineage = async (id) => unwrap((await graph.getAsync([['uda', DAMA_DB, 'views', 'byId', id, 'lineage']]))
+    .jsonGraph.uda[DAMA_DB].views.byId[id].lineage);
+  const sourceLineage = async (id) => unwrap((await graph.getAsync([['uda', DAMA_DB, 'sources', 'byId', id, 'lineage']]))
+    .jsonGraph.uda[DAMA_DB].sources.byId[id].lineage);
+  const callDelete = async (g, route, args) => {
+    const res = await g.callAsync(['uda', ...route], args);
+    return unwrap(res.jsonGraph.uda[args[0]][route[0]][route[1]]);
+  };
+
+  // Three raw sources, a pipeline parent P and its child D (two runs, different inputs).
+  const rawA = await mkSource('Lineage Raw A');
+  const rawB = await mkSource('Lineage Raw B');
+  const rawC = await mkSource('Lineage Raw C');
+  const parent = await mkSource('Lineage Pipeline');
+  const child = await mkSource('Lineage DLS');
+  const a1 = await mkView(rawA);
+  const b1 = await mkView(rawB);
+  const c1 = await mkView(rawC);
+  const r1 = await mkView(parent, { view_dependencies: [a1.view_id, b1.view_id] });
+  const d1 = await mkView(child, { view_dependencies: [a1.view_id, b1.view_id], produced_by: { view_id: r1.view_id, output: 'dls', stage: 'derive' } });
+  const r2 = await mkView(parent, { view_dependencies: [a1.view_id, c1.view_id] });
+  const d2 = await mkView(child, { view_dependencies: [a1.view_id, c1.view_id], produced_by: { view_id: r2.view_id, output: 'dls', stage: 'derive' } });
+
+  // createDamaView never records a ghost.
+  let refused = null;
+  try { await createDamaView({ source_id: child, view_dependencies: [a1.view_id, 99999999] }, DAMA_DB); } catch (e) { refused = e.message; }
+  assert(/99999999 do not exist/.test(refused || ''), `unknown dependency refused, got ${refused}`);
+  refused = null;
+  try { await createDamaView({ source_id: child, produced_by: { view_id: 99999999 } }, DAMA_DB); } catch (e) { refused = e.message; }
+  assert(/produced_by: view\(s\) 99999999/.test(refused || ''), `unknown producer refused, got ${refused}`);
+  refused = null;
+  try { await createDamaView({ source_id: child, produced_by: { output: 'dls' } }, DAMA_DB); } catch (e) { refused = e.message; }
+  assert(/produced_by.view_id/.test(refused || ''), `producer without a view id refused, got ${refused}`);
+  const { rows: [stored] } = await db.query(`SELECT metadata, view_dependencies FROM ${viewTbl} WHERE view_id = $1`, [d1.view_id]);
+  const storedMeta = typeof stored.metadata === 'string' ? JSON.parse(stored.metadata) : stored.metadata;
+  assert(storedMeta.produced_by.view_id === r1.view_id && storedMeta.produced_by.output === 'dls', 'produced_by stored on the view');
+  pass('createDamaView stores produced_by on the view and refuses unknown inputs/producers');
+
+  const l1 = await viewLineage(d1.view_id);
+  assert(l1.inputs.map(i => i.source_id).sort().join() === [rawA, rawB].sort().join(), `d1 inputs, got ${JSON.stringify(l1.inputs)}`);
+  assert(l1.produced_by.view_id === r1.view_id && l1.produced_by.source_id === parent && l1.produced_by.output === 'dls', 'd1 producer');
+  assert(l1.outputs.length === 0, 'an output view produced nothing');
+  const lr1 = await viewLineage(r1.view_id);
+  assert(lr1.outputs.length === 1 && lr1.outputs[0].view_id === d1.view_id && lr1.outputs[0].source_id === child, `r1 outputs, got ${JSON.stringify(lr1.outputs)}`);
+  assert(lr1.produced_by === null, 'a run view has no producer');
+  assert((await viewLineage(99999999)) == null, 'unknown view reads null');
+  pass('views.byId.lineage: inputs, producer, and a run view\'s derived outputs');
+
+  const sd = await sourceLineage(child);
+  const [e1, e2] = sd.views;
+  assert(e1.view_id === d1.view_id && !e1.inputs_changed, 'first version has no previous inputs');
+  assert(e2.view_id === d2.view_id && e2.inputs_changed, 'second version built from different sources is flagged');
+  assert(e2.inputs_added.join() === String(rawC) && e2.inputs_removed.join() === String(rawB), `added/removed, got ${JSON.stringify(e2)}`);
+  assert(sd.input_source_ids.join() === [rawA, rawB, rawC].sort((x, y) => x - y).join(), 'union of input sources');
+  assert(sd.source_names[rawC] && sd.source_names[rawC].startsWith('Lineage Raw C'), 'referenced source names included');
+  const sp = await sourceLineage(parent);
+  assert(sp.produced_source_ids.join() === String(child), `parent produced sources, got ${sp.produced_source_ids}`);
+  assert(sp.views.every(v => v.output_count === 1), 'each run view produced one view');
+  pass('sources.byId.lineage: per-view roll-up, inputs-changed, unions; nothing stored on sources');
+  const { rows: [srcRow] } = await db.query(`SELECT metadata, source_dependencies FROM ${srcTbl} WHERE source_id = $1`, [child]);
+  assert(srcRow.metadata == null && srcRow.source_dependencies == null, 'the child source row carries no lineage');
+  pass('the child source row is untouched (lineage lives on views)');
+
+  // ---- delete refusals ----
+  let res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, a1.view_id]);
+  assert(res.reason === 'has_dependents' && res.details.dependents.length === 4, `input view refused, got ${JSON.stringify(res)}`);
+  res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, r1.view_id]);
+  assert(res.reason === 'has_outputs' && /cascade/.test(res.error), `run view without cascade refused, got ${JSON.stringify(res)}`);
+  await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'], [DAMA_DB, child, { view_id: d2.view_id, note: 'test' }]);
+  res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, d2.view_id]);
+  assert(res.reason === 'authoritative', `authoritative view refused, got ${JSON.stringify(res)}`);
+  const anon = createTestGraph(DMS_DB, { user: null });
+  await anon.ready;
+  res = await callDelete(anon, ['views', 'delete'], [DAMA_DB, d1.view_id]);
+  assert(/Sign in/.test(res.error), `unauthenticated delete refused, got ${JSON.stringify(res)}`);
+  const locked = await mkSource('Lineage Locked', { groups: { admin: ['update-source'] } });
+  const l1v = await mkView(locked);
+  res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, l1v.view_id]);
+  assert(/delete-source/.test(res.error), `no delete-source grant refused, got ${JSON.stringify(res)}`);
+  assert(await tableExists(a1.table_name) && await tableExists(d2.table_name), 'refused deletes dropped nothing');
+  pass('views.delete refuses: an input of other views, a run view with outputs, an authoritative view, no sign-in, no delete-source');
+
+  // ---- cascade: the run view and what it produced ----
+  res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, r1.view_id, { cascade: true }]);
+  assert(!res.error, `cascade delete ran, got ${JSON.stringify(res)}`);
+  assert(res.deleted_views.sort().join() === [r1.view_id, d1.view_id].sort().join(), `deleted r1 + d1, got ${res.deleted_views}`);
+  assert(res.cascaded_views.join() === String(d1.view_id), 'd1 came in through the cascade');
+  assert(!(await tableExists(r1.table_name)) && !(await tableExists(d1.table_name)), 'their tables were dropped');
+  assert(await tableExists(a1.table_name), 'the inputs remain');
+  const { rows: gone } = await db.query(`SELECT view_id FROM ${viewTbl} WHERE view_id = ANY($1)`, [[r1.view_id, d1.view_id]]);
+  assert(gone.length === 0, 'their view rows are gone');
+  pass('views.delete with cascade removes a run view and the views it produced, dropping their tables');
+
+  // ---- a table another view still names is kept; a database VIEW is dropped as a VIEW ----
+  const shared = await mkView(rawB);
+  const { rows: [twin] } = await db.query(
+    `INSERT INTO ${viewTbl} (source_id, table_schema, table_name) VALUES ($1, $2, $3) RETURNING view_id`,
+    [rawB, shared.table_schema, shared.table_name]);
+  res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, twin.view_id]);
+  assert(res.kept_tables.length === 1 && await tableExists(shared.table_name), `shared table kept, got ${JSON.stringify(res)}`);
+  const asView = await createDamaView({ source_id: rawB }, DAMA_DB);
+  await db.query(isPg
+    ? `CREATE VIEW gis_datasets."${asView.table_name}" AS SELECT 1 AS id`
+    : `CREATE VIEW "${asView.table_name}" AS SELECT 1 AS id`);
+  res = await callDelete(graph, ['views', 'delete'], [DAMA_DB, asView.view_id]);
+  assert(res.dropped_tables.length === 1 && !(await tableExists(asView.table_name)), `database VIEW dropped, got ${JSON.stringify(res)}`);
+  pass('a table shared with another view is kept; a database VIEW is dropped as a VIEW');
+
+  // ---- source delete ----
+  res = await callDelete(graph, ['sources', 'delete'], [DAMA_DB, rawA]);
+  assert(res.reason === 'has_dependents', `source whose view feeds others refused, got ${JSON.stringify(res)}`);
+  res = await callDelete(graph, ['sources', 'delete'], [DAMA_DB, parent]);
+  assert(res.reason === 'has_outputs', `pipeline with outputs elsewhere refused without cascade, got ${JSON.stringify(res)}`);
+  res = await callDelete(graph, ['sources', 'delete'], [DAMA_DB, parent, { cascade: true }]);
+  assert(res.reason === 'authoritative', `cascade into an authoritative output refused, got ${JSON.stringify(res)}`);
+  await graph.callAsync(['uda', 'sources', 'clearAuthoritativeView'], [DAMA_DB, child, {}]);
+  res = await callDelete(graph, ['sources', 'delete'], [DAMA_DB, parent, { cascade: true }]);
+  assert(res.deleted_source && res.deleted_views.sort().join() === [r2.view_id, d2.view_id].sort().join(), `pipeline + its outputs deleted, got ${JSON.stringify(res)}`);
+  res = await callDelete(graph, ['sources', 'hardDelete'], [DAMA_DB, rawA]);
+  assert(res.deleted_source && !(await tableExists(a1.table_name)), `alias deletes and drops, got ${JSON.stringify(res)}`);
+  const { rows: left } = await db.query(`SELECT source_id FROM ${srcTbl} WHERE source_id = ANY($1)`, [[parent, rawA]]);
+  assert(left.length === 0, 'the source rows are gone');
+  pass('sources.delete drops every table; refuses dependents and run outputs elsewhere unless cascade; hardDelete is an alias');
+
+  // cleanup: the remaining test sources (their tables first)
+  const { rows: remaining } = await db.query(`SELECT table_name FROM ${viewTbl} WHERE source_id = ANY($1)`, [sources]);
+  for (const r of remaining) {
+    if (!r.table_name) continue;
+    await db.query(isPg ? `DROP TABLE IF EXISTS gis_datasets."${r.table_name}"` : `DROP TABLE IF EXISTS "${r.table_name}"`);
+  }
+  await db.query(`DELETE FROM ${viewTbl} WHERE source_id = ANY($1)`, [sources]);
+  await db.query(`DELETE FROM ${srcTbl} WHERE source_id = ANY($1)`, [sources]);
+  pass('DAMA lineage/delete cleanup complete');
+}
+
 async function testDmsModeAuthoritativeViews() {
   console.log('\n--- DMS Mode: authoritative views ---');
   const PATTERN_INSTANCE = 'authpat';
@@ -2282,6 +2448,7 @@ async function run() {
     testAuthorityUnit();
     await testDamaModeAuthoritativeViews();
     await testDmsModeAuthoritativeViews();
+    await testDamaLineageAndDelete();
 
     console.log(`\n=== UDA Tests: ${testsPassed} passed, ${testsFailed} failed ===`);
     if (testsFailed > 0) process.exit(1);

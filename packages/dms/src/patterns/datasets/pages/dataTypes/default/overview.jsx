@@ -11,6 +11,8 @@ import { FALLBACK_SWATCHES, catColor, splitCategories } from "../../../utils/cat
 import { SANDBOX_CATEGORY, resolveHiddenForPattern, promotionBlockers } from "../../../utils/lifecycle";
 import { isAuthoritative, authorityState } from "../../../utils/authority";
 import AuthorityControl, { AuthorityBadge } from "../../../components/AuthorityControl";
+import { InputsChangedChip } from "../../../components/LineageControls";
+import { udaGetSourceLineage } from "../../../../../api";
 
 // Every place a view can carry a downloadable artifact, in one list so the Versions card is the
 // single download surface (a file_upload source therefore needs no page of its own):
@@ -109,6 +111,18 @@ export default function Overview ({
     const categoriesValue = Array.isArray(parseIfJson(source?.categories)) ? parseIfJson(source?.categories) : [];
     const swatches = t.catSwatches || FALLBACK_SWATCHES;
     const { tops: catTops, subs: catSubs } = splitCategories({ categories: categoriesValue });
+
+    // Lineage roll-up (DaMa): marks a version built from different sources than the previous one.
+    // Lineage lives on views; this is derived per read and never stored on the source.
+    const [lineage, setLineage] = useState(null);
+    useEffect(() => {
+        if (isDms || !pgEnv || !falcor || !id) return;
+        let cancelled = false;
+        udaGetSourceLineage(falcor, {env: pgEnv, source_id: id}).then(l => { if (!cancelled) setLineage(l); });
+        return () => { cancelled = true; };
+    }, [isDms, pgEnv, falcor, id, views.length]);
+    const lineageByView = useMemo(
+        () => Object.fromEntries((lineage?.views || []).map(v => [v.view_id, v])), [lineage]);
 
     // Env settings carry the lifecycle deltas and the promotion gate. Read here
     // rather than threaded through props so this card works on every data type.
@@ -347,6 +361,7 @@ export default function Overview ({
                                                     <Link to={`${pageBaseUrl}/${id}/version/${viewId}`} className={t.verName}>{view?.name || (viewId != null ? `v${viewId}` : 'No Name')}</Link>
                                                     <AuthorityBadge t={t} entry={authEntry}/>
                                                     {isCurrent && <span className={t.verCurrentBadge}>latest</span>}
+                                                    <InputsChangedChip t={t} entry={lineageByView[+viewId]} names={lineage?.source_names}/>
                                                 </div>
                                                 <div className={t.verMeta}>
                                                     {view?.row_count ? `${Number(view.row_count).toLocaleString()} rows · ` : ''}

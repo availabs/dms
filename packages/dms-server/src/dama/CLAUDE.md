@@ -17,6 +17,8 @@ src/dama/
 │   ├── index.js       # queueTask, registerHandler, polling loop
 │   ├── host-id.js     # host-isolation: one server only runs its own tasks
 │   └── worker-runner.js
+├── lineage.js         # view lineage reads (view_dependencies + metadata.produced_by)
+├── delete.js          # deleteDamaView / deleteDamaSource: drops tables, refuses broken lineage
 ├── upload/            # file upload + ETL pipeline (CSV, GIS, internal_table)
 │   ├── index.js       # mountUploadRoutes
 │   ├── metadata.js    # createDamaSource, createDamaView, ensureSchema
@@ -62,7 +64,15 @@ One row per **versioned snapshot** of a source. Most plugins create exactly one 
 | `data_table` | TEXT | Convenience: `{schema}.{name}`. |
 | `metadata` | JSONB | Per-view: tile config, `schema` tag, etc. **Distinct from the source's metadata** — view metadata is per-snapshot (e.g. tile sources change between uploads), source metadata is the contract. |
 | `etl_context_id` | INT | **DEPRECATED — do not write.** Legacy pointer into `data_manager.etl_contexts`, which nothing writes anymore. Record the producing task as `metadata.task_id` instead. (Not to be confused with the `{ etl_context_id, source_id }` *route response* field, which is live and IS the task id — see "Response contract".) |
-| `view_dependencies` | INT[] | Other view_ids this view was derived from. |
+| `view_dependencies` | INT[] | The exact view_ids this view was built from. `createDamaView` refuses ids that don't exist. |
+
+**Lineage lives on views** (`lineage.js`). A source is only metadata about its views: two views of
+one source can be built from entirely different sources (DLS 858's views 1647 and 2398 share 2 of 6
+input sources). So a pipeline records `view_dependencies`, plus `metadata.produced_by = {view_id,
+output, stage}` naming the parent's **run view**, on every output view. A run view's outputs, and
+any source-level "inputs" or "products", are derived on read (`getViewLineage`,
+`getSourceLineage`, Falcor `views.byId[id].lineage` / `sources.byId[id].lineage`) and never
+stored on a source.
 
 ### Per-view physical tables
 
@@ -188,9 +198,17 @@ Passed to every `routes` registration:
 | `createDamaSource(values, pgEnv)` | `→ Promise<sourceRow>` | Inserts into `data_manager.sources`; auto-suffixes on name collision. Sets default `auth` grant if `user_id` is provided. |
 | `createDamaView(values, pgEnv)` | `→ Promise<viewRow>` | Inserts a view, auto-derives `table_schema = 'gis_datasets'` and `table_name = 's{source_id}_v{view_id}'`. Override after the fact via UPDATE if you need different naming. |
 | `ensureSchema(db, schemaName)` | `→ Promise` | `CREATE SCHEMA IF NOT EXISTS` on Postgres; no-op on SQLite. |
+| `deleteDamaView(pgEnv, viewIds, {cascade, db, authorize})` | `→ Promise<result>` | Delete views and drop their tables; see "Deleting" below. |
+| `getViewLineage(pgEnv, viewIds)` / `getSourceLineage(pgEnv, sourceIds)` | `→ Promise<Map>` | Derived lineage reads (`lineage.js`). |
+| `requireUser(req, res)` | `→ user \| null` | Answers 401 and returns null when nobody is signed in. |
+| `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict). |
 | `getDb(pgEnv)` | `→ adapter` | Direct DB handle. |
 | `loadConfig(pgEnv)` | `→ config` | The raw db config JSON. |
 | `storage` | `{ write, read, getUrl }` | Local FS or S3 abstraction. |
+
+`createDamaSource` and `createDamaView` also take `values.db` (run on a `withTransaction` `tx`).
+`createDamaSource` takes `authPermissionsFrom: sourceId` (copy a parent's permissions).
+`createDamaView` takes `produced_by` (validated, stored at `metadata.produced_by`).
 
 ### Response contract
 
@@ -237,6 +255,26 @@ Scope:
 See `dms-server/CLAUDE.md#ClickHouse auxiliary storage` for config shape.
 
 ---
+
+## Deleting views and sources (`delete.js`)
+
+There is one Delete, and it drops tables (owner decision 2026-10-02). The old keep-tables "soft"
+delete left 1.3 TB of orphan tables on hazmit_dama. The recoverable path is the **Archive**
+lifecycle category, which deletes nothing.
+
+- `deleteDamaView` / Falcor `uda.views.delete [env, viewId, {cascade}]`, and `deleteDamaSource` /
+  `uda.sources.delete [env, sourceId, {cascade}]` (`hardDelete` is an alias).
+- **Refused:**
+  - while a view outside the delete lists a member in `view_dependencies` (`has_dependents`);
+  - while a member is its source's authoritative view (`authoritative`; skipped when the whole
+    source goes);
+  - while a run view has outputs, unless `cascade`, which deletes those too (`has_outputs`).
+- **Drops by `pg_class.relkind`** (TABLE, VIEW, materialized view, foreign table), never with
+  CASCADE, so a Postgres object that still depends on the table stops the delete. A table another
+  surviving view also names is kept.
+- **Postgres drops and row deletes share one transaction.** ClickHouse tables and storage files go
+  after the commit; their failures come back as warnings.
+- **The Falcor calls need a signed-in user** with `delete-source` on every source the delete touches.
 
 ## Common pitfalls
 

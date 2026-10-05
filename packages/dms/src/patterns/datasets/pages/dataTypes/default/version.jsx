@@ -5,6 +5,7 @@ import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
 import { sourceOverviewTheme } from "./sourceOverview.theme";
 import { preferredViewId, isAuthoritative } from "../../../utils/authority";
 import AuthorityControl, { AuthorityBadge } from "../../../components/AuthorityControl";
+import { VersionLineage, DeleteVersionButton } from "../../../components/LineageControls";
 import {getSourceData, updateVersionData} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
 import {cloneDeep} from "lodash-es";
@@ -122,6 +123,9 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                               canEdit={isUserAuthed ? isUserAuthed(['update-source']) : false}
                                               falcor={falcor}/>
                         )}
+                        {!isDms && params.view_id ? (
+                            <VersionLineage t={t} envKey={pgEnv} viewId={+params.view_id} pageBaseUrl={pageBaseUrl} falcor={falcor}/>
+                        ) : null}
                         <div className={'flex gap-12'}>
                             <div className={'flex-grow'}>
                                 <label>Version</label>
@@ -149,7 +153,19 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                                 <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor}/>
                                                 <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
-                                    ) : <ExternalVersionControl source={source} view={currentView} sourceId={params.id} viewId={params.view_id} />
+                                    ) : (
+                                        <>
+                                            <ExternalVersionControl source={source} view={currentView} sourceId={params.id} viewId={params.view_id} />
+                                            <DeleteVersionButton t={t} envKey={pgEnv} viewId={+params.view_id}
+                                                                 label={currentView?.version || currentView?.name}
+                                                                 canDelete={isUserAuthed ? isUserAuthed(['delete-source']) : false}
+                                                                 falcor={falcor}
+                                                                 onDeleted={() => {
+                                                                     setSource?.(s => ({...s, views: (s.views || []).filter(v => +(v.view_id || v.id) !== +params.view_id)}));
+                                                                     navigate(`${pageBaseUrl}/${params.id}`);
+                                                                 }}/>
+                                        </>
+                                    )
                                 }
                             </div>
                         </div>

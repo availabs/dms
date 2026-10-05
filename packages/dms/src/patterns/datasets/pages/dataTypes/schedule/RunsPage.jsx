@@ -82,6 +82,58 @@ function findViewIds(...objects) {
     return Object.entries(found); // [[key, viewId], ...]
 }
 
+/**
+ * The multi-output convention (dama-parent-child-etl-support.md G3): a run that writes views into
+ * several sources reports `result.outputs = [{output, source_id, view_id, rows, status}]`, plus
+ * `result.run_view_id` when the run itself is a view of this source. Each output links to its OWN
+ * source; the flat `*_view_id` links above can only point at the current one.
+ */
+const RunOutputs = ({ result, pageBaseUrl, sourceId }) => {
+    const r = parseMaybeJson(result, {});
+    const outputs = Array.isArray(r?.outputs) ? r.outputs.filter(o => o && o.view_id != null) : [];
+    if (!outputs.length && r?.run_view_id == null) return null;
+    return (
+        <div className={'flex flex-col gap-2 text-sm'}>
+            {r.run_view_id != null ? (
+                <div>
+                    <span className={'text-gray-400'}>run view:</span>{' '}
+                    <Link className={'text-blue-500 hover:underline'} to={`${pageBaseUrl}/${sourceId}/version/${r.run_view_id}`}>
+                        #{r.run_view_id}
+                    </Link>
+                </div>
+            ) : null}
+            {outputs.length ? (
+                <table className={'w-full text-left'}>
+                    <thead>
+                        <tr className={'text-xs uppercase text-gray-400'}>
+                            <th className={'py-1 pr-4 font-medium'}>Output</th>
+                            <th className={'py-1 pr-4 font-medium'}>Version</th>
+                            <th className={'py-1 pr-4 font-medium text-right'}>Rows</th>
+                            <th className={'py-1 font-medium'}>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {outputs.map((o, i) => (
+                            <tr key={`${o.view_id}-${i}`} className={'border-t border-gray-100'}>
+                                <td className={'py-1 pr-4 text-gray-700'}>{o.output || '—'}</td>
+                                <td className={'py-1 pr-4'}>
+                                    {o.source_id != null ? (
+                                        <Link className={'text-blue-500 hover:underline'} to={`${pageBaseUrl}/${o.source_id}/version/${o.view_id}`}>
+                                            source {o.source_id} · view #{o.view_id}
+                                        </Link>
+                                    ) : `view #${o.view_id}`}
+                                </td>
+                                <td className={'py-1 pr-4 text-right tabular-nums text-gray-700'}>{o.rows != null ? Number(o.rows).toLocaleString() : '—'}</td>
+                                <td className={'py-1'}>{o.status ? <StatusChip status={o.status} /> : '—'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            ) : null}
+        </div>
+    );
+};
+
 const WINDOW_KEY_RE = /^(start|end)_?(date|time|epoch)$/i;
 
 /** Pretty descriptor block; window fields get called out above the raw JSON. */
@@ -216,7 +268,8 @@ const RunDetail = ({ taskId, source, params }) => {
 
     const isLive = !task || task.status === 'queued' || task.status === 'running';
     const descriptor = parseMaybeJson(task?.descriptor, {});
-    const viewLinks = findViewIds(task?.result, task?.descriptor);
+    // run_view_id is rendered by RunOutputs (with the outputs it produced), not as a flat link.
+    const viewLinks = findViewIds(task?.result, task?.descriptor).filter(([key]) => key !== 'run_view_id');
 
     return (
         <div className={'w-full p-2 flex flex-col gap-3'}>
@@ -273,6 +326,7 @@ const RunDetail = ({ taskId, source, params }) => {
                                 ))}
                             </div>
                         ) : null}
+                        <RunOutputs result={task.result} pageBaseUrl={pageBaseUrl} sourceId={task.source_id ?? params.id} />
                     </div>
 
                     <div className={'shadow-md rounded-md p-4'}>

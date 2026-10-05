@@ -23,6 +23,8 @@ const Router = require('../src/utils/falcor-router/src/Router');
 const { createRoutes } = require('../src/routes/dms/dms.route');
 const { createController } = require('../src/routes/dms/dms.controller');
 const udaRoutes = require('../src/routes/uda/uda.route');
+// The task/settings/delete calls (uda.sources.delete, uda.views.delete, …) — the server loads both.
+const udaTaskRoutes = require('../src/routes/uda/uda.tasks.route');
 const { awaitReady } = require('../src/db/index');
 
 // Default mock user for tests — prevents auth guards from blocking test operations.
@@ -42,7 +44,7 @@ function createTestGraph(dbName = 'dms-sqlite', options = {}) {
   const controllerOpts = splitMode ? { splitMode } : {};
   const controller = createController(dbName, controllerOpts);
   const dmsRoutes = createRoutes(controller);
-  const routes = [...dmsRoutes, ...udaRoutes];
+  const routes = [...dmsRoutes, ...udaRoutes, ...udaTaskRoutes];
 
   const BaseRouter = Router.createClass(routes);
 

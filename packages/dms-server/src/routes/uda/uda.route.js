@@ -18,6 +18,8 @@ const {
   updateView,
   getViewBySrcCategories,
   createSourceView,
+  getViewLineageById,
+  getSourceLineageById,
 
   simpleFilterLength,
   simpleFilter,
@@ -247,6 +249,30 @@ module.exports = [
     },
   },
 
+  // --------------------------------- sources.byId.lineage ---------------------------------
+  // Derived roll-up of the source's views' lineage (dama/lineage.js#getSourceLineage): per view its
+  // input sources, producer and whether its inputs changed; plus the unions. Never stored. Clients
+  // fetch it in its own request: an older server reads `lineage` as a column and fails the batch.
+  {
+    route: `uda[{keys:envs}].sources.byId[{integers:ids}].lineage`,
+    get: async function(pathSet) {
+      try {
+        const { envs, ids } = pathSet;
+        const result = [];
+        for (const env of envs) {
+          const lineage = await getSourceLineageById(env, ids);
+          for (const id of ids) {
+            result.push({ path: ["uda", env, "sources", "byId", id, "lineage"], value: $atom(lineage.get(+id) ?? null) });
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
+
   // --------------------------------- sources.byId.views.length ---------------------------------
   {
     route: `uda[{keys:envs}].sources.byId[{integers:ids}].views.length`,
@@ -360,6 +386,29 @@ module.exports = [
                 });
               }
             }
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error(err);
+        throw err;
+      }
+    },
+  },
+  // --------------------------------- views.byId.lineage ---------------------------------
+  // What the view was built from (`view_dependencies`), the run view that produced it
+  // (`metadata.produced_by`) and, for a run view, the views it produced. Derived, read-only; null
+  // for an unknown view. Fetched in its own request (see sources.byId.lineage).
+  {
+    route: `uda[{keys:envs}].views.byId[{integers:ids}].lineage`,
+    get: async function(pathSet) {
+      try {
+        const { envs, ids } = pathSet;
+        const result = [];
+        for (const env of envs) {
+          const lineage = await getViewLineageById(env, ids);
+          for (const id of ids) {
+            result.push({ path: ["uda", env, "views", "byId", id, "lineage"], value: $atom(lineage.get(+id) ?? null) });
           }
         }
         return result;

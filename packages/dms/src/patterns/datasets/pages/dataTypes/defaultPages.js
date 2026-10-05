@@ -17,7 +17,7 @@
  *      plugin authors know it exists.
  */
 
-import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage } from "./lazyPages";
+import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage, Outputs } from "./lazyPages";
 
 const defaultPages = {
   table: {
@@ -51,6 +51,15 @@ const defaultPages = {
     path: "/runs",
     cdn: ({ isDms }) => !isDms,
     component: RunsPage,
+  },
+  // The sources a pipeline's runs write into (a data type that owns csv/gis child sources).
+  // Derived from the parent's run views: each produced view names its run view in
+  // `metadata.produced_by`. DAMA-only. See default/outputs.jsx.
+  outputs: {
+    name: "Outputs",
+    path: "/outputs",
+    cdn: ({ isDms }) => !isDms,
+    component: Outputs,
   },
 };
 
