@@ -21,6 +21,12 @@ export function coveredSites(rows = []) {
     .sort((a, b) => (+a.sort_order || 0) - (+b.sort_order || 0))
 }
 
+// Site labels for the QA pages' Site pills and filters, by short key, from every covered-sites
+// row: the one label source, edited on the install's Configure tab. Switched-off sites count too,
+// since their tickets still show.
+export const siteLabelsFrom = (rows = []) =>
+  Object.fromEntries(rows.filter((r) => r?.surface).map((r) => [r.surface, r.surface_label || r.surface]))
+
 // A covered-sites row names its page pattern by the pattern's name or row id (TransportNY's
 // control room, which looks patterns up that way) or its instance (the slug in its type).
 // `patternKeys`: those three for the published page's pattern.

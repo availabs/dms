@@ -4,24 +4,33 @@
 
 Phases 1–3 DONE and live-verified on `qa_test` (2026-09-30). Committed by the owner: phase 1 (library `4919d419`,
 dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (`2450f728`), and the default-theme
-restyle (`3a80c516`, 2026-10-01; the test-data reset was DB-only), and option (b) parts 1–3 (`0cdba46b`,
-2026-10-01). None of the library commits is pushed yet (2026-10-01: the submodule is 8 ahead of `origin/master`,
-these 6 plus 2 merges).
+restyle (`3a80c516`, 2026-10-01; the test-data reset was DB-only), option (b) parts 1–3 (`0cdba46b`,
+2026-10-01) and phase 4 (`8be023e9`, 2026-10-02). All pushed: on 2026-10-02 the submodule matched `origin/master`
+(`a32d9ae1`), and dms-template pointed at it. **Phase 5 (the Configure tab) BUILT and live-verified 2026-10-02,
+uncommitted** (section "Phase 5").
 
-**▶ Next session, start here.** Option (b) parts 1–3 for status-change writes are BUILT, live-verified and committed
-(`0cdba46b`, 2026-10-01; section "The status-change writes"), not pushed. Before the owner pushes, remind them to
-test TransportNY's control room, one MNY live-edit page and wcdb's `station_admin` form save, and (phase 4) one
-publish in the editor and one with `dms page publish` on a site without a QA install. Otherwise the owner picks
+**▶ Next session, start here.** Phases 1–4 and option (b) parts 1–3 are built, committed and pushed. The owner
+confirmed track-on-publish live on 2026-10-02 (a new page under a covered sub-site got its row on its own). The
+owner dropped the push-test reminders on 2026-10-02, so don't raise them. **Phase 5 is built and uncommitted:** the
+owner looks at `/list/manage_pattern/126/configure` and commits. Open from it: the Overview's stale draft after an
+in-app move between patterns (shared code, unfixed; section "Phase 5", "Found building it"). The owner then picks
 what's next:
 - **A dedicated design pass** on the QA pages is planned soon (owner, 2026-10-01; the restyle passed the look check
   "for now"). Card's `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") belongs there.
 - **Status-change work still deferred** (phase 3a, "The status-change writes"): part 4 (change history, commit on
   blur) and story-status tracking. `resolved_date` stamping and the stage refresh are done (option (b) parts 1–3).
-- **Phase 4 — DONE 2026-10-01, uncommitted** (section "Phase 4"): live open counts on the Overview, a ticket's
-  page name and stage read live, track-on-publish from the editor and `dms page publish`. It adds one shared-code
-  item to the push test list: publish one page in the editor and one with `dms page publish` on a site without a
-  QA install (TransportNY); both should behave as before.
-- **Phase 5:** the Configure tab in `/list`, so covered sites and labels stop being hand-seeded.
+- **Phase 4 — DONE, committed `8be023e9`** (section "Phase 4"): live open counts on the Overview, a ticket's
+  page name and stage read live, track-on-publish from the editor and `dms page publish`.
+- **Phase 5 — BUILT 2026-10-02, live-verified on `qa_test`, uncommitted** (section "Phase 5"; feature switches
+  moved to later). A Configure tab on the install's `manage_pattern` page in `/list`, so covered sites and labels
+  stop being hand-seeded. It also closes
+  phase 4's backfill gap ("turning a pattern on adds its published pages", via `trackPublishedPage`). Where the
+  covered-sites list lives is already decided (2026-09-30, decision (A) in phase 3b): it stays the install's
+  `qa_patterns` dataset, and Configure edits it. Signed-out visitors get the install's settings (and so
+  `install.qa.datasets`) stripped. They find the list through an intake summary the server's stub for `qa` rows
+  will carry (`research/qa-ticketing-system/installs-and-overrides.md`, "Ways the widget could find its install",
+  option 1). That is a phase 6 change in `dms-server/src/routes/dms/dms.route.js` (stub at ~118-123), not built
+  yet. It doesn't change phase 5's storage.
 - The Design page feature is wanted later as an install feature (phase 3b decisions).
 
 **Test install (2026-10-01): `QA` (pattern row 126, `/qa`), on the library default theme.** Its data is `qa_test`'s
@@ -172,8 +181,9 @@ activity feed), server-side hooks, the throwaway DB, agents, server-side authori
   - **Users and permissions:** the Access tab every pattern type already has (users, groups, row filters). Nothing
     new to build.
   - **Covered sub-sites, page families, labels, switches, who can report:** a qa-only tab, added the way page
-    patterns add Pages/Sources/Activity (`item.pattern_type === 'page' ? [...] : []`, line 110). Auth's Overview
-    block (`AuthPatternSettings`, `settings.jsx`) is the other precedent, for a few fields.
+    patterns add Pages/Sources/Activity (`item.pattern_type === 'page' ? [...] : []`, line 110). Confirmed by the
+    owner 2026-10-02: a `Configure` sidebar tab on the install's own `manage_pattern` page. The sidebar's list is a
+    second place to add it (`buildPatternMenuItems`, `patterns/admin/siteConfig.jsx:440`).
   - To check at phase 5: whether an install's own admins who aren't site admins can reach it. The pattern editor
     checks per-pattern manage access (`hasPatternManageAccess`), but the Sites list checks site-level access.
 - **Phase 2 review (owner, 2026-09-30):**
@@ -230,9 +240,9 @@ that have to exist first.
 | 1 | 2 (part) | Skeleton type: registration, admin-style code pages, no edit route | DONE 2026-09-30 |
 | 2 | 3 + 4 | Ticket record + install hook: schemas in code, datasets created per install, refs on the pattern row | DONE 2026-09-30 |
 | 3 | 2 (rest) | The four control-room pages as code, bound to the install's datasets; switches; theme-added pages | 3a + 3b DONE (Design page deferred) |
-| 4 | 5 | Derived values without a sync, incl. track-on-publish | NOT STARTED |
-| 5 | 6 | Configure page | NOT STARTED |
-| 6 | 7 | Widget (signed out too) + `dms qa` CLI | NOT STARTED |
+| 4 | 5 | Derived values without a sync, incl. track-on-publish | DONE 2026-10-01 (`8be023e9`) |
+| 5 | 6 | Configure tab on the install's `manage_pattern` page (covered sites, labels) | BUILT 2026-10-02 (live-verified, uncommitted) |
+| 6 | 7 | Widget (signed out too) + `dms qa` CLI; feature switches (moved from 5) | NOT STARTED |
 | 7 | 8 | Rehearsal: copy TransportNY's QA data into an install on `qa_test` | NOT STARTED |
 | 8 | 9 | TransportNY port (own task under `planning/transportny/`) | NOT STARTED |
 
@@ -961,7 +971,7 @@ switch, not TransportNY's particular designs. It stays out of the base install f
 - Theme-added pages: merge `theme.qa.pages` (code, never DB). The Design page is no longer planned there: it
   becomes an install feature (owner, 2026-09-30).
 
-### Phase 4: Derived values and track-on-publish — DONE 2026-10-01 (live-verified on `qa_test`, uncommitted)
+### Phase 4: Derived values and track-on-publish — DONE 2026-10-01 (live-verified on `qa_test`, committed `8be023e9`; owner re-verified track-on-publish 2026-10-02)
 
 README step 5: the values TransportNY's `cr_sync.mjs` writes, read live or written at the right moment instead.
 Owner note at the start: DMS has a lot of join capability, mostly hand-written queries and custom columns (the NPMRDS
@@ -1069,13 +1079,168 @@ Reports feature leans on them heavily); look there for examples if the joins giv
   `packages/dms/tests` 651/654, the same 3 unrelated failures (`avlGraphThemeDefaults` golden,
   `syncDeltaConvergence` ×2).
 
-### Phases 5–7 — NOT STARTED
+### Phase 5: Configure tab on the install's `manage_pattern` page — BUILT 2026-10-02 (live-verified on `qa_test`, uncommitted)
 
-See README steps 6–8. Notes to carry in:
-- **Configure (phase 5) is a qa tab in `/list`'s pattern editor, not a page in the install** (owner decisions
-  above). Permissions use the existing Access tab.
+README step 6. **Owner answers at the start (2026-10-02):** (1) Configure is a **new sidebar tab on the QA install's
+own `manage_pattern` page** (`/list/manage_pattern/<id>/configure`), next to Overview, Access and Theme, the way page
+patterns add Pages, Data, Activity, Page Templates and Format Manager there. (The owner first said "the Overview",
+then, after seeing how many tabs page patterns add, said a tab is fine.) Users and permissions stay on the existing
+Access tab. (2) **only what works today**: covered sub-sites and site labels. (3) **Feature switches: later**
+(owner, 2026-10-02; see "Phases 6–7"). **Moved to phase 6**, because they do nothing until the widget
+exists: who can report, where "Report an issue" appears, page families (TransportNY's "every `reports/*` page is one
+QA row"; it also changes track-on-publish, so it goes in with the widget's `SLUG_BUCKETS` replacement).
+
+**Where it goes.** A `Configure` tab (path `configure`) **on QA installs only**. No other pattern type changes,
+the way only page patterns get Pages. The tab holds **all of the install's QA config** (owner, 2026-10-02): the
+"datasets: N of 5 linked · finish set-up" card (`QaPatternSettings`, `default/settings.jsx:583`) shows on **both** the
+Overview, where it is now (`:402`), and Configure, because it's the install's health at a glance (owner, 2026-10-02).
+- In code, the admin lists a pattern's tabs in two places, and each gets one entry gated on `pattern_type === 'qa'`:
+  the sidebar links (`buildPatternMenuItems`, `patterns/admin/siteConfig.jsx:440`) and the screen each tab URL shows
+  (`allPages`, `patternEditor/index.jsx:113`). It needs `edit-pattern` like every tab but Access (`tabPermission`,
+  `utils/adminPermissions.js:188`); both lists already filter by that.
+- **Saving:** the tab has its own Save. It writes the changed covered-site rows (dataset rows), then the pattern row
+  (`apiUpdate`, as the Overview's save bar does), then the backfill. "Finish set-up" adds `dmsEnvId`, `qa.datasets`
+  and `authPermissions` to the open tab's draft (`settings.jsx:621`), so on each tab that tab's Save writes them.
+- **Check first:** can an install's own admin (a grant on the install, not a site admin) reach the page? The pattern
+  editor checks the pattern's own grants (`patternCan`), the Sites list checks site-level access.
+
+**A. Covered sub-sites.** The tab's main table. It writes the install's covered-sites dataset (`qa_patterns`, columns
+`COVERED_SITE_COLUMNS`), the list the Overview, track-on-publish and (phase 6) the widget already read.
+- **What the admin sees:** one row per pattern on the site that the admin can view, every type but `admin` and
+  `qa` (owner, 2026-10-02: all patterns; `qa` left off because an install covering an install means nothing) (`loadSitePatterns`; rows
+  that reach the browser as `no-access` stubs are left off). Per row: on/off, label, short key, page limit, order.
+- **On:** writes or updates the row (`enabled: 'yes'`), then adds the pattern's already-published pages: the Pages
+  tab's load (`apiLoad` on `<instance>|page`, `pagesEditor.jsx:626`), keep `(published ?? 'draft') !== 'draft'` (the
+  CLI's rule, `cli/src/commands/page.js:64`), and `trackPublishedPage` per page. That closes phase 4's backfill gap.
+  Existing rows are left alone, as on a re-publish. The same backfill runs when a page limit is widened or cleared.
+- **Off:** `enabled: 'no'`. The site's Overview card goes and publishing stops adding its pages. Its page rows and
+  tickets are kept, so switching it back on brings everything back.
+- **Overlap:** a pattern another install already covers (enabled) can't be switched on, and the row names that
+  install. It checks the installs whose settings the admin can read. One that reaches the admin as a stub can't be
+  checked until phase 6's intake summary carries its covered list.
+- **Page limit:** a picker over the pattern's pages (the same load), saved as today's comma-separated
+  `include_slugs`.
+- Writes go through `apiUpdate` (the add-row path), reads through `loadDatasetRows` with `fresh: true` (phase 4's
+  stale-read fix).
+
+**B. Site labels: one source.** Today the Tickets page's Site pills and filter read `pattern.qa.siteLabels`, and the
+Overview cards read each covered-site row's `surface_label`. After: only `surface_label`, edited in A.
+`buildQaPages` builds the label map from the covered-site rows `QaPageView` already reads on every QA page,
+including switched-off sites, since their tickets still exist. `qa.siteLabels` is dropped (the test install doesn't
+set it; the TransportNY port seeds `surface_label` instead of `SITE_LABELS`). Visible change: the Site pills fill in
+once that read returns, as the Overview cards already do.
+
+Also on the tab, read-only: the status and stage lists from `ticketRecord.js` (README step 6; making them editable
+is a new-features item).
+
+**Decisions (owner, 2026-10-02):**
+1. **Every pattern type but `admin`** (and `qa`). Quicker overall than adding the rest in phase 6: no type filter
+   now, nothing to revisit. A type without pages (Datasets, Forms) adds no rows on switch-on, and tracking stays
+   page-publish-only until the widget.
+2. New covered-site rows name their pattern by its **instance** (`alphapage` in `qa_test|alphapage:pattern`). It's
+   made from the name at creation and is unique in the site (`editSite.jsx:388`, collision check), and the type is
+   read-only on the Overview (`settings.jsx:316`), so a rename doesn't change it. It's also readable and what the test
+   seed uses. Row id is as stable but opaque. The matcher still accepts names and ids, so TransportNY's rows work.
+3. The **short key locks** once a pages or tickets row uses it: page keys are `<key>:<slug>`, so a changed key
+   orphans them.
+4. **One Save** for the tab (no live per-row saves): switching a site on adds many page rows, so it shouldn't fire on
+   a mis-click, and the Overview's save bar is the precedent on the same page. The tab is named **Configure**.
+
+**Tests.** Unit, on the pure parts: the row a switch-on writes; the overlap check; the key lock; the backfill filter
+(published rule, page limit, existing rows); the label map, including switched-off sites. Live on
+`qa_test`'s `QA` install (row 126): BetaPage off → its card goes, rows kept; on → card back, nothing duplicated. Then
+a scratch page pattern with published pages, switched on → one row per published page; Save again → no new rows. A
+label change shows on the Tickets Site pills. A scratch second install refuses BetaPage and names `QA`. Scratch rows
+and installs deleted after.
+
+**Blast radius.** The new tab is `qa`-only in both lists. `buildQaPages` and `trackPublishedPage` are QA code. The publish paths
+already return early when a site has no `qa` pattern (only `dms_qa_test` has one, phase 4's count). Grep every
+consumer again before building.
+
+**Progress (2026-10-02)**
+- [x] Access, by code only (owner: exact access doesn't matter): the `manage_pattern` route has no check of its own,
+  and the pattern editor checks the install's own grants (`patternCan`), so `edit-pattern` on the install is enough
+  to open Configure by direct link. Without site-level `view-pattern-list` the sidebar has no Sites link. Not tried live.
+- [x] Pure logic, `patterns/qa/configure.js`: `coverablePatterns` (all but `admin`/`qa`, no stubs), `configureEntries`
+  (pattern ↔ row by id/name/instance; unmatched rows kept as `others`), `coveredSiteRow` / `configureWrites` (new
+  rows by instance, after the last order; existing rows keep their `pattern` value and update only on a change),
+  `usedKeys` / `keyLocked`, `coveredElsewhere`, `configureErrors` (empty / malformed / duplicate / taken key, covered
+  by another install; only changed fields checked), `needsBackfill`, `backfillRows` (published = not `'draft'`,
+  page limit, existing rows), `siteLabelsFrom`. Tests: new `tests/qaConfigure.test.js`, 19/19.
+- [x] Site labels from covered-site rows only: `siteLabelsFrom` (in `tracking.js`, beside `coveredSites`) over every
+  row, switched-off sites too; `QaPageView` keeps all rows and passes `sites` + `siteLabels`; `buildQaPages` takes
+  `siteLabels` as an option; `pattern.qa.siteLabels` is no longer read (no other reader: CLI, server, themes
+  grepped). Tests updated (`qaDefaultTheme`, `qaDerivedValues`, `qaTicketPages`). QA suites 116/116.
+- [x] Save routine `saveConfigure` (injected I/O, like `trackPublishedPage`): covered-site writes, then each
+  switched-on / re-limited site's published pages. 3 more tests (22 in `qaConfigure.test.js`).
+- [x] The Configure tab, `patterns/admin/pages/patternEditor/qa/configureTab.jsx` (+ `.theme.js`, registered as
+  `qaConfigure` in `patterns/admin/defaultTheme.js`): QA only, in the sidebar (`buildPatternMenuItems`) and the tab
+  routes (`allPages`). Cards: the datasets card (`QaPatternSettings`, now exported, still on the Overview too),
+  covered sites (switch, pattern, short key locked when in use, label, order, page-limit picker for page patterns,
+  row errors, unmatched rows listed), the ticket record read-only. One Save: dataset rows through `dmsDataEditor`
+  (the wrapper's `apiUpdate` revalidates the whole admin loader after every create, so a backfill would reload it
+  once per page), then the pattern row through `apiUpdate` when "finish set-up" changed the draft.
+  - Keyed by the install (`QaConfigureTab` → `QaConfigureBody key={value.id}`): found live, moving in-app from
+    another pattern's tab kept the previous pattern's draft (see "Found" below).
+- [x] **Live check on `qa_test` (2026-10-02, probe with the `qa_test` token, client-side navigation from `/qa`):**
+  - Sidebar on the QA install: Overview, **Configure**, Access, Theme. AlphaPage's (row 5) is unchanged: no Configure.
+  - Configure: datasets "5 of 5 linked"; covered sites Auth (off), Pages (off, the seed's row 139), AlphaPage and
+    BetaPage (on, keys greyed: in use); Admin and QA not listed; ticket record lists shown. No console errors.
+  - Pages key set to `alphapage` → Save disabled. Pages on + BetaPage relabelled "BetaPage (test)" → Save: "saved ·
+    added 1 page from Pages". DB: row 139 `enabled: yes`, row 138 relabelled, new pages row 165 `pages:page_1`
+    (`url` `http://localhost:5173/page_1`, Proposed, Published). `/qa/tickets`: every BetaPage pill and filter reads
+    "BetaPage (test)"; `/qa`: "3 sites covered", 8 pages, a Pages card.
+  - Reverted through the UI (Pages off, label back: "saved", nothing added), then row 165 deleted
+    (`dms raw delete qa_test 'qa_pages|130:data' 165`). Backup first: `scratchpad/qa_test/backup_2026-10-02/`. The
+    owner's own tracked page (row 164, `alphapage:new_page_2`) untouched.
+  - Side effect: the first Save filled the blank `app` / `base_url` fields on all three covered-site rows (so it
+    updated AlphaPage's too). Harmless; the rows now carry TransportNY's fields.
+  - Not tried live: the overlap refusal (needs a second install; unit-tested), and a non-admin install admin.
+  - Page-limit picker opens on BetaPage ("none picked = every page").
+- [x] Full `packages/dms/tests`: 717/720, the same 3 unrelated failures (`avlGraphThemeDefaults` golden,
+  `syncDeltaConvergence` ×2).
+
+**Found building it**
+- **The Overview tab keeps the previous pattern's draft after an in-app move between two patterns** (back/forward,
+  or a client-side navigation): `PatternSettingsEditor` sets `tmpValue` once (`useImmer(value)`) and the editor
+  reuses the instance, so QA's Overview showed AlphaPage's row ("datasets: 0 of 5 linked · 5 missing"), and its
+  identity fields would too. Shared code, as it was, not fixed here: a `key={item.id}` on `PageComp`
+  (`patternEditor/index.jsx`) would fix every tab. Configure guards itself (keyed body).
+- A signed-in probe **hard load of `/list/...` renders blank** (sidebar Auth › Profile only); loading `/qa` and
+  navigating client-side works (`traversing-dms-pages.md`).
+- The console's React "unknown prop `customTheme`" warning comes from the Overview's `FieldSet` / `filterEditor`,
+  not Configure.
+
+**Blast radius.** Every change outside QA code is gated on `pattern_type === 'qa'` or additive: the tab entries
+(`patternEditor/index.jsx`, admin `siteConfig.jsx`), the `qaConfigure` theme key (`patterns/admin/defaultTheme.js`),
+`export` on `QaPatternSettings` (no behavior change). `tracking.js` only gains an export (still no browser imports,
+so the CLI's import is unchanged). The publish paths and the CLI aren't touched.
+
+### Phases 6–7 — NOT STARTED
+
+See README steps 7–8. Notes to carry in:
+- **Moved here from phase 5 (owner, 2026-10-02):** who can report, where "Report an issue" appears, page families.
+- **Feature switches: moved out of phase 5 (owner, 2026-10-02); the plan is kept for when they're picked up.** New
+  code, nothing reads a switch today. `pattern.qa.switches` on the install row, saved by Configure's Save; a missing
+  switch means on, so every existing install keeps everything. From `feature-roadmap.md` §4, the ones that already
+  have pages to hide:
+  - **Tickets:** the Tickets and Ticket pages, the Overview's ticket figures and Open column, Page QA's tickets
+    section.
+  - **Page inventory:** the Page QA page, the Overview's per-site page tables, and track-on-publish (both publish
+    paths skip an install with it off).
+  - **Page stages** (needs Page inventory): stage pills and tiles.
+  - **Stories** (needs Page inventory): Page QA's stories section.
+  - **Overview** (needs Tickets or Page inventory): with it off, Tickets becomes the install's home (`index: 0`).
+  - `buildQaPages` drops what's off; the nav follows the page list, and a hidden page's URL lands on the home page
+    (`findQaPage`'s fallback). A switch whose prerequisite is off is disabled, with the reason. Off hides, never
+    deletes. Tests: what each switch removes, the prerequisite rules, the home fallback, track-on-publish's check.
+  - Not part of it: Report an issue and Design mockups (no feature yet). The roadmap's "create a dataset when its
+    switch is first turned on" also stays out: the install creates all five up front (phase 2), and changing that has
+    no visible effect while they all exist.
 - **Signed-out filing (phase 6):** that covering list must be readable signed out (signed-out visitors get stub
-  pattern rows with settings stripped). A honeypot field ships with the form.
+  pattern rows with settings stripped). The design: the server's stub for `qa` rows carries an intake summary
+  (`installs-and-overrides.md`, option 1; `dms-server/src/routes/dms/dms.route.js` ~118-123). A honeypot field
+  ships with the form.
 - **Rehearsal (phase 7):** copy through the CLI with new ids; keep old ids in `legacy_id`; rewrite the 19
   `duplicate_of` links from an old → new map; seed change history from existing dates.
 

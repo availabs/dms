@@ -14,7 +14,7 @@ it. Implement it there so every pattern gets per-creator page ownership without 
 ## Why it's logged
 
 The TransportNY report tools needed exactly this and got it theme-side
-(`planning/transportny/tasks/current/report-edit-button-owner-gate.md`): `CreateReportButton` and Make a
+(`planning/transportny/tasks/completed/report-edit-button-owner-gate.md`): `CreateReportButton` and Make a
 copy build their own page row (`components/CreateReportButton/newReportPage.js`) with
 `authPermissions: {users: {<creator>: ['*']}}`, because `newPage()` sets no `authPermissions` and returns
 nothing to patch afterwards. The owner chose not to change core for that fix. If core does this, the

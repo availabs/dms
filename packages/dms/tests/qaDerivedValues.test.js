@@ -23,7 +23,7 @@ const datasets = {
 };
 const pattern = { name: "QA", dmsEnvId: 42, qa: { version: 1, datasets } };
 const sites = [{ pattern: "alphapage", surface: "alphapage", surface_label: "AlphaPage", sort_order: "1", enabled: "yes" }];
-const pages = (siteLabels) => buildQaPages(siteLabels ? { ...pattern, qa: { ...pattern.qa, siteLabels } } : pattern, { app: "qa_test", baseUrl: "/qa", sites });
+const pages = (siteLabels) => buildQaPages(pattern, { app: "qa_test", baseUrl: "/qa", sites, siteLabels });
 const dataOf = (s) => JSON.parse(s.element["element-data"]);
 const sectionOf = (all, trackingId) => all.flatMap((p) => p.sections).find((s) => s.trackingId === trackingId);
 const joinedSections = (all) => all.flatMap((p) => p.sections)
