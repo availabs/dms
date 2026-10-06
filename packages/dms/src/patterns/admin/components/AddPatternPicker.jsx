@@ -2,11 +2,7 @@ import React, { useState } from 'react'
 import { ThemeContext } from '../../../ui/useTheme'
 import { nameToSlug } from '../../../utils/type-utils'
 import { patternPickerTheme } from './AddPatternPicker.theme'
-
-// The QA pattern is opt-in per build: its card only shows when the client env
-// sets VITE_DMS_QA_PATTERN=1 (or true). Existing QA patterns still route and
-// render either way — this only hides the "add" entry point.
-const QA_PATTERN_ENABLED = ['1', 'true'].includes(import.meta.env?.VITE_DMS_QA_PATTERN)
+import { QA_PATTERN_ENABLED } from '../../qa/install'
 
 const NON_PAGE_OPTIONS = [
   { kind: 'datasets', label: 'Datasets', desc: 'Connect and manage data sources' },

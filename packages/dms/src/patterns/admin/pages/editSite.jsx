@@ -7,7 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns, backfillAdminPattern, readSitePatternRefs, mergeSitePatternRefs } from '../../../utils/tenantProvisioning';
-import { qaPreflight, installQa } from '../../qa/install';
+import { qaPreflight, installQa, QA_PATTERN_ENABLED } from '../../qa/install';
 import { parseIfJSON } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
@@ -601,10 +601,13 @@ function PatternList({
 									if(attrKey === 'filters'){
 										EditComp = RenderFilters
 									}
-									const options =
+									let options =
 										attrKey === 'pattern_type' && authExists && props.options?.length ?
 											props.options.filter(o => o.value !== 'auth') :
 											props.options;
+									if (attrKey === 'pattern_type' && !QA_PATTERN_ENABLED && options?.length) {
+										options = options.filter(o => o.value !== 'qa');
+									}
 									return (
 
 										<EditComp

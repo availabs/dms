@@ -7,6 +7,11 @@ import { loadItemFresh } from '../../api'
 import { getSourceIdsBySlug } from '../../api/sourceIdBySlug'
 import { QA_DATASETS, qaDatasetSlug } from './datasets'
 
+// The QA pattern is opt-in per build: it's only offered as a pattern type (Add
+// Pattern, and the edit modal's Type select) when the client env sets
+// VITE_DMS_QA_PATTERN=1 (or true). Existing QA patterns route and render either way.
+export const QA_PATTERN_ENABLED = ['1', 'true'].includes(import.meta.env?.VITE_DMS_QA_PATTERN)
+
 const newId = res => Object.keys(res?.json?.dms?.data?.byId || {}).find(k => k !== '$__path')
 const trimSlashes = url => `${url || ''}`.replace(/^\/+|\/+$/g, '')
 const sameMount = (a, b) =>

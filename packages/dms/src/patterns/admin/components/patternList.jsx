@@ -7,6 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
+import { QA_PATTERN_ENABLED } from '../../qa/install'
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -367,10 +368,13 @@ function PatternEdit({
                                         EditComp = RenderLocations
                                     }
                                     if(!EditComp) return null;
-                                    const options =
+                                    let options =
                                         attrKey === 'pattern_type' && authExists && props.options?.length ?
                                             props.options.filter(o => o.value !== 'auth') :
                                             props.options;
+                                    if (attrKey === 'pattern_type' && !QA_PATTERN_ENABLED && options?.length) {
+                                        options = options.filter(o => o.value !== 'qa');
+                                    }
 									return (
 
 										<EditComp
