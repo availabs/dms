@@ -12,7 +12,9 @@ import { describe, it, expect } from "vitest";
 import {
   coverablePatterns, configureEntries, coveredSiteRow, configureWrites, usedKeys, keyLocked,
   coveredElsewhere, configureErrors, needsBackfill, backfillRows, patternKeysOf, saveConfigure,
+  groupEntries, switchEntry, moveEntry, fieldEdited, describeEdits,
 } from "../src/patterns/qa/configure";
+import { datasetRows } from "../src/patterns/qa/datasets";
 import { siteLabelsFrom } from "../src/patterns/qa/tracking";
 
 const pat = (id, name, instance, pattern_type = "page", extra = {}) => ({ id, name, type: `qa_test|${instance}:pattern`, pattern_type, base_url: `/${instance}`, ...extra });
@@ -226,5 +228,100 @@ describe("saveConfigure", () => {
     entries[0].enabled = false;
     await saveConfigure({ entries, datasets, app: "qa_test", now, ...f });
     expect(f.log.map(([op, , d]) => [op, d.id, d.enabled])).toEqual([["update", 1, "no"]]);
+  });
+});
+
+// The design pass's Configure (qa-design-implementation.md step 4): display order, switching,
+// dragging, and the save bar's list of unsaved edits.
+const GAMMA = pat(15, "Gamma", "gamma");
+const loaded = () => configureEntries([ALPHA, BETA, GAMMA, DATA], [
+  row({ id: 1, pattern: "alphapage", surface: "alphapage", surface_label: "AlphaPage", sort_order: 2 }),
+  row({ id: 2, pattern: "betapage", surface: "betapage", surface_label: "BetaPage", sort_order: 1 }),
+  row({ id: 3, pattern: "gamma", surface: "gamma", surface_label: "Gamma", sort_order: 3, enabled: "no" }),
+]).entries;
+const names = (list) => list.map((e) => e.pattern.name);
+
+describe("groupEntries", () => {
+  it("puts switched-on sites first in their order, then switched-off sites in site order", () => {
+    const { on, off } = groupEntries(loaded());
+    expect(names(on)).toEqual(["BetaPage", "AlphaPage"]);
+    expect(names(off)).toEqual(["Gamma", "Datasets"]);
+  });
+});
+
+describe("switchEntry", () => {
+  it("adds a switched-on site at the end of the switched-on sites", () => {
+    const entries = switchEntry(loaded(), 15, true);
+    expect(names(groupEntries(entries).on)).toEqual(["BetaPage", "AlphaPage", "Gamma"]);
+    expect(entries.find((e) => e.pattern.id === 15).sort_order).toBe(3);
+  });
+
+  it("puts a site that was on when loaded back where it was", () => {
+    const off = switchEntry(loaded(), 10, false);
+    expect(names(groupEntries(off).on)).toEqual(["BetaPage"]);
+    const back = switchEntry(off, 10, true);
+    expect(names(groupEntries(back).on)).toEqual(["BetaPage", "AlphaPage"]);
+    expect(describeEdits(back, loaded())).toEqual([]);
+  });
+});
+
+describe("moveEntry", () => {
+  it("renumbers the switched-on sites 1..n in the dragged order", () => {
+    const entries = moveEntry(loaded(), 1, 0);
+    expect(names(groupEntries(entries).on)).toEqual(["AlphaPage", "BetaPage"]);
+    expect(entries.filter((e) => e.enabled).map((e) => [e.pattern.name, e.sort_order])).toEqual([["AlphaPage", 1], ["BetaPage", 2]]);
+    expect(entries.find((e) => e.pattern.id === 15).sort_order).toBe(3);
+  });
+
+  it("leaves the entries alone for an index past the end", () => {
+    const entries = loaded();
+    expect(moveEntry(entries, 5, 0)).toBe(entries);
+  });
+});
+
+describe("fieldEdited / describeEdits", () => {
+  it("names each edited field by site, and a switch as one edit", () => {
+    let entries = loaded().map((e) => (e.pattern.id === 11 ? { ...e, surface_label: "BetaPage (beta)" } : e));
+    entries = switchEntry(entries, 15, true);
+    expect(describeEdits(entries, loaded())).toEqual(["BetaPage's label", "Gamma switched on"]);
+    expect(fieldEdited(entries[1], loaded()[1], "surface_label")).toBe(true);
+    expect(fieldEdited(entries[0], loaded()[0], "surface_label")).toBe(false);
+  });
+
+  it("counts a reorder once, and an order written as a string the same as the number", () => {
+    expect(describeEdits(moveEntry(loaded(), 1, 0), loaded())).toEqual(["the order"]);
+    const asStrings = loaded().map((e) => ({ ...e, sort_order: `${e.sort_order}` }));
+    expect(describeEdits(asStrings, loaded())).toEqual([]);
+  });
+
+  it("is empty when nothing changed", () => {
+    expect(describeEdits(loaded(), loaded())).toEqual([]);
+  });
+});
+
+describe("datasetRows (apiLoad)", () => {
+  const ref = { slug: "qa_patterns", source_id: 128, view_id: 129 };
+  const fakeApiLoad = (rows) => {
+    const calls = [];
+    const apiLoad = async (config) => {
+      calls.push(config);
+      const [child] = config.children;
+      if (child.action === "udaLength") return { $type: "atom", value: rows.length };
+      return rows.map((r) => Object.fromEntries(child.filter.attributes.map((a) => [a, a === "id" ? r.id : { $type: "atom", value: r[a.split(" as ")[1]] }])));
+    };
+    return { apiLoad, calls };
+  };
+
+  it("reads the view's length, then every row's columns, unwrapped", async () => {
+    const { apiLoad, calls } = fakeApiLoad([{ id: 7, surface: "alphapage" }, { id: 8, surface: "betapage" }]);
+    expect(await datasetRows(apiLoad, "qa_test", ref, ["id", "surface"])).toEqual([{ id: 7, surface: "alphapage" }, { id: 8, surface: "betapage" }]);
+    expect(calls[0].format).toEqual({ app: "qa_test", type: "qa_patterns|129:data", env: "qa_test+qa_patterns", view_id: 129 });
+    expect(calls[1].children[0].filter).toEqual({ fromIndex: 0, toIndex: 1, options: "{}", attributes: ["id", "data->>'surface' as surface"] });
+  });
+
+  it("stops after the length for an empty dataset", async () => {
+    const { apiLoad, calls } = fakeApiLoad([]);
+    expect(await datasetRows(apiLoad, "qa_test", ref, ["id"])).toEqual([]);
+    expect(calls.length).toBe(1);
   });
 });

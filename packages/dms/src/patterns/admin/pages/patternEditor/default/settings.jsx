@@ -10,6 +10,7 @@ import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../u
 import { settingsEditorTheme } from './settings.theme'
 import { installQa } from "../../../../qa/install";
 import { QA_DATASETS, qaDatasetSlug } from "../../../../qa/datasets";
+import { qaConfigureTheme } from "../qa/configureTab.theme";
 import { getSourceIdsBySlug } from "../../../../../api/sourceIdBySlug";
 import { patternActions } from '../../../../../utils/adminPermissions'
 
@@ -576,34 +577,48 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
   );
 }
 
-// A QA install's datasets: how many its row links, how many exist but aren't linked (left by
-// an interrupted set-up), how many are missing; a button that finishes the set-up
-// (patterns/qa/install.js adopts what exists and creates the rest); and a link to the Datasets
-// pattern that lists them, when one uses the install's environment. Shown on the Overview and on
-// the install's Configure tab (patternEditor/qa/configureTab.jsx); each tab's Save writes what
-// "finish set-up" adds to its draft.
-export function QaPatternSettings({ value, onChange, apiLoad }) {
+// A QA install's datasets: one row each, with its row count, or what's missing and "finish set-up".
+// On the Overview and on Configure (qa/configureTab.jsx). `reloadKey`: change it to re-count, as
+// Configure does after a Save.
+export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
   const { app, type, siteType } = useContext(AdminContext);
-  const { theme } = useContext(ThemeContext);
-  const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
+  const { theme, UI } = useContext(ThemeContext);
+  const { Icon } = UI;
+  const t = { ...settingsEditorTheme, ...qaConfigureTheme, ...(theme?.admin?.settingsEditor || {}), ...(theme?.admin?.qaConfigure || {}) }
   const { falcor } = useFalcor();
   const { revalidate } = useRevalidator();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [datasetsUrl, setDatasetsUrl] = useState(null);
   const [found, setFound] = useState(null); // { [key]: sourceId | null } for the unlinked ones
+  const [counts, setCounts] = useState({}); // { [key]: rows } for the linked ones
 
-  const unlinked = QA_DATASETS.filter(d => !value?.qa?.datasets?.[d.key]);
+  const refs = value?.qa?.datasets || {};
+  const unlinked = QA_DATASETS.filter(d => !refs[d.key]);
   const linked = QA_DATASETS.length - unlinked.length;
   const leftOver = found ? unlinked.filter(d => found[d.key]).length : 0;
   const missing = found ? unlinked.length - leftOver : unlinked.length;
+  const instance = getInstance(value?.type);
 
   useEffect(() => {
     if (!unlinked.length) return setFound({});
-    const instance = getInstance(value.type);
     getSourceIdsBySlug(falcor, app, unlinked.map(d => qaDatasetSlug(instance, d.key)))
       .then(ids => setFound(Object.fromEntries(unlinked.map(d => [d.key, ids[qaDatasetSlug(instance, d.key)]]))));
   }, [linked]);
+
+  useEffect(() => {
+    let current = true;
+    Promise.all(QA_DATASETS.filter(d => refs[d.key]).map(async d => {
+      const ref = refs[d.key];
+      const length = await apiLoad({
+        format: { app, type: `${ref.slug}|${ref.view_id}:data`, env: `${app}+${ref.slug}`, view_id: ref.view_id },
+        children: [{ type: () => {}, action: 'udaLength', path: '/', filter: { options: '{}' } }],
+      }, '/').catch(() => null);
+      return [d.key, length == null ? null : +(length?.value ?? length) || 0];
+    }))
+      .then(pairs => current && setCounts(Object.fromEntries(pairs)));
+    return () => { current = false; };
+  }, [linked, reloadKey]);
 
   useEffect(() => {
     if (!value?.dmsEnvId) return;
@@ -620,10 +635,10 @@ export function QaPatternSettings({ value, onChange, apiLoad }) {
       const site = await loadSiteData(apiLoad, app, siteType);
       const result = await installQa({
         falcor, app, siteId: site?.id, siteInstance: getInstance(siteType) || type,
-        patternId: value.id, instance: getInstance(value.type), installName: value.name,
+        patternId: value.id, instance, installName: value.name,
         patterns: await loadSitePatterns(apiLoad, app, siteType),
       });
-      // The Overview's Save sends this whole draft, so it takes the install's writes too.
+      // The tab's Save sends this whole draft, so it takes the install's writes too.
       onChange(draft => {
         draft.dmsEnvId = result.env.id;
         draft.qa = { version: 1, datasets: result.datasets };
@@ -637,26 +652,52 @@ export function QaPatternSettings({ value, onChange, apiLoad }) {
     }
   };
 
+  // What "finish set-up" will do, in one sentence.
+  const finishing = [missing && `creates the ${missing} missing`, leftOver && `links the ${leftOver} left by an interrupted set-up`].filter(Boolean).join(' and ');
+  const finishNote = !found ? 'checking…'
+    : linked ? `Set-up stopped part way. Finishing it ${finishing} and keeps the rest.`
+    : `Not set up yet. Finishing set-up ${finishing}.`;
+
   return (
-    <div className={t.card}>
+    <div className={`${t.card} ${t.datasetsCard}`}>
       <div className={t.cardHeader}>
-        <span className={t.cardHeaderLabel}>ticketing / qa</span>
-        <span className={t.cardHeaderHint}>the datasets this install keeps its tickets, pages and history in</span>
+        <span className={t.cardHeaderLabel}>datasets</span>
+        <span className={t.spacer} />
+        {unlinked.length
+          ? <span className={t.badgeWarn}>{unlinked.length} missing</span>
+          : <span className={t.badgeOk}>all linked</span>}
       </div>
-      <div className={t.settingsGrid}>
-        <span className={t.settingsLabel}>
-          datasets: {linked} of {QA_DATASETS.length} linked
-          {leftOver > 0 && ` · ${leftOver} left by an interrupted set-up`}
-          {missing > 0 && ` · ${missing} missing`}
-        </span>
-        {unlinked.length > 0 && (
-          <button type={'button'} className={t.btnSave} disabled={busy || !found} onClick={createMissing}>
-            {busy ? 'finishing…' : 'finish set-up'}
-          </button>
-        )}
-        {datasetsUrl && <Link to={datasetsUrl} className={t.qaLink}>browse them in Datasets</Link>}
-        {error && <span className={t.qaError}>{error}</span>}
-      </div>
+      <ul className={t.datasetList}>
+        {QA_DATASETS.map(d => {
+          const ref = refs[d.key];
+          const n = counts[d.key];
+          return (
+            <li key={d.key} className={t.datasetRow}>
+              {ref ? <Icon icon='CircleCheck' className={t.datasetTick} /> : <span className={t.datasetRing} aria-hidden />}
+              <span className={t.datasetName}>{d.name}</span>
+              <span className={t.datasetSlug}>{ref?.slug || qaDatasetSlug(instance, d.key)}</span>
+              {ref
+                ? <span className={t.datasetCount}>{n == null ? '…' : `${n} row${n === 1 ? '' : 's'}`}</span>
+                : <span className={t.datasetMissing}>{found?.[d.key] ? 'not linked' : 'missing'}</span>}
+            </li>
+          );
+        })}
+      </ul>
+      {(unlinked.length > 0 || datasetsUrl || error) && (
+        <div className={t.cardFooter}>
+          {unlinked.length > 0 ? (
+            <>
+              <span className={t.datasetNote}>{finishNote}</span>
+              <button type={'button'} className={t.btnSave} disabled={busy || !found} onClick={createMissing}>
+                {busy ? 'finishing…' : 'finish set-up'}
+              </button>
+            </>
+          ) : datasetsUrl && (
+            <Link to={datasetsUrl} className={t.datasetLink}>browse in Datasets<Icon icon='ArrowRight' className={t.datasetLinkIcon} /></Link>
+          )}
+          {error && <span className={t.qaError}>{error}</span>}
+        </div>
+      )}
     </div>
   );
 }

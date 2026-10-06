@@ -186,3 +186,67 @@ export async function saveConfigure({ entries = [], datasets = {}, app, now, loa
   }
   return { saved: writes.length, added }
 }
+
+// ── the tab's editing: display order, switching, dragging, and what's unsaved ──
+
+const orderRank = (e) => (`${e.sort_order ?? ''}` === '' ? Infinity : +e.sort_order)
+
+// The table's two groups: switched-on sites in their order (the Overview's card order), then
+// switched-off sites in site order. Ties and blank orders keep site order (the sort is stable).
+export function groupEntries(entries = []) {
+  return {
+    on: entries.filter((e) => e.enabled).sort((a, b) => orderRank(a) - orderRank(b)),
+    off: entries.filter((e) => !e.enabled),
+  }
+}
+
+// Switch one entry (by pattern id). Switched on, it joins the end of the switched-on sites, unless
+// it was on when the tab loaded, which puts it back where it was.
+export function switchEntry(entries = [], id, enabled) {
+  const last = Math.max(0, ...entries.filter((e) => e.enabled).map((e) => +e.sort_order || 0))
+  return entries.map((e) => {
+    if (e.pattern.id !== id) return e
+    if (!enabled) return { ...e, enabled: false }
+    const wasOn = e.row?.enabled === 'yes' && `${e.sort_order ?? ''}` !== ''
+    return { ...e, enabled: true, sort_order: wasOn ? e.sort_order : last + 1 }
+  })
+}
+
+// A drag among the switched-on sites (`from` / `to` index groupEntries' `on`): numbers them 1..n
+// in the new order.
+export function moveEntry(entries = [], from, to) {
+  const on = [...groupEntries(entries).on]
+  const [moved] = on.splice(from, 1)
+  if (!moved) return entries
+  on.splice(to, 0, moved)
+  const order = new Map(on.map((e, i) => [e.pattern.id, i + 1]))
+  return entries.map((e) => (order.has(e.pattern.id) ? { ...e, sort_order: order.get(e.pattern.id) } : e))
+}
+
+// Whether one field differs from the loaded entry (`saved`), for the field's unsaved outline.
+export const fieldEdited = (entry, saved, field) => Boolean(saved) && !same(entry?.[field], saved[field])
+
+const EDITABLE = [['surface_label', 'label'], ['surface', 'short key'], ['include_slugs', 'pages']]
+
+// What a Save would change, in words for the save bar: "Pages switched on", "BetaPage's label",
+// "the order". `saved`: the entries as loaded. A switched site is one edit, whatever else changed on
+// it; a renumbering is one edit, however many rows it moves.
+export function describeEdits(entries = [], saved = []) {
+  const before = new Map(saved.map((e) => [e.pattern.id, e]))
+  const edits = []
+  let reordered = false
+  for (const e of entries) {
+    const b = before.get(e.pattern.id)
+    if (!b) continue
+    const name = e.pattern.name
+    if (e.enabled !== b.enabled) {
+      edits.push(`${name} switched ${e.enabled ? 'on' : 'off'}`)
+      continue
+    }
+    if (!e.enabled) continue
+    for (const [field, word] of EDITABLE) if (fieldEdited(e, b, field)) edits.push(`${name}'s ${word}`)
+    if (fieldEdited(e, b, 'sort_order')) reordered = true
+  }
+  if (reordered) edits.push('the order')
+  return edits
+}

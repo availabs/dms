@@ -6,9 +6,11 @@ Turn the approved mockups into the live QA pages. The design pass itself (decisi
 recorded in [`qa-pattern-type.md`](./qa-pattern-type.md), section "Design pass". This file is the build plan and,
 once work starts, its status.
 
-**▶ Start here (2026-10-05).** Step 1 (five core enrichments), step 2's tokens + pills and step 3's **Tickets**
-**Ticket**, **Overview** and **Page QA** pages are DONE (step 3 complete), all uncommitted for the owner. Next:
-**Configure** (step 4, the React tab). Pattern per page: add its named styles to `patterns/qa/qa.theme.js`, use `QT` text keys and
+**▶ Start here (2026-10-06).** Steps 1–3 are DONE and committed by the owner (`1667bdad`, 2026-10-06): the five
+core enrichments, step 2's tokens + pills, and step 3's **Tickets**, **Ticket**, **Overview** and **Page QA**
+pages. The owner then gated the QA type behind `VITE_DMS_QA_PATTERN` (`QA_PATTERN_ENABLED` in `patterns/qa/install.js`;
+`3945d00b`). **Step 4 (Configure) BUILT and live-checked 2026-10-06, uncommitted** for the owner; see its
+section for what was checked and two things found outside it. Next: the owner's pick (step 5 is phase 6's). Pattern per page: add its named styles to `patterns/qa/qa.theme.js`, use `QT` text keys and
 `PANEL*` frames, probe-screenshot light + dark (`scratchpad/qa_test/design-impl/mockshot.mjs` shoots a mockup;
 `report_probe.mjs --eval` for live clicks), update the QA tests that pin the old structure. Core files touched (land separately from QA styling): `Card.jsx`,
 `card.theme.jsx`, `columnTypes/{radio,stage_progress,kv_chips,comment_thread}.*`, `structuredText.utils.js`,
@@ -316,16 +318,121 @@ Who: the owner with the transcription skill, or Claude; one page at a time, scre
   "n of 3 verified"; tickets on `qa_list`; rail = stage picker (`radio` · `qa_steps`), facts, work completed; New
   ticket modal on `qa_form` with severity as `radio` · `qa_choice`.
 
-### 4. Configure (React tab)
+### 4. Configure (React tab) — BUILT and live-checked 2026-10-06, uncommitted
 
-Who: the implementer. Files: `patterns/admin/pages/patternEditor/qa/configureTab.jsx`, `configureTab.theme.js`
-(`admin.qaConfigure`, QA-only), and `QaPatternSettings` in `patternEditor/default/settings.jsx` (datasets card).
+Who: the implementer. Spec: `qa-configure.html` (states: live, datasets missing, unsaved edits). Live page:
+`/list/manage_pattern/126/configure` (the `QA` install on `qa_test`). Files: `patterns/admin/pages/patternEditor/qa/
+configureTab.jsx` + `configureTab.theme.js` (`admin.qaConfigure`, QA-only), `QaPatternSettings` in
+`patternEditor/default/settings.jsx` (the datasets card; the Overview tab shows it too, only for `pattern_type ===
+'qa'`), `patterns/qa/configure.js` (pure logic) + `tests/qaConfigure.test.js`.
 
-- [ ] Covered sites: switched-off rows collapse to one line; a key in use shows as locked text; drag to reorder
-  (`UI.DndList`) instead of the order number; "every page" as a picker button.
-- [ ] Datasets: one row per dataset with name and row count; missing ones say so, with "finish set-up".
-- [ ] Save bar: quiet when saved, names the edits and sticks to the top when dirty.
-- [ ] Ticket record: real markers for statuses, outcomes and stages; a dashed "features" placeholder.
+**What changes on screen** (most visible first):
+1. **Covered sites table.** Columns become grip · on · site · label · short key · pages (label now before key).
+   - Switched-on sites first, in their Overview order, each with a drag grip (`UI.DndList` from ThemeContext).
+     A drop renumbers `sort_order` 1..n over the switched-on rows. The order-number input goes.
+   - Switched-off sites below, one line each: name in grey, "not covered", no inputs, no grip. Switching a site on
+     moves it to the end of the switched-on group; switching it off moves it down. (Guess, flagged: the
+     alternative is rows staying put until Save.)
+   - A short key in use: lock icon + the key + "in use" as text, instead of a greyed-out input.
+   - Pages: a bordered "every page ▾" / "3 pages ▾" button opens today's picker row. Non-page patterns read
+     "all of it" (today "—").
+   - An edited field gets an amber outline until saved: a QA-only wrapper class on the field (`UI.Input` has no
+     class passthrough, and `settingsEditor` has no such key, despite the mockup's "reuse" note).
+   - Covered-sites dataset missing: names the dataset and points at "finish set-up".
+2. **Header.** Install name + the `qa` type pill (as the Overview shows it) + three figures on the right: sites
+   covered, pages tracked, datasets n/5 ("—" until set up).
+3. **Datasets card** (shared with the Overview tab). Badge "all linked" (green) or "N missing" (amber). One row per
+   dataset: tick, name, slug (`qa_tickets`), "N rows". Unlinked rows: amber ring + "missing", or "not linked" when
+   an interrupted set-up left it behind. Footer: "browse in Datasets ›" when complete, otherwise one sentence and
+   "finish set-up". Names stay `QA_DATASETS`' ("Covered sub-sites", "Change history"), not the mockup's shorter ones.
+4. **Save bar.** Clean: tick + "All changes saved" (or the last save's "saved · added 1 page from Pages"), no
+   buttons. Dirty: "2 unsaved changes · BetaPage's label, Pages switched on" + reset + save. Keeps the Overview's
+   shared `saveBar` / `saveBarDirty` keys (the mockup's map says reuse; its drawn band is not adopted). Live check
+   whether `sticky top-0` stays visible under the admin top bar; if not, a QA-only key adds the offset.
+5. **Ticket record card.** Header pill "set in code for now". Statuses as the Tickets page's chips (the same
+   `qa_status_*` styles via `STATUS_PILL`), outcomes as `qa_tag` chips, stages as square ramp markers
+   (`STAGE_MARKERS`) joined by ›.
+6. **Features placeholder.** Dashed card, "features" + the `qa_planned` tag, five dimmed switch tiles (Tickets,
+   Page inventory, Page stages, Stories, Overview). Not clickable.
+7. **Layout.** Datasets (5/12) beside ticket record (7/12) on wide screens, stacked on narrow; covered sites and
+   features full width.
+
+**Build order** (each piece checked before the next):
+- [x] a. No library change. Row counts come from `apiLoad` with the existing `udaLength` action (`format: { app,
+  type, env, view_id }`, `filter: { options: '{}' }`; `api/index.js:268-285` invalidates the view's length, then
+  reads `['uda', env, 'viewsById', view_id, 'options', '{}', 'length']`), as the dataWrapper's `getLength` does
+  (`dataWrapper/getData.js:200`). The local-DB branch (`api/index.js:230`) only takes `list`/`view`/`edit`, so it
+  doesn't intercept. Naming, if a helper is ever wanted: the codebase says "length" (falcor `length` paths, the
+  `length`/`filteredLength`/`udaLength` actions, `getLength`), never "count". (An earlier draft added
+  `countDatasetRows` to `api/datasetRows.js`; dropped 2026-10-06.) Icons: only
+  ones the library already registers (`CircleCheck`, `CaretDown`, `ArrowRight`, an existing one for the grip); no
+  new library icons (owner, 2026-10-06). Found while checking: a library `Check` would not be additive. The
+  Spreadsheet's add-row "Save row" button (`ui/components/table/index.jsx:256`) asks for `Check`, and on themes
+  without one (mny, catalyst, tessera, avail, lingua, two_curses) it shows `Icon.jsx`'s fallback shield today.
+- [x] a2. (2026-10-06: `datasetRows` in `patterns/qa/datasets.js`, tested with a fake `apiLoad`; the datasets card's
+  counts make the `udaLength` call inline, per `packages/dms/CLAUDE.md`'s "no 1–2 line wrappers around `apiLoad`".) **Configure's dataset reads move to `apiLoad`** (owner asked 2026-10-06 where QA code could use `apiLoad`
+  instead of falcor). Rows = `udaLength`, then `action: 'uda'` with `filter: { fromIndex, toIndex, options: '{}',
+  attributes }` (as `dataWrapper/getData.js:174` does); `dmsDataLoader` invalidates every `uda` request before the
+  get (`api/index.js:312`), so it's as fresh as `loadDatasetRows(..., fresh: true)`. A small QA helper wraps the two
+  calls. Writes stay on `dmsDataEditor` (deliberate, phase 5: `apiUpdate` revalidates the whole admin loader after
+  every create, once per backfilled page).
+  **Audit of the rest of QA's falcor use, NOT in this step (owner to pick):**
+  - `qa/pages/view.jsx:31`: the covered-sites read on every QA page (`useFalcor` + `loadDatasetRows`). Could be the
+    same helper, or route config.
+  - `page/pages/edit/editFunctions.jsx:167`: track-on-publish's row read. The browser side could pass an `apiLoad`
+    reader; the CLI (`cli/src/commands/page.js`) has no `apiLoad` and keeps `loadDatasetRows`.
+  - `qa/install.js`: calls `falcor.call(['dms','data','create'|'edit'])` itself (pattern code, against the library
+    rule in `src/dms/CLAUDE.md`). Moving it to `dmsDataEditor` touches the tested set-up flow; a task of its own.
+  - Fine as they are: `getSourceIdsBySlug` and `loadItemFresh` (api-layer functions, no `apiLoad` action for them);
+    `qa/siteConfig.jsx`'s `preload(falcor, …)` (the framework's route hook).
+- [x] b. (2026-10-06: `export STAGE_MARKERS`; `qaPillClass(name)` beside `QA_TOKENS_FONT`.) QA exports: `STAGE_MARKERS` and a pill-class lookup from `qa.theme.js`. Configure loads the QA tokens
+  itself (`loadThemeFonts([QA_TOKENS_FONT])`, as `qa/siteConfig.jsx` does): a hard load of `/list/...` never runs
+  the QA pattern's config, so `--qa-*` would be undefined there.
+- [x] c. (2026-10-06: `groupEntries`, `switchEntry`, `moveEntry`, `fieldEdited`, `describeEdits`; `qaConfigure.test.js`
+  32/32, 10 new incl. the readers.) Pure logic in `configure.js` + tests: `describeEdits` (the save bar's wording), row grouping and
+  move/renumber.
+- [x] d. Datasets card (`QaPatternSettings`): one row per dataset with its count (`udaLength` through `apiLoad`,
+  inline), badge, footer note or Datasets link; `reloadKey` re-counts after a Configure Save.
+- [x] e. Configure JSX + `qaConfigure` keys. Grip = the library's `MenuDots` turned upright. The save bar sits in a
+  QA-only `saveBarSticky` backing (solid `--t-paper`): the dirty bar's `--t-amber-soft` is 10% amber, so stuck over
+  the cards it showed them through it. The datasets card stretches only on Configure (`topDatasets`'s
+  `[&>*]:flex-1`); a `h-full` on the card itself stretched it to ~500px on the Overview tab.
+- [x] f. Live check (below).
+
+**Verification.** QA unit suites, then full `packages/dms/tests` (expect the same 3 unrelated failures). Live on
+`qa_test` in a browser, light and dark (the probe can't hard-load `/list/...`; client-side navigation from `/qa`
+works): label edit → amber outline + named save bar; Pages on → row moves, Save adds its pages, then revert through
+the UI and delete the added page rows (backup first); drag reorder → the `/qa` Overview card order follows, then
+restore; the Overview tab shows the new datasets card. The datasets-missing state: unit-level and a visual check
+only, unless a scratch install shows it cheaply.
+
+**Live check, 2026-10-06** (probe `report_probe.mjs --auth scratchpad/npmrds-sub/.dms-auth-token-qa_test`, client-side
+navigation from `/qa`; evals in `scratchpad/qa_test/probes/configure_*.mjs`; shots in `scratchpad/qa_test/design-impl/
+live-configure-*.png`). Backup first: `scratchpad/qa_test/backup_2026-10-06/` (covered sites 3 rows, pages 7).
+- Renders in light and dark: header 2 sites covered / 7 pages tracked / 5/5; datasets 6, 7, 3, 3, 0 rows, all linked;
+  status markers take `--qa-kind-*` (cobalt on In progress), stages the ramp; BetaPage and AlphaPage on with keys
+  locked "in use", Auth and Pages off on one line; features placeholder. No console errors from the tab.
+- BetaPage label edited → "1 unsaved change · BetaPage's label", field amber. Pages switched on → moves to the end of
+  the switched-on group, "Pages switched on". Drag AlphaPage above BetaPage (Playwright `dragTo` from the grip) →
+  "the order". Save → rows 137/138/139 written, one pages row added (`pages:page_1`, Proposed, as phase 5).
+  Reverted through the UI and saved; the added pages row (166) deleted with `dms raw delete` (needs
+  `DMS_HOST=http://localhost:3001` and `DMS_AUTH_TOKEN` = the qa_test token). DB = the backup again.
+- Order on `/qa`: after a drag + Save, a full load of `/qa` shows AlphaPage's card first; restored → BetaPage first.
+- Sticky: scrolled 370px, the bar sits at the top, solid, nothing over it. Reset clears edits without a write.
+- Tests: `qaConfigure.test.js` 32/32; QA suites 132/132; full `packages/dms/tests` 780/783, the same 3 unrelated
+  failures (`avlGraphThemeDefaults` golden, `syncDeltaConvergence` x2).
+- Not checked live: the datasets-missing state (needs an install without datasets), the overlap refusal (needs a
+  second install; unit-tested since phase 5).
+
+**Found, not fixed (outside this step):**
+- **Moving back to `/qa` inside the app shows the old card order** after a Configure Save; a full load is right.
+  `qa/pages/view.jsx` reads the covered sites with `loadDatasetRows` and no `fresh`, so falcor's cached rows from the
+  first visit come back. Moving that read to `datasetRows` (apiLoad invalidates every `uda` read) fixes it; it's the
+  first item of the a2 audit list. Present since phase 4.
+- **The Overview tab's own dirty save bar is see-through when stuck** (shared `settingsEditor.saveBarDirty`, 10%
+  amber over the cards). Configure has its own backing; the Overview's is a shared-key change, not made.
+
+**Not in this step:** feature switches (placeholder only), an editable ticket record, Report an issue (phase 6).
 
 ### 5. Report an issue
 

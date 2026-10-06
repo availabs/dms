@@ -103,6 +103,10 @@ export const qaPillStyles = [
 // The token block as a theme `fonts` entry, for loadThemeFonts (deduped by id).
 export const QA_TOKENS_FONT = { type: 'style', id: 'dms-qa-tokens', content: qaTokensCss }
 
+// A QA pill style's classes by name, for React code that renders outside the QA pages (the admin's
+// Configure tab), where the theme carries no `qa_*` named styles.
+export const qaPillClass = (name) => qaPillStyles.find((st) => st.name === name)?.wrapper || ''
+
 // Pill-shaped legend keys: a marker and a label, no chip (the summary's "open by severity" and
 // "found by" rows). Source colours reuse the base palette: the same three the stacked bar uses.
 const KEY = "inline-flex items-center gap-1.5 t-proseXS text-[var(--t-ink)] before:content-[''] before:size-2 before:flex-none before:rounded-[2px]"
@@ -263,7 +267,8 @@ export const qaStageProgressStyles = [
 ]
 
 // ── radio: a page's stage as a clickable list, and a form's choice chips ──
-const STAGE_MARKERS = {
+// (also the Configure tab's stage list)
+export const STAGE_MARKERS = {
   Proposed: 'bg-[var(--qa-stage-proposed)]', Design: 'bg-[var(--qa-stage-design)]', Implemented: 'bg-[var(--qa-stage-implemented)]',
   QA: 'bg-[var(--qa-stage-qa)]', 'Dev Acceptance': 'bg-[var(--qa-stage-dev)]', 'Client Acceptance': 'bg-[var(--qa-stage-client)]',
 }

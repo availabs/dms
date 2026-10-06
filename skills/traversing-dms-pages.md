@@ -423,13 +423,21 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   (a QA install's datasets card read "0 of 5 linked" on an install with 5). FIXED 2026-10-05: the editor keys each
   tab by pattern id (`patternEditor/index.jsx`). If a tab ever shows another pattern's values again, check that
   key first.
-- **QA install's Configure tab (`/list/manage_pattern/<id>/configure`, 2026-10-02).** Cards reuse the Overview's
-  classes (`div.overflow-hidden` cards, `t-metaSM` header labels). Covered-sites rows are `div.grid`; find one with
-  `page.locator('div.grid', { has: page.locator('span:text-is("<pattern name>")') })`. In a row: the on/off switch
-  is the `[aria-checked]` element; inputs in order are short key (disabled = locked), label, order; a page pattern
-  has a "every page" / "N pages" button that opens the page-limit picker. Header and message text render in
-  capitals (`innerText` returns them so), so match case-insensitively: the save bar reads "SAVED · ADDED 1 PAGE
-  FROM PAGES" after a backfill.
+- **QA install's Configure tab (`/list/manage_pattern/<id>/configure`, redesigned 2026-10-06).** Cards are
+  `div.overflow-hidden` with `t-metaSM` header labels ("datasets", "ticket record", "covered sites"); "features" is a
+  dashed placeholder. Covered-sites rows are `div.grid` holding the on/off switch (`[aria-checked]`); find one with
+  `page.locator('div.grid:has([aria-checked])', { has: page.locator('span.truncate:text-is("<name>")') }).last()`.
+  The `:has([aria-checked])` and `.last()` matter: "Pages" is also a dataset's name in the datasets card, which sits
+  inside an outer layout grid that comes first in the DOM. Switched-on rows come first, in their order, each wrapped
+  by `UI.DndList` in a `[draggable="true"]` div; reorder with `items.nth(from).dragTo(items.nth(to), { sourcePosition:
+  { x: 20, y: 20 }, targetPosition: { x: 20, y: 5 } })` (the grip, not the label input). Switched-off rows are one
+  line, no inputs. Inputs carry `aria-label="<pattern name> label"` / `"<pattern name> short key"`; a key in use is
+  text with a lock, not an input. The save bar is the first `div.sticky`; it reads "N UNSAVED CHANGE(S) · …" (capitals
+  via CSS), and after a Save "SAVED" or "SAVED · ADDED 1 PAGE FROM PAGES". Wait for a Save with `/saved/i` AND NOT
+  `/unsaved/i`: "unsaved" matches `/saved/` at once (2026-10-06).
+- **A `/qa` page reached by in-app navigation can show covered-sites data from earlier in the session**
+  (`qa/pages/view.jsx` reads them with falcor's cache). After a Configure Save, check the Overview with a full load
+  (`page.goto`), not `pushState` (2026-10-06).
 - **The probe token is per app, and the wrong one fails quietly.** Bare `--auth` injects the npmrdsv5 token
   (`.dms-auth-token`). On another app (e.g. `qa_test`) the user menu still shows the dev account, but the server
   returns pattern rows without their settings, so the page renders as if unconfigured (a `qa` install shows "datasets

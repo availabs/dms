@@ -134,3 +134,26 @@ export const QA_DATASETS = [
 ]
 
 export const qaDatasetSlug = (instance, key) => `${instance}_${key}`
+
+// Every row of one of an install's datasets, as plain objects of `columns` (data fields; 'id' is the
+// row id), read through apiLoad: its length, then that range. Browser code; the CLI has no apiLoad and
+// reads with api/datasetRows.js. `ref` is a `qa.datasets` entry ({ slug, source_id, view_id }). Neither
+// read is served from falcor's cache: dmsDataLoader invalidates a udaLength and every uda request first.
+const unwrap = (v) => (v && typeof v === 'object' && '$type' in v ? v.value : v)
+
+export async function datasetRows(apiLoad, app, ref, columns = []) {
+  const format = { app, type: `${ref.slug}|${ref.view_id}:data`, env: `${app}+${ref.slug}`, view_id: ref.view_id }
+  const length = +unwrap(await apiLoad({
+    format,
+    children: [{ type: () => {}, action: 'udaLength', path: '/', filter: { options: '{}' } }],
+  }, '/')) || 0
+  if (!length) return []
+  const attributes = columns.map((c) => (c === 'id' ? 'id' : `data->>'${c}' as ${c}`))
+  const nodes = await apiLoad({
+    format,
+    children: [{ type: () => {}, action: 'uda', path: '/', filter: { fromIndex: 0, toIndex: length - 1, options: '{}', attributes } }],
+  }, '/')
+  return (nodes || [])
+    .filter((node) => node && Object.keys(node).length)
+    .map((node) => Object.fromEntries(columns.map((c, j) => [c, unwrap(node[attributes[j]])])))
+}
