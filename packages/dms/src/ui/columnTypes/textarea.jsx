@@ -19,6 +19,8 @@ export const TextareaEdit = ({value, onChange, className, placeholder,
     // Destructure non-DOM props so they don't reach <textarea>
     loading, singleSelectOnly, displayDetailedValues, keepMenuOpen,
     tabular, displayInvalidMsg, onSearch, theme: _theme, format,
+    // a Card style's editField: when set, the field's whole class (else its input theme)
+    fieldClassName,
     ...rest}) => {
     const [tmpValue, setTmpValue] = useState(() => toInputValue(value))
 
@@ -29,6 +31,7 @@ export const TextareaEdit = ({value, onChange, className, placeholder,
     return (
         <Textarea
             {...rest}
+            {...(fieldClassName ? { className: fieldClassName } : {})}
             value={tmpValue}
             placeholder={placeholder}
             onChange={(e) => {

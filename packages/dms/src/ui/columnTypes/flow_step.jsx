@@ -1,5 +1,6 @@
 import React from "react";
 import { ThemeContext, getComponentTheme } from "../useTheme";
+import { flowStepTheme } from "./flow_step.theme";
 
 // flow_step column type — one step of a lifecycle flow strip: a boxed
 // [dot · label · count] with an optional '›' lead-out connector toward the next
@@ -15,28 +16,26 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //   stepTint  : truthy → the tinted terminal-box variant (theme `boxTint`)
 //   connector : truthy → renders the '›' lead-out after the box (omit on the
 //               last step; it visually sits in the cells-grid gap)
-const flowStepDefault = {
-  wrapper: "w-full h-full flex items-center",
-  box: "flex-1 min-w-0 h-full rounded-md border border-slate-200 bg-slate-50/60 p-3 flex items-center gap-2",
-  boxTint: "flex-1 min-w-0 h-full rounded-md border border-emerald-200 bg-emerald-50/50 p-3 flex items-center gap-2",
-  dot: "size-2.5 rounded-full shrink-0",
-  dots: { neutral: "bg-slate-300", info: "bg-sky-400", warn: "bg-amber-400", done: "bg-emerald-500" },
-  label: "font-medium text-[12.5px] text-slate-700 truncate",
-  count: "ml-auto pl-2 font-semibold text-[18px] tabular-nums text-slate-900",
-  connector: "shrink-0 text-slate-300 text-[16px] pl-1 -mr-1 select-none",
-};
+//   stepNote  : optional second line under the label (e.g. "needs a decision or data")
+//   stepDashed: truthy → the dashed-box variant (theme `boxDashed`), for a step that
+//               sits beside the flow rather than in it
 
-export const FlowStepView = ({ value, customName, display_name, stepColor = "neutral", stepTint, connector }) => {
+export const FlowStepView = ({ value, customName, display_name, stepColor = "neutral", stepTint, stepDashed, stepNote, connector }) => {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-  const t = { ...flowStepDefault, ...getComponentTheme(themeFromContext, "flowStep") };
+  const t = { ...flowStepTheme, ...getComponentTheme(themeFromContext, "flowStep") };
   const label = customName || display_name || "";
   const count = value?.value ?? value;
   const dots = t.dots || {};
   return (
     <div className={t.wrapper}>
-      <div className={stepTint ? t.boxTint : t.box}>
+      <div className={stepTint ? t.boxTint : stepDashed ? (t.boxDashed || t.box) : t.box}>
         <span className={`${t.dot} ${dots[stepColor] || dots.neutral || ""}`} />
-        <span className={t.label}>{label}</span>
+        {stepNote ? (
+          <span className={t.labelStack}>
+            <span className={t.label}>{label}</span>
+            <span className={t.note}>{stepNote}</span>
+          </span>
+        ) : <span className={t.label}>{label}</span>}
         <span className={t.count}>{count}</span>
       </div>
       {connector ? <span className={t.connector}>›</span> : null}

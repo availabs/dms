@@ -1,72 +1,85 @@
-import React from "react"
+import React, { useId } from "react"
+import { ThemeContext, getComponentTheme } from "../useTheme"
+import { radioTheme } from "./radio.theme"
 
-const theme = {
-    radio: {
-            wrapper: 'p-1 flex',
-            input: 'self-center p-1',
-            label: 'text-sm font-light p-1 self-center',
-            error: 'text-xs text-red-700 font-bold'
-    }
+// radio column type. The look comes from theme.radio's named styles, picked by the column's
+// `activeStyle` (radio.theme.js lists the keys). The default style is the original plain radio row;
+// a style can add per-option markers, a checked look and, with `ordered`, done / upcoming states
+// for a stepped list (a page's stage). `checkedTag`: optional text shown after the checked option.
+
+const optionValue = (o) => o.value || o
+
+const RadioList = ({ value, onChange, options, inline, activeStyle, checkedTag, disabled }) => {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...radioTheme.styles[0], ...getComponentTheme(themeFromContext, 'radio', activeStyle) };
+    // ids scoped to this list: option values repeat across rows and cards on one page
+    const groupId = useId();
+    const checkedIndex = options.findIndex(o => optionValue(o) === value);
+
+    return (
+        <div className={inline ? t.listRow : t.listCol}>
+            {
+                options.map((o, i) => {
+                    const v = optionValue(o);
+                    const checked = i === checkedIndex;
+                    const state = checked ? 'Checked'
+                        : t.ordered && checkedIndex >= 0 ? (i < checkedIndex ? 'Done' : 'Upcoming')
+                        : '';
+                    const cls = (key) => [t[key], state && t[`${key}${state}`]].filter(Boolean).join(' ');
+                    return (
+                        <label key={i} className={cls('wrapper')}>
+                            <input id={`${groupId}-${i}`}
+                                   name={groupId}
+                                   className={t.input}
+                                   type="radio" value={v} checked={checked} disabled={disabled}
+                                   onChange={e => onChange?.(e.target.value)} />
+                            {t.marker ? (
+                                <span aria-hidden="true"
+                                      className={[cls('marker'), state !== 'Upcoming' && t.markers?.[v]].filter(Boolean).join(' ')}>
+                                    {state === 'Done' && t.doneTick ? (
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={t.doneTick}>
+                                            <path d="M4.5 12.5l5 5L19.5 7" />
+                                        </svg>
+                                    ) : null}
+                                </span>
+                            ) : null}
+                            <span className={cls('label')}> {o.label || o} </span>
+                            {checked && checkedTag ? <span className={t.tag}>{checkedTag}</span> : null}
+                        </label>
+                    )
+                })
+            }
+        </div>
+    )
 }
 
-export const RadioEdit = ({value = '', onChange, options = [], inline=true}) => {
+export const RadioEdit = ({value = '', onChange, options = [], inline=true, activeStyle, checkedTag}) => {
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
-    
-    const isInvalidValue = value && !options.find(o => (o.value || o) === value);
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...radioTheme.styles[0], ...getComponentTheme(themeFromContext, 'radio', activeStyle) };
+    const isInvalidValue = value && !options.find(o => optionValue(o) === value);
     return (
         <>
             {
-                isInvalidValue ? <div className={theme?.radio?.error}>Invalid Value: {JSON.stringify(value)}</div> : null
+                isInvalidValue ? <div className={t.error}>Invalid Value: {JSON.stringify(value)}</div> : null
             }
-            <div className={`flex ${inline ? `flex-row` : `flex-col`}`}>
-                {
-                    options.map((o, i) => (
-                        <div key={i} className={theme?.radio?.wrapper || 'p-1 flex'}>
-                            <input id={o.value || o}
-                                   className={theme?.radio?.input || 'self-center p-1'}
-                                   type="radio" value={o.value || o} checked={value === (o.value || o)}
-                                   onChange={e => onChange(e.target.value)} />
-
-                            <label
-                                htmlFor={o.value || o}
-                                className={theme?.radio?.label || 'text-sm font-light p-1 self-center'}
-                            > {o.label || o} </label>
-                        </div>
-                    ))
-                }
-            </div>
+            <RadioList value={value} onChange={onChange} options={options} inline={inline}
+                       activeStyle={activeStyle} checkedTag={checkedTag} />
         </>
     )
-
 }
 
-export const RadioView = ({value = '', options = [], inline=true, className}) => {
+export const RadioView = ({value = '', options = [], inline=true, className, activeStyle, checkedTag}) => {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...radioTheme.styles[0], ...getComponentTheme(themeFromContext, 'radio', activeStyle) };
+    // A stepped style reads better as its list than as a bare value, so it can opt in.
+    if (t.viewAsList && options.length) {
+        return <RadioList value={value} options={options} inline={inline}
+                          activeStyle={activeStyle} checkedTag={checkedTag} disabled />
+    }
     return (
-        <div className={ className || (theme?.text?.view)}>
+        <div className={className}>
             {value}
         </div>
     )
-
-    // return (
-    //     <div className={`flex ${inline ? `flex-row` : `flex-col`}`}>
-    //         {
-    //             options.map((o, i) => (
-    //                 <div key={i} className={theme?.radio?.wrapper || 'p-1 flex'}>
-    //                     <input id={o.value || o}
-    //                            className={theme?.radio?.input || 'self-center p-1'}
-    //                            type="radio" value={o.value || o}
-    //                            checked={value === (o.value || o)}
-    //                            disabled={true}
-    //                     />
-    //
-    //                     <label
-    //                         htmlFor={o.label || o}
-    //                         className={theme?.radio?.label || 'text-sm font-light p-1 self-center'}
-    //                     > {o.label || o} </label>
-    //                 </div>
-    //             ))
-    //         }
-    //     </div>
-    // )
 }
-

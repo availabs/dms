@@ -68,7 +68,7 @@ describe("a ticket's page name and stage, live", () => {
   const all = pages();
 
   it("joins the install's pages on page_key in the ticket header and the tickets table", () => {
-    ["qa_ticket_header", "qa_tickets_table"].forEach((id) => {
+    ["qa_ticket_crumb", "qa_ticket_badges", "qa_ticket_title", "qa_ticket_target", "qa_tickets_table"].forEach((id) => {
       const { options } = compile(sectionOf(all, id));
       expect(options.join.sources.p).toEqual({ view_id: 130, env: "qa_test+qa_pages" });
       expect(options.join.on[0].on).toBe("ds.data->>'page_key' = p.data->>'page_key'");
@@ -76,7 +76,8 @@ describe("a ticket's page name and stage, live", () => {
   });
 
   it("reads the page's own name and stage, not the ticket's copies", () => {
-    const attrs = compile(sectionOf(all, "qa_ticket_header")).columnsToFetch.map((c) => c.reqName).join(" ");
+    // the header's target row: the page link, the filed-from route and the page's stage meter
+    const attrs = compile(sectionOf(all, "qa_ticket_target")).columnsToFetch.map((c) => c.reqName).join(" ");
     expect(attrs).toContain("p.data->>'name'");
     expect(attrs).toContain("p.data->>'stage'");
     expect(attrs).not.toMatch(/page_name|page_stage/);
@@ -95,7 +96,9 @@ describe("every joined section", () => {
     const joined = joinedSections(pages(siteLabels));
 
     it(`is one of the expected sections${siteLabels ? " (with site labels)" : ""}`, () => {
-      expect(joined.map((s) => s.trackingId).sort()).toEqual(["qa_overview_alphapage_pages", "qa_ticket_header", "qa_tickets_table"]);
+      expect(joined.map((s) => s.trackingId).sort()).toEqual([
+        "qa_overview_alphapage_pages", "qa_ticket_badges", "qa_ticket_crumb", "qa_ticket_target", "qa_ticket_title", "qa_tickets_table",
+      ]);
     });
 
     it("is read-only: a live-edit save would write its alias-prefixed names as fields", () => {
@@ -123,7 +126,7 @@ describe("every joined section", () => {
   it("keeps the tickets table's URL filters on their URL keys", () => {
     const table = dataOf(sectionOf(pages(), "qa_tickets_table"));
     expect(table.filters.groups.map((g) => [g.col, g.searchParamKey])).toEqual([
-      ["ds.status", "status"], ["ds.severity", "severity"], ["ds.source", "source"], ["ds.surface", "surface"],
+      ["ds.status", "status"], ["ds.severity", "severity"], ["ds.source", "source"], ["ds.surface", "surface"], ["ds.title", "q"],
     ]);
   });
 });

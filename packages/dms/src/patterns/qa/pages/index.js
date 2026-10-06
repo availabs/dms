@@ -50,12 +50,17 @@ export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [],
   const datasets = pattern?.qa?.datasets || {}
   const tickets = datasets.tickets
   if (!tickets || !datasets.pages || !datasets.stories) {
-    // An install whose datasets aren't set up yet (see its Overview in the admin).
-    const notYet = 'This install\'s datasets aren\'t set up yet.'
+    // An install whose datasets aren't set up yet: say what's missing and who finishes it (the
+    // install's Configure tab in the admin pages).
+    const notYet = [
+      'Its tickets, pages, stories and history live in five datasets, and they haven\'t been created. Finishing set-up creates them; nothing on the site changes.',
+      'An admin finishes set-up from the install\'s Configure tab in the admin pages.',
+    ]
+    const heading = 'This install isn\'t set up yet'
     return [
-      codePage({ title: 'Overview', url_slug: 'overview', index: 0, sections: [textSection('qa_overview_intro', 'Overview', notYet)] }),
-      codePage({ title: 'Tickets', url_slug: 'tickets', index: 1, sections: [textSection('qa_tickets_intro', 'Tickets', notYet)] }),
-      codePage({ title: 'Ticket', url_slug: 'ticket', index: 2, hide_in_nav: true, sections: [textSection('qa_ticket_intro', 'Ticket', notYet)] }),
+      codePage({ title: 'Overview', url_slug: 'overview', index: 0, sections: [textSection('qa_overview_intro', heading, ...notYet)] }),
+      codePage({ title: 'Tickets', url_slug: 'tickets', index: 1, sections: [textSection('qa_tickets_intro', heading, ...notYet)] }),
+      codePage({ title: 'Ticket', url_slug: 'ticket', index: 2, hide_in_nav: true, sections: [textSection('qa_ticket_intro', heading, ...notYet)] }),
     ]
   }
   const ctx = {

@@ -27,6 +27,9 @@ import {
   DefaultYScale,
   strictNaN,
   getScale,
+  toTimeValue,
+  isDateOnly,
+  timeAxisTickValues,
   useSetSize
 } from "./utils"
 
@@ -64,7 +67,7 @@ const InitialState = {
 export const BarGraph = props => {
 
   const {
-    data = EmptyArray,
+    data: dataProp = EmptyArray,
     keys = EmptyArray,
     margin = EmptyObject,
     hoverComp = EmptyObject,
@@ -157,9 +160,24 @@ export const BarGraph = props => {
   // (unchanged). coerceX maps the index value into the scale's domain type.
   const xScaleType = (xScale && xScale.type) || DefaultXScale.type;
   const isXBand = xScaleType === "band";
-  const coerceX = xScaleType === "time" ? (v => new Date(v))
+  const coerceX = xScaleType === "time" ? toTimeValue
     : xScaleType === "linear" ? (v => +v)
     : (v => v);
+
+  // xAxis.windowDays (time axis only): the last N days, today included, whatever days have rows —
+  // a fixed "last 14 days" frame. Rows outside it aren't drawn, so they don't move the scales.
+  const windowDays = xScaleType === "time" && +xScale?.windowDays > 0 ? Math.round(+xScale.windowDays) : 0;
+  const { data, windowDomain } = React.useMemo(() => {
+    if (!windowDays) return { data: dataProp, windowDomain: null };
+    const DAY = 86400000;
+    const end = new Date(); end.setHours(0, 0, 0, 0);
+    const start = new Date(end); start.setDate(start.getDate() - (windowDays - 1));
+    const inWindow = dataProp.filter(d => {
+      const t = +toTimeValue(get(d, indexBy, null));
+      return isFinite(t) && t >= +start && t < +end + DAY;
+    });
+    return { data: inWindow, windowDomain: [new Date(+start - DAY / 2), new Date(+end + DAY / 2)] };
+  }, [dataProp, windowDays, indexBy]);
 
 // console.log("BarGraph::width, height", width, height);
 
@@ -171,9 +189,14 @@ export const BarGraph = props => {
       adjustedHeight = Math.max(0, height - (Margin.top + Margin.bottom));
 
     const xdGetter = data => data.map(d => coerceX(get(d, indexBy, null)));
+    // Date-only x values ("YYYY-MM-DD") are daily bins: each bar is one day wide (and the domain
+    // pads half a day), whatever the gap to its neighbour, so two days far apart don't each draw as
+    // a multi-day block.
+    const DAY = 86400000;
+    const dailyBins = xScaleType === "time" && data.length > 0 && data.every(d => isDateOnly(get(d, indexBy, null)));
     // Non-band x-axis: build a [min,max] extent domain (band uses the full category list).
-    let xDomainOverride;
-    if (!isXBand) {
+    let xDomainOverride = windowDomain || undefined;
+    if (!isXBand && !windowDomain) {
       const nums = data.map(d => +coerceX(get(d, indexBy, null))).filter(n => isFinite(n));
       if (nums.length) {
         const lo = Math.min(...nums), hi = Math.max(...nums);
@@ -184,6 +207,7 @@ export const BarGraph = props => {
         let gap = Infinity;
         for (let i = 1; i < uniq.length; i++) gap = Math.min(gap, uniq[i] - uniq[i - 1]);
         if (!isFinite(gap) || gap <= 0) gap = (hi - lo) || 86400000; // 1-day fallback
+        if (dailyBins) gap = Math.min(gap, DAY);
         const padD = gap / 2;
         xDomainOverride = xScaleType === "time" ? [new Date(lo - padD), new Date(hi + padD)] : [lo - padD, hi + padD];
       }
@@ -195,6 +219,13 @@ export const BarGraph = props => {
                               padding, paddingInner, paddingOuter
                             });
     const xDomain = XScale.domain();
+    // A time x-axis gets day-aligned tick values (see timeAxisTickValues) unless the axis sets its own.
+    // Its tick count follows the axis's tickDensity per 100px, as a band axis's does (d3's default
+    // of ~10 ticked every day of a two-week frame, labels overlapping).
+    const xTickCount = AxisBottomData?.ticks ?? Math.max(2, Math.floor(adjustedWidth / 100 * (AxisBottomData?.tickDensity ?? 2)));
+    const xTickValues = xScaleType === "time" && !AxisBottomData?.tickValues
+      ? timeAxisTickValues(XScale.ticks(xTickCount), AxisBottomData?.format)
+      : undefined;
 
     // Bar cross-axis size: band scales expose bandwidth()/step(); a continuous scale doesn't, so
     // derive a width from the smallest gap between adjacent bar positions (proportional spacing).
@@ -208,6 +239,10 @@ export const BarGraph = props => {
       let minGap = Infinity;
       for (let i = 1; i < px.length; i++) minGap = Math.min(minGap, px[i] - px[i - 1]);
       if (!isFinite(minGap) || minGap <= 0) minGap = (isHorizontal ? adjustedHeight : adjustedWidth) * 0.06;
+      if (dailyBins && px.length) {
+        const d0 = XScale.domain()[0];
+        minGap = Math.min(minGap, Math.abs(XScale(new Date(+d0 + DAY)) - XScale(d0)));
+      }
       const inner = (padding != null ? padding : paddingInner) || 0;
       bandwidth = Math.max(2, minGap * (1 - inner));
       step = minGap;
@@ -409,7 +444,7 @@ export const BarGraph = props => {
     }
 
     setState({
-      xDomain, yDomain, XScale, YScale,
+      xDomain, yDomain, XScale, YScale, xTickValues,
       adjustedWidth, adjustedHeight,
       barData, hasData
     });
@@ -424,7 +459,7 @@ export const BarGraph = props => {
   );
 
   const {
-    xDomain, XScale,
+    xDomain, XScale, xTickValues,
     yDomain, YScale,
     barData, hasData,
     ...restOfState
@@ -489,7 +524,8 @@ export const BarGraph = props => {
                 domain={ xDomain }
                 showAnimations={ showAnimations }
                 hasData={ hasData }
-                { ...AxisBottomData }/>
+                { ...AxisBottomData }
+                tickValues={ AxisBottomData.tickValues ?? xTickValues }/>
             }
             { !AxisLeftData ? null :
               <AxisLeft type="linear"

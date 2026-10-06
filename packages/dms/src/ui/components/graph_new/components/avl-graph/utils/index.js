@@ -115,6 +115,27 @@ export const getUniqueId = (string = "unique-id-") => {
 
 export const strictNaN = v => (v === null) || (v === "") || isNaN(v);
 
+// A time x-axis value: a date-only "YYYY-MM-DD" is read as LOCAL midnight. `new Date()` reads it as
+// UTC midnight, which west of UTC is the previous evening, so a day's bar sat hours left of the
+// local-midnight tick that labels it.
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+export const isDateOnly = v => typeof v === "string" && DATE_ONLY.test(v);
+export const toTimeValue = v => (isDateOnly(v) ? new Date(`${ v }T00:00`) : new Date(v));
+
+// Tick values for a time x-axis. d3 ticks a short range every few hours, so a label that names a
+// day ("9/24") printed two or more times. When the formatted labels repeat, keep the ticks on a
+// local midnight; a range that crosses no midnight keeps the first tick of each label. Ticks whose
+// labels are already distinct are returned unchanged.
+const isLocalMidnight = d => !d.getHours() && !d.getMinutes() && !d.getSeconds() && !d.getMilliseconds();
+export const timeAxisTickValues = (ticks, format) => {
+  if (typeof format !== "function") return ticks;
+  const labels = ticks.map(d => format(d));
+  if (new Set(labels).size === labels.length) return ticks;
+  const midnights = ticks.filter(isLocalMidnight);
+  if (midnights.length) return midnights;
+  return ticks.filter((d, i) => !i || labels[i] !== labels[i - 1]);
+};
+
 export const DefaultXScale = {
   type: "band",
   domain: []

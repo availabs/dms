@@ -6,53 +6,32 @@ import { DEFAULT_STATUSES, PAGE_STAGES } from '../ticketRecord'
 // key below is one the library default theme defines, so the pages read the same on any site
 // that keeps the defaults.
 
-// ── lexical ──
-export const text = (t, format = 0, style = '') => ({ type: 'text', version: 1, detail: 0, format, mode: 'normal', style, text: t })
-export const styled = (styleKey, ...children) => ({
-  type: 'styled-paragraph', version: 1, direction: 'ltr', format: '', indent: 0, textFormat: 0, textStyle: '', styleKey, children,
-})
-export const lexical = (...nodes) => JSON.stringify({
-  bgColor: 'rgba(0,0,0,0)', isCard: '', showToolbar: false,
-  text: { root: { type: 'root', version: 1, direction: 'ltr', format: '', indent: 0, children: nodes } },
-})
-
-// ── text styles: keys of the default theme's textSettings (Card valueFontStyle / headerFontStyle
-// and lexical styleKey both resolve through it) ──
+// ── text styles: the theme's display sizes (h4 / h5) and the qa pattern's text keys (qa.theme.js
+// qaTextStyles, added to textSettings by withQaTheme). Card valueFontStyle / headerFontStyle resolve
+// through textSettings. ──
 export const T = {
-  title: 'text3XLBold', // page title
-  subtitle: 'text2XLBold', // a ticket's or page's own name
-  heading: 'textLGBold', // card and band titles
-  statSM: 'text2XLBold', statXS: 'textXLBold', // figures (stat_value)
-  value: 'textSMReg', strong: 'textSMBold',
-  meta: 'caption', // small secondary text
-  label: 'textXS', // field labels
-  body: 'body', bodySmall: 'bodySmall',
+  pageTitle: 'h4', cardTitle: 'h5',
+  crumb: 'qaCrumb', eyebrow: 'qaEyebrow', body: 'qaBody', strong: 'qaBodyStrong',
+  small: 'qaSmall', smallMuted: 'qaSmallMuted', figure: 'qaFigure', mono: 'qaMono',
+  button: 'qaButton', buttonSM: 'qaButtonSM', buttonPrimary: 'qaButtonPrimary', segment: 'qaSegment', prose: 'qaProse', label: 'qaLabel', link: 'qaLink',
 }
-// The breadcrumb and title of a page's header band.
-export const crumb = (...parts) => lexical(styled(T.meta, text(parts.join('  /  '))))
-export const pageTitle = (title, subtitle) => lexical(styled(T.title, text(title)), ...(subtitle ? [styled(T.meta, text(subtitle))] : []))
-export const cardTitle = (title, caption) => lexical(styled(T.heading, text(title)), ...(caption ? [styled(T.meta, text(caption))] : []))
 
-// ── pill colours: the default theme's pill styles (the keys double as a pill's edit-in-place options) ──
-export const SEV_PILL = { Blocker: 'red', Major: 'orange', Minor: 'blue', Polish: 'gray', Feature: 'green' }
-export const PRIO_PILL = { Now: 'red', Next: 'orange', Later: 'gray' }
+// ── pill colours: the qa pattern's own pill style names (qa.theme.js). The keys double as a pill's
+// edit-in-place options. ──
+export const SEV_PILL = { Blocker: 'qa_sev_blocker', Major: 'qa_sev_major', Minor: 'qa_sev_minor', Polish: 'qa_sev_polish', Feature: 'qa_sev_feature' }
+export const PRIO_PILL = { Now: 'qa_prio_now', Next: 'qa_prio_next', Later: 'qa_prio_later' }
+// by the status's kind (ticketRecord.js DEFAULT_STATUSES); In review is the active kind's half-filled step
 export const STATUS_PILL = {
-  Triage: 'gray', 'In progress': 'blue', 'In review': 'orange', 'Needs decision': 'orange', 'Needs data': 'gray', Resolved: 'green', Closed: 'green',
+  Triage: 'qa_status_triage', 'In progress': 'qa_status_active', 'In review': 'qa_status_review',
+  'Needs decision': 'qa_status_waiting', 'Needs data': 'qa_status_waiting', Resolved: 'qa_status_done', Closed: 'qa_status_canceled',
 }
-export const CATEGORY_PILL = { bug: 'red', style: 'orange', data: 'blue', content: 'gray', enhancement: 'green' }
-export const STAGE_PILL = {
-  Proposed: 'gray', Design: 'blue', Implemented: 'orange', QA: 'blue', 'Dev Acceptance': 'orange', 'Client Acceptance': 'green',
-}
-export const BUILD_PILL = { 'Not started': 'gray', 'In progress': 'orange', 'Built (draft)': 'blue', Published: 'green' }
-export const DATA_PILL = { Real: 'green', Partial: 'orange', Mock: 'gray' }
-export const STORY_PILL = { proposed: 'orange', accepted: 'blue', verified: 'green' }
-export const SOURCE_KEY_PILL = { ai: 'blue', dev: 'gray', client: 'orange', qa: 'gray' }
+export const CATEGORY_PILL = { bug: 'qa_tag', style: 'qa_tag', data: 'qa_tag', content: 'qa_tag', enhancement: 'qa_tag' }
+export const BUILD_PILL = { 'Not started': 'qa_build_none', 'In progress': 'qa_build_progress', 'Built (draft)': 'qa_build_draft', Published: 'qa_build_published' }
+export const DATA_PILL = { Real: 'qa_data_real', Partial: 'qa_data_partial', Mock: 'qa_data_mock' }
+export const STORY_PILL = { proposed: 'qa_story_proposed', accepted: 'qa_story_accepted', verified: 'qa_story_verified' }
 export const staticOptions = (map) => Object.keys(map).map((v) => ({ label: v, value: v }))
 
-// ── page stages: bar colours and short labels ──
-export const STAGE_HEX = {
-  Proposed: '#a1a1aa', Design: '#8b5cf6', Implemented: '#f59e0b', QA: '#38bdf8', 'Dev Acceptance': '#14b8a6', 'Client Acceptance': '#10b981',
-}
+// ── page stages: short labels and order ──
 export const STAGE_SHORT = { Proposed: 'proposed', Design: 'design', Implemented: 'impl', QA: 'qa', 'Dev Acceptance': 'dev', 'Client Acceptance': 'client' }
 // A page's position in the stage order, for sorting without a stored stage_order.
 export const STAGE_RANK = `(case data->>'stage' ${PAGE_STAGES.map((s, i) => `when '${s}' then ${i + 1}`).join(' ')} else 0 end)`
@@ -82,7 +61,6 @@ export const TNUM = tnum()
 // Free text inside an SQL string literal: no quotes, and no commas (the SELECT list is comma-split).
 export const sqlText = (s) => `${s || ''}`.replace(/[',]/g, '')
 export const SOURCE_CASE = "(case data->>'source' when 'ai' then 'AI' when 'dev' then 'Dev' when 'client' then 'Client' else (data->>'source') end)"
-export const SOURCE_PILL = { AI: 'blue', Dev: 'gray', Client: 'orange' }
 // Site (surface) display labels as a CASE; raw values when the install sets none. Labels must be
 // comma-free for the same reason as TNUM.
 export const siteCase = (siteLabels = {}) => {
@@ -112,7 +90,7 @@ export const pagesSource = (ctx) => datasetSource(ctx, ctx.datasets.pages, 'Page
 export const storiesSource = (ctx) => datasetSource(ctx, ctx.datasets.stories, 'Stories', ['story', 'stage', 'source', 'sort_order', 'page_key'])
 // A ticket's page, joined as `p` (joinDataset), for its live name and stage: tickets keep only
 // copies of them, which TransportNY's sync refreshed and nothing here writes.
-export const pagesByKey = (ctx) => joinDataset(ctx, ctx.datasets.pages, 'p', ['page_key', 'name', 'stage'], [['page_key', 'page_key']])
+export const pagesByKey = (ctx) => joinDataset(ctx, ctx.datasets.pages, 'p', ['page_key', 'name', 'stage', 'url'], [['page_key', 'page_key']])
 // The ticket's page name, else its raw page key (a ticket whose page isn't tracked).
 export const PAGE_DISP = "(case when p.data->>'name' is null or p.data->>'name' = '' then data->>'page_key' else p.data->>'name' end) as page_disp"
 
@@ -153,19 +131,22 @@ export const calc = (sql, label, over = {}) => ({
 // An aggregate shown as a figure. Card's own value class fixes the size of a plain value cell on
 // the default theme, so a big number renders through the stat_value column type, which sizes the
 // figure with its valueFontStyle.
-export const stat = (sql, label, over = {}) => calc(sql, label, { type: 'stat_value', origin: 'calculated-column', valueFontStyle: T.statSM, ...over })
+export const stat = (sql, label, over = {}) => calc(sql, label, { type: 'stat_value', origin: 'calculated-column', valueFontStyle: T.figure, ...over })
 export const staticCell = (name, value, over = {}) => ({ name, origin: 'static', staticValue: value, show: true, hideHeader: true, ...over })
 
 // ── section frames: a fused stack of cards in one band zeroes every interior edge ──
-export const WHITE_CARD = { bg: 'white', border: { top: true, left: true, right: true, bottom: true }, radius: { tl: true, tr: true, bl: true, br: true } }
-export const CARD_TOP = { bg: 'white', border: { top: true, left: true, right: true, bottom: true }, radius: { tl: true, tr: true }, padding: { bottom: '0' } }
-export const CARD_MID = { bg: 'white', border: { left: true, right: true, bottom: true }, padding: { top: '0', bottom: '0' } }
-export const CARD_BOTTOM = { bg: 'white', border: { left: true, right: true, bottom: true }, radius: { bl: true, br: true }, padding: { top: '0' } }
+// On the theme's own panel surface and rule line (a literal `bg-…` class and an inline border
+// colour), so a dark theme or a re-skinned site carries them along.
+const RULE_LINE = { color: 'var(--t-rule)' }
+export const PANEL = { bg: 'bg-[var(--t-panel)]', border: { top: true, left: true, right: true, bottom: true, ...RULE_LINE }, radius: { tl: true, tr: true, bl: true, br: true } }
+export const PANEL_TOP = { bg: 'bg-[var(--t-panel)]', border: { top: true, left: true, right: true, bottom: true, ...RULE_LINE }, radius: { tl: true, tr: true }, padding: { bottom: '0' } }
+export const PANEL_BOTTOM = { bg: 'bg-[var(--t-panel)]', border: { left: true, right: true, bottom: true, ...RULE_LINE }, radius: { bl: true, br: true }, padding: { top: '0' } }
 
 // ── page parts ──
-// Every group is a default-theme `content` band; sizes are the default theme's fractions of its
-// 6-column grid ('1/3', '1/2', '2/3', '1').
-export const group = (name, index, displayName) => ({ name, index, theme: 'content', position: 'content', displayName })
+// A group's band is a layout-group style: the default theme's `content`, or one of the qa pattern's
+// own (`qa_header`, `qa_content`, `qa_content_end`, qa.theme.js). Sizes are the default theme's
+// fractions of its 6-column grid ('1/3', '1/2', '2/3', '1').
+export const group = (name, index, displayName, theme = 'content') => ({ name, index, theme, position: 'content', displayName })
 export const section = ({ trackingId, group, size = '1', type, data, ...frame }) => ({
   title: '', level: '0', group, trackingId, size, element: { 'element-type': type, 'element-data': data }, ...frame,
 })
