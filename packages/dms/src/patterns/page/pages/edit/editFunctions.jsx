@@ -4,8 +4,8 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 
 import { appendHistoryEntry } from '../../../utils';
 import { resolveMountPath } from '../../../../utils/mountPath';
-import { loadDatasetRows } from '../../../../api/datasetRows';
 import { trackPublishedPage } from '../../../qa/tracking';
+import { datasetRows } from '../../../qa/datasets';
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     if(!item?.id) return;
@@ -158,13 +158,14 @@ export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) =>
 }
 
 // Adds a just-published page to the QA installs that cover its pattern (patterns/qa/tracking.js).
-// `qa`: CMSContext's qaTracking with its app, baseUrl and falcor. Its row is created through
+// `qa`: CMSContext's qaTracking with its app and baseUrl, and the page's apiLoad (its reads skip
+// falcor's cache, so a page another tab just added isn't added twice). Its row is created through
 // apiUpdate with the pages dataset's format, as a section's add-row does. A failure is logged and
 // leaves the publish as it is.
-const trackOnPublish = (item, apiUpdate, { installs, patternKeys, app, baseUrl, falcor }) => trackPublishedPage({
+const trackOnPublish = (item, apiUpdate, { installs, patternKeys, app, baseUrl, apiLoad }) => trackPublishedPage({
   page: item, patternKeys, qaInstalls: installs,
   url: `${window.location.origin}${baseUrl}/${item.url_slug}`,
-  loadRows: (ref, columns) => loadDatasetRows(falcor, { env: `${app}+${ref.slug}`, viewId: ref.view_id, columns, fresh: true }),
+  loadRows: (ref, columns) => datasetRows(apiLoad, app, ref, columns),
   createRow: (ref, data) => apiUpdate({
     data,
     config: { format: { app, type: `${ref.slug}|${ref.view_id}:data`, isDms: true, source_id: ref.source_id, view_id: ref.view_id, env: `${app}+${ref.slug}` } },

@@ -7,6 +7,8 @@ const unwrap = (v) => (v && typeof v === 'object' && '$type' in v ? v.value : v)
 // two reads TransportNY's control-room Overview builder makes (build_cr_overview.mjs, readRows).
 // `fresh`: drop the view's cached reads first. A row created through dmsDataEditor invalidates
 // only `dms.data`, so a read that must see it (a check-then-create) can't trust the cache.
+// The CLI's reader (it has no apiLoad); browser code reads through apiLoad instead
+// (patterns/qa/datasets.js `datasetRows`).
 export async function loadDatasetRows(falcor, { env, viewId, columns = [], fresh = false }) {
   const attrs = columns.map((c) => (c === 'id' ? 'id' : `data->>'${c}' as ${c}`))
   const base = ['uda', env, 'viewsById', viewId, 'options', '{}']

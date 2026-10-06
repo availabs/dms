@@ -1,7 +1,6 @@
 import React from "react";
 import { useParams } from "react-router";
-import { useFalcor } from "@availabs/avl-falcor";
-import { loadDatasetRows } from "../../../api/datasetRows";
+import { datasetRows } from "../datasets";
 import PageView from "../../page/pages/view";
 import { ThemeContext } from "../../../ui/useTheme";
 import { withQaTheme } from "../qa.theme";
@@ -17,22 +16,23 @@ import { buildQaPages, findQaPage, coveredSites, siteLabelsFrom, COVERED_SITE_CO
 // - Keyed by slug so each page mounts with its own page state: PageView re-reads
 //   page variables only when item.id changes, and code pages have no id.
 // - The Overview's site cards and every page's site labels come from the install's covered-sites
-//   dataset, read here once; the pages are rebuilt when the rows arrive.
+//   dataset, read here each time the view mounts (through apiLoad, which skips falcor's cache, so a
+//   Configure save shows on the next visit); the pages are rebuilt when the rows arrive.
 // - The pages get the site's theme plus the qa pattern's own named styles (qa.theme.js), so only QA
 //   sections can pick a `qa_*` style.
 export default function QaPageView({ pattern, pagesContext, ...props }) {
   const slug = useParams()['*'] || '';
-  const { falcor } = useFalcor();
   const [siteRows, setSiteRows] = React.useState(null);
   const sitesRef = pattern?.qa?.datasets?.patterns;
+  const { apiLoad } = props;
   React.useEffect(() => {
-    if (!sitesRef || !falcor) return;
+    if (!sitesRef || !apiLoad) return;
     let current = true;
-    loadDatasetRows(falcor, { env: `${pagesContext.app}+${sitesRef.slug}`, viewId: sitesRef.view_id, columns: COVERED_SITE_COLUMNS })
+    datasetRows(apiLoad, pagesContext.app, sitesRef, COVERED_SITE_COLUMNS)
       .then((rows) => { if (current) setSiteRows(rows); })
       .catch(() => { if (current) setSiteRows([]); });
     return () => { current = false; };
-  }, [falcor, sitesRef?.slug, sitesRef?.view_id]);
+  }, [sitesRef?.slug, sitesRef?.view_id]);
   const pages = React.useMemo(
     () => buildQaPages(pattern, { ...pagesContext, sites: siteRows && coveredSites(siteRows), siteLabels: siteLabelsFrom(siteRows || []) }),
     [pattern, pagesContext, slug, siteRows],

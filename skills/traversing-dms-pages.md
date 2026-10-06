@@ -435,9 +435,14 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   text with a lock, not an input. The save bar is the first `div.sticky`; it reads "N UNSAVED CHANGE(S) · …" (capitals
   via CSS), and after a Save "SAVED" or "SAVED · ADDED 1 PAGE FROM PAGES". Wait for a Save with `/saved/i` AND NOT
   `/unsaved/i`: "unsaved" matches `/saved/` at once (2026-10-06).
-- **A `/qa` page reached by in-app navigation can show covered-sites data from earlier in the session**
-  (`qa/pages/view.jsx` reads them with falcor's cache). After a Configure Save, check the Overview with a full load
-  (`page.goto`), not `pushState` (2026-10-06).
+- **`/qa` pages read the covered sites fresh each time the view mounts** (through `apiLoad`, since 2026-10-06), so
+  a Configure Save shows on `/qa` after an in-app `pushState`, no full load needed. (Before that fix they read
+  falcor's cache and showed the old order until a reload.)
+- **Publishing from the page editor in a probe:** `pushState` to `/<base_url>/edit/<slug>` from an already-loaded
+  page, then `page.getByRole('button', { name: /^\s*publish\s*$/i })`; afterwards the button reads "No Changes". A
+  CLI-created page starts `published: 'draft'`, so Publish is enabled; `dms page update <id> --set has_changes=true`
+  enables it again. On a site with a QA install, check the install's pages dataset for the track-on-publish row
+  (2026-10-06, `qa_test` BetaPage).
 - **The probe token is per app, and the wrong one fails quietly.** Bare `--auth` injects the npmrdsv5 token
   (`.dms-auth-token`). On another app (e.g. `qa_test`) the user menu still shows the dev account, but the server
   returns pattern rows without their settings, so the page renders as if unconfigured (a `qa` install shows "datasets

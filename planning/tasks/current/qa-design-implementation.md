@@ -376,15 +376,26 @@ configureTab.jsx` + `configureTab.theme.js` (`admin.qaConfigure`, QA-only), `QaP
   get (`api/index.js:312`), so it's as fresh as `loadDatasetRows(..., fresh: true)`. A small QA helper wraps the two
   calls. Writes stay on `dmsDataEditor` (deliberate, phase 5: `apiUpdate` revalidates the whole admin loader after
   every create, once per backfilled page).
-  **Audit of the rest of QA's falcor use, NOT in this step (owner to pick):**
-  - `qa/pages/view.jsx:31`: the covered-sites read on every QA page (`useFalcor` + `loadDatasetRows`). Could be the
-    same helper, or route config.
-  - `page/pages/edit/editFunctions.jsx:167`: track-on-publish's row read. The browser side could pass an `apiLoad`
-    reader; the CLI (`cli/src/commands/page.js`) has no `apiLoad` and keeps `loadDatasetRows`.
-  - `qa/install.js`: calls `falcor.call(['dms','data','create'|'edit'])` itself (pattern code, against the library
-    rule in `src/dms/CLAUDE.md`). Moving it to `dmsDataEditor` touches the tested set-up flow; a task of its own.
+  **The rest of QA's falcor use: DONE 2026-10-06 (owner: "fix up the apiload stuff").**
+  - [x] `qa/pages/view.jsx`: the covered-sites read on every QA page is `datasetRows(apiLoad, …)` (`apiLoad` from
+    the route props, the same one PageView gets; kept out of the effect's deps, since the wrapper makes a new one
+    every render). Fixes the stale card order: live, a Configure reorder + Save, then `pushState` back to `/qa`,
+    shows the new first card (it used to show the old one until a full load); restored the same way.
+  - [x] Track-on-publish (`page/pages/edit/editFunctions.jsx`): reads through `datasetRows(apiLoad, …)`;
+    `PublishButton` (`editPane/pagesPane.jsx`) passes `PageContext`'s `apiLoad` instead of `CMSContext`'s `falcor`.
+    The CLI (`cli/src/commands/page.js`) keeps `loadDatasetRows`, now its only user (noted in `api/datasetRows.js`).
+    Live: a scratch page `betapage/publish_probe` (row 167) published from the editor → one pages row
+    `betapage:publish_probe` (Proposed, its URL); marked changed and published again → still one row. Scratch page,
+    its history row (168; `dms page delete` leaves it) and the pages row (169) deleted; pages dataset = 7 rows again.
+  - **`qa/install.js`: left as it is (reverses this list's earlier "against the library rule").** Its direct
+    `falcor.call(['dms','data','create'|'edit'])` writes are the repo's provisioning practice:
+    `utils/tenantProvisioning.js` makes 16 such calls and the Datasets admin's `sourceCreate.jsx` (whose row shapes
+    install.js copies) 3. `dmsDataEditor` would also change behaviour: on a site with sync on, a create with fields
+    goes to the local store first (`api/index.js:509`, `isSyncEligible`), while install.js reads each new row straight
+    back from the server (`loadItemFresh`). Moving provisioning to the api layer is a repo-wide job, not a QA one.
   - Fine as they are: `getSourceIdsBySlug` and `loadItemFresh` (api-layer functions, no `apiLoad` action for them);
-    `qa/siteConfig.jsx`'s `preload(falcor, …)` (the framework's route hook).
+    `qa/siteConfig.jsx`'s `preload(falcor, …)` (the framework's route hook); Configure's writes (`dmsDataEditor`).
+  - Tests: QA suites + `pageVariableClearReset` 141/141; full `packages/dms/tests` 780/783 (same 3 unrelated).
 - [x] b. (2026-10-06: `export STAGE_MARKERS`; `qaPillClass(name)` beside `QA_TOKENS_FONT`.) QA exports: `STAGE_MARKERS` and a pill-class lookup from `qa.theme.js`. Configure loads the QA tokens
   itself (`loadThemeFonts([QA_TOKENS_FONT])`, as `qa/siteConfig.jsx` does): a hard load of `/list/...` never runs
   the QA pattern's config, so `--qa-*` would be undefined there.
@@ -425,10 +436,8 @@ live-configure-*.png`). Backup first: `scratchpad/qa_test/backup_2026-10-06/` (c
   second install; unit-tested since phase 5).
 
 **Found, not fixed (outside this step):**
-- **Moving back to `/qa` inside the app shows the old card order** after a Configure Save; a full load is right.
-  `qa/pages/view.jsx` reads the covered sites with `loadDatasetRows` and no `fresh`, so falcor's cached rows from the
-  first visit come back. Moving that read to `datasetRows` (apiLoad invalidates every `uda` read) fixes it; it's the
-  first item of the a2 audit list. Present since phase 4.
+- ~~**Moving back to `/qa` inside the app shows the old card order** after a Configure Save~~ FIXED 2026-10-06 (a2:
+  `qa/pages/view.jsx` reads through `datasetRows`; it read falcor's cache since phase 4).
 - **The Overview tab's own dirty save bar is see-through when stuck** (shared `settingsEditor.saveBarDirty`, 10%
   amber over the cards). Configure has its own backing; the Overview's is a shared-key change, not made.
 
