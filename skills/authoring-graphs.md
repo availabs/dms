@@ -83,7 +83,23 @@ font — decimals/abbreviation live in `utils.js ValueFormats`.
   auto-scaling from the data. Unset → auto. Use it to keep a metric legible
   (reliability % pinned to `domainMin: 65, domainMax: 100` so 79–86% isn't a flat
   band at the top). Read by the avl LineGraph (`LineGraph.jsx` — `aLeft.domainMin`
-  overrides the 0 floor, `aLeft.domainMax` pins the top).
+  overrides the 0 floor, `aLeft.domainMax` pins the top) and the avl BarGraph. On a
+  BarGraph, bars taller than `domainMax` are clipped to the plot and get a torn edge
+  at the cut, so they don't read as ending exactly at the top; the tooltip keeps the
+  true value.
+- **`showScaleFilter`** (BarGraph, "Scale Filter" toggle) — reader-facing quick-picks
+  that set `yAxis.domainMax`: **Max** plus three stops spaced evenly in orders of
+  magnitude between the tallest and the smallest positive bar, snapped to 1/2/5 × 10ⁿ
+  and labelled with the value they crop to ("Max $332M · $20M · $2M · $100K"). The
+  labels are the compact form of `yAxis.format` + `isDollars`. Data spanning under
+  10× gets no stops, and the control hides (unless the section is saved cropped, when
+  it shows Max plus that value). Styled by optional avlGraph tokens
+  `scaleFilterWrapper` / `scaleFilterLabel` (setting it turns on a "Scale" lead-in) /
+  `scaleFilterTrack` / `scaleFilterItem` / `scaleFilterItemActive` /
+  `scaleFilterItemInactive` / `scaleFilterValue`; unset, each falls back to the
+  original grey control. The legacy `scaleWrapper` / `scaleItem*` keys some themes
+  still carry are not read. Worked example: the `mny` theme
+  (`src/themes/mny/design/pages/lhmp/scale-filter.html`, direction A).
 - **`yAxis.tickSpacing`** (an explicit step — a tick every N units) **or
   `yAxis.ticks`** (an approximate count) — thin the numeric axis; unset → the
   renderer's ~10-tick default. Gridlines follow the chosen ticks.

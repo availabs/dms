@@ -1,6 +1,6 @@
 # Card: a compact layout when the Card itself is narrow (container-query responsive cells)
 
-**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** doing · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built · **Release:** deploy — frontend (the `@availabs/dms` Card change); commit is the owner's · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -15,7 +15,7 @@ the hazard bar list (7/12) is 379px wide on a 768px tablet and 715px at 1440, an
 (5/12) is 261px at 768 but 368px at 1024. A viewport breakpoint can't say "this card is too narrow",
 and a container query says exactly that. It is CSS-only, so it's SSR-safe, and it reads no `window`.
 
-First consumer: `dms-template/planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md`
+First consumer: `dms-template/planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md`
 Round 11, where the hazard bar list should drop its risk column on phones as the design does, and
 the hurricane card's name and dollar figure should stack instead of overlapping.
 
@@ -46,13 +46,19 @@ wrapper is a full-width block, so that's harmless here, and it is only applied w
 
 ## Phases
 
-- [ ] **1. Library:** `resolveCompactCss` + `resolveCompactCellAttrs` in `Card.layout.js`, wired into
-      `Card.jsx` (wrapper, cell grid, cells), with toolbar controls in `Card.config.jsx` and tests in
-      `tests/cardLayout.test.js`.
-- [ ] **2. Docs:** a `card-layout.md` section, and the "NOT responsive" paragraph updated to point at it.
-- [ ] **3. Consumer:** configure the three MNY hazard-band sections (drafts) and verify on a local
-      Vite against the live server, at 360 / 390 / 414 / 768 / 1024 / 1440.
-- [ ] **Release:** frontend deploy (owner). Until then the new keys are inert on the deployed site.
+- [x] **1. Library (2026-10-06):** `resolveCompactCss`, `resolveCompactCellAttrs`, `sanitizeCompactTracks`
+      and `compactScopeName` are in `Card.layout.js`, wired into `Card.jsx` (wrapper, cell grid, cells).
+      There are five toolbar controls in `Card.config.jsx`. The per-cell three only appear once
+      `compactBelow` is set. Six new tests are in `tests/cardLayout.test.js`, and the file passes 61/61.
+- [x] **2. Docs:** `skills/card-layout.md` §"Compact layout". The "NOT responsive" paragraph now points
+      at it.
+- [x] **3. Consumer:** the three MNY hazard-band drafts are configured by
+      `src/themes/mny/scripts/build_home_hazard_header.mjs`. They're verified on a local Vite (:5299,
+      this code) against the live server at 360 / 390 / 414 / 768 / 1024 / 1440. There's no horizontal
+      overflow at any width and no page errors. The compact layout applies at ≤ 768, and 1024/1440
+      render exactly as before compact existed.
+- [ ] **Release:** frontend deploy (owner). Until then the new keys are inert on the deployed site, which
+      ignores keys it doesn't know.
 
 ## Files
 
@@ -66,8 +72,19 @@ wrapper is a full-width block, so that's harmless here, and it is only applied w
 
 ## Testing checklist
 
-- [ ] With `compactBelow` unset: `resolveCompactCss` returns `''`, and `resolveCompactCellAttrs` returns `{}`.
-- [ ] CSS contains one `@container` block with the threshold, tracks, hide/span/justify rules, all `!important`.
-- [ ] Hostile tracks (`1fr;}</style><script>`) and non-numeric thresholds/spans are dropped.
-- [ ] Existing `cardLayout` tests still pass.
-- [ ] Live (local Vite): no horizontal overflow from 360 to 1440, and desktop pixel-identical at 1024/1440.
+- [x] With `compactBelow` unset: `resolveCompactCss` returns `''`, and `resolveCompactCellAttrs` returns `{}`.
+- [x] CSS contains one `@container` block with the threshold, tracks, hide/span/justify rules, all `!important`.
+- [x] Hostile tracks (`1fr;}</style><script>`, `}`, `/*`) and non-numeric thresholds/spans are dropped.
+- [x] Existing `cardLayout` tests still pass (61/61). Full library suite: 730 pass, and the 3 failures
+      plus 1 error are in files that don't import the Card (the `avlGraphTheme` golden,
+      `syncDeltaConvergence`, and `adminPatternRow` needing the uninstalled `happy-dom`).
+- [x] Live (local Vite): no horizontal overflow from 360 to 1440. 1024/1440 keep their full layout.
+
+## Gotcha found while consuming it
+
+A section that shares a grid row with a taller **row-spanning** neighbour gets a share of that
+neighbour's slack. The MNY hazard header sits in row 1 beside the rowspan-2 focus card, and on a 768
+tablet it grew about 45px, which left its rule floating above the list. The fix is pure configuration:
+the section gets `height: 'fill'` and `cellsVerticalAlign: 'stretch'`, so its one cell row fills the
+section and the bottom-aligned cells carry the rule down. Recorded here because it's the first thing
+the next "header Card over a list Card" will hit.

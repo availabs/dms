@@ -473,6 +473,37 @@ export const getFormatFunc = (format, isDollars = false, opts = undefined) => {
     return func;
 }
 
+// Compact magnitude labels ("$20M", "$2.5K", "350") for places too narrow for the axis's
+// own format — the Scale Filter's stop buttons, where "$20,000,000" doesn't fit. Rounds
+// to 3 significant figures FIRST and picks the unit from the rounded value, so 999,999
+// reads "1M", not "1000K". The suffix follows the axis format's casing: the library's
+// own abbreviating formats ("By Value", "Millions", "Billions") write k/m/b, so a chart
+// already using one keeps the same unit letters on its buttons; everything else gets
+// the conventional K/M/B/T.
+//
+// Formats that aren't magnitudes (clock time, weekday, M:SS duration) return the axis
+// format unchanged — compacting a duration in minutes would produce nonsense.
+const NON_MAGNITUDE_FORMATS = new Set(["epoch_time", "day_of_week", "duration_mmss"]);
+const COMPACT_UNITS = [[1e12, "T"], [1e9, "B"], [1e6, "M"], [1e3, "K"]];
+
+export const getCompactFormatFunc = (format, isDollars = false) => {
+    if (NON_MAGNITUDE_FORMATS.has(format)) return getFormatFunc(format, isDollars);
+    const lowercase = /^(fnum|millions|billions)/.test(format || "");
+    const func = d => {
+        const n = typeof d === "number" ? d : (typeof d === "string" && d.trim() !== "" ? +d : NaN);
+        if (!Number.isFinite(n)) return d;
+        const rounded = +n.toPrecision(3);
+        const unit = COMPACT_UNITS.find(([div]) => Math.abs(rounded) >= div);
+        if (!unit) return `${ rounded }`;
+        const suffix = lowercase ? unit[1].toLowerCase() : unit[1];
+        return `${ +(rounded / unit[0]).toPrecision(3) }${ suffix }`;
+    };
+    if (isDollars) {
+        return d => `$${ func(d) }`;
+    }
+    return func;
+}
+
 // Tooltip-only format resolver. With no explicit tooltip format configured, the raw
 // `identity` default leaks floating-point artifacts into hover tooltips — the hover
 // comps sum their Total client-side (keys.reduce((a, c) => a + data[c], 0)), so even

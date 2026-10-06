@@ -131,12 +131,12 @@ export default function Graph (props) {
     return columns.map(c => ({ ...c, key: c.normalName || c.name }));
   }, [columns]);
 
-  // Scale Filter (BarGraph only): quick-pick buttons ("Max"/"75%"/"50%"/"5%") that
-  // clamp the value axis to a fraction of the chart's peak (stacked) total, so a
-  // chart dominated by one outlier bar can be cropped to reveal detail in the rest.
-  // The buttons just set yAxis.domainMax — the actual clamp lives in
-  // avl-graph/BarGraph.jsx, which already reads domainMin/domainMax off the value
-  // axis config.
+  // Scale Filter (BarGraph only): quick-pick buttons — "Max" plus log-spaced stops
+  // labelled with the value they crop to (e.g. Max $332M · $20M · $2M · $100K) — that
+  // clamp the value axis so a chart dominated by one outlier bar can be cropped to reveal
+  // detail in the rest. The buttons just set yAxis.domainMax; the stops are computed in
+  // components/BarGraph.jsx, and the clamp (plus the torn edge on bars it cuts) lives in
+  // avl-graph/BarGraph.jsx, which already reads domainMin/domainMax off the value axis config.
   const setYAxisDomainMax = React.useCallback(value => {
     setState(draft => {
       if (!draft.display) draft.display = {};

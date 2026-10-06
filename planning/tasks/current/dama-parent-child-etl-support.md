@@ -8,7 +8,7 @@
 > [`fusion-datatype-analysis-and-design.md`](../../../../../planning/mitigateny/tasks/completed/fusion-datatype-analysis-and-design.md)
 > and `dms-template/scratchpad/fusion-analysis/03-platform.md` §7 (gaps G1–G13, with file:line
 > references). The site task that consumes it is
-> [`fusion-pipeline-datatype-implementation.md`](../../../../../planning/mitigateny/tasks/current/fusion-pipeline-datatype-implementation.md)
+> [`fusion-pipeline-datatype-implementation.md`](../../../../../planning/mitigateny/tasks/completed/fusion-pipeline-datatype-implementation.md)
 > (its Phase A).
 
 ## Objective
