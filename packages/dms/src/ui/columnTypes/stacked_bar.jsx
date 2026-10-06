@@ -1,5 +1,6 @@
 import React from "react";
 import { ThemeContext, getComponentTheme } from "../useTheme";
+import { stackedBarTheme } from "./stacked_bar.theme";
 
 // stacked_bar column type — a single-track, multi-segment proportional bar with an
 // optional counts legend:
@@ -24,16 +25,6 @@ import { ThemeContext, getComponentTheme } from "../useTheme";
 //                included so the categories read stably as the data moves).
 //   emptyText  : shown in place of the all-zero legend when the total is 0 (e.g.
 //                "no tickets yet"); the bar renders as a bare track.
-const stackedBarDefault = {
-  wrapper: "w-full",
-  track: "w-full flex h-2 rounded bg-slate-200 overflow-hidden",
-  segment: "h-full shrink-0",
-  legend: "pt-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-slate-400 tabular-nums",
-  empty: "pt-1.5 text-[10px] font-mono uppercase tracking-[0.18em] text-slate-400",
-  // key → segment colour class for non-literal `color` values. Site themes override
-  // these (and may add keys).
-  fills: { primary: "bg-blue-700", muted: "bg-slate-400" },
-};
 
 // Strip thousands separators before parsing (the data_bar lesson): a formatted count
 // hands us "1,204" and bare parseFloat stops at the comma.
@@ -42,7 +33,7 @@ const isLiteralColor = (c) => /^(#|rgb|hsl)/i.test(c || "");
 
 export const StackedBarView = ({ segments, showLegend = true, emptyText, row }) => {
   const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
-  const t = { ...stackedBarDefault, ...getComponentTheme(themeFromContext, "stackedBar") };
+  const t = { ...stackedBarTheme, ...getComponentTheme(themeFromContext, "stackedBar") };
   const fills = t.fills || {};
 
   const segs = (Array.isArray(segments) ? segments : []).map((s) => {

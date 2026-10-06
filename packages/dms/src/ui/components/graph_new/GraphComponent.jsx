@@ -287,7 +287,8 @@ export const GraphComponent = props => {
 
         // Opt-in continuous x-axis: "band" (default, categorical) | "time" | "linear".
         // BarGraph positions bars at their real x-value with proportional gaps when non-band.
-        xScale={ { type: get(graphFormat, ["xAxis", "scaleType"], "band") } }
+        // xAxis.windowDays: a time axis framed on the last N days (BarGraph).
+        xScale={ { type: get(graphFormat, ["xAxis", "scaleType"], "band"), windowDays: get(graphFormat, ["xAxis", "windowDays"]) } }
         xAxis={ {
           label: get(graphFormat, ["xAxis", "label"]),
           rotateLabels: get(graphFormat, ["xAxis", "rotateLabels"], false),

@@ -24,6 +24,13 @@ const isLocationActive = (location, pageFilterValues, groupParamKeys) => {
         const current = pageFilterValues[key] || [];
         // `?key=` (empty value) = active when that key has no value set on the page.
         if (value === '') return current.length === 0;
+        // `?key=a|||b` (the page-variable list delimiter) = a preset of several values: active
+        // when the page holds exactly that set (an "Open" shortcut for several statuses).
+        if (value.includes('|||')) {
+            const preset = new Set(value.split('|||'));
+            const held = new Set(current.map(v => String(v)));
+            return preset.size === held.size && [...preset].every(v => held.has(v));
+        }
         return current.map(v => String(v)).includes(value);
     });
 };

@@ -14,8 +14,9 @@ confirmed track-on-publish live on 2026-10-02 (a new page under a covered sub-si
 owner dropped the push-test reminders on 2026-10-02, so don't raise them. **Phase 5 is built and committed:** the
 owner committed it (`d590c66f`, 2026-10-05). The Overview's stale draft after an in-app move between patterns is
 FIXED 2026-10-05, committed `5e075368` (section "Phase 5", "Found building it"). The owner picks what's next:
-- **Design pass — DONE 2026-10-05; implementing it is next:** [`qa-design-implementation.md`](./qa-design-implementation.md)
-  (status `next`). Mockups for all six pages, decisions and findings are in section "Design pass" below. Card's
+- **Design pass — DONE 2026-10-05; implementing it is under way:** [`qa-design-implementation.md`](./qa-design-implementation.md)
+  (status `doing`: core enrichments, QA tokens / styles and all four page conversions built 2026-10-05,
+  uncommitted; Configure, step 4, next). Mockups for all six pages, decisions and findings are in section "Design pass" below. Card's
   `valueFontStyle` size clash (section "Default-theme restyle and test-data reset") is folded into the QA-only Card
   styles there.
 - **Status-change work still deferred** (phase 3a, "The status-change writes"): part 4 (change history, commit on

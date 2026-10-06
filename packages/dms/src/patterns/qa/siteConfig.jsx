@@ -6,6 +6,8 @@ import { pageSectionTypes } from "../../api/preloadSectionData.js";
 import { buildQaPages, findQaPage } from "./pages";
 import QaPageView from "./pages/view";
 import QaShell from "./pages/shell";
+import { loadThemeFonts } from "../../ui/useTheme";
+import { QA_TOKENS_FONT } from "./qa.theme";
 
 // The `qa` pattern type: ticketing / delivery QA. Its pages are code (./pages),
 // there is no editor, and each qa pattern row is its own install. Like every
@@ -14,6 +16,9 @@ import QaShell from "./pages/shell";
 // exactly as they do on a page pattern.
 const qaConfig = (props) => {
   const pageCfg = pageConfig[0]({ ...props, hasEditor: false });
+  // The --qa-* tokens, only on a site that has a QA install (this config runs per install). The QA
+  // named styles are added where the pages render (pages/view.jsx).
+  loadThemeFonts([QA_TOKENS_FONT], { ssrCollect: props.ssrCollect });
   const [shell] = pageCfg.children;
   // What the code pages need from the route config: the app (loaded pattern rows don't carry it),
   // the install's own URL for links, and the site's Datasets patterns (for the add-ticket link).

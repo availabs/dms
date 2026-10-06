@@ -29,6 +29,10 @@ export const dataCardTheme = {
             // its own visual surface (e.g. a gradient banner).
             headerValueWrapperFullBleed: 'w-full relative overflow-hidden',
             componentWrapper: 'w-full',
+            // editField (unset here): the frame on a cell's edit component (live edit, edit-in-view,
+            // add-new forms). Unset = Card's own `border` (currentColor under Tailwind 4). A style
+            // that sets it also hands it to text / textarea fields as their whole class (their own
+            // input theme otherwise), so an edit-in-place look can replace the boxed input.
             headerValueWrapperBorderBelow: 'border-b rounded-none',
             // Per-side cell border classes (mirrors sectionArray's `borderSides`).
             // Side-specific width + side-specific color so one side never bleeds to

@@ -2,11 +2,14 @@ import React, { useState } from 'react'
 import { ThemeContext } from '../../../ui/useTheme'
 import { nameToSlug } from '../../../utils/type-utils'
 import { patternPickerTheme } from './AddPatternPicker.theme'
+import { QA_PATTERN_ENABLED } from '../../qa/install'
 
 const NON_PAGE_OPTIONS = [
   { kind: 'datasets', label: 'Datasets', desc: 'Connect and manage data sources' },
   { kind: 'forms',    label: 'Forms',    desc: 'Collect user-submitted data' },
-  { kind: 'qa',       label: 'Ticketing / QA', desc: 'Issue reports, tickets and page QA' },
+  ...(QA_PATTERN_ENABLED
+    ? [{ kind: 'qa', label: 'Ticketing / QA', desc: 'Issue reports, tickets and page QA' }]
+    : []),
 ]
 const AUTH_OPTION = { kind: 'auth', label: 'Auth', desc: 'Authentication and access control' }
 // Same type→color mapping as the Sites table's pattern_type pill

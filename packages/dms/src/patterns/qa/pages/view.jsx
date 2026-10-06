@@ -3,6 +3,8 @@ import { useParams } from "react-router";
 import { useFalcor } from "@availabs/avl-falcor";
 import { loadDatasetRows } from "../../../api/datasetRows";
 import PageView from "../../page/pages/view";
+import { ThemeContext } from "../../../ui/useTheme";
+import { withQaTheme } from "../qa.theme";
 import { buildQaPages, findQaPage, coveredSites, siteLabelsFrom, COVERED_SITE_COLUMNS } from "./index";
 
 // Picks the QA page for the URL and renders it with the page pattern's PageView,
@@ -16,6 +18,8 @@ import { buildQaPages, findQaPage, coveredSites, siteLabelsFrom, COVERED_SITE_CO
 //   page variables only when item.id changes, and code pages have no id.
 // - The Overview's site cards and every page's site labels come from the install's covered-sites
 //   dataset, read here once; the pages are rebuilt when the rows arrive.
+// - The pages get the site's theme plus the qa pattern's own named styles (qa.theme.js), so only QA
+//   sections can pick a `qa_*` style.
 export default function QaPageView({ pattern, pagesContext, ...props }) {
   const slug = useParams()['*'] || '';
   const { falcor } = useFalcor();
@@ -34,5 +38,11 @@ export default function QaPageView({ pattern, pagesContext, ...props }) {
     [pattern, pagesContext, slug, siteRows],
   );
   const item = findQaPage(pages, slug);
-  return <PageView key={slug} {...props} item={item} dataItems={pages} />;
+  const themeContext = React.useContext(ThemeContext) || {};
+  const qaThemeContext = React.useMemo(() => ({ ...themeContext, theme: withQaTheme(themeContext.theme) }), [themeContext]);
+  return (
+    <ThemeContext.Provider value={qaThemeContext}>
+      <PageView key={slug} {...props} item={item} dataItems={pages} />
+    </ThemeContext.Provider>
+  );
 }

@@ -284,6 +284,7 @@ const CompWrapper = ({
                       attribute, value, rawValue, className,
                          componentWrapperClassName, // useful in edit mode to control edit comp width
                       isValueFormatted, id,
+                      editFieldClassName, // the dataCard style's `editField` (unset = 'border'): the edit component's frame
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
@@ -376,7 +377,10 @@ const CompWrapper = ({
                   placeholder={'please enter value...'}
                   id={compIdEdit}
                   onChange={onChange}
-                  className={`${editMode ? 'border' : ''} ${className}`}
+                  className={`${editMode ? (editFieldClassName ?? 'border') : ''} ${className}`}
+                  // a style's editField also replaces a text field's own input look (TextEdit /
+                  // TextareaEdit); only passed when a style sets one, so other Cards are unchanged
+                  {...(editMode && editFieldClassName ? { fieldClassName: editFieldClassName } : {})}
                   {...attributeProps}
                   row={row}
                   options={options}
@@ -648,6 +652,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
+                                                 editFieldClassName={theme.editField}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -667,6 +672,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
+                                                 editFieldClassName={theme.editField}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -687,6 +693,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
+                                                 editFieldClassName={theme.editField}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -705,6 +712,7 @@ const CardColumnField = ({
                                              id={id}
                                              allowEdit={allowEdit || attr.allowEditInView}
                                              formatFunctions={formatFunctions}
+                                             editFieldClassName={theme.editField}
                                              className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                              componentWrapperClassName={theme.componentWrapper}
                                 />

@@ -59,11 +59,17 @@ describe("Overview", () => {
     expect(sourceSlugs(overview)).toEqual(["phase2_pages", "phase2_tickets"]);
   });
 
-  it("counts pages per stage in one card, one live cell per stage", () => {
+  it("counts pages per stage in one card, one live flow step per stage", () => {
     const card = dataOf(overview.sections.find((s) => s.trackingId === "qa_overview_stages"));
-    expect(card.columns.map((c) => c.display_name)).toEqual(PAGE_STAGES);
-    card.columns.forEach((c, i) => expect(c.name).toContain(`= '${PAGE_STAGES[i]}'`));
+    const steps = card.columns.filter((c) => c.type === "flow_step");
+    expect(steps.map((c) => c.display_name)).toEqual(PAGE_STAGES);
+    steps.forEach((c, i) => expect(c.name).toContain(`= '${PAGE_STAGES[i]}'`));
     expect(card.display.cellsGridSize).toBe(PAGE_STAGES.length);
+    // who does what: the library's default wording
+    expect(steps.map((c) => c.stepNote)).toEqual([
+      "product · scope the stories", "design · design the page", "our team · build the page",
+      "our team · test and fix", "our team · internal sign-off", "you · review and approve",
+    ]);
   });
 
   it("counts in SQL, not numbers baked into the page", () => {
@@ -76,7 +82,8 @@ describe("Overview", () => {
       const g = `overview_site_${site.surface}`;
       expect(overview.section_groups.map((x) => x.name)).toContain(g);
       const inGroup = overview.sections.filter((s) => s.group === g);
-      expect(inGroup).toHaveLength(4);
+      // the header's two halves (pages | tickets) and the pages table
+      expect(inGroup).toHaveLength(3);
       inGroup.forEach((s) => {
         const d = dataOf(s);
         // the pages table joins the tickets, so its filter column is alias-prefixed
@@ -84,6 +91,13 @@ describe("Overview", () => {
         expect(d.filters.groups).toContainEqual({ col: surface, op: "filter", value: [site.surface] });
       });
     });
+  });
+
+  it("says so when no site is covered yet (and not while the sites are loading)", () => {
+    const none = pageBySlug("overview", { ...ctx, sites: [] });
+    expect(none.sections.map((s) => s.trackingId)).toContain("qa_overview_no_sites");
+    expect(overview.sections.map((s) => s.trackingId)).not.toContain("qa_overview_no_sites");
+    expect(pageBySlug("overview", { ...ctx, sites: null }).sections.map((s) => s.trackingId)).not.toContain("qa_overview_no_sites");
   });
 
   it("leaves out the site cards until the sites have loaded", () => {
@@ -150,8 +164,11 @@ describe("Page QA", () => {
     expect(tickets.columns.find((c) => c.name === "resolved_date")).toMatchObject({ show: true, size: 0 });
     expect(tickets.display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "tickets_v" }]);
     expect(section("qa_page_work").display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "tickets_v" }]);
-    expect(section("qa_page_stage").display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "page_v" }]);
-    expect(section("qa_page_progress").display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "page_v" }]);
+    // the stage list saves on a pick and refetches on its own publish (its "n of 6" counter is a calc)
+    const stage = section("qa_page_stage");
+    expect(stage.display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "page_v" }]);
+    expect(stage.display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "page_v" }]);
+    expect(stage.columns.find((c) => c.name === "stage")).toMatchObject({ type: "radio", activeStyle: "qa_steps", options: PAGE_STAGES.map((v) => ({ label: v, value: v })) });
   });
 });
 

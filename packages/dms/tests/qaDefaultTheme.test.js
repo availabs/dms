@@ -11,10 +11,9 @@
 
 import { describe, it, expect } from "vitest";
 import { buildQaPages } from "../src/patterns/qa/pages";
-import { textSettingsTheme } from "../src/ui/themes/textSettings";
 import { sectionArrayTheme } from "../src/patterns/page/components/sections/sectionArray.theme";
-import { layoutGroupTheme } from "../src/ui/components/LayoutGroup.theme";
-import { pillTheme } from "../src/ui/components/Pill.theme";
+import defaultTheme from "../src/ui/defaultTheme";
+import { withQaTheme } from "../src/patterns/qa/qa.theme";
 
 const datasets = Object.fromEntries(["tickets", "pages", "stories", "patterns", "history"]
   .map((key, i) => [key, { slug: `qa_${key}`, source_id: 10 + 2 * i, view_id: 11 + 2 * i }]));
@@ -39,10 +38,12 @@ const collect = (key) => {
   return out;
 };
 
-const TEXT_KEYS = new Set(Object.keys(textSettingsTheme.styles[0]));
+// Converted pages also name the qa pattern's own text keys and band styles, which withQaTheme adds.
+const QA_THEME = withQaTheme(defaultTheme);
+const TEXT_KEYS = new Set(Object.keys(QA_THEME.textSettings.styles[0]));
 
 describe("qa pages on the default theme", () => {
-  it("name only default text styles", () => {
+  it("name only default text styles (or the qa pattern's own)", () => {
     // 'button' is Card's own link-button switch, not a theme key.
     const used = [...collect("valueFontStyle"), ...collect("headerFontStyle"), ...collect("styleKey")];
     expect(used.length).toBeGreaterThan(20);
@@ -55,15 +56,31 @@ describe("qa pages on the default theme", () => {
     expect([...new Set(used)].filter((s) => !sizes.has(s))).toEqual([]);
   });
 
-  it("put every group in a default layout-group style", () => {
-    const names = new Set(layoutGroupTheme.styles.map((s) => s.name));
+  it("put every group in a default layout-group style (or the qa pattern's own)", () => {
+    const names = new Set(QA_THEME.layoutGroup.styles.map((s) => s.name));
     pages.forEach((p) => p.section_groups.forEach((g) => expect(names.has(g.theme)).toBe(true)));
   });
 
-  it("colour pills with default pill styles", () => {
-    const names = new Set(pillTheme.styles.map((s) => s.name));
+  it("colour pills with default pill styles or the qa pattern's own (withQaTheme)", () => {
+    const names = new Set(withQaTheme(defaultTheme).pill.styles.map((s) => s.name));
     const used = collect("pillColors").flatMap((m) => Object.values(m));
     expect(used.length).toBeGreaterThan(10);
     expect([...new Set(used)].filter((c) => !names.has(c))).toEqual([]);
+  });});
+
+describe("the qa pattern's own styles stay out of the shared theme", () => {
+  it("the library default theme carries no qa_* style or --qa-* token block", () => {
+    expect(defaultTheme.pill.styles.some((s) => s.name.startsWith("qa_"))).toBe(false);
+    expect(defaultTheme.fonts.some((f) => f.id === "dms-qa-tokens")).toBe(false);
+  });
+
+  it("withQaTheme appends them, and a site's own same-name style wins", () => {
+    const site = { ...defaultTheme, pill: { ...defaultTheme.pill, styles: [...defaultTheme.pill.styles, { name: "qa_sev_blocker", wrapper: "SITE" }] } };
+    const merged = withQaTheme(site);
+    const blockers = merged.pill.styles.filter((s) => s.name === "qa_sev_blocker");
+    expect(blockers).toEqual([{ name: "qa_sev_blocker", wrapper: "SITE" }]);
+    expect(merged.pill.styles.some((s) => s.name === "qa_status_review")).toBe(true);
+    expect(merged.pill.styles.slice(0, defaultTheme.pill.styles.length)).toEqual(defaultTheme.pill.styles);
+    expect(site.pill.styles).toHaveLength(defaultTheme.pill.styles.length + 1); // input untouched
   });
 });

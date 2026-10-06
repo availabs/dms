@@ -205,10 +205,11 @@ const getKey = v => {
     return v;
 };
 
-// Shown when emptyRowMode === 'placeholder' and data is empty.
-const PlaceholderRow = ({ rowRef }) => (
-    <div ref={rowRef} className="border-b border-slate-100 p-2 text-sm text-gray-400 italic">
-        No data
+// Shown when emptyRowMode === 'placeholder' and data is empty. Look: the table style's `emptyRow`
+// (else the original classes); text: the section's `display.emptyRowText` (else "No data").
+const PlaceholderRow = ({ rowRef, className, text }) => (
+    <div ref={rowRef} className={className || "border-b border-slate-100 p-2 text-sm text-gray-400 italic"}>
+        {text || 'No data'}
     </div>
 );
 
@@ -650,7 +651,7 @@ export default function Table ({
     const itemContent = useCallback(
         (index, startCol, endCol, ref) => {
             if (showPlaceholder && index === 0) {
-                return <PlaceholderRow rowRef={ref} />;
+                return <PlaceholderRow rowRef={ref} className={theme?.emptyRow} text={display.emptyRowText} />;
             }
             if (showInlineAdd && index === rows.length) {
                 return (
@@ -681,7 +682,7 @@ export default function Table ({
             );
         },
         [rows, rowTheme, showPlaceholder, showInlineAdd, numColSize, defaultColumnSize,
-         visibleAttrsWithoutOpenOut, newItem, setNewItem, addItem, theme]
+         visibleAttrsWithoutOpenOut, newItem, setNewItem, addItem, theme, display.emptyRowText]
     );
     const localFilterData = useMemo(() => {
         const dataToReturn = {};

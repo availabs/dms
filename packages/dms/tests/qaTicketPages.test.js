@@ -23,6 +23,9 @@ const byType = (page, type) => page.sections.filter((s) => s.element["element-ty
 const dataOf = (s) => JSON.parse(s.element["element-data"]);
 const dataSections = (page) => page.sections.filter((s) => s.element["element-type"] !== "lexical");
 
+// the Ticket page header band: four joined Cards
+const HEADER_ROWS = ["qa_ticket_crumb", "qa_ticket_badges", "qa_ticket_title", "qa_ticket_target"];
+
 describe("ticket pages", () => {
   const all = buildQaPages(pattern, ctx);
   const list = pageBySlug(all, "tickets");
@@ -51,21 +54,25 @@ describe("ticket pages", () => {
   it("links within the install", () => {
     const locations = [list, detail].flatMap((page) =>
       dataSections(page).flatMap((s) => (dataOf(s).columns || []).map((c) => c.location).filter(Boolean)));
-    expect(locations.length).toBeGreaterThan(0);
-    locations.forEach((l) => expect(l.startsWith("/phase2/")).toBe(true));
+    // path links stay inside the install; query-only links are the filter bar's same-page shortcuts
+    const paths = locations.filter((l) => !l.startsWith("?"));
+    expect(paths.length).toBeGreaterThan(0);
+    paths.forEach((l) => expect(l.startsWith("/phase2/")).toBe(true));
+    const shortcuts = locations.filter((l) => l.startsWith("?"));
+    expect(shortcuts).toEqual(["?status=", "?status=Triage|||In progress|||In review|||Needs decision|||Needs data", "?status=Resolved|||Closed"]);
   });
 
   it("registers the pages' URL variables", () => {
-    expect(list.filters.map((f) => f.searchKey)).toEqual(["status", "severity", "source", "surface"]);
+    expect(list.filters.map((f) => f.searchKey)).toEqual(["status", "severity", "source", "surface", "q"]);
     expect(detail.filters.map((f) => f.searchKey)).toEqual(["id"]);
     [...list.filters, ...detail.filters].forEach((f) => expect(f.useSearchParams).toBe(true));
   });
 
   it("filters every Ticket-page data section by the id variable", () => {
     dataSections(detail).forEach((s) =>
-      // the header joins the pages, so its id column is alias-prefixed
+      // the header rows join the pages, so their id column is alias-prefixed
       expect(dataOf(s).filters.groups).toEqual([expect.objectContaining({
-        col: s.trackingId === "qa_ticket_header" ? "ds.id" : "id", searchParamKey: "id", requireResolved: true,
+        col: s.trackingId.startsWith("qa_ticket_") && HEADER_ROWS.includes(s.trackingId) ? "ds.id" : "id", searchParamKey: "id", requireResolved: true,
       })]));
   });
 
@@ -93,26 +100,30 @@ describe("ticket pages", () => {
     expect(rail.columns.find((c) => c.name === "status").setDateOnValue).toEqual({ field: "resolved_date", values: CLOSED_STATUSES });
     expect(rail.columns.some((c) => c.name === "resolved_date")).toBe(true);
     expect(rail.display._functions.providers).toEqual([{ functionId: "save_publish", enabled: true, paramKey: "ticket_v" }]);
-    const header = dataOf(detail.sections.find((s) => s.trackingId === "qa_ticket_header"));
-    expect(header.display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "ticket_v" }]);
-    expect(header.columns.find((c) => c.name === "ds.status").setDateOnValue).toBeUndefined();
+    // every header row refetches after a rail pick, so the badges and the stage match
+    HEADER_ROWS.forEach((id) => {
+      const header = dataOf(detail.sections.find((s) => s.trackingId === id));
+      expect(header.display._functions.subscribers).toEqual([{ functionId: "data_refresh", enabled: true, paramKey: "ticket_v" }]);
+    });
+    const badges = dataOf(detail.sections.find((s) => s.trackingId === "qa_ticket_badges"));
+    expect(badges.columns.find((c) => c.name === "ds.status").setDateOnValue).toBeUndefined();
   });
 });
 
 describe("add-ticket link", () => {
-  const titleSizes = (pages) => pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_title").size;
+  // the header Card's last cell: a link when there's somewhere to add tickets, else an empty cell
+  const addCell = (pages) => dataOf(pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_header"))
+    .columns.find((c) => c.name === "h_add");
 
   it("links to the Datasets admin's table when a Datasets pattern shares the environment", () => {
     const pages = buildQaPages(pattern, { ...ctx, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 42, base_url: "/data/" }] });
-    const add = pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_add");
-    expect(dataOf(add).columns[0].location).toBe("/data/internal_source/43/table");
-    expect(titleSizes(pages)).toBe("2/3");
+    expect(addCell(pages)).toEqual(expect.objectContaining({ isLink: true, location: "/data/internal_source/43/table" }));
   });
 
   it("is left out otherwise", () => {
     const pages = buildQaPages(pattern, { ...ctx, datasetPatterns: [{ pattern_type: "datasets", dmsEnvId: 7, base_url: "data" }] });
-    expect(pageBySlug(pages, "tickets").sections.find((s) => s.trackingId === "qa_tickets_add")).toBeUndefined();
-    expect(titleSizes(pages)).toBe("1");
+    expect(addCell(pages).isLink).toBeUndefined();
+    expect(addCell(pages).staticValue).toBe("");
   });
 });
 
@@ -121,8 +132,9 @@ describe("site labels", () => {
     const list = pageBySlug(buildQaPages(pattern, { ...ctx, siteLabels: { alphapage: "Alpha" } }), "tickets");
     const table = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_table"));
     expect(table.columns.find((c) => c.normalName === "site").name).toContain("when 'alphapage' then 'Alpha'");
-    const facet = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_facet_site"));
-    expect(JSON.parse(facet.columns[0].meta_lookup)).toEqual({ alphapage: "Alpha" });
+    // the Site chip shows the label while ?surface= keeps the raw key
+    const filters = dataOf(list.sections.find((s) => s.trackingId === "qa_tickets_filters"));
+    expect(filters.columns.find((c) => c.name === "surface").optionLabels).toEqual({ alphapage: "Alpha" });
   });
 
   it("shows raw values when there are none", () => {

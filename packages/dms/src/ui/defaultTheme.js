@@ -23,6 +23,10 @@ import {multiselectTheme} from "./components/MultiSelect.theme";
 import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
+import {radioTheme} from "./columnTypes/radio.theme";
+import {stageProgressTheme} from "./columnTypes/stage_progress.theme";
+import {kvChipsTheme} from "./columnTypes/kv_chips.theme";
+import {commentThreadTheme} from "./columnTypes/comment_thread.theme";
 import {logoTheme} from "./components/Logo.theme";
 import {themeToggleTheme} from "./components/ThemeToggle.theme";
 import navigableMenuTheme from "./components/navigableMenu/theme";
@@ -233,6 +237,10 @@ const components = {
     lexical:lexicalTheme,
     textSettings: textSettingsTheme,
     dataCard: dataCardTheme,
+    radio: radioTheme,
+    stageProgress: stageProgressTheme,
+    kvChips: kvChipsTheme,
+    commentThread: commentThreadTheme,
     attribution: attributionTheme,
     filters: filterTheme,
     avlGraph: avlGraphTheme,
