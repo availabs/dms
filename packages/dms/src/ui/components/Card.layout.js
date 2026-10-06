@@ -422,3 +422,71 @@ export function describeResolvedPadding(style) {
     const base = style.padding !== undefined ? String(style.padding) : 'theme';
     return sides.length ? `${base} ${sides.join(' ')}` : base;
 }
+
+// ── Compact layout (container-width responsive cells) ────────────────────────
+// A Card's cells grid is an INLINE style, so one layout governs every viewport.
+// `display.compactBelow` (px) opts a Card into a second layout that applies while
+// THE CARD ITSELF is narrower than that — a container query, not a viewport
+// breakpoint, because a section is a fraction of the page (a 7/12 band is 379px
+// on a 768px tablet). Card.jsx makes the cards wrapper the container, puts the
+// scope class on every record's cells grid and `data-cc-*` on every cell, and
+// renders the CSS below in one scoped <style>. `!important` is what lets a
+// stylesheet rule beat the inline grid styles. Unset `compactBelow` ⇒ '' / {} ⇒
+// nothing renders differently.
+//
+// Author strings end up inside a <style>, so every value is validated, never
+// escaped: a threshold or span must be a finite positive number, a track template
+// may only use CSS-value characters. A value that fails drops its rule.
+const COMPACT_JUSTIFY = {
+    left: 'text-align: left !important; justify-items: start !important;',
+    center: 'text-align: center !important; justify-items: center !important;',
+    right: 'text-align: right !important; justify-items: end !important;',
+};
+const compactThreshold = (v) => {
+    const n = +v;
+    return Number.isFinite(n) && n > 0 && n <= 10000 ? n : null;
+};
+const compactSpan = (v) => {
+    const n = +v;
+    return Number.isInteger(n) && n > 0 && n <= 48 ? n : null;
+};
+const SAFE_TRACKS = /^[A-Za-z0-9\s().,%+\-*/_]+$/;
+// `/` and `*` are legal in a track list (`calc(100% / 3)`, `span 2 / 3`) but `/*` would
+// open a comment that swallows the rest of the block, so the pair is refused.
+export const sanitizeCompactTracks = (v) =>
+    typeof v === 'string' && v.trim() && SAFE_TRACKS.test(v) && !/\/\*|\*\//.test(v) ? v.trim() : null;
+// useId() is `:r1:` (React 18) or `«r1»` (React 19); a class/container name needs [A-Za-z0-9_-].
+export const compactScopeName = (reactId) => `dms-cc-${String(reactId).replace(/[^A-Za-z0-9_-]/g, '')}`;
+
+export function resolveCompactCellAttrs(attr = {}, display = {}) {
+    if (!compactThreshold(display.compactBelow)) return {};
+    const out = {};
+    if (attr.hideCompact) out['data-cc-hide'] = '';
+    const span = compactSpan(attr.cellSpanCompact);
+    if (span) out['data-cc-span'] = String(span);
+    if (COMPACT_JUSTIFY[attr.justifyCompact]) out['data-cc-justify'] = attr.justifyCompact;
+    return out;
+}
+
+export function resolveCompactCss({ scope, display = {}, columns = [] }) {
+    const below = compactThreshold(display.compactBelow);
+    if (!below || !/^[A-Za-z0-9_-]+$/.test(scope || '')) return '';
+    const rules = [];
+    const tracks = sanitizeCompactTracks(display.cellsTracksTemplateCompact);
+    if (tracks) rules.push(`.${scope} { grid-template-columns: ${tracks} !important; }`);
+    if (columns.some((c) => c.hideCompact)) rules.push(`.${scope} > [data-cc-hide] { display: none !important; }`);
+    const spans = [...new Set(columns.map((c) => compactSpan(c.cellSpanCompact)).filter(Boolean))].sort((a, b) => a - b);
+    for (const n of spans) {
+        rules.push(`.${scope} > [data-cc-span="${n}"] { grid-column: span ${n} / span ${n} !important; }`);
+    }
+    // The value div AND its descendants: column types (number, link, pill) set their
+    // own text-end / justify-items-end one level down.
+    const justs = [...new Set(columns.map((c) => c.justifyCompact).filter((j) => COMPACT_JUSTIFY[j]))];
+    for (const j of justs) {
+        const sel = `.${scope} > [data-cc-justify="${j}"]`;
+        rules.push(`${sel}, ${sel} * { ${COMPACT_JUSTIFY[j]} }`);
+    }
+    if (!rules.length) return '';
+    // `max-width: below - 0.02px` so the compact layout applies strictly BELOW the threshold.
+    return `@container ${scope} (max-width: ${below - 0.02}px) {\n  ${rules.join('\n  ')}\n}`;
+}

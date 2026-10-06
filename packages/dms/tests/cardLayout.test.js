@@ -26,6 +26,10 @@ import {
     resolveCellBorderClass,
     resolveLinkAnchorStyle,
     describeResolvedPadding,
+    compactScopeName,
+    sanitizeCompactTracks,
+    resolveCompactCss,
+    resolveCompactCellAttrs,
 } from "../src/ui/components/Card.layout.js";
 
 describe("explicit-zero contract (cell padding)", () => {
@@ -481,5 +485,65 @@ describe("introspection helpers", () => {
         expect(describeResolvedPadding(resolveCellStyle({ attr: {}, cellsPadding: 0 }))).toBe("0");
         expect(describeResolvedPadding(resolveCellStyle({ attr: { cellPadding: 8, cellPaddingTop: 0 } })))
             .toBe("8 t:0");
+    });
+});
+
+describe("compact layout (container-width responsive cells)", () => {
+    const scope = "dms-cc-r1";
+    const display = { compactBelow: 480, cellsTracksTemplateCompact: "84px minmax(0, 1fr) 96px" };
+    const columns = [
+        { name: "a" },
+        { name: "b", cellSpanCompact: 6, justifyCompact: "left" },
+        { name: "c", hideCompact: true },
+    ];
+
+    it("is OFF by default: no CSS, no cell attributes (every existing Card renders as before)", () => {
+        expect(resolveCompactCss({ scope, display: {}, columns })).toBe("");
+        expect(resolveCompactCss({ scope, display: { compactBelow: 0 }, columns })).toBe("");
+        expect(resolveCompactCellAttrs({ hideCompact: true, cellSpanCompact: 6 }, {})).toEqual({});
+    });
+
+    it("emits one @container block scoped to this Card, every rule !important", () => {
+        const css = resolveCompactCss({ scope, display, columns });
+        expect(css.startsWith(`@container ${scope} (max-width: 479.98px) {`)).toBe(true);
+        expect(css).toContain(`.${scope} { grid-template-columns: 84px minmax(0, 1fr) 96px !important; }`);
+        expect(css).toContain(`.${scope} > [data-cc-hide] { display: none !important; }`);
+        expect(css).toContain(`.${scope} > [data-cc-span="6"] { grid-column: span 6 / span 6 !important; }`);
+        expect(css).toContain(`.${scope} > [data-cc-justify="left"] * { text-align: left !important;`);
+        expect(css.match(/@container/g)).toHaveLength(1);
+    });
+
+    it("cell attributes mirror the column's compact keys", () => {
+        expect(resolveCompactCellAttrs(columns[1], display)).toEqual({ "data-cc-span": "6", "data-cc-justify": "left" });
+        expect(resolveCompactCellAttrs(columns[2], display)).toEqual({ "data-cc-hide": "" });
+        expect(resolveCompactCellAttrs(columns[0], display)).toEqual({});
+    });
+
+    it("validates author strings instead of escaping them (they land in a <style>)", () => {
+        expect(sanitizeCompactTracks("clamp(72px, calc(33.62% - 27.5px), 150px) minmax(0, 1fr)")).toBeTruthy();
+        expect(sanitizeCompactTracks("1fr;}</style><script>alert(1)</script>")).toBeNull();
+        expect(sanitizeCompactTracks("1fr } body { display: none")).toBeNull();
+        expect(sanitizeCompactTracks("1fr /* swallow the rest")).toBeNull();
+        expect(sanitizeCompactTracks("")).toBeNull();
+        const css = resolveCompactCss({ scope, display: { compactBelow: 480, cellsTracksTemplateCompact: "1fr;}<x" }, columns });
+        expect(css).not.toContain("grid-template-columns");
+        expect(css).not.toContain("<");
+        expect(resolveCompactCss({ scope, display: { compactBelow: "480px; }" }, columns })).toBe("");
+        expect(resolveCompactCellAttrs({ cellSpanCompact: "6\"]" }, display)).toEqual({});
+        expect(resolveCompactCellAttrs({ justifyCompact: "left\"]" }, display)).toEqual({});
+        expect(resolveCompactCss({ scope: "bad scope{", display, columns })).toBe("");
+    });
+
+    it("scope names are valid class/container idents for React 18 and 19 useId formats", () => {
+        expect(compactScopeName(":r12:")).toBe("dms-cc-r12");
+        expect(compactScopeName("«r12»")).toBe("dms-cc-r12");
+    });
+
+    it("Card.jsx wires the container, the scope class and the cell attributes", () => {
+        const here = path.dirname(fileURLToPath(import.meta.url));
+        const card = fs.readFileSync(path.join(here, "../src/ui/components/Card.jsx"), "utf8");
+        expect(card).toMatch(/\{\.\.\.resolveCompactCellAttrs\(attr, display\)\}/);
+        expect(card).toMatch(/containerType: 'inline-size', containerName: compactScope/);
+        expect(card).toMatch(/compactScope=\{compactCss \? compactScope : undefined\}/);
     });
 });

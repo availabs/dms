@@ -260,6 +260,46 @@ version didn't. Two consequences:
   `cellsTracksTemplate` (a breakpoint map, or a class string like the layout-container's) as the
   enrichment that would close it.
 
+**Since 2026-10-06 the ceiling has an opt-in way through: the compact layout below.** The inline
+template still governs by default, and a Card that sets `compactBelow` gets a second layout for when
+it is narrow.
+
+#### Compact layout — a second cell layout when the CARD is narrow (`compactBelow`)
+
+```js
+display: { compactBelow: 480, cellsTracksTemplateCompact: '84px minmax(0, 1fr) 96px' }
+columns: [ …, { name: 'risk', hideCompact: true }, { name: 'figure', cellSpanCompact: 6, justifyCompact: 'left' } ]
+```
+
+| Key | Where | Toolbar | Meaning |
+|---|---|---|---|
+| `compactBelow` | display | Cells Grid → Compact Below (px) | Compact rules apply while **this Card** is narrower than this |
+| `cellsTracksTemplateCompact` | display | Cells Grid → Compact Track Template | `grid-template-columns` in compact mode |
+| `hideCompact` | column | Hide When Compact | the cell leaves the grid in compact mode |
+| `cellSpanCompact` | column | Span When Compact | the cell's span in compact mode |
+| `justifyCompact` | column | Justify When Compact | `left` / `center` / `right` alignment of the value in compact mode |
+
+- **It's a container query, not a viewport breakpoint,** and that's the point. A section is a fraction
+  of the page. On the MNY LHMP home a 7/12 band is 379px wide on a 768px tablet and 715px at 1440, so
+  a `sm:`/`md:` breakpoint would answer the wrong question. Pick the threshold from the Card's own
+  width: measure where the full layout stops fitting.
+- **The column menu only shows the per-cell keys once `compactBelow` is set.** Unset means no
+  `<style>`, no container and no `data-cc-*` attributes, so every existing Card renders as before.
+- **Mechanism, for debugging:** the cards wrapper gets `container-type: inline-size` and a
+  `container-name` of `dms-cc-<id>`. Each record's cells grid gets that class, each cell gets
+  `data-cc-hide` / `data-cc-span` / `data-cc-justify`, and one scoped `<style>` holds a single
+  `@container` block of `!important` rules, which is what beats the inline grid styles.
+  `resolveCompactCss` in `Card.layout.js` builds it.
+- **Values are validated, not escaped,** because they land inside a `<style>`. The track template may
+  use only CSS-value characters (no `; { } < > " ' \ :`, no `/*`), and the threshold and spans must be
+  numbers. A value that fails silently drops its rule. If a compact template "does nothing", check it
+  for a stray `;`.
+- **Two sections that must line up (a header Card over a list Card) need the same `compactBelow`.**
+  They're the same width, so they switch together.
+- Worked example: the MNY LHMP home's hazard band. The bar list drops its risk column and its header
+  follows, and the focus card stacks the hazard name over its figure. See
+  `dms-template/planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md` Round 11.
+
 #### Budgeting a track template — the two taxes a shared grid charges
 
 A cells grid is ONE grid: all rows share the track edges. That is the whole point (it is

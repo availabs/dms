@@ -1,4 +1,4 @@
-import React, {memo, useCallback, useEffect, useMemo, useRef, useState} from "react";
+import React, {memo, useCallback, useEffect, useId, useMemo, useRef, useState} from "react";
 import {Link} from "react-router";
 import {getComponentTheme, ThemeContext} from '../useTheme';
 import {MountContext} from '../mountContext';
@@ -20,6 +20,9 @@ import {
     resolveCellBorderClass,
     resolveLinkAnchorStyle,
     describeResolvedPadding,
+    compactScopeName,
+    resolveCompactCss,
+    resolveCompactCellAttrs,
 } from './Card.layout';
 
 
@@ -583,6 +586,9 @@ const CardColumnField = ({
         <div
             className={`${wrapperClass}${onColumnClick ? ' cursor-pointer' : ''}${activeClass ? ` ${activeClass}` : ''}`}
             style={style}
+            // Compact layout: hide/span/justify hooks for the Card's @container rules
+            // (empty unless display.compactBelow is set — see Card.layout.js).
+            {...resolveCompactCellAttrs(attr, display)}
             // Introspection (edit mode only): one devtools glance answers
             // "which column is this cell and where does its padding come from".
             {...(isEdit ? {
@@ -731,7 +737,7 @@ const RenderItem = memo(function RenderItem ({
                                                  isDms, // state.sourceInfo
                                                  item, newItem, setNewItem, addItem, updateItem, removeItem, allowEdit,
                                                  allowDelete, deleteItemLabel, // state.display (via the spread)
-                                                 subWrapperStyle,
+                                                 subWrapperStyle, compactScope,
                                                  columns, visibleColumns,
                                                  formatFunctions= {},
                                                  controls, setState, isEdit, display,
@@ -814,7 +820,7 @@ const RenderItem = memo(function RenderItem ({
         // `subWrapperStyle` so it overrides any `display: flex` that themes
         // still ship in that key.
         <div
-            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? (theme.cardBorder || 'border shadow') : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}`}
+            className={`${theme.subWrapper} ${theme.subWrapperCompactView || ''} ${cardBorder ? (theme.cardBorder || 'border shadow') : ''} ${highlightClass} ${isSaving ? theme.formEditSavingAnimation : ''}${compactScope ? ` ${compactScope}` : ''}`}
             style={subWrapperStyle}
             onMouseEnter={() => {
                 setCardHovered(true);
@@ -988,6 +994,11 @@ export default function Card ({
     // cell. Without it, a hidden (hideHeader+hideValue) data column still occupies
     // a grid slot and shifts every later cell in multi-column cell grids.
     const visibleColumns = useMemo(() => columns.filter(({show, selectOnly}) => show && !selectOnly), [columns]);
+    // Compact layout: '' (and so no container, no <style>) unless display.compactBelow is set.
+    const compactScope = compactScopeName(useId());
+    const compactCss = useMemo(
+        () => resolveCompactCss({ scope: compactScope, display, columns: visibleColumns }),
+        [compactScope, display, visibleColumns]);
     const cellsWithoutSpanLength = useMemo(() => visibleColumns.filter(({cellSpan}) => !cellSpan).length, [visibleColumns]);
     const hasRowSpan = useMemo(() => visibleColumns.some(c => c.cellRowSpan > 1), [visibleColumns]);
     const imageTopMargin = useMemo(() =>
@@ -1079,9 +1090,12 @@ export default function Card ({
                 `mainWrapperCompactView` key still render correctly. The
                 edit-mode data-rhythm attribute exposes gap + pack mode for
                 spacing diagnosis in devtools. */}
+            {/* Compact layout: the cards wrapper becomes the query container, so the rules
+                follow THIS Card's width, not the viewport's. */}
+            {compactCss ? <style>{compactCss}</style> : null}
             <div
                 className={theme.mainWrapperCompactView || ''}
-                style={mainWrapperStyle}
+                style={compactCss ? { ...mainWrapperStyle, containerType: 'inline-size', containerName: compactScope } : mainWrapperStyle}
                 {...(isEdit ? { 'data-rhythm': `${cardsGridGap ?? 0}/${packMode}` } : {})}
             >
                 {
@@ -1095,6 +1109,7 @@ export default function Card ({
                             item={item} newItem={newItem} setNewItem={setNewItem}
                             addItem={addItem} updateItem={updateItem} removeItem={removeItem} allowEdit={allowEdit}
                             subWrapperStyle={subWrapperStyle}
+                            compactScope={compactCss ? compactScope : undefined}
                             columns={columns}
                             visibleColumns={visibleColumns}
                             formatFunctions={formatFunctions}

@@ -308,6 +308,21 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
     { type: 'toggle', label: 'Hide Value (deprecated — use Select Only)', key: 'hideValue', isBatchUpdatable: true,
         displayCdn: ({ attribute }) => !!attribute.hideValue },
     { type: 'toggle', label: 'Select Only (no cell)', key: 'selectOnly', isBatchUpdatable: true },
+    // Compact layout (per cell) — only offered once the section sets 'Compact Below'
+    // under Cells Grid. Applied while the CARD is narrower than that (a container
+    // query), so a 7/12 band goes compact on a tablet even though the screen is wide.
+    { type: 'toggle', label: 'Hide When Compact', key: 'hideCompact', isBatchUpdatable: true,
+        displayCdn: ({ display }) => +display?.compactBelow > 0 },
+    { type: 'input', inputType: 'number', label: 'Span When Compact', key: 'cellSpanCompact', isBatchUpdatable: true,
+        displayCdn: ({ display }) => +display?.compactBelow > 0 },
+    { type: 'select', label: 'Justify When Compact', key: 'justifyCompact', isBatchUpdatable: true,
+        options: [
+            { label: 'Unchanged', value: undefined },
+            { label: 'Left', value: 'left' },
+            { label: 'Center', value: 'center' },
+            { label: 'Right', value: 'right' },
+        ],
+        displayCdn: ({ display }) => +display?.compactBelow > 0 },
     { type: 'input', inputType: 'number', label: 'Col Span', key: 'cellSpan' },
     { type: 'input', inputType: 'number', label: 'Row Span', key: 'cellRowSpan' },
     // Cell Width — per-column grid track size. Accepts:
@@ -659,6 +674,12 @@ const buildControls = (theme) => ({
                     // `mt-auto` — one row absorbs everything. Names only the EXPLICIT
                     // rows; the rest stay implicit (Row Height still applies).
                     { type: 'input', inputType: 'text', label: 'Rows Template', key: 'cellsRowsTemplate' },
+                    // Compact layout — a second cell layout while THIS Card is narrower than
+                    // 'Compact Below' px (container query, not a viewport breakpoint). Per-cell
+                    // 'Hide / Span / Justify When Compact' appear in each column's menu once set.
+                    { type: 'input', inputType: 'number', label: 'Compact Below (px)', key: 'compactBelow' },
+                    { type: 'input', inputType: 'text', label: 'Compact Track Template', key: 'cellsTracksTemplateCompact',
+                        displayCdn: ({ display }) => +display?.compactBelow > 0 },
                 ]
             },
             { label: 'Default Column Settings', items: [

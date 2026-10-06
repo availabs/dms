@@ -1,6 +1,6 @@
 # Auth: invite-link add-user flow + password-reset hardening
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "NOT STARTED — design under review (user thinking it over, 2026-09-24)") · **Created by:** ssangdod@albany.edu · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "NOT STARTED — design under review (user thinking it over, 2026-09-24)") · **Created by:** ssangdod@albany.edu · **Edited by:** shaunak.sangdod@gmail.com, amuro@albany.edu
 
 ## Status: NOT STARTED — design under review (user thinking it over, 2026-09-24)
 
@@ -267,6 +267,7 @@ hard-coded dev secret). `createUserToken` puts `{ email, password: <bcrypt hash>
   `token_version` column, or an HMAC of the hash instead of the hash itself).
 - `JWT_SECRET` falls back to `'dms-dev-secret-change-in-production'`. Consider refusing to start in production
   when it's unset.
+- **Both now tracked in [`auth-login-token-carries-password-hash.md`](./auth-login-token-carries-password-hash.md)** (filed 2026-10-06).
 - `passwordGen` uses `Math.random`. This stops mattering once generated passwords are gone (Phase 5).
 
 ## Files Requiring Changes
