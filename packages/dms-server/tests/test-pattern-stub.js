@@ -251,6 +251,53 @@ async function main() {
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, COLL_TYPE, collAdmin]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, COLL_TYPE, collPat]);
 
+  // --- A QA install's stub carries its "where to file" refs (client patterns/qa/reportIssue) ---
+  // Only the tickets and covered-sites refs, under qa.intake; the install's full qa.datasets stays out.
+  const QA_TYPE = 'prod|qa:pattern';
+  const ref = (slug, n) => ({ slug, source_id: n, view_id: n + 1 });
+  const QA_DATASETS = {
+    tickets: ref('qa_tickets', 10), pages: ref('qa_pages', 12), stories: ref('qa_stories', 14),
+    patterns: ref('qa_patterns', 16), history: ref('qa_history', 18),
+  };
+  const qaCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, QA_TYPE, {
+    name: 'QA', base_url: 'qa', pattern_type: 'qa', dmsEnvId: 7,
+    qa: { version: 1, datasets: QA_DATASETS }, authPermissions: AUTH,
+  }]);
+  const qaId = Object.keys(qaCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  assert(qaId, 'qa install row created');
+  const readQa = async (g) => (await g.getAsync([['dms', 'data', TEST_APP, 'byId', qaId, ['data', 'type']]]))
+    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[qaId]?.data?.value;
+  console.log('QA install stub (Report an issue intake):');
+  const qaStranger = await readQa(stranger);
+  t('ungranted user gets the stub with only the tickets and covered-sites refs', () => {
+    assert.strictEqual(qaStranger?.id, 'no-access');
+    assert.deepStrictEqual(qaStranger?.qa, { intake: { tickets: QA_DATASETS.tickets, patterns: QA_DATASETS.patterns } });
+    assert.strictEqual(qaStranger?.dmsEnvId, undefined);
+  });
+  const qaAnon = await readQa(anon);
+  t('anonymous gets the same intake refs', () =>
+    assert.deepStrictEqual(qaAnon?.qa, { intake: { tickets: QA_DATASETS.tickets, patterns: QA_DATASETS.patterns } }));
+  const qaAdmin = await readQa(admin);
+  t('granted user gets the full settings (qa.datasets, no intake)', () => {
+    assert.deepStrictEqual(qaAdmin?.qa, { version: 1, datasets: QA_DATASETS });
+    assert.strictEqual(qaAdmin?.dmsEnvId, 7);
+  });
+  const pageStub = readData(await stranger.getAsync(reqPaths));
+  t('a non-qa pattern stub carries no qa key', () => assert.strictEqual(pageStub?.qa, undefined));
+  // An install whose datasets aren't set up yet (an interrupted install) has nothing to file into.
+  const partialCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, QA_TYPE, {
+    name: 'QA2', base_url: 'qa2', pattern_type: 'qa',
+    qa: { version: 1, datasets: { tickets: QA_DATASETS.tickets } }, authPermissions: AUTH,
+  }]);
+  const partialId = Object.keys(partialCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  const qaPartial = (await stranger.getAsync([['dms', 'data', TEST_APP, 'byId', partialId, ['data', 'type']]]))
+    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[partialId]?.data?.value;
+  t('an install without both refs: stub has no qa key', () => {
+    assert.strictEqual(qaPartial?.id, 'no-access');
+    assert.strictEqual(qaPartial?.qa, undefined);
+  });
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, QA_TYPE, qaId, partialId]);
+
   // Cleanup
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'managed|page', pageId]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, ADMIN_PERMS_TYPE, managedId]);

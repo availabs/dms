@@ -16,6 +16,16 @@ const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 // Any one of these lets a user read a (non-auth, non-admin) pattern row.
 const PATTERN_READ_PERMISSIONS = ['view-page', 'edit-pattern', 'edit-pattern-permissions', 'delete-pattern'];
 
+// The part of a QA install's settings its no-access stub carries: the two datasets the "Report an issue"
+// widget (client patterns/qa/reportIssue) reads (covered sites) and writes (tickets), so a user not
+// granted on the install can still file from a page it covers. The rest of its settings stay out.
+// Undefined for any other pattern, or an install whose datasets aren't set up.
+const qaIntake = (data) => {
+  if (data?.pattern_type !== 'qa') return undefined;
+  const { tickets, patterns } = data?.qa?.datasets || {};
+  return tickets && patterns ? { tickets, patterns } : undefined;
+};
+
 /**
  * Create DMS Falcor routes with a specific controller
  * @param {Object} controller - DMS controller instance (from createController)
@@ -124,6 +134,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
                 authPermissions: row.data?.authPermissions,
                 name: row.data?.name,
                 theme: row.data?.theme,
+                // under `qa.intake`, not `qa.datasets`: client code that reads `qa.datasets` treats it as the
+                // install's full settings (Configure, the datasets card, track-on-publish)
+                ...(qaIntake(row.data) ? { qa: { intake: qaIntake(row.data) } } : {}),
               });
             } else value = 'no-access';
             response.push({ path, value });

@@ -116,6 +116,27 @@ takes `user_id` from the request body.
 "the call returned normally" does not prove a real row would be written. The code reading says it would.
 Confirm on a throwaway row in a scratch app — **not** on live content — before deciding severity.
 
+## Defect E — 2026-10-07: `dms.data.create` performs no authorization either
+
+Found while scoping signed-out "Report an issue" filing for the `qa` pattern (`qa-pattern-type.md`,
+"Phases 6–7"). This is a sibling of Defect B. The decision and sequencing above cover only edits.
+
+- `routes/dms/dms.route.js:513-532`: the `dms.data.create` handler calls `controller.createData(args,
+  this.user, this.reqMeta)` with no check. It logs `user=anon` when there is no token. Only `dms.data.delete`
+  (`:537`) requires a user. By contrast, `uda.data.create` requires one (`uda.route.js:728`, subagent-reported).
+- `routes/dms/dms.controller.js` `createData`: `user` is used only for `created_by` / `updated_by`. Its only
+  errors concern tenant-subdomain validation. So an anonymous caller can create a row of **any** type, including a
+  split dataset type `<slug>|<view_id>:data`.
+- Verified by reading the code (2026-10-07), **not by a live write**. Confirm on a throwaway row in a scratch app,
+  as Defect B says, before deciding severity.
+- No "create rows" permission exists anywhere. The source vocabulary (`datasets/datasets.format.js`,
+  `utils/adminPermissions.js` `DATASETS_OPTIONS`) is view / download / update / version / delete. A guard needs a
+  grant such as `create-row` (a `public` grant for anonymous intake). The QA widget's deferred signed-out filing
+  depends on that grant, plus a honeypot and a per-IP rate limit. The library has no honeypot, captcha or rate
+  limiting today.
+- Unconfirmed side path (subagent): with `VITE_DMS_SYNC` on, client creates may go through `/sync/push`, which
+  takes anonymous inserts unless `DMS_SYNC_AUTH=1` (`sync.js:175,502`).
+
 ## Defect C — the permission vocabulary has no way to grant `view-sources`
 
 `view-sources` appears in exactly one place in the codebase: as a *requirement*

@@ -8,6 +8,12 @@ import QaPageView from "./pages/view";
 import QaShell from "./pages/shell";
 import { loadThemeFonts } from "../../ui/useTheme";
 import { QA_TOKENS_FONT } from "./qa.theme";
+import { registerWidget } from "../../ui/widgets";
+import ReportIssue from "./reportIssue/ReportIssue";
+
+// The "Report an issue" nav widget: a theme places it in any nav slot, like the page pattern's
+// UserMenu (page/siteConfig.jsx). It shows only on pages a QA install covers.
+registerWidget('ReportIssue', { label: 'Report an issue', component: ReportIssue })
 
 // The `qa` pattern type: ticketing / delivery QA. Its pages are code (./pages),
 // there is no editor, and each qa pattern row is its own install. Like every

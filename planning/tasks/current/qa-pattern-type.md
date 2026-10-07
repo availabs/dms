@@ -1318,7 +1318,317 @@ consumer again before building.
 `export` on `QaPatternSettings` (no behavior change). `tracking.js` only gains an export (still no browser imports,
 so the CLI's import is unchanged). The publish paths and the CLI aren't touched.
 
-### Phases 6–7 — NOT STARTED
+### Phases 6–7 — Phase 6 (Report an issue) BUILT 2026-10-07: on MitigateNY's 4 source patterns, deploy pending (coworker); phase 7 NOT STARTED
+
+**Phase 6 build, 2026-10-07 (uncommitted, verified live on `qa_test`):**
+- **Library, new files in `patterns/qa/reportIssue/`:**
+  - `report.js` (no browser imports): `findCoveringSite`, `intakeRefs`, `reportRow`, `REPORT_DEFAULTS`,
+    `ticketsFormat`, `ticketsSource`.
+  - `ReportIssue.jsx`: the nav widget, registered as `ReportIssue` in `patterns/qa/siteConfig.jsx`, like the page
+    pattern's `UserMenu`. Slot options: `iconOnly`, `icon` (default `Alert`), `label`, `activeStyle`.
+  - `ReportIssueForm.jsx`: the form, a `lazyComponent` chunk `qa/ReportIssueForm`.
+  - `ReportIssue.theme.js`: the theme key `qaReportIssue`. A site overrides `buttonStyle`, `sendStyle` and
+    `cancelStyle` (`UI.Button` style names) and the layout keys.
+- **What it does:**
+  - Shows only for a signed-in user, on a page whose pattern an install's covered-sites rows include (with their
+    page limit). Covered sites are read once per page load.
+  - The form is a `UI.Modal` with `FieldSet` (Input/Textarea) and two `UI.Select`s: kind, plus severity in plain
+    words for problems (an idea files as Feature). Then summary, details, and the note about what's sent.
+  - It writes one tickets row through `apiUpdate`, filled by `applyCreateDefaults` with Page QA's New ticket fills:
+    `ticket_id` auto-numbered from 101, Triage, source client, reporter and reporter_email, opened/updated.
+    `page_key` is `<surface>:<slug>`, plus surface, page_route, page_name, and an `env` JSON (url, browser, window).
+  - The confirmation says "Report sent". It shows no ticket number (owner, 2026-10-07).
+- **Users not granted on the install (option b):** dms-server's no-access stub for a `qa` row carries
+  `qa: {intake: {tickets, patterns}}` (`dms.route.js` `qaIntake`); `report.js` `intakeRefs` reads it.
+  `tests/test-pattern-stub.js` covers the stub for an ungranted user, an anonymous user, a granted user, a non-qa
+  pattern, and an install with partial datasets.
+  - Reads of a DMS internal dataset (`uda` length/dataByIndex) have no permission check, so an ungranted user can
+    read the covered sites and the highest `ticket_id`.
+  - The create goes through the unguarded `dms.data.create` (Defect E in `auth-permission-chain-and-unguarded-writes.md`).
+    When that's guarded, the tickets source needs a create grant for these users.
+- **MitigateNY look (revised 2026-10-07 after the owner's review: the labelled pill was "way too big"; in the
+  narrow right slot it wrapped onto three lines, 87×73px):**
+  - `qaReportIssue` = `iconOnly: true`, a 24px `Alert` icon (MNY's top-nav icons are `size-6`, `theme.js:397`),
+    `iconButtonStyle: 'navIcon'`, amber `primarySmall` Send, default Cancel.
+  - New MNY button style `navIcon`: a bare icon with `ml-3 -mr-2`. The slot packs items with no gap, so this gives
+    12px from the search pill and 14px to the user icon (measured on `/home`; before: 0px and 22px).
+  - The library gained theme-level `iconOnly` / `iconButtonStyle` defaults, and `label: whitespace-nowrap`, so a
+    labelled button never wraps.
+  - Admin's rail shows the icon above the user block.
+  - **Follow-up (owner, 2026-10-07): put Report an issue inside the user menu** (the dropdown) instead of as a nav
+    icon. Not hard, but deferred: it touches the shared `userMenu.jsx` and means removing the four nav entries
+    (a prod write). The user menu already takes `{name, icon, onClick}` items and renders a modal outside the
+    dropdown (`DeleteModal`, `userMenu.jsx:385-391`); the page pattern already imports `qa/tracking.js` (publish).
+    The plan: move the coverage check into a shared hook, add an item when covered, render the lazy form outside
+    the dropdown.
+- **Two bugs found while testing, both fixed:**
+  - The widget first read the user from CMSContext, which on a first load can stay the boot-time placeholder
+    (`isAuthenticating`), so the button never showed until a reload. It now reads `AuthContext`, as UserMenu does
+    (`userMenu.jsx:31`).
+  - The library default `button` style 0 is a solid primary button, too heavy for nav chrome and for Cancel. The
+    defaults are now `plain`.
+- **Verified:**
+  - `tests/qaReportIssue.test.js` (16) plus all QA client tests: 148/148.
+  - `dms-server` `tests/test-pattern-stub.js`: 29/29.
+  - Live on `qa_test` AlphaPage (row 5, given a test nav with the widget in the top nav and the side rail):
+    - First load shows both buttons, three runs in a row.
+    - The owner filed #107 by hand.
+    - #108 was filed with install 126 temporarily un-granted for the test user, through the stub's intake. Access
+      restored after. Rows 186/187 in `qa_tickets`.
+- **Wrap-up (2026-10-07):** the owner pushes, and the MitigateNY coworker deploys and propagates. The coworker's
+  how-to: [`planning/mitigateny/skills/report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md)
+  (deploy prerequisite, nav entry plus coverage per county, moving it, where tickets land, gotchas). The committed
+  placement tool is `src/themes/mny/scripts/report_issue_nav.mjs`: the dms CLI with the caller's token, dry run by
+  default, backups, refuses no-access stubs and hidden navs. It replaces the scratchpad `place_report_issue_mny.py`.
+- **The MitigateNY rollout, as run 2026-10-07 (steps 0–3 are the coworker's deploy):**
+  0. **Root `npm install`.** `maplibre-gl` is in `package.json` but missing from the root `node_modules` again, so
+     `vite build` fails (Rollup can't resolve it from `transportny/components/routecreation/comp.jsx`). Dev still
+     works.
+  1. **The owner commits** the library submodule and dms-template.
+  2. **Deploy dms-server** (the `qa.intake` stub), so county staff not granted on the install can file.
+  3. **Build and deploy the client** with the MitigateNY `.env`: `npm run build` then `npm run deploy-devmny`
+     (that script ships `dist/` as-is), then `npm run deploy-mnyprod`.
+  4. **Add the nav entries:** `DMS_HOST=http://localhost:3001 python3
+     scratchpad/mitigat-ny-prod-prod/place_report_issue_mny.py --apply`. The dry run on 2026-10-07 showed exactly:
+     - 985070 and 1300890: `topNav.rightMenu` → `[SearchButton, ReportIssue, UserMenu]`
+     - 2265530 (actions): `topNav.rightMenu` → `[ReportIssue, UserMenu]`. Its stored sideNav doesn't render, per a
+       read-only look at `/actions/dashboard`.
+     - 566466 (admin): `sideNav.bottomMenu` → `[ReportIssue {iconOnly}, UserMenu]`
+     It backs up each row and has `--restore <stamp>`.
+  - **Step 4 APPLIED 2026-10-07 10:06 (local time), before the deploy, at the owner's choice (all four rows).**
+    Re-read by SQL: every array matches, and every other key is identical to its backup
+    (`scratchpad/mitigat-ny-prod-prod/backup_<id>_20261007T100659.json`; undo with `--restore 20261007T100659`).
+    Until steps 2–3 ship (the coworker deploys), live sites render the `NoComp` placeholder: a 48px gap in admin's
+    side rail, and about 48px of blank space in the phone menu on the three top-nav patterns.
+  - **Order trade-off:** the rows are shared by devmny.org and mitigateny.org. Written before prod runs the new build,
+    an old build renders `NoComp` for the entry. That's invisible in a top nav, but leaves a 48px gap in admin's side
+    rail. Writing after the deploy avoids it.
+  - Restore AlphaPage's test nav when no longer useful (`scratchpad/qa_test/place_report_issue_widget.py --restore`).
+- **Follow-ups (owner, 2026-10-07), none started:**
+  - A real serial `ticket_number` column (server-side, no max+1 race).
+  - The install lockout fix.
+  - MNY colours on the QA pages.
+  - Search plus IDs on the Configure site list.
+  - Collapsible Overview site cards.
+  - Report an issue inside the user menu.
+  - MNY's cramped search pill.
+  - Signed-out filing.
+  - Where county tickets show up after propagation is answered in the coworker skill.
+  - Each item's details are in its own bullet in this section.
+
+
+**Report an issue on MitigateNY: research 2026-10-06 (nothing built yet).**
+- **Owner pivot (2026-10-06):** the next milestone is installing QA on MitigateNY, so that internal and external
+  users file tickets through Report an issue. This replaces "Out: MitigateNY" in Scope for phase 6. TransportNY
+  work drops in priority (no contract). The matching MitigateNY deliverable is the D5.2 ticket-system task
+  (`planning/mitigateny/tasks/current/mny-sow-ticket-system.md`, internal pilot Oct–Nov 2026).
+- **Widget versus floating button: one plan, not two.** A coworker suggested a widget. Round 1, answer 2 (above)
+  already chose a `ReportIssue` widget, with floating as a widget option. The mockup's review bar toggles
+  "floating / in the sidenav". A "widget" is DMS's name for a component placed in a nav slot. `Layout.jsx:27-33`
+  is the only code that reads `theme.widgets`, and it renders them only in the four slots (`topNav.leftMenu`,
+  `topNav.rightMenu`, `sideNav.topMenu`, `sideNav.bottomMenu`). The admin theme editor's slot pickers come from
+  `Layout.theme.jsx`. The rejected alternative is a separate floating mount, rendered by Layout or the page shell
+  whenever an install covers the page. It would put QA code into Layout, and it would skip theme placement.
+- **MitigateNY placement:** the top nav's right slot, next to the user menu (`src/themes/mny/theme.js:221`). Most
+  pattern rows never see that line. `getPatternTheme` (`ui/useTheme.js:160-185`) takes `layout.options` out of the
+  base theme and copies them in only when the pattern row stores **no** `theme.layout.options` of its own. So a
+  pattern with any stored nav settings ignores `theme.js`'s slots entirely. Whether it has `_replace` or not doesn't
+  matter, and page rows don't change it: 2,308 of the 3,432 reachable pages store layout options, but none touch
+  `topNav`.
+  Only patterns listed in the site row's `patterns` count: site MitigateNY (566430) lists 81, and routes are built
+  from that list only (`render/spa/utils/index.js:253`). The other 30 pattern rows in `dms_mitigat_ny_prod` can't be
+  reached (old Nassau/Schenectady/Suffolk/Westchester versions, `plants*`, `shmpcopy`, `redesign-backup`, the
+  replaced `MitigateNY_Delaware` clone 2564043).
+  **With only the code change (widget + one `theme.js` line), 4 of the 75 reachable page patterns get the button:**
+  - **Get it (4 patterns, 230 pages):** the `mnyv1` patterns with no stored nav settings: County_Template_Suffolk
+    (2249247), Delaware_Draft (2323808), Schenectady_Draft_V2 (2304223) and Westchester (2448336).
+  - **Don't (59 patterns, 2,741 pages):** `mnyv1` patterns that store their own nav settings. That's every
+    bulk-cloned county (cloned from MitigateNY_County_Template_V3, 1300890), the main site MitigateNY_2025 (985070),
+    planning-guide, MitigateNY_actions, Playground and buildings.
+  - **Don't (10 patterns, 326 pages):** old plan versions on another theme: 6 with no theme set (`default`, e.g.
+    `allegany-2024`, `fulton-2021`) and 4 whose legacy setting names `mny`, which isn't registered (`delaware-2021`,
+    `putnamcsc`, `schoharie2024`, `schohariecounty`).
+  - **Don't (2 patterns, 135 pages):** `mny_admin`: `admin` (566466) and `putnamcsc_admin`.
+  So placement means writing the entry into each pattern row's stored `topNav.rightMenu` (scripted, backed up first,
+  `--data` rather than `--set`), plus `theme.js` for the 4 without stored settings. Editing the county template too
+  means future counties carry it. The script should only touch patterns the site row lists.
+- **After the backfill, do new MitigateNY patterns carry the entry?**
+  - **Admin "duplicate":** yes. The new pattern row gets the source's whole `theme` (`patternList.jsx:447`, then
+    `addNewValue` at `:308`).
+  - **County sites from the mass-deploy script** (`county-site-mass-deployment.md`; the script lives in a scratchpad
+    and isn't on this machine): yes, provided the County Template (1300890) is backfilled. 54 pattern rows store nav
+    settings identical to the template's.
+  - **Editing an existing pattern's theme later:** keeps it. The theme editor loads the stored nav settings and saves
+    them back.
+  - **"Add pattern" (brand new): no.** The row is created with no theme (`patternList.jsx:352`), so it renders on the
+    library default theme. When an admin then picks `mnyv1` in the pattern theme editor and saves, the editor stores
+    the nav settings it opened with. Those come from the default theme, because changing the theme dropdown doesn't
+    refresh them (the refresh is commented out, `themeEditor.jsx:160-164`). Picking `mnyv1`, clicking "full reset" and
+    picking `mnyv1` again pulls `mnyv1`'s nav settings, button included. "Full reset" (`themeEditor.jsx:246`) replaces
+    the whole pattern theme, so it also clears `selectedTheme`. MNY's Logo and Search would be missing too, so the gap is
+    visible.
+- **Split of work (owner + MitigateNY coworker, 2026-10-07):** this task makes Report an issue work on four
+  patterns. The coworker does the propagation to the rest. The four patterns, with their stored nav settings:
+  - `admin` (566466, `mny_admin`, every subdomain, `/admin`): no top nav (`size: none`). The button goes in the
+    compact side rail's `bottomMenu`, above `UserMenu`, so the widget needs an icon-only look for a narrow rail.
+  - `MitigateNY_actions` (2265530, every subdomain, `actions`): `UserMenu` is stored in both `topNav.rightMenu` and
+    `sideNav.bottomMenu`. Check which one renders before placing.
+  - `MitigateNY_2025` (985070, the main site; the owner calls it "shmp") and `MitigateNY_County_Template_V3`
+    (1300890): `topNav.rightMenu` becomes `[SearchButton, ReportIssue, UserMenu]`.
+  - Propagation is two jobs: the nav entry in each pattern row, and a covered-sites row per county in the QA install.
+    Without the covered-sites row, the button stays hidden on that county. Who adds them is to be agreed.
+  - devmny.org shows the same pattern ids as prod, so it looks like the same database. Pattern-row writes show up on
+    mitigateny.org at once. Until prod runs a build that includes the widget, `getWidget` renders the `NoComp`
+    placeholder (`<div className='h-12'/>`). That's invisible in a top-nav row but leaves a 48px gap in admin's side
+    rail. Deploy the code to prod before or along with the row writes.
+- **Owner decisions 2026-10-07:**
+  - **Install QA on MitigateNY first, then build the button.**
+  - **No prod DB writes** (the install, nav entries, coverage rows) until the owner explicitly starts that part and
+    is present for it. Research, docs and dry runs are fine.
+  - **Signed-out filing deferred.** v1 is for signed-in users only.
+  - **The QA pages on MitigateNY should look like MitigateNY.** Best guess, no design dive.
+  - **The form stays small**, matching MNY's existing look through theming where a precedent exists.
+- **Findings 2026-10-07 (read-only):**
+  - **Who can see where to file:** for a non-auth, non-admin pattern row, any user without `view-page`,
+    `edit-pattern`, `edit-pattern-permissions` or `delete-pattern` on it gets a stub (`dms-server`
+    `routes/dms/dms.route.js:15,58-65,117-127`). The stub keeps `base_url`, `pattern_type`, `subdomain`,
+    `locations`, `retired_subdomains`, `authPermissions`, `name` and `theme`, and drops `qa`, `dmsEnvId` and `config`.
+    So **signed-in county staff not granted on the install can't find the tickets dataset either**, not just
+    signed-out visitors. There are two ways to let them file in v1:
+    - **(a)** Grant their groups `view-page` on the install. This also opens every QA page (all tickets, the
+      Overview) to them.
+    - **(b)** Pull one deferred piece forward: the server's stub for `qa` rows carries a "where to file" summary
+      (the tickets dataset ref). That's a dms-server change and deploy. Writes then go through `dms.data.create`,
+      which is unguarded today (see below).
+    Working guess: (b), so counties don't see each other's tickets. To be confirmed with the owner.
+  - **New installs' access:** `installQa` grants `{groups: {"<app> Admin": ['*'], public: []}}` (`install.js:157-159`).
+    No MNY pattern row uses `mitigat-ny-prod Admin`. Its 111 pattern rows grant `AVAIL` (82) and `DHSES` (78). So
+    right after installing, set the install's Access tab to the staff groups.
+  - **Creating rows is unguarded:** `dms.data.create` (`dms.route.js:513-532`) and `createData` check nothing. Logged
+    as Defect E in `auth-permission-chain-and-unguarded-writes.md`. Signed-out filing (deferred) needs: the stub
+    summary, a create guard with a new `create-row` grant on the tickets source (an "allow signed-out reports" switch
+    on the install), a honeypot and a per-IP rate limit. None of that exists in the library today.
+  - **The live site stays safe when the row is added:** the route builder skips a pattern type the build doesn't know
+    (`render/spa/utils/index.js:416-417`), so an older mitigateny.org build ignores a QA row. A mount with no
+    subdomain serves only the bare domain, and `*` serves every subdomain (`:424-428`). The planned ny.gov redirect
+    keeps the path (`mitigateny-org-redirect-to-ny-gov.md`), so `/qa` works on both hosts.
+  - **Where the datasets go:** `pickQaEnvironment` (`install.js:37-41`) picks dmsEnv 1676363 `test_meta_forms_env`.
+    That's the environment the Datasets pattern (1499610, `/cenrep`, 58 sources) uses, despite the name.
+  - **QA theming on MNY:** the QA pages draw colors, surfaces and type from the shared `--t-*` tokens (122 uses in
+    `qa.theme.js`). `mnyv1` sets none, so QA would show the library default palette. The default theme injects its
+    tokens as a `fonts` style entry (`ui/defaultTheme.js:64-77`, id `dms-default-tokens`), and `fonts` lists stack
+    across merges. Best guess:
+    - the install's `selectedTheme: 'mnyv1'`, which brings MNY's nav, layout and fonts;
+    - an MNY token block mapping MNY's palette onto `--t-*`, scoped to the QA pages so nothing else on the live site
+      shifts. The palette: ink `#2D3E4C`, slate `#37576B`, rules `#E0EBF0`/`#C5D7E0`, mid `#6D96AE`, panel
+      `#F3F8F9`, accent `#EAAD43`; Proxima Nova body text, Oswald headings.
+- **Owner decision 2026-10-07: county staff file through option (b).** The dms-server stub for `qa` rows carries
+  only the tickets dataset ref. No real security concern (owner). The owner does the MitigateNY install himself in
+  the admin UI. The steps, checked read-only on 2026-10-07:
+  1. **Use a build that offers the QA type.** That means `VITE_DMS_QA_PATTERN=1`, for example local dev with the root
+     `.env` switched to the MitigateNY block and the flag kept. Check that `/list` shows MNY's patterns (e.g.
+     MitigateNY_2025) before going on.
+  2. **Reload `/list` right before adding.** The add saves the page's copy of the whole site row (`editSite.jsx`
+     `onSubmit`), so a stale page could undo someone else's pattern-list change.
+  3. **Add the pattern:** Type QA, name `QA`, URL `/qa`, from the bare host, so there's no subdomain and it lives on
+     the main site only. The safety check passes: no MNY row uses instance `qa`, the `qa_*` dataset names or the
+     URL `/qa`. The add creates the pattern row, adds it to site 566430's list, then runs `installQa` (5 datasets in
+     dmsEnv 1676363). If the datasets step fails, the Overview's "finish set-up" resumes it (`settings.jsx:636`).
+  4. **Access tab:** grant the staff groups (`AVAIL`, `DHSES`). The install's own grant names `mitigat-ny-prod
+     Admin`, which MNY doesn't use.
+  5. **Theme tab:** pick `mnyv1`, click "full reset", pick `mnyv1` again, then save. Without the reset, the default
+     theme's nav is kept. The colors stay the library default until the QA-scoped MNY token block lands.
+  6. **Configure tab, covered sites:** the four patterns. Once a pattern is covered, publishing a page on it adds the
+     page to the install's Pages dataset (track-on-publish, in builds that have it). The button isn't built yet.
+- **MitigateNY install made by the owner, 2026-10-07: pattern 2824062 `QA`** (`prod|qa:pattern`, `/qa`, no
+  subdomain, dmsEnv 1676363, all 5 datasets recorded; site 566430 now lists 82 patterns).
+  - **Bug: the install locks out its creator on a site with no `<app> Admin` group.** `installQa` grants only
+    `{"<app> Admin": ['*'], public: []}` (`install.js:157-159`), assuming every site has that group, as sites made by
+    `createSite.jsx` do. MitigateNY predates that and grants `AVAIL` / `DHSES`. Nobody can read the row, so the server
+    sends a stub, and the pattern editor refuses a stub (`patternEditor/index.jsx:110-112`), so the Access tab can't
+    fix it from the UI.
+  - **Library fix (to build):** also grant the installing user `*`, and/or start from the site Admin pattern's grants.
+    Add a test for a site without the group.
+  - **One-off repair:** `scratchpad/mitigat-ny-prod-prod/fix_qa_install_access.py`. It reads the full row by SQL,
+    because `dms raw get` / `--set` would read the stub and write it back. It adds `AVAIL`, `DHSES` and user 1 `*`
+    (mirroring Admin pattern 2724987), backs up the row, and writes with `dms raw update --data` only with `--apply`.
+    **Applied 2026-10-07 with the owner's go**, through localhost:3001. Re-read by SQL: `authPermissions` =
+    `{"groups":{"mitigat-ny-prod Admin":["*"],"public":[],"AVAIL":["*"],"DHSES":["*"]},"users":{"1":["*"]}}`; other
+    keys intact. Backup: `scratchpad/mitigat-ny-prod-prod/backup_2824062_20261007T093633.json`.
+- **Covered sites saved by the owner, 2026-10-07** (Configure tab; confirmed by SQL against
+  `data_items__s2824069_v2824070_qa_patterns` and the owner's screenshot):
+  - The four patterns and their page backfill:
+
+    | Covered-sites row | Pattern | Pages recorded |
+    |---|---|---|
+    | 2824073 `admin` | 566466 | 71 of 72 |
+    | 2824076 `mitigateny_actions` | 2265530 | 6 of 7 |
+    | 2824074 `mitigateny_2025` | 985070, the owner's "shmp" | 160 of 164 |
+    | 2824075 `mitigateny_county_template` | 1300890 | 44 of 44 |
+
+    281 pages in `qa_pages`. The 6 pages skipped were all never published (`published` is `'draft'`, null or
+    missing; `configure.js:147-153`).
+  - The row stores the instance `admin`, which two pattern rows share: page pattern 566466 and the Admin control
+    panel 2724987, both `prod|admin:pattern`. Only page patterns read coverage, so it covers 566466 as intended.
+  - **Follow-up (owner, 2026-10-07): the Configure site list needs a search box and pattern IDs.** The list shows
+    every pattern on the site, uncovered ones included (MNY has 80+), so it needs search like the `/list` landing
+    page's (`editSite.jsx:216,499,543`). Show IDs in the row or on hover; the owner and coworkers name patterns by
+    ID. Also seen: long short keys and labels truncate (`mitigateny_actio…`).
+- **Deferred (owner, 2026-10-07): MNY's search pill is cramped in the top nav.** MNY doesn't style
+  `pages.searchButton`, so it uses the library default (`w-[217px] justify-between`), which the flex row squeezes to
+  about 115px; "SEARCH" runs into the magnifier. It was cramped before the Report an issue icon too. Likely fix: an
+  MNY `pages.searchButton` override with `shrink-0` and a gap, checked against the centre menu's room.
+- **Queued until Report an issue is completely finished (owner, 2026-10-07):**
+  - Overview: make each site's card collapsible.
+  - Question to answer: once the coworker propagates the button through the county template, where and how do
+    county pages' tickets show up?
+- **Report form design: best guess (2026-10-07; nothing built):**
+  - **What MNY has:** no form or modal look of its own. Its `input`, `field`, `dialog`, `modal` and `multiselect`
+    overrides are a frozen copy of the old library defaults (zinc, white, blue focus ring;
+    `src/themes/mny/theme.js:1817-1822`, `:1754-1860`). Only `button` (`:729-776`) is branded: rounded-full,
+    Proxima Nova 700, 12px uppercase. `primarySmall` is amber `#EAAD43` on ink `#2D3E4C`; the default is white with
+    a `#E0EBF0` ring. MNY's existing modals are modal section groups, e.g. the create-action form on
+    `mitigateny_actions` page 2418488 `jurisdiction_prioritization` (add-row Card 2469163, draft 2716823). They render
+    with the library's unthemed `sectionGroup` chrome (white card on `bg-black/50`), not with `UI.Modal`.
+    `mny_admin` overrides only `input`, `field` and `dialog`, in the same generic look.
+  - **Plan:** a small centered `UI.Modal`, built only from themed library parts so it takes the host theme's look with
+    no QA-specific styling:
+    - `FieldSet` / `FieldComp` for labels and inputs. Use FieldSet's textarea (`Input.jsx:21`, reads
+      `theme.input.textarea`), not `UI.Textarea`, which ignores the theme. `UI.Label` is a pill chip in MNY.
+    - `UI.Select` for severity (there's no `UI.Radio`).
+    - `UI.Button` styles: Send is MNY's amber `primarySmall`, Cancel is the default style.
+  - **Fields (v1):**
+    - Problem / Idea toggle
+    - How bad, problems only: one select in plain words, mapped to Blocker / Major / Minor / Polish
+    - Short summary
+    - What happened
+    - One quiet line saying the page address and browser details are sent with the report
+    - Sent step: "Report sent: ticket #N", then close
+  - **Cut from the mockup for v1:** the screenshot field (out of scope), name / email / honeypot (signed-out,
+    deferred), the large "What is it?" cards and the radio list, and the expanded captured-context panel.
+  - **Rejected: a side `UI.Drawer`** (non-modal, no scrim; what the mockup used so the reporter can see the page).
+    MNY doesn't style `drawer`, so it would fall back to the library default tokens on MNY content pages. MNY's
+    existing forms are centered modals.
+  - **The nav button:** in the top nav, a small "Report an issue" button in MNY's default button style. In admin's
+    compact side rail, icon only with a title. Check `mny_admin`'s z-index on its first render: its `dialog` lacks
+    `z-50`. `UI.Modal` reads `theme.modal`, which `mny_admin` doesn't override.
+- **Safe to list everywhere:** the widget renders nothing unless an install covers the page.
+  `CMSContext.qaTracking = {installs, patternKeys}` is already set on page patterns (`page/siteConfig.jsx:155`), and
+  `coveredSites` / `coversPattern` / `slugAllowed` (`qa/tracking.js`) answer the coverage question.
+- **Mobile:** MitigateNY's `rightMenuContainer` is `hidden md:flex`. TopNav still passes `rightMenu` into
+  `MobileMenu` (`TopNav.jsx:19,51`), so the button shows in the hamburger menu on phones.
+- **Where the code lives:** `patterns/qa/siteConfig.jsx` registers the widget at module level. That file is imported
+  on every site (`patterns/index.js:7`), the same way the page pattern registers `UserMenu` and `SearchButton`
+  (`page/siteConfig.jsx:45-46`). The drawer is loaded with `lazyComponent` (`utils/lazyComponent.js`), so only the
+  button is in the main bundle. The floating option renders through a portal, because an ancestor with a transform
+  or filter traps `position: fixed`.
+- **Side bug:** `theme.js:221` and 3 reachable pattern rows (1592725 Chemung2025, 1603896 planning-guide, 2043199
+  sullivan; also unreachable 2027239 westchester2026) list `{type: "Search"}`. No widget has that name (the registered name is
+  `SearchButton`), so the slot renders an empty `NoComp` spacer instead of search.
+- **Open: signed-out filing for external users.** Signed-out visitors get stub pattern rows with settings stripped,
+  so the widget can't see `qa.datasets`. It needs the server stub change noted below, an anonymous create on the
+  tickets dataset, and a honeypot. Working guess: v1 is signed-in only, like TransportNY's demo (`QuickLinks` shows
+  only when `user.authed`), and signed-out follows soon after.
 
 See README steps 7–8. Notes to carry in:
 - **Moved here from phase 5 (owner, 2026-10-02):** who can report, where "Report an issue" appears, page families.

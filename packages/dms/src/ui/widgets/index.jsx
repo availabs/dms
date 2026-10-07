@@ -32,6 +32,9 @@ const defaultWidgets = {
   },
 }
 
+// A widget renders in a nav slot (ui/components/Layout.jsx getMenu) with its slot entry's `options` as
+// props. Read the signed-in user from AuthContext, as UserMenu does: CMSContext's `user` can stay the
+// boot-time placeholder (isAuthenticating) for a whole first page load.
 export function registerWidget(name, { label, component, internal } = {}) {
   defaultWidgets[name] = {
     label: label || name,
