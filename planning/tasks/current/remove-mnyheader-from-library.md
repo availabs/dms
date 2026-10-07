@@ -6,7 +6,7 @@
 **Raised:** 2026-09-09
 
 Step 2 of work item A in
-[`planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md`](../../../../../planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md).
+[`planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md`](../../../../../planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md).
 **Step 1 is done and live**: the component has been copied to `src/themes/mny/components/mnyHeader/`
 and registered through `theme.pageComponents` under the unchanged key `"Header: MNY Data"`. Because
 `componentRegistry.js` seeds from the built-ins and then `Object.assign`s the theme's entries, the

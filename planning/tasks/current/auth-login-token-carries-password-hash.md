@@ -8,7 +8,7 @@ Stop putting the user's password hash in login JWTs, without losing the property
 provides: a password change invalidates every older login token. In the same pass, stop
 `dms-server` from silently signing tokens with a public default secret when `JWT_SECRET` is unset.
 
-Filed 2026-10-06 from the LHMP home sync (`dms-template/planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md`,
+Filed 2026-10-06 from the LHMP home sync (`dms-template/planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md`,
 Round 10). A token minted for the CLI against `https://dmsserver.availabs.org` decoded to
 `{ email, password, project, iat, exp }`, and `password` was a 60-character `$2…` bcrypt hash. It is
 already listed as a "related finding, not fixed here" in

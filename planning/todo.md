@@ -257,6 +257,9 @@
 
 ## ui
 
+- [x] [BarGraph Scale Filter: log-spaced stops, value labels, design pass](./tasks/completed/bargraph-scale-filter-log-stops.md): DONE 2026-10-06. Max plus three log-spaced stops (1/2/5 × 10ⁿ) between the tallest and the smallest positive bar, each labelled with the value it crops to. On the county template that gives Max $332M · $20M · $2M · $100K, where it used to be 75/50/5%. Charts under a 10× spread get no control. Bars over a Domain Max are clipped with a torn edge. Styled by new optional `scaleFilter*` avlGraph tokens; untokened themes keep the old grey control, and the legacy `scaleWrapper`/`scaleItem` copies stay unread. The `mny` theme uses mockup direction A (`src/themes/mny/design/pages/lhmp/scale-filter.html`). 35 new tests.
+- [ ] [Card: compact layout when the Card itself is narrow (`compactBelow`)](./tasks/current/card-compact-layout.md): BUILT 2026-10-06 (deploy pending). The Card's cell grid is an inline style, so one layout governed every viewport. Now `display.compactBelow` (px) gives a Card a second layout while **its own width** is below that. It's a container query, because a 7/12 band is 379px on a 768 tablet. Keys: `cellsTracksTemplateCompact`, plus per-cell `hideCompact` / `cellSpanCompact` / `justifyCompact`. It's built from a validated, scoped `<style>`, SSR-safe, and off by default, so existing Cards are unchanged. 6 tests. First consumer: the MNY LHMP home's hazard band.
+
 ### ui/theming
 
 - [x] ~~[Page edit sidebar unreadable in dark mode + light flash on load](./tasks/completed/edit-pane-dark-mode.md)~~ — done 2026-09-30 (`17a6f7f9`)
@@ -303,7 +306,7 @@
   `1/2`→`6`, `2/3`→`8`, `1`→`9`, `2`→`12`) atomically with the theme change, and a missed row fails
   **silently** — `sectionArray.jsx:319,463` falls back to `defaultSize` rather than erroring, so it
   validates by count, not by eyeball. Direction confirmed by the owner 2026-09-09 while scoping
-  [`planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md`](../../../planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md)
+  [`planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md`](../../../planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md)
   work item B, which carries the mny-side census and mapping; **deliberately not that task's scope.**
 
 ### patterns/page — map

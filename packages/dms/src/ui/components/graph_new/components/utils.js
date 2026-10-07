@@ -144,3 +144,66 @@ export const legendRowJustify = pos => {
 	if (p.endsWith("-left")) return "justify-start";
 	return "justify-center";
 }
+
+// ── Scale Filter stops ───────────────────────────────────────────────────────
+// The Scale Filter (BarGraph's `showScaleFilter`) is a row of quick-picks that crop
+// the value axis (they set `yAxis.domainMax`) so a chart dominated by one outlier bar
+// can be read at smaller magnitudes. Its data is typically log-distributed — loss by
+// year spans 9K..332M on the MitigateNY county template — so the stops are spaced
+// evenly in LOG space between the tallest bar (`peak`) and the smallest positive bar
+// (`floor`): stop k of n is peak · (floor/peak)^(k/(n+1)). Linear fractions of the
+// peak (the old 75% / 50% / 5%) all sit within one order of magnitude of it, so on
+// that data only the last one revealed anything.
+//
+// Each stop is snapped to the nearest 1/2/5 × 10ⁿ (in log distance) so its button
+// label and the cropped axis's top tick read "$20M", not "$23.9M". A snap never goes
+// to or above the previous stop (or the peak) and never below `floor`, so the stops
+// stay strictly decreasing and the lowest one still shows the smallest bar whole.
+//
+// Bars are measured the way avl-graph's BarGraph sizes its value axis: a `stacked`
+// bar is the sum of its positive segments, a `grouped` bar is each series' own
+// value. Negative values never set a stop — the crop only moves the top of the axis.
+//
+// Data spanning less than SCALE_FILTER_MIN_SPREAD (peak ÷ floor) gets no stops: every
+// bar is already readable at full scale, so there is nothing for a crop to reveal.
+export const SCALE_FILTER_MIN_SPREAD = 10;
+
+const NICE_MANTISSAS = [1, 2, 5];
+
+const niceStepCandidates = v => {
+	const exp = Math.floor(Math.log10(v));
+	const out = [];
+	for (let e = exp - 1; e <= exp + 1; e++) {
+		for (const m of NICE_MANTISSAS) out.push(m * 10 ** e);
+	}
+	return out;
+}
+
+export const getScaleFilterStops = ({ data = [], keys = [], groupMode = "stacked", count = 3 } = {}) => {
+	const isStacked = (groupMode || "stacked") === "stacked";
+	let peak = 0;
+	let floor = Infinity;
+	for (const bar of data) {
+		const values = keys.map(k => +bar?.[k]).filter(v => Number.isFinite(v) && v > 0);
+		const heights = isStacked ? [values.reduce((a, c) => a + c, 0)] : values;
+		for (const h of heights) {
+			if (!(h > 0)) continue;
+			peak = Math.max(peak, h);
+			floor = Math.min(floor, h);
+		}
+	}
+	if (!(peak > 0) || !(peak / floor >= SCALE_FILTER_MIN_SPREAD)) return { peak, stops: [] };
+
+	const stops = [];
+	let ceiling = peak;
+	for (let k = 1; k <= count; k++) {
+		const raw = peak * (floor / peak) ** (k / (count + 1));
+		const snapped = niceStepCandidates(raw)
+			.filter(c => c < ceiling && c >= floor)
+			.sort((a, b) => Math.abs(Math.log(a / raw)) - Math.abs(Math.log(b / raw)))[0];
+		if (snapped === undefined) continue;
+		stops.push(snapped);
+		ceiling = snapped;
+	}
+	return { peak, stops };
+}

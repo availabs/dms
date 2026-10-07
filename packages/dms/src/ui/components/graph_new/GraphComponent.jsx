@@ -2,7 +2,7 @@ import React from "react";
 
 import { get } from "lodash-es";
 import { getGraphComponent } from "./components";
-import { getFormatFunc, getTooltipFormatFunc } from "./utils";
+import { getFormatFunc, getTooltipFormatFunc, getCompactFormatFunc } from "./utils";
 
 // Collect the axis-typography keys for one axis off `graphFormat` (which already has
 // theme `chartDefaults` merged under the section's `display`, so brand defaults and
@@ -220,6 +220,16 @@ export const GraphComponent = props => {
   }), [graphFormat, theme?.legend, theme?.legendSwatch, theme?.legendLabel,
        theme?.legendTick, theme?.legendRamp, theme?.legendTitle]);
 
+  // Scale Filter stop labels (BarGraph only): each button names the value it crops the
+  // axis to. The axis's own format is too long for a button ("$20,000,000"), so this is the
+  // compact form of the same format — same $ prefix, same k/m/b casing where the axis
+  // abbreviates. See getCompactFormatFunc.
+  const yAxisFormat = get(graphFormat, ["yAxis", "format"]);
+  const yAxisIsDollars = get(graphFormat, ["yAxis", "isDollars"]);
+  const scaleFilterFormat = React.useMemo(() => {
+    return getCompactFormatFunc(yAxisFormat, yAxisIsDollars);
+  }, [yAxisFormat, yAxisIsDollars]);
+
   // Opt-in, theme-driven (2026-09-04, Ryan) — `theme.titleInlineWithLegend` lives on a named
   // avlGraph style selected per-section via `activeStyle` (see transportny/themev2.js's
   // `reportInlineTitle` style), NOT the site-wide default, so most NPMRDS graphs are
@@ -370,6 +380,7 @@ export const GraphComponent = props => {
 
         // Scale Filter (BarGraph only — every other chart type ignores these).
         showScaleFilter={ showScaleFilter }
+        scaleFilterFormat={ scaleFilterFormat }
         onSetDomainMax={ onSetDomainMax }/>
 
     </div>

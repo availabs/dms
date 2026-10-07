@@ -298,7 +298,7 @@ columns: [ …, { name: 'risk', hideCompact: true }, { name: 'figure', cellSpanC
   They're the same width, so they switch together.
 - Worked example: the MNY LHMP home's hazard band. The bar list drops its risk column and its header
   follows, and the focus card stacks the hazard name over its figure. See
-  `dms-template/planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md` Round 11.
+  `dms-template/planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md` Round 11.
 
 #### Budgeting a track template — the two taxes a shared grid charges
 

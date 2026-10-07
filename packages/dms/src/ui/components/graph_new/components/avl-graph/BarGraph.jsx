@@ -61,6 +61,7 @@ const InitialState = {
   adjustedWidth: 0,
   adjustedHeight: 0,
   barData: [],
+  cutMarks: [],
   hasData: false
 }
 
@@ -90,6 +91,7 @@ export const BarGraph = props => {
     addons = EmptyArray,
     highlights = EmptyArray,
     barOpacity = null,
+    bgColor = "#ffffff",
     onBarEnter = null,
     onBarLeave = null,
     onStackEnter = null,
@@ -317,6 +319,16 @@ export const BarGraph = props => {
       YScale.domain(yDomain);
     }
 
+    // A Domain Max below the tallest bar (an author's own, or one of the Scale Filter's
+    // stops) cuts that bar. It used to run on through the top margin and stop wherever the
+    // SVG ended, so it read as a bar that just happened to end there. Bars over the crop
+    // are now clipped to the plot and marked with a torn edge at the cut (CutMark below);
+    // the tooltip still reports the true value. Nothing changes for a chart that has no
+    // Domain Max, or whose bars all fit under it.
+    const cropTop = (valueAxisConfig && valueAxisConfig.domainMax != null && valueAxisConfig.domainMax !== '' &&
+      Number.isFinite(+valueAxisConfig.domainMax)) ? +valueAxisConfig.domainMax : null;
+    const cutMarks = [];
+
     const zeroYdomain = (yDomain[0] === 0) && (yDomain[1] === 0);
     if (zeroYdomain) {
       YScale.range([adjustedHeight, adjustedHeight]);
@@ -386,6 +398,17 @@ export const BarGraph = props => {
           state: PREVIOUS_BAR_DATA.current.delete(id) ? "updating" : "entering",
           id
         }
+
+        // A stacked bar's height is its positive sum (as in ydGetter), so the whole bar is
+        // cut, and it gets one mark across its full width.
+        if (cropTop !== null) {
+          const posTotal = stacks.reduce((a, c) => a + (c.value > 0 ? +c.value : 0), 0);
+          if (posTotal > cropTop) {
+            cutMarks.push(isHorizontal
+              ? { id, pos: stackData.top, span: bandwidth }
+              : { id, pos: stackData.left, span: bandwidth });
+          }
+        }
       }
       else if (groupMode === "grouped") {
         // Same zero-baseline treatment as the stacked branch: each bar spans
@@ -426,6 +449,16 @@ export const BarGraph = props => {
           state: PREVIOUS_BAR_DATA.current.delete(id) ? "updating" : "entering",
           id
         };
+
+        // Grouped bars stand side by side, so each series bar over the crop gets its own mark.
+        if (cropTop !== null) {
+          stacks.forEach(st => {
+            if (!(st.value > cropTop)) return;
+            cutMarks.push(isHorizontal
+              ? { id: `${ id }-${ st.key }`, pos: stackData.top + st.y, span: st.height }
+              : { id: `${ id }-${ st.key }`, pos: stackData.left + st.x, span: st.width });
+          });
+        }
       }
 
       if (stackData) {
@@ -446,7 +479,7 @@ export const BarGraph = props => {
     setState({
       xDomain, yDomain, XScale, YScale, xTickValues,
       adjustedWidth, adjustedHeight,
-      barData, hasData
+      barData, cutMarks, hasData
     });
 
     PREVIOUS_BAR_DATA.current = NEXT_BAR_DATA;
@@ -461,9 +494,14 @@ export const BarGraph = props => {
   const {
     xDomain, XScale, xTickValues,
     yDomain, YScale,
-    barData, hasData,
+    barData, cutMarks, hasData,
     ...restOfState
   } = state;
+
+  // Per-instance id for the plot clip (a page can carry many bar graphs). useId is
+  // SSR-stable; its punctuation is stripped because it ends up inside url(#…).
+  const clipId = `avl-bar-clip-${ React.useId().replace(/[^a-zA-Z0-9_-]/g, "") }`;
+  const clipBars = cutMarks.length > 0;
 
   const {
     onMouseMove,
@@ -552,17 +590,31 @@ export const BarGraph = props => {
         <g style={ { transform: `translate(${ Margin.left }px, ${ Margin.top }px)` } }
           onMouseLeave={ onMouseLeave }
         >
-          { barData.map(({ id, ...rest }) =>
-              <Bar key={ id } index={ id } { ...rest }
-                svgHeight={ state.adjustedHeight }
-                onMouseMove={ onMouseMove }
-                showAnimations={ showAnimations }
-                barOpacity={ barOpacity }
-                highlights={ highlights }
-                onBarEnter={ onBarEnter }
-                onBarLeave={ onBarLeave }
-                onStackEnter={ onStackEnter }
-                onStackLeave={ onStackLeave }/>
+          { !clipBars ? null :
+            <clipPath id={ clipId }>
+              <rect x={ 0 } y={ 0 } width={ state.adjustedWidth } height={ state.adjustedHeight }/>
+            </clipPath>
+          }
+          <g clipPath={ clipBars ? `url(#${ clipId })` : undefined }>
+            { barData.map(({ id, ...rest }) =>
+                <Bar key={ id } index={ id } { ...rest }
+                  svgHeight={ state.adjustedHeight }
+                  onMouseMove={ onMouseMove }
+                  showAnimations={ showAnimations }
+                  barOpacity={ barOpacity }
+                  highlights={ highlights }
+                  onBarEnter={ onBarEnter }
+                  onBarLeave={ onBarLeave }
+                  onStackEnter={ onStackEnter }
+                  onStackLeave={ onStackLeave }/>
+              )
+            }
+          </g>
+          { cutMarks.map(({ id, pos, span }) =>
+              <CutMark key={ id } pos={ pos } span={ span }
+                isHorizontal={ isHorizontal }
+                edge={ isHorizontal ? state.adjustedWidth : 0 }
+                color={ bgColor }/>
             )
           }
           { !barData.length ? null :
@@ -593,6 +645,34 @@ export const BarGraph = props => {
 
     </div>
   )
+}
+
+// The torn edge on a bar cut by the crop: a zigzag in the chart's background colour,
+// 7px inside the cut, across the bar's full width (vertical) or height (horizontal).
+// The 3.5px of bar left beyond it says the bar carries on past the axis. One tooth per
+// ~6px, at least two, so a thin bar still reads as torn rather than notched.
+const CUT_INSET = 7;
+const CUT_AMPLITUDE = 3.5;
+
+const CutMark = ({ pos, span, isHorizontal, edge, color }) => {
+  if (!(span > 0)) return null;
+  const teeth = Math.max(2, Math.round(span / 6));
+  const seg = span / teeth;
+  const along = [];
+  for (let t = 1; t <= teeth; t++) {
+    along.push([pos + seg * t - seg / 2, t % 2 ? -CUT_AMPLITUDE : CUT_AMPLITUDE]);
+    along.push([pos + seg * t, 0]);
+  }
+  // Vertical bars are cut at the plot top (y = 0); horizontal ones at its right edge.
+  const point = ([a, offset]) => isHorizontal
+    ? `${ edge - CUT_INSET + offset },${ a }`
+    : `${ a },${ edge + CUT_INSET + offset }`;
+  const d = `M${ point([pos, 0]) } ${ along.map(p => `L${ point(p) }`).join(" ") }`;
+  return (
+    <path className="avl-cut" d={ d } fill="none"
+      stroke={ color } strokeWidth={ 2.5 } strokeLinejoin="round"
+      pointerEvents="none"/>
+  );
 }
 
 const Stack = React.memo(props => {

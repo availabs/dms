@@ -7,7 +7,7 @@ import {
 } from "d3-array"
 
 import { strictNaN } from "../utils"
-import { getAggFunc, buildValueColorScale, useLegendSqueezeGuard, isTopLegend, isBottomLegend, isColumnLegendPosition, legendRowJustify } from "./utils"
+import { getAggFunc, buildValueColorScale, useLegendSqueezeGuard, isTopLegend, isBottomLegend, isColumnLegendPosition, legendRowJustify, getScaleFilterStops } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
 const BarGraphWrapper = props => {
@@ -127,28 +127,42 @@ const BarGraphWrapper = props => {
 		return { data: customData, keys, min, max };
 	}, [props.viewData, indexColumn, dataColumns, categoryColumn, props.useCustomXDomain, props.xDomain]);
 
-	// Scale Filter quick-pick stops: percentages of the chart's own peak bar total
-	// (the stacked sum for a `stacked` chart; the tallest single series for
-	// `grouped`, since those bars aren't cumulative) — matches the legacy Graph's
-	// "Max / 75% / 50% / 5%" buttons, just computed against the new data shape.
-	const scaleFilterStops = React.useMemo(() => {
-		if (!props.showScaleFilter || !dataFromProps.data.length) return null;
-		const isStacked = (props.groupMode || "stacked") === "stacked";
-		const peak = dataFromProps.data.reduce((max, bar) => {
-			const values = dataFromProps.keys.map(k => +bar[k] || 0);
-			const barPeak = isStacked ? values.reduce((a, c) => a + c, 0) : Math.max(0, ...values);
-			return Math.max(max, barPeak);
-		}, 0);
-		if (!(peak > 0)) return null;
-		return [
-			{ label: "Max", value: undefined },
-			{ label: "75%", value: peak * 0.75 },
-			{ label: "50%", value: peak * 0.5 },
-			{ label: "5%", value: peak * 0.05 },
-		];
-	}, [props.showScaleFilter, props.groupMode, dataFromProps.data, dataFromProps.keys]);
-
+	// Scale Filter: "Max" plus log-spaced crops of the value axis, each labelled with the
+	// value it crops to (see getScaleFilterStops for the spacing). A button sets
+	// yAxis.domainMax; avl-graph/BarGraph.jsx applies the crop and draws the cut bars.
+	//
+	// A saved domainMax that isn't one of the current stops (an author's own Domain Max,
+	// or a crop picked before the data changed) is shown as an extra, active item rather
+	// than snapped to the nearest stop — the control must say what the axis is actually
+	// cropped to. That item also keeps the control up on data too flat for stops, so a
+	// cropped chart can always be put back to Max.
+	const theme = props.theme || {};
+	const scaleFilterFormat = props.scaleFilterFormat || (d => d);
 	const activeDomainMax = props.yAxis?.domainMax;
+	const hasActiveCrop = activeDomainMax != null && activeDomainMax !== "" && Number.isFinite(+activeDomainMax);
+	const scaleFilter = React.useMemo(() => {
+		if (!props.showScaleFilter || !dataFromProps.data.length) return null;
+		const { peak, stops } = getScaleFilterStops({
+			data: dataFromProps.data,
+			keys: dataFromProps.keys,
+			groupMode: props.groupMode
+		});
+		if (!(peak > 0)) return null;
+		const items = stops.map(value => ({ value }));
+		const isActive = value => hasActiveCrop && Math.abs(value - +activeDomainMax) <= Math.abs(value) * 1e-9;
+		if (hasActiveCrop && !items.some(it => isActive(it.value))) {
+			items.push({ value: +activeDomainMax, custom: true });
+			items.sort((a, b) => b.value - a.value);
+		}
+		if (!items.length) return null;
+		return {
+			peak,
+			items: [
+				{ value: undefined, max: true, active: !hasActiveCrop },
+				...items.map(it => ({ ...it, active: isActive(it.value) }))
+			]
+		};
+	}, [props.showScaleFilter, props.groupMode, dataFromProps.data, dataFromProps.keys, hasActiveCrop, activeDomainMax]);
 
 // console.log("BarGraphWrapper::highlights", highlights);
 
@@ -447,19 +461,38 @@ const BarGraphWrapper = props => {
 
 	return (
     <>
-    { !scaleFilterStops ? null :
-      <div className="w-fit flex rounded-md p-1 divide-x border mb-2 print:hidden">
-        { scaleFilterStops.map(({ label, value }) => (
-          <div key={ label }
-            className={ `
-              font-semibold px-2 py-1 cursor-pointer select-none text-xs
-              ${ activeDomainMax === value ? "text-blue-600" : "text-gray-500 hover:text-gray-700" }
-            ` }
-            onClick={ () => props.onSetDomainMax?.(value) }
-          >
-            { label }
-          </div>
-        )) }
+    { !scaleFilter ? null :
+      // Every class comes from an optional avlGraph theme token. Unset, each falls back to
+      // the literal this control hardcoded before the tokens existed, so a theme that
+      // doesn't define them renders the old look. The `scaleFilter*` names are new on
+      // purpose: many themes still carry the legacy Graph's `scaleWrapper`/`scaleItem`
+      // copies, which nothing has read since graph_new, and reading those would restyle
+      // every one of those sites. The lead-in label renders only when a theme styles it.
+      <div className={ `${ theme.scaleFilterWrapper ?? "mb-2" } print:hidden` }
+        role="group" aria-label="Value axis scale"
+      >
+        { !theme.scaleFilterLabel ? null :
+          <span className={ theme.scaleFilterLabel }>Scale</span>
+        }
+        <div className={ theme.scaleFilterTrack ?? "w-fit flex rounded-md p-1 divide-x border" }>
+          { scaleFilter.items.map(({ value, max, custom, active }) => (
+            <button type="button" key={ max ? "max" : value }
+              aria-pressed={ active }
+              title={ custom ? "Current axis maximum" : undefined }
+              className={ `
+                ${ theme.scaleFilterItem ?? "font-semibold px-2 py-1 cursor-pointer select-none text-xs" }
+                ${ active
+                  ? (theme.scaleFilterItemActive ?? "text-blue-600")
+                  : (theme.scaleFilterItemInactive ?? "text-gray-500 hover:text-gray-700") }
+              ` }
+              onClick={ () => props.onSetDomainMax?.(value) }
+            >
+              { !max ? scaleFilterFormat(value) :
+                <>Max <span className={ theme.scaleFilterValue ?? "font-normal" }>{ scaleFilterFormat(scaleFilter.peak) }</span></>
+              }
+            </button>
+          )) }
+        </div>
       </div>
     }
     <div className={ `w-full bg-inherit flex ${ isColumnLegend ? "flex-col" : "" }` } ref={ containerRef }>

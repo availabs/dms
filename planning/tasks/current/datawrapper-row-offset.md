@@ -12,7 +12,7 @@
 > **The submodule commit is the user's.** Two follow-ups below are NOT done.
 
 Raised while building the MitigateNY LHMP plan home
-(`planning/mitigateny/tasks/current/mny-lhmp-home-live-build.md`, section S8). It is the one thing
+(`planning/mitigateny/tasks/completed/mny-lhmp-home-live-build.md`, section S8). It is the one thing
 that build could not express with existing primitives.
 
 ## The pattern this unlocks
