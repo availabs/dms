@@ -238,7 +238,8 @@ export function pageQaPage(ctx) {
     section_groups: [
       group(G.hdr, 0, 'Header', 'qa_header'),
       { ...group(G.main, 1, 'Content', 'qa_content_end'), railHost: true },
-      { ...group(G.side, 2, 'Page status'), position: 'sidebar' },
+      // the rail's sections lay out on QA's grid (qa.theme.js qaSectionArrayStyles), not the site's
+      { ...group(G.side, 2, 'Page status', 'qa_content'), position: 'sidebar' },
       { ...group(G.modal, 3, 'Add-ticket modal'), isModal: true, modalParamKey: 'addticket', modalSize: 'xl' },
     ],
     sections: S,

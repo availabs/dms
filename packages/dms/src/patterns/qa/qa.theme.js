@@ -1,15 +1,16 @@
-// The qa pattern's look: its tokens and its QA-only named styles. Neither is part of the library
-// default theme: the qa pattern adds them itself (siteConfig.jsx injects the tokens when a site has a
-// QA install; pages/view.jsx gives the QA pages `withQaTheme(theme)`). So a site without a QA install
-// never carries them, no other pattern's sections can pick them, and the admin theme editor, which
-// saves the whole merged theme back to the theme row, never copies them into a site's stored theme.
+// The qa pattern's look: its tokens and its QA-only named styles, the source of the pattern's default
+// theme (defaultTheme.js), which the library default theme carries under `qa` like `pages` and
+// `datasets`. A site restyles QA through its own theme's `qa` key, naming only what differs.
+// The named styles reach the shared components (Card, bands, pills, tables) only on QA pages:
+// withQaTheme.js adds them to those components' style lists where the pages render (pages/view.jsx),
+// so no other page's style pickers list them.
 //
 // Token rule (planning/tasks/current/qa-design-implementation.md, "Rules carried in"):
 //   - QA-only (`--qa-*`, `qa_*` styles) for what only means something in QA: severity, status kind,
 //     priority, page stage, story status, the tickets bars.
 //   - The theme's shared tokens (`--t-*`, the `.t-*` type classes) wherever a QA element should look
 //     like the rest of its site: surfaces, text, rules, shadows, type. A theme edit to those then
-//     moves QA with it.
+//     moves QA with it; a site's `qa.vars` sets them for QA pages only.
 //   - No copied literals: every `--qa-*` is defined from a `--t-*`.
 // Every class below is written out in full: Tailwind only generates classes it finds literally in
 // the source, so a marker colour can't be built by string interpolation.
@@ -17,15 +18,21 @@
 import { dataBarTheme } from "../../ui/columnTypes/dataBar.theme"
 import { stackedBarTheme } from "../../ui/columnTypes/stacked_bar.theme"
 import { flowStepTheme } from "../../ui/columnTypes/flow_step.theme"
+import { sectionArrayTheme } from "../page/components/sections/sectionArray.theme"
+import { tableTheme } from "../../ui/components/table/table.theme"
+import { inputTheme } from "../../ui/components/Input.theme"
 
 // The library defaults of the flat themes QA extends, so a QA map (fills, dots) adds to them.
-const LIBRARY_FLAT = { dataBar: dataBarTheme, stackedBar: stackedBarTheme, flowStep: flowStepTheme }
+export const LIBRARY_FLAT = { dataBar: dataBarTheme, stackedBar: stackedBarTheme, flowStep: flowStepTheme }
 
 // ── tokens: their own style block, after the base tokens (`dms-default-tokens`). A host theme
 // re-skins QA by changing its base tokens, or overrides any `--qa-*` in its own block. Dark mode needs
-// no second copy: `data-theme` sits on <html>, so these resolve against the dark base values. ──
+// no second copy: `data-theme` sits on <html>, so these resolve against the dark base values.
+// Declared on the QA page wrapper too (`.dms-qa-page`, pages/view.jsx): a site's `qa.vars` set the
+// `--t-*` there, and a custom property's var() resolves where it's declared, so a `--qa-*` declared
+// only on :root would keep the root's colours. ──
 export const qaTokensCss = `
-  :root {
+  :root, .dms-qa-page {
     /* severity: a square tile, the louder the tile the worse */
     --qa-sev-blocker:      var(--t-brick);
     --qa-sev-blocker-soft: var(--t-brick-soft);
@@ -134,9 +141,12 @@ qaPillStyles.push(
 )
 
 // ── text styles: keys added to textSettings, so a QA Card's valueFontStyle / headerFontStyle can
-// name them. Built from the shared type scale (.t-*) and colours (--t-*); the display sizes reuse the
-// theme's own h4 / h5 instead of a QA copy. ──
+// name them. Built from the shared type scale (.t-*) and colours (--t-*). ──
 export const qaTextStyles = {
+  // page and card titles: the library's h4 / h5 (the shared display sizes) as QA's own keys, so a
+  // site restyles QA's titles without changing its site-wide h4 / h5
+  qaPageTitle: 't-displayMD text-[var(--t-ink)]',
+  qaCardTitle: 't-displaySM text-[var(--t-ink)]',
   qaCrumb: 't-metaMD text-[var(--t-pencil)]',
   qaEyebrow: 't-metaXS text-[var(--t-pencil)]',
   qaBody: 't-proseSM text-[var(--t-graphite)]',
@@ -176,6 +186,12 @@ export const qaLayoutGroupStyles = [
   // section grid (1020px, centred) less its 16px section gutters; the card's sections set no gutter.
   { name: 'qa_site', wrapper1: 'w-full flex flex-row', wrapper2: `${BAND_INNER} pt-6`, wrapper3: 'relative mx-auto w-[calc(100%-2rem)] max-w-[988px] rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)]' },
 ]
+
+// ── section grid (pages.sectionArray, picked by the band's name like its layoutGroup style): every
+// QA band uses the library's own grid, so QA's section sizes ('1/3', '2/3', '1': fractions of a
+// 6-column grid) mean the same on every site, whatever the site's own size map. ──
+export const qaSectionArrayStyles = ['qa_header', 'qa_content', 'qa_content_end', 'qa_site']
+  .map((name) => ({ ...sectionArrayTheme.styles[0], name }))
 
 // ── Card styles: the predictable (v2) box model, layout-only structural keys (type comes from each
 // cell's valueFontStyle), no ambient gutter; spacing is each section's own display knobs. ──
@@ -221,9 +237,12 @@ export const qaCardStyles = [
   { name: 'qa_planned', ...QA_CARD, cardBorder: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg' },
 ]
 
-// ── table: a list, not a grid. Rules between rows only, the well as the header strip. ──
+// ── table: a list, not a grid. Rules between rows only, the well as the header strip. Built on the
+// library's default table style, so a site's own default table (its borders, its container) doesn't
+// fill in the keys qa_list leaves unset. ──
 export const qaTableStyles = [
   {
+    ...tableTheme.styles[0],
     name: 'qa_list',
     headerCellContainer: 'w-full px-3 py-2 content-center t-metaXS text-[var(--t-pencil)]',
     headerCellContainerBg: 'bg-[var(--t-well)] text-[var(--t-pencil)]',
@@ -335,9 +354,12 @@ export const qaMultiselectStyles = [
   },
 ]
 
-// ── flat component themes: the QA look on QA pages. Merged under the site's own: a key the site's
-// theme sets wins, and map keys (fills, dots) are added to the library's. ──
+// ── flat component themes: the QA look on QA pages, over the site's own (withQaTheme.js); map keys
+// (fills, dots) add to the library's and the site's. ──
 export const qaFlatThemes = {
+  // the shared Input's wrapper (a filter chip's search box, an edit-in-place field): the library's
+  // bare one, as QA's fields and chips draw their own box
+  input: { inputContainer: inputTheme.inputContainer },
   // a filter control cell = one chip
   filterControlCell: {
     // the search chip's own input sits bare inside the chip (direct child only, so a picker's
@@ -393,8 +415,9 @@ export const qaFlatThemes = {
   },
 }
 
-// The QA-only named styles, by the theme key their component reads.
-const QA_STYLES = {
+// The QA-only named styles, by the theme key (a lodash path) their component reads.
+export const QA_STYLES = {
+  'pages.sectionArray': qaSectionArrayStyles,
   pill: qaPillStyles,
   layoutGroup: qaLayoutGroupStyles,
   dataCard: qaCardStyles,
@@ -403,31 +426,4 @@ const QA_STYLES = {
   avlGraph: qaGraphStyles,
   stageProgress: qaStageProgressStyles,
   radio: qaRadioStyles,
-}
-const MAP_KEYS = ['fills', 'dots']
-
-// `theme` with the qa pattern's look added: the QA-only named styles appended to each component's
-// `styles`, the QA text keys added to textSettings, and the QA flat component themes merged under
-// the site's own. Whatever the site's theme already defines wins (a same-name style, a text key, a
-// flat key), so a site can restyle any of it.
-export const withQaTheme = (theme = {}) => {
-  const out = { ...theme }
-  for (const [key, styles] of Object.entries(QA_STYLES)) {
-    const own = Array.isArray(theme[key]?.styles) ? theme[key].styles : []
-    const names = new Set(own.map(st => st?.name))
-    out[key] = { ...theme[key], styles: [...own, ...styles.filter(st => !names.has(st.name))] }
-  }
-  const textStyles = Array.isArray(theme.textSettings?.styles) ? theme.textSettings.styles : []
-  if (textStyles.length) {
-    out.textSettings = { ...theme.textSettings, styles: [{ ...qaTextStyles, ...textStyles[0] }, ...textStyles.slice(1)] }
-  }
-  for (const [key, qa] of Object.entries(qaFlatThemes)) {
-    const own = theme[key] || {}
-    const merged = { ...qa, ...own }
-    for (const mapKey of MAP_KEYS) {
-      if (qa[mapKey] || own[mapKey]) merged[mapKey] = { ...(LIBRARY_FLAT[key]?.[mapKey] || {}), ...qa[mapKey], ...own[mapKey] }
-    }
-    out[key] = merged
-  }
-  return out
 }

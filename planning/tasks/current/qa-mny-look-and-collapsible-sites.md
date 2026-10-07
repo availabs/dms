@@ -7,7 +7,7 @@ picked by the owner on 2026-10-07. The ticket system is a generic library featur
 install: build for MNY's needs, but every mechanism stays generic (library), and only MNY's values (colours, fonts,
 card look) live in MNY's theme folder.
 
-**Status: Part 1 BUILT and reviewed live by the owner 2026-10-07 (uncommitted). Part 2 planned, awaiting go-ahead.**
+**Status: Part 1 BUILT, owner reviewed live, committed `eec8278c`. Part 2 BUILT 2026-10-07 and checked on `qa_test` (uncommitted); MNY switch waits on deploy.**
 
 **Owner answers 2026-10-07:** site cards start collapsed; the header menu is QA's own pages; drop Search from QA's
 nav (precedent: `/actions/dashboard` has none).
@@ -74,7 +74,7 @@ target would be a row in the middle of the card, not the card.
 **Tests:** collapsed filtering in `sectionArray`, the pane keeping the new fields through a drag, and QA's Overview
 groups carrying the settings.
 
-**Built 2026-10-07 (uncommitted):**
+**Built 2026-10-07 (committed by the owner, `eec8278c`):**
 - [x] Library: `group.collapsible` / `group.startCollapsed` + `section.showWhenCollapsed`. `sectionGroup.jsx` holds
   the state and renders the toggle (corner button, or a header row when no section stays visible);
   `sectionArray.jsx` View keeps hidden sections mounted under the `hidden` attribute.
@@ -108,6 +108,15 @@ its menu; the topographic grey background; QA's content in one white rounded car
 Oswald headings, Proxima Nova text, MNY's ink/slate palette, pill buttons, amber main action. Severity, status and
 stage colours keep their meanings, drawn from MNY's palette.
 
+**Theme structure (owner, 2026-10-07): match the page and datasets patterns.** QA's defaults move into
+`patterns/qa/defaultTheme.js`, registered in the library default theme under a `qa` key (as `pages`, `datasets`,
+`auth`, `admin` are). QA renders on the install's selected theme (the page/datasets model, not admin's
+library-look-plus-one-key). A site customises QA through its theme's `qa` key, listing only differences
+(`mnyv1.qa`, in `src/themes/mny/qa.theme.js`). On QA pages, `withQaTheme` still lifts `theme.qa`'s named styles
+into the shared components' style lists (Card, bands, pills read only their own keys). Accepted cost, same as
+every other pattern: a theme row saved from the admin theme editor stores a copy of `qa`, which then shadows later
+library changes to existing QA values. This ships together with MNY's look.
+
 **Steps:**
 1. **Library, generic (small):** QA pages render inside a scope marker, `<div class="dms-qa-page contents">` in
    `pages/view.jsx` (`contents`: no box, so layout is unchanged). A host theme can then re-skin QA without touching
@@ -125,6 +134,43 @@ stage colours keep their meanings, drawn from MNY's palette.
 3. **Owner: select `mnyv1` on the MNY install's Theme tab** (a prod write), after steps 1–2 are deployed, so the
    live page never shows the overlap. In the same save, change the nav's `Search` entry to `SearchButton` or drop it
    (guess: drop it; site search from the QA pages isn't useful).
+
+**Built 2026-10-07 (uncommitted), library part:**
+- [x] `patterns/qa/defaultTheme.js`: QA's look as one object (`pageWrapper`, `vars`, `layout`, `styles` keyed by
+  name per component, `text`, `components`), built from `qa.theme.js`; registered as `qa` in `ui/defaultTheme.js`.
+- [x] `patterns/qa/withQaTheme.js` (moved out of `qa.theme.js`): reads `theme.qa`; adds `qa.layout` to every layout
+  style when set.
+- [x] `pages/view.jsx`: the page renders inside `<div class="dms-qa-page {qa.pageWrapper}" style={qa.vars}>`; the
+  `--qa-*` token block is declared on `:root, .dms-qa-page`, so it resolves against a site's `qa.vars`.
+- [x] `.t-*` type classes read `--t-font-display` / `--t-font-prose` / `--t-font-meta`, falling back to today's
+  faces (no theme sets them).
+- [x] Tests: 3 new in `qaDefaultTheme.test.js`; QA + collapsible 157/157.
+
+**Built 2026-10-07 (uncommitted), MNY part and fixes found testing on `qa_test`:**
+- [x] `src/themes/mny/qa.theme.js` (`mnyQaTheme`), set as `mnyv1.qa` in `theme.js`: MNY palette + fonts as `vars`
+  (Oswald for display and labels, Proxima Nova for prose), `layout.childWrapper` = one white card under the floating
+  nav, MNY title/crumb/route text and pill buttons in `text`. `qa.components` names the same `filterControlCell`,
+  `stackedBar` and `dataBar` objects as MNY's general keys (lifted into `MNY_*` consts in `theme.js`, values
+  unchanged).
+- [x] QA's titles moved from the shared `h4`/`h5` to QA keys `qaPageTitle`/`qaCardTitle` (same classes as the
+  library's h4/h5). MNY's own h4/h5 set no size, and a site shouldn't have to change its site-wide headings for QA.
+- [x] Every QA band uses the library's section grid (`qaSectionArrayStyles`, `pages.sectionArray` named styles), so
+  QA's sizes mean the same on any site (MNY's `'1'` is 9 of 12 columns). Page QA's rail too.
+- [x] `qa_list` built on the library's default table style (MNY's default table container drew a dark outline).
+- [x] On QA pages `theme.qa` now wins over a site's general keys (styles, text, components); into each named style
+  when a site's component uses that shape. `qa.components.input` pins the shared Input's wrapper to the library's: MNY's
+  stale input wrapper (white `before:` layer + shadow) drew boxes over QA's edit-in-place fields and hid their values.
+- [x] Probed on `qa_test` (install 126 `QA`) with `mnyv1` and with `default`: Overview, Tickets, a ticket, Page QA all
+  0 page errors; default theme unchanged. Tests 159/159.
+- **Found, not fixed:** the Ticket page logs 14 React warnings (column props such as `customName`, `allowEditInView`
+  passed to a DOM element) on both themes. The 18 page errors from the live MNY trial didn't reproduce on `qa_test`.
+- **State left:** `qa_test` install 126 stays on `mnyv1` for the owner to view (undo: `dms raw update 126 --data
+  '{"theme":{}}'` as the `qa_test` app; backup `scratchpad/qa_test/backup_126_20261007T143641.json`). Root `.env` is
+  back on MitigateNY.
+
+**MNY rollout (owner):** commit + client deploy (devmny, mnyprod; no dms-server change), then on MNY's install
+2824062 `QA`: Theme tab → `mnyv1` → save, and drop `Search` from its nav (`topNav.rightMenu` → `[UserMenu]`; the
+stored entry is the unregistered `Search` name, an empty spacer).
 
 **Checks:** `/qa`, `/qa/tickets`, a ticket and Page QA in Chrome, side by side with `/actions/dashboard`; measure
 the nav clearance from the DOM, not a screenshot. `qa_test` (default theme) unchanged, and

@@ -44,6 +44,7 @@ import pagesTheme from "../patterns/page/defaultTheme"
 import datasetsTheme from "../patterns/datasets/defaultTheme"
 import authTheme from "../patterns/auth/defaultTheme"
 import adminPatternTheme from "../patterns/admin/defaultTheme"
+import qaPatternTheme from "../patterns/qa/defaultTheme"
 
 import { avlGraphTheme } from "./components/graph_new/theme"
 
@@ -144,21 +145,23 @@ const fonts = [
         color-scheme: dark;
       }
 
-      .t-displayHero { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 64px; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
-      .t-displayXL   { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 44px; line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; }
-      .t-displayLG   { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 30px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
-      .t-displayMD   { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; }
-      .t-displaySM   { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 17px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; }
+      /* Each family reads a --t-font-* variable, falling back to the default face, so a theme can
+         re-font the type scale (e.g. a site's qa.vars on QA pages). Unset, nothing changes. */
+      .t-displayHero { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 64px; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
+      .t-displayXL   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 44px; line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; }
+      .t-displayLG   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 30px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+      .t-displayMD   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; }
+      .t-displaySM   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 17px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; }
 
-      .t-proseLG { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 18.5px; line-height: 1.6;  font-weight: 400; letter-spacing: -0.006em; }
-      .t-prose   { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 16px;   line-height: 1.65; font-weight: 400; }
-      .t-proseSM { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 14px;   line-height: 1.55; font-weight: 400; }
-      .t-proseXS { font-family: "IBM Plex Sans", system-ui, sans-serif; font-size: 12.5px; line-height: 1.5;  font-weight: 400; }
+      .t-proseLG { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 18.5px; line-height: 1.6;  font-weight: 400; letter-spacing: -0.006em; }
+      .t-prose   { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 16px;   line-height: 1.65; font-weight: 400; }
+      .t-proseSM { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 14px;   line-height: 1.55; font-weight: 400; }
+      .t-proseXS { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 12.5px; line-height: 1.5;  font-weight: 400; }
 
-      .t-metaLG { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 14.5px; line-height: 1.7; font-weight: 400; }
-      .t-metaMD { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px;   line-height: 1.5; font-weight: 500; }
-      .t-metaSM { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
-      .t-metaXS { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 10px;   line-height: 1.3; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+      .t-metaLG { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 14.5px; line-height: 1.7; font-weight: 400; }
+      .t-metaMD { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 13px;   line-height: 1.5; font-weight: 500; }
+      .t-metaSM { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+      .t-metaXS { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 10px;   line-height: 1.3; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
 
       .t-noteLG { font-family: "Caveat", "Segoe Print", cursive; font-size: 21px; line-height: 1.3; font-weight: 600; }
       .t-noteMD { font-family: "Caveat", "Segoe Print", cursive; font-size: 17px; line-height: 1.3; font-weight: 600; }
@@ -204,6 +207,8 @@ const components = {
     pages: pagesTheme,
     datasets: datasetsTheme,
     auth: authTheme,
+    // the qa pattern's look; withQaTheme applies it on QA pages only (patterns/qa/withQaTheme.js)
+    qa: qaPatternTheme,
     "compatibility": "border-[#191919] pt-[41px]",
 
     "heading": {

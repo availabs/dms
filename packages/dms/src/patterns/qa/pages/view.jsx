@@ -3,7 +3,7 @@ import { useParams } from "react-router";
 import { datasetRows } from "../datasets";
 import PageView from "../../page/pages/view";
 import { ThemeContext } from "../../../ui/useTheme";
-import { withQaTheme } from "../qa.theme";
+import { withQaTheme } from "../withQaTheme";
 import { buildQaPages, findQaPage, coveredSites, siteLabelsFrom, COVERED_SITE_COLUMNS } from "./index";
 
 // Picks the QA page for the URL and renders it with the page pattern's PageView,
@@ -18,8 +18,9 @@ import { buildQaPages, findQaPage, coveredSites, siteLabelsFrom, COVERED_SITE_CO
 // - The Overview's site cards and every page's site labels come from the install's covered-sites
 //   dataset, read here each time the view mounts (through apiLoad, which skips falcor's cache, so a
 //   Configure save shows on the next visit); the pages are rebuilt when the rows arrive.
-// - The pages get the site's theme plus the qa pattern's own named styles (qa.theme.js), so only QA
-//   sections can pick a `qa_*` style.
+// - The pages get the site's theme with its `qa` key applied (withQaTheme.js), so only QA sections can
+//   pick a `qa_*` style. They render inside a `.dms-qa-page` wrapper carrying the theme's `qa.vars`,
+//   so a site's palette and fonts for QA (and the --qa-* tokens built on them) stay on QA pages.
 export default function QaPageView({ pattern, pagesContext, ...props }) {
   const slug = useParams()['*'] || '';
   const [siteRows, setSiteRows] = React.useState(null);
@@ -40,9 +41,12 @@ export default function QaPageView({ pattern, pagesContext, ...props }) {
   const item = findQaPage(pages, slug);
   const themeContext = React.useContext(ThemeContext) || {};
   const qaThemeContext = React.useMemo(() => ({ ...themeContext, theme: withQaTheme(themeContext.theme) }), [themeContext]);
+  const qa = qaThemeContext.theme?.qa || {};
   return (
     <ThemeContext.Provider value={qaThemeContext}>
-      <PageView key={slug} {...props} item={item} dataItems={pages} />
+      <div className={`dms-qa-page ${qa.pageWrapper || ''}`} style={qa.vars}>
+        <PageView key={slug} {...props} item={item} dataItems={pages} />
+      </div>
     </ThemeContext.Provider>
   );
 }

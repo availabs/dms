@@ -6,11 +6,10 @@ import { DEFAULT_STATUSES, PAGE_STAGES } from '../ticketRecord'
 // key below is one the library default theme defines, so the pages read the same on any site
 // that keeps the defaults.
 
-// ── text styles: the theme's display sizes (h4 / h5) and the qa pattern's text keys (qa.theme.js
-// qaTextStyles, added to textSettings by withQaTheme). Card valueFontStyle / headerFontStyle resolve
-// through textSettings. ──
+// ── text styles: the qa pattern's text keys (qa.theme.js qaTextStyles, added to textSettings by
+// withQaTheme). Card valueFontStyle / headerFontStyle resolve through textSettings. ──
 export const T = {
-  pageTitle: 'h4', cardTitle: 'h5',
+  pageTitle: 'qaPageTitle', cardTitle: 'qaCardTitle',
   crumb: 'qaCrumb', eyebrow: 'qaEyebrow', body: 'qaBody', strong: 'qaBodyStrong',
   small: 'qaSmall', smallMuted: 'qaSmallMuted', figure: 'qaFigure', mono: 'qaMono',
   button: 'qaButton', buttonSM: 'qaButtonSM', buttonPrimary: 'qaButtonPrimary', segment: 'qaSegment', prose: 'qaProse', label: 'qaLabel', link: 'qaLink',
