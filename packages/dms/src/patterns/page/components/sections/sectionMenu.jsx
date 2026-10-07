@@ -59,7 +59,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
     const { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI } = auth
-    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {}, sectionArrayStyle } = ui
+    const { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme, RegisteredComponents = {}, sectionArrayStyle, groupCollapsible } = ui
     // The band's `pages.sectionArray` style — the SAME resolution sectionArray.jsx
     // renders with. Without the style name every lookup below returned styles[0],
     // so a theme whose named styles replace `sizes` (a 12-column grid keyed
@@ -1215,6 +1215,22 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 size={'small'}
                                 enabled={value?.['hideInView']}
                                 setEnabled={v => updateAttribute('hideInView', v)}
+                            />
+                        </div>
+                    )
+                },
+                {
+                    // only in a collapsible band (sectionGroup.jsx): this section stays visible while
+                    // the band is collapsed
+                    name: 'Show When Collapsed',
+                    cdn: () => canEditSection && Boolean(groupCollapsible),
+                    type: () => (
+                        <div className={'self-start w-full flex justify-between pl-2'}>
+                            <label>Show When Collapsed</label>
+                            <Switch
+                                size={'small'}
+                                enabled={value?.['showWhenCollapsed']}
+                                setEnabled={v => updateAttribute('showWhenCollapsed', v)}
                             />
                         </div>
                     )

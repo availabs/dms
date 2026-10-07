@@ -103,6 +103,21 @@ function SectionGroupControl({
       enabled: fullGroupData?.isModal || false,
       setEnabled: v => onUpdateAttribute('isModal', v),
     },
+    // A collapsible band shows only its `showWhenCollapsed` sections until opened (view mode).
+    {
+      name: 'Collapsible',
+      showLabel: true,
+      type: 'toggle',
+      enabled: fullGroupData?.collapsible || false,
+      setEnabled: v => onUpdateAttribute('collapsible', v),
+    },
+    ...(fullGroupData?.collapsible ? [{
+      name: 'Starts Collapsed',
+      showLabel: true,
+      type: 'toggle',
+      enabled: fullGroupData?.startCollapsed || false,
+      setEnabled: v => onUpdateAttribute('startCollapsed', v),
+    }] : []),
     ...(fullGroupData?.isModal ? [{
       name: 'Modal Param Key',
       value: modalParamKey,
@@ -266,6 +281,8 @@ export default function SectionGroupsPane() {
         name: group.name,
         isModal: group.isModal,
         modalParamKey: group.modalParamKey,
+        collapsible: group.collapsible,
+        startCollapsed: group.startCollapsed,
         children: (item?.draft_sections || [])
           .filter(
             (s) =>
@@ -314,6 +331,8 @@ export default function SectionGroupsPane() {
               full_width: groupData.full_width,
               isModal: groupData.isModal,
               modalParamKey: groupData.modalParamKey,
+              collapsible: groupData.collapsible,
+              startCollapsed: groupData.startCollapsed,
             });
           }
         });

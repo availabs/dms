@@ -170,6 +170,11 @@ export const qaLayoutGroupStyles = [
   // a content band on the paper; the last one on a page closes it off with more room below
   { name: 'qa_content', wrapper1: 'w-full flex flex-row', wrapper2: `${BAND_INNER} pt-6`, wrapper3: '' },
   { name: 'qa_content_end', wrapper1: 'w-full flex flex-row', wrapper2: `${BAND_INNER} pt-6 pb-12`, wrapper3: '' },
+  // a covered site's card on the Overview: the band draws the card (panel, rule, corners), so the
+  // card holds whatever shows while the band is collapsed; `relative` puts the collapse toggle in
+  // the card's corner. Its width lines it up with the other bands' section boxes: the default
+  // section grid (1020px, centred) less its 16px section gutters; the card's sections set no gutter.
+  { name: 'qa_site', wrapper1: 'w-full flex flex-row', wrapper2: `${BAND_INNER} pt-6`, wrapper3: 'relative mx-auto w-[calc(100%-2rem)] max-w-[988px] rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)]' },
 ]
 
 // ── Card styles: the predictable (v2) box model, layout-only structural keys (type comes from each

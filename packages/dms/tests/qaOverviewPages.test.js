@@ -93,6 +93,16 @@ describe("Overview", () => {
     });
   });
 
+  it("makes each site card collapsible and collapsed at first, its header staying in view", () => {
+    sites.forEach((site) => {
+      const g = overview.section_groups.find((x) => x.name === `overview_site_${site.surface}`);
+      // the band draws the card, so the card holds whatever shows while collapsed
+      expect(g).toMatchObject({ collapsible: true, startCollapsed: true, theme: "qa_site" });
+      const shown = overview.sections.filter((s) => s.group === g.name && s.showWhenCollapsed).map((s) => s.trackingId);
+      expect(shown).toEqual([`qa_overview_${site.surface}_title`, `qa_overview_${site.surface}_tickets`]);
+    });
+  });
+
   it("says so when no site is covered yet (and not while the sites are loading)", () => {
     const none = pageBySlug("overview", { ...ctx, sites: [] });
     expect(none.sections.map((s) => s.trackingId)).toContain("qa_overview_no_sites");

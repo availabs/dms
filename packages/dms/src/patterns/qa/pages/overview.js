@@ -120,17 +120,20 @@ export function overviewPage(ctx) {
     }))
   }
 
-  // ── one group per covered site: header (identity + stage bar | tickets bar), then its pages ──
+  // ── one group per covered site: header (identity + stage bar | tickets bar), then its pages.
+  // The band is the card (qa_site), collapsible and collapsed at first: the header stays, the pages
+  // table opens from the corner toggle. ──
   sites.forEach((site, i) => {
     const key = `${site.surface}`.replace(/[^a-z0-9_]/gi, '_')
     const g = `overview_site_${key}`
-    groups.push(group(g, 2 + i, site.surface_label || site.surface, 'qa_content'))
+    groups.push({ ...group(g, 2 + i, site.surface_label || site.surface, 'qa_site'), collapsible: true, startCollapsed: true })
     const bySite = [{ col: 'surface', op: 'filter', value: [site.surface] }]
     const LINE = { color: 'var(--t-rule)' }
-    // the header's two halves are fused into one box: no gutter between them, equal heights
+    // the header's two halves sit side by side in the card, and no section in the card has a gutter
+    // (the card's own width allows for it, qa.theme.js qa_site); equal heights
     S.push(section({
-      trackingId: `qa_overview_${key}_title`, group: g, size: '2/3', type: 'Card', height: 'fill',
-      bg: 'bg-[var(--t-panel)]', border: { top: true, left: true, ...LINE }, radius: { tl: true }, padding: { right: '0', bottom: '0' },
+      trackingId: `qa_overview_${key}_title`, group: g, size: '2/3', type: 'Card', height: 'fill', showWhenCollapsed: true,
+      padding: { top: '0', right: '0', bottom: '0', left: '0' },
       data: dwPages({
         columns: [
           staticCell('ttl', site.surface_label || site.surface, { valueFontStyle: T.cardTitle }),
@@ -148,8 +151,8 @@ export function overviewPage(ctx) {
       }),
     }))
     S.push(section({
-      trackingId: `qa_overview_${key}_tickets`, group: g, size: '1/3', type: 'Card', height: 'fill',
-      bg: 'bg-[var(--t-panel)]', border: { top: true, right: true, ...LINE }, radius: { tr: true }, padding: { left: '0', bottom: '0' },
+      trackingId: `qa_overview_${key}_tickets`, group: g, size: '1/3', type: 'Card', height: 'fill', showWhenCollapsed: true,
+      padding: { top: '0', right: '0', bottom: '0', left: '0' },
       data: dwTickets({
         columns: [
           staticCell('t_lbl', 'tickets', { valueFontStyle: T.eyebrow, cellPaddingTop: 4 }),
@@ -170,7 +173,7 @@ export function overviewPage(ctx) {
     // column is alias-prefixed (joinDataset).
     S.push(section({
       trackingId: `qa_overview_${key}_pages`, group: g, type: 'Spreadsheet',
-      bg: 'bg-[var(--t-panel)]', border: { top: true, left: true, right: true, bottom: true, ...LINE }, radius: { bl: true, br: true }, padding: { top: '0' },
+      border: { top: true, ...LINE }, padding: { top: '0', right: '0', left: '0' },
       data: dwPages({
         columns: [
           // stage order, without a stored stage_order; an aggregate, as the rows are grouped
@@ -196,7 +199,7 @@ export function overviewPage(ctx) {
         filters: [{ col: 'ds.surface', op: 'filter', value: [site.surface] }],
         join: ticketsByPage,
         // fixed widths, so the two helper columns stay at zero width
-        display: { usePagination: true, pageSize: 50, fetchMode: 'smart', autoResize: false, tableStyle: 'qa_list' },
+        display: { usePagination: true, pageSize: 10, fetchMode: 'smart', autoResize: false, tableStyle: 'qa_list' },
       }),
     }))
   })

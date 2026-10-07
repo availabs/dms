@@ -649,7 +649,10 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
     )
 }
 
-const View = ({value, attr, group, siteType}) => {
+// `collapsed`: the band is a collapsed `collapsible` group (sectionGroup.jsx); only its
+// `showWhenCollapsed` sections show. The others stay mounted under the `hidden` attribute,
+// so their data loads with the page and opening the band is instant.
+const View = ({value, attr, group, siteType, collapsed = false}) => {
     if (!value || !value.map) { return '' }
     const {hash} = useLocation();
     const { format  } =  React.useContext(PageContext) || {}
@@ -694,7 +697,7 @@ const View = ({value, attr, group, siteType}) => {
                         const cardBorderStyle = resolveBorderStyle(v?.border);
 
                         return (
-                            <div id={v?.id} key={i}
+                            <div id={v?.id} key={i} hidden={collapsed && !v?.showWhenCollapsed}
                                 className={`
                                     ${v?.is_header ? '' : resolvePadding(v?.padding, theme)}
                                     ${theme?.sectionViewWrapper}

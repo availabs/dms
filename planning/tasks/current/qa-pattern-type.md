@@ -1407,9 +1407,10 @@ so the CLI's import is unchanged). The publish paths and the CLI aren't touched.
 - **Follow-ups (owner, 2026-10-07), none started:**
   - A real serial `ticket_number` column (server-side, no max+1 race).
   - The install lockout fix.
-  - MNY colours on the QA pages.
+  - MNY colours on the QA pages. **Planned 2026-10-07** with the collapsible site cards in
+    [`qa-mny-look-and-collapsible-sites.md`](./qa-mny-look-and-collapsible-sites.md).
   - Search plus IDs on the Configure site list.
-  - Collapsible Overview site cards.
+  - Collapsible Overview site cards (same task doc as the line above).
   - Report an issue inside the user menu.
   - MNY's cramped search pill.
   - Signed-out filing.

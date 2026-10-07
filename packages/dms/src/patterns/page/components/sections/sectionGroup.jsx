@@ -81,6 +81,16 @@ export default function SectionGroup ({group, attributes, edit}) {
         ( attributes?.['sections'].ViewComp || SectionArray?.ViewComp )
   }, [])
 
+  // ── Collapsible band (`group.collapsible`) ──
+  // View mode only: in edit mode every section shows, so authors see what they edit. Opens at
+  // the group's `startCollapsed` and isn't remembered between visits. While collapsed, only the
+  // sections marked `showWhenCollapsed` render (the band's summary) and the toggle sits in the
+  // band's corner; a band with none shows a header row with its display name instead.
+  const [collapsed, setCollapsed] = React.useState(Boolean(group.startCollapsed))
+  const collapsible = Boolean(group.collapsible) && !edit && !group.isModal
+  const hasCollapsedSummary = collapsible && sectionSource.some(s =>
+      s?.showWhenCollapsed && (s?.group === group.name || (!s?.group && group.name === 'default')))
+
   const isModal = group.isModal && !edit;
   const modalParamKey = group.modalParamKey;
   // group.modalSize picks the modal card's max-width (default: the historical max-w-4xl).
@@ -135,8 +145,25 @@ export default function SectionGroup ({group, attributes, edit}) {
       group={group}
       value={sectionSource}
       attr={sectionAttributes}
+      collapsed={collapsible && collapsed}
       onChange={(update, action ) => updateSections({update, action, item, user, apiUpdate, updateAttribute})}
     />
+  )
+
+  const collapseLabel = `${collapsed ? 'Expand' : 'Collapse'} ${group.displayName || ''}`.trim()
+  const collapseIcon = (
+    <Icon icon={t.collapseIcon} className={`${t.collapseIconClass} ${collapsed ? t.collapseIconCollapsed : ''}`} />
+  )
+  const collapseControl = !collapsible ? null : hasCollapsedSummary ? (
+    <button type="button" className={t.collapseToggle} aria-expanded={!collapsed} aria-label={collapseLabel}
+            title={collapseLabel} onClick={() => setCollapsed(c => !c)}>
+      {collapseIcon}
+    </button>
+  ) : (
+    <button type="button" className={t.collapseHeader} aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)}>
+      <span className={t.collapseHeaderTitle}>{group.displayName || group.name}</span>
+      {collapseIcon}
+    </button>
   )
 
   // The sticky in-page-nav rail: the generated nav + any sidebar-group sections.
@@ -164,6 +191,7 @@ export default function SectionGroup ({group, attributes, edit}) {
 
   return (
     <LayoutGroup activeStyle={ activeStyle }>
+      {collapseControl}
       {showRail ? (
         <div className={t.contentRow}>
           <div className={`${t.contentCol} ${item?.sidebar === 'left' ? 'order-2' : ''}`}>

@@ -41,6 +41,20 @@ export const sectionGroupTheme = {
     modalCloseIcon: '',
     modalCloseIconClass: 'w-5 h-5',
 
+    // ── Collapsible band chrome (`collapsible` groups, view mode) ──
+    // collapseToggle: the corner button of a band whose `showWhenCollapsed` sections stay
+    // visible while collapsed. It's absolutely placed, so it sits in the corner of the
+    // nearest `relative` band wrapper (every library layoutGroup style has one).
+    // collapseHeader: the full-width row (the band's display name + the icon) a band with
+    // no such sections shows instead, so a collapsed band still has something to click.
+    // The icon points down when open; collapseIconCollapsed turns it while collapsed.
+    collapseToggle: 'absolute top-3 right-3 z-10 inline-flex items-center justify-center size-7 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
+    collapseHeader: 'w-full flex items-center justify-between gap-2 py-2 text-left cursor-pointer',
+    collapseHeaderTitle: 'font-medium text-[var(--t-ink)]',
+    collapseIcon: 'CaretDown',
+    collapseIconClass: 'size-4 transition-transform',
+    collapseIconCollapsed: '-rotate-90',
+
     // ── In-page nav (InPageNav.jsx) ──
     // Minimal neutral defaults so legacy `item.sidebar` docs pages render ~unchanged
     // (a plain list of jump links, no card, no label). Brands opt into the card look

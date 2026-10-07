@@ -602,6 +602,7 @@
 
 - [ ] [`qa` pattern type — ticketing / delivery QA as a library feature](./tasks/current/qa-pattern-type.md) — planned 2026-09-29; phases 1–5 done and committed (skeleton, ticket record + install, the four pages as code, derived values + track-on-publish, the Configure tab); design pass done 2026-10-05 (Tessera v6 mockups for all six pages). Next: implement the design, then phase 6 (Report an issue widget, `dms qa` CLI). Rebuilds TransportNY's control room as an Add Pattern feature; core first on the `qa_test` app, then TransportNY ported onto it. Design: dms-template `research/qa-ticketing-system/`.
 - [ ] [QA pages: implement the design pass](./tasks/current/qa-design-implementation.md) — filed 2026-10-05. Core enrichments first (Card `editField` key, themable `radio`, compact `stage_progress`, `kv_chips` / `comment_thread`, BarGraph tick fix), then QA-only tokens and named styles, then the four `/qa` pages and the Configure tab, each against its mockup in dms-template `src/themes/tessera/design_system_v6/pages/qa-*.html`.
+- [ ] [QA on MitigateNY: collapsible site cards, and a look that belongs to the site](./tasks/current/qa-mny-look-and-collapsible-sites.md) — filed 2026-10-07, plan awaiting go-ahead. A generic Collapsible option on section groups (Overview site cards open collapsed), then MNY's skin for the QA pages: a `dms-qa-page` scope marker in the library, MNY's palette, fonts and card look in `src/themes/mny/qa.theme.js`, and `mnyv1` selected on the install.
 
 ### patterns/mapeditor
 

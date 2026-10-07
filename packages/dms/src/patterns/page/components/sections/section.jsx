@@ -240,7 +240,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         // `sectionArrayStyle`: the BAND's `pages.sectionArray` style name, so the
         // menu offers the Width/Row span/Border/Padding/Shadow maps this band
         // actually renders with (sectionArray.jsx resolves its grid the same way).
-        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme },
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme, groupCollapsible: group?.collapsible },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,
@@ -514,7 +514,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
         actions: { onEdit, moveItem, updateAttribute, updateAttributes, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },
         auth: { user, isUserAuthed, pageAuthPermissions, sectionAuthPermissions, canEditPageContent, Permissions, AuthAPI },
-        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme },
+        ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme, groupCollapsible: group?.collapsible },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
         mapAPI,
@@ -594,6 +594,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                         {(showEditIcons) && (
                             <>
                                 {value.hideInView ? <Pill color={'orange'} text={'Hidden from View'} /> : null}
+                                {group?.collapsible && value.showWhenCollapsed ? <Pill color={'blue'} text={'Shown When Collapsed'} /> : null}
                                 <NavigableMenu
                                     config={sectionMenuItems}
                                     title={'Settings'}
