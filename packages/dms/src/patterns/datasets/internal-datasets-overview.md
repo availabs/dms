@@ -265,6 +265,43 @@ SET data = json_merge(data, '{"column": "valid_value"}')
 WHERE app = $1 AND type = $2 AND data->>'column' = 'invalid_value'
 ```
 
+Mass edit doesn't write change history (below). Only row edits through `dms.data.edit` do.
+
+## Change history
+
+An internal dataset can record every change to its rows in another dataset (a "history dataset").
+The setting lives on the tracked dataset's source row:
+
+```js
+change_history: {
+  target:  { source_id, view_id },   // the history dataset
+  columns: ['status', ...] | '*',    // '*' = every column the dataset declares
+  exclude: ['updated'],              // with '*': columns to leave out (e.g. ones that only record a time)
+  enabled: false,                    // optional: switched off, target and columns kept
+}
+```
+
+- **Who writes it:** dms-server, inside `setDataById`'s transaction
+  (`dms-server/src/routes/dms/changeHistory.js`). Every edit path gets it: the page sections, the CLI and
+  scripts. The history row and the edit land together or not at all.
+- **The row:** one per changed column, `{row_id, source_id, field, old_value, new_value, user_id, user_email,
+  at, via}`. `at` is UTC (`YYYY-MM-DD HH:MM:SS`). `via` is `cli` for the DMS CLI (`X-DMS-Via` header),
+  else `ui`.
+- **Typing:** a typed column's saves by one person merge into one row while they're under 30 s apart. Pick-list
+  columns (select, multiselect, radio, checkbox, boolean, switch) never merge.
+- **Editing the setting:** the dataset's **Admin** tab → **Change history** panel
+  (`components/ChangeHistoryEditor.jsx`, needs `update-source`): on/off, and all or chosen columns (with an
+  except list). The first save makes the dataset's own history dataset, "*<dataset> history*", in its
+  environment, or reuses it if that name is already a history. The panel never offers other datasets, so it
+  reads only the dataset's own row and its target's. Several datasets sharing one history is set up in code
+  or with the CLI, as the QA install does.
+- **Off keeps the target:** switching off stores `enabled: false` with the target and columns, and the server
+  skips it. Switching back on writes to the same history, a shared one included.
+- **How it saves:** with `dms.data.edit`, so the server applies it from the next edit. The UDA source-settings
+  route writes the row directly and would leave the server's cache stale for up to a minute.
+- **Columns and helpers:** `utils/changeHistory.js` (`CHANGE_HISTORY_COLUMNS`, used by the QA pattern's
+  history dataset too).
+
 ## Key Files
 
 | Purpose | File |

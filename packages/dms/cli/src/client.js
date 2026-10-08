@@ -81,6 +81,8 @@ export function createFalcorClient(host, authToken) {
 
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded',
+      // marks this client's writes as 'cli' in a dataset's change history
+      'X-DMS-Via': 'cli',
     };
 
     if (authToken) {

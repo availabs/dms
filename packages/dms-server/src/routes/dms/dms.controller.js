@@ -30,6 +30,7 @@ const {
 } = require('#db/table-resolver.js');
 const { parseSplitDataType, getKind, getInstance, getParent } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
+const { parseJson, parseChangeHistory, historyText, historyStamp, withinBurst, historyVia } = require('./changeHistory');
 
 const DATA_ATTRIBUTES = [
   "id", "app", "type", "data",
@@ -113,6 +114,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   // Track which tables have the tags expression index (created lazily)
   const _tagsIndexedTables = new Set();
+
+  // Change-history specs (changeHistory.js): `${app}:${sourceId}` → { spec, ts }, spec null for an
+  // untracked dataset. A write to any source row clears it; the TTL covers other server processes.
+  const _changeHistoryCache = new Map();
+  const CHANGE_HISTORY_CACHE_TTL = 60_000;
 
   // Periodic cache cleanup — evict expired tags entries and cap source ID cache
   const _cacheCleanup = setInterval(() => {
@@ -271,6 +277,108 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       });
     }
     return revision;
+  }
+
+  /**
+   * The change-history spec (changeHistory.js) of the dataset a split-table row belongs to, with
+   * its history dataset resolved: `targetType` is the history rows' type. Null when the dataset
+   * isn't tracked, or when its history dataset can't be found (warned; edits then save without
+   * history rather than fail).
+   */
+  async function loadChangeHistory(app, type) {
+    const sourceId = await lookupSourceId(app, type);
+    if (!sourceId) return null;
+    const cacheKey = `${app}:${sourceId}`;
+    const cached = _changeHistoryCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < CHANGE_HISTORY_CACHE_TTL) return cached.spec;
+
+    const table = await mainTable(app);
+    const [source] = await dms_db.promise(`SELECT data FROM ${table} WHERE id = $1`, [sourceId]);
+    let spec = parseChangeHistory(parseJson(source?.data));
+    if (spec) {
+      const [target] = await dms_db.promise(`SELECT type FROM ${table} WHERE id = $1`, [spec.targetSourceId]);
+      const [view] = await dms_db.promise(`SELECT type FROM ${table} WHERE id = $1`, [spec.targetViewId]);
+      const slug = target && getKind(target.type) === 'source' ? getInstance(target.type) : null;
+      // Split rows are routed by dataset name (the newest source with it), so the history
+      // dataset's name has to lead back to it.
+      const routedId = slug ? await lookupSourceIdBySlug(app, slug) : null;
+      if (!view || getKind(view.type) !== 'view' || +routedId !== spec.targetSourceId) {
+        console.warn(`[change-history] ${app} source ${sourceId}: history dataset ${spec.targetSourceId} (view ${spec.targetViewId}) not found; edits save without history`);
+        spec = null;
+      } else {
+        spec = { ...spec, sourceId: +sourceId, targetType: `${slug}|${spec.targetViewId}:data` };
+      }
+    }
+    _changeHistoryCache.set(cacheKey, { spec, ts: Date.now() });
+    return spec;
+  }
+
+  /**
+   * Records an edit's changed tracked columns in the dataset's history (changeHistory.js), one
+   * row per column. Runs inside setDataById's transaction, so the history lands with the edit or
+   * not at all. A typed column's save merges into the newest history row for that row and column
+   * when it's the same person's and under 30 s old, the burst of saves typing makes. If the text
+   * is back where it started, that row is removed.
+   * `target`: the history dataset's resolved table (ensured before the transaction).
+   */
+  async function writeChangeHistory(tx, { spec, target, app, rowId, before, after, patch, user, reqMeta }) {
+    const userId = get(user, 'id', null);
+    const clock = new Date();
+    const at = historyStamp(clock);
+    for (const field of Object.keys(patch).filter(spec.tracks)) {
+      const oldValue = historyText(before?.[field]);
+      const newValue = historyText(after?.[field]);
+      if (oldValue === newValue) continue;
+
+      if (userId != null && spec.merges(field)) {
+        // Only the history's newest 200 rows are searched: a burst is recent by definition, and
+        // this keeps a typed save's cost flat however long the history grows.
+        const [last] = await tx.promise(`
+          SELECT id, data FROM (
+            SELECT id, data FROM ${target.fullName} WHERE type = $1 ORDER BY id DESC LIMIT 200
+          ) recent
+          WHERE ${jsonField('data', 'row_id')} = $2 AND ${jsonField('data', 'field')} = $3
+          ORDER BY id DESC
+          LIMIT 1;
+        `, [spec.targetType, +rowId, field]);
+        const lastData = parseJson(last?.data);
+        if (lastData && +lastData.user_id === +userId && withinBurst(lastData.at, clock)) {
+          if (newValue === lastData.old_value) {
+            await tx.promise(`DELETE FROM ${target.fullName} WHERE id = $1;`, [last.id]);
+            await appendChangeLog(tx, last.id, app, spec.targetType, 'D', null, userId, reqMeta);
+          } else {
+            const [merged] = await tx.promise(`
+              UPDATE ${target.fullName}
+              SET data = ${jsonMerge('data', '$1', dbType)},
+                updated_at = ${now()},
+                updated_by = $2
+              WHERE id = $3
+              RETURNING id, data;
+            `, [{ new_value: newValue, at }, userId, last.id]);
+            await appendChangeLog(tx, merged.id, app, spec.targetType, 'U', merged.data, userId, reqMeta);
+          }
+          continue;
+        }
+      }
+
+      const data = {
+        row_id: +rowId, source_id: spec.sourceId, field, old_value: oldValue, new_value: newValue,
+        user_id: userId, user_email: get(user, 'email', null), at, via: historyVia(reqMeta),
+      };
+      // Same insert as createData: SQLite split tables take an allocated id, Postgres a default.
+      const [inserted] = dbType === 'sqlite'
+        ? await tx.promise(`
+            INSERT INTO ${target.fullName}(id, app, type, data, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $5, $5)
+            RETURNING id, data;
+          `, [await allocateId(tx, app, dbType, splitMode), app, spec.targetType, data, userId])
+        : await tx.promise(`
+            INSERT INTO ${target.fullName}(app, type, data, created_by, updated_by)
+            VALUES ($1, $2, $3, $4, $4)
+            RETURNING id, data;
+          `, [app, spec.targetType, data, userId]);
+      await appendChangeLog(tx, inserted.id, app, spec.targetType, 'I', inserted.data, userId, reqMeta);
+    }
   }
 
   /**
@@ -860,17 +968,27 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // When type is provided, resolve the split table (for dataset row updates).
       // Otherwise fall back to the main table.
       let table;
+      // A tracked dataset's row edit also writes its change history (changeHistory.js).
+      let history = null;
+      let historyTarget = null;
       if (type && app) {
         const resolved = await resolve(app, type);
         const seqName = getSequenceName(app, dbType, splitMode);
         await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
         table = resolved.fullName;
+        history = isSplitType(type) ? await loadChangeHistory(app, type) : null;
+        // the history table's DDL runs here, outside the transaction (see mainTable)
+        if (history) historyTarget = await ensureForWrite(app, history.targetType);
       } else {
         table = app ? await mainTable(app) : tableName('data_items');
       }
       const userId = get(user, "id", null);
 
       const rows = await dms_db.withTransaction(async (tx) => {
+        // the row as it was, locked until the edit commits, for the history's old values
+        const [current] = history
+          ? await tx.promise(`SELECT data FROM ${table} WHERE id = $1${dbType === 'postgres' ? ' FOR UPDATE' : ''};`, [id])
+          : [];
         const sql = `
           UPDATE ${table}
           SET data = ${jsonMerge('data', '$1', dbType)},
@@ -885,10 +1003,18 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         if (rows[0]) {
           const item = rows[0];
           await appendChangeLog(tx, item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
+          if (history) {
+            await writeChangeHistory(tx, {
+              spec: history, target: historyTarget, app, rowId: item.id,
+              before: parseJson(current?.data), after: parseJson(item.data), patch: parseJson(data) || {}, user, reqMeta,
+            });
+          }
         }
         return rows;
       });
       _tagsCache.clear();
+      // a source's settings (change_history among them) may have changed
+      if (getKind(rows[0]?.type || '') === 'source') _changeHistoryCache.clear();
       return rows;
     },
 
@@ -1053,6 +1179,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       if (getKind(type) === 'source') {
         const slug = getInstance(type);
         if (slug) _sourceIdCache.delete(`${app}:${slug}`);
+        // the name may now lead to this source instead of a history dataset that had it
+        _changeHistoryCache.clear();
       }
       return rows;
     },
@@ -1064,6 +1192,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // out here so that is a cache hit.
       await mainTable(app);
 
+      let removedSourceOrView = false;
       const result = await dms_db.withTransaction(async (tx) => {
         const arrayResult = buildArrayComparison('id', ids, dbType);
         // Snapshot the doomed rows first — cascade decisions key off each row's
@@ -1091,6 +1220,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // ghost entries in the datasets list and orphans view rows/split tables.
         for (const row of doomed) {
           const kind = typeof row.type === 'string' && row.type.includes(':') ? getKind(row.type) : null;
+          if (kind === 'source' || kind === 'view') removedSourceOrView = true;
           if (kind === 'source') await cascadeSourceDelete(tx, row, userId, reqMeta);
           else if (kind === 'view') await cascadeViewDelete(tx, row, userId, reqMeta);
           // Pages are colon-less by design (`{pattern}|page`), not legacy —
@@ -1105,6 +1235,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         return result;
       });
       _tagsCache.clear();
+      // a tracked dataset or its history dataset may be gone
+      if (removedSourceOrView) _changeHistoryCache.clear();
       return result;
     },
 

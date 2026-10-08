@@ -7,6 +7,7 @@ import { getInstance } from "../../../../../../utils/type-utils";
 import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
 import UdaTaskList from "../../../Tasks/UdaTaskList";
 import SourceAccessEditor from "../../../../components/SourceAccessEditor";
+import ChangeHistoryEditor from "../../../../components/ChangeHistoryEditor";
 
 const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
 const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
@@ -234,6 +235,8 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                             legacy numeric statistics.auth UAC; gated by edit-source-permissions. */}
                         <SourceAccessEditor source={source} setSource={setSource} format={format}
                                             apiUpdate={apiUpdate} isDms={true} id={id}/>
+                        {/* Whether edits to this dataset's rows are recorded in a history dataset. */}
+                        <ChangeHistoryEditor source={source} id={id}/>
                     </div>
 
                     <div className={'w-1/4'}>

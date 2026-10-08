@@ -5,7 +5,7 @@
 import { getInstance } from '../../utils/type-utils'
 import { loadItemFresh } from '../../api'
 import { getSourceIdsBySlug } from '../../api/sourceIdBySlug'
-import { QA_DATASETS, qaDatasetSlug } from './datasets'
+import { QA_DATASETS, QA_TRACKED_COLUMNS, qaDatasetSlug } from './datasets'
 
 // The QA pattern is opt-in per build: it's only offered as a pattern type (Add
 // Pattern, and the edit modal's Type select) when the client env sets
@@ -130,6 +130,48 @@ export async function ensureQaDatasets({ falcor, app, env, instance, installName
   return datasets
 }
 
+// A source row's JSON fields can be stored as strings.
+const parseJson = (v) => {
+  if (typeof v !== 'string') return v ?? null
+  try { return JSON.parse(v) } catch { return null }
+}
+
+// The writes that switch on an install's change history (written by the server; see
+// dms-server routes/dms/changeHistory.js):
+// - a `change_history` setting on each tracked dataset that has none, pointing at the install's
+//   history dataset. One that has a setting keeps it, so an admin's choice survives a re-run;
+// - the history dataset's columns that its stored list lacks (an install made before a column
+//   was added), appended.
+// `sources`: { [key]: source row data }, read fresh. Returns [{ key, sourceId, data }].
+export function planQaChangeHistory({ datasets = {}, sources = {} }) {
+  const history = datasets.history
+  if (!history) return []
+  const edits = Object.entries(QA_TRACKED_COLUMNS)
+    .filter(([key]) => datasets[key] && sources[key] && !sources[key].change_history)
+    .map(([key, columns]) => ({
+      key,
+      sourceId: +datasets[key].source_id,
+      data: { change_history: { target: { source_id: +history.source_id, view_id: +history.view_id }, columns } },
+    }))
+  if (sources.history) {
+    const config = parseJson(sources.history.config) || {}
+    const stored = config.attributes || []
+    const names = new Set(stored.map(a => a?.name))
+    const add = QA_DATASETS.find(d => d.key === 'history').attributes.filter(a => !names.has(a.name))
+    if (add.length) {
+      edits.push({ key: 'history', sourceId: +history.source_id, data: { config: JSON.stringify({ ...config, attributes: [...stored, ...add] }) } })
+    }
+  }
+  return edits
+}
+
+// planQaChangeHistory for an install's recorded datasets, reading their source rows fresh.
+export async function loadQaChangeHistoryPlan({ falcor, app, datasets = {} }) {
+  const keys = ['history', ...Object.keys(QA_TRACKED_COLUMNS)].filter(key => datasets[key])
+  const rows = await Promise.all(keys.map(key => loadItemFresh(falcor, app, datasets[key].source_id)))
+  return planQaChangeHistory({ datasets, sources: Object.fromEntries(keys.map((key, i) => [key, rows[i]?.data])) })
+}
+
 // The install's environment: the one its row records, if it still exists; else the site's
 // Datasets pattern's, else the site's first, else a new `default` one.
 async function resolveEnvironment({ falcor, app, siteId, siteInstance, recordedEnvId, patterns }) {
@@ -147,7 +189,8 @@ async function resolveEnvironment({ falcor, app, siteId, siteInstance, recordedE
 // Overview to finish an interrupted run. The row is written first (its environment, an empty
 // record, and permissions private to the site's admins as new sites' patterns are,
 // createSite.jsx), then updated after each dataset. Permissions are only set when the row has
-// none, so a re-run never overrides ones an admin chose.
+// none, so a re-run never overrides ones an admin chose. Last, the change history is switched on
+// (planQaChangeHistory), which is also what a re-run does for an install made before it existed.
 // Returns { env, datasets, authPermissions } (the permissions it wrote, or undefined).
 export async function installQa({ falcor, app, siteId, siteInstance, patternId, instance, installName, patterns }) {
   const pattern = await loadItemFresh(falcor, app, patternId)
@@ -166,5 +209,8 @@ export async function installQa({ falcor, app, siteId, siteInstance, patternId, 
     falcor, app, env, instance, installName, have,
     onRecorded: recorded => falcor.call(['dms', 'data', 'edit'], [app, +patternId, { qa: { version: 1, datasets: recorded } }]),
   })
+  for (const edit of await loadQaChangeHistoryPlan({ falcor, app, datasets })) {
+    await falcor.call(['dms', 'data', 'edit'], [app, edit.sourceId, edit.data])
+  }
   return { env, datasets, authPermissions }
 }

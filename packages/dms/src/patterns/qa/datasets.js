@@ -1,4 +1,5 @@
 import { DEFAULT_STATUSES, OUTCOMES } from './ticketRecord'
+import { CHANGE_HISTORY_COLUMNS } from '../datasets/utils/changeHistory'
 
 // The datasets each QA install owns, as internal (DMS) datasets. An install's copy of
 // dataset `key` is named `<install>_<key>`: the server finds a dataset by that name
@@ -112,18 +113,10 @@ const TICKET_ATTRIBUTES = [
   LEGACY_ID,
 ]
 
-// One row per changed field of a ticket. Created with the ticket record; phase 3 of
-// planning/tasks/current/qa-pattern-type.md decides how rows get written.
-const HISTORY_ATTRIBUTES = [
-  column('row_id', 'Row', 'number'),
-  column('field', 'Field'),
-  column('old_value', 'Old value'),
-  column('new_value', 'New value'),
-  column('user_id', 'User id', 'number'),
-  column('user_email', 'User email'),
-  column('at', 'At'),
-  column('via', 'Via', 'select', { options: ['ui', 'cli', 'agent'].map(option) }),
-]
+// One row per changed field of a tracked row (a ticket, a page's stage, a story's stage): the
+// datasets pattern's change-history columns. The server writes them inside each edit, from the
+// `change_history` setting install.js puts on the tickets, pages and stories sources.
+const HISTORY_ATTRIBUTES = CHANGE_HISTORY_COLUMNS
 
 export const QA_DATASETS = [
   { key: 'tickets',  name: 'Tickets',           attributes: TICKET_ATTRIBUTES },
@@ -132,6 +125,15 @@ export const QA_DATASETS = [
   { key: 'patterns', name: 'Covered sub-sites', attributes: [...TNY_PATTERNS, LEGACY_ID] },
   { key: 'history',  name: 'Change history',    attributes: HISTORY_ATTRIBUTES },
 ]
+
+// The columns whose changes each dataset records in the install's history: the workflow fields,
+// not the long text. Set on the sources' `change_history` only when they have none, so an
+// admin's own choice (the dataset's Admin tab) stays.
+export const QA_TRACKED_COLUMNS = {
+  tickets: ['status', 'severity', 'priority', 'category', 'assignee', 'outcome'],
+  pages:   ['stage'],
+  stories: ['stage'],
+}
 
 export const qaDatasetSlug = (instance, key) => `${instance}_${key}`
 

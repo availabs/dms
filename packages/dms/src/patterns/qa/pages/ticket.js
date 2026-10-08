@@ -1,12 +1,14 @@
 import { PAGE_STAGES } from '../ticketRecord'
+import { QA_DATASETS } from '../datasets'
 import {
   T, SEV_PILL, PRIO_PILL, STATUS_PILL, CATEGORY_PILL, TNUM, tnum, PAGE_DISP, siteCase, sqlText, CLOSED_STATUSES,
-  ticketsSource, pagesByKey, dataWrapper, col, pcol, staticCell, PANEL, group, section, pageVariable,
+  ticketsSource, historySource, pagesByKey, dataWrapper, col, pcol, calc, staticCell, PANEL, PANEL_TOP, PANEL_BOTTOM,
+  group, section, pageVariable,
 } from './helpers'
 
 // The Ticket page (`ticket?id=<row id>`; mockup: tessera design_system_v6 pages/qa-ticket.html): a
 // header band (crumb + actions, badges, title, target line), the ticket's body and details rail (both
-// edited in place), comments and a History placeholder. The look is the qa pattern's own styles
+// edited in place), comments and the ticket's change history. The look is the qa pattern's own styles
 // (qa.theme.js). Data shapes are ported from build_cr_tickets.mjs (TICKET DETAIL). `ctx` as for
 // ticketsPage.
 export function ticketPage(ctx) {
@@ -186,19 +188,62 @@ export function ticketPage(ctx) {
       staticCell('c_add', 'add a comment · planned', { type: 'status_pill', pillColors: { 'add a comment · planned': 'qa_planned' }, cellPaddingTop: 12 }),
     ], { cardStyle: 'qa_summary', cellsGridSize: 1, cellsRowGap: 0, cardsPadding: 20, cardBorder: false }),
   }))
-  // History: a marked placeholder (status-change part 4 writes the install's qa_history)
-  S.push(section({
-    trackingId: 'qa_ticket_history', group: G.com, size: '2/3', type: 'Card',
-    data: detail([
-      staticCell('h_title', 'History', { valueFontStyle: T.cardTitle }),
-      staticCell('h_tag', 'planned', { type: 'status_pill', pillColors: { planned: 'qa_planned' }, cellVAlign: 'center' }),
-      staticCell('h_fill', ''),
-      staticCell('h_note', 'Status changes and edits will list here.', { valueFontStyle: T.small, cellSpan: 3, cellPaddingTop: 6 }),
-    ], {
-      cardStyle: 'qa_planned', cardBorder: true, cellsGridSize: 3, cellsTracksTemplate: 'max-content max-content minmax(0,1fr)',
-      cellsColumnGap: 8, cellsRowGap: 0, cardsPadding: 20,
-    }),
-  }))
+  // ── history: every change to the ticket's tracked fields, newest first. The server writes the
+  // rows inside each save (datasets.js, `change_history`), so edits from the rail, Page QA and the
+  // CLI all list here. Refetches after a rail pill/select change ('ticket_v'). ──
+  if (ctx.datasets.history) {
+    const dwHistory = dataWrapper(historySource(ctx))
+    const byRow = [{ col: 'row_id', op: 'filter', value: [], usePageFilters: true, searchParamKey: 'id', requireResolved: true }]
+    const refresh = { _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'ticket_v' }] } }
+    // a field's name as the tickets dataset labels it; another dataset's field shows as stored
+    const FIELD = `(case data->>'field' ${QA_DATASETS.find((d) => d.key === 'tickets').attributes
+      .map((a) => `when '${a.name}' then '${sqlText(a.display_name)}'`).join(' ')} else (data->>'field') end)`
+    const shown = (name) => `(case when (data->>'${name}') is null or (data->>'${name}') = '' then '—' else (data->>'${name}') end)`
+    // as stored (UTC), like the rail's dates: comma-free substrings, the SELECT list is comma-split.
+    // The list's widths add up to 620 px, inside the 2/3 panel (646 px at a 1440 px window).
+    const at = "(data->>'at')"
+    S.push(section({
+      trackingId: 'qa_ticket_history', group: G.com, size: '2/3', type: 'Card', ...PANEL_TOP,
+      data: dwHistory({
+        columns: [
+          staticCell('h_title', 'History', { valueFontStyle: T.cardTitle }),
+          calc("(count(*)::text || ' change' || (case when count(*) = 1 then '' else 's' end)) as h_count", '',
+            { hideHeader: true, normalName: 'h_count', valueFontStyle: T.small, cellVAlign: 'center' }),
+        ],
+        filters: byRow,
+        display: {
+          usePagination: false, pageSize: 1, fetchMode: 'smart', cardStyle: 'qa_summary', cardBorder: false, headerValueLayout: 'col',
+          cellsGridSize: 2, cellsTracksTemplate: 'max-content minmax(0,1fr)', cellsColumnGap: 10, cellsRowGap: 0, cardsPadding: 18, ...refresh,
+        },
+      }),
+    }))
+    S.push(section({
+      trackingId: 'qa_ticket_history_list', group: G.com, size: '2/3', type: 'Spreadsheet', ...PANEL_BOTTOM,
+      data: dwHistory({
+        columns: [
+          { name: '(id)::bigint as idsort', type: 'calculated', normalName: 'idsort', display_name: '', customName: '', show: true, formatFn: ' ', hideHeader: true, size: 0, sort: 'desc' },
+          {
+            name: `(case when ${at} is null or ${at} = '' then '' else (substring(${at} from 6 for 2) || '/' || substring(${at} from 9 for 2) || '/' || substring(${at} from 1 for 4) || ' ' || substring(${at} from 12 for 5)) end) as when_disp`,
+            type: 'calculated', normalName: 'when_disp', customName: 'When', show: true, formatFn: ' ', justify: 'left', size: 128, valueFontStyle: T.mono,
+          },
+          { name: `${FIELD} as field_disp`, type: 'calculated', normalName: 'field_disp', customName: 'Field', show: true, formatFn: ' ', justify: 'left', size: 92, valueFontStyle: T.strong },
+          {
+            name: `(${shown('old_value')} || '  →  ' || ${shown('new_value')}) as change_disp`,
+            type: 'calculated', normalName: 'change_disp', customName: 'Change', show: true, formatFn: ' ', justify: 'left', size: 180, stretch: true, valueFontStyle: T.body,
+          },
+          {
+            name: "((case when (data->>'user_email') is null then '' else (data->>'user_email') end) || (case data->>'via' when 'cli' then ' · CLI' when 'agent' then ' · agent' else '' end)) as who_disp",
+            type: 'calculated', normalName: 'who_disp', customName: 'By', show: true, formatFn: ' ', justify: 'left', size: 220, valueFontStyle: T.small,
+          },
+        ],
+        filters: byRow,
+        display: {
+          usePagination: true, pageSize: 25, fetchMode: 'smart', autoResize: false, tableStyle: 'qa_list',
+          emptyRowMode: 'placeholder', emptyRowText: 'No changes yet', ...refresh,
+        },
+      }),
+    }))
+  }
 
   return {
     title: 'Ticket', url_slug: 'ticket', index: 2, hide_in_nav: true,

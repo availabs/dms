@@ -24,6 +24,11 @@ ported later.
   the owner switches the MNY install's theme.
 - **Current loop:** the owner is iterating on MNY's QA look locally. The root `.env` points at `qa_test`, and test
   install 126 `QA` is on `mnyv1`.
+- **In progress (2026-10-08): the change-history writer**, Open work §4. Server, QA install, Ticket page
+  History and the datasets Admin panel are built, live-checked on `qa_test` and uncommitted. Install 126 has
+  it on.
+  - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`).
+  - Open: whether to keep Datasets pattern 194 on `qa_test`, added to reach the Admin tab.
 - **What's next:** the owner picks from Open work. If MitigateNY's December v1.0 (D5.2) sets the order, the
   critical path is §5: the change-history writer plus MNY's missing fields and statuses. The response-time proof,
   the DHSES dashboard and the quarterly numbers all read from those.
@@ -73,6 +78,8 @@ ported later.
 - Admin: `patterns/admin/pages/patternEditor/qa/configureTab.jsx` (+ `.theme.js`, key `admin.qaConfigure`), and
   `QaPatternSettings` (the datasets card) in `patternEditor/default/settings.jsx`.
 - Server: `dms-server/src/routes/dms/dms.route.js`: the `qa` stub's `qaIntake`, and the `dms.sourceIdBySlug` route.
+  The change-history writer: `routes/dms/changeHistory.js` + `setDataById` in `dms.controller.js`.
+- Change history, client side: `patterns/datasets/utils/changeHistory.js`, `components/ChangeHistoryEditor.jsx`.
 - CLI: `dms page publish` runs track-on-publish.
 - Theming: a site overrides QA through its theme's `qa` key, listing only differences (MNY:
   `src/themes/mny/qa.theme.js`, as `mnyv1.qa`). On QA pages `theme.qa` wins over the site's general keys. The widget
@@ -120,6 +127,8 @@ ported later.
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
 - [ ] Owner, on install 2824062 after the deploy:
+  - Configure tab → datasets card → "finish set-up". This switches on change history. It's a prod write, and
+    the deployed dms-server must have the history writer (§4).
   - Theme tab → `mnyv1` → Save.
   - Change the nav's `topNav.rightMenu` to `[UserMenu]`. The stored `{type: "Search"}` names no widget and renders
     an empty spacer.
@@ -160,13 +169,115 @@ ported later.
 
 ### 4. Deferred core work
 
-- [ ] **Change-history writer.** The history dataset exists, but nothing writes to it yet. Also covers
-  commit-on-blur for text fields, and tracking story status. Plan: an opt-in `changeLog` column option writing
-  `{row_id, field, old_value, new_value, user_id, user_email, at, via}`, through one helper the CLI reuses. That's
-  part 4 of the status-change writes; parts 1–3 are done. Archive part 1, "The status-change writes".
+- [ ] **Change-history writer: server-side (owner, 2026-10-08). IN PROGRESS.** Part 4 of the status-change writes
+  (parts 1–3 done; archive part 1, "The status-change writes").
+  - **Why server-side, not the earlier `changeLog` column option:**
+    - a history row is a create, and `apiUpdate` re-runs the page loader after every create
+      (`dms-manager/wrapper.jsx:89-100`);
+    - a column option would only record edits made through configured sections. The CLI, agents, Edit mode and
+      later author-built pages would each need wiring;
+    - the browser's copy of the row can hold a stale old value, and the field save and the history write could
+      come apart.
+
+    `dms.change_log` can't be the history either: it stores `data = null` for dataset rows
+    (`table-resolver.js:55-58`) and is compacted.
+  - **Mechanism.** A dataset's source row carries
+    `change_history: {target: {source_id, view_id}, columns: [...] | '*', exclude: [...]}`.
+    - `setDataById` (`dms.controller.js`) reads the old row inside its transaction, diffs the listed columns, and
+      inserts one history row per changed column into the target dataset, in the same transaction.
+    - The history row is `{row_id, source_id, field, old_value, new_value, user_id, user_email, at, via}`.
+    - `'*'` means the columns the dataset declares. The native `updated_at`/`created_at` are table columns, never
+      in `data`. `exclude` is for data fields that act as stamps (QA: `updated`, `resolved_date`).
+    - `via`: the `X-DMS-Via` header (the CLI sends `cli`), else `ui`.
+  - **Typing bursts merge on the server, replacing blur-commit (owner, 2026-10-08; reverses 2026-10-01 "text
+    fields commit on blur").**
+    - Text and textarea columns only: the same person, row and field within **30 s** of the newest history row
+      update that row instead of adding one, and remove it if the text ends where it started.
+    - Pick-list changes never merge (the response-time proof needs each status time).
+    - No client `commitOn`.
+  - **Steps:**
+    - [x] 1. Server writer + burst merge + CLI header + dms-server tests (2026-10-08):
+      - `dms-server/src/routes/dms/changeHistory.js` holds the setting parse, tracks/merges, value text,
+        the 30 s window and `via`.
+      - `dms.controller.js`:
+        - `loadChangeHistory`: cached 60 s; cleared by any source write or a source/view delete. An
+          unresolvable history dataset warns and saves without history.
+        - `writeChangeHistory`, called in `setDataById`: the old row is read `FOR UPDATE` in the same
+          transaction. The burst merge searches the history's newest 200 rows.
+      - `index.js` puts `X-DMS-Via` on `reqMeta.via`; the CLI sends `cli` (`cli/src/client.js`).
+      - Typed columns that merge = every type but select/multiselect/radio/checkbox/boolean/switch (numbers
+        typed in an input merge too). The window slides: each merge restamps `at`.
+      - `tests/test-change-history.js`: 15/15 on SQLite (in `npm test`; full suite green). **Postgres not
+        run:** this session can't reach Docker. Run `node tests/postgres-docker.js run
+        tests/test-change-history.js`.
+    - [x] 2. QA (2026-10-08; install 126 switched on through the card's "finish set-up", live):
+      - history gains `source_id` (label "Dataset"), after `row_id`;
+      - `QA_TRACKED_COLUMNS` (datasets.js): tickets (status, severity, priority, category, assignee, outcome),
+        pages (stage), stories (stage);
+      - `planQaChangeHistory` / `loadQaChangeHistoryPlan` (install.js), run at the end of `installQa`:
+        - sets `change_history` only on a dataset that has none (an admin's choice survives a re-run);
+        - appends the history columns an older install lacks;
+      - the datasets card (`QaPatternSettings`) shows "finish set-up" when change history isn't on. That's how
+        existing installs get it: 126 by us, MNY 2824062 by the owner after deploy;
+      - tests: `qaInstall` (+4), `qaTicketRecord` updated.
+    - [x] 3. Ticket page History (code 2026-10-08):
+      - the placeholder is gone. A title Card ("History · N changes") sits over a `qa_list` Spreadsheet
+        (When · Field · Change · By, newest first, 25 a page, "No changes yet"), filtered `row_id = ?id`;
+      - both refetch on `ticket_v`, so a rail pill change shows at once. A typed field (assignee) shows on
+        reload, since text edits don't publish;
+      - `At` is shown as stored (UTC), like the rail's dates;
+      - a table rather than the mockup's dot timeline: no Card primitive draws a per-row coloured dot, and the
+        table matches the other QA lists;
+      - no History sections without a history dataset;
+      - tests: `qaTicketPages` (+2, 2 updated). Full client suite 848/851, the same 3 unrelated failures.
+    - [x] 4. Datasets source **Admin** tab panel (2026-10-08; live-checked):
+      - `patterns/datasets/components/ChangeHistoryEditor.jsx` (+ `.theme.js`, key
+        `datasets.changeHistoryEditor`), under Access on internal datasets' Admin tab
+        (`dataTypes/internal/pages/admin.jsx`). Needs `update-source`;
+      - controls: on/off, chosen/all columns, an except list, and "Writes to" (a link to the target);
+      - **no picker (owner, 2026-10-08):**
+        - the first save makes the dataset's own "*<dataset> history*" (`ensureHistoryDataset`), or reuses it if
+          that name is already a history, and refuses if the name is taken by a non-history;
+        - shared histories are set up in code or with the CLI (QA's install);
+        - this replaced a first version that read every source in the environment to list history-shaped
+          datasets and hid QA's (owner: no server route for it; asked why filter at all);
+      - switching off stores `enabled: false` with the target and columns kept. The server skips it
+        (`parseChangeHistory`), and switching back on returns to the same history, a shared one included;
+      - saves with `dms.data.edit`, not the UDA source-settings route. That route writes the row directly
+        (`uda.controller.js` `updateSource`), so the server's cache would stay stale for up to 60 s;
+      - `patterns/datasets/utils/changeHistory.js` holds `CHANGE_HISTORY_COLUMNS` (QA's history uses it), draft ⇄
+        setting, and `ensureHistoryDataset`. Documented in `patterns/datasets/internal-datasets-overview.md`,
+        "Change history";
+      - tests: `changeHistorySetting.test.js` (6); dms-server `test-change-history.js` 16/16 (adds
+        `enabled: false`). Full client suite 854/857, the same 3 unrelated failures;
+      - **Live, 2026-10-08:**
+        - Datasets pattern 194 "Datasets" (`/datasets`, environment 42) was added to `qa_test` so the tab is
+          reachable (site row backup `scratchpad/qa_test/backup_site_1_20261008T144014.json`). This also turns
+          on the QA pages' "+ Add ticket".
+        - 127 `qa_tickets`: the panel showed "Writes to QA — Change history" and the six columns. Off → Save →
+          on → Save came back to the same target and columns. The stored setting equals the backup
+          (`backup_source_127_*.json`).
+        - Scratch 195 "History panel test" (one row 197): on + All columns → Save made 198 "History panel test
+          history" (view 199, history columns, in environment 42's list) and stored
+          `{target 198/199, columns '*'}`. A CLI edit wrote history row 200 (status open → done, via cli).
+          195 and 198 were then deleted; the cascade removed their views, tables and environment refs.
+        - Probes: `scratchpad/qa_test/probes/change_history_{panel,toggle,create}.mjs`.
+    - [ ] 5. Live check on install 126. History part DONE 2026-10-08; the Admin panel is still to check:
+      - "finish set-up" on 126's datasets card wrote `change_history` on 127 `qa_tickets`, 129 `qa_pages` and
+        131 `qa_stories`, and appended `source_id` to 135 `qa_history` (backup
+        `scratchpad/qa_test/backup_history_sources_20261008T134806.jsonl`). The note then cleared.
+      - Ticket #102 (row 150), probe `scratchpad/qa_test/probes/history_ticket_edits.mjs`:
+        - a Status pick showed in History without a reload ("1 change");
+        - three assignee typing saves plus the clear, all within 30 s, made one row;
+        - CLI writes (`dms raw update --row-type`) are marked "· CLI";
+        - the History rows are 188–192 in `dms_qa_test.data_items__s135_v136_qa_history`. They show the probe's
+          edits and the restore to the row's real values: In review, assignee `dev@example.com`.
+      - The By column first ran past the panel (710 px of columns in a 646 px panel). Widths are now 620 px and
+        everything shows (`history_read.mjs`).
   - **Leftovers from parts 1–3:**
     - swap the `updated` field for native `updated_at`;
-    - flush a pending save on `pagehide`;
+    - flush a pending save on `pagehide`. Not a plain listener: falcor sends with XMLHttpRequest, which browsers
+      abort while unloading, so it needs a keepalive request in the api layer;
     - stamp dates in the editor's bulk branch.
 - [ ] **Feature switches** (Tickets, Page inventory, Page stages, Stories, Overview). The plan is written: archive
   part 1, "Phases 6–7", "Feature switches". Configure shows a placeholder.
@@ -250,7 +361,7 @@ Dated owner decisions that still hold. The reasoning is in the archive.
 - **2026-10-01:**
   - status writes go through the library fix (option (b)), not a QA-owned control;
   - Resolved → Closed keeps the first resolved date;
-  - text fields commit on blur;
+  - text fields commit on blur (replaced 2026-10-08 by the server's 30 s burst merge);
   - story status gets tracked with the history writer.
 - **2026-10-02:**
   - Configure is a tab on the install's own `manage_pattern` page;
@@ -275,6 +386,14 @@ Dated owner decisions that still hold. The reasoning is in the archive.
   - site cards start collapsed;
   - the header menu is QA's own pages, with no Search;
   - Overview site tables show 10 rows.
+- **2026-10-08:**
+  - the change history is written by the server, inside the row save, from a `change_history` setting on the
+    dataset (not a section column option);
+  - `columns: '*'` tracks every declared column, with an `exclude` list;
+  - typing bursts merge on the server (30 s), instead of text fields committing on blur;
+  - the setting gets a panel on the datasets source Admin tab;
+  - the panel offers no existing datasets: a dataset gets its own "*<dataset> history*", shared histories
+    are set up in code or with the CLI, and no server route lists history datasets.
 
 ## Where the history went
 

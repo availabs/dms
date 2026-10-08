@@ -87,6 +87,10 @@ export const pagesSource = (ctx) => datasetSource(ctx, ctx.datasets.pages, 'Page
   'page_key', 'surface', 'surface_label', 'name', 'route', 'url', 'description', 'build', 'data', 'owner', 'updated', 'stage',
 ])
 export const storiesSource = (ctx) => datasetSource(ctx, ctx.datasets.stories, 'Stories', ['story', 'stage', 'source', 'sort_order', 'page_key'])
+// The change history (one row per changed field; written by the server, see datasets.js).
+export const historySource = (ctx) => datasetSource(ctx, ctx.datasets.history, 'Change history', [
+  'row_id', 'source_id', 'field', 'old_value', 'new_value', 'user_email', 'at', 'via',
+])
 // A ticket's page, joined as `p` (joinDataset), for its live name and stage: tickets keep only
 // copies of them, which TransportNY's sync refreshed and nothing here writes.
 export const pagesByKey = (ctx) => joinDataset(ctx, ctx.datasets.pages, 'p', ['page_key', 'name', 'stage', 'url'], [['page_key', 'page_key']])

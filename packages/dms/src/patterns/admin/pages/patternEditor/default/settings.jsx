@@ -8,7 +8,7 @@ import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../utils/type-utils";
 import { settingsEditorTheme } from './settings.theme'
-import { installQa } from "../../../../qa/install";
+import { installQa, loadQaChangeHistoryPlan } from "../../../../qa/install";
 import { QA_DATASETS, qaDatasetSlug } from "../../../../qa/datasets";
 import { qaConfigureTheme } from "../qa/configureTab.theme";
 import { getSourceIdsBySlug } from "../../../../../api/sourceIdBySlug";
@@ -578,8 +578,9 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
 }
 
 // A QA install's datasets: one row each, with its row count, or what's missing and "finish set-up".
-// On the Overview and on Configure (qa/configureTab.jsx). `reloadKey`: change it to re-count, as
-// Configure does after a Save.
+// "Finish set-up" also shows when the datasets are all there but the change history isn't switched
+// on (an install made before it existed). On the Overview and on Configure (qa/configureTab.jsx).
+// `reloadKey`: change it to re-count, as Configure does after a Save.
 export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
   const { app, type, siteType } = useContext(AdminContext);
   const { theme, UI } = useContext(ThemeContext);
@@ -592,6 +593,8 @@ export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
   const [datasetsUrl, setDatasetsUrl] = useState(null);
   const [found, setFound] = useState(null); // { [key]: sourceId | null } for the unlinked ones
   const [counts, setCounts] = useState({}); // { [key]: rows } for the linked ones
+  const [historyEdits, setHistoryEdits] = useState(null); // writes still needed to switch history on
+  const [finished, setFinished] = useState(0); // bumped after finish set-up, to re-check
 
   const refs = value?.qa?.datasets || {};
   const unlinked = QA_DATASETS.filter(d => !refs[d.key]);
@@ -621,6 +624,15 @@ export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
   }, [linked, reloadKey]);
 
   useEffect(() => {
+    if (unlinked.length) return setHistoryEdits(null);
+    let current = true;
+    loadQaChangeHistoryPlan({ falcor, app, datasets: refs })
+      .then(edits => current && setHistoryEdits(edits.length))
+      .catch(() => current && setHistoryEdits(null));
+    return () => { current = false; };
+  }, [linked, reloadKey, finished]);
+
+  useEffect(() => {
     if (!value?.dmsEnvId) return;
     loadSitePatterns(apiLoad, app, siteType).then(patterns => {
       const datasets = patterns.find(p => p?.pattern_type === 'datasets' && +p.dmsEnvId === +value.dmsEnvId);
@@ -644,6 +656,7 @@ export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
         draft.qa = { version: 1, datasets: result.datasets };
         if (result.authPermissions) draft.authPermissions = result.authPermissions;
       });
+      setFinished(n => n + 1);
       revalidate();
     } catch (err) {
       setError(err.message);
@@ -657,6 +670,7 @@ export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
   const finishNote = !found ? 'checking…'
     : linked ? `Set-up stopped part way. Finishing it ${finishing} and keeps the rest.`
     : `Not set up yet. Finishing set-up ${finishing}.`;
+  const historyOff = !unlinked.length && historyEdits > 0;
 
   return (
     <div className={`${t.card} ${t.datasetsCard}`}>
@@ -683,11 +697,13 @@ export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
           );
         })}
       </ul>
-      {(unlinked.length > 0 || datasetsUrl || error) && (
+      {(unlinked.length > 0 || historyOff || datasetsUrl || error) && (
         <div className={t.cardFooter}>
-          {unlinked.length > 0 ? (
+          {unlinked.length > 0 || historyOff ? (
             <>
-              <span className={t.datasetNote}>{finishNote}</span>
+              <span className={t.datasetNote}>
+                {unlinked.length > 0 ? finishNote : 'Change history isn’t switched on. Finishing set-up switches it on and keeps the rest.'}
+              </span>
               <button type={'button'} className={t.btnSave} disabled={busy || !found} onClick={createMissing}>
                 {busy ? 'finishing…' : 'finish set-up'}
               </button>
