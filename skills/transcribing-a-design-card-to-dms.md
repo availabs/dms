@@ -81,7 +81,7 @@ whole decision, and Step 2 is how you make it.
 > hover shows the full label. Start your inventory from those labels, then verify each
 > against the code. Worked example: the QA pattern's pages in dms-template
 > `src/themes/tessera/design_system_v6/pages/qa-*.html` (styles and switch in `_qa.css` /
-> `_qa-review.js`; plan in `planning/tasks/current/qa-design-implementation.md`).
+> `_qa-review.js`; plan in `planning/tasks/current/qa-pattern-type-archive.md`, part 2).
 
 ---
 

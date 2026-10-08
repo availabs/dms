@@ -5,7 +5,7 @@
 // withQaTheme.js adds them to those components' style lists where the pages render (pages/view.jsx),
 // so no other page's style pickers list them.
 //
-// Token rule (planning/tasks/current/qa-design-implementation.md, "Rules carried in"):
+// Token rule (planning/tasks/current/qa-pattern-type-archive.md, part 2, "Rules carried in"):
 //   - QA-only (`--qa-*`, `qa_*` styles) for what only means something in QA: severity, status kind,
 //     priority, page stage, story status, the tickets bars.
 //   - The theme's shared tokens (`--t-*`, the `.t-*` type classes) wherever a QA element should look
