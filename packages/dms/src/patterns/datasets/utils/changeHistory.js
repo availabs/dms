@@ -1,6 +1,7 @@
 // Change history: an internal dataset can record every change to its rows in another dataset.
-// The server writes the rows inside each edit (dms-server routes/dms/changeHistory.js), from the
-// tracked dataset's `change_history` setting:
+// The server writes the rows inside each create and edit made through dms.data.create /
+// dms.data.edit (dms-server routes/dms/changeHistory.js), from the tracked dataset's
+// `change_history` setting:
 //   { target: { source_id, view_id }, columns: [...] | '*', exclude: [...], enabled?: false }
 // The Admin tab's Change history panel (components/ChangeHistoryEditor.jsx) switches it on for one
 // dataset, which gets its own history dataset, "<dataset> history". Several datasets sharing one
@@ -24,6 +25,8 @@ export const CHANGE_HISTORY_COLUMNS = [
   column('user_email', 'User email'),
   column('at', 'At'),
   column('via', 'Via', 'select', { options: ['ui', 'cli', 'agent'].map(option) }),
+  // 'create' for a new row's values (old value ''), else 'edit'; rows written before it existed are edits
+  column('op', 'Action', 'select', { options: ['create', 'edit'].map(option) }),
 ]
 
 // Source rows keep `config` (and settings) as JSON strings or objects.

@@ -11,8 +11,10 @@ import { MultiSelectEdit } from "../components/MultiSelect";
 // Variant resolution, in order:
 //   1. an explicit per-column map: attribute.pillColors = { "<value>": "<pill style>" }
 //      (any theme.pill style name, e.g. "status_good" | "green" | "status_bad")
-//   2. keyword heuristics on the value (meets/above → good, below/miss/fail → bad)
-//   3. fallback neutral (status_na)
+//   2. the map's "*" entry, if it has one: the style for every value the map doesn't name (a
+//      column whose values are partly a known list, partly free text)
+//   3. keyword heuristics on the value (meets/above → good, below/miss/fail → bad)
+//   4. fallback neutral (status_na)
 const KEYWORD_GOOD = /\b(meet|meets|met|pass|passes|above|compliant|on\s*track|ok)\b/i;
 const KEYWORD_BAD = /\b(below|miss|misses|missed|fail|fails|not\s*met|under|behind|non[-\s]?compliant)\b/i;
 
@@ -20,6 +22,7 @@ const styleFor = (value, pillColors) => {
     const v = (value ?? "").toString().trim();
     if (!v) return null;
     if (pillColors && pillColors[v]) return pillColors[v];
+    if (pillColors && pillColors["*"]) return pillColors["*"];
     if (KEYWORD_BAD.test(v)) return "status_bad";
     if (KEYWORD_GOOD.test(v)) return "status_good";
     return "status_na";
@@ -43,7 +46,7 @@ export const StatusPillEdit = (props) => {
     const { options, pillColors } = props;
     const opts = (options && options.length)
         ? options
-        : Object.keys(pillColors || {}).map((v) => ({ label: v, value: v }));
+        : Object.keys(pillColors || {}).filter((v) => v !== "*").map((v) => ({ label: v, value: v }));
     // MultiSelect renders a React element supplied via `meta[label]` as-is, in BOTH the
     // selected-value trigger and the menu rows — so map each option to its Pill and the
     // editor keeps the pill look while editing (pill trigger, pill options), not plain text.

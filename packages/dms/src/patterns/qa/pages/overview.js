@@ -1,12 +1,14 @@
 import { PAGE_STAGES } from '../ticketRecord'
 import {
-  T, STAGE_SHORT, STAGE_RANK, OPEN, CLOSED, st, sqlText,
-  pagesSource, ticketsSource, dataWrapper, joinDataset, calc, staticCell, PANEL, group, section,
+  T, STAGE_SHORT, STAGE_RANK, OPEN, CLOSED, st, sqlText, STATUS_PILL, SEV_PILL, PRIO_PILL, CATEGORY_PILL, OUTCOME_PILL, ticketFieldLabel,
+  pagesSource, ticketsSource, historySource, dataWrapper, joinDataset, calc, staticCell, PANEL, PANEL_TOP, PANEL_BOTTOM,
+  group, section, pageVariable,
 } from './helpers'
 
 // The Overview, the install's home page (mockup: tessera design_system_v6 pages/qa-overview.html):
 // a header with live figures, "How delivery works" (pages per stage, who does what), one group per
-// covered sub-site (its stage and tickets bars, then its pages), and a Recent activity placeholder.
+// covered sub-site (its stage and tickets bars, then its pages), and Recent activity (the tickets' change
+// history, activitySections below).
 // The look is the qa pattern's own styles (qa.theme.js). Data shapes are ported from
 // build_cr_overview.mjs. `ctx` is the Tickets page's plus `datasets` and `sites`: the enabled rows of
 // the install's covered-sites dataset, or null until they've loaded.
@@ -26,6 +28,11 @@ const STAGE_PHRASE = {
   Proposed: 'proposed', Design: 'design', Implemented: 'built', QA: 'in QA', 'Dev Acceptance': 'dev sign-off', 'Client Acceptance': 'client accepted',
 }
 
+// The covered sites' short keys, as a filter value: every figure and list on the Overview counts only
+// the install's covered sites, never rows left from a site that was switched off. Until the sites load,
+// and when none is covered, it's a value no short key can be (configure.js KEY_RE), so nothing counts.
+const coveredKeys = (ctx) => ctx.sites?.length ? ctx.sites.map((site) => `${site.surface}`) : ['(none)']
+
 export function overviewPage(ctx) {
   const dwPages = dataWrapper(pagesSource(ctx))
   const dwTickets = dataWrapper(ticketsSource(ctx))
@@ -38,6 +45,7 @@ export function overviewPage(ctx) {
   const stageCount = (stage) => `(count(*) filter (where (data->>'stage') = '${stage}'))::text`
   const G = { hdr: 'overview_header', how: 'overview_stages', end: 'overview_activity' }
   const sites = ctx.sites || []
+  const byCovered = [{ col: 'surface', op: 'filter', value: coveredKeys(ctx) }]
   const groups = [group(G.hdr, 0, 'Header', 'qa_header'), group(G.how, 1, 'How delivery works', 'qa_content')]
   const S = []
 
@@ -75,6 +83,7 @@ export function overviewPage(ctx) {
         figure('count(*)::text as n_pages', 'n_pages', 'pages tracked'),
         figure(`${stageCount('Client Acceptance')} as n_accepted`, 'n_accepted', 'client accepted', { cellBorderLeft: true }),
       ],
+      filters: byCovered,
       display: FIGS,
     }),
   }))
@@ -85,6 +94,7 @@ export function overviewPage(ctx) {
         figure(`(count(*) filter (where ${st()} in ${OPEN}))::text as n_open`, 'n_open', 'open tickets'),
         figure(`(count(*) filter (where ${st()} in ${OPEN} and data->>'severity' = 'Blocker'))::text as n_blocker`, 'n_blocker', 'blockers', { cellBorderLeft: true }),
       ],
+      filters: byCovered,
       display: FIGS,
     }),
   }))
@@ -101,6 +111,7 @@ export function overviewPage(ctx) {
           normalName: `n_${STAGE_SHORT[stage]}`, ...(stage === 'Client Acceptance' ? { stepTint: true } : {}),
         })),
       ],
+      filters: byCovered,
       display: { ...AGG, cardStyle: 'qa_summary', cellsGridSize: 6, cellsColumnGap: 8, cardsPadding: 20 },
     }),
   }))
@@ -204,23 +215,177 @@ export function overviewPage(ctx) {
     }))
   })
 
-  // ── recent activity: a marked placeholder ──
+  // ── recent activity: the tickets' change history (activitySections below); without a history
+  // dataset, a note that set-up turns it on ──
   groups.push(group(G.end, 2 + sites.length, 'Recent activity', 'qa_content_end'))
-  S.push(section({
-    trackingId: 'qa_overview_activity', group: G.end, type: 'Card',
-    data: dwPages({
-      columns: [
-        staticCell('a_title', 'Recent activity', { valueFontStyle: T.cardTitle }),
-        staticCell('a_tag', 'planned', { type: 'status_pill', pillColors: { planned: 'qa_planned' }, cellVAlign: 'center' }),
-        staticCell('a_fill', ''),
-        staticCell('a_note', 'Tickets filed, resolved and closed across the install will list here.', { valueFontStyle: T.small, cellSpan: 3, cellPaddingTop: 6 }),
-      ],
-      display: {
-        ...AGG, cardStyle: 'qa_planned', cardBorder: true, cellsGridSize: 3, cellsTracksTemplate: 'max-content max-content minmax(0,1fr)',
-        cellsColumnGap: 8, cardsPadding: 20,
-      },
-    }),
-  }))
+  if (ctx.datasets.history) {
+    S.push(...activitySections(ctx, G.end))
+  } else {
+    S.push(section({
+      trackingId: 'qa_overview_activity', group: G.end, type: 'Card',
+      data: dwPages({
+        columns: [
+          staticCell('a_title', 'Recent activity', { valueFontStyle: T.cardTitle }),
+          staticCell('a_tag', 'needs set-up', { type: 'status_pill', pillColors: { 'needs set-up': 'qa_planned' }, cellVAlign: 'center' }),
+          staticCell('a_fill', ''),
+          staticCell('a_note', "Tickets filed and their status changes list here once the install's change history is on: finish set-up on the install's datasets card (admin pages).",
+            { valueFontStyle: T.small, cellSpan: 3, cellPaddingTop: 6 }),
+        ],
+        display: {
+          ...AGG, cardStyle: 'qa_planned', cardBorder: true, cellsGridSize: 3, cellsTracksTemplate: 'max-content max-content minmax(0,1fr)',
+          cellsColumnGap: 8, cardsPadding: 20,
+        },
+      }),
+    }))
+  }
 
-  return { title: 'Overview', url_slug: 'overview', index: 0, section_groups: groups, sections: S, filters: [] }
+  return {
+    title: 'Overview', url_slug: 'overview', index: 0, section_groups: groups, sections: S,
+    filters: ctx.datasets.history ? ACTIVITY_FILTERS.map(([key]) => pageVariable(`qa-overview-${key}`, key)) : [],
+  }
+}
+
+// The activity filters: each chip writes a URL page variable (its key, the tickets column it lists),
+// and the list filters the column beside it. Status filters the status a row changed TO.
+const ACTIVITY_FILTERS = [['surface', 't.surface'], ['page_name', 't.page_name'], ['category', 't.category'], ['status', 'ds.new_value']]
+
+// A row-level calc (no fn: a mix of aggregate and row calcs never fetches, helpers.js calc).
+const rowCalc = (sql, alias, over = {}) => ({
+  name: `${sql} as ${alias}`, type: 'calculated', normalName: alias, display_name: '', customName: '',
+  show: true, formatFn: ' ', hideHeader: true, justify: 'left', ...over,
+})
+
+// Recent activity: every ticket filed and every change to its tracked fields after (status,
+// severity, priority, category, assignee, outcome: datasets.js QA_TRACKED_COLUMNS), newest first, 10
+// a page. It reads the install's change history (the server writes it on each create and edit),
+// joined to the tickets (`t`) for the number, title, site, page and category, and keeps to the
+// tickets of the covered sites, as the site cards above do. A create writes a row per field with a
+// value (op 'create'); only its status row shows, as "Filed".
+// Three sections fused into one panel:
+//   1. title + a live count over the same rows and filters as the list ("No activity" when none);
+//   2. the filter chips: a Card over the tickets themselves, so each chip lists the values tickets
+//      hold (a chip names its column plainly; under a join its option query can't resolve
+//      `t.surface`). Status lists the statuses tickets hold. A chip ignores filters on its own
+//      column, so the Site chip drops the known but switched-off sites by value;
+//   3. the list, one row per change: the ticket first (`#number`, title; both open it), then the
+//      field and its old and new values as pills (`Filed → Triage` for a create; free text such as an
+//      assignee as plain text, '—' for empty), then the day (MM/DD, as stored: UTC, like the Ticket
+//      page's History).
+function activitySections(ctx, grp) {
+  const dwHistory = dataWrapper(historySource(ctx))
+  const dwTickets = dataWrapper(ticketsSource(ctx))
+  // `t.id` is a native column, so the join key is a calc on that side
+  const join = joinDataset(ctx, ctx.tickets, 't', ['ticket_id', 'title', 'surface', 'page_name', 'category'], [['row_id', '(t.id)::text as t_key']])
+  // inner: a change whose ticket is gone has nothing to show
+  join.t.type = 'inner'
+  const covered = coveredKeys(ctx)
+  const offSites = Object.keys(ctx.siteLabels || {}).filter((key) => !covered.includes(key))
+  // An edit is op 'edit' (rows from before `op` existed have none, and read as edits); anything else is
+  // a create. Tested that way round because the UDA query layer drops any SELECT expression containing
+  // the word "create" (dms-server uda/utils.js sanitizeName).
+  const EDIT = "((ds.data->>'op') is null or (ds.data->>'op') = 'edit')"
+  // a create's rows but its status row are the filing's details, not changes
+  const SHOWN = `(case when (ds.data->>'field') = 'status' or ${EDIT} then 'yes' else 'no' end) as a_shown`
+  // a filter column must be one of the section's own columns, alias-prefixed (the site tables above)
+  const filterCols = [
+    ...['ds.source_id', ...ACTIVITY_FILTERS.map(([, col]) => col)].map((name) => ({ name, show: false })),
+    // not fetched (the count above the list is an aggregate, and a mix of row and aggregate calcs never fetches)
+    rowCalc(SHOWN.split(' as ')[0], 'a_shown', { show: false }),
+  ]
+  const filters = [
+    { col: SHOWN, op: 'filter', value: ['yes'] },
+    { col: 'ds.source_id', op: 'filter', value: [String(ctx.tickets.source_id)] },
+    { col: 't.surface', op: 'filter', value: covered },
+    ...ACTIVITY_FILTERS.map(([key, col]) => ({ col, op: 'filter', value: [], usePageFilters: true, searchParamKey: key })),
+  ]
+  const hasLabels = Object.keys(ctx.siteLabels || {}).length > 0
+  const chip = (name, label, over = {}) => ({
+    // the name shows as the chip's placeholder; an empty customName keeps it from also showing as a label
+    name, customName: '', type: 'filter_control', show: true, hideHeader: true,
+    searchParamKey: name, isMulti: true, placeholder: label, activeStyle: 'qa_chip', ...over,
+  })
+  const one = { usePagination: false, pageSize: 1, fetchMode: 'smart', cardBorder: false, headerValueLayout: 'col', cardStyle: 'qa_summary' }
+  const at = "(ds.data->>'at')"
+  const tnum = "(case when (t.data->>'ticket_id') is null or (t.data->>'ticket_id') = '' then (t.id)::text else (t.data->>'ticket_id') end)"
+  // every ticket field's values as its own pills; anything else (an assignee, '—') as plain text
+  const ticketLink = { isLink: true, location: `${ctx.baseUrl}/ticket?id=`, searchParamsCol: 'a_tid' }
+  const pill = {
+    type: 'status_pill', origin: 'calculated-column', cellVAlign: 'center',
+    pillColors: { Filed: 'qa_tag', ...STATUS_PILL, ...SEV_PILL, ...PRIO_PILL, ...CATEGORY_PILL, ...OUTCOME_PILL, '*': 'qa_plain' },
+  }
+  const shown = (name) => `(case when (ds.data->>'${name}') is null or (ds.data->>'${name}') = '' then '—' else (ds.data->>'${name}') end)`
+
+  return [
+    section({
+      // the panel's top: no rule under it, the chips sit with the title
+      trackingId: 'qa_overview_activity', group: grp, type: 'Card', ...PANEL_TOP,
+      border: { top: true, left: true, right: true, color: 'var(--t-rule)' },
+      data: dwHistory({
+        columns: [
+          staticCell('a_title', 'Recent activity', { valueFontStyle: T.cardTitle }),
+          calc(`(case when count(*) = 0 then 'No activity' else (count(*)::text || ' change' || (case when count(*) = 1 then '' else 's' end) || ' · newest first') end) as a_count`,
+            '', { hideHeader: true, normalName: 'a_count', valueFontStyle: T.small, justify: 'right', cellVAlign: 'center' }),
+          ...filterCols,
+        ],
+        filters, join,
+        display: { ...one, cellsGridSize: 2, cellsTracksTemplate: 'max-content minmax(0,1fr)', cellsColumnGap: 12, cardsPadding: 20 },
+      }),
+    }),
+    section({
+      trackingId: 'qa_overview_activity_filters', group: grp, type: 'Card', bg: PANEL.bg,
+      border: { left: true, right: true, color: 'var(--t-rule)' }, padding: { top: '0', bottom: '0' },
+      data: dwTickets({
+        columns: [
+          chip('surface', 'Site', {
+            ...(hasLabels ? { optionLabels: ctx.siteLabels } : {}),
+            ...(offSites.length ? { excludeOptionValues: offSites } : {}),
+          }),
+          chip('page_name', 'Page'),
+          chip('category', 'Category'),
+          chip('status', 'Status'),
+          staticCell('af_space', ''),
+          // one aggregate: the card's request is valid and it always has its one row
+          calc('count(*)::text as af_n', 'af_n', { selectOnly: true, normalName: 'af_n' }),
+        ],
+        // the other chips list only the covered sites' values
+        filters: [{ col: 'surface', op: 'filter', value: covered }],
+        display: {
+          ...one, cardStyle: 'qa_filters', cellsGridSize: 5, cellsTracksTemplate: 'auto auto auto auto minmax(0,1fr)',
+          cellsColumnGap: 8, cellsVAlign: 'center', cardsPadding: 0, cardsGridPadding: '0 20px 12px',
+        },
+      }),
+    }),
+    section({
+      trackingId: 'qa_overview_activity_list', group: grp, type: 'Card', ...PANEL_BOTTOM,
+      data: dwHistory({
+        columns: [
+          // newest first: history row ids grow with each write
+          rowCalc('(ds.id)::bigint', 'a_sort', { selectOnly: true, sort: 'desc' }),
+          // the ticket first (number, then title; both open it), then the change, then the day
+          rowCalc(`('#' || ${tnum})`, 'a_num', { valueFontStyle: T.bold, cellVAlign: 'center', ...ticketLink }),
+          rowCalc("(case when (t.data->>'title') is null then '' else (t.data->>'title') end)", 'a_title', {
+            valueFontStyle: T.bold, cellVAlign: 'center', ...ticketLink,
+          }),
+          rowCalc(ticketFieldLabel('ds.data'), 'a_field', { valueFontStyle: T.smallMuted, cellVAlign: 'center' }),
+          rowCalc(`(case when ${EDIT} then ${shown('old_value')} else 'Filed' end)`, 'a_from', pill),
+          staticCell('a_arrow', '→', { valueFontStyle: T.smallMuted, justify: 'center', cellVAlign: 'center' }),
+          rowCalc(shown('new_value'), 'a_to', pill),
+          rowCalc(`(substring(${at} from 6 for 2) || '/' || substring(${at} from 9 for 2))`, 'a_day', {
+            valueFontStyle: T.smallMuted, justify: 'right', cellVAlign: 'center',
+          }),
+          // the ticket's row id, for the link
+          rowCalc('(t.id)::text', 'a_tid', { selectOnly: true }),
+          ...filterCols,
+        ],
+        filters, join,
+        display: {
+          // one change per row (qa_feed: a rule under it, the well on hover); fixed tracks but the
+          // title's, so numbers, fields, arrows and pills line up down the list
+          usePagination: true, pageSize: 10, fetchMode: 'smart', cardBorder: true, cardStyle: 'qa_feed',
+          cardsGridSize: 1, cardsGridGap: 0, cardsGridPadding: '0 20px 16px', cardsPadding: '9px 8px',
+          cellsGridSize: 8, cellsTracksTemplate: '3.25rem minmax(0,1fr) 4.75rem 9rem 1.25rem 9rem 2.75rem', cellsColumnGap: 8, cellsRowGap: 0,
+        },
+      }),
+    }),
+  ]
 }

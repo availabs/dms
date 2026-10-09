@@ -55,8 +55,92 @@ describe("Overview", () => {
     expect([overview.title, overview.index, overview.hide_in_nav]).toEqual(["Overview", 0, undefined]);
   });
 
-  it("reads only the install's pages and tickets datasets", () => {
-    expect(sourceSlugs(overview)).toEqual(["phase2_pages", "phase2_tickets"]);
+  it("reads only the install's pages, tickets and change history datasets", () => {
+    expect(sourceSlugs(overview)).toEqual(["phase2_history", "phase2_pages", "phase2_tickets"]);
+  });
+
+  it("counts only the covered sites in the header figures and the stage counts", () => {
+    const ids = ["qa_overview_page_counts", "qa_overview_ticket_counts", "qa_overview_stages"];
+    const surfaceFilter = (c) => ids.map((id) => dataOf(pageBySlug("overview", c).sections.find((s) => s.trackingId === id)).filters.groups);
+    // one site of the two covered (the other switched off): only its rows count
+    surfaceFilter({ ...ctx, sites: [sites[0]] }).forEach((g) => expect(g).toEqual([{ col: "surface", op: "filter", value: ["alphapage"] }]));
+    // none covered, or not loaded yet: a value no short key can be, so nothing counts
+    for (const c of [{ ...ctx, sites: [] }, { ...ctx, sites: null }]) {
+      surfaceFilter(c).forEach((g) => expect(g).toEqual([{ col: "surface", op: "filter", value: ["(none)"] }]));
+    }
+  });
+
+  describe("Recent activity", () => {
+    const byId = (page, id) => page.sections.find((s) => s.trackingId === id);
+    const list = dataOf(byId(overview, "qa_overview_activity_list"));
+    const head = dataOf(byId(overview, "qa_overview_activity"));
+    const chips = dataOf(byId(overview, "qa_overview_activity_filters"));
+    const leaves = (d) => d.filters.groups;
+
+    it("lists the tickets' change history, joined to their tickets, without a create's non-status rows", () => {
+      expect(list.externalSource.type).toBe("phase2_history");
+      const t = list.join.sources.t;
+      expect([t.source, t.view, t.type]).toEqual([43, 44, "inner"]);
+      expect(t.joinColumns).toEqual([{ dsColumn: "row_id", joinSourceColumn: "(t.id)::text as t_key" }]);
+      expect(leaves(list).filter((l) => !l.usePageFilters)).toEqual([
+        { col: "(case when (ds.data->>'field') = 'status' or ((ds.data->>'op') is null or (ds.data->>'op') = 'edit') then 'yes' else 'no' end) as a_shown", op: "filter", value: ["yes"] },
+        { col: "ds.source_id", op: "filter", value: ["43"] },
+        { col: "t.surface", op: "filter", value: ["alphapage", "betapage"] },
+      ]);
+    });
+
+    it("shows each change as the ticket, its field, then old → new values (a create as Filed), newest first, ten a page", () => {
+      const col = (alias) => list.columns.find((c) => c.normalName === alias);
+      expect(col("a_sort")).toMatchObject({ sort: "desc", selectOnly: true });
+      expect(col("a_field").name).toMatch(/^\(case ds\.data->>'field' .*when 'assignee' then 'Assignee'.* else \(ds\.data->>'field'\) end\) as a_field$/);
+      expect(col("a_from").name).toMatch(/^\(case when \(\(ds\.data->>'op'\) is null or \(ds\.data->>'op'\) = 'edit'\) then \(case when \(ds\.data->>'old_value'\) is null.* else 'Filed' end\) as a_from$/);
+      // the server's sanitizeName drops a SELECT expression containing the word "create"
+      list.columns.filter((c) => c.show !== false).forEach((c) => expect(c.name).not.toMatch(/\b(select|create|drop|update|delete|insert|alter|exec|union|cast)\b/i));
+      expect(col("a_to").name).toMatch(/then '—' else \(ds\.data->>'new_value'\) end\) as a_to$/);
+      for (const alias of ["a_from", "a_to"]) {
+        // each field's values as its own pills; free text (an assignee, '—') plain
+        expect(col(alias)).toMatchObject({ type: "status_pill", pillColors: {
+          Filed: "qa_tag", Resolved: "qa_status_done", Now: "qa_prio_now", Major: "qa_sev_major", bug: "qa_tag", Fixed: "qa_tag", "*": "qa_plain",
+        } });
+      }
+      // the ticket leads the row: its number, then its title, both opening it
+      for (const alias of ["a_num", "a_title"]) expect(col(alias)).toMatchObject({ isLink: true, location: "/phase2/ticket?id=", searchParamsCol: "a_tid", valueFontStyle: "qaBodyBold" });
+      expect(list.columns.filter((c) => c.show && !c.selectOnly).map((c) => c.normalName).slice(0, 3)).toEqual(["a_num", "a_title", "a_field"]);
+      expect(list.display).toMatchObject({ pageSize: 10, usePagination: true, cardsGridSize: 1, cardStyle: "qa_feed", cardBorder: true });
+    });
+
+    it("keeps to the covered sites, and the Site chip leaves out the switched-off ones", () => {
+      const siteLabels = { alphapage: "AlphaPage", betapage: "BetaPage" };
+      const page = pageBySlug("overview", { ...ctx, sites: [sites[0]], siteLabels });
+      const d = (id) => dataOf(page.sections.find((s) => s.trackingId === id));
+      expect(leaves(d("qa_overview_activity_list")).find((l) => l.col === "t.surface" && !l.usePageFilters).value).toEqual(["alphapage"]);
+      const chipsData = d("qa_overview_activity_filters");
+      expect(chipsData.filters.groups).toEqual([{ col: "surface", op: "filter", value: ["alphapage"] }]);
+      expect(chipsData.columns.find((c) => c.name === "surface")).toMatchObject({ optionLabels: siteLabels, excludeOptionValues: ["betapage"] });
+    });
+
+    it("filters by site, page, category and status from URL page variables the chips write", () => {
+      const keys = ["surface", "page_name", "category", "status"];
+      expect(overview.filters.map((f) => f.searchKey)).toEqual(keys);
+      const pageLeaves = (d) => leaves(d).filter((l) => l.usePageFilters).map((l) => [l.searchParamKey, l.col]);
+      const expected = [["surface", "t.surface"], ["page_name", "t.page_name"], ["category", "t.category"], ["status", "ds.new_value"]];
+      expect(pageLeaves(list)).toEqual(expected);
+      // the count above the list reads the same rows
+      expect(pageLeaves(head)).toEqual(expected);
+      // every filter column is one of the section's own columns
+      for (const d of [list, head]) for (const l of leaves(d)) expect(d.columns.map((c) => c.name)).toContain(l.col);
+      // the chips list the tickets' own values, by plain column name
+      expect(chips.externalSource.type).toBe("phase2_tickets");
+      expect(chips.columns.filter((c) => c.type === "filter_control").map((c) => [c.name, c.searchParamKey])).toEqual(keys.map((k) => [k, k]));
+    });
+
+    it("without a history dataset, says set-up turns it on and registers no filters", () => {
+      const { history, ...rest } = datasets;
+      const page = buildQaPages({ ...pattern, qa: { version: 1, datasets: rest } }, ctx).find((p) => p.url_slug === "overview");
+      const ids = page.sections.map((s) => s.trackingId).filter((id) => id.startsWith("qa_overview_activity"));
+      expect(ids).toEqual(["qa_overview_activity"]);
+      expect(page.filters).toEqual([]);
+    });
   });
 
   it("counts pages per stage in one card, one live flow step per stage", () => {

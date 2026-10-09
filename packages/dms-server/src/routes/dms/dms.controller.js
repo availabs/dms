@@ -315,13 +315,17 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   /**
    * Records an edit's changed tracked columns in the dataset's history (changeHistory.js), one
-   * row per column. Runs inside setDataById's transaction, so the history lands with the edit or
-   * not at all. A typed column's save merges into the newest history row for that row and column
-   * when it's the same person's and under 30 s old, the burst of saves typing makes. If the text
-   * is back where it started, that row is removed.
+   * row per column. Runs inside setDataById's (or createData's) transaction, so the history lands
+   * with the write or not at all. A typed column's save merges into the newest history row for that
+   * row and column when it's the same person's and under 30 s old, the burst of saves typing makes.
+   * If the text is back where it started, that row is removed.
    * `target`: the history dataset's resolved table (ensured before the transaction).
+   * `created`: the row was just created (`before` is empty). Each tracked column with a value gets a
+   * row from '', marked `op: 'create'` (an edit's rows are `op: 'edit'`); an edit from an empty value
+   * also has an empty old value, so `op` is how a reader tells them apart. A new row has no earlier
+   * history to merge into, so the burst lookup is skipped.
    */
-  async function writeChangeHistory(tx, { spec, target, app, rowId, before, after, patch, user, reqMeta }) {
+  async function writeChangeHistory(tx, { spec, target, app, rowId, before, after, patch, user, reqMeta, created = false }) {
     const userId = get(user, 'id', null);
     const clock = new Date();
     const at = historyStamp(clock);
@@ -330,7 +334,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const newValue = historyText(after?.[field]);
       if (oldValue === newValue) continue;
 
-      if (userId != null && spec.merges(field)) {
+      if (!created && userId != null && spec.merges(field)) {
         // Only the history's newest 200 rows are searched: a burst is recent by definition, and
         // this keeps a typed save's cost flat however long the history grows.
         const [last] = await tx.promise(`
@@ -363,7 +367,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
       const data = {
         row_id: +rowId, source_id: spec.sourceId, field, old_value: oldValue, new_value: newValue,
-        user_id: userId, user_email: get(user, 'email', null), at, via: historyVia(reqMeta),
+        user_id: userId, user_email: get(user, 'email', null), at, via: historyVia(reqMeta), op: created ? 'create' : 'edit',
       };
       // Same insert as createData: SQLite split tables take an allocated id, Postgres a default.
       const [inserted] = dbType === 'sqlite'
@@ -964,7 +968,10 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return dms_db.promise(sql, arrayResult.values);
     },
 
-    setDataById: async (id, data, user, app = null, type = null, reqMeta = null) => {
+    // `changeHistory: true`: write the dataset's change history, if it has a `change_history` setting.
+    // Off by default: only the Falcor edit route (the UI and the CLI) asks for it, so a server-side
+    // caller (workers, upload, duplicating pages) writes none unless it opts in.
+    setDataById: async (id, data, user, app = null, type = null, reqMeta = null, { changeHistory = false } = {}) => {
       // When type is provided, resolve the split table (for dataset row updates).
       // Otherwise fall back to the main table.
       let table;
@@ -976,7 +983,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         const seqName = getSequenceName(app, dbType, splitMode);
         await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
         table = resolved.fullName;
-        history = isSplitType(type) ? await loadChangeHistory(app, type) : null;
+        history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
         // the history table's DDL runs here, outside the transaction (see mainTable)
         if (history) historyTarget = await ensureForWrite(app, history.targetType);
       } else {
@@ -1115,7 +1122,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           }, [])
       ).then(res => [].concat(...res)),
 
-    createData: async (args, user, reqMeta = null) => {
+    // `changeHistory: true`: as setDataById. Off by default; the Falcor create route asks for it.
+    createData: async (args, user, reqMeta = null, { changeHistory = false } = {}) => {
       const [app, type, data = {}] = args;
       const resolved = await ensureForWrite(app, type);
       const userId = get(user, "id", null);
@@ -1137,6 +1145,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           throw new Error(`Subdomain "${slug}" is already in use by another tenant`);
         }
       }
+
+      // A tracked dataset's new row also writes its change history, as an edit does (setDataById).
+      // The history table's DDL runs here, outside the transaction.
+      const history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
+      const historyTarget = history ? await ensureForWrite(app, history.targetType) : null;
 
       // ensureForWrite (above) ran the table/sequence DDL outside the transaction, so
       // allocateId's ensureSequence below is a cache hit. Allocating inside the transaction
@@ -1171,6 +1184,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
         const item = rows[0];
         await appendChangeLog(tx, item.id, item.app, item.type, 'I', item.data, userId, reqMeta);
+        if (history) {
+          await writeChangeHistory(tx, {
+            spec: history, target: historyTarget, app, rowId: item.id,
+            before: {}, after: parseJson(item.data), patch: parseJson(data) || {}, user, reqMeta, created: true,
+          });
+        }
         return rows;
       });
       _tagsCache.clear();

@@ -68,9 +68,9 @@ describe("datasets", () => {
     expect(values(byName(attrs, "outcome"))).toEqual(OUTCOMES);
   });
 
-  it("gives the history one row per field change, with the dataset the row is in", () => {
+  it("gives the history one row per field change, with the dataset the row is in and whether a create or an edit wrote it", () => {
     expect(dataset("history").attributes.map((a) => a.name))
-      .toEqual(["row_id", "source_id", "field", "old_value", "new_value", "user_id", "user_email", "at", "via"]);
+      .toEqual(["row_id", "source_id", "field", "old_value", "new_value", "user_id", "user_email", "at", "via", "op"]);
   });
 
   it("never repeats a column name within a dataset", () => {

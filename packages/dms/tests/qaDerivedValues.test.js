@@ -64,6 +64,29 @@ describe("live open counts on the Overview", () => {
   });
 });
 
+describe("Recent activity on the Overview", () => {
+  const all = pages();
+  ["qa_overview_activity", "qa_overview_activity_list"].forEach((id) => {
+    const { options } = compile(sectionOf(all, id));
+
+    it(`${id}: inner-joins the tickets on the history row's row_id = the ticket's native id`, () => {
+      expect(options.join.sources.t).toEqual({ view_id: 128, env: "qa_test+qa_tickets" });
+      expect(options.join.on).toEqual([expect.objectContaining({ type: "inner", table: "t", on: "ds.data->>'row_id' = (t.id)::text" })]);
+    });
+
+    it(`${id}: filters each column on its own table, and leaves out a create's non-status rows`, () => {
+      const cols = leaves(options.filterGroups).map((l) => l.col);
+      expect(cols.filter((c) => !c.startsWith("(case")).sort()).toEqual([
+        "ds.data->>'new_value'", "ds.data->>'source_id'",
+        "t.data->>'category'", "t.data->>'page_name'", "t.data->>'surface'", "t.data->>'surface'",
+      ]);
+      expect(cols.filter((c) => c.startsWith("(case"))).toEqual([
+        "(case when (ds.data->>'field') = 'status' or ((ds.data->>'op') is null or (ds.data->>'op') = 'edit') then 'yes' else 'no' end)",
+      ]);
+    });
+  });
+});
+
 describe("a ticket's page name and stage, live", () => {
   const all = pages();
 
@@ -97,6 +120,7 @@ describe("every joined section", () => {
 
     it(`is one of the expected sections${siteLabels ? " (with site labels)" : ""}`, () => {
       expect(joined.map((s) => s.trackingId).sort()).toEqual([
+        "qa_overview_activity", "qa_overview_activity_list",
         "qa_overview_alphapage_pages", "qa_ticket_badges", "qa_ticket_crumb", "qa_ticket_target", "qa_ticket_title", "qa_tickets_table",
       ]);
     });
@@ -117,8 +141,13 @@ describe("every joined section", () => {
           expect(c.reqName).not.toMatch(BARE_ID);
         });
         Object.keys(options.orderBy).forEach((k) => expect(k).not.toMatch(BARE_ID));
-        // a filter column resolves to an accessor (`ds.data->>'x'`), or is the row id itself
-        leaves(options.filterGroups).forEach((l) => expect(l.col).toMatch(/^(\w+\.data->>'\w+'|ds\.id)$/));
+        // a filter column resolves to an accessor (`ds.data->>'x'`), or is the row id itself, or is one
+        // of the section's own calc columns, with every table named
+        const calcs = dataOf(s).columns.filter((c) => c.type === "calculated").map((c) => c.name.split(" as ")[0]);
+        leaves(options.filterGroups).forEach((l) => {
+          if (calcs.includes(l.col)) expect(l.col).not.toMatch(BARE_DATA);
+          else expect(l.col).toMatch(/^(\w+\.data->>'\w+'|ds\.id)$/);
+        });
       });
     });
   });

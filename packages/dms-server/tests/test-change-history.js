@@ -1,10 +1,10 @@
 /**
- * Change-history tests (src/routes/dms/changeHistory.js, written by setDataById).
+ * Change-history tests (src/routes/dms/changeHistory.js, written by setDataById and createData).
  *
- * A dataset whose source row carries `change_history: {target, columns, exclude}` gets one row
- * in the target dataset per changed tracked column of every `dms.data.edit`, inside the edit's
- * transaction. Built for the QA pattern's ticket history
- * (src/dms/planning/tasks/current/qa-pattern-type.md, "Change-history writer").
+ * Any internal dataset whose source row carries `change_history: {target, columns, exclude}` gets
+ * one row in the target dataset per changed tracked column of every `dms.data.edit` and
+ * `dms.data.create`, inside the write's transaction. The fixtures use a ticket-like dataset as the
+ * example; the QA pattern was the first user (src/dms/planning/tasks/current/qa-pattern-type.md).
  *
  * Covers:
  *   1. A tracked edit writes one row with every field; untracked columns and unchanged values
@@ -17,7 +17,12 @@
  *   5. Setting change_history on a source takes effect on the next edit (cache cleared), and
  *      `enabled: false` switches it off.
  *   6. A history dataset that can't be found: the edit still saves, without history.
- *   7. A history write that fails rolls the edit back too.
+ *   7. A history write that fails rolls the edit (or the create) back too.
+ *   8. A create writes one row per tracked column with a value, old value '', op 'create' (an
+ *      edit's rows are op 'edit', including one from an empty value); the creator's typing within
+ *      30 s merges into it.
+ *   9. Off by default per call: a direct controller create/edit without `{ changeHistory: true }`
+ *      writes nothing; the Falcor routes pass it.
  *
  * Database selection: DMS_TEST_DB=dms-sqlite (default) or dms-postgres-test.
  */
@@ -150,29 +155,79 @@ function testPureHelpers() {
 async function testTrackedEdit() {
   console.log('\n--- A tracked edit writes one history row ---');
   const id = await createItem(tickets.dataType, { title: 'T1', status: 'Triage', assignee: '' });
+  const before = (await historyRows(history)).length;
 
   await edit(tickets, id, { status: 'In progress' });
-  let rows = await historyRows(history);
+  let rows = (await historyRows(history)).slice(before);
   assert(rows.length === 1, `one history row, got ${rows.length}`);
   const [h] = rows;
   assert(+h.row_id === id && +h.source_id === tickets.srcId && h.field === 'status', 'row, dataset and field');
   assert(h.old_value === 'Triage' && h.new_value === 'In progress', 'old → new');
   assert(+h.user_id === USER.id && h.user_email === USER.email, 'who');
   assert(/^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(h.at) && h.via === 'ui', 'when + via');
+  assert(h.op === 'edit', `an edit's row is op 'edit', got ${h.op}`);
   assert((await getRowData(tickets.resolved, id)).status === 'In progress', 'the edit itself saved');
   pass('status change: one row with every field');
 
   await edit(tickets, id, { title: 'T1 renamed' });
   await edit(tickets, id, { status: 'In progress' });
-  rows = await historyRows(history);
+  rows = (await historyRows(history)).slice(before);
   assert(rows.length === 1, `untracked column / unchanged value add nothing, got ${rows.length}`);
   pass('untracked column and unchanged value: no row');
 
   // Pick lists never merge, even straight away by the same person.
   await edit(tickets, id, { status: 'Resolved' });
-  rows = await historyRows(history);
+  rows = (await historyRows(history)).slice(before);
   assert(rows.length === 2 && rows[1].old_value === 'In progress' && rows[1].new_value === 'Resolved', 'second status row');
   pass('pick-list changes never merge');
+}
+
+async function testCreate() {
+  console.log('\n--- A tracked create writes its values from empty ---');
+  const before = (await historyRows(history)).length;
+  const id = await createItem(tickets.dataType, { title: 'T5', status: 'Triage', assignee: '' });
+  let rows = (await historyRows(history)).slice(before);
+  assert(rows.length === 1, `one row (status; empty assignee and untracked title skipped), got ${rows.length}`);
+  const [h] = rows;
+  assert(+h.row_id === id && h.field === 'status' && h.old_value === '' && h.new_value === 'Triage', 'status from empty');
+  assert(+h.user_id === USER.id && h.via === 'ui' && /^\d{4}-\d\d-\d\d \d\d:\d\d:\d\d$/.test(h.at), 'who, via, when');
+  assert(h.op === 'create', `a create's row is op 'create', got ${h.op}`);
+  pass('create: one row per tracked column with a value, old value empty, op create');
+
+  // An edit from an empty value also has old value '': op tells it from the create.
+  await edit(tickets, id, { assignee: 'Ann' });
+  const first = (await historyRows(history)).slice(before).find((r) => r.field === 'assignee');
+  assert(first && first.old_value === '' && first.op === 'edit', 'a first assignment is an edit, old value empty');
+  pass("an edit from empty is op 'edit'");
+
+  // A typed column set at create gets its own row (no burst lookup on a new row); the creator's
+  // next keystrokes inside the window merge into it, as any typing burst does.
+  const before2 = (await historyRows(history)).length;
+  const id2 = await createItem(tickets.dataType, { title: 'T6', status: 'Triage', assignee: 'Ann' });
+  rows = (await historyRows(history)).slice(before2);
+  assert(rows.length === 2 && rows.map((r) => r.field).sort().join() === 'assignee,status', `status + assignee rows, got ${rows.length}`);
+  await edit(tickets, id2, { assignee: 'Anne' });
+  rows = (await historyRows(history)).slice(before2);
+  const assignee = rows.filter((r) => r.field === 'assignee');
+  assert(assignee.length === 1 && assignee[0].old_value === '' && assignee[0].new_value === 'Anne', 'typing right after create merges into its row');
+  pass('create: typed column rows, and the creator\'s quick edit merges');
+
+  // An untracked dataset's create writes nothing (testSettingTakesEffect covers its edits).
+  const plain = await createDataset('h_plain', { config: config([{ name: 'status', type: 'select' }]) });
+  const n = (await historyRows(history)).length;
+  await createItem(plain.dataType, { status: 'Triage' });
+  assert((await historyRows(history)).length === n, 'untracked dataset create: no row');
+  pass('create in an untracked dataset: no row');
+
+  // Off unless the caller asks: only the Falcor create/edit routes do, so a server-side caller (the
+  // upload publish loop, workers, page duplication) writes no history.
+  const controller = createController(DB_NAME, { splitMode: SPLIT_MODE });
+  const [direct] = await controller.createData([TEST_APP, tickets.dataType, { title: 'T8', status: 'Triage' }], USER, null);
+  await controller.setDataById(direct.id, { status: 'Resolved' }, USER, TEST_APP, tickets.dataType, null);
+  assert((await historyRows(history)).length === n, 'a direct controller create + edit without the flag → no row');
+  await controller.setDataById(direct.id, { status: 'Closed' }, USER, TEST_APP, tickets.dataType, null, { changeHistory: true });
+  assert((await historyRows(history)).length === n + 1, 'with changeHistory: true → a row');
+  pass('changeHistory is off by default; the routes (and callers that ask) write it');
 }
 
 async function testTypingBursts() {
@@ -228,9 +283,10 @@ async function testAllColumns() {
     change_history: { target: { source_id: history.srcId, view_id: history.viewId }, columns: '*', exclude: ['updated'] },
   });
   const id = await createItem(pages.dataType, { name: 'Home', stage: 'Design', updated: '2026-10-01' });
-  const before = (await historyRows(history)).length;
   await edit(pages, id, { name: 'Homepage', stage: 'QA', updated: '2026-10-08', isValid: true, undeclared: 'x' });
-  const fields = (await historyRows(history)).slice(before).map((r) => r.field).sort();
+  // The create and the edit together: the quick name edit merges into the create's name row.
+  const mine = (await historyRows(history)).filter((r) => +r.row_id === id && +r.source_id === pages.srcId);
+  const fields = [...new Set(mine.map((r) => r.field))].sort();
   assert(JSON.stringify(fields) === '["name","stage"]', `declared minus exclude, got ${fields}`);
   pass("'*' logs declared columns only, minus exclude");
 }
@@ -283,11 +339,22 @@ async function testRollback() {
   let threw = false;
   try {
     await createController(DB_NAME, { splitMode: SPLIT_MODE })
-      .setDataById(id, { status: 'Resolved' }, USER, TEST_APP, tickets.dataType, null);
+      .setDataById(id, { status: 'Resolved' }, USER, TEST_APP, tickets.dataType, null, { changeHistory: true });
   } catch { threw = true; }
   assert(threw, 'the edit failed');
   assert((await getRowData(tickets.resolved, id)).status === 'Triage', 'the field change rolled back');
   pass('history and edit land together or not at all');
+
+  const { rows: countBefore } = await db.query(`SELECT count(*) AS n FROM ${tickets.resolved.fullName}`);
+  threw = false;
+  try {
+    await createController(DB_NAME, { splitMode: SPLIT_MODE })
+      .createData([TEST_APP, tickets.dataType, { title: 'T7', status: 'Triage' }], USER, null, { changeHistory: true });
+  } catch { threw = true; }
+  const { rows: countAfter } = await db.query(`SELECT count(*) AS n FROM ${tickets.resolved.fullName}`);
+  assert(threw, 'the create failed');
+  assert(+countAfter[0].n === +countBefore[0].n, 'no ticket row was left behind');
+  pass('history and create land together or not at all');
 }
 
 // ---------------------------------------------------------------------------
@@ -302,6 +369,7 @@ async function run() {
   testPureHelpers();
   await setup();
   await testTrackedEdit();
+  await testCreate();
   await testTypingBursts();
   await testVia();
   await testAllColumns();
