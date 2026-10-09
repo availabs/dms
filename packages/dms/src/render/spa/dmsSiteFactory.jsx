@@ -10,6 +10,8 @@ import { pattern2routes, getSubdomain, resolveThemes } from './utils'
 import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 import { applySavedColorScheme } from '../../ui/components/ThemeToggle';
+import { SiteUserMenuContext } from '../../utils/userMenuContext';
+import { getDefaultUserMenuItems, patternOwnMenuItems, sanitizeMenuItems } from '../../utils/userMenus';
 
 // Apply the saved dark/light choice before the first render. Otherwise every
 // load paints light until a ThemeToggle mounts and its effect runs. Skipped
@@ -280,6 +282,55 @@ export function DmsSite (config) {
         });
         return () => { unsub(); if (timer) clearTimeout(timer); };
     }, [syncAPI, router]);
+
+    // User menus kept live after boot (utils/userMenuContext.js): the routes'
+    // themes carry the boot-time menus, and rebuilding routes would remount the
+    // whole site. Sync fires a type-scoped invalidation for every write to a
+    // pattern row (the admin row holds the Default menu, other rows their own
+    // menus), this tab's own included, so read the row back from the local
+    // mirror. Sync off: only this tab's own saves update them (the User Menu tab
+    // publishes); other tabs need their next page load.
+    const [liveUserMenu, setLiveUserMenu] = useState(undefined);
+    const [livePatternMenus, setLivePatternMenus] = useState({});
+    useEffect(() => {
+        if (!syncAPI) return;
+        const timers = new Map();
+        const unsub = syncAPI.onInvalidate((scope) => {
+            if (typeof scope !== 'string' || !scope.startsWith('data_items:') || !/[:|]pattern$/.test(scope)) return;
+            const key = scope.slice('data_items:'.length);
+            const plus = key.indexOf('+');
+            const app = key.slice(0, plus), type = key.slice(plus + 1);
+            clearTimeout(timers.get(key));
+            timers.set(key, setTimeout(async () => {
+                timers.delete(key);
+                try {
+                    const rows = (await syncAPI.getItemsByAppType(app, type)) || [];
+                    const parsed = rows.map(row => ({ id: `${row.id}`, data: typeof row.data === 'string' ? JSON.parse(row.data) : (row.data || {}) }));
+                    if (type.endsWith('|admin:pattern')) {
+                        // same rule as pickAdminPattern: duplicates settle on the lowest id
+                        const row = parsed.sort((a, b) => (+a.id || Infinity) - (+b.id || Infinity))[0];
+                        if (row) setLiveUserMenu(getDefaultUserMenuItems(row.data));
+                        return;
+                    }
+                    setLivePatternMenus(prev => {
+                        const next = { ...prev };
+                        for (const row of parsed) next[row.id] = patternOwnMenuItems(row.data);
+                        return next;
+                    });
+                } catch (err) {
+                    console.warn('[dms] user menu refresh failed:', err?.message);
+                }
+            }, 150));
+        });
+        return () => { unsub(); for (const t of timers.values()) clearTimeout(t); };
+    }, [syncAPI]);
+    const userMenuValue = React.useMemo(() => ({
+        items: liveUserMenu === undefined || liveUserMenu === null ? liveUserMenu : sanitizeMenuItems(liveUserMenu),
+        patternMenus: Object.fromEntries(Object.entries(livePatternMenus)
+            .map(([id, items]) => [id, Array.isArray(items) ? sanitizeMenuItems(items) : null])),
+        publish: (items) => setLiveUserMenu(Array.isArray(items) ? items : null),
+        publishPattern: (id, items) => setLivePatternMenus(prev => ({ ...prev, [`${id}`]: Array.isArray(items) ? items : null })),
+    }), [liveUserMenu, livePatternMenus]);
     // --- End sync ---
 
     if (loading && !dynamicRoutes.length) {
@@ -287,9 +338,11 @@ export function DmsSite (config) {
     }
 
     return (
-      <AuthedRouteProvider
-        router={router}
-      />
+      <SiteUserMenuContext.Provider value={userMenuValue}>
+        <AuthedRouteProvider
+          router={router}
+        />
+      </SiteUserMenuContext.Provider>
     )
 }
 

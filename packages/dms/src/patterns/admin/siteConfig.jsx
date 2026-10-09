@@ -12,8 +12,9 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
-import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
 import { isUserAuthed } from "../../utils/auth";
+import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
 
@@ -247,6 +248,8 @@ const patternConfig = ({
   authPermissions = {},
   authPatternPermissions = {},
   adminRowHasGrants = false,
+  adminPatternRow,
+  userMenuUsage = { total: 0, own: [] },
   isMultiTenant = false,
   pgEnv = '',
   datasources = [],
@@ -277,7 +280,8 @@ const patternConfig = ({
       },
     },
   });
-  theme.navOptions = theme?.admin?.navOptions || theme?.navOptions;
+  // keeps a saved site user menu, which the admin navOptions would drop
+  theme.navOptions = adminNavOptions(theme);
   theme.navOptions.sideNav.dropdown = "top";
 
   return {
@@ -305,7 +309,8 @@ const patternConfig = ({
           const currentPattern = currentId && dataItems.find(d => String(d.id) === currentId);
           if (currentPattern) {
             const can = perm => patternCan(user, app, authPermissions, currentPattern, perm);
-            menuItems.push(...buildPatternMenuItems(baseUrl, currentId, currentPattern, can));
+            menuItems.push(...buildPatternMenuItems(baseUrl, currentId, currentPattern, can,
+              can(EDIT_PATTERN) || patternCan(user, app, authPermissions, adminPatternRow || { pattern_type: 'admin' }, EDIT_PATTERN)));
           }
 
           return (
@@ -326,6 +331,8 @@ const patternConfig = ({
                 dmsEnvById,
                 authPermissions,
                 adminRowHasGrants,
+                adminPatternRow,
+                userMenuUsage,
                 isMultiTenant,
                 pgEnv,
                 datasources,
@@ -437,7 +444,9 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, authPatte
 // `can(perm)`: whether the user holds that pattern-level permission — only
 // the tabs they can use are listed (patternEditor/index.jsx filters the same
 // way with tabPermission).
-const buildPatternMenuItems = (baseUrl, id, pattern, can) => {
+// `canEditUserMenu`: edit access to this pattern (its own menu) or to the admin
+// row (the Default menu); patternEditor/index.jsx gates it the same way.
+const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = false) => {
   const isPage = pattern.pattern_type === 'page';
   const tabs = [
     ['Overview', 'overview', 'InfoCircle'],
@@ -447,6 +456,7 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can) => {
     ['Access', 'permissions', 'Lock'],
     ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon']] : []),
     ['Theme', 'theme', 'AdjustmentsHorizontal'],
+    ['User Menu', 'user_menu', 'Menu'],
     // Custom, site-specific extra tabs a pattern's own data can define
     // (patternEditor/index.jsx spreads `item.pages` the same way).
     ...(pattern.pages || []).map(p => [p.name, p.path, p.icon || 'Page']),
@@ -455,7 +465,7 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can) => {
       ['Format Manager', 'edit_pattern', 'Settings'],
     ] : []),
   ]
-    .filter(([, path]) => can(tabPermission(path)))
+    .filter(([, path]) => path === 'user_menu' ? canEditUserMenu : can(tabPermission(path)))
     .map(([name, path, icon]) => ({ name, path: `${baseUrl}/${id}/${path}`, icon }));
   if (!tabs.length) return [];
   return [

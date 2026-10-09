@@ -11,6 +11,7 @@
 const { WebSocketServer } = require('ws');
 const { logEntry, initLogFile, isEnabled: isLoggingEnabled } = require('../../middleware/request-logger');
 const { isSplitType } = require('#db/table-resolver.js');
+const { getKind } = require('#db/type-utils.js');
 
 let wss = null;
 
@@ -569,6 +570,12 @@ function stripSplitRowData(msg) {
   return { ...msg, item };
 }
 
+function isSkeletonType(itemType) {
+  if (itemType.endsWith('|pattern')) return true; // legacy format
+  const kind = getKind(itemType);
+  return kind === 'pattern' || kind === 'site';
+}
+
 function notifyChange(app, msg) {
   const subs = appSubscribers.get(app);
   if (!subs) return;
@@ -591,11 +598,13 @@ function notifyChange(app, msg) {
       for (const pat of client._patterns) {
         if (typeMatchesPattern(itemType, pat)) { matches = true; break; }
       }
-      // Also allow skeleton types through (siteType and siteType|pattern)
-      // Skeleton types don't contain '|' followed by anything other than 'pattern'
-      // But we can't know siteType here — so we send all changes that match ANY subscribed pattern
-      // plus any type that ends with '|pattern' (skeleton pattern rows)
-      if (!matches && !itemType.endsWith('|pattern')) {
+      // Skeleton rows (the site row and its pattern rows) go to every subscriber:
+      // every tab holds them (bootstrapSkeleton) and builds its routes, themes and
+      // user menu from them. We can't know the client's siteType here, so match by
+      // kind. `{site}|{name}:pattern` / `{name}:site` are the current type format;
+      // the old check only knew the legacy `…|pattern`, so after the type refactor
+      // an edit to any pattern or site row never reached a pattern-subscribed tab.
+      if (!matches && !isSkeletonType(itemType)) {
         _stats.broadcastSkipped++;
         continue;
       }

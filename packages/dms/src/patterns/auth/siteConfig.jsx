@@ -7,6 +7,7 @@ import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
 import { isUserAuthed } from "../../utils/auth";
 import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES } from "../../utils/adminPermissions";
+import { adminNavOptions } from "../../utils/userMenus";
 
 // Code-split: auth pages load only when an auth route renders. See
 // planning/tasks/completed/bundle-split-initial-graph.md.
@@ -320,7 +321,8 @@ const manageAuthConfig = ({
     //     };
     // }
 
-    theme.navOptions = theme?.admin?.navOptions || theme?.navOptions
+    // keeps a saved site user menu, which the admin navOptions would drop
+    theme.navOptions = adminNavOptions(theme)
     theme.navOptions.sideNav.dropdown = 'top'
   // ----------------------
   return {

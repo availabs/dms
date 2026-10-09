@@ -3,7 +3,7 @@ import {Link, useLocation, useNavigate} from 'react-router'
 import {AdminContext} from "../../context";
 import { ThemeContext } from '../../../../ui/useTheme';
 import { patternEditorTheme } from './patternEditor.theme'
-import { siteCan, patternCan, tabPermission, PATTERN_EDITOR_PERMISSIONS, VIEW_PATTERN_LIST } from '../../../../utils/adminPermissions';
+import { siteCan, patternCan, tabPermission, PATTERN_EDITOR_PERMISSIONS, VIEW_PATTERN_LIST, EDIT_PATTERN } from '../../../../utils/adminPermissions';
 
 import { PatternSettingsEditor } from "./default/settings";
 import { PatternThemeEditor } from "./default/themeEditor";
@@ -14,6 +14,7 @@ import { ActivityTab } from "./pages/activityTab";
 import { QaConfigureTab } from "./qa/configureTab";
 import FormatManager from './formatManager';
 import PageTemplateManagerPane from './pageTemplateManagerPane';
+import UserMenuEditor from './userMenuEditor';
 
 const Alert = () => <div>A</div>
 
@@ -57,6 +58,16 @@ const qaConfigureTab = {
   component: QaConfigureTab
 }
 
+// This pattern's user menu (the avatar menu's links): either the site's Default
+// menu (on the admin row) or its own (in its theme). Open to anyone who can edit
+// either one; the tab gates each kind of save itself. siteConfig.jsx's sidenav
+// list gates it the same way.
+const userMenuTab = {
+  name: 'User Menu',
+  path: 'user_menu',
+  component: UserMenuEditor
+}
+
 const activityTab = {
   name: 'Activity',
   path: 'activity',
@@ -64,7 +75,7 @@ const activityTab = {
 }
 
 const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, apiLoad, falcor, ...rest}) => {
-  const { baseUrl, parentBaseUrl, app, user, authPath, authPermissions } = React.useContext(AdminContext);
+  const { baseUrl, parentBaseUrl, app, user, authPath, authPermissions, adminPatternRow } = React.useContext(AdminContext);
   const { theme } = React.useContext(ThemeContext);
   const t = { ...patternEditorTheme, ...(theme?.admin?.patternEditor || {}) }
   const [tmpItem, setTmpItem] = React.useState(item);
@@ -118,6 +129,7 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
 
   const allPages = [
     ...navPages,
+    userMenuTab,
     ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
     ...(item.pattern_type === 'qa' ? [qaConfigureTab] : []),
     ...(item.pages || []),
@@ -126,7 +138,10 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
       { path: 'edit_pattern', name: 'Format Manager', component: FormatManager }
     ] : [])
   ];
-  const pages = allPages.filter(d => can(tabPermission(d.path)));
+  // No admin row yet → the stand-in is a core row with no grants, so only site `*` passes.
+  const canEditUserMenu = can(EDIT_PATTERN)
+    || patternCan(user, app, authPermissions, adminPatternRow || { pattern_type: 'admin' }, EDIT_PATTERN);
+  const pages = allPages.filter(d => d.path === 'user_menu' ? canEditUserMenu : can(tabPermission(d.path)));
   // No tab in the URL → the first one this user can use (Access, for an
   // edit-pattern-permissions-only user). A tab the user can't use is shown as
   // denied, not silently swapped for another.
