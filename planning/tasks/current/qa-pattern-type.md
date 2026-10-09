@@ -17,17 +17,19 @@ ported later.
 - **Coworker how-to** for placing Report an issue on more MNY sites:
   [`report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md).
 
-## ▶ Start here (2026-10-08)
+## ▶ Start here (2026-10-09)
 
-- **All QA code is committed and pushed:** library through `a6d36282`, dms-template through `1cc7561d`.
-- **Waiting on deploys:** MitigateNY's rollout (Open work §1) waits on a dms-server deploy and a client deploy. Then
-  the owner switches the MNY install's theme.
+- **All QA code is committed and pushed**, change history included: library through `7764dd5c` (change history)
+  and `689d635a`.
+- **Nothing deployed for about a week (owner, 2026-10-09).** No QA work is on a deployed host. MitigateNY's rollout
+  (Open work §1) waits on a dms-server deploy (intake stub + change-history writer) and a client deploy. Then the
+  owner runs "finish set-up" and switches the MNY install's theme. The history writer is opt-in per dataset, so the
+  server deploy changes nothing until a dataset has a `change_history` setting.
 - **Current loop:** the owner is iterating on MNY's QA look locally. The root `.env` points at `qa_test`, and test
   install 126 `QA` is on `mnyv1`.
-- **In progress (2026-10-08): the change-history writer**, Open work §4. Server, QA install, Ticket page
-  History and the datasets Admin panel are built, live-checked on `qa_test` and uncommitted. Install 126 has
-  it on.
-  - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`).
+- **Change-history writer (Open work §4): built, committed, live-checked on `qa_test`.** Install 126 has it on.
+  - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`). Needs Docker, which Claude
+    sessions can't reach; the owner runs it. Only SQLite has run (16/16).
   - Open: whether to keep Datasets pattern 194 on `qa_test`, added to reach the Admin tab.
 - **What's next:** the owner picks from Open work. If MitigateNY's December v1.0 (D5.2) sets the order, the
   critical path is §5: the change-history writer plus MNY's missing fields and statuses. The response-time proof,
@@ -169,7 +171,8 @@ ported later.
 
 ### 4. Deferred core work
 
-- [ ] **Change-history writer: server-side (owner, 2026-10-08). IN PROGRESS.** Part 4 of the status-change writes
+- [ ] **Change-history writer: server-side (owner, 2026-10-08).** Built and committed (`7764dd5c`); only the
+  Postgres test run is left. Part 4 of the status-change writes
   (parts 1–3 done; archive part 1, "The status-change writes").
   - **Why server-side, not the earlier `changeLog` column option:**
     - a history row is a create, and `apiUpdate` re-runs the page loader after every create
@@ -262,7 +265,8 @@ ported later.
           `{target 198/199, columns '*'}`. A CLI edit wrote history row 200 (status open → done, via cli).
           195 and 198 were then deleted; the cascade removed their views, tables and environment refs.
         - Probes: `scratchpad/qa_test/probes/change_history_{panel,toggle,create}.mjs`.
-    - [ ] 5. Live check on install 126. History part DONE 2026-10-08; the Admin panel is still to check:
+    - [x] 5. Live check on install 126 (2026-10-08). The Admin panel half was covered by step 4's live check on
+      127 `qa_tickets`, which belongs to install 126. The history half:
       - "finish set-up" on 126's datasets card wrote `change_history` on 127 `qa_tickets`, 129 `qa_pages` and
         131 `qa_stories`, and appended `source_id` to 135 `qa_history` (backup
         `scratchpad/qa_test/backup_history_sources_20261008T134806.jsonl`). The note then cleared.
@@ -339,6 +343,8 @@ section 2:
   which shows a fallback shield today.
 - [ ] Route auth judges the placeholder user while sign-in loads. QA works around it:
   [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md).
+- [ ] After a sign-in without a refresh, `/qa` shows "isn't set up yet": the routes keep the signed-out boot's
+  pattern stub. Logged, not scheduled: [`routes-keep-pre-login-pattern-stubs.md`](./routes-keep-pre-login-pattern-stubs.md).
 - Not checked live: Configure's datasets-missing state and its overlap refusal (both unit-tested).
 
 ## Decisions on record
