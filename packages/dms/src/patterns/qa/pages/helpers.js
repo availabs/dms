@@ -1,4 +1,5 @@
-import { DEFAULT_STATUSES, PAGE_STAGES } from '../ticketRecord'
+import { DEFAULT_STATUSES, PAGE_STAGES, OUTCOMES } from '../ticketRecord'
+import { QA_DATASETS } from '../datasets'
 
 // Section and column shapes for the QA pages. The data shapes (sources, calcs, filters) and the
 // gotchas noted beside them come from TransportNY's control-room builders
@@ -10,7 +11,7 @@ import { DEFAULT_STATUSES, PAGE_STAGES } from '../ticketRecord'
 // withQaTheme). Card valueFontStyle / headerFontStyle resolve through textSettings. ──
 export const T = {
   pageTitle: 'qaPageTitle', cardTitle: 'qaCardTitle',
-  crumb: 'qaCrumb', eyebrow: 'qaEyebrow', body: 'qaBody', strong: 'qaBodyStrong',
+  crumb: 'qaCrumb', eyebrow: 'qaEyebrow', body: 'qaBody', strong: 'qaBodyStrong', bold: 'qaBodyBold',
   small: 'qaSmall', smallMuted: 'qaSmallMuted', figure: 'qaFigure', mono: 'qaMono',
   button: 'qaButton', buttonSM: 'qaButtonSM', buttonPrimary: 'qaButtonPrimary', segment: 'qaSegment', prose: 'qaProse', label: 'qaLabel', link: 'qaLink',
 }
@@ -28,6 +29,7 @@ export const CATEGORY_PILL = { bug: 'qa_tag', style: 'qa_tag', data: 'qa_tag', c
 export const BUILD_PILL = { 'Not started': 'qa_build_none', 'In progress': 'qa_build_progress', 'Built (draft)': 'qa_build_draft', Published: 'qa_build_published' }
 export const DATA_PILL = { Real: 'qa_data_real', Partial: 'qa_data_partial', Mock: 'qa_data_mock' }
 export const STORY_PILL = { proposed: 'qa_story_proposed', accepted: 'qa_story_accepted', verified: 'qa_story_verified' }
+export const OUTCOME_PILL = Object.fromEntries(OUTCOMES.map((o) => [o, 'qa_tag']))
 export const staticOptions = (map) => Object.keys(map).map((v) => ({ label: v, value: v }))
 
 // ── page stages: short labels and order ──
@@ -59,6 +61,10 @@ export const tnum = (idRef = 'id') => `('#' || (case when (data->>'ticket_id') i
 export const TNUM = tnum()
 // Free text inside an SQL string literal: no quotes, and no commas (the SELECT list is comma-split).
 export const sqlText = (s) => `${s || ''}`.replace(/[',]/g, '')
+// A change-history row's field as the tickets dataset labels it ("Status", "Assignee"); another
+// dataset's field shows as stored. `data`: the history row's data column (`ds.data` under a join).
+export const ticketFieldLabel = (data = 'data') => `(case ${data}->>'field' ${QA_DATASETS.find((d) => d.key === 'tickets').attributes
+  .map((a) => `when '${a.name}' then '${sqlText(a.display_name)}'`).join(' ')} else (${data}->>'field') end)`
 export const SOURCE_CASE = "(case data->>'source' when 'ai' then 'AI' when 'dev' then 'Dev' when 'client' then 'Client' else (data->>'source') end)"
 // Site (surface) display labels as a CASE; raw values when the install sets none. Labels must be
 // comma-free for the same reason as TNUM.

@@ -55,6 +55,6 @@ describe("change history setting", () => {
 
   it("names the columns the server writes", () => {
     expect(CHANGE_HISTORY_COLUMNS.map((c) => c.name))
-      .toEqual(["row_id", "source_id", "field", "old_value", "new_value", "user_id", "user_email", "at", "via"]);
+      .toEqual(["row_id", "source_id", "field", "old_value", "new_value", "user_id", "user_email", "at", "via", "op"]);
   });
 });

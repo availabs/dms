@@ -69,7 +69,7 @@ export const qaConfigureTheme = {
     gripOff: 'text-[var(--t-rule)]',
     gripIcon: 'w-4 h-4 rotate-90',
     patternCell: 'flex flex-col min-w-0',
-    patternName: 't-proseSM font-medium text-[var(--t-ink)] truncate',
+    patternName: 't-proseSM !font-medium text-[var(--t-ink)] truncate',
     patternNameOff: 't-proseSM text-[var(--t-graphite)] truncate',
     patternMeta: 't-metaXS normal-case tracking-normal text-[var(--t-pencil)] truncate',
     offNote: 't-proseXS text-[var(--t-pencil)]',

@@ -17,18 +17,24 @@ ported later.
 - **Coworker how-to** for placing Report an issue on more MNY sites:
   [`report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md).
 
-## ▶ Start here (2026-10-08)
+## ▶ Start here (2026-10-09)
 
-- **All QA code is committed and pushed:** library through `a6d36282`, dms-template through `1cc7561d`.
-- **Waiting on deploys:** MitigateNY's rollout (Open work §1) waits on a dms-server deploy and a client deploy. Then
-  the owner switches the MNY install's theme.
+- **All QA code is committed and pushed**, change history included: library through `7764dd5c` (change history)
+  and `689d635a`.
+- **Nothing deployed for about a week (owner, 2026-10-09).** No QA work is on a deployed host. MitigateNY's rollout
+  (Open work §1) waits on a dms-server deploy (intake stub + change-history writer) and a client deploy. Then the
+  owner runs "finish set-up" and switches the MNY install's theme. The history writer is opt-in per dataset, so the
+  server deploy changes nothing until a dataset has a `change_history` setting.
 - **Current loop:** the owner is iterating on MNY's QA look locally. The root `.env` points at `qa_test`, and test
   install 126 `QA` is on `mnyv1`.
-- **In progress (2026-10-08): the change-history writer**, Open work §4. Server, QA install, Ticket page
-  History and the datasets Admin panel are built, live-checked on `qa_test` and uncommitted. Install 126 has
-  it on.
-  - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`).
+- **Change-history writer (Open work §4): built, committed, live-checked on `qa_test`.** Install 126 has it on.
+  - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`). Needs Docker, which Claude
+    sessions can't reach; the owner runs it. Only SQLite has run (16/16).
   - Open: whether to keep Datasets pattern 194 on `qa_test`, added to reach the Admin tab.
+  - Logged, not started: [`change-history-growth.md`](./change-history-growth.md) (history tables have no
+    retention and no JSON indexes).
+- **Built (2026-10-09), uncommitted: the Overview's Recent activity feed** and history on create, Open work §4.
+  Test ticket row 210 is still on `qa_test` for review.
 - **What's next:** the owner picks from Open work. If MitigateNY's December v1.0 (D5.2) sets the order, the
   critical path is §5: the change-history writer plus MNY's missing fields and statuses. The response-time proof,
   the DHSES dashboard and the quarterly numbers all read from those.
@@ -169,7 +175,8 @@ ported later.
 
 ### 4. Deferred core work
 
-- [ ] **Change-history writer: server-side (owner, 2026-10-08). IN PROGRESS.** Part 4 of the status-change writes
+- [ ] **Change-history writer: server-side (owner, 2026-10-08).** Built and committed (`7764dd5c`); only the
+  Postgres test run is left. Part 4 of the status-change writes
   (parts 1–3 done; archive part 1, "The status-change writes").
   - **Why server-side, not the earlier `changeLog` column option:**
     - a history row is a create, and `apiUpdate` re-runs the page loader after every create
@@ -262,7 +269,8 @@ ported later.
           `{target 198/199, columns '*'}`. A CLI edit wrote history row 200 (status open → done, via cli).
           195 and 198 were then deleted; the cascade removed their views, tables and environment refs.
         - Probes: `scratchpad/qa_test/probes/change_history_{panel,toggle,create}.mjs`.
-    - [ ] 5. Live check on install 126. History part DONE 2026-10-08; the Admin panel is still to check:
+    - [x] 5. Live check on install 126 (2026-10-08). The Admin panel half was covered by step 4's live check on
+      127 `qa_tickets`, which belongs to install 126. The history half:
       - "finish set-up" on 126's datasets card wrote `change_history` on 127 `qa_tickets`, 129 `qa_pages` and
         131 `qa_stories`, and appended `source_id` to 135 `qa_history` (backup
         `scratchpad/qa_test/backup_history_sources_20261008T134806.jsonl`). The note then cleared.
@@ -279,6 +287,96 @@ ported later.
     - flush a pending save on `pagehide`. Not a plain listener: falcor sends with XMLHttpRequest, which browsers
       abort while unloading, so it needs a keepalive request in the api layer;
     - stamp dates in the editor's bulk branch.
+  - **Growth:** logged separately, [`change-history-growth.md`](./change-history-growth.md) (owner, 2026-10-09).
+- [x] **Overview: Recent activity feed (owner, 2026-10-09). Built, live-checked on `qa_test`, uncommitted.**
+  Replaced the "planned" placeholder. Reads the change history. Works on any theme; MNY's look is the
+  deliverable (owner, live: "looks pretty good").
+  - **What it shows** (`pages/overview.js`, `activitySections`): every change to a ticket's tracked fields
+    (status, severity, priority, category, assignee, outcome; owner asked for more than status), newest first,
+    10 a page, one full-width row each (owner asked for the change itself; this replaced the mockup's two
+    columns of one pill + title):
+    - `#number  title   Field  (old) → (new)   MM/DD`. The ticket leads, number and title in bold (owner:
+      the identifying info must be the most prominent), both linking to the ticket by ROW id, like every QA
+      link (owner asked about using the ticket ID: that waits on the serial `ticket_number`, §3). No column
+      headers (owner tried the idea, then said to leave it).
+    - Values use each field's own pills (status, severity, priority, category, outcome); free text (an
+      assignee) and `—` (empty) are plain text through `status_pill`'s new `pillColors['*']` and the
+      `qa_plain` pill style.
+    - A create shows once, as `Status  Filed → Triage`; its other fields' rows are hidden. That needs the
+      history's new `op` ('create' | 'edit', server): an edit from empty (a first assignment) also has an empty
+      old value. Rows from before `op` read as edits.
+    - Rows use a new card style, `qa_feed` (`qa.theme.js`): a rule under each row, the well on hover.
+    - Title row with a live count over the same rows and filters ("3 changes · newest first", "No activity").
+    - Data: history rows `field = status` on the tickets dataset, inner-joined to tickets on
+      `ds.data->>'row_id' = (t.id)::text` (a calculated join key), kept to the **covered sites** (owner: the
+      install covers only AlphaPage, so BetaPage mustn't show).
+    - Without a history dataset: a "needs set-up" note pointing at the datasets card.
+  - **Filters (owner asked):** Site, Page, Category ("type") and Status chips, as the Tickets page's filter bar
+    (`filter_control` chips writing URL page variables `surface`, `page_name`, `category`, `status`). The chips
+    sit on a Card over the tickets (plain column names); the list and count filter `t.surface`, `t.page_name`,
+    `t.category` and `ds.new_value` (the status changed TO).
+    - Site chip: covered sites only, through `excludeOptionValues` (the known but switched-off keys). A
+      static `surface` filter on the chips' card narrows Page/Category/Status, but `filter_control` ignores
+      filters on its own column (`pruneTreeForControl`).
+    - Status chip lists the statuses tickets hold now.
+  - **"Filed" needs creates in the history:** the writer ran only on edits (`setDataById`). `createData` now writes
+    one row per tracked field with a value, from empty (`old_value = ''`). The feed reads status-from-empty as Filed.
+    Tickets filed before the server deploy have no Filed row.
+  - **Steps:**
+    - [x] 1. Server: history on create (2026-10-09, uncommitted):
+      - `createData` runs `writeChangeHistory` with `created: true` in its transaction: one row per tracked
+        column with a value, from `''`; no burst lookup for a new row. The creator's typing within 30 s
+        merges into the create's row, as any burst does.
+      - **Per call, off by default (owner, 2026-10-09):** `createData` and `setDataById` take
+        `{ changeHistory = false }`. Only the Falcor `dms.data.create` / `dms.data.edit` routes pass `true`, so
+        the UI and the CLI record as before, and server-side callers (the upload publish loop, workers, page
+        duplication) write none unless they ask. Checked every caller: none of the others edits a tracked
+        dataset column (the upload validator's `isValid` is never tracked).
+      - `tests/test-change-history.js` 21/21 (+ create cases, the default-off check, a create rollback); full
+        `npm test` exit 0. Postgres not run (no Docker here).
+      - Documented in `patterns/datasets/internal-datasets-overview.md`, "Change history".
+    - [x] 2. Overview sections (2026-10-09): `activitySections` in `pages/overview.js`; `qa_feed` card style.
+      Tests: `qaOverviewPages` (+5: join and filters, row shape, chips and page variables, covered sites, no
+      history), `qaDerivedValues` (+4: the compiled join `ds.data->>'row_id' = (t.id)::text`, inner, and each
+      filter on its own table; the joined-sections list). Full client suite 900/903, the same 3 unrelated failures.
+    - [x] 3. Live check (2026-10-09), install 126 on `mnyv1`, probe `scratchpad/qa_test/probes/activity_feed.mjs`
+      (+ `activity_site_chip.mjs`):
+      - test ticket **row 201 "Activity feed check (test ticket)"** filed through the CLI, then In progress →
+        Resolved: the list shows `Filed → Triage`, `Triage → In progress`, `In progress → Resolved`, newest first,
+        each linking `/qa/ticket?id=201`; the count reads "3 changes";
+      - `?status=Resolved` → one row, "1 change";
+      - the Site chip offers only AlphaPage;
+      - #102's older changes no longer show: it's a BetaPage ticket, and 126 now covers only AlphaPage.
+      - Screenshots: `scratchpad/qa_test/probes/activity_feed_crop_v2.png`, `activity_site_chip.png`.
+    - [x] 4. All tracked fields, ticket first, bold (2026-10-09, uncommitted):
+      - server: history rows carry `op` ('create' | 'edit'); `CHANGE_HISTORY_COLUMNS` declares it ("Action");
+        `test-change-history.js` 22/22 (+ op on creates, edits and a first assignment); full `npm test` exit 0;
+      - `status_pill`: `pillColors['*']` styles every value the map doesn't name, ahead of the keyword guesses
+        (`ui/columnTypes/statusPill.jsx`; the edit dropdown leaves `*` out). Grep: none of the 54 `pillColors`
+        uses in the repo has a `*` key. Test `statusPillDefault.test.jsx`;
+      - QA: `ticketFieldLabel` moved to `pages/helpers.js` (the Ticket page's History and the feed share it);
+        `OUTCOME_PILL`; `qa_plain` pill; `qaBodyBold` text key;
+      - **landmine:** the first try at "Filed" compared `op = 'create'` in a SELECT expression, and the server's
+        `sanitizeName` dropped the whole column (empty atom, no error). The feed tests `op = 'edit'` instead,
+        and a test fails if any fetched feed column contains a SQL keyword;
+      - **bold:** `font-semibold` alone computed to 400: the `.t-*` type classes set their own weight and are
+        unlayered. `qaBodyBold` uses `!font-semibold` (computed 600 live; owner confirmed);
+      - tests: `qaOverviewPages`, `qaDerivedValues` (the named-table invariant now admits a section's own calc
+        expression as a filter, if every table is named), `qaTicketRecord`, `changeHistorySetting`. Full client
+        suite 903/906, the same 3 unrelated failures;
+      - live, probe `activity_feed.mjs` (+ `activity_bold.mjs`): test ticket **row 210** (filed with priority Next,
+        then priority Now, assigned, In progress, severity Major) shows 5 rows: `Severity Minor → Major`,
+        `Status Triage → In progress`, `Assignee — → dev@example.com`, `Priority Next → Now`,
+        `Status Filed → Triage`. Screenshot `activity_feed_crop_ident.png`.
+      - **Row 210 is still on `qa_test`** for review (row 201 was deleted: its create rows predate `op`), now on
+        tracked page `alphapage:new_page_2` (it was on an untracked key). Delete with
+        `dms raw delete qa_test 'qa_tickets|128:data' 210`.
+    - [x] 5. The whole Overview counts only covered sites (owner, 2026-10-09: the header said 7 pages tracked,
+      AlphaPage has 3). `coveredKeys(ctx)` in `pages/overview.js` filters the header figures (pages tracked,
+      client accepted, open tickets, blockers), the "How delivery works" stage counts and Recent activity on
+      `surface`; until the sites load, and with none covered, it's `'(none)'` (no short key can match
+      `configure.js` KEY_RE), so nothing counts. Test in `qaOverviewPages`. Full client suite 904/907, the same
+      3 unrelated failures.
 - [ ] **Feature switches** (Tickets, Page inventory, Page stages, Stories, Overview). The plan is written: archive
   part 1, "Phases 6–7", "Feature switches". Configure shows a placeholder.
 - [ ] **`dms qa` CLI** (state, tickets, edit, close, enroll; dry run by default). It's also where the per-page
@@ -335,10 +433,32 @@ section 2:
   WCDB and NPMRDS sections.
 - [ ] Under a DMS join, `mapFilterGroupCols` could map an unlisted `alias.col` itself. Today a hidden column is the
   workaround.
+- [ ] Found building Recent activity (2026-10-09), worked around in QA, not fixed:
+  - `status_pill` ignores the cell's justify (it returns the bare Pill; `verdict_dot` wraps itself in the
+    cell's className). A right-aligned pill isn't possible; fixing it touches every status pill.
+  - A Card can't change its cards-across with its width (`cardsGridSize` is an inline template; compact layout
+    covers cells only). An optional `cardsMinWidth` (auto-fill tracks) would do it with today's output unchanged.
+  - A Card has no empty-state text (Spreadsheet's `emptyRowText`); QA shows a count line instead.
+  - `filter_control`'s option query can't resolve an alias-prefixed name (`t.surface`) under a join
+    (`formattedAttributeStr` has no alias handling), and it ignores static filters on its own column.
+  - dms-server UDA `sanitizeName` drops a whole SELECT expression that contains a SQL keyword as a word, even
+    inside a string literal (`= 'create'`), with no error (also in memory as a known landmine).
+- [x] **QA's weight utilities never applied: FIXED 2026-10-09 (owner: "fix it across the board for QA").** Every
+  `.t-*` class sets its own font-weight unlayered (`ui/defaultTheme.js` ~150-167), so a `font-medium` beside one
+  computed to 400. All nine such strings now use `!font-*`: `qa.theme.js` (`qaBodyStrong`, `qaButton`,
+  `qaButtonPrimary`, `qaLink`, the severity pill base, the form's Add button, the table's empty row, one title)
+  and `admin/.../qa/configureTab.theme.js` (`patternName`). A note at the top of `qaTextStyles` states the rule.
+  Live (`scratchpad/qa_test/probes/qa_weights.mjs`): Overview 10× 600 + 2× 500, Tickets 20× 500, none off.
+- [ ] **A ticket on an untracked page key counts in its site's header but shows under no page** (found
+  2026-10-09: test ticket #210 had `alphapage:alphapage`; the site bar said 4 open, the pages table showed 3).
+  Happens for a renamed slug or a page that was never tracked. Options: an "untracked page" row in the site's
+  table, or count only tracked pages' tickets in the bar. Not decided.
 - [ ] A plain `Check` icon is missing from the library set. Adding it changes the Spreadsheet's add-row button,
   which shows a fallback shield today.
 - [ ] Route auth judges the placeholder user while sign-in loads. QA works around it:
   [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md).
+- [ ] After a sign-in without a refresh, `/qa` shows "isn't set up yet": the routes keep the signed-out boot's
+  pattern stub. Logged, not scheduled: [`routes-keep-pre-login-pattern-stubs.md`](./routes-keep-pre-login-pattern-stubs.md).
 - Not checked live: Configure's datasets-missing state and its overlap refusal (both unit-tested).
 
 ## Decisions on record
@@ -394,6 +514,18 @@ Dated owner decisions that still hold. The reasoning is in the archive.
   - the setting gets a panel on the datasets source Admin tab;
   - the panel offers no existing datasets: a dataset gets its own "*<dataset> history*", shared histories
     are set up in code or with the CLI, and no server route lists history datasets.
+- **2026-10-09:**
+  - the Overview's Recent activity reads the change history, including "Filed": creates write history rows;
+  - each activity row shows the change, old → new status pills, one row per change, full width (replacing the
+    first take: the new status as the verb, two across);
+  - the activity lists every tracked ticket field, the ticket first and bold; no column headers;
+  - history rows record `op` ('create' | 'edit');
+  - every Overview figure counts only the install's covered sites;
+  - QA's weight utilities get `!` across the board;
+  - the activity keeps to the install's covered sites;
+  - the feed gets filters (site, page, category, status);
+  - history growth gets its own task;
+  - the history write is off by default per call (`changeHistory: false`); the Falcor create/edit routes opt in.
 
 ## Where the history went
 

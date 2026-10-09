@@ -76,7 +76,7 @@ export const qaTokensCss = `
 // ── pill (status_pill cells via `pillColors`, and their edit menus) ──
 // Severity: a square-cornered chip with a square tile; Major and Blocker get louder fills. Colours
 // are per style (not a base to override): two conflicting utilities resolve by CSS order, not class order.
-const SEV = "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 t-proseXS font-medium before:content-[''] before:size-2 before:flex-none before:rounded-[2px]"
+const SEV = "inline-flex items-center gap-1.5 rounded-md border px-2 py-0.5 t-proseXS !font-medium before:content-[''] before:size-2 before:flex-none before:rounded-[2px]"
 const SEV_QUIET = "border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)]"
 // Status, story: a round chip with a round marker.
 const ROUND = "inline-flex items-center gap-1.5 rounded-full border border-[var(--t-rule)] bg-[var(--t-panel)] px-2 py-0.5 t-proseXS text-[var(--t-ink)] before:content-[''] before:size-2 before:flex-none before:rounded-full"
@@ -136,12 +136,17 @@ qaPillStyles.push(
   { name: 'qa_data_mock',    wrapper: `${ROUND} before:border-[1.5px] before:border-[var(--t-pencil)]` },
   // a quiet tag (a ticket's category)
   { name: 'qa_tag', wrapper: 'inline-flex items-center rounded-md border border-[var(--t-rule)] bg-[var(--t-well)] px-2 py-0.5 t-proseXS text-[var(--t-graphite)]' },
+  // a free-text value where pills would sit (an assignee in Recent activity): plain text, cut to its box
+  // (a pill's height: its padding plus border, so rows of pills and plain values line up)
+  { name: 'qa_plain', wrapper: 'inline-block max-w-full truncate py-[3px] t-proseXS text-[var(--t-ink)]' },
   // marks a placeholder for a feature not built yet
   { name: 'qa_planned', wrapper: 'inline-flex items-center rounded-full border border-dashed border-[var(--t-rule-strong)] px-2 t-metaXS text-[var(--t-pencil)]' },
 )
 
 // ── text styles: keys added to textSettings, so a QA Card's valueFontStyle / headerFontStyle can
-// name them. Built from the shared type scale (.t-*) and colours (--t-*). ──
+// name them. Built from the shared type scale (.t-*) and colours (--t-*). Every .t-* class sets its
+// own font-weight and is unlayered, so a weight utility beside one needs `!` (`!font-medium`) or it
+// never applies; the same holds for case and tracking (qaMono). ──
 export const qaTextStyles = {
   // page and card titles: the library's h4 / h5 (the shared display sizes) as QA's own keys, so a
   // site restyles QA's titles without changing its site-wide h4 / h5
@@ -150,7 +155,10 @@ export const qaTextStyles = {
   qaCrumb: 't-metaMD text-[var(--t-pencil)]',
   qaEyebrow: 't-metaXS text-[var(--t-pencil)]',
   qaBody: 't-proseSM text-[var(--t-graphite)]',
-  qaBodyStrong: 't-proseSM font-medium text-[var(--t-ink)]',
+  qaBodyStrong: 't-proseSM !font-medium text-[var(--t-ink)]',
+  // bold body text: what a row is about (Recent activity's ticket number and title). The .t-* type
+  // classes set their own weight and are unlayered, so the weight needs `!` (as qaMono's overrides)
+  qaBodyBold: 't-proseSM !font-semibold text-[var(--t-ink)]',
   qaSmall: 't-proseXS text-[var(--t-graphite)]',
   qaSmallMuted: 't-proseXS text-[var(--t-pencil)]',
   qaFigure: 't-displayLG tabular-nums text-[var(--t-ink)]',
@@ -158,16 +166,16 @@ export const qaTextStyles = {
   // overrides need `!`
   qaMono: 't-metaSM !normal-case !tracking-normal tabular-nums text-[var(--t-pencil)]',
   // an outlined action link ("add ticket")
-  qaButton: 'inline-flex items-center gap-1.5 t-proseSM font-medium border border-[var(--t-rule-strong)] bg-[var(--t-panel)] text-[var(--t-ink)] rounded-md px-3 py-1.5 hover:border-[var(--t-ink)]',
+  qaButton: 'inline-flex items-center gap-1.5 t-proseSM !font-medium border border-[var(--t-rule-strong)] bg-[var(--t-panel)] text-[var(--t-ink)] rounded-md px-3 py-1.5 hover:border-[var(--t-ink)]',
   // the page's main action ("add ticket"), filled with the accent
-  qaButtonPrimary: 'inline-flex items-center gap-1.5 t-proseSM font-medium bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] rounded-md px-3.5 py-1.5 hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
+  qaButtonPrimary: 'inline-flex items-center gap-1.5 t-proseSM !font-medium bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] rounded-md px-3.5 py-1.5 hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
   // a smaller outlined action ("open page", "all tickets")
   qaButtonSM: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule-strong)] rounded-md px-2.5 py-1 hover:border-[var(--t-ink)] hover:text-[var(--t-ink)]',
   // reading text (a ticket's description) and a field label in a rail
   qaProse: 't-prose text-[var(--t-ink)]',
   qaLabel: 't-proseXS text-[var(--t-graphite)]',
   // an in-text link
-  qaLink: 't-proseSM font-medium text-[var(--t-cobalt)] hover:underline',
+  qaLink: 't-proseSM !font-medium text-[var(--t-cobalt)] hover:underline',
   // one option of a segmented control (All / Open / Closed); the active one is the card's cellActive
   qaSegment: 'inline-flex items-center h-7 px-2.5 t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] whitespace-nowrap',
 }
@@ -231,10 +239,13 @@ export const qaCardStyles = [
   {
     name: 'qa_form', ...QA_CARD, editField: FORM_FIELD, headerValueWrapper: 'w-full flex gap-1.5',
     formAddNewItemWrapper: 'col-span-full w-fit justify-self-end self-end pt-2',
-    formAddButton: 'inline-flex items-center gap-1.5 t-proseSM font-medium bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] rounded-md px-3.5 py-1.5 hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
+    formAddButton: 'inline-flex items-center gap-1.5 t-proseSM !font-medium bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] rounded-md px-3.5 py-1.5 hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
   },
   // a placeholder for a feature not built yet: dashed frame (display.cardBorder on)
   { name: 'qa_planned', ...QA_CARD, cardBorder: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg' },
+  // a list of records as rows (the Overview's Recent activity): a rule under each row, the well on
+  // hover (display.cardBorder on)
+  { name: 'qa_feed', ...QA_CARD, subWrapper: 'w-full transition-colors hover:bg-[var(--t-well)]', cardBorder: 'border-b border-b-[var(--t-rule)]' },
 ]
 
 // ── table: a list, not a grid. Rules between rows only, the well as the header strip. Built on the
@@ -254,7 +265,7 @@ export const qaTableStyles = [
     paginationContainer: 'w-full px-3 py-2 flex items-center justify-between border-t border-[var(--t-rule)]',
     paginationPagesInfo: 't-proseXS text-[var(--t-graphite)]',
     paginationRowsInfo: 't-proseXS text-[var(--t-pencil)]',
-    emptyRow: 'px-3 py-12 text-center t-proseSM font-medium text-[var(--t-ink)] border-b border-[var(--t-rule)]',
+    emptyRow: 'px-3 py-12 text-center t-proseSM !font-medium text-[var(--t-ink)] border-b border-[var(--t-rule)]',
   },
 ]
 
@@ -267,7 +278,7 @@ export const qaGraphStyles = [
     textColor: 'text-[var(--t-pencil)]',
     padding: 'px-5 pt-4 pb-3',
     headerWrapper: 'w-full flex items-baseline justify-between gap-2',
-    title: 't-proseSM font-medium text-[var(--t-ink)]',
+    title: 't-proseSM !font-medium text-[var(--t-ink)]',
     subtitle: 't-metaXS text-[var(--t-pencil)]',
   },
 ]

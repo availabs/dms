@@ -1,7 +1,6 @@
 import { PAGE_STAGES } from '../ticketRecord'
-import { QA_DATASETS } from '../datasets'
 import {
-  T, SEV_PILL, PRIO_PILL, STATUS_PILL, CATEGORY_PILL, TNUM, tnum, PAGE_DISP, siteCase, sqlText, CLOSED_STATUSES,
+  T, SEV_PILL, PRIO_PILL, STATUS_PILL, CATEGORY_PILL, TNUM, tnum, PAGE_DISP, siteCase, sqlText, CLOSED_STATUSES, ticketFieldLabel,
   ticketsSource, historySource, pagesByKey, dataWrapper, col, pcol, calc, staticCell, PANEL, PANEL_TOP, PANEL_BOTTOM,
   group, section, pageVariable,
 } from './helpers'
@@ -195,9 +194,7 @@ export function ticketPage(ctx) {
     const dwHistory = dataWrapper(historySource(ctx))
     const byRow = [{ col: 'row_id', op: 'filter', value: [], usePageFilters: true, searchParamKey: 'id', requireResolved: true }]
     const refresh = { _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'ticket_v' }] } }
-    // a field's name as the tickets dataset labels it; another dataset's field shows as stored
-    const FIELD = `(case data->>'field' ${QA_DATASETS.find((d) => d.key === 'tickets').attributes
-      .map((a) => `when '${a.name}' then '${sqlText(a.display_name)}'`).join(' ')} else (data->>'field') end)`
+    const FIELD = ticketFieldLabel()
     const shown = (name) => `(case when (data->>'${name}') is null or (data->>'${name}') = '' then '—' else (data->>'${name}') end)`
     // as stored (UTC), like the rail's dates: comma-free substrings, the SELECT list is comma-split.
     // The list's widths add up to 620 px, inside the 2/3 panel (646 px at a 1440 px window).

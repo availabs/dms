@@ -1,5 +1,6 @@
 /**
- * Change history: a dataset can ask for every edit to its rows to be recorded in another dataset.
+ * Change history: any internal dataset can ask for every create and edit of its rows to be recorded
+ * in another dataset.
  * The setting lives on the tracked dataset's source row:
  *
  *   change_history: {
@@ -9,9 +10,11 @@
  *     enabled: false,                   // optional: switched off, target and columns kept
  *   }
  *
- * setDataById (dms.controller.js) writes one history row per changed tracked column, inside the
- * edit's transaction:
- *   { row_id, source_id, field, old_value, new_value, user_id, user_email, at, via }
+ * setDataById and createData (dms.controller.js) write one history row per changed tracked column,
+ * inside the write's transaction, when the caller passes `{ changeHistory: true }`. Only the Falcor
+ * dms.data.edit / dms.data.create routes do; other server-side callers write none. `op` is 'create'
+ * for a create's rows (old value '') and 'edit' otherwise.
+ *   { row_id, source_id, field, old_value, new_value, user_id, user_email, at, via, op }
  *
  * This module is the pure part: reading the setting and the source's columns, deciding which
  * columns are tracked and which merge, and turning values into the stored text. The SQL is in the
