@@ -242,8 +242,8 @@ export async function resolvePattern(falcor, config, nameOrId) {
 }
 
 /**
- * Pick a pattern by `pattern_type` filter (e.g. `'page'`, `'datasets'`,
- * `'forms'`). Used by commands that want to default to "the page
+ * Pick a pattern by `pattern_type` filter (e.g. `'page'`, `'datasets'`).
+ * Used by commands that want to default to "the page
  * pattern" / "the datasets pattern" when the user didn't pass --pattern.
  */
 export async function findPatternByKind(falcor, config, kinds) {

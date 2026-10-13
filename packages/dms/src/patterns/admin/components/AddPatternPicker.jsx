@@ -3,36 +3,31 @@ import { ThemeContext } from '../../../ui/useTheme'
 import { nameToSlug } from '../../../utils/type-utils'
 import { patternPickerTheme } from './AddPatternPicker.theme'
 import { QA_PATTERN_ENABLED } from '../../qa/install'
+import { listPatternTypes } from '../../registry'
 
-const NON_PAGE_OPTIONS = [
-  { kind: 'datasets', label: 'Datasets', desc: 'Connect and manage data sources' },
-  { kind: 'forms',    label: 'Forms',    desc: 'Collect user-submitted data' },
-  ...(QA_PATTERN_ENABLED
-    ? [{ kind: 'qa', label: 'Ticketing / QA', desc: 'Issue reports, tickets and page QA' }]
-    : []),
-]
-const AUTH_OPTION = { kind: 'auth', label: 'Auth', desc: 'Authentication and access control' }
-// Same type→color mapping as the Sites table's pattern_type pill
-// (editSite.jsx's TYPE_PILL_KEY) — kept as its own copy here since it colors
-// a different theme's tag classes, not editSiteTheme's.
-const TAG_CLASS_KEY = {
-  page: 'tagPage',
-  datasets: 'tagDatasets',
-  auth: 'tagAuth',
-  forms: 'tagForms',
-  qa: 'tagQa',
+// One card per addable registered pattern type (patterns/registry.js) except
+// `page`, whose cards are the page templates below. `auth` goes last, and only
+// while the site has none.
+function patternTypeCards(authExists) {
+  const card = d => ({ kind: d.name, label: d.label || d.name, desc: d.description || '', defaultName: d.admin?.defaultName })
+  const addable = listPatternTypes().filter(d => d.admin?.addable && d.name !== 'page')
+  const cards = addable
+    .filter(d => d.name !== 'auth' && (QA_PATTERN_ENABLED || d.name !== 'qa'))
+    .map(card)
+  const auth = addable.find(d => d.name === 'auth')
+  return authExists || !auth ? cards : [...cards, card(auth)]
 }
 
+// Same type→color naming as the Sites table's pattern_type pill (editSite.jsx):
+// `tag<Type>`, falling back to `tagDefault` for a type the theme doesn't name.
+const tagClassKey = kind => `tag${kind.charAt(0).toUpperCase()}${kind.slice(1)}`
+
 function getDefaultName(card, pageTemplates) {
-  if (card.kind === 'datasets') return 'Data'
-  if (card.kind === 'forms')    return 'Forms'
-  if (card.kind === 'auth')     return 'Auth'
-  if (card.kind === 'qa')       return 'QA'
   if (card.kind === 'page') {
     if (card.templateId === 'blank') return 'Pages'
     return pageTemplates.find(pt => pt.id === card.templateId)?.name ?? 'Pages'
   }
-  return card.label ?? ''
+  return card.defaultName ?? card.label ?? ''
 }
 
 export function AddPatternPicker({ authExists, onAdd }) {
@@ -45,9 +40,7 @@ export function AddPatternPicker({ authExists, onAdd }) {
   const [baseUrl, setBaseUrl] = useState('')
   const [urlEdited, setUrlEdited] = useState(false)
 
-  const nonPageOptions = authExists
-    ? NON_PAGE_OPTIONS
-    : [...NON_PAGE_OPTIONS, AUTH_OPTION]
+  const nonPageOptions = patternTypeCards(authExists)
 
   function select(card) {
     const defaultName = getDefaultName(card, pageTemplates)
@@ -104,7 +97,7 @@ export function AddPatternPicker({ authExists, onAdd }) {
             onClick={() => select(opt)}
           >
             <div className={t.optName}>{opt.label}</div>
-            <span className={`${t.optTag} ${t[TAG_CLASS_KEY[opt.kind]] || ''}`}>{opt.kind}</span>
+            <span className={`${t.optTag} ${t[tagClassKey(opt.kind)] || t.tagDefault || ''}`}>{opt.kind}</span>
             <div className={t.optDesc}>{opt.desc}</div>
           </div>
         ))}

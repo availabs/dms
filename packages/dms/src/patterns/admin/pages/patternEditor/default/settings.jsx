@@ -13,6 +13,7 @@ import { QA_DATASETS, qaDatasetSlug } from "../../../../qa/datasets";
 import { qaConfigureTheme } from "../qa/configureTab.theme";
 import { getSourceIdsBySlug } from "../../../../../api/sourceIdBySlug";
 import { patternActions } from '../../../../../utils/adminPermissions'
+import { getPatternType } from '../../../../registry'
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
@@ -142,7 +143,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   const [isDuplicating, setIsDuplicating] = useState(false);
   const [duplicateProgress, setDuplicateProgress] = useState(0);
 
-  const showDmsEnvConfig = ['datasets', 'forms', 'page', 'mapeditor'].includes(value.pattern_type);
+  const showDmsEnvConfig = Boolean(getPatternType(value.pattern_type)?.admin?.usesDmsEnv);
   const isDirty = !isEqual(tmpValue, value);
   // The site's admin pattern row: it can't be duplicated or deleted, isn't
   // mounted anywhere but its own base URL, and moving that URL moves the admin

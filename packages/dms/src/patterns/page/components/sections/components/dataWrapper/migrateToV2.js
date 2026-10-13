@@ -8,7 +8,8 @@
  * - v0: Very old format with `attributes`, `visibleAttributes`, `format` (pre-2024)
  * - v1: Current legacy format with `sourceInfo`, `columns`, `dataRequest`, `data`
  * - v2: Already canonical (has `externalSource`) — returned as-is
- * - Non-data components: Rich Text, Filter, Map — returned as-is
+ * - Non-data components: Rich Text, Filter — returned as-is (a component whose
+ *   registry entry sets `managesOwnState`, e.g. Map, never reaches here)
  *
  * Output is always v2 for data components:
  * {
@@ -209,7 +210,6 @@ export function migrateToV2(input, defaultState, compName, compType) {
     if (compName === 'Rich Text' || compName === 'Filter') {
         return Object.keys(state).length ? state : defaultState;
     }
-    if (state?.symbologies) return state; // map component
 
     let migrated;
     if (state.externalSource) {

@@ -1,6 +1,6 @@
 # Pattern Creation Refresh Bug
 
-**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "Root Cause Analysis (partial — not yet confirmed)") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** next (was: "Root Cause Analysis (partial — not yet confirmed)") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -74,3 +74,5 @@ Fix the bug where creating a new pattern in the admin pattern list shows a new r
 - Create a new pattern in the admin and verify it appears with correct data immediately (no refresh needed)
 - Verify existing pattern CRUD still works (edit, duplicate, delete)
 - Test with sync enabled and disabled (`VITE_DMS_SYNC=1` vs removed)
+
+> **Re-linked 2026-10-13** from `dms_dormant_tracks` (closed at the initiative review) to `dms_page_editor_admin`.

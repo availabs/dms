@@ -218,7 +218,7 @@ Settings tab so authors can see which URL params the page owns.
 **Idempotency (avoid write↔read loops).** When you both read and write a variable, a write round-trips
 (write → navigate → `pageState` updates → your read effect re-runs). Guard writes so you never re-emit what
 the page already holds, and never write un-reconciled state on mount — see the map's WRITE effect
-(`ComponentRegistry/map/index.jsx`) for the pattern (prime-on-first-run + page-idempotency guard + defer
+(dms-template `src/patterns/mapeditor/section/index.jsx`) for the pattern (prime-on-first-run + page-idempotency guard + defer
 until the first read reconciles).
 
 **Worked example — the map.** Consumes `geoid`/dynamic filters and its interactive-filter variant via
@@ -254,9 +254,9 @@ Before merging a new section component:
 - `packages/dms/CLAUDE.md` — Vite Fast Refresh rules, file conventions, theming guidance.
 - `patterns/page/components/sections/components/ComponentRegistry/Card.config.jsx` — most feature-complete reference component.
 - `patterns/page/components/sections/components/ComponentRegistry/header.config.js` — minimal reference component.
-- `patterns/page/components/sections/components/ComponentRegistry/index.jsx` — the registry itself.
+- `patterns/page/components/sections/components/ComponentRegistry/index.jsx` — the built-in registry. A pattern type can ship its own section types too: its registration's `pageComponents` go to `registerComponents` (see [`registering-a-pattern-type.md`](./registering-a-pattern-type.md)).
 - `patterns/page/defaultTheme.js` — where pattern-tied themes get registered.
 - `ui/useTheme.js` — `getComponentTheme`, `mergeTheme`, the context surface.
 - [`creating-interactive-pages.md`](./creating-interactive-pages.md) — the page/author side of page variables (registering, Filter controls, cascading, gotchas).
-- `patterns/page/components/sections/components/ComponentRegistry/map/index.jsx` — worked example of consuming + producing page variables (and the `useSearchParams`→`updatePageStateFilters` migration that fixed the reload loop).
-- `patterns/page/pages/_utils/index.js` — `getPageVariableRegistry` / `deriveMapShareVariables` (auto-registering a component's page variables).
+- dms-template `src/patterns/mapeditor/section/index.jsx` — worked example of consuming + producing page variables (and the `useSearchParams`→`updatePageStateFilters` migration that fixed the reload loop).
+- `patterns/page/pages/_utils/index.js` — `getPageVariableRegistry` / `deriveSectionPageVariables`: a registry entry's `derivePageVariables(elementData)` hook auto-registers the page variables a section owns (the map's is dms-template `src/patterns/mapeditor/section/map.pageVariables.js`).

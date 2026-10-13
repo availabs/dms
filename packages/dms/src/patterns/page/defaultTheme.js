@@ -14,7 +14,6 @@ import { editPanesTheme } from './pages/edit/editPane/editPanes.theme'
 import { columnManagerTheme } from './components/sections/ColumnManager.theme'
 import { sectionMenuTheme } from './components/sections/sectionMenu.theme'
 import { errorPageTheme } from './pages/errorPage.theme'
-import { damaMapTheme } from './components/sections/components/ComponentRegistry/map/map.theme'
 
 export default {
     sectionGroup: sectionGroupTheme,
@@ -29,7 +28,6 @@ export default {
     timePicker: timePickerTheme,
     pageTemplatePicker: pageTemplatePickerTheme,
     linkPageNotice: linkPageNoticeTheme,
-    damaMap: damaMapTheme,
     editPane: editPaneTheme,
     editPanes: editPanesTheme,
     columnManager: columnManagerTheme,

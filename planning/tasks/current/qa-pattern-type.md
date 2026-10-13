@@ -1,6 +1,6 @@
 # `qa` pattern type: ticketing / delivery QA as a library feature
 
-**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 The one task doc for the QA pattern: what's built, what's open, and the rules the work follows. Any site adds
 ticketing and delivery QA from Add Pattern. MitigateNY is the first real install, and TransportNY's control room is
@@ -12,15 +12,15 @@ ported later.
 - **Research** (2026-09-28/29; shaped the design, may be stale): dms-template
   [`research/qa-ticketing-system/`](../../../../../research/qa-ticketing-system/README.md).
 - **MitigateNY contract tasks** (owned by other people; this work feeds them):
-  [`mny-sow-ticket-system.md`](../../../../../planning/mitigateny/tasks/current/mny-sow-ticket-system.md),
+  [`mny-sow-ticket-system.md`](../../../../../planning/mitigateny/tasks/completed/mny-sow-ticket-system.md),
   [`sow-support-ticket-system-and-office-hours.md`](../../../../../planning/mitigateny/tasks/current/sow-support-ticket-system-and-office-hours.md).
 - **Coworker how-to** for placing Report an issue on more MNY sites:
   [`report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md).
 
-## ▶ Start here (2026-10-09)
+## ▶ Start here (2026-10-13)
 
-- **All QA code is committed and pushed**, change history included: library through `7764dd5c` (change history)
-  and `689d635a`.
+- **All QA code is committed and pushed**, change history and the Recent activity feed included: library through
+  `9377c626` (activity feed + history on create).
 - **Nothing deployed for about a week (owner, 2026-10-09).** No QA work is on a deployed host. MitigateNY's rollout
   (Open work §1) waits on a dms-server deploy (intake stub + change-history writer) and a client deploy. Then the
   owner runs "finish set-up" and switches the MNY install's theme. The history writer is opt-in per dataset, so the
@@ -33,8 +33,8 @@ ported later.
   - Open: whether to keep Datasets pattern 194 on `qa_test`, added to reach the Admin tab.
   - Logged, not started: [`change-history-growth.md`](./change-history-growth.md) (history tables have no
     retention and no JSON indexes).
-- **Built (2026-10-09), uncommitted: the Overview's Recent activity feed** and history on create, Open work §4.
-  Test ticket row 210 is still on `qa_test` for review.
+- **Built and committed (2026-10-09, `9377c626`): the Overview's Recent activity feed** and history on create,
+  Open work §4. Test ticket row 210 is still on `qa_test` for review.
 - **What's next:** the owner picks from Open work. If MitigateNY's December v1.0 (D5.2) sets the order, the
   critical path is §5: the change-history writer plus MNY's missing fields and statuses. The response-time proof,
   the DHSES dashboard and the quarterly numbers all read from those.
@@ -288,7 +288,7 @@ ported later.
       abort while unloading, so it needs a keepalive request in the api layer;
     - stamp dates in the editor's bulk branch.
   - **Growth:** logged separately, [`change-history-growth.md`](./change-history-growth.md) (owner, 2026-10-09).
-- [x] **Overview: Recent activity feed (owner, 2026-10-09). Built, live-checked on `qa_test`, uncommitted.**
+- [x] **Overview: Recent activity feed (owner, 2026-10-09). Built, live-checked on `qa_test`, committed `9377c626`.**
   Replaced the "planned" placeholder. Reads the change history. Works on any theme; MNY's look is the
   deliverable (owner, live: "looks pretty good").
   - **What it shows** (`pages/overview.js`, `activitySections`): every change to a ticket's tracked fields
@@ -323,7 +323,7 @@ ported later.
     one row per tracked field with a value, from empty (`old_value = ''`). The feed reads status-from-empty as Filed.
     Tickets filed before the server deploy have no Filed row.
   - **Steps:**
-    - [x] 1. Server: history on create (2026-10-09, uncommitted):
+    - [x] 1. Server: history on create (2026-10-09, `9377c626`):
       - `createData` runs `writeChangeHistory` with `created: true` in its transaction: one row per tracked
         column with a value, from `''`; no burst lookup for a new row. The creator's typing within 30 s
         merges into the create's row, as any burst does.
@@ -348,7 +348,7 @@ ported later.
       - the Site chip offers only AlphaPage;
       - #102's older changes no longer show: it's a BetaPage ticket, and 126 now covers only AlphaPage.
       - Screenshots: `scratchpad/qa_test/probes/activity_feed_crop_v2.png`, `activity_site_chip.png`.
-    - [x] 4. All tracked fields, ticket first, bold (2026-10-09, uncommitted):
+    - [x] 4. All tracked fields, ticket first, bold (2026-10-09, `9377c626`):
       - server: history rows carry `op` ('create' | 'edit'); `CHANGE_HISTORY_COLUMNS` declares it ("Action");
         `test-change-history.js` 22/22 (+ op on creates, edits and a first assignment); full `npm test` exit 0;
       - `status_pill`: `pillColors['*']` styles every value the map doesn't name, ahead of the keyword guesses
@@ -536,3 +536,5 @@ Code comments and other docs cite sections of this doc and of the two merged doc
 | this doc, "Design pass", "Phase 1" … "Phase 5", "Phases 6–7", "The status-change writes" | part 1 |
 | `qa-design-implementation.md` (incl. "Rules carried in", step 4) | part 2 |
 | `qa-mny-look-and-collapsible-sites.md` | part 3 |
+
+> **2026-10-13** (qa_pattern_type_secondary): initiatives set to dms_qa_ticketing, mny_sow_deliverables.

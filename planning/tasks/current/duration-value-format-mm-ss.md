@@ -1,6 +1,6 @@
 # Duration value format (M:SS) for travel-time axes and tooltips
 
-**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Status:** NOT STARTED — scoped 2026-07-27, to be done as part of the report-spec work
 (`dms-template/planning/transportny/tasks/completed/report-spec-and-build-script.md`), since the vocabulary is
@@ -84,3 +84,5 @@ looks like a duration" from data is the kind of implicit behavior that surprises
 - [ ] Tooltip and axis agree on the same graph
 - [ ] A travel-time graph built from a spec gets it by default; a speed graph does not
 - [ ] GridGraph legend unchanged (`formatMinutesAuto` path untouched)
+
+> **Re-linked 2026-10-13** from `tny_npmrds_reports_1_0` (closed at the initiative review) to `dms_author_primitives`.

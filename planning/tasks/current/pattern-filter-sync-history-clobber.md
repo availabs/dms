@@ -1,9 +1,9 @@
 # pattern-filter-sync replaces a page's `{id, ref}` history link with an inline array
 
-**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_template_r2](../../../../../planning/initiatives/mny_county_template_r2.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Topic:** dms-server · **Found:** 2026-10-06 · **Split from:**
-[`county-template-update-migration.md`](../../../../../planning/mitigateny/tasks/current/county-template-update-migration.md)
+[`county-template-update-migration.md`](../../../../../planning/mitigateny/tasks/completed/county-template-update-migration.md)
 (MitigateNY), which works around this until it's fixed.
 
 ## Objective
@@ -104,3 +104,5 @@ county, snapshot every page's `history` value. Afterwards, for each page whose v
 - [ ] Page with no history → link + row with one entry
 - [ ] The admin Activity tab and the page history pane show the sync entry
 - [ ] A UI edit after a sync appends to the same row (no new row)
+
+> **Re-linked 2026-10-13** from `mny_county_sites` (closed at the initiative review) to `mny_county_template_r2`.

@@ -1,6 +1,6 @@
 # Map hover popup font tokens are silently inert under Tailwind v4
 
-**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** next (was: "DIAGNOSED + measured, NOT FIXED. A workaround exists in one consumer (transportnyv2); the core fix ……") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** next (was: "DIAGNOSED + measured, NOT FIXED. A workaround exists in one consumer (transportnyv2); the core fix ……") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Status: DIAGNOSED + measured, NOT FIXED.** A workaround exists in one consumer
 (`transportnyv2`); the core fix is a behaviour change for every existing consumer and needs a BC
@@ -127,3 +127,5 @@ the whole argument for fixing core.
       rendering at the theme's `hover.label` size all along.
 - [ ] Both the page-map and mapeditor popups checked.
 - [ ] Card cells unaffected (they never went through this helper).
+
+> **Re-linked 2026-10-13** from `dms_map_stack` (closed at the initiative review) to `dms_tessera_default_theme`.

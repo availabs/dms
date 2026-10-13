@@ -1,5 +1,4 @@
 import React from "react";
-import { get } from "lodash-es";
 import { useRouteError } from "react-router";
 import { parseIfJSON } from "./pages/_utils";
 import { initializePatternFormat } from "../../dms-manager/_utils";
@@ -34,7 +33,6 @@ import DefaultMenu from "./components/userMenu";
 // pages
 import PageView from "./pages/view";
 import ErrorPage from "./pages/error";
-import { RegisterPlugin } from "../mapeditor/MapEditor/pluginRegistry"
 import { lazyComponent } from "../../utils/lazyComponent";
 
 // Code-split: the page editor only loads for an edit route. See
@@ -55,9 +53,9 @@ const pagesConfig = ({
   pattern,
   siteRootPaths = [],
   datasources,
+  sitePatterns = [],
   dmsEnvs = [],
   dmsEnvById = {},
-  damaMapPlugins = {},
   site,
   pgEnv,
   API_HOST,
@@ -117,15 +115,6 @@ const pagesConfig = ({
       registerSectionHeaderExtensions(componentName, builders))
   }
 
-  // Auto-register theme-provided map plugins — pluggable map/symbology tools
-  // (e.g. a domain-specific route-creation or annotation plugin) activated on
-  // a report-page Map section via the shared PluginLibrary. Keyed by plugin
-  // id, matching each plugin object's own `id` field.
-  // See patterns/mapeditor/MapEditor/index.jsx (PluginLibrary/RegisterPlugin).
-  if (theme.mapPlugins) {
-    Object.entries(theme.mapPlugins).forEach(([name, plugin]) => RegisterPlugin(name, plugin))
-  }
-
   baseUrl = baseUrl === "/" ? "" : baseUrl;
   const format = initializePatternFormat(cmsFormat, app, type);
   if(pattern?.additionalSectionAttributes?.length){
@@ -137,16 +126,6 @@ const pagesConfig = ({
   }
 
 // console.log("Page::siteConfig", datasources, rest);
-
-  const mapeditorKeys = datasources.reduce((a, c) => {
-    const pattern_type = get(c, ["pattern", "pattern_type"]);
-    if (pattern_type === "mapeditor") {
-      a.push(c.env);
-    }
-    return a;
-  }, []);
-
-  Object.keys(damaMapPlugins).forEach(plugin => RegisterPlugin(plugin, damaMapPlugins[plugin]));
 
   const patternFilters = parseIfJSON(pattern?.filters, []);
   // What Publish needs to add a page to the QA installs that cover this pattern: the installs,
@@ -193,13 +172,13 @@ const pagesConfig = ({
               baseUrl,
               pgEnv,
               datasources,
+              sitePatterns,
               apiLoad,
               user,
               falcor,
               patternFilters: [...patternFilters, {id: 'user_id_default_filter', searchKey: 'user_id', values: user?.id}],
               authPermissions,
               authBaseUrl,
-              mapeditorKeys,
               hasEditor,
               qaTracking,
               isUserAuthed: (reqPermissions, customAuthPermissions) => {

@@ -44,7 +44,6 @@ export function DmsSite (config) {
         PROJECT_NAME,
         routes = EMPTY_ROUTES,
         damaDataTypes = {},
-        damaMapPlugins = {},
         isMultiTenant = false,
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
@@ -57,7 +56,7 @@ export function DmsSite (config) {
     const routeProps = {
         dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
         authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
-        damaDataTypes, damaMapPlugins, host, isMultiTenant
+        damaDataTypes, host, isMultiTenant
     }
     // In multi-tenant+subdomain mode the master-app cache belongs to a different
     // site; skip it to avoid briefly rendering the platform admin routes.

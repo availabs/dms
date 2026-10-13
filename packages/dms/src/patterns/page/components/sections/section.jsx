@@ -223,7 +223,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
 
     // ── Menu: read from dataWrapper handle (state-based, triggers re-renders) ──
     const dwAPI = dwHandle?.dwAPI;
-    const mapAPI = dwHandle?.mapAPI;
+    const settingsAPI = dwHandle?.settingsAPI;
     const dataSourceFromRef = dwHandle?.dataSource || {};
     const stateFromRef = dwHandle?.state;
 
@@ -245,7 +245,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme, groupCollapsible: group?.collapsible },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
-        mapAPI,
+        settingsAPI,
         pageDataSources: { dataSources, dataSourceId, switchDataSource },
         siblingSections,
         pageState,
@@ -263,7 +263,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
         .flatMap(build => {
             try {
                 return build({
-                    state: stateFromRef, dwAPI: dwAPI || {}, mapAPI, isEdit, canEditSection,
+                    state: stateFromRef, dwAPI: dwAPI || {}, settingsAPI, isEdit, canEditSection,
                     currentComponent: component, siblingSections,
                     sectionState: { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: stateFromRef, setSectionState },
                     actions: { moveItem, updateAttribute, updateAttributes, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState: dwHandle?.setState, setShowDeleteModal, setListAllColumns },
@@ -508,7 +508,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
 
     // ── Menu from handle ──
     const dwAPI = dwHandle?.dwAPI;
-    const mapAPI = dwHandle?.mapAPI;
+    const settingsAPI = dwHandle?.settingsAPI;
     const dataSourceFromRef = dwHandle?.dataSource || {};
     const stateFromRef = dwHandle?.state;
 
@@ -520,7 +520,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         ui:  { Switch, Pill, Icon, TitleEditComp, LevelComp, refreshDataBtnRef, isRefreshingData, setIsRefreshingData, theme: fullTheme, RegisteredComponents, sectionArrayStyle: group?.theme, groupCollapsible: group?.collapsible },
         dataSource: dataSourceFromRef,
         dwAPI: dwAPI || {},
-        mapAPI,
+        settingsAPI,
         siblingSections,
         pageState,
     })
@@ -536,7 +536,7 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
         .flatMap(build => {
             try {
                 return build({
-                    state: stateFromRef, dwAPI: dwAPI || {}, mapAPI, isEdit, canEditSection,
+                    state: stateFromRef, dwAPI: dwAPI || {}, settingsAPI, isEdit, canEditSection,
                     currentComponent: component, siblingSections,
                     sectionState: { isEdit, value, attributes, i, showDeleteModal, state: stateFromRef },
                     actions: { onEdit, moveItem, updateAttribute, updateAttributes, updateElementType, onChange, setState: dwHandle?.setState, setShowDeleteModal },

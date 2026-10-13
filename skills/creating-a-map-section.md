@@ -183,7 +183,7 @@ If your plugin pins panels to the map's edges, declare it on the plugin object:
 export const MyPlugin = { id: "my_plugin", type: "plugin", fullWidthOverlay: true, … };
 ```
 
-`ComponentRegistry/map/index.jsx` reads that off `PluginLibrary` and passes AvlMap
+dms-template `src/patterns/mapeditor/section/index.jsx` reads that off `PluginLibrary` and passes AvlMap
 `floatMapActions` (opt-in, **default off** — no flag means today's layout, and no section/page edit
 is needed to get it). The column then takes zero width and its controls float in the same corner.
 
@@ -237,7 +237,7 @@ Worked example: `src/themes/transportny/components/macroview/worstPoints.js` + t
 
 A plugin with viewer controls (measure, year, chips, toggles) usually wants those in the URL so a
 view can be shared and deep-linked. **The plugin must not touch `useSearchParams`.** The comment
-next to the map's own share-state (`ComponentRegistry/map/index.jsx` ~490-545) states the measured
+next to the map's own share-state (dms-template `src/patterns/mapeditor/section/index.jsx`) states the measured
 reason: *"writing the URL from the map fights the page's URL ownership and, under React Compiler,
 ping-pongs into a reload loop."* The page owns the URL; the plugin READS `pageState.filters` and
 WRITES through `updatePageStateFilters` — both off `PageContext`, which a plugin `comp` can consume

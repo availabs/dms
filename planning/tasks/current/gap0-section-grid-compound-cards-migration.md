@@ -1,6 +1,6 @@
 # Migrate to a gap-0 section grid + per-section spacing/border/radius (B1-refined) — transportNY theme, design-system docs, mockups, and skills
 
-**Initiatives:** [tny_npmrds_product_redesign](../../../../../planning/initiatives/tny_npmrds_product_redesign.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "core SHIPPED & verified (2026-06-01); docs/mockup/skills in progress.") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "core SHIPPED & verified (2026-06-01); docs/mockup/skills in progress.") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Topic:** patterns/page (`sectionArray`) + themes (transportny) + design-system docs + skills.
 **Status:** core SHIPPED & verified (2026-06-01); docs/mockup/skills in progress.
@@ -216,3 +216,5 @@ grouping/identity + editor affordances). Track separately once B1-refined ships.
 - [ ] §01 KPI strip still renders as separate, evenly-spaced cards — verified live.
 - [ ] grid.html / layouts.html / map-21 mockup updated to the new model.
 - [ ] Four skills updated; component-internal gaps explicitly out of scope.
+
+> **Re-linked 2026-10-13** from `tny_npmrds_product_redesign` (closed at the initiative review) to `dms_author_primitives`.

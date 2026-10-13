@@ -1,5 +1,5 @@
 export const view = {
-  app: "forms",
+  app: "datasets",
   type: "view",
   attributes: [
     { key: "name",
@@ -11,7 +11,7 @@ export const view = {
 }
 
 export const source = {
-  app: "forms",
+  app: "datasets",
   type: "source",
   registerFormats: [view],
   attributes: [
@@ -60,13 +60,13 @@ export const source = {
       key: 'views',
       type: 'dms-format',
       isArray: true,
-      format: 'forms+view',
+      format: 'datasets+view',
     },
   ]
 }
 
 const datasetsFormat = {
-    app: "forms",
+    app: "datasets",
     type: "form-manager",
     registerFormats: [source],
     attributes: [
@@ -80,7 +80,7 @@ const datasetsFormat = {
             key: 'sources',
             type: 'dms-format',
             isArray: true,
-            format: 'forms+source',
+            format: 'datasets+source',
         },
     ]
 }

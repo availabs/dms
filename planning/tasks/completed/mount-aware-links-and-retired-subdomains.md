@@ -1,5 +1,7 @@
 # Mount-aware site-absolute links + retired-subdomain redirects
 
+**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** done (was: "BUILT & LIVE-VERIFIED 2026-08-27 (uncommitted) · BC") · **Created by:** amuro@albany.edu · **Edited by:** rdubowsky@albany.edu
+
 > **Status: BUILT & LIVE-VERIFIED 2026-08-27** (uncommitted) · **BC** · driven by the TransportNY
 > subdomain→path consolidation
 > ([`planning/transportny/tasks/current/subdomain-to-path-consolidation.md`](../../../../../planning/transportny/tasks/current/subdomain-to-path-consolidation.md)
@@ -210,6 +212,29 @@ Suite: 821 tests pass; `siteSnapshot.test.js` (the one test touching `no-access`
 
 ⚠ This is a **dms-server** change, so it needs the server redeployed — `dmsserver.availabs.org`
 (`deploy.sh`), not just a front-end build. Until then the fix is local-only.
+
+## Follow-up: `updateTitle`'s post-rename redirect dropped the mount prefix (2026-09-02)
+
+A gap in this task's own consumer list: `editFunctions.jsx`'s `updateTitle()` (the mechanism
+behind the Bottom toolbar's Filter icon → Page Name field, and — new this session — a report
+canvas header's own inline title editor, `ReportPageHeader.jsx`) navigates to
+`/edit/${newItem.url_slug}` after a rename, but never routed that through `resolveMountPath` —
+unlike its sibling `newPage()` in the same file, which already did. On a prefixed mount (confirmed
+live on `www.localhost:5173/npmrds`), renaming a page redirected to `www.localhost:5173/edit/...`
+(mount dropped), which doesn't 404 — it falls through to a DIFFERENT pattern's page entirely
+(TransportNY's own root landing page), which is far more confusing than a 404 would have been.
+Reported by Ryan as "very common issue" while live-testing the new report-header title editor.
+
+**Fix:** `updateTitle(item, dataItems, value, user, apiUpdate, mountBaseUrl, siteRootPaths)` gained
+two new optional trailing params (same convention as `newPage`), used to wrap the `newPath` in
+`resolveMountPath`. Both callers updated to pass `MountContext`'s values through:
+`settingsPane.jsx` (added a `MountContext` read) and `ReportPageHeader.jsx` (already read
+`MountContext` for its Edit/Done toggle). Omitting the params preserves the old unprefixed
+behavior, so any other caller of `updateTitle` is unaffected.
+
+Live-verified on `www.localhost:5173/npmrds`: renaming a report via both the header's inline title
+and the Bottom toolbar's Page Name field now redirect to `www.localhost:5173/npmrds/edit/<new
+slug>` — mount preserved, page stays on the correct pattern.
 
 ## Progress log
 

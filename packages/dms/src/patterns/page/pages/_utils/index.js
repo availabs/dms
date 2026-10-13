@@ -5,6 +5,7 @@ import {
     dataItemsNav as dataItemsNavCore,
     getChildNav as getChildNavCore
 } from '../../../../utils/nav'
+import { getRegisteredComponents } from '../../components/sections/componentRegistry'
 export const convertToUrlParams = (obj, delimiter='|||') => {
     const params = new URLSearchParams();
 
@@ -471,62 +472,30 @@ export const mergeFilters = (pageFilters=[], patternFilters=[]) => {
     return [...patternFiltersFormatted, ...pageOnlyFilters]
 }
 
-// ── Auto-registered page variables from a map's "share state" (?layers= / f_<symId>) ──
-// A map section with display.shareableState owns URL params for which symbologies are
-// visible (`layers`, held as ONE comma-joined value so the existing `?layers=a,b` URL
-// shape is preserved — the map splits it) and each symbology's selected interactive-filter
-// index (`f_<symId>`). The map used to write these to the URL itself (useSearchParams),
-// which fought the page's URL ownership and — under React Compiler — looped. We instead
-// AUTO-REGISTER them as page variables so the page owns the URL and the map reads/writes
-// them through pageState like every other component. `values` are managed by the map; the
-// page-variable system just round-trips searchKey ⇄ URL and surfaces them in the Settings tab.
-export const deriveMapShareVariables = (item) => {
-    // Read both published + draft sections so the auto-registered variables surface in
-    // view mode (`sections`) AND the edit-mode Settings tab (`draft_sections`).
+// ── Page variables a section registers itself ──
+// A section component's registry entry may define `derivePageVariables(elementData)` →
+// the page-variable rows that section owns (e.g. a shareable Map's `layers` and its
+// interactive layers' searchParamKeys — map/map.pageVariables.js). Read from both published
+// and draft sections so the auto-registered variables surface in view mode (`sections`) AND
+// the edit-mode Settings tab (`draft_sections`). First one wins on a shared searchKey.
+export const deriveSectionPageVariables = (item) => {
+    const components = getRegisteredComponents();
     const sections = [...(item?.sections || []), ...(item?.draft_sections || [])];
     const vars = [];
     const seen = new Set();
-    let hasShareableMap = false;
     sections.forEach(section => {
         const el = section?.element || section?.data?.element || {};
-        // element-type is registered as "Map" (capital); match case-insensitively.
-        // "Map: Dama Map" is the legacy alias key (see ComponentRegistry/index.jsx +
-        // map/Map.migrate.js) — it resolves to the same Map component/settings and
-        // its stored element-type NEVER changes to "Map" (element-type is only
-        // rewritten if an author explicitly re-picks a Type, and the alias is
-        // hideInSelector so that can't happen). Without this, a migrated section
-        // that turns on `display.shareableState` would silently never get its
-        // `layers`/searchParamKey page variables auto-registered.
-        if (!['map', 'map: dama map'].includes(String(el['element-type'] || '').toLowerCase())) return;
-        const cfg = parseIfJSON(el['element-data'], {});
-        if (!cfg?.display?.shareableState) return;
-        hasShareableMap = true;
-        // UNIFY: an interactive symbology shares its SELECTED variant through the
-        // interactive layer's own `searchParamKey` page variable (the same binding a
-        // county-template map uses to select a variant), NOT a separate `f_<symId>`
-        // URL param. Register each interactive layer's `searchParamKey`. (A shareable
-        // interactive symbology with no `searchParamKey` authored simply isn't shared.)
-        Object.values(cfg.symbologies || {}).forEach(symb => {
-            Object.values(symb?.symbology?.layers || {}).forEach(layer => {
-                const hasInteractive = (layer['interactive-filters'] || []).length;
-                const key = layer.searchParamKey;
-                if (!hasInteractive || !key || seen.has(key)) return;
-                seen.add(key);
-                vars.push({ id: `map_share_${key}`, searchKey: key, values: [],
-                            useSearchParams: true, type: 'map_share', auto: true });
-            });
+        const type = String(el['element-type'] || '');
+        // element-types are matched case-insensitively, as the map share-state lookup always was
+        const derive = (components[type] || Object.entries(components)
+            .find(([k]) => k.toLowerCase() === type.toLowerCase())?.[1])?.derivePageVariables;
+        if (!derive) return;
+        (derive(parseIfJSON(el['element-data'], {})) || []).forEach(v => {
+            if (!v?.searchKey || seen.has(v.searchKey)) return;
+            seen.add(v.searchKey);
+            vars.push(v);
         });
     });
-    if (hasShareableMap) {
-        // `layers` is registered once even if a page has >1 shareable map. Dedup by
-        // searchKey (above + here) prevents duplicate registry entries, but it also
-        // means multiple shareable maps on ONE page would SHARE the `layers` var (and
-        // any colliding `searchParamKey`s) and fight over it. Multi-shareable-map per
-        // page is unsupported for now; namespacing per map (e.g. `layers`/`layers_2`)
-        // is a future enhancement. Single shareable map per page is the intended use.
-        vars.unshift({ id: 'map_share_layers', searchKey: 'layers', values: [],
-                       useSearchParams: true, type: 'map_share', auto: true });
-    }
     return vars;
 };
 
@@ -581,13 +550,13 @@ export const applyDerivedPageVariables = (filters) => {
 };
 
 // The full page-variable registry: authored page.filters (+ pattern filters) plus any
-// component-auto-registered variables (currently map share-state). Deduped by searchKey so
+// section-registered variables (deriveSectionPageVariables). Deduped by searchKey so
 // an author-declared entry always wins over an auto one. Used by BOTH the pageState seed
 // (view.jsx) AND the URL→pageState sync (below) so the two sides agree on what's registered.
 export const getPageVariableRegistry = (item, patternFilters=[]) => {
     const authored = mergeFilters(item?.filters, patternFilters);
     const authoredKeys = new Set(authored.map(f => f.searchKey));
-    const derived = deriveMapShareVariables(item).filter(v => !authoredKeys.has(v.searchKey));
+    const derived = deriveSectionPageVariables(item).filter(v => !authoredKeys.has(v.searchKey));
     return applyDerivedPageVariables([...authored, ...derived]);
 }
 

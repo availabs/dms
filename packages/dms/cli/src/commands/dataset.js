@@ -17,13 +17,13 @@ import { sourceInstance, viewDataTypeFor } from '../utils/types.js';
 import { output, outputError } from '../utils/output.js';
 
 /**
- * Resolve the datasets/forms pattern (defaults to the first one if no flag).
+ * Resolve the datasets pattern (defaults to the first one if no flag).
  */
 async function resolveDatasetPattern(falcor, config, patternFlag) {
   if (patternFlag) {
     return await resolvePattern(falcor, config, patternFlag);
   }
-  return await findPatternByKind(falcor, config, ['datasets', 'forms']);
+  return await findPatternByKind(falcor, config, ['datasets']);
 }
 
 /**

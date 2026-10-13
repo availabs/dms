@@ -120,7 +120,7 @@ const FilterSettings = ({label, type, value, stateValue, onChange}) => {
         {
           // Auto-registered page variables — derived by the platform from a section
           // on this page (e.g. a shareable map's `layers` + interactive `searchParamKey`s
-          // via deriveMapShareVariables). They live in pageState.filters (not item.filters)
+          // via its registry entry's derivePageVariables). They live in pageState.filters (not item.filters)
           // so they can't be hand-edited here; surfaced read-only so the author can see
           // which URL params the page owns and their current values.
           (() => {

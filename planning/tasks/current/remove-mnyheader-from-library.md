@@ -1,6 +1,6 @@
 # Delete `mnyHeader` from the library — it now ships with the mny theme
 
-**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) · **Status:** next (was: "READY, blocked only on a pre-flight · Raised: 2026-09-09") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_template_r2](../../../../../planning/initiatives/mny_county_template_r2.md) · **Status:** next (was: "READY, blocked only on a pre-flight · Raised: 2026-09-09") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Topic:** patterns/page — ComponentRegistry · **Status:** READY, blocked only on a pre-flight ·
 **Raised:** 2026-09-09
@@ -65,3 +65,5 @@ reason to delete rather than leave it.
 - [ ] Folder and both `index.jsx` lines removed (plus the stale comment on line 5)
 - [ ] All 142 MitigateNY components still render — sweep the four county patterns
 - [ ] Submodule commit (the user owns this)
+
+> **Re-linked 2026-10-13** from `mny_county_sites` (closed at the initiative review) to `mny_county_template_r2`.

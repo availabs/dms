@@ -53,10 +53,10 @@ async function testDmsModeSourcesViaPatterns() {
   );
   const siteId = Object.keys(siteResult.jsonGraph.dms.data.byId)[0];
 
-  // Create a forms pattern — type '{siteInstance}|{patternInstance}:pattern'
+  // Create a datasets pattern — type '{siteInstance}|{patternInstance}:pattern'
   const patternResult = await graph.callAsync(
     ['dms', 'data', 'create'],
-    [TEST_APP, `${SITE_INSTANCE}|${PATTERN_INSTANCE}:pattern`, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [] }]
+    [TEST_APP, `${SITE_INSTANCE}|${PATTERN_INSTANCE}:pattern`, { name: PATTERN_INSTANCE, pattern_type: 'datasets', sources: [] }]
   );
   const patternId = Object.keys(patternResult.jsonGraph.dms.data.byId)[0];
 
@@ -76,7 +76,7 @@ async function testDmsModeSourcesViaPatterns() {
   // Link sources to pattern
   await graph.callAsync(
     ['dms', 'data', 'edit'],
-    [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [{ id: +src1Id }, { id: +src2Id }] }]
+    [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'datasets', sources: [{ id: +src1Id }, { id: +src2Id }] }]
   );
 
   // Link pattern to site
@@ -2344,14 +2344,14 @@ async function testDmsModeAuthoritativeViews() {
     return id;
   };
   const siteId = await create(`${TEST_APP}:site`, { patterns: [] });
-  const patternId = await create(`${TEST_APP}|${PATTERN_INSTANCE}:pattern`, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [] });
+  const patternId = await create(`${TEST_APP}|${PATTERN_INSTANCE}:pattern`, { name: PATTERN_INSTANCE, pattern_type: 'datasets', sources: [] });
   const v1 = await create('auth_src|v1:view', { name: 'v1' });
   const v2 = await create('auth_src|v2:view', { name: 'v2' });
   // metadata stored as JSON TEXT, the way the client's wire helper writes DMS attributes
   const srcId = await create(`${PATTERN_INSTANCE}|auth_src:source`, {
     name: 'Auth Src', views: [{ id: v1 }, { id: v2 }], metadata: JSON.stringify({ note_for_test: true }),
   });
-  await graph.callAsync(['dms', 'data', 'edit'], [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'forms', sources: [{ id: srcId }] }]);
+  await graph.callAsync(['dms', 'data', 'edit'], [TEST_APP, patternId, { name: PATTERN_INSTANCE, pattern_type: 'datasets', sources: [{ id: srcId }] }]);
   await graph.callAsync(['dms', 'data', 'edit'], [TEST_APP, siteId, { patterns: [{ id: patternId }] }]);
 
   const unwrap = (a) => (a && a.$type === 'atom' ? a.value : a);
