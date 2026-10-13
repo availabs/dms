@@ -7,10 +7,15 @@
 // Each pane renders its v3 layout only when its gate key (settingsWrap, filtersWrap, pagesWrap,
 // historyWrap, groupMeta) is set. src/themes/_legacy/pages.js sets them to '' for every
 // project theme, so those keep the pre-v3 panes.
-const INPUT = 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)] focus:border-[var(--t-ink)]';
-const BTN = 'inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
-// the pane's main action — neutral like every action button (owner: no accent fills)
-const BTN_PRIMARY = 'inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseXS font-medium text-[var(--t-ink)] hover:border-[var(--t-ink)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+// Controls follow the shared v6 looks (2026-10-13, ui-control-consistency-audit.md; spec
+// design_system_v6/pages/ui-controls.html): fields 32px with a rule-strong hairline and ink focus;
+// buttons = action / ink primary.
+const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]';
+const INPUT = 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)] focus:border-[var(--t-ink)]';
+const BTN_BASE = `inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const BTN = `${BTN_BASE} h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
+// the pane's main action — ink (P1, 2026-10-13; was neutral outlined from 2026-10-08)
+const BTN_PRIMARY = `${BTN_BASE} h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]`;
 const EYEBROW = 't-metaXS text-[var(--t-pencil)]';
 
 export const editPanesTheme = {
@@ -87,14 +92,14 @@ export const editPanesTheme = {
     filterRow: 'border-t border-[var(--t-rule)] first:border-t-0',
     filterSummary: 'w-full flex items-center gap-2 px-3 py-2.5 cursor-pointer text-left',
     filterKey: 't-metaMD text-[var(--t-ink)] truncate',
-    filterChip: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-graphite)] bg-[var(--t-well)] rounded px-1.5 py-0.5 whitespace-nowrap',
+    filterChip: 'inline-flex items-center gap-1 h-[18px] t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded px-1.5 whitespace-nowrap',   // marker (2026-10-13)
     filterValue: 'flex-1 min-w-0 truncate text-right t-metaMD text-[12px] text-[var(--t-graphite)]',
     filterBody: 'px-3 pb-3 pt-3 flex flex-col gap-2.5 bg-[var(--t-well)] border-t border-[var(--t-rule)]',
     filterRemove: 'self-end inline-flex items-center gap-1 t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-brick)] cursor-pointer',
     filterEmpty: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg px-4 py-6 text-center t-proseSM text-[var(--t-graphite)]',
-    filterAddBtn: 'mt-2 inline-flex items-center gap-1.5 h-8 px-2 rounded-md t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
+    filterAddBtn: `mt-2 self-start inline-flex items-center gap-1 rounded-sm t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer ${FOCUS}`,   // prose link (2026-10-13)
     filterAddForm: 'mt-2 border border-[var(--t-ink)] rounded-lg p-3 flex flex-col gap-2',
-    filterClear: 'mt-3 self-start t-proseXS text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer',
+    filterClear: `mt-3 self-start rounded-sm t-proseXS text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer ${FOCUS}`,
     field: 'block',
     fieldLabel: 'block t-metaXS text-[var(--t-pencil)] mb-1',
     grid2: 'grid grid-cols-2 gap-2',
@@ -113,7 +118,7 @@ export const editPanesTheme = {
     // ── Pages ── (gate: pagesWrap)
     pagesWrap: 'flex flex-col w-full pb-4',
     pagesBar: 'flex items-center gap-2 mt-1 mb-2',
-    pagesFind: 'flex-1 min-w-0 flex items-center gap-2 border border-[var(--t-rule)] rounded-md px-2.5 h-8 focus-within:border-[var(--t-ink)]',
+    pagesFind: 'flex-1 min-w-0 flex items-center gap-2 border border-[var(--t-rule-strong)] rounded-md px-2.5 h-8 focus-within:border-[var(--t-ink)]',
     pagesFindInput: 'flex-1 min-w-0 bg-transparent t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)]',
     pagesFindIcon: 'size-3.5 text-[var(--t-pencil)]',
     pagesTree: 'max-w-full',
@@ -129,12 +134,15 @@ export const editPanesTheme = {
     pageMarks: 'flex items-center gap-1.5',
     pageMarkDraft: 'size-1.5 rounded-full bg-[var(--t-amber)]',
     pageMarkIcon: 'size-3 text-[var(--t-pencil)]',
-    pageMenuBtn: 'size-6 rounded inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-panel)] opacity-0 group-hover/p:opacity-100 cursor-pointer',
+    pageMenuBtn: `size-6 rounded inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-panel)] opacity-0 group-hover/p:opacity-100 focus-visible:opacity-100 cursor-pointer ${FOCUS}`,
     pageMenuIcon: 'size-3.5',
     pagesLegend: 'flex flex-wrap items-center gap-x-3 gap-y-1 t-proseXS text-[var(--t-pencil)] mt-3',
     pagesLegendItem: 'inline-flex items-center gap-1',
     pagesNoMatch: 'px-2 py-3 t-proseSM text-[var(--t-pencil)]',
     pageIndent: 14,                       // px per level
+    // row actions: rename dialog (delete uses UI.DeleteModal)
+    modalTitle: 't-displaySM text-[var(--t-ink)] mb-3',
+    modalActions: 'flex justify-end gap-2 mt-5',
 
     // ── History ── (gate: historyWrap)
     historyWrap: 'flex flex-col w-full pb-4',

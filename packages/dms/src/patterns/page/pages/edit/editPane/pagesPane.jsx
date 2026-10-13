@@ -171,6 +171,7 @@ function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick,
                 </NavigableMenu>
             </div>
             <DeleteModal
+              t={t}
               item={item}
               open={showDelete}
               setOpen={() => setShowDelete(!showDelete)}
@@ -183,6 +184,7 @@ function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick,
               }}
             />
             <RenameModal
+              t={t}
               activeItem={activeItem}
               item={item}
               dataItems={dataItems}
@@ -305,11 +307,26 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 
 }
 
-function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
+function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, t})  {
   const cancelButtonRef = useRef(null);
   const { UI } = React.useContext(ThemeContext) || {};
   const {Button, Dialog} = UI;
   const [loading, setLoading] = useState(false);
+
+  // v3 Pages pane (default theme): the shared UI.DeleteModal (Cancel action + solid brick Delete).
+  // The pre-v3 pane (project themes) keeps the markup below unchanged.
+  if (t) {
+    const { DeleteModal: SharedDeleteModal } = UI;
+    return (
+      <SharedDeleteModal
+        title={title || `Delete ${item.title || 'this page'}`}
+        prompt={prompt || 'All of the page data will be permanently removed. This cannot be undone.'}
+        open={open}
+        setOpen={() => setOpen()}
+        onDelete={onDelete}
+      />
+    );
+  }
 
   return (
     <Dialog
@@ -354,7 +371,7 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
 }
 
 
-function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
+function RenameModal ({title, prompt, item={}, dataItems, open, setOpen, t})  {
   const cancelButtonRef = useRef(null)
   const { UI } = React.useContext(ThemeContext)
   const { user } = React.useContext(CMSContext) || {};
@@ -397,6 +414,24 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen})  {
     }
     updateItem()
   }
+
+  // v3 Pages pane (default theme): title, one field, Cancel (action) + Rename (primary).
+  if (t) return (
+    <Dialog open={open} onClose={() => setOpen()} initialFocus={cancelButtonRef}>
+      <h3 className={t.modalTitle}>Rename page</h3>
+      <label className={t.field}>
+        <span className={t.fieldLabel}>title</span>
+        <input className={t.input} value={newName || ''} onChange={e => setNewName(e.target.value)}
+               onKeyDown={e => { if (e.key === 'Enter' && newName && newName !== item.title) update(); }} autoFocus />
+      </label>
+      <div className={t.modalActions}>
+        <Button activeStyle='action' onClick={() => setOpen()} ref={cancelButtonRef}>Cancel</Button>
+        <Button activeStyle='primary' disabled={loading || !newName || newName === item.title} onClick={update}>
+          {loading ? 'Saving…' : 'Rename'}
+        </Button>
+      </div>
+    </Dialog>
+  );
 
   return (
     <Dialog

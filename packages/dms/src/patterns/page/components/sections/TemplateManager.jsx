@@ -224,19 +224,19 @@ export default function TemplateManager({ componentType, sectionValue, dwState, 
             : <span />}
           <div className={t.saveActions}>
             {!existing && (
-              <Button disabled={!trimmed || saving} onClick={() => save(null)}>
+              <Button activeStyle='primary' disabled={!trimmed || saving} onClick={() => save(null)}>
                 {saving ? 'Saving…' : 'Save'}
               </Button>
             )}
             {existing && !pendingOverwrite && (
-              <Button disabled={!trimmed || saving} onClick={() => setPendingOverwrite(true)}>
+              <Button activeStyle='action' disabled={!trimmed || saving} onClick={() => setPendingOverwrite(true)}>
                 Overwrite…
               </Button>
             )}
             {existing && pendingOverwrite && (
               <>
                 <span className={t.confirmNo} onClick={() => setPendingOverwrite(false)}>Cancel</span>
-                <Button disabled={saving} onClick={() => save(existing)}>
+                <Button activeStyle='primary' disabled={saving} onClick={() => save(existing)}>
                   {saving ? 'Saving…' : 'Overwrite'}
                 </Button>
               </>

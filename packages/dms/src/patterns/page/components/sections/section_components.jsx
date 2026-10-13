@@ -1,6 +1,6 @@
 import React, {useContext, useRef, useState} from "react"
 import {CMSContext} from '../../context'
-import {ThemeContext} from "../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {sectionToken, sectionTitleClass} from "./section_utils";
 
 
@@ -306,4 +306,20 @@ export function DeleteModal({title, prompt, item = {}, open, setOpen, onDelete})
             </div>
         </Dialog>
     )
+}
+
+
+// The section menu's action row (copy link / copy / paste / move / refresh, back / home, save /
+// cancel / edit). v6 (pages.section menuActionBtn set, 2026-10-13): 28px row-icon buttons, save = the
+// ink primary, "copied" = go; spec design_system_v6/pages/ui-controls.html (Menus). '' (legacy freeze)
+// → the original blue / orange / green Pill chips, unchanged. Same props as Pill.
+export function ActionBtn({ color, text, title, onClick, kind }) {
+    const { theme, UI } = React.useContext(ThemeContext) || {};
+    const sec = getComponentTheme(theme, 'pages.section') || {};
+    if (!sec.menuActionBtn) {
+        const { Pill } = UI;
+        return <Pill color={color} text={text} title={title} onClick={onClick} />;
+    }
+    const cls = kind === 'save' ? sec.menuActionSave : color === 'green' ? `${sec.menuActionBtn} ${sec.menuActionBtnDone}` : sec.menuActionBtn;
+    return <button type="button" title={title} aria-label={title} className={cls} onClick={onClick}>{text}</button>;
 }

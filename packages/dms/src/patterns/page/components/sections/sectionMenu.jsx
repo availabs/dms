@@ -1,7 +1,7 @@
 //RYAN TODO -- still prob need to clean up some of the sectionMenuItems
 import React, {useState, useEffect} from 'react'
 import {handleCopy, handleCopyToClipboard, handlePaste} from "./section_utils"
-import {TagComponent} from "./section_components"
+import {TagComponent, ActionBtn} from "./section_components"
 import { getComponentTheme, ThemeContext } from "../../../../ui/useTheme";
 import { sectionMenuTheme } from "./sectionMenu.theme";
 import {ComplexFilters} from "./ComplexFilters";
@@ -23,6 +23,7 @@ import ColorControls from "./components/ComponentRegistry/sharedControls/ColorCo
  * commit (draft stays, `Input` gets `aria-invalid` for the theme's red-border state,
  * a short message renders below) or a falsy value to allow it through.
  */
+
 const CommitInput = ({ initialValue = '', onCommit, validate }) => {
     const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const sm = { ...sectionMenuTheme, ...getComponentTheme(themeFromContext, 'pages.sectionMenu') };
@@ -380,7 +381,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                         <div className={'flex gap-1'}>
                             {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={menuActionIcon} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
 
-                            <Pill color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={menuActionIcon}/>}
+                            <ActionBtn color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={menuActionIcon}/>}
                                   title={'Copy Link'}
                                   onClick={(e) => {
                                       handleCopyToClipboard(sectionLink)
@@ -391,7 +392,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                   }}/>
 
                             {(canEditSection || canEditPageContent) ?
-                                <Pill color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={menuActionIcon}/>}
+                                <ActionBtn color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={menuActionIcon}/>}
                                                     title={'Copy Section'}
                                                     onClick={(e) => {
                                                         handleCopy(value)
@@ -400,27 +401,27 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                                             setCopied('')
                                                         }, 2000);
                                                     }}/> : null}
-                            {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={menuActionIcon}/>} title={'Paste Section'}
+                            {isEdit && canEditSection ? <ActionBtn color={'blue'} text={<Icon icon={'Paste'} className={menuActionIcon}/>} title={'Paste Section'}
                                                               onClick={e => handlePaste(e, setKey, setSectionState, value, onChange)}/> : null}
 
                             {!isEdit && canEditPageLayout && canEditSection ?
-                                <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={menuActionIcon} />} title={'Move Up'}
+                                <ActionBtn color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={menuActionIcon} />} title={'Move Up'}
                                       onClick={() => moveItem(i, -1)} />  : null}
 
                             {!isEdit && canEditPageLayout && canEditSection ?
-                                <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={menuActionIcon} />} title={'Move Down'}
+                                <ActionBtn color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={menuActionIcon} />} title={'Move Down'}
                                       onClick={() => moveItem(i, 1)} /> : null}
-                            {!isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Refresh'} className={menuActionIcon} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
+                            {!isEdit && canEditSection ? <ActionBtn color={'blue'} text={<Icon icon={'Refresh'} className={menuActionIcon} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
 
                         </div>
 
                         <div className={'flex gap-1'}>
-                            {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={menuActionIcon} />} title={'Save'} onClick={onSave} /> : null}
+                            {isEdit && canEditSection ? <ActionBtn kind='save' color={'blue'} text={<Icon icon={'FloppyDisk'} className={menuActionIcon} />} title={'Save'} onClick={onSave} /> : null}
                             {isEdit ?
-                                <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={menuActionIcon}/>}
+                                <ActionBtn color={'orange'} text={<Icon icon={'CancelCircle'} className={menuActionIcon}/>}
                                       title={'Cancel'} onClick={onCancel}/> :
                                 canEditSection ?
-                                    <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={menuActionIcon} />} title={'Edit'} onClick={onEdit} /> : null
+                                    <ActionBtn color={'blue'} text={<Icon icon={'PencilSquare'} className={menuActionIcon} />} title={'Edit'} onClick={onEdit} /> : null
                             }
                         </div>
                     </div>
@@ -435,17 +436,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             type: (_, {goBack, goHome}) => (
                 <div className={'w-full flex justify-between'}>
                     <div className={'flex gap-1'}>
-                        <Pill color={'blue'} text={<Icon icon={'ArrowLeft'} className={menuActionIcon} />} title={'Back'} onClick={goBack} />
-                        <Pill color={'blue'} text={<Icon icon={'Home'} className={menuActionIcon} />} title={'Home'} onClick={goHome} />
+                        <ActionBtn color={'blue'} text={<Icon icon={'ArrowLeft'} className={menuActionIcon} />} title={'Back'} onClick={goBack} />
+                        <ActionBtn color={'blue'} text={<Icon icon={'Home'} className={menuActionIcon} />} title={'Home'} onClick={goHome} />
                     </div>
 
                     <div className={'flex gap-1'}>
-                        {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={menuActionIcon} />} title={'Save'} onClick={onSave} /> : null}
+                        {isEdit && canEditSection ? <ActionBtn kind='save' color={'blue'} text={<Icon icon={'FloppyDisk'} className={menuActionIcon} />} title={'Save'} onClick={onSave} /> : null}
                         {isEdit ?
-                            <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={menuActionIcon}/>}
+                            <ActionBtn color={'orange'} text={<Icon icon={'CancelCircle'} className={menuActionIcon}/>}
                                   title={'Cancel'} onClick={onCancel}/> :
                             canEditSection ?
-                                <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={menuActionIcon} />} title={'Edit'} onClick={onEdit} /> : null}
+                                <ActionBtn color={'blue'} text={<Icon icon={'PencilSquare'} className={menuActionIcon} />} title={'Edit'} onClick={onEdit} /> : null}
                     </div>
                 </div>
             )
