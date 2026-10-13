@@ -1,14 +1,38 @@
 import React from 'react'
 
+// The v6 control looks (2026-10-13, planning/tasks/current/ui-control-consistency-audit.md; spec:
+// src/themes/tessera/design_system_v6/pages/ui-controls.html). Kept here, with the component — pattern
+// themes that need the same look copy the string into their own theme file.
+const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]';
+const BTN = `inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const LINK = `inline-flex items-center gap-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS} rounded-sm`;
+const CHIP_BASE = `inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors ${FOCUS}`;
+const PRIMARY = `${BTN} h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]`;
+const ACTION = `${BTN} h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
+const DANGER = `${BTN} h-8 px-3 t-proseSM border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
+const DANGER_SOLID = `${BTN} h-8 px-3 t-proseSM font-medium border-[var(--t-brick)] bg-[var(--t-brick)] text-[var(--t-accent-ink)] hover:opacity-90`;
+const SMALL = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]`;
+const SMALL_DANGER = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-brick)] bg-[var(--t-panel)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
+const ICON_TOOL = `${BTN} size-8 border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
+const ICON_ROW = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]`;
+const ICON_ROW_DANGER = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
+const LINK_META = `${LINK} t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)]`;
+const LINK_META_DANGER = `${LINK} t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-brick)]`;
+const LINK_PROSE = `${LINK} t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)]`;
+const CHIP = `${CHIP_BASE} border-[var(--t-rule)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]`;
+const CHIP_ON = `${CHIP_BASE} border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]`;
+
 export const buttonTheme = {
   options: {
     activeStyle:0
   },
   styles: [
     {
+      // v6 (2026-10-13, ui-control-consistency-audit.md P1): the bare UI.Button is the ink primary —
+      // the same role every unstyled button had (it was solid cobalt). Secondary buttons opt into
+      // activeStyle='action' page by page. Project themes keep the old cobalt via src/themes/_legacy/ui.js.
       name: 'default Buttons',
-      button: `cursor-pointer inline-flex items-center justify-center gap-2 font-sans text-sm font-medium leading-none px-4 py-2.5 rounded-md border border-transparent bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] hover:bg-[var(--t-cobalt-deep)] active:bg-[var(--t-cobalt-deep)] focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-cobalt)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-150
-      `,
+      button: PRIMARY,
     },
     {
       name:'plain',
@@ -26,10 +50,23 @@ export const buttonTheme = {
       rounded-lg
       px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing.3)-1px)] sm:py-[calc(theme(spacing[1.5])-1px)]
       `,
-    }
-
-
-
+    },
+    // ── named styles (2026-10-13) — the v6 looks defined at the top of this file; pick with activeStyle='<name>'.
+    // Appended after 'plain' / 'active' so stored style indices don't move.
+    { name: 'primary',        button: PRIMARY },
+    { name: 'action',         button: ACTION },
+    { name: 'danger',         button: DANGER },
+    { name: 'dangerSolid',    button: DANGER_SOLID },
+    { name: 'small',          button: SMALL },
+    { name: 'smallDanger',    button: SMALL_DANGER },
+    { name: 'iconTool',       button: ICON_TOOL },
+    { name: 'iconRow',        button: ICON_ROW },
+    { name: 'iconRowDanger',  button: ICON_ROW_DANGER },
+    { name: 'linkMeta',       button: LINK_META },
+    { name: 'linkMetaDanger', button: LINK_META_DANGER },
+    { name: 'linkProse',      button: LINK_PROSE },
+    { name: 'chip',           button: CHIP },
+    { name: 'chipOn',         button: CHIP_ON },
   ]
 }
 

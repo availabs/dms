@@ -20,6 +20,7 @@ import {buttonSelectTheme} from "./components/ButtonSelect.theme";
 import {drawerTheme} from "./components/Drawer.theme";
 import {labelTheme} from "./components/Label";
 import {pillTheme} from "./components/Pill.theme";
+import {switchTheme} from "./components/Switch.theme";
 import {permissionsTheme} from "./components/Permissions.theme";
 import {multiselectTheme} from "./components/MultiSelect.theme";
 import {tableTheme} from "./components/table/table.theme";
@@ -246,6 +247,7 @@ const components = {
     drawer: drawerTheme,
     label: labelTheme,
     pill: pillTheme,
+    switch: switchTheme,
     permissions: permissionsTheme,
     multiselect: multiselectTheme,
     table: tableTheme,

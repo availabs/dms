@@ -46,7 +46,9 @@ const navigableMenuTheme = {
     "subMenuIcon": "ChevronRight",
     "subMenuIconWrapper": "place-self-center w-3.5 h-3.5 stroke-[var(--t-pencil)]",
     "valueSubmenuIconWrapper": "flex gap-1 items-center",
-    "valueWrapper": "px-1.5 py-0.5 font-mono text-xs text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)] rounded tabular-nums",
+    // v6 (2026-10-13, ui-controls.html Menus): plain pencil meta text before the chevron, no chip.
+    // Pre-v6 boxed chip frozen in src/themes/_legacy/ui.js.
+    "valueWrapper": "t-metaXS text-[var(--t-pencil)] tabular-nums",
 
     // Separator
     "separator": "w-full border-b border-[var(--t-rule)] my-1",

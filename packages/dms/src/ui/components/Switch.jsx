@@ -1,6 +1,10 @@
 import React from 'react'
+import { ThemeContext, getComponentTheme } from '../useTheme'
+import { switchTheme } from './Switch.theme'
 
 export default function RenderSwitch({ enabled=false, setEnabled, label, disabled, size='medium' }) {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...switchTheme.styles[0], ...getComponentTheme(themeFromContext, 'switch') };
     const sizeClassesPill = {
         xs: 'h-2 w-6',
         small: 'h-4 w-8',
@@ -46,11 +50,11 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
                     setEnabled && setEnabled(!enabled);
                 }
             }}
-            className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? 'bg-indigo-600' : 'bg-gray-200'}`}
+            className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? t.trackOn : t.trackOff} ${t.focus || ''}`}
         >
             <span className="sr-only">{label}</span>
             <span
-                className={`inline-block ${sizeClassesDot[size]} transform rounded-full bg-white transition-transform duration-200 ease-in-out ${translateClasses[enabled][size]}`}
+                className={`inline-block ${sizeClassesDot[size]} transform rounded-full ${t.knob} transition-transform duration-200 ease-in-out ${translateClasses[enabled][size]}`}
             />
         </div>
     );
