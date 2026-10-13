@@ -1066,6 +1066,29 @@ looked different only because the capture margins differed; the tooltips were id
 (304×63 both) because the token was never wired. Comparing the DOM rect caught it immediately.
 Crop with `page.screenshot({ clip })` only to SHOW a human, never to judge a few px.
 
+### Printing a report (Print button, Ctrl+P) — checking it headlessly (2026-10-13)
+
+- **Print is view-mode only.** The header's Print button is not rendered on `/edit/...`: edit-mode
+  printouts carried every edit-only control. Header buttons: edit = Share / Save as / Done; view =
+  Share / Print / Make a copy / Edit.
+- **A PDF from the probe:** `--eval` a file that calls `page.pdf({ path, format: 'Letter',
+  printBackground: true })`, then `pdftoppm -r 40 -png` the PDF to look at the pages. `page.pdf` runs
+  the real print layout and fires `beforeprint`/`afterprint`.
+- **Headless prints the map canvas BLANK** (WebGL under `printToPDF`), even when it renders on
+  screen. Judge a map's print fix by page count/placement and by geometry (container vs
+  `canvas.maplibregl-canvas` rects under `page.emulateMedia({ media: 'print' })`), not by the raster.
+  Real Chrome/Edge print preview does draw the map.
+- **maplibre does not resize for print.** The canvas keeps its on-screen inline px size through
+  `beforeprint`/`afterprint`. The Map section's print-only classes scale it to the page width instead
+  (dms-template `src/patterns/mapeditor/section/index.jsx`, task `map-section-print-layout.md`). Before that fix, the
+  default `"full"` map height (`95vh` = a whole printed page) pushed the map onto its own page
+  and clipped the right part of the route.
+- **"Graphs missing from the printout"** has had two innocent causes. One is printing before the
+  sections finished loading. The other is the published page having fewer sections than the
+  draft the author sees in edit mode. On #2226344 the draft had 2 maps + 3 graphs and the
+  published page 1 map + 2 graphs. Compare `sections` vs `draft_sections` on the page row
+  before chasing a print bug.
+
 ## 6. Which tool to reach for
 
 Both paths can inspect the exact same DOM described above — the difference
