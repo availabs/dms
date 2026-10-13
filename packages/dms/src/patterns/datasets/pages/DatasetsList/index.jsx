@@ -191,6 +191,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     const collection = showUploads ? 'sourcesAll' : 'sources';
     const sourcesCacheKey = `${cacheKey}-${collection}`;
     const [sources, setSources] = useState(() => getCachedSources(sourcesCacheKey) || []);
+    // true once this collection has been fetched (or restored from cache) — gates the empty state
+    // so it never flashes while sources are still loading.
+    const [loaded, setLoaded] = useState(() => hasCachedSources(sourcesCacheKey));
     const [layerSearch, setLayerSearch] = useState("");
     const [searchParams] = useSearchParams();
     const [sort, setSort] = useState('asc');
@@ -225,11 +228,14 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
         // before navigating back here.
         if (hasCachedSources(sourcesCacheKey)) {
             setSources(getCachedSources(sourcesCacheKey) || []);
+            setLoaded(true);
             return;
         }
+        setLoaded(false);
         getSources({envs, falcor, apiLoad, user, collection}).then(data => {
             setSources(data);
             setCachedSources(sourcesCacheKey, data);
+            setLoaded(true);
         });
     }, [sourcesCacheKey]);
 
@@ -381,18 +387,21 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         ))}
                     </div>
 
-                    <Button type="plain" title={'Toggle Sort'} onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
+                    <Button type="plain" className={t.toolbarBtn} title={'Toggle Sort'} onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
                         <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className={t.iconMd}/>
                     </Button>
 
                     {(filteredCategories.length > 0 || uncategorizedSources.length > 0) &&
-                        <Button type="plain" title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
+                        <Button type="plain" className={isListAll ? t.toolbarBtnActive : t.toolbarBtn} title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
                             <Icon icon={isListAll ? 'FilterX' : 'Filter'} className={t.iconMd}/>
                         </Button>
                     }
 
+                    {user?.authed && t.toolbarDivider && <span className={t.toolbarDivider} aria-hidden="true"/>}
+
                     {user?.authed &&
                         <Button type="plain"
+                                className={showUploads ? t.toolbarBtnActive : t.toolbarBtn}
                                 title={showUploads ? 'Hide uploaded files' : 'Show uploaded files'}
                                 onClick={() => setShowUploads(!showUploads)}>
                             <Icon icon={showUploads ? 'EyeClosed' : 'Upload'} className={t.iconMd}/>
@@ -400,10 +409,10 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                     }
 
                     {user?.authed &&
-                        <Link to={`${baseUrl}/settings`} title={'Settings'}><Icon icon="Settings" className={t.iconMd}/></Link>}
+                        <Link to={`${baseUrl}/settings`} title={'Settings'} className={t.settingsLink}><Icon icon="Settings" className={t.iconMd}/></Link>}
 
                     {user?.authed &&
-                        <Link to={`${baseUrl}/create`} title={'Add'} className={t.newBtn}><Icon icon="CirclePlus" className={t.iconMd}/></Link>}
+                        <Link to={`${baseUrl}/create`} title={'Add'} className={t.newBtn}><Icon icon={t.newBtnIcon} className={t.iconMd}/>{t.newBtnText}</Link>}
                 </div>
             </div>
             <div className={t.body}>
@@ -412,22 +421,6 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         <span className={t.sidebarItemText}>All datasets</span>
                         <div className={t.sidebarBadge}>{(visibleSources || []).length}</div>
                     </Link>
-                    {/* Hidden lifecycle buckets — Sandbox first, since that is where every
-                        new dataset lands and where its creator will look for it. Shown to
-                        authed users without needing "Show all": a dataset you just uploaded
-                        should not require a mode switch to find. */}
-                    {user?.authed && Object.keys(hiddenBuckets).length > 0 &&
-                        <div className={t.sidebarHiddenGroup}>
-                            <div className={t.sidebarHiddenLabel}>Hidden</div>
-                            {Object.keys(hiddenBuckets).sort().map(cat => (
-                                <Link key={cat} to={catHref(cat)}
-                                      className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItemHidden}>
-                                    <span className={t.sidebarItemText}>{cat}</span>
-                                    <div className={t.sidebarBadge}>{hiddenBuckets[cat].length}</div>
-                                </Link>
-                            ))}
-                        </div>
-                    }
                     {isListAll && uncategorizedSources.length > 0 &&
                         <Link to={catHref(UNCATEGORIZED_CAT)} className={cat1 === UNCATEGORIZED_CAT ? t.sidebarItemActive : t.sidebarItem}>
                             <span className={t.sidebarItemText}>Uncategorized</span>
@@ -455,9 +448,49 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                             </React.Fragment>
                         ))
                     }
+                    {/* Hidden lifecycle buckets — at the END of the rail (owner 2026-10-06):
+                        a back door, not part of the catalog's browse structure. Shown to
+                        authed users without needing "Show all": a dataset you just uploaded
+                        should not require a mode switch to find. */}
+                    {user?.authed && Object.keys(hiddenBuckets).length > 0 &&
+                        <div className={t.sidebarHiddenGroup}>
+                            <div className={t.sidebarHiddenLabel}>Hidden</div>
+                            {Object.keys(hiddenBuckets).sort().map(cat => (
+                                <Link key={cat} to={catHref(cat)}
+                                      className={activeTopCat === cat ? t.sidebarItemActive : t.sidebarItemHidden}>
+                                    <span className={t.sidebarItemText}>
+                                        {t.sidebarHiddenIcon && <Icon icon={t.sidebarHiddenIcon} className={t.sidebarHiddenIconClass}/>}{cat}
+                                    </span>
+                                    <div className={t.sidebarBadge}>{hiddenBuckets[cat].length}</div>
+                                </Link>
+                            ))}
+                        </div>
+                    }
                 </div>
 
-                {view === 'table' ? (
+                {loaded && shownSources.length === 0 && t.emptyWrap ? (
+                    <div className={t.emptyWrap}>
+                        {t.emptyIcon && <Icon icon={t.emptyIcon} className={t.emptyIconClass}/>}
+                        {isSearching ? (
+                            <>
+                                <div className={t.emptyTitle}>No datasets match “{layerSearch}”</div>
+                                <div className={t.emptyText}>
+                                    Search covers names and categories{cat1 && cat1 !== UNCATEGORIZED_CAT ? ` in ${catParts.join(' / ')}` : ''}.
+                                    {cat1 ? <> Try <Link to={'?'} className={t.emptyLink}>all datasets</Link>.</> : null}
+                                    {!isListAll && (filteredCategories.length > 0 || uncategorizedSources.length > 0)
+                                        ? ' Turn on “show all” to include filtered and uncategorized sources.' : null}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                <div className={t.emptyTitle}>No datasets here yet</div>
+                                <div className={t.emptyText}>
+                                    {cat1 ? <>Nothing is filed under this category. <Link to={'?'} className={t.emptyLink}>See all datasets</Link>.</> : 'Datasets you create or load will show up here.'}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                ) : view === 'table' ? (
                     <div className={t.tableWrap}>
                         <table className={t.table}>
                             <thead><tr className={t.theadRow}>

@@ -148,7 +148,8 @@ const DownloadModalCheckboxGroup = ({
                 <div className={t.checkboxGroupTitleText}>{title}:</div>
                 <div>
                     <Button
-                        themeOptions={{ size: "sm" }}
+                        themeOptions={t.toggleAllBtn ? undefined : { size: "sm" }}
+                        className={t.toggleAllBtn || undefined}
                         onClick={() => {
                             if (modalState.length === options.length) {
                                 onChange([]);
@@ -164,9 +165,9 @@ const DownloadModalCheckboxGroup = ({
             <div className={t.checkboxGroupValidRow}>
                 One or more must be selected
                 {modalState.length > 0 ? (
-                    <Icon icon={'CheckCircleIcon'} className={t.iconSuccess} />
+                    <Icon icon={t.validIcon} className={t.iconSuccess} />
                 ) : (
-                    <Icon icon={'XCircleIcon'} className={t.iconError} />
+                    <Icon icon={t.invalidIcon} className={t.iconError} />
                 )}
             </div>
             {hasCalcColumn ? <div className={t.calcColumnWarning}>(cannot include "Calculated Columns")</div>: ""}
@@ -191,7 +192,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
     // dms-server hosts the DAMA upload/download REST endpoints under
     // `/dama-admin/` on the main API host. No separate DAMA_HOST anymore.
     const apiBase = API_HOST;
-    const {Button, Modal} = UI;
+    const {Button, Modal, Icon} = UI;
 
     const [modalState, setModalState] = useState(INITIAL_MODAL_STATE);
     const [deleteModalState, setDeleteModalState] = useState(INITIAL_DELETE_MODAL_STATE)
@@ -396,19 +397,23 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
         setPmTilesModalState(prev => ({ ...prev, progress }));
     }, []);
 
-    const doesViewHaveDownload = view?.metadata?.value?.download && Object.keys(view?.metadata?.value?.download).length > 0;
+    // view metadata arrives unwrapped (`{download}`) from the UDA views route; older rows nest it under
+    // `value` — accept both (only checking `.value` hid "Delete Download" for every current view)
+    const viewDownloads = view?.metadata?.value?.download || view?.metadata?.download;
+    const doesViewHaveDownload = viewDownloads && Object.keys(viewDownloads).length > 0;
     //console.log('do i get here?', user, sourceDataColumns)
     return (
         <div className={t.wrapper}>
             {isUserAuthed(['manage-downloads']) ? (
                 <div className={t.adminControls}>
+                    {t.sectionLabel ? <div className={t.sectionLabel}>downloads</div> : null}
                     <Button
                         className={t.createDownloadBtn}
                         onClick={() => {
                             setModalState({...modalState, open: true});
                         }}
                     >
-                        <i className={'fa fa-download'}/> Create Download
+                        <Icon icon={t.downloadIcon} className={t.btnIconClass}/> Create Download
                     </Button>
                     {doesViewHaveDownload && <Button
                         className={t.deleteDownloadBtn}
@@ -416,13 +421,13 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                             setDeleteModalState({...deleteModalState, open: true});
                         }}
                     >
-                        <i className={t.trashIcon}/> Delete Download
+                        <Icon icon={t.trashIcon} className={t.btnIconClass}/> Delete Download
                     </Button>}
                     <Button
                         className={t.cachePmTilesBtn}
                         onClick={ openPmTilesModal }
                     >
-                        <i className={'fa fa-download'}/> Cache PM Tiles
+                        <Icon icon={t.pmTilesIcon} className={t.btnIconClass}/> Cache PM Tiles
                     </Button>
                 </div>
             ) : (
@@ -442,13 +447,11 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 open={modalState.open}
                 setOpen={setModalOpen}
                 themeOptions={{size:"large"}}
+                className={t.createModalPanel || undefined}
             >
                 <div className={t.createModalHeader}>
                     <div className={t.createModalIconWrapper}>
-                        <i
-                            className={t.layerGroupIcon}
-                            aria-hidden="true"
-                        />
+                        <Icon icon={t.layerGroupIcon} className={t.createModalIconClass} aria-hidden="true"/>
                     </div>
                     <div className={t.createModalTitleWrapper}>
                         <div className={t.createModalTitle}>
@@ -516,10 +519,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
             >
                 <div className={t.deleteModalHeader}>
                     <div className={t.deleteModalIconWrapper}>
-                        <i
-                            className={t.layerGroupIcon}
-                            aria-hidden="true"
-                        />
+                        <Icon icon={t.deleteModalIcon} className={t.deleteModalIconClass} aria-hidden="true"/>
                     </div>
                     <div className={t.deleteModalTitleWrapper}>
                         <div className={t.deleteModalTitle}>
@@ -572,10 +572,15 @@ const PmTilesModal = props => {
     const {UI} = useContext(DatasetsContext);
     const { theme: pmTheme } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(pmTheme?.datasets?.externalVersionControls || {}) };
-    const {Modal} = UI;
+    const {Modal, Icon} = UI;
     return (
-        <Modal { ...modalState }>
+        <Modal { ...modalState } className={t.pmTilesModalPanel || undefined}>
             <div className={t.pmTilesModalWrapper}>
+                {t.pmTilesModalTitle ?
+                    <div className={t.pmTilesModalHeader}>
+                        <div className={t.createModalIconWrapper}><Icon icon={t.pmTilesIcon} className={t.createModalIconClass} aria-hidden="true"/></div>
+                        <div className={t.createModalTitleWrapper}><div className={t.createModalTitle}>{t.pmTilesModalTitle}</div></div>
+                    </div> : null}
 
                 <div className={t.pmTilesModalContent}>
                     <div className={t.pmTilesModalGrid}>

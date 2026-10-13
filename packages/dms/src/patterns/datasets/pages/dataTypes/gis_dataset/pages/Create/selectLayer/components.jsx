@@ -25,7 +25,7 @@ export const LayerAnalysisSection = ({state}) => {
   }
 
   if (!layerAnalysis) {
-    return <div>Analyzing Layer... please wait.</div>;
+    return <div className={t.analyzingMsg || undefined}>Analyzing Layer... please wait.</div>;
   }
 
   const { layerGeometriesAnalysis } = layerAnalysis;
@@ -43,17 +43,17 @@ export const LayerAnalysisSection = ({state}) => {
     <div>
       <span className={t.layerAnalysisTitle}> Layer Analysis </span>
       <div className={t.layerAnalysisOuter}>
-        <div style={{ width: "50%", margin: "10px auto" }}>
+        <div style={t.legacyInlineStyles ? { width: "50%", margin: "10px auto" } : undefined}>
           <table className={t.layerAnalysisTable}>
-            <thead style={{ backgroundColor: "black", color: "white" }}>
+            <thead style={t.legacyInlineStyles ? { backgroundColor: "black", color: "white" } : undefined}>
               <tr>
                 <th
                   className={t.layerAnalysisThCenter}
-                  style={{ padding: "10px", borderRight: "1px solid white" }}
+                  style={t.legacyInlineStyles ? { padding: "10px", borderRight: "1px solid white" } : undefined}
                 >
                   Geometry Type
                 </th>
-                <th className={t.layerAnalysisThCenter} style={{ padding: "10px" }}>
+                <th className={t.layerAnalysisThCenter} style={t.legacyInlineStyles ? { padding: "10px" } : undefined}>
                   Feature Count
                 </th>
               </tr>

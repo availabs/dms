@@ -121,13 +121,21 @@ const LegendCmp = ({ domain, range, title }) => {
 export const LegendContainer = ({ name, title, toggle, isOpen, children }) => {
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
+  const { UI } = React.useContext(DatasetsContext) || {};
+  const { Icon } = UI || {};
   return (
     <div className={t.legendContainerOuter}>
       <div className={t.legendContainerInner}>
         <div className={t.legendContainerTitleRow}>
           <div className={t.legendContainerTitle}>{ name || title }</div>
+          {/* `toggle` was passed but never rendered, so LegendControls could never open (2026-10-07) */}
+          { toggle && Icon ?
+            <button type="button" title="Legend settings" aria-pressed={ !!isOpen }
+                    className={t.legendToggleBtn} onClick={ toggle }>
+              <Icon icon={ t.legendToggleIcon } className={ t.legendToggleIconClass }/>
+            </button> : null }
         </div>
-        <div>{ children }</div>
+        <div className={t.legendContainerBody || undefined}>{ children }</div>
       </div>
     </div>
   )
@@ -875,7 +883,7 @@ const LegendControls = ({ legend, updateLegend, isOpen, close }) => {
           </div>
 
           <div className={t.legendControlsScrollArea}
-            style={ { height: "30rem" } }
+            style={ { height: t.legendControlsScrollHeight } }
           >
             { Colors.map(color => (
                 <LegendColorBar key={ color.name }

@@ -36,7 +36,7 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
   const pgEnv = getExternalEnv(datasources);
   const [ editing, setEditing ] = React.useState(null)
   const [ showSettings, setShowSettings ] = React.useState(false)
-  const { Modal } = UI || {};
+  const { Modal, Icon } = UI || {};
   // Edit-gated: a "Settings" widget injected into the source-page header (next to the version
   // selector) that opens a modal with the layer's sources/layers config. Invisible to non-editors.
   const canEditMap = isUserAuthed(['update-source']);
@@ -145,7 +145,20 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
       </div>
 
       {Modal && canEditMap ? (
-      <Modal open={showSettings} setOpen={setShowSettings} title={'Sources & Layers'} activeStyle={'wide'}>
+      <Modal open={showSettings} setOpen={setShowSettings} title={'Sources & Layers'}
+             activeStyle={t.settingsModalStyle || undefined} className={t.settingsModalPanel || undefined}>
+        {/* UI.Modal renders no title — v6 adds the header (settingsHeader '' → none, pre-v6) */}
+        {t.settingsHeader ? (
+          <>
+            <div className={t.settingsHeader}>
+              <h2 className={t.settingsTitle}>Sources &amp; Layers</h2>
+              <button type="button" title="Close" className={t.settingsClose} onClick={() => setShowSettings(false)}>
+                {Icon ? <Icon icon="XMark" className={t.mapAttrsEditIconClass}/> : '×'}
+              </button>
+            </div>
+            <p className={t.settingsDesc}>The tile sources and MapLibre layers this version’s map uses. Saved to the view’s metadata.tiles.</p>
+          </>
+        ) : null}
         <div className={t.mapAttrsWrapper}>
         <dl className={t.mapAttrsDl}>
           {['sources','layers']
@@ -176,7 +189,8 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
                   </div>
 
                   <div className={t.mapAttrsEditHoverCol} onClick={e => editing === attr ? setEditing(null): setEditing(attr)}>
-                    <i className={t.mapAttrsEditIcon}/>
+                    {/* UI.Icon also renders a Font Awesome class string (the legacy value) as <i> */}
+                    {Icon ? <Icon icon={t.mapAttrsEditIcon} className={t.mapAttrsEditIconClass}/> : <i className={t.mapAttrsEditIcon}/>}
                   </div>
                 </div>
               )
@@ -373,9 +387,9 @@ const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
           onChange={e => setValue(e.target.value)}
         />
       </div>
-      <div>
-        <Button themeOptions={{size:'sm', color: 'primary'}} onClick={e => save(attr,value)}> Save </Button>
-        <Button themeOptions={{size:'sm', color: 'cancel'}} onClick={e => cancel()}> Cancel </Button>
+      <div className={t.editActions || undefined}>
+        <Button themeOptions={t.editSaveBtn ? undefined : {size:'sm', color: 'primary'}} className={t.editSaveBtn || undefined} onClick={e => save(attr,value)}> Save </Button>
+        <Button themeOptions={t.editCancelBtn ? undefined : {size:'sm', color: 'cancel'}} className={t.editCancelBtn || undefined} onClick={e => cancel()}> Cancel </Button>
       </div>
     </div>
   )

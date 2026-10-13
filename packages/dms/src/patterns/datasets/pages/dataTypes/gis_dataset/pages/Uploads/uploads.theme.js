@@ -1,14 +1,35 @@
+// GIS / CSV source Uploads page (gis_dataset/pages/Uploads/{index,list,view}.jsx — the ETL contexts that
+// loaded the source → one context's events) — tessera v6, 2026-10-07, from
+// src/themes/tessera/design_system_v6/pages/datasets-uploads.html. Pre-v6 values frozen in
+// src/themes/_legacy/datasets.js `uploads`. Status cells reuse the task status pills
+// (`datasets.udaTaskPage` status* keys) when `statusPill` is set.
+const RULE = 'border-[var(--t-rule)]';
+
 export const uploadsTheme = {
+    page: 'w-full max-w-[1200px] pl-6 lg:pl-12 pr-6 lg:pr-8 py-6',   // '' → no page wrapper (pre-v6)
+
     // index.jsx - UploadsPage header
-    indexHeader: 'flex',
-    indexHeaderLabel: 'flex-1 pl-3 pr-4 py-2',
+    indexHeader: 'flex flex-wrap items-baseline gap-2 mb-4',
+    indexHeaderLabel: 't-displaySM text-[var(--t-ink)]',
+    indexHeaderHint: 't-metaXS text-[var(--t-pencil)]',               // '' → no hint
+
+    // view.jsx - one upload's header
+    backLink: 'inline-flex items-center gap-1 t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer',   // '' → no back link / title
+    backIcon: 'ArrowLeft',
+    backIconClass: 'size-3.5',
+    viewTitleRow: 'flex items-center gap-3 mt-3 mb-4',
+    viewTitle: 't-displaySM text-[var(--t-ink)]',
 
     // Shared list/view table structure
-    tableWrapper: 'w-full p-4 bg-white shadow mb-4',
-    tableHeaderRow: 'py-4 sm:py-2 mt-2 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6 border-b-2',
-    tableHeaderCell: 'text-sm font-medium text-gray-600',
-    tableList: 'sm:divide-y sm:divide-gray-200 odd:bg-white even:bg-slate-50',
-    tableRow: 'py-4 sm:py-5 sm:grid sm:grid-cols-5 sm:gap-4 sm:px-6 cursor-pointer hover:bg-slate-200',
-    tableCell: 'mt-1 text-sm text-gray-900 sm:mt-0 align-middle',
-    noDataMsg: 'text-center',
+    tableWrapper: `rounded-lg border ${RULE} bg-[var(--t-panel)] overflow-hidden`,
+    tableHeaderRow: `grid grid-cols-5 gap-4 px-4 py-2 bg-[var(--t-well)] border-b ${RULE}`,
+    viewHeaderRow: `grid grid-cols-3 gap-4 px-4 py-2 bg-[var(--t-well)] border-b ${RULE}`,
+    tableHeaderCell: 't-metaXS text-[var(--t-pencil)]',
+    tableList: `divide-y divide-[var(--t-rule)]`,
+    tableRow: 'grid grid-cols-5 gap-4 px-4 py-2.5 items-center cursor-pointer hover:bg-[var(--t-well)]',
+    viewRow: 'grid grid-cols-3 gap-4 px-4 py-2.5 items-center',
+    tableCell: 't-metaMD text-[var(--t-graphite)] truncate',
+    tableCellId: 't-metaMD text-[var(--t-ink)] truncate',
+    statusPill: 'yes',                                                  // '' → plain status text
+    noDataMsg: 'px-4 py-6 t-proseSM text-[var(--t-pencil)] text-center',
 }

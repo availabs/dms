@@ -9,6 +9,10 @@ import UploadFileComp from "./uploadFile";
 import SelectLayerComp from "./selectLayer";
 import SchemaEditorComp from "./schemaEditor";
 import PublishComp from "./publish";
+import CreateStep from "../../../../../components/CreateStep";
+import { ThemeContext } from "../../../../../../../ui/useTheme";
+import { createPageTheme } from "../../../../createPage.theme";
+import { gisCreateTheme } from "./gisCreate.theme";
 
 const BlankComponent = () => <></>;
 
@@ -28,6 +32,11 @@ export default function UploadGisDataset({
   const { datasources, baseUrl, falcor, user:ctxUser, API_HOST } = React.useContext(DatasetsContext);
   const pgEnv = getExternalEnv(datasources);
   const navigate = useNavigate()
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  // v6: each part is a numbered step that appears once it's relevant; pre-v6 (no step chrome)
+  // renders every part, as before
+  const stepped = !!{ ...createPageTheme, ...(theme?.datasets?.createPage || {}) }.step;
   const [state, dispatch] = useReducer(reducer, {
     damaSourceId: sourceId,
     databaseColumnNames: databaseColumnNames ?
@@ -122,7 +131,7 @@ export default function UploadGisDataset({
   }, [pgEnv, state.damaServerPath]);
 
   if (!sourceId && !damaSourceName) {
-    return <div> Please enter a datasource name.</div>;
+    return <div className={t.nameHint}> Please enter a datasource name.</div>;
   }
 
   const canUpload = Object.keys(customRules)?.reduce((out, ruleKey) => {
@@ -132,19 +141,45 @@ export default function UploadGisDataset({
     return out;
   }, "canUpload");
 
+  const uploadComp = canUpload === "canUpload" ? (
+    <UploadFileComp state={state} dispatch={dispatch} />
+  ) : (
+    canUpload
+  );
+
+  if (!stepped) {
+    return (
+      <div>
+        <CustomAttributes state={state} dispatch={dispatch} />
+        {uploadComp}
+        <SelectLayerComp state={state} dispatch={dispatch} />
+        <SchemaEditorComp state={state} dispatch={dispatch} />
+        <PublishComp state={state} dispatch={dispatch} />
+      </div>
+    );
+  }
+
+  const layersReady = !!state.layerNames;
+  const fieldsReady = !!state.layerName;
+  const publishReady = !!state.tableDescriptor;
   return (
-    <div>
+    <>
       <CustomAttributes state={state} dispatch={dispatch} />
-
-      {canUpload === "canUpload" ? (
-        <UploadFileComp state={state} dispatch={dispatch} />
-      ) : (
-        canUpload
-      )}
-
-      <SelectLayerComp state={state} dispatch={dispatch} />
-      <SchemaEditorComp state={state} dispatch={dispatch} />
-      <PublishComp state={state} dispatch={dispatch} />
-    </div>
+      <CreateStep n={1} title="Upload file" note="a zipped shapefile, GeoPackage, GeoJSON or CSV"
+                  state={layersReady ? 'done' : 'active'}>
+        {uploadComp}
+      </CreateStep>
+      {/* every part stays mounted — select-layer / schema-editor run the polling and fetches that
+          move the flow forward; a step is just collapsed until it's relevant */}
+      <CreateStep n={2} title="Select layer" state={publishReady ? 'done' : layersReady ? 'active' : 'todo'} collapsed={!layersReady}>
+        <SelectLayerComp state={state} dispatch={dispatch} />
+      </CreateStep>
+      <CreateStep n={3} title="Map fields" note="field names mappings" state={fieldsReady ? 'active' : 'todo'} collapsed={!fieldsReady}>
+        <SchemaEditorComp state={state} dispatch={dispatch} />
+      </CreateStep>
+      <CreateStep n={4} title="Publish" state={publishReady ? 'active' : 'todo'} collapsed={!publishReady}>
+        <PublishComp state={state} dispatch={dispatch} />
+      </CreateStep>
+    </>
   );
 }

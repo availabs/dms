@@ -11,12 +11,12 @@ import { getExternalEnv } from "../../../utils/datasources";
 import {cloneDeep} from "lodash-es";
 import ExternalVersionControl from "../../../components/ExternalVersionControls";
 import { nameToSlug } from "../../../../../utils/type-utils";
-
-const buttonRedClass = 'w-full p-2 mx-1 bg-red-300 hover:bg-red-500 text-gray-800 rounded-md';
+import { versionTheme } from "./version.theme";
 
 const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
-    const {UI} = useContext(ThemeContext);
-    const {DeleteModal} = UI;
+    const {UI, theme} = useContext(ThemeContext);
+    const {DeleteModal, Icon} = UI;
+    const t = { ...versionTheme, ...(theme?.datasets?.version || {}) };
     // update parent to exclude source. the source still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const navigate = useNavigate();
@@ -32,11 +32,11 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
         navigate(url);
     }
     return (
-        <div className={'w-full'}>
-            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Delete Version</button>
+        <div className={t.btnWrap}>
+            <button className={t.dangerBtn} onClick={() => setShowDeleteModal(true)}>{t.dangerIcon && <Icon icon={t.dangerIcon} className={t.btnIconClass}/>}Delete Version</button>
 
             <DeleteModal
-                title={`Delete View`} open={showDeleteModal}
+                title={`Delete Version`} open={showDeleteModal}
                 prompt={`Are you sure you want to delete this version? All of the version data will be permanently removed
                                             from our servers forever. This action cannot be undone.`}
                 setOpen={(v) => setShowDeleteModal(v)}
@@ -54,15 +54,16 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
 }
 
 const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
-    const {UI} = useContext(ThemeContext);
+    const {UI, theme} = useContext(ThemeContext);
     const {DeleteModal} = UI;
+    const t = { ...versionTheme, ...(theme?.datasets?.version || {}) };
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
         await falcor.call(['uda', 'viewsById', 'clearData'], [`${app}+${sourceSlug}`, +view_id]);
     }
     return (
-        <div className={'w-full'}>
-            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Clear Data</button>
+        <div className={t.btnWrap}>
+            <button className={t.dangerBtn} onClick={() => setShowDeleteModal(true)}>Clear Data</button>
 
             <DeleteModal
                 title={`Clear Uploaded Data`} open={showDeleteModal}
@@ -87,6 +88,7 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
     const { app, baseUrl, pageBaseUrl, theme, falcor, datasources, isUserAuthed } = React.useContext(DatasetsContext) || {}
     const { theme: fullTheme } = React.useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
+    const tv = { ...versionTheme, ...(fullTheme?.datasets?.version || {}) };
     const pgEnv = getExternalEnv(datasources);
     const {UI} = React.useContext(ThemeContext) || {}
     const {Input} = UI;
@@ -103,33 +105,57 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
 
     useEffect(() => {
         const newView = (source?.views || []).find(v => +(v.view_id || v.id) === +params.view_id) || {};
-        if((currentView.view_id || currentView.id) !== (newView.view_id || newView.id)) setCurrentView(newView)
+        // also refresh once the view's name arrives — DMS view names resolve after the first render
+        // (SourcePage resolveInternalViewNames), which used to leave the title / input blank
+        const sameView = (currentView.view_id || currentView.id) === (newView.view_id || newView.id);
+        const nameArrived = !(currentView.version || currentView.name) && (newView.version || newView.name);
+        if(!sameView || nameArrived) setCurrentView(newView)
     }, [source, params.view_id]);
 
-    console.log('source', source, currentView)
+    const versionLabel = currentView?.version || currentView?.name || currentView?.view_id || currentView?.id;
+    const viewId = currentView?.view_id || currentView?.id;
+    const meta = ['created_at', 'updated_at'].map(key => (
+        <div key={key} className={tv.metaItem}>
+            <div className={tv.metaLabel}>{key.replace('_', ' ')}</div>
+            <div className={tv.metaValue}>{currentView?.[key]}</div>
+        </div>
+    ));
 
     return (
-            <div>
-                    <div className={'overflow-auto flex flex-1 gap-2 w-full flex-col relative text-md font-light leading-7 p-4'}>
+            <div className={tv.page}>
+                    <div className={tv.inner}>
                         {status ? <div>{JSON.stringify(status)}</div> : ''}
-                        <div className={'w-full text-lg text-gray-500 border-b flex items-center gap-2'}>
-                            <span>{source?.name} - {currentView?.version || currentView?.name || currentView?.view_id || currentView?.id}</span>
+                        <div className={tv.titleRow}>
+                            <span className={tv.title}>{tv.titleSourceSep ? `${source?.name || ''}${tv.titleSourceSep}` : ''}{versionLabel}</span>
                             <AuthorityBadge t={t} entry={isAuthoritative(source, params.view_id)}/>
+                            {tv.viewIdLabel && viewId ? <span className={tv.viewIdLabel}>view {viewId}</span> : null}
                         </div>
                         {params.view_id && setSource && (
-                            <AuthorityControl t={t} source={source} setSource={setSource} viewId={+params.view_id}
-                                              viewLabel={currentView?.version || currentView?.name}
-                                              envKey={isDms ? `${format?.app}+${source?.type}` : pgEnv}
-                                              canEdit={isUserAuthed ? isUserAuthed(['update-source']) : false}
-                                              falcor={falcor}/>
+                            // '' → no wrapper (pre-v6 markup): AuthorityControl's nested `mt-1`s only stack
+                            // as a direct flex item; inside a plain block they collapse and shift 4px
+                            tv.authorityWrap ? (
+                            <div className={tv.authorityWrap}>
+                                <AuthorityControl t={t} source={source} setSource={setSource} viewId={+params.view_id}
+                                                  viewLabel={currentView?.version || currentView?.name}
+                                                  envKey={isDms ? `${format?.app}+${source?.type}` : pgEnv}
+                                                  canEdit={isUserAuthed ? isUserAuthed(['update-source']) : false}
+                                                  falcor={falcor}/>
+                            </div>
+                            ) : (
+                                <AuthorityControl t={t} source={source} setSource={setSource} viewId={+params.view_id}
+                                                  viewLabel={currentView?.version || currentView?.name}
+                                                  envKey={isDms ? `${format?.app}+${source?.type}` : pgEnv}
+                                                  canEdit={isUserAuthed ? isUserAuthed(['update-source']) : false}
+                                                  falcor={falcor}/>
+                            )
                         )}
                         {!isDms && params.view_id ? (
                             <VersionLineage t={t} envKey={pgEnv} viewId={+params.view_id} pageBaseUrl={pageBaseUrl} falcor={falcor}/>
                         ) : null}
-                        <div className={'flex gap-12'}>
-                            <div className={'flex-grow'}>
-                                <label>Version</label>
-                                <Input type={'text'} value={currentView.version || currentView.name} onChange={e => {
+                        <div className={tv.body}>
+                            <div className={tv.mainCol}>
+                                <label className={tv.versionLabel}>Version</label>
+                                <Input type={'text'} value={currentView.version || currentView.name || ''} onChange={e => {
                                     updateVersionData({
                                         data: e.target.value,
                                         attrKey: isDms ? 'name' : 'version',
@@ -137,16 +163,11 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                         view: currentView, setView: setCurrentView, format, source, pgEnv, falcor, id: currentView.view_id || currentView.id
                                     })
                                 }}/>
+                                {tv.versionHint ? <p className={tv.versionHint}>Saved as you type.</p> : null}
+                                {tv.metaInMain ? <div className={tv.metaList}>{meta}</div> : null}
                             </div>
-                            <div className={'flex flex-col gap-4'}>
-                                {
-                                    ['created_at', 'updated_at'].map(key => (
-                                        <div className={''}>
-                                            <div className={'text-sm text-gray-500 capitalize'}>{key.replace('_', ' ')}</div>
-                                            <div className={'text-blue-500'}>{currentView?.[key]}</div>
-                                        </div>
-                                    ))
-                                }
+                            <div className={tv.sideCol}>
+                                {tv.metaInMain ? null : meta}
                                 {
                                     isDms ? (
                                             <>

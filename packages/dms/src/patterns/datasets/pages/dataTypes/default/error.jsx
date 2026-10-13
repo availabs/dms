@@ -1,15 +1,21 @@
 import React, {useContext} from 'react'
-import {cloneDeep, merge} from "lodash-es"
+import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../../../context";
 import {ThemeContext} from "../../../../../ui/useTheme";
 import {dataItemsNav} from "../../../../../utils/nav";
+import StatePanel from "../../../components/StatePanel";
+import {errorPageTheme} from "./errorPage.theme";
 
-function ErrorPage({}) {
+const MESSAGE = 'Unable to complete your request at the moment. Please try again later.';
+
+// The datasets routes' errorElement. `baseUrl` comes from siteConfig (no DatasetsContext here).
+function ErrorPage({baseUrl = ''}) {
     const {theme: fullTheme, UI} = useContext(ThemeContext);
     const {parent} = useContext(DatasetsContext) || {};
-    const {Layout} = UI;
-    let theme = merge(cloneDeep(fullTheme), {})
-    const sectionTheme = theme?.sectionGroup?.['default'] || {};
+    const navigate = useNavigate();
+    const {Layout, Icon} = UI;
+    const t = {...errorPageTheme, ...(fullTheme?.datasets?.errorPage || {})};
+    const sectionTheme = fullTheme?.sectionGroup?.['default'] || {};
     // Shared secondary nav — mount-aware base (navPrefix; see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
@@ -17,23 +23,33 @@ function ErrorPage({}) {
     );
 
     return (
-        <div className={`${theme?.page?.container}`}>
+        <div className={`${fullTheme?.page?.container}`}>
             <Layout
                 navItems={[]}
                 secondNav={menuItemsSecondNav}
-                pageTheme={{navOptions: {sideNav: {size: 'none'}, topNav: {size: 'none'}}}}
-                // Menu={Menu} needs user
+                // v6 keeps the site nav so the reader can go somewhere else; pre-v6 hid it
+                pageTheme={t.keepNav ? undefined : {navOptions: {sideNav: {size: 'none'}, topNav: {size: 'none'}}}}
             >
-                <div className={`${sectionTheme?.wrapper1}`}>
-                    <div
-                        className={`hidden scrollbar-sm lg:block sticky top-[120px] h-[calc(100vh)] bg-white rounded-lg shadow-md w-full overflow-y-auto overflow-x-hidden`}>
-                        <div className={sectionTheme?.wrapper3}>
-                            <div className={'mx-auto max-w-fit pt-[120px] text-lg'}>
-                                Unable to complete your request at the moment. Please try again later.
+                {t.page ? (
+                    <div className={t.page}>
+                        <section className={t.card}>
+                            <StatePanel icon="Alert" tone="brick" title={t.title} text={MESSAGE}>
+                                <button type="button" className={t.actionBtn} onClick={() => navigate(0)}>
+                                    {Icon ? <Icon icon="Refresh" className={t.actionIcon}/> : null}Try again
+                                </button>
+                                <Link to={baseUrl || '/'} className={t.actionBtn}>Back to data sources</Link>
+                            </StatePanel>
+                        </section>
+                    </div>
+                ) : (
+                    <div className={`${sectionTheme?.wrapper1}`}>
+                        <div className={t.legacyInner}>
+                            <div className={sectionTheme?.wrapper3}>
+                                <div className={t.legacyText}>{MESSAGE}</div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
             </Layout>
         </div>
     )

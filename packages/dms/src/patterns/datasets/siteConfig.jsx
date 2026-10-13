@@ -168,7 +168,7 @@ const datasetsConfig = ({
         ],
         errorElement: () => (
           <ThemeContext.Provider value={{ theme, UI }}>
-              <ErrorPage />
+              <ErrorPage baseUrl={baseUrl} />
           </ThemeContext.Provider>
         ),
     }

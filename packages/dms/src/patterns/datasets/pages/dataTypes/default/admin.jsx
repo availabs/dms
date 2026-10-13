@@ -6,64 +6,18 @@ import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
 import SourceAccessEditor from "../../../components/SourceAccessEditor";
+import { DeleteSourceModal, DeleteDmsSourceBtn } from "../../../components/DeleteSource";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
 import { updateSourceData } from "./utils";
 import { udaDeleteSource } from "../../../../../api";
-
-const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
-    const { theme } = useContext(ThemeContext) || {};
-    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, app, type, falcor} = useContext(DatasetsContext);
-    const {DeleteModal} = UI;
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const navigate = useNavigate();
-
-    const deleteSource = async () => {
-        const sourceId = source.source_id || source.id;
-        const sourceType = `${type}|source`;
-
-        // Delete the source row from the database
-        await falcor.call(["dms", "data", "delete"], [app, sourceType, sourceId]);
-
-        // Delete-specific invalidation: length + byIndex (positions shift) +
-        // the deleted source's own byId entry. Other byId rows stay cached.
-        const udaEnv = `${app}+${type}`;
-        await falcor.invalidate(['uda', udaEnv, 'sources', 'length']);
-        await falcor.invalidate(['uda', udaEnv, 'sources', 'byIndex']);
-        await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', +sourceId]);
-        clearDatasetsListCache();
-
-        navigate(baseUrl);
-    }
-    return (
-        <>
-            <button className={t.buttonRed} onClick={() => setShowDeleteModal(true)}>Delete Source</button>
-
-            <DeleteModal
-                title={`Delete Source`} open={showDeleteModal}
-                prompt={`Are you sure you want to delete this source? All of the source data will be permanently removed
-                                            from our servers forever. This action cannot be undone.`}
-                setOpen={(v) => setShowDeleteModal(v)}
-                onDelete={() => {
-                    async function deleteItem() {
-                        await deleteSource()
-                        setShowDeleteModal(false)
-                    }
-
-                    deleteItem()
-                }}
-            />
-        </>
-    )
-}
 
 const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
     // update parent to exclude source. the source still stays in the DB.
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI} = useContext(DatasetsContext);
-    const {Modal} = UI;
+    const {Modal, Icon} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [name, setName] = useState('');
     const navigate = useNavigate();
@@ -78,20 +32,37 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
         // navigate(baseUrl)
         // window.location.assign(baseUrl);
     }
+    const onAdd = () => {
+        async function add() {
+            await addView()
+            setShowDeleteModal(false)
+        }
+
+        add()
+    }
+    const input = <input key={'view-name'} className={t.addVersionInput} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
     return (
         <>
-            <button disabled={!source.id} className={t.buttonGreen} onClick={() => setShowDeleteModal(true)}>Add Version</button>
+            <button disabled={!source.id} className={t.buttonGreen} onClick={() => setShowDeleteModal(true)}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</button>
 
             <Modal open={showDeleteModal} setOpen={(v) => setShowDeleteModal(v)}>
-                <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
-                <button className={t.buttonGreen} onClick={() => {
-                    async function add() {
-                        await addView()
-                        setShowDeleteModal(false)
-                    }
-
-                    add()
-                }}>add</button>
+                {t.addVersionTitle ? (
+                    <div className={t.addVersionBody}>
+                        <h2 className={t.addVersionTitle}>Add version</h2>
+                        <label className={t.addVersionLabel}>version name</label>
+                        {input}
+                        <p className={t.addVersionHint}>Leave blank for “{defaultViewName}”.</p>
+                        <div className={t.addVersionFooter}>
+                            <button type="button" className={t.addVersionCancelBtn} onClick={() => setShowDeleteModal(false)}>cancel</button>
+                            <button type="button" className={t.addVersionBtn} onClick={onAdd}>add</button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {input}
+                        <button className={t.buttonGreen} onClick={onAdd}>add</button>
+                    </>
+                )}
             </Modal>
         </>
     )
@@ -108,20 +79,14 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, falcor} = useContext(DatasetsContext);
-    const {Modal} = UI;
+    const {UI, falcor, pageBaseUrl} = useContext(DatasetsContext);
+    const {Icon} = UI;
     const [open, setOpen] = useState(false);
-    const [typedName, setTypedName] = useState('');
     const [busy, setBusy] = useState(false);
     const [refusal, setRefusal] = useState(null);
     const navigate = useNavigate();
 
     const sourceId = source?.source_id || source?.id;
-    const sourceName = source?.name || '';
-    const nameMatches = typedName.trim() === sourceName.trim() && sourceName.length > 0;
-
-    const reset = () => { setTypedName(''); setRefusal(null); setBusy(false); };
-    const close = () => { setOpen(false); reset(); };
 
     const runDelete = async (cascade) => {
         if (!sourceId) { setRefusal({error: 'No source_id on this source'}); return; }
@@ -135,7 +100,8 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
             }
             await falcor.invalidate(['uda', pgEnv, 'sources']);
             await falcor.invalidate(['uda', pgEnv, 'sources', 'byId', sourceId]);
-            close();
+            clearDatasetsListCache();
+            setOpen(false);
             navigate(baseUrl);
         } catch (e) {
             setRefusal({error: e?.message || String(e)});
@@ -145,66 +111,10 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
 
     return (
         <>
-            <button className={t.buttonRed} onClick={() => setOpen(true)}>Delete Source</button>
-
-            <Modal open={open} setOpen={(v) => (v ? setOpen(true) : close())}>
-                {/* Stop click propagation so the shared Modal's outer onClick doesn't close on interior clicks (which would steal focus from the input) */}
-                <div onClick={e => e.stopPropagation()}>
-                    <div className={t.deleteModalTitle}>Delete source #{sourceId}</div>
-                    <div className={t.deleteModalDesc}>
-                        <p className={t.deleteModalDescHard}>
-                            <span className={t.emphasisBoldDanger}>Delete</span> removes the source and every version,
-                            drops each version's data table, removes download files and deletes task history. This cannot be undone.
-                        </p>
-                        <p>
-                            To retire it without deleting anything, put it in the <span className={t.emphasisBold}>Archive</span> category
-                            on the Overview instead.
-                        </p>
-                    </div>
-                    <div className={t.deleteModalConfirmLabel}>
-                        To confirm, type the source name
-                        <code className={t.codeInline}>{sourceName || '(unnamed)'}</code>:
-                    </div>
-                    <input
-                        type="text"
-                        value={typedName}
-                        onChange={e => setTypedName(e.target.value)}
-                        placeholder={sourceName}
-                        autoFocus
-                        className={t.deleteModalInput}
-                    />
-                    {refusal ? <div className={t.errorText}>{refusal.error}</div> : null}
-                    <div className={t.deleteModalFooter}>
-                        {refusal?.reason === 'has_outputs' ? (
-                            <button
-                                type="button"
-                                disabled={busy || !nameMatches}
-                                className={t.deleteModalHardBtn}
-                                onClick={() => runDelete(true)}
-                            >
-                                {busy ? 'Working…' : `Delete it and the ${refusal.details?.outputs?.length || ''} versions its runs produced`}
-                            </button>
-                        ) : (
-                            <button
-                                type="button"
-                                disabled={busy || !nameMatches}
-                                className={t.deleteModalHardBtn}
-                                onClick={() => runDelete(false)}
-                            >
-                                {busy ? 'Working…' : 'Delete'}
-                            </button>
-                        )}
-                        <button
-                            type="button"
-                            disabled={busy}
-                            className={t.deleteModalCancelBtn}
-                            onClick={close}
-                        >
-                            Cancel
-                        </button>
-                    </div>
-                </div>
-            </Modal>
+            <button className={t.buttonRed} onClick={() => setOpen(true)}>{t.actionIconDelete && <Icon icon={t.actionIconDelete} className={t.actionIcon}/>}Delete Source</button>
+            <DeleteSourceModal open={open} onClose={() => { setOpen(false); setRefusal(null); }}
+                               sourceName={source?.name} overviewHref={pageBaseUrl && sourceId ? `${pageBaseUrl}/${sourceId}` : undefined}
+                               busy={busy} refusal={refusal} onDelete={runDelete}/>
         </>
     );
 };
@@ -214,8 +124,10 @@ const getCreatePage = source => {
 }
 
 const AddExternalVersionBtn = ({source}) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, damaDataTypes} = useContext(DatasetsContext);
-    const {Modal, Button} = UI;
+    const {Modal, Button, Icon} = UI;
     const [showModal, setShowModal] = useState(false);
 
     const createdWith = source?.metadata?.createdWith || null;
@@ -226,7 +138,7 @@ const AddExternalVersionBtn = ({source}) => {
 
     return (
         <>
-            <Button onClick={() => setShowModal(true)}>Add Version</Button>
+            <Button className={t.actionBtn} onClick={() => setShowModal(true)}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</Button>
 
             <Modal
                 title={`Add Version`} open={showModal}
@@ -287,9 +199,25 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
         <div className={t.editableToggleRow}
              title={pkeyInfo?.hasPkey ? undefined : 'Requires a primary key — set one on the Advanced Metadata page'}
         >
-            <label className={t.editableToggleLabel}>Allow editing</label>
-            {saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
-            {error ? <span className={t.errorText}>{error}</span> : null}
+            {t.editableToggleHint ? (
+                // v6: label + a visible hint (and the no-primary-key reason, not just a tooltip)
+                <div className={t.editableToggleMain}>
+                    <label className={t.editableToggleLabel}>Allow editing</label>
+                    <div className={t.editableToggleHint}>
+                        {pkeyInfo?.hasPkey || isEditable
+                            ? 'Lets permitted users edit rows in the Table tab.'
+                            : 'Requires a primary key — set one on Advanced Metadata.'}
+                    </div>
+                    {error ? <div className={t.errorText}>{error}</div> : null}
+                </div>
+            ) : (
+                <>
+                    <label className={t.editableToggleLabel}>Allow editing</label>
+                    {saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
+                    {error ? <span className={t.errorText}>{error}</span> : null}
+                </>
+            )}
+            {t.editableToggleHint && saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
             <Switch
                 enabled={isEditable}
                 disabled={saving || (!pkeyInfo?.hasPkey && !isEditable)}
@@ -306,7 +234,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {baseUrl, pageBaseUrl, user, parent, UI, datasources} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
-    const {Button} = UI;
+    const {Button, Icon} = UI;
 
     if(!user || !user.token) return <></>
 
@@ -324,13 +252,13 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                            <Button className={t.actionBtn}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
                             {
                                 isDms ? (
                                     <>
                                         <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
                                         {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
-                                        <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                                        <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                                     </>
                                 ) : (
                                     <>

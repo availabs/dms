@@ -1,4 +1,4 @@
-import { GisCreate as CreatePage, Table, Metadata } from "../lazyPages";
+import { GisCreate as CreatePage, Table, Metadata, GisUploads as Uploads } from "../lazyPages";
 
 const GisDatasetConfig = {
     table: {
@@ -11,6 +11,13 @@ const GisDatasetConfig = {
         path: "/metadata",
         cdn: () => false, // hide from nav
         component: Metadata,
+    },
+    // same Uploads page as gis_dataset — csv publishes through the GIS create flow (2026-10-07)
+    uploads: {
+        name: "Uploads",
+        path: "/uploads",
+        cdn: () => false, // hide from nav
+        component: Uploads,
     },
     sourceCreate: {
         name: "Create",

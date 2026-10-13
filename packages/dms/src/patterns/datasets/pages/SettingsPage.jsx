@@ -214,6 +214,10 @@ export default function SettingsPage({format}) {
     const filterBySearch = (cats) =>
         search ? cats.filter(c => c.toLowerCase().includes(search.toLowerCase())) : cats;
 
+    // v6 lays the page out directly; pre-v6 (theme.content '') keeps the LayoutGroup card
+    const Body = theme.content ? 'div' : LayoutGroup;
+    const bodyProps = theme.content ? {className: theme.content} : {};
+
     return (
         <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <div className={theme.pageWrapper}>
@@ -221,7 +225,7 @@ export default function SettingsPage({format}) {
                     {icon: 'Database', href: baseUrl},
                     {name: 'Settings'},
                 ]}/>
-                <LayoutGroup>
+                <Body {...bodyProps}>
                     <div className={theme.heading}>
                         Dataset Settings
                     </div>
@@ -488,7 +492,7 @@ export default function SettingsPage({format}) {
                         </div>
                         </div>
                     </div>
-                </LayoutGroup>
+                </Body>
             </div>
         </Layout>
     );

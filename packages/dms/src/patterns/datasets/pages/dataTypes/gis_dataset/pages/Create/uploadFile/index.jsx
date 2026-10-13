@@ -101,6 +101,7 @@ export default function UploadGisDataset({ state, dispatch }) {
           <button>
             <input
               type="file"
+              className={t.uploadFileInput || undefined}
               onChange={(e) => uploadGisDataset(e.target.files[0])}
             />
           </button>

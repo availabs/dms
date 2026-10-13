@@ -20,6 +20,17 @@ const FreeFormColumnNameInput = ({ publishStatus, field, col, onChange }) => {
   );
 };
 
+// "All table columns have been assigned." — v6 class, or the original inline gray (legacyInlineStyles)
+const AllAssigned = () => {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  return (
+    <span className={t.allAssigned || undefined} style={t.legacyInlineStyles ? { color: "darkgray" } : undefined}>
+      All table columns have been assigned.
+    </span>
+  );
+};
+
 const ConstrainedColumnNameInput = ({
   publishStatus,
   field,
@@ -39,9 +50,7 @@ const ConstrainedColumnNameInput = ({
 
   if (!availableDbColNames.length) {
     return (
-      <span style={{ color: "darkgray" }}>
-        All table columns have been assigned.
-      </span>
+      <AllAssigned/>
     );
   }
 
@@ -180,11 +189,11 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
   return (
     <div>
       <span className={t.schemaFormTitle}>Field Names Mappings</span>
-      <div>
+      <div className={t.schemaFormCard || undefined}>
         <table className={t.schemaFormTable}>
           <thead>
             <tr>
-              <th className={t.schemaFormThCenter} style={{ paddingRight: "40px" }}>
+              <th className={t.schemaFormThCenter} style={t.legacyInlineStyles ? { paddingRight: "40px" } : undefined}>
                 Upload File Columns
               </th>
               <th className={t.schemaFormThCenter}>Database Column Name</th>
@@ -244,6 +253,7 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
                   <td className={t.schemaFormTdCheck}>
                     <input
                       type="checkbox"
+                      className={t.schemaCheckbox || undefined}
                       checked={omittedFields[key]}
                       disabled={
                         fieldColNameOptions && fieldColNameOptions.length === 0
@@ -280,6 +290,7 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
                   <td className={t.schemaFormTdCheck}>
                     <input
                       type="checkbox"
+                      className={t.schemaCheckbox || undefined}
                       checked={preserveColumns[col]}
                       disabled={
                         fieldColNameOptions && fieldColNameOptions.length === 0
@@ -312,6 +323,7 @@ export const GisDatasetLayerDatabaseDbSchemaForm = ({ state, dispatch }) => {
           </tbody>
         </table>
       </div>
+      {t.schemaFormHint ? <p className={t.schemaFormHint}>Omit drops a column from the table. Mbtile keeps it on the map tiles (for popups and styling).</p> : null}
     </div>
   );
 };

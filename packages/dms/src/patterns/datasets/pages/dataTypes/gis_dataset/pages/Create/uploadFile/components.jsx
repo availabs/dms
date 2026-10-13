@@ -5,6 +5,17 @@ import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
 
 export function ProgressBar({ progress }) {
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  if (t.progressWrap) {
+    return (
+      <div className={t.progressWrap}>
+        <span className={t.progressLabel}>Sent</span>
+        <div className={t.progressTrack}><div className={t.progressFill} style={{ width: `${progress}%` }}/></div>
+        <span className={t.progressText}>{`${progress}%`}</span>
+      </div>
+    );
+  }
   const Parentdiv = {
     display: "inline-block",
     height: "100%",
@@ -135,18 +146,20 @@ export function GisDatasetFileMeta({ uploadedFile, fileUploadStatus }) {
 export function GisDatasetUploadErrorMessage({ etlContextId, uploadErrMsg }) {
   const { theme } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  // v6: themed cells; legacyInlineStyles keeps the original inline style={} objects
+  const L = !!t.legacyInlineStyles;
   return (
     <table
       className={t.uploadErrorTable}
-      style={{
+      style={L ? {
         margin: "40px auto",
         textAlign: "center",
         border: "1px solid",
         borderColor: "back",
-      }}
+      } : undefined}
     >
       <thead
-        style={{
+        style={L ? {
           color: "black",
           backgroundColor: "red",
           fontWeight: "bolder",
@@ -155,32 +168,33 @@ export function GisDatasetUploadErrorMessage({ etlContextId, uploadErrMsg }) {
           fontSize: "20px",
           border: "1px solid",
           borderColor: "black",
-        }}
+        } : undefined}
       >
         <tr>
-          <th style={{ border: "1px solid", borderColor: "black" }}>
+          <th className={t.errTh || undefined} style={L ? { border: "1px solid", borderColor: "black" } : undefined}>
             {" "}
             GIS Dataset Upload Error
           </th>
-          <th style={{ border: "1px solid", borderColor: "black" }}>
+          <th className={t.errTh || undefined} style={L ? { border: "1px solid", borderColor: "black" } : undefined}>
             {" "}
             ETL Context ID
           </th>
         </tr>
       </thead>
-      <tbody style={{ border: "1px solid" }}>
-        <tr style={{ border: "1px solid" }}>
+      <tbody style={L ? { border: "1px solid" } : undefined}>
+        <tr style={L ? { border: "1px solid" } : undefined}>
           <td
-            style={{
+            className={t.errTd || undefined}
+            style={L ? {
               border: "1px solid",
               padding: "10px",
               backgroundColor: "white",
               color: "darkred",
-            }}
+            } : undefined}
           >
             {uploadErrMsg}
           </td>
-          <td style={{ border: "1px solid", backgroundColor: "white" }}>
+          <td className={t.errTdCtx || undefined} style={L ? { border: "1px solid", backgroundColor: "white" } : undefined}>
             {etlContextId}
           </td>
         </tr>

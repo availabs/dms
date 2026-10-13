@@ -1,46 +1,74 @@
+// Default source Admin tab theme — tessera v6, ported 2026-10-06 from
+// src/themes/tessera/design_system_v6/pages/datasets-source-admin.html. Used by
+// dataTypes/default/admin.jsx (DAMA + DMS-default), dataTypes/internal/pages/admin.jsx and
+// components/SourceAccessEditor.jsx. A site theme overrides via `datasets.admin`; project themes
+// keep their pre-v6 look through src/themes/_legacy/datasets.js.
 export const adminTheme = {
-    // Button classes (used inline as const)
-    buttonRed: 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md',
-    buttonGreen: 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md',
+    // action buttons
+    buttonRed: 'w-full h-8 mt-1 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-brick)] t-proseSM text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer',
+    buttonGreen: 'w-full h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-40',
+    // shared Button (Advanced metadata, external Add version) — passed as className
+    actionBtn: 'w-full h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
 
     // Admin page layout
-    adminWrapper: 'p-2',
-    adminRow: 'flex gap-12',
-    adminMain: 'w-3/4',
-    adminSidebar: 'w-1/4',
+    adminWrapper: 'w-full max-w-[1200px] pl-6 lg:pl-12 pr-6 lg:pr-8 py-6',
+    adminRow: 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_280px] gap-6 items-start',
+    adminMain: 'min-w-0',
+    adminSidebar: 'min-w-0',
 
-    // UAC panels
-    uacPanel: 'shadow-md rounded-md place-content-center p-4 w-full',
-    uacPanelLabel: 'text-xl text-gray-900 font-semibold',
+    // Access card (SourceAccessEditor) — wraps the shared Permissions component
+    uacPanel: 'rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] p-4 flex flex-col gap-3',
+    uacPanelLabel: 't-proseSM font-medium text-[var(--t-ink)]',
     uacMultiSelect: 'w-1/2',
     uacGrid: 'grid grid-cols-3',
-    uacGroupPanel: 'shadow-lg rounded-md place-content-center p-4 w-full',
+    uacGroupPanel: 'rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] p-4 w-full',
 
     // Sidebar actions
-    sidebarActionsPanel: 'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4',
+    sidebarActionsPanel: 'rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] p-4 flex flex-col gap-2',
 
     // EditableToggle
-    editableToggleRow: 'flex flex-row items-center justify-between gap-2 shadow-lg rounded-md p-4',
-    editableToggleLabel: 'text-sm font-medium text-gray-700',
-    editableToggleSavingIcon: 'text-slate-400 size-4 animate-spin',
+    editableToggleRow: 'flex items-start gap-2 py-3 my-1 border-y border-[var(--t-rule)]',
+    editableToggleMain: 'flex-1 min-w-0',
+    editableToggleLabel: 't-proseSM text-[var(--t-ink)]',
+    editableToggleHint: 't-proseXS text-[var(--t-pencil)] mt-0.5',
+    editableToggleSavingIcon: 'text-[var(--t-pencil)] size-4 animate-spin',
 
     // Tasks
-    tasksWrapper: 'w-full pt-12',
-    tasksLabel: 'text-sm font-medium text-gray-500 pb-2',
+    tasksWrapper: 'w-full mt-6 rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] overflow-hidden',
+    tasksLabel: 'px-4 py-3 border-b border-[var(--t-rule)] t-proseSM font-medium text-[var(--t-ink)]',
 
-    // DeleteDamaSourceBtn modal content
-    deleteModalTitle: 'text-base font-semibold text-gray-900',
-    deleteModalDesc: 'mt-2 text-sm text-gray-600',
-    deleteModalDescHard: 'mt-2',
-    deleteModalConfirmLabel: 'mt-3 text-sm text-gray-700',
-    deleteModalInput: 'mt-1 w-full border border-gray-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-red-500',
-    deleteModalFooter: 'mt-5 flex flex-row-reverse gap-2',
-    deleteModalHardBtn: 'inline-flex justify-center rounded-md bg-red-700 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-800 disabled:opacity-40',
-    deleteModalCancelBtn: 'inline-flex justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50',
+    // icons on the sidebar action buttons ('' → no icon)
+    actionIcon: 'size-3.5',
+    actionIconMetadata: 'Columns',
+    actionIconAdd: 'Add',
+    actionIconDelete: 'TrashCan',
+
+    // AddViewBtn (DMS) modal — addVersionTitle '' → the bare input + add button (pre-v6 markup)
+    addVersionBody: 'text-left',
+    addVersionTitle: 't-displaySM text-[var(--t-ink)]',
+    addVersionLabel: 'block mt-3 mb-1 t-metaXS text-[var(--t-pencil)]',
+    addVersionHint: 'mt-1 t-proseXS text-[var(--t-pencil)]',
+    addVersionInput: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]',
+    addVersionError: 'mt-2 t-proseXS text-[var(--t-brick)]',
+    addVersionFooter: 'mt-5 flex justify-end gap-2',
+    addVersionCancelBtn: 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
+    addVersionBtn: 'h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] disabled:opacity-40 cursor-pointer',
+
+    // Delete-source modal (components/DeleteSource.jsx — DAMA + DMS; one hard delete, type-name confirm)
+    deleteModalBody: 'text-left',
+    deleteModalLink: 'text-[var(--t-cobalt)] hover:underline',
+    deleteModalTitle: 't-displaySM text-[var(--t-ink)]',
+    deleteModalDesc: 'mt-3 flex flex-col gap-2 t-proseSM text-[var(--t-graphite)]',
+    deleteModalDescHard: '',
+    deleteModalConfirmLabel: 'mt-4 t-proseSM text-[var(--t-graphite)]',
+    deleteModalInput: 'mt-2 w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM outline-none focus:border-[var(--t-brick)]',
+    deleteModalFooter: 'mt-5 flex flex-row-reverse flex-wrap gap-2',
+    deleteModalHardBtn: 'h-8 inline-flex items-center px-3 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-brick)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed',
+    deleteModalCancelBtn: 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
 
     // Inline text emphasis
-    emphasisBold: 'font-semibold',
-    emphasisBoldDanger: 'font-semibold text-red-700',
-    codeInline: 'ml-1',
-    errorText: 'mt-2 text-sm text-red-700',
+    emphasisBold: 'font-medium text-[var(--t-ink)]',
+    emphasisBoldDanger: 'font-medium text-[var(--t-brick)]',
+    codeInline: 'ml-1 t-metaMD text-[var(--t-ink)] bg-[var(--t-well)] rounded px-1',
+    errorText: 'mt-2 t-proseXS text-[var(--t-brick)]',
 }

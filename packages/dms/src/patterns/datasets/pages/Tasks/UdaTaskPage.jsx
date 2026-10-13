@@ -6,6 +6,8 @@ import Breadcrumbs from "../../components/Breadcrumbs";
 import { ThemeContext } from "../../../../ui/useTheme";
 import { dataItemsNav } from "../../../../utils/nav";
 import { udaTaskPageTheme } from "./UdaTaskPage.theme";
+import TaskTable from "../../components/TaskTable";
+import { Link } from "react-router";
 
 const EVENT_ATTRS = ["event_id", "task_id", "type", "message", "payload", "created_at"];
 
@@ -15,6 +17,7 @@ const DateCell = ({ value, ...rest }) => {
     return <div {...rest}>{isNaN(myDate.getTime()) ? value : myDate.toLocaleString()}</div>;
 };
 
+// UI.Table columns (pre-v6, `t.table` ''). v6 builds plain-table columns from the theme (eventColumns).
 const COLUMNS = [
     { name: "event_id", display_name: "Event ID", show: true, size: 100 },
     { name: "type", display_name: "Type", show: true },
@@ -41,6 +44,29 @@ const COLUMNS = [
     },
 ];
 
+const parsePayload = (value) => {
+    const parsed = typeof value === 'string' ? (() => { try { return JSON.parse(value); } catch { return value; } })() : value;
+    return JSON.stringify(parsed, null, 2);
+};
+
+const fmtDate = (value) => {
+    const myDate = new Date(String(value).replace(/"/g, ''));
+    return isNaN(myDate.getTime()) ? value : myDate.toLocaleString();
+};
+
+const eventColumns = (t) => [
+    { name: "event_id", display_name: "Event ID", Comp: ({ value }) => <span className={t.eventIdCell}>{value}</span> },
+    { name: "type", display_name: "Type",
+      Comp: ({ value }) => <span className={/ERROR/i.test(value || '') ? t.eventTypeError : t.eventTypeCell}>{value}</span> },
+    { name: "message", display_name: "Message", Comp: ({ value }) => <div className={t.eventMessageCell}>{value}</div> },
+    { name: "created_at", display_name: "Created at",
+      Comp: ({ value }) => value ? <span className={t.eventDateCell}>{fmtDate(value)}</span> : <span className={t.emptyCell}>—</span> },
+    { name: "payload", display_name: "Data",
+      Comp: ({ value }) => value
+          ? <textarea disabled rows={t.payloadRows || undefined} className={t.payloadTextarea} value={parsePayload(value)}/>
+          : <span className={t.emptyCell}>—</span> },
+];
+
 const StatusBadge = ({status}) => {
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
@@ -50,7 +76,9 @@ const StatusBadge = ({status}) => {
         running: t.statusRunning,
         queued: t.statusQueued,
     };
-    return <span className={`${t.statusBadge} ${colors[status] || t.statusDefault}`}>{status}</span>;
+    return <span className={`${t.statusBadge} ${colors[status] || t.statusDefault}`}>
+        {status === 'running' && t.statusRunningDot ? <span className={t.statusRunningDot}/> : null}{status}
+    </span>;
 };
 
 const UdaTaskPage = ({params, pageSize = 20}) => {
@@ -154,48 +182,67 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
 
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
+    const v6Columns = React.useMemo(() => eventColumns(t), [theme]); // eslint-disable-line react-hooks/exhaustive-deps
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
         () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
         [theme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
     );
 
+    // v6 lays the page out directly; pre-v6 (t.page '') keeps the LayoutGroup
+    const Body = t.page ? 'div' : LayoutGroup;
+    // DMS tasks (env `app+type`) belong to internal sources — same split as SourcePage's pageBaseUrl
+    const sourceBaseUrl = `${baseUrl}/${pgEnv?.includes('+') ? 'internal_source' : 'source'}`;
+    const pagination = <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}
+        totalLength={data.length}/>;
+
     return (
         <Layout navItems={[]} secondNav={menuItemsSecondNav}>
             <Breadcrumbs items={[
                 {icon: 'Database', href: baseUrl},
-                {name: 'Tasks', href: `${baseUrl}/tasks-new`},
+                {name: 'Tasks', href: `${baseUrl}/tasks`},
                 {name: taskInfo?.source_name || `Task ${taskId}`},
             ]} />
-            <LayoutGroup>
+            <Body className={t.page || undefined}>
                 {taskInfo && (
                     <div className={t.taskInfoRow}>
-                        <div><span className={t.taskInfoLabel}>Task:</span> {taskInfo.task_id}</div>
-                        <div><span className={t.taskInfoLabel}>Status:</span> <StatusBadge status={taskInfo.status} /></div>
-                        <div><span className={t.taskInfoLabel}>Worker:</span> <span className={t.taskInfoWorker}>{(taskInfo.worker_path || '').replace(/\//g, ' ')}</span></div>
-                        {taskInfo.source_name && <div><span className={t.taskInfoLabel}>Source:</span> {taskInfo.source_name}</div>}
-                        {taskInfo.error && <div className={t.taskInfoError}><span className={t.taskInfoLabel}>Error:</span> {taskInfo.error}</div>}
+                        <div className={t.taskInfoItem}><span className={t.taskInfoLabel}>Task{t.taskInfoSep}</span> <span className={t.taskInfoId}>{taskInfo.task_id}</span></div>
+                        <div className={t.taskInfoStatus || t.taskInfoItem}><span className={t.taskInfoLabel}>Status{t.taskInfoSep}</span> <StatusBadge status={taskInfo.status} /></div>
+                        <div className={t.taskInfoItem}><span className={t.taskInfoLabel}>Worker{t.taskInfoSep}</span> <span className={t.taskInfoWorker}>{(taskInfo.worker_path || '').replace(/\//g, ' ')}</span></div>
+                        {taskInfo.source_name && <div className={t.taskInfoItem}><span className={t.taskInfoLabel}>Source{t.taskInfoSep}</span> {
+                            t.taskInfoSourceLink && taskInfo.source_id
+                                ? <Link className={t.taskInfoSourceLink} to={`${sourceBaseUrl}/${taskInfo.source_id}`}>{taskInfo.source_name}</Link>
+                                : taskInfo.source_name
+                        }</div>}
                         {taskInfo.progress > 0 && taskInfo.progress < 1 && (
-                            <div><span className={t.taskInfoLabel}>Progress:</span> {Math.round(taskInfo.progress * 100)}%</div>
+                            <div className={t.taskInfoItem}><span className={t.taskInfoLabel}>Progress{t.taskInfoSep}</span> {Math.round(taskInfo.progress * 100)}%</div>
                         )}
+                        {taskInfo.error && <div className={t.taskInfoError}><span className={t.taskInfoLabel}>Error{t.taskInfoSep}</span> {taskInfo.error}</div>}
                     </div>
                 )}
                 <div className={t.contentWrapper}>
+                    {t.eventsHeader && pgEnv ? (
+                        <div className={t.eventsHeader}>
+                            <span className={t.eventsTitle}>Events</span>
+                            <span className={t.eventsCount}>{data.length}</span>
+                        </div>
+                    ) : null}
                     {pgEnv === null ? (
                         <div className={t.lookupMsg}>Looking up task…</div>
                     ) : pgEnv === '' ? (
                         <div className={t.notFoundMsg}>Task {taskId} was not found in any configured environment ({envCandidates.join(', ')}).</div>
                     ) : data.length > 0 ? (
                         <>
-                            <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>
-                            <Pagination currentPage={currentPage} setCurrentPage={setCurrentPage} pageSize={pageSize} usePagination={true}
-                                totalLength={data.length}/>
+                            {t.table
+                                ? <TaskTable columns={v6Columns} data={data.data} t={t} striped/>
+                                : <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>}
+                            {pagination}
                         </>
                     ) : (
                         <div className={t.noEventsMsg}>No events for this task.</div>
                     )}
                 </div>
-            </LayoutGroup>
+            </Body>
         </Layout>
     );
 };

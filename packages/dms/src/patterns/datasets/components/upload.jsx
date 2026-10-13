@@ -231,7 +231,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
         (
             <div className={t.postUploadOuter}>
                 <div className={t.postUploadLayerRow}>
-                    <label htmlFor={'layer-selector'}>Sheet to upload:</label>
+                    <label htmlFor={'layer-selector'} className={t.postUploadLabel || undefined}>Sheet to upload:</label>
                     <select
                         id={'layer-selector'}
                         className={t.postUploadLayerSelect}
@@ -250,11 +250,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                     pivotColumns.length ?
                         <div className={t.pivotColumnsWrapper}>
                             <div className={t.pivotColumnsTitle}>Pivot Columns
-                                <InfoCircle className={'ml-1 text-blue-500 hover:text-blue-300 cursor-pointer'}
+                                <InfoCircle className={t.pivotInfoIcon}
                                             height={18} width={18}
                                             title={'These column headers will become values for the Destination column if there exists a value for a given row in the data.'}/>
                             </div>
-                            <div className={t.pivotColumnsGrid}
+                            <div className={t.pivotColumnsHeadGrid}
                                  style={{gridTemplateColumns: '1fr 2fr'}}>
                                 <div>Destination Column</div>
                                 <div>Source Columns</div>
@@ -275,7 +275,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
 
                 {/*Render primary column selector*/}
                 <div className={t.primaryColRow}>
-                    <label htmlFor={'primary-col-selector'}>Primary Column <span className={'text-xs italic'}>(Existing records will be updated when the primary column value matches)</span>:</label>
+                    <label htmlFor={'primary-col-selector'} className={t.primaryColLabel || undefined}>Primary Column <span className={t.primaryColHint}>(Existing records will be updated when the primary column value matches)</span>:</label>
                     <select
                         id={'primary-col-selector'}
                         className={t.primaryColSelect}
@@ -296,9 +296,9 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                         <>
                             <div className={t.columnsHeader}
                                  style={{gridTemplateColumns: "1fr 1fr 100px"}}>
-                                <label className={'flex flex-wrap items-center'}>
+                                <label className={t.columnsSearchLabel}>
                                     Display Name
-                                    <input className={'p-0.5 mx-1 border rounded-md text-sm font-light'} value={search}
+                                    <input className={t.columnsSearch} value={search}
                                            onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
                                 <label>Existing Column Match</label>
                                 <label>GEO Column</label>
@@ -338,7 +338,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                                 </select>
                                                 <div key={`${name}_geo_col_div`}
                                                      className={t.columnGeoCell}>
-                                                    <input className={''} type={"checkbox"} checked={geo_col || false}
+                                                    <input className={t.columnGeoCheckbox || ''} type={"checkbox"} checked={geo_col || false}
                                                            onChange={() => {
                                                            }}
                                                            onClick={e => {
@@ -374,7 +374,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                     {publishing ? 'publishing...' : 'publish'}
                                 </button>
                             </div>
-                        </> : <div>No columns available.</div>
+                        </> : <div className={t.noColumnsMsg || undefined}>No columns available.</div>
                 }
             </div>
         )

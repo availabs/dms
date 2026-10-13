@@ -19,7 +19,7 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     const {UI} = useContext(DatasetsContext)
     const {Input, Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const [item, setItem] = useState(parseJson(value || {}) || {})
     const [search, setSearch] = useState('');
     const [pkeyError, setPkeyError] = useState(null);
@@ -129,7 +129,11 @@ export default function MetadataComp ({isDms, value = '{}', accessKey, onChange,
     return (
         <div className={t.container}>
             <div className={t.searchWrapper}>
-                <Input value={search} onChange={e => setSearch(e.target.value)} placeHolder={'search...'}/>
+                <div className={t.searchRow}>
+                    <div className={t.searchInputWrap}>
+                        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder={'search...'}/>
+                    </div>
+                </div>
                 {
                     item.is_dirty ?
                         <div className={t.dirtyWarning}>

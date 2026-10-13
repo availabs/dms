@@ -1,108 +1,18 @@
 import React, {useContext, useState} from "react";
 import { DatasetsContext } from "../../../../context";
 import { cloneDeep } from "lodash-es";
-import {Link, useNavigate} from "react-router";
+import {Link} from "react-router";
 import {getSourceData} from "../../default/utils";
 import { getInstance } from "../../../../../../utils/type-utils";
-import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
 import UdaTaskList from "../../../Tasks/UdaTaskList";
 import SourceAccessEditor from "../../../../components/SourceAccessEditor";
 import ChangeHistoryEditor from "../../../../components/ChangeHistoryEditor";
+import { DeleteDmsSourceBtn } from "../../../../components/DeleteSource";
+import { ThemeContext } from "../../../../../../ui/useTheme";
+import { adminTheme } from "../../default/admin.theme";
 
-const buttonRedClass = 'p-2 mx-1 bg-red-500 hover:bg-red-700 text-white rounded-md';
-const buttonGreenClass = 'p-2 mx-1 bg-green-500 hover:bg-green-700 text-white rounded-md';
-
-const DeleteSourceBtn = ({parent, source, apiUpdate, baseUrl}) => {
-    const {UI, app, type, falcor, dmsEnv} = useContext(DatasetsContext);
-    const {DeleteModal} = UI;
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [busy, setBusy] = useState(false);
-    const [error, setError] = useState(null);
-    const navigate = useNavigate();
-
-    const deleteSource = async () => {
-        setBusy(true);
-        setError(null);
-        try {
-            // For internal_table sources, the DMS data_items row id is the
-            // canonical id. `source.source_id` is a legacy DAMA reference
-            // some rows still carry under `data.source_id` — pointing the
-            // delete at it would silently miss every modern source.
-            const sourceId = +(source.id || source.source_id);
-            const udaEnv = `${app}+${type}`;
-
-            // Server-side cleanup: drops split tables, deletes view rows,
-            // strips ref from owning dmsEnv(s), deletes source row, deletes
-            // dms.tasks rows for this source. Returns a summary.
-            const res = await falcor.call(['uda', 'sources', 'delete'], [udaEnv, sourceId]);
-            // The route used to return server-side errors to a path that
-            // dropped the env segment. Read both the env-scoped and bare
-            // paths so older deployments still surface their errors here.
-            const result =
-                res?.json?.uda?.[udaEnv]?.sources?.delete
-                ?? res?.json?.uda?.sources?.delete;
-            if (!result) {
-                throw new Error('No response from server');
-            }
-            if (result.error) {
-                throw new Error(result.error);
-            }
-            if (result.deleted_source === false) {
-                throw new Error(
-                    `Source row id=${sourceId} not deleted on server` +
-                    (result.warnings?.length ? ` — ${result.warnings.join('; ')}` : '')
-                );
-            }
-
-            // Invalidate UDA caches that may have shown this source.
-            await falcor.invalidate(['uda', udaEnv, 'sources', 'length']);
-            await falcor.invalidate(['uda', udaEnv, 'sources', 'byIndex']);
-            await falcor.invalidate(['uda', udaEnv, 'sources', 'byId', sourceId]);
-
-            // Invalidate the dmsEnv row so its data.sources array is re-fetched
-            // (the server stripped the source ref). Cover any dmsEnvs the
-            // server reported updating, plus the in-context one as a fallback.
-            const dmsEnvIdsToInvalidate = new Set();
-            if (dmsEnv?.id) dmsEnvIdsToInvalidate.add(+dmsEnv.id);
-            for (const e of result?.dmsEnvs_updated || []) {
-                if (e?.id) dmsEnvIdsToInvalidate.add(+e.id);
-            }
-            for (const id of dmsEnvIdsToInvalidate) {
-                await falcor.invalidate(['dms', 'data', app, 'byId', id]);
-            }
-
-            clearDatasetsListCache();
-            setShowDeleteModal(false);
-            navigate(baseUrl);
-        } catch (e) {
-            console.error('Failed to delete internal source:', e);
-            setError(e?.message || String(e));
-        } finally {
-            setBusy(false);
-        }
-    }
-    return (
-        <>
-            <button className={buttonRedClass} onClick={() => setShowDeleteModal(true)}>Delete Source</button>
-
-            <DeleteModal
-                title={`Delete Source`} open={showDeleteModal}
-                prompt={
-                    busy
-                        ? `Deleting…`
-                        : (error
-                            ? `Error: ${error}`
-                            : `Permanently delete this source? This will remove all versions, drop the underlying data tables, strip the source from any dmsEnvs that own it, and delete its task history. This cannot be undone.`)
-                }
-                setOpen={(v) => { if (!busy) { setShowDeleteModal(v); if (!v) setError(null); } }}
-                onDelete={() => {
-                    if (busy) return;
-                    deleteSource();
-                }}
-            />
-        </>
-    )
-}
+// Styled through `datasets.admin` (default/admin.theme.js) like the default Admin page — the
+// classes that used to be hardcoded here are the frozen pre-v6 values in src/themes/_legacy/datasets.js.
 
 function getNewId(falcorRes) {
     return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
@@ -123,8 +33,10 @@ function getNewId(falcorRes) {
  * This direct-Falcor implementation mirrors sourceCreate.jsx's pattern.
  */
 const AddViewBtn = ({source, setSource}) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, app, type, falcor} = useContext(DatasetsContext);
-    const {Modal} = UI;
+    const {Modal, Icon} = UI;
     const [showModal, setShowModal] = useState(false);
     const [name, setName] = useState('');
     const [error, setError] = useState(null);
@@ -134,7 +46,9 @@ const AddViewBtn = ({source, setSource}) => {
     const addView = async () => {
         try {
             setError(null);
-            const sourceId = source.source_id;
+            // DMS row id; `source_id` is only set when getSourceData loaded the source (route-preloaded
+            // items carry `id` only — gating on it alone left Add Version permanently disabled).
+            const sourceId = source.id || source.source_id;
 
             // source.type from UDA is `data->>'type'` (e.g. 'internal_table'),
             // not the row type column. Fetch the row type to derive the slug.
@@ -192,24 +106,43 @@ const AddViewBtn = ({source, setSource}) => {
             return false;
         }
     }
+    const onAdd = () => {
+        async function add() {
+            const ok = await addView()
+            if (ok) {
+                setShowModal(false)
+                setName('')
+            }
+        }
+
+        add()
+    }
+    const errorLine = error && <div className={t.addVersionError}>{error}</div>;
+    const input = <input key={'view-name'} className={t.addVersionInput} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>;
     return (
         <>
-            <button disabled={!source?.source_id} className={buttonGreenClass}
-                    onClick={() => { setError(null); setShowModal(true); }}>Add Version</button>
+            <button disabled={!(source?.id || source?.source_id)} className={t.buttonGreen}
+                    onClick={() => { setError(null); setShowModal(true); }}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</button>
             <Modal open={showModal} setOpen={(v) => { setShowModal(v); if (!v) setError(null); }}>
-                {error && <div className={'text-red-500 text-sm p-2'}>{error}</div>}
-                <input key={'view-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
-                <button className={buttonGreenClass} onClick={() => {
-                    async function add() {
-                        const ok = await addView()
-                        if (ok) {
-                            setShowModal(false)
-                            setName('')
-                        }
-                    }
-
-                    add()
-                }}>add</button>
+                {t.addVersionTitle ? (
+                    <div className={t.addVersionBody}>
+                        <h2 className={t.addVersionTitle}>Add version</h2>
+                        {errorLine}
+                        <label className={t.addVersionLabel}>version name</label>
+                        {input}
+                        <p className={t.addVersionHint}>Leave blank for “{defaultViewName}”.</p>
+                        <div className={t.addVersionFooter}>
+                            <button type="button" className={t.addVersionCancelBtn} onClick={() => { setShowModal(false); setError(null); }}>cancel</button>
+                            <button type="button" className={t.addVersionBtn} onClick={onAdd}>add</button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        {errorLine}
+                        {input}
+                        <button className={t.buttonGreen} onClick={onAdd}>add</button>
+                    </>
+                )}
             </Modal>
         </>
     )
@@ -217,20 +150,22 @@ const AddViewBtn = ({source, setSource}) => {
 
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {id} = params;
-    const {app, type, baseUrl, pageBaseUrl, user, parent, UI} = React.useContext(DatasetsContext) || {};
+    const {app, type, baseUrl, pageBaseUrl, user, UI} = React.useContext(DatasetsContext) || {};
     // Tasks for internal_table sources live in the DMS task tables
     // (`dms.tasks` / `dms_tasks`), not in any DAMA pgEnv. The UDA route
     // layer routes to DMS when the env contains '+', so we build the
     // DMS env from the pattern's app + instance.
     const taskEnv = app && type ? `${app}+${type}` : null;
-    const {Button} = UI;
+    const {Button, Icon} = UI;
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
 
     if(!user || !user.token) return <></>
 
     return (
-            <div className={'p-2'}>
-                <div className={'flex gap-12'}>
-                    <div className={'w-3/4'}>
+            <div className={t.adminWrapper}>
+                <div className={t.adminRow}>
+                    <div className={t.adminMain}>
                         {/* New string-permission Access editor (pattern ⊕ source) — replaces the
                             legacy numeric statistics.auth UAC; gated by edit-source-permissions. */}
                         <SourceAccessEditor source={source} setSource={setSource} format={format}
@@ -239,18 +174,18 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                         <ChangeHistoryEditor source={source} id={id}/>
                     </div>
 
-                    <div className={'w-1/4'}>
-                        <div className={'flex flex-col gap-4 shadow-lg rounded-md place-content-center p-4'}>
-                            <Button><Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                    <div className={t.adminSidebar}>
+                        <div className={t.sidebarActionsPanel}>
+                            <Button className={t.actionBtn}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
                             <AddViewBtn source={source} setSource={setSource}/>
-                            <DeleteSourceBtn parent={parent} source={source} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                            <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                         </div>
                     </div>
                 </div>
                 {taskEnv && (
-                    <div className={'w-full pt-12'}>
-                        <div className={'text-sm font-medium text-gray-500 pb-2'}>Tasks</div>
-                        <UdaTaskList env={taskEnv} sourceId={source.source_id} />
+                    <div className={t.tasksWrapper}>
+                        <div className={t.tasksLabel}>Tasks</div>
+                        <UdaTaskList env={taskEnv} sourceId={source.id || source.source_id} />
                     </div>
                 )}
             </div>

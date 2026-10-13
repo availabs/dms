@@ -47,6 +47,10 @@ export const InternalViewAttributes = [
     // map's DMS-side counterpart, read for symmetry with the external `metadata.download`.)
     "file",
     "download",
+    // row timestamps (data_items.created_at / updated_at) — the version page's created / updated
+    // and the Overview's "published" dates; resolveInternalViewNames used to drop them
+    "created_at",
+    "updated_at",
 ];
 
 export const ExternalViewAttributes = [

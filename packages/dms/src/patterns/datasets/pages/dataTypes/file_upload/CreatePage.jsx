@@ -9,13 +9,16 @@ import { getInstance } from "../../../../../utils/type-utils";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { createPageTheme } from "./CreatePage.theme";
+import CreateStep from "../../../components/CreateStep";
 
 const MIN_SOURCE_NAME_LENGTH = 4;
 const intFormat = d3format(",d");
 
 const CreatePage = ({ source }) => {
 	const { theme } = React.useContext(ThemeContext) || {};
-	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreatePage || {}) };
+	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreate || {}) };
+	const { UI } = React.useContext(DatasetsContext) || {};
+	const { Icon } = UI || {};
 
 	const sourceId = React.useMemo(() => {
 		return source?.source_id || null;
@@ -43,6 +46,7 @@ const CreatePage = ({ source }) => {
 
 	return (
 		<div className={t.wrapper}>
+			<CreateStep n={1} title="Select a file" state={file ? 'done' : 'active'}>
 			<div className={t.topRow}>
 				<input type="file"
 					ref={ setRef }
@@ -52,6 +56,7 @@ const CreatePage = ({ source }) => {
 					disabled={ !okToUpload }
 					className={t.selectFileBtn}
 				>
+					{ t.selectFileIcon && Icon ? <Icon icon={t.selectFileIcon} className={t.selectFileIconClass}/> : null }
 					Select a File
 				</button>
 				{ okToUpload ? null :
@@ -60,11 +65,14 @@ const CreatePage = ({ source }) => {
 					</div>
 				}
 			</div>
+			</CreateStep>
 			{ !file ? null :
+				<CreateStep n={2} title="File info">
 				<File file={ file }
 					sourceId={ sourceId }
 					sourceName={ sourceName }
 					okToUpload={ okToUpload }/>
+				</CreateStep>
 			}
 		</div>
 	)
@@ -74,7 +82,7 @@ export default CreatePage;
 
 const File = ({ file, sourceId, sourceName, okToUpload }) => {
 	const { theme } = React.useContext(ThemeContext) || {};
-	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreatePage || {}) };
+	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreate || {}) };
 
 	const {
 		app,
@@ -185,7 +193,7 @@ console.log("uploadFile::response", json);
 		<>
 			{ !uploading ? null :
 				<div className={t.uploadingOverlay}>
-					UPLOADING FILE...
+					{ t.uploadingText }
 				</div>
 			}
 			{ !error ? null :

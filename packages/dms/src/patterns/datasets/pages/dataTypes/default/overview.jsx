@@ -95,7 +95,9 @@ export default function Overview ({
 
     const COLUMN_PREVIEW = 8;
     const visibleColumns = showAllColumns ? columns : (columns || []).slice(0, COLUMN_PREVIEW);
-    const isColRequired = (col) => col?.required === true || col?.nullable === false || /not\s*null/i.test(col?.constraints || '');
+    // The metadata editor saves `required` as the string 'yes' (RenderInputSwitch trueValue), older
+    // metadata as `true` — accept both.
+    const isColRequired = (col) => col?.required === true || col?.required === 'yes' || col?.nullable === false || /not\s*null/i.test(col?.constraints || '');
 
     // latest view = views[last] (SourcePage's order); display newest-first
     const latestId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
@@ -209,6 +211,7 @@ export default function Overview ({
                             )}
                             <Link to={`${pageBaseUrl}/${id}/metadata`} className={t.colMetaLink}>Full metadata →</Link>
                         </div>
+                        <div className={t.tableScroll}>
                         <table className={t.table}>
                             <thead>
                                 <tr className={t.theadRow}>
@@ -234,6 +237,7 @@ export default function Overview ({
                                 )}
                             </tbody>
                         </table>
+                        </div>
                         {columns?.length > COLUMN_PREVIEW && (
                             <button type="button" className={t.colFooter} onClick={() => setShowAllColumns(!showAllColumns)}>
                                 {showAllColumns ? 'Show fewer' : `+ ${columns.length - COLUMN_PREVIEW} more columns`}

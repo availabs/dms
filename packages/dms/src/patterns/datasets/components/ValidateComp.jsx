@@ -14,6 +14,9 @@ import Spreadsheet from "../../page/components/sections/components/ComponentRegi
 import {Controls} from "../../page/components/sections/components/dataWrapper/components/Controls";
 import {ThemeContext} from "../../../ui/useTheme";
 import {validateCompTheme} from "./validateComp.theme";
+
+// '' → no wrapper (pre-v6 markup); v6 puts the update button in a right-aligned footer row
+const ModalFooter = ({className, children}) => className ? <div className={className}>{children}</div> : children;
 import { nameToSlug } from "../../../utils/type-utils";
 
 const FilterRemoveIcon = (props) => (
@@ -205,7 +208,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
     if(!open) return;
     const {UI} = useContext(cms_context);
     const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.validateComp || validateCompTheme;
+    const t = { ...validateCompTheme, ...(theme?.datasets?.validateComp || {}) };
     const {Icon, Button, ColumnTypes} = UI;
     const [maps, setMaps] = useState([]);
     const [loadingAfterUpdate, setLoadingAfterUpdate] = useState(false);
@@ -232,15 +235,29 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
     return (
         <div className={t.modalBackdrop} onClick={() => setOpen(false)}>
             <div className={t.modalPanel} onClick={e => e.stopPropagation()}>
-                <div className={t.modalCloseRow}>
-                    <div className={t.modalCloseButton}
-                         onClick={() => setOpen(false)}
-                    >
-                        <Icon icon={'XMark'} height={16} width={16}/>
+                {t.modalHeader ? (
+                    <div className={t.modalHeader}>
+                        <div className={t.modalTitle}>
+                            <div className={t.modalEyebrow}>fix invalid values</div>
+                            {currColumn.display_name || currColumn.name}
+                        </div>
+                        <div className={t.modalCloseButton} onClick={() => setOpen(false)}>
+                            <Icon icon={'XMark'} height={16} width={16}/>
+                        </div>
                     </div>
-                </div>
+                ) : (
+                    <>
+                        <div className={t.modalCloseRow}>
+                            <div className={t.modalCloseButton}
+                                 onClick={() => setOpen(false)}
+                            >
+                                <Icon icon={'XMark'} height={16} width={16}/>
+                            </div>
+                        </div>
 
-                <div className={t.modalTitle}>{currColumn.display_name || currColumn.name}</div>
+                        <div className={t.modalTitle}>{currColumn.display_name || currColumn.name}</div>
+                    </>
+                )}
 
                 <div className={t.modalBody}>
                     <div className={t.modalGridHeader}>
@@ -290,6 +307,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                                 }}/>
                                         </div>
                                         <Button type="plain"
+                                            className={t.modalResetBtn || undefined}
                                             onClick={() => setMaps(maps.filter(map => map.invalidValue !== invalidValue))}>reset
                                         </Button>
                                     </div>
@@ -297,9 +315,11 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                             })
                     }
                 </div>
+                <ModalFooter className={t.modalFooter}>
                 <Button className={t.modalUpdateButton}
                         onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen, setLoadingAfterUpdate})}>
                     {updating ? 'updating...' : loadingAfterUpdate ? 'loading updates...' : 'update'}</Button>
+                </ModalFooter>
             </div>
         </div>
     )
@@ -310,7 +330,7 @@ export default function Validate ({
               }) {
     const {UI} = useContext(cms_context);
     const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.validateComp || validateCompTheme;
+    const t = { ...validateCompTheme, ...(theme?.datasets?.validateComp || {}) };
     const {Icon, Button} = UI;
     const navigate = useNavigate();
     const [data, setData] = useState({});
@@ -569,7 +589,7 @@ export default function Validate ({
                                 setValue((tmpValue))
                                 setSSKey(`${Date.now()}`);
                             }}>
-                            {isFilterOn ? <FilterRemoveIcon className={'text-blue-500'} height={14} width={14} /> : <Icon icon="Filter" className={'text-blue-500'} height={14} width={14} />}
+                            {isFilterOn ? <FilterRemoveIcon className={t.filterIcon} height={14} width={14} /> : <Icon icon="Filter" className={t.filterIcon} height={14} width={14} />}
                         </span>
                     </span>
                 </>

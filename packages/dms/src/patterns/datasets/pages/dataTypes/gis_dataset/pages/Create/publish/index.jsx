@@ -53,6 +53,15 @@ export default function PublishButton({ state, dispatch }) {
       get(buttonStates, publishStatus, buttonStates['AWAITING'])
   , [publishStatus])
 
+  // state colour from the theme (publishBtn* keys — they existed but were never read; the legacy
+  // values equal the old hardcoded buttonStates colours)
+  const publishBtnStateClass = {
+    AWAITING: t.publishBtnAwaiting,
+    IN_PROGRESS: t.publishBtnInProgress,
+    PUBLISHED: t.publishBtnInProgress,
+    ERROR: t.publishBtnError,
+  }[publishStatus] ?? publishButtonBgColor;
+
   if (!layerName || uploadErrMsg || lyrAnlysErrMsg || !tableDescriptor) {
     return "";
   }
@@ -119,9 +128,9 @@ export default function PublishButton({ state, dispatch }) {
 
   return (
     <div>
-      <div>
+      <div className={t.publishRow || undefined}>
         <button
-          className={`${t.publishBtn} ${publishButtonBgColor}`}
+          className={`${t.publishBtn} ${publishBtnStateClass}`}
           //disabled={publishStatus'AWAITING'}
           onClick={() => {
             console.log('onClick publush', publishStatus)
@@ -132,6 +141,7 @@ export default function PublishButton({ state, dispatch }) {
         >
           {publishButtonText}
         </button>
+        {t.publishHint ? <p className={t.publishHint}>Creates the source, loads the layer, then opens its upload status.</p> : null}
       </div>
       <PublishErrorMessage state={state} />
     </div>
@@ -139,6 +149,9 @@ export default function PublishButton({ state, dispatch }) {
 }
 
 function PublishErrorMessage({state}) {
+  // `t` was never defined here — any publish error threw a ReferenceError instead of showing
+  const { theme } = useContext(ThemeContext) || {};
+  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
 
   const {
     etlContextId,
@@ -150,18 +163,20 @@ function PublishErrorMessage({state}) {
     return "";
   }
 
+  // v6: themed cells; legacyInlineStyles keeps the original inline style={} objects
+  const L = !!t.legacyInlineStyles;
   return (
     <table
       className={t.publishErrorTable}
-      style={{
+      style={L ? {
         margin: "40px auto",
         textAlign: "center",
         border: "1px solid",
         borderColor: "back",
-      }}
+      } : undefined}
     >
       <thead
-        style={{
+        style={L ? {
           color: "black",
           backgroundColor: "red",
           fontWeight: "bolder",
@@ -170,32 +185,33 @@ function PublishErrorMessage({state}) {
           fontSize: "20px",
           border: "1px solid",
           borderColor: "black",
-        }}
+        } : undefined}
       >
         <tr>
-          <th style={{ border: "1px solid", borderColor: "black" }}>
+          <th className={t.errTh || undefined} style={L ? { border: "1px solid", borderColor: "black" } : undefined}>
             {" "}
             Publish Error
           </th>
-          <th style={{ border: "1px solid", borderColor: "black" }}>
+          <th className={t.errTh || undefined} style={L ? { border: "1px solid", borderColor: "black" } : undefined}>
             {" "}
             ETL Context ID
           </th>
         </tr>
       </thead>
-      <tbody style={{ border: "1px solid" }}>
-        <tr style={{ border: "1px solid" }}>
+      <tbody style={L ? { border: "1px solid" } : undefined}>
+        <tr style={L ? { border: "1px solid" } : undefined}>
           <td
-            style={{
+            className={t.errTd || undefined}
+            style={L ? {
               border: "1px solid",
               padding: "10px",
               backgroundColor: "white",
               color: "darkred",
-            }}
+            } : undefined}
           >
             {publishErrMsg}
           </td>
-          <td style={{ border: "1px solid", backgroundColor: "white" }}>
+          <td className={t.errTdCtx || undefined} style={L ? { border: "1px solid", backgroundColor: "white" } : undefined}>
             {etlContextId}
           </td>
         </tr>

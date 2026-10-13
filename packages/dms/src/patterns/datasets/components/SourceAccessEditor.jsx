@@ -34,6 +34,8 @@ export default function SourceAccessEditor ({ source, setSource, format, apiUpda
                 getGroups={AuthAPI?.getGroups}
                 permissionDomain={authAttr?.permissionDomain}
                 defaultPermission={authAttr?.default}
+                heading='on this source'
+                inheritedFrom='the pattern'
                 onChange={(data) => updateSourceData({ data, attrKey: 'auth_permissions', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id })}
             />
         </div>
