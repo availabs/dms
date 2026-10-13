@@ -337,7 +337,7 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
         { type: 'separator' },
         {
           type: () => (
-            <div className="px-3 py-1 text-xs text-amber-700 font-medium truncate max-w-[200px]">
+            <div className={menuTheme.viewAsText ?? 'px-3 py-1 text-xs text-amber-700 font-medium truncate max-w-[200px]'}>
               Viewing as {viewAsUser.email}
             </div>
           )

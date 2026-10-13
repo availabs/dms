@@ -1,3 +1,6 @@
+// Search button + palette (components/search/index.jsx) — tessera v6, 2026-10-08, from
+// design_system_v6/pages/page-search.html; no accent colour. Pre-v6 values (MNY-flavoured) are
+// frozen in src/themes/_legacy/pages.js `searchButton` / `searchPallet`.
 // SearchButton Theme
 export const searchButtonTheme = {
   "options": {
@@ -5,21 +8,16 @@ export const searchButtonTheme = {
   },
   "styles": [{
     "name": "default",
-    // Button container
-    "button": `
-      bg-white flex justify-between items-center
-      h-[48px] w-[217px] py-[8px] pr-[8px] pl-[24px]
-      border border-[#E0EBF0] rounded-[1000px]
-      shadow-sm transition ease-in
-    `,
+    // Button container — icon first (order-first), then "Search"
+    "button": "flex items-center gap-2 h-8 mx-3 mt-4 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] hover:border-[var(--t-rule-strong)] transition-colors cursor-pointer",
     // Button text
-    "buttonText": "uppercase text-[#2D3E4C] font-medium text-[12px] leading-[14.62px] tracking-none",
+    "buttonText": "flex-1 text-left t-proseSM text-[var(--t-pencil)]",
     // Icon wrapper
-    "iconWrapper": "bg-[#37576B] p-[10px] rounded-full",
+    "iconWrapper": "order-first flex items-center text-[var(--t-pencil)]",
     // Icon
     "icon": "Search",
-    "iconClass": "text-white",
-    "iconSize": 12
+    "iconClass": "size-3.5",
+    "iconSize": 14
   }]
 }
 
@@ -30,68 +28,74 @@ export const searchPalletTheme = {
   },
   "styles": [{
     "name": "default",
-    // Dialog backdrop
-    "backdrop": "fixed inset-0 bg-black bg-opacity-[60%] transition-opacity",
-    // Dialog container
-    "dialogContainer": "fixed inset-0 z-20 w-screen overflow-y-auto p-4 sm:p-6 md:p-20 flex items-center place-content-center",
-    // Dialog panel
-    "dialogPanel": "relative max-w-3xl sm:w-[637px] max-h-3/4 sm:h-[700px] p-[16px] flex flex-col gap-[8px] overflow-hidden rounded-[12px] bg-[#F3F8F9] transition-all",
+    // (backdrop / dialogContainer / dialogPanel / input: unused since the palette moved onto
+    // UI.Modal + UI.Input — kept for themes that still set them.)
+    "backdrop": "fixed inset-0 bg-[var(--t-scrim)] transition-opacity",
+    "dialogContainer": "fixed inset-0 z-50 w-screen overflow-y-auto p-4 sm:p-6 md:p-20 flex items-start justify-center",
+    "dialogPanel": "relative w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden rounded-xl bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]",
 
-    // Search input area
-    "inputWrapper": "w-full flex items-center relative px-[24px] py-[16px] bg-white w-full rounded-full border border-[#E0EBF0]",
-    "input": "px-0.5 flex-1 font-[Proxima Nova] font-normal text-[16px] text-[#2D3E4C] leading-[140%] bg-transparent focus:ring-0 sm:text-sm rounded-full ring-0 outline-none",
-    "searchIconWrapper": "p-0.5",
+    // Search input area — the icon sits left of the input (row-reverse)
+    "inputWrapper": "w-full flex flex-row-reverse items-center gap-2",
+    "input": "flex-1 bg-transparent t-proseLG text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)]",
+    "searchIconWrapper": "shrink-0 text-[var(--t-pencil)]",
     "searchIcon": "Search",
-    "searchIconClass": "text-[#2D3E4C]",
+    "searchIconClass": "size-5",
 
     // Results area
-    "resultsWrapper": "bg-white rounded-[12px] px-[12px] py-[24px] flex flex-col gap-[8px] divide-y divide-[#E0EBF0] max-h-[500px] transform-gpu scroll-py-3 overflow-x-hidden overflow-y-auto scrollbar-sm",
-    "resultItemWrapper": "flex flex-col gap-[12px] pb-[12px] w-full select-none rounded-[12px] transition ease-in",
-    "resultItemOuter": "select-none pt-[12px]",
+    "resultsWrapper": "mt-2 text-left flex flex-col divide-y divide-[var(--t-rule)] max-h-[60vh] overflow-x-hidden overflow-y-auto scrollbar-sm",
+    "resultItemWrapper": "flex flex-col gap-0.5 w-full select-none",
+    "resultItemOuter": "select-none py-1",
 
     // Page result
-    "pageResultWrapper": "group w-full flex items-center text-xl font-medium text-gray-700 hover:text-gray-700 cursor-pointer",
-    "pageIcon": "DraftPage",
-    "pageIconWidth": 15,
-    "pageIconHeight": 21,
-    "pageTitle": "pl-2 font-[Oswald] font-medium text-[16px] leading-[100%] uppercase text-[#2D3E4C]",
+    "pageResultWrapper": "group w-full flex items-center gap-2 px-3 py-2 rounded-md t-proseSM font-medium text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer",
+    "pageIcon": "File",
+    "pageIconWidth": 16,
+    "pageIconHeight": 16,
+    "pageTitle": "flex-1 min-w-0 truncate",
     "pageArrowIcon": "ArrowRight",
-    "pageArrowClass": "h-6 w-6 ml-2 text-transparent group-hover:text-gray-900",
+    "pageArrowClass": "size-3.5 text-[var(--t-pencil)] opacity-0 group-hover:opacity-100",
 
     // Sections
-    "sectionsWrapper": "ml-3 pl-4 flex flex-col gap-[12px]",
-    "sectionItemWrapper": "w-full cursor-pointer group",
-    "sectionTitleWrapper": "w-full flex items-center text-md font-medium text-gray-700 hover:text-gray-700",
-    "sectionIcon": "Section",
-    "sectionIconWidth": 18,
-    "sectionIconHeight": 18,
-    "sectionTitle": "pl-1 font-[Proxima Nova] font-normal text-[16px] leading-[140%] tracking-normal",
-    "sectionArrowClass": "h-6 w-6 ml-2 text-transparent group-hover:text-gray-900",
+    "sectionsWrapper": "flex flex-col",
+    "sectionItemWrapper": "w-full cursor-pointer group pl-9 pr-3 py-2 rounded-md hover:bg-[var(--t-well)]",
+    "sectionTitleWrapper": "w-full flex items-center gap-2 t-proseSM text-[var(--t-graphite)]",
+    "sectionIcon": "Text",
+    "sectionIconWidth": 16,
+    "sectionIconHeight": 16,
+    "sectionTitle": "flex-1 min-w-0 truncate",
+    "sectionArrowClass": "size-3.5 text-[var(--t-pencil)] opacity-0 group-hover:opacity-100",
 
     // Tags
-    "tagsWrapper": "w-full ml-8",
-    "tag": "tracking-wide p-1 text-xs text-white font-semibold rounded-md border",
-    "tagMatch": "border-1 border-red-600 bg-red-400",
-    "tagNoMatch": "bg-red-300",
+    "tagsWrapper": "flex flex-wrap gap-1 mt-1 pl-6",
+    "tag": "t-metaXS rounded px-1.5 py-0.5",
+    "tagMatch": "text-[var(--t-ink)] bg-[var(--t-well)] border border-[var(--t-rule-strong)]",
+    "tagNoMatch": "text-[var(--t-graphite)] border border-[var(--t-rule)]",
 
-    // Suggestions
-    "suggestionsWrapper": "flex items-center max-h-96 transform-gpu scroll-py-3 overflow-y-auto p-3",
-    "suggestionsLabel": "text-xs italic",
-    "suggestionItem": "flex cursor-pointer select-none hover:bg-gray-100 rounded-xl p-1",
-    "suggestionTagIcon": "text-xs text-red-400 fa fa-tag",
-    "suggestionTagText": "ml-2 text-sm font-medium text-gray-700",
-    "suggestionTagTextFocus": "ml-2 text-sm font-medium text-gray-900",
+    // Suggestions (the section tags matching the query) — shown when showSuggestions is set
+    "showSuggestions": true,
+    "suggestionsWrapper": "flex flex-wrap items-center gap-1.5 py-2 text-left",
+    "suggestionsLabel": "t-metaXS text-[var(--t-pencil)]",
+    "suggestionItem": "inline-flex items-center gap-1 rounded-full border border-[var(--t-rule)] px-2 py-0.5 cursor-pointer hover:border-[var(--t-ink)]",
+    "suggestionTagIcon": "",
+    "suggestionTagIconName": "Search",          // registry icon ('' → the <i className=suggestionTagIcon>)
+    "suggestionTagIconClass": "size-3 text-[var(--t-pencil)]",
+    "suggestionTagText": "t-metaXS text-[var(--t-graphite)]",
+    "suggestionTagTextFocus": "t-metaXS text-[var(--t-ink)]",
 
     // Loading state
-    "loadingWrapper": "p-2 mx-auto w-1/4 h-full flex items-center justify-middle",
-    "loadingIcon": "px-2 fa fa-loader text-gray-400",
-    "loadingText": "font-semibold text-gray-900",
+    "loadingWrapper": "py-10 flex flex-col items-center gap-2",
+    "loadingIcon": "",
+    "loadingIconName": "Spinner",
+    "loadingIconClass": "size-5 text-[var(--t-pencil)] animate-spin",
+    "loadingText": "t-proseSM text-[var(--t-graphite)]",
 
     // No results state
-    "noResultsWrapper": "px-6 py-14 text-center text-sm sm:px-14",
-    "noResultsIcon": "fa fa-exclamation mx-auto h-6 w-6 text-gray-400",
-    "noResultsTitle": "mt-4 font-semibold text-gray-900",
-    "noResultsText": "mt-2 text-gray-500"
+    "noResultsWrapper": "py-10 text-center",
+    "noResultsIcon": "",
+    "noResultsIconName": "Search",
+    "noResultsIconClass": "size-6 mx-auto text-[var(--t-pencil)]",
+    "noResultsTitle": "mt-2 t-proseSM font-medium text-[var(--t-ink)]",
+    "noResultsText": "t-proseSM text-[var(--t-graphite)]"
   }]
 }
 

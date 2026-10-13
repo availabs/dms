@@ -3,9 +3,10 @@ import React, {Fragment, useContext, useEffect, useState} from 'react'
 import { cloneDeep, set, get, isEqual } from 'lodash-es'
 import { updateTitle } from '../editFunctions'
 import { PageContext, CMSContext } from '../../../context'
-import { ThemeContext } from "../../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
+import { editPanesTheme } from './editPanes.theme';
 import { MountContext } from "../../../../../ui/mountContext";
-import { getPageAuthPermissions } from "../../../pages/_utils";
+import { getPageAuthPermissions, getUrlSlug } from "../../../pages/_utils";
 import { nameToSlug } from '../../../../../utils/type-utils';
 import {buildPageTemplatePayload, buildPageTemplateType} from "../../../../utils";
 
@@ -164,7 +165,7 @@ function DebouncedInput({value, onChange, Input, ...rest}) {
     return <Input {...rest} value={tmpValue} onChange={e => setTmpValue(e.target.value)}/>
 }
 
-function SaveAsTemplateSection() {
+function SaveAsTemplateSection({ t }) {
   const { item, apiLoad, apiUpdate, format } = useContext(PageContext) || {};
   const { user } = useContext(CMSContext) || {};
   const { UI } = useContext(ThemeContext) || {};
@@ -232,6 +233,37 @@ function SaveAsTemplateSection() {
     }
   };
 
+  // v3 (Settings pane v3): the same form inside a collapsible section — inputs + buttons themed.
+  if (t) return (
+    <>
+      <input className={t.input} placeholder='Template name…' value={name}
+             onChange={e => { setName(e.target.value); setPendingOverwrite(false); setSaved(false); }} />
+      <input className={t.input} placeholder='Description (optional)' value={description}
+             onChange={e => setDescription(e.target.value)} />
+      <div className={t.line}>
+        {existing && !pendingOverwrite ? <span className={t.templateMsg}>&quot;{existing.name}&quot; already exists</span>
+          : existing && pendingOverwrite ? <span className={t.templateMsg}>Replace &quot;{existing.name}&quot;?</span>
+          : saved ? <span className={t.templateOk}>Saved</span>
+          : error ? <span className={t.templateErr}>{error}</span>
+          : <span className={t.lineLabel} />}
+        {!existing && (
+          <button type='button' className={t.btnPrimary} disabled={!trimmedName || saving} onClick={() => save(null)}>
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        )}
+        {existing && !pendingOverwrite && (
+          <button type='button' className={t.btn} disabled={!trimmedName || saving} onClick={() => setPendingOverwrite(true)}>Overwrite…</button>
+        )}
+        {existing && pendingOverwrite && (
+          <>
+            <button type='button' className={t.btn} onClick={() => setPendingOverwrite(false)}>Cancel</button>
+            <button type='button' className={t.btnPrimary} disabled={saving} onClick={() => save(existing)}>{saving ? 'Saving…' : 'Overwrite'}</button>
+          </>
+        )}
+      </div>
+    </>
+  );
+
   return (
     <div className='flex flex-col gap-2 pt-4 border-t border-[var(--t-rule)] mt-4'>
       <div className='text-xs font-medium text-[var(--t-graphite)] uppercase tracking-wider'>Save as Template</div>
@@ -279,7 +311,7 @@ function SaveAsTemplateSection() {
   );
 }
 
-function SettingsPane () {
+function LegacySettingsPane () {
   const { theme, UI } = React.useContext(ThemeContext);
   const { baseUrl, user, isUserAuthed  } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
@@ -438,17 +470,7 @@ function SettingsPane () {
                   }
               },
               ...themeSettings,
-
-              {
-                  type: FilterSettings,
-                  label: 'Filters',
-                  reqPermissions: ['edit-page-params'],
-                  value: item?.filters || [],
-                  stateValue: pageState?.filters || [],
-                  onChange:(e) => {
-                      togglePageSetting(item, 'filters', e,  apiUpdate)
-                  }
-              },
+              // Page filters moved to their own drawer pane (FiltersPane, 2026-10-08).
           ].filter(f => !f.reqPermissions || isUserAuthed(f.reqPermissions, pageAuthPermissions))
           } />
           <SaveAsTemplateSection />
@@ -456,7 +478,241 @@ function SettingsPane () {
   )
 }
 
+// Settings pane v3 (tessera v6, 2026-10-08): identity header + collapsible sections. Same fields
+// and writes as LegacySettingsPane; shown when the theme sets `pages.editPanes.settingsWrap`.
+function SettingsSection({ t, Icon, title, summary, defaultOpen = false, children }) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className={t.sect}>
+      <div className={t.sectSummary} onClick={() => setOpen(!open)} role='button' aria-expanded={open}>
+        <span className={t.sectTitle}>{title}</span>
+        <span className={t.sectValue}>{open ? '' : summary}</span>
+        <Icon icon='ChevronDown' className={`${t.sectChevron} ${open ? 'rotate-180' : ''}`} />
+      </div>
+      {open ? <div className={t.sectBody}>{children}</div> : null}
+    </div>
+  );
+}
+
+function SettingsLine({ t, label, hint, children }) {
+  return (
+    <div className={t.line}>
+      <span className={t.lineLabel}><span className={t.lineText}>{label}</span>{hint ? <span className={t.lineHint}>{hint}</span> : null}</span>
+      {children}
+    </div>
+  );
+}
+
+function LayoutThumb({ t, label, kind, active, disabled, onClick }) {
+  const nav = ['nav', 'none', 'left', 'right'].includes(kind) ? <span className={t.thumbNav} /> : null;
+  const rail = ['left', 'right'].includes(kind) ? <span className={t.thumbRail} /> : null;
+  const body = (
+    <span className={t.thumbBody}>
+      <span className={t.thumbHead} /><span className={t.thumbLine} /><span className={t.thumbLine} /><span className={t.thumbLine} />
+    </span>
+  );
+  return (
+    <button type='button' className={t.thumb} disabled={disabled} onClick={onClick}>
+      <span className={active ? t.thumbFrameActive : t.thumbFrame}>{nav}{kind === 'left' ? rail : null}{body}{kind === 'right' ? rail : null}</span>
+      <span className={active ? t.thumbLabelActive : t.thumbLabel}>{label}</span>
+    </button>
+  );
+}
+
+function SettingsPaneV3({ t }) {
+  const { theme, UI } = React.useContext(ThemeContext);
+  const { baseUrl, user, isUserAuthed } = React.useContext(CMSContext) || {}
+  const { item, pageState, dataItems = [], apiUpdate } = React.useContext(PageContext) || {}
+  const { baseUrl: mountBaseUrl, siteRootPaths } = React.useContext(MountContext) || {}
+  const { Icon, Switch, Select, FieldSet } = UI;
+
+  const [title, setTitle] = useState(item?.title || '');
+  useEffect(() => { setTitle(item?.title || '') }, [item?.title]);
+  const [description, setDescription] = useState(item?.description || '');
+  useEffect(() => { setDescription(item?.description || '') }, [item?.id]);
+  useEffect(() => {
+    if ((item?.description || '') === description) return;
+    const h = setTimeout(() => apiUpdate({ data: { ...item, description } }), 300);
+    return () => clearTimeout(h);
+  }, [description]);
+  const [iconsOpen, setIconsOpen] = useState(false);
+  const [iconFind, setIconFind] = useState('');
+  const [linkOn, setLinkOn] = useState(!!item?.nav_link);
+  useEffect(() => { if (item?.nav_link) setLinkOn(true) }, [item?.nav_link]);
+  const [navLink, setNavLink] = useState(item?.nav_link || '');
+  useEffect(() => { setNavLink(item?.nav_link || '') }, [item?.id]);
+  useEffect(() => {
+    if ((item?.nav_link || '') === navLink) return;
+    const h = setTimeout(() => togglePageSetting(item, 'nav_link', navLink, apiUpdate), 300);
+    return () => clearTimeout(h);
+  }, [navLink]);
+
+  const themeSettings = React.useMemo(() => {
+    return (theme?.pageOptions?.settingsPane || [])
+      .map(setting => {
+        setting.value = get(item, setting.location, setting.default || '')
+        setting.onChange = (e) => {
+          togglePageSetting(item, setting.location, e?.target?.value ?? e, apiUpdate)
+        }
+        return setting
+      }).filter(d => d)
+  }, [theme?.pageOptions?.settingsPane, item])
+
+  const isDraft = item?.published === 'draft' || item?.has_changes;
+  const parents = [];
+  let p = dataItems.find(d => d.id === item?.parent);
+  while (p && parents.length < 6) { parents.unshift(p.title || p.url_slug); p = dataItems.find(d => d.id === p.parent); }
+  const renaming = title.trim() && title !== item?.title;
+  const newSlug = renaming ? getUrlSlug({ id: item.id, title, parent: item?.parent || '' }, dataItems) : '';
+  const sidebar = item?.sidebar || '';
+  const navShown = (theme?.layout?.options?.sideNav?.size || '') !== 'none';
+  const sideNavStyles = [{ label: 'default', value: '' }, ...(theme?.sidenav?.styles || [{}]).map((k, i) => ({ label: k?.name || String(i), value: i }))];
+  const sideNavStyle = item?.theme?.layout?.options?.sideNav?.activeStyle ?? '';
+  // skip the registry's blank / fallback entries — they draw nothing (or the warning shield)
+  const iconNames = Object.keys(theme?.Icons || {})
+    .filter(n => !['Blank', 'Default', 'Padding', 'Border'].includes(n))
+    .filter(n => !iconFind || n.toLowerCase().includes(iconFind.toLowerCase()));
+  const linkHost = (() => { try { return item?.nav_link?.startsWith('http') ? new URL(item.nav_link).host : item?.nav_link } catch { return item?.nav_link } })();
+
+  return (
+    <div className={t.settingsWrap}>
+      {/* identity */}
+      <div className={t.identity}>
+        <div className={t.identityRow}>
+          <button type='button' title='Change icon' className={iconsOpen ? t.iconTileActive : t.iconTile} onClick={() => setIconsOpen(!iconsOpen)}>
+            <Icon icon={item?.icon && item.icon !== 'none' ? item.icon : 'Page'} className={t.iconTileIcon} />
+          </button>
+          <div className={t.identityBody}>
+            <div className={t.statusRow}>
+              <span className={isDraft ? t.statusDraft : t.statusPublished}><span className={t.statusDot} />{isDraft ? 'draft' : 'published'}</span>
+              {parents.length ? <span className={t.parentPath}>{parents.join(' › ')}</span> : null}
+            </div>
+            <input className={t.titleInput} value={title} onChange={e => setTitle(e.target.value)}
+                   onKeyDown={e => { if (e.key === 'Enter' && renaming) updateTitle(item, dataItems, title, user, apiUpdate, mountBaseUrl, siteRootPaths) }} />
+            {renaming ? (
+              <>
+                <div className={t.slugRow}>
+                  <span className={t.slugOld}>/{item?.url_slug}</span>
+                  <Icon icon='ArrowRight' className={t.icon} />
+                  <span className={t.slugNew}>/{newSlug}</span>
+                </div>
+                <div className={t.renameRow}>
+                  <button type='button' className={t.btnPrimary} onClick={() => updateTitle(item, dataItems, title, user, apiUpdate, mountBaseUrl, siteRootPaths)}>
+                    <Icon icon='Check' className={t.icon} />Rename
+                  </button>
+                  <button type='button' className={t.btn} onClick={() => setTitle(item?.title || '')}>Revert</button>
+                </div>
+              </>
+            ) : (
+              <div className={t.slugRow}>
+                <span className={t.slug}>/{item?.url_slug}</span>
+                <button type='button' title='Copy link' className={t.slugCopy}
+                        onClick={() => navigator?.clipboard?.writeText(`${window.location.origin}${baseUrl || ''}/${item?.url_slug || ''}`)}>
+                  <Icon icon='Copy' className={t.icon} />
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+        {iconsOpen ? (
+          <div className={t.iconPicker}>
+            <label className={t.iconSearch}>
+              <Icon icon='Search' className={t.icon} />
+              <input className={t.iconSearchInput} placeholder='find an icon…' value={iconFind} onChange={e => setIconFind(e.target.value)} />
+            </label>
+            <div className={t.iconGrid}>
+              {iconNames.map(name => (
+                <button type='button' key={name} title={name} className={item?.icon === name ? t.iconBtnActive : t.iconBtn}
+                        onClick={() => { togglePageSetting(item, 'icon', name, apiUpdate); setIconsOpen(false) }}>
+                  <Icon icon={name} className={t.iconTileIcon} />
+                </button>
+              ))}
+            </div>
+            <button type='button' className={t.iconNone} onClick={() => { togglePageSetting(item, 'icon', 'none', apiUpdate); setIconsOpen(false) }}>no icon</button>
+          </div>
+        ) : null}
+        <textarea rows={2} className={`${t.textarea} ${t.description}`} placeholder='Add a short description — used by search and link previews'
+                  value={description} onChange={e => setDescription(e.target.value)} />
+      </div>
+
+      <SettingsSection t={t} Icon={Icon} title='Layout' defaultOpen
+                       summary={`${sidebar || 'no'} sidebar · nav ${navShown ? 'shown' : 'hidden'}${item?.is_cover_page === 'yes' ? ' · cover' : ''}`}>
+        <div>
+          <span className={`${t.eyebrow} block mb-2`}>content sidebar</span>
+          <div className={t.thumbs}>
+            {[['none', ''], ['left', 'left'], ['right', 'right']].map(([label, v]) => (
+              <LayoutThumb key={label} t={t} label={label} kind={label} active={sidebar === v}
+                           onClick={() => togglePageSetting(item, 'sidebar', v, apiUpdate)} />
+            ))}
+          </div>
+        </div>
+        <div>
+          <span className={`${t.eyebrow} block mb-2`}>site navigation</span>
+          <div className={t.thumbs}>
+            <LayoutThumb t={t} label='show' kind='nav' active={navShown} onClick={() => togglePageSetting(item, 'theme.layout.options.sideNav.size', 'compact', apiUpdate)} />
+            <LayoutThumb t={t} label='hide' kind='nonav' active={!navShown} onClick={() => togglePageSetting(item, 'theme.layout.options.sideNav.size', 'none', apiUpdate)} />
+            <span className='flex-1' />
+          </div>
+        </div>
+        <SettingsLine t={t} label='Side nav style'>
+          <div className={t.select}>
+            <Select value={sideNavStyle === '' ? undefined : sideNavStyle} placeholder='default' options={sideNavStyles} disabled={!navShown}
+                    onChange={v => togglePageSetting(item, 'theme.layout.options.sideNav.activeStyle', v, apiUpdate)} />
+          </div>
+        </SettingsLine>
+        <SettingsLine t={t} label='Cover page' hint='Full-bleed opening band'>
+          <Switch size='small' enabled={item?.is_cover_page === 'yes'} setEnabled={e => togglePageSetting(item, 'is_cover_page', e ? 'yes' : false, apiUpdate)} />
+        </SettingsLine>
+      </SettingsSection>
+
+      <SettingsSection t={t} Icon={Icon} title='Navigation' defaultOpen
+                       summary={`${item?.hide_in_nav ? 'hidden from nav' : 'in nav'}${item?.show_in_footer === 'show' ? ' · in footer' : ''}`}>
+        {/* "Show in nav" = !hide_in_nav — the same field, label read positively */}
+        <SettingsLine t={t} label='Show in nav'>
+          <Switch size='small' enabled={!item?.hide_in_nav} setEnabled={e => togglePageSetting(item, 'hide_in_nav', e ? null : 'hide', apiUpdate)} />
+        </SettingsLine>
+        <SettingsLine t={t} label='Show in footer'>
+          <Switch size='small' enabled={item?.show_in_footer === 'show'} setEnabled={e => togglePageSetting(item, 'show_in_footer', e ? 'show' : false, apiUpdate)} />
+        </SettingsLine>
+      </SettingsSection>
+
+      <SettingsSection t={t} Icon={Icon} title='Link page' defaultOpen={!!item?.nav_link} summary={item?.nav_link ? `links to ${linkHost}` : 'off'}>
+        <SettingsLine t={t} label='Make this a link' hint={linkOn ? '' : 'Point its nav entry somewhere else instead of showing content.'}>
+          <Switch size='small' enabled={linkOn} setEnabled={e => { setLinkOn(e); if (!e) setNavLink('') }} />
+        </SettingsLine>
+        {linkOn ? (
+          <div>
+            <input className={`${t.input} ${t.code}`} value={navLink} placeholder='/actions/dashboard · sub://name/path · https://…' onChange={e => setNavLink(e.target.value)} />
+            <p className={t.hint}>Visitors who click it in the nav go here. It has no content of its own — the canvas shows a notice instead.</p>
+            <p className={t.hint}>Accepts <span className={t.code}>/a/page</span> · <span className={t.code}>sub://name/path</span> · <span className={t.code}>https://…</span></p>
+          </div>
+        ) : null}
+      </SettingsSection>
+
+      {themeSettings.length ? (
+        <SettingsSection t={t} Icon={Icon} title='Site theme'
+                         summary={themeSettings.map(s => (typeof s.value === 'string' || typeof s.value === 'number') ? s.value : '').filter(Boolean).join(' · ')}>
+          <FieldSet components={themeSettings} />
+        </SettingsSection>
+      ) : null}
+
+      <SettingsSection t={t} Icon={Icon} title='Save as template' summary=''>
+        <SaveAsTemplateSection t={t} />
+      </SettingsSection>
+    </div>
+  )
+}
+
+function SettingsPane () {
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const t = { ...editPanesTheme, ...getComponentTheme(themeFromContext, 'pages.editPanes') };
+  return t.settingsWrap ? <SettingsPaneV3 t={t} /> : <LegacySettingsPane />
+}
+
 export default SettingsPane
+
+// The page filters editor, shared by the Filters pane (filtersPane.jsx) for the pre-v3 look.
+export { FilterSettings }
 
 const togglePageSetting = async (item,type, value='', apiUpdate) => {
   const newItem = {id: item.id}

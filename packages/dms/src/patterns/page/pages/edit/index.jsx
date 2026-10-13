@@ -2,7 +2,9 @@ import React, {useEffect, useRef} from 'react';
 import { Link, Navigate, useNavigate, useLocation, useSearchParams} from "react-router";
 import {cloneDeep} from "lodash-es";
 import {useImmer} from "use-immer";
-import { ThemeContext, mergeTheme } from "../../../../ui/useTheme";
+import { ThemeContext, mergeTheme, getComponentTheme as getThemeKey } from "../../../../ui/useTheme";
+import { errorPageTheme } from "../errorPage.theme";
+import { PageStateScreen } from "../../components/PageStatePanel";
 import { CMSContext, PageContext, DataSourceContext } from '../../context';
 import {
     sectionsEditBackill, dataItemsNav, nav2Level, mergeFilters, getPageVariableRegistry, detectNavLevel, getInPageNav,
@@ -296,21 +298,43 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 	// pages/view.jsx does — that is the whole point, it keeps the page openable so the
 	// link can be changed. Declared after the memos above to keep hook order stable.
 	const isLinkPage = Boolean(item?.nav_link);
+	// the band style its content would use: the first content band's theme ('default' when unset,
+	// as SectionGroup does), or 'content' — the band a new page is created with — when there's none
+	const firstContentBand = (Array.isArray(item?.draft_section_groups) ? item.draft_section_groups : [])
+		.filter(g => (g?.position || 'content') === 'content')
+		.sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0))[0];
+	const linkNoticeBand = firstContentBand ? (firstContentBand.theme || 'default') : 'content';
 
+	// v6 failure states: a titled panel inside the page's own Layout (pages.errorPage.statePanel;
+	// '' → the old one-line text). Not a hook — safe after the memos above.
+	const errT = { ...errorPageTheme, ...getThemeKey(fullTheme, 'pages.errorPage') };
+	const noAccess = errT.statePanel
+		? <PageStateScreen navItems={menuItems} resolveNav={resolveNav} secondNav={menuItemsSecondNav}
+			icon="Lock" tone="neutral" title="You do not have permission to view this page"
+			text="Ask an admin of this site for access.">
+			<Link to={baseUrl || '/'} className={errT.actionBtn}>Go to home</Link>
+		</PageStateScreen>
+		: <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
 	if (item?.id === 'no-access') {
 		if (user?.isAuthenticating) return null;
 		if (!user?.authed) {
 			return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
 		}
-		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
+		return noAccess;
 	}
-	if(!item) return <div>page does not exist.</div>;
+	if(!item) return errT.statePanel
+		? <PageStateScreen navItems={menuItems} resolveNav={resolveNav} secondNav={menuItemsSecondNav}
+			icon="Search" tone="amber" title="This page does not exist"
+			text="It may have been deleted or renamed.">
+			<Link to={baseUrl || '/'} className={errT.actionBtn}>Go to home</Link>
+		</PageStateScreen>
+		: <div>page does not exist.</div>;
 
 	if( !isUserAuthed(reqPermissions) || !isUserAuthed(reqPermissions, pageAuthPermissions) ){
 		if (user?.authed) {
 			return <Navigate to={`${baseUrl}/${item.url_slug}${search}`} />;
 		}
-		return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>
+		return noAccess
 	}
 
 	return (
@@ -347,7 +371,7 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
               headerChildren={headerChildren}
               footerChildren={footerChildren}
           >
-            {isLinkPage ? <LinkPageNotice navLink={item.nav_link} /> : contentChildren}
+            {isLinkPage ? <LinkPageNotice navLink={item.nav_link} groupTheme={linkNoticeBand} /> : contentChildren}
         </Layout>
 			</ThemeContext.Provider>
 		</PageContext.Provider>

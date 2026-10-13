@@ -1,49 +1,8 @@
 import React, {useContext, useRef, useState} from "react"
 import {CMSContext} from '../../context'
 import {ThemeContext} from "../../../../ui/useTheme";
+import {sectionToken, sectionTitleClass} from "./section_utils";
 
-// ── Section header band tokens ───────────────────────────────────────────────
-// Every class in this band used to be hardcoded, so no theme could reach it: a fixed 50px row,
-// `font-display font-medium uppercase`, and a title class of `w-full ${theme.heading[level]}`.
-// These tokens (theme `pages.section`) open it up WITHOUT changing anything for a theme that
-// sets none of them — each default below is the literal string this component emitted before
-// the tokens existed, down to the trailing space in the title class and the `undefined` a
-// missing `theme.heading` produces. That is not pedantry: 154,632 MitigateNY component rows
-// render a title through here and none of them will ever set one of these. The exact markup is
-// locked in tests/viewSectionHeaderLegacy.test.js against goldens captured from the pre-token
-// code — a diff there means an existing site's pages changed.
-//
-// `??` rather than `||` throughout, so a theme can deliberately set a token to "" (e.g. to
-// remove the band's padding) instead of silently getting the default back.
-const HEADER_DEFAULTS = {
-    headerRow:      'flex w-full min-h-[50px] items-center pb-2',
-    headerInner:    'flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center',
-    headerTitleWrap:'flex-1',
-    headerActions:  'flex item-center h-full pointer-events-auto',
-    // Unset by default, and BOTH are opt-in by the theme rather than by the data:
-    //  • headerTitle  — appended AFTER the historical `w-full ${heading}` string, never replacing it.
-    //  • headerKicker — the right-hand meta line, rendered from the section's own `description`
-    //    attribute. That attribute has been registered in page.format.js for years with no render
-    //    path at all (measured 2026-09-11: zero sections carry a value, site-wide), so giving it
-    //    one cannot surface text an author never expected to see. Gated on the TOKEN, not on the
-    //    value, so a site that later fills a description still shows nothing until it opts in.
-    headerTitle:  '',
-    headerKicker: '',
-    // When a theme registers sectionHeaderExtensions (see sectionHeaderExtensions.js), they
-    // render on their own row BELOW this band by default. `headerExtensionsInline` moves them
-    // into the band itself, sharing the row with the title — the graph-card header shape, where
-    // the title, the measure pills and the settings kebab are one 40px line.
-    //
-    // The kicker and the extensions SHARE that right-hand slot rather than one suppressing the
-    // other. An earlier version hid the kicker whenever `headerExtensions` was non-empty, which
-    // looked right and was wrong: an extension builder returns a React node whose component may
-    // then render `null` (npmrds' Quick Controls do exactly that outside page-edit mode), so
-    // array length says nothing about whether anything is actually drawn — the kicker vanished
-    // on every report card in view mode, which is the one mode it exists for. A theme that wants
-    // the kicker to yield on a narrow card does it in the token, with a breakpoint.
-    headerExtensionsInline: false,
-    headerExtensionsInlineRow: 'shrink-0 flex items-center gap-1.5',
-};
 
 export function ViewSectionHeader({
     value,
@@ -62,7 +21,7 @@ export function ViewSectionHeader({
 }) {
     const { UI, theme } = React.useContext(ThemeContext)
     const { Popup, Icon } = UI
-    const t = key => sectionTheme?.[key] ?? HEADER_DEFAULTS[key];
+    const t = key => sectionToken(sectionTheme, key);
 
     let helpTextCondition = helpTextArray.some(({text, icon}) => text && !(
         (text?.root?.children?.length === 1 && text?.root?.children?.[0]?.children?.length === 0) || // empty child
@@ -70,7 +29,8 @@ export function ViewSectionHeader({
     ))
     // Kept as one template literal so the unset case is byte-identical to the historical string,
     // including `w-full undefined` when the theme has no `heading` map at all.
-    const headingClassName = `w-full ${theme.heading?.[value?.['level']] || theme.heading?.['default']}`;
+    // `headerTitleLevels` (a pages.section token) replaces that lookup when a theme sets it.
+    const headingClassName = sectionTitleClass(sectionTheme, theme, value?.['level']);
     const inlineExtensions = t('headerExtensionsInline') ? (headerExtensions || []) : [];
     const kicker = t('headerKicker') && value?.['description'] ? value['description'] : null;
     return (
@@ -87,13 +47,15 @@ export function ViewSectionHeader({
                 <div className={t('headerActions')}>
                     {value?.['tags']?.length ?
                         (<Popup button={
-                            <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
-                                <Icon icon={'Tags'} className='text-slate-400 hover:text-blue-500 size-4'
+                            <div className={t('tagButton')}>
+                                <Icon icon={'Tags'} className={t('tagIcon')}
                                       title="Tags"/>
                             </div>
                         }>
                             <TagComponent
                                 className='p-2 flex-0'
+                                wrapperClassName={t('tagPopup')}
+                                listClassName={t('tagList')}
                                 value={value?.['tags']}
                                 placeholder={'Add Tag...'}
                                 onChange={(v) => updateAttribute('tags', v)}
@@ -106,13 +68,13 @@ export function ViewSectionHeader({
                                 <Popup
                                     key={i}
                                     button={
-                                        <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                                        <div className={t('helpButton')}>
                                             <Icon icon={icon}
-                                                  className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center'
+                                                  className={t('helpIcon')}
                                                   title="Info"/>
                                         </div>
                                     }>
-                                    <div className={'max-w-[500px] flex flex-col px-4 py-2 bg-white shadow-md'}>
+                                    <div className={t('helpPopup')}>
                                         <HelpComp value={text}/>
                                     </div>
                                 </Popup>
@@ -133,9 +95,11 @@ export function ViewSectionHeader({
 export function HelpTextEditPopups({
     helpTextArray,
     updateAttribute,
-    HelpComp
+    HelpComp,
+    sectionTheme,
 }) {
     const { UI, theme } = React.useContext(ThemeContext)
+    const t = key => sectionToken(sectionTheme, key);
     const { Popup, Icon, ColumnTypes } = UI
     const Select = ColumnTypes?.select?.EditComp || (() => {});
     return (
@@ -145,17 +109,17 @@ export function HelpTextEditPopups({
                     key={i}
                     button={
                         <div className={'relative'}>
-                            <div className='p-2 border border-[#E0EBF0] rounded-full print:hidden'>
+                            <div className={t('helpButton')}>
                                 <Icon icon={icon}
-                                      className='text-slate-400 hover:text-blue-500 size-4 print:hidden flex justify-center items-center'
+                                      className={t('helpIcon')}
                                       title="Info"/>
                             </div>
                         </div>
                     }>
                     {({setOpen}) => (
-                        <div className={'max-w-[500px] flex flex-col bg-white shadow-md'}>
+                        <div className={t('helpEditPopup')}>
                             <Icon icon={'TrashCan'}
-                                  className={'text-red-400 hover:text-red-600 self-end size-4 hover:cursor-pointer'}
+                                  className={t('helpDeleteIcon')}
                                   onClick={() => {
                                       updateAttribute('helpText', helpTextArray.filter((t, ii) => i !== ii))
                                       setOpen(false)
@@ -206,7 +170,9 @@ export function HelpTextEditPopups({
     )
 }
 
-export function TagComponent({value, placeholder, onChange, edit = false}) {
+// wrapperClassName / listClassName: the popup card + tag list (pages.section tagPopup / tagList
+// in view mode); unset keeps the historical classes.
+export function TagComponent({value, placeholder, onChange, edit = false, wrapperClassName, listClassName}) {
     const {UI} = useContext(ThemeContext);
     const {Icon, Label} = UI;
     const arrayValue = Array.isArray(value) ? value : (value?.split(',')?.filter(v => v?.length) || [])
@@ -222,7 +188,7 @@ export function TagComponent({value, placeholder, onChange, edit = false}) {
     ]
 
     return (
-        <div className='w-full bg-white shadow-md'>
+        <div className={wrapperClassName ?? 'w-full bg-white shadow-md'}>
 
             {edit && <div>
                 <div className="relative z-20">
@@ -268,7 +234,7 @@ export function TagComponent({value, placeholder, onChange, edit = false}) {
                 ) : null
                 }
             </div>}
-            <div className='w-full min-h-8 flex flex-col gap-1 px-1 py-2'>
+            <div className={listClassName ?? 'w-full min-h-8 flex flex-col gap-1 px-1 py-2'}>
                 {
                     arrayValue
                         .sort((a, b) => a.localeCompare(b))

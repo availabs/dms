@@ -5,75 +5,82 @@ export const userMenuTheme = {
   "styles": [
     {
       name: 'default',
-      // UserMenu component
-      userMenuContainer: 'flex flex-1 w-full items-center justify-center rounded-xl min-w-[60px] @container',
-      avatarWrapper: 'flex p-2 justify-center items-center',
-      avatar: 'size-8 border border-[#E0EBF0] rounded-full flex items-center justify-center hover:bg-slate-400',
-      avatarIcon: 'size-6 fill-[#37576b]',
-      infoWrapper: 'flex-1 p-2 @max-[150px]:hidden',
-      emailText: 'text-xs font-thin tracking-tighter text-left',
-      groupText: 'text-xs font-medium -mt-1 tracking-widest text-left',
+      // tessera v6, 2026-10-08 (page-view.html / page-edit.html user menu): neutral chrome,
+      // the avatar ring carries sync status, no accent colour. Pre-v6 values are frozen in
+      // src/themes/_legacy/pages.js `userMenu`.
+
+      // UserMenu component (avatar + identity) — the dropdown trigger
+      userMenuContainer: 'flex flex-1 min-w-0 items-center gap-2',
+      avatarWrapper: 'flex shrink-0 justify-center items-center',
+      avatar: 'size-8 shrink-0 rounded-full border border-[var(--t-rule-strong)] bg-[var(--t-panel)] flex items-center justify-center',
+      avatarIcon: 'size-4 text-[var(--t-graphite)] fill-current',
+      infoWrapper: 'flex-1 min-w-0 text-left',
+      emailText: 't-metaXS normal-case tracking-normal text-[var(--t-ink)] truncate',
+      groupText: 't-metaXS text-[var(--t-pencil)] truncate',
 
       // Sync status ring on the avatar
-      syncRing: 'ring-2 ring-offset-1 ring-offset-white',
-      syncRingConnected: 'ring-emerald-500',
-      syncRingSyncing: 'ring-amber-400',
-      syncRingRecovering: 'ring-orange-500',
-      syncRingError: 'ring-red-500',
-      syncRingDisconnected: 'ring-slate-300',
+      syncRing: 'ring-2 ring-offset-2 ring-offset-[var(--t-paper)]',
+      syncRingConnected: 'ring-[var(--t-go)]',
+      syncRingSyncing: 'ring-[var(--t-amber)]',
+      syncRingRecovering: 'ring-[var(--t-amber)]',
+      syncRingError: 'ring-[var(--t-brick)]',
+      syncRingDisconnected: 'ring-[var(--t-rule-strong)]',
       // Overrides the status ring when this page's live-edit room differs from
       // its saved sections (sync/room-health.js) — a save here would revert them.
-      syncRingStale: 'ring-red-500',
+      syncRingStale: 'ring-[var(--t-brick)]',
 
       // Sync status row inside the dropdown menu
-      syncStatusWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500',
+      syncStatusWrapper: 'flex items-center gap-2 px-2.5 py-1.5 t-proseXS text-[var(--t-graphite)]',
       syncStatusDot: 'size-2 rounded-full flex-shrink-0',
       syncStatusLabel: 'flex-1',
-      syncDotConnected: 'bg-emerald-500',
-      syncDotSyncing: 'bg-amber-400',
-      syncDotRecovering: 'bg-orange-500',
-      syncDotError: 'bg-red-500',
-      syncDotDisconnected: 'bg-slate-300',
-      syncCollabWrapper: 'flex items-center gap-1 text-blue-600',
+      syncDotConnected: 'bg-[var(--t-go)]',
+      syncDotSyncing: 'bg-[var(--t-amber)]',
+      syncDotRecovering: 'bg-[var(--t-amber)]',
+      syncDotError: 'bg-[var(--t-brick)]',
+      syncDotDisconnected: 'bg-[var(--t-rule-strong)]',
+      syncCollabWrapper: 'inline-flex items-center gap-1 text-[var(--t-graphite)]',
       syncCollabIcon: 'size-3',
 
       // "Clear pending mutations" action row, right below the sync status row.
       // Disabled (no click, dimmed) whenever there's nothing stuck to clear.
-      syncClearWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500 cursor-pointer hover:bg-slate-50',
+      syncClearWrapper: 'flex items-center gap-2 px-2.5 py-1.5 t-proseXS text-[var(--t-graphite)] rounded cursor-pointer hover:bg-[var(--t-well)]',
       syncClearWrapperDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
       syncClearLabel: 'flex-1',
 
       // "Discard local data" action row, right below "Clear pending mutations".
       // Disabled while offline (nothing to reload from) or already discarding.
-      syncDiscardWrapper: 'flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 cursor-pointer hover:bg-red-50',
+      syncDiscardWrapper: 'flex items-center gap-2 px-2.5 py-1.5 t-proseXS font-medium text-[var(--t-brick)] rounded cursor-pointer hover:bg-[var(--t-brick-soft)]',
       syncDiscardWrapperDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
       syncDiscardLabel: 'flex-1',
 
       // Page room health rows (sync/room-health.js): status line + actions.
-      syncRoomWrapper: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-500',
-      syncRoomStaleWrapper: 'flex items-start gap-2 px-3 py-2 text-xs text-red-600',
+      syncRoomWrapper: 'flex items-center gap-2 px-2.5 py-1.5 t-proseXS text-[var(--t-graphite)]',
+      syncRoomStaleWrapper: 'flex items-start gap-2 px-2.5 py-1.5 t-proseXS text-[var(--t-brick)]',
       syncRoomIcon: 'size-3 flex-shrink-0',
       syncRoomLabel: 'flex-1',
-      syncRoomAction: 'flex items-center gap-2 px-3 py-2 text-xs text-slate-600 cursor-pointer hover:bg-slate-50',
-      syncRoomRepair: 'flex items-center gap-2 px-3 py-2 text-xs font-medium text-red-600 cursor-pointer hover:bg-red-50',
+      syncRoomAction: 'flex items-center gap-2 px-2.5 py-1.5 t-proseXS text-[var(--t-graphite)] rounded cursor-pointer hover:bg-[var(--t-well)]',
+      syncRoomRepair: 'flex items-center gap-2 px-2.5 py-1.5 t-proseXS font-medium text-[var(--t-brick)] rounded cursor-pointer hover:bg-[var(--t-brick-soft)]',
       syncRoomActionDisabled: 'opacity-40 cursor-not-allowed hover:bg-transparent',
 
-      // EditControl component
-      editControlWrapper: 'flex justify-center items-center p-2',
-      iconWrapper: 'size-9 flex items-center justify-center',
-      icon: 'text-slate-400 hover:text-blue-500 size-7',
+      // "Viewing as <email>" line in the menu while an admin views as another user
+      viewAsText: 'px-2.5 py-1 t-proseXS font-medium text-[var(--t-amber)] truncate max-w-[200px]',
+
+      // EditControl component (the edit ⇄ view page toggle)
+      editControlWrapper: 'flex shrink-0 justify-center items-center',
+      iconWrapper: 'size-8 shrink-0 flex items-center justify-center rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] transition-colors',
+      icon: 'size-4',
       viewIcon: 'ViewPage',
       editIcon: 'EditPage',
 
       // Login/Auth section
-      loginWrapper: 'flex items-center justify-center py-2',
-      loginLink: 'flex items-center',
-      loginIconWrapper: 'size-8 flex items-center justify-center border border-[#E0EBF0] rounded-full hover:bg-slate-400',
-      loginIcon: 'size-6 stroke-slate-500 text-slate-500',
-      loginText: 'hidden',
-      authContainer: '@container w-full',
-      authWrapper: 'flex p-1 items-center',
-      userMenuWrapper: 'flex items-center flex-1 w-full',
+      loginWrapper: 'flex items-center justify-center',
+      loginLink: 'inline-flex items-center gap-1.5 h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] transition-colors',
+      loginIconWrapper: 'size-8 flex items-center justify-center',
+      loginIcon: 'size-4 text-[var(--t-graphite)]',
+      loginText: '',
+      authContainer: 'w-full min-w-0',
+      authWrapper: 'flex items-center gap-2 w-full min-w-0',
+      userMenuWrapper: 'flex flex-1 min-w-0 items-center rounded-md p-1 -m-1 cursor-pointer hover:bg-[var(--t-well)] transition-colors',
     }
   ]
 }
@@ -118,6 +125,7 @@ const themeClasses = {
     "syncRoomAction",
     "syncRoomRepair",
     "syncRoomActionDisabled",
+    "viewAsText",
   ],
   "editControl": [
     "editControlWrapper",

@@ -4,11 +4,13 @@ import { cloneDeep, get, isEqual } from "lodash-es"
 import { CMSContext,PageContext } from '../../../context'
 import {json2DmsForm, getUrlSlug, getPageAuthPermissions} from '../../_utils'
 import {publish, discardChanges, insertSubPage, duplicateItem, newPage} from '../editFunctions'
-import {ThemeContext} from "../../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../../ui/useTheme";
+import { editPaneTheme } from "./editPane.theme";
+import { editPanesTheme } from "./editPanes.theme";
 import PageTemplatePicker from '../../../components/PageTemplatePicker';
 
 
-function AddPageButton () {
+function AddPageButton ({ t }) {
     const { item, dataItems, apiUpdate, baseUrl } = React.useContext(PageContext) || {};
     const { user } = React.useContext(CMSContext) || {};
     const { UI } = React.useContext(ThemeContext);
@@ -22,6 +24,22 @@ function AddPageButton () {
         setLoading(false);
     };
 
+    const picker = (
+          <PageTemplatePicker
+            open={pickerOpen}
+            onClose={() => setPickerOpen(false)}
+            onSelect={handleSelect}
+          />
+    );
+    // v3: a compact "+ page" button beside the find box
+    if (t) return (
+        <>
+          <button type='button' className={t.btnPrimary} onClick={() => setPickerOpen(true)} disabled={loading}>
+            {loading ? 'Adding…' : '+ page'}
+          </button>
+          {picker}
+        </>
+    );
     return (
         <>
           <div className='border border-[var(--t-rule)] px-4 py-2 rounded '>
@@ -42,7 +60,9 @@ function AddPageButton () {
 function PagesPane () {
   const { item, dataItems, apiUpdate, baseUrl, pageState } =  React.useContext(PageContext) || {};
   const { isUserAuthed, user} = React.useContext(CMSContext);
-  const { UI } = React.useContext(ThemeContext)
+  const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext)
+  const t = { ...editPanesTheme, ...getComponentTheme(themeFromContext, 'pages.editPanes') };
+  const [find, setFind] = useState('');
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const {DraggableNav} = UI;
     const duplicatePage = (itemId) => {
@@ -51,6 +71,44 @@ function PagesPane () {
         return duplicateItem(dataItems.find(dI => dI.id === itemId), dataItems, user, apiUpdate)
     }
     const canAdd = isUserAuthed(['create-page'], pageAuthPermissions);
+  if (t.pagesWrap) {
+    const {Icon} = UI;
+    const q = find.trim().toLowerCase();
+    const matches = q ? (dataItems || []).filter(d => (d.title || '').toLowerCase().includes(q) || (d.url_slug || '').toLowerCase().includes(q)) : [];
+    return (
+      <div className={t.pagesWrap}>
+        <div className={t.pagesBar}>
+          <label className={t.pagesFind}>
+            <Icon icon='Search' className={t.pagesFindIcon} />
+            <input className={t.pagesFindInput} placeholder='Find a page' value={find} onChange={e => setFind(e.target.value)} />
+          </label>
+          {canAdd ? <AddPageButton t={t} /> : null}
+        </div>
+        {q ? (
+          matches.length
+            ? matches.map(d => <PageRowV3 key={d.id} t={t} activeItem={item} item={d} dataItems={dataItems} edit flat duplicatePage={duplicatePage} />)
+            : <div className={t.pagesNoMatch}>No page matches “{find}”.</div>
+        ) : (
+          <DraggableNav
+              item={item}
+              dataItems={dataItems}
+              apiUpdate={apiUpdate}
+              baseUrl={baseUrl}
+              renderAddItemButton={null}
+              containerClassName={t.pagesTree}
+              listClassName={t.pagesTreeList}
+              nestableStyle={t.pagesTreeStyle}
+              NavComp={(props) => PageRowV3({...props, t, duplicatePage})}
+          />
+        )}
+        <div className={t.pagesLegend}>
+          <span className={t.pagesLegendItem}><span className={t.pageMarkDraft} />unpublished</span>
+          <span className={t.pagesLegendItem}><Icon icon='EyeClosed' className={t.pageMarkIcon} />hidden from nav</span>
+          <span className={t.pagesLegendItem}><Icon icon='Link' className={t.pageMarkIcon} />link</span>
+        </div>
+      </div>
+    )
+  }
   return (
       <div className="relative flex-1 w-full ">
           <DraggableNav
@@ -66,6 +124,74 @@ function PagesPane () {
 }
 
 export default PagesPane
+
+// v3 page row: caret · title · status marks (unpublished · hidden from nav · link) · ⋯ menu.
+// Same actions as DraggableNavItem (rename / duplicate the open page / delete).
+function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick, isExpanded, edit, duplicatePage, t, flat}) {
+    // Nestable hands over a stripped tree node; the status marks need the full page row.
+    const item = { ...(dataItems.find(d => d.id === node?.id) || {}), ...node }
+    const { baseUrl } = React.useContext(CMSContext);
+    const { UI } = React.useContext(ThemeContext);
+    const { Icon, NavigableMenu } = UI;
+    const { pathname = '/edit' } = useLocation();
+    const submit = useSubmit()
+    const [showDelete, setShowDelete] = React.useState(false)
+    const [showRename, setShowRename] = React.useState(false)
+    const [duplicating, setDuplicating] = React.useState(false);
+    if(!dataItems.find(i => item?.id === i.id)) return;
+    const isActive = item.id === activeItem?.id || pathname.endsWith(`/${item.url_slug}`)
+    const hasChildren = !flat && item.children?.length
+    return (
+        <div key={item.id} className='max-w-full'>
+            <div className={isActive ? t.pageRowActive : t.pageRow}>
+                {hasChildren
+                    ? <button type='button' className={t.pageCaret} onClick={() => handleCollapseIconClick()}>
+                        <Icon icon={isExpanded ? 'ChevronDown' : 'ChevronRight'} className={t.pageCaretIcon} />
+                      </button>
+                    : <span className={t.pageCaretSpacer} />}
+                <NavLink className={isActive ? t.pageLinkActive : t.pageLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title || item.id}</NavLink>
+                <span className={t.pageMarks}>
+                    {item.published === 'draft' ? <span title='Unpublished' className={t.pageMarkDraft} /> : null}
+                    {item.hide_in_nav ? <span title='Hidden from the nav'><Icon icon='EyeClosed' className={t.pageMarkIcon} /></span> : null}
+                    {item.nav_link ? <span title='Link page'><Icon icon='Link' className={t.pageMarkIcon} /></span> : null}
+                </span>
+                <NavigableMenu
+                  showTitle={false}
+                  config={[
+                    { name: 'Rename', icon: 'PencilSquare', onClick: () => setShowRename(true) },
+                    item.id === activeItem?.id ? {
+                        name: duplicating ? 'Duplicating...' : 'Duplicate', icon: 'Copy',
+                        onClick: async () => { setDuplicating(true); await duplicatePage(item.id); setDuplicating(false) }
+                    } : undefined,
+                    { type: 'separator' },
+                    { name: (<span className='text-[var(--t-brick)]'>Delete</span>), icon: 'TrashCan', onClick: () => setShowDelete(true) }
+                  ].filter(f => f)}
+                >
+                  <span className={t.pageMenuBtn}><Icon icon={'Ellipsis'} className={t.pageMenuIcon} /></span>
+                </NavigableMenu>
+            </div>
+            <DeleteModal
+              item={item}
+              open={showDelete}
+              setOpen={() => setShowDelete(!showDelete)}
+              onDelete={() => {
+                async function deleteItem () {
+                    await submit(json2DmsForm(item,'delete'), { method: "post", action: pathname })
+                    setShowDelete(!showDelete)
+                }
+                deleteItem()
+              }}
+            />
+            <RenameModal
+              activeItem={activeItem}
+              item={item}
+              dataItems={dataItems}
+              open={showRename}
+              setOpen={() => setShowRename(!showRename)}
+            />
+        </div>
+    )
+}
 
 function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick, isCollapsed, edit, duplicatePage}) {
     const { baseUrl, user } = React.useContext(CMSContext);
@@ -317,13 +443,15 @@ export function PublishButton () {
   const hasChanges = item.published === 'draft' || item.has_changes
   const { user, authPermissions, isUserAuthed, qaTracking, app, baseUrl } = React.useContext(CMSContext) || {};
   const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
-  const { UI } = React.useContext(ThemeContext)
+  const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext)
   const {Button} = UI;
+  const t = { ...editPaneTheme, ...getComponentTheme(themeFromContext, 'pages.editPane') };
   if(!isUserAuthed(['publish-page'], pageAuthPermissions)) return null;
   // the QA installs to add the page to, when the site has any (editFunctions trackOnPublish)
   const qa = qaTracking ? { ...qaTracking, app, baseUrl, apiLoad } : null;
-  return (
-    <div className='w-full flex justify-center gap-1 h-[40px]'>
+  // '' publishBtn → the pre-v6 UI.Button pair (project themes, via src/themes/_legacy/pages.js)
+  if (!t.publishBtn) return (
+    <div className={t.publishWrapper}>
       { hasChanges && (
         <Button
           onClick={() => discardChanges(user,item, apiUpdate)}
@@ -339,19 +467,29 @@ export function PublishButton () {
         <span className='text-nowrap'> {hasChanges ? `Publish` : `No Changes`} </span>
 
       </Button>
-
-      {/*hasChanges && (
-        <Menu
-          items={[{
-            name: (<span className='text-[var(--t-brick)]'>Discard Changes</span>),
-            onClick: () =>  }
-          ]}
-        >
-          <Button padding={'py-1 w-[35px] h-[40px]'} rounded={'rounded-r-lg'} type={hasChanges ? 'active' : 'inactive'}>
-            <CaretDown className='size-[28px]' />
-          </Button>
-        </Menu>
-      )*/}
+    </div>
+  )
+  return (
+    <div className={t.publishWrapper}>
+      {t.publishStatus ? (
+        <span className={t.publishStatus}>
+          <span className={hasChanges ? t.publishStatusDotDraft : t.publishStatusDotPublished} />
+          {hasChanges ? 'Draft' : 'Published'}
+        </span>
+      ) : null}
+      { hasChanges && (
+        <button type='button' className={t.discardBtn} onClick={() => discardChanges(user,item, apiUpdate)}>
+          Discard
+        </button>
+      )}
+      <button
+          type='button'
+          disabled={!hasChanges}
+          className={hasChanges ? t.publishBtn : t.publishBtnDisabled}
+          onClick={() => publish(user,item, apiUpdate, qa)}
+      >
+        {hasChanges ? `Publish` : `No Changes`}
+      </button>
     </div>
   )
 }

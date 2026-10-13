@@ -22,24 +22,21 @@ export const sectionGroupTheme = {
     // container2 = sticky positioning + scroll region
     // container3 = vertical stack of rail blocks (the nav card + any sidebar-group sections)
     sideNavContainer1: 'w-[302px] shrink-0 hidden xl:block',
-    sideNavContainer2: 'sticky top-[60px] h-[calc(100vh_-_68px)] overflow-y-auto pr-2',
+    // v6 (2026-10-08): the default Layout has no top nav, so the rail pins near the top.
+    sideNavContainer2: 'sticky top-6 max-h-[calc(100vh_-_3rem)] overflow-y-auto pr-2 scrollbar-xs',
     sideNavContainer3: 'flex flex-col gap-4 h-full',
 
     // ── Modal band chrome (`isModal` groups, view mode) ──
-    // A modal group's overlay/card/close button used to be hardcoded here in
-    // sectionGroup.jsx, which put every brand's modals on a white card with a
-    // grey ✕ — unusable on a dark admin surface. These are the previous literals
-    // verbatim, so an unthemed brand is unchanged; a brand overrides them under
-    // its own `pages.sectionGroup`. `modalWidth` is still picked by the group's
-    // `modalSize` (a whitelist, because Tailwind only emits literal classes).
-    modalOverlay: 'fixed inset-0 z-50 flex items-center justify-center bg-black/50',
-    modalCard:    'relative bg-white rounded-lg shadow-xl w-full mx-4 max-h-[90vh] overflow-y-auto',
-    modalClose:   'sticky float-right top-3 right-3 text-gray-400 hover:text-gray-700 z-10 text-xl leading-none',
-    // The close affordance. A brand that ships an icon registry can name a glyph
-    // (`modalCloseIcon: 'XMark'`) instead of drawing one in text.
+    // tessera v6, 2026-10-08 (page-view.html "modal section group"). Pre-v6 values are frozen
+    // in src/themes/_legacy/pages.js `sectionGroup`. `modalWidth` is still picked by the
+    // group's `modalSize` (a whitelist, because Tailwind only emits literal classes).
+    modalOverlay: 'fixed inset-0 z-50 flex items-center justify-center bg-[var(--t-scrim)] p-4',
+    modalCard:    'relative w-full bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg shadow-[var(--t-shadow-drag)] p-4 max-h-[85vh] overflow-y-auto',
+    modalClose:   'sticky float-right top-0 -mb-8 z-10 size-8 inline-flex items-center justify-center rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
+    // The close affordance: an icon-registry glyph, or text when modalCloseIcon is ''.
     modalCloseText: '✕',
-    modalCloseIcon: '',
-    modalCloseIconClass: 'w-5 h-5',
+    modalCloseIcon: 'XMark',
+    modalCloseIconClass: 'size-4',
 
     // ── Collapsible band chrome (`collapsible` groups, view mode) ──
     // collapseToggle: the corner button of a band whose `showWhenCollapsed` sections stay
@@ -56,13 +53,12 @@ export const sectionGroupTheme = {
     collapseIconCollapsed: '-rotate-90',
 
     // ── In-page nav (InPageNav.jsx) ──
-    // Minimal neutral defaults so legacy `item.sidebar` docs pages render ~unchanged
-    // (a plain list of jump links, no card, no label). Brands opt into the card look
-    // by overriding these keys under their own `pages.sectionGroup`.
+    // v6: "on this page" label + a hairline rail; the section in view gets an ink marker
+    // (scroll-spy). Pre-v6 (a plain list, no label) is frozen in _legacy/pages.js.
     navWrapper:    '',
-    navLabelText:  '',                 // e.g. 'On this page' — brand sets the label text
-    navLabel:      'text-xs font-semibold uppercase tracking-wider text-slate-500 mb-2',
-    navList:       'flex flex-col',
-    navItem:       'block w-full text-left text-sm text-slate-500 hover:text-slate-900 py-1 cursor-pointer transition-colors',
-    navItemActive: 'block w-full text-left text-sm text-slate-900 font-medium py-1 cursor-pointer',
+    navLabelText:  'On this page',     // '' → no label
+    navLabel:      't-metaXS text-[var(--t-pencil)] mb-2',
+    navList:       'flex flex-col border-l border-[var(--t-rule)]',
+    navItem:       'block w-full text-left -ml-px pl-3 py-1 border-l-2 border-transparent t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer transition-colors',
+    navItemActive: 'block w-full text-left -ml-px pl-3 py-1 border-l-2 border-[var(--t-ink)] t-proseSM font-medium text-[var(--t-ink)] cursor-pointer',
 }

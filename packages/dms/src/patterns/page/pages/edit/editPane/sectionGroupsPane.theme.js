@@ -1,26 +1,32 @@
+// Section groups pane (sectionGroupsPane.jsx) — tessera v6, 2026-10-08, from
+// design_system_v6/pages/page-edit-panes.html: bands top / content / bottom as quiet well headers,
+// group rows on the panel, sections as light rows; no accent colour. The v3 extras (flags, theme
+// chip, count, section type icon, hidden marker) are pages.editPanes keys. Pre-v6 values frozen in
+// src/themes/_legacy/pages.js `sectionGroupsPane`.
 export const sectionGroupControlTheme = {
   options: {
     activeStyle: 0
   },
   styles: [
     {
-      sectionTargetWrapper: 'py-2 px-3 text-xs font-semibold uppercase tracking-wide text-[var(--t-graphite)] bg-[var(--t-well)] border-b border-[var(--t-rule)] cursor-default flex justify-between items-center',
-      addGroupBtn: 'text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)] hover:bg-[var(--t-cobalt-soft)] rounded px-2 py-1 transition-colors font-medium normal-case',
-      sectionGroupWrapper: 'group rounded-sm px-4 py-1 flex justify-between items-center hover:shadow-sm transition-all',
-      activePageSectionBorder: `border border-dashed border-orange-200 hover:border-orange-300`,
-      sectionGroupBorder: `border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]`,
-      pageSectionBG: `bg-[var(--t-well)] hover:bg-[var(--t-rule)]`,
-      expandedGroupBG: `bg-[var(--t-rule)]`,
-      unexpandedGroupBG: `bg-[var(--t-panel)]`,
+      name: 'default',
+      sectionTargetWrapper: 'flex items-center justify-between gap-2 mt-3 px-3 py-2 rounded-md bg-[var(--t-well)] t-metaXS text-[var(--t-pencil)] cursor-default',
+      addGroupBtn: 'inline-flex items-center gap-1 rounded px-1.5 py-0.5 t-proseXS normal-case tracking-normal text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-panel)] cursor-pointer',
+      sectionGroupWrapper: 'group flex items-center justify-between gap-2 pl-1 pr-1 py-1.5 rounded-md transition-colors',
+      activePageSectionBorder: `ring-1 ring-[var(--t-amber)]`,
+      sectionGroupBorder: ``,
+      pageSectionBG: `hover:bg-[var(--t-well)]`,
+      expandedGroupBG: `bg-[var(--t-panel)]`,
+      unexpandedGroupBG: `hover:bg-[var(--t-panel)]`,
       pageSectionCursor: `cursor-pointer`,
       sectionGroupCursor: `cursor-grab`,
-      titleWrapper: 'flex items-center gap-3',
-      sectionGroupIcon: 'size-4 text-[var(--t-pencil)] group-hover:text-[var(--t-graphite)]',
+      titleWrapper: 'flex items-center gap-2 min-w-0 flex-1',
+      sectionGroupIcon: 'size-3.5 shrink-0 text-[var(--t-pencil)] group-hover:text-[var(--t-graphite)]',
       pageSectionIcon: 'hidden',
-      sectionGroupTitle: 'text-sm font-medium text-[var(--t-ink)]',
-      pageSectionTitle: 'text-sm font-medium text-[var(--t-ink)]',
-      controlsWrapper: 'flex gap-1 items-center',
-      expandGroupIcon: 'size-6 place-content-center cursor-pointer text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
+      sectionGroupTitle: 't-proseSM font-medium text-[var(--t-ink)] truncate',
+      pageSectionTitle: 't-proseXS text-[var(--t-graphite)] truncate',
+      controlsWrapper: 'flex gap-1 items-center shrink-0',
+      expandGroupIcon: 'size-6 p-1 rounded cursor-pointer text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
     }
   ]
 }

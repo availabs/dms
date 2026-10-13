@@ -1,12 +1,15 @@
 import React, {Fragment, useContext, useMemo, useState} from 'react'
 
-import { ThemeContext } from '../../../../../ui/useTheme'
+import { ThemeContext, getComponentTheme } from '../../../../../ui/useTheme'
+import { editPanesTheme } from './editPanes.theme'
 import { CMSContext,PageContext } from '../../../context'
 import {timeAgo} from '../../_utils'
 import { updateHistory } from '../editFunctions'
 
 
 function EditHistory () {
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
+  const t = { ...editPanesTheme, ...getComponentTheme(themeFromContext, 'pages.editPanes') }
   const { baseUrl, user  } = React.useContext(CMSContext) || {}
   const { item, dataItems, apiUpdate } =  React.useContext(PageContext) || {}
 
@@ -26,6 +29,9 @@ function EditHistory () {
     return []
   }, [item?.history])
 
+  if (t.historyWrap) return (
+      <HistoryV3 t={t} history={historyEntries} onChange={value => updateHistory(item, value, user, apiUpdate)}/>
+  )
   return (
       <div className="w-full overflow-y-auto">
         <HistoryList history={historyEntries} onChange={value => updateHistory(item, value, user, apiUpdate)}/>
@@ -114,3 +120,81 @@ function HistoryList({history, onChange}) {
     </>
   )
  }
+
+// History v3 (tessera v6, 2026-10-08): a real comment composer, an all / comments / publishes filter,
+// entries grouped today / this week / earlier, publishes and comments drawn as milestones. Same
+// entries and the same `commented: …` write as HistoryList.
+const historyKind = (action = '') =>
+  action.startsWith('commented:') ? 'comment'
+    : /publish/i.test(action) ? 'publish'
+    : /creat/i.test(action) ? 'create'
+    : 'edit'
+
+const dayBucket = (time) => {
+  const d = new Date(time)
+  if (isNaN(d)) return 'earlier'
+  const now = new Date()
+  if (d.toDateString() === now.toDateString()) return 'today'
+  return (now - d) < 7 * 24 * 3600 * 1000 ? 'this week' : 'earlier'
+}
+
+function HistoryV3({ t, history, onChange }) {
+  const { UI } = useContext(ThemeContext)
+  const { Icon, ButtonSelect } = UI
+  const [comment, setComment] = useState('')
+  const [show, setShow] = useState('all')
+  const entries = [...history]
+    .sort((a, b) => new Date(b.time) - new Date(a.time))
+    .map(h => ({ ...h, kind: historyKind(h.action) }))
+    .filter(h => show === 'all' || (show === 'comments' ? h.kind === 'comment' : h.kind === 'publish'))
+  const groups = ['today', 'this week', 'earlier']
+    .map(label => ({ label, items: entries.filter(h => dayBucket(h.time) === label) }))
+    .filter(g => g.items.length)
+  const dot = (kind) => kind === 'comment' ? <span className={t.historyDotComment}><Icon icon='Text' className={t.historyDotIcon} /></span>
+    : kind === 'publish' ? <span className={t.historyDotPublish}><Icon icon='Publish' className={t.historyDotIcon} /></span>
+    : kind === 'create' ? <span className={t.historyDotCreate}><Icon icon='Plus' className={t.historyDotIcon} /></span>
+    : <span className={t.historyDot} />
+  const submit = () => { if (!comment.trim()) return; onChange(`commented: ${comment.trim()}`); setComment('') }
+
+  return (
+    <div className={t.historyWrap}>
+      <div className={t.composer}>
+        <textarea rows={2} className={t.composerInput} placeholder='Leave a note for other editors…' value={comment}
+                  onChange={e => setComment(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
+        <div className={t.composerBar}>
+          <span className={t.composerHint}>Shows in this page’s history</span>
+          <button type='button' className={t.btnPrimary} disabled={!comment.trim()} onClick={submit}>Comment</button>
+        </div>
+      </div>
+      <div className={t.historyFilter}>
+        <ButtonSelect activeStyle='segmented' value={show} onChange={setShow}
+                      options={[{ label: 'all', value: 'all' }, { label: 'comments', value: 'comments' }, { label: 'publishes', value: 'publishes' }]} />
+      </div>
+      {groups.length ? groups.map(g => (
+        <div key={g.label}>
+          <p className={t.historyDay}>{g.label}</p>
+          <ul className={t.historyList}>
+            <span className={t.historyLine} />
+            {g.items.map((h, i) => {
+              const who = typeof h.user === 'string' ? h.user : (h.user?.email || '')
+              const text = h.kind === 'comment' ? h.action.slice('commented:'.length).trim() : null
+              return (
+                <li key={i} className={t.historyEntry}>
+                  <span className={t.historyDotWrap}>{dot(h.kind)}</span>
+                  <div className='flex-1 min-w-0'>
+                    <p className={t.historyText}>
+                      <b title={who} className={t.historyWho}>{who.split('@')[0] || 'someone'}</b> {h.kind === 'comment' ? 'commented' : h.action}
+                      <span className={t.historyWhen}> · <time dateTime={h.time}>{timeAgo(h.time)}</time></span>
+                    </p>
+                    {text ? <p className={t.historyComment}>{text}</p> : null}
+                  </div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+      )) : <p className={t.historyEmpty}>{show === 'all' ? 'No history yet.' : `No ${show} yet.`}</p>}
+    </div>
+  )
+}

@@ -9,6 +9,11 @@ import { templateManagerTheme } from './components/sections/TemplateManager.them
 import { timePickerTheme } from './components/sections/components/dataWrapper/components/filters/TimePicker/timePicker.theme'
 import { pageTemplatePickerTheme } from './components/PageTemplatePicker.theme'
 import { linkPageNoticeTheme } from './components/LinkPageNotice.theme'
+import { editPaneTheme } from './pages/edit/editPane/editPane.theme'
+import { editPanesTheme } from './pages/edit/editPane/editPanes.theme'
+import { columnManagerTheme } from './components/sections/ColumnManager.theme'
+import { sectionMenuTheme } from './components/sections/sectionMenu.theme'
+import { errorPageTheme } from './pages/errorPage.theme'
 import { damaMapTheme } from './components/sections/components/ComponentRegistry/map/map.theme'
 
 export default {
@@ -25,6 +30,11 @@ export default {
     pageTemplatePicker: pageTemplatePickerTheme,
     linkPageNotice: linkPageNoticeTheme,
     damaMap: damaMapTheme,
+    editPane: editPaneTheme,
+    editPanes: editPanesTheme,
+    columnManager: columnManagerTheme,
+    sectionMenu: sectionMenuTheme,
+    errorPage: errorPageTheme,
 }
 
 export const pagesThemeSettings = (theme) => {

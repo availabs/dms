@@ -274,7 +274,7 @@ const pagesConfig = ({
       console.log('page pattern - siteconfig -error element', error)
       return (
         <ThemeContext.Provider value={{ theme, UI }}>
-          <ErrorPage />
+          <ErrorPage baseUrl={baseUrl} />
         </ThemeContext.Provider>
       );
     },

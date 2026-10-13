@@ -1,4 +1,5 @@
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { PageContext } from '../context';
 import { ThemeContext, getComponentTheme } from '../../../ui/useTheme';
 import { pageTemplatePickerTheme } from './PageTemplatePicker.theme';
@@ -348,7 +349,9 @@ export default function PageTemplatePicker({ open, onClose, onSelect }) {
     onClose();
   };
 
-  return (
+  // Portaled to <body>: it is opened from the edit drawer, whose slide-in transform would otherwise
+  // trap this `fixed` backdrop inside the 350px drawer (fixed 2026-10-08, every theme).
+  return createPortal(
     <div className={t.backdrop} onClick={e => e.target === e.currentTarget && onClose()}>
       <div className={t.modal}>
         <div className={t.header}>
@@ -411,6 +414,7 @@ export default function PageTemplatePicker({ open, onClose, onSelect }) {
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

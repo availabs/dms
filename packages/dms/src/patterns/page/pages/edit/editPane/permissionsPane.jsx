@@ -41,6 +41,8 @@ function PermissionsPane() {
                 getGroups={AuthAPI.getGroups}
                 permissionDomain={permissionDomain}
                 defaultPermission={defaultPermission}
+                heading='on this page'
+                inheritedFrom='the pattern'
             />
         </div>
     )

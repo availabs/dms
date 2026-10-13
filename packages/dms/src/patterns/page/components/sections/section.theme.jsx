@@ -19,7 +19,9 @@ export const sectionTheme = {
       // Below sectionGroup's modalOverlay (z-50) so a modal still wins.
       topBarButtonsEdit: 'flex gap-1 z-40',
       topBarButtonsView: 'z-40',
-      menuPosition: 'absolute top-[5px] right-[5px] items-center flex gap-0.5 z-40',
+      menuPosition: 'absolute top-2 right-2 items-center flex gap-1 z-40',
+      // icons in the section menu's action rows (sectionMenu.jsx) — 16px, as on page-edit.html
+      menuActionIcon: 'size-4',
       editIcon: 'hover:text-blue-500 size-6',
       contentWrapper: 'h-full',
 
@@ -31,34 +33,61 @@ export const sectionTheme = {
       headerExtensionsRow: '',
 
       // ── Section header band ──────────────────────────────────────────
-      // The title band itself (section_components.jsx's ViewSectionHeader).
-      // Every value here is the literal that component hardcoded before these
-      // keys existed, so leaving them alone renders byte-identically — locked
-      // by tests/viewSectionHeaderLegacy.test.js. They are listed explicitly
-      // rather than left undefined so the admin theme editor can surface them
-      // and a reader can see what the band is made of.
+      // The title band itself (section_components.jsx's ViewSectionHeader) — tessera v6,
+      // 2026-10-08, from src/themes/tessera/design_system_v6/pages/page-view.html. Every
+      // project theme keeps the pre-v6 band: those values are frozen in
+      // src/themes/_legacy/pages.js `section` (and are the HEADER_DEFAULTS fallback a theme
+      // with no `pages.section` style gets — locked by tests/viewSectionHeaderLegacy.test.js).
       //
       // A brand that wants a card-style header (title + meta on one bordered
       // row, the graph-card shape) overrides these on a NAMED style and points
       // individual sections at it via `value.activeStyle` — see section.jsx's
       // getComponentTheme call. Site-wide is usually wrong: a docs page and a
       // report card want very different bands.
-      headerRow:       'flex w-full min-h-[50px] items-center pb-2',
-      headerInner:     'flex-1 flex flex-row pb-2 font-display font-medium uppercase scroll-mt-36 items-center',
-      headerTitleWrap: 'flex-1',
-      headerActions:   'flex item-center h-full pointer-events-auto',
-      // APPENDED to the historical `w-full ${theme.heading[level]}` string, not
-      // a replacement — so a site keeps whatever its heading map already did.
+      headerRow:       'flex w-full min-h-[40px] items-center gap-3 pb-2',
+      // title · [help][tags] · … kicker. The DOM order is title, kicker, actions; `order-*`
+      // keeps the help/tags buttons beside the title and pushes the kicker to the right edge.
+      headerInner:     'flex-1 min-w-0 flex flex-row flex-wrap items-center gap-x-2 gap-y-1 scroll-mt-36',
+      headerTitleWrap: 'min-w-0',
+      headerActions:   'order-1 flex items-center gap-0.5 pointer-events-auto',
+      // APPENDED to the title's `w-full ${level class}` string, not a replacement.
       headerTitle:     '',
+      // Title class per section `level`. When set it REPLACES the site-wide `theme.heading[level]`
+      // lookup for section titles ('' → use theme.heading, the pre-v6 behaviour).
+      headerTitleLevels: {
+        '1': 't-displayMD text-[var(--t-ink)]',
+        '2': 't-displaySM text-[var(--t-ink)]',
+        '3': 't-prose font-semibold text-[var(--t-ink)]',
+        '4': 't-proseSM font-semibold text-[var(--t-ink)]',
+        default: 't-displaySM text-[var(--t-ink)]',
+      },
       // The right-hand meta line, rendered from the section's `description`
-      // attribute. Unset ⇒ never rendered, so a description typed into the
-      // Settings drawer stays invisible until a theme opts in.
-      headerKicker:    '',
+      // attribute. Unset ⇒ never rendered ('' in the legacy freeze).
+      headerKicker:    'order-2 ml-auto shrink-0 t-metaXS text-[var(--t-pencil)]',
       // true ⇒ header extensions render INSIDE the band, sharing the row with
       // the title, instead of on their own row below it (and the kicker yields
       // the slot to them). false keeps the historical two-row layout.
       headerExtensionsInline: false,
       headerExtensionsInlineRow: 'shrink-0 flex items-center gap-1.5',
+      // Tags + help-text triggers beside the title, and their popups (were hardcoded).
+      tagButton:   'size-7 inline-flex items-center justify-center rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer print:hidden',
+      tagIcon:     'size-4',
+      tagPopup:    'w-full min-w-[160px] bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg shadow-[var(--t-shadow-drag)]',
+      tagList:     'w-full flex flex-wrap gap-1 p-2',
+      helpButton:  'size-7 inline-flex items-center justify-center rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer print:hidden',
+      helpIcon:    'size-4',
+      helpPopup:   'max-w-[420px] flex flex-col px-4 py-3 bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg shadow-[var(--t-shadow-drag)] t-proseSM text-[var(--t-graphite)]',
+
+      // ── Edit mode (SectionEdit + the menu trigger row) — tessera v6, 2026-10-08 (page-edit.html) ──
+      // The header row of the section being edited (was hardcoded in section.jsx).
+      editHeaderRow:       'flex flex-row items-center gap-2 pb-2 scroll-mt-36',
+      editHeaderTitleWrap: 'flex-1 min-w-0',
+      // "Hidden from View" marker beside the menu trigger ('' → UI.Pill orange, pre-v6).
+      hiddenPill:     'inline-flex items-center gap-1 t-metaXS text-[var(--t-amber)] bg-[var(--t-amber-soft)] rounded-full px-2 py-0.5',
+      hiddenPillIcon: 'size-3',
+      // Help-text editor popup (HelpTextEditPopups) + its delete icon.
+      helpEditPopup:  'w-[420px] max-w-[90vw] flex flex-col gap-2 p-3 bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg shadow-[var(--t-shadow-drag)]',
+      helpDeleteIcon: 'self-end size-4 text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer',
 
       // Min-height applied only in page edit mode so a section with no
       // data (empty filter result, empty draft, etc.) still reserves
@@ -117,10 +146,24 @@ const themeClasses = {
     "headerTitle",
     "headerKicker",
     "headerActions",
+    "tagButton",
+    "tagIcon",
+    "tagPopup",
+    "tagList",
+    "helpButton",
+    "helpIcon",
+    "helpPopup",
+    "editHeaderRow",
+    "editHeaderTitleWrap",
+    "hiddenPill",
+    "hiddenPillIcon",
+    "helpEditPopup",
+    "helpDeleteIcon",
     "headerExtensionsInlineRow",
   ],
   "menu": [
     "menuPosition",
+    "menuActionIcon",
     "editIcon",
   ]
 }

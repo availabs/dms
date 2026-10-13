@@ -514,7 +514,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                         ${theme?.layouts[group?.full_width === 'show' ? 'fullwidth' : 'centered']}
                     `}
                 >
-                    {[...Array(theme?.gridSize).keys()].map(d => <div className={theme?.gridviewItem}  />)}
+                    {[...Array(theme?.gridSize).keys()].map(d => <div key={d} className={theme?.gridviewItem}  />)}
                 </div>
             </div>
         )}
@@ -701,7 +701,6 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
                                 className={`
                                     ${v?.is_header ? '' : resolvePadding(v?.padding, theme)}
                                     ${theme?.sectionViewWrapper}
-                                    ${hash === `#${v.id}` ? theme?.sectionHighlight : ``}
                                     ${colspanClass} ${rowspanClass}
                                     ${resolveHeight(v, theme)}
                                 `}
@@ -715,6 +714,9 @@ const View = ({value, attr, group, siteType, collapsed = false}) => {
                                      }
                                  }}
                             >
+                                {/* #hash target — an overlay, as in edit mode (was a class on
+                                    this wrapper, which fought its own `relative`). */}
+                                {hash === `#${v.id}` ? <div className={theme?.sectionHighlight} /> : null}
                                 {/* Inner card box — section chrome (border/radius/bg)
                                     inside the gutter padding. */}
                                 <div
@@ -759,7 +761,7 @@ const AddSectionButton = ({onClick}) => {
     return (
         <div
             className={`
-                p-[1px]
+                ${theme?.addSectionEndWrapper || 'p-[1px]'}
                 ${theme?.sectionEditWrapper}
                 ${theme?.sizes?.[theme?.defaultSize || "1"]?.className}
                 ${theme?.rowspans?.["1"]?.className}
@@ -768,7 +770,7 @@ const AddSectionButton = ({onClick}) => {
             <div className={theme?.sectionEditHover} />
                 <div
                     onClick={onClick}
-                    className={theme?.addSectionButton}>
+                    className={theme?.addSectionEndButton || theme?.addSectionButton}>
                     <div className={theme?.spacer} />
                     <div className={theme?.addSectionIconWrapper}>
                         <div><Icon icon='Plus' className={theme?.addSectionIcon}/></div>

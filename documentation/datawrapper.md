@@ -215,9 +215,11 @@ Provided by `PageEdit` and `PageView` (wraps the page tree). Stores page-level d
 
 ### Data Sources Pane
 
-Tab in the page edit pane (editPane/dataSourcesPane.jsx). Lists all page-level sources. Each source can be edited: name, source/version picker, column manager, filter editor.
-
-The pane creates its own local `useImmer` state per source and syncs back to DataSourceContext on changes (debounced 500ms).
+**Removed 2026-10-08** (owner: unused — datasets-page-pattern-v6-port.md, Decision 16). It was a
+tab in the page edit pane (editPane/dataSourcesPane.jsx) listing the page-level sources, each
+editable (name, source/version picker, column manager, filter editor). Page-level sources already
+stored on a page still resolve for sections (below); there is just no editor for them in the drawer.
+The old file is in git history.
 
 ### Section ↔ Page-Level Sources
 

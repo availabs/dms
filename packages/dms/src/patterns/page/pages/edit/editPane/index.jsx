@@ -1,12 +1,13 @@
 import React, { Fragment } from 'react';
 import { CMSContext,PageContext } from '../../../context'
-import { ThemeContext } from '../../../../../ui/useTheme';
+import { ThemeContext, getComponentTheme } from '../../../../../ui/useTheme';
+import { editPaneTheme } from './editPane.theme';
 import SettingsPane from './settingsPane'
 import PagesPane, { PublishButton } from './pagesPane'
 import HistoryPane from './historyPane'
 import SectionGroupsPane from './sectionGroupsPane'
 import PermissionsPane from "./permissionsPane";
-import DataSourcesPane from "./dataSourcesPane";
+import FiltersPane from "./filtersPane";
 import {getPageAuthPermissions} from "../../../pages/_utils";
 
 const panes = [
@@ -16,11 +17,13 @@ const panes = [
         Component: SettingsPane,
           reqPermissions: ['edit-page']
       },
+      // Page filters — own pane since 2026-10-08 (were the bottom of Settings). The Data Sources
+      // pane was removed the same day (owner: unused; datasets-page-pattern-v6-port.md Decision 16).
       {
-        icon: 'Database',
-          title: 'Data Sources',
-        Component: DataSourcesPane,
-          reqPermissions: ['edit-page']
+        icon: 'Filter',
+          title: 'Filters',
+        Component: FiltersPane,
+          reqPermissions: ['edit-page-params']
       },
       {
         icon: 'Sections',
@@ -48,8 +51,9 @@ const panes = [
     ]
 
 export function EditPane () {
-  const { UI } = React.useContext(ThemeContext) || {};
+  const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const { Icon } = UI;
+  const t = { ...editPaneTheme, ...getComponentTheme(themeFromContext, 'pages.editPane') };
 
   const {item, pageState, editPane, setEditPane } =  React.useContext(PageContext) || {}
     const hasChanges = item.published === 'draft' || item.has_changes
@@ -61,56 +65,63 @@ export function EditPane () {
 
 
   return (
-    <div className='fixed bottom-[12px] left-0 right-0 z-50 pointer-events-none'>
-      <div className='flex items-cemter p-1 justify-between bg-neutral-900 w-[500px] mx-auto rounded-[12px] shadow pointer-events-auto'>
+    <div className={t.wrapper}>
+      <div className={t.bar}>
         {userHasEditPageAccess ?
             panes
                 .filter(pane => !pane.reqPermissions || isUserAuthed(pane.reqPermissions, pageAuthPermissions))
                 .map((pane,i) => (
                 <div
                     key={pane?.icon || i}
-                    className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group'
+                    title={pane.title}
+                    className={(editPane?.open && editPane?.index === i && t.paneBtnActive) || t.paneBtn}
                     onClick={() => setEditPane({...editPane,index:i, open: !editPane.openX})}
                 >
                     <Icon
                         icon={pane?.icon}
-                        className='size-6 group-hover:text-blue-500 text-slate-400'
+                        className={t.paneIcon}
                     />
                   </div>
             )) : null
         }
 
 
-        <div className='h-9 mt-0.5 w-[1px] mx-1  bg-slate-600' />
+        <div className={t.divider} />
         <div
-          className='flex items-cemter  px-2 py-2 cursor-pointer rounded-[12px] hover:bg-slate-700 group'
+          title='Show layout grid'
+          className={(editPane?.showGrid && t.gridBtnActive) || t.gridBtn}
           onClick={() => setEditPane({...editPane,  showGrid: !editPane.showGrid})}
         >
           <Icon
             icon='Grid'
-            className='size-6 group-hover:text-blue-500 text-slate-400'
+            className={t.gridIcon}
           />
         </div>
-        <div className='flex-1'> </div>
-        <div className=''><PublishButton /></div>
+        <div className={t.spacer}> </div>
+        <div className={t.publishSlot}><PublishButton /></div>
       </div>
     </div>
   )
 }
 
 function LoadingDisplay () {
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const t = { ...editPaneTheme, ...getComponentTheme(themeFromContext, 'pages.editPane') };
   const { busy } =  React.useContext(PageContext) || {}
+  if (!(busy?.loading > 0 || busy?.updating > 0)) return null
   return (
-    <div className={`fixed bottom-4 right-4 p-6 border border-[var(--t-rule)] rounded bg-[var(--t-panel)] text-[var(--t-ink)] shadow ${busy?.loading > 0 || busy?.updating > 0 ? 'block' : 'hidden'} `}>
-        <div>{busy?.updating > 0 && `Updating... ${busy?.updating}`}</div>
-        <div>{busy?.loading > 0 && `Loading... ${busy?.loading}`}</div>
+    <div className={t.busy}>
+        {t.busyDot ? <span className={t.busyDot} /> : null}
+        {busy?.updating > 0 ? <div className={t.busyText}>{`Updating... ${busy?.updating}`}</div> : null}
+        {busy?.loading > 0 ? <div className={t.busyText}>{`Loading... ${busy?.loading}`}</div> : null}
     </div>
   )
 }
 
 export function EditDrawer() {
-    const { UI } = React.useContext(ThemeContext) || {};
+    const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const {Icon, Tabs, Drawer} = UI;
+    const t = { ...editPaneTheme, ...getComponentTheme(themeFromContext, 'pages.editPane') };
     const { isUserAuthed } = React.useContext(CMSContext) || {};
     const { pageState, item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
@@ -118,14 +129,14 @@ export function EditDrawer() {
   const hasChanges = item.published === 'draft' || item.has_changes
   return (
     <Drawer
-      width={'w-[350px]'}
+      width={t.drawerWidth}
       open={editPane.open}
       setOpen={v => setEditPane({...editPane, open: v})}
       closeOnClick={false}
     >
       {/*<div className='h-8 w-[500px]' />*/}
       <Tabs
-          activeStyle={'pages-pane'}
+          activeStyle={(themeFromContext?.tabs?.styles || []).some(st => st?.name === t.tabsStyle) ? t.tabsStyle : (t.tabsStyleFallback || t.tabsStyle)}
         selectedIndex = {editPane.index}
         setSelectedIndex = {v => setEditPane({...editPane, index: v})}
         tabs={
@@ -135,7 +146,7 @@ export function EditDrawer() {
             return {
               name: <Icon
                 icon={pane.icon}
-                className='size-6'
+                className={t.tabIcon}
               />,
                 title: pane.title,
               Component: pane.Component,

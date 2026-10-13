@@ -4,8 +4,12 @@ import { cloneDeep, set } from "lodash-es";
 
 import { CMSContext, PageContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
+import { editPanesTheme } from "./editPanes.theme";
 
 const SECTION_TARGETS = ["top", "content", "bottom"];
+// v3 (pages.editPanes): the icon a section row shows for its component type.
+const SECTION_TYPE_ICONS = { lexical: "Text", "Rich Text": "Text", Card: "Section", Spreadsheet: "Table", Table: "Table", Graph: "Columns", Map: "Map", "Map: Dama Map": "Map", Filter: "Filter", Header: "Text" };
+const sectionTypeIcon = (type = "") => SECTION_TYPE_ICONS[type] || SECTION_TYPE_ICONS[String(type).split(":")[0]] || "Section";
 function SectionGroupControl({
   group,
   fullGroupData={},
@@ -29,6 +33,7 @@ function SectionGroupControl({
     themeFromContext,
     "pages.sectionGroupsPane",
   );
+  const t = { ...editPanesTheme, ...getComponentTheme(themeFromContext, "pages.editPanes") };
   //console.log('theme', themeFromContext)
   // const currentStyle = sectionGroupControlTheme.styles[sectionGroupControlTheme.options.activeStyle];
 
@@ -153,6 +158,9 @@ function SectionGroupControl({
               : currentStyle.pageSectionIcon
           }
         />
+        {t.groupMeta && isPageSection ? (
+          <Icon icon={sectionTypeIcon(fullGroupData?.type)} className={t.groupFlagIcon} />
+        ) : null}
         <span
           className={
             group.isGroup
@@ -162,7 +170,18 @@ function SectionGroupControl({
         >
           {group?.title || group?.id}
         </span>
+        {t.groupMeta && isPageSection && fullGroupData?.hideInView ? (
+          <span title="Hidden from view"><Icon icon="EyeClosed" className={t.sectionHidden} /></span>
+        ) : null}
       </div>
+      {t.groupMeta && fullGroupData?.isGroup ? (
+        <span className={t.groupMeta}>
+          {fullGroupData.isRail ? <span title="Has the sidebar rail" className={t.groupFlag}><Icon icon="Columns" className={t.groupFlagIcon} /></span> : null}
+          {fullGroupData.isModal ? <span title={`Opens as a modal${fullGroupData.modalParamKey ? ` (${fullGroupData.modalParamKey})` : ""}`} className={t.groupFlag}><Icon icon="Section" className={t.groupFlagIcon} /></span> : null}
+          <span className={t.groupTheme}>{fullGroupData.theme || "default"}</span>
+          {!isExpanded ? <span className={t.groupCount}>{fullGroupData.children?.length || 0}</span> : null}
+        </span>
+      ) : null}
       <div className={currentStyle.controlsWrapper}>
         {fullGroupData.isGroup ? (
           <NavigableMenu
@@ -266,6 +285,15 @@ export default function SectionGroupsPane() {
       };
     });
 
+    // The band that carries the content sidebar rail (sectionGroup.jsx's railGroupName logic).
+    const contentBands = groups.filter((g) => (g?.position || "content") === "content")
+      .sort((a, b) => (a?.index ?? 0) - (b?.index ?? 0));
+    const railGroup = item?.sidebar
+      ? (groups.find((g) => g?.railHost)?.name
+        || (item?.draft_sections || []).find((s) => s?.navLabel)?.group
+        || contentBands[0]?.name || "default")
+      : null;
+
     // Add section groups as child items
     groups.forEach((group) => {
       result[group.name] = {
@@ -283,6 +311,7 @@ export default function SectionGroupsPane() {
         modalParamKey: group.modalParamKey,
         collapsible: group.collapsible,
         startCollapsed: group.startCollapsed,
+        isRail: group.name === railGroup,
         children: (item?.draft_sections || [])
           .filter(
             (s) =>
@@ -293,6 +322,7 @@ export default function SectionGroupsPane() {
             index: idx,
             type: s?.element?.["element-type"],
             title: s?.title,
+            hideInView: s?.hideInView,
           })),
       };
 
@@ -305,12 +335,14 @@ export default function SectionGroupsPane() {
           title: s.title || s.type,
           isPageSection: true,
           url_slug: `#${s.id}`,
+          type: s.type,
+          hideInView: s.hideInView,
         };
       });
     });
 
     return result;
-  }, [item?.draft_section_groups, item?.draft_sections]);
+  }, [item?.draft_section_groups, item?.draft_sections, item?.sidebar]);
 
   const handleDragChange = (tree, updatedDataItemsFlat) => {
     // Extract the updated groups from the flat hash
@@ -359,7 +391,6 @@ export default function SectionGroupsPane() {
         renderItem={({ item: group, isExpanded, handleCollapseIconClick }) => {
           const isSection = SECTION_TARGETS.includes(group.id);
           const fullGroupData = dataItems[group.id];
-          console.log("group", group, fullGroupData);
           return (
             <SectionGroupControl
               group={group}

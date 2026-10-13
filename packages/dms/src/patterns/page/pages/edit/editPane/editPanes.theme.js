@@ -1,0 +1,161 @@
+// The page editor's drawer panes, v3 — Settings, Filters, Section groups (extras), Pages, History
+// (pages/edit/editPane/*.jsx). tessera v6, 2026-10-08, from
+// src/themes/tessera/design_system_v6/pages/page-edit.html (Settings) + page-edit-panes.html.
+// Same data and actions as the pre-v3 panes; presentation only, plus the approved additions (page
+// find + status marks, history filter + day groups). No accent colour.
+//
+// Each pane renders its v3 layout only when its gate key (settingsWrap, filtersWrap, pagesWrap,
+// historyWrap, groupMeta) is set. src/themes/_legacy/pages.js sets them to '' for every
+// project theme, so those keep the pre-v3 panes.
+const INPUT = 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)] focus:border-[var(--t-ink)]';
+const BTN = 'inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+// the pane's main action — neutral like every action button (owner: no accent fills)
+const BTN_PRIMARY = 'inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseXS font-medium text-[var(--t-ink)] hover:border-[var(--t-ink)] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed';
+const EYEBROW = 't-metaXS text-[var(--t-pencil)]';
+
+export const editPanesTheme = {
+    // shared bits
+    input: INPUT,
+    textarea: 'w-full px-2.5 py-2 rounded-md border border-transparent bg-[var(--t-well)] t-proseSM text-[var(--t-graphite)] outline-none resize-none hover:border-[var(--t-rule)] focus:bg-[var(--t-panel)] focus:border-[var(--t-ink)] placeholder:text-[var(--t-pencil)]',
+    btn: BTN,
+    btnPrimary: BTN_PRIMARY,
+    eyebrow: EYEBROW,
+    intro: 't-proseSM text-[var(--t-graphite)] mt-3 mb-3',
+    icon: 'size-3.5',
+
+    // ── Settings ── (gate: settingsWrap)
+    settingsWrap: 'flex flex-col w-full',
+    identity: 'pt-1 pb-4',
+    identityRow: 'flex items-start gap-3',
+    iconTile: 'relative size-11 flex-none rounded-lg border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] bg-[var(--t-well)] text-[var(--t-ink)] flex items-center justify-center cursor-pointer',
+    iconTileActive: 'relative size-11 flex-none rounded-lg border border-[var(--t-ink)] bg-[var(--t-well)] text-[var(--t-ink)] flex items-center justify-center cursor-pointer',
+    iconTileIcon: 'size-5',
+    identityBody: 'flex-1 min-w-0',
+    statusRow: 'flex items-center gap-2 min-w-0',
+    statusDraft: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-amber)] bg-[var(--t-amber-soft)] rounded px-1.5 py-0.5',
+    statusPublished: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-go)] bg-[var(--t-go-soft)] rounded px-1.5 py-0.5',
+    statusDot: 'size-1.5 rounded-full bg-current',
+    parentPath: 't-metaXS text-[var(--t-pencil)] truncate',
+    titleInput: 'w-full bg-transparent t-displaySM text-[var(--t-ink)] outline-none rounded px-1.5 -mx-1.5 py-0.5 hover:bg-[var(--t-well)] focus:bg-[var(--t-panel)] focus:ring-2 focus:ring-[var(--t-rule-strong)]',
+    slugRow: 'flex items-center gap-1.5 mt-1 min-w-0',
+    slug: 't-metaMD text-[11px] text-[var(--t-pencil)] truncate',
+    slugOld: 't-metaMD text-[11px] text-[var(--t-pencil)] line-through truncate',
+    slugNew: 't-metaMD text-[11px] text-[var(--t-ink)] truncate',
+    slugCopy: 'text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
+    renameRow: 'flex gap-1.5 mt-2',
+    description: 'mt-3',
+    iconPicker: 'mt-2 p-2 border border-[var(--t-rule)] rounded-lg bg-[var(--t-panel)] shadow-[var(--t-shadow-drag)]',
+    iconSearch: 'flex items-center gap-2 border border-[var(--t-rule)] rounded-md px-2 h-7 mb-2',
+    iconSearchInput: 'flex-1 min-w-0 bg-transparent t-proseXS outline-none placeholder:text-[var(--t-pencil)]',
+    iconGrid: 'grid grid-cols-8 gap-1 max-h-48 overflow-y-auto scrollbar-xs',
+    iconBtn: 'size-8 rounded-md flex items-center justify-center text-[var(--t-graphite)] hover:bg-[var(--t-well)] hover:text-[var(--t-ink)] cursor-pointer',
+    iconBtnActive: 'size-8 rounded-md flex items-center justify-center bg-[var(--t-ink)] text-[var(--t-paper)] cursor-pointer',
+    iconNone: 'mt-2 w-full t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] py-1 rounded hover:bg-[var(--t-well)] cursor-pointer',
+    // collapsible sections: title · closed-state summary · chevron
+    sect: 'border-t border-[var(--t-rule)]',
+    sectSummary: 'flex items-center gap-2 py-3 cursor-pointer list-none select-none',
+    sectTitle: 't-proseSM font-medium text-[var(--t-ink)]',
+    sectValue: 'flex-1 min-w-0 truncate text-right t-metaMD text-[11px] text-[var(--t-pencil)]',
+    sectChevron: 'size-3.5 text-[var(--t-pencil)] transition-transform',
+    sectBody: 'pb-4 flex flex-col gap-3',
+    line: 'flex items-center gap-3 min-h-8',
+    lineLabel: 'flex-1 min-w-0',
+    lineText: 'block t-proseSM text-[var(--t-graphite)]',
+    lineHint: 'block t-proseXS text-[var(--t-pencil)]',
+    hint: 't-proseXS text-[var(--t-pencil)] mt-1.5',
+    code: 't-metaMD text-[11px]',
+    // layout choices drawn as tiny pages
+    thumbs: 'flex gap-2',
+    thumb: 'flex-1 flex flex-col items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+    thumbFrame: 'w-full h-12 rounded-md border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] bg-[var(--t-panel)] p-1.5 flex gap-1',
+    thumbFrameActive: 'w-full h-12 rounded-md border border-[var(--t-ink)] ring-1 ring-[var(--t-ink)] bg-[var(--t-panel)] p-1.5 flex gap-1',
+    thumbNav: 'w-2.5 h-full bg-[var(--t-rule-strong)] opacity-70 rounded-sm',
+    thumbRail: 'w-3.5 h-full bg-[var(--t-graphite)] opacity-40 rounded-sm',
+    thumbBody: 'flex-1 flex flex-col gap-1',
+    thumbLine: 'h-1 w-full bg-[var(--t-rule-strong)] opacity-60 rounded-sm',
+    thumbHead: 'h-1.5 w-4/5 bg-[var(--t-rule-strong)] rounded-sm',
+    thumbLabel: 't-proseXS text-[var(--t-graphite)]',
+    thumbLabelActive: 't-proseXS font-medium text-[var(--t-ink)]',
+    select: 'min-w-[130px]',
+    templateMsg: 't-proseXS text-[var(--t-amber)] flex-1',
+    templateOk: 't-proseXS text-[var(--t-go)] flex-1',
+    templateErr: 't-proseXS text-[var(--t-brick)] flex-1',
+
+    // ── Filters ── (gate: filtersWrap)
+    filtersWrap: 'flex flex-col w-full pb-4',
+    filterList: 'border border-[var(--t-rule)] rounded-lg overflow-hidden',
+    filterRow: 'border-t border-[var(--t-rule)] first:border-t-0',
+    filterSummary: 'w-full flex items-center gap-2 px-3 py-2.5 cursor-pointer text-left',
+    filterKey: 't-metaMD text-[var(--t-ink)] truncate',
+    filterChip: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-graphite)] bg-[var(--t-well)] rounded px-1.5 py-0.5 whitespace-nowrap',
+    filterValue: 'flex-1 min-w-0 truncate text-right t-metaMD text-[12px] text-[var(--t-graphite)]',
+    filterBody: 'px-3 pb-3 pt-3 flex flex-col gap-2.5 bg-[var(--t-well)] border-t border-[var(--t-rule)]',
+    filterRemove: 'self-end inline-flex items-center gap-1 t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-brick)] cursor-pointer',
+    filterEmpty: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg px-4 py-6 text-center t-proseSM text-[var(--t-graphite)]',
+    filterAddBtn: 'mt-2 inline-flex items-center gap-1.5 h-8 px-2 rounded-md t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
+    filterAddForm: 'mt-2 border border-[var(--t-ink)] rounded-lg p-3 flex flex-col gap-2',
+    filterClear: 'mt-3 self-start t-proseXS text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer',
+    field: 'block',
+    fieldLabel: 'block t-metaXS text-[var(--t-pencil)] mb-1',
+    grid2: 'grid grid-cols-2 gap-2',
+    autoVars: 'mt-4 pt-3 border-t border-[var(--t-rule)] flex flex-col gap-1',
+    autoVarsTitle: 't-proseXS font-medium text-[var(--t-graphite)]',
+    autoVarRow: 'grid grid-cols-3 gap-1 t-proseXS text-[var(--t-graphite)]',
+
+    // ── Section groups ── (gate: groupMeta — extras on top of pages.sectionGroupsPane)
+    groupMeta: 'flex items-center gap-1 shrink-0',
+    groupFlag: 'size-5 rounded inline-flex items-center justify-center text-[var(--t-graphite)] bg-[var(--t-well)]',
+    groupFlagIcon: 'size-3',
+    groupTheme: 't-metaXS text-[var(--t-pencil)] border border-[var(--t-rule)] rounded px-1',
+    groupCount: 't-metaMD text-[11px] text-[var(--t-pencil)]',
+    sectionHidden: 'size-3 text-[var(--t-amber)] shrink-0',
+
+    // ── Pages ── (gate: pagesWrap)
+    pagesWrap: 'flex flex-col w-full pb-4',
+    pagesBar: 'flex items-center gap-2 mt-1 mb-2',
+    pagesFind: 'flex-1 min-w-0 flex items-center gap-2 border border-[var(--t-rule)] rounded-md px-2.5 h-8 focus-within:border-[var(--t-ink)]',
+    pagesFindInput: 'flex-1 min-w-0 bg-transparent t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)]',
+    pagesFindIcon: 'size-3.5 text-[var(--t-pencil)]',
+    pagesTree: 'max-w-full',
+    pagesTreeList: 'pt-1',
+    pagesTreeStyle: 'indent',             // nestableInHouse style: sub-pages indented, no left rule
+    pageRow: 'group/p flex items-center gap-1 pr-1 py-1 rounded-md hover:bg-[var(--t-well)]',
+    pageRowActive: 'group/p flex items-center gap-1 pr-1 py-1 rounded-md bg-[var(--t-well)]',
+    pageLink: 'flex-1 min-w-0 truncate t-proseSM text-[var(--t-ink)]',
+    pageLinkActive: 'flex-1 min-w-0 truncate t-proseSM font-medium text-[var(--t-ink)]',
+    pageCaret: 'size-5 inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
+    pageCaretIcon: 'size-3.5',
+    pageCaretSpacer: 'w-5 shrink-0',
+    pageMarks: 'flex items-center gap-1.5',
+    pageMarkDraft: 'size-1.5 rounded-full bg-[var(--t-amber)]',
+    pageMarkIcon: 'size-3 text-[var(--t-pencil)]',
+    pageMenuBtn: 'size-6 rounded inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-panel)] opacity-0 group-hover/p:opacity-100 cursor-pointer',
+    pageMenuIcon: 'size-3.5',
+    pagesLegend: 'flex flex-wrap items-center gap-x-3 gap-y-1 t-proseXS text-[var(--t-pencil)] mt-3',
+    pagesLegendItem: 'inline-flex items-center gap-1',
+    pagesNoMatch: 'px-2 py-3 t-proseSM text-[var(--t-pencil)]',
+    pageIndent: 14,                       // px per level
+
+    // ── History ── (gate: historyWrap)
+    historyWrap: 'flex flex-col w-full pb-4',
+    composer: 'mt-1 border border-[var(--t-rule)] rounded-lg focus-within:border-[var(--t-ink)]',
+    composerInput: 'w-full bg-transparent px-3 pt-2.5 t-proseSM text-[var(--t-ink)] outline-none resize-none placeholder:text-[var(--t-pencil)]',
+    composerBar: 'flex items-center gap-2 px-2 pb-2',
+    composerHint: 't-proseXS text-[var(--t-pencil)] flex-1',
+    historyFilter: 'mt-3',
+    historyDay: `${EYEBROW} mt-4 mb-2`,
+    historyList: 'relative',
+    historyLine: 'absolute left-[9.5px] top-1 bottom-4 w-px bg-[var(--t-rule)]',
+    historyEntry: 'relative flex gap-3 pb-4',
+    historyDotWrap: 'relative z-[1] w-5 flex justify-center pt-0.5 shrink-0',
+    historyDot: 'size-2 mt-1 rounded-full bg-[var(--t-panel)] ring-1 ring-[var(--t-rule-strong)]',
+    historyDotComment: 'size-5 rounded-full bg-[var(--t-well)] text-[var(--t-graphite)] flex items-center justify-center',
+    historyDotPublish: 'size-5 rounded-full bg-[var(--t-go)] text-[var(--t-paper)] flex items-center justify-center',
+    historyDotCreate: 'size-5 rounded-full bg-[var(--t-well)] text-[var(--t-graphite)] flex items-center justify-center',
+    historyDotIcon: 'size-3',
+    historyText: 't-proseXS text-[var(--t-graphite)]',
+    historyWho: 'font-medium text-[var(--t-ink)]',
+    historyWhen: 'text-[var(--t-pencil)]',
+    historyComment: 'mt-1.5 t-proseSM text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-md px-2.5 py-1.5 break-words',
+    historyEmpty: 'mt-4 t-proseSM text-[var(--t-pencil)]',
+}
