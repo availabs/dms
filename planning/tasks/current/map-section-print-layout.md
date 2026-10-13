@@ -1,6 +1,6 @@
 # Map section: printing clips the map and leaves a blank page before it
 
-**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built · **Release:** deploy — awaiting the owner's cross-site check on a MitigateNY map page · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built · **Release:** deploy — owner-validated locally 2026-10-13, not deployed · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Topic:** patterns/page (`ComponentRegistry/map`) · **Created:** 2026-10-13
 **Files:** `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx`
@@ -48,9 +48,24 @@ anywhere. So no existing workaround can collide. Ctrl+P on any other map page ge
       `break-inside: avoid`. (Narrowing the container also fires maplibre's ResizeObserver, so this
       checks the end state, not the CSS on its own.)
 - [x] On-screen render unchanged (map + route draw normally at 1454×901).
-- [ ] Owner check on a MitigateNY page with a map (Ctrl+P preview).
+- [x] Owner check, 2026-10-13: Ctrl+P on the client's report (page 2226274) "looks much better"; on
+      MitigateNY `assess_risk/natural_hazards` the map "does look BETTER". The owner saw an extra early
+      blank page there locally, but an A/B on the same local code (print classes stripped vs kept, 3
+      viewports) gives identical text on pages 1–7 and never adds a page (17 vs 18 at 1912×948 and
+      1440×900, 18 vs 18 at 1280×720). The difference is other deployed-only rendering bugs (e.g.
+      overlapping collapsible text on devmny), not this change.
 - Known gap: headless `printToPDF` prints the WebGL canvas blank (before and after), so the clipping fix
   is shown by geometry, not by a PDF raster. Real Chrome/Edge print preview does show the map.
+
+## Follow-up (not built): hold Print until the page's data has loaded
+
+Asked 2026-10-13 alongside this ticket (a print fired before the graphs load prints blank sections).
+Not a quick theme-only change: there is no page-level "all data loaded" signal. Loading is local
+state inside each section (`dataWrapper/index.jsx` `setLoading`), maps track their own tiles, and
+`@availabs/avl-falcor` keeps no in-flight request count (only a cache-change listener). Doing it
+properly needs a core change: sections report their loading state into page state, and the report
+header's Print waits on it. Network-quiet or spinner heuristics in the theme were rejected as
+unreliable.
 
 ## Related (same ticket, not this library)
 
