@@ -1,6 +1,6 @@
 # AVL Graph — graph-chrome theming (legend, card padding, admin surface)
 
-**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** doing (was: "PASS 1 DONE · PASS 2 items 1 + 2 DONE … item 3 (tooltip) DONE 2026-09-14 … item 4 (padding) NOT star…") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** doing (was: "PASS 1 DONE · PASS 2 items 1 + 2 DONE … item 3 (tooltip) DONE 2026-09-14 … item 4 (padding) NOT star…") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Status:** PASS 1 DONE · **PASS 2 items 1 + 2 DONE, live-verified and owner-reviewed 2026-09-11**
 (legend class tokens + back-compat suite; legend caption = author `title` / automatic `unit`, with a
@@ -1475,3 +1475,5 @@ Always:
 - `planning/transportny/tasks/current/graph-card-padding-and-legend-theming.md` — transportny-side
   tracking (per-site values, live-verification).
 - `planning/transportny/tasks/current/npmrds-reports-routes-feedback-triage.md` — Phase 5, parent item.
+
+> **Re-linked 2026-10-13** from `tny_npmrds_reports_1_0` (closed at the initiative review) to `dms_author_primitives`.

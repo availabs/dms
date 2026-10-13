@@ -156,7 +156,12 @@ export function mergeTheme(base, override) {
 // layout options are cloned before they're written onto a pattern. A new
 // registry object (every pattern2routes run builds one) starts a fresh cache.
 // See planning/tasks/current/boot-chain-fewer-serial-hops.md.
-const baseThemeCache = new WeakMap()
+let baseThemeCache = new WeakMap()
+// Registering a pattern type adds its defaultTheme to `defaultTheme`
+// (patterns/registry.js), which every cached base was merged from — drop them.
+export function resetBaseThemeCache() {
+  baseThemeCache = new WeakMap()
+}
 function getBaseTheme(themes, selection) {
   const perRegistry = themes && typeof themes === 'object'
     ? (baseThemeCache.get(themes) || baseThemeCache.set(themes, new Map()).get(themes))

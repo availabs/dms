@@ -1,23 +1,58 @@
+import { registerPatternTypes, listPatternTypes } from './registry'
 import pageConfig from './page/siteConfig'
-//import formsConfig from './forms/siteConfig'
 import adminConfig from './admin/siteConfig'
 import authConfig from './auth/siteConfig'
 import datasetsConfig from './datasets/siteConfig'
-import mapeditorConfig from './mapeditor/siteConfig'
 import qaConfig from './qa/siteConfig'
+import pagesTheme from './page/defaultTheme'
+import adminTheme from './admin/defaultTheme'
+import authTheme from './auth/defaultTheme'
+import datasetsTheme from './datasets/defaultTheme'
+import qaTheme from './qa/defaultTheme'
 
-const patterns = {
-  page: pageConfig,
-  //forms: formsConfig,
-  admin: adminConfig,
-  auth: authConfig,
-  datasets: datasetsConfig,
-  mapeditor: mapeditorConfig,
-  qa: qaConfig
-}
+// The built-in pattern types. A host app registers its own the same way — see
+// ./registry.js for the definition shape, and documentation/pattern-registry.md.
+registerPatternTypes({
+  page: {
+    siteConfig: pageConfig,
+    label: 'Page',
+    // page patterns are created from the picker's page-template cards
+    admin: { addable: true, order: 10, usesDmsEnv: true },
+    defaultTheme: pagesTheme,
+    themeKey: 'pages',
+  },
+  datasets: {
+    siteConfig: datasetsConfig,
+    label: 'Datasets',
+    description: 'Connect and manage data sources',
+    admin: { addable: true, order: 20, defaultName: 'Data', usesDmsEnv: true },
+    providesDatasources: true,
+    defaultTheme: datasetsTheme,
+  },
+  auth: {
+    siteConfig: authConfig,
+    label: 'Auth',
+    description: 'Authentication and access control',
+    admin: { addable: true, order: 30, defaultName: 'Auth' },
+    defaultTheme: authTheme,
+  },
+  // routed from the synthetic AdminPattern pattern2routes builds; never created by hand
+  admin: {
+    siteConfig: adminConfig,
+    label: 'Admin',
+    admin: { addable: false, order: 40 },
+    defaultTheme: adminTheme,
+  },
+  qa: {
+    siteConfig: qaConfig,
+    label: 'Ticketing / QA',
+    description: 'Issue reports, tickets and page QA',
+    admin: { addable: true, order: 50, defaultName: 'QA' },
+    // the qa pattern's look; withQaTheme applies it on QA pages only (qa/withQaTheme.js)
+    defaultTheme: qaTheme,
+  },
+})
 
 export async function resolvePatterns() {
-  return patterns
+  return Object.fromEntries(listPatternTypes().map(({ name, siteConfig }) => [name, siteConfig]))
 }
-
-export default patterns

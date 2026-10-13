@@ -99,7 +99,7 @@ const adminConfig = ({
   format.type = type.includes(":") ? type : `${type}:site`;
   // Only update app on registerFormats — admin types stay as-is ('pattern', 'theme')
   // to match how existing records are stored in the database.
-  // Unlike page/forms/datasets patterns which prefix child types, the admin format
+  // Unlike page/datasets patterns which prefix child types, the admin format
   // stores patterns and themes with their original type names.
   format.registerFormats?.forEach((rf) => {
     rf.app = app;

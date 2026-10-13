@@ -214,7 +214,6 @@ Tasks are organized under these topics in todo.md:
 - **patterns** - Pattern implementations
   - patterns/page
   - patterns/datasets
-  - patterns/forms
   - patterns/admin
   - patterns/auth
 

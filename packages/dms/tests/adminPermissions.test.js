@@ -226,6 +226,6 @@ describe("permissionOptionsFor", () => {
     expect(v).not.toContain("edit-page");
   });
   it("other types: pattern admin + `*`", () => {
-    expect(values("mapeditor")).toEqual(["*", EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS, DELETE_PATTERN]);
+    expect(values("some_app_pattern")).toEqual(["*", EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS, DELETE_PATTERN]);
   });
 });

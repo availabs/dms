@@ -13,7 +13,7 @@ optional PG docker test run.**
 for `page`-kind rows, closing an analogous orphan hole (`reports_snap_2` catalog rows surviving a
 report page delete) via an opt-in, deployment-registered hook rather than a hardcoded structural
 cascade (page→dataset-row isn't a DMS structural concept the way source→view is). See
-[`page-delete-lifecycle-hook.md`](./page-delete-lifecycle-hook.md).
+[`page-delete-lifecycle-hook.md`](../completed/page-delete-lifecycle-hook.md).
 
 ## Objective
 

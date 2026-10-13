@@ -68,10 +68,10 @@ A routing unit on a site (page, datasets, forms, auth).
 | Field | Type | Description |
 |-------|------|-------------|
 | `name` | string | Display name (also matches the type's instance) |
-| `pattern_type` | string | `page`, `datasets`, `forms`, `auth` |
+| `pattern_type` | string | `page`, `datasets`, `auth`, `qa`, or an app-registered type (e.g. `mapeditor`) |
 | `base_url` | string | URL prefix |
 | `subdomain` | string | Subdomain filter (`*` = all) |
-| `dmsEnvId` | number | (datasets/forms) ID of the dmsEnv that owns this pattern's sources |
+| `dmsEnvId` | number | (datasets) ID of the dmsEnv that owns this pattern's sources |
 | `theme` | object | Pattern-level theme overrides |
 
 There is no `doc_type` field — the slug used in downstream type

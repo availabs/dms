@@ -7,13 +7,14 @@ const isJson = (str)  => {
     return true;
 }
 
-export const convertOldState = (state, initialState, compName) => {
+// `managesOwnState`: the component's registry entry says its element-data is
+// its own shape (e.g. Map) — hand it back unconverted.
+export const convertOldState = (state, initialState, compName, managesOwnState) => {
     const oldState = isJson(state) ? JSON.parse(state) : {};
 
-    if (compName === 'Rich Text' || compName === 'Filter') {
+    if (managesOwnState || compName === 'Rich Text' || compName === 'Filter') {
         return Object.keys(oldState).length ? oldState : initialState;
     }
-    if (oldState?.symbologies) return oldState; // map
 
     // handle filter structure change
     const oldFilters = oldState?.dataRequest && (oldState.columns || [])

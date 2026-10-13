@@ -18,6 +18,27 @@ import { adminUiTheme } from './ui/index.theme'
 import { sectionGroupTheme } from './siteConfig.theme'
 
 export default {
+    navOptions: {
+        "logo": "",
+        "sideNav": {
+            "size": "compact",
+            "logo": "top",
+            "dropdown": "none",
+            "position": "fixed",
+            "nav": "main"
+        },
+        "topNav": {
+            "size": "none",
+            "dropdown": "right",
+            "logo": "left",
+            "position": "sticky",
+            "nav": "none"
+        }
+    },
+    page: {
+        pageWrapper: 'w-full h-full flex-1 flex flex-row p-2',
+        pageWrapper2: 'grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10'
+    },
     menu: menuTheme,
     errorPage: errorPageTheme,
     patternList: patternListTheme,

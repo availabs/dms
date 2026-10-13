@@ -644,7 +644,7 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
     for (const p of allPatterns) {
       const pDocType = p._data?.doc_type;
       const pType = Array.isArray(p._data?.pattern_type) ? p._data.pattern_type[0] : p._data?.pattern_type;
-      if ((pType === 'datasets' || pType === 'forms') && pDocType) {
+      if (pType === 'datasets' && pDocType) {
         const sources = await loadRowsByType(sourceDb, srcTable, app, `${pDocType}|source`);
         for (const src of sources) {
           const srcDocType = src._data?.doc_type;
@@ -823,7 +823,7 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
           detail, stats, addRows, tgtMainTable, migratedIds, sourceDocTypeMap,
           opts.apply ? targetDb : null, imgOutput, imgUrlPrefix, maxIdTracker
         );
-      } else if (patternType === 'datasets' || patternType === 'forms') {
+      } else if (patternType === 'datasets') {
         await migrateDatasetChildren(
           sourceDb, srcTable, app, docType, patternSlug, siteInstance,
           pattern, patternData, dmsEnvMap, newDmsEnvRefs, usedSlugs,

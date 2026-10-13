@@ -57,10 +57,6 @@ export const editSiteTheme = {
     // `shrink-0`: as a flex child with `overflow-hidden` it could otherwise be
     // squeezed below its table's height and clip the bottom rows (see `wrapper`).
     tableCard: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden mt-3 shrink-0',
-    // 'forms' patterns are creatable but not currently registered/routable
-    // (patterns/index.js has that entry commented out) — dashed instead of
-    // solid so an author isn't surprised when visiting one does nothing.
-    chipInactive: 't-metaXS text-[var(--t-pencil)] border border-dashed border-[var(--t-rule-strong)] rounded-full px-2 py-0.5 hover:border-[var(--t-ink)]',
 
     // PatternList table cell
     baseUrlLink: 'flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]',
@@ -72,10 +68,9 @@ export const editSiteTheme = {
     typePillDatasets: 'text-[var(--t-go)] bg-[var(--t-go-soft)]',
     typePillAuth: 'text-[var(--t-amber)] bg-[var(--t-amber-soft)]',
     typePillAdmin: 'text-[var(--t-amber)] bg-[var(--t-amber-soft)]',
-    typePillMapeditor: 'text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)]',
     typePillQa: 'text-[var(--t-ink)] bg-[var(--t-marker-soft)]',
-    // Dashed, like chipInactive — same "not currently routable" signal.
-    typePillForms: 'text-[var(--t-pencil)] border border-dashed border-[var(--t-rule-strong)]',
+    // any other registered type (e.g. an app pattern such as the map editor)
+    typePillDefault: 'text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)]',
     typePillUnknown: 'text-[var(--t-brick)] bg-[var(--t-brick-soft)]',
 
     cellActions: 'flex items-center justify-end gap-1 w-full h-full py-1 text-[var(--t-pencil)]',

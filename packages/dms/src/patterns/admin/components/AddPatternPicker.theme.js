@@ -16,9 +16,8 @@ export const patternPickerTheme = {
   tagPage: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
   tagDatasets: 'bg-[var(--t-go-soft)] text-[var(--t-go)]',
   tagAuth: 'bg-[var(--t-amber-soft)] text-[var(--t-amber)]',
-  // Dashed, like the table's forms pill — patterns/index.js has that
-  // registration commented out (creatable but not currently routable).
-  tagForms: 'border border-dashed border-[var(--t-rule-strong)] text-[var(--t-pencil)]',
+  // any registered type without its own tag<Type> key (e.g. an app pattern)
+  tagDefault: 'bg-[var(--t-well)] text-[var(--t-graphite)] border border-[var(--t-rule)]',
   tagQa: 'bg-[var(--t-marker-soft)] text-[var(--t-ink)]',
   dividerRow: 'col-span-3 flex items-center gap-2 py-1',
   dividerLine: 'flex-1 h-px bg-[var(--t-rule)]',

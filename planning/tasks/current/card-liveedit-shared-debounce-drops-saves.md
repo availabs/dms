@@ -35,7 +35,7 @@ Two live edits in one Card section within half a second should both be saved. To
 
 ## Related finding: `setDateOnValue` doesn't run in view mode
 
-- [`livedit-set-date-on-value.md`](./livedit-set-date-on-value.md) (2026-07-15, marked done) added the option to
+- [`livedit-set-date-on-value.md`](../completed/livedit-set-date-on-value.md) (2026-07-15, marked done) added the option to
   the section **Edit** component's `updateItem` (`dataWrapper/index.jsx:352-356`, inside `Edit` 204-464). The View
   component's `updateItem` never reads it, so a status change on a published page never stamps the date. That task's
   live checklist is unticked.

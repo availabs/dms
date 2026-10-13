@@ -37,14 +37,9 @@ import { lexicalTheme } from './components/lexical/theme';
 import { nestableInHouseTheme } from "./components/nestableInHouse";
 import { defaultPageTemplates } from './pageTemplates';
 import { defaultSiteTemplates } from './siteTemplates';
-// =========================================
-// Pattern Themes, maybe move registration of these to DMS Site ??
-// =========================================
-import pagesTheme from "../patterns/page/defaultTheme"
-import datasetsTheme from "../patterns/datasets/defaultTheme"
-import authTheme from "../patterns/auth/defaultTheme"
-import adminPatternTheme from "../patterns/admin/defaultTheme"
-import qaPatternTheme from "../patterns/qa/defaultTheme"
+// Pattern themes (pages, datasets, auth, admin, qa, …) are not imported here:
+// each pattern type's registration adds its own defaultTheme under its name
+// (patterns/registry.js, patterns/index.js).
 
 import { avlGraphTheme } from "./components/graph_new/theme"
 
@@ -204,11 +199,6 @@ import {
 
 
 const components = {
-    pages: pagesTheme,
-    datasets: datasetsTheme,
-    auth: authTheme,
-    // the qa pattern's look; withQaTheme applies it on QA pages only (patterns/qa/withQaTheme.js)
-    qa: qaPatternTheme,
     "compatibility": "border-[#191919] pt-[41px]",
 
     "heading": {
@@ -254,31 +244,6 @@ const components = {
     nestableInHouse: nestableInHouseTheme
 }
 const theme = {
-
-    admin: {
-        navOptions: {
-            "logo": "",
-            "sideNav": {
-                "size": "compact",
-                "logo": "top",
-                "dropdown": "none",
-                "position": "fixed",
-                "nav": "main"
-            },
-            "topNav": {
-                "size": "none",
-                "dropdown": "right",
-                "logo": "left",
-                "position": "sticky",
-                "nav": "none"
-            }
-        },
-        page: {
-            pageWrapper: 'w-full h-full flex-1 flex flex-row p-2',
-            pageWrapper2: 'grow p-6 lg:rounded-lg lg:bg-white lg:p-10 lg:shadow-xs lg:ring-1 lg:ring-zinc-950/5 dark:lg:bg-zinc-900 dark:lg:ring-white/10'
-        },
-        ...adminPatternTheme
-    },
     //navOptions,
     ...components,
 

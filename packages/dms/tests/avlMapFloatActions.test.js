@@ -20,9 +20,6 @@
  * Run: npx vitest run tests/avlMapFloatActions.test.js
  */
 import { describe, it, expect } from "vitest";
-import fs from "node:fs";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -100,46 +97,6 @@ describe("avl-map floatMapActions", () => {
   });
 });
 
-// The Map SECTION is what turns the prop on, and it does so from the plugin registry —
-// a plugin whose own panels are pinned to the map's edges declares
-// `fullWidthOverlay: true` (theme-side, e.g. transportny's macroview) instead of the page
-// author having to edit a published section. A source contract, in the style of
-// cardLayout.test.js: the section renders inside a falcor/immer/context stack that a unit
-// test cannot stand up, but the two lines that make the opt-in reachable must not drift.
-describe("Map section → floatMapActions wiring", () => {
-  const here = path.dirname(fileURLToPath(import.meta.url));
-  const source = fs.readFileSync(
-    path.join(here,
-      "../src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx"),
-    "utf8"
-  );
-
-  it("passes the prop to AvlMap", () => {
-    expect(source).toMatch(/floatMapActions=\{\s*floatMapActions\s*\}/);
-  });
-
-  it("derives it from a registered plugin's fullWidthOverlay flag", () => {
-    expect(source).toMatch(/PluginLibrary\[pluginName\]\?\.fullWidthOverlay/);
-    // …over the section's own plugins, so an unrelated map with no plugins gets false.
-    expect(source).toMatch(/symb\?\.symbology\?\.plugins \|\| \{\}/);
-  });
-
-  it("is false for a section with no plugins at all (the derivation, replayed)", () => {
-    // Same expression as the component, evaluated against representative state so the
-    // default-off claim is exercised and not just pattern-matched.
-    const derive = (symbologies, PluginLibrary) => Object.values(symbologies || {})
-      .some(symb => Object.keys(symb?.symbology?.plugins || {})
-        .some(pluginName => Boolean(PluginLibrary[pluginName]?.fullWidthOverlay)));
-
-    const library = { macroview: { fullWidthOverlay: true }, other_plugin: {} };
-    expect(derive({}, library)).toBe(false);
-    expect(derive({ a: { symbology: { layers: { l1: {} } } } }, library)).toBe(false);
-    expect(derive({ a: { symbology: { plugins: { other_plugin: {} } } } }, library)).toBe(false);
-    expect(derive({ a: { symbology: { plugins: { not_registered: {} } } } }, library)).toBe(false);
-    expect(derive({ a: { symbology: { plugins: { macroview: {} } } } }, library)).toBe(true);
-    expect(derive(
-      { a: { symbology: { layers: { l1: {} } } }, b: { symbology: { plugins: { macroview: {} } } } },
-      library
-    )).toBe(true);
-  });
-});
+// The Map SECTION's side of this opt-in (deriving the prop from a registered plugin's
+// `fullWidthOverlay`) lives with the section, in dms-template's map editor pattern:
+// src/patterns/mapeditor/mapeditor.test.js.

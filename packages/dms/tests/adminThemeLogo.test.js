@@ -11,6 +11,8 @@
 
 import { describe, it, expect } from "vitest";
 import { getAdminTheme } from "../src/ui/useTheme";
+// the pattern themes (qa, admin, …) are added by their pattern-type registrations
+import "../src/patterns";
 import defaultTheme from "../src/ui/defaultTheme";
 
 const brand = {

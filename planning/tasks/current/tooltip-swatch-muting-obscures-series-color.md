@@ -1,6 +1,6 @@
 # Tooltip swatch muting makes a series unidentifiable
 
-**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "NOT STARTED — logged 2026-09-14, deferred by owner") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** next (was: "NOT STARTED — logged 2026-09-14, deferred by owner") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Status:** NOT STARTED — logged 2026-09-14, deferred by owner from
 [`avlgraph-legend-and-padding-theming.md`](./avlgraph-legend-and-padding-theming.md) item 3 so that
@@ -81,3 +81,5 @@ is fixed.
 - [ ] `node scripts/npmrds-reports/probe_corpus.mjs`.
 - [ ] Live: the URL above. **LineGraph hover automates fine; GridGraph does not** (sub-pixel cells
       — see `skills/traversing-report-pages.md`), so check Grid by eye.
+
+> **Re-linked 2026-10-13** from `tny_npmrds_reports_1_0` (closed at the initiative review) to `dms_author_primitives`.

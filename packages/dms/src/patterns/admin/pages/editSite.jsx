@@ -12,6 +12,7 @@ import { parseIfJSON } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
+import { getPatternType, listPatternTypes } from '../../registry'
 import SiteTemplatePicker from './SiteTemplatePicker'
 
 function getSubdomainFromHost(host) {
@@ -175,22 +176,13 @@ function SiteEdit ({
 export default SiteEdit
 
 
-// Pill color per pattern_type — 'forms' is dashed/muted rather than solid
-// since patterns/index.js has that registration commented out (creatable via
-// AddPatternPicker, but not currently routable). Anything not in this map
-// (including missing/blank pattern_type) falls back to the '?' unknown pill.
-const TYPE_PILL_KEY = {
-	page: 'typePillPage',
-	datasets: 'typePillDatasets',
-	auth: 'typePillAuth',
-	admin: 'typePillAdmin',
-	mapeditor: 'typePillMapeditor',
-	forms: 'typePillForms',
-	qa: 'typePillQa',
-};
-// Chip/sort order for the toolbar's type filter row — real types first (in
-// the same order as AddPatternPicker offers them), '?' last.
-const TYPE_ORDER = ['page', 'datasets', 'auth', 'admin', 'forms', 'qa', 'mapeditor'];
+// Pill color per pattern_type: the theme's `typePill<Type>` key, else
+// `typePillDefault` for any other registered type (e.g. an app pattern). A type
+// nothing registered — or a missing/blank pattern_type — gets the unknown pill.
+const typePillClass = (t, type) => !type ? t.typePillUnknown : (
+	t[`typePill${type.charAt(0).toUpperCase()}${type.slice(1)}`]
+	|| (getPatternType(type) ? t.typePillDefault : t.typePillUnknown)
+);
 
 function PatternList({
 	 Component,
@@ -266,7 +258,7 @@ function PatternList({
 		{name: 'pattern_type', display_name: 'Type', show: true, type: 'ui',
 			Comp: (d) => {
 				const type = d.row.pattern_type;
-				const pillClass = t[TYPE_PILL_KEY[type]] || t.typePillUnknown;
+				const pillClass = typePillClass(t, type);
 				return (
 					<div className={d.className}>
 						<span className={`${t.typePill} ${pillClass}`}>{type || '?'}</span>
@@ -493,7 +485,14 @@ function PatternList({
 	}, {});
 	const uniqueTypes = Object.keys(typeCounts).length;
 	const noAccessCount = allData.filter(d => rowActions(d).locked).length;
-	const chipTypes = [...TYPE_ORDER.filter(k => typeCounts[k]), ...(typeCounts['?'] ? ['?'] : [])];
+	// Chip order: registered types in admin order, then any unregistered types
+	// the site still has rows of, '?' last.
+	const registeredTypes = listPatternTypes().map(d => d.name);
+	const chipTypes = [
+		...registeredTypes.filter(k => typeCounts[k]),
+		...Object.keys(typeCounts).filter(k => k !== '?' && !registeredTypes.includes(k)).sort(),
+		...(typeCounts['?'] ? ['?'] : []),
+	];
 	const authExists = allData.some(d => d.pattern_type === 'auth')
 
 	const q = search.trim().toLowerCase();
@@ -573,7 +572,7 @@ function PatternList({
 						{chipTypes.map(k => (
 							<button
 								key={k}
-								className={typeFilter === k ? t.chipActive : (k === 'forms' ? t.chipInactive : t.chip)}
+								className={typeFilter === k ? t.chipActive : t.chip}
 								onClick={() => setTypeFilter(typeFilter === k ? null : k)}
 							>
 								{k} {typeCounts[k]}

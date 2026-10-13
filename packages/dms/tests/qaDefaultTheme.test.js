@@ -12,6 +12,8 @@
 import { describe, it, expect } from "vitest";
 import { buildQaPages } from "../src/patterns/qa/pages";
 import { sectionArrayTheme } from "../src/patterns/page/components/sections/sectionArray.theme";
+// the pattern themes (qa, admin, …) are added by their pattern-type registrations
+import "../src/patterns";
 import defaultTheme from "../src/ui/defaultTheme";
 import { withQaTheme } from "../src/patterns/qa/withQaTheme";
 import { mergeTheme } from "../src/ui/useTheme";

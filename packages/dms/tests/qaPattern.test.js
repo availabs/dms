@@ -13,7 +13,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { CMSContext } from "../src/patterns/page/context";
 import { buildQaPages, findQaPage } from "../src/patterns/qa/pages";
 import { dataItemsNav } from "../src/utils/nav";
-import patterns from "../src/patterns";
+import "../src/patterns";
+import { getPatternType } from "../src/patterns/registry";
 import pageConfig from "../src/patterns/page/siteConfig";
 
 const pattern = { id: 42, pattern_type: "qa", name: "QA", base_url: "/qa" };
@@ -105,23 +106,23 @@ describe("nav over QA pages", () => {
 
 describe("qaConfig", () => {
   it("is registered as pattern type 'qa'", () => {
-    expect(Array.isArray(patterns.qa)).toBe(true);
-    expect(typeof patterns.qa[0]).toBe("function");
+    expect(Array.isArray(getPatternType("qa").siteConfig)).toBe(true);
+    expect(typeof getPatternType("qa").siteConfig[0]).toBe("function");
   });
 
   it("declares a view route and no edit route", () => {
-    const cfg = patterns.qa[0](configProps);
+    const cfg = getPatternType("qa").siteConfig[0](configProps);
     expect(actions(cfg.children)).not.toContain("edit");
     expect(actions(cfg.children)).toContain("view");
   });
 
   it("leaves the page pattern's own routes untouched", () => {
-    patterns.qa[0](configProps);
+    getPatternType("qa").siteConfig[0](configProps);
     expect(actions(pageConfig[0](configProps).children)).toContain("edit");
   });
 
   it("keeps the page format, which SectionGroup needs for the sections ViewComp", () => {
-    const cfg = patterns.qa[0](configProps);
+    const cfg = getPatternType("qa").siteConfig[0](configProps);
     expect(cfg.format).toEqual(pageConfig[0](configProps).format);
   });
 
@@ -133,7 +134,7 @@ describe("qaConfig", () => {
   };
 
   it("tells the page shell it has no editor", () => {
-    expect(hasEditorIn(patterns.qa[0](configProps))).toBe("false");
+    expect(hasEditorIn(getPatternType("qa").siteConfig[0](configProps))).toBe("false");
   });
 
   it("leaves hasEditor true for a page pattern", () => {
@@ -141,7 +142,7 @@ describe("qaConfig", () => {
   });
 
   it("preload returns the loader's rows untouched", async () => {
-    const cfg = patterns.qa[0](configProps);
+    const cfg = getPatternType("qa").siteConfig[0](configProps);
     const rows = [{ id: 1, url_slug: "x" }];
     expect(await cfg.preload(null, rows, { url: "http://x/qa" }, { "*": "" })).toBe(rows);
   });

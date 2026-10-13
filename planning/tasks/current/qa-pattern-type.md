@@ -1,6 +1,6 @@
 # `qa` pattern type: ticketing / delivery QA as a library feature
 
-**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 Phases 1–3 DONE and live-verified on `qa_test` (2026-09-30). Committed by the owner: phase 1 (library `4919d419`,
 dms-template `e2b3e2e`), phase 2 (`3392cb9b`), phase 3a (`3e27b5d2`), phase 3b (`2450f728`), and the default-theme
@@ -654,7 +654,7 @@ connection: `falcor-express` logged "Client disconnected" after its 4th dataset,
   no-access stub (`render/spa/utils/snapshot.js:13-27`), so a private QA install makes every anonymous boot of its
   site wait for the full fetch, as any private pattern already does. Check before the TransportNY port whether its
   site already has a private pattern.
-- **UDA filter fix** (`ccf9f3e9`, [uda-filter-expr-alias-where.md](./uda-filter-expr-alias-where.md), built): filters on
+- **UDA filter fix** (`ccf9f3e9`, [uda-filter-expr-alias-where.md](../completed/uda-filter-expr-alias-where.md), built): filters on
   `expr as alias` columns. TransportNY's ticket facets are all plain columns, so the port isn't affected.
 
 ### Phase 3a: Ticket list + ticket page as code — DONE (2026-09-30, live-verified on `qa_test`, committed `3e27b5d2`)

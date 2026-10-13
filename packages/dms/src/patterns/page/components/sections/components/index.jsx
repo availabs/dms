@@ -15,10 +15,11 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
     // from our own onChange round-trips.
     const lastEmitted = useRef(value?.['element-data']);
     /**
-     * Preserve the most recent map handle field emitted by the child so the
-     * wrapper's later generic handle updates do not drop it.
+     * Preserve the most recent `settingsAPI` the child emitted (a component
+     * that supplies its own settings-menu API, e.g. Map) so the wrapper's later
+     * generic handle updates do not drop it.
      */
-    const mapAPIRef = useRef(null);
+    const settingsAPIRef = useRef(null);
     const [childKey, setChildKey] = useState(0);
 
     const updateAttribute = (k, v) => {
@@ -28,7 +29,7 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
         }
     }
 
-    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name));
+    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name, component?.managesOwnState));
     const { apiLoad, apiUpdate } = React.useContext(PageContext) || {};
 
     // When element-data arrives from outside (paste), remount the child so it
@@ -37,24 +38,24 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
     useEffect(() => {
         if (elementData === lastEmitted.current) return;
         lastEmitted.current = elementData;
-        setState(convertOldState(elementData || '', initialState(component?.defaultState), component?.name));
+        setState(convertOldState(elementData || '', initialState(component?.defaultState), component?.name, component?.managesOwnState));
         setChildKey(k => k + 1);
     }, [elementData]);
 
     /**
-     * Forward child handles upstream immediately, while caching map-specific
-     * API fields that the wrapper itself does not recreate.
+     * Forward child handles upstream immediately, while caching the child's
+     * `settingsAPI`, which the wrapper itself does not recreate.
      */
     const onHandle = React.useCallback((nextHandle) => {
-        if (nextHandle?.mapAPI) {
-            mapAPIRef.current = nextHandle.mapAPI;
+        if (nextHandle?.settingsAPI) {
+            settingsAPIRef.current = nextHandle.settingsAPI;
         }
         parentOnHandle?.(nextHandle);
     }, [parentOnHandle]);
 
     /**
      * Re-emit the wrapper-owned handle whenever local wrapper state changes,
-     * while reattaching any cached map API from the child handle.
+     * while reattaching any cached settingsAPI from the child handle.
      */
     useEffect(() => {
         if (!parentOnHandle) return;
@@ -69,7 +70,7 @@ function NonDataEditComp({ value, onChange, component, siteType, pageFormat, onH
             state,
             setState,
             dwAPI: { state, setState, setDisplay },
-            mapAPI: mapAPIRef.current ?? null,
+            settingsAPI: settingsAPIRef.current ?? null,
         });
     }, [parentOnHandle, setState, state]);
 
@@ -103,7 +104,7 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
     const defaultComp = () => <div> Component {value?.["element-type"]} Not Registered </div>;
     const Comp = component ? component.ViewComp : defaultComp;
 
-    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name));
+    const [state, setState] = useImmer(convertOldState(value?.['element-data'] || '', initialState(component?.defaultState), component?.name, component?.managesOwnState));
     const { apiLoad, apiUpdate } = React.useContext(PageContext) || {};
 
     // Same onHandle threading as NonDataEditComp's own (mirrored deliberately — a non-dataWrapper
@@ -114,10 +115,10 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
     // 2026-08-20 via a self-bound Map section: report-authoring-ux-overhaul.md Tier 5's "QuickControls
     // never mounts on Map" investigation. Before this fix, `onHandle` was never even passed to this
     // component, let alone forwarded.
-    const mapAPIRef = useRef(null);
+    const settingsAPIRef = useRef(null);
     const onHandle = React.useCallback((nextHandle) => {
-        if (nextHandle?.mapAPI) {
-            mapAPIRef.current = nextHandle.mapAPI;
+        if (nextHandle?.settingsAPI) {
+            settingsAPIRef.current = nextHandle.settingsAPI;
         }
         parentOnHandle?.(nextHandle);
     }, [parentOnHandle]);
@@ -135,7 +136,7 @@ function NonDataViewComp({ value, onChange, component, siteType, pageFormat, edi
             state,
             setState,
             dwAPI: { state, setState, setDisplay },
-            mapAPI: mapAPIRef.current ?? null,
+            settingsAPI: settingsAPIRef.current ?? null,
         });
     }, [parentOnHandle, setState, state]);
 
