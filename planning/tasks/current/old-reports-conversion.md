@@ -1,11 +1,11 @@
 # Old NPMRDS reports → new DMS report pages (automated conversion)
 
-**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) · **Status:** doing (was: "Latest work (2026-09-16): Info Box + Route Compare multi-measure support (step 1 / 1b) and the conve…") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** doing (was: "Latest work (2026-09-16): Info Box + Route Compare multi-measure support (step 1 / 1b) and the conve…") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 > **Arc entry point:** this file is the source of truth for the CONVERTER. For where conversion
 > sits in the wider Routes/Reports arc — what's open for 1.0, the verification commands, and the
 > cross-cutting gotchas — start at
-> [`planning/transportny/tasks/current/npmrds-routes-reports-1.0.md`](../../../../../planning/transportny/tasks/current/npmrds-routes-reports-1.0.md)
+> [`planning/transportny/tasks/current/npmrds-routes-reports-1.0.md`](../../../../../planning/transportny/tasks/completed/npmrds-routes-reports-1.0.md)
 > in dms-template. **Latest work (2026-09-16):** Info Box + Route Compare multi-measure support
 > (step 1 / 1b) and the converted-report tooltip-units fix — see the three sections at the end of
 > this file.
@@ -1565,3 +1565,5 @@ warning above the write site); adding a key rather than altering `routeIds` is w
 **Scope of the win:** this is not report-170-specific. Every future conversion gets units, and any
 already-converted report picks them up on reconversion. The same key also feeds the legend caption,
 so both surfaces light up from one field.
+
+> **Re-linked 2026-10-13** from `tny_npmrds_reports_1_0` (closed at the initiative review) to `dms_author_primitives`.

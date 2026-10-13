@@ -133,7 +133,7 @@ node src/scripts/cleanup-db.js --source dms-sqlite --app my-site --type sections
 | **Pages** | Type matches a `doc_type` from a page pattern, but no such pattern exists |
 | **Sections** | Type ends in `\|cms-section`, but no page references this section's ID in `data.sections[]` or `data.draft_sections[]` |
 | **Page edits** | Type ends in `\|page-edit`, but no page references this edit's ID in `data.history[]` |
-| **Sources** | Type ends in `\|source` (not `\|source\|view`), but no datasets/forms pattern exists with matching `doc_type` |
+| **Sources** | Type ends in `\|source` (not `\|source\|view`), but no pattern row (of any `pattern_type`) has a matching `doc_type` |
 | **Views** | Type ends in `\|source\|view`, but no source references this view's ID in `data.views[]` |
 
 Dataset data rows (UUID-viewId types) are never flagged.

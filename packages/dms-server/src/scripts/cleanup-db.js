@@ -294,11 +294,13 @@ async function pgFindOrphanedSections(db, table, appFilter) {
 
 async function pgFindOrphanedSources(db, table, appFilter) {
   const { rows } = await db.query(`
+    -- a source is owned by any legacy pattern row whose doc_type prefixes it,
+    -- whatever its pattern_type (conservative: never flags more than a
+    -- type-specific list would)
     WITH valid_source_types AS (
       SELECT pat.app, (pat.data->>'doc_type') || '|source' AS source_type
       FROM ${table} pat
       WHERE pat.type LIKE '%|pattern'
-        AND pat.data->>'pattern_type' IN ('datasets', 'forms')
         AND pat.data->>'doc_type' IS NOT NULL
         AND ($1::text IS NULL OR pat.app = $1)
     )
@@ -472,7 +474,8 @@ async function findOrphanedSources(db, table, appFilter) {
   const patterns = await loadByTypeLike(db, '%|pattern', appFilter, {}, table);
   const validSourceTypes = new Set();
   for (const p of patterns) {
-    if (p.data && (p.data.pattern_type === 'datasets' || p.data.pattern_type === 'forms') && p.data.doc_type) {
+    // any pattern row with a doc_type owns `{doc_type}|source` (see pgFindOrphanedSources)
+    if (p.data && p.data.doc_type) {
       validSourceTypes.add(`${p.app}|${p.data.doc_type}|source`);
     }
   }

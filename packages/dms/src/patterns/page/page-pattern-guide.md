@@ -580,13 +580,15 @@ const { damaBaseUrl } = React.useContext(CMSContext) || {}
 
 #### datasetPatterns (Internal DMS Datasets)
 
-`datasetPatterns` is an array of pattern objects representing internal DMS datasets (forms and datasets pattern types).
+`datasetPatterns` is an array of pattern objects representing internal DMS datasets: the rows of every
+registered pattern type that declares `providesDatasources` (today only `datasets`; see
+`patterns/registry.js`).
 
-**Origin:** Derived in `dmsSiteFactory.jsx` from all patterns with type 'forms' or 'datasets'.
+**Origin:** Derived in `pattern2routes` (`render/spa/utils/index.js`).
 
 ```javascript
-// In dmsSiteFactory.jsx
-datasetPatterns: patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_type))
+// In render/spa/utils/index.js
+const datasetPatterns = patterns.filter(p => getPatternType(p.pattern_type)?.providesDatasources);
 ```
 
 **Structure:** Array of pattern objects.
@@ -595,7 +597,7 @@ datasetPatterns: patterns.filter(p => ['forms', 'datasets'].includes(p.pattern_t
 datasetPatterns = [
   {
     id: 123,
-    pattern_type: 'datasets',      // or 'forms'
+    pattern_type: 'datasets',
     doc_type: 'my-dataset',        // Used to build source key
     base_url: '/datasets/my-data',
     subdomain: '*',
@@ -609,7 +611,7 @@ datasetPatterns = [
 
 **Key properties used:**
 - `doc_type`: Combined with `app` to create internal source keys like `${app}+${doc_type}`
-- `pattern_type`: Must be 'forms' or 'datasets' to be included
+- `pattern_type`: Must name a registered type with `providesDatasources` to be included
 
 **Usage in useDataSource.js:**
 

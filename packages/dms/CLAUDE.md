@@ -1,6 +1,6 @@
 # @availabs/dms — Frontend Package
 
-This package is the React UI for DMS. It ships the column types, UI primitives, patterns (page/datasets/auth/admin/forms/mapeditor), and component registry consumed by downstream sites.
+This package is the React UI for DMS. It ships the column types, UI primitives, the platform patterns (page/datasets/auth/admin/qa), and the pattern-type and section-component registries consumed by downstream sites. A host app registers its own pattern types (dms-template's map editor, which also ships the page pattern's Map section) with `registerPatternTypes` — see `../../documentation/pattern-registry.md`.
 
 ## Vite React Fast Refresh — MUST observe
 
@@ -135,7 +135,7 @@ export const buttonTheme = {
 Components that consume context, page state, joins, filter trees, etc. — they're meaningful only inside a pattern (page, datasets, auth, …). The current filter-editor (`ComplexFilters`), section components (`section`, `sectionArray`, `sectionGroup`), `userMenu`, search, dataset pages, etc.
 
 - Implementation lives under the pattern (`patterns/page/components/sections/ComplexFilters.jsx`), theme in sibling (`ComplexFilters.theme.js`).
-- Theme is registered in **`patterns/<pattern>/defaultTheme.js`** under a namespace key (e.g., `complexFilters`, `sectionGroupsPane`). The pattern's `defaultTheme` is merged into the global theme by `getPatternTheme()` at site load.
+- Theme is registered in **`patterns/<pattern>/defaultTheme.js`** under a namespace key (e.g., `complexFilters`, `sectionGroupsPane`). The pattern-type registration (`patterns/index.js`, or the host app's) mounts that `defaultTheme` on the global default theme under the pattern's key (`pages`, `datasets`, `qa`, `mapeditor`, …), and `getPatternTheme()` merges site themes over it.
 - Themes are usually a flat `{ key: classString }` map — the multi-`styles[]` shape is overkill for tightly-scoped pattern UIs. Use it only if the component genuinely has multiple visual variants the user can switch.
 
 ### Loading the theme inside a component

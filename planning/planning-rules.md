@@ -119,7 +119,6 @@ Changes to pattern implementations, organized by pattern:
 
 - **patterns/page** - Page pattern (content pages, sections, components)
 - **patterns/datasets** - Datasets pattern (data source management)
-- **patterns/forms** - Forms pattern (form builder, submissions)
 - **patterns/admin** - Admin pattern (site administration)
 - **patterns/auth** - Auth pattern (authentication, authorization)
 

@@ -2,7 +2,7 @@
 
 A map of what a rendered DMS page actually looks like in the DOM, plus the
 core-library edit-mode state machine every page section shares — regardless
-of pattern (`page`, `datasets`, `forms`, …) or theme. This is the generic
+of pattern (`page`, `datasets`, `qa`, …) or theme. This is the generic
 counterpart to [`traversing-report-pages.md`](./traversing-report-pages.md),
 which covers NPMRDS's `ReportRouteList`/Dynamic Reports specifics on top of
 this shell. If you're navigating a DMS page live via `claude-in-chrome` (or

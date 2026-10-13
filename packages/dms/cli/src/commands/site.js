@@ -136,8 +136,8 @@ export async function tree(config, options = {}) {
         }
 
         pat._pages = pages;
-      } else if (d.pattern_type === 'datasets' || d.pattern_type === 'forms') {
-        // Sources for a datasets/forms pattern live under its dmsEnv row.
+      } else if (d.pattern_type === 'datasets') {
+        // Sources for a datasets pattern live under its dmsEnv row.
         // Resolve the dmsEnv if dmsEnvId is set.
         const dmsEnvId = d.dmsEnvId;
         if (dmsEnvId) {

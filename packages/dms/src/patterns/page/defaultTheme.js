@@ -9,7 +9,6 @@ import { templateManagerTheme } from './components/sections/TemplateManager.them
 import { timePickerTheme } from './components/sections/components/dataWrapper/components/filters/TimePicker/timePicker.theme'
 import { pageTemplatePickerTheme } from './components/PageTemplatePicker.theme'
 import { linkPageNoticeTheme } from './components/LinkPageNotice.theme'
-import { damaMapTheme } from './components/sections/components/ComponentRegistry/map/map.theme'
 
 export default {
     sectionGroup: sectionGroupTheme,
@@ -24,7 +23,6 @@ export default {
     timePicker: timePickerTheme,
     pageTemplatePicker: pageTemplatePickerTheme,
     linkPageNotice: linkPageNoticeTheme,
-    damaMap: damaMapTheme,
 }
 
 export const pagesThemeSettings = (theme) => {

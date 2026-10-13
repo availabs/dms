@@ -34,7 +34,7 @@ For the Freight Atlas both were updated together.
 symbologies[id] = { name, isVisible, description, categories, id,
                     symbology: { activeLayer, layers: { [layerId]: LAYER } } }
 ```
-Per LAYER (authoritative reader: `mapeditor/MapEditor/stateUtils.jsx:extractState`):
+Per LAYER (authoritative reader: dms-template `src/patterns/mapeditor/MapEditor/stateUtils.jsx:extractState`):
 
 | Field | Role | Edit? |
 |---|---|---|
@@ -50,7 +50,7 @@ Per LAYER (authoritative reader: `mapeditor/MapEditor/stateUtils.jsx:extractStat
 | `hover`, `hover-columns` | popup enable + fields | ✅ |
 | `filter`, `filterMode`, `dynamic-filters`, `filter-group*`, `view-group*`, `join` | filter machinery (see the research doc §2) | edit knowingly |
 
-**Canonical sub-layer structure** (`mapeditor/.../LayerManager/utils.jsx:getLayer`):
+**Canonical sub-layer structure** (dms-template `src/patterns/mapeditor/.../LayerManager/utils.jsx:getLayer`):
 - `fill` / `line` → `layers = [ {id:"<lid>_case", type:"line", …casing}, {id:"<lid>", type:fill|line, …main} ]`
   → main paint at **`layers[1]`**, casing/stroke at **`layers[0]`**.
 - `circle` / `heatmap` → single entry, paint at **`layers[0]`**.
@@ -220,8 +220,8 @@ name simply doesn't render; the screenshot is the truth.
   (orphan hazard — see `uploading-gis-and-tabular-datasets.md`).
 
 ## Source of truth (code)
-- Model + editor writers: `patterns/mapeditor/MapEditor/{index.jsx,stateUtils.jsx,components/LayerManager/utils.jsx,components/LayerEditor/{typeConfigs,Controls,datamaps}}`.
-- Renderers: `SymbologyViewLayer.jsx` (mapeditor / map / map_dama copies) — imperative
+- Model + editor writers: dms-template `src/patterns/mapeditor/MapEditor/{index.jsx,stateUtils.jsx,components/LayerManager/utils.jsx,components/LayerEditor/{typeConfigs,Controls,datamaps}}` (the map editor is an app pattern since 2026-10-08, no longer in the library).
+- Renderers: `SymbologyViewLayer.jsx` (the editor's and the Map section's copies, both under dms-template `src/patterns/mapeditor/`) — imperative
   add/setPaint/setLayout/setFilter from these fields.
 - Breaks: `dms-server/src/routes/uda/uda.colorDomain.controller.js`.
 - Style spec: https://maplibre.org/maplibre-style-spec/ (layers, expressions).

@@ -3,7 +3,7 @@
 **Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Topic:** dms-server · **Found:** 2026-10-06 · **Split from:**
-[`county-template-update-migration.md`](../../../../../planning/mitigateny/tasks/current/county-template-update-migration.md)
+[`county-template-update-migration.md`](../../../../../planning/mitigateny/tasks/completed/county-template-update-migration.md)
 (MitigateNY), which works around this until it's fixed.
 
 ## Objective

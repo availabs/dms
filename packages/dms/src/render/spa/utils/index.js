@@ -9,7 +9,8 @@ import { getInstance } from '../../../utils/type-utils';
 import { collectSiteRootPaths } from '../../../utils/mountPath';
 import { getDefaultUserMenuItems, withUserMenuThemes, withPatternMenuPrecedence, patternOwnMenuItems } from '../../../utils/userMenus';
 import { buildRetiredSubdomainMap, applyRetiredSubdomainRedirect } from '../../../utils/retiredSubdomain';
-import patternTypes from '../../../patterns'
+import '../../../patterns'
+import { getPatternType, listPatternTypes } from '../../../patterns/registry'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
 import RootErrorBoundary from './RootErrorBoundary'
 import PatternTitle from './PatternTitle'
@@ -98,10 +99,6 @@ function getPatternMounts(pattern) {
 
 
 
-// --
-// to do:
-// Allow users to pass Pattern Configs
-// --
 //console.log('hola', pageConfig)
 
 /**
@@ -187,6 +184,15 @@ export async function resolveThemes(themesConfig, siteData, opts = {}) {
     return Object.keys(dbThemes).length ? { ...codeThemes, ...dbThemes } : codeThemes;
 }
 
+// A row whose pattern_type nothing registered (e.g. an app pattern the host
+// app didn't register) is skipped — say so once per type in development.
+const warnedPatternTypes = new Set()
+function warnUnregisteredPatternType(patternType) {
+    if (process.env.NODE_ENV === 'production' || warnedPatternTypes.has(patternType)) return
+    warnedPatternTypes.add(patternType)
+    console.warn(`pattern2routes: no pattern type "${patternType}" is registered; its patterns are not routed`)
+}
+
 export function pattern2routes (siteData, props) {
     let {
         dmsConfig,
@@ -201,7 +207,6 @@ export function pattern2routes (siteData, props) {
         damaBaseUrl,
         PROJECT_NAME,
         damaDataTypes,
-        damaMapPlugins,
         isMultiTenant = false,
         host = typeof window !== 'undefined' ? window.location.host : 'localhost',
         // SSR only: an array threaded from route building (render/ssr2/handler.jsx)
@@ -230,6 +235,12 @@ export function pattern2routes (siteData, props) {
     //console.log('patterns2routes',dbThemes)
 
     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
+
+    // Let each registered pattern type pick up the code the site's themes ship
+    // for it under its theme key (registerFromTheme). Every loaded theme, not
+    // just one pattern's: those registries are site-wide.
+    const themeHooks = listPatternTypes().map(d => d.registerFromTheme).filter(Boolean);
+    Object.values(themes).forEach(theme => themeHooks.forEach(hook => hook(theme)));
     // console.log('dmsSiteFactory themes', themes)
 
     let dmsConfigUpdated = cloneDeep(dmsConfig);
@@ -306,8 +317,9 @@ export function pattern2routes (siteData, props) {
     ...sitePatterns.filter(p => p?.pattern_type !== 'admin')
   ];
 
-    // Build datasetPatterns once (for backwards compatibility with other patterns)
-    const datasetPatterns = patterns.filter(p => ['forms', 'datasets', 'mapeditor'].includes(p.pattern_type));
+    // The patterns whose rows are internal datasources (the page source pickers):
+    // every registered type that declares `providesDatasources`.
+    const datasetPatterns = patterns.filter(p => getPatternType(p.pattern_type)?.providesDatasources);
     // The site's QA installs: publishing a page adds it to any that covers its pattern
     // (patterns/qa/tracking.js).
     const qaPatterns = patterns.filter(p => p.pattern_type === 'qa');
@@ -357,8 +369,7 @@ export function pattern2routes (siteData, props) {
     }
 
     // Source links (Attribution, "view source") need a mount that serves
-    // source/:id and internal_source/:id — only the `datasets` pattern type does
-    // (forms is no longer registered, mapeditor has no such routes).
+    // source/:id and internal_source/:id — only the `datasets` pattern type does.
     const datasetsMount = (p) => {
       const trimmed = (p?.base_url || '').replace(/^\/|\/$/g, '');
       return trimmed ? `/${trimmed}` : '';
@@ -426,8 +437,11 @@ export function pattern2routes (siteData, props) {
           .filter(pattern => pattern?.pattern_type)
           .reduce((acc, pattern) => {
 
-            const c = patternTypes[pattern.pattern_type];
-            if(!c) return acc;
+            const c = getPatternType(pattern.pattern_type)?.siteConfig;
+            if(!c) {
+                warnUnregisteredPatternType(pattern.pattern_type);
+                return acc;
+            }
             // One route set per matching MOUNT (primary + `locations`). The
             // primary mount keeps the pre-existing matching byte-for-byte (BC);
             // location mounts additionally alias root subdomains ("www" ≡ root,
@@ -500,9 +514,12 @@ export function pattern2routes (siteData, props) {
                     adminPatternRow: savedAdminPattern,
                     userMenuUsage,
                     datasources: patternDatasources,
+                    // the site's pattern rows, for a pattern (or a section it
+                    // ships) that needs to find other patterns by type
+                    sitePatterns,
                     dmsEnvs,
                     dmsEnvById,
-                    // KEEP: Old variables for other patterns (admin, auth, forms, datasets)
+                    // KEEP: Old variables for other patterns (admin, auth, datasets)
                     pgEnv: pgEnvs?.[0] || '',
                     damaBaseUrl,
                     datasetPatterns,
@@ -517,7 +534,6 @@ export function pattern2routes (siteData, props) {
                     DAMA_HOST,
                     PROJECT_NAME,
                     damaDataTypes,
-                    damaMapPlugins,
                     isMultiTenant,
                     ssrCollect,
                 });
@@ -551,158 +567,3 @@ export function pattern2routes (siteData, props) {
         }, []),
     ]
 }
-
-// --
-// to do:
-// Allow users to pass Pattern Configs
-// --
-
-
-
-// export function pattern2routes (siteData, props) {
-//     let {
-//         dmsConfig,
-//         adminPath = '/list',
-//         authPath,
-//         authWrapper = withAuth,
-//         themes = { default: {} },
-//         pgEnvs = [],
-//         API_HOST = 'https://graph.availabs.org',
-//         DAMA_HOST = 'https://graph.availabs.org',
-//         damaBaseUrl,
-//         PROJECT_NAME,
-//         damaDataTypes,
-//         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
-//     } = props
-
-
-//     let SUBDOMAIN = getSubdomain(host)
-//     // for weird double subdomain tld
-//     SUBDOMAIN = SUBDOMAIN === 'hazardmitigation' ? '' : SUBDOMAIN
-
-//     const dbThemes = (siteData?.[0]?.theme_refs || [])
-//       .reduce((out,theme) => {
-//           out[theme.name] = parseIfJSON(theme.theme)
-//           return out
-//       }, {})
-//     //console.log('patterns2routes',dbThemes)
-
-//     themes = themes?.default ? { ...themes, ...dbThemes } : { ...themes, ...dbThemes, default: {} }
-//     // console.log('dmsSiteFactory themes', themes)
-
-//     let dmsConfigUpdated = cloneDeep(dmsConfig);
-//     const siteType = dmsConfig?.format?.type || dmsConfig.type;
-//     dmsConfigUpdated.registerFormats = updateRegisteredFormats(dmsConfigUpdated.registerFormats, dmsConfig.app, siteType)
-//     dmsConfigUpdated.attributes = updateAttributes(dmsConfigUpdated.attributes, dmsConfig.app, siteType)
-
-//     // console.log('dmsConfigUpdated', dmsConfigUpdated)
-//     let AdminPattern = {
-//       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-//       type: dmsConfigUpdated.type,
-//       doc_type: dmsConfigUpdated.type,
-//       siteType: dmsConfigUpdated.type,
-//       base_url: adminPath,
-//       //format: pattern?.config,
-//       pattern: {},
-//       pattern_type: 'admin',
-//       subdomain: "*",
-//       authPermissions: "{}",
-//       theme: themes['default'],
-//       themes
-//     }
-//   const patterns = [
-//     AdminPattern,
-//     ...(siteData
-//       .reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], [])
-//       || [])
-//   ];
-
-//     // Build datasetPatterns once (for backwards compatibility with other patterns)
-//     const datasetPatterns = patterns.filter(p => ['forms', 'datasets', 'mapeditor'].includes(p.pattern_type));
-
-//     // Build unified datasources array for page pattern
-//     const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
-//     const datasources = [
-//       // External sources from pgEnvs (with damaBaseUrl)
-//       ...(pgEnvs || []).map(env => ({
-//         type: 'external',
-//         env,
-//         baseUrl: damaBaseUrl || '',
-//         label: 'external',
-//         srcAttributes: ['name', 'metadata'],
-//         viewAttributes: ['version', '_modified_timestamp'],
-//       })),
-//       // Internal sources from datasetPatterns
-//       ...datasetPatterns.map(dsPattern => ({
-//         type: 'internal',
-//         env: `${app}+${dsPattern.doc_type}`,
-//         baseUrl: '/forms',
-//         label: 'managed',
-//         isDms: true,
-//         srcAttributes: ['app', 'name', 'doc_type', 'config', 'default_columns'],
-//         viewAttributes: ['name', 'updated_at'],
-//         pattern: dsPattern,
-//       }))
-//     ];
-
-//     // console.log('dmssite factory, datasources', datasources)
-
-//     return [
-//         ...patterns
-//           .filter(pattern => (
-//               pattern?.pattern_type &&
-//               ((!SUBDOMAIN && !pattern.subdomain) || pattern.subdomain === SUBDOMAIN || pattern.subdomain === '*')
-//           ))
-//           .reduce((acc, pattern) => {
-
-//             const c = patternTypes[pattern.pattern_type];
-//             if(!c) return acc;
-//             //console.log('register pattern', pattern.id, pattern.subdomain, `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`)
-//             acc.push(
-//               ...c.map(config => {
-//                   //console.log('dmsSiteFactory authPermissions', pattern?.authPermissions)
-//                   const authPermissions = parseIfJSON(pattern?.authPermissions || "{}");
-//                   if(!authPermissions?.groups?.public){
-//                       // default public permissions. overridden by set permissions
-//                       authPermissions.groups ??= {};
-//                       authPermissions.groups.public ??= ['view-page'];
-//                   }
-//                 const configObj = config({
-//                     app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
-//                     // type: pattern.doc_type,
-//                     type: pattern.doc_type || pattern?.base_url?.replace(/\//g, ''),
-//                     siteType: dmsConfigUpdated?.format?.type || dmsConfigUpdated.type,
-//                     baseUrl: `/${pattern.base_url?.replace(/^\/|\/$/g, '')}`, // only leading slash allowed
-//                     adminPath,
-//                     format: pattern?.config,
-//                     pattern: pattern,
-//                     pattern_type: pattern?.pattern_type,
-//                     authPermissions,
-//                     // NEW: Add datasources for page pattern
-//                     datasources,
-//                     // KEEP: Old variables for other patterns (admin, auth, forms, datasets)
-//                     pgEnv: pgEnvs?.[0] || '',
-//                     damaBaseUrl,
-//                     datasetPatterns,
-//                     themes,
-//                     useFalcor,
-//                     API_HOST,
-//                     DAMA_HOST,
-//                     PROJECT_NAME,
-//                     damaDataTypes,
-//                 });
-//                 // console.log('dmssitefactory Config obj', configObj)
-//                 return ({
-//                   ...dmsPageFactory({
-//                     dmsConfig: configObj,
-//                     API_HOST,
-//                     authWrapper,
-//                     isAuth: pattern.pattern_type === 'auth',
-//                     ErrorBoundary: RootErrorBoundary
-//                 })})
-//             }));
-
-//             return acc;
-//         }, []),
-//     ]
-// }

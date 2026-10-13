@@ -54,7 +54,7 @@ const CommitInput = ({ initialValue = '', onCommit, validate }) => {
 };
 const isEmpty = obj => Object.values(obj).every(v => !v || Object.keys(v).length === 0);
 
-export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, mapAPI, pageDataSources={}, siblingSections=[], ...rest }) => {
+export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSource={}, dwAPI, settingsAPI, pageDataSources={}, siblingSections=[], ...rest }) => {
     const { isEdit, value, attributes, i, showDeleteModal, listAllColumns, state: rawState, setSectionState } = sectionState
     const state = rawState || { columns: [], display: {}, externalSource: { columns: [] }, filters: { op: 'AND', groups: [] } }
     const { onEdit, moveItem, updateAttribute, updateElementType, onChange, onCancel, onSave, onAddHelpText, setKey, setState, setShowDeleteModal, setListAllColumns } = actions
@@ -78,17 +78,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
 // console.log("getSectionMenuItems::currentComponent", currentComponent)
 
     /**
-     * Use the map API only for the Map component; all other sections continue
-     * to use dwAPI. 'Map: Dama' is the retained legacy display name for the
-     * "Map: Dama Map" registry key, which now resolves to the same MapSection
-     * implementation as 'Map' (see ComponentRegistry/index.jsx) — its sections
-     * must get the map settings menu too, not fall through to dwAPI (which
-     * Map/MapDama never populate, since neither uses dataWrapper).
+     * A component whose registry entry sets `managesOwnState` (e.g. Map, which
+     * doesn't use the dataWrapper) supplies its own settings-menu API through
+     * its handle's `settingsAPI`; every other section uses dwAPI. The flag (not
+     * just the handle field) keeps a section whose type was just switched away
+     * from such a component off its stale cached API.
      */
-    const componentAPI =
-    ['Map', 'Map: Dama'].includes(currentComponent?.name) && mapAPI?.setState
-        ? mapAPI
-        : dwAPI;
+    const componentAPI = currentComponent?.managesOwnState && settingsAPI?.setState ? settingsAPI : dwAPI;
 
     // Resolve controls - may be a function that receives theme, or a static object
     const resolvedControls = typeof currentComponent?.controls === 'function'
@@ -176,7 +172,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
         if (typeof item.type === 'function') {
             return {
                 id: item.key, icon: item.icon, name: item.label,
-                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, mapAPI })
+                type: () => item.type({ value, setValue: v => dwAPI?.setDisplay?.(item.key, v, item.onChange), state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, settingsAPI })
             };
         }
 
@@ -301,7 +297,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             }
             if (arg.type === 'select') {
                 const options = typeof arg.options === 'function'
-                    ? arg.options({ state: componentAPI?.state, dwAPI, mapAPI }) || []
+                    ? arg.options({ state: componentAPI?.state, dwAPI, settingsAPI }) || []
                     : arg.options?.stateKey
                         ? arg.options.stateKey.split('.').reduce((acc, key) => acc?.[key], componentAPI?.state) || []
                         : (arg.options || []);
@@ -673,14 +669,14 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // Theme/site-supplied extension item-groups (e.g. a domain-specific
     // "Measure" picker registered for the "AVL Graph" component) — see
     // sectionMenuExtensions.js. Each builder gets the same primitives this
-    // function already assembled (state/dwAPI/mapAPI/currentComponent/etc.)
+    // function already assembled (state/dwAPI/settingsAPI/currentComponent/etc.)
     // rather than re-deriving them; a builder that throws is isolated so one
     // broken extension can't blank the whole section menu.
     const extensionMenus = getSectionMenuExtensions(currentComponent?.name)
         .flatMap(build => {
             try {
                 return build({
-                    state, dwAPI, mapAPI, isEdit, canEditSection,
+                    state, dwAPI, settingsAPI, isEdit, canEditSection,
                     currentComponent, sectionState, actions, auth, ui,
                     dataSource, pageDataSources, siblingSections,
                     pageState: rest.pageState,
@@ -1054,7 +1050,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                   if (!config?.items?.length) {
                       const rawType = config?.type;
                       const wrappedType = typeof rawType === 'function'
-                          ? () => rawType({ state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, mapAPI })
+                          ? () => rawType({ state: componentAPI?.state, setState: componentAPI?.setState, dwAPI, settingsAPI })
                           : rawType;
                       return { id: groupId, name: config?.name || controlGroup, items: [{name: 'component', type: wrappedType}] };
                   }

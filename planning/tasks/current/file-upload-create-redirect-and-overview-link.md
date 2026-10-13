@@ -6,7 +6,7 @@
 branch merge (only the `themev2.js` keys survived) and was re-applied identically. A real browser upload through the
 redirect is still untested, and so is a pgEnv spot-check. The server fix needs a dms-server deploy (dev `.env` → `dmsserver.availabs.org`).
 
-Follow-up to [`file-upload-viewpage-metadata-conventions.md`](./file-upload-viewpage-metadata-conventions.md)
+Follow-up to [`file-upload-viewpage-metadata-conventions.md`](../completed/file-upload-viewpage-metadata-conventions.md)
 (which made the Overview Versions card the download surface).
 
 ## Objective

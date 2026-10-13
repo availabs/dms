@@ -174,8 +174,8 @@ collision. Move on to page creation.
 | `datasets` | Dataset browser pattern. Pages are dataset descriptors. |
 | `auth` | Login / signup pages. |
 | `admin` | The admin UI for editing the site itself. |
-| `forms` | Form-driven data entry. |
-| `mapeditor` | Map editor. |
+| `qa` | Ticketing / delivery QA. |
+| `mapeditor` | Map editor — an app pattern type dms-template registers (`src/patterns/mapeditor/`), not a library built-in. |
 
 For "translate a design system into pages," `pattern_type: page`
 is almost always the right answer.

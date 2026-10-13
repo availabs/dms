@@ -52,7 +52,7 @@ Both renderers did `+e.target.value`, and `+'' === 0`. So emptying the box pinne
 hardcoded default. There was no way, from the UI, to say "use the brand default".
 
 This is exactly the state MitigateNY's SHMP home graph is in (section 2061332,
-`paddingInner: 0`) — see `planning/mitigateny/tasks/current/mny-avlgraph-theme-defaults.md`.
+`paddingInner: 0`) — see `planning/mitigateny/tasks/completed/mny-avlgraph-theme-defaults.md`.
 
 ## Changes
 

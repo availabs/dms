@@ -1,6 +1,7 @@
 import { lazyComponent } from '../../utils/lazyComponent'
 
 import TenantList from './components/tenantList'
+import { listPatternTypes } from '../registry'
 
 // Code-split: the pattern list renders only on admin pages, but this format is
 // imported eagerly (adminConfig builds every site's root dmsConfig). Same
@@ -71,14 +72,13 @@ export const pattern = {
       type: "select",
       required: true,
       default: "page",
-        options: [
-          {value: 'auth', label: 'Auth'},
-          {value: 'page', label: 'Page'},
-          {value: 'forms', label: 'Forms'},
-          {value: 'datasets', label: 'Datasets'},
-          {value: 'mapeditor', label: 'Map Editor'},
-          {value: 'qa', label: 'Ticketing / QA'}
-        ],
+      // the registered pattern types (patterns/registry.js), read when the
+      // format is used — a host app's types register after this module loads
+      get options() {
+        return listPatternTypes()
+          .filter(d => d.admin?.addable)
+          .map(d => ({ value: d.name, label: d.label || d.name }))
+      },
     },
     // doc_type: uuid string to identify pattern entries in db
     { key: "name",

@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Migrate datasets/forms pattern sources into dmsEnv rows.
+ * Migrate datasets pattern sources into dmsEnv rows.
  *
  * For each app, finds patterns with data.sources arrays, creates dmsEnv rows
  * to hold those source refs, and sets data.dmsEnvId on each pattern. Patterns
@@ -142,12 +142,12 @@ async function migrate(opts) {
   for (const app of apps) {
     const mainFqn = mainTableFqn(app, dbType, splitMode);
 
-    // 2. Find datasets/forms patterns with sources
+    // 2. Find datasets patterns with sources
     const { rows: patternRows } = await db.query(
       `SELECT id, data FROM ${mainFqn}
        WHERE app = $1
          AND (type LIKE '%|pattern' OR type = 'pattern')
-         AND data->>'pattern_type' IN ('datasets', 'forms')`,
+         AND data->>'pattern_type' = 'datasets'`,
       [app]
     );
 
