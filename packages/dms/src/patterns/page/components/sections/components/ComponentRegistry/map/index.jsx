@@ -1324,7 +1324,14 @@ export const MapSection = ({ value, onChange, isEdit, onHandle, sectionId: secti
                     </>
                 ) : null
             } */}
-            <div id='dama_map_edit' className={damaMapT.container} style={{height: heightStyle}}>
+            {/* Print: maplibre pins the canvas to its on-screen px size and never resizes for the
+                print layout, so on a narrower page the container clipped the canvas (a route that
+                spans the screen lost its far end), and the "full" height (95vh = a whole printed
+                page) pushed the map onto its own page, leaving the page before it blank. Scale the
+                canvas bitmap to the container width instead and let the container wrap it. */}
+            <div id='dama_map_edit'
+                 className={`${damaMapT.container} print:h-auto! print:break-inside-avoid print:[&_.maplibregl-canvas]:w-full! print:[&_.maplibregl-canvas]:h-auto!`}
+                 style={{height: heightStyle}}>
                 <AvlMap
                   // AvlMap reads mapOptions.styles only once at mount (into a ref),
                   // so toggling blankBaseMap can't swap the live style in place.
