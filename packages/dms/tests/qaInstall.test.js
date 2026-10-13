@@ -9,8 +9,8 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { pickQaEnvironment, planQaDatasets, qaPreflight } from "../src/patterns/qa/install";
-import { QA_DATASETS } from "../src/patterns/qa/datasets";
+import { pickQaEnvironment, planQaChangeHistory, planQaDatasets, qaPreflight } from "../src/patterns/qa/install";
+import { QA_DATASETS, QA_TRACKED_COLUMNS } from "../src/patterns/qa/datasets";
 
 const env = (id, name = "default") => ({ id, type: `site|${name}:dmsenv`, name });
 
@@ -66,6 +66,41 @@ describe("planQaDatasets", () => {
       have: { tickets: { slug: "phase2_tickets", source_id: 1, view_id: 2 } },
     });
     expect(again.map((s) => s.key)).toEqual(QA_DATASETS.map((d) => d.key).filter((k) => k !== "tickets"));
+  });
+});
+
+describe("planQaChangeHistory", () => {
+  const ref = (source_id, view_id) => ({ slug: `qa_${source_id}`, source_id, view_id });
+  const datasets = { tickets: ref(10, 11), pages: ref(20, 21), stories: ref(30, 31), patterns: ref(40, 41), history: ref(50, 51) };
+  const historyColumns = QA_DATASETS.find((d) => d.key === "history").attributes;
+  const fresh = { tickets: {}, pages: {}, stories: {}, history: { config: JSON.stringify({ attributes: historyColumns }) } };
+
+  it("points tickets, pages and stories at the install's history, with their workflow columns", () => {
+    const edits = planQaChangeHistory({ datasets, sources: fresh });
+    expect(edits.map((e) => [e.key, e.sourceId])).toEqual([["tickets", 10], ["pages", 20], ["stories", 30]]);
+    edits.forEach((e) => expect(e.data.change_history).toEqual({
+      target: { source_id: 50, view_id: 51 }, columns: QA_TRACKED_COLUMNS[e.key],
+    }));
+    expect(QA_TRACKED_COLUMNS.tickets).toEqual(["status", "severity", "priority", "category", "assignee", "outcome"]);
+  });
+
+  it("keeps a setting a dataset already has (an admin's choice survives a re-run)", () => {
+    const sources = { ...fresh, tickets: { change_history: { target: { source_id: 99, view_id: 98 }, columns: "*" } } };
+    expect(planQaChangeHistory({ datasets, sources }).map((e) => e.key)).toEqual(["pages", "stories"]);
+  });
+
+  it("appends the history columns an older install lacks, keeping its own", () => {
+    const old = [...historyColumns.filter((a) => a.name !== "source_id"), { name: "note", type: "text" }];
+    const edits = planQaChangeHistory({ datasets, sources: { ...fresh, history: { config: JSON.stringify({ attributes: old }) } } });
+    const history = edits.find((e) => e.key === "history");
+    expect(history.sourceId).toBe(50);
+    expect(JSON.parse(history.data.config).attributes.map((a) => a.name)).toEqual([...old.map((a) => a.name), "source_id"]);
+  });
+
+  it("has nothing to do once switched on, and nothing without a history dataset", () => {
+    const on = Object.fromEntries(Object.entries(fresh).map(([k, v]) => [k, k === "history" ? v : { change_history: { columns: ["x"] } }]));
+    expect(planQaChangeHistory({ datasets, sources: on })).toEqual([]);
+    expect(planQaChangeHistory({ datasets: { ...datasets, history: undefined }, sources: fresh })).toEqual([]);
   });
 });
 

@@ -1,8 +1,8 @@
 # Card liveEdit: one shared save timer per section drops quick edits
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
-Logged 2026-09-30, found while planning phase 2 of [`qa-pattern-type.md`](./qa-pattern-type.md).
+Logged 2026-09-30, found while planning phase 2 of [`qa-pattern-type.md`](../current/qa-pattern-type.md).
 
 **Built 2026-10-01 (uncommitted)** as option (b) of that task's status-change writes (owner approved; the TransportNY
 effects are fixes). Per-row pending saves + flush on unmount (`dataWrapper/utils/liveEditSaves.js`
@@ -10,6 +10,9 @@ effects are fixes). Per-row pending saves + flush on unmount (`dataWrapper/utils
 two picks 334 ms apart → one merged save, both kept; the committed code dropped the first (reproduced). Pick then
 navigate inside the window: the committed code sent nothing, the new code saves at unmount. Details, tests and the
 pre-push TransportNY checks: `qa-pattern-type.md`, "The status-change writes". Move to completed once committed.
+
+**Done 2026-10-08:** committed `0cdba46b` (2026-10-01) and pushed. The task's history is in
+[`qa-pattern-type-archive.md`](../current/qa-pattern-type-archive.md), part 1, "The status-change writes".
 
 ## Objective
 

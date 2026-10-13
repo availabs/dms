@@ -7,6 +7,7 @@ import { parseIfJSON } from '../../../patterns/page/pages/_utils';
 import { resolveSubdomainAuthPermissions, hasAuthGrants } from '../../../utils/auth';
 import { getInstance } from '../../../utils/type-utils';
 import { collectSiteRootPaths } from '../../../utils/mountPath';
+import { getDefaultUserMenuItems, withUserMenuThemes, withPatternMenuPrecedence, patternOwnMenuItems } from '../../../utils/userMenus';
 import { buildRetiredSubdomainMap, applyRetiredSubdomainRedirect } from '../../../utils/retiredSubdomain';
 import '../../../patterns'
 import { getPatternType, listPatternTypes } from '../../../patterns/registry'
@@ -263,6 +264,18 @@ export function pattern2routes (siteData, props) {
     // (or a freshly backfilled, empty one) routes exactly as before.
     const sitePatterns = siteData.reduce((acc, curr) => [...acc, ...(curr?.patterns || [])], []);
     const savedAdminPattern = pickAdminPattern(sitePatterns);
+    // The site's default user menu (the admin row's `user_menus`) becomes every
+    // theme's authMenu, so all patterns show it whichever theme they select. No
+    // saved menu → `themes` is untouched. See utils/userMenus.js.
+    // A pattern's own menu still wins over it (withPatternMenuPrecedence, below).
+    const siteUserMenu = getDefaultUserMenuItems(savedAdminPattern);
+    themes = withUserMenuThemes(themes, siteUserMenu);
+    // Who the Default menu reaches, for the Pattern Editor's User Menu tab.
+    const menuPatterns = sitePatterns.filter(p => p?.pattern_type && p.pattern_type !== 'admin' && p.id !== 'no-access');
+    const userMenuUsage = {
+        total: menuPatterns.length,
+        own: menuPatterns.filter(p => patternOwnMenuItems(p)).map(p => ({ id: `${p.id}`, name: p.name || `${p.id}` })),
+    };
     if (savedAdminPattern?.base_url) {
         adminPath = `/${`${savedAdminPattern.base_url}`.replace(/^\/+|\/+$/g, '')}`;
     }
@@ -482,7 +495,8 @@ export function pattern2routes (siteData, props) {
                     adminPath,
                     format: pattern?.config,
                     // downstream link-building reads pattern.base_url — give it this mount's
-                    pattern: { ...pattern, base_url: mount.base_url, navPrefix: mount.navPrefix || '', filters: resolvedFilters },
+                    // …and its own user menu, if any, wins over the site's Default menu
+                    pattern: withPatternMenuPrecedence({ ...pattern, base_url: mount.base_url, navPrefix: mount.navPrefix || '', filters: resolvedFilters }, siteUserMenu),
                     siteRootPaths,
                     pattern_type: pattern?.pattern_type,
                     authPermissions,
@@ -495,6 +509,10 @@ export function pattern2routes (siteData, props) {
                     adminAuthPermissions,
                     authPatternPermissions,
                     adminRowHasGrants,
+                    // the saved admin row itself: the Pattern Editor's User Menu tab
+                    // is gated on edit access to it (utils/userMenus.js)
+                    adminPatternRow: savedAdminPattern,
+                    userMenuUsage,
                     datasources: patternDatasources,
                     // the site's pattern rows, for a pattern (or a section it
                     // ships) that needs to find other patterns by type

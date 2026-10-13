@@ -485,6 +485,40 @@ async function testWebSocketBroadcast() {
   console.log('  \u2713 WebSocket receives broadcast on mutation\n');
 }
 
+// Regression: the WS filter for pattern-subscribed clients only let skeleton rows
+// through when the type ended in the legacy `|pattern`. Current pattern/site rows
+// are `{site}|{name}:pattern` / `{name}:site`, so an edit to one (theme, filters,
+// the admin row's user menu) never reached a tab that was viewing a pattern.
+async function testWebSocketSkeletonRowsReachPatternSubscribers() {
+  console.log('--- Test: pattern-subscribed WS client receives pattern/site row changes ---');
+
+  const WebSocket = require('ws');
+  const port = server.address().port;
+  const ws = new WebSocket(`ws://localhost:${port}/sync/subscribe`);
+  await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error('WS connect timeout')), 5000);
+    ws.on('open', () => { clearTimeout(timeout); resolve(); });
+    ws.on('error', reject);
+  });
+  ws.send(JSON.stringify({ type: 'subscribe', app: TEST_APP, pattern: 'ws_docs|page' }));
+  await new Promise(r => setTimeout(r, 100));
+
+  const seen = [];
+  ws.on('message', (data) => { const m = JSON.parse(data.toString()); if (m.type === 'change') seen.push(m.item.type); });
+
+  for (const type of ['wsprod|admin:pattern', 'wsprod:site', 'other_docs|page']) {
+    const { body } = await httpPost('/sync/push', { action: 'I', item: { app: TEST_APP, type, data: { title: type } } });
+    createdIds.push(body.item.id);
+  }
+  await new Promise(r => setTimeout(r, 300));
+  ws.close();
+
+  assert(seen.includes('wsprod|admin:pattern'), `pattern row change delivered (got ${JSON.stringify(seen)})`);
+  assert(seen.includes('wsprod:site'), `site row change delivered (got ${JSON.stringify(seen)})`);
+  assert(!seen.includes('other_docs|page'), `another pattern's page change still filtered out (got ${JSON.stringify(seen)})`);
+  console.log('  ✓ pattern-subscribed WS client receives pattern/site row changes\n');
+}
+
 async function testWebSocketBroadcastFromFalcor() {
   console.log('--- Test: WebSocket receives broadcast from Falcor mutation ---');
 
@@ -970,6 +1004,7 @@ const tests = [
   testDeltaRequiresApp,
   testWebSocketBroadcast,
   testWebSocketBroadcastFromFalcor,
+  testWebSocketSkeletonRowsReachPatternSubscribers,
   testSequentialRevisions,
   // Phase 4: Collaborative editing
   testCollabJoinRoomSendsSync,

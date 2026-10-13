@@ -485,7 +485,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
-          const rows = await controller.setDataById(id, data, this.user, app, type || null, this.reqMeta);
+          const rows = await controller.setDataById(id, data, this.user, app, type || null, this.reqMeta, { changeHistory: true });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
@@ -529,7 +529,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         try {
-          const rows = await controller.createData(args, this.user, this.reqMeta);
+          const rows = await controller.createData(args, this.user, this.reqMeta, { changeHistory: true });
           console.log('[dms.data.create] OK rows=%d id=%s elapsed=%dms', rows.length, rows[0]?.id, Date.now() - t0);
           const ids = rows.map(({ id }) => String(id));
           return [

@@ -25,6 +25,8 @@ const dataSections = (page) => page.sections.filter((s) => s.element["element-ty
 
 // the Ticket page header band: four joined Cards
 const HEADER_ROWS = ["qa_ticket_crumb", "qa_ticket_badges", "qa_ticket_title", "qa_ticket_target"];
+// the ticket's change history, read from the install's history dataset by row_id
+const HISTORY = ["qa_ticket_history", "qa_ticket_history_list"];
 
 describe("ticket pages", () => {
   const all = buildQaPages(pattern, ctx);
@@ -36,12 +38,12 @@ describe("ticket pages", () => {
     expect([detail.title, detail.url_slug, detail.hide_in_nav]).toEqual(["Ticket", "ticket", true]);
   });
 
-  it("binds every data section on these two pages to the install's own tickets dataset", () => {
+  it("binds every data section on these two pages to the install's own tickets dataset (History to its history)", () => {
     [list, detail].forEach((page) =>
       dataSections(page).forEach((s) => {
+        const [slug, source_id, view_id] = HISTORY.includes(s.trackingId) ? ["phase2_history", 51, 52] : ["phase2_tickets", 43, 44];
         expect(dataOf(s).externalSource).toMatchObject({
-          isDms: true, app: "qa_test", type: "phase2_tickets", source_id: 43, view_id: 44,
-          env: "qa_test+phase2_tickets", srcEnv: "qa_test+phase2_tickets",
+          isDms: true, app: "qa_test", type: slug, source_id, view_id, env: `qa_test+${slug}`, srcEnv: `qa_test+${slug}`,
         });
       }));
   });
@@ -72,7 +74,7 @@ describe("ticket pages", () => {
     dataSections(detail).forEach((s) =>
       // the header rows join the pages, so their id column is alias-prefixed
       expect(dataOf(s).filters.groups).toEqual([expect.objectContaining({
-        col: s.trackingId.startsWith("qa_ticket_") && HEADER_ROWS.includes(s.trackingId) ? "ds.id" : "id", searchParamKey: "id", requireResolved: true,
+        col: HEADER_ROWS.includes(s.trackingId) ? "ds.id" : HISTORY.includes(s.trackingId) ? "row_id" : "id", searchParamKey: "id", requireResolved: true,
       })]));
   });
 
@@ -86,6 +88,25 @@ describe("ticket pages", () => {
     });
     expect(JSON.stringify(buildQaPages(pattern, ctx))).toBe(JSON.stringify(buildQaPages(pattern, ctx)));
     expect(all.map((p) => p.url_slug)).toEqual(["overview", "tickets", "ticket", "page"]);
+  });
+
+  it("lists the ticket's change history newest first, refreshing after a rail change", () => {
+    const [title, table] = HISTORY.map((id) => dataOf(detail.sections.find((s) => s.trackingId === id)));
+    expect(title.columns.map((c) => c.normalName || c.name)).toEqual(["h_title", "h_count"]);
+    expect(table.columns.map((c) => c.normalName)).toEqual(["idsort", "when_disp", "field_disp", "change_disp", "who_disp"]);
+    expect(table.columns[0]).toMatchObject({ sort: "desc", size: 0 });
+    // a field shows as the tickets dataset labels it
+    expect(table.columns[2].name).toContain("when 'status' then 'Status'");
+    expect(table.display).toMatchObject({ tableStyle: "qa_list", emptyRowText: "No changes yet" });
+    [title, table].forEach((d) => expect(d.display._functions.subscribers).toEqual([
+      { functionId: "data_refresh", enabled: true, paramKey: "ticket_v" },
+    ]));
+  });
+
+  it("leaves History out for an install without a history dataset", () => {
+    const noHistory = { ...pattern, qa: { version: 1, datasets: { ...datasets, history: undefined } } };
+    const page = pageBySlug(buildQaPages(noHistory, ctx), "ticket");
+    expect(page.sections.some((s) => HISTORY.includes(s.trackingId))).toBe(false);
   });
 
   it("builds open and closed from the status kinds", () => {

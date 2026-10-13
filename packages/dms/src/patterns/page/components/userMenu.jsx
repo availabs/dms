@@ -6,6 +6,8 @@ import { ThemeContext, getComponentTheme } from "../../../ui/useTheme";
 import {userMenuTheme} from './userMenu.theme'
 import { isUserAuthed } from "../../../utils/auth";
 import { loadItemFresh } from "../../../api";
+import { SiteUserMenuContext } from "../../../utils/userMenuContext";
+import { resolveUserMenuItems } from "../../../utils/userMenus";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -84,6 +86,9 @@ const EditControl = ({activeStyle}) => {
 }
 
 export default function UserMenuContainer ({title, children, activeStyle, navigableMenuActiveStyle}) {
+  // Menus saved since this page loaded (utils/userMenuContext.js): the site's
+  // Default menu and patterns' own menus. Empty until then.
+  const liveMenus = useContext(SiteUserMenuContext);
   const { user, viewAsUser, setViewAsUser } = React.useContext(AuthContext) || {}
   const { baseUrl = '', app, authPermissions, falcor } = React.useContext(CMSContext) || {}
   const { theme, UI } = React.useContext(ThemeContext) || {}
@@ -303,7 +308,9 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
       ]
     : [];
 
-  let authMenuItems = theme?.navOptions?.authMenu?.navItems || [
+  // this pattern's own menu, else the site's Default menu, else the theme's
+  const themeMenuItems = resolveUserMenuItems(theme?.navOptions?.authMenu, liveMenus);
+  let authMenuItems = themeMenuItems || [
     {
         name: 'Datasets',
         icon: 'Database',
@@ -317,11 +324,8 @@ export default function UserMenuContainer ({title, children, activeStyle, naviga
         type: 'link'
     }
   ]
-  authMenuItems.forEach(item => {
-    if(item?.path){
-      item.type = 'link'
-    }
-  })
+  // copies: these items are the theme's own objects
+  authMenuItems = authMenuItems.map(item => item?.path ? { ...item, type: 'link' } : item)
   // Per-item group gating (additive/BC): an item with `groups: ["AVAIL", …]` renders only
   // for users belonging to at least one of them. Items without `groups` show as always.
   authMenuItems = authMenuItems.filter(item =>

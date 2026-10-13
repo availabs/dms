@@ -17,6 +17,7 @@ import { gisCreateTheme } from './pages/dataTypes/gis_dataset/pages/Create/gisCr
 import { gisMapTheme } from './pages/dataTypes/gis_dataset/pages/Map/gisMap.theme'
 import { gisPagesTheme } from './pages/dataTypes/gis_dataset/pages/gisPages.theme'
 import { uploadsTheme } from './pages/dataTypes/gis_dataset/pages/Uploads/uploads.theme'
+import { changeHistoryEditorTheme } from './components/ChangeHistoryEditor.theme'
 
 export default {
     breadcrumbs: breadcrumbsTheme,
@@ -38,4 +39,5 @@ export default {
     gisMap: gisMapTheme,
     gisPages: gisPagesTheme,
     uploads: uploadsTheme,
+    changeHistoryEditor: changeHistoryEditorTheme,
 }

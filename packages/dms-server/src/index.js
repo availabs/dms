@@ -215,6 +215,8 @@ app.use(
         ip: req.clientIp || null,
         userAgent: req.headers['user-agent'] || null,
         authState: user ? 'authenticated' : 'unauthenticated',
+        // how the write arrived, for change history rows: the CLI sends 'cli', a browser nothing
+        via: req.headers['x-dms-via'] || null,
       };
       return falcorRoutes({ user, subdomain, reqMeta });
     } catch (e) {

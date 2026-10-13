@@ -360,7 +360,10 @@ from the original cards on 2173049). The leaf option + expansion pass are the
    is the page-wide default; a consuming leaf's saved `value` is only its
    fallback before any page variable resolves. Once registered, `usePageFilterSync`
    overwrites the leaf `value` from `pageState.filters` on every change — so don't
-   rely on the leaf's saved value for the live selection.
+   rely on the leaf's saved value for the live selection. **Except a falsy page value:**
+   `""`/`null` (an empty registry default) leaves the leaf's last value in place
+   (`usePageFilterSync` and `applyPageFilters` both skip `!pageValues`); only `[]`
+   clears it. See gotcha 11.
 8. **⚠ A `show:false` calculated column breaks the UDA *data* fetch.** It's
    tempting to add a filter-only derived column (`{ name: "CASE … as region",
    show: false }`) so a leaf can resolve `col: "region"`. Don't. `getColumnsToFetch`
@@ -384,6 +387,15 @@ from the original cards on 2173049). The leaf option + expansion pass are the
     dropdown is missing the option. Until the platform guard is loosened to
     `option != null && option !== ""`, prefer a control column whose values are all
     truthy, or set the page-variable from the URL.
+11. **⚠ A custom component must CLEAR a page variable through `updatePageStateFilters`,
+    not by deleting the URL param.** `PageContext`'s `updatePageStateFilters(filters,
+    removeFilter)` (what the native Filter controls call) writes `[]` for each
+    `removeFilter` key, and `[]` is what clears the reacting leaves. Deleting the param
+    with `navigate()` instead resets the variable to its registry default; when that
+    default is `""` the leaves keep their last value (gotcha 7) and the sections stay
+    filtered while the control reads as off. Setting a value by URL works either way.
+    Found 2026-10-09 on TransportNY's All Reports rail (`ReportsListRail.jsx`, ticket
+    #2226223): Mine's ✕ cleared the URL, but the table stayed narrowed to the viewer's rows.
 
 ---
 

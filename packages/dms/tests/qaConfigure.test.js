@@ -231,7 +231,7 @@ describe("saveConfigure", () => {
   });
 });
 
-// The design pass's Configure (qa-design-implementation.md step 4): display order, switching,
+// The design pass's Configure (qa-pattern-type-archive.md, part 2, step 4): display order, switching,
 // dragging, and the save bar's list of unsaved edits.
 const GAMMA = pat(15, "Gamma", "gamma");
 const loaded = () => configureEntries([ALPHA, BETA, GAMMA, DATA], [
