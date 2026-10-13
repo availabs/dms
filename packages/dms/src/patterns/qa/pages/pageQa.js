@@ -8,8 +8,11 @@ import {
 // page's header (crumb, name, description, add ticket), its stories and tickets, a Page-status rail
 // (the stage as a clickable list, facts, work completed) and the New ticket modal. The look is the qa
 // pattern's own styles (qa.theme.js). Data shapes are ported from build_cr_page.mjs. The QA ⇄ Design
-// toggle is left out until the Design page feature exists.
+// toggle is left out until the Design page feature exists. Built only with the page inventory on
+// (pages/index.js); its stories and its stage list follow their own switches (`ctx.features`).
 export function pageQaPage(ctx) {
+  const storiesOn = ctx.features.has('stories')
+  const stagesOn = ctx.features.has('page_stages')
   const dwPages = dataWrapper(pagesSource(ctx))
   const dwStories = dataWrapper(storiesSource(ctx))
   const dwTickets = dataWrapper(ticketsSource(ctx))
@@ -54,7 +57,7 @@ export function pageQaPage(ctx) {
   const top = { bg: 'bg-[var(--t-panel)]', border: { top: true, left: true, right: true, bottom: true, ...LINE }, radius: { tl: true, tr: true }, padding: { bottom: '0' } }
   const body = { bg: 'bg-[var(--t-panel)]', border: { left: true, right: true, bottom: true, ...LINE }, radius: { bl: true, br: true }, padding: { top: '0' } }
   const storyStage = (stage) => `(count(*) filter (where (data->>'stage') = '${stage}'))::text`
-  S.push(section({
+  if (storiesOn) S.push(section({
     trackingId: 'qa_page_stories_title', group: G.main, type: 'Card', ...top,
     data: dwStories({
       columns: [
@@ -72,7 +75,7 @@ export function pageQaPage(ctx) {
       display: { ...ONE, cardStyle: 'qa_summary', cellsGridSize: 4, cellsTracksTemplate: 'max-content max-content minmax(0,1fr) 7rem', cellsColumnGap: 10, cardsPadding: 18 },
     }),
   }))
-  S.push(section({
+  if (storiesOn) S.push(section({
     trackingId: 'qa_page_stories', group: G.main, type: 'Spreadsheet', ...body,
     data: dwStories({
       columns: [
@@ -136,11 +139,17 @@ export function pageQaPage(ctx) {
   const railMid = { bg: 'bg-[var(--t-panel)]', border: { left: true, right: true, bottom: true, ...LINE }, padding: { top: '0', bottom: '0' } }
   const railBottom = { bg: 'bg-[var(--t-panel)]', border: { left: true, right: true, bottom: true, ...LINE }, radius: { bl: true, br: true }, padding: { top: '0', bottom: '0' } }
   const PAD = { cellPaddingLeft: 16, cellPaddingRight: 16 }
-  S.push(section({
+  const railTitle = staticCell('rail_title', 'Page status', { valueFontStyle: T.cardTitle, cellSpan: 2, ...PAD, cellPaddingTop: 16, cellPaddingBottom: 12, cellBorderBottom: true })
+  // without stages, the rail opens with its title alone
+  if (!stagesOn) S.push(section({
+    trackingId: 'qa_page_status_title', group: G.side, type: 'Card', ...railTop,
+    data: dwPages({ columns: [railTitle], filters: [byKey], display: { ...ONE, cardStyle: 'qa_summary', cellsGridSize: 2 } }),
+  }))
+  if (stagesOn) S.push(section({
     trackingId: 'qa_page_stage', group: G.side, type: 'Card', ...railTop,
     data: dwPages({
       columns: [
-        staticCell('rail_title', 'Page status', { valueFontStyle: T.cardTitle, cellSpan: 2, ...PAD, cellPaddingTop: 16, cellPaddingBottom: 12, cellBorderBottom: true }),
+        railTitle,
         staticCell('stage_lbl', 'stage', { valueFontStyle: T.eyebrow, ...PAD, cellPaddingTop: 12, cellPaddingBottom: 6 }),
         // row-level calcs carry no fn: a Card mixing an aggregate (fn) with row columns never fetches
         calc(`(${STAGE_RANK}::text || ' of ${PAGE_STAGES.length}') as stage_n`, '', { fn: undefined, hideHeader: true, normalName: 'stage_n', valueFontStyle: T.eyebrow, justify: 'right', editable: false, ...PAD, cellPaddingTop: 12 }),

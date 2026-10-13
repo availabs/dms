@@ -98,12 +98,14 @@ describe("a ticket's page name and stage, live", () => {
     });
   });
 
-  it("reads the page's own name and stage, not the ticket's copies", () => {
+  it("reads the page's own name and stage, the ticket's name copy only when no page matches", () => {
     // the header's target row: the page link, the filed-from route and the page's stage meter
     const attrs = compile(sectionOf(all, "qa_ticket_target")).columnsToFetch.map((c) => c.reqName).join(" ");
     expect(attrs).toContain("p.data->>'name'");
     expect(attrs).toContain("p.data->>'stage'");
-    expect(attrs).not.toMatch(/page_name|page_stage/);
+    expect(attrs).not.toMatch(/page_stage/);
+    // the stored name (Report an issue sets it) after the live one, before the raw page key
+    expect(attrs.indexOf("p.data->>'name'")).toBeLessThan(attrs.indexOf("page_name"));
     // the route the ticket was filed from stays the ticket's own
     expect(attrs).toContain("ds.data->>'page_route'");
   });

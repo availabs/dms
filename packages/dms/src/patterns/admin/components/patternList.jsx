@@ -7,7 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
-import { QA_PATTERN_ENABLED } from '../../qa/install'
+import { QA_PATTERN_ENABLED, newInstallQa } from '../../qa/install'
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -242,6 +242,8 @@ function PatternEdit({
 			const tenantSub = /^\d+$/.test(parts[parts.length - 1]) ? '' : (parts.length >= minParts ? parts[0] : '');
 			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
+		// a QA install's switches start off, as from the site page (editSite.jsx)
+		if (data.pattern_type === 'qa') data.qa = newInstallQa();
 
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(

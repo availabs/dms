@@ -100,8 +100,9 @@ export const historySource = (ctx) => datasetSource(ctx, ctx.datasets.history, '
 // A ticket's page, joined as `p` (joinDataset), for its live name and stage: tickets keep only
 // copies of them, which TransportNY's sync refreshed and nothing here writes.
 export const pagesByKey = (ctx) => joinDataset(ctx, ctx.datasets.pages, 'p', ['page_key', 'name', 'stage', 'url'], [['page_key', 'page_key']])
-// The ticket's page name, else its raw page key (a ticket whose page isn't tracked).
-export const PAGE_DISP = "(case when p.data->>'name' is null or p.data->>'name' = '' then data->>'page_key' else p.data->>'name' end) as page_disp"
+// The ticket's page name: the tracked page's live name, else the name the ticket was filed with (an
+// install without a page inventory, or a page that isn't tracked), else its raw page key.
+export const PAGE_DISP = "(case when p.data->>'name' is not null and p.data->>'name' <> '' then p.data->>'name' when (data->>'page_name') is not null and (data->>'page_name') <> '' then (data->>'page_name') else data->>'page_key' end) as page_disp"
 
 // A data section's element-data over `source`. `join`: extra sources by alias (joinDataset).
 export const dataWrapper = (source) => ({ columns, filters = [], display = {}, join }) => JSON.stringify({

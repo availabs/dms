@@ -1,4 +1,5 @@
 import { PAGE_STAGES } from './ticketRecord.js'
+import { hasFeature } from './features.js'
 
 // Track-on-publish: a page published in a sub-site a QA install covers gets a row in that
 // install's pages dataset, so it shows on the install's Overview without a sync. Only publishing
@@ -58,14 +59,15 @@ export function trackedPageRow({ site, page, url, now }) {
 
 // Adds the published `page` ({url_slug, title}) to every install that covers its pattern and has
 // no row for it yet. `qaInstalls`: the site's qa pattern rows; one whose settings this user can't
-// read (no `qa.datasets`) is skipped. Returns [{install, page_key}] for the rows it created.
+// read (no `qa.datasets`) is skipped, and so is one with its page inventory switched off
+// (features.js). Returns [{install, page_key}] for the rows it created.
 export async function trackPublishedPage({ page, patternKeys, qaInstalls = [], url, now = new Date().toISOString(), loadRows, createRow }) {
   const slug = page?.url_slug
   if (!slug) return []
   const tracked = []
   for (const install of qaInstalls) {
     const { patterns, pages } = install?.qa?.datasets || {}
-    if (!patterns || !pages) continue
+    if (!patterns || !pages || !hasFeature(install, 'page_inventory')) continue
     const site = coveredSites(await loadRows(patterns, COVERED_SITE_COLUMNS)).find((s) => coversPattern(s, patternKeys))
     if (!site || !slugAllowed(site, slug)) continue
     const row = trackedPageRow({ site, page, url, now })

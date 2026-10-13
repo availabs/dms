@@ -12,6 +12,9 @@ import {
 // The look is the qa pattern's own styles (qa.theme.js). Data shapes are ported from
 // build_cr_overview.mjs. `ctx` is the Tickets page's plus `datasets` and `sites`: the enabled rows of
 // the install's covered-sites dataset, or null until they've loaded.
+// The install's switches (`ctx.features`) decide the page parts: without a page inventory, no page
+// figures and no per-site page tables (a site is its tickets bar); without page stages, no "How
+// delivery works", client-accepted figure, stage bars or Stage column.
 
 // Who does what at each stage: the library's default wording (TransportNY's), install-editable later.
 const STAGE_ROLE = {
@@ -43,29 +46,41 @@ export function overviewPage(ctx) {
   }
   const agg = (sql, alias, over = {}) => calc(sql, alias, { hideHeader: true, normalName: alias, ...over })
   const stageCount = (stage) => `(count(*) filter (where (data->>'stage') = '${stage}'))::text`
+  // A Card of static cells alone draws one card per row of its dataset, so none over an empty one;
+  // this hidden aggregate makes the query return exactly one row.
+  const ONE_ROW = agg('count(*)::text as one_row', 'one_row', { selectOnly: true })
+  const pagesOn = ctx.features.has('page_inventory')
+  const stagesOn = ctx.features.has('page_stages')
   const G = { hdr: 'overview_header', how: 'overview_stages', end: 'overview_activity' }
   const sites = ctx.sites || []
+  const noSites = Boolean(ctx.sites) && !sites.length
   const byCovered = [{ col: 'surface', op: 'filter', value: coveredKeys(ctx) }]
-  const groups = [group(G.hdr, 0, 'Header', 'qa_header'), group(G.how, 1, 'How delivery works', 'qa_content')]
+  const groups = [
+    group(G.hdr, 0, 'Header', 'qa_header'),
+    // the stages, or the no-sites note when stages are off
+    ...(stagesOn || noSites ? [group(G.how, 1, stagesOn ? 'How delivery works' : 'Sites', 'qa_content')] : []),
+  ]
   const S = []
 
   // ── header band: crumb; title + sites line | the figures (pages, then tickets: two datasets, two Cards) ──
   S.push(section({
     trackingId: 'qa_overview_crumb', group: G.hdr, type: 'Card', padding: { top: '0', bottom: '2' },
-    data: dwPages({
-      columns: [staticCell('crumb', `${ctx.pattern.name}  /  Overview`, { valueFontStyle: T.crumb })],
+    data: dwTickets({
+      columns: [staticCell('crumb', `${ctx.pattern.name}  /  Overview`, { valueFontStyle: T.crumb }), ONE_ROW],
       display: { ...AGG, cardStyle: 'qa_header', cellsGridSize: 1 },
     }),
   }))
   const sitesLine = ctx.sites
-    ? (sites.length ? `${sites.length} site${sites.length === 1 ? '' : 's'} covered · pages join as they're published` : 'No sites covered yet')
+    ? (sites.length ? `${sites.length} site${sites.length === 1 ? '' : 's'} covered${pagesOn ? " · pages join as they're published" : ''}` : 'No sites covered yet')
     : ''
   S.push(section({
-    trackingId: 'qa_overview_title', group: G.hdr, size: '1/3', type: 'Card', padding: { top: '0', bottom: '0' },
-    data: dwPages({
+    // wider when there are no page figures beside it
+    trackingId: 'qa_overview_title', group: G.hdr, size: pagesOn ? '1/3' : '2/3', type: 'Card', padding: { top: '0', bottom: '0' },
+    data: dwTickets({
       columns: [
         staticCell('title', 'Overview', { valueFontStyle: T.pageTitle }),
         staticCell('sites', sitesLine, { valueFontStyle: T.body, cellPaddingTop: 2 }),
+        ONE_ROW,
       ],
       display: { ...AGG, cardStyle: 'qa_header', cellsGridSize: 1 },
     }),
@@ -76,17 +91,19 @@ export function overviewPage(ctx) {
     cellPaddingTop: 10, cellPaddingBottom: 10, cellPaddingLeft: 16, cellPaddingRight: 16, ...over,
   })
   const FIGS = { ...AGG, cardStyle: 'qa_header', cellsGridSize: 2, reverse: true }
-  S.push(section({
-    trackingId: 'qa_overview_page_counts', group: G.hdr, size: '1/3', type: 'Card', ...PANEL, padding: { top: '0', bottom: '0' },
-    data: dwPages({
-      columns: [
-        figure('count(*)::text as n_pages', 'n_pages', 'pages tracked'),
-        figure(`${stageCount('Client Acceptance')} as n_accepted`, 'n_accepted', 'client accepted', { cellBorderLeft: true }),
-      ],
-      filters: byCovered,
-      display: FIGS,
-    }),
-  }))
+  if (pagesOn) {
+    S.push(section({
+      trackingId: 'qa_overview_page_counts', group: G.hdr, size: '1/3', type: 'Card', ...PANEL, padding: { top: '0', bottom: '0' },
+      data: dwPages({
+        columns: [
+          figure('count(*)::text as n_pages', 'n_pages', 'pages tracked'),
+          ...(stagesOn ? [figure(`${stageCount('Client Acceptance')} as n_accepted`, 'n_accepted', 'client accepted', { cellBorderLeft: true })] : []),
+        ],
+        filters: byCovered,
+        display: { ...FIGS, cellsGridSize: stagesOn ? 2 : 1 },
+      }),
+    }))
+  }
   S.push(section({
     trackingId: 'qa_overview_ticket_counts', group: G.hdr, size: '1/3', type: 'Card', ...PANEL, padding: { top: '0', bottom: '0' },
     data: dwTickets({
@@ -100,7 +117,7 @@ export function overviewPage(ctx) {
   }))
 
   // ── how delivery works: one step per stage (its live page count), who does it and what ──
-  S.push(section({
+  if (stagesOn) S.push(section({
     trackingId: 'qa_overview_stages', group: G.how, type: 'Card', ...PANEL,
     data: dwPages({
       columns: [
@@ -117,14 +134,16 @@ export function overviewPage(ctx) {
   }))
 
   // ── no sites yet: say so, and where to turn one on ──
-  if (ctx.sites && !sites.length) {
+  if (noSites) {
+    const after = pagesOn ? 'Its published pages join on their own; nothing on the site changes.' : 'Its pages then show Report an issue.'
     S.push(section({
       trackingId: 'qa_overview_no_sites', group: G.how, type: 'Card', ...PANEL,
-      data: dwPages({
+      data: dwTickets({
         columns: [
           staticCell('ns_title', 'No sites covered yet', { valueFontStyle: T.cardTitle }),
-          staticCell('ns_body', "Turn a site on in the install's Configure tab (admin pages). Its published pages join on their own; nothing on the site changes.",
+          staticCell('ns_body', `Turn a site on in the install's Configure tab (admin pages). ${after}`,
             { valueFontStyle: T.body, cellPaddingTop: 6 }),
+          ONE_ROW,
         ],
         display: { ...AGG, cardStyle: 'qa_summary', cellsGridSize: 1, cardsPadding: 24 },
       }),
@@ -133,32 +152,40 @@ export function overviewPage(ctx) {
 
   // ── one group per covered site: header (identity + stage bar | tickets bar), then its pages.
   // The band is the card (qa_site), collapsible and collapsed at first: the header stays, the pages
-  // table opens from the corner toggle. ──
+  // table opens from the corner toggle. Without a page inventory there's no table, so nothing to
+  // collapse, and the header is the site's name beside its tickets bar. ──
   sites.forEach((site, i) => {
     const key = `${site.surface}`.replace(/[^a-z0-9_]/gi, '_')
     const g = `overview_site_${key}`
-    groups.push({ ...group(g, 2 + i, site.surface_label || site.surface, 'qa_site'), collapsible: true, startCollapsed: true })
+    groups.push({ ...group(g, 2 + i, site.surface_label || site.surface, 'qa_site'), ...(pagesOn ? { collapsible: true, startCollapsed: true } : {}) })
     const bySite = [{ col: 'surface', op: 'filter', value: [site.surface] }]
     const LINE = { color: 'var(--t-rule)' }
+    const name = staticCell('ttl', site.surface_label || site.surface, { valueFontStyle: T.cardTitle })
+    // its page count, then (with stages) the stage bar beside it; the bar reads sibling count
+    // columns, and its legend is the breakdown
+    const siteColumns = !pagesOn ? [name, ONE_ROW] : [
+      name,
+      ...(stagesOn ? [staticCell('s_lbl', 'stages', { valueFontStyle: T.eyebrow, cellPaddingTop: 4 })] : []),
+      agg(`('${sqlText(site.surface)} · ' || count(*) || ' page' || (case when count(*) = 1 then '' else 's' end)) as meta`, 'meta', { valueFontStyle: T.mono }),
+      ...(stagesOn ? [
+        ...PAGE_STAGES.map((stage) => agg(`${stageCount(stage)} as seg_${STAGE_SHORT[stage]}`, `seg_${STAGE_SHORT[stage]}`, { selectOnly: true })),
+        agg('count(*)::text as bar_total', 'bar_total', {
+          type: 'stacked_bar', cellPaddingTop: 6,
+          segments: PAGE_STAGES.map((stage) => ({ col: `seg_${STAGE_SHORT[stage]}`, label: STAGE_PHRASE[stage], color: STAGE_KEY[stage] })),
+        }),
+      ] : []),
+    ]
     // the header's two halves sit side by side in the card, and no section in the card has a gutter
     // (the card's own width allows for it, qa.theme.js qa_site); equal heights
     S.push(section({
       trackingId: `qa_overview_${key}_title`, group: g, size: '2/3', type: 'Card', height: 'fill', showWhenCollapsed: true,
       padding: { top: '0', right: '0', bottom: '0', left: '0' },
-      data: dwPages({
-        columns: [
-          staticCell('ttl', site.surface_label || site.surface, { valueFontStyle: T.cardTitle }),
-          staticCell('s_lbl', 'stages', { valueFontStyle: T.eyebrow, cellPaddingTop: 4 }),
-          agg(`('${sqlText(site.surface)} · ' || count(*) || ' page' || (case when count(*) = 1 then '' else 's' end)) as meta`, 'meta', { valueFontStyle: T.mono }),
-          // the bar reads sibling count columns; its legend is the breakdown
-          ...PAGE_STAGES.map((stage) => agg(`${stageCount(stage)} as seg_${STAGE_SHORT[stage]}`, `seg_${STAGE_SHORT[stage]}`, { selectOnly: true })),
-          agg('count(*)::text as bar_total', 'bar_total', {
-            type: 'stacked_bar', cellPaddingTop: 6,
-            segments: PAGE_STAGES.map((stage) => ({ col: `seg_${STAGE_SHORT[stage]}`, label: STAGE_PHRASE[stage], color: STAGE_KEY[stage] })),
-          }),
-        ],
+      data: (pagesOn ? dwPages : dwTickets)({
+        columns: siteColumns,
         filters: bySite,
-        display: { ...AGG, cardStyle: 'qa_summary', cellsGridSize: 2, cellsTracksTemplate: 'minmax(0,1fr) minmax(0,1.1fr)', cellsColumnGap: 24, cardsPadding: 20 },
+        display: stagesOn
+          ? { ...AGG, cardStyle: 'qa_summary', cellsGridSize: 2, cellsTracksTemplate: 'minmax(0,1fr) minmax(0,1.1fr)', cellsColumnGap: 24, cardsPadding: 20 }
+          : { ...AGG, cardStyle: 'qa_summary', cellsGridSize: 1, cardsPadding: 20 },
       }),
     }))
     S.push(section({
@@ -181,21 +208,21 @@ export function overviewPage(ctx) {
     }))
     // Each page with its open-ticket count, read live: the tickets join on page_key and the rows
     // group by page (TransportNY's sync stored this count as `open_bugs`). Joined, so every
-    // column is alias-prefixed (joinDataset).
-    S.push(section({
+    // column is alias-prefixed (joinDataset). In stage order with stages, else by name.
+    if (pagesOn) S.push(section({
       trackingId: `qa_overview_${key}_pages`, group: g, type: 'Spreadsheet',
       border: { top: true, ...LINE }, padding: { top: '0', right: '0', left: '0' },
       data: dwPages({
         columns: [
           // stage order, without a stored stage_order; an aggregate, as the rows are grouped
-          { name: `min${STAGE_RANK} as stage_rank`, type: 'calculated', normalName: 'stage_rank', display_name: '', customName: '', show: true, fn: 'exempt', formatFn: ' ', hideHeader: true, size: 0, sort: 'asc' },
+          ...(stagesOn ? [{ name: `min${STAGE_RANK} as stage_rank`, type: 'calculated', normalName: 'stage_rank', display_name: '', customName: '', show: true, fn: 'exempt', formatFn: ' ', hideHeader: true, size: 0, sort: 'asc' }] : []),
           {
             name: 'ds.name', customName: 'Page', show: true, group: true, justify: 'left', isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'ds.page_key',
-            size: 220, stretch: true, valueFontStyle: T.strong,
+            size: 220, stretch: true, valueFontStyle: T.strong, ...(stagesOn ? {} : { sort: 'asc' }),
           },
           // a blank header: an empty customName falls back to the column name
           { name: 'ds.route', customName: ' ', show: true, group: true, justify: 'left', size: 180, valueFontStyle: T.mono },
-          { name: 'ds.stage', customName: 'Stage', type: 'stage_progress', stages: PAGE_STAGES, activeStyle: 'qa_ramp', show: true, group: true, justify: 'left', size: 210 },
+          ...(stagesOn ? [{ name: 'ds.stage', customName: 'Stage', type: 'stage_progress', stages: PAGE_STAGES, activeStyle: 'qa_ramp', show: true, group: true, justify: 'left', size: 210 }] : []),
           // an open count, '—' for none
           calc(`(case when (count(*) filter (where t.data->>'status' in ${OPEN})) = 0 then '—' else (count(*) filter (where t.data->>'status' in ${OPEN}))::text end) as open_n`,
             'open_n', { customName: 'Open tickets', justify: 'right', size: 130, valueFontStyle: T.body }),
@@ -223,13 +250,14 @@ export function overviewPage(ctx) {
   } else {
     S.push(section({
       trackingId: 'qa_overview_activity', group: G.end, type: 'Card',
-      data: dwPages({
+      data: dwTickets({
         columns: [
           staticCell('a_title', 'Recent activity', { valueFontStyle: T.cardTitle }),
           staticCell('a_tag', 'needs set-up', { type: 'status_pill', pillColors: { 'needs set-up': 'qa_planned' }, cellVAlign: 'center' }),
           staticCell('a_fill', ''),
           staticCell('a_note', "Tickets filed and their status changes list here once the install's change history is on: finish set-up on the install's datasets card (admin pages).",
             { valueFontStyle: T.small, cellSpan: 3, cellPaddingTop: 6 }),
+          ONE_ROW,
         ],
         display: {
           ...AGG, cardStyle: 'qa_planned', cardBorder: true, cellsGridSize: 3, cellsTracksTemplate: 'max-content max-content minmax(0,1fr)',

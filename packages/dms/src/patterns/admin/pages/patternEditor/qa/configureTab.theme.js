@@ -86,11 +86,24 @@ export const qaConfigureTheme = {
     limitPicker: 'flex-1 min-w-0',
     rowError: 't-metaXS text-[var(--t-brick)] px-4 pb-2 pl-[7.5rem]',
 
-    // features: a placeholder until the switches are built
-    featuresCard: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg',
-    featuresHeader: 'px-4 py-2.5 flex flex-wrap items-center gap-2',
-    featuresGrid: 'px-4 pb-3 grid sm:grid-cols-2 lg:grid-cols-5 gap-2',
-    featureTile: 'rounded-md border border-[var(--t-rule)] px-3 py-2 flex items-center gap-2',
-    featureSwitch: 'w-7 h-4 rounded-full bg-[var(--t-cobalt)] opacity-60 flex-none',
-    featureName: 't-proseXS text-[var(--t-graphite)]',
+    // features: the install's switches, one block per group (patterns/qa/features.js), each group's
+    // features indented under its own switch
+    featuresBody: 'divide-y divide-[var(--t-rule)]',
+    featureGroup: 'px-4 py-3 flex flex-col gap-3',
+    featureGroupRow: 'flex items-center gap-3',
+    featureGroupSwitch: 'flex-none flex',
+    featureGroupText: 'flex flex-col min-w-0 flex-1',
+    featureGroupName: 't-proseSM !font-medium text-[var(--t-ink)]',
+    featureGroupDesc: 't-proseXS text-[var(--t-graphite)]',
+    featureGroupCount: 't-metaXS text-[var(--t-pencil)] flex-none',
+    featureList: 'ml-4 pl-5 border-l border-[var(--t-rule)] flex flex-col gap-2.5',
+    featureRow: 'flex items-start gap-3',
+    // a switch's cell: level with the first line of text; a blocked one dimmed, not clickable-looking
+    featureSwitch: 'flex-none pt-0.5',
+    featureSwitchBlocked: 'flex-none pt-0.5 opacity-40 [&_[role=switch]]:cursor-not-allowed',
+    featureText: 'flex flex-col min-w-0',
+    featureName: 't-proseSM text-[var(--t-ink)]',
+    featureNameOff: 't-proseSM text-[var(--t-graphite)]',
+    featureDesc: 't-proseXS text-[var(--t-pencil)]',
+    featureBlocked: 't-metaXS text-[var(--t-amber)]',
 }

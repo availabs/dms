@@ -163,9 +163,12 @@ export function backfillRows({ site, pages = [], existing = [], urlFor, now = ne
 //   createRow(ref, data) / updateRow(ref, data)  (data.id) → one write
 //   loadPages(pattern)      → the pattern's pages ({url_slug, title, published}); [] for one without
 //   urlFor(pattern, page)   → the live page's address, when the caller can tell it
-// `datasets`: the install's refs (`qa.datasets`). Returns what it did, for the tab to report.
-export async function saveConfigure({ entries = [], datasets = {}, app, now, loadRows, createRow, updateRow, loadPages, urlFor }) {
-  const backfill = entries.filter(needsBackfill)
+// `datasets`: the install's refs (`qa.datasets`). The install's switches (features.js), as the Save
+// leaves them: `trackPages` false (page inventory off) adds no pages; `backfillAll` (page inventory
+// just switched on) adds every covered site's published pages, not only the changed sites'.
+// Returns what it did, for the tab to report.
+export async function saveConfigure({ entries = [], datasets = {}, app, now, loadRows, createRow, updateRow, loadPages, urlFor, trackPages = true, backfillAll = false }) {
+  const backfill = !trackPages ? [] : entries.filter(backfillAll ? (entry) => entry.enabled : needsBackfill)
   const writes = configureWrites(entries, { app })
   for (const { data } of writes) {
     if (data.id) await updateRow(datasets.patterns, data)

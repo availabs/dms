@@ -13,6 +13,9 @@ import {
   groupEntries, switchEntry, moveEntry, fieldEdited, describeEdits,
 } from "../../../../qa/configure";
 import { DEFAULT_STATUSES, OUTCOMES, PAGE_STAGES } from "../../../../qa/ticketRecord";
+import {
+  FEATURE_GROUPS, storedFeatures, hasFeature, setFeature, setGroup, groupState, featureBlocked, describeFeatureEdits,
+} from "../../../../qa/features";
 import { STATUS_PILL } from "../../../../qa/pages/helpers";
 import { QA_TOKENS_FONT, STAGE_MARKERS, qaPillClass } from "../../../../qa/qa.theme";
 import { QaPatternSettings } from "../default/settings";
@@ -22,18 +25,19 @@ import { qaConfigureTheme } from "./configureTab.theme";
 // The covered-sites columns this tab reads back, with the row id for updates.
 const ROW_COLUMNS = ['id', ...COVERED_SITE_COLUMNS, 'app', 'subdomain', 'base_url'];
 
-// The parts of an install the feature switches will turn off (later; shown as a placeholder).
-const FEATURES = ['Tickets', 'Page inventory', 'Page stages', 'Stories', 'Overview'];
+// The install row without its switches, to tell a dataset set-up change from a switch change.
+const withoutFeatures = (row) => ({ ...row, qa: { ...(row?.qa || {}), features: undefined } });
 
 const trimSlashes = (s) => `${s || ''}`.replace(/^\/+|\/+$/g, '');
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-// A QA install's Configure tab (QA installs only): its datasets, its ticket record (read-only), and
-// which of the site's patterns it covers (short key, label, order, page limit). The covered sites
-// are the install's covered-sites dataset (patterns/qa/configure.js); switching a site on also adds
-// its published pages. One Save writes it all: the dataset rows through dmsDataEditor (one reload
-// at the end, not one per row as apiUpdate would), then the pattern row through apiUpdate when
-// "finish set-up" changed it.
+// A QA install's Configure tab (QA installs only): its datasets, its ticket record (read-only),
+// which of the site's patterns it covers (short key, label, order, page limit), and its feature
+// switches (patterns/qa/features.js, stored on the row as `qa.features`). The covered sites are the
+// install's covered-sites dataset (patterns/qa/configure.js); with the page inventory on, switching
+// a site on also adds its published pages. One Save writes it all: the dataset rows through
+// dmsDataEditor (one reload at the end, not one per row as apiUpdate would), then the pattern row
+// through apiUpdate when "finish set-up" or a switch changed it.
 // Keyed by the install, so moving to another install's tab (back/forward, no reload) starts from
 // that install's row: the body's draft and the datasets it loads from are set once, on mount.
 export function QaConfigureTab(props) {
@@ -50,6 +54,10 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
   const { Input, Switch, MultiSelect, DndList, Icon } = UI;
   const { falcor } = useFalcor();
   const [draft, setDraft] = useImmer(value);
+  // The row as this tab last saved it: the loaded row, then each Save's draft. Unsaved edits are the
+  // draft's differences from it, not from `value`: the reload after a save brings fields the server
+  // restamps (updated_at), which would read as an edit that never clears.
+  const [baseline, setBaseline] = useState(value);
   const [loaded, setLoaded] = useState(null); // { entries, others, used, elsewhere, pagesCount }
   const [entries, setEntries] = useState([]);
   const [pagesFor, setPagesFor] = useState({}); // pattern id → its pages, for the page-limit picker
@@ -100,8 +108,19 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
   const savedById = new Map(saved.map((e) => [e.pattern.id, e]));
   const errors = loaded ? configureErrors(entries, { elsewhere: loaded.elsewhere, others: loaded.others }) : {};
   const hasErrors = Object.keys(errors).length > 0;
-  const setupChanged = !isEqual(draft, value);
-  const edits = [...(setupChanged ? ['dataset set-up'] : []), ...(loaded ? describeEdits(entries, saved) : [])];
+  const setupChanged = !isEqual(draft, baseline);
+  // the switches as stored (an install from before them reads as the Delivery QA set)
+  const features = storedFeatures(draft);
+  const featureOn = (key) => hasFeature(draft, key);
+  const setFeatures = (next) => setDraft((d) => {
+    if (!d.qa) d.qa = {};
+    d.qa.features = next;
+  });
+  const edits = [
+    ...(!isEqual(withoutFeatures(draft), withoutFeatures(baseline)) ? ['dataset set-up'] : []),
+    ...describeFeatureEdits(features, storedFeatures(baseline)),
+    ...(loaded ? describeEdits(entries, saved) : []),
+  ];
   const isDirty = edits.length > 0;
   const { on, off } = groupEntries(entries);
   const setEntry = (id, key, v) => setEntries((list) => list.map((e) => (e.pattern.id === id ? { ...e, [key]: v } : e)));
@@ -120,14 +139,21 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
     setError('');
     setMessage('');
     try {
+      // the page inventory as this Save leaves it: off adds no pages, just switched on adds every
+      // covered site's
+      const pagesOn = hasFeature(draft, 'page_inventory');
       const result = loaded ? await saveConfigure({
         entries, datasets, app,
+        trackPages: pagesOn, backfillAll: pagesOn && !hasFeature(baseline, 'page_inventory'),
         loadRows: read, createRow: write, updateRow: write, loadPages,
         // A pattern on its own subdomain is served from another host, which this page can't tell.
         urlFor: (pattern, page) => (pattern.subdomain ? undefined
           : `${window.location.origin}${trimSlashes(pattern.base_url) ? `/${trimSlashes(pattern.base_url)}` : ''}/${page.url_slug}`),
       }) : { saved: 0, added: [] };
-      if (setupChanged) await apiUpdate({ data: draft });
+      if (setupChanged) {
+        await apiUpdate({ data: draft });
+        setBaseline(draft);
+      }
       const added = result.added.map((a) => `added ${plural(a.pages, 'page')} from ${a.pattern}`);
       setMessage(['saved', ...added].join(' · '));
       await load();
@@ -140,7 +166,7 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
   };
 
   const reset = () => {
-    setDraft(value);
+    setDraft(baseline);
     setEntries(saved);
     setMessage('');
   };
@@ -221,12 +247,12 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
             <span className={t.headerTitle}>{value.name || 'QA'}</span>
             <span className={t.headerTypePill}>{Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type}</span>
           </div>
-          <span className={t.headerSubtitle}>which of this site's patterns the install covers, and how it labels them</span>
+          <span className={t.headerSubtitle}>which of this site's patterns the install covers, how it labels them, and which features it uses</span>
         </div>
         <span className={t.spacer} />
         <div className={t.stats}>
           {stat(loaded ? saved.filter((e) => e.enabled).length : null, 'sites covered')}
-          {stat(loaded ? loaded.pagesCount : null, 'pages tracked')}
+          {hasFeature(baseline, 'page_inventory') && stat(loaded ? loaded.pagesCount : null, 'pages tracked')}
           {stat(linked, 'datasets', `${linked}/${QA_DATASETS.length}`)}
         </div>
       </div>
@@ -279,7 +305,7 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
                   {OUTCOMES.map((o) => <span key={o} className={qaPillClass('qa_tag')}>{o}</span>)}
                 </div>
               </div>
-              <div className={t.recordRow}>
+              {featureOn('page_stages') && <div className={t.recordRow}>
                 <span className={t.recordLabel}>page stages</span>
                 <div className={t.recordStages}>
                   {PAGE_STAGES.map((s, i) => (
@@ -289,7 +315,7 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
                     </React.Fragment>
                   ))}
                 </div>
-              </div>
+              </div>}
             </div>
           </div>
         </div>
@@ -298,7 +324,9 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
       <div className={t.card}>
         <div className={t.cardHeader}>
           <span className={t.cardHeaderLabel}>covered sites</span>
-          <span className={t.cardHeaderHint}>switching a site on adds its published pages now; later publishes add the rest</span>
+          <span className={t.cardHeaderHint}>{featureOn('page_inventory')
+            ? 'switching a site on adds its published pages now; later publishes add the rest'
+            : 'switching a site on shows Report an issue on its pages'}</span>
         </div>
         {!datasets.patterns ? (
           <p className={t.note}>
@@ -329,19 +357,49 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
         )}
       </div>
 
-      <div className={t.featuresCard}>
-        <div className={t.featuresHeader}>
+      <div className={t.card}>
+        <div className={t.cardHeader}>
           <span className={t.cardHeaderLabel}>features</span>
-          <span className={qaPillClass('qa_planned')}>planned</span>
-          <span className={t.cardHeaderHint}>turn parts of the install off; off hides, never deletes</span>
+          <span className={t.cardHeaderHint}>tickets are always on; switching a feature off hides it and keeps its data</span>
         </div>
-        <div className={t.featuresGrid}>
-          {FEATURES.map((f) => (
-            <div key={f} className={t.featureTile}>
-              <span className={t.featureSwitch} aria-hidden />
-              <span className={t.featureName}>{f}</span>
-            </div>
-          ))}
+        <div className={t.featuresBody}>
+          {/* a group shows once it has a feature to switch */}
+          {FEATURE_GROUPS.filter((g) => g.features.length).map((g) => {
+            const state = groupState(features, g.key);
+            return (
+              <div key={g.key} className={t.featureGroup}>
+                <div className={t.featureGroupRow}>
+                  <span className={t.featureGroupSwitch}>
+                    <Switch size={'small'} label={g.label} enabled={state.on} setEnabled={(v) => setFeatures(setGroup(features, g.key, !!v))} />
+                  </span>
+                  <div className={t.featureGroupText}>
+                    <span className={t.featureGroupName}>{g.label}</span>
+                    <span className={t.featureGroupDesc}>{g.description}</span>
+                  </div>
+                  <span className={t.featureGroupCount}>{state.count} of {state.total} on</span>
+                </div>
+                <div className={t.featureList}>
+                  {g.features.map((f) => {
+                    const blocked = featureBlocked(features, f.key);
+                    const on = featureOn(f.key);
+                    return (
+                      <div key={f.key} className={t.featureRow}>
+                        {/* the shared Switch has no disabled look; a blocked one is dimmed here */}
+                        <span className={blocked ? t.featureSwitchBlocked : t.featureSwitch}>
+                          <Switch size={'small'} label={f.label} enabled={on} disabled={Boolean(blocked)} setEnabled={(v) => setFeatures(setFeature(features, f.key, !!v))} />
+                        </span>
+                        <div className={t.featureText}>
+                          <span className={on ? t.featureName : t.featureNameOff}>{f.label}</span>
+                          <span className={t.featureDesc}>{f.description}</span>
+                          {blocked && <span className={t.featureBlocked}>{blocked}</span>}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

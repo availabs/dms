@@ -45,8 +45,8 @@ registerPatternTypes({
   },
   qa: {
     siteConfig: qaConfig,
-    label: 'Ticketing / QA',
-    description: 'Issue reports, tickets and page QA',
+    label: 'Tickets',
+    description: 'Tickets, delivery QA and help desk',
     admin: { addable: true, order: 50, defaultName: 'QA' },
     // the qa pattern's look; withQaTheme applies it on QA pages only (qa/withQaTheme.js)
     defaultTheme: qaTheme,

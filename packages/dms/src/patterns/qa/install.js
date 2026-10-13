@@ -185,29 +185,36 @@ async function resolveEnvironment({ falcor, app, siteId, siteInstance, recordedE
     || await createDefaultEnvironment({ falcor, app, siteInstance, site })
 }
 
+// A new install's starting `qa` settings, written with its pattern row (Add Pattern): no switches on
+// (features.js), so it starts with the shared tickets core. A fresh object each call.
+export const newInstallQa = () => ({ version: 1, features: [] })
+
 // Sets up a QA install's datasets, right after its pattern row is created and again from its
 // Overview to finish an interrupted run. The row is written first (its environment, an empty
 // record, and permissions private to the site's admins as new sites' patterns are,
 // createSite.jsx), then updated after each dataset. Permissions are only set when the row has
 // none, so a re-run never overrides ones an admin chose. Last, the change history is switched on
 // (planQaChangeHistory), which is also what a re-run does for an install made before it existed.
+// Each write replaces the row's whole `qa` key, so it carries the row's other `qa` settings (its
+// switches) along.
 // Returns { env, datasets, authPermissions } (the permissions it wrote, or undefined).
 export async function installQa({ falcor, app, siteId, siteInstance, patternId, instance, installName, patterns }) {
   const pattern = await loadItemFresh(falcor, app, patternId)
   if (!pattern) throw new Error('Could not read the pattern.')
   const have = pattern.data?.qa?.datasets || {}
+  const qa = { ...(pattern.data?.qa || {}), version: 1 }
   const env = await resolveEnvironment({ falcor, app, siteId, siteInstance, recordedEnvId: pattern.data?.dmsEnvId, patterns })
   const authPermissions = pattern.data?.authPermissions
     ? undefined
     : JSON.stringify({ groups: { [`${app} Admin`]: ['*'], public: [] }, users: {} })
   await falcor.call(['dms', 'data', 'edit'], [app, +patternId, {
     dmsEnvId: +env.id,
-    qa: { version: 1, datasets: have },
+    qa: { ...qa, datasets: have },
     ...(authPermissions ? { authPermissions } : {}),
   }])
   const datasets = await ensureQaDatasets({
     falcor, app, env, instance, installName, have,
-    onRecorded: recorded => falcor.call(['dms', 'data', 'edit'], [app, +patternId, { qa: { version: 1, datasets: recorded } }]),
+    onRecorded: recorded => falcor.call(['dms', 'data', 'edit'], [app, +patternId, { qa: { ...qa, datasets: recorded } }]),
   })
   for (const edit of await loadQaChangeHistoryPlan({ falcor, app, datasets })) {
     await falcor.call(['dms', 'data', 'edit'], [app, edit.sourceId, edit.data])

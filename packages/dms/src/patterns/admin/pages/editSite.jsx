@@ -7,7 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns, backfillAdminPattern, readSitePatternRefs, mergeSitePatternRefs } from '../../../utils/tenantProvisioning';
-import { qaPreflight, installQa, QA_PATTERN_ENABLED } from '../../qa/install';
+import { qaPreflight, installQa, newInstallQa, QA_PATTERN_ENABLED } from '../../qa/install';
 import { parseIfJSON } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
@@ -397,6 +397,8 @@ function PatternList({
 				alert(problem);
 				return;
 			}
+			// its switches start off, from the first write of the row
+			data.qa = newInstallQa();
 		}
 
 		const patternType = `${siteInstance}|${slug}:pattern`;

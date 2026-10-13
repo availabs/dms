@@ -9,8 +9,11 @@ import {
 // header band (crumb + actions, badges, title, target line), the ticket's body and details rail (both
 // edited in place), comments and the ticket's change history. The look is the qa pattern's own styles
 // (qa.theme.js). Data shapes are ported from build_cr_tickets.mjs (TICKET DETAIL). `ctx` as for
-// ticketsPage.
+// ticketsPage. Without a page inventory (`ctx.features`) the ticket's page isn't a link (there's no
+// Page QA page) and the header has no "open page"; without page stages, no stage meter.
 export function ticketPage(ctx) {
+  const pagesOn = ctx.features.has('page_inventory')
+  const stagesOn = ctx.features.has('page_stages')
   const dw = dataWrapper(ticketsSource(ctx))
   const G = { hdr: 'ticket_header', body: 'ticket_body', com: 'ticket_comments' }
   // `?id=` → the DMS row id. `id` isn't a dataset column, so the filter compiler passes it through
@@ -51,11 +54,11 @@ export function ticketPage(ctx) {
     data: joined([
       rcalc(`('${sqlText(ctx.pattern.name)}  /  Tickets  /  ' || ${tnum('ds.id')}) as crumb`, '', { valueFontStyle: T.crumb }),
       // the tracked page's own address, when it has one
-      rcalc("(case when p.data->>'url' is null then '' else (p.data->>'url') end) as open_url", '', {
+      ...(pagesOn ? [rcalc("(case when p.data->>'url' is null then '' else (p.data->>'url') end) as open_url", '', {
         isLink: true, linkText: 'open page ↗', valueFontStyle: T.buttonSM, justify: 'right',
-      }),
+      })] : []),
       staticCell('alltix', 'all tickets', { isLink: true, location: `${ctx.baseUrl}/tickets`, searchParams: 'none', valueFontStyle: T.buttonSM, justify: 'right' }),
-    ], { cellsGridSize: 3, cellsTracksTemplate: 'minmax(0,1fr) auto auto' }),
+    ], pagesOn ? { cellsGridSize: 3, cellsTracksTemplate: 'minmax(0,1fr) auto auto' } : { cellsGridSize: 2, cellsTracksTemplate: 'minmax(0,1fr) auto' }),
   }))
   // 2 · badges: number · severity · status · priority · who found it
   S.push(section({
@@ -77,23 +80,28 @@ export function ticketPage(ctx) {
   }))
   // 4 · target: the page (site / name), the route it was filed from, and the page's stage
   const siteLabel = siteCase(ctx.siteLabels)
-  S.push(section({
-    trackingId: 'qa_ticket_target', group: G.hdr, type: 'Card', padding: { top: '0', bottom: '0' },
-    data: joined([
-      staticCell('t_lbl', 'target', { valueFontStyle: T.eyebrow }),
-      rcalc(`(${siteLabel} || ' / ' || ${PAGE_DISP.replace(/ as page_disp$/, '')}) as target_disp`, '', {
-        isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'ds.page_key', valueFontStyle: T.link,
-      }),
-      // the route the ticket was filed from, its own (not the page's)
-      col('ds.page_route', '', { hideHeader: true, valueFontStyle: T.mono }),
+  const targetCells = [
+    staticCell('t_lbl', 'target', { valueFontStyle: T.eyebrow }),
+    rcalc(`(${siteLabel} || ' / ' || ${PAGE_DISP.replace(/ as page_disp$/, '')}) as target_disp`, '', pagesOn
+      ? { isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'ds.page_key', valueFontStyle: T.link }
+      : { valueFontStyle: T.body }),
+    // the route the ticket was filed from, its own (not the page's)
+    col('ds.page_route', '', { hideHeader: true, valueFontStyle: T.mono }),
+    ...(stagesOn ? [
       staticCell('t_dot', '·', { valueFontStyle: T.smallMuted }),
       staticCell('t_stage', 'page stage', { valueFontStyle: T.eyebrow }),
       // the library's compact stage meter (accent fill), with the stage name and "n of 6"
       col('p.stage', '', { hideHeader: true, type: 'stage_progress', stages: PAGE_STAGES, activeStyle: 'meter' }),
-      staticCell('t_fill', ''),
+    ] : []),
+    staticCell('t_fill', ''),
+  ]
+  S.push(section({
+    trackingId: 'qa_ticket_target', group: G.hdr, type: 'Card', padding: { top: '0', bottom: '0' },
+    data: joined([
+      ...targetCells,
       // fetched for the page link's searchParamsCol, not shown
       col('ds.page_key', '', { hideHeader: true, selectOnly: true }),
-    ], { cellsGridSize: 7, cellsTracksTemplate: 'repeat(6, max-content) minmax(0,1fr)' }),
+    ], { cellsGridSize: targetCells.length, cellsTracksTemplate: `repeat(${targetCells.length - 1}, max-content) minmax(0,1fr)` }),
   }))
 
   // ── body: the ticket's prose, edited in place. Textarea columns (a text column edits as a
@@ -156,7 +164,9 @@ export function ticketPage(ctx) {
       // The rail is a live-edit Card, so it can't join the pages (see joinDataset): the stored
       // name, else the page key. The header shows the page's live name.
       rcalc("(case when (data->>'page_name') is null or (data->>'page_name') = '' then (data->>'page_key') else (data->>'page_name') end) as target_page", 'Target page',
-        row({ editable: false, isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'page_key', valueFontStyle: T.link })),
+        row(pagesOn
+          ? { editable: false, isLink: true, location: `${ctx.baseUrl}/page?key=`, searchParamsCol: 'page_key', valueFontStyle: T.link }
+          : { editable: false, valueFontStyle: T.body })),
       col('duplicate_of', 'Duplicate of', text({ placeholder: 'Ticket #', cellPaddingBottom: 10 })),
       groupLabel('g_verify', 'verification'),
       col('verified', 'Verified', text({ placeholder: 'Not yet' })),

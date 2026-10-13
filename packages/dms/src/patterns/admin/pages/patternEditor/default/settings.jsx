@@ -652,9 +652,12 @@ export function QaPatternSettings({ value, onChange, apiLoad, reloadKey }) {
         patterns: await loadSitePatterns(apiLoad, app, siteType),
       });
       // The tab's Save sends this whole draft, so it takes the install's writes too.
+      // Only `qa`'s version and datasets: the draft's other `qa` settings (its switches) stay.
       onChange(draft => {
         draft.dmsEnvId = result.env.id;
-        draft.qa = { version: 1, datasets: result.datasets };
+        if (!draft.qa) draft.qa = {};
+        draft.qa.version = 1;
+        draft.qa.datasets = result.datasets;
         if (result.authPermissions) draft.authPermissions = result.authPermissions;
       });
       setFinished(n => n + 1);
