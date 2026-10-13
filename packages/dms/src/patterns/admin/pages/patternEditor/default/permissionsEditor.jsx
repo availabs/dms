@@ -123,6 +123,8 @@ export const PatternPermissionsEditor = ({
                             onChange={(v) => updateSubdomainPermissions(subdomain, v)}
                             permissionDomain={permissionDomain}
                             defaultPermission={defaultPermission}
+                            heading='on this pattern'
+                            inheritedFrom='the site'
                         />
                     </div>
                 </div>

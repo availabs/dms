@@ -47,7 +47,7 @@ const Comps = {
     const theme = getComponentTheme(fullTheme, 'navigableMenu', activeStyle);
     return (
       <Link className={theme?.menuItemIconLabelWrapper} to={menuItem.path}>
-        <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon || 'Blank'} />
+        <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon || theme?.menuItemDefaultIconLink || 'Blank'} />
         <label className={`${theme?.menuItemLabel} ${theme?.menuItemLabelLink}`}>{menuItem.name}</label>
       </Link>
     )
@@ -70,7 +70,7 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, clos
       <div key={menuItem.name} className={`${theme?.menuItem} ${menuItem.noHover ? '' : theme?.menuItemHover}`}>
         {menuItem.showLabel ? (
             <div className={theme?.menuItemIconLabelWrapper}>
-              <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
+              <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon || (menuItem.type === 'toggle' ? theme?.menuItemDefaultIconToggle : theme?.menuItemDefaultIcon) || 'Blank'} />
               <label className={theme?.menuItemLabel}>{menuItem.name}</label>
             </div>
         ) : null}
@@ -111,7 +111,8 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, clos
          onClick={handleClick}
     >
       <div className={theme?.menuItemIconLabelWrapper}>
-        <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon} />
+        {/* no icon named → a generic one by kind (theme menuItemDefaultIcon*); an explicit 'Blank' stays blank */}
+        <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon || (hasChildren ? theme?.menuItemDefaultIcon : theme?.menuItemDefaultIconAction) || 'Blank'} />
         <div className={theme?.menuItemLabel}>{menuItem.name}</div>
       </div>
 

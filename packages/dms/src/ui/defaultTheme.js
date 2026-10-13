@@ -15,6 +15,8 @@ import {fieldTheme} from "./components/FieldSet.theme";
 import {dialogTheme} from "./components/Dialog.theme";
 import {dialogActionsTheme} from "./components/DialogActions.theme";
 import {modalTheme} from "./components/Modal.theme";
+import {deleteModalTheme} from "./components/DeleteModal.theme";
+import {buttonSelectTheme} from "./components/ButtonSelect.theme";
 import {drawerTheme} from "./components/Drawer.theme";
 import {labelTheme} from "./components/Label";
 import {pillTheme} from "./components/Pill.theme";
@@ -145,47 +147,53 @@ const fonts = [
         color-scheme: dark;
       }
 
-      /* Each family reads a --t-font-* variable, falling back to the default face, so a theme can
+      /* The type classes sit in Tailwind's "components" layer so a utility next to them wins
+         ("t-proseSM font-medium", "t-metaMD text-[11px]") — the same result the v6 mockups get
+         (Tailwind CDN after _shared.css). Unlayered, they beat every Tailwind v4 layer and those
+         size / weight tweaks were silently ignored (found 2026-10-07, datasets create page).
+         Each family reads a --t-font-* variable, falling back to the default face, so a theme can
          re-font the type scale (e.g. a site's qa.vars on QA pages). Unset, nothing changes. */
-      .t-displayHero { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 64px; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
-      .t-displayXL   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 44px; line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; }
-      .t-displayLG   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 30px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
-      .t-displayMD   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; }
-      .t-displaySM   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 17px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; }
+      @layer components {
+        .t-displayHero { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 64px; line-height: 1.05; font-weight: 600; letter-spacing: -0.03em; }
+        .t-displayXL   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 44px; line-height: 1.08; font-weight: 600; letter-spacing: -0.025em; }
+        .t-displayLG   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 30px; line-height: 1.15; font-weight: 600; letter-spacing: -0.02em; }
+        .t-displayMD   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 22px; line-height: 1.25; font-weight: 600; letter-spacing: -0.015em; }
+        .t-displaySM   { font-family: var(--t-font-display, "IBM Plex Sans", system-ui, sans-serif); font-size: 17px; line-height: 1.35; font-weight: 600; letter-spacing: -0.01em; }
 
-      .t-proseLG { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 18.5px; line-height: 1.6;  font-weight: 400; letter-spacing: -0.006em; }
-      .t-prose   { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 16px;   line-height: 1.65; font-weight: 400; }
-      .t-proseSM { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 14px;   line-height: 1.55; font-weight: 400; }
-      .t-proseXS { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 12.5px; line-height: 1.5;  font-weight: 400; }
+        .t-proseLG { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 18.5px; line-height: 1.6;  font-weight: 400; letter-spacing: -0.006em; }
+        .t-prose   { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 16px;   line-height: 1.65; font-weight: 400; }
+        .t-proseSM { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 14px;   line-height: 1.55; font-weight: 400; }
+        .t-proseXS { font-family: var(--t-font-prose, "IBM Plex Sans", system-ui, sans-serif); font-size: 12.5px; line-height: 1.5;  font-weight: 400; }
 
-      .t-metaLG { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 14.5px; line-height: 1.7; font-weight: 400; }
-      .t-metaMD { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 13px;   line-height: 1.5; font-weight: 500; }
-      .t-metaSM { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
-      .t-metaXS { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 10px;   line-height: 1.3; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
+        .t-metaLG { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 14.5px; line-height: 1.7; font-weight: 400; }
+        .t-metaMD { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 13px;   line-height: 1.5; font-weight: 500; }
+        .t-metaSM { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 11.5px; line-height: 1.4; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; }
+        .t-metaXS { font-family: var(--t-font-meta, "IBM Plex Mono", ui-monospace, monospace); font-size: 10px;   line-height: 1.3; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; }
 
-      .t-noteLG { font-family: "Caveat", "Segoe Print", cursive; font-size: 21px; line-height: 1.3; font-weight: 600; }
-      .t-noteMD { font-family: "Caveat", "Segoe Print", cursive; font-size: 17px; line-height: 1.3; font-weight: 600; }
+        .t-noteLG { font-family: "Caveat", "Segoe Print", cursive; font-size: 21px; line-height: 1.3; font-weight: 600; }
+        .t-noteMD { font-family: "Caveat", "Segoe Print", cursive; font-size: 17px; line-height: 1.3; font-weight: 600; }
 
-      /* Faint fading graph-paper texture behind a centered hero/auth band
-         (design_system_v6/_shared.css's .t6-sheet-fade) — pure CSS, only
-         var(--t-grid), so unlike the decorative drafting-sheet grain/hatch/
-         joints this is a plain generic token effect every unbranded project
-         can use too. Absolutely positioned within its own band; the band
-         needs position:relative. */
-      .t6-sheet-fade {
-        position: absolute; inset: 0;
-        pointer-events: none;
-        background-image:
-          linear-gradient(var(--t-grid) 1px, transparent 1px),
-          linear-gradient(90deg, var(--t-grid) 1px, transparent 1px);
-        background-size: 24px 24px;
-        -webkit-mask-image: linear-gradient(to bottom, black 0%, black 45%, transparent 95%);
-        mask-image: linear-gradient(to bottom, black 0%, black 45%, transparent 95%);
-      }
+        /* Faint fading graph-paper texture behind a centered hero/auth band
+           (design_system_v6/_shared.css's .t6-sheet-fade) — pure CSS, only
+           var(--t-grid), so unlike the decorative drafting-sheet grain/hatch/
+           joints this is a plain generic token effect every unbranded project
+           can use too. Absolutely positioned within its own band; the band
+           needs position:relative. */
+        .t6-sheet-fade {
+          position: absolute; inset: 0;
+          pointer-events: none;
+          background-image:
+            linear-gradient(var(--t-grid) 1px, transparent 1px),
+            linear-gradient(90deg, var(--t-grid) 1px, transparent 1px);
+          background-size: 24px 24px;
+          -webkit-mask-image: linear-gradient(to bottom, black 0%, black 45%, transparent 95%);
+          mask-image: linear-gradient(to bottom, black 0%, black 45%, transparent 95%);
+        }
 
-      @media (max-width: 768px) {
-        .t-displayHero { font-size: 42px; letter-spacing: -0.025em; }
-        .t-displayXL   { font-size: 34px; }
+        @media (max-width: 768px) {
+          .t-displayHero { font-size: 42px; letter-spacing: -0.025em; }
+          .t-displayXL   { font-size: 34px; }
+        }
       }
     `,
   },
@@ -233,6 +241,8 @@ const components = {
     dialog: dialogTheme,
     dialogActions: dialogActionsTheme,
     modal: modalTheme,
+    deleteModal: deleteModalTheme,
+    buttonSelect: buttonSelectTheme,
     drawer: drawerTheme,
     label: labelTheme,
     pill: pillTheme,

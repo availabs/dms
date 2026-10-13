@@ -200,5 +200,35 @@ export const multiselectTheme = {
                 'bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]',
             ].join(' '),
         },
+        // Permission pills under each grant in Permissions.jsx (v3 layout, 2026-10-06): readable
+        // labels as soft pills, no field chrome, the caret is the "add" affordance. (Named styles
+        // merge by NAME — mergeComponentStyles in ui/useTheme.js — so position doesn't matter.)
+        {
+            name: 'permissions',
+            inputWrapper: [
+                'relative flex flex-wrap items-center gap-1.5 w-full min-h-0 rounded-md cursor-pointer',
+                'pl-0 pr-6 py-0.5 bg-transparent',
+                'transition-colors duration-150',
+            ].join(' '),
+            tokenWrapper: 'inline-flex items-center gap-1 rounded-full pl-2.5 pr-1.5 py-0.5 t-proseXS bg-[var(--t-well)] text-[var(--t-ink)]',
+            singlePlaceholder: 'truncate t-proseXS text-[var(--t-pencil)]',
+            caretIcon: 'w-3.5 h-3.5 stroke-[var(--t-pencil)]',
+        },
+        // 'input' — the default trigger with UI.Input's own padding (px-3 py-2.5, text-sm, 1px border)
+        // instead of a min height, so a select is the same height as the text inputs beside it and
+        // stays consistent with them (datasets metadata editor's column type, 2026-10-07). Opt-in;
+        // every other key inherits from styles[0].
+        {
+            name: 'input',
+            inputWrapper: [
+                'relative flex flex-wrap items-center gap-1 w-full rounded-md cursor-pointer',
+                'pl-3 pr-7 py-2.5',
+                'border border-[var(--t-rule-strong)] hover:border-[var(--t-graphite)]',
+                'bg-[var(--t-panel)]',
+                'font-sans text-sm text-[var(--t-ink)]',
+                'focus-within:ring-1 focus-within:ring-[var(--t-cobalt)] focus-within:border-[var(--t-cobalt)]',
+                'transition-colors duration-150',
+            ].join(' '),
+        },
     ],
 };

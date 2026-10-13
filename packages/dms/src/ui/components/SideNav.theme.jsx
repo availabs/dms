@@ -15,20 +15,24 @@ const sideNavTheme = {
       // Menu structure
       menuItemWrapper: "flex flex-1 flex-col gap-px",
       menuItemWrapper_level_1: '',
-      menuItemWrapper_level_2: 'ml-4 border-l border-[var(--t-rule)]',
-      menuItemWrapper_level_3: 'ml-4 border-l border-[var(--t-rule)]',
-      menuItemWrapper_level_4: 'ml-4',
-      // Nav items
+      // Child pages: ONE hairline down the left of the group (subMenuWrapper_N), not one per item.
+      menuItemWrapper_level_2: '',
+      menuItemWrapper_level_3: '',
+      menuItemWrapper_level_4: '',
+      // Nav items — tessera v6 (page-view.html sidenav), 2026-10-08. SideNavItem renders an item's
+      // sub-menu INSIDE its own row wrapper, so a background / padding on navitemSide* would cover
+      // the children too. The row chrome therefore targets only the item's own row
+      // (`[&>div>div:first-child]` = navItemRow) — the active page gets a well background in ink,
+      // its child pages stay outside it. No accent colour (was cobalt).
       navitemSide: `
-        group w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-normal text-[var(--t-graphite)]
-        hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]
-        cursor-pointer transition-colors duration-150`,
+        group w-full flex flex-col font-sans text-sm font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:px-2 [&>div>div:first-child]:py-1.5 [&>div>div:first-child]:rounded-md
+        [&>div>div:first-child:hover]:bg-[var(--t-well)] [&>div>div:first-child:hover]:text-[var(--t-ink)]
+        transition-colors duration-150`,
       navitemSideActive: `
-        group w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-medium text-[var(--t-cobalt)]
-        bg-[var(--t-cobalt-soft)]
-        cursor-pointer`,
+        group w-full flex flex-col font-sans text-sm font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:px-2 [&>div>div:first-child]:py-1.5 [&>div>div:first-child]:rounded-md
+        [&>div>div:first-child]:bg-[var(--t-well)] [&>div>div:first-child]:text-[var(--t-ink)] [&>div>div:first-child]:font-medium`,
       // Depth-2/3/4 variants use a NAMED group (`group/lvl2` etc.) instead of
       // the plain `group` every level shares by default. A submenu item's row
       // nests inside its parent's own `group`-classed row (SideNavItem renders
@@ -40,39 +44,35 @@ const sideNavTheme = {
       // icons" bug, found 2026-09-17). A depth-specific name scopes the
       // selector to that level's own row only, since it no longer matches the
       // ancestor's unnamed `.group`.
+      // Child rows sit on the group's hairline: a transparent 2px left edge pulled over the line
+      // (-ml-px), ink on the active page.
       navitemSide_level_2: `
-        group/lvl2 w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-normal text-[var(--t-graphite)]
-        hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]
-        cursor-pointer transition-colors duration-150`,
+        group/lvl2 w-full flex flex-col text-sm font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:pl-4 [&>div>div:first-child]:pr-2 [&>div>div:first-child]:py-1 [&>div>div:first-child]:-ml-px [&>div>div:first-child]:border-l-2 [&>div>div:first-child]:border-transparent
+        [&>div>div:first-child:hover]:text-[var(--t-ink)] transition-colors duration-150`,
       navitemSideActive_level_2: `
-        group/lvl2 w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-medium text-[var(--t-cobalt)]
-        bg-[var(--t-cobalt-soft)]
-        cursor-pointer`,
+        group/lvl2 w-full flex flex-col text-sm font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:pl-4 [&>div>div:first-child]:pr-2 [&>div>div:first-child]:py-1 [&>div>div:first-child]:-ml-px [&>div>div:first-child]:border-l-2 [&>div>div:first-child]:border-[var(--t-ink)]
+        [&>div>div:first-child]:text-[var(--t-ink)] [&>div>div:first-child]:font-medium`,
       navitemSide_level_3: `
-        group/lvl3 w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-normal text-[var(--t-graphite)]
-        hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]
-        cursor-pointer transition-colors duration-150`,
+        group/lvl3 w-full flex flex-col text-sm font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:pl-4 [&>div>div:first-child]:pr-2 [&>div>div:first-child]:py-1 [&>div>div:first-child]:-ml-px [&>div>div:first-child]:border-l-2 [&>div>div:first-child]:border-transparent
+        [&>div>div:first-child:hover]:text-[var(--t-ink)] transition-colors duration-150`,
       navitemSideActive_level_3: `
-        group/lvl3 w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-medium text-[var(--t-cobalt)]
-        bg-[var(--t-cobalt-soft)]
-        cursor-pointer`,
+        group/lvl3 w-full flex flex-col text-sm font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:pl-4 [&>div>div:first-child]:pr-2 [&>div>div:first-child]:py-1 [&>div>div:first-child]:-ml-px [&>div>div:first-child]:border-l-2 [&>div>div:first-child]:border-[var(--t-ink)]
+        [&>div>div:first-child]:text-[var(--t-ink)] [&>div>div:first-child]:font-medium`,
       navitemSide_level_4: `
-        group/lvl4 w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-normal text-[var(--t-graphite)]
-        hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]
-        cursor-pointer transition-colors duration-150`,
+        group/lvl4 w-full flex flex-col text-xs font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:pl-4 [&>div>div:first-child]:pr-2 [&>div>div:first-child]:py-1 [&>div>div:first-child]:-ml-px [&>div>div:first-child]:border-l-2 [&>div>div:first-child]:border-transparent
+        [&>div>div:first-child:hover]:text-[var(--t-ink)] transition-colors duration-150`,
       navitemSideActive_level_4: `
-        group/lvl4 w-full flex items-center gap-2.5 px-2 py-1.5 mx-1 rounded-md
-        font-sans text-sm font-medium text-[var(--t-cobalt)]
-        bg-[var(--t-cobalt-soft)]
-        cursor-pointer`,
+        group/lvl4 w-full flex flex-col text-xs font-normal text-[var(--t-graphite)] cursor-pointer
+        [&>div>div:first-child]:pl-4 [&>div>div:first-child]:pr-2 [&>div>div:first-child]:py-1 [&>div>div:first-child]:-ml-px [&>div>div:first-child]:border-l-2 [&>div>div:first-child]:border-[var(--t-ink)]
+        [&>div>div:first-child]:text-[var(--t-ink)] [&>div>div:first-child]:font-medium`,
       // Icons
       menuIconSide: "w-4 h-4 text-[var(--t-graphite)] group-hover:text-[var(--t-ink)] transition-colors duration-150",
-      menuIconSideActive: "w-4 h-4 text-[var(--t-cobalt)]",
+      menuIconSideActive: "w-4 h-4 text-[var(--t-ink)]",
       // Matching named group-hover for the level_2/3/4 rows above.
       menuIconSide_level_2: "w-4 h-4 text-[var(--t-graphite)] group-hover/lvl2:text-[var(--t-ink)] transition-colors duration-150",
       menuIconSide_level_3: "w-4 h-4 text-[var(--t-graphite)] group-hover/lvl3:text-[var(--t-ink)] transition-colors duration-150",
@@ -93,9 +93,9 @@ const sideNavTheme = {
       // Nav item content
       navItemContent: "flex items-center gap-2 flex-1",
       navItemContent_level_1: '',
-      navItemContent_level_2: 'font-sans text-sm font-normal',
-      navItemContent_level_3: 'font-sans text-sm font-normal',
-      navItemContent_level_4: 'font-sans text-xs font-normal',
+      navItemContent_level_2: '',
+      navItemContent_level_3: '',
+      navItemContent_level_4: '',
       // Indicator icons for expandable items. Plain "Arrow*" — despite the
       // name these ARE simple chevron carets (icons/icon_defs.jsx); there is
       // no registered "ChevronRight"/"ChevronDown" (only the boxed
@@ -107,9 +107,9 @@ const sideNavTheme = {
       indicatorIconOpen: "ArrowDown",
       indicatorIconWrapper: "w-4 h-4 text-[var(--t-pencil)] transition-transform duration-150",
       // Submenu wrappers
-      subMenuWrapper_1: "mt-px space-y-px",
-      subMenuWrapper_2: "mt-px space-y-px",
-      subMenuWrapper_3: "mt-px space-y-px",
+      subMenuWrapper_1: "ml-4 my-1 flex flex-col border-l border-[var(--t-rule)]",
+      subMenuWrapper_2: "ml-4 my-1 flex flex-col border-l border-[var(--t-rule)]",
+      subMenuWrapper_3: "ml-4 my-1 flex flex-col border-l border-[var(--t-rule)]",
       subMenuOuterWrapper: '',
       subMenuParentWrapper: "flex flex-col",
       subMenuTitle: 'hidden',
@@ -185,6 +185,15 @@ const sideNavTheme = {
       // it sits on the INNER Link/label div, nested inside navitemSide_level_N
       // above, so its own font-family class would otherwise win over the
       // ancestor's t-metaMD.
+      // The default style's child-group / icon values changed 2026-10-08 (one hairline per group,
+      // ink active icon); the admin rail keeps the values it was designed against.
+      menuItemWrapper_level_2: 'ml-4 border-l border-[var(--t-rule)]',
+      menuItemWrapper_level_3: 'ml-4 border-l border-[var(--t-rule)]',
+      menuItemWrapper_level_4: 'ml-4',
+      subMenuWrapper_1: "mt-px space-y-px",
+      subMenuWrapper_2: "mt-px space-y-px",
+      subMenuWrapper_3: "mt-px space-y-px",
+      menuIconSideActive: "w-4 h-4 text-[var(--t-cobalt)]",
       navItemContent_level_2: 't-metaMD',
       navItemContent_level_3: 't-metaMD',
       navItemContent_level_4: 't-metaMD',

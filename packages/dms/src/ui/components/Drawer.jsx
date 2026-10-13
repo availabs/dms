@@ -45,7 +45,9 @@ export default function Drawer ({ open, setOpen, width='max-w-64', children, clo
       role="dialog"
       className={`fixed right-0 top-0 bottom-0 ${width} ${theme.panel} z-50 transition-transform duration-500 ${slidIn ? 'translate-x-0' : 'translate-x-full'}`}
     >
-      <div className="absolute right-2 top-2">
+      {/* z-10: rendered before `children`, so without it a positioned child (e.g. the v6 edit
+          drawer's Tabs wrapper, `relative … pt-14`) paints over the button and eats the click */}
+      <div className="absolute right-2 top-2 z-10">
         <button
           type="button"
           className={theme.closeButton}

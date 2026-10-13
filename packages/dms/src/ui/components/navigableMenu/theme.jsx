@@ -16,7 +16,9 @@ const navigableMenuTheme = {
     // Menu header
     "menuHeaderWrapper": "flex px-2 py-1 justify-between",
     "menuHeaderContent": "flex gap-2 items-center w-full",
-    "menuTitle": "font-semibold text-gray-900",
+    // Title + breadcrumbs: v6 tokens with the old gray as the CSS fallback — readable in dark mode
+    // (was text-gray-900 on the dark panel), unchanged where a theme has no --t-* tokens. 2026-10-08.
+    "menuTitle": "font-semibold text-[var(--t-ink,#111827)]",
     "backButton": "w-fit",
     "backIcon": "ArrowLeft",
     "backIconWrapper": "size-4",
@@ -30,6 +32,13 @@ const navigableMenuTheme = {
     "menuItemHover": "hover:bg-[var(--t-well)]",
     "menuItemIconLabelWrapper": "flex flex-grow items-center gap-2",
     "menuItemIconWrapper": "w-4 h-4 stroke-[var(--t-graphite)] group-hover:stroke-[var(--t-ink)]",
+    // Generic icon for an item that names none (an explicit 'Blank' stays blank — pick lists use it
+    // for their unchecked options). By kind: opens a sub-menu · toggle · plain action · link.
+    // '' → no icon (the old behaviour). 2026-10-08.
+    "menuItemDefaultIcon": "Sliders",
+    "menuItemDefaultIconToggle": "Toggle",
+    "menuItemDefaultIconAction": "Dot",
+    "menuItemDefaultIconLink": "Link",
     "menuItemLabel": "",
     "menuItemLabelLink": "cursor-pointer",
 
@@ -43,10 +52,10 @@ const navigableMenuTheme = {
     "separator": "w-full border-b border-[var(--t-rule)] my-1",
 
     // Breadcrumbs
-    "breadcrumbWrapper": "flex items-center flex-wrap gap-1 px-2 py-1 text-sm text-gray-500 overflow-x-auto",
-    "breadcrumbItem": "font-semibold text-gray-900 hover:text-blue-500 cursor-pointer whitespace-nowrap",
-    "breadcrumbItemActive": "text-gray-700 whitespace-nowrap",
-    "breadcrumbSeparator": "text-gray-300"
+    "breadcrumbWrapper": "flex items-center flex-wrap gap-1 px-2 py-1 text-sm text-[var(--t-graphite,#6b7280)] overflow-x-auto",
+    "breadcrumbItem": "font-semibold text-[var(--t-ink,#111827)] hover:underline underline-offset-2 cursor-pointer whitespace-nowrap",
+    "breadcrumbItemActive": "text-[var(--t-graphite,#374151)] whitespace-nowrap",
+    "breadcrumbSeparator": "text-[var(--t-pencil,#d1d5db)]"
   }]
 }
 

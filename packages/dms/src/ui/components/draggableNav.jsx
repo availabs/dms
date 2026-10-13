@@ -157,7 +157,13 @@ function DraggableNav({
                           baseUrl,
                           apiUpdate,
                           edit = true,
-                          renderAddItemButton = true
+                          renderAddItemButton = true,
+                          // optional overrides of nestable.container / nestable.navListContainer
+                          // (the page editor's Pages pane v3 drops the rule + fixed height)
+                          containerClassName,
+                          listClassName,
+                          // nestableInHouse style for the tree (child indent / rule)
+                          nestableStyle
                       }) {
     const {theme: themeFromContext = {}} = useContext(ThemeContext);
     const theme = {...themeFromContext, nestable: {...nestableTheme, ...(themeFromContext.nestable || {})}}
@@ -229,9 +235,10 @@ function DraggableNav({
     }, {});
 
     return (
-        <div className={theme?.nestable?.container}>
-            <div className={theme?.nestable?.navListContainer}>
+        <div className={containerClassName ?? theme?.nestable?.container}>
+            <div className={listClassName ?? theme?.nestable?.navListContainer}>
                 <Nestable
+                    activeStyle={nestableStyle}
                     dataItems={dataItemsObj}
                     matches={matches}
                     onChange={onDragEnd}
