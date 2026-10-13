@@ -1,6 +1,6 @@
 # New columnType: `priority_tier` — ranked, editable tier pill
 
-**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "LIBRARY CODE COMPLETE — awaiting orchestrator live verification + page wiring"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "LIBRARY CODE COMPLETE — awaiting orchestrator live verification + page wiring") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Status:** LIBRARY CODE COMPLETE — awaiting orchestrator live verification + page wiring
 **Topic:** ui (columnTypes)
@@ -107,3 +107,5 @@ The consuming page is dms-template page **2262755**, Spreadsheet section **22627
 `county_priority`. Wiring that column to `type:'priority_tier'` (+ the attr maps) is done by the
 ORCHESTRATOR after this type ships — not part of this task. Do NOT publish anything; do NOT edit the
 dms-template page here. This task is the library type only.
+
+> **Closed 2026-10-13** with the `mny_county_actions_workflow` initiative (done). The owner: "lets go through the rest the same way". Marked done.

@@ -1,6 +1,6 @@
 # Multi-Tenant DMS
 
-**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** doing (was: "Phase 1–5 COMPLETE; Follow-up — Template landing page at `/`, published (2026-09-23)") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** doing (was: "Phase 1–5 COMPLETE; Follow-up — Template landing page at `/`, published (2026-09-23)") · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu
 
 ## Objective
 
@@ -203,3 +203,5 @@ Once `tenantConfig.app = "acme"` is set, all downstream code is unchanged:
 - [ ] Regular signup on tenant subdomain (existing flow) unchanged
 - [ ] Existing single-tenant site unchanged when `isMultiTenant` is not set
 - [ ] `DMS_SPLIT_MODE=per-app` gives each tenant its own schema (`dms_acme`)
+
+> **Re-linked 2026-10-13** from `dms_multitenant_ssr` (closed at the initiative review) to `tes_self_service_signup`.

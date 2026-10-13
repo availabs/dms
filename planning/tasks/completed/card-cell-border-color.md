@@ -1,6 +1,6 @@
 # Card cell enrichment: `cellBorderColor` — per-cell accent (left) border
 
-**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "NOT STARTED"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "NOT STARTED") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Status:** NOT STARTED
 **Topic:** patterns/page (Card)
@@ -50,3 +50,5 @@ Opt-in; unset → no border → existing cards identical.
 
 Consuming page: dms-template 2262755, Card section 2262757 (stat cells get per-status accent
 colours). Wiring is the orchestrator's job. Do not edit the page or publish here.
+
+> **Closed 2026-10-13** with the `mny_county_actions_workflow` initiative (done). The owner: "lets go through the rest the same way". Marked done.

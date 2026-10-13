@@ -1,6 +1,6 @@
 # Email Redesign
 
-**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** built (was: "Status: COMPLETE") · **Release:** review — email testing checklist never run; then close · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** built (was: "Status: COMPLETE") · **Release:** review — email testing checklist never run; then close · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu
 
 ## Status: COMPLETE
 
@@ -73,3 +73,5 @@ emailTheme: {
 - [ ] Relative logo URL (`/themes/foo/logo.svg`) → absolute URL in email
 - [ ] Site with no logo configured → `logoTitle` text shown in header
 - [ ] SMTP unconfigured → all flows succeed silently (no error thrown)
+
+> **Re-linked 2026-10-13** from `dms_dormant_tracks` (closed at the initiative review) to `tes_self_service_signup`.

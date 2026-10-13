@@ -404,3 +404,26 @@
 - [dataWrapper: pivot + join fixes (join threading + qualified-column double-prefix)](./tasks/completed/pivot-join-column-fixes.md) · done · closed with `tny_npmrds_product_redesign`
 - [dataWrapper pivot: multi-value columns (valueColumns[])](./tasks/completed/pivot-value-columns.md) · done · closed with `tny_npmrds_product_redesign`
 - [Task: Filter leaf "include prior period" — vs-prior deltas from a single page filter](./tasks/completed/filter-include-prior-period.md) · done · closed with `tny_npmrds_product_redesign`
+
+## Closed 2026-10-13 · `mny_county_actions_workflow` (done)
+
+- [Card cell enrichment: `activeOnSearchParam` — link cell active when its params match](./tasks/completed/card-active-on-search-param.md) · done · closed with `mny_county_actions_workflow`
+- [Card cell enrichment: `cellBorderColor` — per-cell accent (left) border](./tasks/completed/card-cell-border-color.md) · done · closed with `mny_county_actions_workflow`
+- [New columnType: `priority_tier` — ranked, editable tier pill](./tasks/completed/columntype-priority-tier.md) · done · closed with `mny_county_actions_workflow`
+- [Filter section interactive chrome: needs-value toggle · active tokens · clear-all](./tasks/completed/filter-interactive-chrome.md) · done · closed with `mny_county_actions_workflow`
+- [Filter system: `empty` / `notempty` operation (is-null / has-a-value)](./tasks/completed/filter-op-empty.md) · done · closed with `mny_county_actions_workflow`
+- [Spreadsheet: inline-expand row detail (`openOutMode: 'inline'`)](./tasks/completed/spreadsheet-inline-openout.md) · done · closed with `mny_county_actions_workflow`
+- [Table provider: `conditional_row_style` — accent a row when a column matches a condition](./tasks/completed/table-conditional-row-style.md) · done · closed with `mny_county_actions_workflow`
+
+## Closed 2026-10-13 · `dms_map_stack` (done)
+
+- [Map Component Unification (`map/` + `map_dama/` → single component)](./tasks/completed/map-component-unification.md) · done · closed with `dms_map_stack`
+- [MapEditor Joins (tile-level linked-data join via a dataWrapper-style query)](./tasks/completed/mapeditor-joins.md) · done · closed with `dms_map_stack`
+
+## Closed 2026-10-13 · `dms_dormant_tracks` (done)
+
+- [Task: DMS MCP Server — Claude Tool for DMS Content Management](./tasks/completed/dms-mcp-server.md) · dropped · closed with `dms_dormant_tracks`
+- [Phase 1: Lexical + textSettings Foundation](./tasks/completed/lexical-phase1-textsettings-foundation.md) · done · closed with `dms_dormant_tracks`
+- [Phase 2: Propagate textSettings to Core Components](./tasks/completed/lexical-phase2-propagate-textsettings.md) · dropped · closed with `dms_dormant_tracks`
+- [Phase 3: Documentation and Migration](./tasks/completed/lexical-phase3-documentation-migration.md) · dropped · closed with `dms_dormant_tracks`
+- [SSR Phase 2: Streaming Server-Side Rendering](./tasks/completed/ssr-streaming.md) · dropped · closed with `dms_dormant_tracks`

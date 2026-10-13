@@ -1,6 +1,6 @@
 # Tenant Subdomain Uniqueness
 
-**Initiatives:** [dms_multitenant_ssr](../../../../../planning/initiatives/dms_multitenant_ssr.md) · **Status:** blocked:decision (was: "Phase 1 — Server-side guard (validation + uniqueness) — COMPLETE … Open Issue: Error Display … This …") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "Phase 1 — Server-side guard (validation + uniqueness) — COMPLETE … Open Issue: Error Display … This …") · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu
 
 ## Objective
 
@@ -186,3 +186,5 @@ tenant row + auth project/group links, optional tenant-data purge). Traced from 
 - [ ] Error message displays correctly (blocked by open issue above)
 - [ ] Single-tenant mode (`isMultiTenant = false`) is completely unaffected
 - [ ] Race condition: two simultaneous creates of the same subdomain → server rejects one
+
+> **Re-linked 2026-10-13** from `dms_multitenant_ssr` (closed at the initiative review) to `tes_self_service_signup`.

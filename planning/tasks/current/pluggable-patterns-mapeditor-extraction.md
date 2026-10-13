@@ -1,6 +1,6 @@
 # Pluggable pattern interface + move `mapeditor` (and the page Map section) out of the library into dms-template
 
-**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built · **Release:** commit — library submodule + dms-template together (src/patterns/, package.json deps); transportNY sync after · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) · **Status:** built · **Release:** commit — library submodule + dms-template together (src/patterns/, package.json deps); transportNY sync after · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Project:** DMS library (+ dms-template as the first external consumer) · **Topic:** patterns · **Started:** 2026-10-08
 

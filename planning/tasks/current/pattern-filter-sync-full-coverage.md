@@ -1,6 +1,6 @@
 # pattern-filter-sync — full coverage (published scope, pageFilters, clearKeys)
 
-**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing (was: "Plan: [x] filter-leaf-walk … [x] Re-verified … [ ] Client: expose scope … [ ] Tests") · **Created by:** unknown · **Edited by:** —
+**Initiatives:** [mny_county_template_r2](../../../../../planning/initiatives/mny_county_template_r2.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing (was: "Plan: [x] filter-leaf-walk … [x] Re-verified … [ ] Client: expose scope … [ ] Tests") · **Created by:** unknown · **Edited by:** amuro@albany.edu
 
 ## Objective
 
@@ -77,3 +77,5 @@ a **freshly duplicated** pattern, where nothing has been published yet in the co
   `sync-filters` (route present) but did not patch Map `dynamic-filters` at all, while the same
   section patched correctly against local source. Verify which build is answering before concluding
   a representation is unhandled.
+
+> **Re-linked 2026-10-13** from `mny_county_sites` (closed at the initiative review) to `mny_county_template_r2`.

@@ -1,6 +1,6 @@
 # Spreadsheet: inline-expand row detail (`openOutMode: 'inline'`)
 
-**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "IMPLEMENTED (library) — pending live verification on page 2262755"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "IMPLEMENTED (library) — pending live verification on page 2262755") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Status:** IMPLEMENTED (library) — pending live verification on page 2262755 (orchestrator wires `openOutMode:'inline'` + mny theme styling)
 **Topic:** patterns/page (Spreadsheet / Table)
@@ -103,3 +103,5 @@ today. Inline only when a section opts in.
 Consuming page: dms-template 2262755, Spreadsheet 2262760 (openOut columns already exist: problem,
 solution, cost_range, estimated time, primary hazard). Wiring `openOutMode:'inline'` + mny theme
 styling of the panel is the ORCHESTRATOR's job. Do not edit the page or publish.
+
+> **Closed 2026-10-13** with the `mny_county_actions_workflow` initiative (done). The owner: "lets go through the rest the same way". Marked done.

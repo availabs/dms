@@ -2,7 +2,7 @@
 
 > Research pass 2026-07-10, driven by the Freight Atlas map redesign
 > (`planning/transportny/tasks/completed/freight-atlas-map-redesign.md` in the workspace root hub).
-> Refines the existing story [map-component-unification.md](../tasks/current/map-component-unification.md).
+> Refines the existing story [map-component-unification.md](../tasks/completed/map-component-unification.md).
 > Live data references: section **2175271** (pattern 2175436 `freightatlas2_copy`, page `freight_atlas`) —
 > the only production consumer of `map_dama`.
 
@@ -268,7 +268,7 @@ plain one (`:578-736`).
 
 ## 6. Recommendations — one component, backwards compatible for `map`
 
-Confirms the base decision in [map-component-unification.md](../tasks/current/map-component-unification.md)
+Confirms the base decision in [map-component-unification.md](../tasks/completed/map-component-unification.md)
 (build on `map/`) and refines it with what this pass established:
 
 ### 6.1 BC invariants for `map` (must not change)

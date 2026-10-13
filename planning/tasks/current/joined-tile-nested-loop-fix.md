@@ -1,6 +1,6 @@
 # Joined map tiles — nested-loop blowup in the MVT join query
 
-**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** next (was: "DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) · **Status:** next (was: "DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Status: DIAGNOSED + fix verified, then REVERTED — NOT APPLIED.** The code change was backed out
 on 2026-09-18 once macroview stopped using a tile join at all (it resolves its columns on hover
@@ -176,3 +176,5 @@ interaction path, and a layer that wants only the second had no way to say so. M
 empty `tileColumns` costs exactly as much as a full one (tile 6/18/23: 1.41s with no join param,
 30s server timeout with a join carrying `tileColumns: []`), because Postgres cannot plan away an
 unused LEFT JOIN over a CTE.
+
+> **Re-linked 2026-10-13** from `dms_map_stack` (closed at the initiative review) to `dms_page_load_performance`.

@@ -1,6 +1,6 @@
 # Phase 3: Documentation and Migration
 
-**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** blocked:dependency (was: "(no status line; nothing checked; prerequisite: Phase 2 complete)") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** dropped (was: "(no status line; nothing checked; prerequisite: Phase 2 complete)") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -356,3 +356,5 @@ function TextSettingsPreview({ textSettings }) {
 - [ ] textSettingsSettings exported correctly
 - [ ] Works with existing theme editor infrastructure
 - [ ] Default values show when textSettings not customized
+
+> **Closed 2026-10-13** with the `dms_dormant_tracks` initiative (done). The owner: "lets go through the rest the same way". Dropped: not carried on after the initiative closed.

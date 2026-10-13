@@ -1,6 +1,6 @@
 # SSR Phase 2: Streaming Server-Side Rendering
 
-**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "(no status line; testing checklist all unchecked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** dropped (was: "(no status line; testing checklist all unchecked)") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -152,3 +152,5 @@ This ensures crawlers get the full page for SEO, while real users get the fast s
 3. **Template splitting**: Split `index.html` at `<!--app-html-->` to send head immediately
 4. **Suspense is optional**: Streaming helps without Suspense boundaries. Add them incrementally for slow sections.
 5. **Graceful degradation**: `onShellError` falls back to the empty SPA shell — same behavior as if SSR was disabled
+
+> **Closed 2026-10-13** with the `dms_dormant_tracks` initiative (done). The owner: "lets go through the rest the same way". Dropped: not carried on after the initiative closed.

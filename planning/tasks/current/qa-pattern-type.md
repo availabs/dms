@@ -1,6 +1,6 @@
 # `qa` pattern type: ticketing / delivery QA as a library feature
 
-**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md), [tny_control_room_qa](../../../../../planning/initiatives/tny_control_room_qa.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 The one task doc for the QA pattern: what's built, what's open, and the rules the work follows. Any site adds
 ticketing and delivery QA from Add Pattern. MitigateNY is the first real install, and TransportNY's control room is
@@ -12,7 +12,7 @@ ported later.
 - **Research** (2026-09-28/29; shaped the design, may be stale): dms-template
   [`research/qa-ticketing-system/`](../../../../../research/qa-ticketing-system/README.md).
 - **MitigateNY contract tasks** (owned by other people; this work feeds them):
-  [`mny-sow-ticket-system.md`](../../../../../planning/mitigateny/tasks/current/mny-sow-ticket-system.md),
+  [`mny-sow-ticket-system.md`](../../../../../planning/mitigateny/tasks/completed/mny-sow-ticket-system.md),
   [`sow-support-ticket-system-and-office-hours.md`](../../../../../planning/mitigateny/tasks/current/sow-support-ticket-system-and-office-hours.md).
 - **Coworker how-to** for placing Report an issue on more MNY sites:
   [`report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md).
@@ -536,3 +536,5 @@ Code comments and other docs cite sections of this doc and of the two merged doc
 | this doc, "Design pass", "Phase 1" … "Phase 5", "Phases 6–7", "The status-change writes" | part 1 |
 | `qa-design-implementation.md` (incl. "Rules carried in", step 4) | part 2 |
 | `qa-mny-look-and-collapsible-sites.md` | part 3 |
+
+> **2026-10-13** (qa_pattern_type_secondary): initiatives set to dms_qa_ticketing, mny_sow_deliverables.
