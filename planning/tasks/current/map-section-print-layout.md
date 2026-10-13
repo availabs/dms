@@ -1,9 +1,13 @@
 # Map section: printing clips the map and leaves a blank page before it
 
-**Initiatives:** [tny_npmrds_reports_1_0](../../../../../planning/initiatives/tny_npmrds_reports_1_0.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built · **Release:** deploy — owner-validated locally 2026-10-13, not deployed · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [tny_bug_fixes](../../../../../planning/initiatives/tny_bug_fixes.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built · **Release:** deploy — owner-validated locally 2026-10-13, not deployed · **Created by:** rdubowsky@albany.edu · **Edited by:** rdubowsky@albany.edu
 
 **Topic:** patterns/page (`ComponentRegistry/map`) · **Created:** 2026-10-13
-**Files:** `packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx`
+**Files:** dms-template `src/patterns/mapeditor/section/index.jsx` (the Map section moved out of the library on
+2026-10-13, `pluggable-patterns-mapeditor-extraction.md`; the fix was first made at the old path
+`packages/dms/src/patterns/page/components/sections/components/ComponentRegistry/map/index.jsx` in commit `fc0332f3`
+and re-applied at the new path when that move was merged). Re-linked from `tny_npmrds_reports_1_0` (closed
+2026-10-13) to `tny_bug_fixes`.
 **Reported from:** TransportNY ticket #2226344 ("print feature doesn't work", Dutchess County, report
 `arlington_hs_roundabout_analysis_59`, page 2226274). The ticket's own complaint (missing graphs) did not
 reproduce. The two map defects below were found while triaging it.
@@ -54,6 +58,9 @@ anywhere. So no existing workaround can collide. Ctrl+P on any other map page ge
       viewports) gives identical text on pages 1–7 and never adds a page (17 vs 18 at 1912×948 and
       1440×900, 18 vs 18 at 1280×720). The difference is other deployed-only rendering bugs (e.g.
       overlapping collapsible text on devmny), not this change.
+- [x] Re-applied at the new path after the mapeditor-extraction merge (2026-10-13): the MNY page's Map
+      container renders all four print classes, Tailwind generates the `[&_.maplibregl-canvas]` rules
+      from `src/patterns/`, and the owner confirmed the printed PDF map "looks better" on the merged code.
 - Known gap: headless `printToPDF` prints the WebGL canvas blank (before and after), so the clipping fix
   is shown by geometry, not by a PDF raster. Real Chrome/Edge print preview does show the map.
 

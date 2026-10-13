@@ -1080,7 +1080,7 @@ Crop with `page.screenshot({ clip })` only to SHOW a human, never to judge a few
   Real Chrome/Edge print preview does draw the map.
 - **maplibre does not resize for print.** The canvas keeps its on-screen inline px size through
   `beforeprint`/`afterprint`. The Map section's print-only classes scale it to the page width instead
-  (`ComponentRegistry/map/index.jsx`, task `map-section-print-layout.md`). Before that fix, the
+  (dms-template `src/patterns/mapeditor/section/index.jsx`, task `map-section-print-layout.md`). Before that fix, the
   default `"full"` map height (`95vh` = a whole printed page) pushed the map onto its own page
   and clipped the right part of the route.
 - **"Graphs missing from the printout"** has had two innocent causes. One is printing before the
