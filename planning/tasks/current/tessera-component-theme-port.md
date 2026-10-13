@@ -739,6 +739,10 @@ check was BEFORE this design pass landed, worth a fresh look now that `manage.*`
 
 ## Phase B checklist — pattern-level component files (next pass, not started)
 
+> **2026-10-05:** the `page` and `datasets` parts of this checklist moved to
+> [`datasets-page-pattern-v6-port.md`](./datasets-page-pattern-v6-port.md) (mockups first, then the
+> default-theme port). Track them there.
+
 **`patterns/page/defaultTheme.js`'s 12 imports:** `sections/sectionGroup.theme`,
 `sections/sectionArray.theme`, `sections/section.theme`, `userMenu.theme`, `search/theme`
 (searchButton + searchPallet, 2 exports), `pages/edit/editPane/sectionGroupsPane.theme`,
