@@ -196,6 +196,8 @@ unchanged and set by `Dockerfile`.
       - `AVAIL` was added by CLI. The install grants only `<app> Admin`, and MNY's site grants are user 1,
         `AVAIL` and `DHSES`, so the creator was locked out.
       - This is the queued "Install lockout fix" in [`qa-pattern-type.md`](./qa-pattern-type.md) §3.
+    - **Switches:** page inventory on (owner, 2026-10-14). 282 pages tracked; the site cards collapse and open to
+      their pages. Without it, a site card is only its name and tickets bar, as specced.
     - **Theme:** `mnyv1`, with a **top-nav layout override**: Logo on the left, the install's pages
       (Overview, Tickets) as the menu, the user menu on the right, and no side nav.
       - The Theme tab's Save had written a side-nav layout. It was replaced by CLI to match the old install
