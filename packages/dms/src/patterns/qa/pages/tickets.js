@@ -1,15 +1,17 @@
 import {
   T, SEV_PILL, STATUS_PILL, OPEN, CLOSED, OPEN_STATUSES, CLOSED_STATUSES, st, W, tnum,
   SOURCE_CASE, PAGE_DISP, siteCase, ticketsSource, pagesByKey, dataWrapper, col, pcol, calc, stat, staticCell,
-  PANEL, PANEL_TOP, PANEL_BOTTOM, group, section, pageVariable,
+  PANEL, PANEL_TOP, PANEL_BOTTOM, group, section, pageVariable, fieldPills,
 } from './helpers'
+import { fieldsShownIn } from '../fields'
 
 // The Tickets page (mockup: tessera design_system_v6 pages/qa-tickets.html): a header band, the
 // "Where tickets stand" summary (status flow, then resolved / open by severity / found by), the
 // opened / done charts, a filter bar and the tickets table. The look is the qa pattern's own styles
 // (qa.theme.js: cardStyle qa_*, tableStyle qa_list, the qa* text keys). Data shapes are ported from
 // TransportNY's build_cr_tickets.mjs. `ctx`:
-// { app, pattern, baseUrl, tickets: {slug, source_id, view_id}, siteLabels, addTicketUrl }.
+// { app, pattern, baseUrl, tickets: {slug, source_id, view_id}, siteLabels, addTicketUrl, fields }.
+// The install's own fields (`ctx.fields`, fields.js) add table columns and filter chips.
 export function ticketsPage(ctx) {
   const source = ticketsSource(ctx)
   const dw = dataWrapper(source)
@@ -18,6 +20,8 @@ export function ticketsPage(ctx) {
   const G = { hdr: 'tickets_header', sum: 'tickets_summary', tbl: 'tickets_table' }
   const hasLabels = Object.keys(ctx.siteLabels || {}).length > 0
   const S = []
+  const tableFields = fieldsShownIn(ctx.fields, 'table')
+  const filterFields = fieldsShownIn(ctx.fields, 'filter')
   const OPEN_N = `(count(*) filter (where ${st()} in ${OPEN}))`
   const CLOSED_N = `(count(*) filter (where ${st()} in ${CLOSED}))`
 
@@ -173,10 +177,12 @@ export function ticketsPage(ctx) {
       chip('source', 'Source', 'source'),
       // with site labels, the chip shows the label while ?surface= keeps the raw key
       chip('surface', 'Site', 'surface', hasLabels ? { optionLabels: ctx.siteLabels } : {}),
+      // the install's own fields, each under its name
+      ...filterFields.map((f) => chip(f.name, f.label, f.name)),
       staticCell('f_space', ''),
     ], {
-      cardStyle: 'qa_filters', cellsGridSize: 9,
-      cellsTracksTemplate: 'auto auto auto minmax(180px,20rem) auto auto auto auto minmax(0,1fr)',
+      cardStyle: 'qa_filters', cellsGridSize: 9 + filterFields.length,
+      cellsTracksTemplate: `auto auto auto minmax(180px,20rem) auto auto auto auto ${filterFields.map(() => 'auto ').join('')}minmax(0,1fr)`,
       cellsColumnGap: 8, cardsPadding: 0, cellsVAlign: 'center',
     }),
   }))
@@ -203,6 +209,15 @@ export function ticketsPage(ctx) {
           : col('ds.surface', 'Site', { size: 108 }),
         { name: PAGE_DISP, type: 'calculated', normalName: 'page_disp', display_name: 'Page', customName: 'Page', show: true, formatFn: ' ', justify: 'left', size: 120 },
         { name: `${SOURCE_CASE} as src`, type: 'calculated', normalName: 'src', display_name: 'Source', customName: 'Source', show: true, formatFn: ' ', justify: 'left', size: 84 },
+        // the install's own fields shown in the table (a date as its day, a pick list as pills)
+        ...tableFields.map((f) => (f.type === 'date'
+          ? {
+            name: `substring((data->>'${f.name}') from 1 for 10) as f_${f.name}`, type: 'calculated', normalName: `f_${f.name}`,
+            display_name: f.label, customName: f.label, show: true, formatFn: 'date', justify: 'left', size: 104, valueFontStyle: T.mono,
+          }
+          : f.type === 'pick_one'
+            ? pcol(`ds.${f.name}`, f.label, fieldPills(f), { size: 116 })
+            : col(`ds.${f.name}`, f.label, { size: 120, valueFontStyle: T.body }))),
         {
           name: "substring((data->>'updated') from 1 for 10) as updated_day", type: 'calculated', normalName: 'updated_day',
           display_name: 'Updated', customName: 'Updated', show: true, formatFn: 'date', justify: 'left', size: 104, valueFontStyle: T.mono,
@@ -211,9 +226,12 @@ export function ticketsPage(ctx) {
         // its own, alias-prefixed: see the Overview's site tables).
         { name: 'ds.source', show: false },
         ...(hasLabels ? [{ name: 'ds.surface', show: false }] : []),
+        // a filtered field the table doesn't show as its own column
+        ...filterFields.filter((f) => !tableFields.some((t) => t.name === f.name && t.type !== 'date')).map((f) => ({ name: `ds.${f.name}`, show: false })),
       ],
       filters: [
-        ...['status', 'severity', 'source', 'surface'].map((key) => ({ col: `ds.${key}`, op: 'filter', value: [], usePageFilters: true, searchParamKey: key })),
+        ...['status', 'severity', 'source', 'surface', ...filterFields.map((f) => f.name)]
+          .map((key) => ({ col: `ds.${key}`, op: 'filter', value: [], usePageFilters: true, searchParamKey: key })),
         { col: 'ds.title', op: 'like', value: [], usePageFilters: true, searchParamKey: 'q' },
       ],
       join: pagesByKey(ctx),
@@ -230,6 +248,6 @@ export function ticketsPage(ctx) {
       group(G.hdr, 0, 'Header', 'qa_header'), group(G.sum, 1, 'Summary', 'qa_content'), group(G.tbl, 2, 'Tickets', 'qa_content_end'),
     ],
     sections: S,
-    filters: ['status', 'severity', 'source', 'surface', 'q'].map((key) => pageVariable(`qa-tickets-${key}`, key)),
+    filters: ['status', 'severity', 'source', 'surface', 'q', ...filterFields.map((f) => f.name)].map((key) => pageVariable(`qa-tickets-${key}`, key)),
   }
 }

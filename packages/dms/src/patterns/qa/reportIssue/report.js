@@ -2,6 +2,7 @@
 // becomes. No browser imports, so it's tested with plain data (tests/qaReportIssue.test.js); the
 // widget (./ReportIssue.jsx) and its form (./ReportIssueForm.jsx) pass in their reads.
 import { coveredSites, coversPattern, slugAllowed } from '../tracking.js'
+import { installFields, fieldsShownIn } from '../fields.js'
 
 // The install's two datasets a report needs: covered sites (read) and tickets (written). From its full
 // settings for a user granted on it, else from the no-access stub's `qa.intake` (dms-server
@@ -10,6 +11,15 @@ export function intakeRefs(install) {
   const { tickets, patterns } = install?.qa?.datasets || install?.qa?.intake || {}
   return tickets && patterns ? { tickets, patterns } : null
 }
+
+// The install's own fields the form asks for (fields.js), from its full settings, else from the stub's
+// `qa.intake.fields` (the server sends the form's fields only).
+export const intakeFields = (install) => fieldsShownIn(
+  installFields(install?.qa?.fields ? install : { qa: { fields: install?.qa?.intake?.fields } }), 'form',
+)
+
+// Whether a required field is still empty. `values`: { [name]: value }.
+export const missingRequired = (fields = [], values = {}) => fields.some((f) => f.required && !`${values[f.name] ?? ''}`.trim())
 
 // The covering install, its covered-sites row and its intake refs for a page, or null. `installs`: the
 // site's qa pattern rows (CMSContext.qaTracking.installs). `patternKeys`: the ways a covered-sites row
@@ -56,8 +66,9 @@ export const REPORT_DEFAULTS = [
 
 // The tickets row for a report, before REPORT_DEFAULTS. Keyed to the page the way track-on-publish
 // keys its pages row (`<surface>:<slug>`, tracking.js trackedPageRow), so the ticket lands on that
-// page in Page QA. `env`: what the browser can tell about where the report was made.
-export function reportRow({ kind = 'problem', severity, title = '', description = '', site, page, env }) {
+// page in Page QA. `env`: what the browser can tell about where the report was made. `fields` and
+// `values`: the install's form fields and what was entered in them (an empty one is left out).
+export function reportRow({ kind = 'problem', severity, title = '', description = '', site, page, env, fields = [], values = {} }) {
   const slug = page?.url_slug || ''
   return {
     title: title.trim(),
@@ -68,6 +79,7 @@ export function reportRow({ kind = 'problem', severity, title = '', description 
     page_route: `/${slug}`,
     page_name: page?.title || slug,
     ...(env ? { env: JSON.stringify(env) } : {}),
+    ...Object.fromEntries(fields.map((f) => [f.name, `${values[f.name] ?? ''}`.trim()]).filter(([, v]) => v)),
   }
 }
 

@@ -4,6 +4,7 @@ import { ticketPage } from './ticket'
 import { overviewPage } from './overview'
 import { pageQaPage } from './pageQa'
 import { installFeatures } from '../features'
+import { installFields } from '../fields'
 
 // The pages of a `qa` install, defined in code — the same page shape the page
 // pattern renders (PageView → SectionGroup → sections), but never stored as rows.
@@ -49,6 +50,7 @@ const addTicketUrl = (pattern, tickets, datasetPatterns = []) => {
 // short key → label, from every covered-sites row (siteLabelsFrom below).
 // What each page shows also follows the install's switches (`ctx.features`, features.js): without a
 // page inventory there's no Page QA page, and the other pages leave out pages, stages and stories.
+// The install's own ticket fields (`ctx.fields`, fields.js) join the pages each one is shown on.
 export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [], sites = null, siteLabels = {} } = {}) {
   const datasets = pattern?.qa?.datasets || {}
   const tickets = datasets.tickets
@@ -69,7 +71,7 @@ export function buildQaPages(pattern, { app, baseUrl = '', datasetPatterns = [],
   const features = installFeatures(pattern)
   const ctx = {
     app, pattern, baseUrl, datasets, tickets, sites,
-    siteLabels, features,
+    siteLabels, features, fields: installFields(pattern),
     addTicketUrl: addTicketUrl(pattern, tickets, datasetPatterns),
   }
   return [overviewPage(ctx), ticketsPage(ctx), ticketPage(ctx), ...(features.has('page_inventory') ? [pageQaPage(ctx)] : [])]

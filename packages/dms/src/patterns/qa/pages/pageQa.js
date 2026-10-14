@@ -3,6 +3,7 @@ import {
   T, SEV_PILL, STATUS_PILL, STORY_PILL, BUILD_PILL, DATA_PILL, STAGE_RANK, OPEN, CLOSED, CLOSED_STATUSES, W, TNUM, sqlText,
   pagesSource, storiesSource, ticketsSource, dataWrapper, col, pcol, calc, stat, staticCell, group, section, pageVariable,
 } from './helpers'
+import { fieldsShownIn } from '../fields'
 
 // Page QA (`page?key=<page_key>`; mockup: tessera design_system_v6 pages/qa-page.html): one tracked
 // page's header (crumb, name, description, add ticket), its stories and tickets, a Page-status rail
@@ -228,6 +229,10 @@ export function pageQaPage(ctx) {
         field('title', 'Title', { type: 'text', placeholder: 'Short, specific summary', cellPaddingTop: 18 }),
         field('severity', 'Severity', { type: 'radio', activeStyle: 'qa_choice', options: Object.keys(SEV_PILL).map((v) => ({ label: v, value: v })) }),
         field('description', 'Description', { type: 'textarea', rows: 4, placeholder: 'What happened? What did you expect?' }),
+        // the install's own form fields (fields.js); this staff form doesn't hold back a required one
+        ...fieldsShownIn(ctx.fields, 'form').map((f) => field(f.name, f.label, f.type === 'pick_one'
+          ? { type: 'radio', activeStyle: 'qa_choice', options: f.options.map((v) => ({ label: v, value: v })) }
+          : { type: { long_text: 'textarea', number: 'number', date: 'date' }[f.type] || 'text', ...(f.type === 'long_text' ? { rows: 3 } : {}) })),
         staticCell('m_note', 'numbered automatically · starts in triage', { valueFontStyle: T.smallMuted, cellSpan: 2 }),
       ],
       filters: [{ col: 'ticket_id', op: 'filter', value: ['__none__'] }],

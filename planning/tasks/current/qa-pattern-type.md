@@ -39,7 +39,10 @@ is ported later.
 - **§5 is the plan (owner, 2026-10-13):** one pattern type, a shared tickets core, two switch groups (Delivery QA,
   Help desk). Step 1, the switches on Configure, is **built and live-checked, uncommitted** (2026-10-13). Scratch
   install 219 `QA switches` (`/qa_switches` on `qa_test`) is left for the owner to try; remove it after (§5).
-- **What's next:** step 2, custom statuses and fields; then step 3, the Help desk group's first switches.
+- **Step 2a, custom ticket fields: built and live-checked 2026-10-13, uncommitted** (Configure's "ticket
+  fields" card; Details, table, filter chips, the report forms, History and Recent activity; the stub carries the
+  form's fields, a dms-server change for the MNY deploy).
+- **What's next:** step 2b, editable lists (statuses, outcomes, categories); then step 3, the Help desk switches.
 
 ## Glossary
 
@@ -107,7 +110,7 @@ is ported later.
 |---|---|---|
 | 126 `QA`, app `qa_test` (test app "QA Ticketing Test") | `/qa`; datasets in environment 42 | Covers AlphaPage and BetaPage (`qa_test`'s own test pages). Tickets #101–108. On `mnyv1` for the MNY look loop (undo: `dms raw update 126 --data '{"theme":{}}'` as `qa_test`; backup `scratchpad/qa_test/backup_126_20261007T143641.json`). AlphaPage (row 5) still has a test nav with the widget. |
 | 170 `QA2`, app `qa_test` | `/qa2` | Made 2026-10-06, not in this doc until 2026-10-13. Covers BetaPage. Four datasets (no history). No `features`, so it reads as Delivery QA. |
-| 219 `QA switches`, app `qa_test` (scratch, 2026-10-13) | `/qa_switches` | The switches live check (§5 step 1). Covers Pages (pattern 3). `features: []`. Ticket #101 (row 236). Remove when reviewed (§5). |
+| 219 `QA switches`, app `qa_test` (scratch, 2026-10-13) | `/qa_switches` | The switches and fields live checks (§5 steps 1, 2a). Covers Pages (pattern 3). All Delivery QA features on (set back by the owner after review). Four fields (requester_type, hours, channel, received). Tickets #101 (row 236), #102 (row 245). Remove when reviewed (§5). |
 | 2824062 `QA`, MitigateNY (`dms_mitigat_ny_prod`) | `/qa`, main site only; datasets in dmsEnv 1676363 `test_meta_forms_env` | Covers 566466 admin, 2265530 MitigateNY_actions, 985070 MitigateNY_2025 and 1300890 MitigateNY_County_Template_V3 (281 pages tracked). Access: `AVAIL`, user 1, `mitigat-ny-prod Admin`; the owner removed `DHSES` on 2026-10-07. Theme: `default` until the rollout. The four patterns' nav rows already carry the widget (written 2026-10-07; backups stamped `20261007T100659`). |
 
 ## Rules the work follows (owner)
@@ -501,20 +504,117 @@ The Overview is shared and shows whatever is on.
     page's target is text, with no "open page"; the Tickets table's Page column reads "Switches test page".
   - Install 126 (no list): Overview unchanged (stages, "pages tracked 3", "client accepted 0", AlphaPage's stage
     bar); Configure shows all four switches on and "All changes saved".
-  - **Left on `qa_test` for review:** install 219 (features `[]`; datasets: tickets 220, pages 222, stories 224,
-    covered sites 226, history 228), ticket row 236 (#101), scratch pages 231 and 239 in Pages (pattern 3).
+  - **Left on `qa_test` for review:** install 219 (datasets: tickets 220, pages 222, stories 224, covered sites
+    226, history 228), ticket rows 236 (#101) and 245 (#102, from the fields check), scratch pages 231 and 239 in
+    Pages (pattern 3).
     Site row backup before Add Pattern: `scratchpad/qa_test/backup_site_1_20261013T144810.json`. To remove:
     delete the pattern from `/list` (or `dms raw delete` 219 and drop it from site row 1's `patterns`), delete
     its five datasets in the Datasets admin, and `dms raw delete` pages 231 and 239.
 
-**Step 2: custom statuses and fields (shared core; similar work, owner 2026-10-13).**
-- [ ] An install lists its own statuses, each with an order and a fixed kind (`STATUS_KINDS` stays in code, so
-  counts and the status strip keep working). Edited on Configure, written onto the tickets column's options.
-  TransportNY's seven stay the default.
-  - Suggested, not agreed: the same editor for the other pick lists (outcome, category, severity, priority).
-- [ ] Then custom ticket fields: Configure adds a field (type, options) and picks where it shows: the Report an
-  issue form, the Ticket rail, the Tickets table and filters. Tracked in the history by default. Today the rail, the
-  table and the form list their fields in code (`pages/ticket.js`, `reportIssue/report.js`).
+**Step 2: custom statuses and fields (shared core; similar work, owner 2026-10-13). Fields first (owner,
+2026-10-13), then the lists. Plans proposed 2026-10-13, awaiting the owner's go.**
+
+**2a. Custom ticket fields (first).**
+- **What an admin sees:** a "ticket fields" card on Configure, under the ticket record card. "+ add field"; each
+  row has a label, a type, its options (pick one), where it shows (form · details · table · filter), "required on
+  the form", a drag handle and remove. The tab's one Save writes it all.
+- **Types (v1):** text, long text, number, date, pick one. Not in v1: pick many (filters and history on lists need
+  more), yes/no, a person picker, fields that depend on another field, per-group visibility.
+- **Where a field lands:**
+  - form: Report an issue (after the description; a required one blocks Send) and Page QA's New ticket;
+  - details: the Ticket page's Details panel, after Effort, edited in place (pick one as a pill menu like
+    Category; date, number and text as inputs);
+  - table: a Tickets column, before Updated;
+  - filter: a chip on the Tickets filter bar, with its own URL parameter (pick one and text);
+  - always: Recent activity and the ticket's History show its changes under its label (tracked by default); the
+    Datasets admin and the CLI see the column.
+- **Stored:** `qa.fields` on the install row (`[{name, label, type, options, show: {form, details, table,
+  filter}, required}]`). Save also appends the column to the tickets dataset's columns and to its change
+  history's tracked list. The server's stub for ungranted users carries the form's fields (`qa.intake.fields`), a
+  small dms-server change that ships with MNY's deploy.
+- **Rules:**
+  - the name comes from the label (lowercase, underscores), can't clash with a ticket column or a URL parameter,
+    and is fixed once saved (the dataset column carries it); the label can change any time;
+  - the type is fixed once any ticket holds a value; options can be added and reordered, and one tickets hold
+    can't be removed (it shows "in use");
+  - removing a field hides it from the QA pages; the column and its values stay, and adding a field with the same
+    name brings them back (as switches: off hides, never deletes);
+  - fields are shared core: no switch.
+- **MNY's, after (prod writes, the owner's go):** requester type (pick one: county / town / consultant / state),
+  hours (number), channel (pick one: form / phone / email / office hours), received (date).
+- **Steps:**
+  1. `patterns/qa/fields.js`: the model (type → dataset column, the Card column for each place, the form's
+     input), the name rules, the in-use checks; tests.
+  2. The Configure card and its Save writes (row, tickets columns, history's tracked list); tests.
+  3. The pages: Details, table, filter chips, the activity and History labels; tests.
+  4. Report an issue and Page QA's New ticket, and the stub's form fields; client and dms-server tests.
+  5. Live check on scratch install 219 with MNY's four fields.
+
+- **Built and live-checked (2026-10-13, owner's go), uncommitted:**
+  - `patterns/qa/fields.js` (new): types, places, the reserved names (the ticket record's columns and the QA
+    pages' URL keys), `installFields`, `fieldColumn`, `fieldErrors`, `describeFieldEdits`, `fieldValuesInUse`,
+    `planFieldColumns`, and Configure's row helpers (`settledFields`, `rowName`, `withType`).
+  - `install.js` `writeQaFieldColumns`: reads the tickets source fresh and applies `planFieldColumns`; Configure's
+    Save runs it before writing the row.
+  - Pages (`ctx.fields`): Details rows after Effort (`ticket.js`); table columns before Updated, filter chips,
+    their table filters and URL variables (`tickets.js`); History and Recent activity labels
+    (`ticketFieldLabel(data, fields)`), and a pick list's values as pills in the feed with the record's own colours
+    winning a clash (`overview.js`); Page QA's New ticket asks the form fields (`pageQa.js`; this staff form
+    doesn't hold back a required one: the Card's create form has no required check).
+  - Report an issue: `intakeFields(install)` (full settings, else the stub's), `missingRequired`, `reportRow`'s
+    `fields`/`values`; the form renders text, long text, number and date as inputs and a pick list as a select,
+    "(required)" in the label.
+  - dms-server `qaIntake`: the stub carries the form's fields, trimmed to name, label, type, options, required.
+    `tests/test-pattern-stub.js` 31/31.
+  - Configure: the "ticket fields" card, between the ticket record and the covered sites. A new row's name follows
+    its label until saved; the options line is kept as typed (`_optionsText`) and settled on Save; the type shows
+    "· in use" and can't change once tickets hold values; errors per row block Save; drag to reorder.
+  - Tests: `qaFields.test.js` (27). QA suite 230/230; full client suite 962/967 (the same 5 as step 1: 3 known,
+    2 `userMenus`); dms-server `npm test` exit 0, `test-pattern-stub.js` 31/31.
+  - **Live check** on scratch install 219, probes `scratchpad/qa_test/probes/fields_{configure,ticket,report}.mjs`:
+    - Configure: four MNY-style fields added through the card (Requester type: pick one, county / town /
+      consultant / state, required, table + filter; Hours: number, not on the form, table; Channel: pick one,
+      not on the form, filter; Received: date, table). Save bar "4 unsaved changes · Requester type added, Hours
+      added, Channel added, Received added", then "saved". The row holds `qa.fields`; tickets source 220 gained
+      `requester_type` (select + options), `hours` (number), `channel` (select), `received` (date), and its
+      change history tracks all four.
+    - Ticket #101 (row 236), Details: Requester type set through its pill menu, Hours and Received typed; after a
+      reload the History reads "Requester type — → county", "Hours — → 2.5", "Received — → 2026-10-12", and
+      Recent activity lists the same three under their labels.
+    - Tickets: the row shows "county · 2.5 · 10/12/2026"; the Requester type and Channel chips are on the bar;
+      `?requester_type=county` lists #101, `?requester_type=town` shows "No tickets match these filters".
+    - Report an issue (on pattern 3, given AlphaPage's widget nav for the check and then restored): the form
+      asks "Requester type (required)" and "Received", not Hours or Channel; Send stays off until Requester
+      type is picked; the report filed ticket #102 (row 245) with `requester_type: county`, `received:
+      2026-10-11`, and its create wrote history rows for both. Pattern 3 is back to its backup
+      (`scratchpad/qa_test/backup_pattern_3_20261013T153556.json`) with `theme: {}` (it had none).
+    - Cosmetic: a long label ("Requester type") wraps to two lines in Details' 30% label column.
+
+**2b. Editable lists (after the fields).** The plan below; the fields' option editor is the piece the lists
+reuse.
+- **Where it's edited:** the ticket record card on Configure (today read-only, "set in code for now") becomes the
+  editor, saved by the tab's one Save.
+- **Where it's stored:** on the install row (`qa.statuses` as `[{value, kind}]`, `qa.outcomes`,
+  `qa.categories`), mirrored onto the tickets dataset's column options so the Datasets admin and the CLI show the
+  same values. A missing list reads as today's (TransportNY's seven statuses, the seven outcomes, the five
+  categories), so 126, 170 and 2824062 change nothing. Rejected: the column options as the only copy; the pages
+  (built from the row) and the server's stub would each need an extra read of the tickets source.
+- **Which lists:** statuses (each with a kind), outcomes, categories. Staying in code: severity (it drives the
+  severity weighting, its own colours, the "open by severity" rows and the reporter's wording on the form),
+  priority (three fixed colours), page stages (Delivery QA's; they drive the stage colours and roles).
+- **Values in use:** a value tickets hold can't be renamed or removed; it shows "in use", as a covered site's
+  short key does once used. Adding, reordering and changing a status's kind are free. Renaming in use (a bulk
+  update of tickets) is later.
+- **What follows the statuses:** open/closed counts and the Open/Closed shortcuts (by kind); the status pills
+  (colour by kind; TransportNY's In review keeps its half-filled look); the rail's status menu; resolved-date
+  stamping (done and canceled kinds); "Where tickets stand" (a step per triage and active status, then done, then
+  waiting); the Recent activity pills.
+- **New tickets** start at the install's first triage-kind status (Report an issue, Page QA's New ticket). The
+  server's stub for ungranted users carries it (`qa.intake.status`), a small dms-server change that ships with
+  MNY's deploy.
+
+- [ ] 2a custom ticket fields (above).
+- [ ] 2b editable lists (statuses, outcomes, categories).
 
 **Step 3: the Help desk group's first switches.**
 - [ ] **Staff intake ("file for someone").** A staff form where the reporter isn't the signed-in user, for requests

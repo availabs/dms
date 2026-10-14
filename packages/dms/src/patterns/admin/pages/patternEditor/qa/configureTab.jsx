@@ -16,6 +16,11 @@ import { DEFAULT_STATUSES, OUTCOMES, PAGE_STAGES } from "../../../../qa/ticketRe
 import {
   FEATURE_GROUPS, storedFeatures, hasFeature, setFeature, setGroup, groupState, featureBlocked, describeFeatureEdits,
 } from "../../../../qa/features";
+import {
+  FIELD_TYPES, FIELD_PLACES, canFilter, newField, parseOptions, installFields, fieldErrors, describeFieldEdits,
+  fieldValuesInUse, settledFields, rowName, withType,
+} from "../../../../qa/fields";
+import { writeQaFieldColumns } from "../../../../qa/install";
 import { STATUS_PILL } from "../../../../qa/pages/helpers";
 import { QA_TOKENS_FONT, STAGE_MARKERS, qaPillClass } from "../../../../qa/qa.theme";
 import { QaPatternSettings } from "../default/settings";
@@ -25,15 +30,18 @@ import { qaConfigureTheme } from "./configureTab.theme";
 // The covered-sites columns this tab reads back, with the row id for updates.
 const ROW_COLUMNS = ['id', ...COVERED_SITE_COLUMNS, 'app', 'subdomain', 'base_url'];
 
-// The install row without its switches, to tell a dataset set-up change from a switch change.
-const withoutFeatures = (row) => ({ ...row, qa: { ...(row?.qa || {}), features: undefined } });
+// The install row without its switches and fields, to tell a dataset set-up change from theirs.
+const withoutSettings = (row) => ({ ...row, qa: { ...(row?.qa || {}), features: undefined, fields: undefined } });
+// The row as a Save writes it: its field rows settled (patterns/qa/fields.js settledFields).
+const settled = (row) => (Array.isArray(row?.qa?.fields) ? { ...row, qa: { ...row.qa, fields: settledFields(row.qa.fields) } } : row);
 
 const trimSlashes = (s) => `${s || ''}`.replace(/^\/+|\/+$/g, '');
 const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
 
 // A QA install's Configure tab (QA installs only): its datasets, its ticket record (read-only),
 // which of the site's patterns it covers (short key, label, order, page limit), and its feature
-// switches (patterns/qa/features.js, stored on the row as `qa.features`). The covered sites are the
+// switches (patterns/qa/features.js, stored on the row as `qa.features`), and its own ticket fields
+// (patterns/qa/fields.js, `qa.fields`; a Save also adds their columns to the tickets dataset). The covered sites are the
 // install's covered-sites dataset (patterns/qa/configure.js); with the page inventory on, switching
 // a site on also adds its published pages. One Save writes it all: the dataset rows through
 // dmsDataEditor (one reload at the end, not one per row as apiUpdate would), then the pattern row
@@ -51,7 +59,7 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
   const { app, siteType } = useContext(AdminContext);
   const { UI, theme } = useContext(ThemeContext);
   const t = { ...settingsEditorTheme, ...qaConfigureTheme, ...(theme?.admin?.settingsEditor || {}), ...(theme?.admin?.qaConfigure || {}) };
-  const { Input, Switch, MultiSelect, DndList, Icon } = UI;
+  const { Input, Select, Switch, MultiSelect, DndList, Icon } = UI;
   const { falcor } = useFalcor();
   const [draft, setDraft] = useImmer(value);
   // The row as this tab last saved it: the loaded row, then each Save's draft. Unsaved edits are the
@@ -90,13 +98,17 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
     const patterns = items?.[0]?.patterns || [];
     const rows = await read(datasets.patterns, ROW_COLUMNS);
     const pagesRows = datasets.pages ? await read(datasets.pages, ['surface', 'page_key']) : [];
-    const used = usedKeys(pagesRows, datasets.tickets ? await read(datasets.tickets, ['surface', 'page_key']) : []);
+    // the tickets with the fields' columns too: a field with values keeps its type, and a pick list
+    // keeps the values tickets hold
+    const fieldsNow = installFields(settled(draft));
+    const ticketRows = datasets.tickets ? await read(datasets.tickets, ['surface', 'page_key', ...fieldsNow.map((f) => f.name)]) : [];
+    const used = usedKeys(pagesRows, ticketRows);
     // The site's other installs whose covered sites this user can read: a pattern one of them
     // covers can't be switched on here.
     const installs = patterns.filter((p) => p?.pattern_type === 'qa' && `${p.id}` !== `${value.id}` && p.qa?.datasets?.patterns);
     const elsewhere = coveredElsewhere(patterns, await Promise.all(installs.map(async (p) => ({ name: p.name, rows: await read(p.qa.datasets.patterns, COVERED_SITE_COLUMNS) }))));
     const result = configureEntries(patterns, rows);
-    setLoaded({ ...result, used, elsewhere, pagesCount: pagesRows.length });
+    setLoaded({ ...result, used, elsewhere, pagesCount: pagesRows.length, fieldsInUse: fieldValuesInUse(ticketRows, fieldsNow) });
     setEntries(result.entries);
   };
 
@@ -107,8 +119,17 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
   const saved = loaded?.entries || [];
   const savedById = new Map(saved.map((e) => [e.pattern.id, e]));
   const errors = loaded ? configureErrors(entries, { elsewhere: loaded.elsewhere, others: loaded.others }) : {};
-  const hasErrors = Object.keys(errors).length > 0;
-  const setupChanged = !isEqual(draft, baseline);
+  // the install's own fields: the rows being edited, and as last saved
+  const fieldRows = Array.isArray(draft?.qa?.fields) ? draft.qa.fields : [];
+  const savedFields = installFields(baseline);
+  const fieldErrs = fieldErrors(settledFields(fieldRows), { saved: savedFields, inUse: loaded?.fieldsInUse || {} });
+  const setFieldRows = (fn) => setDraft((d) => {
+    if (!d.qa) d.qa = {};
+    d.qa.fields = fn(Array.isArray(d.qa.fields) ? d.qa.fields : []);
+  });
+  const hasErrors = Object.keys(errors).length > 0 || fieldErrs.some(Boolean);
+  const toSave = settled(draft);
+  const setupChanged = !isEqual(toSave, baseline);
   // the switches as stored (an install from before them reads as the Delivery QA set)
   const features = storedFeatures(draft);
   const featureOn = (key) => hasFeature(draft, key);
@@ -117,8 +138,9 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
     d.qa.features = next;
   });
   const edits = [
-    ...(!isEqual(withoutFeatures(draft), withoutFeatures(baseline)) ? ['dataset set-up'] : []),
+    ...(!isEqual(withoutSettings(toSave), withoutSettings(baseline)) ? ['dataset set-up'] : []),
     ...describeFeatureEdits(features, storedFeatures(baseline)),
+    ...describeFieldEdits(installFields(toSave), savedFields),
     ...(loaded ? describeEdits(entries, saved) : []),
   ];
   const isDirty = edits.length > 0;
@@ -150,9 +172,14 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
         urlFor: (pattern, page) => (pattern.subdomain ? undefined
           : `${window.location.origin}${trimSlashes(pattern.base_url) ? `/${trimSlashes(pattern.base_url)}` : ''}/${page.url_slug}`),
       }) : { saved: 0, added: [] };
+      // the fields' columns first, so a ticket can hold a value the moment the row names the field
+      if (!isEqual(toSave?.qa?.fields, baseline?.qa?.fields)) {
+        await writeQaFieldColumns({ falcor, app, datasets, fields: installFields(toSave) });
+      }
       if (setupChanged) {
-        await apiUpdate({ data: draft });
-        setBaseline(draft);
+        await apiUpdate({ data: toSave });
+        setBaseline(toSave);
+        setDraft(toSave);
       }
       const added = result.added.map((a) => `added ${plural(a.pages, 'page')} from ${a.pattern}`);
       setMessage(['saved', ...added].join(' · '));
@@ -169,6 +196,55 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
     setDraft(baseline);
     setEntries(saved);
     setMessage('');
+  };
+
+  // One ticket field: label, its name (from the label until saved, then fixed), type (fixed once
+  // tickets hold values), where it shows, and its options line when it's a pick list.
+  const fieldRow = (row, i) => {
+    const name = rowName(row);
+    const used = row.name ? loaded?.fieldsInUse?.[row.name] : null;
+    const typeLocked = Boolean(row.name && savedFields.some((f) => f.name === row.name) && used?.size);
+    const set = (patch) => setFieldRows((list) => list.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+    const setShow = (place, on) => set({ show: { ...row.show, [place]: on }, ...(place === 'form' && !on ? { required: false } : {}) });
+    const place = (key, label, enabled, disabled, onToggle) => (
+      <span key={key} className={disabled ? t.fieldPlaceOff : t.fieldPlace}>
+        <Switch size={'small'} label={`${row.label || 'field'}: ${label}`} enabled={enabled && !disabled} disabled={disabled} setEnabled={(v) => onToggle(!!v)} />
+        <span>{label}</span>
+      </span>
+    );
+    return (
+      <div key={row.name || `new-${i}`} className={t.rowWrap}>
+        <div className={t.fieldRow}>
+          <span className={t.grip} title={'drag to reorder'}><Icon icon={'MenuDots'} className={t.gripIcon} /></span>
+          <span className={t.field}>
+            <Input value={row.label || ''} aria-label={'field label'} placeholder={'label'} onChange={(ev) => set({ label: ev.target.value })} />
+          </span>
+          <span className={row.name ? t.fieldNameFixed : t.fieldName} title={row.name ? 'the dataset column: fixed once saved' : 'from the label'}>{name || '—'}</span>
+          {typeLocked
+            ? <span className={t.fieldTypeLocked} title={'tickets hold values for this field'}>{FIELD_TYPES.find((ft) => ft.key === row.type)?.label} · in use</span>
+            : <Select value={row.type} options={FIELD_TYPES.map((ft) => ({ label: ft.label, value: ft.key }))} onChange={(v) => setFieldRows((list) => list.map((r, j) => (j === i ? withType(r, v) : r)))} />}
+          <div className={t.fieldPlaces}>
+            {FIELD_PLACES.map((p) => place(p.key, p.label, !!row.show?.[p.key], p.key === 'filter' && !canFilter(row.type), (on) => setShow(p.key, on)))}
+            {place('required', 'required', !!row.required, !row.show?.form, (on) => set({ required: on }))}
+          </div>
+          <button type={'button'} className={t.fieldRemove} title={row.name ? 'remove: hides it; its values stay' : 'remove'}
+            onClick={() => setFieldRows((list) => list.filter((_, j) => j !== i))}>
+            <Icon icon={'TrashCan'} className={t.fieldRemoveIcon} />
+          </button>
+        </div>
+        {row.type === 'pick_one' && (
+          <div className={t.fieldOptionsRow}>
+            <span className={t.fieldOptionsLabel}>options</span>
+            <span className={t.fieldOptions}>
+              <Input value={row._optionsText ?? (row.options || []).join(', ')} aria-label={`${row.label || 'field'} options`} placeholder={'comma-separated, e.g. phone, email, office hours'}
+                onChange={(ev) => set({ _optionsText: ev.target.value, options: parseOptions(ev.target.value) })} />
+            </span>
+            {used?.size ? <span className={t.listHint}>in use: {[...used].join(', ')}</span> : null}
+          </div>
+        )}
+        {fieldErrs[i] && <div className={t.fieldError}>{fieldErrs[i]}</div>}
+      </div>
+    );
   };
 
   // One covered-sites row: switched-on rows are editable (and dragged by DndList), switched-off
@@ -319,6 +395,40 @@ function QaConfigureBody({ value = {}, apiLoad, apiUpdate }) {
             </div>
           </div>
         </div>
+      </div>
+
+      <div className={t.card}>
+        <div className={t.cardHeader}>
+          <span className={t.cardHeaderLabel}>ticket fields</span>
+          <span className={t.cardHeaderHint}>this install's own fields, beside the ticket record's; removing one hides it and keeps its values</span>
+        </div>
+        {!datasets.tickets ? (
+          <p className={t.note}>The fields are columns of the install's tickets dataset, which is missing. Finish set-up above first.</p>
+        ) : (
+          <div className={t.tableScroll}>
+            <div className={t.fieldsInner}>
+              {fieldRows.length > 0 && (
+                <div className={t.fieldsHead}>
+                  <span /><span>label</span><span>name</span><span>type</span><span>shows on</span><span />
+                </div>
+              )}
+              <DndList onDrop={(from, to) => setFieldRows((list) => {
+                const next = [...list];
+                const [moved] = next.splice(from, 1);
+                next.splice(to, 0, moved);
+                return next;
+              })}>
+                {fieldRows.map(fieldRow)}
+              </DndList>
+              {!fieldRows.length && <p className={t.note}>No fields yet. A field becomes a column of the tickets; pick where it shows.</p>}
+              <div className={t.cardFooter}>
+                <button type={'button'} className={t.addFieldBtn} onClick={() => setFieldRows((list) => [...list, newField()])}>
+                  <Icon icon={'Plus'} className={t.addFieldIcon} />add field
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className={t.card}>

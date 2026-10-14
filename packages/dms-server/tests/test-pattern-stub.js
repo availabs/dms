@@ -296,7 +296,28 @@ async function main() {
     assert.strictEqual(qaPartial?.id, 'no-access');
     assert.strictEqual(qaPartial?.qa, undefined);
   });
-  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, QA_TYPE, qaId, partialId]);
+  // The install's own fields: the form's ride along (only what the form needs), the others stay out.
+  const fieldsCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, QA_TYPE, {
+    name: 'QA3', base_url: 'qa3', pattern_type: 'qa', authPermissions: AUTH,
+    qa: {
+      version: 1, datasets: QA_DATASETS, features: [],
+      fields: [
+        { name: 'channel', label: 'Channel', type: 'pick_one', options: ['phone', 'email'], show: { form: true, details: true, table: true, filter: true }, required: true },
+        { name: 'hours', label: 'Hours', type: 'number', options: [], show: { details: true }, required: false },
+      ],
+    },
+  }]);
+  const fieldsId = Object.keys(fieldsCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  const qaFields = (await stranger.getAsync([['dms', 'data', TEST_APP, 'byId', fieldsId, ['data', 'type']]]))
+    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[fieldsId]?.data?.value;
+  t('a stub carries the form\'s fields only, trimmed to what the form needs', () => {
+    assert.deepStrictEqual(qaFields?.qa?.intake?.fields, [
+      { name: 'channel', label: 'Channel', type: 'pick_one', options: ['phone', 'email'], required: true, show: { form: true } },
+    ]);
+    assert.strictEqual(qaFields?.qa?.features, undefined);
+  });
+  t('an install without form fields: no fields key in its intake', () => assert.strictEqual(qaStranger?.qa?.intake?.fields, undefined));
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, QA_TYPE, qaId, partialId, fieldsId]);
 
   // Cleanup
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'managed|page', pageId]);

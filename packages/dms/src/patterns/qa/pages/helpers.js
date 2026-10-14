@@ -61,10 +61,15 @@ export const tnum = (idRef = 'id') => `('#' || (case when (data->>'ticket_id') i
 export const TNUM = tnum()
 // Free text inside an SQL string literal: no quotes, and no commas (the SELECT list is comma-split).
 export const sqlText = (s) => `${s || ''}`.replace(/[',]/g, '')
-// A change-history row's field as the tickets dataset labels it ("Status", "Assignee"); another
-// dataset's field shows as stored. `data`: the history row's data column (`ds.data` under a join).
-export const ticketFieldLabel = (data = 'data') => `(case ${data}->>'field' ${QA_DATASETS.find((d) => d.key === 'tickets').attributes
-  .map((a) => `when '${a.name}' then '${sqlText(a.display_name)}'`).join(' ')} else (${data}->>'field') end)`
+// A change-history row's field as the tickets dataset labels it ("Status", "Assignee"), the
+// install's own fields (`fields`, fields.js) by their labels; another dataset's field shows as
+// stored. `data`: the history row's data column (`ds.data` under a join).
+export const ticketFieldLabel = (data = 'data', fields = []) => `(case ${data}->>'field' ${[
+  ...QA_DATASETS.find((d) => d.key === 'tickets').attributes.map((a) => [a.name, a.display_name]),
+  ...fields.map((f) => [f.name, f.label]),
+].map(([name, label]) => `when '${name}' then '${sqlText(label)}'`).join(' ')} else (${data}->>'field') end)`
+// A pick-one field's values as pills (its edit-in-place options too), in the record's plain tag look.
+export const fieldPills = (field) => Object.fromEntries((field.options || []).map((o) => [o, 'qa_tag']))
 export const SOURCE_CASE = "(case data->>'source' when 'ai' then 'AI' when 'dev' then 'Dev' when 'client' then 'Client' else (data->>'source') end)"
 // Site (surface) display labels as a CASE; raw values when the install sets none. Labels must be
 // comma-free for the same reason as TNUM.

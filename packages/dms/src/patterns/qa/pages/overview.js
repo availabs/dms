@@ -2,7 +2,7 @@ import { PAGE_STAGES } from '../ticketRecord'
 import {
   T, STAGE_SHORT, STAGE_RANK, OPEN, CLOSED, st, sqlText, STATUS_PILL, SEV_PILL, PRIO_PILL, CATEGORY_PILL, OUTCOME_PILL, ticketFieldLabel,
   pagesSource, ticketsSource, historySource, dataWrapper, joinDataset, calc, staticCell, PANEL, PANEL_TOP, PANEL_BOTTOM,
-  group, section, pageVariable,
+  group, section, pageVariable, fieldPills,
 } from './helpers'
 
 // The Overview, the install's home page (mockup: tessera design_system_v6 pages/qa-overview.html):
@@ -339,7 +339,12 @@ function activitySections(ctx, grp) {
   const ticketLink = { isLink: true, location: `${ctx.baseUrl}/ticket?id=`, searchParamsCol: 'a_tid' }
   const pill = {
     type: 'status_pill', origin: 'calculated-column', cellVAlign: 'center',
-    pillColors: { Filed: 'qa_tag', ...STATUS_PILL, ...SEV_PILL, ...PRIO_PILL, ...CATEGORY_PILL, ...OUTCOME_PILL, '*': 'qa_plain' },
+    pillColors: {
+      // the install's own pick lists (fields.js), first, so a value the record also has keeps its colour
+      ...Object.assign({}, ...(ctx.fields || []).filter((f) => f.type === 'pick_one').map(fieldPills)),
+      Filed: 'qa_tag', ...STATUS_PILL, ...SEV_PILL, ...PRIO_PILL, ...CATEGORY_PILL, ...OUTCOME_PILL,
+      '*': 'qa_plain',
+    },
   }
   const shown = (name) => `(case when (ds.data->>'${name}') is null or (ds.data->>'${name}') = '' then '—' else (ds.data->>'${name}') end)`
 
@@ -394,7 +399,7 @@ function activitySections(ctx, grp) {
           rowCalc("(case when (t.data->>'title') is null then '' else (t.data->>'title') end)", 'a_title', {
             valueFontStyle: T.bold, cellVAlign: 'center', ...ticketLink,
           }),
-          rowCalc(ticketFieldLabel('ds.data'), 'a_field', { valueFontStyle: T.smallMuted, cellVAlign: 'center' }),
+          rowCalc(ticketFieldLabel('ds.data', ctx.fields), 'a_field', { valueFontStyle: T.smallMuted, cellVAlign: 'center' }),
           rowCalc(`(case when ${EDIT} then ${shown('old_value')} else 'Filed' end)`, 'a_from', pill),
           staticCell('a_arrow', '→', { valueFontStyle: T.smallMuted, justify: 'center', cellVAlign: 'center' }),
           rowCalc(shown('new_value'), 'a_to', pill),

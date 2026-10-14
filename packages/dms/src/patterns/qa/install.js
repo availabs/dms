@@ -6,6 +6,7 @@ import { getInstance } from '../../utils/type-utils'
 import { loadItemFresh } from '../../api'
 import { getSourceIdsBySlug } from '../../api/sourceIdBySlug'
 import { QA_DATASETS, QA_TRACKED_COLUMNS, qaDatasetSlug } from './datasets'
+import { planFieldColumns } from './fields'
 
 // The QA pattern is opt-in per build: it's only offered as a pattern type (Add
 // Pattern, and the edit modal's Type select) when the client env sets
@@ -170,6 +171,19 @@ export async function loadQaChangeHistoryPlan({ falcor, app, datasets = {} }) {
   const keys = ['history', ...Object.keys(QA_TRACKED_COLUMNS)].filter(key => datasets[key])
   const rows = await Promise.all(keys.map(key => loadItemFresh(falcor, app, datasets[key].source_id)))
   return planQaChangeHistory({ datasets, sources: Object.fromEntries(keys.map((key, i) => [key, rows[i]?.data])) })
+}
+
+// Brings the tickets dataset up to date with the install's own fields (fields.js planFieldColumns):
+// their columns, and their names in its change history's tracked list. Reads the source fresh;
+// Configure's Save calls it before writing the row. Returns whether it wrote.
+export async function writeQaFieldColumns({ falcor, app, datasets = {}, fields = [] }) {
+  const tickets = datasets.tickets
+  if (!tickets || !fields.length) return false
+  const row = await loadItemFresh(falcor, app, tickets.source_id)
+  const edit = planFieldColumns({ fields, source: row?.data || {} })
+  if (!edit) return false
+  await falcor.call(['dms', 'data', 'edit'], [app, +tickets.source_id, edit])
+  return true
 }
 
 // The install's environment: the one its row records, if it still exists; else the site's

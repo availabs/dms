@@ -86,6 +86,26 @@ export const qaConfigureTheme = {
     limitPicker: 'flex-1 min-w-0',
     rowError: 't-metaXS text-[var(--t-brick)] px-4 pb-2 pl-[7.5rem]',
 
+    // ticket fields: grip · label · name · type · where it shows · remove; a pick list's options under it
+    fieldsInner: 'min-w-[900px]',
+    fieldsHead: 'grid grid-cols-[28px_minmax(0,1fr)_minmax(0,0.7fr)_150px_minmax(0,2.3fr)_28px] items-center gap-3 px-4 py-2 bg-[var(--t-well)] t-metaXS text-[var(--t-pencil)]',
+    fieldRow: 'grid grid-cols-[28px_minmax(0,1fr)_minmax(0,0.7fr)_150px_minmax(0,2.3fr)_28px] items-center gap-3 px-4 py-2.5',
+    // a new field's name, from its label, quieter than a saved one's
+    fieldName: 't-metaSM normal-case tracking-normal text-[var(--t-pencil)] truncate',
+    fieldNameFixed: 't-metaSM normal-case tracking-normal text-[var(--t-ink)] truncate',
+    fieldTypeLocked: 't-proseXS text-[var(--t-graphite)]',
+    fieldPlaces: 'flex flex-wrap items-center gap-x-4 gap-y-1.5',
+    fieldPlace: 'inline-flex items-center gap-1.5 t-proseXS text-[var(--t-graphite)]',
+    fieldPlaceOff: 'inline-flex items-center gap-1.5 t-proseXS text-[var(--t-pencil)] opacity-40 [&_[role=switch]]:cursor-not-allowed',
+    fieldRemove: 'justify-self-end text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer',
+    fieldRemoveIcon: 'w-4 h-4',
+    fieldOptionsRow: 'flex items-center gap-3 px-4 pb-3 pl-[3.25rem]',
+    fieldOptionsLabel: 't-metaXS text-[var(--t-pencil)] flex-none',
+    fieldOptions: 'block flex-1 min-w-0',
+    fieldError: 't-metaXS text-[var(--t-brick)] px-4 pb-2 pl-[3.25rem]',
+    addFieldBtn: 'inline-flex items-center gap-1.5 t-proseSM !font-medium text-[var(--t-cobalt)] hover:underline cursor-pointer',
+    addFieldIcon: 'w-3.5 h-3.5',
+
     // features: the install's switches, one block per group (patterns/qa/features.js), each group's
     // features indented under its own switch
     featuresBody: 'divide-y divide-[var(--t-rule)]',

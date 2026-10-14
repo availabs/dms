@@ -3,7 +3,7 @@ import { ThemeContext, getComponentTheme } from '../../../ui/useTheme'
 import { applyCreateDefaults } from '../../page/components/sections/components/dataWrapper/getData'
 import {
   REPORT_KINDS, REPORT_SEVERITIES, DEFAULT_REPORT_SEVERITY, REPORT_DEFAULTS,
-  reportRow, ticketsFormat, ticketsSource,
+  reportRow, ticketsFormat, ticketsSource, missingRequired,
 } from './report'
 import { reportIssueTheme } from './ReportIssue.theme'
 
@@ -13,8 +13,9 @@ const SEVERITY_LABELS = labelsByValue(REPORT_SEVERITIES)
 
 // The Report an issue form (opened by ./ReportIssue.jsx): a small modal built from the shared UI parts,
 // so it takes the host theme's look. It creates one row in the covering install's tickets dataset (`tickets`), with
-// the create-time fills Page QA's New ticket form uses (number, status, reporter, dates).
-export default function ReportIssueForm({ open, setOpen, tickets, site, page, app, user, apiLoad, apiUpdate }) {
+// the create-time fills Page QA's New ticket form uses (number, status, reporter, dates). `fields`: the
+// install's own form fields (report.js intakeFields), asked after the description.
+export default function ReportIssueForm({ open, setOpen, tickets, fields: formFields = [], site, page, app, user, apiLoad, apiUpdate }) {
   const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
   const t = { ...reportIssueTheme, ...getComponentTheme(themeFromContext, 'qaReportIssue') }
   const { Modal, FieldSet, Select, Button } = UI
@@ -23,11 +24,12 @@ export default function ReportIssueForm({ open, setOpen, tickets, site, page, ap
   const [severity, setSeverity] = React.useState(DEFAULT_REPORT_SEVERITY)
   const [title, setTitle] = React.useState('')
   const [description, setDescription] = React.useState('')
+  const [values, setValues] = React.useState({})
   const [busy, setBusy] = React.useState(false)
   const [error, setError] = React.useState('')
   const [sent, setSent] = React.useState(false)
 
-  const canSend = !!title.trim() && !!description.trim() && !busy && !!apiUpdate
+  const canSend = !!title.trim() && !!description.trim() && !missingRequired(formFields, values) && !busy && !!apiUpdate
 
   const send = async () => {
     if (!canSend) return
@@ -41,7 +43,7 @@ export default function ReportIssueForm({ open, setOpen, tickets, site, page, ap
       }
       const data = await applyCreateDefaults({
         columns: REPORT_DEFAULTS,
-        newItem: reportRow({ kind, severity, title, description, site, page, env }),
+        newItem: reportRow({ kind, severity, title, description, site, page, env, fields: formFields, values }),
         apiLoad,
         externalSource: ticketsSource(app, tickets),
         user,
@@ -67,6 +69,18 @@ export default function ReportIssueForm({ open, setOpen, tickets, site, page, ap
       type: 'Textarea', rows: 4, value: description, onChange: (e) => setDescription(e.target.value),
       placeholder: kind === 'idea' ? 'What would you like the page to do?' : 'What did you see? What did you expect?',
     },
+    // the install's own fields; a required one is marked and holds Send back until it's filled
+    ...formFields.map((f) => {
+      const label = f.required ? `${f.label} (required)` : f.label
+      const value = values[f.name] ?? ''
+      const set = (v) => setValues((prev) => ({ ...prev, [f.name]: v }))
+      if (f.type === 'pick_one') {
+        const options = f.options.map((o) => ({ label: o, value: o }))
+        return { label, type: Select, value, onChange: set, options: [{ label: '—', value: '' }, ...options], meta: labelsByValue(options) }
+      }
+      if (f.type === 'long_text') return { label, type: 'Textarea', rows: 3, value, onChange: (e) => set(e.target.value) }
+      return { label, type: 'Input', input_type: { number: 'number', date: 'date' }[f.type] || 'text', value, onChange: (e) => set(e.target.value) }
+    }),
   ]
 
   return (

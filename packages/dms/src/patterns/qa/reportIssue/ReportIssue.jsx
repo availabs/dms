@@ -5,7 +5,7 @@ import { ThemeContext, getComponentTheme } from '../../../ui/useTheme'
 import { lazyComponent } from '../../../utils/lazyComponent'
 import { datasetRows } from '../datasets'
 import { COVERED_SITE_COLUMNS } from '../tracking'
-import { findCoveringSite } from './report'
+import { findCoveringSite, intakeFields } from './report'
 import { reportIssueTheme } from './ReportIssue.theme'
 
 // The form is its own chunk: every page with the widget in its nav carries only this button.
@@ -75,6 +75,7 @@ export default function ReportIssue({ label = 'Report an issue', icon = 'Alert',
           open={open}
           setOpen={setOpen}
           tickets={covering.refs.tickets}
+          fields={intakeFields(covering.install)}
           site={covering.site}
           page={page}
           app={app}

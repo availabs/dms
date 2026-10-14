@@ -2,8 +2,9 @@ import { PAGE_STAGES } from '../ticketRecord'
 import {
   T, SEV_PILL, PRIO_PILL, STATUS_PILL, CATEGORY_PILL, TNUM, tnum, PAGE_DISP, siteCase, sqlText, CLOSED_STATUSES, ticketFieldLabel,
   ticketsSource, historySource, pagesByKey, dataWrapper, col, pcol, calc, staticCell, PANEL, PANEL_TOP, PANEL_BOTTOM,
-  group, section, pageVariable,
+  group, section, pageVariable, fieldPills,
 } from './helpers'
+import { fieldsShownIn } from '../fields'
 
 // The Ticket page (`ticket?id=<row id>`; mockup: tessera design_system_v6 pages/qa-ticket.html): a
 // header band (crumb + actions, badges, title, target line), the ticket's body and details rail (both
@@ -139,6 +140,18 @@ export function ticketPage(ctx) {
   const pillEdit = (over = {}) => edit({ activeStyle: 'qa_inline', ...over })
   // a text column with no type renders a plain div in a Card (not editable); `text` makes it an input
   const text = (over = {}) => edit({ type: 'text', valueFontStyle: T.body, ...over })
+  // the install's own fields shown in Details (fields.js), edited in place as the record's are: a pick
+  // list as a pill menu, the rest as inputs
+  const fieldRow = (f) => {
+    if (f.type === 'pick_one') return pcol(f.name, f.label, fieldPills(f), pillEdit())
+    if (f.type === 'long_text') return col(f.name, f.label, edit({ type: 'textarea', valueFontStyle: T.body, placeholder: '—' }))
+    if (f.type === 'number') return col(f.name, f.label, edit({ type: 'number', valueFontStyle: T.body, placeholder: '—' }))
+    if (f.type === 'date') return col(f.name, f.label, edit({ type: 'date', valueFontStyle: T.mono }))
+    return col(f.name, f.label, text({ placeholder: '—' }))
+  }
+  // the workflow group's last rows: Effort, then the install's fields; the last one closes the group
+  const workflowTail = [col('effort', 'Effort', text({ placeholder: '—' })), ...fieldsShownIn(ctx.fields, 'details').map(fieldRow)]
+  workflowTail[workflowTail.length - 1] = { ...workflowTail[workflowTail.length - 1], cellPaddingBottom: 10 }
   const groupLabel = (name, text) => staticCell(name, text, { valueFontStyle: T.eyebrow, cellSpan: 2, cellBorderTop: true, ...PAD, cellPaddingTop: 12, cellPaddingBottom: 4 })
   // A date as MM/DD/YYYY HH:MI (as stored, UTC), formatted in SQL: a Card strips the spaces out of
   // any formatFn result (Card.jsx, the generic formatFn branch), so formatFn 'datetime' would print
@@ -159,7 +172,7 @@ export function ticketPage(ctx) {
       pcol('priority', 'Priority', PRIO_PILL, pillEdit()),
       pcol('category', 'Category', CATEGORY_PILL, pillEdit()),
       col('assignee', 'Assignee', text({ placeholder: 'Unassigned' })),
-      col('effort', 'Effort', text({ placeholder: '—', cellPaddingBottom: 10 })),
+      ...workflowTail,
       groupLabel('g_links', 'links'),
       // The rail is a live-edit Card, so it can't join the pages (see joinDataset): the stored
       // name, else the page key. The header shows the page's live name.
@@ -204,7 +217,7 @@ export function ticketPage(ctx) {
     const dwHistory = dataWrapper(historySource(ctx))
     const byRow = [{ col: 'row_id', op: 'filter', value: [], usePageFilters: true, searchParamKey: 'id', requireResolved: true }]
     const refresh = { _functions: { subscribers: [{ functionId: 'data_refresh', enabled: true, paramKey: 'ticket_v' }] } }
-    const FIELD = ticketFieldLabel()
+    const FIELD = ticketFieldLabel('data', ctx.fields)
     const shown = (name) => `(case when (data->>'${name}') is null or (data->>'${name}') = '' then '—' else (data->>'${name}') end)`
     // as stored (UTC), like the rail's dates: comma-free substrings, the SELECT list is comma-split.
     // The list's widths add up to 620 px, inside the 2/3 panel (646 px at a 1440 px window).

@@ -18,12 +18,17 @@ const PATTERN_READ_PERMISSIONS = ['view-page', 'edit-pattern', 'edit-pattern-per
 
 // The part of a QA install's settings its no-access stub carries: the two datasets the "Report an issue"
 // widget (client patterns/qa/reportIssue) reads (covered sites) and writes (tickets), so a user not
-// granted on the install can still file from a page it covers. The rest of its settings stay out.
-// Undefined for any other pattern, or an install whose datasets aren't set up.
+// granted on the install can still file from a page it covers, and the install's own fields that form
+// asks for (client patterns/qa/fields.js), only what the form needs of them. The rest of its settings
+// stay out. Undefined for any other pattern, or an install whose datasets aren't set up.
 const qaIntake = (data) => {
   if (data?.pattern_type !== 'qa') return undefined;
   const { tickets, patterns } = data?.qa?.datasets || {};
-  return tickets && patterns ? { tickets, patterns } : undefined;
+  if (!tickets || !patterns) return undefined;
+  const fields = (Array.isArray(data?.qa?.fields) ? data.qa.fields : [])
+    .filter((f) => f?.show?.form)
+    .map(({ name, label, type, options, required }) => ({ name, label, type, options, required: !!required, show: { form: true } }));
+  return { tickets, patterns, ...(fields.length ? { fields } : {}) };
 };
 
 /**
