@@ -1,6 +1,6 @@
 # MapEditor Joins (tile-level linked-data join via a dataWrapper-style query)
 
-**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "Phase 1 — Server: extract a reusable SQL builder — NOT STARTED (no status header; every phase reads …"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "Phase 1 — Server: extract a reusable SQL builder — NOT STARTED (no status header; every phase reads …") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -501,5 +501,7 @@ The Style/Legend/Popup editors build their column dropdowns from the layer's own
 
 ## Related tasks
 - [`datawrapper-join-support.md`](./datawrapper-join-support.md) — page-pattern dataWrapper join (server SQL join via WITH/CTE for tabular sections). Same "UDA-query-as-CTE" idea; reference for the linked-query UX (re-implement, don't share).
-- [`map-component-unification.md`](./map-component-unification.md) — will merge the three `getLayerTileUrl`/`SymbologyViewLayer` copies; until then edit all three.
-- [`split-table-virtual-columns.md`](./split-table-virtual-columns.md) — auto-indexes on dataset columns; directly relevant to the join-column index perf lever.
+- [`map-component-unification.md`](map-component-unification.md) — will merge the three `getLayerTileUrl`/`SymbologyViewLayer` copies; until then edit all three.
+- [`split-table-virtual-columns.md`](../current/split-table-virtual-columns.md) — auto-indexes on dataset columns; directly relevant to the join-column index perf lever.
+
+> **Closed 2026-10-13** with the `dms_map_stack` initiative (done). The owner: "lets go through the rest the same way". Marked done.

@@ -1,6 +1,6 @@
 # CLI: `dms page create` defaults every page to `index '0'`
 
-**Initiatives:** [dms_cli_agent_tooling](../../../../../planning/initiatives/dms_cli_agent_tooling.md) · **Status:** next (was: "FILED 2026-09-23, not started. Workaround in place for the TransportNY QA builders") · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_editor_admin](../../../../../planning/initiatives/dms_page_editor_admin.md) · **Status:** next (was: "FILED 2026-09-23, not started. Workaround in place for the TransportNY QA builders") · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 > **Status:** FILED 2026-09-23, **not started.** Workaround in place for the TransportNY QA builders
 > (`src/themes/transportny/qa_skills/tools/lib/page_index.mjs`, passed as `--data {"index": …}`), which
@@ -64,3 +64,5 @@ The sitemgmt rows were re-indexed by hand the same day (0-4).
 - [ ] Second top-level create → `'1'`; a child create under a parent → highest child index + 1.
 - [ ] `page create --data '{"index":"7"}'` → `'7'`.
 - [ ] Pattern with more than 50 pages → the index accounts for all of them.
+
+> **Re-linked 2026-10-13** from `dms_cli_agent_tooling` (closed at the initiative review) to `dms_page_editor_admin`.

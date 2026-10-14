@@ -1,6 +1,6 @@
 # `display.rowOffset` — let a section skip the first N rows of its own result
 
-**Initiatives:** [mny_county_sites](../../../../../planning/initiatives/mny_county_sites.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "IMPLEMENTED, needs a submodule commit · Raised / done: 2026-09-09") · **Release:** commit — submodule commit; pagination length fix + test still open · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_template_r2](../../../../../planning/initiatives/mny_county_template_r2.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** built (was: "IMPLEMENTED, needs a submodule commit · Raised / done: 2026-09-09") · **Release:** commit — submodule commit; pagination length fix + test still open · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Topic:** patterns/page — dataWrapper · **Status:** IMPLEMENTED, needs a submodule commit ·
 **Raised / done:** 2026-09-09
@@ -105,3 +105,5 @@ and verified on the LHMP plan home. (Note the trap `card-layout.md` already docu
 - [ ] Pagination arithmetic with an offset — **NOT done**, see the follow-ups above
 - [ ] `rowOffset` beyond the result length falls into the blank-row-fallback branch — untested
 - [x] Toolbar control present (`Row Offset`) and round-trips through `element-data`
+
+> **Re-linked 2026-10-13** from `mny_county_sites` (closed at the initiative review) to `mny_county_template_r2`.

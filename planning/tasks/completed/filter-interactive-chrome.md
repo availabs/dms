@@ -1,6 +1,6 @@
 # Filter section interactive chrome: needs-value toggle · active tokens · clear-all
 
-**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "LIBRARY IMPLEMENTATION DONE — awaiting live wiring (page 2262759) + mny theme styling (orchestrator)…"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "LIBRARY IMPLEMENTATION DONE — awaiting live wiring (page 2262759) + mny theme styling (orchestrator)…") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Status:** LIBRARY IMPLEMENTATION DONE — awaiting live wiring (page 2262759) + mny theme styling (orchestrator).
 **Topic:** patterns/page (filters)
@@ -100,3 +100,5 @@ no-page-filters case so the leaf reads OFF until the toggle publishes its param.
 Consuming page: dms-template 2262755, Filter section 2262759 (add an `empty` leaf on `county_priority`
 + the display opt-ins). Wiring + mny theme styling of the chips/tokens is the ORCHESTRATOR's job. Do
 not edit the page or publish. `:3001` runs current code, so the empty op is testable live.
+
+> **Closed 2026-10-13** with the `mny_county_actions_workflow` initiative (done). The owner: "lets go through the rest the same way". Marked done.

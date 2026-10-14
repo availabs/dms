@@ -8,7 +8,7 @@ Parent effort: `old-reports-conversion.md` Route Map work plan (scope detail in
 `dms-template/scratchpad/npmrds-sub/old-reports/route_map_scope.md`, mechanism reference in
 `planning/research/references/map-joins.md`). This is the **server (library) half** — ships
 isolated from converter work per standing directive. Predecessor platform task:
-[mapeditor-joins.md](../current/mapeditor-joins.md) (the original PG-only tile join).
+[mapeditor-joins.md](mapeditor-joins.md) (the original PG-only tile join).
 
 ## Objective
 

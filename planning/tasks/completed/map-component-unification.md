@@ -1,6 +1,6 @@
 # Map Component Unification (`map/` + `map_dama/` → single component)
 
-**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built (was: "P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending)") · **Release:** commit — header says uncommitted; the retire/shim work must ride the transportNY sync · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** done (was: "P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending)") · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Status: P1–P4 BUILT & LIVE-VERIFIED 2026-07-10 (uncommitted; P5 migration/retirement pending) — follow-up to `mapeditor-uda-migration.md`
 
@@ -343,3 +343,5 @@ First consumer: new Freight Atlas map page (workspace task `freight-atlas-map-v2
 - [ ] Saved element-data round-trips through the unified component without data loss
 - [ ] Dry-run migration on a test database reports all components that would be touched
 - [ ] `--apply` migrates successfully; re-running is a no-op (idempotent)
+
+> **Closed 2026-10-13** with the `dms_map_stack` initiative (done). The owner: "lets go through the rest the same way". Marked done.

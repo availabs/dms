@@ -1,6 +1,6 @@
 # Table provider: `conditional_row_style` — accent a row when a column matches a condition
 
-**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "IMPLEMENTED (library) — live verification + page/theme wiring pending (orchestrator)"; not moved: the doc's own wording doesn't say done — confirm, then move to completed/) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_county_actions_workflow](../../../../../planning/initiatives/mny_county_actions_workflow.md) (primary), [dms_author_primitives](../../../../../planning/initiatives/dms_author_primitives.md) · **Status:** done (was: "IMPLEMENTED (library) — live verification + page/theme wiring pending (orchestrator)") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Status:** IMPLEMENTED (library) — live verification + page/theme wiring pending (orchestrator)
 **Topic:** patterns/page (Spreadsheet / Table)
@@ -92,3 +92,5 @@ Files edited:
 
 Consuming page: dms-template 2262755, Spreadsheet section 2262760. Wiring the provider + the mny
 `theme.table` amber accent style is the orchestrator's job. Do not edit the page or publish here.
+
+> **Closed 2026-10-13** with the `mny_county_actions_workflow` initiative (done). The owner: "lets go through the rest the same way". Marked done.

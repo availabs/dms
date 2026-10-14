@@ -1,6 +1,6 @@
 # Phase 2: Propagate textSettings to Core Components
 
-**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** next (was: "(no status line; nothing checked)") · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_dormant_tracks](../../../../../planning/initiatives/dms_dormant_tracks.md) · **Status:** dropped (was: "(no status line; nothing checked)") · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 
@@ -198,3 +198,5 @@ function getTextStyle(textSettings, key, fallback) {
 - [ ] Custom textSettings values override defaults
 - [ ] Per-component theme can still override textSettings
 - [ ] Theme editor changes propagate to all components
+
+> **Closed 2026-10-13** with the `dms_dormant_tracks` initiative (done). The owner: "lets go through the rest the same way". Dropped: not carried on after the initiative closed.
