@@ -16,6 +16,7 @@ Review page for the inventory: https://claude.ai/artifact/6v1t9R9v9yXJge6zV4RmVm
 | [ui-control-spec-and-mockups.md](./ui-control-spec-and-mockups.md) | the spec page `ui-controls.html`, the mockup re-skin, the owner's later calls (tabs ink, batch 2, 32px fields) | done |
 | [ui-control-library-port.md](./ui-control-library-port.md) | porting the spec into the library default, area by area | steps 1, 2a, 2b done; 2d auth partly |
 | [ui-control-classname-to-activestyle.md](./ui-control-classname-to-activestyle.md) | moving buttons off `className={t.key}` onto `activeStyle` | 25 admin + 7 auth done |
+| [ui-control-tables.md](./ui-control-tables.md) | tables: UI.Table 'list' style (P4), datasets lists onto it, ink grid states | in progress (2026-10-14) |
 | [default-theme-color-variant.md](./default-theme-color-variant.md) | a second, more colourful default theme | not started, after this |
 
 **Git state.** Both repos are on `design-wip`. The last commits are the merges of master
@@ -26,6 +27,23 @@ the owner's message only, no Co-Authored-By / Claude attribution, no project nam
 asked. Root `stash@{0}` "design new" is an old backup the owner may drop (ask first).
 
 **Next steps (owner's order so far; confirm each before editing):**
+0b. **2026-10-14 (end): owner decisions applied** — Input / Textarea locked (`styles[]`, `withLegacyUi` wraps flat
+   `input`), Modal locked (delete-modal red border dropped on every theme), Pill `color` → `activeStyle` everywhere,
+   `color` removed. Agent A / B open items: no change (owner). Integration: build OK, MNY / TNY / landbank
+   pixel-identical on page view, data grid, source admin, metadata. **Pending owner:** `status_pill` dots vs boxed
+   (comparison PNGs in ui-control-pills.md); source tab bar wrap + catalog rail left as is. Risk noted: a theme
+   saved in the DB via the theme editor with a flat `input` skips `withLegacyUi` (none seen locally).
+0a. **2026-10-14 (later): 5 parallel agents done, uncommitted** — tables steps 3–5 + pagination
+   ([ui-control-tables.md](./ui-control-tables.md)), fields 32px / ink focus ([ui-control-fields.md](./ui-control-fields.md)),
+   pills kinds + `Pill.jsx` locked ([ui-control-pills.md](./ui-control-pills.md)), tabs ink + Modal / Drawer
+   ([ui-control-tabs-overlays.md](./ui-control-tabs-overlays.md)). Integration check: all edits present, build OK,
+   MNY / TNY / landbank pixel-identical on page view, data grid, source admin. **Owner decisions pending:** Input /
+   Textarea lock via `styles[]` conversion (fields file); TNY task-list overflow fix (a) container vs (b) `min-w-0`
+   on TNY layout column (tables file); Modal lock vs delete-modal red border on project themes (tabs file); empty
+   Layer Analysis placeholder + theming the rest of Runs (tables 3e); ~40 page-editor `color=` → `activeStyle`
+   renames + `status_pill` dots vs boxes (pills file); source tab bar wrap vs scroll, catalog rail active row
+   cobalt → ink (tabs file).
+0. **2026-10-14: tables** ([ui-control-tables.md](./ui-control-tables.md)) — owner: other controls before the raw-HTML task, tables first. Admin / auth lists + datasets task list / page, overview, catalog, uploads on `UI.Table 'list'` (done, uncommitted); grid ink (step 4) and hardcoded add-row / overflow (step 5) next. Then fields, pills, tabs, pagination (list in that file's intro / the 10/14 conversation).
 1. className → activeStyle: ALL DONE and `Button.jsx` LOCKED (2026-10-13; admin, auth incl. sign-in, datasets, page, shared ui, map editor, TNY components). Next: [ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md). Was: datasets DONE (2026-10-13). Owner's rule now: **no UI component lets
    className override the theme**; per-pattern keys are deleted (library + `_legacy`), project themes
    define role names in their own `button.styles`, `withLegacyUi` derives `actionFull` /
@@ -123,3 +141,12 @@ Proposed structure (decide when we get here):
 - [ ] Every listed element restyled; live walk shows no clickable without `cursor: pointer`
 - [ ] Default theme light + dark; MNY / transportny unchanged
 - [ ] `npm run build` clean; eslint vs HEAD on touched files
+
+### 2026-10-14 — dev warning for className on locked components (owner: "yes")
+
+`ui/warnLockedClassName.js` (`warnLockedClassName(component, className)`): in development (`import.meta.env.DEV`)
+a `className` passed to Button / Pill / Input (+ its Textarea export) / Textarea / Modal logs one
+`[dms] <X> ignores className (…)` warning per component + value; production does nothing. Modal now destructures
+`className` only to warn. Why: dropping it silently hid two Modal callers whose look was lost. Verified: helper
+fires once (deduped) in the browser; a walk of 33 admin / auth / datasets / page routes (default + MNY / TNY / LB)
+logs none. Lint ≤ HEAD on all five (the drop-only `no-unused-vars` are gone), build OK.

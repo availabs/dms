@@ -318,7 +318,7 @@ export function ActionBtn({ color, text, title, onClick, kind }) {
     const sec = getComponentTheme(theme, 'pages.section') || {};
     if (!sec.menuActionBtn) {
         const { Pill } = UI;
-        return <Pill color={color} text={text} title={title} onClick={onClick} />;
+        return <Pill activeStyle={color} text={text} title={title} onClick={onClick} />;
     }
     const cls = kind === 'save' ? sec.menuActionSave : color === 'green' ? `${sec.menuActionBtn} ${sec.menuActionBtnDone}` : sec.menuActionBtn;
     return <button type="button" title={title} aria-label={title} className={cls} onClick={onClick}>{text}</button>;

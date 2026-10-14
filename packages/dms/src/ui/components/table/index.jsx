@@ -125,26 +125,26 @@ const AddNew = ({allowAdddNew,
 
     return (
         <div
-            className={`grid bg-white divide-x divide-y border-slate-50 ${isDragging ? `select-none` : ``} sticky bottom-0 z-[3]`}
+            className={`grid ${theme?.addRowGrid || ''} ${isDragging ? `select-none` : ``} sticky bottom-0 z-[3]`}
             style={{
                 gridTemplateColumns: slicedGridTemplateColumns,
                 gridColumn: `span ${attrsToRender.length + 3} / ${attrsToRender.length + 3}`
             }}
         >
             <div className={'flex justify-between sticky left-0 z-[3]'} style={{width: numColSize}}>
-                <div key={'#'} className={`w-full font-semibold border border-slate-50 bg-gray-50 text-gray-500`}>
+                <div key={'#'} className={theme?.addRowGutterCell}>
 
                 </div>
             </div>
 
-            <div className={'bg-white flex flex-row h-full justify-evenly items-center border-slate-50'}
+            <div className={theme?.addRowButtonCell}
                  style={{width: `${addNewButtonWidth}px`}}>
                 <button
-                    className={'w-fit h-fit bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                    className={theme?.addRowButton}
                     onClick={e => {
                         addItem()
                     }}>
-                    <Icon icon={'CirclePlus'} className={'text-white'} height={addNewButtonWidth} width={addNewButtonWidth}/>
+                    <Icon icon={'CirclePlus'} className={theme?.addRowButtonIcon} height={addNewButtonWidth} width={addNewButtonWidth}/>
                 </button>
             </div>
             {
@@ -162,13 +162,13 @@ const AddNew = ({allowAdddNew,
                         return (
                             <div
                                 key={`add-new-${attrI}`}
-                                className={`flex border border-slate-50 p-1 bg-white hover:bg-blue-50 w-full h-full'`}
+                                className={theme?.addRowCell}
                                 style={{width: attrI === 0 ? size : (attribute._hasFixedSize ? attribute.size : undefined)}}
                             >
                                 <Comp
                                     key={`${attribute.name}`}
                                     menuPosition={'top'}
-                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                    className={theme?.addRowInput}
                                     {...attribute}
                                     size={size}
                                     value={newItem[attribute.name]}
@@ -239,17 +239,17 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
         <div ref={rowRef} className="relative">
             <div
                 ref={containerRef}
-                className="grid divide-x divide-y border-slate-50"
+                className={`grid ${theme?.inlineAddGrid || ''}`}
                 style={{ gridTemplateColumns, gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}` }}
                 onKeyDown={handleKeyDown}
             >
                 <div
-                    className="bg-gray-50 border border-slate-50 flex items-center justify-center"
+                    className={theme?.inlineAddGutter}
                     style={{ width: numColSize }}
                 >
                     {numColSize > 0 && (
                         <button
-                            className="flex items-center justify-center text-green-500 hover:text-green-700"
+                            className={theme?.inlineAddSave}
                             onClick={() => addItem?.()}
                             title="Save row (or press Enter)"
                         >
@@ -270,13 +270,13 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
                     return (
                         <div
                             key={`inline-add-${i}`}
-                            className="flex border border-slate-50 p-1 w-full h-full bg-white hover:bg-blue-50"
+                            className={theme?.addRowCell}
                             style={{ width: attribute._hasFixedSize ? attribute.size : undefined }}
                         >
                             <Comp
                                 key={attribute.name}
                                 menuPosition="top"
-                                className="p-1 bg-white hover:bg-blue-50 w-full h-full"
+                                className={theme?.addRowInput}
                                 {...attribute}
                                 size={attribute.size || defaultColumnSize}
                                 value={newItem[attribute.name]}
@@ -309,7 +309,7 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
             </div>
             {numColSize === 0 && (
                 <button
-                    className="absolute top-1/2 right-2 -translate-y-1/2 z-10 bg-green-500 hover:bg-green-600 text-white rounded text-xs px-1.5 py-0.5 shadow"
+                    className={theme?.inlineAddSaveFloating}
                     onClick={() => addItem?.()}
                     title="Save row"
                 >

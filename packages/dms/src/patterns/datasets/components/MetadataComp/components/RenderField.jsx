@@ -181,7 +181,7 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit =
                 setEnabled={e => e ? onSetPrimaryKey(col, true) : setShowRemoveModal(true)}
                 size={'small'}
             />
-            <Modal open={showRemoveModal} setOpen={setShowRemoveModal} className={t.deleteModalBorder}>
+            <Modal open={showRemoveModal} setOpen={setShowRemoveModal}>
                 <div className={t.deleteTitle}>Remove Primary Key</div>
                 <div className={t.deleteMessage}>
                     This drops the PRIMARY KEY constraint on column <span className={t.emphasis}>{col}</span> from
@@ -477,7 +477,7 @@ const RenderRemoveBtn = ({col, removeAttribute, canEdit = true}) => {
     if (!canEdit) return null;
     return (
         <div className={t.deleteWrapper}>
-            <Modal open={showDeleteModal} setOpen={setShowDeleteModal} className={t.deleteModalBorder}>
+            <Modal open={showDeleteModal} setOpen={setShowDeleteModal}>
                 <div className={t.deleteTitle}>Confirm Delete</div>
                 <div className={t.deleteMessage}>
                     Are you sure you want to delete column: <span className={t.emphasis}>{col}</span>?

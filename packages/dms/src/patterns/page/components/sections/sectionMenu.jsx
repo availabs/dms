@@ -375,7 +375,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 return (
                     <div className={'w-full flex justify-between'}>
                         <div className={'flex gap-1'}>
-                            {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={menuActionIcon} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
+                            {/*{isEdit && canEditSection ? <Pill activeStyle={'blue'} text={<Icon icon={'InfoSquare'} className={menuActionIcon} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
 
                             <ActionBtn color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={menuActionIcon}/>}
                                   title={'Copy Link'}

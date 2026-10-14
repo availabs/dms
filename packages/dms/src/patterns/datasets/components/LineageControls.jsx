@@ -1,6 +1,7 @@
-import {useEffect, useState} from 'react'
+import {useContext, useEffect, useState} from 'react'
 import {Link} from 'react-router'
 import {udaGetViewsLineage, udaDeleteView} from '../../../api'
+import {ThemeContext} from '../../../ui/useTheme'
 
 // View lineage on the datasets pages (dama-parent-child-etl-support.md G1/G3/G5). Lineage lives on
 // VIEWS: each version records what it was built from and which run produced it, and two versions of
@@ -103,6 +104,10 @@ export function InputsChangedChip({t, entry, names = {}}) {
  * refusal is shown as written, and an orphaning refusal offers the cascade.
  */
 export function DeleteVersionButton({t, envKey, viewId, label, canDelete, falcor, onDeleted}) {
+    // Buttons are UI.Button roles (2026-10-14, owner): the trigger matches the internal Delete Version and
+    // Delete Download (dangerFull + trash icon); Cancel = action, confirm = dangerSolid.
+    const {UI} = useContext(ThemeContext) || {};
+    const {Button, Icon} = UI || {};
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [refusal, setRefusal] = useState(null);
@@ -126,7 +131,11 @@ export function DeleteVersionButton({t, envKey, viewId, label, canDelete, falcor
         }
     };
 
-    if (!open) return <button type="button" className={t.verDeleteBtn} onClick={() => setOpen(true)}>Delete version</button>;
+    if (!open) return (
+        <Button activeStyle='dangerFull' onClick={() => setOpen(true)}>
+            {t.verDeleteIcon ? <Icon icon={t.verDeleteIcon} className={t.verDeleteIconClass}/> : null}Delete version
+        </Button>
+    );
     return (
         <div className={t.verDeleteDialog}>
             <div className={t.verDeleteTitle}>Delete {label || `version #${viewId}`}?</div>
@@ -136,15 +145,15 @@ export function DeleteVersionButton({t, envKey, viewId, label, canDelete, falcor
             </div>
             {refusal ? <div className={t.verDeleteRefusal}>{refusal.error}</div> : null}
             <div className={t.verDeleteButtons}>
-                <button type="button" className={t.verDeleteCancel} disabled={busy} onClick={close}>Cancel</button>
+                <Button activeStyle='action' disabled={busy} onClick={close}>Cancel</Button>
                 {refusal?.reason === 'has_outputs' ? (
-                    <button type="button" className={t.verDeleteConfirm} disabled={busy} onClick={() => run(true)}>
+                    <Button activeStyle='dangerSolid' disabled={busy} onClick={() => run(true)}>
                         {busy ? 'Deleting…' : `Delete it and the ${refusal.details?.outputs?.length || ''} versions it produced`}
-                    </button>
+                    </Button>
                 ) : (
-                    <button type="button" className={t.verDeleteConfirm} disabled={busy || !!refusal} onClick={() => run(false)}>
+                    <Button activeStyle='dangerSolid' disabled={busy || !!refusal} onClick={() => run(false)}>
                         {busy ? 'Deleting…' : 'Delete version'}
-                    </button>
+                    </Button>
                 )}
             </div>
         </div>

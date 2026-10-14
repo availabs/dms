@@ -1,10 +1,11 @@
-import React, {useState} from "react";
+import React, {useState, useContext} from "react";
 import {Link} from "react-router";
 import {uniq} from "lodash-es";
 import {convertToUrlParams} from "../../../../patterns/page/pages/_utils";
 import {DeleteModal} from "../../DeleteModal";
 import Icon from "../../Icon"
 import Popup from "../../Popup"
+import {TableCellContext} from "../index";
 
 
 const getIcon = ({icon, name}) => {
@@ -12,6 +13,7 @@ const getIcon = ({icon, name}) => {
 }
 
 const DeleteBtn = ({removeItem, newItem}) => {
+    const { theme = {} } = useContext(TableCellContext) || {};
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     function deleteItem() {
@@ -24,9 +26,9 @@ const DeleteBtn = ({removeItem, newItem}) => {
             <button
                 key={`delete`}
                 title={'delete'}
-                className={'w-fit p-0.5 mx-0.5 bg-red-300 hover:bg-red-500 text-white rounded-lg'}
+                className={theme.actionDeleteBtn}
                 onClick={() => setShowDeleteModal(true)}>
-                <Icon className={'text-white'} icon={'TrashCan'}/>
+                <Icon className={theme.actionBtnIcon} icon={'TrashCan'}/>
             </button>
 
             <DeleteModal
@@ -41,6 +43,7 @@ const DeleteBtn = ({removeItem, newItem}) => {
 }
 
 export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], action={}}) => {
+    const { theme = {} } = useContext(TableCellContext) || {};
     // Key off the row's display alias (normalName) when present, falling back to `name`.
     // Joined/aggregated group columns store their value under normalName (e.g. `meta.county as county`
     // → row key `county`), so reading `newItem[name]` alone would miss them and drop the param.
@@ -60,9 +63,9 @@ export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], acti
         action.actionType === 'url' ? (
             <Link key={`${action.name}`}
                   title={action.name}
-                  className={'flex items-center w-fit p-0.5 mx-0.5 bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                  className={theme.actionLinkBtn}
                   to={`${action.url}?${searchParams}`}>
-                <IconComp className={'text-white'}/>
+                <IconComp className={theme.actionBtnIcon}/>
             </Link>
         ) : groupBy.length ? null : (
             <DeleteBtn newItem={newItem} removeItem={removeItem} />
@@ -92,6 +95,7 @@ const getSearchParams = ({newItem, columns}) => {
 };
 
 const DeleteMenuItem = ({removeItem, newItem}) => {
+    const { theme = {} } = useContext(TableCellContext) || {};
     const [showDeleteModal, setShowDeleteModal] = useState(false);
 
     function deleteItem() {
@@ -102,7 +106,7 @@ const DeleteMenuItem = ({removeItem, newItem}) => {
     return (
         <>
             <button
-                className={'flex items-center gap-2 px-2 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded cursor-pointer whitespace-nowrap w-full text-left'}
+                className={theme.actionsMenuItemDanger}
                 onClick={() => setShowDeleteModal(true)}
             >
                 <Icon icon={'TrashCan'} className={'size-3.5'}/>
@@ -120,23 +124,24 @@ const DeleteMenuItem = ({removeItem, newItem}) => {
 };
 
 export const RenderActionsPopup = ({ actionColumns=[], newItem={}, removeItem=() => {}, columns=[] }) => {
+    const { theme = {} } = useContext(TableCellContext) || {};
     const {groupBy, searchParams} = getSearchParams({newItem, columns});
 
     return (
         <Popup
             button={
-                <button className={'flex items-center justify-center w-full h-full cursor-pointer'}>
-                    <Icon icon={'EllipsisVertical'} className={'text-slate-400 hover:text-blue-500 size-4'} />
+                <button className={theme.actionsMenuTrigger}>
+                    <Icon icon={'EllipsisVertical'} className={theme.actionsMenuTriggerIcon} />
                 </button>
             }
             preventCloseOnClickOutside={true}
         >
-            <div className={'flex flex-col bg-white shadow-lg rounded-md p-1 min-w-[100px]'}>
+            <div className={theme.actionsMenu}>
                 {actionColumns.map(action =>
                     action.actionType === 'url' ? (
                         <Link key={action.name}
                               to={`${action.url}?${searchParams}`}
-                              className={'flex items-center gap-2 px-2 py-1.5 text-sm text-slate-700 hover:bg-blue-50 rounded cursor-pointer whitespace-nowrap'}
+                              className={theme.actionsMenuItem}
                         >
                             <Icon icon={action.icon || 'ArrowRight'} className={'size-3.5'}/>
                             <span>{action.name}</span>

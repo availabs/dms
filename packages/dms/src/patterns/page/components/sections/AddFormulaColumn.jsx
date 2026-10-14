@@ -322,7 +322,7 @@ const AddFormulaColumn = ({ columns = [], addFormulaColumn }) => {
         <>
             {t.addTrigger
                 ? <button type='button' className={t.addTrigger} onClick={() => setOpen(true)}>+ Formula</button>
-                : <Pill text="+ Formula" color="blue" onClick={() => setOpen(true)} />}
+                : <Pill text="+ Formula" activeStyle="blue" onClick={() => setOpen(true)} />}
             {open && <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />}
         </>
     );

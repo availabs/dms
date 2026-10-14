@@ -15,13 +15,10 @@ export const udaTaskListTheme = {
 
     // UdaTaskList.jsx
     wrapper: 'w-full',
-    table: 'w-full',                                                       // '' → UI.Table (pre-v6)
-    tableScroll: 'overflow-x-auto',
-    th: 'px-3 py-2 text-left font-normal t-metaXS text-[var(--t-pencil)] whitespace-nowrap',
-    tr: `border-t ${RULE} hover:bg-[var(--t-well)]`,
-    td: 'px-3 py-2 t-proseSM text-[var(--t-ink)] align-top',
+    tableStyle: 'list',
+    columnSizes: { task_id: 90, status: 120, queued_at: 150, duration: 110 },   // px; unlisted columns share the rest   // UI.Table named style (2026-10-14, ui-control-tables.md); '' → the theme's default table
     idLink: 't-metaMD text-[var(--t-ink)] underline decoration-[var(--t-rule-strong)] underline-offset-2 hover:decoration-[var(--t-ink)]',
-    typeCell: 'whitespace-nowrap',
+    typeCell: 'whitespace-nowrap capitalize',
     startedCell: 'text-[var(--t-graphite)] whitespace-nowrap',
     durationCell: 't-metaMD text-[var(--t-graphite)] whitespace-nowrap',
     // no tasks — '' → render nothing (pre-v6)

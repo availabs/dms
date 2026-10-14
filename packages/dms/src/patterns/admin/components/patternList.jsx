@@ -342,6 +342,7 @@ function PatternEdit({
 						   data={data}
 						   isEdit={false}
 						   gridRef={gridRef}
+						   activeStyle='list'
 					/>
 				</div>
 

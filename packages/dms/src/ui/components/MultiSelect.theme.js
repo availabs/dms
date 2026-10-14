@@ -31,12 +31,14 @@ export const multiselectTheme = {
 
             // Trigger / input shell.
             inputWrapper: [
-                'relative flex flex-wrap items-center gap-1 w-full min-h-9 rounded-md cursor-pointer',
-                'pl-3 pr-7 py-1.5',
+                // v6 field (2026-10-14, ui-controls.html "Fields" SELECT_T): 32px (h-6 tags + py-1), ink focus
+                // border, no ring. Pre-v6 min-h-9 / cobalt ring frozen in src/themes/_legacy/ui.js.
+                'relative flex flex-wrap items-center gap-1 w-full min-h-8 rounded-md cursor-pointer',
+                'pl-2.5 pr-7 py-1',
                 'border border-[var(--t-rule-strong)] hover:border-[var(--t-graphite)]',
                 'bg-[var(--t-panel)]',
-                'font-sans text-sm text-[var(--t-ink)]',
-                'focus-within:ring-1 focus-within:ring-[var(--t-cobalt)] focus-within:border-[var(--t-cobalt)]',
+                't-proseSM text-[var(--t-ink)]',
+                'focus-within:border-[var(--t-ink)]',
                 'transition-colors duration-150',
             ].join(' '),
 
@@ -59,23 +61,16 @@ export const multiselectTheme = {
             // Single-select mode (singleSelectOnly=true). The selected value
             // renders as inline text in the trigger — no pill chip, no remove
             // button — mirroring Catalyst Listbox / Select trigger typography.
-            singleValue: 'truncate font-sans text-sm text-[var(--t-ink)]',
-            singlePlaceholder: 'truncate font-sans text-sm text-[var(--t-pencil)]',
+            singleValue: 'truncate t-proseSM text-[var(--t-ink)]',
+            singlePlaceholder: 'truncate t-proseSM text-[var(--t-pencil)]',
 
             // Clear × for single-select with allowDeselect — absolutely positioned
             // just left of the caret (which sits at right-0). Glyph reuses
             // removeIconName / removeIconClass.
-            singleClearWrapper: 'absolute inset-y-0 right-6 flex items-center cursor-pointer text-zinc-500 hover:text-red-600',
+            singleClearWrapper: 'absolute inset-y-0 right-6 flex items-center cursor-pointer text-[var(--t-pencil)] hover:text-[var(--t-brick)]',
 
-            // Selected-value chip.
-            tokenWrapper: [
-                'inline-flex items-center gap-x-1 rounded-full px-2 py-0.5',
-                'font-mono text-xs font-normal',
-                'bg-[var(--t-well)] text-[var(--t-ink)]',
-                'border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]',
-                'transition-colors duration-150',
-                'whitespace-nowrap',
-            ].join(' '),
+            // Selected-value chip — the spec's tag (controls.py TAG): h-6 r4 well, prose XS.
+            tokenWrapper: 'inline-flex items-center gap-1 h-6 px-1.5 rounded bg-[var(--t-well)] t-proseXS text-[var(--t-ink)] whitespace-nowrap',
 
             // Clickable × button on each chip — styles the wrapper button; the
             // actual glyph is rendered as `<Icon icon={removeIconName} ... />`
@@ -109,7 +104,7 @@ export const multiselectTheme = {
             menuItem: [
                 'flex items-center gap-2 rounded-md cursor-pointer outline-none',
                 'px-2 py-1.5',
-                'font-sans text-sm text-[var(--t-ink)]',
+                't-proseSM text-[var(--t-ink)]',
                 'hover:bg-[var(--t-well)]',
                 'transition-colors duration-150',
             ].join(' '),
@@ -128,7 +123,7 @@ export const multiselectTheme = {
 
             // Selected-row check icon shown when displayDetailedValues=false.
             selectedValueIconName: 'Check',
-            selectedValueIcon: 'w-4 h-4 text-[var(--t-cobalt)]',
+            selectedValueIcon: 'w-4 h-4 text-[var(--t-ink)]',
         },
         // A cobalt-accented chip variant — opt in per-column via `activeStyle:
         // 'accent'` on the column config (forwarded through by TableCell.jsx,
@@ -214,19 +209,18 @@ export const multiselectTheme = {
             singlePlaceholder: 'truncate t-proseXS text-[var(--t-pencil)]',
             caretIcon: 'w-3.5 h-3.5 stroke-[var(--t-pencil)]',
         },
-        // 'input' — the default trigger with UI.Input's own padding (px-3 py-2.5, text-sm, 1px border)
-        // instead of a min height, so a select is the same height as the text inputs beside it and
-        // stays consistent with them (datasets metadata editor's column type, 2026-10-07). Opt-in;
-        // every other key inherits from styles[0].
+        // 'input' — a select the same height as the text inputs beside it (datasets metadata editor's
+        // column type, 2026-10-07). Since 2026-10-14 fields and selects are both 32px, so it is the
+        // default trigger; kept as a name for its callers. Pre-v6 (Input's 42px padding) frozen in _legacy.
         {
             name: 'input',
             inputWrapper: [
-                'relative flex flex-wrap items-center gap-1 w-full rounded-md cursor-pointer',
-                'pl-3 pr-7 py-2.5',
+                'relative flex flex-wrap items-center gap-1 w-full min-h-8 rounded-md cursor-pointer',
+                'pl-2.5 pr-7 py-1',
                 'border border-[var(--t-rule-strong)] hover:border-[var(--t-graphite)]',
                 'bg-[var(--t-panel)]',
-                'font-sans text-sm text-[var(--t-ink)]',
-                'focus-within:ring-1 focus-within:ring-[var(--t-cobalt)] focus-within:border-[var(--t-cobalt)]',
+                't-proseSM text-[var(--t-ink)]',
+                'focus-within:border-[var(--t-ink)]',
                 'transition-colors duration-150',
             ].join(' '),
         },

@@ -72,14 +72,12 @@ export const datasetsListTheme = {
     cardView: 'self-start shrink-0 mt-3 t-metaXS text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)]',
 
     // table
-    tableWrap: 'flex-1 min-w-0 rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] self-start max-h-[calc(100%-1.5rem)] overflow-auto',
-    table: 'w-full text-left border-collapse',
-    theadRow: 'bg-[var(--t-well)] border-b border-[var(--t-rule)]',
-    th: 'px-3 py-2 t-metaXS text-[var(--t-pencil)] font-medium sticky top-0 z-[1] bg-[var(--t-well)]',
-    tr: 'border-b border-[var(--t-rule)] last:border-0 hover:bg-[var(--t-well)]',
-    td: 'px-3 py-2.5 t-proseSM align-top',
+    tableWrap: 'flex-1 min-w-0 rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] self-start overflow-hidden',   // UI.Table scrolls inside
+    // table view — UI.Table named style + per-column px widths (2026-10-14, ui-control-tables.md)
+    tableStyle: 'list',
+    columnSizes: { type: 150 },
     tdName: 'font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)]',
-    tdMuted: 'px-3 py-2.5 t-proseSM text-[var(--t-graphite)] align-top max-w-[40ch] truncate',
+    descCell: 'text-[var(--t-graphite)] truncate',
     tableCatWrap: 'flex flex-wrap items-center gap-x-3 gap-y-1',
     tableCatItem: 'inline-flex items-center gap-1.5 t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
     tableCatDot: 'size-1.5 rounded-full',

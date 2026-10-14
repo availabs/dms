@@ -180,7 +180,8 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
         () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
         [theme?.navOptions?.secondaryNav?.navItems, parent?.navPrefix]
     );
-    const {Layout, Icon, Button, Input} = UI;
+    const {Layout, Icon, Button, Input, Table} = UI;
+    const catalogGridRef = React.useRef();
     const swatches = t.categorySwatches || FALLBACK_SWATCHES;
     const cacheKey = `${format?.app}-${siteType}`;
     // Uploaded-file sources are excluded by the server from the default
@@ -491,29 +492,22 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                     </div>
                 ) : view === 'table' ? (
                     <div className={t.tableWrap}>
-                        <table className={t.table}>
-                            <thead><tr className={t.theadRow}>
-                                <th className={t.th}>Name</th>
-                                <th className={t.th}>Type</th>
-                                <th className={t.th}>Category</th>
-                                <th className={t.th}>Description</th>
-                            </tr></thead>
-                            <tbody>
-                                {shownSources.map((s, i) => {
-                                    const sid = s.id || s.source_id;
-                                    return (
-                                        <tr key={sid || i} className={t.tr}>
-                                            <td className={t.td}>
-                                                <Link to={`${s.isDms ? 'internal_source' : 'source'}/${sid}`} className={t.tdName}>{s?.name}</Link>
-                                            </td>
-                                            <td className={t.td}><TypeChip source={s} t={t} Icon={Icon} /></td>
-                                            <td className={t.td}><TableCategory source={s} t={t} swatches={swatches} /></td>
-                                            <td className={t.tdMuted}>{extractLexicalText(s?.description)}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
+                        {/* UI.Table (`t.tableStyle`); each cell's wrapper takes the table's cell class,
+                            the inner element this theme's class */}
+                        <Table data={shownSources} gridRef={catalogGridRef} isEdit={false}
+                               activeStyle={t.tableStyle || undefined}
+                               display={{ disableCellSelection: true }}
+                               columns={[
+                                   { name: 'name', display_name: 'Name', show: true, size: t.columnSizes?.name, type: 'ui', wrapText: true,
+                                     Comp: ({ row: s, className }) => <div className={className}>
+                                         <Link to={`${s.isDms ? 'internal_source' : 'source'}/${s.id || s.source_id}`} className={t.tdName}>{s?.name}</Link></div> },
+                                   { name: 'type', display_name: 'Type', show: true, size: t.columnSizes?.type, type: 'ui',
+                                     Comp: ({ row: s, className }) => <div className={className}><TypeChip source={s} t={t} Icon={Icon} /></div> },
+                                   { name: 'categories', display_name: 'Category', show: true, size: t.columnSizes?.categories, type: 'ui',
+                                     Comp: ({ row: s, className }) => <div className={className}><TableCategory source={s} t={t} swatches={swatches} /></div> },
+                                   { name: 'description', display_name: 'Description', show: true, size: t.columnSizes?.description, type: 'ui',
+                                     Comp: ({ row: s, className }) => <div className={className}><span className={t.descCell}>{extractLexicalText(s?.description)}</span></div> },
+                               ]}/>
                     </div>
                 ) : (
                     <div className={view === 'cards' ? t.sourceStack : t.sourceGrid}>

@@ -38,7 +38,7 @@ export const editSiteTheme = {
     // UI.Input's className replaces its themed default entirely, so this
     // carries the whole look of the text itself — the bordered box is
     // `searchWrapper` around it.
-    searchInput: 'w-full min-w-0 bg-transparent text-sm placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
+    // the search field itself is UI.Input activeStyle 'bare' (Input is locked, 2026-10-14)
     searchKbdHint: 't-metaXS text-[var(--t-pencil)] border border-[var(--t-rule)] rounded px-1.5 hidden md:block',
 
     toolbarFilterRow: 'flex flex-wrap items-center gap-3 mt-2.5',
@@ -58,7 +58,7 @@ export const editSiteTheme = {
     tableCard: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden mt-3 shrink-0',
 
     // PatternList table cell
-    baseUrlLink: 'flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]',
+    baseUrlLink: 'flex items-center px-4 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]',
     patternName: 't-proseSM font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)]',
     patternNamePlain: 't-proseSM font-medium text-[var(--t-graphite)]',
 

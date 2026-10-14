@@ -224,6 +224,12 @@ const QA_CARD = {
 const EDIT_FIELD = 'resize-none [field-sizing:content] -mx-2 w-[calc(100%+1rem)] bg-transparent border border-transparent rounded-md px-2 py-1 text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:bg-[var(--t-well)] focus:bg-[var(--t-panel)] focus:border-[var(--t-cobalt)] focus:outline-none focus:ring-2 focus:ring-[var(--t-cobalt-soft)] transition-colors'
 // A form field: a box at rest (a create form reads as a form, unlike an edit-in-place record).
 const FORM_FIELD = 'w-full t-proseSM bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded-md px-3 py-1.5 text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] focus:outline-none focus:border-[var(--t-cobalt)] focus:ring-2 focus:ring-[var(--t-cobalt-soft)]'
+// The two fields as UI.Input named styles (2026-10-14, ui-control-fields.md: Input is locked — no className),
+// picked by a card style's `editFieldStyle`. `textarea` is what Input's Textarea (TextareaEdit) reads.
+export const qaInputStyles = [
+  { name: 'qa_edit_field', input: EDIT_FIELD, textarea: EDIT_FIELD },
+  { name: 'qa_form_field', input: FORM_FIELD, textarea: FORM_FIELD },
+]
 export const qaCardStyles = [
   // a page's header: crumb, title, figures, actions
   { name: 'qa_header', ...QA_CARD },
@@ -232,12 +238,12 @@ export const qaCardStyles = [
   // a filter bar: segmented shortcuts + filter controls; the active shortcut lifts onto the panel
   { name: 'qa_filters', ...QA_CARD, cellActive: '!bg-[var(--t-panel)] shadow-[var(--t-shadow-lift)] [&_a]:!text-[var(--t-ink)]' },
   // a record edited in place (a ticket's body, its details rail): fields sit as text until hovered
-  { name: 'qa_body', ...QA_CARD, editField: EDIT_FIELD },
+  { name: 'qa_body', ...QA_CARD, editField: EDIT_FIELD, editFieldStyle: 'qa_edit_field' },
   // label | value rows: a fixed label column, label and value centred on one line
-  { name: 'qa_rail', ...QA_CARD, editField: EDIT_FIELD, headerValueWrapper: 'w-full flex items-center gap-2', header: 'w-[88px] shrink-0' },
+  { name: 'qa_rail', ...QA_CARD, editField: EDIT_FIELD, editFieldStyle: 'qa_edit_field', headerValueWrapper: 'w-full flex items-center gap-2', header: 'w-[88px] shrink-0' },
   // a create form (the New ticket modal): boxed fields; Add is the UI.Button 'primary' role
   {
-    name: 'qa_form', ...QA_CARD, editField: FORM_FIELD, headerValueWrapper: 'w-full flex gap-1.5',
+    name: 'qa_form', ...QA_CARD, editField: FORM_FIELD, editFieldStyle: 'qa_form_field', headerValueWrapper: 'w-full flex gap-1.5',
     formAddNewItemWrapper: 'col-span-full w-fit justify-self-end self-end pt-2',
   },
   // a placeholder for a feature not built yet: dashed frame (display.cardBorder on)
@@ -369,7 +375,7 @@ export const qaMultiselectStyles = [
 export const qaFlatThemes = {
   // the shared Input's wrapper (a filter chip's search box, an edit-in-place field): the library's
   // bare one, as QA's fields and chips draw their own box
-  input: { inputContainer: inputTheme.inputContainer },
+  input: { inputContainer: inputTheme.styles[0].inputContainer },
   // a filter control cell = one chip
   filterControlCell: {
     // the search chip's own input sits bare inside the chip (direct child only, so a picker's
@@ -433,6 +439,7 @@ export const QA_STYLES = {
   dataCard: qaCardStyles,
   table: qaTableStyles,
   multiselect: qaMultiselectStyles,
+  input: qaInputStyles,
   avlGraph: qaGraphStyles,
   stageProgress: qaStageProgressStyles,
   radio: qaRadioStyles,

@@ -34,9 +34,10 @@ export const metadataCompTheme = {
     dragHandleSvg: 'size-4',
     fieldControls: 'flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_auto] gap-3 items-start',
     // same padding as the UI.Input / column-type select beside it (py-2.5 + 1px border around a 20px
-    // line — the icon is size-4 + my-0.5), so all three are one height (owner 2026-10-07)
-    advancedToggle: `self-end px-2.5 py-2.5 inline-flex items-center justify-center rounded-md border ${RULE} text-[var(--t-graphite)] hover:bg-[var(--t-well)] hover:text-[var(--t-ink)] cursor-pointer`,
-    advancedToggleOpen: 'self-end px-2.5 py-2.5 inline-flex items-center justify-center rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-well)] text-[var(--t-ink)] cursor-pointer',
+    // line — the icon is size-4 + my-0.5), so all three are one height (owner 2026-10-07). 2026-10-14: fields are
+    // 32px (ui-control-fields.md), so the toggle is a 32px square.
+    advancedToggle: `self-end size-8 inline-flex items-center justify-center rounded-md border ${RULE} text-[var(--t-graphite)] hover:bg-[var(--t-well)] hover:text-[var(--t-ink)] cursor-pointer`,
+    advancedToggleOpen: 'self-end size-8 inline-flex items-center justify-center rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-well)] text-[var(--t-ink)] cursor-pointer',
     advancedToggleIcon: 'MenuDots',       // '' → the toggle shows "..."
     advancedToggleIconOpen: 'CaretDown',
     advancedToggleIconClass: 'size-4 my-0.5',
@@ -72,8 +73,8 @@ export const metadataCompTheme = {
     btnIcon: 'size-3.5',
     removeColumnIcon: 'TrashCan',           // '' → the row's remove button reads "delete", no icon
 
-    // Delete column / remove primary key modals
-    deleteModalBorder: '',
+    // Delete column / remove primary key modals (plain UI.Modal on every theme — owner 2026-10-14 dropped
+    // the project themes' red `deleteModalBorder`)
     deleteTitle: 'text-left t-displaySM text-[var(--t-ink)]',
     deleteMessage: 'text-left mt-2 t-proseSM text-[var(--t-graphite)]',
     emphasis: 'font-medium text-[var(--t-ink)]',

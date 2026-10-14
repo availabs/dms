@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router";
 import { get } from "lodash-es";
 
 import { DatasetsContext } from "../../../context";
+import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
+import { runsPageTheme } from "./runsPage.theme";
 import { getExternalEnv } from "../../../utils/datasources";
 import {
     cronToHuman,
@@ -89,6 +91,10 @@ function findViewIds(...objects) {
  * source; the flat `*_view_id` links above can only point at the current one.
  */
 const RunOutputs = ({ result, pageBaseUrl, sourceId }) => {
+    const { theme, UI } = useContext(ThemeContext) || {};
+    const t = { ...runsPageTheme, ...getComponentTheme(theme, 'datasets.runsPage') };
+    const { Table } = UI || {};
+    const gridRef = useRef();
     const r = parseMaybeJson(result, {});
     const outputs = Array.isArray(r?.outputs) ? r.outputs.filter(o => o && o.view_id != null) : [];
     if (!outputs.length && r?.run_view_id == null) return null;
@@ -103,32 +109,24 @@ const RunOutputs = ({ result, pageBaseUrl, sourceId }) => {
                 </div>
             ) : null}
             {outputs.length ? (
-                <table className={'w-full text-left'}>
-                    <thead>
-                        <tr className={'text-xs uppercase text-gray-400'}>
-                            <th className={'py-1 pr-4 font-medium'}>Output</th>
-                            <th className={'py-1 pr-4 font-medium'}>Version</th>
-                            <th className={'py-1 pr-4 font-medium text-right'}>Rows</th>
-                            <th className={'py-1 font-medium'}>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {outputs.map((o, i) => (
-                            <tr key={`${o.view_id}-${i}`} className={'border-t border-gray-100'}>
-                                <td className={'py-1 pr-4 text-gray-700'}>{o.output || '—'}</td>
-                                <td className={'py-1 pr-4'}>
-                                    {o.source_id != null ? (
-                                        <Link className={'text-blue-500 hover:underline'} to={`${pageBaseUrl}/${o.source_id}/version/${o.view_id}`}>
-                                            source {o.source_id} · view #{o.view_id}
-                                        </Link>
-                                    ) : `view #${o.view_id}`}
-                                </td>
-                                <td className={'py-1 pr-4 text-right tabular-nums text-gray-700'}>{o.rows != null ? Number(o.rows).toLocaleString() : '—'}</td>
-                                <td className={'py-1'}>{o.status ? <StatusChip status={o.status} /> : '—'}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
+                // UI.Table (`t.outputsTableStyle`, 2026-10-14 ui-control-tables.md); each cell's wrapper takes
+                // the table's cell class, the inner element this theme's class
+                <Table data={outputs} gridRef={gridRef} isEdit={false} activeStyle={t.outputsTableStyle || undefined}
+                    display={{ disableCellSelection: true }}
+                    columns={[
+                        { name: 'output', display_name: 'Output', show: true, type: 'ui',
+                          Comp: ({ value, className }) => <div className={className}><span className={t.outputCell}>{value || '—'}</span></div> },
+                        { name: 'view_id', display_name: 'Version', show: true, type: 'ui',
+                          Comp: ({ row: o, className }) => <div className={className}>{o.source_id != null ? (
+                              <Link className={t.outputLink} to={`${pageBaseUrl}/${o.source_id}/version/${o.view_id}`}>
+                                  source {o.source_id} · view #{o.view_id}
+                              </Link>
+                          ) : <span className={t.outputCell}>view #{o.view_id}</span>}</div> },
+                        { name: 'rows', display_name: 'Rows', show: true, type: 'ui',
+                          Comp: ({ value, className }) => <div className={className}><span className={t.outputRows}>{value != null ? Number(value).toLocaleString() : '—'}</span></div> },
+                        { name: 'status', display_name: 'Status', show: true, type: 'ui',
+                          Comp: ({ value, className }) => <div className={className}>{value ? <StatusChip status={value} /> : '—'}</div> },
+                    ]}/>
             ) : null}
         </div>
     );

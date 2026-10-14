@@ -10,6 +10,7 @@ import { layoutGroupTheme } from './components/LayoutGroup.theme';
 import {tabsTheme} from "./components/Tabs.theme";
 import {buttonTheme} from "./components/Button.theme";
 import {inputTheme} from "./components/Input.theme";
+import {textareaTheme} from "./components/Textarea.theme";
 import iconTheme from "./components/Icon.theme";
 import {fieldTheme} from "./components/FieldSet.theme";
 import {dialogTheme} from "./components/Dialog.theme";
@@ -228,6 +229,7 @@ const components = {
     tabs: tabsTheme,
     button: buttonTheme,
     input: inputTheme,
+    textarea: textareaTheme,
     icon: iconTheme,
     field: fieldTheme,
     dialog: dialogTheme,

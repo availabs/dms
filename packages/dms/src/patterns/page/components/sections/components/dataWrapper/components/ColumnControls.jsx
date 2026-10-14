@@ -286,11 +286,11 @@ export default function ColumnControls({context, cms_context}) {
                                     <div className={`flex gap-1 m-1 w-full`}>
                                         {
                                             controls.columns.find(({key}) => key === 'show') ?
-                                                <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
+                                                <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} activeStyle={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
                                         }
                                         <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
-                                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter()}/>
-                                        <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
+                                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} activeStyle={'blue'} onClick={() => toggleIdFilter()}/>
+                                        <Pill text={'Reset all'} activeStyle={'orange'} onClick={() => resetAllColumns()}/>
                                     </div>
                                 </div>
                             </div>

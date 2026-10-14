@@ -196,7 +196,7 @@ const theme = {
             // The table-header search inputs (Input's className is also a full
             // replacement, same as Button) — compact, since they sit inside a
             // table header cell rather than a form.
-            headerInput: "bg-[var(--t-panel)] border border-[var(--t-rule)] rounded px-2 py-1 text-xs text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] outline-none focus:border-[var(--t-rule-strong)] w-32",
+            // 2026-10-14: now UI.Input's own 'headerFilter' style (Input is locked — no className); same classes.
             // Unset = the manager's Sites / Themes / Auth menu. A client site
             // sets `[{name, path}]` — typically just Profile / Users / Groups.
             menuItems: undefined,

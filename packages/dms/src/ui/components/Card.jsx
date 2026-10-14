@@ -285,6 +285,7 @@ const CompWrapper = ({
                          componentWrapperClassName, // useful in edit mode to control edit comp width
                       isValueFormatted, id,
                       editFieldClassName, // the dataCard style's `editField` (unset = 'border'): the edit component's frame
+                      editFieldStyle, // the dataCard style's `editFieldStyle`: a UI.Input named style for a text field
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
@@ -378,9 +379,9 @@ const CompWrapper = ({
                   id={compIdEdit}
                   onChange={onChange}
                   className={`${editMode ? (editFieldClassName ?? 'border') : ''} ${className}`}
-                  // a style's editField also replaces a text field's own input look (TextEdit /
-                  // TextareaEdit); only passed when a style sets one, so other Cards are unchanged
-                  {...(editMode && editFieldClassName ? { fieldClassName: editFieldClassName } : {})}
+                  // a style's editFieldStyle picks the text field's own look (TextEdit / TextareaEdit pass it
+                  // to UI.Input as activeStyle — Input takes no className); only passed when a style sets one
+                  {...(editMode && editFieldStyle ? { fieldStyle: editFieldStyle } : {})}
                   {...attributeProps}
                   row={row}
                   options={options}
@@ -652,7 +653,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
-                                                 editFieldClassName={theme.editField}
+                                                 editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -672,7 +673,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
-                                                 editFieldClassName={theme.editField}
+                                                 editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -693,7 +694,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
-                                                 editFieldClassName={theme.editField}
+                                                 editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -712,7 +713,7 @@ const CardColumnField = ({
                                              id={id}
                                              allowEdit={allowEdit || attr.allowEditInView}
                                              formatFunctions={formatFunctions}
-                                             editFieldClassName={theme.editField}
+                                             editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                              className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                              componentWrapperClassName={theme.componentWrapper}
                                 />

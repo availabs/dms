@@ -66,7 +66,7 @@ const AddCalculatedColumn = ({columns=[], addCalculatedColumn}) => {
         <>
             {t.addTrigger
                 ? <button type='button' className={t.addTrigger} onClick={() => setOpen(true)}>+ Calculated</button>
-                : <Pill text={'+ Calculated'} color={'blue'} onClick={() => setOpen(true)}/>}
+                : <Pill text={'+ Calculated'} activeStyle={'blue'} onClick={() => setOpen(true)}/>}
             {open && <Modal open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>}
         </>
     )

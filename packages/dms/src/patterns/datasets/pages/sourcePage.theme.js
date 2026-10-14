@@ -34,7 +34,7 @@ export const sourcePageTheme = {
     // wraps on narrow screens; no overflow scroll (the tabs' -mb-px always overflowed → stray scrollbar)
     tabNav: 'flex flex-wrap items-end gap-x-5',
     tab: 'h-10 inline-flex items-center gap-1.5 px-1 t-proseSM font-medium lowercase border-b-2 -mb-px transition-colors whitespace-nowrap',
-    tabActive: 'border-[var(--t-cobalt)] text-[var(--t-cobalt)]',
+    tabActive: 'border-[var(--t-ink)] text-[var(--t-ink)]',   // ink (owner 2026-10-13: tabs ink in the default theme)
     tabInactive: 'border-transparent text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
     tabIcon: 'size-3.5',
     adminTabIcon: 'Lock',

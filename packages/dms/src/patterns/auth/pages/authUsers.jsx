@@ -6,7 +6,7 @@ import {isEqual} from "lodash-es";
 import { isUserAuthed } from "../../../utils/auth";
 import { useManagePageGate } from "./useManagePageGate";
 
-const InputControl = ({show, value, onChange, placeHolder, className}) => {
+const InputControl = ({show, value, onChange, placeHolder}) => {
     const { UI } = React.useContext(ThemeContext);
     const { Input } = UI;
 
@@ -26,7 +26,7 @@ const InputControl = ({show, value, onChange, placeHolder, className}) => {
 
     if (!show) return null;
     return (
-        <Input className={className}
+        <Input activeStyle='headerFilter'
             type="text"
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -266,13 +266,13 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 <div className={m.tableHeaderCell}>
                     {attribute.display_name}
                     { attribute.name === 'email' &&
-                        <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..." className={m.headerInput}/> }
+                        <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..."/> }
                     { attribute.name === 'groups' &&
-                        <InputControl show value={searchGroup} onChange={setSearchGroup} placeHolder="filter group..." className={m.headerInput}/> }
+                        <InputControl show value={searchGroup} onChange={setSearchGroup} placeHolder="filter group..."/> }
                 </div>
             )
         }
-    }), [searchUser, searchGroup, m.tableHeaderCell, m.headerInput]);
+    }), [searchUser, searchGroup, m.tableHeaderCell]);
 
     // const requestsTableControls = {
     //     header: {
@@ -360,7 +360,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 data={filteredUsers}
                 columns={userColumns}
                 allowEdit={true}
-                activeStyle="roomy"
+                activeStyle="list"
                 updateItem={async (_, __, e) => {
                     const original = users.find(u => u.email === e.email);
 

@@ -29,20 +29,15 @@ export const sourceOverviewTheme = {
     colMetaLink:    't-metaXS text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)]',
     // the card clips (rounded corners) — the table scrolls sideways inside it
     tableScroll:    'overflow-x-auto scrollbar-xs',
-    table:          'w-full min-w-[36rem] text-left border-collapse',
-    theadRow:       'bg-[var(--t-well)] border-b border-[var(--t-rule)]',
-    th:             'px-4 py-2 t-metaXS text-[var(--t-pencil)] font-medium',
-    thReq:          'px-4 py-2 t-metaXS text-[var(--t-pencil)] font-medium text-center',
-    tr:             'border-b border-[var(--t-rule)]',
-    trAlt:          'border-b border-[var(--t-rule)] bg-[var(--t-well)]',
-    tdName:         'px-4 py-2 align-top t-metaMD text-[var(--t-ink)] whitespace-nowrap',
-    tdType:         'px-4 py-2 align-top t-metaMD text-[12px] text-[var(--t-graphite)]',
+    // Columns summary — UI.Table named style + per-column px widths (2026-10-14, ui-control-tables.md)
+    tableStyle:     'list',
+    columnSizes:    { type: 130, required: 70 },
+    nameCell:       't-metaMD text-[var(--t-ink)]',
+    typeCell:       't-metaMD text-[12px] text-[var(--t-graphite)]',
     // the description is a Lexical view: size its paragraphs to the table, not the page prose
-    tdDesc:         'px-4 py-2 align-top t-proseSM text-[var(--t-graphite)] [&_p]:!mb-0 [&_p]:!text-[13px] [&_p]:!leading-[1.5] [&_p]:!text-[var(--t-graphite)]',
-    tdReq:          'px-4 py-2 align-top text-center t-proseXS',
+    descCell:       'min-w-0 t-proseSM text-[var(--t-graphite)] [&_p]:!mb-0 [&_p]:!text-[13px] [&_p]:!leading-[1.5] [&_p]:!text-[var(--t-graphite)]',
     reqYes:         'text-[var(--t-cobalt)]',
     reqNo:          'text-[var(--t-pencil)]',
-    tdEmpty:        'px-4 py-6 text-center t-proseSM text-[var(--t-pencil)]',
     // file_upload: File card body (reuses colCard/colHeader chrome)
     fileBody:       'px-4 py-3 space-y-3',
     fileRow:        'space-y-1',
@@ -138,12 +133,12 @@ export const sourceOverviewTheme = {
     linLink:               'text-sm text-blue-700 hover:underline',
     linMeta:               'text-xs text-gray-400',
     linMissing:            'text-sm text-gray-400',
-    verDeleteBtn:          'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold border border-red-200 bg-red-50 text-red-700 hover:bg-red-100',
+    // External (DAMA) Delete version — buttons are UI.Button roles (dangerFull / action / dangerSolid), 2026-10-14
+    verDeleteIcon:         'TrashCan',        // '' → no icon
+    verDeleteIconClass:    'size-3.5',
     verDeleteDialog:       'space-y-3 p-1',
-    verDeleteTitle:        'text-base font-semibold text-gray-900',
-    verDeleteText:         'text-sm text-gray-600 leading-snug',
-    verDeleteRefusal:      'text-sm text-red-700 bg-red-50 rounded-md p-2 leading-snug',
-    verDeleteButtons:      'flex items-center justify-end gap-3',
-    verDeleteConfirm:      'inline-flex items-center px-3 py-1.5 rounded-md text-sm font-semibold bg-red-700 text-white hover:bg-red-800 disabled:opacity-50',
-    verDeleteCancel:       'text-sm text-gray-500 hover:text-gray-800 hover:underline',
+    verDeleteTitle:        't-proseSM font-medium text-[var(--t-ink)]',
+    verDeleteText:         't-proseSM text-[var(--t-graphite)] leading-snug',
+    verDeleteRefusal:      't-proseSM text-[var(--t-brick)] bg-[var(--t-brick-soft)] rounded-md p-2 leading-snug',
+    verDeleteButtons:      'flex items-center justify-end gap-2',
 }

@@ -22,6 +22,7 @@ import { gisMapTheme } from './pages/dataTypes/gis_dataset/pages/Map/gisMap.them
 import { gisPagesTheme } from './pages/dataTypes/gis_dataset/pages/gisPages.theme'
 import { uploadsTheme } from './pages/dataTypes/gis_dataset/pages/Uploads/uploads.theme'
 import { changeHistoryEditorTheme } from './components/ChangeHistoryEditor.theme'
+import { runsPageTheme } from './pages/dataTypes/schedule/runsPage.theme'
 
 export default {
     breadcrumbs: breadcrumbsTheme,
@@ -48,4 +49,5 @@ export default {
     gisPages: gisPagesTheme,
     uploads: uploadsTheme,
     changeHistoryEditor: changeHistoryEditorTheme,
+    runsPage: runsPageTheme,
 }

@@ -22,46 +22,30 @@ const fmtTs = (v) => {
 
 const ListUploads = ({ uploads = [], sourceId = null }) => {
   const navigate = useNavigate();
-  const { pageBaseUrl } = React.useContext(DatasetsContext) || {};
+  const { pageBaseUrl, UI } = React.useContext(DatasetsContext) || {};
+  const { Table } = UI || {};
+  const gridRef = React.useRef();
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...uploadsTheme, ...(theme?.datasets?.uploads || {}) };
   return (
     <div className={t.tableWrapper}>
       {uploads && uploads.length ? (
-        <>
-          <div className={t.tableHeaderRow}>
-            {[
-              "Id",
-              "Status",
-              "Type",
-              "Queued",
-              "Completed",
-            ].map((key) => (
-              <dt key={key} className={t.tableHeaderCell}>
-                {key}
-              </dt>
-            ))}
-          </div>
-          <dl className={t.tableList}>
-            {(uploads || []).map((d, i) => (
-              <div
-                key={`${i}_0`}
-                className={t.tableRow}
-                // was `/source/…` without the pattern's base url (pageBaseUrl = <baseUrl>/source)
-                onClick={() =>
-                  navigate(`${pageBaseUrl}/${sourceId}/uploads/${d?.task_id}`)
-                }
-              >
-                {/* a load is a DAMA task (uda tasks routes) — see index.jsx */}
-                <dd key={`${i}_1`} className={t.tableCellId}>{d?.task_id}</dd>
-                <dd key={`${i}_2`} className={t.tableCell}><StatusCell status={d?.status} t={t}/></dd>
-                <dd key={`${i}_3`} className={t.tableCell}>{d?.worker_path}</dd>
-                <dd key={`${i}_4`} className={t.tableCell}>{fmtTs(d?.queued_at)}</dd>
-                <dd key={`${i}_5`} className={t.tableCell}>{fmtTs(d?.completed_at)}</dd>
-              </div>
-            ))}
-          </dl>
-        </>
+        // UI.Table (`t.tableStyle`); a load is a DAMA task (uda tasks routes) — see index.jsx
+        <Table data={uploads} gridRef={gridRef} isEdit={false} activeStyle={t.tableStyle || undefined}
+          display={{ disableCellSelection: true }}
+          onRowMouseClick={(d) => navigate(`${pageBaseUrl}/${sourceId}/uploads/${d?.task_id}`)}
+          columns={[
+            { name: "task_id", display_name: "Id", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.tableCellId}>{value}</span></div> },
+            { name: "status", display_name: "Status", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.tableCell}><StatusCell status={value} t={t}/></span></div> },
+            { name: "worker_path", display_name: "Type", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.tableCell}>{value}</span></div> },
+            { name: "queued_at", display_name: "Queued", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.tableCell}>{fmtTs(value)}</span></div> },
+            { name: "completed_at", display_name: "Completed", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.tableCell}>{fmtTs(value)}</span></div> },
+          ]}/>
       ) : (
         <div className={t.noDataMsg}>{"No Uploads found"}</div>
       )}

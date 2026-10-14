@@ -6,7 +6,6 @@ import Breadcrumbs from "../../components/Breadcrumbs";
 import { ThemeContext } from "../../../../ui/useTheme";
 import { dataItemsNav } from "../../../../utils/nav";
 import { udaTaskPageTheme } from "./UdaTaskPage.theme";
-import TaskTable from "../../components/TaskTable";
 import { Link } from "react-router";
 
 const EVENT_ATTRS = ["event_id", "task_id", "type", "message", "payload", "created_at"];
@@ -17,7 +16,7 @@ const DateCell = ({ value, ...rest }) => {
     return <div {...rest}>{isNaN(myDate.getTime()) ? value : myDate.toLocaleString()}</div>;
 };
 
-// UI.Table columns (pre-v6, `t.table` ''). v6 builds plain-table columns from the theme (eventColumns).
+// Pre-v6 events columns (project themes, `t.tableStyle` ''), kept as they were. v6 uses eventColumns.
 const COLUMNS = [
     { name: "event_id", display_name: "Event ID", show: true, size: 100 },
     { name: "type", display_name: "Type", show: true },
@@ -54,17 +53,21 @@ const fmtDate = (value) => {
     return isNaN(myDate.getTime()) ? value : myDate.toLocaleString();
 };
 
+// v6 events columns (`t.tableStyle` set). Each cell's wrapper takes the
+// table's cell class (`className`); the inner element takes this theme's class.
 const eventColumns = (t) => [
-    { name: "event_id", display_name: "Event ID", Comp: ({ value }) => <span className={t.eventIdCell}>{value}</span> },
-    { name: "type", display_name: "Type",
-      Comp: ({ value }) => <span className={/ERROR/i.test(value || '') ? t.eventTypeError : t.eventTypeCell}>{value}</span> },
-    { name: "message", display_name: "Message", Comp: ({ value }) => <div className={t.eventMessageCell}>{value}</div> },
-    { name: "created_at", display_name: "Created at",
-      Comp: ({ value }) => value ? <span className={t.eventDateCell}>{fmtDate(value)}</span> : <span className={t.emptyCell}>—</span> },
-    { name: "payload", display_name: "Data",
-      Comp: ({ value }) => value
+    { name: "event_id", display_name: "Event ID", show: true, size: t.columnSizes?.event_id, type: 'ui',
+      Comp: ({ value, className }) => <div className={className}><span className={t.eventIdCell}>{value}</span></div> },
+    { name: "type", display_name: "Type", show: true, size: t.columnSizes?.type, type: 'ui',
+      Comp: ({ value, className }) => <div className={className}><span className={/ERROR/i.test(value || '') ? t.eventTypeError : t.eventTypeCell}>{value}</span></div> },
+    { name: "message", display_name: "Message", show: true, size: t.columnSizes?.message, type: 'ui', wrapText: true,
+      Comp: ({ value, className }) => <div className={className}><span className={t.eventMessageCell}>{value}</span></div> },
+    { name: "created_at", display_name: "Created At", show: true, size: t.columnSizes?.created_at, type: 'ui',
+      Comp: ({ value, className }) => <div className={className}>{value ? <span className={t.eventDateCell}>{fmtDate(value)}</span> : <span className={t.emptyCell}>—</span>}</div> },
+    { name: "payload", display_name: "Data", show: true, size: t.columnSizes?.payload, type: 'ui',
+      Comp: ({ value, className }) => <div className={className}>{value
           ? <textarea disabled rows={t.payloadRows || undefined} className={t.payloadTextarea} value={parsePayload(value)}/>
-          : <span className={t.emptyCell}>—</span> },
+          : <span className={t.emptyCell}>—</span>}</div> },
 ];
 
 const StatusBadge = ({status}) => {
@@ -182,7 +185,7 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
 
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
-    const v6Columns = React.useMemo(() => eventColumns(t), [theme]); // eslint-disable-line react-hooks/exhaustive-deps
+    const columns = React.useMemo(() => t.tableStyle ? eventColumns(t) : COLUMNS, [theme]); // eslint-disable-line react-hooks/exhaustive-deps
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
         () => dataItemsNav(theme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
@@ -233,9 +236,8 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
                         <div className={t.notFoundMsg}>Task {taskId} was not found in any configured environment ({envCandidates.join(', ')}).</div>
                     ) : data.length > 0 ? (
                         <>
-                            {t.table
-                                ? <TaskTable columns={v6Columns} data={data.data} t={t} striped/>
-                                : <Table data={data.data} columns={COLUMNS} gridRef={ref} display={{striped: true}}/>}
+                            <Table data={data.data} columns={columns} gridRef={ref} isEdit={false} display={{striped: true}}
+                                   activeStyle={t.tableStyle || undefined}/>
                             {pagination}
                         </>
                     ) : (

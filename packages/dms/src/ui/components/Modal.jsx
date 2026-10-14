@@ -1,10 +1,14 @@
 import React from "react";
 import {createPortal} from "react-dom";
 import {ThemeContext, getComponentTheme} from "../useTheme";
+import { warnLockedClassName } from "../warnLockedClassName";
 import {modalTheme} from "./Modal.theme";
 import useModalOverlay from "./useModalOverlay";
 
-export default function Modal ({open, setOpen, initialFocus, children, className, activeStyle}) {
+// Locked 2026-10-14 (ui-control-tabs-overlays.md): the look comes only from theme.modal[activeStyle];
+// no className passthrough. Add a named style in Modal.theme.jsx for a new look.
+export default function Modal ({open, setOpen, initialFocus, children, activeStyle, className}) {
+    warnLockedClassName('Modal', className);
     const close = () => setOpen?.(false);
     useModalOverlay(open, close);
 
@@ -14,16 +18,16 @@ export default function Modal ({open, setOpen, initialFocus, children, className
     if (!open || typeof document === 'undefined') return null;
 
     const overlay = (
-        <div role="dialog" aria-modal="true" className="fixed inset-0 z-30">
+        <div role="dialog" aria-modal="true" className={theme.overlay}>
             <div className={theme.backdrop} aria-hidden="true" />
-            <div className="fixed inset-0 z-10 overflow-y-auto">
+            <div className={theme.scroller}>
                 <div
                     onClick={close}
-                    className="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0"
+                    className={theme.positioner}
                 >
                     <div
                         onClick={e => e.stopPropagation()}
-                        className={`${theme.panel} ${className || ''}`}
+                        className={theme.panel}
                     >
                         {children}
                     </div>

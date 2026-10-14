@@ -19,7 +19,7 @@ export const themeListTheme = {
     toolbar: 'flex items-center gap-3',
     searchWrapper: 'flex flex-1 items-center gap-2.5 border border-[var(--t-rule-strong)] rounded-md px-3.5 h-8 bg-[var(--t-panel)] text-[var(--t-graphite)] focus-within:border-[var(--t-ink)]',
     searchIcon: 'w-4 h-4 flex-none',
-    searchInput: 'w-full min-w-0 bg-transparent text-sm placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
+    // the search field itself is UI.Input activeStyle 'bare' (Input is locked, 2026-10-14)
     iconSm: 'size-4',
 
     tableWrapper: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden',

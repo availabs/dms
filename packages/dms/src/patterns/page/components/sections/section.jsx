@@ -598,8 +598,8 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                             <>
                                 {value.hideInView ? (theme.hiddenPill
                                     ? <span className={theme.hiddenPill}><Icon icon={'EyeClosed'} className={theme.hiddenPillIcon} />Hidden from View</span>
-                                    : <Pill color={'orange'} text={'Hidden from View'} />) : null}
-                                {group?.collapsible && value.showWhenCollapsed ? <Pill color={'blue'} text={'Shown When Collapsed'} /> : null}
+                                    : <Pill activeStyle={'orange'} text={'Hidden from View'} />) : null}
+                                {group?.collapsible && value.showWhenCollapsed ? <Pill activeStyle={'blue'} text={'Shown When Collapsed'} /> : null}
                                 <NavigableMenu
                                     config={sectionMenuItems}
                                     title={'Settings'}

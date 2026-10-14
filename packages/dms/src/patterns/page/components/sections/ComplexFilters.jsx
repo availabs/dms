@@ -263,7 +263,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                         </div>
                         {!isRoot && (
                             <Pill
-                                color={'orange'}
+                                activeStyle={'orange'}
                                 text={<Icon icon={'TrashCan'} className={t.popupTrash} />}
                                 title={'Remove group'}
                                 onClick={() => removeAtPath(path)}
@@ -285,12 +285,12 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
 
                     <div className={t.groupActions}>
                         <Pill
-                            color={'blue'}
+                            activeStyle={'blue'}
                             text={'+ Condition'}
                             onClick={() => addAtPath(path, emptyCondition(columns))}
                         />
                         <Pill
-                            color={'blue'}
+                            activeStyle={'blue'}
                             text={'+ Group'}
                             onClick={() => addAtPath(path, emptyGroup())}
                         />
@@ -570,19 +570,19 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                 {renderNode(filterGroups)}
                 <div className={t.filterActions}>
                     <Pill
-                        color={isDirty ? 'green' : 'blue'}
+                        activeStyle={isDirty ? 'green' : 'blue'}
                         text={<Icon icon={'FloppyDisk'} className={'size-4'} />}
                         title={isDirty ? 'Save (unsaved changes)' : 'Save'}
                         onClick={save}
                     />
                     <Pill
-                        color={copied ? 'green' : 'blue'}
+                        activeStyle={copied ? 'green' : 'blue'}
                         text={<Icon icon={'Copy'} className={'size-4'} />}
                         title={'Copy filters'}
                         onClick={handleCopyFilters}
                     />
                     <Pill
-                        color={'blue'}
+                        activeStyle={'blue'}
                         text={<Icon icon={'Paste'} className={'size-4'} />}
                         title={'Paste filters (replaces current)'}
                         onClick={handlePasteFilters}

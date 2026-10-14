@@ -146,7 +146,7 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
 
       {Modal && canEditMap ? (
       <Modal open={showSettings} setOpen={setShowSettings} title={'Sources & Layers'}
-             activeStyle={t.settingsModalStyle || undefined} className={t.settingsModalPanel || undefined}>
+             activeStyle={t.settingsModalStyle || undefined}>
         {/* UI.Modal renders no title — v6 adds the header (settingsHeader '' → none, pre-v6) */}
         {t.settingsHeader ? (
           <>

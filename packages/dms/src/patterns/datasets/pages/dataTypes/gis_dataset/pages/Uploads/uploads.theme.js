@@ -22,12 +22,7 @@ export const uploadsTheme = {
 
     // Shared list/view table structure
     tableWrapper: `rounded-lg border ${RULE} bg-[var(--t-panel)] overflow-hidden`,
-    tableHeaderRow: `grid grid-cols-5 gap-4 px-4 py-2 bg-[var(--t-well)] border-b ${RULE}`,
-    viewHeaderRow: `grid grid-cols-3 gap-4 px-4 py-2 bg-[var(--t-well)] border-b ${RULE}`,
-    tableHeaderCell: 't-metaXS text-[var(--t-pencil)]',
-    tableList: `divide-y divide-[var(--t-rule)]`,
-    tableRow: 'grid grid-cols-5 gap-4 px-4 py-2.5 items-center cursor-pointer hover:bg-[var(--t-well)]',
-    viewRow: 'grid grid-cols-3 gap-4 px-4 py-2.5 items-center',
+    tableStyle: 'list',   // UI.Table named style (2026-10-14, ui-control-tables.md); cell text keys below
     tableCell: 't-metaMD text-[var(--t-graphite)] truncate',
     tableCellId: 't-metaMD text-[var(--t-ink)] truncate',
     statusPill: 'yes',                                                  // '' → plain status text

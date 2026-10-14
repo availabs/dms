@@ -128,9 +128,8 @@ export const gisMapTheme = {
     mapInnerWrapper: 'w-full h-full',
 
     // "Settings" → Sources & Layers modal
-    settingsModalStyle: '',                     // UI.Modal named style ('' → default)
+    settingsModalStyle: 'settings',                     // UI.Modal named style ('' → default)
     // ! — Modal's panel already carries max-w-lg; this must win (it's a wide JSON editor)
-    settingsModalPanel: 'max-w-3xl! text-left',
     settingsHeader: 'flex items-center gap-2',
     settingsTitle: 'flex-1 t-displaySM text-[var(--t-ink)]',
     settingsClose: ICON_BTN.replace('size-6', 'size-7'),

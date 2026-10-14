@@ -6,13 +6,15 @@ export const tabsTheme = {
   },
   styles: [
     {
-      tabGroup: 'w-full',
-      tablist: 'flex items-center gap-0 border-b border-[var(--t-rule)]',
-      tab: `
-    cursor-pointer font-mono text-[13px] font-medium px-4 py-2.5 text-[var(--t-graphite)] hover:text-[var(--t-ink)] border-b-2 border-transparent -mb-px transition-colors duration-150
-    aria-selected:text-[var(--t-cobalt)] aria-selected:border-[var(--t-cobalt)]
-  `,
-      tabpanels: 'w-full h-screen max-h-screen overflow-y-auto scrollbar-sm',
+      // v6 (2026-10-14, ui-controls.html "Tabs", ui-control-tabs-overlays.md): ink active tab (owner
+      // 2026-10-13), tab row on top (DOM order is panels → tab row, hence flex-col-reverse), panel sized
+      // to its content. The rule is an inset shadow and the row hides vertical overflow, so the active
+      // underline never makes the bar scroll; it scrolls sideways on a phone. Pre-v6 values frozen in
+      // src/themes/_legacy/ui.js `tabs`.
+      tabGroup: 'w-full flex flex-col-reverse',
+      tablist: 'flex items-end gap-6 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_var(--t-rule)]',
+      tab: 'inline-flex flex-none items-center gap-1.5 h-10 px-1 border-b-2 border-transparent t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] aria-selected:border-[var(--t-ink)] aria-selected:text-[var(--t-ink)] aria-selected:font-medium',
+      tabpanels: 'w-full',
       tabpanel: 'pt-6'
     },
     {

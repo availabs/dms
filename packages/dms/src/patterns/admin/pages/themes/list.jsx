@@ -102,7 +102,7 @@ function ThemeList ({
 				<div className={t.toolbar}>
 					<div className={t.searchWrapper}>
 						<Icon icon='Search' className={t.searchIcon} />
-						<Input type={'text'} className={t.searchInput} value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter themes…'} />
+						<Input type={'text'} activeStyle='bare' value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter themes…'} />
 					</div>
 					<Button activeStyle='primary' onClick={() => setAddingNew(true)}>
 						<Icon icon='Plus' className={t.iconSm} /> add theme
@@ -114,7 +114,7 @@ function ThemeList ({
 					   data={data}
 					   isEdit={false}
 					   gridRef={gridRef}
-					   activeStyle='rules'
+					   activeStyle='list'
 				/>
 			</div>
 

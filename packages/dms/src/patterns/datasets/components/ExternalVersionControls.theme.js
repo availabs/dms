@@ -53,7 +53,7 @@ export const externalVersionControlsTheme = {
     invalidIcon: 'CircleX',
 
     // Create Download Modal
-    createModalPanel: 'max-w-2xl',
+    createModalStyle: 'large',   // UI.Modal named style (2026-10-14; was className max-w-2xl, dropped by the Modal lock)
     createModalHeader: 'flex items-center gap-3 text-left',
     createModalIconWrapper: 'size-9 flex-none rounded-full bg-[var(--t-well)] text-[var(--t-graphite)] flex items-center justify-center',
     createModalIconClass: 'size-4',
@@ -73,7 +73,7 @@ export const externalVersionControlsTheme = {
     deleteModalFooter: 'mt-5 flex flex-row-reverse flex-wrap gap-2',
 
     // PmTilesModal
-    pmTilesModalPanel: 'max-w-2xl',
+    pmTilesModalStyle: 'large',   // UI.Modal named style (2026-10-14; was className 'max-w-2xl'); '' → the default modal
     pmTilesModalWrapper: 'text-left',
     pmTilesModalHeader: 'flex items-center gap-3 text-left mb-4',
     pmTilesModalTitle: 'Cache PM tiles',   // header (icon + title, the create-modal header keys); '' → no header (pre-v6)

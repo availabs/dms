@@ -266,9 +266,9 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
                     {/*{hasChanges ?  <DraftPage className={'text-orange-500'} />  : null}*/}
 
                     {/*unpublished children pill*/}
-                    {/*{unpublishedChildren ? <Pill text={unpublishedChildren} color={'orange'} /> : null}*/}
+                    {/*{unpublishedChildren ? <Pill text={unpublishedChildren} activeStyle={'orange'} /> : null}*/}
                     {/*total children pill*/}
-                    {/*{allChildren ? <Pill text={allChildren} color={'gray'} /> : null}*/}
+                    {/*{allChildren ? <Pill text={allChildren} activeStyle={'gray'} /> : null}*/}
                 </div>
 
 

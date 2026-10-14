@@ -334,6 +334,7 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                             display={{ showGutters: false, virtualizeColumns: false }}
                             allowEdit={false}
                             isActive={true}
+                            activeStyle='list'
                         />
                     </ThemeContext.Provider>
                 )}

@@ -190,7 +190,7 @@ const AddFormulaColumn = ({columns=[], addFormulaColumn, cms_context}) => {
     const {Pill} = UI;
     return (
         <>
-            <Pill text={'+ Formula column'} color={'blue'} onClick={() => setOpen(true)}/>
+            <Pill text={'+ Formula column'} activeStyle={'blue'} onClick={() => setOpen(true)}/>
             <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
         </>
     )

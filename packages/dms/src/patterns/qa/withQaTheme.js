@@ -40,7 +40,9 @@ export const withQaTheme = (theme = {}) => {
       }
       return merged
     }
-    const own = theme[key] || {}
+    // `out[key]`, not `theme[key]`: a key in both lists (`input`: QA's named field styles + its bare
+    // container) keeps the styles added above
+    const own = out[key] || {}
     out[key] = over(own)
     // a site's component in the named-styles shape (`{ options, styles: [...] }`) is read through its
     // active style, so QA's keys go into every style too

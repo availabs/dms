@@ -17,7 +17,8 @@ export default function Upload({ ctxId, sourceId }) {
   const { datasources, falcor, pageBaseUrl, UI } = React.useContext(DatasetsContext);
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...uploadsTheme, ...(theme?.datasets?.uploads || {}) };
-  const { Icon } = UI || {};
+  const { Icon, Table } = UI || {};
+  const gridRef = React.useRef();
   const navigate = useNavigate();
   const pgEnv = getExternalEnv(datasources);
   const [status, setStatus] = useState(null);
@@ -58,27 +59,17 @@ export default function Upload({ ctxId, sourceId }) {
       ) : null}
       <div className={t.tableWrapper}>
         {events.length ? (
-          <>
-            <div className={t.viewHeaderRow}>
-              {["Id", "Event Type", "Timestamp"].map((key) => (
-                <dt key={key} className={t.tableHeaderCell}>
-                  {key}
-                </dt>
-              ))}
-            </div>
-            <dl className={t.tableList}>
-              {events.map((d, i) => (
-                <div
-                  key={`${i}_0`}
-                  className={t.viewRow}
-                >
-                  <dd key={`${i}_1`} className={t.tableCell}>{d?.event_id}</dd>
-                  <dd key={`${i}_2`} className={t.tableCellId}>{d?.type?.split(":").pop()}</dd>
-                  <dd key={`${i}_3`} className={t.tableCell}>{String(d?.created_at?.value ?? d?.created_at ?? '').replace("T", " ").slice(0, 19)}</dd>
-                </div>
-              ))}
-            </dl>
-          </>
+          // UI.Table (`t.tableStyle`)
+          <Table data={events} gridRef={gridRef} isEdit={false} activeStyle={t.tableStyle || undefined}
+            display={{ disableCellSelection: true }}
+            columns={[
+              { name: "event_id", display_name: "Id", show: true, type: "ui",
+                Comp: ({ value, className }) => <div className={className}><span className={t.tableCell}>{value}</span></div> },
+              { name: "type", display_name: "Event Type", show: true, type: "ui",
+                Comp: ({ value, className }) => <div className={className}><span className={t.tableCellId}>{value?.split(":").pop()}</span></div> },
+              { name: "created_at", display_name: "Timestamp", show: true, type: "ui",
+                Comp: ({ value, className }) => <div className={className}><span className={t.tableCell}>{String(value?.value ?? value ?? '').replace("T", " ").slice(0, 19)}</span></div> },
+            ]}/>
         ) : (
           <div className={t.noDataMsg}>{"No Events found"}</div>
         )}

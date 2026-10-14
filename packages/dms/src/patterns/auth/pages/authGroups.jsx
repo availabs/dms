@@ -30,7 +30,6 @@ export default function AuthGroups (props) {
         modalCloseBtn: "text-gray-400 hover:text-gray-700",
         modalBody: "flex flex-row gap-3",
         notice: "",
-        headerInput: undefined,
         ...(theme?.auth?.authPages?.manage || {}),
     };
 
@@ -71,13 +70,13 @@ export default function AuthGroups (props) {
                            data={groups.filter(r => !searchGroup || r.name.toLowerCase().includes(searchGroup))}
                            columns={groupColumns}
                            allowEdit={true}
-                           activeStyle="roomy"
+                           activeStyle="list"
                            controls={{header: {displayFn: (attribute) => (
                                        <div className={m.tableHeaderCell}>
                                            {attribute.display_name}
                                            {
                                                attribute.name === 'name' ?
-                                                   <Input type={'text'} className={m.headerInput} value={searchGroup} onChange={e => setSearchGroup(e.target.value)} placeHolder={'search...'}/> :
+                                                   <Input type={'text'} activeStyle='headerFilter' value={searchGroup} onChange={e => setSearchGroup(e.target.value)} placeHolder={'search...'}/> :
                                                    null
                                            }
                                        </div>

@@ -40,17 +40,13 @@ export const udaTaskPageTheme = {
     notFoundMsg: 'px-4 py-3 t-proseSM text-[var(--t-brick)]',
     noEventsMsg: 'px-4 py-3 t-proseSM text-[var(--t-graphite)]',
 
-    // Events table — '' table → UI.Table (pre-v6); otherwise a plain striped table
-    table: 'w-full',
-    tableScroll: 'overflow-x-auto',
-    th: 'px-3 py-2 text-left font-normal t-metaXS text-[var(--t-pencil)] whitespace-nowrap',
-    tr: `border-t ${RULE} hover:bg-[var(--t-well)]`,
-    trAlt: `border-t ${RULE} bg-[var(--t-well)]`,
-    td: 'px-3 py-2 t-proseSM text-[var(--t-ink)] align-top',
+    // Events table — UI.Table named style (2026-10-14, ui-control-tables.md); '' → the theme's default table
+    tableStyle: 'list',
+    columnSizes: { event_id: 100, created_at: 190, payload: 340 },   // px; unlisted columns share the rest
     eventIdCell: META,
     eventTypeCell: 't-metaMD text-[var(--t-ink)] whitespace-nowrap',
     eventTypeError: 't-metaMD text-[var(--t-brick)] whitespace-nowrap',
-    eventMessageCell: 'min-w-[14rem] break-words',
+    eventMessageCell: 'min-w-0 [overflow-wrap:anywhere]',
     eventDateCell: 'text-[var(--t-graphite)] whitespace-nowrap',
     emptyCell: 'text-[var(--t-pencil)]',
 

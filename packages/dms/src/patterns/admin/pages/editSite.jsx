@@ -544,7 +544,7 @@ function PatternList({
 						<Input
 							id={SEARCH_INPUT_ID}
 							type={'text'}
-							className={t.searchInput}
+							activeStyle='bare'
 							value={search}
 							onChange={e => setSearch(e.target.value)}
 							placeholder={`filter ${totalPatterns} pattern${totalPatterns === 1 ? '' : 's'} by name, url, or subdomain...`}
@@ -587,7 +587,7 @@ function PatternList({
 						data={data}
 						isEdit={false}
 						gridRef={gridRef}
-						activeStyle='roomy'
+						activeStyle='list'
 					/>
 				</div>
 
@@ -916,7 +916,7 @@ function TenantList({
 					<Input
 						id={TENANT_SEARCH_INPUT_ID}
 						type='text'
-						className={t.searchInput}
+						activeStyle='bare'
 						value={search}
 						onChange={e => setSearch(e.target.value)}
 						placeholder={`filter ${value.length} tenant${value.length === 1 ? '' : 's'} by name or subdomain`}
@@ -930,7 +930,7 @@ function TenantList({
 			</div>
 
 			<div className={t.tableCard}>
-				<Table columns={columns} data={tenantData} isEdit={false} activeStyle='roomy' />
+				<Table columns={columns} data={tenantData} isEdit={false} activeStyle='list' />
 			</div>
 
 			<Modal open={addingNew} setOpen={setAddingNew}>

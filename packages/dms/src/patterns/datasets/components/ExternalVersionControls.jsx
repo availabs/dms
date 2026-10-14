@@ -445,8 +445,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
             <Modal
                 open={modalState.open}
                 setOpen={setModalOpen}
-                themeOptions={{size:"large"}}
-                className={t.createModalPanel || undefined}
+                activeStyle={t.createModalStyle || undefined}
             >
                 <div className={t.createModalHeader}>
                     <div className={t.createModalIconWrapper}>
@@ -573,7 +572,7 @@ const PmTilesModal = props => {
     const t = { ...externalVersionControlsTheme, ...(pmTheme?.datasets?.externalVersionControls || {}) };
     const {Modal, Icon} = UI;
     return (
-        <Modal { ...modalState } className={t.pmTilesModalPanel || undefined}>
+        <Modal { ...modalState } activeStyle={t.pmTilesModalStyle || undefined}>
             <div className={t.pmTilesModalWrapper}>
                 {t.pmTilesModalTitle ?
                     <div className={t.pmTilesModalHeader}>

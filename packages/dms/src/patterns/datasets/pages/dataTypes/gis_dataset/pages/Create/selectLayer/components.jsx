@@ -1,10 +1,12 @@
-import { useContext } from 'react'
+import { useContext, useRef } from 'react'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
 
 export const LayerAnalysisSection = ({state}) => {
-  const { theme } = useContext(ThemeContext) || {};
+  const { theme, UI } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const { Table } = UI || {};
+  const gridRef = useRef();
   
   const { 
     etlContextId, 
@@ -43,43 +45,18 @@ export const LayerAnalysisSection = ({state}) => {
     <div>
       <span className={t.layerAnalysisTitle}> Layer Analysis </span>
       <div className={t.layerAnalysisOuter}>
-        <div style={t.legacyInlineStyles ? { width: "50%", margin: "10px auto" } : undefined}>
-          <table className={t.layerAnalysisTable}>
-            <thead style={t.legacyInlineStyles ? { backgroundColor: "black", color: "white" } : undefined}>
-              <tr>
-                <th
-                  className={t.layerAnalysisThCenter}
-                  style={t.legacyInlineStyles ? { padding: "10px", borderRight: "1px solid white" } : undefined}
-                >
-                  Geometry Type
-                </th>
-                <th className={t.layerAnalysisThCenter} style={t.legacyInlineStyles ? { padding: "10px" } : undefined}>
-                  Feature Count
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {geomTypes.map((type,i) => (
-                <tr className={t.layerAnalysisRowBorder} key={i}>
-                  <td
-                    className={t.layerAnalysisTdType}
-                    style={{ padding: "10px", border: "1px solid" }}
-                  >
-                    {type}
-                  </td>
-                  <td
-                    className={t.layerAnalysisTdCount}
-                    style={{ padding: "10px", border: "1px solid" }}
-                  >
-                    {countsByPostGisType[type]}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* UI.Table (`t.tableStyle`, 2026-10-14 ui-control-tables.md); each cell's wrapper takes the table's
+            cell class, the inner element this theme's class */}
+        <Table data={geomTypes.map(type => ({ type, count: countsByPostGisType[type] }))} gridRef={gridRef}
+          isEdit={false} activeStyle={t.tableStyle || undefined} display={{ disableCellSelection: true }}
+          columns={[
+            { name: "type", display_name: "Geometry Type", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.layerAnalysisTdType}>{value}</span></div> },
+            { name: "count", display_name: "Feature Count", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.layerAnalysisTdCount}>{value}</span></div> },
+          ]}/>
           {/*For consistency, all features will be converted to{" "}
           {commonPostGisGeometryType}s.*/}
-        </div>
       </div>
     </div>
   );

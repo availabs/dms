@@ -68,7 +68,7 @@ export default function Overview ({
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const pgEnv = getExternalEnv(datasources);
-    const {ColumnTypes, Icon} = UI;
+    const {ColumnTypes, Icon, Table} = UI;
 
     const {id} = params;
     const isAdmin = isUserAuthed(['update-source']);
@@ -97,6 +97,19 @@ export default function Overview ({
     const visibleColumns = showAllColumns ? columns : (columns || []).slice(0, COLUMN_PREVIEW);
     // The metadata editor saves `required` as the string 'yes' (RenderInputSwitch trueValue), older
     // metadata as `true` — accept both.
+    // Columns summary on UI.Table (`t.tableStyle`). Each cell's wrapper takes the table's cell class
+    // (`className`); the inner element takes this theme's class.
+    const columnsGridRef = React.useRef();
+    const summaryColumns = [
+        { name: 'name', display_name: 'Column', show: true, size: t.columnSizes?.name, type: 'ui',
+          Comp: ({ value, className }) => <div className={className}><span className={t.nameCell}>{value}</span></div> },
+        { name: 'type', display_name: 'Type', show: true, size: t.columnSizes?.type, type: 'ui',
+          Comp: ({ value, className }) => <div className={className}><span className={t.typeCell}>{value}</span></div> },
+        { name: 'desc', display_name: 'Description', show: true, size: t.columnSizes?.desc, type: 'ui', wrapText: true,
+          Comp: ({ row, className }) => <div className={className}><div className={t.descCell}><LexicalView value={row?.desc || row?.description}/></div></div> },
+        { name: 'required', display_name: 'Req', show: true, size: t.columnSizes?.required, type: 'ui',
+          Comp: ({ row, className }) => <div className={className}><span className={isColRequired(row) ? t.reqYes : t.reqNo}>{isColRequired(row) ? '●' : '○'}</span></div> },
+    ];
     const isColRequired = (col) => col?.required === true || col?.required === 'yes' || col?.nullable === false || /not\s*null/i.test(col?.constraints || '');
 
     // latest view = views[last] (SourcePage's order); display newest-first
@@ -212,31 +225,9 @@ export default function Overview ({
                             <Link to={`${pageBaseUrl}/${id}/metadata`} className={t.colMetaLink}>Full metadata →</Link>
                         </div>
                         <div className={t.tableScroll}>
-                        <table className={t.table}>
-                            <thead>
-                                <tr className={t.theadRow}>
-                                    <th className={t.th}>Column</th>
-                                    <th className={t.th}>Type</th>
-                                    <th className={t.th}>Description</th>
-                                    <th className={t.thReq}>Req</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {visibleColumns.map((col, i) => (
-                                    <tr key={col?.name || i} className={i % 2 ? t.trAlt : t.tr}>
-                                        <td className={t.tdName}>{col?.name}</td>
-                                        <td className={t.tdType}>{col?.type}</td>
-                                        <td className={t.tdDesc}><LexicalView value={col?.desc || col?.description}/></td>
-                                        <td className={t.tdReq}>
-                                            <span className={isColRequired(col) ? t.reqYes : t.reqNo}>{isColRequired(col) ? '●' : '○'}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                                {!columns?.length && (
-                                    <tr className={t.tr}><td className={t.tdEmpty} colSpan={4}>No columns defined</td></tr>
-                                )}
-                            </tbody>
-                        </table>
+                            <Table columns={summaryColumns} data={visibleColumns} isEdit={false} gridRef={columnsGridRef}
+                                   activeStyle={t.tableStyle || undefined}
+                                   display={{ emptyRowMode: 'placeholder', emptyRowText: 'No columns defined', disableCellSelection: true }}/>
                         </div>
                         {columns?.length > COLUMN_PREVIEW && (
                             <button type="button" className={t.colFooter} onClick={() => setShowAllColumns(!showAllColumns)}>

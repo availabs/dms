@@ -7,7 +7,6 @@ import { getExternalEnv } from "../../utils/datasources";
 import { ThemeContext } from "../../../../ui/useTheme";
 import { udaTaskPageTheme } from "./UdaTaskPage.theme";
 import { udaTaskListTheme } from "./UdaTaskList.theme";
-import TaskTable from "../../components/TaskTable";
 
 const TASK_ATTRS = [
   "task_id",
@@ -95,9 +94,9 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
   const [data, setData] = React.useState({ data: [], length: 0 });
   const [loaded, setLoaded] = React.useState(false);
 
-  // v6 (`t.table` set) renders a plain table — cell Comps then get `{value}` only, so the classes below
-  // carry the styling; under UI.Table (pre-v6) they're '' and the grid's own className is kept.
-  const cls = (...c) => c.filter(Boolean).join(" ");
+  // UI.Table renders the list in every theme (`t.tableStyle`: the default theme's 'list'; '' on project
+  // themes → their own table look). Each cell's wrapper takes the table's cell class (`className`); the
+  // inner element takes this theme's class, so the two never compete on one element.
 
   const COLUMNS = [
     {
@@ -105,10 +104,10 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       display_name: "Task ID",
       show: true,
       type: "ui",
-      Comp: ({ value, className, ...rest }) => (
-        <Link to={`${baseUrl}/task/${value}`} {...rest} className={cls(className, t.idLink)}>
-          {value}
-        </Link>
+      Comp: ({ value, className }) => (
+        <div className={className}>
+          <Link to={`${baseUrl}/task/${value}`} className={t.idLink}>{value}</Link>
+        </div>
       ),
     },
     {
@@ -116,22 +115,19 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       display_name: "Type",
       show: true,
       type: "ui",
-      Comp: ({ value, className, ...rest }) => {
-        const formatted = (value || "").replace(/\//g, " ").replace(/-/g, " ");
-        return (
-          <div {...rest} className={cls("capitalize", className, t.typeCell)}>
-            {formatted}
-          </div>
-        );
-      },
+      Comp: ({ value, className }) => (
+        <div className={className}>
+          <span className={t.typeCell}>{(value || "").replace(/\//g, " ").replace(/-/g, " ")}</span>
+        </div>
+      ),
     },
     {
       name: "source_name",
       display_name: "Source",
       show: true,
       type: "ui",
-      Comp: ({ value, ...rest }) => (
-        <div {...rest}>{typeof value === "string" ? value : ""}</div>
+      Comp: ({ value, className }) => (
+        <div className={className}>{typeof value === "string" ? value : ""}</div>
       ),
     },
     {
@@ -146,13 +142,18 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       display_name: "Started",
       show: true,
       type: "ui",
-      Comp: ({ value, className, ...rest }) => <div {...rest} className={cls(className, t.startedCell)}>{timeAgo(value)}</div>,
+      Comp: ({ value, className }) => (
+        <div className={className}><span className={t.startedCell}>{timeAgo(value)}</span></div>
+      ),
     },
     {
       name: "duration",
       display_name: "Duration",
       show: true,
-      ...(t.table ? { Comp: ({ value }) => <span className={t.durationCell}>{value}</span> } : {}),
+      type: "ui",
+      Comp: ({ value, className }) => (
+        <div className={className}><span className={t.durationCell}>{value}</span></div>
+      ),
     },
   ];
 
@@ -283,11 +284,7 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
   );
   return (
     <div className={t.wrapper}>
-      {t.table ? (
-        <TaskTable columns={COLUMNS} data={data.data} t={t} />
-      ) : (
-        <Table data={data.data} columns={COLUMNS} gridRef={ref} />
-      )}
+      <Table data={data.data} columns={COLUMNS.map(c => ({ ...c, size: t.columnSizes?.[c.name] }))} gridRef={ref} isEdit={false} activeStyle={t.tableStyle || undefined} />
       {pagination}
     </div>
   );

@@ -50,11 +50,10 @@ export const gisCreateTheme = {
     // selectLayer/components.jsx - LayerAnalysisSection
     layerAnalysisTitle: 'block mt-4 mb-2 t-metaXS text-[var(--t-pencil)]',
     layerAnalysisOuter: `max-w-md rounded-lg border ${RULE} overflow-hidden`,
-    layerAnalysisTable: 'w-full',
-    layerAnalysisThCenter: TH,
-    layerAnalysisRowBorder: `border-t ${RULE}`,
-    layerAnalysisTdType: 'px-3 py-2 t-proseSM text-[var(--t-ink)]',
-    layerAnalysisTdCount: 'px-3 py-2 t-metaMD text-[var(--t-ink)]',
+    // Layer Analysis — UI.Table named style (2026-10-14, ui-control-tables.md); cell text classes below
+    tableStyle: 'list',
+    layerAnalysisTdType: 't-proseSM text-[var(--t-ink)]',
+    layerAnalysisTdCount: 't-metaMD text-[var(--t-ink)]',
     analyzingMsg: 't-proseSM text-[var(--t-graphite)]',
     // ErrorMessage (layer analysis)
     errorTable: ERR_TABLE,

@@ -125,11 +125,11 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                                 {getColumnLabel(col)}
                                 <Icon icon="XMark" className={t.stagedX} />
                             </span>}
-                            color="blue"
+                            activeStyle="blue"
                             onClick={() => unstageColumn(col)}
                         />
                     ))}
-                    <Pill text="Add" color="green" onClick={confirmAdd} />
+                    <Pill text="Add" activeStyle="green" onClick={confirmAdd} />
                 </div>
             )}
         </div>
@@ -274,10 +274,10 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                         .filter(c => !c.hideFromSectionMenu)
                         .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI, t }))}
                     <div className={t.pillRow}>
-                        <Pill text="Duplicate" color="blue" onClick={() => dwAPI.duplicateColumn(column)} />
-                        <Pill text="Remove" color="orange" onClick={() => dwAPI.resetColumn(column)} />
+                        <Pill text="Duplicate" activeStyle="blue" onClick={() => dwAPI.duplicateColumn(column)} />
+                        <Pill text="Remove" activeStyle="orange" onClick={() => dwAPI.resetColumn(column)} />
                         {isOutOfDate && (
-                            <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
+                            <Pill text="Refresh Meta" activeStyle="orange" onClick={onRefreshMeta} />
                         )}
                     </div>
                 </div>
@@ -338,7 +338,7 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
                         .filter(c => !c.hideFromSectionMenu)
                         .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI, t }))}
                     <div className={t.pillRow}>
-                        <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
+                        <Pill text="Remove All" activeStyle="orange" onClick={() => dwAPI.resetAllColumns()} />
                     </div>
                 </div>
             )}
@@ -455,21 +455,21 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
 
             {/* Bulk Actions */}
             <div className={t.fnRow}>
-                <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
+                <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} activeStyle="blue"
                       onClick={() => dwAPI.toggleIdFilter()} />
                 <Pill
                     text={isAllExpanded ? 'Collapse All' : 'Expand All'}
-                    color="gray"
+                    activeStyle="gray"
                     onClick={() => {
                         setExpandedColumns(isAllExpanded ? new Set() : new Set(activeColumns.map(i => i.id)));
                     }}
                 />
                 <Pill
-                    color={isEveryColVisible ? 'orange' : 'blue'}
+                    activeStyle={isEveryColVisible ? 'orange' : 'blue'}
                     onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                     text={isEveryColVisible ? 'Hide All' : 'Show All'}
                 />
-                <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
+                <Pill text="Remove All" activeStyle="orange" onClick={() => dwAPI.resetAllColumns()} />
             </div>
 
             {/* All Columns Row */}

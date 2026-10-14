@@ -128,6 +128,7 @@ export default function PageTemplateManagerPane({ app, type, apiLoad, apiUpdate 
           isEdit={false}
           allowEdit={false}
           gridRef={builtinGridRef}
+          activeStyle='list'
         />
       </div>
 
@@ -150,6 +151,7 @@ export default function PageTemplateManagerPane({ app, type, apiLoad, apiUpdate 
             isEdit={false}
             allowEdit={false}
             gridRef={userGridRef}
+            activeStyle='list'
           />
         )}
       </div>
