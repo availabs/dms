@@ -17,6 +17,7 @@ import { isUserAuthed } from "../../utils/auth";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
+import { getPatternType } from "../registry";
 
 // Code-split: the admin pattern is mounted on every site (pattern2routes
 // always adds it), so its pages must not ride in the eager bundle. See
@@ -451,8 +452,8 @@ const buildPatternMenuItems = (baseUrl, id, pattern, can, canEditUserMenu = fals
   const tabs = [
     ['Overview', 'overview', 'InfoCircle'],
     ...(isPage ? [['Pages', 'pages', 'Pages']] : []),
-    // patternEditor/index.jsx lists the same tab (qaConfigureTab).
-    ...(pattern.pattern_type === 'qa' ? [['Configure', 'configure', 'Settings']] : []),
+    // the tabs the pattern's own type adds (admin.editorTabs; patternEditor/index.jsx lists the same)
+    ...(getPatternType(pattern.pattern_type)?.admin?.editorTabs || []).map(({ name, path, icon }) => [name, path, icon || 'Page']),
     ['Access', 'permissions', 'Lock'],
     ...(isPage ? [['Data', 'sources', 'Database'], ['Activity', 'activity', 'ClockIcon']] : []),
     ['Theme', 'theme', 'AdjustmentsHorizontal'],

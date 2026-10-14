@@ -251,73 +251,38 @@ async function main() {
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, COLL_TYPE, collAdmin]);
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, COLL_TYPE, collPat]);
 
-  // --- A QA install's stub carries its "where to file" refs (client patterns/qa/reportIssue) ---
-  // Only the tickets and covered-sites refs, under qa.intake; the install's full qa.datasets stays out.
-  const QA_TYPE = 'prod|qa:pattern';
-  const ref = (slug, n) => ({ slug, source_id: n, view_id: n + 1 });
-  const QA_DATASETS = {
-    tickets: ref('qa_tickets', 10), pages: ref('qa_pages', 12), stories: ref('qa_stories', 14),
-    patterns: ref('qa_patterns', 16), history: ref('qa_history', 18),
-  };
-  const qaCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, QA_TYPE, {
-    name: 'QA', base_url: 'qa', pattern_type: 'qa', dmsEnvId: 7,
-    qa: { version: 1, datasets: QA_DATASETS }, authPermissions: AUTH,
+  // --- A pattern's `public` settings ride on its stub; nothing else of its settings does ---
+  // (A type writes them from its own settings, e.g. dms-template's qa pattern's Report an issue intake.)
+  const PUB_TYPE = 'prod|pub:pattern';
+  const PUBLIC = { intake: { tickets: { slug: 'pub_tickets', source_id: 10, view_id: 11 } } };
+  const pubCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, PUB_TYPE, {
+    name: 'Pub', base_url: 'pub', pattern_type: 'app_type', dmsEnvId: 7, authPermissions: AUTH,
+    settings: { version: 1, datasets: { tickets: { slug: 'pub_tickets', source_id: 10, view_id: 11 } } },
+    public: PUBLIC,
   }]);
-  const qaId = Object.keys(qaCreate.jsonGraph?.dms?.data?.byId || {})[0];
-  assert(qaId, 'qa install row created');
-  const readQa = async (g) => (await g.getAsync([['dms', 'data', TEST_APP, 'byId', qaId, ['data', 'type']]]))
-    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[qaId]?.data?.value;
-  console.log('QA install stub (Report an issue intake):');
-  const qaStranger = await readQa(stranger);
-  t('ungranted user gets the stub with only the tickets and covered-sites refs', () => {
-    assert.strictEqual(qaStranger?.id, 'no-access');
-    assert.deepStrictEqual(qaStranger?.qa, { intake: { tickets: QA_DATASETS.tickets, patterns: QA_DATASETS.patterns } });
-    assert.strictEqual(qaStranger?.dmsEnvId, undefined);
+  const pubId = Object.keys(pubCreate.jsonGraph?.dms?.data?.byId || {})[0];
+  assert(pubId, 'pattern row with public settings created');
+  const readPub = async (g) => (await g.getAsync([['dms', 'data', TEST_APP, 'byId', pubId, ['data', 'type']]]))
+    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[pubId]?.data?.value;
+  console.log('Pattern stub: public settings');
+  const pubStranger = await readPub(stranger);
+  t('ungranted user gets the stub with the public settings, and none of the others', () => {
+    assert.strictEqual(pubStranger?.id, 'no-access');
+    assert.deepStrictEqual(pubStranger?.public, PUBLIC);
+    assert.strictEqual(pubStranger?.settings, undefined);
+    assert.strictEqual(pubStranger?.dmsEnvId, undefined);
   });
-  const qaAnon = await readQa(anon);
-  t('anonymous gets the same intake refs', () =>
-    assert.deepStrictEqual(qaAnon?.qa, { intake: { tickets: QA_DATASETS.tickets, patterns: QA_DATASETS.patterns } }));
-  const qaAdmin = await readQa(admin);
-  t('granted user gets the full settings (qa.datasets, no intake)', () => {
-    assert.deepStrictEqual(qaAdmin?.qa, { version: 1, datasets: QA_DATASETS });
-    assert.strictEqual(qaAdmin?.dmsEnvId, 7);
+  const pubAnon = await readPub(anon);
+  t('anonymous gets the same public settings', () => assert.deepStrictEqual(pubAnon?.public, PUBLIC));
+  const pubAdmin = await readPub(admin);
+  t('granted user gets the full row', () => {
+    assert.deepStrictEqual(pubAdmin?.public, PUBLIC);
+    assert.strictEqual(pubAdmin?.dmsEnvId, 7);
+    assert(pubAdmin?.settings?.datasets, 'full settings');
   });
   const pageStub = readData(await stranger.getAsync(reqPaths));
-  t('a non-qa pattern stub carries no qa key', () => assert.strictEqual(pageStub?.qa, undefined));
-  // An install whose datasets aren't set up yet (an interrupted install) has nothing to file into.
-  const partialCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, QA_TYPE, {
-    name: 'QA2', base_url: 'qa2', pattern_type: 'qa',
-    qa: { version: 1, datasets: { tickets: QA_DATASETS.tickets } }, authPermissions: AUTH,
-  }]);
-  const partialId = Object.keys(partialCreate.jsonGraph?.dms?.data?.byId || {})[0];
-  const qaPartial = (await stranger.getAsync([['dms', 'data', TEST_APP, 'byId', partialId, ['data', 'type']]]))
-    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[partialId]?.data?.value;
-  t('an install without both refs: stub has no qa key', () => {
-    assert.strictEqual(qaPartial?.id, 'no-access');
-    assert.strictEqual(qaPartial?.qa, undefined);
-  });
-  // The install's own fields: the form's ride along (only what the form needs), the others stay out.
-  const fieldsCreate = await admin.callAsync(['dms', 'data', 'create'], [TEST_APP, QA_TYPE, {
-    name: 'QA3', base_url: 'qa3', pattern_type: 'qa', authPermissions: AUTH,
-    qa: {
-      version: 1, datasets: QA_DATASETS, features: [],
-      fields: [
-        { name: 'channel', label: 'Channel', type: 'pick_one', options: ['phone', 'email'], show: { form: true, details: true, table: true, filter: true }, required: true },
-        { name: 'hours', label: 'Hours', type: 'number', options: [], show: { details: true }, required: false },
-      ],
-    },
-  }]);
-  const fieldsId = Object.keys(fieldsCreate.jsonGraph?.dms?.data?.byId || {})[0];
-  const qaFields = (await stranger.getAsync([['dms', 'data', TEST_APP, 'byId', fieldsId, ['data', 'type']]]))
-    .jsonGraph?.dms?.data?.[TEST_APP]?.byId?.[fieldsId]?.data?.value;
-  t('a stub carries the form\'s fields only, trimmed to what the form needs', () => {
-    assert.deepStrictEqual(qaFields?.qa?.intake?.fields, [
-      { name: 'channel', label: 'Channel', type: 'pick_one', options: ['phone', 'email'], required: true, show: { form: true } },
-    ]);
-    assert.strictEqual(qaFields?.qa?.features, undefined);
-  });
-  t('an install without form fields: no fields key in its intake', () => assert.strictEqual(qaStranger?.qa?.intake?.fields, undefined));
-  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, QA_TYPE, qaId, partialId, fieldsId]);
+  t('a stub of a row without public settings has no public key', () => assert.strictEqual(pageStub?.public, undefined));
+  await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, PUB_TYPE, pubId]);
 
   // Cleanup
   await admin.callAsync(['dms', 'data', 'delete'], [TEST_APP, 'managed|page', pageId]);

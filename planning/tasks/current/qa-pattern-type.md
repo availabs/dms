@@ -18,13 +18,27 @@ is ported later.
 - **Coworker how-to** for placing Report an issue on more MNY sites:
   [`report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md).
 
-## ▶ Start here (2026-10-13)
+## ▶ Start here (2026-10-14)
 
-- **All QA code is committed and pushed**, change history and the Recent activity feed included: library through
-  `9377c626` (activity feed + history on create).
+- **Moved (2026-10-14): the QA pattern now lives in dms-template `src/patterns/qa/`**, registered from
+  `src/patterns/index.js` like the map editor. The library holds no QA code.
+  - Record: [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md).
+  - The code map below is updated. Older sections and the archive cite `patterns/qa/…` under the
+    library's `packages/dms/src/`; the same files are now under dms-template `src/patterns/qa/`.
+  - Two mechanisms changed:
+    - The no-access stub carries the row's `public.qaIntake` (written by QA's `intake.js`), no longer a
+      server-built `qa.intake`.
+    - The widget's theme key is `qa.reportIssue` (was `qaReportIssue`).
+  - **The move is not committed yet.** The owner commits the library and dms-template together. Everything before
+    it is committed through `73d28b0e`.
+  - **Deferred (owner, 2026-10-14): delete the four old installs** (2824062 on MNY prod; `qa_test` 126, 170, 219).
+    None of their data is real, and they lack `public.qaIntake`. Fresh test install 251 `QA move check`
+    (`/qa_move_check`) was made through the new create hooks. Inventory and steps:
+    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#left).
 - **Nothing deployed for about a week (owner, 2026-10-09).** No QA work is on a deployed host. MitigateNY's rollout
-  (Open work §1) waits on a dms-server deploy (intake stub + change-history writer) and a client deploy. Then the
-  owner runs "finish set-up" and switches the MNY install's theme. The history writer is opt-in per dataset, so the
+  (Open work §1) waits on a dms-server deploy (the stub's `public` settings + the change-history writer) and a client
+  deploy, deferred by the owner on 2026-10-14. Then a fresh install replaces 2824062, and the owner switches its
+  theme. The history writer is opt-in per dataset, so the
   server deploy changes nothing until a dataset has a `change_history` setting.
 - **Current loop:** the owner is iterating on MNY's QA look locally. The root `.env` points at `qa_test`, and test
   install 126 `QA` is on `mnyv1`.
@@ -37,12 +51,13 @@ is ported later.
 - **Built and committed (2026-10-09, `9377c626`): the Overview's Recent activity feed** and history on create,
   Open work §4. Test ticket row 210 is still on `qa_test` for review.
 - **§5 is the plan (owner, 2026-10-13):** one pattern type, a shared tickets core, two switch groups (Delivery QA,
-  Help desk). Step 1, the switches on Configure, is **built and live-checked, uncommitted** (2026-10-13). Scratch
-  install 219 `QA switches` (`/qa_switches` on `qa_test`) is left for the owner to try; remove it after (§5).
-- **Step 2a, custom ticket fields: built and live-checked 2026-10-13, uncommitted** (Configure's "ticket
-  fields" card; Details, table, filter chips, the report forms, History and Recent activity; the stub carries the
-  form's fields, a dms-server change for the MNY deploy).
-- **What's next:** step 2b, editable lists (statuses, outcomes, categories); then step 3, the Help desk switches.
+  Help desk). Step 1, the switches on Configure, is **built, live-checked and committed** (`4f969c26`, 2026-10-13).
+  Scratch install 219 `QA switches` (`/qa_switches` on `qa_test`) goes with the old-install deletion.
+- **Step 2a, custom ticket fields: built and live-checked 2026-10-13, committed (`73d28b0e`)** (Configure's "ticket
+  fields" card; Details, table, filter chips, the report forms, History and Recent activity). The form's fields
+  reach ungranted users through `public.qaIntake` since the move.
+- **What's next:** step 2b, editable lists (statuses, outcomes, categories), in `src/patterns/qa/`; then step 3, the
+  Help desk switches.
 
 ## Glossary
 
@@ -55,8 +70,8 @@ is ported later.
 - **Ticket record:** the fixed lists in code (`patterns/qa/ticketRecord.js`): status kinds (triage, active,
   waiting, done, canceled), TransportNY's seven default statuses, closed outcomes, page stages. The DB holds only
   each ticket's values.
-- **Stub:** what the server sends in place of a pattern row the user can't read (settings stripped). For a `qa`
-  row it also carries `qa.intake`, so ungranted users can still file.
+- **Stub:** what the server sends in place of a pattern row the user can't read (settings stripped). It carries the
+  row's `public` settings; a `qa` row's `public.qaIntake` (`intake.js`) lets ungranted users still file.
 - **Switch group:** Delivery QA or Help desk, switched on and off on the install's Configure tab, with a switch per
   feature beneath it. The group's own switch does a preset's job. The shared tickets core has no switch (§5). Not
   a feature flag: those are `.env` settings, e.g. `VITE_DMS_QA_PATTERN`.
@@ -79,27 +94,35 @@ is ported later.
 | Report an issue widget + server intake stub | built; MNY deploy pending | `c309c77f` |
 | Collapsible section groups (generic) + Overview site cards start collapsed | done | `eec8278c` |
 | QA theme as a `qa` key (page/datasets model) + MNY's QA look | built; MNY switch pending | `a6d36282`, `1cc7561d` |
-| Feature switches: Delivery QA group (page inventory, stages, stories) on Configure; card renamed "Tickets" | built, live-checked; uncommitted | §5 step 1 |
+| Feature switches: Delivery QA group (page inventory, stages, stories) on Configure; card renamed "Tickets" | built, live-checked; committed `4f969c26` | §5 step 1 |
 
-**Where the code is** (library paths under `packages/dms/src/` unless noted):
-- `patterns/qa/`:
+**Where the code is** (dms-template `src/patterns/qa/` since 2026-10-14; library paths under `packages/dms/src/`):
+- `src/patterns/qa/`:
+  - `index.js`: the pattern-type definition (registry hooks: `admin.beforeCreate`/`afterCreate`/`duplicable`/
+    `editorTabs`, `onPagePublish`).
   - `siteConfig.jsx`: routes; registers the `ReportIssue` widget.
   - `pages/`: `index.js` (`buildQaPages`, `findQaPage`), `view.jsx`, `shell.jsx`, `overview.js`, `tickets.js`,
     `ticket.js`, `pageQa.js`, `helpers.js`.
-  - `ticketRecord.js`, `datasets.js`, `install.js` (holds the `QA_PATTERN_ENABLED` flag).
-  - `tracking.js` (track-on-publish; no browser imports, so the CLI uses it too) and `configure.js`.
-  - `reportIssue/`: `report.js`, `ReportIssue.jsx`, `ReportIssueForm.jsx`, `ReportIssue.theme.js`.
-  - Theme: `defaultTheme.js` (registered as `qa` in `ui/defaultTheme.js`), `qa.theme.js`, `withQaTheme.js`.
-- Admin: `patterns/admin/pages/patternEditor/qa/configureTab.jsx` (+ `.theme.js`, key `admin.qaConfigure`), and
-  `QaPatternSettings` (the datasets card) in `patternEditor/default/settings.jsx`.
-- Server: `dms-server/src/routes/dms/dms.route.js`: the `qa` stub's `qaIntake`, and the `dms.sourceIdBySlug` route.
-  The change-history writer: `routes/dms/changeHistory.js` + `setDataById` in `dms.controller.js`.
+  - `ticketRecord.js`, `datasets.js`, `install.js` (holds the `QA_PATTERN_ENABLED` flag and the create hooks).
+  - `tracking.js` (track-on-publish and `pageTracking`; no browser imports), `publish.js` (the editor's
+    `onPagePublish`), `cli/onPagePublish.js` (`dms page publish`'s hook, via `DMS_PAGE_PUBLISH_HOOK`), and
+    `configure.js`.
+  - `intake.js`: `public.qaIntake`, what the no-access stub shows ungranted users.
+  - `reportIssue/`: `report.js`, `ReportIssue.jsx`, `ReportIssueForm.jsx`, `ReportIssue.theme.js` (key
+    `qa.reportIssue`).
+  - Theme: `defaultTheme.js` (mounted at `theme.qa` by the registration), `qa.theme.js`, `withQaTheme.js`.
+  - `admin/`: `configureTab.jsx` (+ `.theme.js`; site override key `admin.qaConfigure`, since admin pages take
+    only a site theme's `admin` key) and `patternSettings.jsx` (`QaPatternSettings`, the datasets card, now on
+    Configure only).
+  - `tests/`: the QA suite (`npx vitest run src/patterns/qa`).
+- Server: no QA code. `dms.route.js`'s no-access stub carries any pattern row's `public`; the `dms.sourceIdBySlug`
+  route. The change-history writer: `routes/dms/changeHistory.js` + `setDataById` in `dms.controller.js`.
 - Change history, client side: `patterns/datasets/utils/changeHistory.js`, `components/ChangeHistoryEditor.jsx`.
 - CLI: `dms page publish` runs track-on-publish.
 - Theming: a site overrides QA through its theme's `qa` key, listing only differences (MNY:
   `src/themes/mny/qa.theme.js`, as `mnyv1.qa`). On QA pages `theme.qa` wins over the site's general keys. The widget
-  reads `qaReportIssue`.
-- Tests: `packages/dms/tests/qa*.test.js`, `sectionGroupCollapsible.test.jsx` and the core-enrichment tests
+  reads `qa.reportIssue`.
+- Tests: dms-template `src/patterns/qa/tests/`, library `sectionGroupCollapsible.test.jsx` and the core-enrichment tests
   (`radioTheme`, `stageProgressTheme`, `structuredTextColumns`, `flowStepNote`, `barGraphTimeAxis`,
   `liveEditSaves`). dms-server: `tests/test-pattern-stub.js`. The full client suite has 3 unrelated failures
   (`avlGraphThemeDefaults` golden, `syncDeltaConvergence` ×2).
@@ -140,8 +163,10 @@ is ported later.
 
 ### 1. MitigateNY rollout (owner and the MNY coworker)
 
-- [ ] Root `npm install`. `maplibre-gl` is missing from the root `node_modules`, so `vite build` fails.
-- [ ] Deploy dms-server (the `qa.intake` stub). Without it, county staff not granted on the install can't file.
+- [x] Root `npm install` (owner ran it 2026-10-14; both builds pass).
+- [ ] Deploy dms-server (the stub's `public` settings, which carry `public.qaIntake`). Without it, county staff not
+  granted on the install can't file. The install also needs a Configure Save or "finish set-up" to write
+  `public.qaIntake`.
 - [ ] Deploy the client with the MNY `.env`: `npm run build`, then `deploy-devmny`, then `deploy-mnyprod`.
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
@@ -412,7 +437,7 @@ specifics are settings on install 2824062 plus MNY theme code.
 
 The Overview is shared and shows whatever is on.
 
-**Step 1: switches. Built and live-checked 2026-10-13, uncommitted.**
+**Step 1: switches. Built and live-checked 2026-10-13, committed (`4f969c26`).**
 - **Where:** the install's Configure tab (`/list/manage_pattern/<id>/configure`), which shows a placeholder today.
   **The Add Pattern picker doesn't change** apart from the card's name: "Ticketing / QA" becomes "Tickets"
   (`patterns/index.js`). One card per type, like every type but page (page shows a card per page template).
@@ -550,7 +575,7 @@ The Overview is shared and shows whatever is on.
   4. Report an issue and Page QA's New ticket, and the stub's form fields; client and dms-server tests.
   5. Live check on scratch install 219 with MNY's four fields.
 
-- **Built and live-checked (2026-10-13, owner's go), uncommitted:**
+- **Built and live-checked (2026-10-13, owner's go), committed (`73d28b0e`):**
   - `patterns/qa/fields.js` (new): types, places, the reserved names (the ticket record's columns and the QA
     pages' URL keys), `installFields`, `fieldColumn`, `fieldErrors`, `describeFieldEdits`, `fieldValuesInUse`,
     `planFieldColumns`, and Configure's row helpers (`settledFields`, `rowName`, `withType`).
@@ -610,8 +635,8 @@ reuse.
   stamping (done and canceled kinds); "Where tickets stand" (a step per triage and active status, then done, then
   waiting); the Recent activity pills.
 - **New tickets** start at the install's first triage-kind status (Report an issue, Page QA's New ticket). The
-  server's stub for ungranted users carries it (`qa.intake.status`), a small dms-server change that ships with
-  MNY's deploy.
+  stub for ungranted users must carry it: add it to `intake.js`'s `public.qaIntake`. Since the 2026-10-14 move
+  that needs no server change; the plan before was a server-built `qa.intake.status`.
 
 - [ ] 2a custom ticket fields (above).
 - [ ] 2b editable lists (statuses, outcomes, categories).

@@ -31,6 +31,18 @@ A signed-in user who hard-loads a page they're allowed to see should see it, how
 - The page pattern's shell puts that `user` into `CMSContext`, and `PageView` returns `null` for a gated page while
   that user is authenticating (`patterns/page/pages/view.jsx`, `isViewDenied` branch). If the rows don't change after
   sign-in, the page stays blank.
+- **The admin pattern hits it too (seen 2026-10-14, `qa_test`, owner and Claude):**
+  - A direct load of any Pattern Editor URL can stay blank, e.g. `/list/manage_pattern/251/configure` or
+    AlphaPage's `/list/manage_pattern/5/overview`:
+    - the admin nav shows only Auth → Profile (no Sites/Themes)
+    - the editor renders nothing
+    - there are no console errors
+  - Moving to another page and back renders it. A direct load of `/list` can do the same.
+  - Mechanism: admin's route shell reads `user` from its route props (`patterns/admin/siteConfig.jsx:297`) and puts
+    it into `AdminContext` (`:324`). It builds the nav menu from `props.user` (`:298`). `PatternEditor` returns
+    `null` while that user is authenticating (`patternEditor/index.jsx`).
+  - Not caused by the qa move ([`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md)),
+    which didn't touch this path. The fix proposed below covers it.
 
 ## How the `qa` pattern works around them (2026-09-30)
 

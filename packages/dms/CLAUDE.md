@@ -1,6 +1,6 @@
 # @availabs/dms — Frontend Package
 
-This package is the React UI for DMS. It ships the column types, UI primitives, the platform patterns (page/datasets/auth/admin/qa), and the pattern-type and section-component registries consumed by downstream sites. A host app registers its own pattern types (dms-template's map editor, which also ships the page pattern's Map section) with `registerPatternTypes` — see `../../documentation/pattern-registry.md`.
+This package is the React UI for DMS. It ships the column types, UI primitives, the platform patterns (page/datasets/auth/admin), and the pattern-type and section-component registries consumed by downstream sites. A host app registers its own pattern types (dms-template's map editor, which also ships the page pattern's Map section, and its qa/Tickets pattern) with `registerPatternTypes` — see `../../documentation/pattern-registry.md`.
 
 ## Vite React Fast Refresh — MUST observe
 

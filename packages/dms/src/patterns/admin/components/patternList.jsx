@@ -7,7 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
-import { QA_PATTERN_ENABLED, newInstallQa } from '../../qa/install'
+import { getPatternType } from '../../registry'
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -242,13 +242,24 @@ function PatternEdit({
 			const tenantSub = /^\d+$/.test(parts[parts.length - 1]) ? '' : (parts.length >= minParts ? parts[0] : '');
 			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
-		// a QA install's switches start off, as from the site page (editSite.jsx)
-		if (data.pattern_type === 'qa') data.qa = newInstallQa();
+		// The type may refuse the new pattern or set its initial settings, as on the site page
+		// (editSite.jsx). This editor doesn't know the site row's id, so a type's admin.afterCreate
+		// can't run here; a type that needs it offers its own way to finish (e.g. the qa type's "finish set-up").
+		const { admin: typeAdmin } = getPatternType(data.pattern_type) || {};
+		let row = data;
+		if (typeAdmin?.beforeCreate) {
+			const { problem, row: prepared } = await typeAdmin.beforeCreate({ falcor, app, instance: slug, row: data, siblings: value }) || {};
+			if (problem) {
+				alert(problem);
+				return;
+			}
+			if (prepared) row = prepared;
+		}
 
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
 			['dms', 'data', 'create'],
-			[app, patternType, data]
+			[app, patternType, row]
 		);
 		const newId = Object.keys(res?.json?.dms?.data?.byId || {})
 			.filter(d => d !== '$__path')?.[0];
@@ -374,9 +385,6 @@ function PatternEdit({
                                         attrKey === 'pattern_type' && authExists && props.options?.length ?
                                             props.options.filter(o => o.value !== 'auth') :
                                             props.options;
-                                    if (attrKey === 'pattern_type' && !QA_PATTERN_ENABLED && options?.length) {
-                                        options = options.filter(o => o.value !== 'qa');
-                                    }
 									return (
 
 										<EditComp
@@ -419,9 +427,9 @@ function PatternEdit({
 
 							<span className='flex-1' />
 
-							{/* A qa install can't be duplicated: the copy takes a fixed field
-							    list and would drop the install's own settings and dataset refs. */}
-							{editingItem.pattern_type !== 'qa' && (
+							{/* A type registered with admin.duplicable: false can't be duplicated
+							    (e.g. its copy would drop the row's own settings and dataset refs). */}
+							{getPatternType(editingItem.pattern_type)?.admin?.duplicable !== false && (
 							<Button
 								className={t.btnDuplicate}
 								type={'plain'}

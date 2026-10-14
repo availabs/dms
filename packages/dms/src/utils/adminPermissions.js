@@ -163,12 +163,13 @@ export function patternCan(user, app, siteAuthPermissions, pattern, perm) {
 
 // The row actions on the admin list (and the Overview's danger zone) for one
 // pattern. Auth and admin rows are never duplicated or deleted from the list.
-// A qa install is never duplicated either: the copy takes a fixed field list
-// and would drop the install's own settings and dataset refs.
-export function patternActions(user, app, siteAuthPermissions, pattern) {
+// `typeAdmin`: the row's registered type's `admin` metadata (patterns/registry.js,
+// passed in so this file stays free of pattern imports); a type registered with
+// `duplicable: false` is never duplicated either.
+export function patternActions(user, app, siteAuthPermissions, pattern, typeAdmin) {
     const can = perm => patternCan(user, app, siteAuthPermissions, pattern, perm);
     const isCore = ['auth', 'admin'].includes(pattern?.pattern_type);
-    const isQa = pattern?.pattern_type === 'qa';
+    const duplicable = typeAdmin?.duplicable !== false;
     const edit = can(EDIT_PATTERN);
     const editPermissions = can(EDIT_PATTERN_PERMISSIONS);
     return {
@@ -176,7 +177,7 @@ export function patternActions(user, app, siteAuthPermissions, pattern) {
         edit,
         editPermissions,
         delete: !isCore && can(DELETE_PATTERN),
-        duplicate: !isCore && !isQa && edit && siteCan(user, app, siteAuthPermissions, CREATE_PATTERN),
+        duplicate: !isCore && duplicable && edit && siteCan(user, app, siteAuthPermissions, CREATE_PATTERN),
         // nothing at all: shown locked and counted in the no-access banner
         locked: !PATTERN_ADMIN_PERMISSIONS.some(can),
     };

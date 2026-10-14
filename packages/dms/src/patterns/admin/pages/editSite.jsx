@@ -7,7 +7,6 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns, backfillAdminPattern, readSitePatternRefs, mergeSitePatternRefs } from '../../../utils/tenantProvisioning';
-import { qaPreflight, installQa, newInstallQa, QA_PATTERN_ENABLED } from '../../qa/install';
 import { parseIfJSON } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
@@ -125,7 +124,7 @@ function SiteEdit ({
 			}
 		}
 		// Returned so a caller can wait for the save itself, not just the re-read above:
-		// the QA install writes the site row after it (patterns/qa/install.js).
+		// a type's admin.afterCreate may write the site row after it (addNewValue).
 		return apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 
@@ -218,7 +217,7 @@ function PatternList({
 
 	// What this user may do to each row: site-level grants (AdminContext) plus
 	// the row's own authPermissions. See utils/adminPermissions.js.
-	const rowActions = (row) => patternActions(user, app, authPermissions, row);
+	const rowActions = (row) => patternActions(user, app, authPermissions, row, getPatternType(row?.pattern_type)?.admin);
 	const canCreatePattern = siteCan(user, app, authPermissions, CREATE_PATTERN);
 
 	// SEARCH_SHORTCUT_ID: Input isn't a forwardRef component, so a `/`
@@ -306,7 +305,7 @@ function PatternList({
         }
         // A site needs exactly one auth pattern and one admin pattern —
         // patternActions never offers Duplicate or Delete for either (nor
-        // Duplicate for a qa install).
+        // Duplicate for a type registered with admin.duplicable: false).
         return (
           <div className={t.cellActions}>
             {can.edit && (
@@ -390,21 +389,23 @@ function PatternList({
 		const tenantSub = isMultiTenant ? getSubdomainFromHost() : '';
 		if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 
-		// A QA install also refuses a URL or a dataset name that's already taken.
-		if (data.pattern_type === 'qa') {
-			const problem = await qaPreflight({ falcor, app, instance: slug, pattern: data, siblings: value });
+		// The type may refuse the new pattern or set its initial settings
+		// (patterns/registry.js admin.beforeCreate).
+		const { admin: typeAdmin } = getPatternType(data.pattern_type) || {};
+		let row = data;
+		if (typeAdmin?.beforeCreate) {
+			const { problem, row: prepared } = await typeAdmin.beforeCreate({ falcor, app, instance: slug, row: data, siblings: value }) || {};
 			if (problem) {
 				alert(problem);
 				return;
 			}
-			// its switches start off, from the first write of the row
-			data.qa = newInstallQa();
+			if (prepared) row = prepared;
 		}
 
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
 			['dms', 'data', 'create'],
-			[app, patternType, data]
+			[app, patternType, row]
 		);
 		const newId = Object.keys(res?.json?.dms?.data?.byId || {})
 			.filter(d => d !== '$__path')?.[0];
@@ -413,18 +414,17 @@ function PatternList({
 			const newData = [...value, { ref: `${app}+${patternType}`, id: +newId }];
 			onChange(newData);
 			const saved = onSubmit(newData);
-			// A QA install creates its datasets and may add an environment to the site's
-			// dms_envs. This save sends the page's whole copy of the site, so it must land
-			// before the install writes the site row.
-			if (data.pattern_type === 'qa') {
+			// The type's own set-up (admin.afterCreate) may write the site row too, and this save
+			// sends the page's whole copy of the site, so it must land first.
+			if (typeAdmin?.afterCreate) {
 				await saved;
 				try {
-					await installQa({
+					await typeAdmin.afterCreate({
 						falcor, app, siteId, siteInstance, patternId: +newId,
-						instance: slug, installName: data.name, patterns: value,
+						instance: slug, row, siblings: value,
 					});
 				} catch (err) {
-					alert(`The "${data.name}" pattern was added, but creating its datasets failed: ${err.message}`);
+					alert(`The "${data.name}" pattern was added, but setting it up failed: ${err.message}`);
 				}
 			}
 		}
@@ -606,9 +606,6 @@ function PatternList({
 										attrKey === 'pattern_type' && authExists && props.options?.length ?
 											props.options.filter(o => o.value !== 'auth') :
 											props.options;
-									if (attrKey === 'pattern_type' && !QA_PATTERN_ENABLED && options?.length) {
-										options = options.filter(o => o.value !== 'qa');
-									}
 									return (
 
 										<EditComp

@@ -8,7 +8,7 @@
  */
 
 import { readFileSync, existsSync } from 'fs';
-import { join, dirname } from 'path';
+import { join, dirname, resolve } from 'path';
 
 /**
  * Find .dmsrc file by walking up from cwd
@@ -46,7 +46,10 @@ function loadFileConfig() {
 
   try {
     const content = readFileSync(configPath, 'utf-8');
-    return JSON.parse(content);
+    const config = JSON.parse(content);
+    // a relative hook path is relative to the .dmsrc itself
+    if (config.pagePublishHook) config.pagePublishHook = resolve(dirname(configPath), config.pagePublishHook);
+    return config;
   } catch (e) {
     console.error(`Warning: Failed to parse ${configPath}: ${e.message}`);
     return {};
@@ -73,6 +76,11 @@ function loadEnvConfig() {
 
   if (process.env.DMS_AUTH_TOKEN) {
     config.authToken = process.env.DMS_AUTH_TOKEN;
+  }
+
+  // the host app's page-publish hook (commands/page.js runPublishHook); relative to the cwd
+  if (process.env.DMS_PAGE_PUBLISH_HOOK) {
+    config.pagePublishHook = resolve(process.env.DMS_PAGE_PUBLISH_HOOK);
   }
 
   return config;
