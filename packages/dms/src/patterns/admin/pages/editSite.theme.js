@@ -33,21 +33,20 @@ export const editSiteTheme = {
 
     // Toolbar (search + add pattern) and the filter/sort row beneath it
     toolbarRow: 'flex items-center gap-3',
-    searchWrapper: 'flex flex-1 items-center gap-2.5 border border-[var(--t-rule-strong)] rounded-md px-3.5 h-10 bg-[var(--t-panel)] text-[var(--t-graphite)] focus-within:border-[var(--t-cobalt)]',
+    searchWrapper: 'flex flex-1 items-center gap-2.5 border border-[var(--t-rule-strong)] rounded-md px-3.5 h-8 bg-[var(--t-panel)] text-[var(--t-graphite)] focus-within:border-[var(--t-ink)]',
     searchIcon: 'w-4 h-4 flex-none',
     // UI.Input's className replaces its themed default entirely, so this
     // carries the whole look of the text itself — the bordered box is
     // `searchWrapper` around it.
     searchInput: 'w-full min-w-0 bg-transparent text-sm placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
     searchKbdHint: 't-metaXS text-[var(--t-pencil)] border border-[var(--t-rule)] rounded px-1.5 hidden md:block',
-    addPatternBtn: 'inline-flex items-center gap-2 text-sm font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-4 h-10 flex-none',
 
     toolbarFilterRow: 'flex flex-wrap items-center gap-3 mt-2.5',
     filterCount: 't-metaSM text-[var(--t-pencil)]',
-    sortBtn: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-md px-2 py-1 hover:border-[var(--t-rule-strong)]',
+    sortBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
     chipsWrapper: 'flex items-center gap-1.5 flex-wrap',
-    chip: 't-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full px-2 py-0.5 hover:border-[var(--t-rule-strong)]',
-    chipActive: 't-metaXS text-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)] rounded-full px-2 py-0.5',
+    chip: 'inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] border-[var(--t-rule)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
+    chipActive: 'inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]',
     // The table's own card — this page previously had NO local card at all; the
     // white-box look came entirely from siteConfig.jsx's outer `SectionGroup`
     // wrapping the WHOLE page (title + table) in one card, so the title read as
@@ -74,23 +73,19 @@ export const editSiteTheme = {
     typePillUnknown: 'text-[var(--t-brick)] bg-[var(--t-brick-soft)]',
 
     cellActions: 'flex items-center justify-end gap-1 w-full h-full py-1 text-[var(--t-pencil)]',
-    editLink: 'p-1.5 hover:text-[var(--t-ink)] rounded-md hover:bg-[var(--t-well)]',
+    editLink: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
     iconSm: 'size-4',
     emptyValue: 'p-2 text-[14px] text-[var(--t-pencil)]',
     btnNoShrink: 'shrink-0',
     iconLabel: 'hidden',
-    duplicateBtn: 'p-1.5 hover:text-[var(--t-ink)] rounded-md hover:bg-[var(--t-well)]',
-    deleteBtn: 'p-1.5 hover:text-[var(--t-brick)] rounded-md hover:bg-[var(--t-brick-soft)]',
+    duplicateBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
+    deleteBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]',
     noAccessBadge: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-pencil)] justify-end w-full',
 
     // Edit / Add modal actions
     modalEditActions: 'w-full flex items-center justify-start gap-0.5',
     modalAddActions: 'w-full flex items-center justify-start',
-    btnSave: 'bg-[var(--t-cobalt-soft)] hover:opacity-80 text-sm text-[var(--t-cobalt)] px-2 py-0.5 m-1 rounded-lg w-fit h-fit',
-    btnCancel: 'bg-[var(--t-brick-soft)] hover:opacity-80 text-sm text-[var(--t-brick)] px-2 py-0.5 m-1 rounded-lg w-fit h-fit',
-    btnDuplicate: 'bg-[var(--t-go-soft)] hover:opacity-80 text-[var(--t-go)] px-2 py-0.5 m-1 rounded-lg w-fit h-fit',
-    btnRemove: 'bg-[var(--t-brick-soft)] hover:opacity-80 text-[var(--t-brick)] px-2 py-0.5 m-1 rounded-lg w-fit h-fit',
-    btnAdd: 'bg-[var(--t-cobalt-soft)] hover:opacity-80 text-sm text-[var(--t-cobalt)] px-2 py-0.5 m-1 rounded-lg w-fit h-fit',
+    btnAdd: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)] m-1',
 
     // Delete confirmation modal
     deleteModal: 'flex flex-col gap-4 p-2',
@@ -98,8 +93,6 @@ export const editSiteTheme = {
     deleteModalDesc: 'text-sm text-[var(--t-graphite)]',
     deleteModalHighlight: 'font-medium text-[var(--t-ink)]',
     deleteModalFooter: 'flex items-center justify-end gap-2',
-    btnSecondary: 'px-3 py-1.5 text-sm text-[var(--t-graphite)] bg-[var(--t-well)] hover:bg-[var(--t-rule)] rounded-lg',
-    btnDanger: 'px-3 py-1.5 text-sm text-[var(--t-accent-ink)] bg-[var(--t-brick)] hover:brightness-90 rounded-lg',
 
     // TenantList
     tenantLink: 'flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-[var(--t-cobalt)] hover:underline',

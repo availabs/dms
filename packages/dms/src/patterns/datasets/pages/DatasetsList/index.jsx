@@ -387,12 +387,12 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         ))}
                     </div>
 
-                    <Button type="plain" className={t.toolbarBtn} title={'Toggle Sort'} onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
+                    <Button activeStyle='iconTool' title={'Toggle Sort'} onClick={() => setSort(sort === 'asc' ? 'desc' : 'asc')}>
                         <Icon icon={sort === 'asc' ? 'SortDesc' : 'SortAsc'} className={t.iconMd}/>
                     </Button>
 
                     {(filteredCategories.length > 0 || uncategorizedSources.length > 0) &&
-                        <Button type="plain" className={isListAll ? t.toolbarBtnActive : t.toolbarBtn} title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
+                        <Button activeStyle={isListAll ? 'iconToolOn' : 'iconTool'} title={isListAll ? 'Show filtered' : 'Show all'} onClick={() => setIsListAll(!isListAll)}>
                             <Icon icon={isListAll ? 'FilterX' : 'Filter'} className={t.iconMd}/>
                         </Button>
                     }
@@ -400,8 +400,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                     {user?.authed && t.toolbarDivider && <span className={t.toolbarDivider} aria-hidden="true"/>}
 
                     {user?.authed &&
-                        <Button type="plain"
-                                className={showUploads ? t.toolbarBtnActive : t.toolbarBtn}
+                        <Button activeStyle={showUploads ? 'iconToolOn' : 'iconTool'}
                                 title={showUploads ? 'Hide uploaded files' : 'Show uploaded files'}
                                 onClick={() => setShowUploads(!showUploads)}>
                             <Icon icon={showUploads ? 'EyeClosed' : 'Upload'} className={t.iconMd}/>

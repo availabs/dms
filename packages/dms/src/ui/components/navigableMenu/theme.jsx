@@ -4,8 +4,8 @@ const navigableMenuTheme = {
   },
   "styles": [{
     "name": "default",
-    // Trigger button
-    "button": "inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--t-well)] cursor-pointer transition-colors duration-150",
+    // Trigger: a UI.Button picked by name (activeStyle); buttonHidden classes a wrapper around it
+    "buttonStyle": "menuTrigger",
     "buttonHidden": "flex sm:hidden group-hover:flex",
     "icon": "Menu",
     "iconWrapper": "w-4 h-4 stroke-[var(--t-ink)]",
@@ -19,10 +19,8 @@ const navigableMenuTheme = {
     // Title + breadcrumbs: v6 tokens with the old gray as the CSS fallback — readable in dark mode
     // (was text-gray-900 on the dark panel), unchanged where a theme has no --t-* tokens. 2026-10-08.
     "menuTitle": "font-semibold text-[var(--t-ink,#111827)]",
-    "backButton": "w-fit",
     "backIcon": "ArrowLeft",
     "backIconWrapper": "size-4",
-    "closeButton": "w-fit",
     "menuCloseIcon": "XMark",
     "menuCloseIconWrapper": "cursor-pointer w-4 h-4 stroke-[var(--t-graphite)] hover:stroke-[var(--t-ink)]",
 
@@ -109,9 +107,9 @@ export const navigableMenuSettings = (theme) => {
       type: 'inline',
       controls: [
         {
-          label: 'button',
-          type: 'Textarea',
-          path: `navigableMenu.styles[${activeStyle}].button`
+          label: 'buttonStyle (UI.Button style name)',
+          type: 'Input',
+          path: `navigableMenu.styles[${activeStyle}].buttonStyle`
         },
         {
           label: 'buttonHidden',
@@ -161,11 +159,6 @@ export const navigableMenuSettings = (theme) => {
           path: `navigableMenu.styles[${activeStyle}].menuTitle`
         },
         {
-          label: 'backButton',
-          type: 'Textarea',
-          path: `navigableMenu.styles[${activeStyle}].backButton`
-        },
-        {
           label: 'backIcon',
           type: 'Input',
           path: `navigableMenu.styles[${activeStyle}].backIcon`
@@ -174,11 +167,6 @@ export const navigableMenuSettings = (theme) => {
           label: 'backIconWrapper',
           type: 'Textarea',
           path: `navigableMenu.styles[${activeStyle}].backIconWrapper`
-        },
-        {
-          label: 'closeButton',
-          type: 'Textarea',
-          path: `navigableMenu.styles[${activeStyle}].closeButton`
         },
         {
           label: 'menuCloseIcon',

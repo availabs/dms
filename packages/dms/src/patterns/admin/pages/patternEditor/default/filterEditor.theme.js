@@ -21,22 +21,21 @@ export const filterEditorTheme = {
     subdomainBadge: 't-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em]',
     subdomainRemoveBtn: 't-metaXS text-[var(--t-brick)] hover:opacity-80 cursor-pointer',
     subdomainBody: 'px-4 pb-3 flex flex-col gap-2',
-    syncBtn: 't-metaXS text-[var(--t-cobalt)] border border-[var(--t-cobalt)] rounded-md px-2.5 py-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none ml-auto',
+    syncBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)] ml-auto',
     syncMessageSuccess: 't-metaXS text-[var(--t-go)] bg-[var(--t-go-soft)] border border-[var(--t-go)] rounded-md px-2.5 py-1.5',
     syncMessageError: 't-metaXS text-[var(--t-brick)] bg-[var(--t-brick-soft)] border border-[var(--t-brick)] rounded-md px-2.5 py-1.5',
 
     // Add subdomain row
     addSubdomainRow: 'px-4 py-2.5 border-b border-[var(--t-rule)] flex gap-2 items-center',
-    subdomainInput: 'border border-[var(--t-rule-strong)] rounded-md px-2.5 py-1.5 t-proseSM bg-[var(--t-panel)] outline-none focus:border-[var(--t-cobalt)]',
-    addSubdomainBtn: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-md px-2.5 py-1.5 hover:border-[var(--t-rule-strong)] cursor-pointer',
+    subdomainInput: 'border border-[var(--t-rule-strong)] rounded-md px-2.5 h-8 t-proseSM bg-[var(--t-panel)] outline-none focus:border-[var(--t-ink)]',
+    addSubdomainBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
 
     // Save row
     saveGrid: 'px-4 py-2.5 flex items-center justify-end gap-2',
-    btnReset: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3.5 py-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
-    btnSave: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
+    btnReset: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
+    btnSave: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]',
 
     // FilterRows
     filterRowsWrapper: 'flex flex-col gap-1.5',
     filterRow: 'grid grid-cols-3 gap-1.5',
-    clearAllBtn: 't-metaXS text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer self-start',
 }

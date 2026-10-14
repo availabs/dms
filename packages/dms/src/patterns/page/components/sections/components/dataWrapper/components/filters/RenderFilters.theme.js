@@ -16,17 +16,17 @@ export const filterTheme = {
     settingLabel: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
     filtersWrapper: 'w-full p-3 flex flex-col gap-2 rounded-lg bg-[var(--t-well)] border border-[var(--t-rule)]',
 
-    // Round pill that toggles the filter panel open/closed. Pulled out of inline
-    // JSX so themes can resize / reposition it (or set display:none) without
-    // touching the component. Used by both RenderFilters and ExternalFilters.
+    // Wrapper around the button that toggles the filter panel open/closed: its
+    // position, or display:none ('hidden') to drop the toggle. The button's look
+    // is UI.Button activeStyle 'iconTool'. Used by both RenderFilters and ExternalFilters.
     // NOT ported from tessera (`hidden`/`hidden`) — that's tessera's OWN filter
     // panel deliberately having no expand/collapse affordance at all, not a
     // portable "look." Several other projects (mny's default filter style,
     // wcdb — neither overrides these) actively use a visible toggle to
     // expand/collapse the panel; inheriting `hidden` silently deleted that
     // working control. Kept as the pre-port library default.
-    toggleButton: 'w-fit -mt-4 p-2 border rounded-full self-end',
-    toggleIcon: 'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer',
+    toggleButton: 'w-fit -mt-4 self-end',
+    toggleIcon: 'size-4',
     // Grid wrapper holding the rendered filter / condition rows.
     conditionsGrid: 'grid gap-2',
     // Per-row layout, parameterized by display.placement.

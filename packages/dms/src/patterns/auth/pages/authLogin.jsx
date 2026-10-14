@@ -102,21 +102,21 @@ export default function AuthLogin ({ disableSignup, ...props }) {
                 {
                     error ? <div className={t.error ?? 'text-red-500 bg-red-50 rounded-md px-2 py-1'}>{error}</div> : null
                 }
-                <Button type='plain'
+                <Button
                     buttonType="submit"
-                    className={sectionGroupTheme.actionButton}
+                    activeStyle='primaryBlock'
                 >
                     <span className={sectionGroupTheme.actionText}>sign in</span>
                 </Button>
 
                 {/* Optional "or" divider + SSO button — render only when the theme opts in
-                    via `divider` / `ssoButton`. SSO has no provider wired yet, so clicking
+                    via `divider` / `ssoButton` (an on/off flag; the button's look is UI.Button 'actionFull'). SSO has no provider wired yet, so clicking
                     surfaces a friendly notice rather than failing silently. */}
                 {t.divider && (
                   <div className={t.divider}>{t.dividerText || 'or'}</div>
                 )}
                 {t.ssoButton && (
-                  <Button type={'plain'} className={t.ssoButton}
+                  <Button activeStyle='actionFull'
                           onClick={() => setError('Single sign-on is not available yet.')}>
                     {t.ssoMarkText && <span className={t.ssoMark}>{t.ssoMarkText}</span>}
                     {t.ssoButtonText || 'Continue with SSO'}

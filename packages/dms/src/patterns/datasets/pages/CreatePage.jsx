@@ -211,13 +211,12 @@ export default function CreatePage({apiUpdate, format}) {
                         {!ExternalComp ? (
                             <div className={theme.actions}>
                                 <Button
-                                    className={theme.createBtn || undefined}
+                                    activeStyle='primary'
                                     disabled={!data.name || submitting}
                                     onClick={handleCreate}
                                 >{submitting ? 'Creating...' : 'Create'}</Button>
                                 <Button
-                                    type="plain"
-                                    className={theme.cancelBtn || undefined}
+                                    activeStyle='action'
                                     onClick={() => navigate(baseUrl || '/')}
                                 >Cancel</Button>
                             </div>

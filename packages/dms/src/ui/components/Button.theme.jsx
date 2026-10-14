@@ -21,6 +21,18 @@ const LINK_META_DANGER = `${LINK} t-metaXS text-[var(--t-pencil)] hover:text-[va
 const LINK_PROSE = `${LINK} t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)]`;
 const CHIP = `${CHIP_BASE} border-[var(--t-rule)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]`;
 const CHIP_ON = `${CHIP_BASE} border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]`;
+const ICON_TOOL_ON = `${BTN} size-8 border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]`;
+// Full-width primary submit (auth sign-in / signup / forgot / reset).
+const PRIMARY_BLOCK = `${BTN} w-full h-10 px-4 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]`;
+// navigableMenu's trigger (section menu ⋯ / ☰): navigableMenu `buttonStyle` names it.
+const MENU_TRIGGER = `inline-flex items-center justify-center gap-1.5 px-2 py-1 rounded-md hover:bg-[var(--t-well)] cursor-pointer transition-colors duration-150 ${FOCUS}`;
+// Segmented control segments (UI.ButtonSelect 'segmented'): the selected one is ink (spec P1).
+const SEGMENT_BASE = `inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded t-proseXS cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${FOCUS}`;
+const SEGMENT = `${SEGMENT_BASE} text-[var(--t-graphite)] hover:text-[var(--t-ink)]`;
+const SEGMENT_ON = `${SEGMENT_BASE} bg-[var(--t-ink)] text-[var(--t-paper)]`;
+// Full-width variants are their own names: a caller never adds layout through className.
+const ACTION_FULL = `${ACTION} w-full`;
+const DANGER_FULL = `${DANGER} w-full`;
 
 export const buttonTheme = {
   options: {
@@ -67,6 +79,29 @@ export const buttonTheme = {
     { name: 'linkProse',      button: LINK_PROSE },
     { name: 'chip',           button: CHIP },
     { name: 'chipOn',         button: CHIP_ON },
+    { name: 'iconToolOn',     button: ICON_TOOL_ON },
+    { name: 'actionFull',     button: ACTION_FULL },
+    { name: 'dangerFull',     button: DANGER_FULL },
+    { name: 'segment',        button: SEGMENT },
+    { name: 'segmentOn',      button: SEGMENT_ON },
+    { name: 'primaryBlock',   button: PRIMARY_BLOCK },
+    { name: 'menuTrigger',    button: MENU_TRIGGER },
+    // ── Map editor + TransportNY component buttons (2026-10-13). On the default theme each is the v6 role
+    // named in its comment; project themes keep these buttons' pre-lock look (src/themes/_legacy/ui.js).
+    { name: 'primaryMd',       button: PRIMARY },        // primary
+    { name: 'primarySm',       button: PRIMARY },        // primary
+    { name: 'ghostMd',         button: PRIMARY },        // primary (a confirm that is idle until enabled)
+    { name: 'dangerMd',        button: DANGER_SOLID },   // dangerSolid
+    { name: 'dangerSm',        button: DANGER_SOLID },   // dangerSolid
+    { name: 'cancelMd',        button: ACTION },         // action
+    { name: 'cancelSm',        button: ACTION },         // action
+    { name: 'ghostSm',         button: ACTION },         // action
+    { name: 'primaryXs',       button: SMALL },          // small
+    { name: 'dangerXs',        button: SMALL_DANGER },   // smallDanger
+    { name: 'bareIcon',        button: ICON_ROW },       // iconRow
+    { name: 'bareIconBox',     button: ICON_ROW },       // iconRow
+    { name: 'barePrimaryFull', button: PRIMARY_BLOCK },  // primaryBlock
+    { name: 'bareActionFull',  button: ACTION_FULL },    // actionFull
   ]
 }
 

@@ -179,8 +179,7 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
           <div className={theme?.menuHeaderContent}>
             {
               activeParent ? (
-                <Button type={'plain'}
-                        className={theme?.backButton}
+                <Button activeStyle='iconRow'
                         onClick={() => changeParent(prevParent)}
                 >
                   <Icon icon={theme?.backIcon}
@@ -191,8 +190,7 @@ const Menu = ({config, title, showTitle=true, showBreadcrumbs, open, setOpen, ac
             }
             <div className={theme?.menuTitle}>{config[activeParent]?.name ? config[activeParent]?.name : title}</div>
           </div>
-          <Button type={'plain'}
-                  className={theme?.closeButton}
+          <Button activeStyle='iconRow'
                   onClick={() => setOpen(false)}
           >
             <Icon icon={theme?.menuCloseIcon}
@@ -299,9 +297,14 @@ btnVisibleOnGroupHover, defaultOpen, preferredPosition, activeStyle, preventClos
   }, [config]);
 
   const popUpButton = children ? children : (
-    <Button type={'plain'} className={`${theme?.button} ${btnVisibleOnGroupHover ? theme?.buttonHidden : ''}`}>
-      <Icon className={theme?.iconWrapper} icon={theme?.icon}/>
-    </Button>
+    // Popup clones this element (ref, onClick, and the sm:hidden toggle) and positions the menu from its
+    // rect, so the wrapper must hug the Button (w-fit: buttonHidden's `flex` would otherwise stretch it to
+    // the parent's width and move the menu). It carries the hover-reveal classes; the Button only its look.
+    <span className={`w-fit ${btnVisibleOnGroupHover ? (theme?.buttonHidden || 'inline-flex') : 'inline-flex'}`}>
+      <Button activeStyle={theme?.buttonStyle || 'menuTrigger'}>
+        <Icon className={theme?.iconWrapper} icon={theme?.icon}/>
+      </Button>
+    </span>
   )
 
   return (

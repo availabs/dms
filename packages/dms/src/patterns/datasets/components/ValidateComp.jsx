@@ -306,8 +306,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                                                     }
                                                 }}/>
                                         </div>
-                                        <Button type="plain"
-                                            className={t.modalResetBtn || undefined}
+                                        <Button activeStyle='linkMeta'
                                             onClick={() => setMaps(maps.filter(map => map.invalidValue !== invalidValue))}>reset
                                         </Button>
                                     </div>
@@ -316,7 +315,7 @@ const RenderMassUpdater = ({sourceInfo, open, setOpen, falcor, columns, data, us
                     }
                 </div>
                 <ModalFooter className={t.modalFooter}>
-                <Button className={t.modalUpdateButton}
+                <Button activeStyle='primary'
                         onClick={() => updateCall({column: currColumn, app, type, maps, falcor, user, updating, setUpdating, setOpen, setLoadingAfterUpdate})}>
                     {updating ? 'updating...' : loadingAfterUpdate ? 'loading updates...' : 'update'}</Button>
                 </ModalFooter>
@@ -606,16 +605,19 @@ export default function Validate ({
                             <div className={t.statBox}>Invalid Rows: <span className={t.statValue}>{(lengths.invalidLength || 0)}</span></div>
                             <div className={t.statBox}>Valid Rows: <span className={t.statValue}>{(lengths.validLength || 0)}</span></div>
                         </div>
+                        <div className={t.revalidateWrapper}>
+                        {error ? <div className={t.revalidateError}>{JSON.stringify(error)}</div> : null}
                         <Button
-                            className={error ? t.revalidateButtonError : t.revalidateButton}
+                            activeStyle={error ? 'danger' : 'action'}
                             onClick={() =>
                                 reValidate({
                                     app, type: `${sourceSlug}|${view_id}:data`, parentId: source_id,
                                     parentDocType: sourceSlug, dmsServerPath, setValidating, setError, falcor
                                 })}
                         >
-                            {error ? JSON.stringify(error) : validating ? 'Validating' : 'Re - Validate'}
+                            {validating ? 'Validating' : 'Re - Validate'}
                         </Button>
+                        </div>
                     </div>
 
                     {/* Mass Update Modal */}

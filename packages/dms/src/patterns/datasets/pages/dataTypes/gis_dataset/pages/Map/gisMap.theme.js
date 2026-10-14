@@ -153,6 +153,4 @@ export const gisMapTheme = {
     editRow: 'w-full',
     editTextarea: 'w-full min-h-40 t-metaMD text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded p-3 outline-none focus:border-[var(--t-cobalt)]',
     editActions: 'flex gap-2',
-    editSaveBtn: `${ACTION} h-8 t-proseSM font-medium`,
-    editCancelBtn: `${ACTION} h-8 t-proseSM`,
 }

@@ -7,8 +7,6 @@ export const adminTheme = {
     // action buttons
     buttonRed: 'w-full h-8 mt-1 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-brick)] t-proseSM text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer',
     buttonGreen: 'w-full h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-40',
-    // shared Button (Advanced metadata, external Add version) — passed as className
-    actionBtn: 'w-full h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
 
     // Admin page layout
     adminWrapper: 'w-full max-w-[1200px] pl-6 lg:pl-12 pr-6 lg:pr-8 py-6',

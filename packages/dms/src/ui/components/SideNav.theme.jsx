@@ -145,8 +145,8 @@ const sideNavTheme = {
         cursor-pointer transition-colors duration-150`,
       navitemSideActive: `
         group w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
-        border-l-2 border-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)]
-        t-metaMD text-[var(--t-cobalt)]
+        border-l-2 border-transparent bg-[var(--t-well)]
+        t-metaMD text-[var(--t-ink)]
         cursor-pointer`,
       navitemSide_level_2: `
         group/lvl2 w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
@@ -156,8 +156,8 @@ const sideNavTheme = {
         cursor-pointer transition-colors duration-150`,
       navitemSideActive_level_2: `
         group/lvl2 w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
-        border-l-2 border-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)]
-        t-metaMD text-[var(--t-cobalt)]
+        border-l-2 border-transparent bg-[var(--t-well)]
+        t-metaMD text-[var(--t-ink)]
         cursor-pointer`,
       navitemSide_level_3: `
         group/lvl3 w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
@@ -167,8 +167,8 @@ const sideNavTheme = {
         cursor-pointer transition-colors duration-150`,
       navitemSideActive_level_3: `
         group/lvl3 w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
-        border-l-2 border-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)]
-        t-metaMD text-[var(--t-cobalt)]
+        border-l-2 border-transparent bg-[var(--t-well)]
+        t-metaMD text-[var(--t-ink)]
         cursor-pointer`,
       navitemSide_level_4: `
         group/lvl4 w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
@@ -178,8 +178,8 @@ const sideNavTheme = {
         cursor-pointer transition-colors duration-150`,
       navitemSideActive_level_4: `
         group/lvl4 w-full flex items-center gap-2.5 pl-3 pr-2 py-1.5
-        border-l-2 border-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)]
-        t-metaMD text-[var(--t-cobalt)]
+        border-l-2 border-transparent bg-[var(--t-well)]
+        t-metaMD text-[var(--t-ink)]
         cursor-pointer`,
       // navItemContent_level_2/3/4's `default` style hardcodes font-sans —
       // it sits on the INNER Link/label div, nested inside navitemSide_level_N
@@ -193,7 +193,7 @@ const sideNavTheme = {
       subMenuWrapper_1: "mt-px space-y-px",
       subMenuWrapper_2: "mt-px space-y-px",
       subMenuWrapper_3: "mt-px space-y-px",
-      menuIconSideActive: "w-4 h-4 text-[var(--t-cobalt)]",
+      menuIconSideActive: "w-4 h-4 text-[var(--t-ink)]",
       navItemContent_level_2: 't-metaMD',
       navItemContent_level_3: 't-metaMD',
       navItemContent_level_4: 't-metaMD',

@@ -48,13 +48,13 @@ export const RenderAddField = ({placeHolder, attributes=[], className, addAttrib
     );
 
     // v6: plain "add" button, disabled while the name is empty or taken; "already exists" shows
-    // under the input. addFieldBtn '' → the pre-v6 button that carries the error itself.
-    if (t.addFieldBtn) {
+    // under the input. addFieldInputWrap '' → the pre-v6 button that carries the error itself.
+    if (t.addFieldInputWrap) {
         return (
             <div>
                 <div className={t.addFieldRow}>
                     <div className={t.addFieldInputWrap}>{input}</div>
-                    <Button className={t.addFieldBtn} disabled={!!error} title={error || undefined} onClick={() => !error && fn()}>
+                    <Button activeStyle='action' disabled={!!error} title={error || undefined} onClick={() => !error && fn()}>
                         <div className={t.addButtonContent}><Icon icon={'Add'} className={t.addButtonIcon}/>add</div>
                     </Button>
                 </div>

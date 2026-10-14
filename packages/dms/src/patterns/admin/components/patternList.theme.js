@@ -30,17 +30,12 @@ export const patternListTheme = {
     editTitle: 't-displayMD text-[var(--t-ink)] truncate',
     toolbar: 'w-full flex items-center gap-3',
     searchInputWrapper: 'flex-1 max-w-sm',
-    addButton: 'inline-flex items-center gap-1.5 t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-2.5 cursor-pointer flex-none',
     tableWrapper: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden',
 
     modalTitle: 't-displaySM text-[var(--t-ink)]',
     modalForm: 'flex flex-col gap-3',
     modalActions: 'w-full flex items-center gap-2 pt-1',
     modalEditActions: 'w-full flex items-center gap-2 pt-1',
-    btnSave: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer',
-    btnCancel: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3.5 py-1.5 cursor-pointer',
-    btnDuplicate: 't-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3 py-1.5 cursor-pointer',
-    btnRemove: 't-metaXS text-[var(--t-brick)] border border-[var(--t-brick-soft)] bg-[var(--t-brick-soft)] hover:opacity-80 rounded-md px-3 py-1.5 cursor-pointer',
 
     // RenderFilters
     filtersWrapper: 'flex flex-col gap-1 p-1 border border-[var(--t-rule)] rounded-md',

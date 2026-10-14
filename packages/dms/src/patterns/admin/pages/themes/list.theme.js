@@ -12,15 +12,14 @@ export const themeListTheme = {
     // separate, unused/dead component that looks similar but is never
     // actually rendered by any route; don't use it as a reference). Token
     // values below are copied verbatim from editSite.theme.js's
-    // identityWrapper/toolbarRow/searchWrapper/addPatternBtn so the two
+    // identityWrapper/toolbarRow/searchWrapper so the two
     // pages are pixel-consistent, not just similarly-shaped (2026-09-19).
     header: 'flex flex-col gap-3 pb-3 border-b border-[var(--t-rule)]',
     headerTitle: 't-displayMD text-[var(--t-ink)]',
     toolbar: 'flex items-center gap-3',
-    searchWrapper: 'flex flex-1 items-center gap-2.5 border border-[var(--t-rule-strong)] rounded-md px-3.5 h-10 bg-[var(--t-panel)] text-[var(--t-graphite)] focus-within:border-[var(--t-cobalt)]',
+    searchWrapper: 'flex flex-1 items-center gap-2.5 border border-[var(--t-rule-strong)] rounded-md px-3.5 h-8 bg-[var(--t-panel)] text-[var(--t-graphite)] focus-within:border-[var(--t-ink)]',
     searchIcon: 'w-4 h-4 flex-none',
     searchInput: 'w-full min-w-0 bg-transparent text-sm placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
-    addButton: 'inline-flex items-center gap-2 text-sm font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-4 h-10 flex-none',
     iconSm: 'size-4',
 
     tableWrapper: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden',
@@ -32,20 +31,16 @@ export const themeListTheme = {
     modalForm: 'flex flex-col gap-3',
     modalActions: 'w-full flex items-center gap-2 pt-1',
     modalEditActions: 'w-full flex items-center gap-2 pt-1',
-    btnAdd: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer self-start',
-    btnSave: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer',
-    btnCancel: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3.5 py-1.5 cursor-pointer',
-    btnDuplicate: 't-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3 py-1.5 cursor-pointer',
-    btnRemove: 't-metaXS text-[var(--t-brick)] border border-[var(--t-brick-soft)] bg-[var(--t-brick-soft)] hover:opacity-80 rounded-md px-3 py-1.5 cursor-pointer',
+    btnAdd: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)] self-start',
 
     // Table cell actions — same plain icon-button look as editSite.theme.js's
     // cellActions/editLink/duplicateBtn (no pill/border), so the two list
     // pages' row actions read identically.
     cellActions: 'flex items-center justify-end gap-1 w-full h-full py-1 text-[var(--t-pencil)]',
-    editLink: 'p-1.5 hover:text-[var(--t-ink)] rounded-md hover:bg-[var(--t-well)]',
+    editLink: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
     iconMd: 'size-4',
     iconLabel: 'hidden',
-    settingsLink: 'p-1.5 hover:text-[var(--t-ink)] rounded-md hover:bg-[var(--t-well)] cursor-pointer',
+    settingsLink: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
 
     noAccess: 'flex items-center justify-center h-48 t-proseSM text-[var(--t-pencil)]',
 }

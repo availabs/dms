@@ -42,8 +42,8 @@ function AddPageButton ({ t }) {
     );
     return (
         <>
-          <div className='border border-[var(--t-rule)] px-4 py-2 rounded '>
-            <Button onClick={() => setPickerOpen(true)} className={'w-full'} disabled={loading}>
+          <div className='px-4 py-2'>
+            <Button activeStyle='actionFull' onClick={() => setPickerOpen(true)} disabled={loading}>
               {loading ? 'Adding Page' : '+ Add Page'}
             </Button>
           </div>
@@ -350,16 +350,16 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, t})  {
           </div>
         </div>
       </div>
-      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+      <div className="mt-5 sm:mt-4 flex flex-row-reverse gap-2">
         <Button
+          activeStyle='dangerSolid'
           disabled={loading}
           onClick={onDelete}
         >
           Delet{loading ? 'ing...' : 'e'}
         </Button>
         <Button
-          type="plain"
-          className='mr-1'
+          activeStyle='action'
           onClick={() => setOpen()}
           forwardref={cancelButtonRef}
         >
@@ -452,7 +452,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen, t})  {
           </div>
         </div>
       </div>
-      <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
+      <div className="mt-5 sm:mt-4 flex flex-row-reverse gap-2">
         <Button
           disabled={loading}
           onClick={update}
@@ -460,8 +460,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen, t})  {
           { loading ? 'Saving...' : 'Submit' }
         </Button>
         <Button
-          type="plain"
-          className='mr-1'
+          activeStyle='action'
           onClick={() => setOpen()}
           ref={cancelButtonRef}
         >

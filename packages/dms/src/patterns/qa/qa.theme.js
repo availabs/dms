@@ -235,11 +235,10 @@ export const qaCardStyles = [
   { name: 'qa_body', ...QA_CARD, editField: EDIT_FIELD },
   // label | value rows: a fixed label column, label and value centred on one line
   { name: 'qa_rail', ...QA_CARD, editField: EDIT_FIELD, headerValueWrapper: 'w-full flex items-center gap-2', header: 'w-[88px] shrink-0' },
-  // a create form (the New ticket modal): boxed fields, the accent Add button
+  // a create form (the New ticket modal): boxed fields; Add is the UI.Button 'primary' role
   {
     name: 'qa_form', ...QA_CARD, editField: FORM_FIELD, headerValueWrapper: 'w-full flex gap-1.5',
     formAddNewItemWrapper: 'col-span-full w-fit justify-self-end self-end pt-2',
-    formAddButton: 'inline-flex items-center gap-1.5 t-proseSM !font-medium bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] rounded-md px-3.5 py-1.5 hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
   },
   // a placeholder for a feature not built yet: dashed frame (display.cardBorder on)
   { name: 'qa_planned', ...QA_CARD, cardBorder: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg' },

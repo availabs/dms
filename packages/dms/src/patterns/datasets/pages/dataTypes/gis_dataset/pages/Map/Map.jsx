@@ -388,8 +388,8 @@ const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
         />
       </div>
       <div className={t.editActions || undefined}>
-        <Button themeOptions={t.editSaveBtn ? undefined : {size:'sm', color: 'primary'}} className={t.editSaveBtn || undefined} onClick={e => save(attr,value)}> Save </Button>
-        <Button themeOptions={t.editCancelBtn ? undefined : {size:'sm', color: 'cancel'}} className={t.editCancelBtn || undefined} onClick={e => cancel()}> Cancel </Button>
+        <Button activeStyle='small' onClick={e => save(attr,value)}> Save </Button>
+        <Button activeStyle='small' onClick={e => cancel()}> Cancel </Button>
       </div>
     </div>
   )

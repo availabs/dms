@@ -41,7 +41,6 @@ const MANAGE_DEFAULTS = {
     pageWrapper: "flex flex-col gap-3",
     headerRow: "w-full flex justify-between border-b-2 border-blue-400",
     headerTitle: "text-2xl font-semibold text-gray-700",
-    headerAction: "shrink-0",
     headerStats: "flex items-stretch gap-3",
     headerStatsItem: "",
     headerStatsValue: "text-xl font-semibold",
@@ -82,7 +81,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
                     onChange={e => setEmail(e.target.value)}
                     placeHolder="Enter user email"
                 />
-                <Button className={m.modalAction} disabled={loading} onClick={() => onAdd(email)}>
+                <Button activeStyle='primary' disabled={loading} onClick={() => onAdd(email)}>
                     {loading ? "Adding" : status || "Add"}
                 </Button>
             </div>
@@ -245,7 +244,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 return (
                     <div className={className}>
                         <Button
-                            className={m.rowAction}
+                            activeStyle='small'
                             onClick={() => setViewAsUser(isActive ? null : { ...row, groups: [...new Set([...(row.groups || []), 'public'])], authed: true, isAuthenticating: false })}
                         >
                             {isActive ? 'Viewing As' : 'View As'}
@@ -256,7 +255,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
         },
         {
             name: '', display_name: '', show: true, type: 'ui',
-            Comp: d => <div className={d.className}><Button className={m.rowAction} onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
+            Comp: d => <div className={d.className}><Button activeStyle='small' onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
         },
     ];
 
@@ -350,7 +349,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                         <p className={m.headerStatsLabel}>groups</p>
                     </div>
                 </div>
-                <Button className={m.headerAction} onClick={() => { setAddStatus(''); setAddingNew(true); }}>Add new</Button>
+                <Button activeStyle='primary' onClick={() => { setAddStatus(''); setAddingNew(true); }}>Add new</Button>
             </div>
 
             <div className={m.pageWrapper}>
@@ -406,7 +405,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 </div>
                 <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?
-                    <Button className={m.modalAction} disabled={resetLocked} onClick={async () => {
+                    <Button activeStyle='primary' disabled={resetLocked} onClick={async () => {
                         setResetLocked(true);
                         setResetStatus('sending');
                         const res = await callAuthServer(`${AUTH_HOST}/password/reset`, {

@@ -140,8 +140,7 @@ export default function SourceCreate({ context, source }) {
                 />
                 <div>
                     <Button
-                        type="plain"
-                        className={t.goToDatasetBtn || undefined}
+                        activeStyle='action'
                         onClick={() => navigate(`${baseUrl}/internal_source/${createdSource.id}`)}
                     >
                         Go to Dataset
@@ -159,7 +158,7 @@ export default function SourceCreate({ context, source }) {
         <div className={t.sourceCreateIdle}>
             {error && <div className={t.sourceCreateError}>{error}</div>}
             <Button
-                className={t.sourceCreateBtn || undefined}
+                activeStyle='primary'
                 disabled={!source.name?.trim() || stage === 'creating'}
                 onClick={handleCreate}
             >

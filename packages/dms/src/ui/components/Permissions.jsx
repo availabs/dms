@@ -168,7 +168,7 @@ export default function Permissions ({
                             <div className={permissionsTheme.grantHead}>
                                 <Icon icon={row.icon} className={permissionsTheme.grantIcon}/>
                                 <div className={permissionsTheme.title} title={row.label}>{row.label}</div>
-                                <Button className={permissionsTheme.removeBtn}
+                                <Button activeStyle='iconRowDanger'
                                         title='Remove grant' aria-label='Remove grant'
                                         onClick={() => removeGrant(row.kind, row.key)}>
                                     <Icon icon='TrashCan' className={permissionsTheme.removeIcon}/>

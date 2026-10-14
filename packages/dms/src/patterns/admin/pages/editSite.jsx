@@ -552,7 +552,7 @@ function PatternList({
 						<span className={t.searchKbdHint}>/</span>
 					</div>
 					{canCreatePattern && (
-						<Button className={t.addPatternBtn} onClick={() => setAddingNew(true)}>
+						<Button activeStyle='primary' onClick={() => setAddingNew(true)}>
 							<Icon icon='Plus' className={t.iconSm} />
 							Add pattern
 						</Button>
@@ -623,7 +623,7 @@ function PatternList({
 						}
 						<div className={t.modalEditActions}>
 							<Button
-								className={t.btnSave}
+								activeStyle='small'
 								type={'plain'}
 								title={'save item'}
 								onClick={() => {
@@ -637,7 +637,7 @@ function PatternList({
 							</Button>
 
 							<Button
-								className={t.btnCancel}
+								activeStyle='small'
 								type={'plain'}
 								title={'cancel item'}
 								onClick={() => {
@@ -648,7 +648,7 @@ function PatternList({
 							</Button>
 
 							<Button
-								className={t.btnDuplicate}
+								activeStyle='small'
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
@@ -672,7 +672,7 @@ function PatternList({
 							> {isDuplicating ? 'duplicating...' : 'duplicate'}
 							</Button>
 							<Button
-								className={t.btnRemove}
+								activeStyle='smallDanger'
 								type={'plain'}
 								title={'remove item'}
 								onClick={() => {
@@ -707,14 +707,14 @@ function PatternList({
 						<div className={t.deleteModalFooter}>
 							<Button
 								type='plain'
-								className={t.btnSecondary}
+								activeStyle='action'
 								onClick={() => setDeletingItem(undefined)}
 							>
 								Cancel
 							</Button>
 							<Button
 								type='plain'
-								className={t.btnDanger}
+								activeStyle='dangerSolid'
 								onClick={() => {
 									const newData = value.filter(v => v.id !== deletingItem.id);
 									onChange(newData);
@@ -923,7 +923,7 @@ function TenantList({
 					/>
 					<span className={t.searchKbdHint}>/</span>
 				</div>
-				<Button className={t.addPatternBtn} onClick={() => { setAddingNew(true); setError(''); setNewItem({ name: '', subdomain: '', email: '', password: '' }); setSelectedTemplateId('simple_site'); }}>
+				<Button activeStyle='primary' onClick={() => { setAddingNew(true); setError(''); setNewItem({ name: '', subdomain: '', email: '', password: '' }); setSelectedTemplateId('simple_site'); }}>
 					<Icon icon='Plus' className={t.iconSm} />
 					Add tenant
 				</Button>
@@ -979,7 +979,7 @@ function TenantList({
 						<Button type='plain' disabled={submitting} onClick={addTenant}>
 							{submitting ? 'Creating…' : 'Add'}
 						</Button>
-						<Button type='plain' onClick={() => { setAddingNew(false); setError(''); }}>Cancel</Button>
+						<Button type='button' activeStyle='action' onClick={() => { setAddingNew(false); setError(''); }}>Cancel</Button>
 					</div>
 				</div>
 			</Modal>
@@ -994,14 +994,14 @@ function TenantList({
 					<div className={t.deleteModalFooter}>
 						<Button
 							type='plain'
-							className={t.btnSecondary}
+							activeStyle='action'
 							onClick={() => setDeletingItem(undefined)}
 						>
 							Cancel
 						</Button>
 						<Button
 							type='plain'
-							className={t.btnDanger}
+							activeStyle='dangerSolid'
 							onClick={() => {
 								const newData = value.filter(v => v.id !== deletingItem.id);
 								onChange(newData);
@@ -1083,7 +1083,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
                     }
                 ]}
             />
-            <Button onClick={() => {
+            <Button activeStyle='linkMetaDanger' onClick={() => {
                 onChange([]);
                 setTmpValue([])
                 setNewFilter({});

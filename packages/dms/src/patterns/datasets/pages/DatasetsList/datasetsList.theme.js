@@ -22,9 +22,7 @@ export const datasetsListTheme = {
     count: 't-metaSM text-[var(--t-pencil)]',
     toolbar: 'flex flex-wrap items-center gap-2',
     toolbarSearch: 'flex-1 min-w-[220px]',
-    // plain toolbar buttons (sort, show all, uploads) — passed to the shared Button as className
-    toolbarBtn: 'size-8 inline-flex items-center justify-center rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
-    toolbarBtnActive: 'size-8 inline-flex items-center justify-center rounded-md border border-[var(--t-cobalt-line)] bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)] cursor-pointer',
+    // settings link, beside the toolbar's UI.Button 'iconTool' buttons (sort, show all, uploads)
     settingsLink: 'size-8 inline-flex items-center justify-center rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
     toolbarDivider: 'w-px h-6 bg-[var(--t-rule)] mx-1',
 

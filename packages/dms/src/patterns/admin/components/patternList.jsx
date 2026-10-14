@@ -43,11 +43,11 @@ const RenderLocations = ({value, onChange}) => {
                            onChange={e => update(i, 'subdomain', e.target.value)} />
                     <Input value={loc?.base_url || ''} placeHolder={'base URL (e.g. /freightatlas)'}
                            onChange={e => update(i, 'base_url', e.target.value)} />
-                    <Button type={'plain'} title={'remove location'}
+                    <Button type={'button'} activeStyle='iconRowDanger' title={'remove location'} aria-label={'remove location'}
                             onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>✕</Button>
                 </div>
             ))}
-            <Button type={'plain'} className={'w-fit'} title={'add location'}
+            <Button type={'button'} activeStyle='linkProse' title={'add location'}
                     onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
                 + add location
             </Button>
@@ -120,7 +120,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
                     }
                 ]}
             />
-            <Button onClick={() => {
+            <Button activeStyle='linkMetaDanger' onClick={() => {
                 onChange([]);
                 setTmpValue([])
                 setNewFilter({});
@@ -212,7 +212,7 @@ function PatternEdit({
 		{name: 'manage_url', display_name: 'Manage', show: true, type: 'text', isLink: true, linkText: 'manage'},
 		{name: 'edit_url', display_name: 'Edit', show: true, type: 'text', isLink: true, linkText: 'edit'},
     {name: 'edit', display_name: 'Edit', show: true, type: 'ui', Comp: (d) => {
-			return <Button onClick={() => setEditingItem(d.row)}>Edit</Button>
+			return <Button activeStyle='small' onClick={() => setEditingItem(d.row)}>Edit</Button>
 		}},
 	]
 
@@ -333,7 +333,7 @@ function PatternEdit({
 					<div className={t.searchInputWrapper}>
 						<Input type={'text'} value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter sites…'} />
 					</div>
-					<Button className={t.addButton} onClick={() => setAddingNew(true)}>
+					<Button activeStyle='primary' onClick={() => setAddingNew(true)}>
 						<Icon icon="Plus" className="w-3.5 h-3.5" /> add site
 					</Button>
 				</div>
@@ -391,7 +391,7 @@ function PatternEdit({
 						}
 						<div className={t.modalEditActions}>
 							<Button
-								className={t.btnSave}
+								activeStyle='primary'
 								type={'plain'}
 								title={'save item'}
 								onClick={() => {
@@ -405,7 +405,7 @@ function PatternEdit({
 							</Button>
 
 							<Button
-								className={t.btnCancel}
+								activeStyle='action'
 								type={'plain'}
 								title={'cancel item'}
 								onClick={() => {
@@ -421,7 +421,7 @@ function PatternEdit({
 							    list and would drop the install's own settings and dataset refs. */}
 							{editingItem.pattern_type !== 'qa' && (
 							<Button
-								className={t.btnDuplicate}
+								activeStyle='small'
 								type={'plain'}
 								title={'duplicate item'}
 								onClick={async () => {
@@ -453,7 +453,7 @@ function PatternEdit({
 							</Button>
 							)}
 							<Button
-								className={t.btnRemove}
+								activeStyle='smallDanger'
 								type={'plain'}
 								title={'remove item'}
 								onClick={() => {

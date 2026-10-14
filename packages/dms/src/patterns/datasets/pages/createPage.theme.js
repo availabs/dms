@@ -3,7 +3,6 @@
 // src/themes/_legacy/datasets.js `createPage`; keys marked '' → … gate the v6 markup.
 // No accent colour (owner direction on the metadata page, 2026-10-07): the selected type card is ink.
 const RULE = 'border-[var(--t-rule)]';
-const BTN = 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md t-proseSM cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 
 export const createPageTheme = {
     pageWrapper: 'w-full min-w-0',
@@ -31,8 +30,6 @@ export const createPageTheme = {
 
     // plain create (a type with no create page of its own)
     actions: 'flex gap-2',
-    createBtn: `${BTN} font-medium border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,   // '' → UI.Button default
-    cancelBtn: `${BTN} text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]`,                                // '' → UI.Button type plain
     externalWrapper: 'flex flex-col gap-3',     // the chosen type's own create flow (its numbered steps)
 
     // numbered steps of the create flows (components/CreateStep.jsx) — step '' → no step chrome

@@ -16,6 +16,7 @@ import Tabs from "./components/Tabs";
 import Drawer from "./components/Drawer";
 import Input from "./components/Input"
 import Textarea from "./components/Textarea"
+import FileInput from "./components/FileInput"
 import Dialog from "./components/Dialog";
 import DialogActions from "./components/DialogActions";
 import Modal from "./components/Modal";
@@ -70,6 +71,7 @@ const UI = {
 	Switch,
 	Input,
   Textarea,
+	FileInput,
 	MultiSelect,
 	Select,
 	ColorPicker,

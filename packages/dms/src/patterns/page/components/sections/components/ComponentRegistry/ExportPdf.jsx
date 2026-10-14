@@ -374,13 +374,13 @@ export function PdfExport({ }) {
 
       <div className="flex items-center space-x-2 mb-4">
         <Button
-          className={!isTocMode ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}
+          activeStyle={!isTocMode ? 'chipOn' : 'chip'}
           onClick={() => setIsTocMode(false)}
         >
           PDF Pages
         </Button>
         <Button
-          className={isTocMode ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}
+          activeStyle={isTocMode ? 'chipOn' : 'chip'}
           onClick={() => setIsTocMode(true)}
         >
           Cover pages

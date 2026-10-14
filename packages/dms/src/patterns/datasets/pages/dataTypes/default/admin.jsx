@@ -138,7 +138,7 @@ const AddExternalVersionBtn = ({source}) => {
 
     return (
         <>
-            <Button className={t.actionBtn} onClick={() => setShowModal(true)}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</Button>
+            <Button activeStyle='actionFull' onClick={() => setShowModal(true)}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</Button>
 
             <Modal
                 title={`Add Version`} open={showModal}
@@ -252,7 +252,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            <Button className={t.actionBtn}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                            <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
                             {
                                 isDms ? (
                                     <>

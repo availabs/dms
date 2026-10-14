@@ -3,7 +3,6 @@
 // A site theme overrides via `datasets.metadataComp`; project themes keep their pre-v6 look through
 // src/themes/_legacy/datasets.js. Several keys gate markup: '' → the pre-v6 structure (see each).
 const RULE = 'border-[var(--t-rule)]';
-const BTN_BASE = 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md t-proseSM cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 const SECTION = `px-4 py-3 border-t ${RULE}`;
 
 export const metadataCompTheme = {
@@ -68,21 +67,9 @@ export const metadataCompTheme = {
     optionFormRow: 'flex items-stretch gap-2 max-w-md',
     optionEditRow: 'grid grid-cols-1 sm:grid-cols-[1fr_1fr_1fr_auto] gap-2 items-start p-2 rounded-md bg-[var(--t-panel)]',
 
-    // Buttons — passed to UI.Button as className ('' → the Button theme's activeStyle, as before)
-    btn: `${BTN_BASE} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,
-    // no accent colour on this page (owner 2026-10-07): the "primary" button is the neutral one, medium weight
-    btnPrimary: `${BTN_BASE} font-medium border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,
-    btnDanger: `${BTN_BASE} border border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`,
-    btnDangerSolid: `${BTN_BASE} font-medium text-[var(--t-accent-ink)] bg-[var(--t-brick)] hover:opacity-90`,
+    // Buttons pick their look by UI.Button activeStyle (primary / action / danger / dangerSolid). In
+    // FieldSet grids they also get metadataFieldTheme; metadataFieldLabel '' → the FieldSet's own wrapper (pre-v6).
     btnIcon: 'size-3.5',
-    // buttons that sit beside a UI.Input: min height = the Input's (42px: py-2.5 + text-sm + border)
-    // so they line up; in FieldSet grids they also get metadataFieldTheme (the field theme's own
-    // wrapper adds mb-4). '' → the plain btn* above and the FieldSet's own wrapper (pre-v6).
-    // add / update read as action buttons, the same treatment as remove / delete (outlined, no fill,
-    // coloured text) — neutral ink instead of brick (owner 2026-10-07)
-    btnInline: `${BTN_BASE.replace('h-8 ', '')} min-h-[42px] border border-[var(--t-graphite)] text-[var(--t-ink)] hover:bg-[var(--t-well)]`,
-    btnInlinePrimary: `${BTN_BASE.replace('h-8 ', '')} min-h-[42px] font-medium border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,
-    btnInlineDanger: `${BTN_BASE.replace('h-8 ', '')} min-h-[42px] border border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`,
     removeColumnIcon: 'TrashCan',           // '' → the row's remove button reads "delete", no icon
 
     // Delete column / remove primary key modals
@@ -109,7 +96,6 @@ export const metadataCompTheme = {
     // RenderAddField.jsx — add row
     addFieldRow: 'flex items-stretch gap-2',
     addFieldInputWrap: 'flex-1 min-w-0',
-    addFieldBtn: `${BTN_BASE.replace('h-8 ', '')} min-h-[42px] border border-[var(--t-graphite)] text-[var(--t-ink)] hover:bg-[var(--t-well)]`,  // same action treatment as btnInline; '' → old Button with the error inside it
     addFieldError: 'mt-1 t-proseXS text-[var(--t-brick)]',
     addButtonIcon: 'size-3.5',
     addButtonContent: 'flex items-center gap-1.5 text-nowrap',

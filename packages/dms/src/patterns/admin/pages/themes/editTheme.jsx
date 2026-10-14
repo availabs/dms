@@ -30,6 +30,7 @@ const compOptions = [
 	{ label: 'MultiSelect', value: 'MultiSelect' },
 	{ label: 'SideNav', value: 'SideNav' },
 	{ label: 'Switch', value: 'Switch' },
+	{ label: 'FileInput', value: 'FileInput' },
 	{ label: 'Table', value: 'Table' },
 	{ label: 'Tabs', value: 'Tabs' },
 	{ label: 'TopNav', value: 'TopNav' },
@@ -189,8 +190,8 @@ function ComponentList ({
    					/>
       		</div>
  					<div className={t.sidebarActions}>
-						<Button className={t.btnSave} onClick={() => onSubmit(currentTheme)}>save</Button>
-						<Button className={t.btnReset} onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>reset</Button>
+						<Button activeStyle='primary' onClick={() => onSubmit(currentTheme)}>save</Button>
+						<Button activeStyle='action' onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>reset</Button>
  					</div>
   				<div className={t.sidebarControls}>
             <div className={t.controlLabel}>{ currentThemeSetting }</div>

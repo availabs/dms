@@ -8,7 +8,6 @@ const CARD = `rounded-lg border ${RULE} bg-[var(--t-panel)]`;
 const BTN = 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md t-proseSM cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 const ACTION = `${BTN} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
 const DANGER = `${BTN} border border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
-const DANGER_SOLID = `${BTN} font-medium text-[var(--t-accent-ink)] bg-[var(--t-brick)] hover:opacity-90`;
 const CHECK = 'size-4 accent-[var(--t-ink)] cursor-pointer disabled:cursor-not-allowed';
 
 export const externalVersionControlsTheme = {
@@ -17,9 +16,6 @@ export const externalVersionControlsTheme = {
     adminControls: 'w-full flex flex-col gap-2',
     sectionLabel: 't-metaXS text-[var(--t-pencil)]',          // "downloads" eyebrow ('' → none)
     linkClass: ACTION,
-    createDownloadBtn: `w-full ${ACTION}`,
-    deleteDownloadBtn: `w-full ${DANGER}`,
-    cachePmTilesBtn: `w-full ${ACTION}`,
     deleteViewLink: `w-full mt-2 ${DANGER}`,
     downloadIcon: 'Download',
     pmTilesIcon: 'MapLayers',
@@ -53,7 +49,6 @@ export const externalVersionControlsTheme = {
     checkboxGroupTitleRow: 'flex items-center gap-2',
     checkboxGroupTitleText: 't-metaXS text-[var(--t-pencil)] flex-1',
     checkboxGroupValidRow: 'flex items-center gap-1 t-proseXS text-[var(--t-pencil)]',
-    toggleAllBtn: 't-metaXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] whitespace-nowrap cursor-pointer',   // '' → Button themeOptions
     validIcon: 'CircleCheck',
     invalidIcon: 'CircleX',
 
@@ -66,8 +61,6 @@ export const externalVersionControlsTheme = {
     createModalTitle: 't-displaySM text-[var(--t-ink)]',
     createModalBody: 'grid grid-cols-1 md:grid-cols-[200px_minmax(0,1fr)] gap-3 mt-4',
     createModalFooter: 'mt-5 flex flex-row-reverse flex-wrap gap-2',
-    createModalConfirmBtn: `${ACTION} font-medium`,
-    createModalCancelBtn: ACTION,
 
     // Delete Download Modal
     deleteModalHeader: 'flex items-center gap-3 text-left',
@@ -78,8 +71,6 @@ export const externalVersionControlsTheme = {
     deleteModalTitle: 't-displaySM text-[var(--t-ink)]',
     deleteModalMessage: 'mt-3 t-proseSM text-[var(--t-graphite)] text-left',
     deleteModalFooter: 'mt-5 flex flex-row-reverse flex-wrap gap-2',
-    deleteModalConfirmBtn: DANGER_SOLID,
-    deleteModalCancelBtn: ACTION,
 
     // PmTilesModal
     pmTilesModalPanel: 'max-w-2xl',
@@ -105,9 +96,4 @@ export const externalVersionControlsTheme = {
     calcColumnWarning: 't-proseXS text-[var(--t-amber)]',
     layerGroupIcon: 'Download',     // create-download modal header icon
     colSpan2: 'md:col-span-2',
-
-    // PmTilesModalButton
-    pmTilesModalBtnBase: BTN,
-    pmTilesModalBtnGreen: `font-medium border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,
-    pmTilesModalBtnSlate: `border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,
 }

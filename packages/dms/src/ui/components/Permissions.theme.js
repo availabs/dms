@@ -27,7 +27,6 @@ export const permissionsTheme = {
     // named MultiSelect style for those pills (MultiSelect.theme.js)
     permEditorStyle: 'permissions',
     emptyText: 'px-3 py-3 t-proseXS text-[var(--t-pencil)]',
-    removeBtn: 'size-6 shrink-0 inline-flex items-center justify-center rounded text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] transition-colors duration-150 cursor-pointer',
     removeIcon: 'size-3.5',
 
     // inherited grants — collapsed by default

@@ -297,7 +297,7 @@ function AddItemButton({dataItems, apiUpdate, baseUrl, user = {}}) {
         <div className=''>
             <Button
                 onClick={addItem}
-                className={'w-full'}
+                activeStyle='actionFull'
             >
                 {loading ? 'Adding Page' : '+ Add Page'}
             </Button>

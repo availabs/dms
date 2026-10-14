@@ -48,7 +48,5 @@ export const createPageTheme = {
     sourceCreateUploading: 'flex flex-col gap-4',
     sourceCreateIdle: 'flex flex-wrap items-center gap-3',
     sourceCreateError: 't-proseXS text-[var(--t-brick)]',
-    sourceCreateBtn: `${ACTION} font-medium`,     // '' → UI.Button default
     sourceCreateHint: 't-proseXS text-[var(--t-pencil)]',   // '' → no hint
-    goToDatasetBtn: ACTION,                        // '' → UI.Button type plain
 }

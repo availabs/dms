@@ -91,6 +91,6 @@ export const qaConfigureTheme = {
     featuresHeader: 'px-4 py-2.5 flex flex-wrap items-center gap-2',
     featuresGrid: 'px-4 pb-3 grid sm:grid-cols-2 lg:grid-cols-5 gap-2',
     featureTile: 'rounded-md border border-[var(--t-rule)] px-3 py-2 flex items-center gap-2',
-    featureSwitch: 'w-7 h-4 rounded-full bg-[var(--t-cobalt)] opacity-60 flex-none',
+    featureSwitch: 'w-7 h-4 rounded-full bg-[var(--t-ink)] opacity-60 flex-none',
     featureName: 't-proseXS text-[var(--t-graphite)]',
 }

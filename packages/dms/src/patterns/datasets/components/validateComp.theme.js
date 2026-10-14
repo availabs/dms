@@ -4,8 +4,6 @@
 // src/themes/_legacy/datasets.js `validateComp`. The invalid-rows spreadsheet itself is the page
 // pattern's Spreadsheet (Controls / RenderFilters / DataWrapper) and keeps that theme.
 const RULE = 'border-[var(--t-rule)]';
-const BTN = 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md t-proseSM cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
-const ACTION = `${BTN} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
 
 export const validateCompTheme = {
     // Main layout
@@ -18,9 +16,9 @@ export const validateCompTheme = {
     statBox: 'flex flex-col-reverse px-4 py-2 t-metaXS text-[var(--t-pencil)]',
     statValue: 'block mb-1 text-xl font-semibold leading-none tabular-nums text-[var(--t-ink)] normal-case tracking-normal font-sans',
 
-    // Re-validate button
-    revalidateButton: ACTION,
-    revalidateButtonError: `${BTN} h-auto py-1.5 text-left t-metaMD border border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] max-w-xl break-all`,
+    // Re-validate button (UI.Button 'action' / 'danger'); a failed revalidation's message sits beside it
+    revalidateWrapper: 'flex items-center gap-3',
+    revalidateError: 'max-w-xl break-all t-proseXS text-[var(--t-brick)]',
 
     // Loading / section header ("Invalid Rows")
     sectionHeader: `w-full flex items-center gap-2 pt-2 pb-1 border-b ${RULE} t-proseSM font-medium text-[var(--t-ink)]`,
@@ -38,9 +36,7 @@ export const validateCompTheme = {
     modalGridRow: `group grid grid-cols-[1fr_1fr_auto] items-center gap-3 py-2 border-t ${RULE} t-proseSM text-[var(--t-ink)]`,
     modalGridRowOdd: 'bg-[var(--t-well)] -mx-5 px-5',
     modalInvalidBadge: 'ml-1.5 t-metaXS text-[var(--t-brick)] bg-[var(--t-brick-soft)] rounded-full px-1.5',
-    modalResetBtn: 't-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
     modalFooter: 'flex justify-end',
-    modalUpdateButton: `${ACTION} font-medium`,
 
     // Column header badges (spreadsheet controls)
     columnHeader: 'truncate select-none',

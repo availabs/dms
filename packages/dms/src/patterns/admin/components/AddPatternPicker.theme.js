@@ -5,14 +5,14 @@
 export const patternPickerTheme = {
   grid: 'grid grid-cols-3 gap-2 p-4',
   optCard: 'relative border border-[var(--t-rule)] rounded-lg p-3 cursor-pointer select-none bg-[var(--t-well)] hover:border-[var(--t-rule-strong)] hover:bg-[var(--t-panel)] transition-colors',
-  optCardSelected: 'relative border-2 border-[var(--t-cobalt)] rounded-lg p-3 cursor-pointer select-none bg-[var(--t-panel)] ring-2 ring-[var(--t-cobalt-soft)]',
+  optCardSelected: 'relative border-2 border-[var(--t-ink)] rounded-lg p-3 cursor-pointer select-none bg-[var(--t-panel)] shadow-[var(--t-shadow-lift)]',
   optName: 'text-sm font-semibold text-[var(--t-ink)]',
   optDesc: 'text-xs text-[var(--t-pencil)] mt-1 leading-snug',
   // A card's type tag always carries that type's own color (matching the
   // Sites table's pattern_type pill), regardless of selection — the card's
   // own border/ring already conveys selection, so the tag doesn't need to.
   // Sits below the title (not an absolute corner badge), sized to its text.
-  optTag: 'inline-block w-fit text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded mt-1',
+  optTag: 'inline-flex items-center w-fit h-[18px] px-2 rounded-full t-metaXS mt-1',   // the Sites table's type pill shape (P3, 2026-10-13)
   tagPage: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
   tagDatasets: 'bg-[var(--t-go-soft)] text-[var(--t-go)]',
   tagAuth: 'bg-[var(--t-amber-soft)] text-[var(--t-amber)]',
@@ -28,7 +28,7 @@ export const patternPickerTheme = {
   confirmField: 'flex flex-col gap-1 flex-1',
   urlField: 'flex flex-col gap-1 max-w-[160px]',
   fieldLabel: 'text-xs font-semibold text-[var(--t-graphite)]',
-  fieldInput: 'border border-[var(--t-rule-strong)] rounded-md px-2.5 py-1.5 text-sm text-[var(--t-ink)] w-full outline-none focus:border-[var(--t-cobalt)] bg-[var(--t-panel)] placeholder:text-[var(--t-pencil)]',
+  fieldInput: 'border border-[var(--t-rule-strong)] rounded-md px-2.5 h-8 text-sm text-[var(--t-ink)] w-full outline-none focus:border-[var(--t-ink)] bg-[var(--t-panel)] placeholder:text-[var(--t-pencil)]',
   emptyArea: 'border-t border-[var(--t-rule)] px-4 py-3 text-center text-sm text-[var(--t-pencil)] italic',
-  btnAdd: 'shrink-0 bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] text-[var(--t-accent-ink)] text-sm font-semibold px-4 py-1.5 rounded-md disabled:opacity-40',
+  btnAdd: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)] shrink-0',
 }

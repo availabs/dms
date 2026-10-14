@@ -56,11 +56,9 @@ export const dataCardTheme = {
             // The form action rows (save/cancel/delete, add). `col-span-full` so
             // `justify-self-end` means the CARD's right edge — without it the
             // wrapper is one grid cell and "end" is the end of its own track
-            // (mid-card on a 2-column form). Optional per-button classes, all
-            // undefined here so the stock Button renders as before:
-            //   formSaveButton, formCancelButton, formAddButton,
-            //   formDeleteButton, formDeleteConfirmButton
-            formEditButtonsWrapper: 'col-span-full w-fit justify-self-end self-end flex items-center gap-0.5',
+            // (mid-card on a 2-column form). The buttons themselves are UI.Button roles
+            // (primary / action / danger / dangerSolid), not Card keys.
+            formEditButtonsWrapper: 'col-span-full w-fit justify-self-end self-end flex items-center gap-2',
             formAddNewItemWrapper: 'col-span-full w-fit justify-self-end self-end',
 
             justifyTextLeft: 'text-start justify-items-start  rounded-md',

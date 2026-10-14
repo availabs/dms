@@ -288,12 +288,11 @@ export const RenderFilters = ({ isEdit, defaultOpen = true }) => {
         : theme.filters.conditionRowStacked;
 
     const toggleButton = (
-        <Button
-            className={theme.filters.toggleButton}
-            onClick={() => setOpen(o => !o)}
-        >
-            <Icon icon={'Filter'} className={theme.filters.toggleIcon} title={'Filter'} />
-        </Button>
+        <div className={theme.filters.toggleButton}>
+            <Button activeStyle='iconTool' title={'Filter'} onClick={() => setOpen(o => !o)}>
+                <Icon icon={'Filter'} className={theme.filters.toggleIcon} />
+            </Button>
+        </div>
     );
 
     if(!open) {

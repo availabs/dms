@@ -73,8 +73,7 @@ export default function AuthResetPassword (props) {
             />
 
             <Button
-                type={'plain'}
-                className={sectionGroupTheme.actionButton}
+                activeStyle='primaryBlock'
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
                 const emailTheme = {

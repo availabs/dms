@@ -235,10 +235,7 @@ export default function ColumnControls({context, cms_context}) {
     const isSystemIDColOn = columns.find(c => c.systemCol && c.name === 'id');
     return (
         <div className="inline-block text-left">
-            <Popup button={<Button type={'transparent'}
-                                   className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
-                 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300
-                  bg-white hover:bg-gray-50 cursor-pointer`}
+            <Popup button={<Button activeStyle='action'
                                    onClick={() => {
                                        setSearch(undefined);
                                    }}>

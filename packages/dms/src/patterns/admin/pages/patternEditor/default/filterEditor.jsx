@@ -48,6 +48,7 @@ function FilterRows({ filters = [], onChange }) {
                         },
                         {
                             type: 'Button',
+                            activeStyle: 'danger',
                             children: 'remove',
                             customTheme: customThemeButton,
                             onClick: () => onChange(filters.filter((_, idx) => idx !== i))
@@ -86,7 +87,7 @@ function FilterRows({ filters = [], onChange }) {
                     }
                 ]}
             />
-            <Button className={t.clearAllBtn} onClick={() => onChange([])}>clear all filters</Button>
+            <div><Button activeStyle='linkMetaDanger' onClick={() => onChange([])}>clear all filters</Button></div>
         </div>
     );
 }

@@ -148,8 +148,7 @@ const DownloadModalCheckboxGroup = ({
                 <div className={t.checkboxGroupTitleText}>{title}:</div>
                 <div>
                     <Button
-                        themeOptions={t.toggleAllBtn ? undefined : { size: "sm" }}
-                        className={t.toggleAllBtn || undefined}
+                        activeStyle='linkMeta'
                         onClick={() => {
                             if (modalState.length === options.length) {
                                 onChange([]);
@@ -408,7 +407,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 <div className={t.adminControls}>
                     {t.sectionLabel ? <div className={t.sectionLabel}>downloads</div> : null}
                     <Button
-                        className={t.createDownloadBtn}
+                        activeStyle='actionFull'
                         onClick={() => {
                             setModalState({...modalState, open: true});
                         }}
@@ -416,7 +415,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         <Icon icon={t.downloadIcon} className={t.btnIconClass}/> Create Download
                     </Button>
                     {doesViewHaveDownload && <Button
-                        className={t.deleteDownloadBtn}
+                        activeStyle='dangerFull'
                         onClick={() => {
                             setDeleteModalState({...deleteModalState, open: true});
                         }}
@@ -424,7 +423,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         <Icon icon={t.trashIcon} className={t.btnIconClass}/> Delete Download
                     </Button>}
                     <Button
-                        className={t.cachePmTilesBtn}
+                        activeStyle='actionFull'
                         onClick={ openPmTilesModal }
                     >
                         <Icon icon={t.pmTilesIcon} className={t.btnIconClass}/> Cache PM Tiles
@@ -495,7 +494,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                             modalState.columns.length === 0 ||
                             modalState.columns.some(colName => isCalculatedCol(sourceDataColumns.find(c => c.name === colName)))
                         }
-                        className={t.createModalConfirmBtn}
+                        activeStyle='primary'
                         onClick={createDownload}
                     >
                         {modalState.loading
@@ -504,7 +503,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     </Button>
                     <Button
                         type="button"
-                        className={t.createModalCancelBtn}
+                        activeStyle='action'
                         onClick={() => setModalOpen(false)}
                     >
                         Cancel
@@ -537,7 +536,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         disabled={
                             deleteModalState.loading
                         }
-                        className={t.deleteModalConfirmBtn}
+                        activeStyle='dangerSolid'
                         onClick={deleteDownload}
                     >
                         {deleteModalState.loading
@@ -546,7 +545,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     </Button>
                     <Button
                         type="button"
-                        className={t.deleteModalCancelBtn}
+                        activeStyle='action'
                         onClick={() => setDeleteModalOpen(false)}
                     >
                         Cancel
@@ -720,10 +719,8 @@ const EventItem = ({ damaEvent }) => {
     )
 }
 
-const PmTilesModalButton = ({ className = "", onClick, disabled = false, children }) => {
+const PmTilesModalButton = ({ activeStyle, onClick, disabled = false, children }) => {
     const {UI} = useContext(DatasetsContext);
-    const { theme: btnTheme } = useContext(ThemeContext) || {};
-    const t = { ...externalVersionControlsTheme, ...(btnTheme?.datasets?.externalVersionControls || {}) };
     const {Button} = UI;
 
     const doOnClick = React.useCallback(e => {
@@ -733,26 +730,12 @@ const PmTilesModalButton = ({ className = "", onClick, disabled = false, childre
     return (
         <Button disabled={ disabled }
                 onClick={ doOnClick }
-                className={ `${ t.pmTilesModalBtnBase } ${ className }` }
+                activeStyle={ activeStyle }
         >
             { children }
         </Button>
     )
 }
 
-const GreenPmTilesModalButton = props => {
-    const { theme: gTheme } = useContext(ThemeContext) || {};
-    const t = { ...externalVersionControlsTheme, ...(gTheme?.datasets?.externalVersionControls || {}) };
-    return (
-        <PmTilesModalButton { ...props }
-                            className={t.pmTilesModalBtnGreen}/>
-    )
-}
-const SlatePmTilesModalButton = props => {
-    const { theme: sTheme } = useContext(ThemeContext) || {};
-    const t = { ...externalVersionControlsTheme, ...(sTheme?.datasets?.externalVersionControls || {}) };
-    return (
-        <PmTilesModalButton { ...props }
-                            className={t.pmTilesModalBtnSlate}/>
-    )
-}
+const GreenPmTilesModalButton = props => <PmTilesModalButton { ...props } activeStyle='primary'/>;
+const SlatePmTilesModalButton = props => <PmTilesModalButton { ...props } activeStyle='action'/>;

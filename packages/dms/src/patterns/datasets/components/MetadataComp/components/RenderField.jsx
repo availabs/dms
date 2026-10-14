@@ -141,7 +141,7 @@ const RenderIndexSwitch = ({value, col, onSetIndex, disabled}) => {
 // Modal footer: v6 adds a cancel button next to the action; modalFooter '' → the action alone (pre-v6).
 const ModalActions = ({t, Button, onCancel, children}) => t.modalFooter ? (
     <div className={t.modalFooter}>
-        <Button className={t.btn || undefined} onClick={onCancel}>cancel</Button>
+        <Button activeStyle='action' onClick={onCancel}>cancel</Button>
         {children}
     </div>
 ) : children;
@@ -190,8 +190,7 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit =
                 </div>
                 <ModalActions t={t} Button={Button} onCancel={() => setShowRemoveModal(false)}>
                     <Button
-                        activeStyle={'danger'}
-                        className={t.btnDangerSolid || undefined}
+                        activeStyle='dangerSolid'
                         onClick={() => { onSetPrimaryKey(col, false); setShowRemoveModal(false); }}
                     >
                         remove primary key
@@ -294,8 +293,7 @@ const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) =
                 placeholder={'Add new option...'}
             />
             <Button
-                activeStyle={'active'}
-                className={t.btnInline || t.btn || undefined}
+                activeStyle='action'
                 onClick={e => newOption?.length && addNewValue(value, newOption)}>
                 add
             </Button>
@@ -331,8 +329,7 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
                 placeholder={'filter'}
             />
             <Button
-                activeStyle={'active'}
-                className={t.btnInlinePrimary || t.btnPrimary || undefined}
+                activeStyle='primary'
                 onClick={e => {
                     replaceValue(value, editingCopy, editingIndex)
                     setEditing(undefined)
@@ -417,7 +414,7 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
         ...(t.metadataFieldLabel ? {label: t.metadataFieldLabel} : {})
     }
     // v6: buttons get the inputs' field wrapper (no mb-4) so they line up; '' → FieldSet default
-    const btnField = t.btnInline ? {customTheme} : {};
+    const btnField = t.metadataFieldLabel ? {customTheme} : {};
     const inputKeys = [
         {key: 'sourceId', placeHolder: 'source id'},
         {key: 'viewId', placeHolder: 'view id'},
@@ -451,13 +448,13 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
                         customTheme
                     },
                     {
-                        type: 'Button', children: 'update', activeStyle: 'active', className: t.btnInline || t.btn || undefined, disabled: !canEdit, ...btnField,
+                        type: 'Button', children: 'update', activeStyle: 'action', disabled: !canEdit, ...btnField,
                         onClick: () => {
                             canEdit && updateAttribute(col, {[attr]: JSON.stringify(newOption)});
                         }
                     },
                     {
-                        type: 'Button', children: 'remove', activeStyle: 'danger', className: t.btnInlineDanger || t.btnDanger || undefined, disabled: !canEdit, ...btnField,
+                        type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit, ...btnField,
                         onClick: () => {
                             if (!canEdit) return;
                             updateAttribute(col, {[attr]: undefined});
@@ -488,8 +485,7 @@ const RenderRemoveBtn = ({col, removeAttribute, canEdit = true}) => {
                 </div>
                 <ModalActions t={t} Button={Button} onCancel={() => setShowDeleteModal(false)}>
                     <Button
-                        activeStyle={'danger'}
-                        className={t.btnDangerSolid || undefined}
+                        activeStyle='dangerSolid'
                         onClick={() => removeAttribute(col)}
                     >
                         delete
@@ -497,8 +493,7 @@ const RenderRemoveBtn = ({col, removeAttribute, canEdit = true}) => {
                 </ModalActions>
             </Modal>
             <Button
-                activeStyle={'danger'}
-                className={t.btnDanger || undefined}
+                activeStyle='danger'
                 onClick={() => setShowDeleteModal(true)}
             >
                 {t.removeColumnIcon ? <><Icon icon={t.removeColumnIcon} className={t.btnIcon}/>remove column</> : 'delete'}

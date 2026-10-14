@@ -11,13 +11,11 @@ export default function ButtonSelect({ options=[], value, onChange=()=>{}, disab
             {
                 options.map(option => {
                     const isActive = value === (option?.value || option);
-                    const className = (isActive ? theme.buttonActive : theme.button) || undefined;
                     return (
                         <Button key={option.value || option}
                                 disabled={disabled}
                                 onClick={() => !disabled && onChange(option?.value || option)}
-                                className={className}
-                                activeStyle={className ? undefined : (isActive ? 'active' : 'plain')}
+                                activeStyle={isActive ? theme.buttonActiveStyle : theme.buttonStyle}
                         >
                             {option?.label || option}
                         </Button>

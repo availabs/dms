@@ -176,7 +176,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            <Button className={t.actionBtn}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                            <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
                             <AddViewBtn source={source} setSource={setSource}/>
                             <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                         </div>

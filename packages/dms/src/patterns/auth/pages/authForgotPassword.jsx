@@ -43,8 +43,7 @@ export default function AuthForgotPassword (props) {
             />
 
             <Button
-                type={'plain'}
-                className={sectionGroupTheme.actionButton}
+                activeStyle='primaryBlock'
                 onClick={async () => {
                 const emailTheme = {
                     ...(theme?.auth?.emailTheme || {}),

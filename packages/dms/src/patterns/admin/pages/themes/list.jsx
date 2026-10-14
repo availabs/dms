@@ -104,7 +104,7 @@ function ThemeList ({
 						<Icon icon='Search' className={t.searchIcon} />
 						<Input type={'text'} className={t.searchInput} value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter themes…'} />
 					</div>
-					<Button className={t.addButton} onClick={() => setAddingNew(true)}>
+					<Button activeStyle='primary' onClick={() => setAddingNew(true)}>
 						<Icon icon='Plus' className={t.iconSm} /> add theme
 					</Button>
 				</div>
@@ -164,7 +164,7 @@ function ThemeList ({
 					}
 					<div className={t.modalEditActions}>
 						<Button
-							className={t.btnSave}
+							activeStyle='primary'
 							type={'plain'}
 							title={'save item'}
 							onClick={() => {
@@ -177,7 +177,7 @@ function ThemeList ({
 						</Button>
 
 						<Button
-							className={t.btnCancel}
+							activeStyle='action'
 							type={'plain'}
 							title={'cancel item'}
 							onClick={() => {
@@ -190,7 +190,7 @@ function ThemeList ({
 						<span className='flex-1' />
 
 						<Button
-							className={t.btnDuplicate}
+							activeStyle='small'
 							type={'plain'}
 							title={'duplicate item'}
 							onClick={async () => {
@@ -205,7 +205,7 @@ function ThemeList ({
 						> duplicate
 						</Button>
 						<Button
-							className={t.btnRemove}
+							activeStyle='smallDanger'
 							type={'plain'}
 							title={'remove item'}
 							onClick={() => {

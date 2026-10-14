@@ -20,7 +20,7 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = tr
         ...(t.metadataFieldLabel ? {label: t.metadataFieldLabel} : {})
     }
     // v6: buttons get the inputs' field wrapper (no mb-4) so they line up; '' → FieldSet default
-    const btnField = t.btnInline ? {customTheme} : {};
+    const btnField = t.metadataFieldLabel ? {customTheme} : {};
     return type === 'datasource' ? (
         <FieldSet
             className={t.customGrid4}
@@ -72,7 +72,7 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = tr
                     customTheme
                 },
                 {
-                    type: 'Button', children: 'save', activeStyle: 'active', className: t.btnInlinePrimary || t.btnPrimary || undefined, disabled: !canEdit, ...btnField,
+                    type: 'Button', children: 'save', activeStyle: 'primary', disabled: !canEdit, ...btnField,
                     onClick: () => {
                         canEdit && updateAttribute(col, {[attr]: JSON.stringify(metaObj)});
                     }
@@ -94,7 +94,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
         ...(t.metadataFieldLabel ? {label: t.metadataFieldLabel} : {})
     }
     // v6: buttons get the inputs' field wrapper (no mb-4) so they line up; '' → FieldSet default
-    const btnField = t.btnInline ? {customTheme} : {};
+    const btnField = t.metadataFieldLabel ? {customTheme} : {};
 
     useEffect(() => {
         const transformedValue = Object.keys(editing).map(k => ({key: k, value: editing[k]}));
@@ -124,7 +124,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                             customTheme
                         },
                         {
-                            type: 'Button', children: 'update', activeStyle: 'active', className: t.btnInline || t.btn || undefined, disabled: !canEdit, ...btnField,
+                            type: 'Button', children: 'update', activeStyle: 'action', disabled: !canEdit, ...btnField,
                             onClick: () => {
                                 if (!canEdit) return;
                                 const finalObj = metaObj.reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
@@ -132,7 +132,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                             }
                         },
                         {
-                            type: 'Button', children: 'remove', activeStyle: 'danger', className: t.btnInlineDanger || t.btnDanger || undefined, disabled: !canEdit, ...btnField,
+                            type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit, ...btnField,
                             onClick: () => {
                                 if (!canEdit) return;
                                 const finalObj = metaObj.filter((_, mi) => mi !== i).reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
@@ -157,7 +157,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                             customTheme
                         },
                         {
-                            type: 'Button', children: 'add', activeStyle: 'active', className: t.btnInline || t.btn || undefined, ...btnField,
+                            type: 'Button', children: 'add', activeStyle: 'action', ...btnField,
                             onClick: () => {
                                 const finalObj = {...editing, [newPair.key]: newPair.value};
                                 updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
@@ -198,7 +198,7 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
                     metadata{t.labelHint ? <span className={t.labelHint}>— lookup values from another source</span> : null}
                 </label>
                 {canEdit &&
-                    <Button activeStyle={'danger'} className={t.btnDanger || undefined} onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
+                    <Button activeStyle='danger' onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
                 }
             </div>
             <Tabs

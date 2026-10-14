@@ -931,8 +931,8 @@ const RenderItem = memo(function RenderItem ({
                 // One action row per record: [delete …] [cancel] [save]. Delete shows on an
                 // existing row when `display.allowDelete` is set and the wrapper handed us a
                 // removeItem (editable source); save/cancel keep their form-edit gate. Each
-                // button takes an optional theme class (`formSaveButton` …) and otherwise
-                // renders the stock Button as before.
+                // button picks its look by UI.Button activeStyle (primary / action / danger /
+                // dangerSolid); a theme restyles those roles in its own button.styles.
                 (() => {
                     const showSaveCancel = isFormLikeEditMode && !controls?.clickSaveActive;
                     const showDelete = allowDelete && item?.id && removeItem && !isNewItem;
@@ -942,22 +942,22 @@ const RenderItem = memo(function RenderItem ({
                             {showDelete ? (
                                 confirmDelete ? (
                                     <>
-                                        <Button className={theme.formDeleteConfirmButton} activeStyle="active"
+                                        <Button activeStyle='dangerSolid'
                                                 onClick={() => { setConfirmDelete(false); removeItem(item); }}>
                                             {`Confirm: ${deleteItemLabel || 'delete'}`}
                                         </Button>
-                                        <Button className={theme.formCancelButton} onClick={() => setConfirmDelete(false)}>keep</Button>
+                                        <Button activeStyle='action' onClick={() => setConfirmDelete(false)}>keep</Button>
                                     </>
                                 ) : (
-                                    <Button className={theme.formDeleteButton} onClick={() => setConfirmDelete(true)}>
+                                    <Button activeStyle='danger' onClick={() => setConfirmDelete(true)}>
                                         {deleteItemLabel || 'delete'}
                                     </Button>
                                 )
                             ) : null}
                             {showSaveCancel ? (
                                 <>
-                                    <Button className={theme.formSaveButton} activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
-                                    <Button className={theme.formCancelButton} onClick={() => setTmpItem(item)}>cancel</Button>
+                                    <Button activeStyle='primary' onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
+                                    <Button activeStyle='action' onClick={() => setTmpItem(item)}>cancel</Button>
                                 </>
                             ) : null}
                         </div>
@@ -967,7 +967,7 @@ const RenderItem = memo(function RenderItem ({
             {
                 isAddingNewItem ? (
                     <div className={theme.formAddNewItemWrapper}>
-                        <Button className={theme.formAddButton} activeStyle="active" onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
+                        <Button activeStyle='primary' onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
                     </div>
                 ) : null
             }

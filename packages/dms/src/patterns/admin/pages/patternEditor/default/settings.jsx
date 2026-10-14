@@ -284,7 +284,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
         <div className={t.header}>
           <span className={t.headerTitle}>{value.name || 'Pattern'}</span>
           {!!value.pattern_type && (
-            <span className={t.headerTypePill}>{Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type}</span>
+            <span className={`${t.headerTypePill} ${t.headerTypeTones?.[Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type] || t.headerTypeToneDefault || ''}`}>{Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type}</span>
           )}
           <span className={t.headerSubtitle}>{value.type} · id {value.id} · {value.base_url || '/'} on {value.subdomain || '*'}</span>
         </div>
