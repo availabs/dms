@@ -1,15 +1,16 @@
 # Move the `qa` pattern ("Tickets") out of the library into dms-template
 
-**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** built · **Release:** commit — library submodule + dms-template together; deploy dms-server + client together · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** built · **Release:** deploy — dms-server + MNY client (see Deploy); committed by the owner 2026-10-14 · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Project:** DMS library (+ dms-template, the pattern's new home) · **Topic:** patterns · **Built:** 2026-10-14
 
-**▶ Start here.** Built and verified 2026-10-14. QA lives in dms-template `src/patterns/qa/`, and the library,
-the CLI and dms-server hold no QA code. **Left, all for later (owner, 2026-10-14):**
-- Delete the four old installs (see [Left](#left)).
-- The owner's commit: the library submodule and dms-template **together**.
-- The MNY deploy: dms-server and the client **together**, since the server now sends `public` and the client
-  reads it.
+**▶ Start here.** Built, verified and committed (2026-10-14). QA lives in dms-template `src/patterns/qa/`, and
+the library, CLI and dms-server hold no QA code.
+- The data side is done in the prod DB:
+  - the old installs are deleted
+  - MitigateNY has a fresh install, **2860547** `QA` (`/qa`), with coverage, grants and theme set
+- **Left: the MNY deploy.** Follow [Deploy](#deploy-for-whoever-deploys-mny) (env vars, steps, checks); the owner
+  doesn't deploy.
 
 ## Objective
 
@@ -124,38 +125,104 @@ not on the Overview) and a `widgets` slot (QA calls the exported `registerWidget
   - filing live as an ungranted user (covered in halves: the server's `public` stub test and the client
     intake tests)
 
-## Left
+## Deploy (for whoever deploys MNY)
 
-- **Delete the four old installs (later, owner).** Inventory, read-only, 2026-10-14:
+### Env vars
 
-  | Schema | Pattern row | dmsEnv | Notes |
-  |---|---|---|---|
-  | `dms_mitigat_ny_prod` | 2824062 `prod\|qa:pattern` `QA` | 1676363 (MNY's real datasets env) | live MitigateNY site; site row 566430 |
-  | `dms_qa_test` | 126 `qa_test\|qa:pattern` `QA` | 42 | the owner's MNY-look loop (`mnyv1`); holds scratch rows 264, 267 |
-  | `dms_qa_test` | 170 `qa_test\|qa2:pattern` `QA2` | 42 | |
-  | `dms_qa_test` | 219 `qa_test\|qa_switches:pattern` `QA switches` | 42 | |
+Every variable below is in `.env.example` with a comment. **dms-server needs no new variable.** The stub's
+`public` settings come with the new server code alone. `DMS_EXTRA_DATATYPES` and `DMS_PAGE_DELETE_HOOK` are
+unchanged and set by `Dockerfile`.
 
-  - Each install is the pattern row, 5 sources, 5 views and 5 split tables
-    (`data_items__s<source>_v<view>_<slug>_<dataset>`), plus its entry in the site row's `patterns`.
-  - For 2824062, take only the QA sources off dmsEnv 1676363 and leave the env.
-  - Until they're deleted:
-    - The old installs have no `public.qaIntake`, so ungranted users can't file into them until their
-      next Configure Save or "finish set-up".
-    - MNY's four nav `ReportIssue` entries (566466, 985070, 1300890, 2265530) render nothing once
-      2824062 is gone, until a new install covers those pages.
-- **Commit:** the library submodule and dms-template together. The owner handles git.
-- **Deploy (MNY, later):** dms-server and the client together. CLI publishes on a site with an install need
-  `DMS_PAGE_PUBLISH_HOOK=src/patterns/qa/cli/onPagePublish.js` (noted in dms-template `CLAUDE.md`).
-- **Optional QA follow-up:** once the old installs are gone, `features.js`'s `LEGACY_FEATURES` fallback
-  (for installs from before the switches) can go.
-- **Known, not from this move:** a direct load of any Pattern Editor URL (e.g.
-  `/list/manage_pattern/251/configure`, or AlphaPage's `/5/overview`) can render blank: the admin nav loses
-  Sites/Themes and the editor shows nothing. Moving to another page and back fixes it.
+| Variable | Read by | Needed for the deploy? | Value |
+|---|---|---|---|
+| `VITE_DMS_QA_PATTERN` | the client build (Vite): `src/patterns/qa/install.js` → the qa definition's `admin.addable` | **Optional.** It only gates Admin → Add Pattern → Tickets. Install 2860547 works without it. | `1` in the `.env` the MNY build uses, if MNY admins should be able to add installs |
+| `DMS_PAGE_PUBLISH_HOOK` | the `dms` CLI only (shell env, or `.dmsrc` `pagePublishHook`); not Vite, not dms-server | **No.** It's for anyone running `dms page publish` on a site with an install | `src/patterns/qa/cli/onPagePublish.js` (relative to the cwd) |
+
+### Steps
+
+1. **dms-server:** deploy the committed `src/dms`. No config change. Afterwards it sends a pattern row's
+   `public` settings on no-access stubs, which is what lets users not granted on the install file reports.
+2. **Client, devmny:**
+   - The root `.env` needs the MNY block: `VITE_DMS_APP=mitigat-ny-prod`, `VITE_DMS_TYPE=prod`,
+     `VITE_DMS_PG_ENVS=hazmit_dama`, and `VITE_DMS_QA_PATTERN=1` if wanted.
+   - Then `npm run build`, then `npm run deploy-devmny`.
+3. **Client, prod:** `npm run deploy-mnyprod`. It runs its own build with `VITE_DMS_PRELOAD_THEMES=mnyv1,mny_admin`
+   from the same `.env`.
+4. **No data step.** Install 2860547 and its settings are already in the prod DB ([State](#state-after-the-build-2026-10-14)).
+5. **Checks on devmny.org:**
+   - `/qa`, signed in as a ticket handler (`AVAIL` or `mitigat-ny-prod Admin`):
+     - a top nav: Logo, Overview, Tickets, user menu
+     - the bands fill the white card, as on `/actions/dashboard`
+     - "4 sites covered"
+   - A covered page (e.g. `/actions/dashboard`), signed in as a user **not** granted on the install:
+     - Report an issue shows in the nav
+     - file a test report; it appears under `/qa` → Tickets
+     - delete it
+   - Until this deploy, devmny.org runs the old client against the same DB, so QA there may look broken. The
+     owner accepted that (2026-10-14).
+
+## State after the build (2026-10-14)
+
+- **Every write below went through the dms CLI against the local dms-server, which uses the prod DB, with a
+  backup first.** The delete procedure, in order:
+  1. delete the 5 sources; the server cascade removes their views, split tables and dmsEnv refs
+  2. remove the pattern from the site row's `patterns`
+  3. delete the pattern row
+- **`qa_test`:**
+  - Old installs 126 `QA`, 170 `QA2` and 219 `QA switches` are deleted: sources 127–135, 171–179 and
+    220–228, then the site row 1 links, then the rows.
+  - Backup: `scratchpad/qa_test/old_installs_backup_2026-10-14/`.
+  - Its only install is **251 `QA move check`** (`/qa_move_check`), made through Add Pattern; no coverage yet.
+- **MitigateNY:**
+  - **The old 2824062 is deleted:**
+    - sources 2824063/65/67/69/71, after which env 1676363 went from 64 to 59 entries, losing only those 5
+    - the site row 566430 link (82 → 81 patterns)
+    - the row
+    - Backup: `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/`, which holds the backups
+      for the 2860547 fixes below too.
+  - **The new install 2860547 `QA`, `/qa`,** made by the owner through Add Pattern (local client, prod DB):
+    - **What Add Pattern created:** `afterCreate` made its 5 datasets in env 1676363 (MNY's datasets env,
+      `/cenrep`) and switched change history on. `public.qaIntake` is written.
+    - **Coverage** (set by the owner on Configure; the old install's set):
+
+      | Pattern | Short key | Label |
+      |---|---|---|
+      | 566466 (a *page* pattern named "admin" at `/admin`, not the admin type) | `admin` | admin |
+      | 2265530 | `mitigateny_actions` | MitigateNY_actions |
+      | 985070 | `mitigateny_2025` | MitigateNY_2025 |
+      | 1300890 | `mitigateny_county_template` | MitigateNY_County_Template_V3 |
+
+    - **Grants:** `mitigat-ny-prod Admin` and **`AVAIL`**, both `*`.
+      - `AVAIL` was added by CLI. The install grants only `<app> Admin`, and MNY's site grants are user 1,
+        `AVAIL` and `DHSES`, so the creator was locked out.
+      - This is the queued "Install lockout fix" in [`qa-pattern-type.md`](./qa-pattern-type.md) §3.
+    - **Theme:** `mnyv1`, with a **top-nav layout override**: Logo on the left, the install's pages
+      (Overview, Tickets) as the menu, the user menu on the right, and no side nav.
+      - The Theme tab's Save had written a side-nav layout. It was replaced by CLI to match the old install
+        and the actions dashboard.
+  - **The look (code):** `src/themes/mny/qa.theme.js` `styles` overrides QA's centred column, so the bands
+    fill MNY's content card like the actions dashboard (titles and cards start 32px in).
+    - The overridden widths: `BAND_INNER`'s 1200px, the site card's 988px, and the section grid's `centered`
+      1020px.
+    - QA's defaults are unchanged for other sites.
+
+## Known issues (not from this move)
+
+- **A direct load of a Pattern Editor URL can render blank** (e.g. `/list/manage_pattern/251/configure`): the
+  admin nav loses Sites/Themes and the editor shows nothing. Moving to another page and back fixes it.
   - Cause: defect 2 of
-    [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md).
-    `EditWrapper` caches the route's render without `user`, so admin's shell
-    (`admin/siteConfig.jsx:297,324`) keeps the boot-time placeholder user.
-  - The admin case is logged there.
+    [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md), where the
+    admin case is logged. `EditWrapper` caches the route without `user`.
+- **The Theme tab's Save writes a full layout override.** On 2860547 it wrote a side-nav layout. After picking
+  a theme for a new install, check the layout.
+- **New installs grant only `<app> Admin`.** That's the lockout above.
+- **Local only:**
+  - After switching `.env` to another app, sign out and back in. `localStorage.userToken` keeps the old app's
+    project (JWT `project`), and the server judges groups by it: rows come back as no-access stubs while the
+    UI shows the new app's groups. See `skills/traversing-dms-pages.md`.
+  - The local dms-server has no `hazmit_dama` DB config, so MNY pages log `Array(3)` exceptions in the browser
+    (`Config "hazmit_dama" is missing…` in `scratchpad/npmrds-sub/dms-server.log`). Not QA.
+- **Optional QA follow-up:** with every pre-switch install gone, `features.js`'s `LEGACY_FEATURES` fallback can go.
 
 ## Decisions on record
 
@@ -186,3 +253,10 @@ not on the Overview) and a `widgets` slot (QA calls the exported `registerWidget
 - 2026-10-14 · Owner: the direct-load blank Configure page is the pre-existing placeholder-user defect,
   logged in its own task. Deleting the old installs and the MNY deploy are deferred. This doc was condensed
   to the built record.
+- 2026-10-14 · Data cleanup and MNY reinstall, all with backups:
+  - The owner had all old installs deleted by CLI (`qa_test`'s three, then MNY's 2824062).
+  - The owner made 2860547 through Add Pattern.
+  - The lockout recurred; `AVAIL` was added by CLI.
+  - The Theme tab's side-nav layout was replaced by a top-nav one.
+  - MNY's QA bands were widened to the content card (`src/themes/mny/qa.theme.js`).
+  - The env vars are documented in `.env.example` and the Deploy section.

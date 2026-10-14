@@ -29,19 +29,20 @@ is ported later.
     - The no-access stub carries the row's `public.qaIntake` (written by QA's `intake.js`), no longer a
       server-built `qa.intake`.
     - The widget's theme key is `qa.reportIssue` (was `qaReportIssue`).
-  - **The move is not committed yet.** The owner commits the library and dms-template together. Everything before
-    it is committed through `73d28b0e`.
-  - **Deferred (owner, 2026-10-14): delete the four old installs** (2824062 on MNY prod; `qa_test` 126, 170, 219).
-    None of their data is real, and they lack `public.qaIntake`. Fresh test install 251 `QA move check`
-    (`/qa_move_check`) was made through the new create hooks. Inventory and steps:
-    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#left).
-- **Nothing deployed for about a week (owner, 2026-10-09).** No QA work is on a deployed host. MitigateNY's rollout
-  (Open work §1) waits on a dms-server deploy (the stub's `public` settings + the change-history writer) and a client
-  deploy, deferred by the owner on 2026-10-14. Then a fresh install replaces 2824062, and the owner switches its
-  theme. The history writer is opt-in per dataset, so the
-  server deploy changes nothing until a dataset has a `change_history` setting.
-- **Current loop:** the owner is iterating on MNY's QA look locally. The root `.env` points at `qa_test`, and test
-  install 126 `QA` is on `mnyv1`.
+  - The move is committed (owner, 2026-10-14).
+  - **Old installs, all deleted 2026-10-14** with backups:
+    - `qa_test`'s 126, 170 and 219; test install 251 `QA move check` (`/qa_move_check`) replaces them
+    - MNY's 2824062
+  - **MNY's fresh install is 2860547 `QA` (`/qa`)**, with coverage, grants (`AVAIL` + `mitigat-ny-prod Admin`) and
+    the `mnyv1` top-nav look set.
+  - Details: [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#state-after-the-build-2026-10-14).
+- **Next: the MNY deploy (a coworker; the owner doesn't deploy).**
+  - Steps, env vars and checks:
+    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
+  - Until it's done, devmny.org runs the old client against the same DB, so QA there may look broken (accepted).
+  - The change-history writer is opt-in per dataset, and 2860547's history is already on.
+- **Current loop:** the root `.env` points at MitigateNY (since 2026-10-14). `qa_test`'s install is 251 (no theme
+  set).
 - **Change-history writer (Open work §4): built, committed, live-checked on `qa_test`.** Install 126 has it on.
   - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`). Needs Docker, which Claude
     sessions can't reach; the owner runs it. Only SQLite has run (16/16).
@@ -129,12 +130,10 @@ is ported later.
 
 ## Installs
 
-| Install | Where | State (2026-10-08) |
+| Install | Where | State (2026-10-14) |
 |---|---|---|
-| 126 `QA`, app `qa_test` (test app "QA Ticketing Test") | `/qa`; datasets in environment 42 | Covers AlphaPage and BetaPage (`qa_test`'s own test pages). Tickets #101–108. On `mnyv1` for the MNY look loop (undo: `dms raw update 126 --data '{"theme":{}}'` as `qa_test`; backup `scratchpad/qa_test/backup_126_20261007T143641.json`). AlphaPage (row 5) still has a test nav with the widget. |
-| 170 `QA2`, app `qa_test` | `/qa2` | Made 2026-10-06, not in this doc until 2026-10-13. Covers BetaPage. Four datasets (no history). No `features`, so it reads as Delivery QA. |
-| 219 `QA switches`, app `qa_test` (scratch, 2026-10-13) | `/qa_switches` | The switches and fields live checks (§5 steps 1, 2a). Covers Pages (pattern 3). All Delivery QA features on (set back by the owner after review). Four fields (requester_type, hours, channel, received). Tickets #101 (row 236), #102 (row 245). Remove when reviewed (§5). |
-| 2824062 `QA`, MitigateNY (`dms_mitigat_ny_prod`) | `/qa`, main site only; datasets in dmsEnv 1676363 `test_meta_forms_env` | Covers 566466 admin, 2265530 MitigateNY_actions, 985070 MitigateNY_2025 and 1300890 MitigateNY_County_Template_V3 (281 pages tracked). Access: `AVAIL`, user 1, `mitigat-ny-prod Admin`; the owner removed `DHSES` on 2026-10-07. Theme: `default` until the rollout. The four patterns' nav rows already carry the widget (written 2026-10-07; backups stamped `20261007T100659`). |
+| 251 `QA move check`, app `qa_test` (made 2026-10-14 through the new create hooks) | `/qa_move_check`; datasets in environment 42 | The `qa_test` install since the move. No coverage, switches or fields yet; theme not set. The old 126 `QA`, 170 `QA2` and 219 `QA switches` were deleted 2026-10-14: their datasets, then their site links and rows. Backup: `scratchpad/qa_test/old_installs_backup_2026-10-14/`. `/qa` is free to re-add. |
+| 2860547 `QA`, MitigateNY (`dms_mitigat_ny_prod`; made 2026-10-14 through Add Pattern) | `/qa`, main site only; datasets in env 1676363 (`/cenrep`) | Covers 566466 (`admin`, a page pattern), 2265530 `mitigateny_actions`, 985070 `mitigateny_2025` and 1300890 `mitigateny_county_template`, whose nav rows carry the widget. Access: `mitigat-ny-prod Admin` and `AVAIL` (`AVAIL` added by CLI after the lockout, §3). Theme: `mnyv1` with a top-nav layout override. No switches or fields yet. It replaced 2824062, deleted 2026-10-14 (backup `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/`). |
 
 ## Rules the work follows (owner)
 
@@ -164,18 +163,18 @@ is ported later.
 ### 1. MitigateNY rollout (owner and the MNY coworker)
 
 - [x] Root `npm install` (owner ran it 2026-10-14; both builds pass).
-- [ ] Deploy dms-server (the stub's `public` settings, which carry `public.qaIntake`). Without it, county staff not
-  granted on the install can't file. The install also needs a Configure Save or "finish set-up" to write
-  `public.qaIntake`.
-- [ ] Deploy the client with the MNY `.env`: `npm run build`, then `deploy-devmny`, then `deploy-mnyprod`.
+- [x] **The install (2026-10-14):**
+  - The old 2824062 was deleted, and the owner made **2860547** `QA` through Add Pattern. That created its datasets
+    with change history on and wrote `public.qaIntake`, so no "finish set-up" is needed.
+  - Coverage: the old four. Grants: `AVAIL` added. Theme: `mnyv1` with a top-nav layout (user menu only on the
+    right, no `Search` spacer).
+  - The bands now fill the content card (`src/themes/mny/qa.theme.js`).
+- [ ] **Deploy dms-server, then the client** with the MNY `.env`.
+  - The server sends the stub's `public` settings; without it, county staff not granted on the install can't file.
+  - Steps, env vars (no new server variables; `VITE_DMS_QA_PATTERN` optional) and checks:
+    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
-- [ ] Owner, on install 2824062 after the deploy:
-  - Configure tab → datasets card → "finish set-up". This switches on change history. It's a prod write, and
-    the deployed dms-server must have the history writer (§4).
-  - Theme tab → `mnyv1` → Save.
-  - Change the nav's `topNav.rightMenu` to `[UserMenu]`. The stored `{type: "Search"}` names no widget and renders
-    an empty spacer.
 - [ ] Coworker: propagate to county patterns. Each needs a nav entry (`src/themes/mny/scripts/report_issue_nav.mjs`)
   and a covered-sites row on Configure. **Who adds the coverage rows isn't agreed yet** (open decision on the
   initiative).
@@ -195,10 +194,19 @@ is ported later.
 ### 3. Queued follow-ups (owner, 2026-10-07; none started)
 
 - [ ] **A real serial `ticket_number`**, assigned server-side. Today the form takes max+1 from #101, which can race.
-- [ ] **Install lockout fix.** `installQa` grants only `<app> Admin` (`install.js:157-159`). A site without that
-  group (MitigateNY) locks everyone out, and the pattern editor refuses a stub, so the Access tab can't fix it. Fix:
-  also grant the installing user `*`, and/or start from the site Admin pattern's grants. Add a test for a site
-  without the group. (MNY's install was repaired by hand: `scratchpad/mitigat-ny-prod-prod/fix_qa_install_access.py`.)
+- [ ] **Install lockout fix.** `installQa` grants only `<app> Admin` (now `src/patterns/qa/install.js`, the
+  `authPermissions` default). A site without that group (MitigateNY, whose admin row grants user 1, `AVAIL` and
+  `DHSES`) locks everyone out, and the pattern editor refuses a stub, so the Access tab can't fix it. Add a test for a
+  site without the group.
+  - **Recurred 2026-10-14** on the fresh MNY install 2860547. Repaired by CLI: added `AVAIL: ['*']`, and only
+    `authPermissions` changed. Backup: `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/new_install_2860547_before_grant.json`.
+    The first repair, 2026-10-07: `scratchpad/mitigat-ny-prod-prod/fix_qa_install_access.py`.
+  - Fix options since the move:
+    - **(a) also grant the installing user `*`.** The admin create hooks (`admin.beforeCreate` / `afterCreate`)
+      don't receive `user` yet, so this needs `user` added to their context in `editSite.jsx` /
+      `patternList.jsx`: one small, generic library change.
+    - **(b) start from the site admin row's grants.** That would bring back `DHSES`, which the owner removed from
+      the old install on 2026-10-07.
 - [ ] **Configure site list:** a search box like `/list`'s (`editSite.jsx:216,499,543`), pattern IDs in the row or on
   hover, and no truncation of long keys and labels.
 - [ ] **Report an issue inside the user menu** instead of a nav icon. Move the coverage check into a shared hook, add
