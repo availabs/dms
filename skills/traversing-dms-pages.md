@@ -459,6 +459,14 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   returns pattern rows without their settings, so the page renders as if unconfigured (a `qa` install shows "datasets
   aren't set up yet"). Mint the app's own token (`scratchpad/npmrds-sub/mint_token.sh <app>` →
   `.dms-auth-token-<app>`) and pass its path to `--auth` (2026-09-30).
+  - **The browser has the same trap after an app switch (2026-10-14).**
+    - Changing `.env`'s `VITE_DMS_APP` leaves `localStorage.userToken` minted for the previous app's project (its
+      JWT claim `project`).
+    - The server checks groups for the token's project, so the UI can show your new app's group (e.g. `AVAIL`)
+      while every row read gets a no-access stub.
+    - The Pattern Editor then says "This pattern could not be loaded for your account" even though the row grants
+      that group.
+    - Check: decode the token's middle segment and read `project`. Fix: sign out and back in.
 - **A newly added pattern reads `undefined` / `?` in the Sites table until a reload.** `addNewValue`
   (`editSite.jsx`) appends a bare `{ref, id}` to the site's `patterns`, for every pattern type. Reload to
   see its name, pill and base URL; check the row with `dms site tree`, not the table right after Add.
@@ -474,6 +482,14 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
     wait for sign-in (the user menu text), then navigate client-side:
     `history.pushState({ idx: 1 }, '', '/alphapage/edit/<slug>'); dispatchEvent(new PopStateEvent('popstate', { state: { idx: 1 } }))`,
     then wait for `button:has-text("Publish")`. The pencil is not an `<a href>`, so don't look for one.
+  - **Admin URLs too (2026-10-14, `qa_test`):**
+    - What you see: a hard load of `/list/manage_pattern/<id>/<tab>` (or sometimes `/list`) stays blank. The admin
+      nav shows only Auth → Profile, the editor renders nothing, and there are no console errors.
+    - It happens in a normal tab too (defect 2 of the task above: the route keeps the placeholder user).
+    - Workaround: load `/list`, wait for the patterns table, then follow the row's link in-app (`a[href=…]` click),
+      or navigate away and back.
+    - Separately, a claude-in-chrome tab can report `document.visibilityState === 'hidden'`. Then screenshots time
+      out and `find`-ref clicks are unreliable; drive buttons with `element.click()` from `javascript_tool`.
 - **Page visits are invisible in the probe dump unless tracked.** `/track/visit` answers 204, so the
   harness logs it as `non200: 204` (not an error), and a dump lists non-graph calls only in
   `badResponses`. Pass `--track track/visit` to record every visit POST with its `pageId`. The token

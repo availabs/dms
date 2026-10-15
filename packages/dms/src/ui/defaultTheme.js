@@ -37,7 +37,7 @@ import { lexicalTheme } from './components/lexical/theme';
 import { nestableInHouseTheme } from "./components/nestableInHouse";
 import { defaultPageTemplates } from './pageTemplates';
 import { defaultSiteTemplates } from './siteTemplates';
-// Pattern themes (pages, datasets, auth, admin, qa, …) are not imported here:
+// Pattern themes (pages, datasets, auth, admin, and any app pattern's) are not imported here:
 // each pattern type's registration adds its own defaultTheme under its name
 // (patterns/registry.js, patterns/index.js).
 

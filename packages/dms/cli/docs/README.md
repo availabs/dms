@@ -60,6 +60,7 @@ Create a `.dmsrc` file in your project directory (searched up from cwd):
 | `app` | `--app` | `DMS_APP` | App namespace (e.g., `avail-dms`) |
 | `type` | `--type` | `DMS_TYPE` | Site type identifier (e.g., `pattern-admin`) |
 | `authToken` | `--auth-token` | `DMS_AUTH_TOKEN` | Auth token (optional, for protected operations) |
+| `pagePublishHook` | — | `DMS_PAGE_PUBLISH_HOOK` | Optional. A host app's module that `page publish` runs after publishing (a `.dmsrc` path is relative to that file, an env path to the cwd). Its default export gets `{ falcor, config, pattern, page, helpers }`, and the object it returns is added to the output. E.g. dms-template's `src/patterns/qa/cli/onPagePublish.js`. |
 
 The `host` field is required for all commands. The `app` and `type` fields are required for content-aware commands (site, pattern, page, section, dataset) but not for raw commands.
 

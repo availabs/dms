@@ -14,7 +14,7 @@ import {
   parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
 import { pageTypeFor, componentTypeFor, patternInstance } from '../utils/types.js';
-import { trackPublishedPage } from '../../../src/patterns/qa/tracking.js';
+import { pathToFileURL } from 'url';
 import { loadDatasetRows } from '../../../src/api/datasetRows.js';
 import { output, outputError } from '../utils/output.js';
 import { afterDraftSectionsWrite, syncPageRoom } from '../utils/room-sync.js';
@@ -286,28 +286,20 @@ export async function syncRoom(idOrSlug, config, options = {}) {
 }
 
 /**
- * Add a just-published page to the site's QA installs that cover its pattern, as the editor's
- * Publish does (src/patterns/qa/tracking.js). The live URL is the page's path on its pattern's
- * mount; the CLI can't tell the host, so a pattern on its own subdomain gets none. A failure is
- * reported and leaves the publish as it is.
+ * The host app's page-publish hook, when the config names one (`pagePublishHook` in .dmsrc, or
+ * DMS_PAGE_PUBLISH_HOOK): a module whose default export runs after a publish, as each pattern
+ * type's onPagePublish runs after the page editor's Publish (e.g. a type that adds published pages
+ * to a list). It gets the CLI's own helpers, so it needn't load the library, and the object it
+ * returns is added to the command's output. A failure is reported and leaves the publish as it is.
  */
-async function trackOnPublish(falcor, config, pattern, page) {
+async function runPublishHook(falcor, config, pattern, page) {
+  if (!config.pagePublishHook) return {};
   try {
-    const qaInstalls = (await resolvePattern(falcor, config))
-      .map((p) => ({ ...parseData(p.data), id: p.id }))
-      .filter((p) => p.pattern_type === 'qa');
-    if (!qaInstalls.length) return [];
-    const { name, base_url, subdomain } = parseData(pattern.data);
-    const path = `/${[`${base_url || ''}`.replace(/^\/+|\/+$/g, ''), page.url_slug].filter(Boolean).join('/')}`;
-    return await trackPublishedPage({
-      page, qaInstalls,
-      patternKeys: [pattern.id, name, patternInstance(pattern)],
-      url: !subdomain || subdomain === '*' ? path : undefined,
-      loadRows: (ref, columns) => loadDatasetRows(falcor, { env: `${config.app}+${ref.slug}`, viewId: ref.view_id, columns, fresh: true }),
-      createRow: (ref, data) => falcor.call(['dms', 'data', 'create'], [config.app, `${ref.slug}|${ref.view_id}:data`, data]),
-    });
+    const { default: onPagePublish } = await import(pathToFileURL(config.pagePublishHook).href);
+    const helpers = { resolvePattern, parseData, patternInstance, loadDatasetRows };
+    return (await onPagePublish({ falcor, config, pattern, page, helpers })) || {};
   } catch (error) {
-    return [{ error: `adding the page to its QA install failed: ${error.message}` }];
+    return { publish_hook_error: `${config.pagePublishHook}: ${error.message}` };
   }
 }
 
@@ -371,12 +363,12 @@ export async function publish(idOrSlug, config, options = {}) {
     };
 
     await falcor.call(['dms', 'data', 'edit'], [config.app, id, updateData]);
-    const qaTracked = await trackOnPublish(falcor, config, pattern, d);
+    const hookOutput = await runPublishHook(falcor, config, pattern, d);
 
     output({
       id,
       message: `Page published (${publishedRefs.length} section${publishedRefs.length === 1 ? '' : 's'} copied)`,
-      ...(qaTracked.length ? { qa_tracked: qaTracked } : {}),
+      ...hookOutput,
     }, options);
   } catch (error) {
     outputError(error);

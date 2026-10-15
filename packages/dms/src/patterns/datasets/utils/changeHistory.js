@@ -5,8 +5,8 @@
 //   { target: { source_id, view_id }, columns: [...] | '*', exclude: [...], enabled?: false }
 // The Admin tab's Change history panel (components/ChangeHistoryEditor.jsx) switches it on for one
 // dataset, which gets its own history dataset, "<dataset> history". Several datasets sharing one
-// history is set up in code or with the CLI, as the QA pattern's install does for its tickets,
-// pages and stories.
+// history is set up in code or with the CLI, as dms-template's qa pattern does for an install's
+// tickets, pages and stories.
 import { nameToSlug, getInstance } from '../../../utils/type-utils'
 import { loadItemFresh } from '../../../api'
 import { getSourceIdsBySlug } from '../../../api/sourceIdBySlug'

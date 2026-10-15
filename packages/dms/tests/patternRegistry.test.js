@@ -27,7 +27,7 @@ const appPatternConfig = ({ baseUrl }) => ({
 describe("built-in types", () => {
     it("registers the platform types, in admin order", () => {
         const names = listPatternTypes().map(d => d.name);
-        expect(names.slice(0, 5)).toEqual(["page", "datasets", "auth", "admin", "qa"]);
+        expect(names.slice(0, 4)).toEqual(["page", "datasets", "auth", "admin"]);
         expect(getPatternType("page").siteConfig.length).toBeGreaterThan(0);
     });
 
@@ -35,7 +35,6 @@ describe("built-in types", () => {
         expect(defaultTheme.pages.sectionGroup).toBeTruthy();   // page → `pages`
         expect(defaultTheme.datasets).toBeTruthy();
         expect(defaultTheme.auth).toBeTruthy();
-        expect(defaultTheme.qa).toBeTruthy();
         expect(defaultTheme.admin.navOptions.sideNav.size).toBe("compact");
         expect(defaultTheme.admin.editSite).toBeTruthy();
     });
@@ -44,10 +43,13 @@ describe("built-in types", () => {
         expect(listPatternTypes().filter(d => d.providesDatasources).map(d => d.name)).toContain("datasets");
     });
 
-    it("ships no app pattern type — the map editor lives in the host app", () => {
+    it("ships no app pattern type — the map editor and qa (Tickets) live in the host app", () => {
         expect(getPatternType("mapeditor")).toBeUndefined();
         expect(getRegisteredComponents().Map).toBeUndefined();
         expect(defaultTheme.pages.damaMap).toBeUndefined();
+        expect(getPatternType("qa")).toBeUndefined();
+        expect(defaultTheme.qa).toBeUndefined();
+        expect(defaultTheme.admin.qaConfigure).toBeUndefined();
     });
 });
 
@@ -133,7 +135,7 @@ describe("admin lists read the registry", () => {
 
     it("offers every addable registered type in the pattern-type select, and never admin", () => {
         const values = patternTypeOptions().map(o => o.value);
-        expect(values).toEqual(expect.arrayContaining(["page", "datasets", "auth", "qa"]));
+        expect(values).toEqual(expect.arrayContaining(["page", "datasets", "auth"]));
         expect(values).not.toContain("admin");
         expect(values).not.toContain("forms");
     });
@@ -141,5 +143,29 @@ describe("admin lists read the registry", () => {
     it("picks up a type registered after the format module loaded", () => {
         registerPatternTypes({ test_late: { siteConfig: [appPatternConfig], label: "Late", admin: { addable: true, order: 70 } } });
         expect(patternTypeOptions()).toContainEqual({ value: "test_late", label: "Late" });
+    });
+});
+
+describe("onPagePublish (a type's hook on a page pattern's Publish)", () => {
+    it("runs every type's hook with the page and the publish context, and a failing hook blocks nothing", async () => {
+        const { publish } = await import("../src/patterns/page/pages/edit/editFunctions.jsx");
+        const seen = [];
+        const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+        registerPatternTypes({
+            publish_throws: { siteConfig: [appPatternConfig], onPagePublish: () => { throw new Error("boom"); } },
+            publish_records: { siteConfig: [appPatternConfig], onPagePublish: (args) => { seen.push(args); } },
+        });
+        const writes = [];
+        const apiUpdate = (arg) => { writes.push(arg); };
+        const page = { id: 7, url_slug: "about", draft_sections: [], draft_section_groups: [] };
+        const context = { pattern: { id: 3, name: "Docs" }, sitePatterns: [], type: "docs", app: "x", baseUrl: "/docs", apiLoad: () => {} };
+        await publish({ id: 1 }, page, apiUpdate, context);
+        await new Promise(r => setTimeout(r, 0));
+        expect(writes).toHaveLength(1);
+        expect(writes[0].data).toMatchObject({ id: 7, published: "" });
+        expect(seen).toHaveLength(1);
+        expect(seen[0]).toMatchObject({ ...context, page, apiUpdate });
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("publish_throws"), expect.any(Error));
+        warn.mockRestore();
     });
 });
