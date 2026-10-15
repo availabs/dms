@@ -166,11 +166,39 @@ Register the search key in the page's `filters` array (`creating-interactive-pag
 the control's value never reaches the URL and neither the list nor the trigger reacts. ⚠ `filters`
 is a **page-level** field, not draft/published split — writing it goes live immediately.
 
+## 7. A brand-styled reference modal: the County Prioritization guide (2026-10-14)
+
+Worked example: MitigateNY County Prioritization (`mitigat-ny-prod`, actions pattern 2265530,
+page **2333807**), built by `src/themes/mny/scripts/patch_county_prioritization_guide.mjs`. It's a
+`4xl` read-only guide (a callout plus two lexical tables), opened from a lexical `setParam` button
+and from a Card stat cell.
+
+- **Brand chrome = a named `pages.sectionGroup` style, picked by the group's `theme`.**
+  `sectionGroup.jsx` resolves `getComponentTheme(theme, 'pages.sectionGroup', group.theme)`.
+  Put `modalOverlay` / `modalCard` / `modalClose` / `modalCloseIcon` in a named style (mny:
+  `'modal'`) and set the group's `theme: 'modal'`. Other modal groups keep their look. The same
+  `theme` also picks the edit-mode band's `layoutGroup` style, but an unmatched name falls back to
+  `styles[0]`, which is harmless.
+- **Set `full_width: 'show'` on the modal group.** Without it the section grid takes
+  `layouts.centered` (mny: `max-w-[1020px] lg:px-[56px]`), and the content sits 80px inside the card.
+- **A floated ✕ pushes the content down.** The default `modalClose` is `sticky float-right`, and
+  the section grid beside it is a block formatting context, so it drops *below* the float. Give the
+  close button a negative bottom margin equal to its height (mny: `mt-4 size-8 -mb-12`) so it
+  takes no vertical space.
+- **A Card cell can be a trigger too.** Add a `click_publish` provider with
+  `args.column: '<static column name>'`; the whole cell becomes clickable. Add a link-styled
+  `subValueCol` subline (a comma-free `max('…') as alias` literal) as the visible affordance.
+- **The card scrolls as one piece.** There's no fixed header with a scrolling body, so design for a
+  sticky ✕ only.
+
 ## Gotchas
 
 | Symptom | Cause / fix |
 |---|---|
 | Modal never opens in `/edit` | By design — edit renders the group inline. Check the inline band. |
+| Modal content inset ~80px from the card edge | The modal group lacks `full_width: 'show'`, so the section grid uses the `centered` layout (max-w + side padding). |
+| Empty band at the top of the modal | The floated ✕ pushes the section grid below it. Cancel its height with a negative bottom margin (§7). |
+| `Escape` doesn't close the modal | No key handler in `sectionGroup.jsx` (§6). It's an enrichment, not a config. |
 | Modal never opens in view | Page isn't published (view modal reads `item.sections`), or the trigger's `paramKey` ≠ the group's `modalParamKey`, or the trigger cell's `args.column` doesn't match the static column's `name`. |
 | `?addticket=1` in the URL does nothing | Action params are in-memory only; only a provider (`setActionParam`) opens the modal. |
 | Existing rows render above the form | Add the never-match filter (§3). |
