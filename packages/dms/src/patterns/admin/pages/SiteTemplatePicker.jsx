@@ -6,7 +6,7 @@ import { createSiteTheme } from './createSite.theme'
 // "Add tenant" modal and the multi-tenant sign-up page. `label={null}` hides the picker's own label when
 // the caller renders a section label instead.
 export default function SiteTemplatePicker({ siteTemplates = [], selectedTemplateId, onSelect, label = 'Site Template' }) {
-  const { theme } = React.useContext(ThemeContext)
+  const { theme, UI } = React.useContext(ThemeContext)
   const t = { ...createSiteTheme, ...(theme?.admin?.createSite || {}) }
 
   if (!siteTemplates.length) return null;
@@ -18,12 +18,11 @@ export default function SiteTemplatePicker({ siteTemplates = [], selectedTemplat
         {siteTemplates.map(tmpl => {
           const selected = selectedTemplateId === tmpl.id;
           return (
-            <button
+            <UI.Button
               key={tmpl.id}
-              type="button"
               role="radio"
               aria-checked={selected}
-              className={selected ? t.templateCardSelected : t.templateCard}
+              activeStyle={selected ? 'optionCardOn' : 'optionCard'}
               onClick={() => onSelect(tmpl.id)}
             >
               <span className={selected ? t.templateRadioSelected : t.templateRadio} />
@@ -31,7 +30,7 @@ export default function SiteTemplatePicker({ siteTemplates = [], selectedTemplat
                 <span className={t.templateCardName}>{tmpl.name}</span>
                 <span className={t.templateCardDesc}>{tmpl.description}</span>
               </span>
-            </button>
+            </UI.Button>
           );
         })}
       </div>

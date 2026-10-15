@@ -30,7 +30,7 @@ function getDefaultName(card, pageTemplates) {
 }
 
 export function AddPatternPicker({ authExists, onAdd }) {
-  const { theme } = React.useContext(ThemeContext) || {}
+  const { theme, UI } = React.useContext(ThemeContext) || {}
   const t = { ...patternPickerTheme, ...(theme?.admin?.patternPicker || {}) }
   const pageTemplates = theme?.page_templates ?? []
 
@@ -135,8 +135,7 @@ export function AddPatternPicker({ authExists, onAdd }) {
           <div className={t.confirmFields}>
             <div className={t.confirmField}>
               <div className={t.fieldLabel}>Name</div>
-              <input
-                className={t.fieldInput}
+              <UI.Input
                 value={name}
                 onChange={handleNameChange}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
@@ -145,16 +144,17 @@ export function AddPatternPicker({ authExists, onAdd }) {
             </div>
             <div className={t.urlField}>
               <div className={t.fieldLabel}>Base URL</div>
-              <input
-                className={t.fieldInput}
+              <UI.Input
                 value={baseUrl}
                 onChange={handleUrlChange}
                 onKeyDown={e => e.key === 'Enter' && handleAdd()}
               />
             </div>
-            <button className={t.btnAdd} onClick={handleAdd} disabled={!name}>
-              Add
-            </button>
+            <span className={t.addWrap}>
+              <UI.Button activeStyle='primary' onClick={handleAdd} disabled={!name}>
+                Add
+              </UI.Button>
+            </span>
           </div>
         </div>
       ) : (

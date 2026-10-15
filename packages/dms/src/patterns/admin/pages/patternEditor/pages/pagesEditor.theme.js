@@ -30,9 +30,6 @@ export const pagesEditorTheme = {
     toolbarRow1: 'flex items-center gap-3',
     toolbarRow2: 'flex items-center gap-2 flex-wrap',
     lensBar: 'flex items-center gap-1.5 flex-wrap',
-    lensChip: 'inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] border-[var(--t-rule)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
-    lensChipActive: 'inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]',
-    lensChipActiveWarn: 'inline-flex items-center gap-1.5 border border-transparent bg-[var(--t-amber-soft)] t-metaXS text-[var(--t-amber)] rounded-full px-2.5 py-1 cursor-pointer',
     // a chip's count is its own text at reduced opacity (ui-controls.html chips), so it reads on the
     // outlined chip and on the ink active one (was a white bubble with inherited paper text = invisible)
     lensCount: 'tabular-nums opacity-60',
@@ -43,21 +40,15 @@ export const pagesEditorTheme = {
     filterWrap: 'relative',
     filterCaret: 'pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-[var(--t-pencil)] text-[9px]',
     searchWrap: 'relative flex-1',
-    searchInput: 'border border-[var(--t-rule-strong)] rounded-md t-proseSM bg-[var(--t-panel)] text-[var(--t-ink)] pl-7 pr-3 py-1.5 w-full outline-none focus:border-[var(--t-ink)]',
-    searchIcon: 'absolute left-2.5 top-1/2 -translate-y-1/2 text-[var(--t-pencil)] pointer-events-none',
+    // z-10: UI.Input's wrapper span is `relative`, so it would paint over the icon
+    searchIcon: 'absolute z-10 left-2.5 top-1/2 -translate-y-1/2 text-[var(--t-pencil)] pointer-events-none',
     scopeSeg: 'inline-flex p-0.5 gap-0.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-well)]',
-    scopeBtn: 'inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded t-proseXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] disabled:cursor-not-allowed disabled:opacity-60',
-    scopeBtnActive: 'inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded t-proseXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]',
-    ghostBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
-    clearFiltersBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
-    addBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]',
     tableWrap: 'flex-1 min-h-0 overflow-hidden',
     loadingWrap: 'flex items-center justify-center h-32 text-[var(--t-pencil)] t-proseSM',
     footer: 'px-4 py-2 border-t border-[var(--t-rule)] bg-[var(--t-well)] t-metaXS text-[var(--t-pencil)] flex-shrink-0',
     footerInline: 't-metaXS text-[var(--t-pencil)]',
 
-    // page-level action icons (Edit/View) shown inline before the "⋯" overflow menu —
-    // the same look as UI.Button 'iconRow' (a raw button for now: ui-raw-html-to-ui-components.md).
+    // the View-page link (an <a>) beside the Edit / "⋯" UI.Buttons — the same look as UI.Button 'iconRow'.
     rowIconBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
 
     // sections panel (openOut below row)
@@ -84,8 +75,6 @@ export const pagesEditorTheme = {
     groupBadgePublished: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-go-soft)] text-[var(--t-go)]',
     sectionBadgeDraft: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-amber-soft)] text-[var(--t-amber)] ml-1 flex-shrink-0',
     sectionBadgePublished: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-go-soft)] text-[var(--t-go)] ml-1 flex-shrink-0',
-    groupRestoreBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
-    groupDeleteBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-brick)] bg-[var(--t-panel)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]',
     groupProcessing: 'text-[9px] text-[var(--t-pencil)] italic',
     badgeBase: 'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide',
     badgeCard: 'bg-purple-50 text-purple-700',
@@ -107,11 +96,7 @@ export const pagesEditorTheme = {
     discardBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
     deleteBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-brick)] bg-[var(--t-panel)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]',
     rowActions: 'flex items-center gap-1 justify-end flex-wrap',
-    actionsMenuBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
-    actionsMenu: 'bg-[var(--t-panel)] rounded-lg shadow-[var(--t-shadow-drag)] border border-[var(--t-rule)] py-1 min-w-[140px] text-[12px] z-50',
-    actionsMenuItem: 'block w-full text-left px-3 py-1.5 text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer border-none bg-transparent',
-    actionsMenuItemDiscard: 'text-amber-700 hover:bg-amber-50',
-    actionsMenuItemDelete: 'text-red-600 hover:bg-red-50',
+    actionsMenu: 'bg-[var(--t-panel)] rounded-lg shadow-[var(--t-shadow-drag)] border border-[var(--t-rule)] p-1 min-w-[140px] z-50',   // v6 MENU; rows are UI.Button menuItem*
     actionsMenuSep: 'my-1 border-t border-[var(--t-rule)]',
 
     // delete confirmation modal
@@ -122,8 +107,6 @@ export const pagesEditorTheme = {
     deleteModalWarn: 'flex items-start gap-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-brick-soft)] text-[var(--t-ink)] t-proseSM px-3 py-2 mb-4',
     deleteModalInfo: 'text-[12px] text-[var(--t-graphite)] mb-4',
     deleteModalFooter: 'flex items-center justify-end gap-2',
-    deleteModalConfirmBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM font-medium border-[var(--t-brick)] bg-[var(--t-brick)] text-[var(--t-accent-ink)] hover:opacity-90',
-    deleteModalCancelBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
 
     // element preview modal
     previewPanel: 'relative w-full max-w-lg p-0 overflow-hidden',

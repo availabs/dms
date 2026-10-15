@@ -21,7 +21,6 @@ export const createSiteTheme = {
     sectionLabel: SECTION_LABEL,
     fieldPair: 'grid sm:grid-cols-2 gap-3',
     field: 'min-w-0',
-    fieldLabel: 'block t-metaXS text-[var(--t-pencil)] mb-1.5',
     fieldHint: 't-proseXS text-[var(--t-pencil)] mt-1',
     fieldError: 't-proseXS text-[var(--t-brick)] mt-1',
     sectionHint: 't-proseXS text-[var(--t-pencil)]',   // a section-level note; the section's gap spaces it
@@ -53,8 +52,6 @@ export const createSiteTheme = {
     templateSection: 'flex flex-col gap-2',
     templateLabel: 'block t-metaXS text-[var(--t-pencil)] mb-0.5',
     templateGrid: 'grid sm:grid-cols-2 gap-2',
-    templateCard: 'text-left flex items-start gap-2.5 rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] p-3 cursor-pointer select-none hover:border-[var(--t-rule-strong)] transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]',
-    templateCardSelected: 'text-left flex items-start gap-2.5 rounded-lg border border-[var(--t-ink)] bg-[var(--t-panel)] p-3 cursor-pointer select-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]',
     templateRadio: 'mt-0.5 size-4 rounded-full border border-[var(--t-rule-strong)] flex-none',
     templateRadioSelected: 'mt-0.5 size-4 rounded-full border-[5px] border-[var(--t-ink)] flex-none',
     templateCardBody: 'min-w-0',

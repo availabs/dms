@@ -23,12 +23,14 @@ import {labelTheme} from "./components/Label";
 import {pillTheme} from "./components/Pill.theme";
 import {switchTheme} from "./components/Switch.theme";
 import {fileInputTheme} from "./components/FileInput.theme";
+import {fieldLabelTheme} from "./components/FieldLabel.theme";
 import {permissionsTheme} from "./components/Permissions.theme";
 import {multiselectTheme} from "./components/MultiSelect.theme";
 import {tableTheme} from "./components/table/table.theme";
 import {nestableTheme} from "./components/draggableNav"
 import {dataCardTheme} from "./components/card.theme";
 import {radioTheme} from "./columnTypes/radio.theme";
+import {checkboxTheme} from "./columnTypes/checkbox.theme";
 import {stageProgressTheme} from "./columnTypes/stage_progress.theme";
 import {kvChipsTheme} from "./columnTypes/kv_chips.theme";
 import {commentThreadTheme} from "./columnTypes/comment_thread.theme";
@@ -242,6 +244,7 @@ const components = {
     pill: pillTheme,
     switch: switchTheme,
     fileInput: fileInputTheme,
+    fieldLabel: fieldLabelTheme,
     permissions: permissionsTheme,
     multiselect: multiselectTheme,
     table: tableTheme,
@@ -249,6 +252,7 @@ const components = {
     textSettings: textSettingsTheme,
     dataCard: dataCardTheme,
     radio: radioTheme,
+    checkbox: checkboxTheme,
     stageProgress: stageProgressTheme,
     kvChips: kvChipsTheme,
     commentThread: commentThreadTheme,

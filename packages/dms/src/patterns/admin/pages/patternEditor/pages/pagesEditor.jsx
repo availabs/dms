@@ -170,7 +170,7 @@ function SectionLabel({ section, t }) {
     return <span className={t.sectionEmpty}>(untitled)</span>;
 }
 
-function renderSectionRow(s, i, { viewUrl, setPreviewSection, isPublished, t }) {
+function renderSectionRow(s, i, { viewUrl, setPreviewSection, isPublished, t, UI }) {
     const elementType = s.element?.['element-type'] || s['element-type'] || '';
     const typeKey = TYPE_BADGE_CLASS[elementType] || 'badgeLexical';
     const levelNum = s.level != null ? +s.level : null;
@@ -212,12 +212,12 @@ function renderSectionRow(s, i, { viewUrl, setPreviewSection, isPublished, t }) 
                     : <span className="text-[var(--t-pencil)] text-xs">—</span>}
             </span>
             <span className="flex justify-end">
-                <button
-                    className={t.ghostBtn || 'text-[10px] border border-[var(--t-rule)] rounded px-2 py-0.5 bg-[var(--t-panel)] text-[var(--t-graphite)] cursor-pointer'}
+                <UI.Button
+                    activeStyle="small"
                     onClick={setPreviewSection ? () => setPreviewSection({ ...s, _pageViewUrl: viewUrl }) : undefined}
                 >
                     Preview
-                </button>
+                </UI.Button>
             </span>
         </div>
     );
@@ -314,21 +314,21 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
     }, [apiUpdate, page.id, page.draft_sections, page.sections, app, patternInstance, onRefresh]);
 
     const modeBtn = (id, label) => (
-        <button
+        <UI.Button
             key={id}
-            className={`border-none rounded-full px-2.5 py-0.5 text-[10px] uppercase tracking-wide cursor-pointer ${mode === id ? 'bg-[var(--t-well)] text-[var(--t-ink)]' : 'bg-transparent text-[var(--t-pencil)]'}`}
+            activeStyle={mode === id ? 'segmentOn' : 'segment'}
             onClick={() => setMode(id)}
-        >{label}</button>
+        >{label}</UI.Button>
     );
 
     const modeToggle = (
-        <div className="inline-flex bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-full p-0.5">
+        <div className={t.scopeSeg}>
             {modeBtn('draft',     'Draft')}
             {modeBtn('published', 'Published')}
         </div>
     );
 
-    const rowCtx = { viewUrl, setPreviewSection, t };
+    const rowCtx = { viewUrl, setPreviewSection, t, UI };
 
     // No group data: render flat list (legacy pages without section groups).
     if (!groupsForMode.length) {
@@ -344,9 +344,9 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
                         </span>
                         {modeToggle}
                         <div className="flex-1" />
-                        <button className={t.ghostBtn} onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}>
+                        <UI.Button activeStyle="small" onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}>
                             + New Section
-                        </button>
+                        </UI.Button>
                     </div>
                     <div className={t.sectionsScroll}>
                         {sectionsForMode.map((s, i) => renderSectionRow(s, i, { ...rowCtx, isPublished: sectionsArePublished }))}
@@ -381,9 +381,9 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
                     </span>
                     {modeToggle}
                     <div className="flex-1" />
-                    <button className={t.ghostBtn} onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}>
+                    <UI.Button activeStyle="small" onClick={editUrl && navigate ? () => navigate(editUrl) : undefined}>
                         + New Section
-                    </button>
+                    </UI.Button>
                 </div>
 
                 {groupsForMode.map(group => {
@@ -426,8 +426,8 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
                                 {isProcessing
                                     ? <span className={t.groupProcessing}>working…</span>
                                     : <>
-                                        <button className={t.groupRestoreBtn} onClick={() => restoreGroup(groupName)}>Restore</button>
-                                        <button className={t.groupDeleteBtn} onClick={() => setConfirmDeleteGroup({ groupName, sections: groupSections })}>Delete</button>
+                                        <UI.Button activeStyle="small" onClick={() => restoreGroup(groupName)}>Restore</UI.Button>
+                                        <UI.Button activeStyle="smallDanger" onClick={() => setConfirmDeleteGroup({ groupName, sections: groupSections })}>Delete</UI.Button>
                                       </>
                                 }
                             </div>
@@ -452,9 +452,9 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
                             This cannot be undone. The sections will be permanently removed from this page and deleted from the database.
                         </div>
                         <div className={t.deleteModalFooter}>
-                            <button className={t.deleteModalCancelBtn} onClick={() => setConfirmDeleteGroup(null)}>Cancel</button>
-                            <button
-                                className={t.deleteModalConfirmBtn}
+                            <UI.Button activeStyle="action" onClick={() => setConfirmDeleteGroup(null)}>Cancel</UI.Button>
+                            <UI.Button
+                                activeStyle="dangerSolid"
                                 onClick={() => {
                                     const { groupName, sections: gs } = confirmDeleteGroup;
                                     setConfirmDeleteGroup(null);
@@ -462,7 +462,7 @@ function SectionsPanel({ page = {}, baseUrl = '', navigate, setPreviewSection, a
                                 }}
                             >
                                 Delete
-                            </button>
+                            </UI.Button>
                         </div>
                     </div>
                 </UI.Modal>
@@ -1062,15 +1062,15 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const SelectCheckboxComp = useCallback(({ row: page }) => {
         if (!page || page._isGroupBand || !needsPublish(page)) return null;
         const key = String(page.id);
+        const CheckboxEdit = UI.ColumnTypes.checkbox.EditComp;
         return (
-            <input
-                type="checkbox"
-                checked={selectedIds.has(key)}
+            <CheckboxEdit
+                value={selectedIds.has(key)}
                 onChange={() => toggleSelected(page.id)}
                 onClick={(e) => e.stopPropagation()}
             />
         );
-    }, [selectedIds, toggleSelected]);
+    }, [UI, selectedIds, toggleSelected]);
 
     // counts for lens chips
     const counts = useMemo(() => ({
@@ -1137,28 +1137,28 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                     </a>
                 )}
                 {editUrl && (
-                    <button aria-label="Edit page" className={t.rowIconBtn} onClick={() => navigate(editUrl)}>
+                    <UI.Button activeStyle="iconRow" aria-label="Edit page" onClick={() => navigate(editUrl)}>
                         <UI.Icon icon="PencilIcon" className="w-4 h-4" />
-                    </button>
+                    </UI.Button>
                 )}
                 <UI.Popup
-                    button={<button aria-label="More actions" className={t.actionsMenuBtn}>⋯</button>}
+                    button={<UI.Button activeStyle="iconRow" aria-label="More actions">⋯</UI.Button>}
                     preferredPosition="bottom"
                 >
                     {({ setOpen }) => (
                         <div className={t.actionsMenu}>
                             {hasChanges && (
                                 <>
-                                    <button className={t.actionsMenuItem} onClick={() => { publishPage(page); setOpen(false); }}>Publish</button>
-                                    <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDiscard}`} onClick={() => { discardPage(page); setOpen(false); }}>Discard</button>
+                                    <UI.Button activeStyle="menuItem" onClick={() => { publishPage(page); setOpen(false); }}>Publish</UI.Button>
+                                    <UI.Button activeStyle="menuItemWarn" onClick={() => { discardPage(page); setOpen(false); }}>Discard</UI.Button>
                                 </>
                             )}
                             {editUrl && (
-                                <button className={t.actionsMenuItem} onClick={() => { navigate(editUrl); setOpen(false); }}>Edit</button>
+                                <UI.Button activeStyle="menuItem" onClick={() => { navigate(editUrl); setOpen(false); }}>Edit</UI.Button>
                             )}
-                            <button className={t.actionsMenuItem} onClick={() => { duplicatePage(page); setOpen(false); }}>Duplicate</button>
+                            <UI.Button activeStyle="menuItem" onClick={() => { duplicatePage(page); setOpen(false); }}>Duplicate</UI.Button>
                             <div className={t.actionsMenuSep} />
-                            <button className={`${t.actionsMenuItem} ${t.actionsMenuItemDelete}`} onClick={() => { setDeletingPage(page); setOpen(false); }}>Delete</button>
+                            <UI.Button activeStyle="menuItemDanger" onClick={() => { setDeletingPage(page); setOpen(false); }}>Delete</UI.Button>
                         </div>
                     )}
                 </UI.Popup>
@@ -1171,7 +1171,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
             { name: '_select', display_name: ' ', show: true, type: 'ui', size: 32, Comp: SelectCheckboxComp },
         ] : []),
         { name: 'title',           display_name: 'Page',           show: true, type: 'tree_node'},
-        { name: '_publishState',   display_name: 'State',          show: true, type: 'publish_state',  size: 110 },
+        { name: '_publishState',   display_name: 'State',          show: true, type: 'publish_state',  size: 120 },   // pill + changes dot + the cell's px-4
         { name: '_lastPublished',  display_name: 'Last Published', show: true, type: 'last_published',  size: 120 },
         { name: '_updatedAt',      display_name: 'Modified',       show: true, type: 'text',            size: 100 },
         { name: 'hide_in_nav',     display_name: 'In Nav',    show: true, type: 'switch',         size: 80,
@@ -1231,21 +1231,21 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                         <svg className={t.searchIcon} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                             <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
                         </svg>
-                        <input
+                        <UI.Input
                             type="text"
-                            className={t.searchInput}
+                            activeStyle="search"
                             placeholder={scope === 'sections' ? 'Search sections & sources…' : 'Search page titles…'}
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    <button
-                        className={t.addBtn}
+                    <UI.Button
+                        activeStyle="primary"
                         onClick={handleAddPage}
                         disabled={saving}
                     >
                         {saving ? 'Adding…' : '+ New Page'}
-                    </button>
+                    </UI.Button>
                 </div>
 
                 {/* row 2: lens/quick-filter chips + scope + secondary controls */}
@@ -1253,11 +1253,10 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                     <div className={t.lensBar}>
                         {lenses.map(l => {
                             const isActive = lens === l.id;
-                            const activeClass = l.warn ? t.lensChipActiveWarn : t.lensChipActive;
                             return (
-                                <button
+                                <UI.Button
                                     key={l.id}
-                                    className={isActive ? activeClass : t.lensChip}
+                                    activeStyle={isActive ? 'chipOn' : 'chip'}
                                     onClick={() => setLens(l.id)}
                                 >
                                     {l.label}
@@ -1266,7 +1265,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                                             {l.count}
                                         </span>
                                     )}
-                                </button>
+                                </UI.Button>
                             );
                         })}
                     </div>
@@ -1275,9 +1274,9 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
                     <div className={t.scopeSeg}>
                         {['pages', 'sections'].map(s => (
-                            <button
+                            <UI.Button
                                 key={s}
-                                className={scope === s ? t.scopeBtnActive : t.scopeBtn}
+                                activeStyle={scope === s ? 'segmentOn' : 'segment'}
                                 onClick={() => {
                                     setScope(s);
                                     setSearch('');
@@ -1286,7 +1285,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                                 }}
                             >
                                 {s.charAt(0).toUpperCase() + s.slice(1)}
-                            </button>
+                            </UI.Button>
                         ))}
                     </div>
 
@@ -1317,22 +1316,22 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                     )}
 
                     {hasActiveFilters && (
-                        <button className={t.clearFiltersBtn} onClick={clearFilters}>✕ Clear Filters</button>
+                        <UI.Button activeStyle="small" onClick={clearFilters}>✕ Clear Filters</UI.Button>
                     )}
 
                     {lens === 'queue' && counts.queue > 0 && (
                         <>
-                            <button className={t.ghostBtn} onClick={selectAllInQueue}>Select All ({counts.queue})</button>
+                            <UI.Button activeStyle="small" onClick={selectAllInQueue}>Select All ({counts.queue})</UI.Button>
                             {selectedIds.size > 0 && (
                                 <>
-                                    <button className={t.ghostBtn} onClick={clearSelection}>Clear Selection</button>
-                                    <button
-                                        className={t.addBtn}
+                                    <UI.Button activeStyle="small" onClick={clearSelection}>Clear Selection</UI.Button>
+                                    <UI.Button
+                                        activeStyle="primary"
                                         onClick={publishSelected}
                                         disabled={publishingSelected}
                                     >
                                         {publishingSelected ? 'Publishing…' : `Publish Selected (${selectedIds.size})`}
-                                    </button>
+                                    </UI.Button>
                                 </>
                             )}
                             {publishSelectedResult && (
@@ -1343,10 +1342,10 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
 
                     <div className="flex-1" />
 
-                    <button className={t.ghostBtn} onClick={expandAll}>Expand All</button>
-                    <button className={t.ghostBtn} onClick={collapseAll}>Collapse All</button>
-                    <button className={t.ghostBtn} onClick={() => setSectionsExpanded(true)}>Expand Sections</button>
-                    <button className={t.ghostBtn} onClick={() => setSectionsExpanded(false)}>Collapse Sections</button>
+                    <UI.Button activeStyle="small" onClick={expandAll}>Expand All</UI.Button>
+                    <UI.Button activeStyle="small" onClick={collapseAll}>Collapse All</UI.Button>
+                    <UI.Button activeStyle="small" onClick={() => setSectionsExpanded(true)}>Expand Sections</UI.Button>
+                    <UI.Button activeStyle="small" onClick={() => setSectionsExpanded(false)}>Collapse Sections</UI.Button>
                 </div>
             </div>
 
@@ -1453,9 +1452,9 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                                     View ↗
                                 </a>
                             )}
-                            <button className={t.ghostBtn} onClick={() => setPreviewSection(null)}>
+                            <UI.Button activeStyle="small" onClick={() => setPreviewSection(null)}>
                                 Close
-                            </button>
+                            </UI.Button>
                         </div>
                     </UI.Modal>
                 );
@@ -1480,7 +1479,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                                         This page has {childCount} child page{childCount > 1 ? 's' : ''}. Remove or reparent them before deleting.
                                     </div>
                                     <div className={t.deleteModalFooter}>
-                                        <button className={t.deleteModalCancelBtn} onClick={() => setDeletingPage(null)}>Cancel</button>
+                                        <UI.Button activeStyle="action" onClick={() => setDeletingPage(null)}>Cancel</UI.Button>
                                     </div>
                                 </>
                             ) : (
@@ -1489,8 +1488,8 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                                         This cannot be undone. The page and its sections will be permanently removed.
                                     </div>
                                     <div className={t.deleteModalFooter}>
-                                        <button className={t.deleteModalCancelBtn} onClick={() => setDeletingPage(null)}>Cancel</button>
-                                        <button className={t.deleteModalConfirmBtn} onClick={() => deletePage(deletingPage)}>Delete</button>
+                                        <UI.Button activeStyle="action" onClick={() => setDeletingPage(null)}>Cancel</UI.Button>
+                                        <UI.Button activeStyle="dangerSolid" onClick={() => deletePage(deletingPage)}>Delete</UI.Button>
                                     </div>
                                 </>
                             )}

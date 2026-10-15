@@ -110,7 +110,7 @@ const theme = {
         // `manageAuthConfig` (siteConfig.jsx) — MNY resolves to the dedicated
         // `mny_admin` theme rather than overriding these keys directly.
         // `headerStats`/`headerStatsItem`/`headerStatsValue`/`headerStatsLabel`
-        // (Users' user/group counts), `modalHeader`/`modalTitle`/`modalCloseBtn`
+        // (Users' user/group counts), `modalHeader`/`modalTitle` (close = UI.Button iconRow)
         // (a title + working close button on every modal), and `avatar` (Profile's
         // initial-letter badge) are new elements added to the live components
         // alongside this theme pass — the mockups called for them, but they didn't
@@ -189,7 +189,6 @@ const theme = {
             // modals alongside this theme pass so every modal has one.
             modalHeader: "flex items-center justify-between mb-4",
             modalTitle: "t-displaySM text-[var(--t-ink)]",
-            modalCloseBtn: "text-[var(--t-pencil)] hover:text-[var(--t-ink)]",
             modalBody: "flex flex-row gap-3",
             notice: "p-4 text-sm text-[var(--t-graphite)]",
             profileLink: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-ink)] border border-[var(--t-rule-strong)] hover:border-[var(--t-ink)] rounded-md px-3.5 py-1.5 w-fit",

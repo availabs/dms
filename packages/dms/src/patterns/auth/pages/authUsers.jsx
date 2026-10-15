@@ -50,7 +50,6 @@ const MANAGE_DEFAULTS = {
     metaText: "text-gray-500 text-sm",
     modalHeader: "flex items-center justify-between mb-2",
     modalTitle: "text-lg font-semibold text-gray-700",
-    modalCloseBtn: "text-gray-400 hover:text-gray-700",
     modalBody: "flex flex-row gap-3",
     notice: "",
 };
@@ -70,9 +69,9 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
         <Modal open={open} setOpen={setOpen}>
             <div className={m.modalHeader}>
                 <div className={m.modalTitle}>Add a user</div>
-                <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setOpen(false)}>
+                <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
                     <Icon icon="XMark" />
-                </button>
+                </Button>
             </div>
             <div className={m.modalBody}>
                 <Input
@@ -399,9 +398,9 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
             <Modal open={Boolean(editUser)} setOpen={setEditUser}>
                 <div className={m.modalHeader}>
                     <div className={m.modalTitle}>Reset password</div>
-                    <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setEditUser(null)}>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setEditUser(null)}>
                         <Icon icon="XMark" />
-                    </button>
+                    </Button>
                 </div>
                 <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?

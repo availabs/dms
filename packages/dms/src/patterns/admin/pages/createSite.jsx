@@ -253,12 +253,10 @@ function Steps({ t, Icon, current, failed }) {
 }
 
 function Field({ t, label, hint, error, children }) {
+	const { UI: { FieldLabel } } = React.useContext(ThemeContext);
 	return (
 		<div className={t.field}>
-			<label>
-				<span className={t.fieldLabel}>{label}</span>
-				{children}
-			</label>
+			<FieldLabel text={label}>{children}</FieldLabel>
 			{error ? <p className={t.fieldError}>{error}</p> : hint ? <p className={t.fieldHint}>{hint}</p> : null}
 		</div>
 	)

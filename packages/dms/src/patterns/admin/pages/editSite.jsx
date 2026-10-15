@@ -314,8 +314,8 @@ function PatternList({
               </Link>
             )}
             {can.duplicate && (
-              <button
-                className={t.duplicateBtn}
+              <Button
+                activeStyle='iconRow'
                 title='Duplicate pattern'
                 aria-label='Duplicate pattern'
                 disabled={isDuplicating}
@@ -338,17 +338,17 @@ function PatternList({
                 }}
               >
                 <Icon icon='Copy' className={t.iconSm}/>
-              </button>
+              </Button>
             )}
             {can.delete && (
-              <button
-                className={t.deleteBtn}
+              <Button
+                activeStyle='iconRowDanger'
                 title='Delete pattern'
                 aria-label='Delete pattern'
                 onClick={() => setDeletingItem(d.row)}
               >
                 <Icon icon='TrashCan' className={t.iconSm}/>
-              </button>
+              </Button>
             )}
           </div>
         );
@@ -563,22 +563,22 @@ function PatternList({
 
 				<div className={t.toolbarFilterRow}>
 					<span className={t.filterCount}>patterns · {data.length}</span>
-					<button className={t.sortBtn} onClick={() => setSortBy(SORT_CYCLE[sortBy])}>
+					<Button activeStyle='small' onClick={() => setSortBy(SORT_CYCLE[sortBy])}>
 						sort: {SORT_LABEL[sortBy] || sortBy}
 						<Icon icon='ChevronDown' className='w-3 h-3' />
-					</button>
+					</Button>
 					<div className={t.chipsWrapper}>
-						<button className={!typeFilter ? t.chipActive : t.chip} onClick={() => setTypeFilter(null)}>
+						<Button activeStyle={!typeFilter ? 'chipOn' : 'chip'} onClick={() => setTypeFilter(null)}>
 							all {totalPatterns}
-						</button>
+						</Button>
 						{chipTypes.map(k => (
-							<button
+							<Button
 								key={k}
-								className={typeFilter === k ? t.chipActive : t.chip}
+								activeStyle={typeFilter === k ? 'chipOn' : 'chip'}
 								onClick={() => setTypeFilter(typeFilter === k ? null : k)}
 							>
 								{k} {typeCounts[k]}
-							</button>
+							</Button>
 						))}
 					</div>
 				</div>
@@ -742,7 +742,7 @@ function TenantList({
 	const { UI, theme } = React.useContext(ThemeContext);
 	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
-	const { Table, Input, Button, Modal, Icon } = UI;
+	const { Table, Input, Button, Modal, Icon, FieldLabel } = UI;
 	const siteInstance = getInstance(siteType) || siteType;
 	const siteTemplates = theme?.site_templates ?? [];
 	const pageTemplates = theme?.page_templates ?? [];
@@ -795,13 +795,13 @@ function TenantList({
 			name: 'actions', display_name: '', show: true, type: 'ui',
 			Comp: (d) => (
 				<div className={t.cellActions}>
-					<button
-						className={t.deleteBtn}
+					<Button
+						activeStyle='iconRowDanger'
 						title='Remove tenant'
 						onClick={() => setDeletingItem(d.row)}
 					>
 						<Icon icon='TrashCan' className={t.iconSm} />
-					</button>
+					</Button>
 				</div>
 			)
 		}
@@ -936,32 +936,36 @@ function TenantList({
 				<div className={t.tenantModalForm}>
 					<div className={t.tenantModalTitle}>New Tenant</div>
 					<div className={t.fieldGroup}>
-						<label className={t.fieldLabel}>Organization Name</label>
+						<FieldLabel activeStyle="inline" htmlFor="tenant-name" text="Organization Name" />
 						<Input
+							id="tenant-name"
 							value={newItem.name}
 							onChange={e => setNewItem({ ...newItem, name: e.target.value })}
 							placeholder='Acme Corp'
 						/>
 					</div>
 					<div className={t.fieldGroup}>
-						<label className={t.fieldLabel}>Subdomain</label>
+						<FieldLabel activeStyle="inline" htmlFor="tenant-subdomain" text="Subdomain" />
 						<Input
+							id="tenant-subdomain"
 							value={newItem.subdomain}
 							onChange={e => setNewItem({ ...newItem, subdomain: e.target.value })}
 							placeholder='acme'
 						/>
 					</div>
 					<div className={t.fieldGroup}>
-						<label className={t.fieldLabel}>Admin Email</label>
+						<FieldLabel activeStyle="inline" htmlFor="tenant-email" text="Admin Email" />
 						<Input
+							id="tenant-email"
 							value={newItem.email}
 							onChange={e => setNewItem({ ...newItem, email: e.target.value })}
 							placeholder='admin@acme.com'
 						/>
 					</div>
 					<div className={t.fieldGroup}>
-						<label className={t.fieldLabel}>Admin Password</label>
+						<FieldLabel activeStyle="inline" htmlFor="tenant-password" text="Admin Password" />
 						<Input
+							id="tenant-password"
 							type='password'
 							value={newItem.password}
 							onChange={e => setNewItem({ ...newItem, password: e.target.value })}
@@ -1022,7 +1026,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
     const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
     const [tmpValue, setTmpValue] = React.useState(parseIfJSON(value));
     const [newFilter, setNewFilter] = React.useState({});
-    const {FieldSet, Button} = UI;
+    const {FieldSet, Button, FieldLabel} = UI;
     const customTheme = {
         field: 'pb-2 flex flex-col'
     }
@@ -1037,7 +1041,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
 
     return (
         <div className={t.filtersWrapper}>
-            <label className={t.filtersLabel}>Filters</label>
+            <FieldLabel activeStyle="inline" text="Filters" />
             {
                 tmpValue.map((filter, i) => (
                     <FieldSet

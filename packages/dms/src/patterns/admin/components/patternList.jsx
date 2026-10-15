@@ -59,7 +59,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
     const {UI, theme} = useContext(ThemeContext);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
     const [newFilter, setNewFilter] = useState({});
-    const {FieldSet, Button} = UI;
+    const {FieldSet, Button, FieldLabel} = UI;
     const t = { ...patternListTheme, ...(theme?.admin?.patternList || {}) }
     const customTheme = {
         field: 'pb-2 flex flex-col'
@@ -75,7 +75,7 @@ const RenderFilters = ({value=[], onChange, ...rest}) => {
 
     return (
         <div className={t.filtersWrapper}>
-            <label className={t.filtersLabel}>Filters</label>
+            <FieldLabel activeStyle="inline" text="Filters" />
             {
                 tmpValue.map((filter, i) => (
                     <FieldSet

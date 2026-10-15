@@ -105,13 +105,14 @@ export const PatternPermissionsEditor = ({
                             subdomain: {subdomain === '*' ? 'none' : subdomain}
                         </span>
                         {subdomain !== '*' && (
-                            <button
-                                type={'button'}
-                                className={t.subdomainRemoveBtn}
-                                onClick={() => removeSubdomain(subdomain)}
-                            >
-                                remove subdomain
-                            </button>
+                            <span className={t.subdomainRemoveWrap}>
+                                <UI.Button
+                                    activeStyle='linkMetaDanger'
+                                    onClick={() => removeSubdomain(subdomain)}
+                                >
+                                    remove subdomain
+                                </UI.Button>
+                            </span>
                         )}
                     </div>
                     <div className={t.subdomainBody}>
@@ -131,20 +132,20 @@ export const PatternPermissionsEditor = ({
             ))}
 
             <div className={t.addSubdomainRow}>
-                <input
-                    className={t.subdomainInput}
-                    placeholder="subdomain name"
-                    value={newSubdomain}
-                    onChange={e => setNewSubdomain(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addSubdomain()}
-                />
-                <button
-                    type={'button'}
-                    className={t.addSubdomainBtn}
+                <span className={t.addSubdomainField}>
+                    <UI.Input
+                        placeholder="subdomain name"
+                        value={newSubdomain}
+                        onChange={e => setNewSubdomain(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addSubdomain()}
+                    />
+                </span>
+                <UI.Button
+                    activeStyle='small'
                     onClick={addSubdomain}
                 >
                     + add subdomain
-                </button>
+                </UI.Button>
             </div>
 
             <div className={t.saveGrid}>
@@ -152,22 +153,20 @@ export const PatternPermissionsEditor = ({
                     <span className={t.lockoutWarning}>saving this would remove your own access to the admin panel — grant yourself or one of your groups *</span>
                 )}
                 <span className='flex-1' />
-                <button
-                    type={'button'}
-                    className={t.btnReset}
+                <UI.Button
+                    activeStyle='action'
                     disabled={!isDirty}
                     onClick={() => { setTmpAuthPermissions(normalised); setResetKey(k => k + 1); }}
                 >
                     reset
-                </button>
-                <button
-                    type={'button'}
-                    className={t.btnSave}
+                </UI.Button>
+                <UI.Button
+                    activeStyle='primary'
                     disabled={!isDirty || wouldLockOut}
                     onClick={() => apiUpdate({ data: { id: value.id, authPermissions: tmpAuthPermissions } })}
                 >
                     save changes
-                </button>
+                </UI.Button>
             </div>
             </div>
         </div>

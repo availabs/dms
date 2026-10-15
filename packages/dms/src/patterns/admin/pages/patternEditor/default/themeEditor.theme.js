@@ -48,8 +48,6 @@ export const themeEditorTheme = {
     // past the box's own bounds.
     frameWrapper: 'flex-1 min-w-0 bg-[var(--t-well)] p-6 overflow-hidden order-1 flex flex-col gap-3 min-h-0',
     frameTabBar: 'inline-flex p-0.5 gap-0.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-well)] flex-none self-start',
-    frameTab: 'inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded t-proseXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] disabled:cursor-not-allowed disabled:opacity-60',
-    frameTabActive: 'inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded t-proseXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]',
     frame: 'w-full flex-1 min-h-0 border border-[var(--t-rule)] rounded-lg bg-[var(--t-panel)]',
 
     // ControlRenderer

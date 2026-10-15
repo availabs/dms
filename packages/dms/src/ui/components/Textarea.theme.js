@@ -14,5 +14,10 @@ export const textareaTheme = {
       cancelButton: 'py-1.5 pr-1 text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer',
       confirmButton: 'text-[var(--t-go)] hover:text-[var(--t-ink)] cursor-pointer rounded-full',
     },
+    // 2026-10-15 (ui-raw-html-to-ui-components.md): raw JSON / code (admin format manager)
+    {
+      name: 'mono',
+      textarea: 'w-full px-2.5 py-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-metaSM font-mono text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] outline-none focus:border-[var(--t-ink)] aria-invalid:border-[var(--t-brick)] disabled:bg-[var(--t-well)] disabled:text-[var(--t-pencil)] resize-y min-h-[6rem] transition-colors duration-150',
+    },
   ],
 }

@@ -31,7 +31,6 @@ export const themeListTheme = {
     modalForm: 'flex flex-col gap-3',
     modalActions: 'w-full flex items-center gap-2 pt-1',
     modalEditActions: 'w-full flex items-center gap-2 pt-1',
-    btnAdd: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)] self-start',
 
     // Table cell actions — same plain icon-button look as editSite.theme.js's
     // cellActions/editLink/duplicateBtn (no pill/border), so the two list

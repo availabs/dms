@@ -24,6 +24,16 @@ export const inputTheme = {
       name: 'bare',
       input: 'w-full min-w-0 bg-transparent text-sm placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
     },
+    // 2026-10-15 (ui-raw-html-to-ui-components.md): the default field in mono (keys, paths, JSON names)
+    {
+      name: 'mono',
+      input: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM font-mono text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] outline-none focus:border-[var(--t-ink)] aria-invalid:border-[var(--t-brick)] disabled:bg-[var(--t-well)] disabled:text-[var(--t-pencil)] disabled:cursor-not-allowed transition-colors duration-150',
+    },
+    // the default field with room for a leading search icon the caller positions (admin pages / sources search)
+    {
+      name: 'search',
+      input: 'w-full h-8 pl-7 pr-2.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] outline-none focus:border-[var(--t-ink)] aria-invalid:border-[var(--t-brick)] disabled:bg-[var(--t-well)] disabled:text-[var(--t-pencil)] disabled:cursor-not-allowed transition-colors duration-150',
+    },
     // a small filter in a table's column header (auth manage Users / Groups) — was `authPages.manage.headerInput`
     {
       name: 'headerFilter',

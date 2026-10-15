@@ -39,6 +39,5 @@ export const patternListTheme = {
 
     // RenderFilters
     filtersWrapper: 'flex flex-col gap-1 p-1 border border-[var(--t-rule)] rounded-md',
-    filtersLabel: 't-metaSM text-[var(--t-graphite)]',
     filterRow: 'grid grid-cols-3 gap-1',
 }

@@ -13,6 +13,8 @@ const DANGER = `${BTN} h-8 px-3 t-proseSM border-[var(--t-brick)] text-[var(--t-
 const DANGER_SOLID = `${BTN} h-8 px-3 t-proseSM font-medium border-[var(--t-brick)] bg-[var(--t-brick)] text-[var(--t-accent-ink)] hover:opacity-90`;
 const SMALL = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]`;
 const SMALL_DANGER = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-brick)] bg-[var(--t-panel)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
+// amber twin of SMALL_DANGER: leave a warning state (auth ViewAsBar "Exit View As", 2026-10-15)
+const SMALL_WARN = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-amber)] bg-[var(--t-panel)] text-[var(--t-amber)] hover:bg-[var(--t-amber-soft)]`;
 const ICON_TOOL = `${BTN} size-8 border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
 const ICON_ROW = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]`;
 const ICON_ROW_DANGER = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
@@ -33,6 +35,26 @@ const SEGMENT_ON = `${SEGMENT_BASE} bg-[var(--t-ink)] text-[var(--t-paper)]`;
 // Full-width variants are their own names: a caller never adds layout through className.
 const ACTION_FULL = `${ACTION} w-full`;
 const DANGER_FULL = `${DANGER} w-full`;
+// 2026-10-15 (ui-raw-html-to-ui-components.md, admin): roles for the admin's last raw buttons.
+// A dropdown menu row (page-actions menu) — the v6 spec's MENU_ROW / MENU_ROW_D (controls.py), in a menu
+// panel with p-1; warn is the amber row (Discard).
+const MENU_ITEM_BASE = `w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded t-proseSM text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const MENU_ITEM = `${MENU_ITEM_BASE} text-[var(--t-ink)] hover:bg-[var(--t-well)]`;
+const MENU_ITEM_WARN = `${MENU_ITEM_BASE} text-[var(--t-amber)] hover:bg-[var(--t-amber-soft)]`;
+const MENU_ITEM_DANGER = `${MENU_ITEM_BASE} text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
+// A pick-one card (new-site template picker) — the spec's PICK / PICK_ON; content laid out by the children.
+const OPTION_CARD_BASE = `text-left flex gap-3 p-3 rounded-lg border bg-[var(--t-panel)] cursor-pointer transition-colors ${FOCUS}`;
+const OPTION_CARD = `${OPTION_CARD_BASE} border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]`;
+const OPTION_CARD_ON = `${OPTION_CARD_BASE} border-[var(--t-ink)] shadow-[var(--t-shadow-lift)]`;
+// A cell of an icon grid (user-menu icon picker).
+const ICON_PICK_BASE = `aspect-square flex items-center justify-center rounded cursor-pointer ${FOCUS}`;
+const ICON_PICK = `${ICON_PICK_BASE} text-[var(--t-graphite)] hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]`;
+const ICON_PICK_ON = `${ICON_PICK_BASE} bg-[var(--t-well)] text-[var(--t-ink)] ring-1 ring-[var(--t-ink)]`;
+// A field-shaped button that opens a picker (user-menu icon field).
+const FIELD_TRIGGER = `inline-flex items-center gap-2 bg-[var(--t-panel)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] aria-expanded:border-[var(--t-ink)] rounded-md pl-2 pr-2.5 py-1.5 cursor-pointer ${FOCUS}`;
+// A row title that is a link (activity feed page title).
+// block, not LINK's inline-flex, so a long title ellipsises
+const LINK_TITLE = `block max-w-full min-w-0 truncate text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS} rounded-sm t-proseSM font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)]`;
 
 export const buttonTheme = {
   options: {
@@ -102,6 +124,17 @@ export const buttonTheme = {
     { name: 'bareIconBox',     button: ICON_ROW },       // iconRow
     { name: 'barePrimaryFull', button: PRIMARY_BLOCK },  // primaryBlock
     { name: 'bareActionFull',  button: ACTION_FULL },    // actionFull
+    // ── admin's last raw buttons (2026-10-15, ui-raw-html-to-ui-components.md); appended so indices don't move
+    { name: 'menuItem',       button: MENU_ITEM },
+    { name: 'menuItemWarn',   button: MENU_ITEM_WARN },
+    { name: 'menuItemDanger', button: MENU_ITEM_DANGER },
+    { name: 'optionCard',     button: OPTION_CARD },
+    { name: 'optionCardOn',   button: OPTION_CARD_ON },
+    { name: 'iconPick',       button: ICON_PICK },
+    { name: 'iconPickOn',     button: ICON_PICK_ON },
+    { name: 'fieldTrigger',   button: FIELD_TRIGGER },
+    { name: 'linkTitle',      button: LINK_TITLE },
+    { name: 'smallWarn',      button: SMALL_WARN },
   ]
 }
 

@@ -19,6 +19,8 @@ function AttributeRow({
   onFieldChange, onOptionChange, onOptionAdd, onOptionRemove,
   onCancel, onDone, Icon, Switch, t,
 }) {
+  const { UI } = useContext(ThemeContext);
+  const { Button, Input, Select, FieldLabel } = UI;
   const options = attr.options || [];
 
   if (editing) {
@@ -37,34 +39,31 @@ function AttributeRow({
 
         <div className={t.form}>
           <div className={t.formGrid}>
-            <label className={t.field}>
-              <span className={t.fieldLabel}>key</span>
-              <input
+            <FieldLabel text="key">
+              <Input
                 type="text"
-                className={t.fieldInputMono}
+                activeStyle="mono"
                 value={attr.key}
                 onChange={e => onFieldChange('key', e.target.value)}
               />
-            </label>
-            <label className={t.field}>
-              <span className={t.fieldLabel}>display name</span>
-              <input
+            </FieldLabel>
+            <FieldLabel text="display name">
+              <Input
                 type="text"
-                className={t.fieldInput}
                 value={attr.display_name || ''}
                 onChange={e => onFieldChange('display_name', e.target.value)}
               />
-            </label>
-            <label className={t.field}>
-              <span className={t.fieldLabel}>type</span>
-              <select
-                className={t.fieldSelect}
-                value={attr.type || 'text'}
-                onChange={e => onFieldChange('type', e.target.value)}
-              >
-                {ATTRIBUTE_TYPES.map(ty => <option key={ty} value={ty}>{ty}</option>)}
-              </select>
-            </label>
+            </FieldLabel>
+            <div className={t.field}>
+              <FieldLabel text="type" />
+              <span className={t.fieldControl}>
+                <Select
+                  value={attr.type || 'text'}
+                  options={ATTRIBUTE_TYPES}
+                  onChange={v => onFieldChange('type', v || 'text')}
+                />
+              </span>
+            </div>
             <div className={t.fieldSwitchRow}>
               <Switch size="small" enabled={attr.required === true} setEnabled={v => onFieldChange('required', !!v)} />
               <span className={t.fieldSwitchLabel}>required</span>
@@ -80,35 +79,36 @@ function AttributeRow({
               <div className={t.optionsList}>
                 {options.map((opt, i) => (
                   <div key={i} className={t.optionRow}>
-                    <input
+                    <Input
                       type="text"
-                      className={t.fieldInput}
                       placeholder="label"
                       value={opt.label || ''}
                       onChange={e => onOptionChange(i, 'label', e.target.value)}
                     />
-                    <input
+                    <Input
                       type="text"
-                      className={t.fieldInputMono}
+                      activeStyle="mono"
                       placeholder="value"
                       value={opt.value || ''}
                       onChange={e => onOptionChange(i, 'value', e.target.value)}
                     />
-                    <button type="button" className={t.optionRemoveBtn} onClick={() => onOptionRemove(i)} aria-label="remove option">
+                    <Button activeStyle="iconRowDanger" onClick={() => onOptionRemove(i)} aria-label="remove option">
                       <Icon icon="XMark" className={t.optionRemoveIcon} />
-                    </button>
+                    </Button>
                   </div>
                 ))}
               </div>
-              <button type="button" className={t.addOptionBtn} onClick={onOptionAdd}>
-                <Icon icon="Plus" className={t.addOptionIcon} /> add option
-              </button>
+              <div className={t.addOptionWrap}>
+                <Button activeStyle="linkMeta" onClick={onOptionAdd}>
+                  <Icon icon="Plus" className={t.addOptionIcon} /> add option
+                </Button>
+              </div>
             </div>
           )}
 
           <div className={t.formFooter}>
-            <button type="button" className={t.cancelBtn} onClick={onCancel}>cancel</button>
-            <button type="button" className={t.doneBtn} disabled={!attr.key.trim()} onClick={onDone}>done</button>
+            <Button activeStyle="small" onClick={onCancel}>cancel</Button>
+            <Button activeStyle="primary" disabled={!attr.key.trim()} onClick={onDone}>done</Button>
           </div>
         </div>
       </div>
@@ -133,29 +133,17 @@ function AttributeRow({
         {confirmingDelete ? (
           <span className={t.confirmRow}>
             <span className={t.confirmLabel}>delete?</span>
-            <span className={t.confirmYes} onClick={onDeleteConfirm}>yes</span>
-            <span className={t.confirmNo} onClick={onDeleteCancel}>no</span>
+            <Button activeStyle="linkMetaDanger" onClick={onDeleteConfirm}>yes</Button>
+            <Button activeStyle="linkMeta" onClick={onDeleteCancel}>no</Button>
           </span>
         ) : (
           <div className={t.rowActions}>
-            <button
-              type="button"
-              className={locked ? t.iconBtnDisabled : t.iconBtn}
-              disabled={locked}
-              onClick={onEdit}
-              aria-label="edit"
-            >
+            <Button activeStyle="iconRow" disabled={locked} onClick={onEdit} aria-label="edit">
               <Icon icon="PencilIcon" className={t.iconBtnIcon} />
-            </button>
-            <button
-              type="button"
-              className={locked ? t.iconBtnDisabled : t.iconBtnDanger}
-              disabled={locked}
-              onClick={onDeleteRequest}
-              aria-label="delete"
-            >
+            </Button>
+            <Button activeStyle="iconRowDanger" disabled={locked} onClick={onDeleteRequest} aria-label="delete">
               <Icon icon="TrashCan" className={t.iconBtnIcon} />
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -165,7 +153,7 @@ function AttributeRow({
 
 function FormatManager({ apiUpdate, app, type, value }) {
   const { UI } = useContext(ThemeContext);
-  const { Icon, Switch } = UI;
+  const { Icon, Switch, Button, Textarea, FieldLabel } = UI;
   const t = formatManagerTheme;
 
   const [attributes, setAttributes] = useState(value.additionalSectionAttributes || []);
@@ -299,9 +287,9 @@ function FormatManager({ apiUpdate, app, type, value }) {
           <p className={t.headerSubtitle} aria-hidden="true">&nbsp;</p>
         </div>
         <span className={t.headerSpacer} />
-        <button type="button" className={t.rawToggleBtn} onClick={() => (rawMode ? setRawMode(false) : openRaw())}>
+        <Button activeStyle="small" onClick={() => (rawMode ? setRawMode(false) : openRaw())}>
           {rawMode ? 'back to builder' : 'raw json'}
-        </button>
+        </Button>
       </div>
 
       <div className={dirty ? t.saveBarDirty : t.saveBar}>
@@ -309,23 +297,26 @@ function FormatManager({ apiUpdate, app, type, value }) {
           {dirty ? 'unsaved changes — applies to every section on this pattern' : 'no unsaved changes'}
         </span>
         <span className="flex-1" />
-        <button type="button" className={t.btnReset} disabled={!dirty} onClick={resetAttributes}>reset</button>
-        <button type="button" className={t.btnSave} disabled={!dirty || hasInvalidKey} onClick={saveAttributes}>save changes</button>
+        <Button activeStyle="action" disabled={!dirty} onClick={resetAttributes}>reset</Button>
+        <Button activeStyle="primary" disabled={!dirty || hasInvalidKey} onClick={saveAttributes}>save changes</Button>
       </div>
 
       {rawMode ? (
         <div className={t.rawCard}>
-          <label className={t.fieldLabel}>section attributes (json)</label>
-          <textarea
-            rows={14}
-            className={t.rawTextarea}
-            value={rawText}
-            onChange={e => setRawText(e.target.value)}
-          />
+          <FieldLabel htmlFor="format-raw-json" text="section attributes (json)" />
+          <div className={t.rawTextareaWrap}>
+            <Textarea
+              id="format-raw-json"
+              activeStyle="mono"
+              rows={14}
+              value={rawText}
+              onChange={e => setRawText(e.target.value)}
+            />
+          </div>
           {!!rawError && <div className={t.rawError}>{rawError}</div>}
           <div className={t.formFooter}>
-            <button type="button" className={t.cancelBtn} onClick={() => setRawMode(false)}>cancel</button>
-            <button type="button" className={t.doneBtn} onClick={applyRaw}>apply</button>
+            <Button activeStyle="small" onClick={() => setRawMode(false)}>cancel</Button>
+            <Button activeStyle="primary" onClick={applyRaw}>apply</Button>
           </div>
         </div>
       ) : attributes.length === 0 ? (
@@ -333,9 +324,11 @@ function FormatManager({ apiUpdate, app, type, value }) {
           <p className={t.emptyText}>
             No custom attributes. Define one and it appears on every section's editor.
           </p>
-          <button type="button" className={t.addBtn} onClick={addAttribute}>
-            <Icon icon="Plus" className={t.addBtnIcon} /> add attribute
-          </button>
+          <div className={t.addBtnWrap}>
+            <Button activeStyle="actionFull" onClick={addAttribute}>
+              <Icon icon="Plus" className={t.addBtnIcon} /> add attribute
+            </Button>
+          </div>
         </div>
       ) : (
         <>
@@ -363,9 +356,11 @@ function FormatManager({ apiUpdate, app, type, value }) {
               />
             ))}
           </div>
-          <button type="button" className={t.addBtn} disabled={editingIndex !== null} onClick={addAttribute}>
-            <Icon icon="Plus" className={t.addBtnIcon} /> add attribute
-          </button>
+          <div className={t.addBtnWrap}>
+            <Button activeStyle="actionFull" disabled={editingIndex !== null} onClick={addAttribute}>
+              <Icon icon="Plus" className={t.addBtnIcon} /> add attribute
+            </Button>
+          </div>
         </>
       )}
     </div>

@@ -93,7 +93,7 @@ function FilterRows({ filters = [], onChange }) {
 }
 
 export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) => {
-    const { theme } = useContext(ThemeContext);
+    const { theme, UI } = useContext(ThemeContext);
     const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
     const { apiUpdate, app, API_HOST } = useContext(AdminContext);
 
@@ -195,23 +195,23 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
                             subdomain: {subdomain === '*' ? 'none' : subdomain}
                         </span>
                         {subdomain !== '*' && (
-                            <button
-                                type={'button'}
-                                className={t.subdomainRemoveBtn}
+                            <UI.Button
+                                activeStyle='linkMetaDanger'
                                 onClick={() => removeSubdomain(subdomain)}
                             >
                                 remove subdomain
-                            </button>
+                            </UI.Button>
                         )}
-                        <button
-                            type={'button'}
-                            className={t.syncBtn}
-                            disabled={hasUnsavedChanges || sync?.syncing || !filters.length}
-                            title={hasUnsavedChanges ? 'Save filter changes before syncing' : 'Reconcile this filter group into every page (draft-only)'}
-                            onClick={() => syncGroup(subdomain)}
-                        >
-                            {sync?.syncing ? `syncing… ${Math.round((sync.progress || 0) * 100)}%` : 'sync to pages'}
-                        </button>
+                        <span className={t.syncWrap}>
+                            <UI.Button
+                                activeStyle='small'
+                                disabled={hasUnsavedChanges || sync?.syncing || !filters.length}
+                                title={hasUnsavedChanges ? 'Save filter changes before syncing' : 'Reconcile this filter group into every page (draft-only)'}
+                                onClick={() => syncGroup(subdomain)}
+                            >
+                                {sync?.syncing ? `syncing… ${Math.round((sync.progress || 0) * 100)}%` : 'sync to pages'}
+                            </UI.Button>
+                        </span>
                     </div>
                     <div className={t.subdomainBody}>
                         {sync?.message && (
@@ -229,39 +229,37 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
             })}
 
             <div className={t.addSubdomainRow}>
-                <input
-                    className={t.subdomainInput}
-                    placeholder="subdomain name"
-                    value={newSubdomain}
-                    onChange={e => setNewSubdomain(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && addSubdomain()}
-                />
-                <button
-                    type={'button'}
-                    className={t.addSubdomainBtn}
+                <span className={t.addSubdomainField}>
+                    <UI.Input
+                        placeholder="subdomain name"
+                        value={newSubdomain}
+                        onChange={e => setNewSubdomain(e.target.value)}
+                        onKeyDown={e => e.key === 'Enter' && addSubdomain()}
+                    />
+                </span>
+                <UI.Button
+                    activeStyle='small'
                     onClick={addSubdomain}
                 >
                     + add subdomain
-                </button>
+                </UI.Button>
             </div>
 
             <div className={t.saveGrid}>
-                <button
-                    type={'button'}
-                    className={t.btnReset}
+                <UI.Button
+                    activeStyle='action'
                     disabled={isEqual(tmpFilters, normalised)}
                     onClick={() => setTmpFilters(normalised)}
                 >
                     reset
-                </button>
-                <button
-                    type={'button'}
-                    className={t.btnSave}
+                </UI.Button>
+                <UI.Button
+                    activeStyle='primary'
                     disabled={isEqual(tmpFilters, normalised)}
                     onClick={() => apiUpdate({ data: { id: value.id, filters: tmpFilters } })}
                 >
                     save changes
-                </button>
+                </UI.Button>
             </div>
             </div>
         </div>

@@ -10,7 +10,8 @@ import useModalOverlay from "./useModalOverlay";
 export default function Modal ({open, setOpen, initialFocus, children, activeStyle, className}) {
     warnLockedClassName('Modal', className);
     const close = () => setOpen?.(false);
-    useModalOverlay(open, close);
+    const panelRef = React.useRef(null);
+    useModalOverlay(open, close, panelRef, initialFocus);
 
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const theme = { ...modalTheme.styles[0], ...getComponentTheme(themeFromContext, 'modal', activeStyle) };
@@ -26,6 +27,7 @@ export default function Modal ({open, setOpen, initialFocus, children, activeSty
                     className={theme.positioner}
                 >
                     <div
+                        ref={panelRef}
                         onClick={e => e.stopPropagation()}
                         className={theme.panel}
                     >

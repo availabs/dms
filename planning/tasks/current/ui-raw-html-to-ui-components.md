@@ -210,3 +210,109 @@ theme key resolves to and, for buttons, the nearest `UI.Button` role (`=` exact,
 classes). Counts on 2026-10-15 (after the merge of master): admin 137, auth 4, datasets 156, page 174, ui
 composites 117. Admin: about 73 of 102 buttons already equal a role string exactly. Admin list next, for the
 owner's OK.
+
+### Admin list — owner decisions (2026-10-15)
+
+Inventory: 133 raw controls (99 button, 14 input, 18 label, 1 select, 1 textarea). ~73 buttons equal a role
+string exactly; ~12 are a role + layout class (moves to the container); near-role links normalised
+(`subdomainRemoveBtn` / `removeBtn` / `confirmYes` / `dividerRemove` → `linkMetaDanger`, `addOptionBtn` /
+`confirmNo` / `resetBtn` → `linkMeta`, `listAddBtn` → `linkProse`, `listRemoveBtn` → `smallDanger`, formatter
+icon buttons → `iconRow` / `iconRowDanger` + `disabled`, pages-editor `modeBtn` → `segment` / `segmentOn`).
+- [x] Off-role buttons → **new Button roles**: `menuItem` / `menuItemDanger` (page-actions dropdown),
+      `optionCard` / `optionCardOn` (new-site template cards), `iconPick` / `iconPickOn` (user-menu icon grid),
+      `fieldTrigger` (icon-picker trigger), `linkTitle` (activity feed page title).
+- [x] `<label>` → **new `UI.FieldLabel`** (`ui/components/FieldLabel.jsx` + `.theme.js`, theme key `fieldLabel`,
+      styles `default` / `inline`; caption by `htmlFor`, or wraps its control with `text` as the caption). Owner first
+      chose "rebuild UI.Label", then on 2026-10-15 picked FieldLabel once it showed that project themes brand the
+      UI.Label chip (MNY featured-search pills, TNY v2, WCDB, avail_site v1–v10). UI.Label stays the tag chip.
+      Not frozen in `_legacy/ui.js` yet (admin only renders the library theme): freeze before a datasets / page swap.
+- [x] Native `<select>` → **`UI.Select`** (the MultiSelect dropdown, single mode) — applies to datasets / page too.
+- [x] **Delete** dead `admin/ui/index.jsx`, `avail-layout.jsx`, `nav/Side.jsx`, `nav/Top.jsx` + their theme keys.
+- New `mono` / `search` named styles on `UI.Input`, `mono` on `UI.Textarea`; Button roles appended at the end of
+  `button.styles` (indices don't move) and listed empty in `_legacy/ui.js`. `menuItemWarn` added for the amber Discard item; picker search → Input `bare`; checkbox →
+  `ColumnTypes.checkbox`.
+
+### Admin — done 2026-10-15 (uncommitted, library + root on `design-wip`)
+
+Inventory on `patterns/admin`: **0 raw controls** (was 133). Three forks swapped by file group (pages tab files /
+userMenu + formatManager / the rest), each owning its files, no stash; labels done after by the main session.
+- Dead code deleted: `admin/ui/index.jsx`, `index.theme.js`, `avail-layout.jsx`, `avail-layout.theme.js`, `nav/*`
+  (+ `adminLayout` / `adminUi` in `admin/defaultTheme.js`). `admin/ui/icons.jsx` stays (datasets `upload.jsx` imports it).
+- New Button roles (appended, `_legacy` lists them empty): `menuItem` / `menuItemWarn` / `menuItemDanger` (= the v6
+  spec's MENU_ROW / MENU_ROW_W / MENU_ROW_D; the pages ⋯ menu panel took the spec's `p-1`), `optionCard` /
+  `optionCardOn` (= spec PICK / PICK_ON; **frozen** in `_legacy/ui.js` to the old `templateCard` strings because
+  SiteTemplatePicker also renders on the auth sign-up page with the project theme), `iconPick` / `iconPickOn`,
+  `fieldTrigger` (open state via `aria-expanded`), `linkTitle` (block, so it truncates).
+- New: `UI.FieldLabel`; Input `mono` / `search`; Textarea `mono`. Mirrored in `controls.py` + `ui-controls.html`.
+- The extractor's theme-key → class guess takes the first `key:` in the area, so same-named keys in different files
+  mislead it (`addBtn`, `doneBtn`): userMenuEditor keeps discard = `action`, add link = `primary`, done = `small`;
+  pagesEditor + New Page / Publish Selected = `primary`. Read the file's own theme before trusting a mapping.
+- Layout moved to wrappers: `addWrap` (shrink-0), `syncWrap` / `subdomainRemoveWrap` (ml-auto), `deleteWrap`,
+  `listAddWrap`, `addSubdomainField` (`block w-48`: UI.Input fills its container, the old input was ~181px natural),
+  formatManager `addBtnWrap` / `addOptionWrap` / `fieldControl` / `rawTextareaWrap`, userMenu `dividerRemoveWrap`
+  (hover reveal + `focus-within`) and `labelCell` (`flex sm:pt-2` — flex, or the inline label sits on a strut).
+- Look changes (normalised, admin only): remove-subdomain / remove-link / confirm-reset links are pencil → brick on
+  hover (were brick at rest); settings list remove = `smallDanger` (red at rest); "+ add location" proseSM → proseXS;
+  search fields 36 → 32px; formatManager fields lose the well fill, type select is the UI.Select dropdown, locked
+  row icons dim 40% (was 30%), "add attribute" = `actionFull`; Draft/Published toggle = segment in the `scopeSeg`
+  box (was 10px caps pills); queue lens chip active = ink (was amber — no amber chip role); menu rows t-proseSM.
+- Queue checkbox: `ColumnTypes.checkbox.EditComp` with `className={t.queueCheckbox}` — the checkbox column type
+  has no theme yet (its fallback is `w-full border p-2`). Follow-up: theme checkbox / radio column types (needs a
+  `_legacy` freeze; they render in spreadsheet cells on every theme).
+- Left: formatManager's delete-confirm yes / no are clickable `<span>`s (not in the inventory) → `linkMetaDanger` /
+  `linkMeta` later. `settings.theme.js` `btnReset` / `btnSave` kept: `src/patterns/qa/admin/*` reads them.
+- Verified: live HEAD (:5198 worktree) vs working tree (:5199) control class-diff on /list, /list/create,
+  /list/themes and every pattern-editor tab of pattern 27, incl. the ⋯ menu, expanded sections, attribute edit,
+  user-menu item editor + icon picker, delete confirm — only the intended changes above, no page errors. Not
+  reachable on the test data: the multi-tenant tenant modal and the template cards (class strings checked by
+  resolution). Build OK (15 Catalyst `has()` CSS warnings, pre-existing); eslint ≤ HEAD on every file
+  (FieldLabel.jsx: 4 `react/prop-types`, like Button / Switch).
+
+- Owner-reported 2026-10-15: Pages tab State column — the unpublished-changes dot wrapped below the Published pill
+  (pre-existing: the table's `cellInner` is `flex flex-wrap … px-4` and `publish_state` merged it onto its pill row;
+  110px column − 32px padding < pill 68 + gap 4 + dot 8). Fixed: `columnTypes/publishState.jsx` puts `className` on a
+  wrapper and the pill + dot in a nowrap row; column size 110 → 120. Checked with an injected dot (inline, in the cell).
+
+- Owner answers 2026-10-15 ("checkbox should not use classname… format manager's spans should be buttons. do the
+  fieldlabel _legacy freeze"), all done:
+  - `ColumnTypes.checkbox` themed like radio: `columnTypes/checkbox.theme.js` (`theme.checkbox` styles, keys `input` /
+    `wrapper`; v6 16px ink accent), registered in `ui/defaultTheme.js`; `activeStyle` picks the style; a host
+    `className` (TableCell passes the cell class) is overridden — `{...rest}` comes before `className={t.input}`.
+    `_legacy/ui.js` `checkbox` freezes project themes to the old no-className fallback (`w-full border p-2`; view
+    wrapper `text-sm font-light truncate`, minus a stray `bg-red-500`). Note: in table cells the old checkbox wore
+    the cell's class; that no longer reaches it on any theme. pagesEditor `queueCheckbox` key deleted.
+  - formatManager delete-confirm yes / no → `UI.Button` `linkMetaDanger` / `linkMeta` (yes is pencil → brick on
+    hover; was brick + semibold at rest); `confirmYes` / `confirmNo` keys deleted. Checked live (Playwright: add
+    attribute → delete → confirm row → no restores the icons). Same-pattern spans remain in page `TemplateManager`.
+  - `_legacy/ui.js` `fieldLabel`: project themes get a plain gray label (`block text-sm font-medium text-gray-700
+    mb-1`; inline without block / mb), not the v6 mono eyebrow.
+  - Resolution checked through the real chain (Vite SSR loadThemes → getPatternTheme → getComponentTheme): default =
+    v6 checkbox / FieldLabel; mnyv1, transportnyv2, landbank, wcdb = the frozen values (and optionCard frozen).
+
+### Auth — done 2026-10-15 (uncommitted)
+
+Inventory on `patterns/auth`: **0 raw controls** (was 4).
+- Modal close (Add user, Reset password, Add a group) → `UI.Button` `iconRow` (was a bare 16px icon; now the 28px
+  row icon, as in the spec's modal). `modalCloseBtn` deleted from `auth/defaultTheme.js` and the pages' local fallbacks.
+- `ViewAsBar` renders from the auth provider, outside every ThemeContext (default `null`): it now provides the
+  library default theme + UI itself (`ui/themeContext` + `ui/defaultTheme` + `ui`; no import cycle — `ui` imports no
+  pattern). Exit → new Button role **`smallWarn`** (amber twin of `smallDanger`; was a solid amber-300 fill); group
+  chips → `UI.Pill` `tag`. `exitButton` / `groupPill` deleted. The bar itself is still hardcoded Tailwind amber (not a
+  control; a later theming pass), and the neutral `tag` chip reads a little grey on it.
+- `smallWarn` mirrored in `controls.py` / `ui-controls.html` (Small block); listed empty in `_legacy/ui.js`.
+- Verified live (HEAD :5198 vs :5199): users / groups pages, both Add modals, Reset password modal, View As bar —
+  only the intended changes; the `placeHolder` console warning is on HEAD too. Build OK; lint = HEAD.
+
+- Owner 2026-10-15: ViewAsBar group chips → Pill `status_amber` (not `tag`). Keyboard in modals ("it starts from
+  page and then reaches the close button"): not tabindex — `ui/components/useModalOverlay.js` (shared by Modal /
+  DeleteModal / Dialog) now moves focus into the panel on open (`initialFocus` ref — Modal / Dialog took that prop
+  but ignored it — else the first focusable control), traps Tab / Shift+Tab in the topmost open panel, Escape closes
+  only the topmost, and focus returns to the opener on close (body when the opener unmounted, e.g. a ⋯ menu item).
+  `onClose` is read from a ref so the effect runs only when `open` changes (callers pass a fresh close each render;
+  re-running would yank focus mid-typing). No library. Checked live: Users "Add new" (HEAD: focus stayed on the page;
+  now Close → email → Add → wraps, Shift+Tab wraps back, typing keeps focus, Escape returns to "Add new"); Pages tab
+  delete modal (single Cancel keeps focus). Also inlined checkbox.jsx's theme read (package CLAUDE.md: no 1–2 line
+  wrappers around ThemeContext + getComponentTheme).
+
+Next area: datasets (156 — 10 `<select>` → UI.Select, 12 tables → UI.Table), page (174), ui composites
+(117). `fieldLabel` is frozen in `_legacy/ui.js`.

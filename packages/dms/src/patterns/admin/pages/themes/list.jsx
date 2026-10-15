@@ -136,12 +136,12 @@ function ThemeList ({
 							})
 					}
 					<div className={t.modalActions}>
-						<button
-							className={t.btnAdd}
+						<UI.Button
+							activeStyle='primary'
 							onClick={() => addNewValue({...newItem, theme_id: nameToSlug(newItem.name || '')})}
 						>
 							add
-						</button>
+						</UI.Button>
 					</div>
 				</div>
 			</Modal>

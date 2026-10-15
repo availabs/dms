@@ -17,8 +17,11 @@ export function PublishStateView({ value, className = '' }) {
 
     const isDraft = published === 'draft';
 
+    // className is the table's cell class (flex-wrap + padding): it goes on the wrapper, and the pill + dot
+    // sit in their own row that never wraps, so the unpublished-changes dot stays beside the pill.
     return (
-        <span className={`inline-flex items-center gap-1 ${className}`}>
+        <span className={className}>
+        <span className="inline-flex items-center gap-1 whitespace-nowrap">
             {isDraft ? (
                 <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-50 text-amber-700 border border-amber-200">
                     Draft
@@ -34,6 +37,7 @@ export function PublishStateView({ value, className = '' }) {
                     title="Unpublished changes"
                 />
             )}
+        </span>
         </span>
     );
 }

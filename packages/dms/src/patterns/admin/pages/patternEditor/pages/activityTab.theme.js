@@ -18,7 +18,6 @@ export const activityTabTheme = {
     feedActor: 't-metaXS text-[var(--t-pencil)] hidden md:block',
     feedTime: 't-metaXS text-[var(--t-pencil)] w-16 text-right flex-none',
 
-    activityPageLink: 't-proseSM font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)] text-left bg-transparent border-none cursor-pointer p-0 truncate',
     activityPageName: 't-proseSM font-medium text-[var(--t-ink)] truncate',
     activityEmpty: 'flex items-center justify-center h-32 text-[var(--t-pencil)] t-proseSM italic',
 

@@ -11,7 +11,6 @@ export const editThemeTheme = {
     headerThemeName: 't-displayMD text-[var(--t-ink)] truncate',
     componentSelectorWrapper: 'min-w-[180px]',
     exampleSelectorWrapper: 'min-w-[180px]',
-    backButton: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
 
     body: 'flex flex-1 min-h-0',
     // Preview left, controls sidebar right — matches

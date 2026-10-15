@@ -27,7 +27,6 @@ export default function AuthGroups (props) {
         tableHeaderCell: "flex gap-3 items-center",
         modalHeader: "flex items-center justify-between mb-2",
         modalTitle: "text-lg font-semibold text-gray-700",
-        modalCloseBtn: "text-gray-400 hover:text-gray-700",
         modalBody: "flex flex-row gap-3",
         notice: "",
         ...(theme?.auth?.authPages?.manage || {}),
@@ -88,9 +87,9 @@ export default function AuthGroups (props) {
             <Modal open={addingNew} setOpen={setAddingNew}>
                 <div className={m.modalHeader}>
                     <div className={m.modalTitle}>Add a group</div>
-                    <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setAddingNew(false)}>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setAddingNew(false)}>
                         <Icon icon="XMark" />
-                    </button>
+                    </Button>
                 </div>
                 <div className={m.modalBody}>
                     <Input type={'text'}

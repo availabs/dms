@@ -35,6 +35,8 @@ export const settingsEditorTheme = {
     saveBarDirty: 'flex items-center gap-3 px-4 py-2.5 rounded-lg border border-[var(--t-amber)] bg-[var(--t-amber-soft)] sticky top-0 z-10',
     saveBarText: 't-metaSM text-[var(--t-graphite)]',
     saveBarTextDirty: 't-metaSM text-[var(--t-amber)]',
+    // btnReset / btnSave: no longer read here (UI.Button action / primary); kept for the QA pattern
+    // (src/patterns/qa/admin configureTab + patternSettings read theme.admin.settingsEditor).
     btnReset: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
     btnSave: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]',
 
@@ -57,14 +59,12 @@ export const settingsEditorTheme = {
     listSection: 'flex flex-col gap-2 p-4',
     listHint: 't-proseXS text-[var(--t-graphite)]',
     listRow: 'w-full flex items-center gap-2',
-    listRemoveBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-pencil)] hover:border-[var(--t-brick)] hover:text-[var(--t-brick)]',
-    listAddBtn: 'inline-flex items-center gap-1 cursor-pointer rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] w-fit',
+    listAddWrap: 'w-fit',
 
     // DmsEnvConfig
     envGrid: 'grid grid-cols-12 gap-3 p-4',
     envColWide: 'col-span-6',
     envColMid: 'col-span-6',
-    envLabel: 't-metaXS text-[var(--t-pencil)] mb-1 block',
     envInputRow: 'flex gap-2',
     envSwitchRow: 'px-4 py-2.5 border-t border-[var(--t-rule)] flex items-center gap-3',
     envSwitchLabel: 't-metaXS text-[var(--t-pencil)]',
@@ -82,12 +82,9 @@ export const settingsEditorTheme = {
     dangerRow: 'px-4 py-3 flex flex-wrap items-center gap-3',
     dangerRowTitle: 't-proseSM font-medium text-[var(--t-ink)]',
     dangerRowDesc: 't-proseXS text-[var(--t-graphite)] mt-0.5',
-    btnDuplicate: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
-    btnDelete: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] flex-none',
+    deleteWrap: 'flex-none',
     confirmRow: 'flex items-center gap-2',
     confirmText: 't-proseSM text-[var(--t-brick)]',
-    btnConfirmDelete: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM font-medium border-[var(--t-brick)] bg-[var(--t-brick)] text-[var(--t-accent-ink)] hover:opacity-90',
-    btnCancelDelete: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
     duplicateProgressBox: 'mt-3 border border-[var(--t-rule)] rounded-md bg-[var(--t-well)] px-3 py-2.5 w-full',
     duplicateProgressBar: 'h-1 rounded-full bg-[var(--t-rule)] mt-2.5 overflow-hidden',
     duplicateProgressFill: 'h-full bg-[var(--t-cobalt)] rounded-full',

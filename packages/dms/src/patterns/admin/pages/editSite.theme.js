@@ -43,10 +43,7 @@ export const editSiteTheme = {
 
     toolbarFilterRow: 'flex flex-wrap items-center gap-3 mt-2.5',
     filterCount: 't-metaSM text-[var(--t-pencil)]',
-    sortBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
     chipsWrapper: 'flex items-center gap-1.5 flex-wrap',
-    chip: 'inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] border-[var(--t-rule)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]',
-    chipActive: 'inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full border t-metaXS cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)]',
     // The table's own card — this page previously had NO local card at all; the
     // white-box look came entirely from siteConfig.jsx's outer `SectionGroup`
     // wrapping the WHOLE page (title + table) in one card, so the title read as
@@ -78,14 +75,11 @@ export const editSiteTheme = {
     emptyValue: 'p-2 text-[14px] text-[var(--t-pencil)]',
     btnNoShrink: 'shrink-0',
     iconLabel: 'hidden',
-    duplicateBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
-    deleteBtn: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]',
     noAccessBadge: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-pencil)] justify-end w-full',
 
     // Edit / Add modal actions
     modalEditActions: 'w-full flex items-center justify-start gap-0.5',
     modalAddActions: 'w-full flex items-center justify-start',
-    btnAdd: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)] m-1',
 
     // Delete confirmation modal
     deleteModal: 'flex flex-col gap-4 p-2',
@@ -99,12 +93,10 @@ export const editSiteTheme = {
     tenantModalForm: 'flex flex-col gap-3 p-1',
     tenantModalTitle: 'text-lg font-semibold text-[var(--t-ink)]',
     fieldGroup: 'flex flex-col gap-1',
-    fieldLabel: 'text-sm text-[var(--t-graphite)]',
     errorText: 'text-sm text-[var(--t-brick)]',
     tenantModalActions: 'flex items-center gap-2 pt-1',
 
     // RenderFilters
     filtersWrapper: 'flex flex-col gap-1 p-1 border border-[var(--t-rule)] rounded-md',
-    filtersLabel: 'text-sm',
     filterRow: 'grid grid-cols-3 gap-1',
 }

@@ -28,7 +28,6 @@ export const patternPickerTheme = {
   confirmField: 'flex flex-col gap-1 flex-1',
   urlField: 'flex flex-col gap-1 max-w-[160px]',
   fieldLabel: 'text-xs font-semibold text-[var(--t-graphite)]',
-  fieldInput: 'border border-[var(--t-rule-strong)] rounded-md px-2.5 h-8 text-sm text-[var(--t-ink)] w-full outline-none focus:border-[var(--t-ink)] bg-[var(--t-panel)] placeholder:text-[var(--t-pencil)]',
   emptyArea: 'border-t border-[var(--t-rule)] px-4 py-3 text-center text-sm text-[var(--t-pencil)] italic',
-  btnAdd: 'inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)] h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)] shrink-0',
+  addWrap: 'shrink-0',
 }

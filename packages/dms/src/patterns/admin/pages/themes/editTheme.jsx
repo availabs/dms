@@ -31,6 +31,7 @@ const compOptions = [
 	{ label: 'SideNav', value: 'SideNav' },
 	{ label: 'Switch', value: 'Switch' },
 	{ label: 'FileInput', value: 'FileInput' },
+	{ label: 'FieldLabel', value: 'FieldLabel' },
 	{ label: 'Table', value: 'Table' },
 	{ label: 'Tabs', value: 'Tabs' },
 	{ label: 'TopNav', value: 'TopNav' },
@@ -173,7 +174,7 @@ function ComponentList ({
 					</div>
 				</div>
 				<span className='flex-1' />
-				<button className={t.backButton} onClick={() => navigate(-1)}>back</button>
+				<UI.Button activeStyle='action' onClick={() => navigate(-1)}>back</UI.Button>
 			</div>
 			<div className={t.body}>
 				<div className={t.sidebar}>
