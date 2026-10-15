@@ -4,6 +4,7 @@ import { get } from "lodash-es"
 import {createRequest, getIdPath} from './createRequest.js'
 import processNewData from "./proecessNewData.js";
 import updateDMSAttrs from "./updateDMSAttrs.js";
+import { isSplitType } from "../utils/type-utils.js";
 // import * as DmsManagerUtils from '../dms-manager/_utils.js'
 // const { getActiveConfig } = DmsManagerUtils
 //console.log('hola')
@@ -505,8 +506,14 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			await sync.bootstrapPattern(type);
 		}
 
-		// Use sync for: updates/deletes of known types, AND creates (type may not be in scope yet)
-		const isSyncEligible = sync && requestType !== 'updateType' && (sync.isLocal(app, type) || (!id && attributeKeys.length > 0));
+		// Use sync for: updates/deletes of known types, AND creates (type may not be in scope yet).
+		// Never for dataset rows (split `:data` types): /sync/push writes the app's main table, not
+		// the dataset's split table, and skips the controller's change history, so a synced
+		// dataset-row create was invisible and an update matched nothing. Sync never mirrors
+		// these rows anyway (bootstrap/delta exclude them, startup purges local copies), so they
+		// take the Falcor path below. The bootstrapPattern await above stays: it is what
+		// subscribes this tab to the dataset's WebSocket channel.
+		const isSyncEligible = sync && requestType !== 'updateType' && !isSplitType(type) && (sync.isLocal(app, type) || (!id && attributeKeys.length > 0));
 		if (_DEV) {
 			console.log(`[dms:api] EDIT ${app}+${type} req=${requestType || 'save'} id=${id || 'new'} → ${isSyncEligible ? 'LOCAL SYNC' : sync ? 'FALCOR' : 'FALCOR (sync not ready)'}`);
 		}

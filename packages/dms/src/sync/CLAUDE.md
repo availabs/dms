@@ -97,7 +97,7 @@ The old SQLite-backed storage exposed a generic `useQuery(sql, params, deps, sco
 ### `api/index.js`
 - **`_setSyncAPI(api)` / `_getSyncAPI()`**: Sync API reference stored on `globalThis.__dmsSyncAPI` to avoid Vite module instance duplication. Set by `dmsSiteFactory.jsx` after init.
 - **`dmsDataLoader`**: Intercepts `list`/`view`/`edit` actions. If type not yet in scope, calls `sync.bootstrapPattern(type)` (fire-and-forget — falls through to Falcor for the current request, next navigation benefits once the background bootstrap completes). If `sync.isLocal(app, type)`, runs `loadFromLocalDB()` which reads via `sync.getItemsByAppType`/`sync.getItemsByIds`/`sync.getItem` and resolves dms-format child refs locally.
-- **`dmsDataEditor`**: Intercepts creates/updates/deletes. Uses `sync.beginBatch()`, processes dms-format children via `sync.localCreate()`/`localUpdate()` (only if `_dirty`), handles parent item, then `sync.endBatch()`.
+- **`dmsDataEditor`**: Intercepts creates/updates/deletes. Uses `sync.beginBatch()`, processes dms-format children via `sync.localCreate()`/`localUpdate()` (only if `_dirty`), handles parent item, then `sync.endBatch()`. **Dataset rows (split `:data` types) are never intercepted** — they go through Falcor, as in a sync-off build. `/sync/push` writes the app's main table and skips the controller's change history, so a synced dataset-row create was invisible to every dataset read and an update 404'd (`sync-split-row-writes-misrouted.md`). The editor still awaits `bootstrapPattern(type)` for them first, which is what subscribes the tab to that dataset's WebSocket channel.
 
 ### `render/spa/dmsSiteFactory.jsx`
 - Gates sync on `VITE_DMS_SYNC === '1'`.
