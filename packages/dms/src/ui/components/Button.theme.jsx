@@ -107,7 +107,7 @@ export const buttonTheme = {
 
 export const buttonSettings = (theme) => [
   {
-    label: "Layout Group Styles",
+    label: "Button Styles",
     type: 'inline',
     controls: [
       {
@@ -125,7 +125,7 @@ export const buttonSettings = (theme) => [
         children: <div>Add Style</div>,
         onClick: (e, setState) => {
           setState(draft => {
-            draft.buttons.styles.push({ ...draft.buttons.styles[0], name: 'new style', })
+            draft.button.styles.push({ ...draft.button.styles[0], name: 'new style', })
 
           })
         }
@@ -148,7 +148,7 @@ export const buttonSettings = (theme) => [
     ]
   },
   {
-    label: "LayoutGroup",
+    label: "Button",
     type: 'inline',
     controls: [
       ...Object.keys(theme?.button?.styles?.[theme?.button?.options?.activeStyle || 0] || {} )
@@ -156,7 +156,7 @@ export const buttonSettings = (theme) => [
           return {
             label: k,
             type: 'Textarea',
-            path: `button.styles[${theme?.layoutGroup?.options?.activeStyle}].${k}`
+            path: `button.styles[${theme?.button?.options?.activeStyle || 0}].${k}`
           }
         })
     ]

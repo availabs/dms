@@ -1,6 +1,6 @@
 # Port tessera_v6 into the library's own default component themes
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
@@ -52,11 +52,21 @@ ported in [datasets-page-pattern-v6-port.md](../completed/datasets-page-pattern-
 2026-10-15); the auth manage pages (Users / Groups / Profile) in the admin port and the UI controls effort
 ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)). Auth sign-in / sign-up
 accents are still cobalt (owner skipped; carried in
-[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md)).
+[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md)).
 
-**Still open in this task:** the Phase A components with no tessera match (`nestable`, `nestableInHouse`,
-`map`, `pageTemplates`, `siteTemplates`; see "Phase A" below) and the MNY reskin of Users / Groups / Profile
-("Not done yet" below). `table` is done (below).
+**Closed 2026-10-15 (owner).** The last open items:
+- `nestable` (`draggableNav.jsx`) and `nestableInHouse`: done. Owner: "draggablenav and nestable are used in
+  multiple places like the pages pane and column menu in section menu. they show correct look."
+- `pageTemplates.js` / `siteTemplates.js`: not applicable. They are template data (which patterns and pages a
+  new site or page starts with), not styling; the pickers that show them are themed (the site template cards
+  were redone with the New site page, 2026-10-15).
+- MNY reskin of Users / Groups / Profile: superseded. Since
+  [admin-theme-per-project.md](../completed/admin-theme-per-project.md) (closed 2026-10-14) those pages render
+  through `getAdminTheme` (library default on every site, only the project's logo), so there is no MNY look to build.
+- `map` (`ui/components/map/map.theme.js`): **deferred, not ported** (owner: "we're not styling map in this
+  session"). Still needs a real design pass: the library's `legend` / `popup` / `hover` are deep nested objects
+  consumed by `useMapLegendTheme.js` / `HoverComponent.jsx`; tessera's `map` is 5 flat keys.
+- `table`: done (below).
 
 **Admin's port — now has its own dedicated task file:**
 [`admin-pattern-v6-port.md`](../completed/admin-pattern-v6-port.md) (split out 2026-09-20, per this file's own
@@ -342,11 +352,11 @@ post-port are pre-existing and unrelated (unused `React`/`_` imports, missing `p
       much simpler table than the library's real Table component surface. **Real follow-up needed:**
       a semantic (not literal-name) mapping pass — this is one of the most visually pervasive
       components (every dataset/Card table) and currently gets ZERO tessera styling from this task.
-- [ ] **`ui/components/draggableNav.jsx` (`nestableTheme`) → tessera `nestable` — NOT ported, zero
+- [x] **Done (owner 2026-10-15: correct look in the pages pane and the section menu's column menu).** Original note: **`ui/components/draggableNav.jsx` (`nestableTheme`) → tessera `nestable` — NOT ported, zero
       name overlap.** Tessera's `nestable.styles[0]` (`wrapper`/`item`/`handle`/`dropZone`) vs. this
       file's flat `container`/`navListContainer`/`navItemContainer`/`navLink`/`subList`/… — no
       matching names. Same follow-up need as table.
-- [ ] **`ui/components/nestableInHouse/index.jsx` — NOT ported, no tessera equivalent at all.**
+- [x] **Done (owner 2026-10-15, as above).** Original note: **`ui/components/nestableInHouse/index.jsx` — NOT ported, no tessera equivalent at all.**
       Confirmed via case-insensitive grep of `tessera-theme-v6.js` for "nestable" — only one hit,
       the same `nestable` const already checked against `draggableNav.jsx` above (no match there
       either). Left completely untouched.
@@ -372,14 +382,14 @@ post-port are pre-existing and unrelated (unused `React`/`_` imports, missing `p
       (including `toggleButton`/`toggleIcon` both mapped to `hidden`, faithfully matching tessera's
       panel style); tessera's `chip` style (`styles[1]`) not used, per the styles[]-array rule; several
       library-only keys (active-token chips, inline-switch row, search-key styling) left as-is.
-- [ ] **`ui/components/map/map.theme.js` — NOT ported.** Tessera's `map` (5 flat keys, `legend` as one
+- [ ] **Deferred (owner 2026-10-15: not this session).** **`ui/components/map/map.theme.js` — NOT ported.** Tessera's `map` (5 flat keys, `legend` as one
       class string) vs. the library's `styles[]`-based shape where `legend`/`popup`/`hover` are deep
       ~30-key nested objects actively consumed by `useMapLegendTheme.js`/`HoverComponent.jsx`. The one
       shared key name (`legend`) holds incompatible types (string vs. object) — porting it would wipe
       out real functionality. **Needs a real design pass**, not a mechanical port.
-- [ ] **`ui/pageTemplates.js` (`defaultPageTemplates`) — NOT ported, no tessera equivalent exists.**
+- [x] **Not applicable: template data, not styling (2026-10-15).** **`ui/pageTemplates.js` (`defaultPageTemplates`) — NOT ported, no tessera equivalent exists.**
       Confirmed via grep — tessera has never designed page-template chrome.
-- [ ] **`ui/siteTemplates.js` (`defaultSiteTemplates`) — NOT ported, same reason as above.**
+- [x] **Not applicable, as above.** **`ui/siteTemplates.js` (`defaultSiteTemplates`) — NOT ported, same reason as above.**
 
 ## Follow-up — conformed tessera_v6 itself to the real component shapes (2026-09-15)
 
@@ -739,7 +749,7 @@ noise as before (confirmed `MultiSelect.theme.js` itself is fully lint-clean).
 
 ### Not done yet (per the user's stated sequencing: default first, then MNY)
 
-MNY reskin of Users/Groups/Profile — not started. `mny/auth.js`'s `authPages` doesn't have a `manage`
+**Superseded 2026-10-15:** these pages render through `getAdminTheme` (library default + project logo) since admin-theme-per-project.md. Was: MNY reskin of Users/Groups/Profile — not started. `mny/auth.js`'s `authPages` doesn't have a `manage`
 key at all yet (only the `manageLayoutGroupStyle` fix from earlier this session). MNY's own manage pages
 currently render via this SAME new tessera-default `manage` object (since MNY doesn't override it) —
 confirmed by the earlier-this-session live check showing MNY's Users page with the padding fix; that
@@ -783,15 +793,26 @@ this file itself isn't `patterns/admin/`).
 
 ## Testing Checklist
 
-- [ ] Phase A: after each file (or small batch), `npm run dev`, load a pattern with NO
+- [x] (Checked since on every default-theme page of the datasets / page / admin v6 ports, 2026-10-06 → 10-15.) Phase A: after each file (or small batch), `npm run dev`, load a pattern with NO
       `selectedTheme` set, confirm the touched component now renders tessera-styled.
-- [ ] Confirm an explicitly-themed project (e.g. transportny) still renders correctly — spot-check
+- [x] (2026-09-16 live check on MNY; HEAD-baseline pixel diffs on MNY / TNY / landbank throughout the v6 ports.) Confirm an explicitly-themed project (e.g. transportny) still renders correctly — spot-check
       that its own overrides still win, and that any key it DIDN'T override now shows tessera's
       look instead of the old neutral default (expected, not a bug).
-- [ ] `npx eslint` clean on every touched file.
-- [ ] No regression in the admin theme-editor UI (`themeEditor.jsx`) — it reads `*Settings()`
+- [x] `npx eslint` clean on every touched file (only pre-existing errors, checked against `git show HEAD:<path>`; see "Final state verified").
+- [x] (2026-10-15, see "Closing check" below.) No regression in the admin theme-editor UI (`themeEditor.jsx`) — it reads `*Settings()`
       functions from several of these files; confirm the settings panel still renders/edits properly
       for at least Button and Input after their port.
-- [ ] tessera's own site (`tessera_v6` explicitly selected) — spot check no regression, since it
+- [x] (2026-09-16 live check on `tessera-test`.) tessera's own site (`tessera_v6` explicitly selected) — spot check no regression, since it
       still merges its OWN theme on top of this now-tessera-flavored base (should be a no-op
       visually, but the base changing under it is worth one look).
+
+## Closing check — theme editor (2026-10-15)
+
+Pattern Editor → Theme on the local test site (:5199, pattern 27). The Button settings panel rendered, but
+`buttonSettings` (`ui/components/Button.theme.jsx`, since 2026-04-19, copied from the LayoutGroup settings) had
+three bugs, fixed: headings read "Layout Group Styles" / "LayoutGroup" (now "Button Styles" / "Button"); "Add
+Style" pushed to `draft.buttons` (typo, now `draft.button`); the class fields wrote to
+`button.styles[<layoutGroup's activeStyle>]` (now the Button's own active style). Verified: picking `primary`
+shows its class string and an edit lands in `button.styles[3].button` in the raw overrides (not saved). Input
+has no settings function (`ui/themeSettings.js` registers none), so it isn't in the theme editor; nothing to
+regress there.

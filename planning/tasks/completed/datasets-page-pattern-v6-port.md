@@ -7,7 +7,7 @@
 The sibling of [`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md). The admin surfaces (sites,
 themes, pattern editor, users, groups, profile, login) are done; this file covers the two remaining
 pattern families — **datasets** and **page** — and takes over the page/datasets half of
-[`tessera-component-theme-port.md`](../current/tessera-component-theme-port.md)'s unstarted **Phase B**
+[`tessera-component-theme-port.md`](./tessera-component-theme-port.md)'s unstarted **Phase B**
 (that file's `patterns/auth` bullet is already covered by the admin port).
 
 ## Current status (2026-10-13) — read first
