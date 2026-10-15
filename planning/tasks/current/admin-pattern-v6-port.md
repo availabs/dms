@@ -1,6 +1,6 @@
 # Admin pattern v6 port — Pattern Editor redesign + access-control fixes
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing (was: "Current status (2026-09-22) … State as of 2026-09-23: Pages tab carets + table borders") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 **Project:** DMS library (`src/dms` submodule)
 
@@ -809,7 +809,7 @@ no page errors.
 
 ## Not started / next steps
 
-1. **MNY admin reskin** — **now planned as its own task: [`admin-theme-per-project.md`](../completed/admin-theme-per-project.md)** (scope decided 2026-09-22: logo only — the auth pattern's theme's `admin.logo` overrides the default for admin + manage pages; colors/fonts stay default). Original note: MNY's own admin surface (`mny_admin`
+1. ~~**MNY admin reskin**~~ **Done (2026-10-14, owner closed):** logo only, via the auth pattern's theme `admin.logo`; see [`admin-theme-per-project.md`](../completed/admin-theme-per-project.md)** (scope decided 2026-09-22: logo only — the auth pattern's theme's `admin.logo` overrides the default for admin + manage pages; colors/fonts stay default). Original note: MNY's own admin surface (`mny_admin`
    theme) still hasn't had its own pass; everything done so far is the shared tessera-default look
    only. Confirmed earlier (`tessera-component-theme-port.md`) that `mny_admin`'s auth-page theming
    is correct via its `{...mny, ...theme, Icons}` shallow-spread inheritance, so MNY's login/signup
@@ -833,8 +833,9 @@ no page errors.
 Say: **"Continue the admin pattern v6 port — see
 `src/dms/planning/tasks/current/admin-pattern-v6-port.md`."** The shared tessera-default admin
 surface is now fully ported (all 7 mockup-covered tabs, the ThemeToggle/breadcrumb chrome cleanup,
-and the full-width pass are all done) — **next session should pick up item 1, the MNY admin
-reskin**, before Create-site.
+and the full-width pass are all done; Page Templates and Format Manager implemented 2026-09-21).
+**Status 2026-10-15:** item 1 (MNY admin) is done; what's left is item 2, the **Create-site flow** (no
+mockup yet), then the item 3 sanity pass before calling the admin port done.
 
 ## State as of 2026-09-23: Pages tab carets + table borders
 

@@ -1,6 +1,6 @@
 # Raw HTML controls → UI components
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
