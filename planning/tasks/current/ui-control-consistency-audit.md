@@ -14,7 +14,7 @@ Review page for the inventory: https://claude.ai/artifact/6v1t9R9v9yXJge6zV4RmVm
 | this file | hub: decisions, rules, resume notes | in progress |
 | [ui-control-inventory.md](./ui-control-inventory.md) | Deliverable 1: every button / pill / table found, by kind | done |
 | [ui-control-spec-and-mockups.md](./ui-control-spec-and-mockups.md) | the spec page `ui-controls.html`, the mockup re-skin, the owner's later calls (tabs ink, batch 2, 32px fields) | done |
-| [ui-control-library-port.md](./ui-control-library-port.md) | porting the spec into the library default, area by area | steps 1, 2a, 2b done; 2d auth partly |
+| [ui-control-library-port.md](../completed/ui-control-library-port.md) | porting the spec into the library default, area by area | steps 1, 2a, 2b done; 2d auth partly |
 | [ui-control-classname-to-activestyle.md](./ui-control-classname-to-activestyle.md) | moving buttons off `className={t.key}` onto `activeStyle` | 25 admin + 7 auth done |
 | [ui-control-tables.md](./ui-control-tables.md) | tables: UI.Table 'list' style (P4), datasets lists onto it, ink grid states | in progress (2026-10-14) |
 | [default-theme-color-variant.md](./default-theme-color-variant.md) | a second, more colourful default theme | not started, after this |
@@ -52,7 +52,7 @@ asked. Root `stash@{0}` "design new" is an old backup the owner may drop (ask fi
    shared **ui (8)** (Card form buttons, Permissions removeBtn), admin filterEditor `clearAllBtn`;
    then lock `Button.jsx` (drop className / themeOptions from the class), then Input / MultiSelect /
    Table. After the lock: [ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md) (raw
-   `<button>` etc. → UI components; owner: lock first). Open: should TNY v2 / MNY define their own `action` / `primary` / `danger`?
+   `<button>` etc. → UI components; owner: lock first). Open: should TNY v2 / MNY define their own `action` / `primary` / `danger`? **Answered 2026-10-14:** the button work covered the mechanism (unset roles fall back to the theme's own default; `withLegacyUi` derives `actionFull` / `dangerFull` / `dangerSolid`), but neither theme defines its own roles: MNY has none, TNY v2 has only `danger`. So on TNY v2 the normalised `action` / `primary` buttons render as its default, a mono text link. Defining them is a brand choice, not done.
 2. Library port step 2e: datasets.
 3. Auth leftovers: sign-in submit (`sectionGroupTheme.actionButton`) skipped by the owner;
    user-group chips in the Users table and the selected-cell outline are still cobalt (asked, no

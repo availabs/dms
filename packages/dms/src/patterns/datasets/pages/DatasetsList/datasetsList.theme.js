@@ -31,7 +31,8 @@ export const datasetsListTheme = {
     viewBtn: 'w-8 h-7 inline-flex items-center justify-center rounded text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer',
     viewBtnActive: 'w-8 h-7 inline-flex items-center justify-center rounded bg-[var(--t-ink)] text-[var(--t-paper)] cursor-pointer',
     viewBtnIcon: 'size-4',
-    newBtn: 'h-8 inline-flex items-center gap-1.5 px-3.5 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)]',
+    // ink controls (owner 2026-10-14: "turn it into ink"; were cobalt) — the primary matches UI.Button 'primary'
+    newBtn: 'h-8 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-md border border-[var(--t-ink)] t-proseSM font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)] whitespace-nowrap',
     newBtnIcon: 'Plus',
     newBtnText: 'new source',
 
@@ -39,7 +40,7 @@ export const datasetsListTheme = {
     body: 'flex-1 min-h-0 flex flex-row gap-6 pl-6 lg:pl-12 pr-6 lg:pr-8 pt-6',
     sidebar: 'hidden md:flex w-56 flex-none flex-col gap-0.5 h-full overflow-y-auto pb-6',
     sidebarItem: 'flex items-center gap-2 px-2 py-1.5 rounded-md t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
-    sidebarItemActive: 'flex items-center gap-2 px-2 py-1.5 rounded-md t-proseSM font-medium bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
+    sidebarItemActive: 'flex items-center gap-2 px-2 py-1.5 rounded-md t-proseSM font-medium bg-[var(--t-well)] text-[var(--t-ink)]',
     sidebarItemText: 'flex-1 min-w-0 truncate flex items-center gap-2',
     sidebarDot: 'size-2 rounded-full shrink-0',
     sidebarBadge: 'ml-auto shrink-0 t-metaXS tabular-nums text-[var(--t-pencil)]',
@@ -51,7 +52,7 @@ export const datasetsListTheme = {
     sidebarHiddenIcon: 'EyeClosed',
     sidebarHiddenIconClass: 'size-3.5 shrink-0',
     sidebarSubItem: 'flex items-center ml-3 pl-4 pr-2 py-1 border-l border-[var(--t-rule)] t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
-    sidebarSubItemActive: 'flex items-center ml-3 pl-4 pr-2 py-1 border-l-2 border-[var(--t-cobalt)] t-proseXS font-medium text-[var(--t-cobalt)]',
+    sidebarSubItemActive: 'flex items-center ml-3 pl-4 pr-2 py-1 border-l-2 border-[var(--t-ink)] t-proseXS font-medium text-[var(--t-ink)]',
 
     // card grid / stack
     sourceGrid: 'flex-1 min-w-0 grid grid-cols-1 xl:grid-cols-2 gap-4 content-start h-full overflow-y-auto pb-6 pr-1',

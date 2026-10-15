@@ -1,5 +1,4 @@
 import { breadcrumbsTheme } from './components/Breadcrumbs.theme'
-import { sourceTableTheme } from './components/sourceTable.theme'
 import { datasetsListTheme } from './pages/DatasetsList/datasetsList.theme'
 import { categoriesTheme } from './pages/DatasetsList/categories.theme'
 import { metadataCompTheme } from './components/MetadataComp/metadataComp.theme'
@@ -26,7 +25,6 @@ import { runsPageTheme } from './pages/dataTypes/schedule/runsPage.theme'
 
 export default {
     breadcrumbs: breadcrumbsTheme,
-    table: sourceTableTheme,
     datasetsList: datasetsListTheme,
     categories: categoriesTheme,
     metadataComp: metadataCompTheme,

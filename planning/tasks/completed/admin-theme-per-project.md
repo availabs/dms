@@ -1,6 +1,6 @@
 # Per-project admin logo via a theme's `admin` key (selected by the auth pattern)
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** built (was: "IMPLEMENTED + verified live 2026-09-22 (SPA). Uncommitted. Open: SSR check, and the theme-editor che…") · **Release:** review — live logo sizing pass with the owner + SSR check, then commit · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** shaunak.sangdod@gmail.com
 
 **Status: IMPLEMENTED + verified live 2026-09-22 (SPA). Uncommitted. Open: SSR check, and the theme-editor check for a pattern-level `theme.admin`.** Split out of
 [`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md)'s "Not started / next steps" item 1 (MNY
@@ -328,3 +328,8 @@ an explicit `null`; see the nested-merge memory).
   - **All themes:** no page errors, no horizontal overflow. Screenshots were checked by eye.
 - **Not verified:** SSR first paint; the login pages and public pages (their code paths are
   untouched and they don't read `theme.admin`).
+
+
+## Closed 2026-10-14
+
+Owner: "mark it done". Closed as built; the open SSR / theme-editor checks were not run before closing.

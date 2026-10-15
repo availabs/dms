@@ -15,8 +15,8 @@ export const breadcrumbsTheme = {
     li:        'flex items-center gap-2 min-w-0 first:shrink-0',
     separator: 't-metaMD text-[var(--t-pencil)]',
     homeLink:  'inline-flex items-center gap-1.5 shrink-0 whitespace-nowrap t-metaMD text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
-    homeIcon:  'size-4 text-[var(--t-cobalt)]',
+    homeIcon:  'size-4 text-[var(--t-ink)]',
     homeLabel: 'lowercase',
     link:      't-metaMD text-[var(--t-graphite)] hover:text-[var(--t-ink)] truncate',
-    current:   't-metaMD text-[var(--t-cobalt)] truncate',
+    current:   't-metaMD text-[var(--t-ink)] truncate',
 }

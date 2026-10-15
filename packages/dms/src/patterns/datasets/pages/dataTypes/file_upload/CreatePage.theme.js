@@ -5,7 +5,7 @@
 const RULE = 'border-[var(--t-rule)]';
 const BTN = 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md t-proseSM cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 const ACTION = `${BTN} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
-const INPUT = 'block w-full rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] px-3 py-2 t-proseSM text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] focus:outline-none focus:border-[var(--t-cobalt)]';
+const INPUT = 'block w-full rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] px-3 py-2 t-proseSM text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] focus:outline-none focus:border-[var(--t-ink)]';
 
 export const createPageTheme = {
     // CreatePage

@@ -1,6 +1,6 @@
 # UI controls — library port of the v6 control looks
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub.
 
@@ -18,8 +18,8 @@ area by area. **Rule:** only the default theme changes; project themes keep thei
       [ui-control-classname-to-activestyle.md](./ui-control-classname-to-activestyle.md). The sign-in
       pages' cobalt submit (`sectionGroupTheme.actionButton`) is skipped for now (owner). Still cobalt:
       the user-group chips in the Users table.
-- [ ] Step 2e: datasets
-- [ ] P4: `UI.Table` 'list' style for the admin / auth lists
+- [x] Step 2e: datasets (audit + fixes 2026-10-14)
+- [x] P4: `UI.Table` 'list' style for the admin / auth lists (2026-10-14, [ui-control-tables.md](./ui-control-tables.md))
 
 ### Library port — step 1: UI.Button (2026-10-13, owner: "start the library port")
 
@@ -201,3 +201,51 @@ logo), so these apply to every site's admin. No legacy freeze is involved.
   "EMPTY 2" (light + dark) and Activity "EDITS 1". The site list's chips carry the count inline, so they
   were fine.
 
+
+### Step 2e: datasets — AUDIT (2026-10-14, owner: "#2 audit"; nothing changed)
+
+Datasets default-theme keys checked against the spec rules (ink primary, ink focus, links in text stay cobalt,
+running status may be cobalt, no hardcoded palette). Already done elsewhere: buttons (className → activeStyle
+roles), lists (UI.Table 'list'), catalog rail + "+ new source" (ink, 10/14), tabs (ink), version Delete.
+
+**Still off-spec:**
+1. **Cobalt primary buttons (4)** → ink primary: `admin.theme.js` `addVersionBtn`; `sourceOverview.theme.js`
+   `promoBtn`, `verAuthSave`, `verDownloadBtnPrimary`. (All raw elements — could go straight to `UI.Button
+   'primary'` under the raw-HTML task.)
+2. **Cobalt field focus (10)** → ink focus (`focus:border-[var(--t-ink)]`): `upload.theme.js` FIELD,
+   `categories.theme.js` `input`, `admin.theme.js` `addVersionInput`, `sourceOverview.theme.js` `glanceInput` /
+   `verAuthInput` / `verAuthTextarea`, `CreatePage.theme.js` INPUT, `gisCreate.theme.js` FIELD,
+   `gisMap.theme.js` INPUT / `editTextarea`.
+3. **Breadcrumb** `Breadcrumbs.theme.js` `current` cobalt → ink (owner Group 1, 10/13: "the current breadcrumb
+   item → ink"); `homeIcon` cobalt (keep as a logo-mark? decide).
+4. **Cobalt text buttons** → spec: `categories.theme.js` `stopBtn` (→ linkMeta look) and `plus` hover;
+   `sourceOverview.theme.js` `colFooter` "+ N more columns" (mockup: graphite → ink hover).
+5. **Unported upstream components, hardcoded gray / blue / red:** the version **lineage card**
+   (`sourceOverview.theme.js` `linCard` / `linLabel` / `linItem` / `linLink` / `linMeta` / `linMissing`) and
+   **ChangeHistoryEditor** (`ChangeHistoryEditor.theme.js`, internal source admin) — no v6 port, wrong in dark mode.
+6. **Dead:** `components/sourceTable.theme.js` (`datasets.table`) has no consumer — delete (+ any `_legacy` /
+   project copies) after a final check.
+
+Kept (correct per rules): link-in-text cobalt (`cardView`, `emptyLink`, `colMetaLink`, `fileUrl`,
+`deleteModalLink`, `outputLink`, hover-cobalt names), `statusRunning`, the overview Req dot (mockup draws it
+cobalt). Project themes: each fix needs its pre-change value in `_legacy/datasets.js` if not already frozen.
+
+### Step 2e — fixes applied (2026-10-14, owner: "add version seems ink? but go ahead, do #2.1 … 2.6 and close it"; "breadcrumb icon turns ink")
+
+- "Add version" (the sidebar opener) was already ink; the cobalt one was the modal's `add` submit (`addVersionBtn`).
+- 2.1 ink primary: `addVersionBtn`, `promoBtn`, `verAuthSave`, `verDownloadBtnPrimary`.
+- 2.2 ink focus: upload `FIELD`, categories `input`, `addVersionInput`, `glanceInput`, `verAuthInput`,
+  `verAuthTextarea`, file-upload `INPUT`, gis create `FIELD`, gis map `INPUT` / `editTextarea`.
+- 2.3 breadcrumb `homeIcon` + `current` → ink.
+- 2.4 categories `stopBtn` → pencil / ink hover, `plus` hover ink; overview `colFooter` → graphite / ink hover.
+- 2.5 lineage card (`verInputsChangedChip` → amber status chip, `lin*` → tokens, link stays cobalt) and
+  ChangeHistoryEditor (matches the Access panel) ported; pre-change values frozen in `_legacy/datasets.js`
+  (`sourceOverview` lin*, new `changeHistoryEditor` block). TNY v2 keeps its own `linCard`.
+- 2.6 `components/sourceTable.theme.js` + its `datasets.table` registration deleted (no reader).
+- All other keys were already frozen in `_legacy/datasets.js` (checked key by key, incl. every key using the
+  shared FIELD / INPUT consts). Verified: build OK; MNY / TNY / landbank internal admin + catalog
+  pixel-identical to HEAD (overview / version diffs are the earlier, intended list-table and Delete version
+  changes); default internal admin light + dark (change history = Access panel look), breadcrumb ink.
+  Lineage card not seen live (no lineage data).
+
+**Task closed 2026-10-14.** Step 2d's auth sign-in submit stays as the owner left it (skipped).

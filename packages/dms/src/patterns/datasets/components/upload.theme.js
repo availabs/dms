@@ -4,7 +4,7 @@
 // src/themes/_legacy/datasets.js `upload`.
 const RULE = 'border-[var(--t-rule)]';
 const CARD = `rounded-lg border ${RULE} bg-[var(--t-panel)]`;
-const FIELD = 'h-8 w-full px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] cursor-pointer focus:outline-none focus:border-[var(--t-cobalt)]';
+const FIELD = 'h-8 w-full px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] cursor-pointer focus:outline-none focus:border-[var(--t-ink)]';
 const LABEL = 't-metaXS text-[var(--t-pencil)]';
 
 export const uploadTheme = {

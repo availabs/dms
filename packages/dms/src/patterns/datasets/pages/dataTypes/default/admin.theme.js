@@ -46,11 +46,11 @@ export const adminTheme = {
     addVersionTitle: 't-displaySM text-[var(--t-ink)]',
     addVersionLabel: 'block mt-3 mb-1 t-metaXS text-[var(--t-pencil)]',
     addVersionHint: 'mt-1 t-proseXS text-[var(--t-pencil)]',
-    addVersionInput: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]',
+    addVersionInput: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]',
     addVersionError: 'mt-2 t-proseXS text-[var(--t-brick)]',
     addVersionFooter: 'mt-5 flex justify-end gap-2',
     addVersionCancelBtn: 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
-    addVersionBtn: 'h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] disabled:opacity-40 cursor-pointer',
+    addVersionBtn: 'h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] disabled:opacity-40 cursor-pointer',
 
     // Delete-source modal (components/DeleteSource.jsx — DAMA + DMS; one hard delete, type-name confirm)
     deleteModalBody: 'text-left',

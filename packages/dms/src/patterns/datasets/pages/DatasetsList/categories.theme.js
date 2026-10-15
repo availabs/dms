@@ -13,7 +13,7 @@ export const categoriesTheme = {
     spanner: 'hidden',
 
     // Plus — add a sub-category
-    plus: 'inline-flex items-center justify-center size-5 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-cobalt)] hover:bg-[var(--t-well)] cursor-pointer',
+    plus: 'inline-flex items-center justify-center size-5 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
     plusIcon: 'size-3',
 
     // CategoryList
@@ -26,10 +26,10 @@ export const categoriesTheme = {
 
     // SourceCategories
     sourceCategoriesNewWrapper: 'flex flex-col gap-2 mt-2 pt-2 border-t border-[var(--t-rule)]',
-    stopBtn: 'w-fit t-metaXS text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)] cursor-pointer',
+    stopBtn: 'w-fit t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
 
     // Input
-    input: 'w-full t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] px-2.5 h-8 outline-none focus:border-[var(--t-cobalt)]',
+    input: 'w-full t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] px-2.5 h-8 outline-none focus:border-[var(--t-ink)]',
 
     // CategoryAdder
     categoryAdderWrapper: 'w-full',

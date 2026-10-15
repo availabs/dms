@@ -44,7 +44,7 @@ export const sourceOverviewTheme = {
     fileName:       't-proseSM font-medium text-[var(--t-ink)]',
     fileUrl:        'block t-metaMD text-[12px] text-[var(--t-cobalt)] hover:underline break-all',
     fileEmpty:      'py-3 text-center t-proseSM text-[var(--t-pencil)]',
-    colFooter:      'w-full px-4 py-2.5 t-metaXS text-[var(--t-cobalt)] hover:bg-[var(--t-well)] text-left cursor-pointer',
+    colFooter:      'w-full px-4 py-2.5 t-metaXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] text-left cursor-pointer',
 
     // At a glance card
     glanceCard:      `${CARD} p-4`,
@@ -54,7 +54,7 @@ export const sourceOverviewTheme = {
     glanceValue:     't-proseSM text-[var(--t-ink)] text-right',
     glanceValueNum:  't-metaMD text-[var(--t-ink)] tabular-nums',
     glanceValueEdit: 'flex items-center gap-1.5',
-    glanceInput:     'w-36 text-right t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] px-2 py-0.5 outline-none focus:border-[var(--t-cobalt)]',
+    glanceInput:     'w-36 text-right t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] px-2 py-0.5 outline-none focus:border-[var(--t-ink)]',
     glanceEditBtn:   'inline-flex items-center justify-center size-5 rounded text-[var(--t-pencil)] hover:text-[var(--t-ink)] opacity-0 group-hover:opacity-100 cursor-pointer',
     glanceEditIcon:  'size-3',
 
@@ -67,7 +67,7 @@ export const sourceOverviewTheme = {
     promoHint: 't-proseSM text-[var(--t-graphite)] mt-1',
     promoBlockers: 'mt-2 space-y-1',
     promoBlocker: 't-proseSM text-[var(--t-ink)] flex items-start gap-2 before:content-["•"] before:text-[var(--t-amber)]',
-    promoBtn: 'mt-3 h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
+    promoBtn: 'mt-3 h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] cursor-pointer',
     promoBtnDisabled: 'mt-3 h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium bg-[var(--t-well)] text-[var(--t-pencil)] cursor-not-allowed',
     demoteBtn: 'mt-2 t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-amber)] cursor-pointer',
     catSwatches: ['#0A46D8', '#B97516', '#1F8A4C', '#CA3214', '#50545C', '#6B4FBB', '#0F7C8C', '#9C3B6E'],
@@ -93,7 +93,7 @@ export const sourceOverviewTheme = {
     verMeta:               't-metaXS text-[var(--t-pencil)] mt-1',
     verDownloadWrap:       'relative shrink-0',
     verDownloadBtn:        'h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS font-medium text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
-    verDownloadBtnPrimary: 'h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border border-transparent t-proseXS font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
+    verDownloadBtnPrimary: 'h-8 inline-flex items-center gap-1.5 px-2.5 rounded-md border border-transparent t-proseXS font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] cursor-pointer',
     verDownloadIcon:       'size-3.5',
     verCaretIcon:          'size-3',
     verMenu:               `absolute right-0 top-full mt-1 z-20 w-48 p-1 ${CARD} shadow-[var(--t-shadow-drag)]`,
@@ -115,24 +115,26 @@ export const sourceOverviewTheme = {
     verAuthCheck:          'flex items-start gap-2 t-proseXS text-[var(--t-graphite)]',
     verAuthKeys:           'space-y-1.5',
     verAuthKeyRow:         'flex items-center gap-2',
-    verAuthInput:          'h-7 flex-1 min-w-0 px-2 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]',
-    verAuthTextarea:       'w-full px-2 py-1.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]',
+    verAuthInput:          'h-7 flex-1 min-w-0 px-2 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]',
+    verAuthTextarea:       'w-full px-2 py-1.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]',
     verAuthError:          't-proseXS text-[var(--t-brick)]',
     verAuthButtons:        'flex items-center gap-3',
-    verAuthSave:           'h-7 inline-flex items-center px-3 rounded-md t-proseXS font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] cursor-pointer',
+    verAuthSave:           'h-7 inline-flex items-center px-3 rounded-md t-proseXS font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] cursor-pointer',
     verAuthSaveDisabled:   'h-7 inline-flex items-center px-3 rounded-md t-proseXS font-medium bg-[var(--t-panel)] text-[var(--t-pencil)] cursor-not-allowed',
     verAuthCancel:         't-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
 
     // ── view lineage + delete version (components/LineageControls.jsx, default/outputs.jsx) ──
-    verInputsChangedChip:  'inline-flex items-center px-1.5 h-4 rounded border border-violet-300 bg-violet-50 text-[9px] uppercase tracking-wide text-violet-800',
-    linCard:               'rounded-lg border border-gray-200 bg-white shadow-sm p-3 space-y-3',
+    // v6 2026-10-14 (step 2e audit): was hardcoded gray / blue / violet (upstream 10/09), wrong in dark mode;
+    // pre-change values frozen in src/themes/_legacy/datasets.js `sourceOverview`
+    verInputsChangedChip:  'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-amber-soft)] text-[var(--t-amber)]',
+    linCard:               `${CARD} p-4 space-y-3`,
     linSection:            'space-y-1',
-    linLabel:              'text-xs uppercase tracking-wide text-gray-500',
+    linLabel:              't-metaXS text-[var(--t-pencil)]',
     linList:               'flex flex-col gap-1',
-    linItem:               'flex items-baseline gap-2 text-sm text-gray-800',
-    linLink:               'text-sm text-blue-700 hover:underline',
-    linMeta:               'text-xs text-gray-400',
-    linMissing:            'text-sm text-gray-400',
+    linItem:               'flex items-baseline gap-2 t-proseSM text-[var(--t-ink)]',
+    linLink:               't-proseSM text-[var(--t-cobalt)] hover:underline',   // link in text
+    linMeta:               't-metaXS text-[var(--t-pencil)]',
+    linMissing:            't-proseSM text-[var(--t-pencil)]',
     // External (DAMA) Delete version — buttons are UI.Button roles (dangerFull / action / dangerSolid), 2026-10-14
     verDeleteIcon:         'TrashCan',        // '' → no icon
     verDeleteIconClass:    'size-3.5',

@@ -141,3 +141,20 @@ To be listed per area in step 1. A grep for each element across `packages/dms/sr
 - [ ] Keyboard: each swapped control is still focusable, with the theme's focus ring
 - [ ] Forms still submit / don't submit as before (`type` on swapped buttons)
 - [ ] Build clean, eslint same as HEAD
+
+## Added 2026-10-14 (owner: "#1 should be covered under ui-raw-html-to-ui-components")
+
+**Pattern-drawn pills → `UI.Pill` kinds** (status / status_go / amber / brick / cobalt, marker, count, tag,
+tag_sub — see [ui-control-pills.md](./ui-control-pills.md)). Spans styled by pattern theme keys today:
+- admin: type / count / scope / level pills (`editSite.theme.js` `typePill`, `AddPatternPicker` `optTag`,
+  format-manager / user-menu counts, `noAccessBadge`)
+- datasets: category / admin / namespace pills (`sourceOverview` `catPill` / `catSubPill` / `adminPill`),
+  task + upload status badges (`UdaTaskPage` `statusBadge`, uploads `StatusCell`)
+- auth: the user's group chip
+- `UI.Label` (only used as a section tag chip) → the `tag` kind.
+Same recipe as the rest of this task: list per area, owner OK, swap, drop the pattern keys (library +
+`_legacy`), HEAD-baseline diff on project themes.
+
+Also from the table work: the spreadsheet add-row / inline-save / actions-column buttons in
+`ui/components/table/index.jsx` and `RenderActions.jsx` are still raw `<button>`s reading theme keys
+(frozen for project themes) → `UI.Button` roles here.

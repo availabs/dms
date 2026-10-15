@@ -136,11 +136,10 @@ export const multiselectTheme = {
         {
             name: 'accent',
             tokenWrapper: [
-                'inline-flex items-center gap-x-1 rounded-full px-2 py-0.5',
-                'font-mono text-xs font-normal',
-                'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
-                'border border-[var(--t-cobalt-line)] hover:border-[var(--t-cobalt)]',
-                'transition-colors duration-150',
+                // owner 2026-10-14 "turn it into ink": the spec's tag (was cobalt-soft / cobalt rounded-full mono;
+                // frozen for project themes in src/themes/_legacy/ui.js `multiselect`)
+                'inline-flex items-center gap-1 h-6 px-1.5 rounded',
+                'bg-[var(--t-well)] t-proseXS text-[var(--t-ink)]',
                 'whitespace-nowrap',
             ].join(' '),
         },

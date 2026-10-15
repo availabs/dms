@@ -9,7 +9,7 @@ const TITLE = 'flex-1 min-w-0 truncate t-proseSM font-medium text-[var(--t-ink)]
 const ICON_BTN = 'size-6 rounded inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer';
 const BTN = 'h-7 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-md t-proseXS cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 const ACTION = `${BTN} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
-const INPUT = 'w-full h-7 px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-metaMD text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]';
+const INPUT = 'w-full h-7 px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-metaMD text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]';
 const TICKS = 't-metaMD text-[10px] text-[var(--t-graphite)]';
 
 export const gisMapTheme = {
@@ -150,6 +150,6 @@ export const gisMapTheme = {
     // Edit (Map.jsx)
     editWrapper: 'flex flex-col gap-2',
     editRow: 'w-full',
-    editTextarea: 'w-full min-h-40 t-metaMD text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded p-3 outline-none focus:border-[var(--t-cobalt)]',
+    editTextarea: 'w-full min-h-40 t-metaMD text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded p-3 outline-none focus:border-[var(--t-ink)]',
     editActions: 'flex gap-2',
 }

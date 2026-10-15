@@ -3,7 +3,7 @@
 // from components/CreateStep.jsx; these keys style what's inside them. Pre-v6 values (and the inline
 // style={} objects, behind `legacyInlineStyles`) frozen in src/themes/_legacy/datasets.js `gisCreate`.
 const RULE = 'border-[var(--t-rule)]';
-const FIELD = 'h-8 w-full px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] focus:outline-none focus:border-[var(--t-cobalt)] disabled:opacity-50';
+const FIELD = 'h-8 w-full px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] focus:outline-none focus:border-[var(--t-ink)] disabled:opacity-50';
 const TH = 'px-3 py-2 text-left font-normal t-metaXS text-[var(--t-pencil)] bg-[var(--t-well)]';
 const ERR_TABLE = 'w-full mt-3 rounded-lg border border-[var(--t-brick)] overflow-hidden text-left border-separate border-spacing-0';
 const CHECK = 'size-4 accent-[var(--t-ink)] cursor-pointer disabled:cursor-not-allowed';
