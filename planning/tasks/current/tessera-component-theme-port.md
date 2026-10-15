@@ -59,7 +59,7 @@ accents are still cobalt (owner skipped; carried in
 ("Not done yet" below). `table` is done (below).
 
 **Admin's port — now has its own dedicated task file:**
-[`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md) (split out 2026-09-20, per this file's own
+[`admin-pattern-v6-port.md`](../completed/admin-pattern-v6-port.md) (split out 2026-09-20, per this file's own
 earlier note that a task this size needed one). Themes list/edit, Users/Groups/Profile, and — as of
 2026-09-20 — the Pattern Editor's Overview/Access pages, sidenav restructure, and a real
 access-control bug fix are all done there. Pages/Activity/Data tabs, Create-site flow, and the MNY

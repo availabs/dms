@@ -20,9 +20,11 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 	const { state: navState } = useNavigation();
 	const isLoading = navState === 'loading';
 
-	const {Input, Button} = UI;
+	const {Input, Button, Icon} = UI;
 	const [newUser, setNewUser] = React.useState({email: '', password: '', verify: ''});
-	const [status, setStatus] = React.useState('');
+	// progress: index into STEPS while creating; error: the message when a run fails
+	const [step, setStep] = React.useState(0);
+	const [error, setError] = React.useState('');
 	const [newSite, setNewSite] = React.useState({ site_name: '' });
 	const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
 	const [submitting, setSubmitting] = React.useState(false);
@@ -41,7 +43,8 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 	async function createSite () {
 		if(newSite?.site_name?.length > 3 && newUser.email ) {
 			setSubmitting(true);
-			setStatus('Setting up authentication…');
+			setError('');
+			setStep(0);
 			try {
 				const res = await AuthAPI.callAuthServer(`/init/setup`, {
 					email: newUser.email,
@@ -53,13 +56,13 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				if (res.error
 					&& res.error !== 'duplicate key value violates unique constraint "groups_pkey"'
 					&& !/already initialized/.test(res.error)) {
-					setStatus(`Auth Init Data ${res.error}`);
+					setError(`Auth Init Data ${res.error}`);
 					setSubmitting(false);
 					return;
 				}
 
 				// 1. Create the site
-				setStatus('Creating site…');
+				setStep(1);
 				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
 				if (!siteResult?.id) throw new Error('Site row was not created.');
 
@@ -77,7 +80,7 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				// siteId makes provisioning register each pattern on the site
 				// as it's created, so an interrupted flow still leaves a
 				// working (partial) site instead of orphaned patterns.
-				setStatus('Creating site content from template…');
+				setStep(2);
 				const pageTemplates = theme?.page_templates ?? [];
 				const { allPatternRefs: templatePatternRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
 					app,
@@ -104,7 +107,7 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				}
 
 				// 5. Auto-login so the user lands directly on the admin edit page
-				setStatus('Signing you in…');
+				setStep(3);
 				const loginRes = await AuthAPI.callAuthServer(`/login`, {
 					email: newUser.email,
 					password: newUser.password,
@@ -118,7 +121,7 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 				navigate(baseUrl || '/');
 			} catch (error) {
 				console.error('Error creating site:', error);
-				setStatus(`Error creating site: ${error.message || error}`);
+				setError(`${error.message || error}`);
 				setSubmitting(false);
 			}
 		}
@@ -134,78 +137,129 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 	// 			 follow above steps
 	// create a public group
 
+	const nameTooShort = newSite.site_name.length > 0 && newSite.site_name.length <= 3;
+	const mismatch = newUser.verify.length > 0 && newUser.password !== newUser.verify;
+	const canCreate = !submitting && newSite.site_name.length > 3 && !!newUser.email && newUser.password === newUser.verify;
+
 	return (
 		<div className={t.wrapper}>
-			<div className={t.form}>
-				<InputComp
-					Comp={Input}
-					label='Create Your Site'
-					placeholder='Site Name'
-					value={newSite.site_name}
-					onChange={(e) => setNewSite({...newSite, ['site_name']: e.target.value })}
-				/>
-
-				<InputComp
-					Comp={Input}
-					type={'text'}
-					label='Email'
-					placeholder='email'
-					value={newUser.email}
-					onChange={(e) => setNewUser({...newUser, ['email']: e.target.value})}
-				/>
-				<InputComp
-					Comp={Input}
-					type={'password'}
-					label='Password'
-					placeholder='password'
-					value={newUser.password}
-					onChange={(e) => setNewUser({...newUser, ['password']: e.target.value})}
-				/>
-				<InputComp
-					Comp={Input}
-					type={'password'}
-					label='Verify Password'
-					placeholder='verify password'
-					value={newUser.verify}
-					onChange={(e) => setNewUser({...newUser, ['verify']: e.target.value})}
-				/>
-
-				<SiteTemplatePicker
-					siteTemplates={siteTemplates}
-					selectedTemplateId={selectedTemplateId}
-					onSelect={setSelectedTemplateId}
-				/>
-
-				<div>
-					<Button disabled={ submitting || (newUser.password !== newUser.verify) || !newSite.site_name } onClick={createSite}>
-						{submitting ? 'Creating…' : 'Create'}
-					</Button>
-				</div>
-				<div>
-					{status}
+			<div className={t.header}>
+				<h1 className={t.headerTitle}>New site</h1>
+				<p className={t.headerSubtitle}>Name the site, set up its first admin, and pick what it starts with.</p>
+			</div>
+			<div className={t.grid}>
+				<div className={t.formColumn}>
+					{submitting ? (
+						<div className={t.progress}>
+							<p className={t.progressTitle}>Creating {newSite.site_name}</p>
+							<Steps t={t} Icon={Icon} current={step} />
+							<p className={t.progressHint}>Keep this page open until it finishes.</p>
+						</div>
+					) : (
+						<form className={t.form} onSubmit={(e) => { e.preventDefault(); if (canCreate) createSite(); }}>
+							{error && (
+								<div className={t.formSection}>
+									<div className={t.errorBox}>
+										<p className={t.errorTitle}>{"Couldn't create the site"}</p>
+										<p className={t.errorText}>{error}</p>
+									</div>
+									<Steps t={t} Icon={Icon} current={step} failed />
+								</div>
+							)}
+							<div className={error ? t.formSectionDivided : t.formSection}>
+								<p className={t.sectionLabel}>site</p>
+								<Field t={t} label='site name' hint='At least 4 characters.' error={nameTooShort && 'At least 4 characters.'}>
+									<Input
+										value={newSite.site_name}
+										placeholder='e.g. Riverbend County Hazard Plan'
+										aria-invalid={nameTooShort || undefined}
+										onChange={(e) => setNewSite({...newSite, site_name: e.target.value})}
+									/>
+								</Field>
+							</div>
+							<div className={t.formSectionDivided}>
+								<p className={t.sectionLabel}>first admin</p>
+								<Field t={t} label='email'>
+									<Input
+										type='email'
+										value={newUser.email}
+										placeholder='you@example.org'
+										onChange={(e) => setNewUser({...newUser, email: e.target.value})}
+									/>
+								</Field>
+								<div className={t.fieldPair}>
+									<Field t={t} label='password'>
+										<Input
+											type='password'
+											value={newUser.password}
+											placeholder='password'
+											onChange={(e) => setNewUser({...newUser, password: e.target.value})}
+										/>
+									</Field>
+									<Field t={t} label='verify password' error={mismatch && "Passwords don't match."}>
+										<Input
+											type='password'
+											value={newUser.verify}
+											placeholder='verify password'
+											aria-invalid={mismatch || undefined}
+											onChange={(e) => setNewUser({...newUser, verify: e.target.value})}
+										/>
+									</Field>
+								</div>
+								<p className={t.sectionHint}>{"This account becomes the site's admin. You're signed in when the site is ready."}</p>
+							</div>
+							{siteTemplates.length > 0 && (
+								<div className={t.formSectionDivided}>
+									<p className={t.sectionLabel}>start from</p>
+									<SiteTemplatePicker
+										label={null}
+										siteTemplates={siteTemplates}
+										selectedTemplateId={selectedTemplateId}
+										onSelect={setSelectedTemplateId}
+									/>
+								</div>
+							)}
+							<div className={t.formFooter}>
+								<Button type='submit' activeStyle={t.submitButtonStyle} disabled={!canCreate}>Create site</Button>
+							</div>
+						</form>
+					)}
 				</div>
 			</div>
-	 	</div>
+		</div>
 	)
 }
 
-function InputComp({label, value, placeholder="", onChange, type='text', Comp}) {
-  const { theme } = React.useContext(ThemeContext)
-  const t = { ...createSiteTheme, ...(theme?.admin?.createSite || {}) }
-  return (
-      <div className={t.inputWrapper} data-headlessui-state="">
-         {label && <label data-slot="label" className={t.inputLabel}>{label}</label>}
-         <span data-slot="control" className={t.inputControlSpan}>
-          <Comp
-              type={type}
-            value={value}
-            placeholder={placeholder}
-            onChange={onChange}
-            className={t.input}
-            data-autofocus=""
-          />
-         </span>
-      </div>
+const STEPS = ['Setting up authentication', 'Creating site', 'Creating site content from template', 'Signing you in'];
 
-  )
+// The four stages createSite() moves through. `failed` lists the steps up to the one that failed.
+function Steps({ t, Icon, current, failed }) {
+	const steps = failed ? STEPS.slice(0, current + 1) : STEPS;
+	return (
+		<ol className={t.progressSteps}>
+			{steps.map((label, i) => {
+				const state = i < current ? 'done' : i === current && !failed ? 'now' : 'todo';
+				return (
+					<li key={label} className={`${t.step} ${state === 'done' ? t.stepDone : state === 'now' ? t.stepNow : t.stepTodo}`}>
+						{state === 'done' && <span className={t.stepIconDone}><Icon icon='Check' className={t.stepIconDoneGlyph} /></span>}
+						{state === 'now' && <span className={t.stepIconNow}><span className={t.stepIconNowDot} /></span>}
+						{state === 'todo' && <span className={t.stepIconTodo} />}
+						{label}
+					</li>
+				);
+			})}
+		</ol>
+	);
+}
+
+function Field({ t, label, hint, error, children }) {
+	return (
+		<div className={t.field}>
+			<label>
+				<span className={t.fieldLabel}>{label}</span>
+				{children}
+			</label>
+			{error ? <p className={t.fieldError}>{error}</p> : hint ? <p className={t.fieldHint}>{hint}</p> : null}
+		</div>
+	)
 }

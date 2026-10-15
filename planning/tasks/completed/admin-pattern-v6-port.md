@@ -1,6 +1,6 @@
 # Admin pattern v6 port — Pattern Editor redesign + access-control fixes
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 **Project:** DMS library (`src/dms` submodule)
 
@@ -818,15 +818,52 @@ no page errors.
    project, by design). Scope this out at the start of that session: which pages/components get an
    MNY-specific look, whether there's an existing MNY mockup or design reference to work from, and
    whether it's a full parallel `mny_admin`-namespaced theme pass or a targeted set of overrides.
-2. **Create-site flow** — still not designed (`patterns/admin/pages/createSite.jsx`), per the original
-   admin-port blocker list. Still on the default (un-fixed) `SectionGroup` card/padding at its
+2. ~~**Create-site flow**~~ **Done 2026-10-15** (see "Create-site — DONE" below). Was: still not designed
+   (`patterns/admin/pages/createSite.jsx`), per the original admin-port blocker list. Still on the default (un-fixed) `SectionGroup` card/padding at its
    `create` route in `siteConfig.jsx` — same padding-stacking bug pattern, not yet touched.
-3. Per the standing insulation-pass lesson (`[[feedback_no_concurrent_git_stash_parallel_agents]]`'s
+3. **Done 2026-10-15 (see below).** Per the standing insulation-pass lesson (`[[feedback_no_concurrent_git_stash_parallel_agents]]`'s
    sibling risk, not the stash issue itself): whenever any of the above lands, check whether any
    project's own admin.theme.js-equivalent silently relies on a key this pass changed. Not checked yet
    for this session's `SideNav.theme.jsx` `'admin'` style or `Permissions.theme.js` — low risk since
    both are net-new keys/styles, not edits to pre-existing shared defaults, but worth a quick sanity
    pass before calling the admin port "done."
+
+## Create-site — DONE 2026-10-15 (owner: "give me a mock good enough … implement it")
+
+- Mockup: `design_system_v6/pages/admin-create-site.html` (approved). Title + subtitle, one form card in sections
+  (site / first admin / start from), radio template cards, and a states strip (not ready / creating / failed).
+  Owner follow-up (same day): "padding and width differ from mockup. remove what gets created" — the "what gets
+  created" note is gone from both, and the owner chose the sibling geometry: the page keeps Sites / Themes /
+  Pattern Editor's layout (layout `p-5 lg:p-8`, `max-w-5xl` column, rule under the title) and the mockup was
+  corrected to it (it had a full-width header band and a wider grid no live admin page uses). Measured equal:
+  title, rule and a 1024px form card at the same offsets; only the shared mockup shell's 224px sidebar (live 240)
+  differs, as on every admin mockup. Same fields and rules as before; new in presentation only: the > 3-character name
+  rule and the password mismatch shown inline, progress as a step list (the four existing status strings).
+- `createSite.jsx`: fields are `UI.Input` default style (they passed a dropped `className` to the locked Input
+  before), `aria-invalid` for the brick border; Create is `UI.Button 'primary'` (type submit), disabled until the
+  name has > 3 characters, an email is set and the passwords match; `step` / `error` state replace the single
+  status string; the form is replaced by the step list while creating; on failure the error box + the steps
+  reached show above the form and Create is enabled again. Provisioning logic unchanged.
+- `SiteTemplatePicker.jsx`: radio cards (`button role="radio"`, keyboard reachable; was a clickable div), optional
+  `label` (the page passes `null` and uses its section label). Shared with TenantList's "Add tenant" modal and
+  the multi-tenant sign-up page: those get the new card look too. The picker was already on v6 tokens for every
+  theme (2026-09-17), so no project theme had its own look to freeze.
+- `createSite.theme.js` rewritten (v6 tokens); `siteConfig.jsx` route: `SectionGroup card={false} padding="p-0"
+  maxWidth="max-w-5xl"`, like Sites / Themes (no more card-in-card).
+- Verified live (second Vite on :5195 against the sqlite scratch server, empty apps `v6create` / `v6create2`):
+  empty, invalid (both messages, Create disabled), filled (Create enabled, radio selection), a real end-to-end
+  create with the Report template (step list advanced, landed on `/list` signed in, auth + admin + Report
+  patterns), and a failure (simulated `/init/setup` error: error box, form back, Create enabled). Light + dark.
+  No console errors. Build OK; eslint: only `react/prop-types` (package convention) + the pre-existing hook-deps
+  warning.
+
+## Item 3 sanity pass — DONE 2026-10-15
+
+Every project theme's `admin` key holds logo fields only (`logo`, `img`, `imgClass`, `title`, …); none overrides
+an admin page key. tessera / tessera_v6 spread a 62-key `adminTheme` token bag into `admin`, none of which
+matches a library admin key (checked by loading both through Vite SSR), so it changes nothing. WCDB's and TNY
+v2's styles named `admin` are their own layout / pill styles, not used by the admin pages (which render the
+library default through `getAdminTheme`).
 
 ## To resume in a future session
 

@@ -1,6 +1,6 @@
 # Per-theme default color scheme (light / dark)
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** built · **Release:** committed (library `4e52819f`); the live check below is still open · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Release:** committed (library `4e52819f`) · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
@@ -45,5 +45,5 @@ Code themes (`src/themes/*`) set it as `defaultColorScheme: 'light'` in the them
 - [x] `packages/dms/tests/themeDefaultColorScheme.test.js`: precedence, removal, invalid values, pattern
       selection paths, JSON-string pattern theme (9 tests pass); `adminThemeLogo` / `patternThemeCache` pass.
 - [x] `npx vite build` passes.
-- [ ] Live: theme with `defaultColorScheme: 'light'` on an OS-dark browser loads light; toggle still flips
+- [x] Live (owner, 2026-10-15: "it follows system colors until set. then it follows the set value"): theme with `defaultColorScheme: 'light'` on an OS-dark browser loads light; toggle still flips
       and persists; clearing localStorage returns to the theme default; pattern with no default follows OS.

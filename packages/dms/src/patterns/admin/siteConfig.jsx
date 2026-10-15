@@ -191,7 +191,8 @@ const adminConfig = ({
           },
           {
             type: (props) => (
-              <SectionGroup>
+              // flush header strip + its own form card, like Sites / Themes (2026-10-15, admin-create-site.html)
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
                 <NewSite {...props} />
               </SectionGroup>
             ),
