@@ -1,6 +1,6 @@
 # Datasets pattern v6 port — per-page record (pages 1–12)
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
 Part of [datasets-page-pattern-v6-port.md](./datasets-page-pattern-v6-port.md). The hub keeps the process rules,
 the mechanism (`_legacy/*` freezes), the decisions and the file list; this file is the per-page

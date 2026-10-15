@@ -1,6 +1,6 @@
 # Per-theme default color scheme (light / dark)
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** built · **Release:** commit — uncommitted, awaiting review · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** built · **Release:** committed (library `4e52819f`); the live check below is still open · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
 
 ## Objective
 

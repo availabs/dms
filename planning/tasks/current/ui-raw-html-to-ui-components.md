@@ -178,12 +178,19 @@ Items still open from it:
   vocabulary: TNY v2 `themev2.js` primary = `default`, action = `secondary`, small = `compact`, linkMeta =
   `linkMonoXS`, linkProse = `footerlink`, + red `smallDanger` / `linkMetaDanger`; MNY `theme.js` primary = amber
   pill, action = the white pill, danger / smallDanger = red-outline pill, dangerSolid = red pill, linkMeta /
-  linkMetaDanger = slate text link. `_legacy/ui.js` DERIVED `actionFull` now derives from the theme's own `action`
-  (else styles[0]). Resolution across all 21 registered themes: only transportnyv2, mnyv1, mny_admin and wcdb
-  change (wcdb's full-width actions now = its own outlined `action`, were the gray styles[0]); default unchanged.
+  linkMetaDanger = slate text link. `actionFull` is defined in both themes (= their `action` + w-full). A first version
+  derived it in `_legacy/ui.js` from the theme's own `action`; the WCDB pixel diff showed that made WCDB's
+  full-width actions near-invisible, so it was reverted (see datasets-page-pattern-v6-port.md, closed). Only
+  transportnyv2, mnyv1 and mny_admin change; default and WCDB unchanged.
   Now / after snapshots: create, source admin and version pages on /data-tny, /data-mny. Build OK.
+- [x] WCDB's own `danger` Button role was its dark-site outline (gray `--ink-3` text, red only on hover), faint
+  on the light datasets pages: Delete download, Delete version, the metadata "empty name" warning. **Done
+  2026-10-15 (owner: "do WCDB's own red danger"):** `wcdb_theme.js` `danger` is red at rest in WCDB's
+  vocabulary (same mono pill, `--on-air` text, red-tinted border, `--on-air-soft` hover fill); `dangerFull`
+  derives from it. Resolution: only wcdb `danger` / `dangerFull` change. Checked on /data-wcdb version +
+  metadata pages, light and dark. Also changes WCDB's own site: its form Delete buttons are red at rest.
 - [x] GIS Layer Analysis empty state ("No features" placeholder) and theming the rest of the Runs page: owner said
-  no on 2026-10-14, **yes on 2026-10-15 — done (uncommitted)**. Layer Analysis: a dashed empty state
+  no on 2026-10-14, **yes on 2026-10-15 — done** (library 6043a85a). Layer Analysis: a dashed empty state
   (`gisCreate.theme.js` `layerAnalysisEmpty*`) on every theme — gray in `_legacy/datasets.js`, branded via
   `mnyDatasetStates` / `tnyDatasetStates`; mirrored in `create.py`. Runs (`RunsPage.jsx`): every hardcoded class
   → `runsPage.theme.js` keys (v6 per `datasets-schedule.html`: card sections, `UI.Table 'list'` run list, status

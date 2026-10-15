@@ -1,6 +1,6 @@
 # Port tessera_v6 into the library's own default component themes
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing (was: "Current status (2026-09-15) — … NOT started: Phase B") · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
@@ -47,8 +47,16 @@ only pre-existing, unrelated errors (confirmed via `git show HEAD:<path>` on eac
 externally to `[ThemeToggle, UserMenu]` (this task's own edit had it `[UserMenu, ThemeToggle]`) — left
 as-is, functionally equivalent, not reverted.
 
-**NOT started:** Phase B (the ~32 `patterns/page`/`datasets`/`auth` pattern-specific component files —
-see the Phase B checklist further down, still accurate/unstarted).
+**Phase B — done by other tasks (status 2026-10-15):** the `page` and `datasets` pattern themes were
+ported in [datasets-page-pattern-v6-port.md](../completed/datasets-page-pattern-v6-port.md) (closed
+2026-10-15); the auth manage pages (Users / Groups / Profile) in the admin port and the UI controls effort
+([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)). Auth sign-in / sign-up
+accents are still cobalt (owner skipped; carried in
+[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md)).
+
+**Still open in this task:** the Phase A components with no tessera match (`nestable`, `nestableInHouse`,
+`map`, `pageTemplates`, `siteTemplates`; see "Phase A" below) and the MNY reskin of Users / Groups / Profile
+("Not done yet" below). `table` is done (below).
 
 **Admin's port — now has its own dedicated task file:**
 [`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md) (split out 2026-09-20, per this file's own
@@ -328,7 +336,7 @@ post-port are pre-existing and unrelated (unused `React`/`_` imports, missing `p
 - [x] `ui/components/card.theme.jsx` (`dataCardTheme`) → tessera `dataCard` — `styles[0]` only; 4 of
       ~20 keys matched (`header`, `value`, `headerValueWrapper`, `headerValueWrapperFullBleed`);
       `styles[1]` ("v2") untouched.
-- [ ] **`ui/components/table/table.theme.jsx` — NOT ported, zero name overlap.** Tessera's `table`
+- [x] **Done 2026-10-14 in [ui-control-tables.md](../completed/ui-control-tables.md):** default grid states ink, a `'list'` named style for list tables; project themes frozen in `_legacy/ui.js`. Original note: **`ui/components/table/table.theme.jsx` — NOT ported, zero name overlap.** Tessera's `table`
       (13 simple keys) vs. this file's `styles[0]` (65+ granular keys: `tableContainer`,
       `headerCellContainer`, `cellBgOdd`, `openOutInlineRow`, …). Tessera's design system modeled a
       much simpler table than the library's real Table component surface. **Real follow-up needed:**
@@ -737,10 +745,10 @@ currently render via this SAME new tessera-default `manage` object (since MNY do
 confirmed by the earlier-this-session live check showing MNY's Users page with the padding fix; that
 check was BEFORE this design pass landed, worth a fresh look now that `manage.*` has real content.
 
-## Phase B checklist — pattern-level component files (next pass, not started)
+## Phase B checklist — pattern-level component files (DONE by other tasks, see "Current status")
 
 > **2026-10-05:** the `page` and `datasets` parts of this checklist moved to
-> [`datasets-page-pattern-v6-port.md`](./datasets-page-pattern-v6-port.md) (mockups first, then the
+> [`datasets-page-pattern-v6-port.md`](../completed/datasets-page-pattern-v6-port.md) (mockups first, then the
 > default-theme port). Track them there.
 
 **`patterns/page/defaultTheme.js`'s 12 imports:** `sections/sectionGroup.theme`,

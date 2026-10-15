@@ -1,13 +1,13 @@
 # Datasets + Page patterns v6 port — mockups first, then the default theme
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
 **Project:** DMS library (`src/dms` submodule) + mockups in `src/themes/tessera/design_system_v6/pages/`
 
-The sibling of [`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md). The admin surfaces (sites,
+The sibling of [`admin-pattern-v6-port.md`](../current/admin-pattern-v6-port.md). The admin surfaces (sites,
 themes, pattern editor, users, groups, profile, login) are done; this file covers the two remaining
 pattern families — **datasets** and **page** — and takes over the page/datasets half of
-[`tessera-component-theme-port.md`](./tessera-component-theme-port.md)'s unstarted **Phase B**
+[`tessera-component-theme-port.md`](../current/tessera-component-theme-port.md)'s unstarted **Phase B**
 (that file's `patterns/auth` bullet is already covered by the admin port).
 
 ## Current status (2026-10-13) — read first
@@ -21,17 +21,41 @@ its spacing fix, then the owner said "looks good"). Committed on local `design-w
 The follow-on work is the shared control looks (buttons, pills, switches, tabs, fields), tracked in
 [ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md) and its sub-tasks; start there
 when resuming design work. That effort closed 2026-10-15; its follow-on is
-[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md).
+[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).
 
-Still open from this port:
-- Live findings 2, 3 and 5 (below, "Earlier status notes"): dead "Delete View" link, gis Uploads
-  page, unthemed surfaces. Decision 15: fix after the design implementation.
-- FLAGGED: mobile TopNav for the default Layout (logo + user menu below lg), see page 1.
-- The schedule / runs pages were never walked live (no loader source in the test data). 2026-10-15: the Runs
-  page is now themed to the `datasets-schedule.html` mockup (default theme; project themes frozen in
-  `_legacy/datasets.js` `runsPage`), checked with a stubbed-data preview harness, not on a real loader source.
-- Project-theme re-key audit beyond MNY / TNY / landbank (wcdb, avail, tessera) not done.
-- Move this file (and the two page records) to `completed/` once the owner closes it.
+Closed 2026-10-15 (owner: "let's close them before we do new work"). The open items, resolved:
+- Live finding 2 (dead "Delete View" link): gone. The v6 version page replaced it with the Delete Version
+  button + confirm modal; nothing in the datasets pattern links `/versions/:view/delete` any more.
+- Live finding 3 (gis Uploads page): hooked up 2026-10-07 (Decision 11): `uploads` page of gis_dataset and
+  csv_dataset, hidden from the tab bar.
+- Live finding 5 (unthemed surfaces): UdaTaskList, version.jsx and UI.DeleteModal themed 10/07; the Runs
+  page 10/15 ([ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md) "Carried over"). The search
+  page stays unrouted and unthemed (Decision 12: keep it, don't route it).
+- Mobile TopNav: moved to its own task, [default-layout-mobile-topnav.md](../current/default-layout-mobile-topnav.md).
+- Schedule / runs never walked live: owner, 10/15: "no need". The Runs page was checked with a stubbed-data
+  preview harness only.
+- Project-theme re-key audit beyond MNY / TNY / landbank:
+  - **Unread-key scan** (theme keys under `datasets` / `pages` that no library code reads), run on this commit
+    and on the pre-port commit (root `f019b43c`, library `9cc3da6d`) through Vite SSR. wcdb / avail / mny /
+    landbank: none of their own keys went unread. tessera / tessera_v6 / TNY v2: the same unread
+    `metadataComp` / `complexFilters` keys before and after the port; they never existed in the library (no-ops
+    since they were written), so the port broke nothing. New since the port, all in `_legacy/datasets.js`:
+    `datasetsList.table / theadRow / th / tr / td / tdMuted` (the catalog table moved onto `UI.Table`; unread).
+    Owner, 10/15: be cautious deleting `_legacy` keys, so they stay. False alarm on the way: `_legacy`
+    `admin` looked unread (the library registers `datasetsAdmin`) but `admin.jsx` reads `theme.datasets.admin`
+    directly, so it is live.
+  - **WCDB pixel diff, pre-port vs now** (owner: WCDB only; new local patterns `/data-wcdb`, `/p-wcdb`): page
+    view identical. Datasets pages differ only by port-wide changes and the owner's 10/13 "normalise" button
+    rule: catalog rail order, icon tools in the neutral gray icon button, list-table column widths from the
+    grid, the v6 Access panel and "No tasks yet" state, published dates on versions, version-page actions in
+    WCDB's dark default button (were pastel blue / green). **Found and fixed a regression from 10/15:** the
+    `_legacy/ui.js` change that made `actionFull` follow a theme's own `action` turned WCDB's full-width
+    actions into its dark-site `action` (near-invisible on the light datasets pages). Reverted to styles[0];
+    TNY v2 and MNY define `actionFull` themselves (resolution: TNY v2 / MNY identical to the approved
+    snapshots, WCDB back to the pre-change look, which matches the pre-port admin buttons exactly).
+  - WCDB's own `danger` (Delete download / Delete version / "empty name") was its dark-site outline, faint on
+    the datasets pages: fixed 2026-10-15, red at rest (`wcdb_theme.js`; see
+    [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md) "Carried over").
 
 ## Process rules (owner, 2026-10-05)
 
