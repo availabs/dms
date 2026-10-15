@@ -1,10 +1,11 @@
-# `qa` pattern type: ticketing / delivery QA as a library feature
+# `qa` pattern type ("Tickets"): delivery QA and help desk as a library feature
 
 **Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
-The one task doc for the QA pattern: what's built, what's open, and the rules the work follows. Any site adds
-ticketing and delivery QA from Add Pattern. MitigateNY is the first real install, and TransportNY's control room is
-ported later.
+The one task doc for the QA pattern: what's built, what's open, and the rules the work follows. Any site adds it
+from Add Pattern. It serves two products as switch groups over a shared tickets core: **Delivery QA** (TransportNY's
+origin) and **Help desk** (MitigateNY's origin). MitigateNY is the first real install, and TransportNY's control room
+is ported later.
 
 - **History** (everything up to 2026-10-08, verbatim): [`qa-pattern-type-archive.md`](./qa-pattern-type-archive.md).
   It holds this doc's earlier text plus two task docs merged in on 2026-10-08: the design-pass implementation and the
@@ -17,16 +18,31 @@ ported later.
 - **Coworker how-to** for placing Report an issue on more MNY sites:
   [`report-an-issue-widget.md`](../../../../../planning/mitigateny/skills/report-an-issue-widget.md).
 
-## ▶ Start here (2026-10-13)
+## ▶ Start here (2026-10-14)
 
-- **All QA code is committed and pushed**, change history and the Recent activity feed included: library through
-  `9377c626` (activity feed + history on create).
-- **Nothing deployed for about a week (owner, 2026-10-09).** No QA work is on a deployed host. MitigateNY's rollout
-  (Open work §1) waits on a dms-server deploy (intake stub + change-history writer) and a client deploy. Then the
-  owner runs "finish set-up" and switches the MNY install's theme. The history writer is opt-in per dataset, so the
-  server deploy changes nothing until a dataset has a `change_history` setting.
-- **Current loop:** the owner is iterating on MNY's QA look locally. The root `.env` points at `qa_test`, and test
-  install 126 `QA` is on `mnyv1`.
+- **Moved (2026-10-14): the QA pattern now lives in dms-template `src/patterns/qa/`**, registered from
+  `src/patterns/index.js` like the map editor. The library holds no QA code.
+  - Record: [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md).
+  - The code map below is updated. Older sections and the archive cite `patterns/qa/…` under the
+    library's `packages/dms/src/`; the same files are now under dms-template `src/patterns/qa/`.
+  - Two mechanisms changed:
+    - The no-access stub carries the row's `public.qaIntake` (written by QA's `intake.js`), no longer a
+      server-built `qa.intake`.
+    - The widget's theme key is `qa.reportIssue` (was `qaReportIssue`).
+  - The move is committed (owner, 2026-10-14).
+  - **Old installs, all deleted 2026-10-14** with backups:
+    - `qa_test`'s 126, 170 and 219; test install 251 `QA move check` (`/qa_move_check`) replaces them
+    - MNY's 2824062
+  - **MNY's fresh install is 2860547 `QA` (`/qa`)**, with coverage, grants (`AVAIL` + `mitigat-ny-prod Admin`) and
+    the `mnyv1` top-nav look set.
+  - Details: [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#state-after-the-build-2026-10-14).
+- **Next: the MNY deploy (a coworker; the owner doesn't deploy).**
+  - Steps, env vars and checks:
+    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
+  - Until it's done, devmny.org runs the old client against the same DB, so QA there may look broken (accepted).
+  - The change-history writer is opt-in per dataset, and 2860547's history is already on.
+- **Current loop:** the root `.env` points at MitigateNY (since 2026-10-14). `qa_test`'s install is 251 (no theme
+  set).
 - **Change-history writer (Open work §4): built, committed, live-checked on `qa_test`.** Install 126 has it on.
   - Open: a Postgres test run (`scratchpad/qa_test/run_change_history_pg.sh`). Needs Docker, which Claude
     sessions can't reach; the owner runs it. Only SQLite has run (16/16).
@@ -35,9 +51,14 @@ ported later.
     retention and no JSON indexes).
 - **Built and committed (2026-10-09, `9377c626`): the Overview's Recent activity feed** and history on create,
   Open work §4. Test ticket row 210 is still on `qa_test` for review.
-- **What's next:** the owner picks from Open work. If MitigateNY's December v1.0 (D5.2) sets the order, the
-  critical path is §5: the change-history writer plus MNY's missing fields and statuses. The response-time proof,
-  the DHSES dashboard and the quarterly numbers all read from those.
+- **§5 is the plan (owner, 2026-10-13):** one pattern type, a shared tickets core, two switch groups (Delivery QA,
+  Help desk). Step 1, the switches on Configure, is **built, live-checked and committed** (`4f969c26`, 2026-10-13).
+  Scratch install 219 `QA switches` (`/qa_switches` on `qa_test`) goes with the old-install deletion.
+- **Step 2a, custom ticket fields: built and live-checked 2026-10-13, committed (`73d28b0e`)** (Configure's "ticket
+  fields" card; Details, table, filter chips, the report forms, History and Recent activity). The form's fields
+  reach ungranted users through `public.qaIntake` since the move.
+- **What's next:** step 2b, editable lists (statuses, outcomes, categories), in `src/patterns/qa/`; then step 3, the
+  Help desk switches.
 
 ## Glossary
 
@@ -50,8 +71,11 @@ ported later.
 - **Ticket record:** the fixed lists in code (`patterns/qa/ticketRecord.js`): status kinds (triage, active,
   waiting, done, canceled), TransportNY's seven default statuses, closed outcomes, page stages. The DB holds only
   each ticket's values.
-- **Stub:** what the server sends in place of a pattern row the user can't read (settings stripped). For a `qa`
-  row it also carries `qa.intake`, so ungranted users can still file.
+- **Stub:** what the server sends in place of a pattern row the user can't read (settings stripped). It carries the
+  row's `public` settings; a `qa` row's `public.qaIntake` (`intake.js`) lets ungranted users still file.
+- **Switch group:** Delivery QA or Help desk, switched on and off on the install's Configure tab, with a switch per
+  feature beneath it. The group's own switch does a preset's job. The shared tickets core has no switch (§5). Not
+  a feature flag: those are `.env` settings, e.g. `VITE_DMS_QA_PATTERN`.
 - **Report an issue:** the `ReportIssue` nav widget and its form. A theme places it in a nav slot. It shows only to
   signed-in users on covered pages.
 
@@ -71,36 +95,45 @@ ported later.
 | Report an issue widget + server intake stub | built; MNY deploy pending | `c309c77f` |
 | Collapsible section groups (generic) + Overview site cards start collapsed | done | `eec8278c` |
 | QA theme as a `qa` key (page/datasets model) + MNY's QA look | built; MNY switch pending | `a6d36282`, `1cc7561d` |
+| Feature switches: Delivery QA group (page inventory, stages, stories) on Configure; card renamed "Tickets" | built, live-checked; committed `4f969c26` | §5 step 1 |
 
-**Where the code is** (library paths under `packages/dms/src/` unless noted):
-- `patterns/qa/`:
+**Where the code is** (dms-template `src/patterns/qa/` since 2026-10-14; library paths under `packages/dms/src/`):
+- `src/patterns/qa/`:
+  - `index.js`: the pattern-type definition (registry hooks: `admin.beforeCreate`/`afterCreate`/`duplicable`/
+    `editorTabs`, `onPagePublish`).
   - `siteConfig.jsx`: routes; registers the `ReportIssue` widget.
   - `pages/`: `index.js` (`buildQaPages`, `findQaPage`), `view.jsx`, `shell.jsx`, `overview.js`, `tickets.js`,
     `ticket.js`, `pageQa.js`, `helpers.js`.
-  - `ticketRecord.js`, `datasets.js`, `install.js` (holds the `QA_PATTERN_ENABLED` flag).
-  - `tracking.js` (track-on-publish; no browser imports, so the CLI uses it too) and `configure.js`.
-  - `reportIssue/`: `report.js`, `ReportIssue.jsx`, `ReportIssueForm.jsx`, `ReportIssue.theme.js`.
-  - Theme: `defaultTheme.js` (registered as `qa` in `ui/defaultTheme.js`), `qa.theme.js`, `withQaTheme.js`.
-- Admin: `patterns/admin/pages/patternEditor/qa/configureTab.jsx` (+ `.theme.js`, key `admin.qaConfigure`), and
-  `QaPatternSettings` (the datasets card) in `patternEditor/default/settings.jsx`.
-- Server: `dms-server/src/routes/dms/dms.route.js`: the `qa` stub's `qaIntake`, and the `dms.sourceIdBySlug` route.
-  The change-history writer: `routes/dms/changeHistory.js` + `setDataById` in `dms.controller.js`.
+  - `ticketRecord.js`, `datasets.js`, `install.js` (holds the `QA_PATTERN_ENABLED` flag and the create hooks).
+  - `tracking.js` (track-on-publish and `pageTracking`; no browser imports), `publish.js` (the editor's
+    `onPagePublish`), `cli/onPagePublish.js` (`dms page publish`'s hook, via `DMS_PAGE_PUBLISH_HOOK`), and
+    `configure.js`.
+  - `intake.js`: `public.qaIntake`, what the no-access stub shows ungranted users.
+  - `reportIssue/`: `report.js`, `ReportIssue.jsx`, `ReportIssueForm.jsx`, `ReportIssue.theme.js` (key
+    `qa.reportIssue`).
+  - Theme: `defaultTheme.js` (mounted at `theme.qa` by the registration), `qa.theme.js`, `withQaTheme.js`.
+  - `admin/`: `configureTab.jsx` (+ `.theme.js`; site override key `admin.qaConfigure`, since admin pages take
+    only a site theme's `admin` key) and `patternSettings.jsx` (`QaPatternSettings`, the datasets card, now on
+    Configure only).
+  - `tests/`: the QA suite (`npx vitest run src/patterns/qa`).
+- Server: no QA code. `dms.route.js`'s no-access stub carries any pattern row's `public`; the `dms.sourceIdBySlug`
+  route. The change-history writer: `routes/dms/changeHistory.js` + `setDataById` in `dms.controller.js`.
 - Change history, client side: `patterns/datasets/utils/changeHistory.js`, `components/ChangeHistoryEditor.jsx`.
 - CLI: `dms page publish` runs track-on-publish.
 - Theming: a site overrides QA through its theme's `qa` key, listing only differences (MNY:
   `src/themes/mny/qa.theme.js`, as `mnyv1.qa`). On QA pages `theme.qa` wins over the site's general keys. The widget
-  reads `qaReportIssue`.
-- Tests: `packages/dms/tests/qa*.test.js`, `sectionGroupCollapsible.test.jsx` and the core-enrichment tests
+  reads `qa.reportIssue`.
+- Tests: dms-template `src/patterns/qa/tests/`, library `sectionGroupCollapsible.test.jsx` and the core-enrichment tests
   (`radioTheme`, `stageProgressTheme`, `structuredTextColumns`, `flowStepNote`, `barGraphTimeAxis`,
   `liveEditSaves`). dms-server: `tests/test-pattern-stub.js`. The full client suite has 3 unrelated failures
   (`avlGraphThemeDefaults` golden, `syncDeltaConvergence` ×2).
 
 ## Installs
 
-| Install | Where | State (2026-10-08) |
+| Install | Where | State (2026-10-14) |
 |---|---|---|
-| 126 `QA`, app `qa_test` (test app "QA Ticketing Test") | `/qa`; datasets in environment 42 | Covers AlphaPage and BetaPage (`qa_test`'s own test pages). Tickets #101–108. On `mnyv1` for the MNY look loop (undo: `dms raw update 126 --data '{"theme":{}}'` as `qa_test`; backup `scratchpad/qa_test/backup_126_20261007T143641.json`). AlphaPage (row 5) still has a test nav with the widget. |
-| 2824062 `QA`, MitigateNY (`dms_mitigat_ny_prod`) | `/qa`, main site only; datasets in dmsEnv 1676363 `test_meta_forms_env` | Covers 566466 admin, 2265530 MitigateNY_actions, 985070 MitigateNY_2025 and 1300890 MitigateNY_County_Template_V3 (281 pages tracked). Access: `AVAIL`, user 1, `mitigat-ny-prod Admin`; the owner removed `DHSES` on 2026-10-07. Theme: `default` until the rollout. The four patterns' nav rows already carry the widget (written 2026-10-07; backups stamped `20261007T100659`). |
+| 251 `QA move check`, app `qa_test` (made 2026-10-14 through the new create hooks) | `/qa_move_check`; datasets in environment 42 | The `qa_test` install since the move. No coverage, switches or fields yet; theme not set. The old 126 `QA`, 170 `QA2` and 219 `QA switches` were deleted 2026-10-14: their datasets, then their site links and rows. Backup: `scratchpad/qa_test/old_installs_backup_2026-10-14/`. `/qa` is free to re-add. |
+| 2860547 `QA`, MitigateNY (`dms_mitigat_ny_prod`; made 2026-10-14 through Add Pattern) | `/qa`, main site only; datasets in env 1676363 (`/cenrep`) | Covers 566466 (`admin`, a page pattern), 2265530 `mitigateny_actions`, 985070 `mitigateny_2025` and 1300890 `mitigateny_county_template`, whose nav rows carry the widget. Access: `mitigat-ny-prod Admin` and `AVAIL` (`AVAIL` added by CLI after the lockout, §3). Theme: `mnyv1` with a top-nav layout override. Switches: page inventory on (owner, 2026-10-14; 282 pages tracked, the same count as the old install), so the site cards collapse and open to their pages. Page stages and stories are off, and there are no fields yet. It replaced 2824062, deleted 2026-10-14 (backup `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/`). |
 
 ## Rules the work follows (owner)
 
@@ -118,7 +151,9 @@ ported later.
   copied literals. (This is "Rules carried in", cited in `qa.theme.js`; the full text is in the archive, part 2.)
 - **Core changes default to today's output.** Prove it with a repo-wide grep of consumers, and land each one
   separately from QA styling.
-- **The ticket record's lists live in code**, not the DB.
+- **Status kinds live in code; an install's statuses are its own settings** (owner, 2026-10-13; this replaced "the
+  ticket record's lists live in code"). A site's needs are settings and theme code on top of core, never edits to
+  core's lists (§5).
 - **Probe gotchas:** pass `--auth scratchpad/npmrds-sub/.dms-auth-token-qa_test` (mint with `mint_token.sh qa_test`).
   A bare `--auth` gets stripped rows, so every install shows "datasets aren't set up yet". The probe can't hard-load
   `/list/...`: load `/qa`, then navigate client-side.
@@ -127,17 +162,19 @@ ported later.
 
 ### 1. MitigateNY rollout (owner and the MNY coworker)
 
-- [ ] Root `npm install`. `maplibre-gl` is missing from the root `node_modules`, so `vite build` fails.
-- [ ] Deploy dms-server (the `qa.intake` stub). Without it, county staff not granted on the install can't file.
-- [ ] Deploy the client with the MNY `.env`: `npm run build`, then `deploy-devmny`, then `deploy-mnyprod`.
+- [x] Root `npm install` (owner ran it 2026-10-14; both builds pass).
+- [x] **The install (2026-10-14):**
+  - The old 2824062 was deleted, and the owner made **2860547** `QA` through Add Pattern. That created its datasets
+    with change history on and wrote `public.qaIntake`, so no "finish set-up" is needed.
+  - Coverage: the old four. Grants: `AVAIL` added. Theme: `mnyv1` with a top-nav layout (user menu only on the
+    right, no `Search` spacer).
+  - The bands now fill the content card (`src/themes/mny/qa.theme.js`).
+- [ ] **Deploy dms-server, then the client** with the MNY `.env`.
+  - The server sends the stub's `public` settings; without it, county staff not granted on the install can't file.
+  - Steps, env vars (no new server variables; `VITE_DMS_QA_PATTERN` optional) and checks:
+    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
-- [ ] Owner, on install 2824062 after the deploy:
-  - Configure tab → datasets card → "finish set-up". This switches on change history. It's a prod write, and
-    the deployed dms-server must have the history writer (§4).
-  - Theme tab → `mnyv1` → Save.
-  - Change the nav's `topNav.rightMenu` to `[UserMenu]`. The stored `{type: "Search"}` names no widget and renders
-    an empty spacer.
 - [ ] Coworker: propagate to county patterns. Each needs a nav entry (`src/themes/mny/scripts/report_issue_nav.mjs`)
   and a covered-sites row on Configure. **Who adds the coverage rows isn't agreed yet** (open decision on the
   initiative).
@@ -157,10 +194,19 @@ ported later.
 ### 3. Queued follow-ups (owner, 2026-10-07; none started)
 
 - [ ] **A real serial `ticket_number`**, assigned server-side. Today the form takes max+1 from #101, which can race.
-- [ ] **Install lockout fix.** `installQa` grants only `<app> Admin` (`install.js:157-159`). A site without that
-  group (MitigateNY) locks everyone out, and the pattern editor refuses a stub, so the Access tab can't fix it. Fix:
-  also grant the installing user `*`, and/or start from the site Admin pattern's grants. Add a test for a site
-  without the group. (MNY's install was repaired by hand: `scratchpad/mitigat-ny-prod-prod/fix_qa_install_access.py`.)
+- [ ] **Install lockout fix.** `installQa` grants only `<app> Admin` (now `src/patterns/qa/install.js`, the
+  `authPermissions` default). A site without that group (MitigateNY, whose admin row grants user 1, `AVAIL` and
+  `DHSES`) locks everyone out, and the pattern editor refuses a stub, so the Access tab can't fix it. Add a test for a
+  site without the group.
+  - **Recurred 2026-10-14** on the fresh MNY install 2860547. Repaired by CLI: added `AVAIL: ['*']`, and only
+    `authPermissions` changed. Backup: `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/new_install_2860547_before_grant.json`.
+    The first repair, 2026-10-07: `scratchpad/mitigat-ny-prod-prod/fix_qa_install_access.py`.
+  - Fix options since the move:
+    - **(a) also grant the installing user `*`.** The admin create hooks (`admin.beforeCreate` / `afterCreate`)
+      don't receive `user` yet, so this needs `user` added to their context in `editSite.jsx` /
+      `patternList.jsx`: one small, generic library change.
+    - **(b) start from the site admin row's grants.** That would bring back `DHSES`, which the owner removed from
+      the old install on 2026-10-07.
 - [ ] **Configure site list:** a search box like `/list`'s (`editSite.jsx:216,499,543`), pattern IDs in the row or on
   hover, and no truncation of long keys and labels.
 - [ ] **Report an issue inside the user menu** instead of a nav icon. Move the coverage check into a shared hook, add
@@ -377,31 +423,293 @@ ported later.
       `surface`; until the sites load, and with none covered, it's `'(none)'` (no short key can match
       `configure.js` KEY_RE), so nothing counts. Test in `qaOverviewPages`. Full client suite 904/907, the same
       3 unrelated failures.
-- [ ] **Feature switches** (Tickets, Page inventory, Page stages, Stories, Overview). The plan is written: archive
-  part 1, "Phases 6–7", "Feature switches". Configure shows a placeholder.
+- Feature switches: moved to §5, step 1 (owner, 2026-10-13).
 - [ ] **`dms qa` CLI** (state, tickets, edit, close, enroll; dry run by default). It's also where the per-page
   blocker/major counts come back.
 - [ ] **Design mockups** as an install feature: a Design page per tracked page, and the QA ⇄ Design toggle.
 - [ ] Group the status menu by kind. This needs option groups in the shared select.
 
-### 5. MitigateNY contract (D5.2 / D8.6.2: v1.0 live with a DHSES walkthrough, Dec 2026; backfill, Jan 2027)
+### 5. Next build: one pattern, a shared tickets core, two switch groups (owner, 2026-10-13)
 
-The ticket record compared with the contract's asks (the asks are listed in the two MNY tasks linked above):
-- **Fields:** has `priority`, `category`, `assignee`, `effort`. Missing: **county**, **requester type** (county /
-  town / consultant / state), **hours** (unless `effort` serves).
-- **Workflow:** the contract asks for new → acknowledged → triaged → resolved → closed. The record uses TransportNY's
-  seven statuses, so this needs install-named statuses (a roadmap item) or an MNY status set. The dispositions (fix,
-  workaround, backlog, out of scope) are already in the outcomes.
-- **Acknowledged within 2 business days, provable from timestamps:** needs the change-history writer (§4) plus a
-  response-time clock.
-- **Also needed:**
-  - staff intake (requests that came in by phone, email or office hours);
-  - a DHSES dashboard by county, category and age, exportable;
-  - the queries for the quarterly reports;
-  - the Feb–Dec 2026 backfill.
-- **Security before external users:**
-  - reads of DMS internal datasets have no permission check, so reporter emails can be read through `uda`;
-  - `dms.data.create` is unguarded (Defect E).
+The pattern serves two products: **Delivery QA**, pages moving through stages to client acceptance (TransportNY's
+origin), and **Help desk**, requests from a live site's users answered on time (MitigateNY's origin). They're switch
+groups on the one `qa` pattern type, not two types. About 80% of what's built is shared, and one install per covered
+site is what tells Report an issue where a ticket goes. **MNY's needs don't reshape core's lists or fields:** its
+specifics are settings on install 2824062 plus MNY theme code.
+
+| | Built | Planned |
+|---|---|---|
+| **Shared tickets core** (always on) | Tickets list and Ticket page, statuses with kinds, outcomes, severity, change history, Recent activity, Report an issue and covered sites, Access | custom statuses and fields, serial ticket numbers, signed-out filing, the `dms qa` CLI |
+| **Delivery QA** group | Page inventory (track-on-publish), page stages and the "How delivery works" strip, Stories, the Page QA page | Design mockups, client sign-off |
+| **Help desk** group | — | staff intake, clocks, requester messages and notifications, a "my requests" view, CSAT |
+
+The Overview is shared and shows whatever is on.
+
+**Step 1: switches. Built and live-checked 2026-10-13, committed (`4f969c26`).**
+- **Where:** the install's Configure tab (`/list/manage_pattern/<id>/configure`), which shows a placeholder today.
+  **The Add Pattern picker doesn't change** apart from the card's name: "Ticketing / QA" becomes "Tickets"
+  (`patterns/index.js`). One card per type, like every type but page (page shows a card per page template).
+- **Shape:** each group has its own switch, with a switch per feature beneath it. Switching a group on adds its
+  features, so the group switch does a preset's job.
+  - **Stored as an allow-list** (chosen 2026-10-13; the owner had no preference): `pattern.qa.features`, an array
+    of the features that are on, e.g. `['page_inventory', 'page_stages', 'stories']`, saved by Configure's Save. A
+    feature added later stays off on every existing install until someone turns it on. (This replaces the archived
+    plan's "a missing switch means on", which made it a deny-list.)
+  - **A new install starts with `[]`:** the shared core only. `installQa` writes it.
+  - **An install with no `features` at all** (126 and 2824062, made before switches) reads as today's features, the
+    Delivery QA set, so nothing changes on them and no prod write is needed. The first Save on Configure writes the
+    array.
+- **What each Delivery QA switch hides** (from the archived plan, part 1, "Feature switches"):
+  - Page inventory: the Page QA page, the Overview's per-site page tables, track-on-publish (both publish paths
+    skip the install).
+  - Page stages (needs Page inventory): stage pills and tiles, the "How delivery works" strip.
+  - Stories (needs Page inventory): Page QA's stories section.
+  - The archived list's Tickets and Overview switches go: tickets are the core, and the Overview shows what's on.
+- **Help desk group:** shows on Configure once it has its first feature (step 3).
+- **Mechanics:** `buildQaPages` drops what's off and the nav follows the page list; a hidden page's URL lands on the
+  home page (`findQaPage`'s fallback). A switch whose prerequisite is off is disabled, with the reason. Off hides and
+  never deletes. All five datasets are still created up front.
+- **Tests:** what each switch removes, the prerequisite rules, the home fallback, track-on-publish's check, a new
+  install starting with `[]`, an install without `features` reading as the Delivery QA set.
+- **Then, on MNY (a prod write; waits for the owner's go):** Delivery QA off on 2824062 (its first `features`
+  write).
+- **Built (2026-10-13):**
+  - `patterns/qa/features.js` (new): the groups, `installFeatures` / `hasFeature` (an unmet prerequisite or an
+    unknown key reads as off), and Configure's `setFeature` (off cascades to what needs it; on waits for the
+    prerequisite), `setGroup`, `groupState`, `featureBlocked`, `describeFeatureEdits`.
+  - Pages (`pages/index.js` passes `ctx.features`):
+    - no page inventory: no Page QA page; the Overview has no page figures, no per-site page table (a site is its
+      name beside its tickets bar, not collapsible) and its title is 2/3 wide; the Ticket page's target is text,
+      not a Page QA link, and the header has no "open page";
+    - no stages: no "How delivery works", no client-accepted figure, no stage bars, no Stage column (pages sort
+      by name), no stage meter on the Ticket page; Page QA's rail opens with a plain "Page status" title;
+    - no stories: Page QA has no stories.
+  - Track-on-publish (`tracking.js`, both publish paths) skips an install without the page inventory.
+  - Configure: the switches card replaces the placeholder (group switch with "n of 3 on", a switch per feature,
+    disabled with "needs Page inventory"); the save bar names switch changes ("Delivery QA switched off"); the
+    pages-tracked figure, the ticket record's page stages and the covered-sites hint follow the switches.
+    `saveConfigure` takes `trackPages` (inventory off: no backfill) and `backfillAll` (inventory just switched
+    on: every covered site's published pages).
+  - New installs: Add Pattern writes `qa: newInstallQa()` (`features: []`) with the row (`editSite.jsx`).
+  - The card reads "Tickets" (`patterns/index.js`; default name and URL still "QA").
+- **Found and fixed on the way:**
+  - **A switch-wiping write.** `installQa` and the datasets card's "finish set-up" both replaced the row's whole
+    `qa` key with `{version, datasets}`; re-running set-up would have dropped `features` and turned Delivery QA
+    back on. Both now carry the rest of `qa` along.
+  - **Static-only Cards vanish over an empty dataset** (`Card.jsx` draws one card per row; the wrapper fetches
+    ids even for static cells, `getData.js` ~454). The Overview's crumb, title, no-sites note and "needs set-up"
+    note read the pages dataset, so a fresh install with no tracked pages showed none of them. They now read the
+    tickets dataset with a hidden `count(*)` (`ONE_ROW`), which always returns one row.
+  - **A ticket's page name** (`PAGE_DISP`): the tracked page's live name, then the name the ticket was filed with,
+    then the raw key. Refines the derived-values step (`8be023e9`, 2026-10-02, "read live, not the ticket's
+    copies"): live still wins; the copy only replaces the raw key when no page matches (normal without a page
+    inventory; Report an issue sets it). `page_stage` is still never read. `qaDerivedValues` updated to match.
+  - **Configure's save bar never cleared after a Save** that wrote the row: the tab compared its draft with the
+    reloaded `value`, which carries a restamped `updated_at`. It now compares with the row as it last saved it
+    (`baseline`: the loaded row, then each Save's draft); reset returns to it.
+  - **The Edit modal's Add Pattern** (`components/patternList.jsx`, the second `addNewValue`) also creates QA
+    installs; it now starts them with `newInstallQa()` too.
+  - The shared Switch has no disabled look and no accessible name without `label`; the switches card passes
+    `label` and dims a blocked switch through its own theme keys (`featureSwitchBlocked`), with no change to the
+    Switch itself.
+- **Tests:** `qaFeatures.test.js` (33: the switch logic; what each switch removes from each page; the one-row
+  Cards; track-on-publish's skip; `saveConfigure`'s two options; `installQa` keeping `features` through both of
+  its writes, with an in-memory falcor). QA suite 203/203. Full client suite 935/940: the 3 known failures plus
+  2 in `userMenus.test.js` (`adminNavOptions`), which fail the same with these changes stashed (from the user
+  menu editor commit, `4b37b57a`, or later).
+- **Live check (2026-10-13), scratch install 219 "QA switches"** (`/qa_switches`, app `qa_test`), probes
+  `scratchpad/qa_test/probes/switches_{create,fresh,configure,pages,legacy}.mjs`:
+  - Add Pattern shows the "Tickets" card; the new row is `qa.features: []`, and `installQa`'s writes after each
+    dataset kept it on the real server (`{"qa":{"version":1,"features":[],"datasets":…}}` in the log).
+  - Fresh, nothing on: the Overview's crumb, title (2/3 wide), ticket figures and "No sites covered yet … Its pages
+    then show Report an issue." all show; no page figures or stages; `/qa_switches/page?key=…` lands on the
+    Overview; Tickets renders.
+  - Configure: "0 of 3 on"; Page stages and Stories dimmed with "needs Page inventory". Covering Pages (pattern
+    3) saved with no pages added. `dms page publish` of scratch page 231 added no row (inventory off).
+  - Delivery QA on: save bar "Delivery QA switched on"; the row stores all three; the Save backfilled the covered
+    site's published pages (`pages:page_1`, `pages:switches_test_page`). A CLI publish of scratch page 239 then
+    added its row (`qa_tracked` in the CLI output). The save bar cleared after Save (after the `baseline` fix).
+  - Page stages off: `['page_inventory','stories']`, "2 of 3 on"; the Overview has no "How delivery works", no
+    client-accepted figure, no stage bar or Stage column, "pages · 2 pages", still collapsible; Page QA's rail
+    opens with "Page status" and no stage list; the Ticket page keeps "open page" and the Page QA link, no meter.
+  - Delivery QA off (from 2 of 3, so the bar lists "Page inventory switched off, Stories switched off"): the
+    Overview's Pages card is its name beside its tickets bar, not collapsible, "1 site covered"; the Ticket
+    page's target is text, with no "open page"; the Tickets table's Page column reads "Switches test page".
+  - Install 126 (no list): Overview unchanged (stages, "pages tracked 3", "client accepted 0", AlphaPage's stage
+    bar); Configure shows all four switches on and "All changes saved".
+  - **Left on `qa_test` for review:** install 219 (datasets: tickets 220, pages 222, stories 224, covered sites
+    226, history 228), ticket rows 236 (#101) and 245 (#102, from the fields check), scratch pages 231 and 239 in
+    Pages (pattern 3).
+    Site row backup before Add Pattern: `scratchpad/qa_test/backup_site_1_20261013T144810.json`. To remove:
+    delete the pattern from `/list` (or `dms raw delete` 219 and drop it from site row 1's `patterns`), delete
+    its five datasets in the Datasets admin, and `dms raw delete` pages 231 and 239.
+
+**Step 2: custom statuses and fields (shared core; similar work, owner 2026-10-13). Fields first (owner,
+2026-10-13), then the lists. Plans proposed 2026-10-13, awaiting the owner's go.**
+
+**2a. Custom ticket fields (first).**
+- **What an admin sees:** a "ticket fields" card on Configure, under the ticket record card. "+ add field"; each
+  row has a label, a type, its options (pick one), where it shows (form · details · table · filter), "required on
+  the form", a drag handle and remove. The tab's one Save writes it all.
+- **Types (v1):** text, long text, number, date, pick one. Not in v1: pick many (filters and history on lists need
+  more), yes/no, a person picker, fields that depend on another field, per-group visibility.
+- **Where a field lands:**
+  - form: Report an issue (after the description; a required one blocks Send) and Page QA's New ticket;
+  - details: the Ticket page's Details panel, after Effort, edited in place (pick one as a pill menu like
+    Category; date, number and text as inputs);
+  - table: a Tickets column, before Updated;
+  - filter: a chip on the Tickets filter bar, with its own URL parameter (pick one and text);
+  - always: Recent activity and the ticket's History show its changes under its label (tracked by default); the
+    Datasets admin and the CLI see the column.
+- **Stored:** `qa.fields` on the install row (`[{name, label, type, options, show: {form, details, table,
+  filter}, required}]`). Save also appends the column to the tickets dataset's columns and to its change
+  history's tracked list. The server's stub for ungranted users carries the form's fields (`qa.intake.fields`), a
+  small dms-server change that ships with MNY's deploy.
+- **Rules:**
+  - the name comes from the label (lowercase, underscores), can't clash with a ticket column or a URL parameter,
+    and is fixed once saved (the dataset column carries it); the label can change any time;
+  - the type is fixed once any ticket holds a value; options can be added and reordered, and one tickets hold
+    can't be removed (it shows "in use");
+  - removing a field hides it from the QA pages; the column and its values stay, and adding a field with the same
+    name brings them back (as switches: off hides, never deletes);
+  - fields are shared core: no switch.
+- **MNY's, after (prod writes, the owner's go):** requester type (pick one: county / town / consultant / state),
+  hours (number), channel (pick one: form / phone / email / office hours), received (date).
+- **Steps:**
+  1. `patterns/qa/fields.js`: the model (type → dataset column, the Card column for each place, the form's
+     input), the name rules, the in-use checks; tests.
+  2. The Configure card and its Save writes (row, tickets columns, history's tracked list); tests.
+  3. The pages: Details, table, filter chips, the activity and History labels; tests.
+  4. Report an issue and Page QA's New ticket, and the stub's form fields; client and dms-server tests.
+  5. Live check on scratch install 219 with MNY's four fields.
+
+- **Built and live-checked (2026-10-13, owner's go), committed (`73d28b0e`):**
+  - `patterns/qa/fields.js` (new): types, places, the reserved names (the ticket record's columns and the QA
+    pages' URL keys), `installFields`, `fieldColumn`, `fieldErrors`, `describeFieldEdits`, `fieldValuesInUse`,
+    `planFieldColumns`, and Configure's row helpers (`settledFields`, `rowName`, `withType`).
+  - `install.js` `writeQaFieldColumns`: reads the tickets source fresh and applies `planFieldColumns`; Configure's
+    Save runs it before writing the row.
+  - Pages (`ctx.fields`): Details rows after Effort (`ticket.js`); table columns before Updated, filter chips,
+    their table filters and URL variables (`tickets.js`); History and Recent activity labels
+    (`ticketFieldLabel(data, fields)`), and a pick list's values as pills in the feed with the record's own colours
+    winning a clash (`overview.js`); Page QA's New ticket asks the form fields (`pageQa.js`; this staff form
+    doesn't hold back a required one: the Card's create form has no required check).
+  - Report an issue: `intakeFields(install)` (full settings, else the stub's), `missingRequired`, `reportRow`'s
+    `fields`/`values`; the form renders text, long text, number and date as inputs and a pick list as a select,
+    "(required)" in the label.
+  - dms-server `qaIntake`: the stub carries the form's fields, trimmed to name, label, type, options, required.
+    `tests/test-pattern-stub.js` 31/31.
+  - Configure: the "ticket fields" card, between the ticket record and the covered sites. A new row's name follows
+    its label until saved; the options line is kept as typed (`_optionsText`) and settled on Save; the type shows
+    "· in use" and can't change once tickets hold values; errors per row block Save; drag to reorder.
+  - Tests: `qaFields.test.js` (27). QA suite 230/230; full client suite 962/967 (the same 5 as step 1: 3 known,
+    2 `userMenus`); dms-server `npm test` exit 0, `test-pattern-stub.js` 31/31.
+  - **Live check** on scratch install 219, probes `scratchpad/qa_test/probes/fields_{configure,ticket,report}.mjs`:
+    - Configure: four MNY-style fields added through the card (Requester type: pick one, county / town /
+      consultant / state, required, table + filter; Hours: number, not on the form, table; Channel: pick one,
+      not on the form, filter; Received: date, table). Save bar "4 unsaved changes · Requester type added, Hours
+      added, Channel added, Received added", then "saved". The row holds `qa.fields`; tickets source 220 gained
+      `requester_type` (select + options), `hours` (number), `channel` (select), `received` (date), and its
+      change history tracks all four.
+    - Ticket #101 (row 236), Details: Requester type set through its pill menu, Hours and Received typed; after a
+      reload the History reads "Requester type — → county", "Hours — → 2.5", "Received — → 2026-10-12", and
+      Recent activity lists the same three under their labels.
+    - Tickets: the row shows "county · 2.5 · 10/12/2026"; the Requester type and Channel chips are on the bar;
+      `?requester_type=county` lists #101, `?requester_type=town` shows "No tickets match these filters".
+    - Report an issue (on pattern 3, given AlphaPage's widget nav for the check and then restored): the form
+      asks "Requester type (required)" and "Received", not Hours or Channel; Send stays off until Requester
+      type is picked; the report filed ticket #102 (row 245) with `requester_type: county`, `received:
+      2026-10-11`, and its create wrote history rows for both. Pattern 3 is back to its backup
+      (`scratchpad/qa_test/backup_pattern_3_20261013T153556.json`) with `theme: {}` (it had none).
+    - Cosmetic: a long label ("Requester type") wraps to two lines in Details' 30% label column.
+
+**2b. Editable lists (after the fields).** The plan below; the fields' option editor is the piece the lists
+reuse.
+- **Where it's edited:** the ticket record card on Configure (today read-only, "set in code for now") becomes the
+  editor, saved by the tab's one Save.
+- **Where it's stored:** on the install row (`qa.statuses` as `[{value, kind}]`, `qa.outcomes`,
+  `qa.categories`), mirrored onto the tickets dataset's column options so the Datasets admin and the CLI show the
+  same values. A missing list reads as today's (TransportNY's seven statuses, the seven outcomes, the five
+  categories), so 126, 170 and 2824062 change nothing. Rejected: the column options as the only copy; the pages
+  (built from the row) and the server's stub would each need an extra read of the tickets source.
+- **Which lists:** statuses (each with a kind), outcomes, categories. Staying in code: severity (it drives the
+  severity weighting, its own colours, the "open by severity" rows and the reporter's wording on the form),
+  priority (three fixed colours), page stages (Delivery QA's; they drive the stage colours and roles).
+- **Values in use:** a value tickets hold can't be renamed or removed; it shows "in use", as a covered site's
+  short key does once used. Adding, reordering and changing a status's kind are free. Renaming in use (a bulk
+  update of tickets) is later.
+- **What follows the statuses:** open/closed counts and the Open/Closed shortcuts (by kind); the status pills
+  (colour by kind; TransportNY's In review keeps its half-filled look); the rail's status menu; resolved-date
+  stamping (done and canceled kinds); "Where tickets stand" (a step per triage and active status, then done, then
+  waiting); the Recent activity pills.
+- **New tickets** start at the install's first triage-kind status (Report an issue, Page QA's New ticket). The
+  stub for ungranted users must carry it: add it to `intake.js`'s `public.qaIntake`. Since the 2026-10-14 move
+  that needs no server change; the plan before was a server-built `qa.intake.status`.
+
+- [ ] 2a custom ticket fields (above).
+- [ ] 2b editable lists (statuses, outcomes, categories).
+
+**Step 3: the Help desk group's first switches.**
+- [ ] **Staff intake ("file for someone").** A staff form where the reporter isn't the signed-in user, for requests
+  that came in another way.
+- [ ] **Clocks (response-time targets).** Standard in every help desk the research surveyed (Zendesk, Freshdesk,
+  Jira Service Management, Zammad, osTicket, Help Scout, YouTrack Helpdesk, Linear Business), rare in plain issue
+  trackers ([`industry-research.md`](../../../../../research/qa-ticketing-system/industry-research.md) §2 and
+  TL;DR #3).
+  - **Shape** (research TL;DR #3): start, pause and stop conditions read from the event log against a business
+    calendar, never from a status column's current value. YouTrack stores the outcomes as ordinary ticket fields
+    so dashboards can query them.
+  - **Not on the December path.** The part that couldn't wait, the event log, is the change history, already
+    built. A clock computed from it covers every past ticket whenever it lands. Until then, MNY's quarterly script
+    computes the on-time number from the history (below).
+- Later, only if a decision below needs them: requester messages and notifications (if an acknowledgment must
+  reach the requester), a "my requests" view, CSAT, quarter-end snapshots, time entries.
+
+**Before outside users (shared core):** a permission check on reads of internal datasets (reporter emails are
+readable through `uda` today) and a guard on `dms.data.create` (Defect E in
+[`auth-permission-chain-and-unguarded-writes.md`](./auth-permission-chain-and-unguarded-writes.md)). This is also
+what lets the history count as proof. Already queued in §3: a serial `ticket_number`, the install lockout fix,
+signed-out filing.
+
+**MitigateNY's settings and theme code** (no core edits; each is a prod write on MitigateNY, so each waits for the
+owner's go):
+- Switches: Help desk on, Delivery QA off.
+- Statuses: New → Acknowledged → Triaged → Resolved → Closed, each with a kind. Outcomes: Fix, Workaround,
+  Backlog, Out of scope (all four exist in today's list).
+- Fields: requester type (county / town / consultant / state), hours, channel (form / phone / email / office
+  hours), `received_at`.
+- County = the covered site the ticket came from (owner, 2026-10-13): each county deployment is its own pattern,
+  and the Site filter already groups by it. No new column.
+  - The one gap: 566466 admin and 2265530 MitigateNY_actions serve every county's subdomain, so their tickets
+    group under those patterns. The page's full URL is in each ticket's `env`, so a report can read the county
+    from it if that matters.
+  - Assumed, not confirmed with DHSES: that the contract's "county" means the county site it came from, not, say,
+    the county a consultant on the main site is asking about.
+- The acknowledgment clock: start `received_at` (else the filed time), stop when the status leaves New, target 2
+  business days (the SOW draft writes ⟨2⟩), the NYS holidays as calendar rows.
+
+**MitigateNY's needs outside the pattern:**
+- The DHSES dashboard (open and closed tickets by county, category and age, exportable): authored pages on MNY's
+  site over the tickets dataset. Sections already download their data (`dataWrapper/index.jsx` `triggerDownload`).
+  Needs the read check above before DHSES users get access.
+- The quarterly report queries: scripts in `src/themes/mny/scripts/`, or authored pages. Includes the on-time
+  acknowledgment number, read from the change history (when the status first left New, against business days),
+  until core clocks exist.
+- The Feb–Dec 2026 backfill: a one-time import script in `src/themes/mny/scripts/`. Those tickets have no system
+  times; mark them as imported and report them separately.
+- Not software: office hours (two 90-minute sessions a month, plus the announcement to counties), the ⟨40⟩ hours a
+  month support cap across all support work, change-control records for out-of-scope requests, the DHSES
+  walkthrough. Requests taken at office hours are filed through staff intake.
+
+**Open decisions (owner first, then DHSES):**
+- What counts as an acknowledgment: a staff status change, or a message the county receives (that needs
+  notifications).
+- The business-day rule. Suggested: due at the end of the second business day after the day it's received,
+  Eastern time, rather than exactly 48 business hours.
+- The target itself (⟨2⟩ in the SOW draft).
+
+**Time-sensitive:** history can't be rebuilt after the fact, so the dms-server deploy and "finish set-up" on 2824062
+must come before MNY's first real ticket (§1).
 
 ### 6. TransportNY (lower priority since 2026-10-06; no contract)
 
@@ -453,6 +761,12 @@ section 2:
   2026-10-09: test ticket #210 had `alphapage:alphapage`; the site bar said 4 open, the pages table showed 3).
   Happens for a renamed slug or a page that was never tracked. Options: an "untracked page" row in the site's
   table, or count only tracked pages' tickets in the bar. Not decided.
+- [ ] **A new dataset's first reads race to create its table** (found 2026-10-13, a fresh install's Overview).
+  `ensureTable` (`dms-server/src/db/table-resolver.js` ~358) checks its cache, then runs `CREATE TABLE IF NOT
+  EXISTS`; the UDA read path calls it (`routes/uda/utils.js` ~200), so several sections reading a never-written
+  dataset at once run it together, and Postgres refuses all but one (`duplicate key value violates unique
+  constraint "pg_type_typname_nsp_index"`). Those sections show blank until a reload. Fix: share the in-flight
+  promise per table, or treat that error as "exists".
 - [ ] A plain `Check` icon is missing from the library set. Adding it changes the Spreadsheet's add-row button,
   which shows a fallback shield today.
 - [ ] Route auth judges the placeholder user while sign-in loads. QA works around it:
@@ -489,7 +803,7 @@ Dated owner decisions that still hold. The reasoning is in the archive.
   - new rows name their pattern by instance;
   - the short key locks once used;
   - one Save for the tab;
-  - feature switches come later.
+  - feature switches come later (replaced 2026-10-13: they come first).
 - **2026-10-05:**
   - design source is Tessera `design_system_v6`;
   - the status menu is a flat list;
@@ -526,6 +840,19 @@ Dated owner decisions that still hold. The reasoning is in the archive.
   - the feed gets filters (site, page, category, status);
   - history growth gets its own task;
   - the history write is off by default per call (`changeHistory: false`); the Falcor create/edit routes opt in.
+
+- **2026-10-13:**
+  - an install defines its own statuses, each mapped to a fixed kind; TransportNY's seven are the default
+    (replaces "the ticket record's lists live in code" for statuses);
+  - MNY's specifics (its statuses, fields, `received_at`, clock settings) are install settings and MNY theme code
+    on top of generic core pieces, not changes to core;
+  - no subdomain column: a ticket's county is the covered site it came from, since each county deployment is its
+    own pattern;
+  - one `qa` pattern type serves Delivery QA and Help desk as two switch groups over a shared tickets core, not two
+    pattern types;
+  - the Add Pattern picker stays as it is apart from the card's name, "Tickets"; the switches live on the install's
+    Configure tab, and a group's switch does a preset's job;
+  - the order: switches, then custom statuses and fields, then the Help desk switches.
 
 ## Where the history went
 

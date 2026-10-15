@@ -4,8 +4,7 @@ import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 
 import { appendHistoryEntry } from '../../../utils';
 import { resolveMountPath } from '../../../../utils/mountPath';
-import { trackPublishedPage } from '../../../qa/tracking';
-import { datasetRows } from '../../../qa/datasets';
+import { listPatternTypes } from '../../../registry';
 
 export const insertSubPage = async (item, dataItems, user, apiUpdate) => {
     if(!item?.id) return;
@@ -157,22 +156,9 @@ export const toggleSidebar = async (item,type, value='', pageType, apiUpdate) =>
   apiUpdate({data:newItem})
 }
 
-// Adds a just-published page to the QA installs that cover its pattern (patterns/qa/tracking.js).
-// `qa`: CMSContext's qaTracking with its app and baseUrl, and the page's apiLoad (its reads skip
-// falcor's cache, so a page another tab just added isn't added twice). Its row is created through
-// apiUpdate with the pages dataset's format, as a section's add-row does. A failure is logged and
-// leaves the publish as it is.
-const trackOnPublish = (item, apiUpdate, { installs, patternKeys, app, baseUrl, apiLoad }) => trackPublishedPage({
-  page: item, patternKeys, qaInstalls: installs,
-  url: `${window.location.origin}${baseUrl}/${item.url_slug}`,
-  loadRows: (ref, columns) => datasetRows(apiLoad, app, ref, columns),
-  createRow: (ref, data) => apiUpdate({
-    data,
-    config: { format: { app, type: `${ref.slug}|${ref.view_id}:data`, isDms: true, source_id: ref.source_id, view_id: ref.view_id, env: `${app}+${ref.slug}` } },
-  }),
-}).catch((e) => console.warn('publish: adding the page to its QA install failed', e))
-
-export const publish = async (user, item, apiUpdate, qa) => {
+// `context`: what a pattern type's onPagePublish gets besides the page (patterns/registry.js):
+// { pattern, sitePatterns, type, app, baseUrl, apiLoad }, from CMSContext (pagesPane.jsx PublishButton).
+export const publish = async (user, item, apiUpdate, context = {}) => {
   // console.log('publish', item)
     if(!item.id) return;
 
@@ -209,7 +195,14 @@ export const publish = async (user, item, apiUpdate, qa) => {
   newItem.dataSources = cloneDeep(item.draft_dataSources)
   // console.log('publishing item', newItem)
   apiUpdate({data:newItem})
-  if (qa?.installs?.length) trackOnPublish(item, apiUpdate, qa)
+  // Then each registered pattern type's onPagePublish. Not awaited, like the write above: a hook's
+  // failure is logged and leaves the publish as it is.
+  listPatternTypes().forEach(({ name, onPagePublish }) => {
+    if (!onPagePublish) return
+    Promise.resolve()
+      .then(() => onPagePublish({ ...context, page: item, apiUpdate }))
+      .catch((e) => console.warn(`publish: the "${name}" pattern type's onPagePublish failed`, e))
+  })
 
 }
 

@@ -158,7 +158,7 @@ meta / shapefile-enhanced twin (CH view 983) on `tmc`: speed =
 (records the `tmclinear`-isn't-unique and year-pin gotchas).
 
 DMS↔DMS: the `qa` install's pages tables, ticket header and tickets list
-(`patterns/qa/pages/overview.js`, `ticket.js`, `tickets.js`; helpers
+(dms-template `src/patterns/qa/pages/overview.js`, `ticket.js`, `tickets.js`; helpers
 `joinDataset` / `OPEN_COUNT` / `PAGE_DISP` in `pages/helpers.js`).
 
 ## Common failures

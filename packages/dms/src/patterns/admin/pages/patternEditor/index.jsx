@@ -11,10 +11,10 @@ import { PatternAccessEditor } from "./default/accessEditor";
 import { PatternPagesEditor } from "./pages/pagesEditor";
 import { SourcesTab } from "./pages/sourcesTab";
 import { ActivityTab } from "./pages/activityTab";
-import { QaConfigureTab } from "./qa/configureTab";
 import FormatManager from './formatManager';
 import PageTemplateManagerPane from './pageTemplateManagerPane';
 import UserMenuEditor from './userMenuEditor';
+import { getPatternType } from '../../../registry';
 
 const Alert = () => <div>A</div>
 
@@ -49,13 +49,6 @@ const sourcesTab = {
   name: 'Data Sources',
   path: 'sources',
   component: SourcesTab
-}
-
-// A QA install's own settings: its datasets, covered sites and ticket record.
-const qaConfigureTab = {
-  name: 'Configure',
-  path: 'configure',
-  component: QaConfigureTab
 }
 
 // This pattern's user menu (the avatar menu's links): either the site's Default
@@ -131,7 +124,8 @@ const PatternEditor = ({params, dataItems, item, format, attributes, apiUpdate, 
     ...navPages,
     userMenuTab,
     ...(item.pattern_type === 'page' ? [pagesTab, sourcesTab, activityTab] : []),
-    ...(item.pattern_type === 'qa' ? [qaConfigureTab] : []),
+    // the tabs the pattern's own type adds (patterns/registry.js admin.editorTabs)
+    ...(getPatternType(item.pattern_type)?.admin?.editorTabs || []),
     ...(item.pages || []),
     ...(item.pattern_type === 'page' ? [
       { path: 'page_templates', name: 'Page Templates', component: PageTemplateManagerPane },

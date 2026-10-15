@@ -3,12 +3,10 @@ import pageConfig from './page/siteConfig'
 import adminConfig from './admin/siteConfig'
 import authConfig from './auth/siteConfig'
 import datasetsConfig from './datasets/siteConfig'
-import qaConfig from './qa/siteConfig'
 import pagesTheme from './page/defaultTheme'
 import adminTheme from './admin/defaultTheme'
 import authTheme from './auth/defaultTheme'
 import datasetsTheme from './datasets/defaultTheme'
-import qaTheme from './qa/defaultTheme'
 
 // The built-in pattern types. A host app registers its own the same way — see
 // ./registry.js for the definition shape, and documentation/pattern-registry.md.
@@ -42,14 +40,6 @@ registerPatternTypes({
     label: 'Admin',
     admin: { addable: false, order: 40 },
     defaultTheme: adminTheme,
-  },
-  qa: {
-    siteConfig: qaConfig,
-    label: 'Ticketing / QA',
-    description: 'Issue reports, tickets and page QA',
-    admin: { addable: true, order: 50, defaultName: 'QA' },
-    // the qa pattern's look; withQaTheme applies it on QA pages only (qa/withQaTheme.js)
-    defaultTheme: qaTheme,
   },
 })
 

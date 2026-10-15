@@ -2,7 +2,6 @@ import React, { useState } from 'react'
 import { ThemeContext } from '../../../ui/useTheme'
 import { nameToSlug } from '../../../utils/type-utils'
 import { patternPickerTheme } from './AddPatternPicker.theme'
-import { QA_PATTERN_ENABLED } from '../../qa/install'
 import { listPatternTypes } from '../../registry'
 
 // One card per addable registered pattern type (patterns/registry.js) except
@@ -12,7 +11,7 @@ function patternTypeCards(authExists) {
   const card = d => ({ kind: d.name, label: d.label || d.name, desc: d.description || '', defaultName: d.admin?.defaultName })
   const addable = listPatternTypes().filter(d => d.admin?.addable && d.name !== 'page')
   const cards = addable
-    .filter(d => d.name !== 'auth' && (QA_PATTERN_ENABLED || d.name !== 'qa'))
+    .filter(d => d.name !== 'auth')
     .map(card)
   const auth = addable.find(d => d.name === 'auth')
   return authExists || !auth ? cards : [...cards, card(auth)]
