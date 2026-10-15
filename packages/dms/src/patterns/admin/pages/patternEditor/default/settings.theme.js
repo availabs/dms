@@ -44,7 +44,6 @@ export const settingsEditorTheme = {
     cardHeaderLabel: 't-metaSM text-[var(--t-graphite)]',
     cardHeaderHint: 't-metaXS text-[var(--t-pencil)]',
     cardBody: 'divide-y divide-[var(--t-rule)]',
-    cardFooter: 'px-4 py-2.5 border-t border-[var(--t-rule)] flex items-center gap-2',
 
     // Identity card rows (built with FieldSet — customTheme per field
     // controls col-span within this 12-col grid).
@@ -74,9 +73,6 @@ export const settingsEditorTheme = {
     // Simple type-gated settings cards (Page/Auth)
     settingsGrid: 'p-4 flex items-center gap-3',
     settingsLabel: 't-metaSM text-[var(--t-graphite)]',
-    // qa pattern block: link to the Datasets pattern listing the install's datasets, and a failed re-run
-    qaLink: 't-metaSM text-[var(--t-cobalt)] hover:underline',
-    qaError: 't-metaSM text-[var(--t-brick)]',
 
     // Danger zone
     dangerCard: 'border border-[var(--t-brick)] rounded-lg overflow-hidden',

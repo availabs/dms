@@ -320,9 +320,6 @@ export function pattern2routes (siteData, props) {
     // The patterns whose rows are internal datasources (the page source pickers):
     // every registered type that declares `providesDatasources`.
     const datasetPatterns = patterns.filter(p => getPatternType(p.pattern_type)?.providesDatasources);
-    // The site's QA installs: publishing a page adds it to any that covers its pattern
-    // (patterns/qa/tracking.js).
-    const qaPatterns = patterns.filter(p => p.pattern_type === 'qa');
 
     // Every pattern mount's first path segment (`/auth`, `/datasources`, `/docs`,
     // `/list`, …), across ALL subdomains — the set a site-absolute authored link is
@@ -523,7 +520,6 @@ export function pattern2routes (siteData, props) {
                     pgEnv: pgEnvs?.[0] || '',
                     damaBaseUrl,
                     datasetPatterns,
-                    qaPatterns,
                     themes,
                     // Raw, unresolved theme loader — only the admin pattern-theme-picker
                     // (themeEditor.jsx) needs the full theme registry; everyone else gets

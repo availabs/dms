@@ -4,8 +4,10 @@
 that lives in your app rather than in the DMS library, and behaves exactly like a built-in.
 
 Reference: [`../documentation/pattern-registry.md`](../documentation/pattern-registry.md). Worked
-example: dms-template `src/patterns/mapeditor/` (the map editor, which also ships the page pattern's
-Map section).
+examples:
+- dms-template `src/patterns/mapeditor/`: the map editor, which also ships the page pattern's Map
+  section.
+- `src/patterns/qa/`: the Tickets pattern, which uses the admin, publish, CLI and server hooks below.
 
 ## 1. Put the pattern in the app
 
@@ -75,6 +77,29 @@ exist for sections that don't use the dataWrapper:
 Keep the element-type keys stable: stored sections reference them. To rename one, register the old key
 as a hidden alias: `{ ...Entry, hideInSelector: true }`.
 
+## 5b. Admin, publish, CLI and server hooks (optional)
+
+For a type that has more to do than route and render. All of these are optional, and QA uses each one.
+
+| Need | Hook |
+|---|---|
+| Refuse a new pattern, or give it initial settings | `admin.beforeCreate` → `{ problem }` / `{ row }` |
+| Set things up once it exists (datasets, environments) | `admin.afterCreate` (runs after the site row is saved) |
+| Never offer Duplicate | `admin.duplicable: false` |
+| Its own Pattern Editor tab | `admin.editorTabs: [{ name, path, icon, component }]`; make the component lazy |
+| React to a page being published (editor Publish) | `onPagePublish({ page, pattern, sitePatterns, type, app, baseUrl, apiLoad, apiUpdate })` |
+| The same for `dms page publish` | a plain-ESM module named by `DMS_PAGE_PUBLISH_HOOK` / `.dmsrc` `pagePublishHook` |
+| Show part of its settings to users not granted on the row | write it to the row's `public` key; dms-server's no-access stub carries `public` |
+| A nav widget a theme can place | `registerWidget(name, { label, component })` from the library entry |
+
+- **Admin panels are styled under `admin.*`.** Admin pages get only a site theme's `admin` key
+  (`getAdminTheme`). So a tab's theme override key is `admin.<key>`, spread over a local default. It
+  isn't under the type's own key.
+- **`public` is readable by everyone, signed out included.** Write only what must be public. Rebuild
+  it on every write of the settings it copies (QA: `intake.js` `publicSettings`).
+- **The CLI hook runs in plain Node.** It can't import the library entry or anything that does. Keep it
+  to plain-ESM files of your own (with `.js` extensions on imports), and take the rest from `helpers`.
+
 ## 6. Verify
 
 - `npx vitest run src/patterns/<name>` — model it on `src/patterns/mapeditor/mapeditor.test.js`:
@@ -82,7 +107,7 @@ as a hidden alias: `{ ...Entry, hideInSelector: true }`.
 - The library suite stays green: `npx vitest run src/dms/packages/dms/tests`.
 - `npx vite build`, plus `npx vite build --ssr src/entry-ssr.jsx`.
 - Live: Admin → Add Pattern shows the card. Create one, open its route, and check its theme overrides
-  apply.
+  apply. If it has `afterCreate` or `editorTabs`, check what they set up and that the tab opens.
 
 ## Gotchas
 

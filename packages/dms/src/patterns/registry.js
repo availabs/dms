@@ -13,11 +13,25 @@
 //                   built-in's siteConfig.jsx default export
 //   label           display name (pattern-type select, picker card)
 //   description     one line for the Add Pattern picker card
-//   admin           { addable, order, defaultName, usesDmsEnv }
+//   admin           { addable, order, defaultName, usesDmsEnv, duplicable,
+//                     beforeCreate, afterCreate, editorTabs }
 //                     addable      offered as a card in the Add Pattern picker
 //                     order        position in the type select / filter chips
 //                     defaultName  the picker's suggested pattern name
 //                     usesDmsEnv   the pattern settings show the dmsEnv picker
+//                     duplicable   default true; false hides Duplicate and
+//                                  patternActions denies it (utils/adminPermissions)
+//                     beforeCreate optional async ({ falcor, app, instance, row,
+//                                  siblings }) → { problem } to refuse the new
+//                                  pattern (the message is shown), or { row } to
+//                                  write in place of `row` (e.g. initial settings)
+//                     afterCreate  optional async ({ falcor, app, siteId,
+//                                  siteInstance, patternId, instance, row,
+//                                  siblings }), run once the site row listing the
+//                                  new pattern is saved (e.g. creating datasets)
+//                     editorTabs   optional [{ name, path, icon, component }]:
+//                                  Pattern Editor tabs (and admin menu entries)
+//                                  this type adds after Overview
 //   providesDatasources  this type's rows become internal datasources
 //                   (CMSContext.datasources — the page source pickers)
 //   pageComponents  optional { elementType: definition } handed to the page
@@ -29,6 +43,12 @@
 //                   style the pattern by setting keys under that same name.
 //   themeKey        optional; only for a type whose theme key predates the
 //                   registry (the page pattern's is `pages`)
+//   onPagePublish   optional async ({ page, pattern, sitePatterns, type, app,
+//                   baseUrl, apiLoad, apiUpdate }), called after Publish on a
+//                   page pattern's page (`pattern` is that page pattern's row,
+//                   `type` its instance).
+//                   It runs after the publish write and never blocks it; a
+//                   failure is logged.
 //   registerFromTheme  optional (theme) => void. pattern2routes calls it with
 //                   every theme the site loaded, at route build, so the type can
 //                   register code a site theme ships for it under the type's

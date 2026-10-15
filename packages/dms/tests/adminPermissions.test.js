@@ -189,8 +189,11 @@ describe("patternActions — access matrix rows", () => {
       expect(act({}, { ...pat(undefined), pattern_type: t }, admin)).toMatchObject({ open: true, edit: true, delete: false, duplicate: false });
     }
   });
-  it("qa rows get Delete but never Duplicate, even for Admin", () => {
-    expect(act({}, { ...pat(undefined), pattern_type: "qa" }, admin)).toMatchObject({ open: true, edit: true, delete: true, duplicate: false });
+  it("a type registered with admin.duplicable: false gets Delete but never Duplicate, even for Admin", () => {
+    const row = { ...pat(undefined), pattern_type: "fake_type" };
+    expect(patternActions(admin, APP, {}, row, { duplicable: false })).toMatchObject({ open: true, edit: true, delete: true, duplicate: false });
+    expect(patternActions(admin, APP, {}, row, { duplicable: true })).toMatchObject({ duplicate: true });
+    expect(patternActions(admin, APP, {}, row)).toMatchObject({ duplicate: true });
   });
   it("site `*` / Admin: everything", () => {
     expect(act(site(["*"]), lockedPat)).toMatchObject({ open: true, edit: true, editPermissions: true, delete: true, duplicate: true, locked: false });
