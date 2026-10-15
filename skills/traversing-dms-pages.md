@@ -346,6 +346,17 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   layers. Do not conclude anything about a map section's UI from an
   un-resized screenshot.
 
+- **A plain (non-`/edit/`) view URL always renders a page's PUBLISHED `sections`, never
+  `draft_sections` — regardless of being signed in as an admin/editor.** Confirmed live on
+  `mitigat-ny-prod`'s `actions|view` page (2026-10-14): with the page's `has_changes: true` and a
+  fully authenticated editor session (account menu, edit pencil all present, no auth errors in the
+  console), `/actions/view?id=<x>` rendered the stale PUBLISHED content (an old, already-fixed H1
+  string; missing cells added only to the draft) while `/actions/edit/view?id=<x>` — same session,
+  same tab, immediately after — rendered the current draft correctly. There is no implicit
+  "preview my draft while signed in" mode on the ordinary view route; the only way to see
+  `draft_sections` for an existing (already-published) page is the `/edit/<slug>` URL. Don't infer
+  draft-vs-published from login state or from one earlier successful check on a *different* page —
+  verify with the actual URL every time, especially after re-opening a browser tab/session.
 - **A draft page is invisible in the nav in VIEW mode, and marked `*` in edit
   mode.** `dataItemsNav` filters `published !== 'draft'` unless `edit` is set,
   and appends `*` to a draft's label. So a freshly seeded pattern's sidenav/
