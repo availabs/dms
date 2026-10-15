@@ -3,7 +3,7 @@
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** blocked:decision · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
 
 **Deferred (owner 2026-10-14: "#7 is not for now").** Not started. It waits until the UI control work in
-[ui-control-consistency-audit.md](./ui-control-consistency-audit.md) is done (owner, 2026-10-13:
+[ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md) is done (owner, 2026-10-13:
 "once this is done, we can work on another default theme that has more colors in it. that can be a
 separate task file").
 

@@ -19,14 +19,17 @@ its spacing fix, then the owner said "looks good"). Committed on local `design-w
 - [page-v6-port-pages.md](./page-v6-port-pages.md): pages 13–19 (view → link page notice)
 
 The follow-on work is the shared control looks (buttons, pills, switches, tabs, fields), tracked in
-[ui-control-consistency-audit.md](./ui-control-consistency-audit.md) and its sub-tasks; start there
-when resuming design work.
+[ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md) and its sub-tasks; start there
+when resuming design work. That effort closed 2026-10-15; its follow-on is
+[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md).
 
 Still open from this port:
 - Live findings 2, 3 and 5 (below, "Earlier status notes"): dead "Delete View" link, gis Uploads
   page, unthemed surfaces. Decision 15: fix after the design implementation.
 - FLAGGED: mobile TopNav for the default Layout (logo + user menu below lg), see page 1.
-- The schedule / runs pages were never walked live (no loader source in the test data).
+- The schedule / runs pages were never walked live (no loader source in the test data). 2026-10-15: the Runs
+  page is now themed to the `datasets-schedule.html` mockup (default theme; project themes frozen in
+  `_legacy/datasets.js` `runsPage`), checked with a stubbed-data preview harness, not on a real loader source.
 - Project-theme re-key audit beyond MNY / TNY / landbank (wcdb, avail, tessera) not done.
 - Move this file (and the two page records) to `completed/` once the owner closes it.
 

@@ -320,7 +320,7 @@ implementation record, in page order.
   last view. Verified: version page 2026-10-06 20:01:57 ×2; Overview Created Oct 6 / Updated Oct 7,
   "published …" on every version.
 - **Owner (2026-10-07): after this redesign** → button + pill consistency audit, its own task:
-  [ui-control-consistency-audit.md](./ui-control-consistency-audit.md).
+  [ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md).
 
 ### 6. datasets · create — DONE + APPROVED 2026-10-07 (owner: "yes" to page 7)
 - `pages/createPage.theme.js` ported (+ now merged over the default — CreatePage read

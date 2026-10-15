@@ -1,6 +1,6 @@
 # UI controls — className → activeStyle, per usage
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub.
 
@@ -128,7 +128,7 @@ caller used chip / chipOn.
 
 Verified: the scan finds no Button with className / themeOptions left in `patterns/page`. Default
 theme: the rename modal Cancel is exactly `action` (the default theme's delete modal is the shared
-`UI.DeleteModal`, whose raw buttons belong to [ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md)).
+`UI.DeleteModal`, whose raw buttons belong to [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md)).
 Project themes (HEAD pixel diff): page edit view is unchanged on MNY / TNY v2 / landbank. The pages drawer
 changed only at "+ Add Page", which went from unstyled text to each theme's own button at full width.
 eslint same as HEAD.
@@ -379,3 +379,8 @@ Verified:
 
 Not live-walked: the themes list and editTheme states, because the test data has no themes, and
 the pattern list save / cancel states. Those use the same names and were checked at the code level.
+
+### 2026-10-15 — closed
+
+Done: every library and app-side `UI.Button` takes its look from `activeStyle` only; `Button.jsx` locked.
+Raw `<button>` elements are the follow-on, [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).

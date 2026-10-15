@@ -1,9 +1,9 @@
 # UI controls — pills: four named kinds, className callers swapped, Pill locked
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress (agent D done 2026-10-14) · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Owner 2026-10-14: other UI
-elements must look the same before [ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md); run in
+elements must look the same before [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); run in
 parallel agents ("go ahead, run multiple agents to parallel work on next steps").
 
 ## Objective
@@ -79,7 +79,7 @@ Verified: class resolution on all 22 themes unchanged vs the previous run; eslin
 (prop-types aside); build OK; live: TNY section menu (ActionBtn → Pill action row + "Hidden from View"
 Pill) pixel-identical to HEAD.
 
-**status_pill comparison (decision pending, behaviour unchanged).** `<session scratchpad>/agentD/
+**status_pill comparison (decided 2026-10-14: boxed, see below).** `<session scratchpad>/agentD/
 status_pill_compare_light.png` and `_dark.png` (script `status_compare.mjs`): dotted (`status_good / warn /
 bad / na`, new token tones) vs boxed status kind (`status_go / amber / brick / status`), labels Good /
 Warning / Bad / N/A, in a `UI.Table 'list'` row and in Card cells (header + value), real library classes
@@ -92,3 +92,9 @@ drawn as the Card default's mono label), not a live Card section.
   `status_bad` / `status_na` now use the boxed status kind (go / amber / brick / well soft, r4 mono 10). The
   `status_pill` column type is unchanged (it still picks those names). Project themes keep their dotted styles
   (frozen in `_legacy/ui.js` `pill`; MNY's own `status_*` win). The `DOT` const is gone from the library file.
+
+### 2026-10-15 — closed
+
+All done and committed (library `ffc7566f`). Pattern-drawn pills (admin type / count pills, datasets
+category / status badges, the auth group chip) moving onto `UI.Pill` kinds are tracked in
+[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).

@@ -3,7 +3,7 @@
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** shaunak.sangdod@gmail.com
 
 **Status: IMPLEMENTED + verified live 2026-09-22 (SPA). Uncommitted. Open: SSR check, and the theme-editor check for a pattern-level `theme.admin`.** Split out of
-[`admin-pattern-v6-port.md`](./admin-pattern-v6-port.md)'s "Not started / next steps" item 1 (MNY
+[`admin-pattern-v6-port.md`](../current/admin-pattern-v6-port.md)'s "Not started / next steps" item 1 (MNY
 admin reskin).
 
 > **Revision history (2026-09-22).**

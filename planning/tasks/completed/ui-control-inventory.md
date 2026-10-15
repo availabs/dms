@@ -1,6 +1,6 @@
 # UI controls — the inventory (Deliverable 1, 2026-10-13)
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md). Reference record; the hub has the
 current status.
@@ -108,7 +108,7 @@ kind and the decisions that need the owner.
   looks**), and 500 clickable non-buttons (40 looks: nav rows, selects, sortable headers, cards).
   **67 buttons have no pointer cursor.**
 - Not covered live: the section menu (the walker couldn't open it; it's specified against its
-  mockup in [ui-primitives-default-theme.md](./ui-primitives-default-theme.md)), the forms pattern
+  mockup in [ui-primitives-default-theme.md](../current/ui-primitives-default-theme.md)), the forms pattern
   (no forms pattern on the test site), the schedule / runs pages (no schedule source) and dark
   mode. Tooling: `src/themes/tessera/design_system_v6/scripts/inventory/` (walker + analyser; see its README) for the re-check after
   Deliverable 2.

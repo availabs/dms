@@ -1,6 +1,6 @@
 # Raw HTML controls → UI components
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** todo · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
@@ -9,10 +9,10 @@ element that exists in ui, should use component from ui. this should be a separa
 
 Every control that the UI library already provides gets rendered through that UI component, never as a
 raw HTML element with its own classes. Its look then comes from the theme (`activeStyle`), like the
-buttons in [ui-control-classname-to-activestyle.md](./ui-control-classname-to-activestyle.md). A theme
+buttons in [ui-control-classname-to-activestyle.md](../completed/ui-control-classname-to-activestyle.md). A theme
 or an author can then restyle every control in one place.
 
-Separate from, but built on, the UI controls effort ([ui-control-consistency-audit.md](./ui-control-consistency-audit.md)).
+Separate from, but built on, the UI controls effort ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)).
 
 ## Scope
 
@@ -126,7 +126,7 @@ ui.table. locking button can happen before this task")
 - [x] The datasets markup tables (12) move onto `UI.Table`. Where a table needs something `UI.Table` lacks,
       enrich `UI.Table` (or add a named style), never a local table.
 - [x] Locking `Button.jsx` (no `className` / `themeOptions` in the class) happens **before** this task,
-      at the end of [ui-control-classname-to-activestyle.md](./ui-control-classname-to-activestyle.md).
+      at the end of [ui-control-classname-to-activestyle.md](../completed/ui-control-classname-to-activestyle.md).
       Swapped raw buttons then land on the locked Button.
 
 ## Files requiring changes
@@ -145,7 +145,7 @@ To be listed per area in step 1. A grep for each element across `packages/dms/sr
 ## Added 2026-10-14 (owner: "#1 should be covered under ui-raw-html-to-ui-components")
 
 **Pattern-drawn pills → `UI.Pill` kinds** (status / status_go / amber / brick / cobalt, marker, count, tag,
-tag_sub — see [ui-control-pills.md](./ui-control-pills.md)). Spans styled by pattern theme keys today:
+tag_sub — see [ui-control-pills.md](../completed/ui-control-pills.md)). Spans styled by pattern theme keys today:
 - admin: type / count / scope / level pills (`editSite.theme.js` `typePill`, `AddPatternPicker` `optTag`,
   format-manager / user-menu counts, `noAccessBadge`)
 - datasets: category / admin / namespace pills (`sourceOverview` `catPill` / `catSubPill` / `adminPill`),
@@ -158,3 +158,48 @@ Same recipe as the rest of this task: list per area, owner OK, swap, drop the pa
 Also from the table work: the spreadsheet add-row / inline-save / actions-column buttons in
 `ui/components/table/index.jsx` and `RenderActions.jsx` are still raw `<button>`s reading theme keys
 (frozen for project themes) → `UI.Button` roles here.
+
+## Carried over from the UI controls hub (2026-10-15)
+
+The hub ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)) closed on 2026-10-15.
+Items still open from it:
+- Auth sign-in / sign-up pages: icon mark, heading accent, "forgot password" link and the icon hover are still
+  cobalt (`auth/defaultTheme.js`); the sign-in submit was skipped by the owner on 10/13.
+- Profile avatar: solid cobalt square (`auth/defaultTheme.js` `avatar`). Asked 2026-10-15 whether it goes ink.
+- Polish from the 10/13 mockup walk (`ui-control-spec-and-mockups.md`): the skeleton is faint on a light cell; the
+  tooltip (board) is low-contrast in dark.
+- `UI.Switch` in dark mode: the on track is `--t-ink`, which is near-white in dark, with a dark knob. Owner
+  (2026-10-15) didn't see a problem on the theme toggle, which is a different control; the Switch is to be
+  checked with the owner.
+- ~~TNY v2 / MNY define no `action` / `primary` Button roles~~ **Done 2026-10-15 (owner: "snapshots look good").**
+  Traced through the real chain (loadThemes → withLegacyUi → getPatternTheme → getComponentTheme, Vite SSR):
+  unset roles inherited styles[0], so on TNY v2 primary / action / small / full-width actions were `linkMono` text
+  links, and on MNY every role, danger included, was the white default pill. Now defined in the themes' own
+  vocabulary: TNY v2 `themev2.js` primary = `default`, action = `secondary`, small = `compact`, linkMeta =
+  `linkMonoXS`, linkProse = `footerlink`, + red `smallDanger` / `linkMetaDanger`; MNY `theme.js` primary = amber
+  pill, action = the white pill, danger / smallDanger = red-outline pill, dangerSolid = red pill, linkMeta /
+  linkMetaDanger = slate text link. `_legacy/ui.js` DERIVED `actionFull` now derives from the theme's own `action`
+  (else styles[0]). Resolution across all 21 registered themes: only transportnyv2, mnyv1, mny_admin and wcdb
+  change (wcdb's full-width actions now = its own outlined `action`, were the gray styles[0]); default unchanged.
+  Now / after snapshots: create, source admin and version pages on /data-tny, /data-mny. Build OK.
+- [x] GIS Layer Analysis empty state ("No features" placeholder) and theming the rest of the Runs page: owner said
+  no on 2026-10-14, **yes on 2026-10-15 — done (uncommitted)**. Layer Analysis: a dashed empty state
+  (`gisCreate.theme.js` `layerAnalysisEmpty*`) on every theme — gray in `_legacy/datasets.js`, branded via
+  `mnyDatasetStates` / `tnyDatasetStates`; mirrored in `create.py`. Runs (`RunsPage.jsx`): every hardcoded class
+  → `runsPage.theme.js` keys (v6 per `datasets-schedule.html`: card sections, `UI.Table 'list'` run list, status
+  as `UI.Pill` kinds, window chips as `status_cobalt`, a progress bar, cobalt live dot); re-run is a `UI.Button`
+  `primary` (raw `<button>` gone; project themes normalised to their own `primary`). Project themes frozen in
+  `_legacy/datasets.js` `runsPage` (`statusPill` / `windowPillStyle` / `listTableStyle` / `progressTrack` `''` →
+  the old markup). Verified: resolution check (every key = HEAD string on 6 project themes); preview harness
+  (`scratchpad/runs-preview`, stub falcor — Runs isn't reachable on the test data) pixel-identical to HEAD on
+  MNY / TNY v2 / landbank with the re-run button hidden; default matches the mockup. Build OK; lint = HEAD +
+  `react/prop-types` on the new cell Comps.
+
+## Step 1 — inventory (started 2026-10-15)
+
+Static extractor: `src/themes/tessera/design_system_v6/scripts/inventory/rawhtml.mjs` (`node rawhtml.mjs
+patterns/admin --md`). Lists each raw control with file:line, component, label, className, the class string its
+theme key resolves to and, for buttons, the nearest `UI.Button` role (`=` exact, `≈` with the extra / missing
+classes). Counts on 2026-10-15 (after the merge of master): admin 137, auth 4, datasets 156, page 174, ui
+composites 117. Admin: about 73 of 102 buttons already equal a role string exactly. Admin list next, for the
+owner's OK.

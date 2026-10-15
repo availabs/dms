@@ -55,6 +55,10 @@ export const gisCreateTheme = {
     layerAnalysisTdType: 't-proseSM text-[var(--t-ink)]',
     layerAnalysisTdCount: 't-metaMD text-[var(--t-ink)]',
     analyzingMsg: 't-proseSM text-[var(--t-graphite)]',
+    // no features (2026-10-15) — the datasets empty-state look (udaTaskList empty*), sized to the analysis box
+    layerAnalysisEmpty: 'max-w-md flex flex-col items-center text-center border border-dashed border-[var(--t-rule-strong)] rounded-lg px-6 py-8',
+    layerAnalysisEmptyTitle: 't-proseSM font-medium text-[var(--t-ink)]',
+    layerAnalysisEmptyText: 't-proseSM text-[var(--t-graphite)] mt-1 max-w-[52ch]',
     // ErrorMessage (layer analysis)
     errorTable: ERR_TABLE,
     errorThead: 'bg-[var(--t-brick-soft)] t-metaXS text-[var(--t-brick)] [&_th]:px-3 [&_th]:py-2 [&_th]:font-normal [&_th]:text-left',

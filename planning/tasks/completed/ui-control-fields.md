@@ -1,9 +1,9 @@
 # UI controls — fields: Input / Textarea / Select / MultiSelect at 32px, ink focus
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Owner 2026-10-14: other UI
-elements must look the same before [ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md); run in
+elements must look the same before [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); run in
 parallel agents ("go ahead, run multiple agents to parallel work on next steps").
 
 ## Objective
@@ -70,7 +70,7 @@ decision above (open question 1).
 
 ## Open questions
 
-1. **Input lock (className → activeStyle) — listed, not done.** 5 `className` overrides (editSite ×2 /
+1. **Input lock (className → activeStyle) — done 2026-10-14, see below.** 5 `className` overrides (editSite ×2 /
    themes list `searchInput`: a bare input inside a styled search box; authGroups / authUsers header filter
    `headerInput`). Named Input styles need the library `input` theme in `styles[]` shape, but TNY v2 / fusion /
    tessera / wcdb register a FLAT `input`, and `ConfirmInput`, Input's `Textarea` export and `FieldSet` read
@@ -124,3 +124,10 @@ lock Input.jsx / Textarea.jsx (look = theme only).
   absorb destructures (no-unused-vars, same pattern as the files' existing `label` / `rounded`).
 - **Risk noted:** a theme saved in the DB through the admin theme editor (not a registered code theme) with a
   flat `input` doesn't go through withLegacyUi; its flat keys would be ignored. None seen locally; can't check prod.
+
+### 2026-10-15 — closed
+
+All done and committed (library `ffc7566f`). Open question 1 answered and implemented (Input / Textarea
+locked); 2 (UI.Label as a tag chip) and 3 (page drawer inputs) moved to
+[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); 4 resolved by the lock (`bare` /
+`headerFilter` styles).

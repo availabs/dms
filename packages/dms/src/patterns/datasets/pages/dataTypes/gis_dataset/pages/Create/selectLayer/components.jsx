@@ -41,6 +41,19 @@ export const LayerAnalysisSection = ({state}) => {
     (a, b) => countsByPostGisType[b] - countsByPostGisType[a]
   );
 
+  // no geometries in the layer: say so instead of an empty table (2026-10-15, every theme)
+  if (!geomTypes.length) {
+    return (
+      <div>
+        <span className={t.layerAnalysisTitle}> Layer Analysis </span>
+        <div className={t.layerAnalysisEmpty}>
+          <p className={t.layerAnalysisEmptyTitle}>No features</p>
+          <p className={t.layerAnalysisEmptyText}>This layer has no geometries to load. Choose another layer or check the file.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <span className={t.layerAnalysisTitle}> Layer Analysis </span>

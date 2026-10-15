@@ -1,10 +1,14 @@
 # Theme the unthemed UI primitives — v6 for the default theme, legacy for everyone else
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** next · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** todo · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
-**Not started — on hold until the datasets + page v6 redesign
-([datasets-page-pattern-v6-port.md](./datasets-page-pattern-v6-port.md)) is finished** (owner,
-2026-10-07: "we need to finish the current redesign first").
+**State 2026-10-15:** the datasets + page v6 redesign it waited for is finished, and the UI controls effort
+([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)) did part of this task:
+`Switch` (themed, `_legacy/ui.js` freeze), `Textarea` (locked, `styles[]`), `Button` (`themeOptions` gone, locked),
+the section menu (`navigableMenu` tokens, plain value) and `Pill` (named kinds). `Pagination`'s only grays are in
+commented-out code; `Card`'s one hardcoded `<label>` is in
+[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md). **Left: `List`, `Colorpicker`,
+`DraggableList`, `CardColumnPicker`.**
 
 ## Objective
 

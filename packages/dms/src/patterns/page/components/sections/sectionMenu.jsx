@@ -988,10 +988,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     }
 
 
+    // totalLength is unset until the section's data has loaded (or when it never loads)
+    const totalLength = parseInt(state?.display?.totalLength);
     const filter = [
         {name: 'Filters', icon: 'Filter',
-            value: `${parseInt(state?.display?.totalLength).toLocaleString()} rows`,
-            showValue: true,
+            value: `${totalLength.toLocaleString()} rows`,
+            showValue: Number.isFinite(totalLength),
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
                 // Suppresses the round Filter-icon pill that toggles the external-

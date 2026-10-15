@@ -1,6 +1,6 @@
 # UI controls — the spec page and the mockup re-skin (2026-10-13)
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md). Reference record; the hub has the
 current status.
@@ -77,3 +77,9 @@ the HEAD-baseline pixel diff on MNY / TNY / landbank before calling a step done.
   underline trick inside `overflow-x-auto`, which forces `overflow-y: auto`. It now draws the rule as an
   inset shadow + `overflow-y-hidden`, and tabs are `flex-none`. Measured: no vertical overflow at 1440
   or 390; only a horizontal scroll at 390, which is intended.
+
+### 2026-10-15 — closed
+
+Spec page and mockup re-skin done. The polish noted above (faint skeleton on a light cell, low-contrast
+tooltip in dark) is carried in [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md)
+"Carried over".

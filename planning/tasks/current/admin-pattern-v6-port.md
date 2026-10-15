@@ -809,7 +809,7 @@ no page errors.
 
 ## Not started / next steps
 
-1. **MNY admin reskin** — **now planned as its own task: [`admin-theme-per-project.md`](./admin-theme-per-project.md)** (scope decided 2026-09-22: logo only — the auth pattern's theme's `admin.logo` overrides the default for admin + manage pages; colors/fonts stay default). Original note: MNY's own admin surface (`mny_admin`
+1. **MNY admin reskin** — **now planned as its own task: [`admin-theme-per-project.md`](../completed/admin-theme-per-project.md)** (scope decided 2026-09-22: logo only — the auth pattern's theme's `admin.logo` overrides the default for admin + manage pages; colors/fonts stay default). Original note: MNY's own admin surface (`mny_admin`
    theme) still hasn't had its own pass; everything done so far is the shared tessera-default look
    only. Confirmed earlier (`tessera-component-theme-port.md`) that `mny_admin`'s auth-page theming
    is correct via its `{...mny, ...theme, Icons}` shallow-spread inheritance, so MNY's login/signup

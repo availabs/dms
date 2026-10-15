@@ -1,9 +1,9 @@
 # UI controls — tabs ink + modal / dialog / drawer check
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Owner 2026-10-14: other UI
-elements must look the same before [ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md); run in
+elements must look the same before [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); run in
 parallel agents ("go ahead, run multiple agents to parallel work on next steps").
 
 ## Objective
@@ -97,3 +97,9 @@ Build OK; eslint = HEAD on all 9 touched files. Mockups already draw ink tabs / 
   ("normalise", owner-approved): MNY / TNY now match their own Delete Download.
 - Verified live on /data*/source/2/version/3: default (light + dark) identical classes to Delete Download,
   centred; MNY / TNY v2 show their danger button; confirm dialog checked. Build OK, lint = HEAD.
+
+### 2026-10-15 — closed
+
+All done and committed (library `ffc7566f`). Tabs ink, Modal locked, the two missed Modal `className` callers on
+named styles, external Delete version on `UI.Button` roles. Owner kept the source tab bar `flex-wrap` and the
+catalog rail active row as is.

@@ -1,10 +1,10 @@
 # UI controls — tables: one list look, ink grid states
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** in progress · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Picks up P4 and the
 "Tables" section of [ui-control-inventory.md](./ui-control-inventory.md). Comes before
-[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md) (owner 2026-10-14: "before we take on
+[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md) (owner 2026-10-14: "before we take on
 ui-raw-html-to-ui-components.md, there are other ui elements that need to look same"; then "let's do tables").
 
 ## Objective
@@ -51,7 +51,7 @@ inherits the library default.
 3. [x] Datasets lists → `UI.Table 'list'` (task list / page, overview, catalog, uploads, GIS layer analysis, Runs outputs); drop their table theme keys from the library + `_legacy/datasets.js`.
        Project themes: decide with the owner (freeze a neutral list vs. normalise).
 4. [x] Data grid: cobalt → ink in styles[0]; old values frozen in `_legacy/ui.js` `table`. (2026-10-14, agent A)
-5. [x] Theme the hardcoded add-row / placeholder / gutter markup (done); sticky header bg (no change, see below); TNY min-width overflow (open).
+5. [x] Theme the hardcoded add-row / placeholder / gutter markup (done); sticky header bg and TNY min-width overflow: no change (owner, see below).
 
 Verify each step: live class sets in the default theme, HEAD-baseline pixel diff on MNY / TNY v2 /
 landbank, light + dark, build clean, eslint = HEAD. Mirror changes into the mockup scripts.
@@ -221,3 +221,9 @@ landbank, light + dark, build clean, eslint = HEAD. Mirror changes into the mock
   the Runs page (owner: "agent b: no to both").
 - Agent A items: **no change needed** — TNY task-list overflow and the sticky header stay as they are
   (owner: "agent a: no change needed"). Step 5 closed.
+
+### 2026-10-15 — closed
+
+All done and committed (library `ffc7566f`). The GIS create flow's non-list tables (select-layer layout, file
+metadata, error blocks, schema field mapping) and the spreadsheet's raw add-row / inline-save / actions buttons
+are tracked in [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).
