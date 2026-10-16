@@ -24,6 +24,10 @@ export const getSubdomain = (host) => {
     // ---
     // Strip port (e.g., "songs.localhost:3001" → "songs.localhost")
     const hostname = host.split(':')[0]
+    // Netlify's own addresses ("<site>.netlify.app", and deploy previews
+    // "<id>--<site>.netlify.app") carry no subdomain: the first label names the
+    // Netlify site, so they serve the root site, like "www".
+    if (hostname.endsWith('.netlify.app')) return false
     // localhost is a single-part TLD, so "sub.localhost" has 2 parts.
     // Real domains like "example.com" have 2 parts, "sub.example.com" has 3.
     const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost')
