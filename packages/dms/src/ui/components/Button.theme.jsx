@@ -14,6 +14,13 @@ const DANGER_SOLID = `${BTN} h-8 px-3 t-proseSM font-medium border-[var(--t-bric
 const SMALL = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]`;
 const SMALL_DANGER = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-brick)] bg-[var(--t-panel)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
 // amber twin of SMALL_DANGER: leave a warning state (auth ViewAsBar "Exit View As", 2026-10-15)
+// 2026-10-15 (datasets raw-HTML pass): a 20px borderless icon that sits inside a text row or a chip (glance edit
+// pencil, a category chip's remove ×); the row icons (size-7) are too big there.
+const ICON_INLINE_BASE = `inline-flex items-center justify-center size-5 rounded-sm flex-none cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const ICON_INLINE = `${ICON_INLINE_BASE} text-[var(--t-pencil)] hover:text-[var(--t-ink)]`;
+const ICON_INLINE_DANGER = `${ICON_INLINE_BASE} text-[var(--t-pencil)] hover:text-[var(--t-brick)]`;
+// a link inside running text or a chip: keeps the surrounding font and colour, underline on hover
+const LINK_INLINE = `inline cursor-pointer text-inherit [font:inherit] p-0 hover:underline underline-offset-2 disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS} rounded-sm`;
 const SMALL_WARN = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-amber)] bg-[var(--t-panel)] text-[var(--t-amber)] hover:bg-[var(--t-amber-soft)]`;
 const ICON_TOOL = `${BTN} size-8 border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
 const ICON_ROW = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]`;
@@ -32,6 +39,12 @@ const MENU_TRIGGER = `inline-flex items-center justify-center gap-1.5 px-2 py-1 
 const SEGMENT_BASE = `inline-flex items-center justify-center gap-1.5 h-7 px-2.5 rounded t-proseXS cursor-pointer transition-colors disabled:opacity-60 disabled:cursor-not-allowed ${FOCUS}`;
 const SEGMENT = `${SEGMENT_BASE} text-[var(--t-graphite)] hover:text-[var(--t-ink)]`;
 const SEGMENT_ON = `${SEGMENT_BASE} bg-[var(--t-ink)] text-[var(--t-paper)]`;
+// icon-only segments (datasets list view switcher) — spec SEG_ICON / SEG_ICON_ON; their own names so a project theme
+// can brand its view toggle without touching the text segments
+// square icon segments: SEGMENT_BASE without its px-2.5 (a trailing px-0 loses to it in the CSS order)
+const SEGMENT_ICON_BASE = SEGMENT_BASE.replace(' px-2.5', '');
+const SEGMENT_ICON = `${SEGMENT_ICON_BASE} w-8 text-[var(--t-graphite)] hover:text-[var(--t-ink)]`;
+const SEGMENT_ICON_ON = `${SEGMENT_ICON_BASE} w-8 bg-[var(--t-ink)] text-[var(--t-paper)]`;
 // Full-width variants are their own names: a caller never adds layout through className.
 const ACTION_FULL = `${ACTION} w-full`;
 const DANGER_FULL = `${DANGER} w-full`;
@@ -135,6 +148,12 @@ export const buttonTheme = {
     { name: 'fieldTrigger',   button: FIELD_TRIGGER },
     { name: 'linkTitle',      button: LINK_TITLE },
     { name: 'smallWarn',      button: SMALL_WARN },
+    // ── datasets raw-HTML pass (2026-10-15); appended so indices don't move
+    { name: 'iconInline',       button: ICON_INLINE },
+    { name: 'iconInlineDanger', button: ICON_INLINE_DANGER },
+    { name: 'segmentIcon',      button: SEGMENT_ICON },
+    { name: 'segmentIconOn',    button: SEGMENT_ICON_ON },
+    { name: 'linkInline',       button: LINK_INLINE },
   ]
 }
 

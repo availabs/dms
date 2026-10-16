@@ -13,7 +13,7 @@ export const sourceOverviewTheme = {
 
     // shared card eyebrow + corner edit pencil
     eyebrow:   't-metaXS text-[var(--t-pencil)] mb-2',
-    editBtn:   'absolute top-3 right-3 size-7 inline-flex items-center justify-center rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
+    editBtnWrap: 'absolute top-3 right-3',   // the admin pencil (UI.Button iconRow) sits in the card corner
     editIcon:  'size-3.5',
     adminPill: 'ml-1.5 inline-flex items-center px-1 rounded border border-dashed border-[var(--t-rule-strong)] t-metaXS text-[var(--t-graphite)]',
 
@@ -44,7 +44,7 @@ export const sourceOverviewTheme = {
     fileName:       't-proseSM font-medium text-[var(--t-ink)]',
     fileUrl:        'block t-metaMD text-[12px] text-[var(--t-cobalt)] hover:underline break-all',
     fileEmpty:      'py-3 text-center t-proseSM text-[var(--t-pencil)]',
-    colFooter:      'w-full px-4 py-2.5 t-metaXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] text-left cursor-pointer',
+    colFooterWrap:  'px-4 py-2',              // '+ N more columns' (UI.Button linkMeta)
 
     // At a glance card
     glanceCard:      `${CARD} p-4`,
@@ -54,8 +54,8 @@ export const sourceOverviewTheme = {
     glanceValue:     't-proseSM text-[var(--t-ink)] text-right',
     glanceValueNum:  't-metaMD text-[var(--t-ink)] tabular-nums',
     glanceValueEdit: 'flex items-center gap-1.5',
-    glanceInput:     'w-36 text-right t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] px-2 py-0.5 outline-none focus:border-[var(--t-ink)]',
-    glanceEditBtn:   'inline-flex items-center justify-center size-5 rounded text-[var(--t-pencil)] hover:text-[var(--t-ink)] opacity-0 group-hover:opacity-100 cursor-pointer',
+    glanceInputWrap: 'w-36',                 // UI.Input compact
+    glanceEditWrap:  'inline-flex opacity-0 group-hover:opacity-100 focus-within:opacity-100',   // UI.Button iconInline, revealed on row hover / focus
     glanceEditIcon:  'size-3',
 
     // Categories card
@@ -67,9 +67,8 @@ export const sourceOverviewTheme = {
     promoHint: 't-proseSM text-[var(--t-graphite)] mt-1',
     promoBlockers: 'mt-2 space-y-1',
     promoBlocker: 't-proseSM text-[var(--t-ink)] flex items-start gap-2 before:content-["•"] before:text-[var(--t-amber)]',
-    promoBtn: 'mt-3 h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] cursor-pointer',
-    promoBtnDisabled: 'mt-3 h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium bg-[var(--t-well)] text-[var(--t-pencil)] cursor-not-allowed',
-    demoteBtn: 'mt-2 t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-amber)] cursor-pointer',
+    promoBtnWrap: 'mt-3',                    // UI.Button primary (disabled while blockers remain)
+    demoteBtnWrap: 'mt-2',                   // UI.Button linkMeta
     catSwatches: ['#0A46D8', '#B97516', '#1F8A4C', '#CA3214', '#50545C', '#6B4FBB', '#0F7C8C', '#9C3B6E'],
     catPills:    'flex flex-wrap gap-1.5 items-center',
     catPill:     'inline-flex items-center gap-1 t-proseXS text-[var(--t-ink)] bg-[var(--t-well)] rounded px-1.5 py-0.5',
@@ -109,19 +108,14 @@ export const sourceOverviewTheme = {
     verAuthNoteText:       '',
     verAuthNoteBy:         'text-[var(--t-pencil)]',
     verAuthActions:        'mt-1',
-    verAuthLink:           't-metaXS text-[var(--t-pencil)] hover:text-[var(--t-cobalt)] disabled:opacity-40 cursor-pointer',
     verAuthForm:           'mt-2 p-3 rounded-md bg-[var(--t-well)] space-y-2',
     verAuthHint:           't-proseXS text-[var(--t-graphite)]',
     verAuthCheck:          'flex items-start gap-2 t-proseXS text-[var(--t-graphite)]',
     verAuthKeys:           'space-y-1.5',
     verAuthKeyRow:         'flex items-center gap-2',
-    verAuthInput:          'h-7 flex-1 min-w-0 px-2 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]',
-    verAuthTextarea:       'w-full px-2 py-1.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]',
+    verAuthField:          'flex-1 min-w-0',   // holds one UI.Input (the key / value fields)
     verAuthError:          't-proseXS text-[var(--t-brick)]',
     verAuthButtons:        'flex items-center gap-3',
-    verAuthSave:           'h-7 inline-flex items-center px-3 rounded-md t-proseXS font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] cursor-pointer',
-    verAuthSaveDisabled:   'h-7 inline-flex items-center px-3 rounded-md t-proseXS font-medium bg-[var(--t-panel)] text-[var(--t-pencil)] cursor-not-allowed',
-    verAuthCancel:         't-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
 
     // ── view lineage + delete version (components/LineageControls.jsx, default/outputs.jsx) ──
     // v6 2026-10-14 (step 2e audit): was hardcoded gray / blue / violet (upstream 10/09), wrong in dark mode;

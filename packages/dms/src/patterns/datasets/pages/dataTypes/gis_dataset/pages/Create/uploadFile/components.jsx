@@ -1,8 +1,9 @@
 //import prettyBytes from "pretty-bytes";
 import { get } from 'lodash-es'
-import { useContext } from 'react'
+import { useContext, useRef } from 'react'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
+import GisErrorTable from '../ErrorTable'
 
 export function ProgressBar({ progress }) {
   const { theme } = useContext(ThemeContext) || {};
@@ -62,52 +63,43 @@ export function ProgressBar({ progress }) {
 }
 
 
-export function GisDatasetUploadStatusElem({ fileUploadStatus }) {
-  const { theme } = useContext(ThemeContext) || {};
-  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
-  let fileUploadStatusElem;
-
-  if (!fileUploadStatus) {
-    fileUploadStatusElem = (
-      <td className={t.fileMetaStatusTd}>Sending GIS File to server</td>
-    );
-  } else {
-    const { type, payload } = fileUploadStatus;
-
-    if (/GIS_FILE_UPLOAD_PROGRESS$/.test(type)) {
-      fileUploadStatusElem = <ProgressBar progress={payload?.data || payload} />;
-    } else if (/GIS_FILE_RECEIVED$/.test(type)) {
-      fileUploadStatusElem = (
-        <td className={t.fileMetaStatusTd}>File Received</td>
-      );
-    } else if (/START_GIS_FILE_UPLOAD_ANALYSIS$/.test(type)) {
-      fileUploadStatusElem = (
-        <td className={t.fileMetaStatusTd}>Server Analyzing the GIS File</td>
-      );
-    } else if (/FINISH_GIS_FILE_UPLOAD$/.test(type)) {
-      fileUploadStatusElem = (
-        <td className={t.fileMetaStatusTd}>GIS File Analysis Complete</td>
-      );
-    } else {
-      fileUploadStatusElem = <td className={t.fileMetaStatusTd}>Processing</td>;
-    }
-  }
-
-  return (
-    <tr>
-      <td className={t.fileMetaTdLeft}>File Upload Status</td>
-      {fileUploadStatusElem}
-    </tr>
-  );
+// the upload status text, or the progress bar while the file is being sent
+function uploadStatusValue(fileUploadStatus) {
+  if (!fileUploadStatus) return "Sending GIS File to server";
+  const { type, payload } = fileUploadStatus;
+  if (/GIS_FILE_UPLOAD_PROGRESS$/.test(type)) return <ProgressBar progress={payload?.data || payload} />;
+  if (/GIS_FILE_RECEIVED$/.test(type)) return "File Received";
+  if (/START_GIS_FILE_UPLOAD_ANALYSIS$/.test(type)) return "Server Analyzing the GIS File";
+  if (/FINISH_GIS_FILE_UPLOAD$/.test(type)) return "GIS File Analysis Complete";
+  return "Processing";
 }
 
+// key / value cells: the wrapper takes the table's cell class, the inner span this theme's text class
+const MetaLabelCell = ({ value, className, row }) => (
+  <div className={className}><span className={row?.labelClass}>{value}</span></div>
+);
+const MetaValueCell = ({ value, className, row }) => (
+  <div className={className}>{typeof value === 'string' || typeof value === 'number'
+    ? <span className={row?.valueClass}>{value}</span> : value}</div>
+);
+
 export function GisDatasetFileMeta({ uploadedFile, fileUploadStatus }) {
-  const { theme } = useContext(ThemeContext) || {};
+  const { theme, UI } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const { Table } = UI || {};
+  const gridRef = useRef();
   if (!uploadedFile) {
     return "";
   }
 
+  const cls = { labelClass: t.fileMetaTdLeft, valueClass: t.fileMetaTdCenter };
+  // a headerless UI.Table 'list' (2026-10-15: was a hand-built <table>; the status row put a <div> in a <tr>)
+  const rows = [
+    { label: "Name", value: uploadedFile.name, ...cls },
+    { label: "Last Modified", value: get(uploadedFile, 'lastModifiedDate', '').toLocaleString(), ...cls },
+    { label: "Size", value: uploadedFile.size, ...cls },
+    { label: "File Upload Status", value: uploadStatusValue(fileUploadStatus), ...cls },
+  ];
 
   return (
     <div>
@@ -115,90 +107,18 @@ export function GisDatasetFileMeta({ uploadedFile, fileUploadStatus }) {
         <span>File Metadata</span>
       </div>
 
-      <table className={t.fileMetaTable}>
-        <tbody>
-          <tr key="uploaded-file-meta--name" className={t.fileMetaRowBorder}>
-            <td className={t.fileMetaTdLeft}>Name</td>
-            <td className={t.fileMetaTdCenter}>{uploadedFile.name}</td>
-          </tr>
-
-          <tr key="uploaded-file-meta--last-mod-ts" className={t.fileMetaRowBorder}>
-            <td className={t.fileMetaTdLeft}>Last Modified</td>
-            <td className={t.fileMetaTdCenter}>
-              {get(uploadedFile,'lastModifiedDate', '').toLocaleString()}
-            </td>
-          </tr>
-
-          <tr key="uploaded-file-meta--size" className={t.fileMetaRowBorder}>
-            <td className={t.fileMetaTdLeft}>Size</td>
-            <td className={t.fileMetaTdCenter}>
-              {uploadedFile.size}
-            </td>
-          </tr>
-
-          <GisDatasetUploadStatusElem fileUploadStatus={fileUploadStatus} />
-        </tbody>
-      </table>
+      <div className={t.fileMetaOuter}>
+        <Table data={rows} gridRef={gridRef} isEdit={false} activeStyle={t.tableStyle || undefined}
+          display={{ disableCellSelection: true, hideHeader: true, disableColumnResize: true }}
+          columns={[
+            { name: "label", display_name: "Field", show: true, type: "ui", Comp: MetaLabelCell, size: 176 },
+            { name: "value", display_name: "Value", show: true, type: "ui", Comp: MetaValueCell },
+          ]}/>
+      </div>
     </div>
   );
 }
 
 export function GisDatasetUploadErrorMessage({ etlContextId, uploadErrMsg }) {
-  const { theme } = useContext(ThemeContext) || {};
-  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
-  // v6: themed cells; legacyInlineStyles keeps the original inline style={} objects
-  const L = !!t.legacyInlineStyles;
-  return (
-    <table
-      className={t.uploadErrorTable}
-      style={L ? {
-        margin: "40px auto",
-        textAlign: "center",
-        border: "1px solid",
-        borderColor: "back",
-      } : undefined}
-    >
-      <thead
-        style={L ? {
-          color: "black",
-          backgroundColor: "red",
-          fontWeight: "bolder",
-          textAlign: "center",
-          marginTop: "40px",
-          fontSize: "20px",
-          border: "1px solid",
-          borderColor: "black",
-        } : undefined}
-      >
-        <tr>
-          <th className={t.errTh || undefined} style={L ? { border: "1px solid", borderColor: "black" } : undefined}>
-            {" "}
-            GIS Dataset Upload Error
-          </th>
-          <th className={t.errTh || undefined} style={L ? { border: "1px solid", borderColor: "black" } : undefined}>
-            {" "}
-            ETL Context ID
-          </th>
-        </tr>
-      </thead>
-      <tbody style={L ? { border: "1px solid" } : undefined}>
-        <tr style={L ? { border: "1px solid" } : undefined}>
-          <td
-            className={t.errTd || undefined}
-            style={L ? {
-              border: "1px solid",
-              padding: "10px",
-              backgroundColor: "white",
-              color: "darkred",
-            } : undefined}
-          >
-            {uploadErrMsg}
-          </td>
-          <td className={t.errTdCtx || undefined} style={L ? { border: "1px solid", backgroundColor: "white" } : undefined}>
-            {etlContextId}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  );
+  return <GisErrorTable title="GIS Dataset Upload Error" message={uploadErrMsg} etlContextId={etlContextId} />;
 }

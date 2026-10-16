@@ -13,6 +13,10 @@ const LIST = {
     headerCellContainerBgSelected: 'bg-[var(--t-well)]',
     headerCellBtnActive: '',
     colResizer: 'z-5 -ml-2 w-[1px] hover:w-[2px] bg-transparent hover:bg-[var(--t-rule-strong)]',
+    // the grab area around the 1px colResizer line (2026-10-16, owner: "widen it"): an invisible ::before strip 4px
+    // each side. Hovering / pressing the pseudo-element counts as the element, so every theme's own `hover:` line
+    // styles still apply. Structural — themes keep styling `colResizer`.
+    colResizerHit: "before:content-[''] before:absolute before:inset-y-0 before:-left-1 before:-right-1",
     row: 'group/row',
     cell: 'relative flex items-center border-b border-[var(--t-rule)]',
     cellInner: 'w-full min-h-full flex flex-wrap items-center truncate px-4 py-2.5 t-proseSM text-[var(--t-ink)]',
@@ -22,6 +26,22 @@ const LIST = {
     cellBgSelected: 'bg-[var(--t-panel)] group-hover/row:bg-[var(--t-paper)]',
     stripedRow: '',
     emptyRow: 'px-4 py-6 text-center t-proseSM text-[var(--t-pencil)]',   // display.emptyRowMode 'placeholder'
+};
+
+// 'error' (2026-10-15, ui-raw-html-to-ui-components.md): the list look in brick, for a failed step's message rows
+// (datasets gis publish / upload / layer-analysis errors). Pick with activeStyle='error'.
+const ERROR = {
+    ...LIST,
+    tableContainer: 'flex flex-col overflow-x-auto min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto [contain:inline-size] border border-[var(--t-brick)] rounded-md',
+    stickyHeader: 'top-0 sticky z-[5] bg-[var(--t-brick-soft)]',
+    headerCellContainer: 'w-full px-4 py-2 content-center t-metaXS text-[var(--t-brick)] whitespace-nowrap border-b border-[var(--t-brick)]',
+    headerCellContainerBg: 'bg-[var(--t-brick-soft)]',
+    headerCellContainerBgSelected: 'bg-[var(--t-brick-soft)]',
+    cellInner: 'w-full min-h-full flex flex-wrap items-center px-4 py-2.5 t-proseSM text-[var(--t-brick)] whitespace-normal break-words',
+    cellBg: 'bg-[var(--t-panel)]',
+    cellBgOdd: 'bg-[var(--t-panel)]',
+    cellBgEven: 'bg-[var(--t-panel)]',
+    cellBgSelected: 'bg-[var(--t-panel)]',
 };
 
 export const tableTheme = {
@@ -49,6 +69,7 @@ export const tableTheme = {
             headerCellContainerBgSelected: 'bg-[var(--t-rule)] !text-[var(--t-ink)]',
             headerCellContainerBg: 'bg-[var(--t-well)] text-[var(--t-pencil)]',
             colResizer: "z-5 -ml-2 w-[1px] hover:w-[2px] bg-[var(--t-rule)] hover:bg-[var(--t-rule-strong)]",
+            colResizerHit: "before:content-[''] before:absolute before:inset-y-0 before:-left-1 before:-right-1",   // wide grab area (see LIST)
 
             wrapText: 'whitespace-pre-wrap',
             cell: 'relative flex items-center min-h-[35px] border border-[var(--t-rule)]',
@@ -179,6 +200,7 @@ export const tableTheme = {
             openOutHideTitle: true,
         },
         { name: 'list', ...LIST },
+        { name: 'error', ...ERROR },
     ]
 }
 

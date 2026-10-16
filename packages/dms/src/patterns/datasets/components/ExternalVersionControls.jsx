@@ -31,22 +31,18 @@ const INITIAL_DELETE_MODAL_STATE = {
 }
 
 const DownloadModalCheckbox = ({ inputName, checked, onChange, disabled=false }) => {
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
+    const CheckboxEdit = UI.ColumnTypes.checkbox.EditComp;
     return (
         <div className={t.checkboxRow}>
-            <input
-                id={inputName}
-                disabled={disabled}
+            <CheckboxEdit
                 name={inputName}
-                type="checkbox"
-                className={t.checkboxInput}
-                checked={checked}
+                disabled={disabled}
+                value={!!checked}
                 onChange={() => onChange(inputName)}
+                rowLabel={inputName}
             />
-            <label htmlFor={inputName} className={t.checkboxLabel}>
-                {inputName}
-            </label>
         </div>
     );
 };
@@ -68,65 +64,34 @@ const DownloadModalGroupedBy = ({ children }) => {
 };
 
 const DownloadModalGroupColumnSelect = ({ options, modalState, onChange }) => {
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
+    const { Select } = UI;
     return (
         <div className={t.groupColumnSelectRow}>
             <div className={t.groupColumnSelectLabel}>
                 Output will have 1 file per distinct value in:
             </div>
-            <select
-                className={t.groupColumnSelect}
+            <Select
+                options={options}
                 value={modalState}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                {options.map((option, i) => (
-                    <option key={i} className={t.selectOption} value={option}>
-                        {option}
-                    </option>
-                ))}
-            </select>
+                onChange={(v) => onChange(v || "")}
+            />
         </div>
     );
 };
 
 const DownloadModalGroupByToggle = ({ onChange, modalState }) => {
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
+    const RadioEdit = UI.ColumnTypes.radio.EditComp;
     return (
         <div className={t.groupByToggleWrapper}>
-            <div className={t.groupByToggleRow}>
-                <input
-                    id={"enableGroupedBy"}
-                    name={"enableGroupedBy"}
-                    value={true}
-                    type="radio"
-                    className={t.groupByToggleInput}
-                    checked={modalState}
-                    onChange={() => onChange(true)}
-                />
-                <label
-                    htmlFor={"enableGroupedBy"}
-                    className={t.groupByToggleLabel}
-                >
-                    Yes
-                </label>
-                <input
-                    id={"disableGroupedBy"}
-                    name={"disableGroupedBy"}
-                    value={true}
-                    type="radio"
-                    className={t.groupByToggleInputNo}
-                    checked={!modalState}
-                    onChange={() => onChange(false)}
-                />
-                <label
-                    htmlFor={"enableGroupedBy"}
-                    className={t.groupByToggleLabel}
-                >
-                    No
-                </label>
-            </div>
+            <RadioEdit
+                value={modalState ? "yes" : "no"}
+                options={[{ label: "Yes", value: "yes" }, { label: "No", value: "no" }]}
+                onChange={(v) => onChange(v === "yes")}
+            />
         </div>
     );
 };

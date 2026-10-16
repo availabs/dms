@@ -20,7 +20,8 @@ export default function ChangeHistoryEditor({ source, id }) {
   const { UI, app, falcor, dmsEnv, baseUrl, isUserAuthed } = useContext(DatasetsContext) || {};
   const { theme } = useContext(ThemeContext) || {};
   const t = { ...changeHistoryEditorTheme, ...getComponentTheme(theme, 'datasets.changeHistoryEditor') };
-  const { Switch, MultiSelect, Button } = UI;
+  const { Switch, MultiSelect, Button, ColumnTypes } = UI;
+  const RadioEdit = ColumnTypes.radio.EditComp;
   const canEdit = isUserAuthed ? isUserAuthed(['update-source']) : false;
   const sourceId = +(source?.id || id);
 
@@ -107,14 +108,11 @@ export default function ChangeHistoryEditor({ source, id }) {
             <span className={t.label}>Track</span>
             <div className={t.control}>
               <div className={t.inline}>
-                <label className={t.choice}>
-                  <input type={'radio'} checked={!draft.allColumns} onChange={() => update({ allColumns: false })} />
-                  Chosen columns
-                </label>
-                <label className={t.choice}>
-                  <input type={'radio'} checked={draft.allColumns} onChange={() => update({ allColumns: true })} />
-                  All columns
-                </label>
+                <RadioEdit
+                  value={draft.allColumns ? 'all' : 'chosen'}
+                  options={[{ label: 'Chosen columns', value: 'chosen' }, { label: 'All columns', value: 'all' }]}
+                  onChange={(v) => update({ allColumns: v === 'all' })}
+                />
               </div>
               {draft.allColumns ? (
                 <>

@@ -20,7 +20,6 @@ export const versionTheme = {
     // body: version card + controls column
     body: 'grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_260px] gap-6 items-start',
     mainCol: `${CARD} p-4 flex flex-col gap-1.5`,
-    versionLabel: 't-metaXS text-[var(--t-pencil)]',
     versionHint: 't-proseXS text-[var(--t-pencil)]',          // '' → not rendered
     sideCol: `${CARD} p-4 flex flex-col gap-2 empty:hidden`,
 
@@ -33,7 +32,6 @@ export const versionTheme = {
 
     // DMS controls (ClearDataBtn / DeleteViewBtn)
     btnWrap: 'w-full',
-    dangerBtn: 'w-full h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-brick)] t-proseSM text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer',
     dangerIcon: 'TrashCan',        // '' → no icon
     btnIconClass: 'size-3.5',
 }

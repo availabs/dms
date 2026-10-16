@@ -5,8 +5,7 @@
 // keep their pre-v6 look through src/themes/_legacy/datasets.js.
 export const adminTheme = {
     // action buttons
-    buttonRed: 'w-full h-8 mt-1 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-brick)] t-proseSM text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer',
-    buttonGreen: 'w-full h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-40',
+    deleteBtnWrap: 'mt-1',          // Delete Source (UI.Button dangerFull)
 
     // Admin page layout
     adminWrapper: 'w-full max-w-[1200px] pl-6 lg:pl-12 pr-6 lg:pr-8 py-6',
@@ -27,7 +26,6 @@ export const adminTheme = {
     // EditableToggle
     editableToggleRow: 'flex items-start gap-2 py-3 my-1 border-y border-[var(--t-rule)]',
     editableToggleMain: 'flex-1 min-w-0',
-    editableToggleLabel: 't-proseSM text-[var(--t-ink)]',
     editableToggleHint: 't-proseXS text-[var(--t-pencil)] mt-0.5',
     editableToggleSavingIcon: 'text-[var(--t-pencil)] size-4 animate-spin',
 
@@ -44,13 +42,10 @@ export const adminTheme = {
     // AddViewBtn (DMS) modal — addVersionTitle '' → the bare input + add button (pre-v6 markup)
     addVersionBody: 'text-left',
     addVersionTitle: 't-displaySM text-[var(--t-ink)]',
-    addVersionLabel: 'block mt-3 mb-1 t-metaXS text-[var(--t-pencil)]',
+    addVersionLabelWrap: 'mt-3',    // the UI.FieldLabel's top spacing
     addVersionHint: 'mt-1 t-proseXS text-[var(--t-pencil)]',
-    addVersionInput: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]',
     addVersionError: 'mt-2 t-proseXS text-[var(--t-brick)]',
     addVersionFooter: 'mt-5 flex justify-end gap-2',
-    addVersionCancelBtn: 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
-    addVersionBtn: 'h-8 inline-flex items-center px-3.5 rounded-md t-proseSM font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] disabled:opacity-40 cursor-pointer',
 
     // Delete-source modal (components/DeleteSource.jsx — DAMA + DMS; one hard delete, type-name confirm)
     deleteModalBody: 'text-left',
@@ -59,10 +54,8 @@ export const adminTheme = {
     deleteModalDesc: 'mt-3 flex flex-col gap-2 t-proseSM text-[var(--t-graphite)]',
     deleteModalDescHard: '',
     deleteModalConfirmLabel: 'mt-4 t-proseSM text-[var(--t-graphite)]',
-    deleteModalInput: 'mt-2 w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM outline-none focus:border-[var(--t-brick)]',
+    deleteModalInputWrap: 'mt-2',   // the UI.Input's spacing (it fills its container)
     deleteModalFooter: 'mt-5 flex flex-row-reverse flex-wrap gap-2',
-    deleteModalHardBtn: 'h-8 inline-flex items-center px-3 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-brick)] disabled:opacity-40 cursor-pointer disabled:cursor-not-allowed',
-    deleteModalCancelBtn: 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
 
     // Inline text emphasis
     emphasisBold: 'font-medium text-[var(--t-ink)]',

@@ -44,15 +44,17 @@ const downloadItemsForView = (view, damaHost) => {
 };
 
 // admin-only corner edit affordance — toggles `editing` for the given attr
-const RenderPencil = ({t, Icon, editing, setEditing, attr, show, title}) => {
+const RenderPencil = ({t, Icon, Button, editing, setEditing, attr, show, title}) => {
     if (!show) return null;
     return (
-        <button type="button"
-                className={t.editBtn}
-                title={title || 'Edit · admin'}
-                onClick={() => setEditing(editing === attr ? null : attr)}>
-            <Icon icon="PencilSquare" className={t.editIcon}/>
-        </button>
+        <span className={t.editBtnWrap}>
+            <Button activeStyle='iconRow'
+                    title={title || 'Edit · admin'}
+                    aria-label={title || 'Edit · admin'}
+                    onClick={() => setEditing(editing === attr ? null : attr)}>
+                <Icon icon="PencilSquare" className={t.editIcon}/>
+            </Button>
+        </span>
     )
 }
 
@@ -68,7 +70,7 @@ export default function Overview ({
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const pgEnv = getExternalEnv(datasources);
-    const {ColumnTypes, Icon, Table} = UI;
+    const {ColumnTypes, Icon, Table, Button, Input} = UI;
 
     const {id} = params;
     const isAdmin = isUserAuthed(['update-source']);
@@ -181,7 +183,7 @@ export default function Overview ({
 
                     {/* Description (Lexical) */}
                     <div className={t.descCard}>
-                        <RenderPencil t={t} Icon={Icon} attr={'description'} editing={editing} setEditing={setEditing} show={isAdmin} title={'Edit description · admin'}/>
+                        <RenderPencil t={t} Icon={Icon} Button={Button} attr={'description'} editing={editing} setEditing={setEditing} show={isAdmin} title={'Edit description · admin'}/>
                         <div className={t.eyebrow}>Description</div>
                         <div className={t.descProse}>
                             <DescComp
@@ -230,9 +232,11 @@ export default function Overview ({
                                    display={{ emptyRowMode: 'placeholder', emptyRowText: 'No columns defined', disableCellSelection: true }}/>
                         </div>
                         {columns?.length > COLUMN_PREVIEW && (
-                            <button type="button" className={t.colFooter} onClick={() => setShowAllColumns(!showAllColumns)}>
-                                {showAllColumns ? 'Show fewer' : `+ ${columns.length - COLUMN_PREVIEW} more columns`}
-                            </button>
+                            <div className={t.colFooterWrap}>
+                                <Button activeStyle='linkMeta' onClick={() => setShowAllColumns(!showAllColumns)}>
+                                    {showAllColumns ? 'Show fewer' : `+ ${columns.length - COLUMN_PREVIEW} more columns`}
+                                </Button>
+                            </div>
                         )}
                     </div>
                     )}
@@ -255,14 +259,18 @@ export default function Overview ({
                                 <dt className={t.glanceLabel}>Update interval</dt>
                                 <dd className={t.glanceValueEdit}>
                                     {editing === 'update_interval'
-                                        ? <input className={t.glanceInput} autoFocus value={source?.update_interval || ''}
-                                                 onChange={e => updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})}/>
+                                        ? <span className={t.glanceInputWrap}>
+                                            <Input activeStyle='compact' autoFocus value={source?.update_interval || ''}
+                                                   onChange={e => updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})}/>
+                                          </span>
                                         : <span className={t.glanceValue}>{source?.update_interval || '—'}</span>}
                                     {isAdmin && (
-                                        <button type="button" className={t.glanceEditBtn} title={'Edit update interval · admin'}
-                                                onClick={() => setEditing(editing === 'update_interval' ? null : 'update_interval')}>
-                                            <Icon icon="PencilSquare" className={t.glanceEditIcon}/>
-                                        </button>
+                                        <span className={t.glanceEditWrap}>
+                                            <Button activeStyle='iconInline' title={'Edit update interval · admin'} aria-label={'Edit update interval · admin'}
+                                                    onClick={() => setEditing(editing === 'update_interval' ? null : 'update_interval')}>
+                                                <Icon icon="PencilSquare" className={t.glanceEditIcon}/>
+                                            </Button>
+                                        </span>
                                     )}
                                 </dd>
                             </div>
@@ -273,7 +281,7 @@ export default function Overview ({
 
                     {/* Categories (the category-tagging pass) */}
                     <div className={t.catCard}>
-                        <RenderPencil t={t} Icon={Icon} attr={'categories'} editing={editing} setEditing={setEditing} show={isAdmin} title={'Edit categories · admin'}/>
+                        <RenderPencil t={t} Icon={Icon} Button={Button} attr={'categories'} editing={editing} setEditing={setEditing} show={isAdmin} title={'Edit categories · admin'}/>
                         <div className={t.eyebrow}>Categories</div>
                         {editing === 'categories' ? (
                             <SourceCategories
@@ -313,19 +321,23 @@ export default function Overview ({
                                         {blockers.map(b => <li key={b.key} className={t.promoBlocker}>{b.label}</li>)}
                                     </ul>
                                 ) : null}
-                                <button className={blockers.length ? t.promoBtnDisabled : t.promoBtn}
-                                        disabled={blockers.length > 0}
-                                        title={blockers.length ? 'Add the missing details first' : 'Move this dataset into the catalog'}
-                                        onClick={promote}>
-                                    Promote to catalog
-                                </button>
+                                <div className={t.promoBtnWrap}>
+                                    <Button activeStyle='primary'
+                                            disabled={blockers.length > 0}
+                                            title={blockers.length ? 'Add the missing details first' : 'Move this dataset into the catalog'}
+                                            onClick={promote}>
+                                        Promote to catalog
+                                    </Button>
+                                </div>
                             </div>
                         ) : null}
                         {isAdmin && !inSandbox && categoriesValue.length ? (
-                            <button className={t.demoteBtn} onClick={returnToSandbox}
-                                    title={`Take this dataset out of the catalog and return it to ${SANDBOX_CATEGORY}`}>
-                                Return to {SANDBOX_CATEGORY}
-                            </button>
+                            <div className={t.demoteBtnWrap}>
+                                <Button activeStyle='linkMeta' onClick={returnToSandbox}
+                                        title={`Take this dataset out of the catalog and return it to ${SANDBOX_CATEGORY}`}>
+                                    Return to {SANDBOX_CATEGORY}
+                                </Button>
+                            </div>
                         ) : null}
                     </div>
 
@@ -376,12 +388,12 @@ export default function Overview ({
                                             )}
                                             {available.length > 1 && (
                                                 <div className={t.verDownloadWrap}>
-                                                    <button type="button"
-                                                            className={isPrimary ? t.verDownloadBtnPrimary : t.verDownloadBtn}
+                                                    <Button activeStyle={isPrimary ? 'primary' : 'action'}
+                                                            aria-expanded={open}
                                                             onClick={() => setOpenDownload(open ? null : viewId)}>
                                                         <Icon icon="Download" className={t.verDownloadIcon}/>Download
                                                         <Icon icon={open ? "CaretUp" : "CaretDown"} className={t.verCaretIcon}/>
-                                                    </button>
+                                                    </Button>
                                                     {open && (
                                                         <div className={t.verMenu}>
                                                             {available.map(item => (

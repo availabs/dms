@@ -7,9 +7,6 @@ const FLOAT = `bg-[var(--t-panel)] border ${RULE} rounded-lg shadow-[var(--t-sha
 const HEAD = `flex items-center gap-2 px-3 py-2 border-b ${RULE}`;
 const TITLE = 'flex-1 min-w-0 truncate t-proseSM font-medium text-[var(--t-ink)]';
 const ICON_BTN = 'size-6 rounded inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer';
-const BTN = 'h-7 inline-flex items-center justify-center gap-1.5 px-2.5 rounded-md t-proseXS cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
-const ACTION = `${BTN} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
-const INPUT = 'w-full h-7 px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-metaMD text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)]';
 const TICKS = 't-metaMD text-[10px] text-[var(--t-graphite)]';
 
 export const gisMapTheme = {
@@ -36,7 +33,6 @@ export const gisMapTheme = {
     legendContainerTitleRow: HEAD,
     legendContainerTitle: TITLE,
     legendContainerBody: 'px-3 py-2.5',
-    legendToggleBtn: ICON_BTN,
     legendToggleIcon: 'Settings',
     legendToggleIconClass: 'size-3.5',
 
@@ -54,10 +50,7 @@ export const gisMapTheme = {
     domainItemContent: 'flex-1 min-w-0',
     domainItemEditRow: 'flex gap-1',
     domainItemEditInput: 'flex-1 min-w-0',
-    domainItemEditInputEl: INPUT,
-    domainItemEditBtn: ACTION,
     domainItemStaticVal: 't-metaMD text-[var(--t-ink)] px-2 py-1',
-    domainItemStopBtn: `${BTN} border border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`,
 
     // ThresholdEditor — a card beside the controls
     thresholdEditorWrapper: 'absolute left-full top-0 ml-2',
@@ -68,9 +61,7 @@ export const gisMapTheme = {
     thresholdEditorGrid: 'flex flex-col gap-0.5',
     thresholdEditorAddRow: `flex gap-2 pt-2 mt-2 border-t ${RULE}`,
     thresholdEditorAddInputWrapper: 'flex-1 min-w-0',
-    thresholdEditorAddInput: INPUT,
-    thresholdEditorAddBtn: ACTION,
-    thresholdEditorResetBtn: `${ACTION} w-full mt-2`,
+    thresholdEditorResetWrap: 'mt-2',   // around the UI.Button 'actionFull' reset (the inputs / buttons are UI.Input / UI.Button)
 
     // BooleanSlider (reverse colors) — a small switch
     booleanSliderWrapper: 'h-6 inline-flex items-center px-1.5 cursor-pointer',
@@ -132,7 +123,6 @@ export const gisMapTheme = {
     // ! — Modal's panel already carries max-w-lg; this must win (it's a wide JSON editor)
     settingsHeader: 'flex items-center gap-2',
     settingsTitle: 'flex-1 t-displaySM text-[var(--t-ink)]',
-    settingsClose: ICON_BTN.replace('size-6', 'size-7'),
     settingsDesc: 't-proseSM text-[var(--t-graphite)] mt-1',
     mapAttrsWrapper: 'mt-4',
     mapAttrsDl: 'flex flex-col gap-3',
@@ -150,6 +140,5 @@ export const gisMapTheme = {
     // Edit (Map.jsx)
     editWrapper: 'flex flex-col gap-2',
     editRow: 'w-full',
-    editTextarea: 'w-full min-h-40 t-metaMD text-[var(--t-ink)] bg-[var(--t-panel)] border border-[var(--t-rule-strong)] rounded p-3 outline-none focus:border-[var(--t-ink)]',
     editActions: 'flex gap-2',
 }

@@ -28,8 +28,6 @@ export const datasetsListTheme = {
 
     // view switcher
     viewSwitcher: 'inline-flex items-center gap-0.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] p-0.5',
-    viewBtn: 'w-8 h-7 inline-flex items-center justify-center rounded text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer',
-    viewBtnActive: 'w-8 h-7 inline-flex items-center justify-center rounded bg-[var(--t-ink)] text-[var(--t-paper)] cursor-pointer',
     viewBtnIcon: 'size-4',
     // ink controls (owner 2026-10-14: "turn it into ink"; were cobalt) — the primary matches UI.Button 'primary'
     newBtn: 'h-8 inline-flex items-center justify-center gap-1.5 px-3.5 rounded-md border border-[var(--t-ink)] t-proseSM font-medium text-[var(--t-paper)] bg-[var(--t-ink)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)] whitespace-nowrap',

@@ -63,7 +63,7 @@ export default function SettingsPage({format}) {
     const {baseUrl, falcor, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
-    const {Layout, LayoutGroup, Input, Switch} = UI;
+    const {Layout, LayoutGroup, Input, Switch, Button, ColumnTypes} = UI;
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], parent?.navPrefix || '', false),
@@ -342,10 +342,12 @@ export default function SettingsPage({format}) {
                                                 {overridden ? (
                                                     <>
                                                         <div className={theme.lcStateOverridden}>overridden</div>
-                                                        <button className={theme.lcReset} disabled={saving}
-                                                                onClick={() => saveLifecycle(resetHidden(cat, patternDelta))}>
-                                                            reset to default
-                                                        </button>
+                                                        <div className={theme.lcResetWrap}>
+                                                            <Button activeStyle='linkMeta' disabled={saving}
+                                                                    onClick={() => saveLifecycle(resetHidden(cat, patternDelta))}>
+                                                                reset to default
+                                                            </Button>
+                                                        </div>
                                                     </>
                                                 ) : <div className={theme.lcStateDefault}>default</div>}
                                             </div>
@@ -401,16 +403,17 @@ export default function SettingsPage({format}) {
                                 <div>
                                     <div className={theme.nsLabel}>Required to promote</div>
                                     {PROMOTION_GATE.map(g => (
-                                        <label key={g.key} className={theme.nsCheckRow}>
-                                            <input type="checkbox" disabled={saving}
-                                                   checked={(promotionGate || []).includes(g.key)}
-                                                   onChange={e => saveSettings({
-                                                       promotion_requires: e.target.checked
-                                                           ? [...new Set([...(promotionGate || []), g.key])]
-                                                           : (promotionGate || []).filter(k => k !== g.key)
-                                                   })}/>
-                                            <span>{g.label}</span>
-                                        </label>
+                                        <div key={g.key} className={theme.nsCheckItem}>
+                                            <ColumnTypes.checkbox.EditComp
+                                                disabled={saving}
+                                                rowLabel={g.label}
+                                                value={(promotionGate || []).includes(g.key)}
+                                                onChange={v => saveSettings({
+                                                    promotion_requires: v
+                                                        ? [...new Set([...(promotionGate || []), g.key])]
+                                                        : (promotionGate || []).filter(k => k !== g.key)
+                                                })}/>
+                                        </div>
                                     ))}
                                     <div className={theme.nsHint}>
                                         The moment someone wants their dataset in the catalog is the only moment
@@ -441,15 +444,15 @@ export default function SettingsPage({format}) {
                         </div>
                     <div className={theme.columnsWrapper}>
                         <div className={theme.column}>
-                            <label className={theme.columnLabel}>
+                            <div className={theme.columnLabel}>
                                 Categories Hidden
                                 <span className={theme.columnHint}>(click to show)</span>
-                            </label>
+                            </div>
                             <div className={theme.categoryList}>
                                 {filterBySearch(hiddenCategories).length ? filterBySearch(hiddenCategories).map(cat => (
-                                    <button
+                                    <Button
                                         key={cat}
-                                        className={theme.categoryButton}
+                                        activeStyle='chip'
                                         onClick={() => saveSettings({filtered_categories: filteredCategories.filter(c => c !== cat)})}
                                         disabled={saving}
                                     >
@@ -457,7 +460,7 @@ export default function SettingsPage({format}) {
                                         <span className={theme.categoryCount}>
                                             {categoriesCount[cat]}
                                         </span>
-                                    </button>
+                                    </Button>
                                 )) : (
                                     <div className={theme.emptyMessage}>
                                         No categories hidden
@@ -466,15 +469,15 @@ export default function SettingsPage({format}) {
                             </div>
                         </div>
                         <div className={theme.column}>
-                            <label className={theme.columnLabel}>
+                            <div className={theme.columnLabel}>
                                 Categories Shown
                                 <span className={theme.columnHint}>(click to hide)</span>
-                            </label>
+                            </div>
                             <div className={theme.categoryList}>
                                 {filterBySearch(shownCategories).length ? filterBySearch(shownCategories).map(cat => (
-                                    <button
+                                    <Button
                                         key={cat}
-                                        className={theme.categoryButton}
+                                        activeStyle='chip'
                                         onClick={() => saveSettings({filtered_categories: [...filteredCategories, cat]})}
                                         disabled={saving}
                                     >
@@ -482,7 +485,7 @@ export default function SettingsPage({format}) {
                                         <span className={theme.categoryCount}>
                                             {categoriesCount[cat]}
                                         </span>
-                                    </button>
+                                    </Button>
                                 )) : (
                                     <div className={theme.emptyMessage}>
                                         All categories shown

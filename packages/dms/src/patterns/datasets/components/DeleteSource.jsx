@@ -16,7 +16,7 @@ export function DeleteSourceModal ({open, onClose, sourceName = '', overviewHref
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI} = useContext(DatasetsContext);
-    const {Modal} = UI;
+    const {Modal, Button, Input} = UI;
     const [typedName, setTypedName] = useState('');
     const nameMatches = sourceName.trim().length > 0 && typedName.trim() === sourceName.trim();
 
@@ -45,44 +45,42 @@ export function DeleteSourceModal ({open, onClose, sourceName = '', overviewHref
                     To confirm, type the source name
                     <code className={t.codeInline}>{sourceName || '(unnamed)'}</code>
                 </div>
-                <input
-                    type="text"
-                    value={typedName}
-                    onChange={e => setTypedName(e.target.value)}
-                    placeholder={sourceName}
-                    autoFocus
-                    className={t.deleteModalInput}
-                />
+                <div className={t.deleteModalInputWrap}>
+                    <Input
+                        type="text"
+                        value={typedName}
+                        onChange={e => setTypedName(e.target.value)}
+                        placeholder={sourceName}
+                        autoFocus
+                    />
+                </div>
                 {error ? <div className={t.errorText}>Error: {error}</div> : null}
                 {refusal ? <div className={t.errorText}>{refusal.error}</div> : null}
                 <div className={t.deleteModalFooter}>
                     {refusal?.reason === 'has_outputs' ? (
-                        <button
-                            type="button"
+                        <Button
+                            activeStyle='dangerSolid'
                             disabled={busy || !nameMatches}
-                            className={t.deleteModalHardBtn}
                             onClick={() => onDelete(true)}
                         >
                             {busy ? 'Deleting…' : `Delete it and the ${refusal.details?.outputs?.length || ''} versions its runs produced`}
-                        </button>
+                        </Button>
                     ) : (
-                        <button
-                            type="button"
+                        <Button
+                            activeStyle='dangerSolid'
                             disabled={busy || !nameMatches}
-                            className={t.deleteModalHardBtn}
                             onClick={() => onDelete(false)}
                         >
                             {busy ? 'Deleting…' : 'Delete'}
-                        </button>
+                        </Button>
                     )}
-                    <button
-                        type="button"
+                    <Button
+                        activeStyle='action'
                         disabled={busy}
-                        className={t.deleteModalCancelBtn}
                         onClick={close}
                     >
                         Cancel
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Modal>
@@ -96,7 +94,7 @@ export function DeleteDmsSourceBtn ({source, baseUrl}) {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, app, type, falcor, dmsEnv, pageBaseUrl} = useContext(DatasetsContext);
-    const {Icon} = UI;
+    const {Icon, Button} = UI;
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState(null);
@@ -162,7 +160,9 @@ export function DeleteDmsSourceBtn ({source, baseUrl}) {
 
     return (
         <>
-            <button className={t.buttonRed} onClick={() => setOpen(true)}>{t.actionIconDelete && <Icon icon={t.actionIconDelete} className={t.actionIcon}/>}Delete Source</button>
+            <div className={t.deleteBtnWrap}>
+                <Button activeStyle='dangerFull' onClick={() => setOpen(true)}>{t.actionIconDelete && <Icon icon={t.actionIconDelete} className={t.actionIcon}/>}Delete Source</Button>
+            </div>
             <DeleteSourceModal open={open} onClose={() => { setOpen(false); setError(null); }}
                                sourceName={source?.name} overviewHref={pageBaseUrl && sourceId ? `${pageBaseUrl}/${sourceId}` : undefined}
                                busy={busy} error={error} onDelete={deleteSource}/>

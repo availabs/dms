@@ -13,7 +13,7 @@ function ErrorPage({baseUrl = ''}) {
     const {theme: fullTheme, UI} = useContext(ThemeContext);
     const {parent} = useContext(DatasetsContext) || {};
     const navigate = useNavigate();
-    const {Layout, Icon} = UI;
+    const {Layout, Icon, Button} = UI;
     const t = {...errorPageTheme, ...(fullTheme?.datasets?.errorPage || {})};
     const sectionTheme = fullTheme?.sectionGroup?.['default'] || {};
     // Shared secondary nav — mount-aware base (navPrefix; see DatasetsList).
@@ -34,9 +34,9 @@ function ErrorPage({baseUrl = ''}) {
                     <div className={t.page}>
                         <section className={t.card}>
                             <StatePanel icon="Alert" tone="brick" title={t.title} text={MESSAGE}>
-                                <button type="button" className={t.actionBtn} onClick={() => navigate(0)}>
+                                <Button activeStyle='action' onClick={() => navigate(0)}>
                                     {Icon ? <Icon icon="Refresh" className={t.actionIcon}/> : null}Try again
-                                </button>
+                                </Button>
                                 <Link to={baseUrl || '/'} className={t.actionBtn}>Back to data sources</Link>
                             </StatePanel>
                         </section>

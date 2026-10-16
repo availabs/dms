@@ -36,7 +36,7 @@ const AddViewBtn = ({source, setSource}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, app, type, falcor} = useContext(DatasetsContext);
-    const {Modal, Icon} = UI;
+    const {Modal, Icon, Button, Input, FieldLabel} = UI;
     const [showModal, setShowModal] = useState(false);
     const [name, setName] = useState('');
     const [error, setError] = useState(null);
@@ -118,29 +118,29 @@ const AddViewBtn = ({source, setSource}) => {
         add()
     }
     const errorLine = error && <div className={t.addVersionError}>{error}</div>;
-    const input = <input key={'view-name'} className={t.addVersionInput} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>;
+    const input = <Input key={'view-name'} id={'add-version-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>;
     return (
         <>
-            <button disabled={!(source?.id || source?.source_id)} className={t.buttonGreen}
-                    onClick={() => { setError(null); setShowModal(true); }}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</button>
+            <Button activeStyle='actionFull' disabled={!(source?.id || source?.source_id)}
+                    onClick={() => { setError(null); setShowModal(true); }}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</Button>
             <Modal open={showModal} setOpen={(v) => { setShowModal(v); if (!v) setError(null); }}>
                 {t.addVersionTitle ? (
                     <div className={t.addVersionBody}>
                         <h2 className={t.addVersionTitle}>Add version</h2>
                         {errorLine}
-                        <label className={t.addVersionLabel}>version name</label>
+                        <div className={t.addVersionLabelWrap}><FieldLabel htmlFor={'add-version-name'} text={'version name'} /></div>
                         {input}
                         <p className={t.addVersionHint}>Leave blank for “{defaultViewName}”.</p>
                         <div className={t.addVersionFooter}>
-                            <button type="button" className={t.addVersionCancelBtn} onClick={() => { setShowModal(false); setError(null); }}>cancel</button>
-                            <button type="button" className={t.addVersionBtn} onClick={onAdd}>add</button>
+                            <Button activeStyle='action' onClick={() => { setShowModal(false); setError(null); }}>cancel</Button>
+                            <Button activeStyle='primary' onClick={onAdd}>add</Button>
                         </div>
                     </div>
                 ) : (
                     <>
                         {errorLine}
                         {input}
-                        <button className={t.buttonGreen} onClick={onAdd}>add</button>
+                        <Button activeStyle='actionFull' onClick={onAdd}>add</Button>
                     </>
                 )}
             </Modal>

@@ -49,15 +49,16 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {Input} = UI;
+    const {Input, FieldLabel} = UI;
     const [newValue, setNewValue] = useState(value);
 
     const delayedUpdate = (val) => setTimeout(updateAttribute(col, {[attr]: val}), 500);
     if(hidden) return null;
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" htmlFor={`metadata-${col}-${attr}`} text={label} />
             <Input
+                id={`metadata-${col}-${attr}`}
                 type={'text'}
                 disabled={disabled}
                 value={newValue}
@@ -75,11 +76,11 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {MultiSelect} = UI;
+    const {MultiSelect, FieldLabel} = UI;
 
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <MultiSelect
                 activeStyle={t.typeSelectStyle || undefined}
                 disabled={disabled}
@@ -105,11 +106,11 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {Switch} = UI;
+    const {Switch, FieldLabel} = UI;
 
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <Switch
                 enabled={value === trueValue}
                 disabled={disabled}
@@ -124,10 +125,10 @@ const RenderIndexSwitch = ({value, col, onSetIndex, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {Switch} = UI;
+    const {Switch, FieldLabel} = UI;
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>Index</label>
+            <FieldLabel activeStyle="inline" text="Index" />
             <Switch
                 enabled={!!value}
                 disabled={disabled}
@@ -162,7 +163,7 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit =
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {Switch, Modal, Button} = UI;
+    const {Switch, Modal, Button, FieldLabel} = UI;
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const isThisColumnPk = !!(pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn === col);
     const anotherColumnIsPk = pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn && pkeyInfo.pkeyColumn !== col;
@@ -174,7 +175,7 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit =
             : 'Set as primary key — requires unique, non-null values';
     return (
         <div className={t.inputWrapper} title={title}>
-            <label className={t.label}>Primary Key</label>
+            <FieldLabel activeStyle="inline" text="Primary Key" />
             <Switch
                 enabled={isThisColumnPk}
                 disabled={disabled}
@@ -205,11 +206,11 @@ const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, o
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {ButtonSelect} = UI;
+    const {ButtonSelect, FieldLabel} = UI;
 
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <ButtonSelect
                 activeStyle={t.buttonSelectStyle || undefined}
                 value={value}
@@ -225,7 +226,7 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
     const {UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
     const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
-    const {ColumnTypes: {lexical: {EditComp}}} = UI;
+    const {ColumnTypes: {lexical: {EditComp}}, FieldLabel} = UI;
     // Lexical's onChange fires once on mount as a side effect of hydrating `value` into
     // the editor, not from typing — and can also fire on a selection-only commit with no
     // content change. `e` is a Lexical EditorState, not a string, so `.toString()` gives
@@ -247,7 +248,7 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
     useEffect(() => () => clearTimeout(debounceRef.current), []);
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <DescEditorWrap className={t.descEditor}>
             <EditComp
                 value={value}
@@ -369,7 +370,7 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
 
     return (
         <div className={t.optionsWrapper}>
-            <label className={t.labelUpperCase}>options</label>
+            <div className={t.labelUpperCase}>options</div>
             <div className={t.optionsInner}>
                 {canEdit && <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />}
                 {canEdit && <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />}
@@ -378,7 +379,11 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
                     {
                         options?.map((option, optionI) => (
                             <div key={optionI} className={t.optionTag}>
-                                <label className={t.optionTagLabel} onClick={() => canEdit && setEditing(optionI)}>{option?.label || option}</label>
+                                <span className={t.optionTagLabel}>
+                                    {canEdit
+                                        ? <Button activeStyle="linkInline" onClick={() => setEditing(optionI)}>{option?.label || option}</Button>
+                                        : (option?.label || option)}
+                                </span>
                                 {canEdit &&
                                     <div title={'remove'}
                                          className={t.optionRemove}
@@ -425,9 +430,9 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
     return (
         <div className={t.mappedWrapper}>
-            <label className={t.labelUpperCase}>
+            <div className={t.labelUpperCase}>
                 Options Map{t.labelHint ? <span className={t.labelHint}>— pull options from another source</span> : null}
-            </label>
+            </div>
             <FieldSet
                 className={t.mappedGrid}
                 components={[

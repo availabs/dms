@@ -36,7 +36,7 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
   const pgEnv = getExternalEnv(datasources);
   const [ editing, setEditing ] = React.useState(null)
   const [ showSettings, setShowSettings ] = React.useState(false)
-  const { Modal, Icon } = UI || {};
+  const { Modal, Icon, Button } = UI || {};
   // Edit-gated: a "Settings" widget injected into the source-page header (next to the version
   // selector) that opens a modal with the layer's sources/layers config. Invisible to non-editors.
   const canEditMap = isUserAuthed(['update-source']);
@@ -152,9 +152,9 @@ const MapPage = ({params, source,views, HoverComp, displayPinnedGeomBorder=false
           <>
             <div className={t.settingsHeader}>
               <h2 className={t.settingsTitle}>Sources &amp; Layers</h2>
-              <button type="button" title="Close" className={t.settingsClose} onClick={() => setShowSettings(false)}>
+              <Button activeStyle="iconRow" title="Close" aria-label="Close" onClick={() => setShowSettings(false)}>
                 {Icon ? <Icon icon="XMark" className={t.mapAttrsEditIconClass}/> : '×'}
-              </button>
+              </Button>
             </div>
             <p className={t.settingsDesc}>The tile sources and MapLibre layers this version’s map uses. Saved to the view’s metadata.tiles.</p>
           </>
@@ -323,7 +323,7 @@ const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
-  const {Button} = UI;
+  const {Button, Textarea} = UI;
   const inputEl = useRef(null);
 
   useEffect(() => {
@@ -380,9 +380,10 @@ const Edit = ({startValue, attr, viewId, parentData, cancel=()=>{}}) => {
   return (
     <div className={t.editWrapper}>
       <div className={t.editRow}>
-        <textarea
+        <Textarea
           ref={inputEl}
-          className={t.editTextarea}
+          activeStyle="mono"
+          rows={10}
           value={value}
           onChange={e => setValue(e.target.value)}
         />

@@ -46,7 +46,7 @@ export default function CreatePage({apiUpdate, format}) {
     const {baseUrl, user, falcor, type, app, parent, damaDataTypes, datasources, dmsEnv, UI} = ctx;
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...createPageTheme, ...(fullTheme?.datasets?.createPage || {}) };
-    const {Layout, LayoutGroup, MultiSelect, Input, Button, Icon} = UI;
+    const {Layout, LayoutGroup, MultiSelect, Input, Button, Icon, FieldLabel} = UI;
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
@@ -166,15 +166,15 @@ export default function CreatePage({apiUpdate, format}) {
                         <p className={theme.intro}>Pick what you’re bringing in. New sources start private to you — share them from the Admin tab.</p> : null}
                     <div className={theme.form}>
                         <div className={theme.field}>
-                            <label className={theme.fieldLabel}>Type</label>
+                            <FieldLabel text={'Type'} />
                             {theme.typeCards ? (
                                 <div className={theme.typeCards}>
                                     {selectOptions.map(({value}) => {
                                         const info = TYPE_INFO[value] || {...GENERIC_TYPE, label: value};
                                         const active = selectedType === value;
                                         return (
-                                            <button key={value || 'blank'} type="button"
-                                                    className={active ? theme.typeCardActive : theme.typeCard}
+                                            <Button key={value || 'blank'}
+                                                    activeStyle={active ? 'optionCardOn' : 'optionCard'}
                                                     aria-pressed={active}
                                                     onClick={() => handleSelectChange(value)}>
                                                 <span className={active ? theme.typeCardIconActive : theme.typeCardIcon}>
@@ -185,7 +185,7 @@ export default function CreatePage({apiUpdate, format}) {
                                                     {value ? <span className={theme.typeCardKey}>{value}</span> : null}
                                                     <span className={theme.typeCardBlurb}>{info.blurb}</span>
                                                 </span>
-                                            </button>
+                                            </Button>
                                         );
                                     })}
                                 </div>
@@ -200,8 +200,9 @@ export default function CreatePage({apiUpdate, format}) {
                             )}
                         </div>
                         <div className={theme.nameField}>
-                            <label className={theme.fieldLabel}>Name</label>
+                            <FieldLabel htmlFor={'create-dataset-name'} text={'Name'} />
                             <Input
+                                id={'create-dataset-name'}
                                 value={data.name}
                                 placeholder={'Dataset name'}
                                 onChange={e => setData({...data, name: e.target.value})}

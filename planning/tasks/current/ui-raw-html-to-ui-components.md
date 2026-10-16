@@ -316,3 +316,116 @@ Inventory on `patterns/auth`: **0 raw controls** (was 4).
 
 Next area: datasets (156 — 10 `<select>` → UI.Select, 12 tables → UI.Table), page (174), ui composites
 (117). `fieldLabel` is frozen in `_legacy/ui.js`.
+
+
+## Datasets — plan (owner-approved 2026-10-15)
+
+Inventory: 155 raw controls in 31 files (59 button, 40 label, 35 input, 10 select, 6 table, 5 textarea). Three
+read-only proposal forks (A: schedule / upload / AuthorityControl / metadata / access / change history / external
+version; B: default + internal admin / overview / version / error, Settings, DeleteSource, create pages, lists,
+SourcePage, UdaTaskPage; C: gis_dataset Create + Map, file_upload CreatePage — all tables + file inputs) resolved each
+key against the file's own theme and `_legacy/datasets.js`.
+
+Owner decisions:
+- [x] **Phase 0a — project Button roles first (blocking):** landbank, WCDB, avail_site v10 define `linkMeta` /
+      `linkMetaDanger` / `chip` / `chipOn` / `action` / `actionFull` / `dangerFull` / `dangerSolid` / `iconRow` /
+      `segment` (+ `segmentOn`, `small`, `smallDanger`, `primary` where missing) in their own vocabulary, like TNY v2 /
+      MNY on 10/15 — otherwise unset roles inherit styles[0] (40–44px buttons) and swapped links / chips blow up.
+- [x] **Phase 0b — radio + checkbox:** radio column type default → v6 RADIO (16px ink), today's values frozen in
+      `_legacy/ui.js`; checkbox `_legacy` freeze → `''` (browser default; `w-full border p-2` was only the no-className
+      fallback); checkbox column type gains an optional `label` (themed row + label keys) for checkbox-with-text rows.
+- [x] **Phase 0c — MultiSelect option groups** (enrich, for SchedulePage's Loader `<optgroup>`s).
+- [x] **Phase 0d — new named styles** (owner standing OK): Button `iconInline` / `iconInlineDanger` (size-5, no border:
+      inside chips / text rows), `segmentIcon` / `segmentIconOn` (spec SEG_ICON — each branded project theme defines
+      its own from its current `viewBtn`), `linkInline`; Input `compact`; Textarea `readonly`; MultiSelect `muted`;
+      Table `error` style + `display.hideHeader`; `_legacy/ui.js` `fileInput` freeze (Step 0 proposal + `icon: ''`).
+- [ ] **SchedulePage themed in this pass:** `schedulePage.theme.js` like `runsPage.theme.js`, v6 per
+      `datasets-schedule.html`, `_legacy/datasets.js` freeze of today's look.
+- Applied by default (owner didn't object): delete dead `pages/createDataset.jsx` + `internal/pages/create.jsx`;
+  select-layer 1-row layout table → FieldLabel + UI.Select; "Upload File" + AWAITING "Publish" → `primary`; labels with
+  no control → plain div headings (`uacPanelLabel`, `metadataHeaderLabel`, `labelUpperCase`, upload column headings);
+  project-theme metadata labels lose `capitalize`; overview `colFooter` → `linkMeta` in a themed footer wrapper; error
+  tables → UI.Table `error`; file-metadata table → headerless UI.Table 'list'; schema table → UI.Table 'list' with header
+  checkboxes via `controls.header.displayFn`.
+- Risks to verify live: `''` / `undefined` option values (UI.Select treats as missing → sentinel), upload's per-column
+  selects (100s of MultiSelects — check render time), schema table inputs in a virtualized table, Map DomainItem click
+  bubbling, `file_upload/CreatePage.theme.js` is shared with internal_table `sourceCreate`.
+- [x] Phase 1 — swaps (groups A / B / C) · [x] Phase 2 — verify (resolution on 6 themes + HEAD-vs-new live diff on
+      /data, /data-mny, /data-tny, /data-lb, /data-wcdb) · [x] mirror into mockups (spec board; schedule mockup is the source)
+
+### Phase 0 — done 2026-10-15 (uncommitted)
+- Roles defined in each theme's own vocabulary: `landbank/theme.js` (primary = styles[0] press, action = its
+  `secondary`, h-7 small, Plex Mono caps linkMeta, `.lb-chip` chips, …), `wcdb/wcdb_theme.js` (colours readable on the
+  light datasets panel in both modes: `--ink-3` text, rgba(128,128,128,.35) borders, #2a2a2a selected, `--on-air`
+  danger), `avail_site/v10/theme.js` (28–32px pills from its tokens; its existing 44px `danger` kept), MNY + TNY v2
+  `linkProse` / `chip` / `chipOn` / `segmentIcon(On)` (segmentIcon = each theme's current `viewBtn` strings).
+  Side effects seen: landbank "Advanced Metadata" (actionFull) + create "Cancel" (action) → its white secondary;
+  WCDB "Advanced Metadata" → mono outline pill; MNY / TNY ExportPdf TOC chips; WCDB ButtonSelect segments.
+  **Open:** avail_site v1–v9 are registered and still lack 11 roles (fall back to their default buttons) — ask owner.
+- Shared UI: radio v6 (16px ink; `_legacy` freeze of the old row); checkbox `_legacy` freeze → browser default; checkbox
+  `rowLabel` prop (not `label`: table cells spread the column object in); MultiSelect options take `group` (contiguous
+  runs; `groupHeading` key); Button `iconInline` / `iconInlineDanger` / `segmentIcon(On)` / `linkInline`; Input
+  `compact`; Textarea `readonly`; MultiSelect `muted`; UI.Table `error` style + `display.hideHeader`; `_legacy`
+  fileInput freeze (+ `icon: ''`); `_legacy` DERIVED literals for iconInline / iconInlineDanger / linkInline and a
+  neutral Input `compact` (project themes' styles[0] are full-size). Mockups rebuilt, check.mjs clean. Build OK; all
+  datasets roots + admin load clean on :5199.
+- 2026-10-15: Phase 1 forks (A / B / C) hit the session rate limit mid-way (A: checking a Landbank row "Delete"
+  (`danger`) that didn't render; B: about to run the 5-pattern live diff; C: mounting GIS create pieces with mock
+  state) and were resumed after the reset. Their edits are uncommitted in the working tree — if a later session
+  finds them unfinished, re-run the inventory on `patterns/datasets` to see what's left.
+- **Group B done** (12 files at 0 raw; dead `createDataset.jsx` + `internal/pages/create.jsx` deleted). Notable: version
+  select → UI.Select in `versionSelectWrap` (w-48), the old `value={undefined}` option used to navigate to its own text;
+  Settings promotion gate → checkbox `rowLabel` in `nsCheckItem` (flex, no strut); UdaTaskPage payload → Textarea
+  `readonly`, cell class on an outer div. `_legacy/ui.js` DERIVED literals `segmentIcon(On)` = the old gray legacy
+  `viewBtn` (themes without their own role: avail_site v1–v9, fusion, TNY v1…). Project copies edited: TNY v2
+  (sourceOverview / sourcePage / categories / viewBtn), TNY v1 (createPage.fieldLabel, settingsPage.categoryButton),
+  landbank + avail_site v10 (viewBtn → their segmentIcon). Live diff on 25 pages (5 patterns × list / overview / admin /
+  settings / create) + Add Version / Delete Source modals: only intended changes. Not reached: version, error, tasks.
+  Fixed after: `SEGMENT_ICON(_ON)` built from SEGMENT_BASE kept its `px-2.5` (a trailing `px-0` loses in CSS order) →
+  icons rendered small; now SEGMENT_BASE minus px-2.5 (spec SEG_ICON same fix). Switcher = HEAD 32×28 / 16px icons.
+- **Group C done:** file_upload CreatePage (FileInput button shape, wrappers with legacy positioning, Upload =
+  primary), new `gis_dataset/pages/Create/ErrorTable.jsx` (`GisErrorTable` on UI.Table `error`, replaces 3 error tables +
+  their inline-style branches), publish state → role map (Publish / Publishing… primary, Error… danger), upload dropzone
+  (fixes an `<input>` nested in a `<button>`), file metadata = headerless UI.Table (fixes HEAD's `<div>` in `<tr>`),
+  select-layer → FieldLabel + Select, schema table → UI.Table 'list' with module-level cells reading `row.ctx` (stable
+  identity: inputs don't remount) + header select-all via `controls.header.displayFn`; fixed a conditional `useContext`
+  (rules-of-hooks) in the constrained input; Map legend / domain / threshold editor + settings close + JSON textarea.
+  Verified with a mock-state harness (`scratchpad/gisc-preview`, repo scratchpad) on default / mnyv1 / landbank + live
+  file_upload create on /data, /data-mny, /data-lb. Not live: error-overlay Close (needs a real upload).
+- **Group A done:** SchedulePage themed (`schedulePage.theme.js`, v6 per datasets-schedule.html, registered like
+  runsPage; `_legacy/datasets.js` `schedulePage` freeze), Loader select uses option groups, cadence = segment / segmentOn
+  (mockup, not chips), row actions Run now primary / Edit action / Delete danger; upload dropzone + selects (`__none__`
+  sentinels) + `muted` no-match; AuthorityControl (verAuth* deleted incl. TNY v2 copies); metadata captions FieldLabel
+  inline, option tags `linkInline`; ChangeHistory + ExternalVersion radios on ColumnTypes.radio (fixes the Yes/No pair
+  that wasn't one group and the "No" label pointing at Yes). Harness `scratchpad/schedule-preview`. Not live: schedule in
+  the app (test sources are csv_dataset: no Schedule tab), upload's post-upload mapping step (needs a DAMA upload — render
+  cost of 100s of per-row selects still unmeasured), download modal + authority form (class diff only).
+  Dead copies left in TNY v1 `theme.js` + fusion `metadataComp.label` (unused).
+- "Invisible Landbank danger" reported by both A and C = harness artefact: landbank's interpolated `bg-[${C.rose}]`
+  classes are generated by the runtime Tailwind on live pages (measured: Delete Source = rgb(206,91,78)); preview
+  harnesses don't load it. No change.
+- **Datasets: 0 raw controls** (was 155). Build OK; 20-page error sweep (5 patterns × list / settings / create / tasks)
+  clean; admin + auth re-diffed, unchanged. Uncommitted. Open: avail_site v1–v9 lack 11 Button roles (asked owner).
+
+Next area: page (174), then ui composites (117).
+- Owner 2026-10-16: avail_site v1–v9 are not in use — no roles needed (they keep falling back; the segmentIcon /
+  iconInline / linkInline / compact `_legacy` literals cover them anyway).
+- Owner 2026-10-16 ("none of the tables resize columns except the one on table page"): UI.Table resized only through the
+  caller's `setState` (`draft.columns[idx].size`) — only the spreadsheet section passes one; every list / admin / auth /
+  datasets table showed a handle that did nothing. `ui/components/table/index.jsx`: without `setState` the widths live
+  in local state for the session (owner: session only, not localStorage / not saved) keyed like isEqualColumns; drag
+  listeners on window (releasing outside the table used to leave the drag stuck); the drag starts from the column's
+  RENDERED width (an unsized / stretch column started from its nominal size, so dragging wider shrank it — Pages tab
+  title 418 → 203); `display.disableColumnResize` turns it off and hides the handle (GIS error tables + file metadata).
+  Checked live: /list, /auth/manage/users, /list/manage_pattern/27/pages, datasets table view on /data, /data-mny,
+  /data-lb — +80px drag = +80px, header + body grids together, no movement after release. Spreadsheet path (setState)
+  unchanged apart from window listeners + start width; no spreadsheet section on the test pages to try it live.
+- Owner 2026-10-16 ("widen it"): the resize handle was a 1px strip (my own test missed it by a pixel). New structural
+  table key `colResizerHit` (library styles[0] + LIST; inherited by every named style and every project theme —
+  resolved on 4) = an invisible `::before` 4px either side of the line, appended to the handle's `colResizer` class
+  in `TableHeader.jsx`. Hovering / pressing the pseudo-element counts as the element, so all 30+ theme `colResizer`
+  strings (their `hover:` line colours) work unchanged. Checked: 3 UI.Tables on one harness page
+  (`scratchpad/resize-two/`: two without setState, one with) — each drag moved only its own table; and on a page-pattern
+  page (`/p/edit/flooding`, a Spreadsheet section on the "pg (pages)" source added in the editor and NOT saved — page
+  still 9 sections, no changes): pressing 3px off the line + drag +60 released outside the table → column 115 → 175px
+  through the section's setState.

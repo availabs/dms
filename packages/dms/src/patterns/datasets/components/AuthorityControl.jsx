@@ -1,4 +1,5 @@
-import React, {useState} from 'react'
+import React, {useContext, useState} from 'react'
+import {ThemeContext} from '../../../ui/useTheme'
 import {
     isAuthoritative, authorityState, authorityKeyNames, keyLabel,
 } from '../utils/authority'
@@ -25,6 +26,9 @@ export const AuthorityBadge = ({t, entry}) => {
  * who/when. `setSource` receives the returned authority record so the page updates in place.
  */
 export default function AuthorityControl({t, source, setSource, viewId, viewLabel, envKey, canEdit, falcor}) {
+    const {UI} = useContext(ThemeContext) || {};
+    const {Button, Input, Textarea, ColumnTypes} = UI;
+    const CheckboxEdit = ColumnTypes.checkbox.EditComp;
     const entry = isAuthoritative(source, viewId);
     const state = authorityState(source);
     const existingKeyNames = authorityKeyNames(source);
@@ -90,14 +94,14 @@ export default function AuthorityControl({t, source, setSource, viewId, viewLabe
             {canEdit && !open && (
                 <div className={t.verAuthActions}>
                     {entry
-                        ? <button type="button" className={t.verAuthLink} disabled={busy} onClick={clear}
+                        ? <Button activeStyle="linkMeta" disabled={busy} onClick={clear}
                                   title="This view will no longer be the one pages should bind">
                             Clear authoritative
-                          </button>
-                        : <button type="button" className={t.verAuthLink} onClick={startMark}
+                          </Button>
+                        : <Button activeStyle="linkMeta" onClick={startMark}
                                   title="Record that pages should bind this view, and why">
                             {markLabel}
-                          </button>}
+                          </Button>}
                 </div>
             )}
 
@@ -110,10 +114,10 @@ export default function AuthorityControl({t, source, setSource, viewId, viewLabe
                     </div>
 
                     {state === 'undecided' && (
-                        <label className={t.verAuthCheck}>
-                            <input type="checkbox" checked={keyed} onChange={e => setKeyed(e.target.checked)}/>
-                            <span>This source has one authoritative view per key (a year, a region, a level…)</span>
-                        </label>
+                        <div className={t.verAuthCheck}>
+                            <CheckboxEdit value={keyed} onChange={v => setKeyed(!!v)}
+                                          rowLabel="This source has one authoritative view per key (a year, a region, a level…)"/>
+                        </div>
                     )}
 
                     {keyed && (
@@ -123,37 +127,40 @@ export default function AuthorityControl({t, source, setSource, viewId, viewLabe
                             </datalist>
                             {keyRows.map((row, i) => (
                                 <div key={i} className={t.verAuthKeyRow}>
-                                    <input className={t.verAuthInput} placeholder="key (e.g. year)" list="authority-key-names"
-                                           value={row.name} disabled={state === 'keyed'}
-                                           onChange={e => setKeyRows(rs => rs.map((r, j) => j === i ? {...r, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')} : r))}/>
-                                    <input className={t.verAuthInput} placeholder="value (e.g. 2024)"
-                                           value={row.value}
-                                           onChange={e => setKeyRows(rs => rs.map((r, j) => j === i ? {...r, value: e.target.value} : r))}/>
+                                    <span className={t.verAuthField}>
+                                        <Input placeholder="key (e.g. year)" list="authority-key-names" aria-label="key"
+                                               value={row.name} disabled={state === 'keyed'}
+                                               onChange={e => setKeyRows(rs => rs.map((r, j) => j === i ? {...r, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_')} : r))}/>
+                                    </span>
+                                    <span className={t.verAuthField}>
+                                        <Input placeholder="value (e.g. 2024)" aria-label="value"
+                                               value={row.value}
+                                               onChange={e => setKeyRows(rs => rs.map((r, j) => j === i ? {...r, value: e.target.value} : r))}/>
+                                    </span>
                                     {state !== 'keyed' && keyRows.length > 1 && (
-                                        <button type="button" className={t.verAuthLink}
-                                                onClick={() => setKeyRows(rs => rs.filter((_, j) => j !== i))}>remove</button>
+                                        <Button activeStyle="linkMetaDanger"
+                                                onClick={() => setKeyRows(rs => rs.filter((_, j) => j !== i))}>remove</Button>
                                     )}
                                 </div>
                             ))}
                             {state !== 'keyed' && (
-                                <button type="button" className={t.verAuthLink}
-                                        onClick={() => setKeyRows(rs => [...rs, {name: '', value: ''}])}>+ another key</button>
+                                <Button activeStyle="linkMeta"
+                                        onClick={() => setKeyRows(rs => [...rs, {name: '', value: ''}])}>+ another key</Button>
                             )}
                         </div>
                     )}
 
-                    <textarea className={t.verAuthTextarea} rows={3} value={note}
+                    <Textarea rows={3} value={note} aria-label="why this view"
                               placeholder="Why this view? e.g. “v2 drops most 2011 and 2013 loans; keep this one”"
                               onChange={e => setNote(e.target.value)}/>
 
                     {error && <div className={t.verAuthError}>{error}</div>}
 
                     <div className={t.verAuthButtons}>
-                        <button type="button" className={canSave ? t.verAuthSave : t.verAuthSaveDisabled}
-                                disabled={!canSave} onClick={save}>
+                        <Button activeStyle="primary" disabled={!canSave} onClick={save}>
                             {busy ? 'Saving…' : 'Mark authoritative'}
-                        </button>
-                        <button type="button" className={t.verAuthCancel} onClick={reset}>Cancel</button>
+                        </Button>
+                        <Button activeStyle="linkMeta" onClick={reset}>Cancel</Button>
                     </div>
                 </div>
             )}

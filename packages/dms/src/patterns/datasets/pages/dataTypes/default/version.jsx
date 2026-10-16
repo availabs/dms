@@ -15,7 +15,7 @@ import { versionTheme } from "./version.theme";
 
 const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
     const {UI, theme} = useContext(ThemeContext);
-    const {DeleteModal, Icon} = UI;
+    const {DeleteModal, Icon, Button} = UI;
     const t = { ...versionTheme, ...(theme?.datasets?.version || {}) };
     // update parent to exclude source. the source still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -33,7 +33,7 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
     }
     return (
         <div className={t.btnWrap}>
-            <button className={t.dangerBtn} onClick={() => setShowDeleteModal(true)}>{t.dangerIcon && <Icon icon={t.dangerIcon} className={t.btnIconClass}/>}Delete Version</button>
+            <Button activeStyle='dangerFull' onClick={() => setShowDeleteModal(true)}>{t.dangerIcon && <Icon icon={t.dangerIcon} className={t.btnIconClass}/>}Delete Version</Button>
 
             <DeleteModal
                 title={`Delete Version`} open={showDeleteModal}
@@ -55,7 +55,7 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
 
 const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
     const {UI, theme} = useContext(ThemeContext);
-    const {DeleteModal} = UI;
+    const {DeleteModal, Button} = UI;
     const t = { ...versionTheme, ...(theme?.datasets?.version || {}) };
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
@@ -63,7 +63,7 @@ const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
     }
     return (
         <div className={t.btnWrap}>
-            <button className={t.dangerBtn} onClick={() => setShowDeleteModal(true)}>Clear Data</button>
+            <Button activeStyle='dangerFull' onClick={() => setShowDeleteModal(true)}>Clear Data</Button>
 
             <DeleteModal
                 title={`Clear Uploaded Data`} open={showDeleteModal}
@@ -91,7 +91,7 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
     const tv = { ...versionTheme, ...(fullTheme?.datasets?.version || {}) };
     const pgEnv = getExternalEnv(datasources);
     const {UI} = React.useContext(ThemeContext) || {}
-    const {Input} = UI;
+    const {Input, FieldLabel} = UI;
     const [currentView, setCurrentView] = React.useState((source?.views || []).find(v => +(v.view_id || v.id) === +params.view_id) || {});
 
     useEffect(() => {
@@ -154,8 +154,8 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                         ) : null}
                         <div className={tv.body}>
                             <div className={tv.mainCol}>
-                                <label className={tv.versionLabel}>Version</label>
-                                <Input type={'text'} value={currentView.version || currentView.name || ''} onChange={e => {
+                                <FieldLabel htmlFor={'version-name'} text={'Version'} />
+                                <Input id={'version-name'} type={'text'} value={currentView.version || currentView.name || ''} onChange={e => {
                                     updateVersionData({
                                         data: e.target.value,
                                         attrKey: isDms ? 'name' : 'version',

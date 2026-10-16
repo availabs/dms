@@ -5,7 +5,6 @@ export const categoriesTheme = {
     // CategoryItem — a chip; sub-categories use this, the parent uses categoryItemBold
     categoryItem: 'inline-flex items-center gap-1 pl-2 pr-1 h-6 rounded border border-[var(--t-rule)] t-proseXS text-[var(--t-graphite)] my-0.5',
     categoryItemInner: 'truncate',
-    categoryItemRemoveBtn: 'inline-flex items-center justify-center size-4 rounded text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer',
     removeIcon: 'size-3',
     categoryItemBold: 'inline-flex items-center gap-1 pl-2 pr-1 h-6 rounded bg-[var(--t-well)] t-proseXS font-medium text-[var(--t-ink)] my-0.5',
 
@@ -26,10 +25,9 @@ export const categoriesTheme = {
 
     // SourceCategories
     sourceCategoriesNewWrapper: 'flex flex-col gap-2 mt-2 pt-2 border-t border-[var(--t-rule)]',
-    stopBtn: 'w-fit t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
+    stopBtnWrap: 'w-fit',   // 'Stop editing categories' (UI.Button linkMeta)
 
     // Input
-    input: 'w-full t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] px-2.5 h-8 outline-none focus:border-[var(--t-ink)]',
 
     // CategoryAdder
     categoryAdderWrapper: 'w-full',

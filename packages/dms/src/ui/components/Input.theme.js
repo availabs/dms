@@ -34,6 +34,11 @@ export const inputTheme = {
       name: 'search',
       input: 'w-full h-8 pl-7 pr-2.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] outline-none focus:border-[var(--t-ink)] aria-invalid:border-[var(--t-brick)] disabled:bg-[var(--t-well)] disabled:text-[var(--t-pencil)] disabled:cursor-not-allowed transition-colors duration-150',
     },
+    // 2026-10-15: a 24px value field inside a dense row (datasets overview "at a glance" edit), right-aligned text
+    {
+      name: 'compact',
+      input: 'w-full h-6 px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseXS text-right text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] outline-none focus:border-[var(--t-ink)] aria-invalid:border-[var(--t-brick)] disabled:bg-[var(--t-well)] disabled:text-[var(--t-pencil)] disabled:cursor-not-allowed transition-colors duration-150',
+    },
     // a small filter in a table's column header (auth manage Users / Groups) — was `authPages.manage.headerInput`
     {
       name: 'headerFilter',

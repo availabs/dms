@@ -3,48 +3,33 @@
 // from components/CreateStep.jsx; these keys style what's inside them. Pre-v6 values (and the inline
 // style={} objects, behind `legacyInlineStyles`) frozen in src/themes/_legacy/datasets.js `gisCreate`.
 const RULE = 'border-[var(--t-rule)]';
-const FIELD = 'h-8 w-full px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] focus:outline-none focus:border-[var(--t-ink)] disabled:opacity-50';
-const TH = 'px-3 py-2 text-left font-normal t-metaXS text-[var(--t-pencil)] bg-[var(--t-well)]';
-const ERR_TABLE = 'w-full mt-3 rounded-lg border border-[var(--t-brick)] overflow-hidden text-left border-separate border-spacing-0';
-const CHECK = 'size-4 accent-[var(--t-ink)] cursor-pointer disabled:cursor-not-allowed';
 
 export const gisCreateTheme = {
     legacyInlineStyles: '',          // 'yes' → keep the old inline style={} objects
     nameHint: 't-proseSM text-[var(--t-amber)]',
 
-    // publish/index.jsx - PublishButton (base + one state class)
+    // publish/index.jsx - PublishButton: UI.Button primary (danger after an error) in this row
     publishRow: 'flex flex-wrap items-center gap-3',
-    publishBtn: 'h-8 inline-flex items-center px-3.5 rounded-md border t-proseSM font-medium cursor-pointer',
-    publishBtnAwaiting: `${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`,
-    publishBtnInProgress: 'border-[var(--t-amber)] bg-[var(--t-amber-soft)] text-[var(--t-amber)]',
-    publishBtnError: 'border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]',
     publishHint: 't-proseXS text-[var(--t-pencil)]',
-    // PublishErrorMessage
-    publishErrorTable: ERR_TABLE,
 
-    // shared error-table cells (upload / publish errors had only inline styles)
-    errTh: 'px-3 py-2 text-left font-normal t-metaXS text-[var(--t-brick)] bg-[var(--t-brick-soft)]',
-    errTd: 'px-3 py-2 t-proseSM text-[var(--t-brick)]',
-    errTdCtx: 'px-3 py-2 t-metaMD text-[var(--t-graphite)]',
+    // ErrorTable.jsx — upload / layer analysis / publish errors (2026-10-15): UI.Table named style, in a wrapper;
+    // the cells' inner text classes
+    errorTableStyle: 'error',
+    errorTableWrap: 'mt-3',
+    errTd: 't-proseSM',
+    errTdCtx: 't-metaMD text-[var(--t-graphite)]',
 
-    // schemaEditor/components.jsx - FreeFormColumnNameInput
-    freeFormInput: `${FIELD} t-metaMD`,
-    // ConstrainedColumnNameInput
-    constrainedSelect: FIELD,
+    // schemaEditor/components.jsx — the column-name field is UI.Input 'mono' / UI.Select
     constrainedText: 't-metaMD text-[var(--t-ink)]',
     allAssigned: 't-proseXS text-[var(--t-pencil)]',
     // GisDatasetLayerDatabaseDbSchemaForm
     schemaFormTitle: 'hidden',       // the step title ("Map fields") says it
     schemaFormWaitMsg: 'block t-proseSM text-[var(--t-graphite)]',
+    // the mapping table is UI.Table `tableStyle` (2026-10-15); key cell text class, and the Omit / Mbtile header
+    // (label + select-all checkbox)
     schemaFormCard: `rounded-lg border ${RULE} overflow-hidden`,
-    schemaFormTable: 'w-full',
-    schemaFormThCenter: TH,
-    schemaFormTdKey: 'px-3 py-2 t-metaMD text-[var(--t-ink)]',
-    schemaFormTdVal: 'px-3 py-2',
-    schemaFormTdCheck: 'px-3 py-2 text-center',
-    schemaFormRow: `border-t ${RULE}`,
-    schemaFormCheckboxMl: `ml-2 align-middle ${CHECK}`,
-    schemaCheckbox: CHECK,
+    schemaFormTdKey: 't-metaMD text-[var(--t-ink)]',
+    schemaFormHeaderCheck: 'inline-flex items-center gap-2',
     schemaFormHint: 'mt-2 t-proseXS text-[var(--t-pencil)]',
 
     // selectLayer/components.jsx - LayerAnalysisSection
@@ -59,37 +44,24 @@ export const gisCreateTheme = {
     layerAnalysisEmpty: 'max-w-md flex flex-col items-center text-center border border-dashed border-[var(--t-rule-strong)] rounded-lg px-6 py-8',
     layerAnalysisEmptyTitle: 't-proseSM font-medium text-[var(--t-ink)]',
     layerAnalysisEmptyText: 't-proseSM text-[var(--t-graphite)] mt-1 max-w-[52ch]',
-    // ErrorMessage (layer analysis)
-    errorTable: ERR_TABLE,
-    errorThead: 'bg-[var(--t-brick-soft)] t-metaXS text-[var(--t-brick)] [&_th]:px-3 [&_th]:py-2 [&_th]:font-normal [&_th]:text-left',
-    errorTdMsg: 'px-3 py-2 t-proseSM text-[var(--t-brick)]',
-
-    // selectLayer/index.jsx - SelectLayer
+    // selectLayer/index.jsx - SelectLayer: UI.FieldLabel 'inline' + UI.Select in this row (2026-10-15)
     selectLayerWrapper: '',
-    selectLayerTable: 'w-full max-w-sm',
-    selectLayerTdLabel: 'pr-4 t-metaXS text-[var(--t-pencil)] whitespace-nowrap',
-    selectLayerTdSelect: 'w-full',
-    selectLayerSelect: FIELD,
+    selectLayerField: 'flex items-center gap-4 max-w-sm',
+    selectLayerControl: 'flex-1 min-w-0',
 
-    // uploadFile/components.jsx - GisDatasetFileMeta
+    // uploadFile/components.jsx - GisDatasetFileMeta: a headerless UI.Table `tableStyle` (2026-10-15) in this box;
+    // label / value cell text classes
     fileMetaTitle: 'hidden',         // the step title ("Upload file") says it
-    fileMetaTable: 'w-full max-w-xl',
-    fileMetaRowBorder: '',
-    fileMetaTdLeft: 'py-1 pr-4 w-44 t-proseSM text-[var(--t-pencil)]',
-    fileMetaTdCenter: 'py-1 t-proseSM text-[var(--t-ink)] break-all',
-    fileMetaStatusTd: 'py-1 t-proseSM text-[var(--t-ink)]',
+    fileMetaOuter: 'max-w-xl',
+    fileMetaTdLeft: 't-proseSM text-[var(--t-pencil)]',
+    fileMetaTdCenter: 't-proseSM text-[var(--t-ink)] break-all',
     // ProgressBar ('' progressWrap → the inline-styled bar)
-    progressWrap: 'flex items-center gap-3 py-1',
+    progressWrap: 'w-full flex items-center gap-3 py-1',   // w-full: it sits in a UI.Table cell
     progressLabel: 't-proseSM text-[var(--t-graphite)] w-12',
     progressTrack: 'flex-1 h-2 rounded-full bg-[var(--t-well)] overflow-hidden',
     progressFill: 'h-full bg-[var(--t-ink)]',
     progressText: 't-metaMD text-[var(--t-ink)]',
 
-    // GisDatasetUploadErrorMessage
-    uploadErrorTable: ERR_TABLE,
-
-    // uploadFile/index.jsx - UploadGisDataset (the file picker)
-    uploadFileWrapper: 'w-full border border-dashed border-[var(--t-rule-strong)] rounded-lg',
-    uploadFileInner: 'px-6 py-8 flex justify-center',
-    uploadFileInput: 't-proseSM text-[var(--t-graphite)] cursor-pointer file:mr-3 file:h-8 file:px-3 file:rounded-md file:border file:border-solid file:border-[var(--t-rule)] file:bg-[var(--t-panel)] file:text-[var(--t-ink)] file:cursor-pointer',
+    // uploadFile/index.jsx - UploadGisDataset: the UI.FileInput drop zone, in this wrapper (2026-10-15)
+    uploadFileField: 'w-full',
 }

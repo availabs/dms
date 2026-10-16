@@ -52,7 +52,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const {baseUrl, isUserAuthed: patternIsUserAuthed, UI, datasources, falcor, damaDataTypes} = ctx;
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourcePageTheme, ...getComponentTheme(fullTheme, 'datasets.sourcePage')};
-    const {Layout} = UI;
+    const {Layout, Button, Select} = UI;
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
@@ -250,21 +250,27 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                             {(showVersionSelector || headerActions.length > 0) && (
                                 <div className={t.headerRight}>
                                     {headerActions.map((a, i) => (
-                                        <button key={i} type="button" className={t.headerActionBtn} onClick={a.onClick}>{a.label}</button>
+                                        <Button key={i} activeStyle='action' onClick={a.onClick}>{a.label}</Button>
                                     ))}
                                     {showVersionSelector && (
                                         <>
                                             <span className={t.versionLabel}>version</span>
-                                            <select id={'version-selector'}
-                                                    onChange={e => {
+                                            {/* UI.Select: onChange gets the chosen view_id; with none chosen the placeholder
+                                                shows "No version selected" (the old native option had value={undefined}, which
+                                                navigated to its own text) */}
+                                            <span className={t.versionSelectWrap}>
+                                                <Select
+                                                    id={'version-selector'}
+                                                    placeholder={'No version selected'}
+                                                    options={views.map(view => ({value: view.view_id, label: (view.name || view.view_id) + authorityMarker(source, view.view_id)}))}
+                                                    value={view_id}
+                                                    onChange={v => {
+                                                        if (v === undefined || v === null || v === '') return;
                                                         const pageUrl = `${pageBaseUrl}/${id}${page ? `/${page}` : ''}`;
-                                                        navigate(`${pageUrl}/${e.target.value}`)
+                                                        navigate(`${pageUrl}/${v}`)
                                                     }}
-                                                    className={t.versionSelect}
-                                                    value={view_id}>
-                                                <option key={'default'} value={undefined}>No version selected</option>
-                                                {views.map(view => <option key={view.view_id} value={view.view_id}>{(view.name || view.view_id) + authorityMarker(source, view.view_id)}</option>)}
-                                            </select>
+                                                />
+                                            </span>
                                         </>
                                     )}
                                 </div>

@@ -14,12 +14,9 @@ export const createPageTheme = {
     form: 'flex flex-col gap-6 mt-6',
     field: 'flex flex-col gap-1.5',
     nameField: 'flex flex-col gap-1.5 max-w-md',
-    fieldLabel: 't-metaXS text-[var(--t-pencil)]',
 
     // Type as a card picker (Decision 13) — '' → the MultiSelect dropdown (pre-v6)
     typeCards: 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3',
-    typeCard: `text-left flex gap-3 p-3 rounded-lg border ${RULE} bg-[var(--t-panel)] hover:border-[var(--t-rule-strong)] cursor-pointer`,
-    typeCardActive: 'text-left flex gap-3 p-3 rounded-lg border border-[var(--t-ink)] bg-[var(--t-panel)] shadow-[var(--t-shadow-lift)] cursor-pointer',
     typeCardIcon: 'size-8 rounded-md flex items-center justify-center flex-none bg-[var(--t-well)] text-[var(--t-graphite)]',
     typeCardIconActive: 'size-8 rounded-md flex items-center justify-center flex-none bg-[var(--t-ink)] text-[var(--t-paper)]',
     typeCardIconClass: 'size-4',

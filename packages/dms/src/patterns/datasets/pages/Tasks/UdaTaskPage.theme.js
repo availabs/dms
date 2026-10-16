@@ -51,6 +51,6 @@ export const udaTaskPageTheme = {
     emptyCell: 'text-[var(--t-pencil)]',
 
     // Payload textarea (inside COLUMNS definition)
-    payloadTextarea: `w-[300px] ${META} bg-[var(--t-well)] rounded p-2 resize-y scrollbar-xs`,
+    payloadWrap: 'w-[300px]',   // the read-only payload (UI.Textarea 'readonly')
     payloadRows: '4',                                                     // '' → no rows attr
 }

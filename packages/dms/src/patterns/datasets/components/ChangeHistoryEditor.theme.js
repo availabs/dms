@@ -11,7 +11,6 @@ export const changeHistoryEditorTheme = {
   label: 't-metaXS text-[var(--t-pencil)] pt-2',
   control: 'flex flex-col gap-2 min-w-0',
   inline: 'flex flex-wrap items-center gap-2',
-  choice: 'inline-flex items-center gap-1.5 t-proseSM text-[var(--t-ink)] cursor-pointer',
   hint: 't-proseXS text-[var(--t-pencil)]',
   targetLink: 't-proseSM text-[var(--t-cobalt)] hover:underline pt-1.5 w-fit',   // link in text
   footer: 'flex items-center justify-end gap-3',

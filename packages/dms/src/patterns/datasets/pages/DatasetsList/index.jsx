@@ -379,12 +379,13 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
 
                     <div className={t.viewSwitcher}>
                         {VIEWS.map(v => (
-                            <button key={v.key} title={v.key} onClick={() => setViewPersist(v.key)}
-                                    className={view === v.key ? t.viewBtnActive : t.viewBtn}>
+                            <Button key={v.key} title={v.key} aria-label={v.key} aria-pressed={view === v.key}
+                                    activeStyle={view === v.key ? 'segmentIconOn' : 'segmentIcon'}
+                                    onClick={() => setViewPersist(v.key)}>
                                 <svg className={t.viewBtnIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
                                     <path d={v.d}/>
                                 </svg>
-                            </button>
+                            </Button>
                         ))}
                     </div>
 

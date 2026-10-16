@@ -116,11 +116,16 @@ const RenderMenu = ({
                                 const valueStr = (o?.value ?? '').toString().toLowerCase();
                                 return labelStr.includes(kw) || valueStr.includes(kw);
                             })
-                            .map((o, i) => {
+                            .map((o, i, shown) => {
                                 const isOptionSelected = mappedValue.includes(o.value || o);
+                                // option groups: a caption before the first shown option of each `group`
+                                // (options stay one flat list; consecutive options share a group)
+                                const group = o?.group;
+                                const showGroup = group && group !== shown[i - 1]?.group;
                                 return (
+                                    <React.Fragment key={`option-${i}`}>
+                                    {showGroup ? <div className={t.groupHeading} role="presentation">{group}</div> : null}
                                     <div
-                                        key={`option-${i}`}
                                         className={t.menuItem}
                                         onClick={e => {
                                             // newValue should return .value if available instead of full options mapped obj.
@@ -140,6 +145,7 @@ const RenderMenu = ({
                                         }
                                         {meta?.[o.label || o] ?? o.label ?? o}
                                     </div>
+                                    </React.Fragment>
                                 )
                             })
                     }
@@ -195,7 +201,9 @@ function useComponentVisible(initial, extraRefs = []) {
  * Props:
  *   value: array of selected values (or a single value when singleSelectOnly)
  *   onChange: (newValue) => void
- *   options: Array<string | {label, value}>
+ *   options: Array<string | {label, value, group?}> — `group` (2026-10-15): options with the same group string,
+ *     listed next to each other, get one caption above them in the menu (like <optgroup>; theme key
+ *     `groupHeading`). Search filters options; a caption shows only while its group has matches.
  *   meta: optional label→display-label map applied at render time
  *   placeholder: search-input placeholder
  *   loading: bool — shows a spinner inside the menu while options are loading

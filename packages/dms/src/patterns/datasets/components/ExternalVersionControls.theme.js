@@ -8,7 +8,6 @@ const CARD = `rounded-lg border ${RULE} bg-[var(--t-panel)]`;
 const BTN = 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md t-proseSM cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed';
 const ACTION = `${BTN} border ${RULE} bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
 const DANGER = `${BTN} border border-[var(--t-brick)] text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
-const CHECK = 'size-4 accent-[var(--t-ink)] cursor-pointer disabled:cursor-not-allowed';
 
 export const externalVersionControlsTheme = {
     // Main wrapper (inside the version page's controls card)
@@ -24,8 +23,6 @@ export const externalVersionControlsTheme = {
 
     // DownloadModalCheckbox
     checkboxRow: 'flex items-center gap-2 min-w-0',
-    checkboxInput: CHECK,
-    checkboxLabel: 't-proseSM text-[var(--t-ink)] truncate',
 
     // DownloadModalGroupedBy
     groupedByWrapper: `md:col-span-2 ${CARD} p-3 flex flex-col gap-2 text-left`,
@@ -35,14 +32,9 @@ export const externalVersionControlsTheme = {
     // DownloadModalGroupColumnSelect
     groupColumnSelectRow: 'flex flex-col gap-1.5 max-w-xs',
     groupColumnSelectLabel: 't-proseXS text-[var(--t-graphite)]',
-    groupColumnSelect: 'h-8 w-full px-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)]',
 
     // DownloadModalGroupByToggle
     groupByToggleWrapper: '',
-    groupByToggleRow: 'flex items-center gap-2',
-    groupByToggleInput: CHECK,
-    groupByToggleLabel: 't-proseSM text-[var(--t-ink)]',
-    groupByToggleInputNo: `ml-4 ${CHECK}`,
 
     // DownloadModalCheckboxGroup
     checkboxGroupWrapper: `${CARD} p-3 flex flex-col gap-1.5 text-left max-h-72 overflow-y-auto`,
@@ -90,7 +82,6 @@ export const externalVersionControlsTheme = {
     eventItemWrapper: 'break-all',
 
     // Misc
-    selectOption: '',
     iconSuccess: 'size-3.5 text-[var(--t-go)]',
     iconError: 'size-3.5 text-[var(--t-brick)]',
     calcColumnWarning: 't-proseXS text-[var(--t-amber)]',

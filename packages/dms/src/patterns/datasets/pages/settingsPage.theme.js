@@ -35,7 +35,6 @@ export const settingsPageTheme = {
     columnLabel: EYEBROW,
     columnHint: 'ml-1 normal-case tracking-normal',
     categoryList: 'flex flex-wrap gap-1.5 mt-2 max-h-[50vh] overflow-auto',
-    categoryButton: `inline-flex items-center gap-1.5 t-proseXS text-[var(--t-ink)] bg-[var(--t-panel)] border ${RULE} rounded-full pl-2.5 pr-1 py-0.5 hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-50`,
     categoryCount: 't-metaXS rounded-full bg-[var(--t-well)] text-[var(--t-graphite)] px-1.5',
 
     // ── lifecycle visibility ───────────────────────────────────────────────
@@ -56,7 +55,7 @@ export const settingsPageTheme = {
     lcState: 'shrink-0 mt-0.5 text-right',
     lcStateDefault: EYEBROW,
     lcStateOverridden: 't-metaXS text-[var(--t-amber)]',
-    lcReset: 'block mt-1 t-metaXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] underline decoration-dotted cursor-pointer',
+    lcResetWrap: 'block mt-1',   // 'reset to default' (UI.Button linkMeta)
     lcNote: `px-5 py-3 border-t ${RULE} t-proseXS text-[var(--t-pencil)]`,
     lcWarn: 'px-5 py-3 border-t border-[var(--t-amber)] bg-[var(--t-amber-soft)] t-proseSM text-[var(--t-amber)]',
     // live effect
@@ -73,7 +72,7 @@ export const settingsPageTheme = {
     nsLabel: `${EYEBROW} mb-1.5`,
     nsPill: 'inline-flex items-baseline gap-2 t-proseSM text-[var(--t-ink)]',
     nsMuted: EYEBROW,
-    nsCheckRow: 'flex items-center gap-2 t-proseSM text-[var(--t-ink)] py-1 [&_input]:size-4 [&_input]:accent-[var(--t-ink)] [&_input]:cursor-pointer',
+    nsCheckItem: 'flex py-1',          // a promotion-gate checkbox (ColumnTypes.checkbox with rowLabel)
     nsHint: 't-proseXS text-[var(--t-graphite)] mt-1.5',
     // legacy panel
     legacyPanel: CARD,

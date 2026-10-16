@@ -1,6 +1,7 @@
 import { useContext, useRef } from 'react'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
+import GisErrorTable from '../ErrorTable'
 
 export const LayerAnalysisSection = ({state}) => {
   const { theme, UI } = useContext(ThemeContext) || {};
@@ -77,31 +78,6 @@ export const LayerAnalysisSection = ({state}) => {
 
 
 
-export const ErrorMessage = ({etlContextId, errorMsg}) => {
-  const { theme } = useContext(ThemeContext) || {};
-  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
-  return (
-    <table className={t.errorTable}>
-      <thead className={t.errorThead}>
-        <tr>
-          <th>
-            Layer Analysis Error
-          </th>
-          <th>
-            ETL Context ID
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td className={t.errorTdMsg}>
-            {errorMsg}
-          </td>
-          <td>
-            {etlContextId}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  )
-}
+export const ErrorMessage = ({etlContextId, errorMsg}) => (
+  <GisErrorTable title="Layer Analysis Error" message={errorMsg} etlContextId={etlContextId} />
+)

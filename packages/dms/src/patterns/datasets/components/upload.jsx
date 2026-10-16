@@ -4,10 +4,8 @@ import { getExternalEnv } from "../utils/datasources";
 import { ThemeContext } from "../../../ui/useTheme";
 import { uploadTheme } from "./upload.theme";
 
-const preventDefaults = e => {
-    e.preventDefault();
-    e.stopPropagation();
-}
+// UI.Select reads '' as "no value": the "None (always insert)" primary-column choice
+const NO_PRIMARY = '__none__';
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
@@ -123,8 +121,10 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // 5. choose an id column to update data if there's id match.
 
     const {API_HOST, user, datasources} = useContext(context);
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...uploadTheme, ...(theme?.datasets?.upload || {}) };
+    const { Button, FieldLabel, FileInput, Input, Select, ColumnTypes } = UI;
+    const CheckboxEdit = ColumnTypes.checkbox.EditComp;
     const pgEnv = getExternalEnv(datasources) || 'hazmit_dama';
     const damaServerPath = `${API_HOST}/dama-admin/${pgEnv}`;
     const dmsServerPath = `${API_HOST}/dama-admin`;
@@ -168,6 +168,9 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
         }
     }, [layers, layerName]);
     // ================================================= get layers end ================================================
+    const existingAttributeOptions = [...existingAttributes]
+        .sort((a, b) => a?.display_name?.localeCompare(b?.display_name))
+        .map(({name, display_name}) => ({label: display_name || name, value: name}));
     const pivotColumns = existingAttributes.filter(existingCol => columns.filter(c => c.existingColumnMatch === existingCol.name).length > 1);
 
     if(!view_id) return 'No version selected.'
@@ -181,46 +184,11 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     (
         <div className={t.uploaderOuter}>
 
-            <div className={t.uploaderDropzone}
-                 onDragOver={preventDefaults}
-                 onDragEnter={preventDefaults}
-                 onDragLeave={preventDefaults}
-                 onDrop={e => {
-                     preventDefaults(e);
-                     if(!e.dataTransfer.files[0]) return;
-                     return uploadGisDataset({
-                         file: e.dataTransfer.files[0],
-                         user,
-                         damaServerPath,
-                         setGisUploadId,
-                         setLoading,
-                         setLayers,
-                         setLayerName
-                     })
-                 }}
-            >
-                <label htmlFor="dropzone-file"
-                       className={t.uploaderLabel}>
-                    <div className={t.uploaderLabelInner}>
-                        <svg className={t.uploaderSvg} aria-hidden="true"
-                             xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 20 16">
-                            <path stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
-                                  d="M13 13h3a3 3 0 0 0 0-6h-.025A5.56 5.56 0 0 0 16 6.5 5.5 5.5 0 0 0 5.207 5.021C5.137 5.017 5.071 5 5 5a4 4 0 0 0 0 8h2.167M10 15V6m0 0L8 8m2-2 2 2"/>
-                        </svg>
-                        {
-                            loading ? <p className={t.uploaderLoadingText}>Uploading...</p> : (
-                                <>
-                                    <p className={t.uploaderClickText}>
-                                        <span className={t.uploaderClickBold}>Click to upload</span> or drag and drop</p>
-                                    <p className={t.uploaderTypeText}>a zipped CSV or Excel</p>
-                                </>
-                            )
-                        }
-                    </div>
-                    <input disabled={loading} id="dropzone-file" type="file" className={t.uploaderInput}
-                           onChange={(e) =>
-                        uploadGisDataset({file: e.target.files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName})}/>
-                </label>
+            <div className={t.uploaderDropzone}>
+                <FileInput dropzone hint={'a zipped CSV or Excel'} loading={loading}
+                           onChange={files => files[0] && uploadGisDataset({
+                               file: files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName
+                           })} />
             </div>
 
 
@@ -231,19 +199,13 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
         (
             <div className={t.postUploadOuter}>
                 <div className={t.postUploadLayerRow}>
-                    <label htmlFor={'layer-selector'} className={t.postUploadLabel || undefined}>Sheet to upload:</label>
-                    <select
-                        id={'layer-selector'}
-                        className={t.postUploadLayerSelect}
+                    <FieldLabel text={'Sheet to upload:'} />
+                    <Select
+                        options={(layers || []).map(({layerName}) => layerName)}
+                        placeholder={'Please select...'}
                         value={layerName}
-                        onChange={e => setLayerName(e.target.value)}
-                    >
-                        <option key={'default'} value={undefined}>Please select...</option>
-                        {
-                            (layers || []).map(({layerName}) => <option key={layerName}
-                                                                        value={layerName}>{layerName}</option>)
-                        }
-                    </select>
+                        onChange={v => setLayerName(v || '')}
+                    />
                 </div>
                 {/*display pivot columns*/}
                 {
@@ -275,20 +237,16 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
 
                 {/*Render primary column selector*/}
                 <div className={t.primaryColRow}>
-                    <label htmlFor={'primary-col-selector'} className={t.primaryColLabel || undefined}>Primary Column <span className={t.primaryColHint}>(Existing records will be updated when the primary column value matches)</span>:</label>
-                    <select
-                        id={'primary-col-selector'}
-                        className={t.primaryColSelect}
-                        value={primaryColName}
-                        onChange={e => setPrimaryColName(e.target.value)}
-                    >
-                        <option key={'primary-col-id'} value={'id'}>id (Row ID)</option>
-                        <option key={'primary-col-none'} value={''}>None (always insert)</option>
-                        {
-                            columns.map(({name, display_name}) => <option key={name}
-                                                                          value={name}>{display_name || name}</option>)
-                        }
-                    </select>
+                    <FieldLabel text={<>Primary Column <span className={t.primaryColHint}>(Existing records will be updated when the primary column value matches)</span>:</>} />
+                    <Select
+                        options={[
+                            {label: 'id (Row ID)', value: 'id'},
+                            {label: 'None (always insert)', value: NO_PRIMARY},
+                            ...columns.map(({name, display_name}) => ({label: display_name || name, value: name})),
+                        ]}
+                        value={primaryColName === '' ? NO_PRIMARY : primaryColName}
+                        onChange={v => setPrimaryColName(v === NO_PRIMARY || v === undefined ? '' : v)}
+                    />
                 </div>
                 {/* if there are attributes for this pattern, show them as well. and give option to map detected columns to them */}
                 {
@@ -296,12 +254,13 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                         <>
                             <div className={t.columnsHeader}
                                  style={{gridTemplateColumns: "1fr 1fr 100px"}}>
-                                <label className={t.columnsSearchLabel}>
-                                    Display Name
-                                    <input className={t.columnsSearch} value={search}
-                                           onChange={e => setSearch(e.target.value)} placeholder={'search...'}/></label>
-                                <label>Existing Column Match</label>
-                                <label>GEO Column</label>
+                                <div className={t.columnsSearchLabel}>
+                                    <FieldLabel activeStyle={'inline'} htmlFor={'upload-columns-search'} text={'Display Name'} />
+                                    <Input id={'upload-columns-search'} activeStyle={'headerFilter'} value={search}
+                                           onChange={e => setSearch(e.target.value)} placeholder={'search...'}/>
+                                </div>
+                                <div>Existing Column Match</div>
+                                <div>GEO Column</div>
                             </div>
                             <div className={t.columnsBody}>
                                 {
@@ -317,43 +276,34 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                                 {/*<input disabled className={inputClass} value={name}/>*/}
                                                 <div key={`${name}_display_name`}
                                                      className={t.columnDisplayName}>{display_name}</div>
-                                                <select key={`${name}_select_existing_col`}
-                                                        className={existingColumnMatch ? t.columnSelectMatch : t.columnSelectNoMatch}
+                                                {/* no match yet → the MultiSelect 'muted' style (pencil value) */}
+                                                <Select key={`${name}_select_existing_col`}
+                                                        activeStyle={existingColumnMatch ? undefined : 'muted'}
+                                                        options={existingAttributeOptions}
+                                                        placeholder={'Please select...'}
                                                         value={existingColumnMatch}
-                                                        onChange={e =>
+                                                        onChange={v =>
                                                             setColumns(columns.map(c => c.name === name ? ({
                                                                 ...c,
-                                                                existingColumnMatch: e.target.value
+                                                                existingColumnMatch: v
                                                             }) : c))}
-                                                >
-                                                    <option>Please select...</option>
-                                                    {
-                                                        existingAttributes
-                                                            .sort((a, b) => a?.display_name?.localeCompare(b?.display_name))
-                                                            .map(({name, display_name}) => (
-                                                                <option key={name} value={name}>
-                                                                    {display_name || name}
-                                                                </option>))
-                                                    }
-                                                </select>
+                                                />
                                                 <div key={`${name}_geo_col_div`}
                                                      className={t.columnGeoCell}>
-                                                    <input className={t.columnGeoCheckbox || ''} type={"checkbox"} checked={geo_col || false}
-                                                           onChange={() => {
-                                                           }}
-                                                           onClick={e => {
-                                                               setColumns(columns.map(c => c.name === name ? ({
-                                                                   ...c,
-                                                                   geo_col: e.target.checked
-                                                               }) : c))
-                                                           }}/>
+                                                    <CheckboxEdit value={!!geo_col} aria-label={`${display_name} is a GEO column`}
+                                                                  onChange={v => {
+                                                                      setColumns(columns.map(c => c.name === name ? ({
+                                                                          ...c,
+                                                                          geo_col: !!v
+                                                                      }) : c))
+                                                                  }}/>
                                                 </div>
                                             </div>
                                         ))
                                 }
                             </div>
                             <div className={t.publishRow}>
-                                <button className={t.publishBtn}
+                                <Button activeStyle={'primary'}
                                         disabled={publishing}
                                         onClick={() => publish({
                                             ...user,
@@ -372,7 +322,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                             sourceId: parent?.source_id
                                         })}>
                                     {publishing ? 'publishing...' : 'publish'}
-                                </button>
+                                </Button>
                             </div>
                         </> : <div className={t.noColumnsMsg || undefined}>No columns available.</div>
                 }

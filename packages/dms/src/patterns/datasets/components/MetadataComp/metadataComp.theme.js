@@ -52,7 +52,6 @@ export const metadataCompTheme = {
 
     // Sub-inputs
     inputWrapper: 'flex flex-col gap-1.5 min-w-0',
-    label: 't-metaXS text-[var(--t-pencil)]',
     labelUpperCase: 't-metaXS text-[var(--t-pencil)]',
     labelHint: 'ml-1 t-proseXS normal-case tracking-normal text-[var(--t-pencil)]',   // '' → no hint
 

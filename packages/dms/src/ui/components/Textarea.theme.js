@@ -19,5 +19,10 @@ export const textareaTheme = {
       name: 'mono',
       textarea: 'w-full px-2.5 py-2 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-metaSM font-mono text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] hover:border-[var(--t-graphite)] outline-none focus:border-[var(--t-ink)] aria-invalid:border-[var(--t-brick)] disabled:bg-[var(--t-well)] disabled:text-[var(--t-pencil)] resize-y min-h-[6rem] transition-colors duration-150',
     },
+    // 2026-10-15: a read-only JSON / log viewer (datasets task payloads): well fill, no border, mono
+    {
+      name: 'readonly',
+      textarea: 'w-full px-2.5 py-2 rounded-md border-0 bg-[var(--t-well)] t-metaSM font-mono text-[var(--t-ink)] outline-none resize-y min-h-[6rem]',
+    },
   ],
 }

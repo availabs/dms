@@ -194,9 +194,9 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     return (
         <div className={t.metaWrapper}>
             <div className={t.metadataHeader}>
-                <label className={t.metadataHeaderLabel}>
+                <div className={t.metadataHeaderLabel}>
                     metadata{t.labelHint ? <span className={t.labelHint}>— lookup values from another source</span> : null}
-                </label>
+                </div>
                 {canEdit &&
                     <Button activeStyle='danger' onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
                 }

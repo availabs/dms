@@ -29,16 +29,17 @@ const COLUMNS = [
         size: 450,
         type: 'ui',
         Comp: ({ value, className = '', ...rest }) => {
-            const { theme: colTheme } = React.useContext(ThemeContext) || {};
+            const { theme: colTheme, UI } = React.useContext(ThemeContext) || {};
             const ct = { ...udaTaskPageTheme, ...(colTheme?.datasets?.udaTaskPage || {}) };
             if (!value) return <div {...rest}>—</div>;
             const parsed = typeof value === 'string' ? (() => { try { return JSON.parse(value); } catch { return value; } })() : value;
             const strValue = JSON.stringify(parsed, null, 2);
-            return <textarea disabled
-                className={`${ct.payloadTextarea} ${className}`}
-                {...rest}
-                value={strValue}
-            />;
+            // the table's cell class goes on the wrapper; the payload is a read-only UI.Textarea
+            return <div className={className}>
+                <div className={ct.payloadWrap}>
+                    <UI.Textarea activeStyle='readonly' disabled rows={ct.payloadRows || undefined} value={strValue}/>
+                </div>
+            </div>;
         },
     },
 ];
@@ -65,9 +66,12 @@ const eventColumns = (t) => [
     { name: "created_at", display_name: "Created At", show: true, size: t.columnSizes?.created_at, type: 'ui',
       Comp: ({ value, className }) => <div className={className}>{value ? <span className={t.eventDateCell}>{fmtDate(value)}</span> : <span className={t.emptyCell}>—</span>}</div> },
     { name: "payload", display_name: "Data", show: true, size: t.columnSizes?.payload, type: 'ui',
-      Comp: ({ value, className }) => <div className={className}>{value
-          ? <textarea disabled rows={t.payloadRows || undefined} className={t.payloadTextarea} value={parsePayload(value)}/>
-          : <span className={t.emptyCell}>—</span>}</div> },
+      Comp: ({ value, className }) => {
+          const { UI } = React.useContext(ThemeContext) || {};
+          return <div className={className}>{value
+              ? <div className={t.payloadWrap}><UI.Textarea activeStyle='readonly' disabled rows={t.payloadRows || undefined} value={parsePayload(value)}/></div>
+              : <span className={t.emptyCell}>—</span>}</div>;
+      } },
 ];
 
 const StatusBadge = ({status}) => {

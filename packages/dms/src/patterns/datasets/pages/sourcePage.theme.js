@@ -25,9 +25,8 @@ export const sourcePageTheme = {
     subtitleSkeleton: 'h-3 w-48 max-w-full rounded bg-[var(--t-well)] animate-pulse mt-2',
     headerRight: 'ml-auto flex items-center gap-2 shrink-0',
     // page-injected header actions (e.g. Table's "Set Default Columns"), next to the version select
-    headerActionBtn: 'h-8 inline-flex items-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
     versionLabel: 't-metaXS text-[var(--t-pencil)]',
-    versionSelect: 'h-8 t-proseSM rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] px-2 hover:border-[var(--t-rule-strong)]',
+    versionSelectWrap: 'w-48',   // UI.Select (fills its container)
 
     // tabs
     tabBarWrap: 'mt-3 -mb-px',

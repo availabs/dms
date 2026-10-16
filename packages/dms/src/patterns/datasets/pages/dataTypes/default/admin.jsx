@@ -17,7 +17,7 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI} = useContext(DatasetsContext);
-    const {Modal, Icon} = UI;
+    const {Modal, Icon, Button, Input, FieldLabel} = UI;
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [name, setName] = useState('');
     const navigate = useNavigate();
@@ -40,27 +40,27 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
 
         add()
     }
-    const input = <input key={'view-name'} className={t.addVersionInput} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
+    const input = <Input key={'view-name'} id={'add-version-name'} placeholder={defaultViewName} value={name} onChange={e => setName(e.target.value)}/>
     return (
         <>
-            <button disabled={!source.id} className={t.buttonGreen} onClick={() => setShowDeleteModal(true)}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</button>
+            <Button activeStyle='actionFull' disabled={!source.id} onClick={() => setShowDeleteModal(true)}>{t.actionIconAdd && <Icon icon={t.actionIconAdd} className={t.actionIcon}/>}Add Version</Button>
 
             <Modal open={showDeleteModal} setOpen={(v) => setShowDeleteModal(v)}>
                 {t.addVersionTitle ? (
                     <div className={t.addVersionBody}>
                         <h2 className={t.addVersionTitle}>Add version</h2>
-                        <label className={t.addVersionLabel}>version name</label>
+                        <div className={t.addVersionLabelWrap}><FieldLabel htmlFor={'add-version-name'} text={'version name'} /></div>
                         {input}
                         <p className={t.addVersionHint}>Leave blank for “{defaultViewName}”.</p>
                         <div className={t.addVersionFooter}>
-                            <button type="button" className={t.addVersionCancelBtn} onClick={() => setShowDeleteModal(false)}>cancel</button>
-                            <button type="button" className={t.addVersionBtn} onClick={onAdd}>add</button>
+                            <Button activeStyle='action' onClick={() => setShowDeleteModal(false)}>cancel</Button>
+                            <Button activeStyle='primary' onClick={onAdd}>add</Button>
                         </div>
                     </div>
                 ) : (
                     <>
                         {input}
-                        <button className={t.buttonGreen} onClick={onAdd}>add</button>
+                        <Button activeStyle='actionFull' onClick={onAdd}>add</Button>
                     </>
                 )}
             </Modal>
@@ -80,7 +80,7 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, falcor, pageBaseUrl} = useContext(DatasetsContext);
-    const {Icon} = UI;
+    const {Icon, Button} = UI;
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
     const [refusal, setRefusal] = useState(null);
@@ -111,7 +111,9 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
 
     return (
         <>
-            <button className={t.buttonRed} onClick={() => setOpen(true)}>{t.actionIconDelete && <Icon icon={t.actionIconDelete} className={t.actionIcon}/>}Delete Source</button>
+            <div className={t.deleteBtnWrap}>
+                <Button activeStyle='dangerFull' onClick={() => setOpen(true)}>{t.actionIconDelete && <Icon icon={t.actionIconDelete} className={t.actionIcon}/>}Delete Source</Button>
+            </div>
             <DeleteSourceModal open={open} onClose={() => { setOpen(false); setRefusal(null); }}
                                sourceName={source?.name} overviewHref={pageBaseUrl && sourceId ? `${pageBaseUrl}/${sourceId}` : undefined}
                                busy={busy} refusal={refusal} onDelete={runDelete}/>
@@ -158,7 +160,7 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
     const {UI, falcor} = useContext(DatasetsContext);
-    const {Switch, Icon} = UI;
+    const {Switch, Icon, FieldLabel} = UI;
     const [pkeyInfo, setPkeyInfo] = useState(null);
     const [saving, setSaving] = useState(false);
     const [error, setError] = useState(null);
@@ -202,7 +204,7 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
             {t.editableToggleHint ? (
                 // v6: label + a visible hint (and the no-primary-key reason, not just a tooltip)
                 <div className={t.editableToggleMain}>
-                    <label className={t.editableToggleLabel}>Allow editing</label>
+                    <FieldLabel activeStyle={'inline'} text={'Allow editing'} />
                     <div className={t.editableToggleHint}>
                         {pkeyInfo?.hasPkey || isEditable
                             ? 'Lets permitted users edit rows in the Table tab.'
@@ -212,7 +214,7 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
                 </div>
             ) : (
                 <>
-                    <label className={t.editableToggleLabel}>Allow editing</label>
+                    <FieldLabel activeStyle={'inline'} text={'Allow editing'} />
                     {saving ? <Icon icon={'LoadingHourGlass'} className={t.editableToggleSavingIcon} /> : null}
                     {error ? <span className={t.errorText}>{error}</span> : null}
                 </>

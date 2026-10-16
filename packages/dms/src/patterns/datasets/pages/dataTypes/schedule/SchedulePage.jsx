@@ -3,6 +3,8 @@ import { Link, useNavigate } from "react-router";
 import { get } from "lodash-es";
 
 import { DatasetsContext } from "../../../context";
+import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
+import { schedulePageTheme } from "./schedulePage.theme";
 import { getExternalEnv } from "../../../utils/datasources";
 import {
     cronToHuman,
@@ -20,12 +22,8 @@ const CADENCE_PRESETS = [
 ];
 
 const DEFAULT_TIMEZONE = 'America/New_York';
-
-const inputClass = 'w-full p-1 border border-gray-300 rounded text-sm bg-white focus:outline-none focus:ring-1 focus:ring-blue-500';
-const labelClass = 'block text-xs font-medium text-gray-500 pb-0.5';
-const buttonBlueClass = 'px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-600 text-sm rounded-md cursor-pointer disabled:opacity-40';
-const buttonGrayClass = 'px-2 py-1 bg-gray-100 hover:bg-gray-200 text-gray-600 text-sm rounded-md cursor-pointer';
-const buttonRedClass = 'px-2 py-1 bg-red-100 hover:bg-red-200 text-red-600 text-sm rounded-md cursor-pointer';
+// UI.Select can't take '' as an option value (it reads as "no value"): the "None" choice of an optional source param
+const NO_SOURCE = '__none__';
 
 function presetForCron(cron) {
     return (CADENCE_PRESETS.find(p => p.cron === cron) || CADENCE_PRESETS[3]).key;
@@ -33,15 +31,17 @@ function presetForCron(cron) {
 
 /** Live "next 3 fires" preview — client-side estimate; the server validates on save. */
 const CronPreview = ({ cron, timezone }) => {
+    const { theme } = useContext(ThemeContext) || {};
+    const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };
     let fires = null;
     try { fires = nextCronFires(cron, timezone, 3); } catch { fires = null; }
     if (!fires || !fires.length) {
-        return <div className={'text-xs text-amber-600'}>custom — validated on save</div>;
+        return <div className={t.previewCustom}>custom — validated on save</div>;
     }
     return (
-        <div className={'text-xs text-gray-500'}>
-            <span className={'font-medium'}>{cronToHuman(cron)}</span>
-            <span className={'pl-2'}>next: {fires.map(d => d.toLocaleString()).join('  •  ')}</span>
+        <div className={t.preview}>
+            <span className={t.previewHuman}>{cronToHuman(cron)}</span>
+            <span className={t.previewNext}>next: {fires.map(d => d.toLocaleString()).join('  •  ')}</span>
         </div>
     );
 };
@@ -52,38 +52,44 @@ const CronPreview = ({ cron, timezone }) => {
  * number, boolean, string.
  */
 const ParamInput = ({ param, value, onChange, sources }) => {
+    const { theme, UI } = useContext(ThemeContext) || {};
+    const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };
+    const { FieldLabel, Input, Select, ColumnTypes } = UI;
+    const CheckboxEdit = ColumnTypes.checkbox.EditComp;
     const { name, type, desc, optional } = param;
+    const id = `schedule-param-${name}`;
     if (type === 'boolean') {
         return (
-            <label className={'flex items-center gap-2 text-sm text-gray-700'}>
-                <input type={'checkbox'} checked={!!value} onChange={e => onChange(e.target.checked)} />
-                {name}{desc ? <span className={'text-xs text-gray-400'}>{desc}</span> : null}
-            </label>
+            <div className={t.boolRow}>
+                <CheckboxEdit value={!!value} onChange={v => onChange(!!v)} rowLabel={name} />
+                {desc ? <span className={t.boolDesc}>{desc}</span> : null}
+            </div>
         );
     }
+    const caption = <>{name}{optional ? ' (optional)' : ''}{desc ? <span className={t.paramDesc}> — {desc}</span> : null}</>;
     return (
-        <div>
-            <label className={labelClass}>
-                {name}{optional ? ' (optional)' : ''}{desc ? <span className={'pl-1 text-gray-400 normal-case'}>— {desc}</span> : null}
-            </label>
+        <div className={t.field}>
+            <FieldLabel htmlFor={id} text={caption} />
             {type === 'source_id' ? (
-                <select className={inputClass}
-                        value={value ?? ''}
-                        onChange={e => onChange(e.target.value === '' ? '' : +e.target.value)}>
-                    <option value={''}>{optional ? 'None' : 'Select a source…'}</option>
-                    {(sources || []).map(s => (
-                        <option key={s.source_id} value={s.source_id}>{s.name} (#{s.source_id}, {s.type})</option>
-                    ))}
-                </select>
+                <Select
+                    options={[
+                        ...(optional ? [{ label: 'None', value: NO_SOURCE }] : []),
+                        ...(sources || []).map(s => ({ label: `${s.name} (#${s.source_id}, ${s.type})`, value: s.source_id })),
+                    ]}
+                    placeholder={optional ? 'None' : 'Select a source…'}
+                    searchable
+                    value={value === '' || value === undefined || value === null ? (optional ? NO_SOURCE : '') : value}
+                    onChange={v => onChange(v === undefined || v === NO_SOURCE ? '' : +v)}
+                />
             ) : type === 'number' ? (
-                <input className={inputClass} type={'number'} value={value ?? ''}
+                <Input id={id} type={'number'} value={value ?? ''}
                        onChange={e => onChange(e.target.value === '' ? '' : +e.target.value)} />
             ) : type === 'string[]' ? (
-                <input className={inputClass} type={'text'} placeholder={'comma-separated, e.g. NY,NJ'}
+                <Input id={id} type={'text'} placeholder={'comma-separated, e.g. NY,NJ'}
                        value={Array.isArray(value) ? value.join(',') : (value ?? '')}
                        onChange={e => onChange(e.target.value)} />
             ) : (
-                <input className={inputClass} type={'text'} value={value ?? ''}
+                <Input id={id} type={'text'} value={value ?? ''}
                        onChange={e => onChange(e.target.value)} />
             )}
         </div>
@@ -91,6 +97,9 @@ const ParamInput = ({ param, value, onChange, sources }) => {
 };
 
 const ScheduleForm = ({ schedulables, sources, source, editing, onSaved, onCancel, rtPfx, user }) => {
+    const { theme, UI } = useContext(ThemeContext) || {};
+    const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };
+    const { Button, FieldLabel, Input, Select } = UI;
     const [workerPath, setWorkerPath] = useState(editing?.worker_path || '');
     const [preset, setPreset] = useState(editing ? presetForCron(editing.cron) : 'daily');
     const [cron, setCron] = useState(editing?.cron || '0 2 * * *');
@@ -107,8 +116,13 @@ const ScheduleForm = ({ schedulables, sources, source, editing, onSaved, onCance
             .map(s => ({ ...s, rank: schedulableMatchRank(s.datatype, source?.type) }))
             .sort((a, b) => a.rank - b.rank || String(a.label).localeCompare(String(b.label)));
     }, [schedulables, source?.type]);
-    const matching = sortedSchedulables.filter(s => s.rank < 2);
-    const others = sortedSchedulables.filter(s => s.rank === 2);
+    // the two runs as UI.Select option groups (contiguous `group` per option)
+    const loaderOptions = useMemo(() => [
+        ...sortedSchedulables.filter(s => s.rank < 2)
+            .map(s => ({ label: s.label, value: s.worker_path, group: `Matches this source (${source?.type})` })),
+        ...sortedSchedulables.filter(s => s.rank === 2)
+            .map(s => ({ label: s.label, value: s.worker_path, group: 'Other schedulable loaders' })),
+    ], [sortedSchedulables, source?.type]);
 
     const selected = (schedulables || []).find(s => s.worker_path === workerPath);
 
@@ -184,129 +198,119 @@ const ScheduleForm = ({ schedulables, sources, source, editing, onSaved, onCance
     };
 
     return (
-        <div className={'shadow-md rounded-md p-4 flex flex-col gap-3 bg-gray-50'}>
-            <div className={'text-base font-semibold text-gray-900'}>
+        <div className={t.formCard}>
+            <div className={t.formTitle}>
                 {editing ? `Edit schedule #${editing.schedule_id}` : 'New schedule'}
             </div>
 
-            <div>
-                <label className={labelClass}>Loader</label>
-                <select className={inputClass} value={workerPath} disabled={!!editing}
-                        onChange={e => pickLoader(e.target.value)}>
-                    <option value={''}>Select a loader…</option>
-                    {matching.length ? (
-                        <optgroup label={`Matches this source (${source?.type})`}>
-                            {matching.map(s => (
-                                <option key={s.worker_path} value={s.worker_path}>{s.label}</option>
-                            ))}
-                        </optgroup>
-                    ) : null}
-                    {others.length ? (
-                        <optgroup label={'Other schedulable loaders'}>
-                            {others.map(s => (
-                                <option key={s.worker_path} value={s.worker_path}>{s.label}</option>
-                            ))}
-                        </optgroup>
-                    ) : null}
-                </select>
-                {selected ? <div className={'text-xs text-gray-400 pt-0.5'}>{selected.worker_path}</div> : null}
+            <div className={t.field}>
+                <FieldLabel text={'Loader'} />
+                <Select options={loaderOptions} value={workerPath} disabled={!!editing} searchable
+                        placeholder={'Select a loader…'}
+                        onChange={v => pickLoader(v || '')} />
+                {selected ? <div className={t.loaderPath}>{selected.worker_path}</div> : null}
             </div>
 
-            <div>
-                <label className={labelClass}>Cadence</label>
-                <div className={'flex gap-2 flex-wrap items-center'}>
-                    {CADENCE_PRESETS.map(p => (
-                        <button key={p.key}
-                                className={`px-2 py-1 text-sm rounded-md cursor-pointer border ${
-                                    preset === p.key
-                                        ? 'bg-blue-100 border-blue-300 text-blue-700'
-                                        : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100'}`}
-                                onClick={() => {
-                                    setPreset(p.key);
-                                    if (p.cron) setCron(p.cron);
-                                }}>
-                            {p.label}
-                        </button>
-                    ))}
+            <div className={t.field}>
+                <FieldLabel text={'Cadence'} />
+                <div className={t.cadenceRow}>
+                    <div className={t.cadenceSeg}>
+                        {CADENCE_PRESETS.map(p => (
+                            <Button key={p.key}
+                                    activeStyle={preset === p.key ? t.cadenceButtonStyleOn : t.cadenceButtonStyle}
+                                    aria-pressed={preset === p.key}
+                                    onClick={() => {
+                                        setPreset(p.key);
+                                        if (p.cron) setCron(p.cron);
+                                    }}>
+                                {p.label}
+                            </Button>
+                        ))}
+                    </div>
                     {preset === 'custom' ? (
-                        <input className={`${inputClass} w-40 font-mono`} value={cron}
-                               onChange={e => setCron(e.target.value)}
-                               placeholder={'m h dom mon dow'} />
+                        <span className={t.cronField}>
+                            <Input activeStyle={'mono'} value={cron} aria-label={'cron expression'}
+                                   onChange={e => setCron(e.target.value)}
+                                   placeholder={'m h dom mon dow'} />
+                        </span>
                     ) : (
-                        <span className={'text-xs font-mono text-gray-400'}>{cron}</span>
+                        <span className={t.cronText}>{cron}</span>
                     )}
                 </div>
-                <div className={'pt-1'}><CronPreview cron={cron} timezone={timezone} /></div>
+                <div className={t.previewWrap}><CronPreview cron={cron} timezone={timezone} /></div>
             </div>
 
-            <div className={'flex gap-4'}>
-                <div className={'w-1/2'}>
-                    <label className={labelClass}>Timezone</label>
-                    <input className={inputClass} value={timezone} onChange={e => setTimezone(e.target.value)} />
+            <div className={t.twoCol}>
+                <div className={t.twoColItem}>
+                    <FieldLabel htmlFor={'schedule-timezone'} text={'Timezone'} />
+                    <Input id={'schedule-timezone'} value={timezone} onChange={e => setTimezone(e.target.value)} />
                 </div>
-                <div className={'w-1/2'}>
-                    <label className={labelClass}>Max in flight (duplicate guard)</label>
-                    <input className={inputClass} type={'number'} min={1} value={maxInFlight}
+                <div className={t.twoColItem}>
+                    <FieldLabel htmlFor={'schedule-max-in-flight'} text={'Max in flight (duplicate guard)'} />
+                    <Input id={'schedule-max-in-flight'} type={'number'} min={1} value={maxInFlight}
                            onChange={e => setMaxInFlight(e.target.value)} />
                 </div>
             </div>
 
             {(selected?.params || []).length ? (
-                <div className={'flex flex-col gap-2'}>
-                    <div className={'text-xs font-semibold text-gray-500 uppercase'}>Loader params</div>
-                    {selected.params.map(p => (
-                        <ParamInput key={p.name} param={p} sources={sources}
-                                    value={paramValues[p.name]}
-                                    onChange={v => setParamValues(prev => ({ ...prev, [p.name]: v }))} />
-                    ))}
+                <div className={t.paramsSection}>
+                    <div className={t.paramsTitle}>Loader params</div>
+                    <div className={t.paramsGrid}>
+                        {selected.params.map(p => (
+                            <ParamInput key={p.name} param={p} sources={sources}
+                                        value={paramValues[p.name]}
+                                        onChange={v => setParamValues(prev => ({ ...prev, [p.name]: v }))} />
+                        ))}
+                    </div>
                 </div>
             ) : null}
 
-            {error ? <div className={'text-sm text-red-600'}>{error}</div> : null}
+            {error ? <div className={t.error}>{error}</div> : null}
 
-            <div className={'flex gap-2'}>
-                <button className={buttonBlueClass} disabled={!workerPath || saving} onClick={save}>
+            <div className={t.formActions}>
+                <Button activeStyle={t.saveButtonStyle} disabled={!workerPath || saving} onClick={save}>
                     {saving ? 'Saving…' : editing ? 'Save changes' : 'Create schedule'}
-                </button>
-                <button className={buttonGrayClass} onClick={onCancel}>Cancel</button>
+                </Button>
+                <Button activeStyle={t.cancelButtonStyle} onClick={onCancel}>Cancel</Button>
             </div>
         </div>
     );
 };
 
 const ScheduleRow = ({ schedule, schedulables, canEdit, onPatch, onDelete, onEdit, onFire, fireResult, runsBaseUrl }) => {
-    const { UI } = useContext(DatasetsContext);
-    const { Switch, DeleteModal } = UI;
+    const { theme, UI } = useContext(ThemeContext) || {};
+    const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };
+    const { Switch, DeleteModal, Button, Icon } = UI;
     const [showDelete, setShowDelete] = useState(false);
     const spec = (schedulables || []).find(s => s.worker_path === schedule.worker_path);
 
     return (
-        <div className={'border-b border-gray-100 py-2 flex flex-col gap-1'}>
-            <div className={'flex items-center gap-3 flex-wrap'}>
-                <div className={'font-medium text-gray-900'}>{spec?.label || schedule.worker_path}</div>
-                <div className={'text-sm text-gray-600'} title={schedule.cron}>
-                    {cronToHuman(schedule.cron)} <span className={'font-mono text-xs text-gray-400'}>({schedule.cron})</span>
+        <div className={t.row}>
+            <div className={t.rowHead}>
+                <div className={t.rowLabel}>{spec?.label || schedule.worker_path}</div>
+                <div className={t.rowHuman} title={schedule.cron}>
+                    {cronToHuman(schedule.cron)} <span className={t.rowCron}>({schedule.cron})</span>
                 </div>
-                <div className={'text-xs text-gray-400'}>{schedule.timezone}</div>
-                <div className={'grow'} />
+                <div className={t.rowTz}>{schedule.timezone}</div>
+                <div className={t.spacer} />
                 <Switch enabled={!!schedule.enabled} size={'small'} label={'enabled'}
                         disabled={!canEdit}
                         setEnabled={(v) => onPatch(schedule.schedule_id, { enabled: v })} />
             </div>
-            <div className={'flex items-center gap-4 text-sm text-gray-600 flex-wrap'}>
+            <div className={t.rowMeta}>
                 <div>
-                    <span className={'text-gray-400'}>next fire:</span>{' '}
+                    <span className={t.metaLabel}>next fire:</span>{' '}
                     {schedule.enabled && schedule.next_fire_at
-                        ? <>{formatTimestamp(schedule.next_fire_at)} <span className={'text-gray-400'}>({timeAgo(schedule.next_fire_at)})</span></>
+                        ? <>{formatTimestamp(schedule.next_fire_at)} <span className={t.metaLabel}>({timeAgo(schedule.next_fire_at)})</span></>
                         : '—'}
                 </div>
                 <div>
-                    <span className={'text-gray-400'}>last fired:</span>{' '}
+                    <span className={t.metaLabel}>last fired:</span>{' '}
                     {schedule.last_fired_at ? (
                         <>
                             {timeAgo(schedule.last_fired_at)}
                             {schedule.last_task_id ? (
-                                <Link className={'pl-1 text-blue-500 hover:underline'}
+                                <Link className={t.runLink}
                                       to={`${runsBaseUrl}/${schedule.last_task_id}`}>
                                     view run #{schedule.last_task_id}
                                 </Link>
@@ -314,18 +318,20 @@ const ScheduleRow = ({ schedule, schedulables, canEdit, onPatch, onDelete, onEdi
                         </>
                     ) : 'never'}
                 </div>
-                <div className={'grow'} />
+                <div className={t.spacer} />
                 {canEdit ? (
-                    <div className={'flex gap-2'}>
-                        <button className={buttonBlueClass} onClick={() => onFire(schedule.schedule_id)}>Run now</button>
-                        <button className={buttonGrayClass} onClick={() => onEdit(schedule)}>Edit</button>
-                        <button className={buttonRedClass} onClick={() => setShowDelete(true)}>Delete</button>
+                    <div className={t.rowActions}>
+                        <Button activeStyle={t.runButtonStyle} onClick={() => onFire(schedule.schedule_id)}>
+                            {t.runIcon ? <Icon icon={t.runIcon} className={t.buttonIcon} /> : null}Run now
+                        </Button>
+                        <Button activeStyle={t.editButtonStyle} onClick={() => onEdit(schedule)}>Edit</Button>
+                        <Button activeStyle={t.deleteButtonStyle} onClick={() => setShowDelete(true)}>Delete</Button>
                     </div>
                 ) : null}
             </div>
             {fireResult ? (
-                <div className={'text-sm text-amber-700 bg-amber-50 rounded px-2 py-1 w-fit'}>
-                    <span className={'font-semibold'}>{fireResult.type}</span> — {fireResult.reason}
+                <div className={t.fireResult}>
+                    <span className={t.fireType}>{fireResult.type}</span> — {fireResult.reason}
                 </div>
             ) : null}
             <DeleteModal
@@ -350,6 +356,9 @@ export default function SchedulePage({ source, params }) {
     const sourceId = source?.source_id;
     const canEdit = !!user?.token;
     const runsBaseUrl = `${pageBaseUrl}/${params.id}/runs`;
+    const { theme, UI } = useContext(ThemeContext) || {};
+    const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };
+    const { Button, Icon } = UI;
 
     const [schedules, setSchedules] = useState([]);
     const [schedulables, setSchedulables] = useState([]);
@@ -450,19 +459,19 @@ export default function SchedulePage({ source, params }) {
         }
     };
 
-    if (!sourceId) return <div className={'p-4 text-gray-400'}>Schedules are available for external (DAMA) sources only.</div>;
+    if (!sourceId) return <div className={t.notExternal}>Schedules are available for external (DAMA) sources only.</div>;
 
     return (
-        <div className={'w-full p-2 flex flex-col gap-3'}>
-            <div className={'flex items-center'}>
-                <div className={'text-sm font-medium text-gray-500'}>
-                    Scheduled runs for <span className={'text-gray-900'}>{source?.name}</span>
+        <div className={t.page}>
+            <div className={t.header}>
+                <div className={t.headerTitle}>
+                    Scheduled runs for <span className={t.headerName}>{source?.name}</span>
                 </div>
-                <div className={'grow'} />
+                <div className={t.spacer} />
                 {canEdit && !formOpen ? (
-                    <button className={buttonBlueClass} onClick={() => { setEditing(null); setFormOpen(true); }}>
-                        New schedule
-                    </button>
+                    <Button activeStyle={t.newButtonStyle} onClick={() => { setEditing(null); setFormOpen(true); }}>
+                        {t.newIcon ? <Icon icon={t.newIcon} className={t.buttonIcon} /> : null}New schedule
+                    </Button>
                 ) : null}
             </div>
 
@@ -479,13 +488,13 @@ export default function SchedulePage({ source, params }) {
                 />
             ) : null}
 
-            {loadError ? <div className={'text-sm text-red-600'}>{loadError}</div> : null}
+            {loadError ? <div className={t.loadError}>{loadError}</div> : null}
 
-            <div className={'shadow-md rounded-md p-4'}>
+            <div className={t.listCard}>
                 {loading ? (
-                    <div className={'text-gray-400 text-sm'}>Loading schedules…</div>
+                    <div className={t.listNote}>Loading schedules…</div>
                 ) : !schedules.length ? (
-                    <div className={'text-gray-400 text-sm'}>
+                    <div className={t.listEmpty}>
                         No schedules for this source yet.{canEdit ? ' Use "New schedule" to create one.' : ''}
                     </div>
                 ) : (

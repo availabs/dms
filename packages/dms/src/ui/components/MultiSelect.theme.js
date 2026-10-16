@@ -100,6 +100,9 @@ export const multiselectTheme = {
             // mt-1 separates it from the search input above.
             optionsWrapper: 'mt-1 max-h-[300px] overflow-auto',
 
+            // Option-group caption (options carrying `group`, 2026-10-15) — the v6 menu heading (controls.py MENU_HEAD).
+            groupHeading: 'px-2 pt-2 pb-1 t-metaXS text-[var(--t-pencil)] select-none cursor-default',
+
             // A single option row.
             menuItem: [
                 'flex items-center gap-2 rounded-md cursor-pointer outline-none',
@@ -222,6 +225,12 @@ export const multiselectTheme = {
                 'focus-within:border-[var(--t-ink)]',
                 'transition-colors duration-150',
             ].join(' '),
+        },
+        // 'muted' (2026-10-15, ui-raw-html-to-ui-components.md) — a single select whose current value is a "no match" /
+        // fallback: the chosen text reads pencil instead of ink (datasets upload column matching).
+        {
+            name: 'muted',
+            singleValue: 'truncate t-proseSM text-[var(--t-pencil)]',
         },
     ],
 };
