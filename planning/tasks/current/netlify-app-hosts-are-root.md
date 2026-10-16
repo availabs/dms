@@ -1,6 +1,6 @@
 # `*.netlify.app` hosts serve the root site
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** commit + push (owner), then redeploy the `qatest` draft; the dms-server copy takes effect at the next server deploy · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** merge branch `auto_deploy` to `master` (owner; pushed to the branch 2026-10-16); the dms-server copy takes effect at the next server deploy · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Project:** DMS library · **Topic:** dms-manager (site routing) · **Built:** 2026-10-16
 
@@ -64,6 +64,10 @@ wasn't checked against the DB (VPN off).
 
   The "no fix" column reproduces exactly what the owner saw on the real draft.
 
+- [x] **On the real draft (2026-10-16).** The owner pushed both repos to branch `auto_deploy`; then
+  `npm run deploy -- qatest --template auto_deploy --dms auto_deploy` (dms-template `627d628f`, dms `759701c7`)
+  gave https://6ad269f4631c48af82a05276--avail-dms-qa-test.netlify.app. In headless Chromium, `/`, `/auth/login`,
+  `/qa_move_check` and `/list` all reach the sign-in page, with no page errors.
+
 **Still to check:**
-- [ ] After the owner pushes: `npm run deploy -- qatest` (add `--dms <branch>` if pushed to a branch), then sign
-  in on the real draft and open `/qa_move_check`.
+- [ ] Signed in on the draft (owner): `/qa_move_check` shows the QA test install.
