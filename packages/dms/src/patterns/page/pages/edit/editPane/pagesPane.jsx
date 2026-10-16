@@ -34,9 +34,9 @@ function AddPageButton ({ t }) {
     // v3: a compact "+ page" button beside the find box
     if (t) return (
         <>
-          <button type='button' className={t.btnPrimary} onClick={() => setPickerOpen(true)} disabled={loading}>
+          <Button activeStyle='primary' onClick={() => setPickerOpen(true)} disabled={loading}>
             {loading ? 'Adding…' : '+ page'}
-          </button>
+          </Button>
           {picker}
         </>
     );
@@ -72,16 +72,16 @@ function PagesPane () {
     }
     const canAdd = isUserAuthed(['create-page'], pageAuthPermissions);
   if (t.pagesWrap) {
-    const {Icon} = UI;
+    const {Icon, Input} = UI;
     const q = find.trim().toLowerCase();
     const matches = q ? (dataItems || []).filter(d => (d.title || '').toLowerCase().includes(q) || (d.url_slug || '').toLowerCase().includes(q)) : [];
     return (
       <div className={t.pagesWrap}>
         <div className={t.pagesBar}>
-          <label className={t.pagesFind}>
-            <Icon icon='Search' className={t.pagesFindIcon} />
-            <input className={t.pagesFindInput} placeholder='Find a page' value={find} onChange={e => setFind(e.target.value)} />
-          </label>
+          <div className={t.pagesFind}>
+            <Icon icon='Search' className={t.searchFieldIcon} />
+            <Input activeStyle='search' aria-label='Find a page' placeholder='Find a page' value={find} onChange={e => setFind(e.target.value)} />
+          </div>
           {canAdd ? <AddPageButton t={t} /> : null}
         </div>
         {q ? (
@@ -132,7 +132,7 @@ function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick,
     const item = { ...(dataItems.find(d => d.id === node?.id) || {}), ...node }
     const { baseUrl } = React.useContext(CMSContext);
     const { UI } = React.useContext(ThemeContext);
-    const { Icon, NavigableMenu } = UI;
+    const { Icon, NavigableMenu, Button } = UI;
     const { pathname = '/edit' } = useLocation();
     const submit = useSubmit()
     const [showDelete, setShowDelete] = React.useState(false)
@@ -145,9 +145,9 @@ function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick,
         <div key={item.id} className='max-w-full'>
             <div className={isActive ? t.pageRowActive : t.pageRow}>
                 {hasChildren
-                    ? <button type='button' className={t.pageCaret} onClick={() => handleCollapseIconClick()}>
+                    ? <Button activeStyle='iconInline' aria-label={isExpanded ? 'Collapse' : 'Expand'} aria-expanded={!!isExpanded} onClick={() => handleCollapseIconClick()}>
                         <Icon icon={isExpanded ? 'ChevronDown' : 'ChevronRight'} className={t.pageCaretIcon} />
-                      </button>
+                      </Button>
                     : <span className={t.pageCaretSpacer} />}
                 <NavLink className={isActive ? t.pageLinkActive : t.pageLink} to={`${edit ? `${baseUrl}/edit` : baseUrl}/${item.url_slug || item.id}`}>{item.title || item.id}</NavLink>
                 <span className={t.pageMarks}>
@@ -199,7 +199,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const { baseUrl, user } = React.useContext(CMSContext);
     const { theme, UI } = React.useContext(ThemeContext);
 
-    const { Icon, NavigableMenu } = UI;
+    const { Icon, NavigableMenu, Button } = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();
     const submit = useSubmit()
@@ -310,7 +310,7 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, t})  {
   const cancelButtonRef = useRef(null);
   const { UI } = React.useContext(ThemeContext) || {};
-  const {Button, Dialog} = UI;
+  const {Button, Dialog, Input, FieldLabel} = UI;
   const [loading, setLoading] = useState(false);
 
   // v3 Pages pane (default theme): the shared UI.DeleteModal (Cancel action + solid brick Delete).
@@ -373,10 +373,11 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, t})  {
 
 function RenameModal ({title, prompt, item={}, dataItems, open, setOpen, t})  {
   const cancelButtonRef = useRef(null)
+  const nameFieldRef = useRef(null)
   const { UI } = React.useContext(ThemeContext)
   const { user } = React.useContext(CMSContext) || {};
   const { apiUpdate } =  React.useContext(PageContext) || {};
-  const {Button, Dialog} = UI;
+  const {Button, Dialog, Modal, Input, FieldLabel} = UI;
   const submit = useSubmit();
   const { pathname = '/edit' } = useLocation();
   const [loading, setLoading] = useState(false)
@@ -415,22 +416,26 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen, t})  {
     updateItem()
   }
 
-  // v3 Pages pane (default theme): title, one field, Cancel (action) + Rename (primary).
+  // v3 Pages pane (default theme): title, one field, Cancel (action) + Rename (primary). On UI.Modal like the delete
+  // confirmation (UI.DeleteModal), so both open at the same place (owner 2026-10-16: they opened at different heights —
+  // Dialog sits in the upper third, Modal centres). Focus goes to the field through initialFocus (not autoFocus, which
+  // grabbed focus before Modal recorded the opener).
   if (t) return (
-    <Dialog open={open} onClose={() => setOpen()} initialFocus={cancelButtonRef}>
-      <h3 className={t.modalTitle}>Rename page</h3>
-      <label className={t.field}>
-        <span className={t.fieldLabel}>title</span>
-        <input className={t.input} value={newName || ''} onChange={e => setNewName(e.target.value)}
-               onKeyDown={e => { if (e.key === 'Enter' && newName && newName !== item.title) update(); }} autoFocus />
-      </label>
-      <div className={t.modalActions}>
-        <Button activeStyle='action' onClick={() => setOpen()} ref={cancelButtonRef}>Cancel</Button>
-        <Button activeStyle='primary' disabled={loading || !newName || newName === item.title} onClick={update}>
-          {loading ? 'Saving…' : 'Rename'}
-        </Button>
+    <Modal open={open} setOpen={() => setOpen()} initialFocus={nameFieldRef}>
+      <div className={t.modalBody}>
+        <h3 className={t.modalTitle}>Rename page</h3>
+        <FieldLabel text='title'>
+          <Input ref={nameFieldRef} value={newName || ''} onChange={e => setNewName(e.target.value)}
+                 onKeyDown={e => { if (e.key === 'Enter' && newName && newName !== item.title) update(); }} />
+        </FieldLabel>
+        <div className={t.modalActions}>
+          <Button activeStyle='action' onClick={() => setOpen()} ref={cancelButtonRef}>Cancel</Button>
+          <Button activeStyle='primary' disabled={loading || !newName || newName === item.title} onClick={update}>
+            {loading ? 'Saving…' : 'Rename'}
+          </Button>
+        </div>
       </div>
-    </Dialog>
+    </Modal>
   );
 
   return (
@@ -448,7 +453,7 @@ function RenameModal ({title, prompt, item={}, dataItems, open, setOpen, t})  {
               Rename {item.title}
           </h3>
           <div className="mt-2 w-full">
-            <input value={newName} onChange={e => setNewName(e.target.value)} />
+            <Input aria-label='Page title' value={newName} onChange={e => setNewName(e.target.value)} />
           </div>
         </div>
       </div>
@@ -483,8 +488,8 @@ export function PublishButton () {
   if(!isUserAuthed(['publish-page'], pageAuthPermissions)) return null;
   // what each pattern type's onPagePublish gets (editFunctions publish)
   const publishContext = { pattern, sitePatterns, type, app, baseUrl, apiLoad };
-  // '' publishBtn → the pre-v6 UI.Button pair (project themes, via src/themes/_legacy/pages.js)
-  if (!t.publishBtn) return (
+  // '' publishBtnStyle → the pre-v6 UI.Button pair (project themes, via src/themes/_legacy/pages.js)
+  if (!t.publishBtnStyle) return (
     <div className={t.publishWrapper}>
       { hasChanges && (
         <Button
@@ -512,18 +517,17 @@ export function PublishButton () {
         </span>
       ) : null}
       { hasChanges && (
-        <button type='button' className={t.discardBtn} onClick={() => discardChanges(user,item, apiUpdate)}>
+        <Button activeStyle={t.discardBtnStyle} onClick={() => discardChanges(user,item, apiUpdate)}>
           Discard
-        </button>
+        </Button>
       )}
-      <button
-          type='button'
+      <Button
+          activeStyle={t.publishBtnStyle}
           disabled={!hasChanges}
-          className={hasChanges ? t.publishBtn : t.publishBtnDisabled}
           onClick={() => publish(user,item, apiUpdate, publishContext)}
       >
         {hasChanges ? `Publish` : `No Changes`}
-      </button>
+      </Button>
     </div>
   )
 }

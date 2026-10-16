@@ -223,18 +223,18 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                             </div>
                             <div className={placementClass[placement]}>
                                 {isUnaryOp(node.op) ? (
-                                    <button
-                                        type={'button'}
+                                    <Button
+                                        activeStyle={unaryOn(node) ? theme.filters.toggleOnStyle : theme.filters.toggleStyle}
                                         role={'switch'}
                                         aria-checked={unaryOn(node)}
+                                        aria-label={label}
                                         data-on={unaryOn(node) || undefined}
-                                        className={`${theme.filters.toggleChip} ${unaryOn(node) ? theme.filters.toggleChipOn : ''}`}
                                         onClick={() => toggleUnary(node, path)}
                                     >
                                         <span className={theme.filters.toggleTrack}>
                                             <span className={theme.filters.toggleKnob} />
                                         </span>
-                                    </button>
+                                    </Button>
                                 ) : (
                                     <ConditionValueInput
                                         node={node}
@@ -243,6 +243,7 @@ export const ExternalFilters = ({ defaultOpen = true }) => {
                                         updateNodeAtPath={updateNodeAtPath}
                                         siblingConditions={siblingConditions}
                                         activeStyle={theme.filters.controlStyle}
+                                        timePickerMode="viewer"
                                     />
                                 )}
                             </div>

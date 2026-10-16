@@ -11,7 +11,6 @@ export const sectionGroupControlTheme = {
     {
       name: 'default',
       sectionTargetWrapper: 'flex items-center justify-between gap-2 mt-3 px-3 py-2 rounded-md bg-[var(--t-well)] t-metaXS text-[var(--t-pencil)] cursor-default',
-      addGroupBtn: 'inline-flex items-center gap-1 rounded px-1.5 py-0.5 t-proseXS normal-case tracking-normal text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-panel)] cursor-pointer',
       sectionGroupWrapper: 'group flex items-center justify-between gap-2 pl-1 pr-1 py-1.5 rounded-md transition-colors',
       activePageSectionBorder: `ring-1 ring-[var(--t-amber)]`,
       sectionGroupBorder: ``,

@@ -429,3 +429,141 @@ Next area: page (174), then ui composites (117).
   page (`/p/edit/flooding`, a Spreadsheet section on the "pg (pages)" source added in the editor and NOT saved — page
   still 9 sections, no changes): pressing 3px off the line + drag +60 released outside the table → column 115 → 175px
   through the section's setState.
+
+### Committed 2026-10-16: library fa3d6955 / root 59c415f6 (datasets + Phase 0 + table resize; unpushed)
+
+## Page pattern — started 2026-10-16
+
+Inventory: 174 raw controls in 40 files (77 button, 46 label, 38 input, 9 select, 4 textarea, 0 table). Renders on
+every project site (keys frozen in `_legacy/pages.js`); search + page filters render for visitors. Three read-only
+proposal forks: P1 section / dataWrapper controls (spreadsheet ActionControls, ColumnManager, Add*Column,
+ColumnControls, MoreControls, …), P2 edit chrome (editPane panes, sectionMenu, sectionGroup, search, error),
+P3 filters (ComplexFilters, FilterControlCell, TimePicker rows). Next: merge → owner decisions → swaps.
+
+### Page pattern — owner decisions (2026-10-16)
+Proposals: P1 section / dataWrapper ~62 controls (scratchpad pgP1.json), P2 edit chrome 67 (pgP2.json), P3 filters 41
+(pgP3.json) — session scratchpad. Findings: v3 edit panes render only on the default theme (`_legacy/pages.js`
+`editPanes.*Wrap ''`); `complexFilters` / `timePicker` registered under `pages.*` but read top-level (the `_legacy`
+freeze is dead — flagged, not fixed: fixing it would change project themes); bugs: spreadsheet ActionControls icon
+picker always empty (`const Icons = []`), its selects store 'display' / 'type' (undefined option values), section
+menu Save icon unstyled (`sec.menuActionSave` undefined).
+- [x] **Visitor-facing branded controls → lift per theme** (in-page nav `navRail(On)`, search modal trigger
+      `searchTrigger`, external-filter `toggle`, group modal close / collapse `iconRow`, filter-cell toggle checkbox
+      style, filter setting labels FieldLabel style): library v6 role; each project theme's missing role / style is
+      filled from its OWN current pattern strings (navigableMenu precedent in withLegacyUi) → project sites
+      pixel-identical, authors can restyle by named style.
+- [x] **TimePicker: mockup first** — add a "time filter" block to the v6 spec board, owner confirms, then swap.
+- [x] **TNY v1 (`transportny/theme.js`) gets its own Button roles** (chip / small / … like TNY v2). tessera_v6: not in use, nothing.
+- [x] Extras: column dialogs (Static / Calculated / Formula) → UI.Modal + clickable divs → buttons; spreadsheet
+      ActionControls themed (+ `_legacy` freeze), icon picker filled from the real icon list (fieldTrigger + iconPick),
+      Select sentinels fix the value bug; delete dead code (`richtext/components/colorPickerComp.jsx`, dataWrapper
+      `AddFormulaColumn.jsx` duplicate → ColumnControls uses the sections one, `section_components.jsx` DeleteModal,
+      and `components/search/SearchPage.jsx` — owner: "nothing uses the search page, only the search modal"; no importers).
+- Applied by default: new named styles (Button iconInlineOn / iconInlineWarn / bare / iconTile(On) / boardPrimary /
+  boardGhost / iconRowGo; Input title / menu (+ `_legacy` underline freeze) / bareInherit; Textarea quiet / bare;
+  FieldLabel row), dialog commits = primary, + Formula / Calculated / Static = actionFull, section-menu Switch
+  captions = plain spans, ColumnControls set-value tint dropped, error-page action / collapse toggle → project's own
+  role, `useTimePickerTheme` inlined, `_legacy/ui.js` Input `bare` gets a real literal (MNY header search).
+### Page Phase 0 — done 2026-10-16 (uncommitted)
+- TNY v1 (`transportny/theme.js`) own Button roles in its Catalyst gray/blue vocabulary (primary = styles[0]; no
+  local pattern uses TNY v1 — resolution only).
+- New named styles: Button iconInlineOn / iconInlineWarn / bare / iconTile(On) / boardGhost / boardPrimary /
+  iconRowGo / navRail(On) / searchTrigger / toggle(On) / groupModalClose; Input title / menu / bareInherit; Textarea
+  quiet / bare; FieldLabel row. `_legacy/ui.js`: neutral looks for iconInlineOn / iconInlineWarn / bare / iconRowGo
+  APPENDED after each theme's own styles (listing them in `_legacy` button.styles would push them in front of a
+  theme's trailing generated styles like `navigableMenu_0` and shift stored indices); Input menu = frozen underline,
+  Input bare = library literal.
+- **Lift** (`liftPatternRoles` at the end of withLegacyUi; generalises the navigableMenu lift): per pattern style with
+  its own source string and no selector, creates `<role>_<style>` on the target component, sets the selector key, and
+  empties the wrapper key. Selector keys the swaps use: `pages.sectionGroup.navItemStyle` / `navItemActiveStyle`
+  (navRail / navRailOn), `.modalCloseStyle` (groupModalClose; wrapper `modalCloseWrap`), `pages.searchButton.buttonStyle`
+  (searchTrigger; wrapper `buttonWrap`), `filters[*].toggleStyle` / `toggleOnStyle`, `filters[*].settingLabelStyle`
+  (FieldLabel), `filterControlCell.toggleCheckboxStyle` (checkbox: input / row / label). Library pattern themes must
+  carry the default selector + wrapper keys. Verified: 85 lifted pairs on 12 themes = the theme's current string
+  exactly; every theme's existing style lists unchanged (index + classes) apart from TNY v1 roles + Input bare.
+  **Limit:** DB-authored themes (not in the code registry) don't pass through withLegacyUi → no lift.
+- TimePicker spec block added to `ui-controls.html` (#time-filter) — awaiting owner confirmation; TimePicker files
+  (TimePicker, PresetBar, RangeRow, DowRow, InstantRow, TimeOfDayRow, Chips) excluded from the swap until then.
+- 2026-10-16: page Phase 1 forks (P1 / P2 / P3, TimePicker excluded) hit the rate limit and were resumed. Correction to
+  the P2 proposal: `section_components.jsx` DeleteModal is NOT dead (section.jsx renders it as the delete-section
+  confirmation) — its buttons are swapped instead. Edits uncommitted; if a later session finds them unfinished,
+  re-run the inventory on `patterns/page`.
+- **P3 done** (non-TimePicker): ComplexFilters captions → FieldLabel `row` / `inline`; FilterControlCell toggle →
+  checkbox `rowLabel` + `toggleCheckboxStyle`; RenderFilterValueSelector setting captions → FieldLabel
+  `settingLabelStyle` (+ `settingLabelCell`). Verified: ComplexFilters popup live on HEAD vs new (Select menu opens inside
+  the Popup on both; picking closes it on both = existing), visitor filter cells in a harness (`scratchpad/p3-harness/`)
+  — MNY identical, lifted setting labels identical.
+  Fixed after (main session) — P3 found two unintended changes: non-MNY themes' filter toggle fell to the frozen browser
+  checkbox, WCDB / catalyst setting captions to the gray FieldLabel inline. New checkbox named style `filterToggle`
+  (v6 default; `_legacy/ui.js` = the old library row / input / label exactly) as FilterControlCell's default
+  `toggleCheckboxStyle`, and FieldLabel `filterSetting` (= the old library `settingLabel` string, not in `_legacy`) as
+  RenderFilters' default `settingLabelStyle`. Resolved on 9 themes: every non-MNY toggle = the old strings, MNY = its
+  lifted own; WCDB / catalyst captions = the old string; default = v6 toggle + unchanged caption.
+- **Incident 2026-10-16 10:16:** SSR resolve scripts (Vite createServer on the repo root, default cacheDir) overwrote
+  `node_modules/.vite/deps` → :5199 504s and the owner's :5173 "Outdated Optimize Dep". Cache rebuilt 14:32 (:5199 OK);
+  :5173 needs a restart by the owner. All session resolve scripts now use a private `cacheDir`
+  (session scratchpad `vite-ssr-cache`); running forks told. Memory: feedback_vite_ssr_private_cachedir.
+- **P1 done** (13 files at 0 raw): ColumnManager captions FieldLabel inline + icon toggles iconInline / iconInlineOn /
+  iconInlineWarn; Add* column triggers actionFull, dialog commits primary, formula column rows → menuItem buttons;
+  ActionControls themed (`ActionControls.theme.js` as `pages.actionControls`, `_legacy/pages.js` freeze), icon picker
+  fed from theme.Icons (120 icons; was always empty), selects → UI.Select (fixes the 'display' / 'type' value bug), add
+  and edit forms merged into one `ActionForm`; ColumnControls / MoreControls / InputControl / Card.config (via
+  `EmptyDefaultLabel` in Card.jsx) / graph_new config (via `DescriptionField` in graph_new/index.jsx — keeps the configs
+  Fast-Refresh-clean) / ColorControls (swatch = fieldTrigger) / ExportPdf; mnyHeader search = Input `bareInherit` (not
+  `bare`: keeps MNY's 16px text from the wrapper). Deleted the dataWrapper AddFormulaColumn duplicate + colorPickerComp.
+  Not live: MNY / landbank editors (driving "+" there risked a save), datasets ValidateComp (test source has no versions).
+  Dialogs → UI.Modal was blocked (section-menu Popup z-index 9999 > modal z-30; the menu's outside-click closed it on a
+  click inside the portaled modal). Library fix (main session): `Popup.jsx` ignores a mousedown inside an aria-modal dialog
+  that contains neither the popup panel nor its trigger (a popup INSIDE a modal still closes normally); Modal named style
+  `aboveMenu` (overlay z-[10000] only; panel etc. inherit each theme's styles[0] — resolved on 4 themes). P1 resumed to
+  move the three dialogs onto `UI.Modal activeStyle="aboveMenu"`.
+- Column dialogs now on `UI.Modal` (P1, verified live: above the section menu, a click inside closes neither, Escape
+  closes only the dialog, focus starts in the first field via `initialFocus` — a field `autoFocus` had stolen focus
+  before Modal recorded the opener — and returns to "+"). Inline dialog keys removed (dialogBackdrop / dialogPanel /
+  formulaPanel; `dialogBody` added). Formula builder lost its 3xl width on the default `aboveMenu` panel → new Modal
+  style `aboveMenuWide` (overlay z-[10000] + the `settings` panel); `_legacy/ui.js` modal `aboveMenuWide` = the frozen
+  panel at sm:max-w-3xl **with the overlay repeated** (a same-named `_legacy` style replaces the library one wholesale,
+  so without it projects lose the z-index). Resolved on default / mnyv1 / landbank / wcdb.
+- **P2 done** (12 files at 0 raw): editor panes (Settings / Filters / Pages / History / Section groups), section menu
+  (`CommitInput` gained `activeStyle`, used with Input `menu`; commits on Enter), sectionGroup (modal close via lifted
+  `modalCloseStyle` — wrapper only when `modalCloseWrap` is non-empty; collapse toggle iconRow; header row `bare`),
+  InPageNav (lifted navItemStyle + aria-current), ExternalFilters toggle (lifted toggleStyle / toggleOnStyle), search
+  trigger (lifted `buttonStyle`; `buttonWrap` only when non-empty — a wrapper div moved TNY by 54px; library
+  `flex flex-col mx-3 mt-4`; theme editor controls now edit buttonStyle / buttonWrap), error page action,
+  section_components DeleteModal → delegates to UI.DeleteModal (it is used — section.jsx), ActionBtn via
+  `menuActionStyle` (fixes the unstyled Save; `_legacy` '' keeps Pill chips). Deleted `components/search/SearchPage.jsx`.
+  Board Discard / Publish gated by `discardBtnStyle` / `publishBtnStyle` (empty in `_legacy` → projects keep the old pair).
+  Verified: visitor pages /p, /p-mny, /p-tny, /p-lb, /p-wcdb and the four project editors with the section menu open —
+  **0 px** pixel diff HEAD vs new; open search modal 0 px (default, TNY). Not reachable: group modal close / collapse
+  toggle, external-filter toggle, error page (lift equality covered by Phase 0 resolution). No page saved.
+  Left: MNY `theme.js` dead `sectionGroupsPane.addGroupBtn`; Button.theme.jsx comments naming old keys.
+- **Page pattern: 150 of 174 swapped.** Remaining 24 = the 7 TimePicker files, waiting for the owner's OK on the
+  `ui-controls.html#time-filter` mockup block. Build OK; 9-page error sweep clean. Uncommitted.
+- Owner 2026-10-16: "delete section modal opens below section menu, in some cases this means not having access to it."
+  A regression from P2 (HEAD's hand-built UI.Dialog already layered above; `UI.DeleteModal` opened a plain Modal at
+  z-30 under the menu Popup's z-index 9999). Fix: `UI.DeleteModal` takes `modalStyle` (the Modal named style to open
+  with — layering is the caller's context, not a look; a `deleteModal` named style wouldn't reach TNY v2's flat
+  deleteModal); section_components' DeleteModal passes 'aboveMenu'. Verified with the menu forced over the dialog: the
+  dialog is topmost, Cancel reachable, overlay z 10000 (HEAD's Dialog also on top). Other section-launched modals
+  already use aboveMenu / aboveMenuWide.
+- Owner 2026-10-16: **TimePicker mockup OK** (incl. the visitor view); **commit after the TimePicker swap**; DB-stored
+  themes that customised nav / search / filter-toggle classes are on their owners to update (no lift for them).
+- **TimePicker done** (per the approved `ui-controls.html#time-filter` block): presets / weekday shortcuts chip(On),
+  days segment(On) in a role=group tray, range count Input compact, selects UI.Select (`__none__` sentinel for the
+  end column), times Input type=time, UI.Switch for Currently happening, clears iconInline, custom range small + Plus,
+  active constraints Pill `tag` + icon theme keys (`rangeChipIcon` / `todChipIcon` ClockIcon, `dowChipIcon` '' — the
+  library has no calendar icon), exposure checkbox rowLabel; `useTimePickerTheme` inlined (deleted).
+  `timePicker.theme.js` → v6. Project freeze lives in `_legacy/ui.js` `timePicker` (withLegacyUi reaches the
+  top-level key the component reads; `_legacy/pages.js` would land at the unread `pages.timePicker`). Visitors get
+  viewer mode: `ConditionValueInput` takes `timePickerMode` (default 'author'); ExternalFilters passes 'viewer'.
+  `_legacy/ui.js`: frozen Input `compact` gets `relative` (MNY's input container layer hid the text — also the datasets
+  glance input on MNY); frozen `dowDayGrid` = the frozen segmented tray. Day buttons follow the letter width (roles
+  can't take w-7). Verified in `scratchpad/tp-harness/` (default = mockup; MNY / landbank keep layout, controls take
+  their roles), keyboard + selects. Open: dark mode looked washed out in the harness (forced data-theme) — check live;
+  viewer shows "Currently happening" when Range is exposed (existing coupling).
+- Owner 2026-10-16: "page rename and page delete modals open at different heights" — the v3 Pages pane had rename on
+  UI.Dialog (upper-third positioner on themes that don't centre it) and delete on UI.DeleteModal (UI.Modal, centred).
+  Rename → UI.Modal + `modalBody` text-left key + initialFocus on the field. The legacy (project) branch uses Dialog
+  for both, so they already matched. Measured on the default theme at 900 / 1300px: both centred.
+- **Page pattern 0 raw controls** (174 → 0). Admin / auth / datasets / page all 0. Build OK; 12-page sweep clean
+  (only HEAD's own `placeHolder` warning); test pages 37 / 49 / 61 / 80 unchanged. Next: ui composites (117).

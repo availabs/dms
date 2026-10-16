@@ -32,6 +32,18 @@ export const modalTheme = {
       // `className="max-w-3xl! text-left"`, which the Modal lock dropped.
       name: 'settings',
       panel: 'relative bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto text-left'
+    },
+    {
+      // A modal launched from a popup / section menu (Popup panels sit at z-index 9999): only the overlay layer
+      // changes; every other key comes from the theme's own styles[0], so projects keep their modal look (2026-10-16)
+      name: 'aboveMenu',
+      overlay: 'fixed inset-0 z-[10000]',
+    },
+    {
+      // aboveMenu at the `settings` width (the column-manager Formula builder)
+      name: 'aboveMenuWide',
+      overlay: 'fixed inset-0 z-[10000]',
+      panel: 'relative bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto text-left'
     }
   ]
 }

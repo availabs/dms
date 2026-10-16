@@ -15,6 +15,17 @@ export const fieldLabelTheme = {
       name: 'inline',
       text: 't-metaXS text-[var(--t-pencil)]',
     },
+    // a prose caption in a settings row (complexFilters popupRowLabel, 2026-10-16) — the mockup's leaf-popup captions
+    {
+      name: 'row',
+      text: 't-proseXS text-[var(--t-graphite)]',
+    },
+    // a filter's setting caption (RenderFilterValueSelector, 2026-10-16): the old library `filters.settingLabel` string,
+    // so themes without their own caption keep it (themes with their own get a lifted style)
+    {
+      name: 'filterSetting',
+      text: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
+    },
   ],
 }
 

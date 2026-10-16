@@ -236,9 +236,9 @@ function SaveAsTemplateSection({ t }) {
   // v3 (Settings pane v3): the same form inside a collapsible section — inputs + buttons themed.
   if (t) return (
     <>
-      <input className={t.input} placeholder='Template name…' value={name}
+      <Input placeholder='Template name…' value={name}
              onChange={e => { setName(e.target.value); setPendingOverwrite(false); setSaved(false); }} />
-      <input className={t.input} placeholder='Description (optional)' value={description}
+      <Input placeholder='Description (optional)' value={description}
              onChange={e => setDescription(e.target.value)} />
       <div className={t.line}>
         {existing && !pendingOverwrite ? <span className={t.templateMsg}>&quot;{existing.name}&quot; already exists</span>
@@ -247,17 +247,17 @@ function SaveAsTemplateSection({ t }) {
           : error ? <span className={t.templateErr}>{error}</span>
           : <span className={t.lineLabel} />}
         {!existing && (
-          <button type='button' className={t.btnPrimary} disabled={!trimmedName || saving} onClick={() => save(null)}>
+          <Button activeStyle='primary' disabled={!trimmedName || saving} onClick={() => save(null)}>
             {saving ? 'Saving…' : 'Save'}
-          </button>
+          </Button>
         )}
         {existing && !pendingOverwrite && (
-          <button type='button' className={t.btn} disabled={!trimmedName || saving} onClick={() => setPendingOverwrite(true)}>Overwrite…</button>
+          <Button activeStyle='action' disabled={!trimmedName || saving} onClick={() => setPendingOverwrite(true)}>Overwrite…</Button>
         )}
         {existing && pendingOverwrite && (
           <>
-            <button type='button' className={t.btn} onClick={() => setPendingOverwrite(false)}>Cancel</button>
-            <button type='button' className={t.btnPrimary} disabled={saving} onClick={() => save(existing)}>{saving ? 'Saving…' : 'Overwrite'}</button>
+            <Button activeStyle='action' onClick={() => setPendingOverwrite(false)}>Cancel</Button>
+            <Button activeStyle='primary' disabled={saving} onClick={() => save(existing)}>{saving ? 'Saving…' : 'Overwrite'}</Button>
           </>
         )}
       </div>
@@ -504,6 +504,7 @@ function SettingsLine({ t, label, hint, children }) {
 }
 
 function LayoutThumb({ t, label, kind, active, disabled, onClick }) {
+  const { UI } = React.useContext(ThemeContext) || {};
   const nav = ['nav', 'none', 'left', 'right'].includes(kind) ? <span className={t.thumbNav} /> : null;
   const rail = ['left', 'right'].includes(kind) ? <span className={t.thumbRail} /> : null;
   const body = (
@@ -512,10 +513,14 @@ function LayoutThumb({ t, label, kind, active, disabled, onClick }) {
     </span>
   );
   return (
-    <button type='button' className={t.thumb} disabled={disabled} onClick={onClick}>
-      <span className={active ? t.thumbFrameActive : t.thumbFrame}>{nav}{kind === 'left' ? rail : null}{body}{kind === 'right' ? rail : null}</span>
-      <span className={active ? t.thumbLabelActive : t.thumbLabel}>{label}</span>
-    </button>
+    <span className={t.thumbCell}>
+      <UI.Button activeStyle='bare' disabled={disabled} onClick={onClick}>
+        <span className={t.thumbInner}>
+          <span className={active ? t.thumbFrameActive : t.thumbFrame}>{nav}{kind === 'left' ? rail : null}{body}{kind === 'right' ? rail : null}</span>
+          <span className={active ? t.thumbLabelActive : t.thumbLabel}>{label}</span>
+        </span>
+      </UI.Button>
+    </span>
   );
 }
 
@@ -524,7 +529,7 @@ function SettingsPaneV3({ t }) {
   const { baseUrl, user, isUserAuthed } = React.useContext(CMSContext) || {}
   const { item, pageState, dataItems = [], apiUpdate } = React.useContext(PageContext) || {}
   const { baseUrl: mountBaseUrl, siteRootPaths } = React.useContext(MountContext) || {}
-  const { Icon, Switch, Select, FieldSet } = UI;
+  const { Icon, Switch, Select, FieldSet, Button, Input, Textarea } = UI;
 
   const [title, setTitle] = useState(item?.title || '');
   useEffect(() => { setTitle(item?.title || '') }, [item?.title]);
@@ -579,15 +584,15 @@ function SettingsPaneV3({ t }) {
       {/* identity */}
       <div className={t.identity}>
         <div className={t.identityRow}>
-          <button type='button' title='Change icon' className={iconsOpen ? t.iconTileActive : t.iconTile} onClick={() => setIconsOpen(!iconsOpen)}>
+          <Button activeStyle={iconsOpen ? 'iconTileOn' : 'iconTile'} title='Change icon' aria-expanded={iconsOpen} onClick={() => setIconsOpen(!iconsOpen)}>
             <Icon icon={item?.icon && item.icon !== 'none' ? item.icon : 'Page'} className={t.iconTileIcon} />
-          </button>
+          </Button>
           <div className={t.identityBody}>
             <div className={t.statusRow}>
               <span className={isDraft ? t.statusDraft : t.statusPublished}><span className={t.statusDot} />{isDraft ? 'draft' : 'published'}</span>
               {parents.length ? <span className={t.parentPath}>{parents.join(' › ')}</span> : null}
             </div>
-            <input className={t.titleInput} value={title} onChange={e => setTitle(e.target.value)}
+            <Input activeStyle='title' aria-label='Page title' value={title} onChange={e => setTitle(e.target.value)}
                    onKeyDown={e => { if (e.key === 'Enter' && renaming) updateTitle(item, dataItems, title, user, apiUpdate, mountBaseUrl, siteRootPaths) }} />
             {renaming ? (
               <>
@@ -597,42 +602,46 @@ function SettingsPaneV3({ t }) {
                   <span className={t.slugNew}>/{newSlug}</span>
                 </div>
                 <div className={t.renameRow}>
-                  <button type='button' className={t.btnPrimary} onClick={() => updateTitle(item, dataItems, title, user, apiUpdate, mountBaseUrl, siteRootPaths)}>
+                  <Button activeStyle='primary' onClick={() => updateTitle(item, dataItems, title, user, apiUpdate, mountBaseUrl, siteRootPaths)}>
                     <Icon icon='Check' className={t.icon} />Rename
-                  </button>
-                  <button type='button' className={t.btn} onClick={() => setTitle(item?.title || '')}>Revert</button>
+                  </Button>
+                  <Button activeStyle='action' onClick={() => setTitle(item?.title || '')}>Revert</Button>
                 </div>
               </>
             ) : (
               <div className={t.slugRow}>
                 <span className={t.slug}>/{item?.url_slug}</span>
-                <button type='button' title='Copy link' className={t.slugCopy}
+                <Button activeStyle='iconInline' title='Copy link' aria-label='Copy link'
                         onClick={() => navigator?.clipboard?.writeText(`${window.location.origin}${baseUrl || ''}/${item?.url_slug || ''}`)}>
                   <Icon icon='Copy' className={t.icon} />
-                </button>
+                </Button>
               </div>
             )}
           </div>
         </div>
         {iconsOpen ? (
           <div className={t.iconPicker}>
-            <label className={t.iconSearch}>
-              <Icon icon='Search' className={t.icon} />
-              <input className={t.iconSearchInput} placeholder='find an icon…' value={iconFind} onChange={e => setIconFind(e.target.value)} />
-            </label>
+            <div className={t.iconSearchWrap}>
+              <Icon icon='Search' className={t.searchFieldIcon} />
+              <Input activeStyle='search' aria-label='Find an icon' placeholder='find an icon…' value={iconFind} onChange={e => setIconFind(e.target.value)} />
+            </div>
             <div className={t.iconGrid}>
               {iconNames.map(name => (
-                <button type='button' key={name} title={name} className={item?.icon === name ? t.iconBtnActive : t.iconBtn}
+                <Button key={name} activeStyle={item?.icon === name ? 'iconPickOn' : 'iconPick'} title={name} aria-label={name}
                         onClick={() => { togglePageSetting(item, 'icon', name, apiUpdate); setIconsOpen(false) }}>
                   <Icon icon={name} className={t.iconTileIcon} />
-                </button>
+                </Button>
               ))}
             </div>
-            <button type='button' className={t.iconNone} onClick={() => { togglePageSetting(item, 'icon', 'none', apiUpdate); setIconsOpen(false) }}>no icon</button>
+            <div className={t.iconNoneWrap}>
+              <Button activeStyle='linkProse' onClick={() => { togglePageSetting(item, 'icon', 'none', apiUpdate); setIconsOpen(false) }}>no icon</Button>
+            </div>
           </div>
         ) : null}
-        <textarea rows={2} className={`${t.textarea} ${t.description}`} placeholder='Add a short description — used by search and link previews'
-                  value={description} onChange={e => setDescription(e.target.value)} />
+        <div className={t.description}>
+          <Textarea activeStyle='quiet' rows={2} aria-label='Page description' placeholder='Add a short description — used by search and link previews'
+                    value={description} onChange={e => setDescription(e.target.value)} />
+        </div>
       </div>
 
       <SettingsSection t={t} Icon={Icon} title='Layout' defaultOpen
@@ -682,7 +691,7 @@ function SettingsPaneV3({ t }) {
         </SettingsLine>
         {linkOn ? (
           <div>
-            <input className={`${t.input} ${t.code}`} value={navLink} placeholder='/actions/dashboard · sub://name/path · https://…' onChange={e => setNavLink(e.target.value)} />
+            <Input activeStyle='mono' aria-label='Link target' value={navLink} placeholder='/actions/dashboard · sub://name/path · https://…' onChange={e => setNavLink(e.target.value)} />
             <p className={t.hint}>Visitors who click it in the nav go here. It has no content of its own — the canvas shows a notice instead.</p>
             <p className={t.hint}>Accepts <span className={t.code}>/a/page</span> · <span className={t.code}>sub://name/path</span> · <span className={t.code}>https://…</span></p>
           </div>

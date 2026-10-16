@@ -8,7 +8,9 @@ export const filterControlCellTheme = {
     wrapper: 'w-full flex items-center gap-1.5',
     label: 'text-sm text-gray-600 whitespace-nowrap',
     icon: 'size-4 text-gray-400 shrink-0',
-    toggleWrapper: 'flex items-center gap-1.5 cursor-pointer',
-    checkbox: 'size-4 rounded border-gray-300',
+    // the toggle is ColumnTypes.checkbox with its text (`rowLabel`); `toggleCheckboxStyle` names its checkbox named
+    // style (unset = the checkbox default). A project theme's own toggleWrapper / checkbox / toggleLabel are lifted into
+    // one (src/themes/_legacy/ui.js liftPatternRoles).
+    toggleCheckboxStyle: 'filterToggle',
     loading: 'text-xs text-gray-400',
 };

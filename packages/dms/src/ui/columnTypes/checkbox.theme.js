@@ -18,5 +18,8 @@ export const checkboxTheme = {
             row: 'inline-flex items-center gap-2 cursor-pointer',
             label: 't-proseSM text-[var(--t-ink)]',
         },
+        // the page filter cell's toggle (FilterControlCell, 2026-10-16): the default v6 row here; project themes keep
+        // the old gray toggle through src/themes/_legacy/ui.js (a theme with its own toggle strings gets a lifted style).
+        { name: 'filterToggle' },
     ],
 };

@@ -13,7 +13,11 @@ export const filterTheme = {
     input: 'w-full font-sans text-sm border border-[var(--t-rule-strong)] rounded-md bg-[var(--t-panel)] text-[var(--t-ink)] p-2',
     settingPillsWrapper: 'flex flex-wrap gap-1.5',
     settingPill: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] bg-[var(--t-panel)] border border-[var(--t-rule)] text-[var(--t-graphite)]',
-    settingLabel: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
+    // a filter setting's caption (Multiselect / Allow clear / Use Page Filters / Search key): a UI.FieldLabel named style
+    // (2026-10-16, raw-HTML pass). A project theme's own `settingLabel` string is lifted into a style of its own
+    // (src/themes/_legacy/ui.js liftPatternRoles). `settingLabelCell`: the caption's cell where it sits in a row.
+    settingLabelStyle: 'filterSetting',
+    settingLabelCell: 'shrink-0',
     filtersWrapper: 'w-full p-3 flex flex-col gap-2 rounded-lg bg-[var(--t-well)] border border-[var(--t-rule)]',
 
     // Wrapper around the button that toggles the filter panel open/closed: its
@@ -40,8 +44,11 @@ export const filterTheme = {
     // overrides these to the "Needs priority" pill look. The on-state is driven
     // by a `data-on` attribute on the chip (`group`), so track/knob respond via
     // `group-data-[on]:` variants — no hardcoded brand colour in the component.
-    toggleChip: 'group inline-flex items-center gap-2 cursor-pointer select-none',
-    toggleChipOn: '',
+    // the toggle itself is a UI.Button named style picked here (2026-10-16, raw-HTML pass): 'toggle' / 'toggleOn'
+    // (Button.theme.jsx; the `group` + data-on drive the track / knob below). A project theme's own toggleChip /
+    // toggleChipOn classes are lifted into styles of its own (src/themes/_legacy/ui.js liftPatternRoles).
+    toggleStyle: 'toggle',
+    toggleOnStyle: 'toggleOn',
     toggleTrack: 'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-gray-200 transition-colors group-data-[on]:bg-gray-600',
     toggleKnob: 'inline-block size-4 translate-x-0.5 rounded-full bg-white shadow transition-transform group-data-[on]:translate-x-4',
 

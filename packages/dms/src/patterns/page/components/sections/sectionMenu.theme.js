@@ -7,7 +7,6 @@
 export const sectionMenuTheme = {
     menuError: 't-proseXS text-[var(--t-brick)] mt-1',
     // free-text rows (Display → Page Nav Label / Anchor ID)
-    textInput: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)] placeholder:text-[var(--t-pencil)]',
 
     // step grids (padding sides, border width)
     stepsWrap: 'flex flex-col gap-1.5 px-1 py-1.5 w-full',

@@ -69,6 +69,31 @@ const FIELD_TRIGGER = `inline-flex items-center gap-2 bg-[var(--t-panel)] border
 // block, not LINK's inline-flex, so a long title ellipsises
 const LINK_TITLE = `block max-w-full min-w-0 truncate text-left cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS} rounded-sm t-proseSM font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)]`;
 
+// ── page-pattern raw-HTML pass (2026-10-16, ui-raw-html-to-ui-components.md "Page pattern"). Strings copied from the
+// default theme's current pattern keys (named in each comment) so the default look doesn't move.
+// ColumnManager eye / group toggles (toggleBtn + toggleOn) and its stale-column warning (staleBtn)
+const ICON_INLINE_ON = `${ICON_INLINE_BASE} text-[var(--t-ink)] hover:bg-[var(--t-well)]`;
+const ICON_INLINE_WARN = `${ICON_INLINE_BASE} text-[var(--t-amber)] hover:bg-[var(--t-well)]`;
+// a button that is only a container (layout thumbnail, filter disclosure row, collapse header): behaviour + focus,
+// no look; its layout lives on an inner span the caller themes
+const BARE = `cursor-pointer text-left disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+// editPanes iconTile / iconTileActive: the 44px page-icon tile in the settings pane
+const ICON_TILE_BASE = `relative size-11 flex-none rounded-lg border bg-[var(--t-well)] text-[var(--t-ink)] flex items-center justify-center cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const ICON_TILE = `${ICON_TILE_BASE} border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]`;
+const ICON_TILE_ON = `${ICON_TILE_BASE} border-[var(--t-ink)]`;
+// editPane discardBtn / publishBtn (+ publishBtnDisabled as the disabled state): the dark edit bar (page-edit.html)
+const BOARD_GHOST = `h-9 px-3 rounded-lg t-proseSM text-[var(--t-chalk)] hover:bg-[var(--t-board-2)] cursor-pointer whitespace-nowrap disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
+const BOARD_PRIMARY = `h-9 px-4 rounded-lg t-proseSM font-medium text-[var(--t-board)] bg-[var(--t-chalk)] hover:opacity-90 cursor-pointer whitespace-nowrap disabled:font-normal disabled:bg-transparent disabled:text-[var(--t-chalk-dim)] disabled:border disabled:border-[var(--t-board-2)] disabled:hover:opacity-100 disabled:cursor-not-allowed ${FOCUS}`;
+// section menu action row "copied" state (section.theme menuActionBtn + menuActionBtnDone): a go-coloured row icon
+const ICON_ROW_GO = `${BTN} size-7 border-transparent text-[var(--t-go)] hover:text-[var(--t-go)] hover:bg-[var(--t-well)]`;
+// sectionGroup navItem / navItemActive: in-page nav rail rows (visitor-facing; project themes lift their own)
+const NAV_RAIL = `block w-full text-left -ml-px pl-3 py-1 border-l-2 border-transparent t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer transition-colors ${FOCUS}`;
+const NAV_RAIL_ON = `block w-full text-left -ml-px pl-3 py-1 border-l-2 border-[var(--t-ink)] t-proseSM font-medium text-[var(--t-ink)] cursor-pointer ${FOCUS}`;
+// searchButton.button minus its `mx-3 mt-4` (layout → the caller's wrapper): the search-modal trigger
+const SEARCH_TRIGGER = `flex items-center gap-2 h-8 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] hover:border-[var(--t-rule-strong)] transition-colors cursor-pointer ${FOCUS}`;
+// filters toggleChip (+ toggleChipOn ''): the external-filter switch container (track / knob are inner spans)
+const TOGGLE = `group inline-flex items-center gap-2 cursor-pointer select-none ${FOCUS} rounded-sm`;
+
 export const buttonTheme = {
   options: {
     activeStyle:0
@@ -154,6 +179,23 @@ export const buttonTheme = {
     { name: 'segmentIcon',      button: SEGMENT_ICON },
     { name: 'segmentIconOn',    button: SEGMENT_ICON_ON },
     { name: 'linkInline',       button: LINK_INLINE },
+    // ── page-pattern raw-HTML pass (2026-10-16); appended so indices don't move. navRail(On) / searchTrigger /
+    // toggle(On) / groupModalClose: project themes get their own look lifted from their pattern keys
+    // (src/themes/_legacy/ui.js liftPatternRoles).
+    { name: 'iconInlineOn',     button: ICON_INLINE_ON },
+    { name: 'iconInlineWarn',   button: ICON_INLINE_WARN },
+    { name: 'bare',             button: BARE },
+    { name: 'iconTile',         button: ICON_TILE },
+    { name: 'iconTileOn',       button: ICON_TILE_ON },
+    { name: 'boardGhost',       button: BOARD_GHOST },
+    { name: 'boardPrimary',     button: BOARD_PRIMARY },
+    { name: 'iconRowGo',        button: ICON_ROW_GO },
+    { name: 'navRail',          button: NAV_RAIL },
+    { name: 'navRailOn',        button: NAV_RAIL_ON },
+    { name: 'searchTrigger',    button: SEARCH_TRIGGER },
+    { name: 'toggle',           button: TOGGLE },
+    { name: 'toggleOn',         button: TOGGLE },
+    { name: 'groupModalClose',  button: ICON_ROW },
   ]
 }
 

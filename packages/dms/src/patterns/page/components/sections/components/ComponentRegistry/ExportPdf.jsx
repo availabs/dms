@@ -18,7 +18,8 @@ export function PdfExport({ }) {
   const { UI } = React.useContext(ThemeContext)
   const { app, API_HOST, siteType } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
-  const { Icon, Button, MultiSelect } = UI || {};
+  const { Icon, Button, MultiSelect, ColumnTypes } = UI || {};
+  const CheckboxEdit = ColumnTypes?.checkbox?.EditComp;
 
   useEffect(() => {
     const fetchPatterns = async () => {
@@ -339,17 +340,13 @@ export function PdfExport({ }) {
           </Button>
         </div>
 
-        <div className="flex items-center space-x-2 ml-4">
-          <input
-            type="checkbox"
+        <div className="flex items-center ml-4">
+          <CheckboxEdit
             id="includeInTOC"
-            checked={includeInTOC}
-            onChange={(e) => setIncludeInTOC(e.target.checked)}
-            className="cursor-pointer"
+            value={includeInTOC}
+            rowLabel="Add Table of Content page"
+            onChange={(v) => setIncludeInTOC(!!v)}
           />
-          <label htmlFor="includeInTOC" className="cursor-pointer">
-            Add Table of Content page
-          </label>
         </div>
       </div>
 

@@ -44,14 +44,19 @@ const SearchButton = ({app, type, show}) => {
                                 shadow-sm transition ease-in
                               `}
                 >
-                    <input
-                        className="w-full focus:outline-none focus:ring-0 text-[#37576B] font-normal text-[16px] leading-[140%]"
+                    {/* 2026-10-16: UI.Input bareInherit inside MNY's branded pill — the text style sits on this
+                        wrapper so the field inherits it (was a raw <input> carrying it) */}
+                    <span className="w-full text-[#37576B] font-normal text-[16px] leading-[140%]">
+                    <UI.Input
+                        activeStyle="bareInherit"
+                        aria-label="Search"
                         placeholder="Search for anything..."
                         onChange={e => setSearchStr(e.target.value)}
                         onKeyDown={e => {
                             if (e.key === 'Enter') setOpen(true);
                         }}
                     />
+                    </span>
 
                     <Icon
                         icon={'Search'}

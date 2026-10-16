@@ -1,65 +1,63 @@
 // Theme for the TimePicker editor used by `op: 'time'` filter leaves.
-// Pattern-tied — registered into page/defaultTheme.js so site themes can
-// override individual keys via theme.timePicker.<key>.
+// Pattern-tied — registered into page/defaultTheme.js (as `pages.timePicker`; the components read the top-level
+// `timePicker` key — a known path mismatch, left as is). v6 (2026-10-16, ui-raw-html-to-ui-components.md), from the
+// approved spec block design_system_v6/pages/ui-controls.html#time-filter (controls.py TP_*). The controls are UI
+// components picking their look by named style (chip / chipOn, segment / segmentOn, small, iconInline,
+// iconInlineDanger, Input compact, UI.Select, UI.Switch, Pill tag, ColumnTypes.checkbox rowLabel); these keys are
+// the panel's layout and text. Project themes keep the pre-v6 slate layout via src/themes/_legacy/ui.js `timePicker`.
 export const timePickerTheme = {
-    // top-level container
-    wrapper: 'flex flex-col gap-2 p-2 bg-white border border-slate-200 rounded-md shadow-sm text-xs',
-    sectionDivider: 'border-t border-slate-100 pt-2',
+    // the panel: a stack of sections, each separated by a rule
+    wrapper: 'w-full max-w-[360px] flex flex-col bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg',
+    firstSection: 'flex flex-col gap-2 px-3 py-3',
+    sectionDivider: 'flex flex-col gap-2 px-3 py-3 border-t border-[var(--t-rule)] first:border-t-0',
 
-    // section headers
-    presetsLabel: 'block text-[11px] font-semibold text-slate-500 uppercase tracking-wide mb-1',
-    rowHeader: 'flex items-center justify-between',
-    rowLabel: 'text-xs font-medium text-slate-600',
-    rowSummary: 'text-xs text-slate-500',
-    rowEditor: 'flex flex-wrap items-center gap-1 text-xs',
+    // row heading: caption (not a <label>: a row has no single control) + the current value on the right
+    presetsLabel: 't-metaXS text-[var(--t-pencil)]',
+    rowHeader: 'flex items-baseline justify-between gap-2 min-w-0',
+    rowLabel: 't-metaXS text-[var(--t-pencil)]',
+    rowSummary: 't-proseXS text-[var(--t-graphite)] truncate',
+    rowSummaryAny: 't-proseXS text-[var(--t-pencil)]',      // "Any" / "Off"
+    rowEditor: 'flex flex-wrap items-center gap-1.5',
+    clearIcon: 'size-3.5',                                  // the XMark in each row's clear (iconInline)
 
     // PresetBar
-    presetWrapper: 'flex flex-wrap gap-1',
-    presetButton: 'px-2 py-1 text-xs rounded-md border cursor-pointer transition-colors',
-    presetButtonActive: 'bg-blue-600 text-white border-blue-600',
-    presetButtonIdle: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50',
+    presetWrapper: 'flex flex-wrap items-center gap-1.5',
 
     // RangeRow
-    rangeContainer: 'flex flex-col gap-1.5',
-    rangeSelect: 'px-1.5 py-1 rounded border border-slate-300 bg-white',
-    rangeNumberInput: 'w-16 px-1.5 py-1 rounded border border-slate-300 bg-white',
-    rangeClearButton: 'ml-1 px-1.5 py-1 text-slate-400 hover:text-slate-700 cursor-pointer',
-    rangeCustomButton: 'self-start px-2 py-1 text-xs rounded-md border border-dashed border-slate-300 text-slate-600 hover:bg-slate-50 cursor-pointer',
+    rangeContainer: 'flex flex-col gap-2',
+    rangeDirWrap: 'w-20 flex-none',                         // Last / Next (UI.Select)
+    rangeNumberWrap: 'w-16 flex-none',                      // count (Input compact)
+    rangeUnitWrap: 'w-24 flex-none',                        // unit (UI.Select)
+    customIcon: 'size-3',                                   // the Plus in "Custom relative range" (small)
 
-    // DowRow / preset toggle
-    dowContainer: 'flex flex-col gap-1.5',
-    dowPresetButton: 'px-2 py-1 rounded-md border cursor-pointer',
-    dowPresetActive: 'bg-blue-600 text-white border-blue-600',
-    dowPresetIdle: 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50',
-    dowDayGrid: 'flex items-center gap-0.5 ml-2',
-    dowDayButton: 'w-7 h-7 text-xs rounded-md border cursor-pointer',
-    dowDayActive: 'bg-blue-600 text-white border-blue-600',
-    dowDayIdle: 'bg-white text-slate-600 border-slate-300 hover:bg-slate-50',
+    // DowRow: the seven days are one segmented control
+    dowContainer: 'flex flex-col gap-2',
+    dowDayGrid: 'inline-flex p-0.5 gap-0.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-well)]',
 
     // TimeOfDayRow
-    todContainer: 'flex flex-col gap-1.5',
-    todInput: 'px-1.5 py-1 rounded border border-slate-300 bg-white',
-    todSeparator: 'text-slate-500',
-    todWarning: 'text-[11px] text-amber-700',
+    todContainer: 'flex flex-col gap-2',
+    todInputWrap: 'w-32 flex-none',                         // w-32: a 12-hour "06:00 AM" clipped at w-28
+    todSeparator: 't-metaXS text-[var(--t-pencil)] px-0.5',
+    todWarning: 't-proseXS text-[var(--t-amber)]',
 
     // InstantRow
-    instantContainer: 'flex flex-col gap-1.5',
-    instantSwitchOn: 'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer bg-blue-600',
-    instantSwitchOff: 'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors cursor-pointer bg-slate-300',
-    instantSwitchKnobOn: 'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform translate-x-5',
-    instantSwitchKnobOff: 'inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform translate-x-1',
-    instantSelect: 'px-1.5 py-1 rounded border border-slate-300 bg-white',
-    instantHelpText: 'text-[11px] text-amber-700',
-    instantHintLabel: 'text-slate-500',
+    instantContainer: 'flex flex-col gap-2',
+    instantHintLabel: 't-metaXS text-[var(--t-pencil)] pl-1',
+    instantSelectWrap: 'flex-1 min-w-0',
+    instantHelpText: 't-proseXS text-[var(--t-pencil)]',
 
-    // Chips
-    chipWrapper: 'flex flex-wrap items-center gap-1 text-xs',
-    chip: 'inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-blue-300 bg-blue-50 text-blue-700',
-    chipIcon: 'text-[11px]',
-    chipRemoveButton: 'ml-0.5 text-blue-400 hover:text-blue-700 cursor-pointer',
+    // Chips: the active constraints as Pill 'tag's
+    chipsLabel: 't-metaXS text-[var(--t-pencil)]',          // '' → no "Active" caption
+    chipWrapper: 'flex flex-wrap gap-1.5',
+    chipIcon: 'w-3.5 h-3.5 text-[var(--t-pencil)] flex-none',
+    chipRemoveIcon: 'size-3',
+    // icon names per axis (UI.Icon; '' → none). The library icon set has no calendar icon — a theme whose
+    // Icons carry one (e.g. tessera's 'Calendar') can set dowChipIcon.
+    rangeChipIcon: 'ClockIcon',
+    dowChipIcon: '',
+    todChipIcon: 'ClockIcon',
 
-    // Exposure footer (author-mode only)
-    exposureFooter: 'flex flex-wrap items-center gap-2 text-[11px] text-slate-600',
-    exposureLabel: 'font-medium uppercase tracking-wide text-slate-500',
-    exposureToggle: 'inline-flex items-center gap-1 cursor-pointer',
+    // Exposure footer (author mode only)
+    exposureFooter: 'flex flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2.5 border-t border-[var(--t-rule)] bg-[var(--t-well)] rounded-b-lg',
+    exposureLabel: 't-metaXS text-[var(--t-pencil)]',
 };

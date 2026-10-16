@@ -1,5 +1,5 @@
 import React from 'react'
-import { Graph, DomainEditor } from './index'
+import { Graph, DomainEditor, DescriptionField } from './index'
 import { getComponentTheme } from '../../../../../../../ui/useTheme'
 import { getColorRange, SchemeOptions } from '../../../../../../../ui/components/graph_new/colorSchemeUnifier'
 import { ValueFormats } from "../../../../../../../ui/components/graph_new/utils";
@@ -369,13 +369,7 @@ const graphConfig = {
                     // literal <input>, so a real textarea needs the function escape
                     // hatch (same pattern DomainEditor above uses). Renders under the
                     // chart title (GraphComponent.jsx's GraphTitle) once non-empty.
-                    type: ({value, setValue}) => (
-                        <div className='flex flex-col gap-0.5 w-full'>
-                            <span className='text-sm select-none'>Description</span>
-                            <textarea className='w-full p-1 border rounded text-sm' rows={3}
-                                      value={value || ''} onChange={e => setValue(e.target.value)} />
-                        </div>
-                    ),
+                    type: ({value, setValue}) => <DescriptionField value={value} setValue={setValue} />,
                     label: 'Description', key: 'description'
                 },
                 // {type: 'toggle',                   label: 'Legend',          key: 'legend.show'},

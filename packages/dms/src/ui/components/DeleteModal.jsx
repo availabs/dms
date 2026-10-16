@@ -4,7 +4,9 @@ import Icon from "./Icon";
 import {ThemeContext, getComponentTheme} from "../useTheme";
 import {deleteModalTheme} from "./DeleteModal.theme";
 
-export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, activeStyle})  {
+// `modalStyle`: the UI.Modal named style to open with — layering, not look: a confirmation launched from a popup /
+// section menu passes 'aboveMenu' so it sits above the menu (2026-10-16).
+export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, activeStyle, modalStyle})  {
     const cancelButtonRef = useRef(null)
     const [loading, setLoading] = useState(false)
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
@@ -14,6 +16,7 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, a
             open={open}
             setOpen={setOpen}
             initialFocus={cancelButtonRef}
+            activeStyle={modalStyle}
         >
             <div className={t.content}>
                 {t.icon && <div className={t.iconWrap}>

@@ -29,12 +29,10 @@ export const complexFiltersTheme = {
     // Column row needs a right gutter so its <MultiSelect> doesn't run under
     // the absolute-positioned ellipsis menu.
     fieldWithEllipsisGutter: 'flex flex-col gap-1 pr-8',
-    fieldLabel: 't-metaXS text-[var(--t-pencil)]',
 
     // ellipsis popup body
     popup: 'flex flex-col gap-2 p-2 bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-md shadow-[var(--t-shadow-drag)] t-proseXS text-[var(--t-ink)]',
     popupRow: 'flex items-center gap-1.5',
-    popupRowLabel: 't-proseXS text-[var(--t-graphite)]',
     popupRemove: 'flex gap-1 text-[var(--t-brick)] hover:underline cursor-pointer',
     popupIcon: 'size-4',
     popupTrash: 'size-4',

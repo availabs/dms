@@ -192,8 +192,9 @@ export function TagComponent({value, placeholder, onChange, edit = false, wrappe
 
             {edit && <div>
                 <div className="relative z-20">
-                    <input
-                        className="h-12 w-[189px] bg-blue-50 m-1 p-2 text-gray-900 placeholder:text-gray-400 focus:ring-0 sm:text-sm"
+                    <span className="block w-[189px] m-1">
+                    <UI.Input
+                        aria-label={placeholder || 'Add a tag'}
                         placeholder={placeholder}
                         value={newTag}
                         onChange={(e) => {
@@ -207,6 +208,7 @@ export function TagComponent({value, placeholder, onChange, edit = false, wrappe
                             }
                         })}
                     />
+                    </span>
                 </div>
                 {tags
                     .filter(tag => (!newTag?.length || tag.toLowerCase().includes(newTag.toLowerCase())))
@@ -257,69 +259,28 @@ export function TagComponent({value, placeholder, onChange, edit = false, wrappe
 
 }
 
-export function DeleteModal({title, prompt, item = {}, open, setOpen, onDelete}) {
-    const cancelButtonRef = useRef(null)
+// The delete-section confirmation (section.jsx): the shared UI.DeleteModal (2026-10-16, raw-HTML pass — was a
+// hand-built Dialog with raw red / white buttons and an unthemed body).
+export function DeleteModal(props) {
     const {UI} = React.useContext(ThemeContext)
-    const {baseUrl} = React.useContext(CMSContext) || {}
-    const {Dialog} = UI
-    const [loading, setLoading] = useState(false)
-    return (
-        <Dialog
-            open={open}
-            setOpen={setOpen}
-            initialFocus={cancelButtonRef}
-        >
-            <div className="sm:flex sm:items-start z-50">
-                <div
-                    className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true"/>
-                </div>
-                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                    <h3 className="text-base font-semibold leading-6 text-gray-900">
-                        {title || `Delete ${item.title || ''} ${item.id}`}
-                    </h3>
-                    <div className="mt-2">
-                        <p className="text-sm text-gray-500">
-                            {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
-              from our servers forever. This action cannot be undone.`}
-                        </p>
-                    </div>
-                </div>
-            </div>
-            <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <button
-                    type="button"
-                    disabled={loading}
-                    className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
-                    onClick={onDelete}
-                >
-                    Delet{loading ? 'ing...' : 'e'}
-                </button>
-                <button
-                    type="button"
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
-                    onClick={() => setOpen(false)}
-                    ref={cancelButtonRef}
-                >
-                    Cancel
-                </button>
-            </div>
-        </Dialog>
-    )
+    const {DeleteModal: SharedDeleteModal} = UI
+    // opened from the section menu (a Popup at z-index 9999): the modal must layer above it
+    return <SharedDeleteModal modalStyle="aboveMenu" {...props} />
 }
 
 
 // The section menu's action row (copy link / copy / paste / move / refresh, back / home, save /
-// cancel / edit). v6 (pages.section menuActionBtn set, 2026-10-13): 28px row-icon buttons, save = the
-// ink primary, "copied" = go; spec design_system_v6/pages/ui-controls.html (Menus). '' (legacy freeze)
-// → the original blue / orange / green Pill chips, unchanged. Same props as Pill.
-export function ActionBtn({ color, text, title, onClick, kind }) {
+// cancel / edit). v6 (pages.section menuActionStyle set): 28px row-icon UI.Buttons, "copied" = go; spec
+// design_system_v6/pages/ui-controls.html (Menus). '' (legacy freeze) → the original blue / orange / green Pill
+// chips, unchanged. Same props as Pill.
+export function ActionBtn({ color, text, title, onClick }) {
     const { theme, UI } = React.useContext(ThemeContext) || {};
     const sec = getComponentTheme(theme, 'pages.section') || {};
-    if (!sec.menuActionBtn) {
+    if (!sec.menuActionStyle) {
         const { Pill } = UI;
         return <Pill activeStyle={color} text={text} title={title} onClick={onClick} />;
     }
-    const cls = kind === 'save' ? sec.menuActionSave : color === 'green' ? `${sec.menuActionBtn} ${sec.menuActionBtnDone}` : sec.menuActionBtn;
-    return <button type="button" title={title} aria-label={title} className={cls} onClick={onClick}>{text}</button>;
+    // UI.Button named styles (2026-10-16): the row icon, 'iconRowGo' for the copied state. Save looks like the rest
+    // (it read a `menuActionSave` key no theme defined, so it rendered unstyled).
+    return <UI.Button activeStyle={color === 'green' ? 'iconRowGo' : sec.menuActionStyle} title={title} aria-label={title} onClick={onClick}>{text}</UI.Button>;
 }

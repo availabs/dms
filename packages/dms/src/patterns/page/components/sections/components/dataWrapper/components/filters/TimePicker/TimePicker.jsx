@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useContext } from "react";
 import { PresetBar } from "./PresetBar";
 import { RangeRow } from "./RangeRow";
 import { DowRow } from "./DowRow";
@@ -6,7 +6,8 @@ import { TimeOfDayRow } from "./TimeOfDayRow";
 import { InstantRow } from "./InstantRow";
 import { Chips } from "./Chips";
 import { isAxisExposed } from "../../../utils/timeFilter";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
 
 /**
  * Time filter editor for `op: 'time'` filter leaves.
@@ -30,7 +31,9 @@ import { useTimePickerTheme } from "./useTimePickerTheme";
  *   mode — 'author' | 'viewer'. Default 'author'.
  */
 export const TimePicker = ({ value, onChange, columns = [], startCol, mode = 'author' }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
+    const CheckboxEdit = UI?.ColumnTypes?.checkbox?.EditComp;
     const isAuthor = mode === 'author';
 
     const handleChange = (next) => {
@@ -68,8 +71,8 @@ export const TimePicker = ({ value, onChange, columns = [], startCol, mode = 'au
         <div className={t.wrapper}>
             {showRange && (
                 <>
-                    <div>
-                        <label className={t.presetsLabel}>Presets</label>
+                    <div className={t.firstSection}>
+                        <div className={t.presetsLabel}>Presets</div>
                         <PresetBar value={value} onChange={handleChange} />
                     </div>
                     <div className={t.sectionDivider}>
@@ -98,21 +101,19 @@ export const TimePicker = ({ value, onChange, columns = [], startCol, mode = 'au
                 </div>
             )}
             {isAuthor && (
-                <div className={`${t.sectionDivider} ${t.exposureFooter}`}>
-                    <span className={t.exposureLabel}>Exposed to viewers:</span>
-                    {[
+                <div className={t.exposureFooter}>
+                    <span className={t.exposureLabel}>Exposed to viewers</span>
+                    {CheckboxEdit && [
                         { key: 'range', label: 'Range' },
                         { key: 'dow', label: 'Day' },
                         { key: 'timeOfDay', label: 'Time of day' },
                     ].map(({ key, label }) => (
-                        <label key={key} className={t.exposureToggle}>
-                            <input
-                                type="checkbox"
-                                checked={isAxisExposed(value, key)}
-                                onChange={e => setExposed(key, e.target.checked)}
-                            />
-                            <span>{label}</span>
-                        </label>
+                        <CheckboxEdit
+                            key={key}
+                            rowLabel={label}
+                            value={isAxisExposed(value, key)}
+                            onChange={v => setExposed(key, !!v)}
+                        />
                     ))}
                 </div>
             )}

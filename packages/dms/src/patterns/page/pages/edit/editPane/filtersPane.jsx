@@ -15,7 +15,7 @@ const valueText = (v) => Array.isArray(v) ? v.join(', ') : (v ?? '')
 
 function FilterRow({ t, filter, filters, current, open, onToggle, onUpdate, onRemove }) {
   const { UI } = useContext(ThemeContext);
-  const { Icon, Switch, Select } = UI;
+  const { Icon, Switch, Select, Button, Input, FieldLabel } = UI;
   const derived = !!filter.derivedFrom;
   const chip = derived
     ? <span className={t.filterChip}><Icon icon='ArrowRight' className={t.icon} />{filter.derivedFrom}</span>
@@ -26,46 +26,52 @@ function FilterRow({ t, filter, filters, current, open, onToggle, onUpdate, onRe
     ...filters.filter(f => f.searchKey && f.searchKey !== filter.searchKey && !f.derivedFrom).map(f => ({ label: f.searchKey, value: f.searchKey }))];
   return (
     <div className={t.filterRow}>
-      <button type='button' className={t.filterSummary} onClick={onToggle} aria-expanded={open}>
-        <span className={t.filterKey}>{filter.searchKey || '(no key)'}</span>{chip}
-        <span className={t.filterValue}>{valueText(current ?? filter.values)}</span>
-        <Icon icon='ChevronDown' className={`${t.sectChevron} ${open ? 'rotate-180' : ''}`} />
-      </button>
+      <div className={t.filterSummaryCell}>
+        <Button activeStyle='bare' onClick={onToggle} aria-expanded={open}>
+          <span className={t.filterSummary}>
+            <span className={t.filterKey}>{filter.searchKey || '(no key)'}</span>{chip}
+            <span className={t.filterValue}>{valueText(current ?? filter.values)}</span>
+            <Icon icon='ChevronDown' className={`${t.sectChevron} ${open ? 'rotate-180' : ''}`} />
+          </span>
+        </Button>
+      </div>
       {open ? (
         <div className={t.filterBody}>
-          <label className={t.field}><span className={t.fieldLabel}>key</span>
-            <input className={`${t.input} ${t.code}`} value={filter.searchKey || ''} onChange={e => onUpdate('searchKey', e.target.value)} />
-          </label>
+          <FieldLabel text='key'>
+            <Input activeStyle='mono' value={filter.searchKey || ''} onChange={e => onUpdate('searchKey', e.target.value)} />
+          </FieldLabel>
           {derived ? (
             <>
               <div className={t.grid2}>
-                <label className={t.field}><span className={t.fieldLabel}>derived from</span>
+                <div className={t.field}><FieldLabel text='derived from' />
                   <Select value={filter.derivedFrom || undefined} placeholder='— not derived —' options={sources} onChange={v => onUpdate('derivedFrom', v || undefined)} />
-                </label>
-                <label className={t.field}><span className={t.fieldLabel}>derive</span>
+                </div>
+                <div className={t.field}><FieldLabel text='derive' />
                   <Select value={filter.derive || ''} options={[{ label: 'year of YYYYMM', value: 'yyyy' }]} onChange={v => onUpdate('derive', v || undefined)} />
-                </label>
+                </div>
               </div>
-              <label className={t.field}><span className={t.fieldLabel}>fallback while {filter.derivedFrom} is unset</span>
-                <input className={t.input} value={valueText(filter.values)} onChange={e => onUpdate('values', e.target.value)} />
-              </label>
+              <FieldLabel text={`fallback while ${filter.derivedFrom} is unset`}>
+                <Input value={valueText(filter.values)} onChange={e => onUpdate('values', e.target.value)} />
+              </FieldLabel>
               <p className={t.hint}>Follows <span className={t.code}>{filter.derivedFrom}</span>. Keep it out of the URL — a derived value there is re-emitted stale.</p>
             </>
           ) : (
             <>
-              <label className={t.field}><span className={t.fieldLabel}>default value</span>
-                <input className={t.input} value={valueText(filter.values)} onChange={e => onUpdate('values', e.target.value)} />
-              </label>
+              <FieldLabel text='default value'>
+                <Input value={valueText(filter.values)} onChange={e => onUpdate('values', e.target.value)} />
+              </FieldLabel>
               <div className={t.line}>
                 <span className={t.lineLabel}><span className={t.lineText}>Read from URL</span><span className={t.lineHint}>?{filter.searchKey || 'key'}= overrides the default</span></span>
                 <Switch size='small' enabled={!!filter.useSearchParams} setEnabled={e => onUpdate('useSearchParams', e)} />
               </div>
-              <label className={t.field}><span className={t.fieldLabel}>derived from</span>
+              <div className={t.field}><FieldLabel text='derived from' />
                 <Select value={filter.derivedFrom || undefined} placeholder='— not derived —' options={sources} onChange={v => onUpdate('derivedFrom', v || undefined)} />
-              </label>
+              </div>
             </>
           )}
-          <button type='button' className={t.filterRemove} onClick={onRemove}><Icon icon='Trash' className={t.icon} />remove filter</button>
+          <div className={t.filterRemoveWrap}>
+            <Button activeStyle='linkMetaDanger' onClick={onRemove}><Icon icon='Trash' className={t.icon} />remove filter</Button>
+          </div>
         </div>
       ) : null}
     </div>
@@ -75,7 +81,7 @@ function FilterRow({ t, filter, filters, current, open, onToggle, onUpdate, onRe
 function FiltersPaneV3({ t, value, stateValue, onChange }) {
   const { UI } = useContext(ThemeContext);
   const { pageState } = useContext(PageContext) || {};
-  const { Icon, Switch } = UI;
+  const { Icon, Switch, Button, Input } = UI;
   const [filters, setFilters] = useState(typeof value === 'string' ? JSON.parse(value) : (value || []));
   const [openIdx, setOpenIdx] = useState(-1);
   const [adding, setAdding] = useState(null);
@@ -100,24 +106,30 @@ function FiltersPaneV3({ t, value, stateValue, onChange }) {
       {adding ? (
         <div className={t.filterAddForm}>
           <div className={t.grid2}>
-            <input className={`${t.input} ${t.code}`} placeholder='key' value={adding.searchKey || ''} onChange={e => setAdding({ ...adding, searchKey: e.target.value })} />
-            <input className={t.input} placeholder='default value' value={adding.values || ''} onChange={e => setAdding({ ...adding, values: e.target.value })} />
+            <Input activeStyle='mono' aria-label='Filter key' placeholder='key' value={adding.searchKey || ''} onChange={e => setAdding({ ...adding, searchKey: e.target.value })} />
+            <Input aria-label='Default value' placeholder='default value' value={adding.values || ''} onChange={e => setAdding({ ...adding, values: e.target.value })} />
           </div>
           <div className={t.line}>
             <span className={t.lineLabel}><span className={t.lineText}>Read from URL</span></span>
             <Switch size='small' enabled={!!adding.useSearchParams} setEnabled={e => setAdding({ ...adding, useSearchParams: e })} />
           </div>
           <div className={`${t.line} justify-end`}>
-            <button type='button' className={t.btn} onClick={() => setAdding(null)}>Cancel</button>
-            <button type='button' className={t.btnPrimary} disabled={!adding.searchKey}
-                    onClick={() => { commit([...filters, { id: crypto.randomUUID(), ...adding }]); setAdding(null) }}>Add filter</button>
+            <Button activeStyle='action' onClick={() => setAdding(null)}>Cancel</Button>
+            <Button activeStyle='primary' disabled={!adding.searchKey}
+                    onClick={() => { commit([...filters, { id: crypto.randomUUID(), ...adding }]); setAdding(null) }}>Add filter</Button>
           </div>
         </div>
       ) : (
-        <button type='button' className={t.filterAddBtn} onClick={() => setAdding({})}><Icon icon='Plus' className={t.icon} />add filter</button>
+        <div className={t.filterAddWrap}>
+          <Button activeStyle='linkProse' onClick={() => setAdding({})}><Icon icon='Plus' className={t.icon} />add filter</Button>
+        </div>
       )}
 
-      {filters.length ? <button type='button' className={t.filterClear} onClick={() => { commit([]); setOpenIdx(-1) }}>remove all filters</button> : null}
+      {filters.length ? (
+        <div className={t.filterClearWrap}>
+          <Button activeStyle='linkMetaDanger' onClick={() => { commit([]); setOpenIdx(-1) }}>remove all filters</Button>
+        </div>
+      ) : null}
 
       {autoVars.length ? (
         <div className={t.autoVars}>

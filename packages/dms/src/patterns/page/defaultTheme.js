@@ -12,6 +12,7 @@ import { linkPageNoticeTheme } from './components/LinkPageNotice.theme'
 import { editPaneTheme } from './pages/edit/editPane/editPane.theme'
 import { editPanesTheme } from './pages/edit/editPane/editPanes.theme'
 import { columnManagerTheme } from './components/sections/ColumnManager.theme'
+import { actionControlsTheme } from './components/sections/components/ComponentRegistry/spreadsheet/controls/ActionControls.theme'
 import { sectionMenuTheme } from './components/sections/sectionMenu.theme'
 import { errorPageTheme } from './pages/errorPage.theme'
 
@@ -31,6 +32,7 @@ export default {
     editPane: editPaneTheme,
     editPanes: editPanesTheme,
     columnManager: columnManagerTheme,
+    actionControls: actionControlsTheme,
     sectionMenu: sectionMenuTheme,
     errorPage: errorPageTheme,
 }

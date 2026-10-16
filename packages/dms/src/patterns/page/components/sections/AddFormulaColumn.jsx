@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useImmer } from "use-immer";
 import { getColumnLabel } from "./controls_utils";
 import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
@@ -48,11 +48,12 @@ const attachToContext = (draft, node) => {
 
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
-const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
+const FormulaDialog = ({ open, setOpen, columns, addFormulaColumn }) => {
     const { UI } = useContext(ThemeContext);
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
-    const { Icon } = UI;
+    const { Icon, Button, Input, FieldLabel, Modal } = UI;
+    const nameField = useRef(null);   // Modal focuses it on open
     // mounted only while open (parent) — no early return before the hooks below
 
     const [state, setState] = useImmer({
@@ -172,16 +173,15 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
     // ── render ───────────────────────────────────────────────────────────────
 
     return (
-        <div className={t.dialogBackdrop} onClick={() => setOpen(false)}>
-            <div className={t.formulaPanel}
-                 onClick={e => e.stopPropagation()}>
+        <Modal open={open} setOpen={setOpen} activeStyle="aboveMenuWide" initialFocus={nameField}>
+            <div className={t.dialogBody}>
 
                 {/* Header */}
                 <div className={t.dialogHeader}>
                     <div className={t.dialogTitle}>Add Formula Column</div>
-                    <div className={t.dialogClose} onClick={() => setOpen(false)}>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
                         <Icon icon="XMark" height={12} width={12} />
-                    </div>
+                    </Button>
                 </div>
 
                 <div className={t.formulaGrid}>
@@ -193,16 +193,16 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
                             <div className={t.formulaLabel}>Operators</div>
                             <div className={t.opsRow}>
                                 {BINARY_OPS.map(({ operation, label }) => (
-                                    <button key={operation}
-                                            className={t.opBtn}
+                                    <Button key={operation}
+                                            activeStyle="action"
                                             onClick={() => addOperation(operation)}>
                                         {label}
-                                    </button>
+                                    </Button>
                                 ))}
-                                <button className={t.opBtn}
-                                        onClick={openParen}>(</button>
-                                <button className={t.opBtn}
-                                        onClick={closeParen}>)</button>
+                                <Button activeStyle="action"
+                                        onClick={openParen}>(</Button>
+                                <Button activeStyle="action"
+                                        onClick={closeParen}>)</Button>
                             </div>
                         </div>
 
@@ -211,24 +211,27 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
                             <div className={t.formulaLabel}>Functions</div>
                             <div className={t.fnRow}>
                                 {FUNCTIONS.map(({ fn, label, note }) => (
-                                    <button key={fn}
+                                    <Button key={fn}
                                             title={note}
-                                            className={t.fnBtn}
+                                            activeStyle="small"
                                             onClick={() => openFunction(fn)}>
                                         {label}
-                                    </button>
+                                    </Button>
                                 ))}
                             </div>
                             <div className={t.roundRow}>
-                                <span className={t.roundLabel}>round decimals:</span>
-                                <input
+                                <FieldLabel activeStyle="row" htmlFor="formula-round" text="round decimals:" />
+                                <span className={t.roundField}>
+                                <Input
+                                    id="formula-round"
+                                    activeStyle="compact"
                                     type="number" min={0} max={10}
-                                    className={t.roundInput}
                                     value={state.roundDecimals}
                                     onChange={e => setState(draft => {
                                         draft.roundDecimals = Math.max(0, parseInt(e.target.value) || 0);
                                     })}
                                 />
+                                </span>
                             </div>
                         </div>
 
@@ -236,18 +239,20 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
                         <div>
                             <div className={t.formulaLabel}>Constant</div>
                             <div className={t.constRow}>
-                                <input
+                                <span className={t.constField}>
+                                <Input
                                     type="number"
-                                    className={t.constInput}
+                                    aria-label="Constant"
                                     placeholder="e.g. 100"
                                     value={state.constantInput}
                                     onChange={e => setState(draft => { draft.constantInput = e.target.value; })}
                                     onKeyDown={e => e.key === 'Enter' && addConstant()}
                                 />
-                                <button className={t.constBtn}
+                                </span>
+                                <Button activeStyle="action"
                                         onClick={addConstant}>
                                     Add
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
@@ -256,14 +261,14 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
                             <div className={t.formulaLabel}>Columns</div>
                             <div className={t.colsList}>
                                 {columns.map(c => (
-                                    <div key={`${c.name}-${c.copyNum}`}
-                                         className={t.colItem}
+                                    <Button key={`${c.name}-${c.copyNum}`}
+                                         activeStyle="menuItem"
                                          onClick={() => addLeaf(
                                              { ...c, type: 'variable', key: c.normalName || c.name, display_name: getColumnLabel(c) },
                                              getColumnLabel(c)
                                          )}>
                                         {getColumnLabel(c)}
-                                    </div>
+                                    </Button>
                                 ))}
                             </div>
                         </div>
@@ -271,8 +276,9 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
 
                     {/* ── Right panel ────────────────────────────────────── */}
                     <div className={t.formulaRight}>
-                        <input
-                            className={t.nameInput}
+                        <Input
+                            aria-label="Formula name"
+                            ref={nameField}
                             placeholder="Formula name..."
                             value={state.display_name}
                             onChange={e => setState(draft => { draft.display_name = e.target.value; })}
@@ -291,22 +297,22 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
                         )}
 
                         <div className={t.formulaActions}>
-                            <button
-                                className={t.formulaClear}
+                            <Button
+                                activeStyle="action"
                                 onClick={handleClear}>
                                 Clear
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                activeStyle="primary"
                                 disabled={!isValid || !state.display_name}
-                                className={isValid && state.display_name ? t.formulaSave : t.formulaSaveDisabled}
                                 onClick={handleSave}>
                                 Add Column
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
@@ -315,15 +321,14 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
 const AddFormulaColumn = ({ columns = [], addFormulaColumn }) => {
     const [open, setOpen] = useState(false);
     const { UI } = useContext(ThemeContext);
-    const { Pill } = UI;
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            {t.addTrigger
-                ? <button type='button' className={t.addTrigger} onClick={() => setOpen(true)}>+ Formula</button>
-                : <Pill text="+ Formula" activeStyle="blue" onClick={() => setOpen(true)} />}
-            {open && <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />}
+            <span className={t.addTriggerWrap}>
+                <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Formula</UI.Button>
+            </span>
+            {open && <FormulaDialog open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />}
         </>
     );
 };

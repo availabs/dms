@@ -10,25 +10,30 @@ export default function SearchButton ({app, type, activeStyle}) {
     const [open, setOpen] = useState(false)
     const { theme: fullTheme = { pages: { searchButton: searchButtonTheme } }, UI } = useContext(ThemeContext);
     const theme = getComponentTheme(fullTheme, 'pages.searchButton', activeStyle);
-    const { Icon } = UI;
+    const { Icon, Button } = UI;
+    // buttonWrap holds the library trigger's layout; a theme whose own classes were lifted into its button style
+    // has it emptied, and then the button sits directly in the nav, exactly where its old raw <button> was.
+    const trigger = (
+        <Button
+            activeStyle={theme?.buttonStyle}
+            onClick={() => setOpen(true)}
+        >
+            <span className={theme?.buttonText}>Search</span>
+
+            <div className={theme?.iconWrapper}>
+                <Icon
+                    icon={theme?.icon}
+                    height={theme?.iconSize}
+                    width={theme?.iconSize}
+                    className={theme?.iconClass}
+                />
+            </div>
+        </Button>
+    );
 
     return (
         <>
-            <button
-                className={theme?.button}
-                onClick={() => setOpen(true)}
-            >
-                <span className={theme?.buttonText}>Search</span>
-
-                <div className={theme?.iconWrapper}>
-                    <Icon
-                        icon={theme?.icon}
-                        height={theme?.iconSize}
-                        width={theme?.iconSize}
-                        className={theme?.iconClass}
-                    />
-                </div>
-            </button>
+            {theme?.buttonWrap ? <div className={theme.buttonWrap}>{trigger}</div> : trigger}
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
         </>
     )

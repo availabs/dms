@@ -32,7 +32,11 @@ export const sectionGroupTheme = {
     // group's `modalSize` (a whitelist, because Tailwind only emits literal classes).
     modalOverlay: 'fixed inset-0 z-50 flex items-center justify-center bg-[var(--t-scrim)] p-4',
     modalCard:    'relative w-full bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg shadow-[var(--t-shadow-drag)] p-4 max-h-[85vh] overflow-y-auto',
-    modalClose:   'sticky float-right top-0 -mb-8 z-10 size-8 inline-flex items-center justify-center rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
+    // modal close = UI.Button named style picked here (2026-10-16). A project theme with its own `modalClose`
+    // classes gets them lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles), which also
+    // empties modalCloseWrap (its own string carried the layout).
+    modalCloseStyle: 'groupModalClose',
+    modalCloseWrap: 'sticky float-right top-0 -mb-8 z-10',
     // The close affordance: an icon-registry glyph, or text when modalCloseIcon is ''.
     modalCloseText: '✕',
     modalCloseIcon: 'XMark',
@@ -45,8 +49,9 @@ export const sectionGroupTheme = {
     // collapseHeader: the full-width row (the band's display name + the icon) a band with
     // no such sections shows instead, so a collapsed band still has something to click.
     // The icon points down when open; collapseIconCollapsed turns it while collapsed.
-    collapseToggle: 'absolute top-3 right-3 z-10 inline-flex items-center justify-center size-7 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer',
-    collapseHeader: 'w-full flex items-center justify-between gap-2 py-2 text-left cursor-pointer',
+    collapseToggleWrap: 'absolute top-3 right-3 z-10',   // holds the collapse UI.Button iconRow (2026-10-16)
+    collapseHeaderCell: 'flex flex-col',   // the full-width title row is a UI.Button 'bare'; this stretches it
+    collapseHeader: 'w-full flex items-center justify-between gap-2 py-2 text-left',   // the row inside that button
     collapseHeaderTitle: 'font-medium text-[var(--t-ink)]',
     collapseIcon: 'CaretDown',
     collapseIconClass: 'size-4 transition-transform',
@@ -59,6 +64,8 @@ export const sectionGroupTheme = {
     navLabelText:  'On this page',     // '' → no label
     navLabel:      't-metaXS text-[var(--t-pencil)] mb-2',
     navList:       'flex flex-col border-l border-[var(--t-rule)]',
-    navItem:       'block w-full text-left -ml-px pl-3 py-1 border-l-2 border-transparent t-proseSM text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer transition-colors',
-    navItemActive: 'block w-full text-left -ml-px pl-3 py-1 border-l-2 border-[var(--t-ink)] t-proseSM font-medium text-[var(--t-ink)] cursor-pointer',
+    // in-page nav rows = UI.Button named styles (2026-10-16): 'navRail' / 'navRailOn' (Button.theme.jsx). A project
+    // theme's own navItem / navItemActive classes are lifted into styles of its own (liftPatternRoles).
+    navItemStyle: 'navRail',
+    navItemActiveStyle: 'navRailOn',
 }

@@ -62,9 +62,9 @@ function SectionGroupControl({
         className={`${currentStyle.sectionTargetWrapper} ${["content", "bottom"].includes(group.id) ? currentStyle.sectionTargetDivider : ``}`}
       >
         <span>{group?.title || group?.id}</span>
-        <button onClick={onAdd} className={currentStyle.addGroupBtn}>
+        <UI.Button activeStyle='linkProse' onClick={onAdd}>
           + Add Group
-        </button>
+        </UI.Button>
       </div>
     );
   }

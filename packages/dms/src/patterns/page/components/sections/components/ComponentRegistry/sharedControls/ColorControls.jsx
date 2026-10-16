@@ -8,7 +8,7 @@ const defaultColorOptions = [
 ];
 export default function ColorControls ({value='#FFFFFF', setValue, title, className, colors}) {
     const {UI, theme: themeFromContext = {}} = useContext(ThemeContext);
-    const {ColorPicker} = UI;
+    const {ColorPicker, Button} = UI;
     // pages.sectionMenu color* keys (were hardcoded bg-white — a white band in dark mode)
     const sm = { ...sectionMenuTheme, ...getComponentTheme(themeFromContext, 'pages.sectionMenu') };
     const [open, setOpen] = useState(false);
@@ -20,12 +20,16 @@ export default function ColorControls ({value='#FFFFFF', setValue, title, classN
     // the swatch looked like it did nothing (2026-10-08, every theme).
     return (
         <div className={sm.colorWrap}>
-            <div className={sm.colorRow} onClick={() => setOpen(!open)}>
-                <label className={sm.colorLabel}>{title}</label>
-                <div id={'background'}
-                     className={sm.colorSwatch}
-                     style={{backgroundColor: value}}
-                />
+            <div className={sm.colorRow}>
+                <span className={sm.colorLabel}>{title}</span>
+                {/* 2026-10-16: the swatch is the picker's trigger (was a clickable row div) */}
+                <Button activeStyle="fieldTrigger" aria-expanded={open} aria-label={typeof title === 'string' ? `${title} colour` : 'Colour'}
+                        onClick={() => setOpen(!open)}>
+                    <span id={'background'}
+                          className={sm.colorSwatch}
+                          style={{backgroundColor: value}}
+                    />
+                </Button>
             </div>
             {
                 open ? (

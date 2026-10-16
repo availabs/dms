@@ -22,11 +22,10 @@ export const sectionTheme = {
       menuPosition: 'absolute top-2 right-2 items-center flex gap-1 z-40',
       // icons in the section menu's action rows (sectionMenu.jsx) — 16px, as on page-edit.html
       menuActionIcon: 'size-4',
-      // action-row buttons (sectionMenu.jsx ActionBtn; 2026-10-13, ui-controls.html Menus): 28px row
-      // icons, save looks like the rest (owner 2026-10-13), "copied" = go. '' (legacy) → the old Pill chips.
-      menuActionBtn: 'size-7 inline-flex items-center justify-center rounded-md text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]',
-      menuActionBtnDone: 'text-[var(--t-go)] hover:text-[var(--t-go)]',
-      menuActionSave: 'size-7 inline-flex items-center justify-center rounded-md text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)] cursor-pointer transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]',   // same as the other icons (owner 2026-10-13: a filled save was too heavy here)
+      // action-row buttons (sectionMenu.jsx ActionBtn): a UI.Button named style — 28px row icons, "copied" =
+      // 'iconRowGo' (2026-10-16; was menuActionBtn / menuActionBtnDone / menuActionSave class strings).
+      // '' (legacy freeze) → the old Pill chips.
+      menuActionStyle: 'iconRow',
       editIcon: 'hover:text-blue-500 size-6',
       contentWrapper: 'h-full',
 
@@ -169,9 +168,7 @@ const themeClasses = {
   "menu": [
     "menuPosition",
     "menuActionIcon",
-    "menuActionBtn",
-    "menuActionBtnDone",
-    "menuActionSave",
+    "menuActionStyle",
     "editIcon",
   ]
 }

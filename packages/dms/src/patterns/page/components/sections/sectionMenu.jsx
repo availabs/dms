@@ -24,7 +24,9 @@ import ColorControls from "./components/ComponentRegistry/sharedControls/ColorCo
  * a short message renders below) or a falsy value to allow it through.
  */
 
-const CommitInput = ({ initialValue = '', onCommit, validate }) => {
+// `activeStyle`: the UI.Input named style ('menu' for the Page Nav Label / Anchor ID rows, 2026-10-16 — were raw
+// <input>s with pages.sectionMenu textInput; project themes keep that underline look via _legacy/ui.js Input 'menu').
+const CommitInput = ({ initialValue = '', onCommit, validate, activeStyle, ...rest }) => {
     const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const sm = { ...sectionMenuTheme, ...getComponentTheme(themeFromContext, 'pages.sectionMenu') };
     const { Input } = UI || {};
@@ -44,6 +46,8 @@ const CommitInput = ({ initialValue = '', onCommit, validate }) => {
     return (
         <>
             <Input
+                {...rest}
+                activeStyle={activeStyle}
                 type="text"
                 value={draft}
                 aria-invalid={!!error}
@@ -1166,11 +1170,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     items: [
                         {
                             name: '',
-                            type: () => <input
-                                className={sm.textInput}
+                            type: () => <CommitInput
+                                activeStyle='menu'
+                                aria-label='Page nav label'
                                 placeholder={'e.g. Compliance snapshot'}
-                                defaultValue={value?.['navLabel'] || ''}
-                                onBlur={(e) => updateAttribute('navLabel', e.target.value)}
+                                initialValue={value?.['navLabel'] || ''}
+                                onCommit={v => updateAttribute('navLabel', v)}
                             />
                         }
                     ]
@@ -1183,11 +1188,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     items: [
                         {
                             name: '',
-                            type: () => <input
-                                className={sm.textInput}
+                            type: () => <CommitInput
+                                activeStyle='menu'
+                                aria-label='Anchor ID'
                                 placeholder={'auto from label'}
-                                defaultValue={value?.['anchorId'] || ''}
-                                onBlur={(e) => updateAttribute('anchorId', e.target.value)}
+                                initialValue={value?.['anchorId'] || ''}
+                                onCommit={v => updateAttribute('anchorId', v)}
                             />
                         }
                     ]
@@ -1216,7 +1222,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Hide Component</label>
+                            <span>Hide Component</span>
                             <Switch
                                 size={'small'}
                                 enabled={value?.['hideInView']}
@@ -1232,7 +1238,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection && Boolean(groupCollapsible),
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Show When Collapsed</label>
+                            <span>Show When Collapsed</span>
                             <Switch
                                 size={'small'}
                                 enabled={value?.['showWhenCollapsed']}
@@ -1324,7 +1330,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection && value?.rowspan > 1,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Float</label>
+                            <span>Float</span>
                             <Switch
                                 size={'small'}
                                 enabled={value?.['sticky']}

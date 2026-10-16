@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react'
-import { CardSection } from './Card'
+import { CardSection, EmptyDefaultLabel } from './Card'
 import { ThemeContext, getComponentTheme } from '../../../../../../ui/useTheme'
 import ColorControls from './sharedControls/ColorControls'
 import columnTypes from '../../../../../../ui/columnTypes'
@@ -431,7 +431,7 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
             // matches the toggle/select/input styling.
             return (
                 <div className="flex flex-col gap-0.5">
-                    <label className="text-xs text-gray-600">Empty Default</label>
+                    <EmptyDefaultLabel />
                     <Edit
                         value={attribute?.blankDefault}
                         onChange={v => setAttribute({ ...attribute, blankDefault: v })}

@@ -9,21 +9,12 @@
 // project theme, so those keep the pre-v3 panes.
 // Controls follow the shared v6 looks (2026-10-13, ui-control-consistency-audit.md; spec
 // design_system_v6/pages/ui-controls.html): fields 32px with a rule-strong hairline and ink focus;
-// buttons = action / ink primary.
+// buttons = UI.Button action / primary; inputs UI.Input (2026-10-16: no raw controls left in the panes).
 const FOCUS = 'focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--t-ink)]';
-const INPUT = 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)] focus:border-[var(--t-ink)]';
-const BTN_BASE = `inline-flex items-center justify-center gap-1.5 rounded-md border whitespace-nowrap cursor-pointer transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${FOCUS}`;
-const BTN = `${BTN_BASE} h-8 px-3 t-proseSM border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
-// the pane's main action — ink (P1, 2026-10-13; was neutral outlined from 2026-10-08)
-const BTN_PRIMARY = `${BTN_BASE} h-8 px-3.5 t-proseSM font-medium border-[var(--t-ink)] bg-[var(--t-ink)] text-[var(--t-paper)] hover:bg-[var(--t-graphite)] hover:border-[var(--t-graphite)]`;
 const EYEBROW = 't-metaXS text-[var(--t-pencil)]';
 
 export const editPanesTheme = {
     // shared bits
-    input: INPUT,
-    textarea: 'w-full px-2.5 py-2 rounded-md border border-transparent bg-[var(--t-well)] t-proseSM text-[var(--t-graphite)] outline-none resize-none hover:border-[var(--t-rule)] focus:bg-[var(--t-panel)] focus:border-[var(--t-ink)] placeholder:text-[var(--t-pencil)]',
-    btn: BTN,
-    btnPrimary: BTN_PRIMARY,
     eyebrow: EYEBROW,
     intro: 't-proseSM text-[var(--t-graphite)] mt-3 mb-3',
     icon: 'size-3.5',
@@ -32,8 +23,6 @@ export const editPanesTheme = {
     settingsWrap: 'flex flex-col w-full',
     identity: 'pt-1 pb-4',
     identityRow: 'flex items-start gap-3',
-    iconTile: 'relative size-11 flex-none rounded-lg border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] bg-[var(--t-well)] text-[var(--t-ink)] flex items-center justify-center cursor-pointer',
-    iconTileActive: 'relative size-11 flex-none rounded-lg border border-[var(--t-ink)] bg-[var(--t-well)] text-[var(--t-ink)] flex items-center justify-center cursor-pointer',
     iconTileIcon: 'size-5',
     identityBody: 'flex-1 min-w-0',
     statusRow: 'flex items-center gap-2 min-w-0',
@@ -41,21 +30,18 @@ export const editPanesTheme = {
     statusPublished: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-go)] bg-[var(--t-go-soft)] rounded px-1.5 py-0.5',
     statusDot: 'size-1.5 rounded-full bg-current',
     parentPath: 't-metaXS text-[var(--t-pencil)] truncate',
-    titleInput: 'w-full bg-transparent t-displaySM text-[var(--t-ink)] outline-none rounded px-1.5 -mx-1.5 py-0.5 hover:bg-[var(--t-well)] focus:bg-[var(--t-panel)] focus:ring-2 focus:ring-[var(--t-rule-strong)]',
     slugRow: 'flex items-center gap-1.5 mt-1 min-w-0',
     slug: 't-metaMD text-[11px] text-[var(--t-pencil)] truncate',
     slugOld: 't-metaMD text-[11px] text-[var(--t-pencil)] line-through truncate',
     slugNew: 't-metaMD text-[11px] text-[var(--t-ink)] truncate',
-    slugCopy: 'text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
     renameRow: 'flex gap-1.5 mt-2',
     description: 'mt-3',
     iconPicker: 'mt-2 p-2 border border-[var(--t-rule)] rounded-lg bg-[var(--t-panel)] shadow-[var(--t-shadow-drag)]',
-    iconSearch: 'flex items-center gap-2 border border-[var(--t-rule)] rounded-md px-2 h-7 mb-2',
-    iconSearchInput: 'flex-1 min-w-0 bg-transparent t-proseXS outline-none placeholder:text-[var(--t-pencil)]',
     iconGrid: 'grid grid-cols-8 gap-1 max-h-48 overflow-y-auto scrollbar-xs',
-    iconBtn: 'size-8 rounded-md flex items-center justify-center text-[var(--t-graphite)] hover:bg-[var(--t-well)] hover:text-[var(--t-ink)] cursor-pointer',
-    iconBtnActive: 'size-8 rounded-md flex items-center justify-center bg-[var(--t-ink)] text-[var(--t-paper)] cursor-pointer',
-    iconNone: 'mt-2 w-full t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] py-1 rounded hover:bg-[var(--t-well)] cursor-pointer',
+    // the icon search field: a UI.Input 'search' with its leading icon (2026-10-16, raw-HTML swap)
+    iconSearchWrap: 'relative mb-2',
+    searchFieldIcon: 'absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5 text-[var(--t-pencil)] pointer-events-none z-10',
+    iconNoneWrap: 'mt-2 flex justify-center',   // the 'no icon' UI.Button linkProse
     // collapsible sections: title · closed-state summary · chevron
     sect: 'border-t border-[var(--t-rule)]',
     sectSummary: 'flex items-center gap-2 py-3 cursor-pointer list-none select-none',
@@ -71,7 +57,9 @@ export const editPanesTheme = {
     code: 't-metaMD text-[11px]',
     // layout choices drawn as tiny pages
     thumbs: 'flex gap-2',
-    thumb: 'flex-1 flex flex-col items-center gap-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
+    // a layout thumb is a UI.Button 'bare' (2026-10-16): the cell takes the row's flex-1, the inner span lays out frame + label
+    thumbCell: 'flex-1 min-w-0 flex flex-col',
+    thumbInner: 'flex flex-col items-center gap-1.5',
     thumbFrame: 'w-full h-12 rounded-md border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] bg-[var(--t-panel)] p-1.5 flex gap-1',
     thumbFrameActive: 'w-full h-12 rounded-md border border-[var(--t-ink)] ring-1 ring-[var(--t-ink)] bg-[var(--t-panel)] p-1.5 flex gap-1',
     thumbNav: 'w-2.5 h-full bg-[var(--t-rule-strong)] opacity-70 rounded-sm',
@@ -90,18 +78,18 @@ export const editPanesTheme = {
     filtersWrap: 'flex flex-col w-full pb-4',
     filterList: 'border border-[var(--t-rule)] rounded-lg overflow-hidden',
     filterRow: 'border-t border-[var(--t-rule)] first:border-t-0',
-    filterSummary: 'w-full flex items-center gap-2 px-3 py-2.5 cursor-pointer text-left',
+    filterSummaryCell: 'flex flex-col',   // holds the summary row's UI.Button 'bare' at full width (2026-10-16)
+    filterSummary: 'w-full flex items-center gap-2 px-3 py-2.5 text-left',   // the row inside that button
     filterKey: 't-metaMD text-[var(--t-ink)] truncate',
     filterChip: 'inline-flex items-center gap-1 h-[18px] t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded px-1.5 whitespace-nowrap',   // marker (2026-10-13)
     filterValue: 'flex-1 min-w-0 truncate text-right t-metaMD text-[12px] text-[var(--t-graphite)]',
     filterBody: 'px-3 pb-3 pt-3 flex flex-col gap-2.5 bg-[var(--t-well)] border-t border-[var(--t-rule)]',
-    filterRemove: 'self-end inline-flex items-center gap-1 t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-brick)] cursor-pointer',
+    filterRemoveWrap: 'self-end',   // 'remove filter' = UI.Button linkMetaDanger
     filterEmpty: 'border border-dashed border-[var(--t-rule-strong)] rounded-lg px-4 py-6 text-center t-proseSM text-[var(--t-graphite)]',
-    filterAddBtn: `mt-2 self-start inline-flex items-center gap-1 rounded-sm t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer ${FOCUS}`,   // prose link (2026-10-13)
+    filterAddWrap: 'mt-2 self-start',   // 'add filter' = UI.Button linkProse
     filterAddForm: 'mt-2 border border-[var(--t-ink)] rounded-lg p-3 flex flex-col gap-2',
-    filterClear: `mt-3 self-start rounded-sm t-proseXS text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer ${FOCUS}`,
+    filterClearWrap: 'mt-3 self-start',   // 'remove all filters' = UI.Button linkMetaDanger
     field: 'block',
-    fieldLabel: 'block t-metaXS text-[var(--t-pencil)] mb-1',
     grid2: 'grid grid-cols-2 gap-2',
     autoVars: 'mt-4 pt-3 border-t border-[var(--t-rule)] flex flex-col gap-1',
     autoVarsTitle: 't-proseXS font-medium text-[var(--t-graphite)]',
@@ -118,9 +106,7 @@ export const editPanesTheme = {
     // ── Pages ── (gate: pagesWrap)
     pagesWrap: 'flex flex-col w-full pb-4',
     pagesBar: 'flex items-center gap-2 mt-1 mb-2',
-    pagesFind: 'flex-1 min-w-0 flex items-center gap-2 border border-[var(--t-rule-strong)] rounded-md px-2.5 h-8 focus-within:border-[var(--t-ink)]',
-    pagesFindInput: 'flex-1 min-w-0 bg-transparent t-proseSM text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)]',
-    pagesFindIcon: 'size-3.5 text-[var(--t-pencil)]',
+    pagesFind: 'relative flex-1 min-w-0',   // holds the UI.Input 'search' + its icon (searchFieldIcon), 2026-10-16
     pagesTree: 'max-w-full',
     pagesTreeList: 'pt-1',
     pagesTreeStyle: 'indent',             // nestableInHouse style: sub-pages indented, no left rule
@@ -128,7 +114,6 @@ export const editPanesTheme = {
     pageRowActive: 'group/p flex items-center gap-1 pr-1 py-1 rounded-md bg-[var(--t-well)]',
     pageLink: 'flex-1 min-w-0 truncate t-proseSM text-[var(--t-ink)]',
     pageLinkActive: 'flex-1 min-w-0 truncate t-proseSM font-medium text-[var(--t-ink)]',
-    pageCaret: 'size-5 inline-flex items-center justify-center text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer',
     pageCaretIcon: 'size-3.5',
     pageCaretSpacer: 'w-5 shrink-0',
     pageMarks: 'flex items-center gap-1.5',
@@ -141,13 +126,14 @@ export const editPanesTheme = {
     pagesNoMatch: 'px-2 py-3 t-proseSM text-[var(--t-pencil)]',
     pageIndent: 14,                       // px per level
     // row actions: rename dialog (delete uses UI.DeleteModal)
+    // the rename dialog's body inside UI.Modal (its positioner centres text)
+    modalBody: 'text-left',
     modalTitle: 't-displaySM text-[var(--t-ink)] mb-3',
     modalActions: 'flex justify-end gap-2 mt-5',
 
     // ── History ── (gate: historyWrap)
     historyWrap: 'flex flex-col w-full pb-4',
     composer: 'mt-1 border border-[var(--t-rule)] rounded-lg focus-within:border-[var(--t-ink)]',
-    composerInput: 'w-full bg-transparent px-3 pt-2.5 t-proseSM text-[var(--t-ink)] outline-none resize-none placeholder:text-[var(--t-pencil)]',
     composerBar: 'flex items-center gap-2 px-2 pb-2',
     composerHint: 't-proseXS text-[var(--t-pencil)] flex-1',
     historyFilter: 'mt-3',

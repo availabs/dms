@@ -1,22 +1,24 @@
-import React from "react";
+import React, { useContext } from "react";
 import { humanLabel } from "../../../utils/timeFilter";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
 
-const ChipPill = ({ icon, text, onRemove, t }) => (
-    <span className={t.chip}>
-        <span className={t.chipIcon}>{icon}</span>
-        <span>{text}</span>
-        {onRemove && (
-            <button
-                type="button"
-                className={t.chipRemoveButton}
-                onClick={onRemove}
-                aria-label="Remove constraint"
-            >
-                ✕
-            </button>
-        )}
-    </span>
+// One active constraint: a Pill 'tag' with the axis icon (a theme key naming a UI.Icon; '' → none) and a remove button.
+const ChipPill = ({ icon, text, onRemove, t, UI }) => (
+    <UI.Pill
+        activeStyle="tag"
+        text={
+            <>
+                {icon ? <UI.Icon icon={icon} className={t.chipIcon} /> : null}
+                <span>{text}</span>
+                {onRemove && (
+                    <UI.Button activeStyle="iconInlineDanger" onClick={onRemove} aria-label={`Remove ${text}`} title="Remove constraint">
+                        <UI.Icon icon="XMark" className={t.chipRemoveIcon} />
+                    </UI.Button>
+                )}
+            </>
+        }
+    />
 );
 
 const formatRangeChip = (ranges) => humanLabel({ ranges });
@@ -25,7 +27,8 @@ const formatTodChip = (tod) =>
     tod && tod.start && tod.end ? `${tod.start}–${tod.end}` : '';
 
 export const Chips = ({ value, onChange }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
     if (!value || typeof value !== 'object') return null;
 
     const remove = (axis) => () => {
@@ -40,19 +43,24 @@ export const Chips = ({ value, onChange }) => {
 
     if (Array.isArray(value.ranges) && value.ranges.length) {
         const text = formatRangeChip(value.ranges);
-        if (text) chips.push(<ChipPill key="r" icon="⏱" text={text} onRemove={remove('ranges')} t={t} />);
+        if (text) chips.push(<ChipPill key="r" icon={t.rangeChipIcon} text={text} onRemove={remove('ranges')} t={t} UI={UI} />);
     }
     if (Array.isArray(value.dow) && value.dow.length) {
         const text = formatDowChip(value.dow);
-        if (text) chips.push(<ChipPill key="d" icon="📅" text={text} onRemove={remove('dow')} t={t} />);
+        if (text) chips.push(<ChipPill key="d" icon={t.dowChipIcon} text={text} onRemove={remove('dow')} t={t} UI={UI} />);
     }
     if (value.timeOfDay && value.timeOfDay.start && value.timeOfDay.end) {
         const text = formatTodChip(value.timeOfDay);
-        if (text) chips.push(<ChipPill key="t" icon="🕐" text={text} onRemove={remove('timeOfDay')} t={t} />);
+        if (text) chips.push(<ChipPill key="t" icon={t.todChipIcon} text={text} onRemove={remove('timeOfDay')} t={t} UI={UI} />);
     }
 
     if (!chips.length) return null;
-    return <div className={t.chipWrapper}>{chips}</div>;
+    return (
+        <>
+            {t.chipsLabel ? <div className={t.chipsLabel}>Active</div> : null}
+            <div className={t.chipWrapper}>{chips}</div>
+        </>
+    );
 };
 
 export default Chips;

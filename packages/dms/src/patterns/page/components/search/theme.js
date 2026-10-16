@@ -8,8 +8,11 @@ export const searchButtonTheme = {
   },
   "styles": [{
     "name": "default",
-    // Button container — icon first (order-first), then "Search"
-    "button": "flex items-center gap-2 h-8 mx-3 mt-4 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] hover:border-[var(--t-rule-strong)] transition-colors cursor-pointer",
+    // The trigger is a UI.Button named style (2026-10-16, raw-HTML pass): 'searchTrigger' in Button.theme.jsx — icon
+    // first (order-first), then "Search". Its layout (margins) sits on buttonWrap. A project theme's own `button`
+    // classes are lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles; buttonWrap emptied).
+    "buttonStyle": "searchTrigger",
+    "buttonWrap": "flex flex-col mx-3 mt-4",   // flex-col: the trigger fills the nav width, as the old raw button did
     // Button text
     "buttonText": "flex-1 text-left t-proseSM text-[var(--t-pencil)]",
     // Icon wrapper
@@ -117,9 +120,14 @@ export const searchButtonSettings = (theme) => {
           path: `pages.searchButton.options.activeStyle`,
         },
         {
-          label: 'button',
+          label: 'button style (a Button named style)',
           type: 'Textarea',
-          path: `pages.searchButton.styles[${activeStyle}].button`
+          path: `pages.searchButton.styles[${activeStyle}].buttonStyle`
+        },
+        {
+          label: 'buttonWrap',
+          type: 'Textarea',
+          path: `pages.searchButton.styles[${activeStyle}].buttonWrap`
         },
         {
           label: 'buttonText',

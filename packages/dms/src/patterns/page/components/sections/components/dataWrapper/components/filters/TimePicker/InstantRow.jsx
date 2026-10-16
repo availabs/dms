@@ -1,6 +1,10 @@
-import React from "react";
+import React, { useContext } from "react";
 import { isTimeColumnType } from "../../../utils/timeFilter";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
+
+// UI.Select can't hold '' as an option value: the "no end column" option uses this sentinel
+const NO_END = '__none__';
 
 const hasInstant = (value) =>
     Array.isArray(value?.ranges) && value.ranges.some(r => r && r.kind === 'instant');
@@ -16,7 +20,8 @@ const aliasOf = (name) => {
 };
 
 export const InstantRow = ({ value, onChange, columns = [], startCol }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
     const on = hasInstant(value);
     const compareEnd = value?.compareEnd || '';
 
@@ -53,44 +58,36 @@ export const InstantRow = ({ value, onChange, columns = [], startCol }) => {
     return (
         <div className={t.instantContainer}>
             <div className={t.rowHeader}>
-                <label className={t.rowLabel}>Currently happening</label>
-                <span className={t.rowSummary}>
+                <div className={t.rowLabel}>Currently happening</div>
+                <span className={on ? t.rowSummary : t.rowSummaryAny}>
                     {on ? (compareEnd ? `now (vs ${compareEnd})` : 'now') : 'Off'}
                 </span>
             </div>
 
             <div className={t.rowEditor}>
-                <button
-                    type="button"
-                    role="switch"
-                    aria-checked={on}
-                    onClick={() => setOn(!on)}
-                    className={on ? t.instantSwitchOn : t.instantSwitchOff}
-                >
-                    <span className={on ? t.instantSwitchKnobOn : t.instantSwitchKnobOff} />
-                </button>
+                <UI.Switch size="small" enabled={on} setEnabled={setOn} label="Currently happening" />
 
                 {on && (
                     <>
-                        <label className={t.instantHintLabel}>End column:</label>
-                        <select
-                            className={t.instantSelect}
-                            value={compareEnd}
-                            onChange={e => setCompareEnd(e.target.value)}
-                            disabled={!eligibleEndColumns.length}
-                        >
-                            <option value="">(none — match rows already started)</option>
-                            {eligibleEndColumns.map(({ alias, label }) => (
-                                <option key={alias} value={alias}>{label}</option>
-                            ))}
-                        </select>
+                        <span className={t.instantHintLabel}>end column</span>
+                        <span className={t.instantSelectWrap}>
+                            <UI.Select
+                                value={compareEnd || NO_END}
+                                options={[
+                                    { value: NO_END, label: '(none: rows already started)' },
+                                    ...eligibleEndColumns.map(({ alias, label }) => ({ value: alias, label })),
+                                ]}
+                                onChange={v => setCompareEnd(v === NO_END ? '' : v)}
+                                disabled={!eligibleEndColumns.length}
+                            />
+                        </span>
                     </>
                 )}
             </div>
 
             {on && !eligibleEndColumns.length && (
                 <span className={t.instantHelpText}>
-                    No other temporal columns available for an end-column comparison. The leaf will match rows whose start ≤ now.
+                    No other date or time columns to compare against, so this matches rows whose start is before now.
                 </span>
             )}
         </div>

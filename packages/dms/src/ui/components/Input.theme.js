@@ -44,6 +44,22 @@ export const inputTheme = {
       name: 'headerFilter',
       input: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded px-2 py-1 text-xs text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] outline-none focus:border-[var(--t-rule-strong)] w-32',
     },
+    // 2026-10-16 (page-pattern raw-HTML pass): strings copied from the default theme's pattern keys
+    // the settings pane's inline page title (editPanes.titleInput): display-size, a field only on hover / focus
+    {
+      name: 'title',
+      input: 'w-full bg-transparent t-displaySM text-[var(--t-ink)] outline-none rounded px-1.5 -mx-1.5 py-0.5 hover:bg-[var(--t-well)] focus:bg-[var(--t-panel)] focus:ring-2 focus:ring-[var(--t-rule-strong)]',
+    },
+    // a field inside the section menu (sectionMenu.textInput); project themes keep their underline field (_legacy/ui.js)
+    {
+      name: 'menu',
+      input: 'w-full h-8 px-2.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-ink)] placeholder:text-[var(--t-pencil)]',
+    },
+    // 'bare' that keeps its container's font size (no text-sm)
+    {
+      name: 'bareInherit',
+      input: 'w-full min-w-0 bg-transparent placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
+    },
   ],
 }
 

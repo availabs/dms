@@ -21,15 +21,14 @@ export const editPaneTheme = {
     spacer: 'hidden',                                 // pre-v6: 'flex-1' (fixed 500px bar)
     publishSlot: 'flex items-center',
 
-    // PublishButton — '' publishBtn → UI.Button (pre-v6)
+    // PublishButton — '' publishBtnStyle → UI.Button (pre-v6)
     publishWrapper: 'flex items-center gap-1',
     // draft / published marker before the buttons ('' → not rendered)
     publishStatus: 'inline-flex items-center gap-1.5 px-1.5 t-metaXS text-[var(--t-chalk-dim)] whitespace-nowrap',
     publishStatusDotDraft: 'size-1.5 rounded-full bg-[var(--t-amber)]',
     publishStatusDotPublished: 'size-1.5 rounded-full bg-[var(--t-go)]',
-    discardBtn: 'h-9 px-3 rounded-lg t-proseSM text-[var(--t-chalk)] hover:bg-[var(--t-board-2)] cursor-pointer whitespace-nowrap',
-    publishBtn: 'h-9 px-4 rounded-lg t-proseSM font-medium text-[var(--t-board)] bg-[var(--t-chalk)] hover:opacity-90 cursor-pointer whitespace-nowrap',
-    publishBtnDisabled: 'h-9 px-4 rounded-lg t-proseSM text-[var(--t-chalk-dim)] border border-[var(--t-board-2)] cursor-not-allowed whitespace-nowrap',
+    discardBtnStyle: 'boardGhost',     // UI.Button named styles on the dark bar (2026-10-16; disabled look is in the role)
+    publishBtnStyle: 'boardPrimary',
 
     // LoadingDisplay — the busy indicator
     busy: 'fixed bottom-20 right-4 z-40 inline-flex items-center gap-2 bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-full shadow-[var(--t-shadow-lift)] px-3 py-1.5',

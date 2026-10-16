@@ -7,10 +7,12 @@ import { useScrollSpy } from '../../../../ui/components/useScrollSpy'
  * InPageNav — the "on this page" rail nav, rendered entirely from the
  * `pages.sectionGroup` pattern theme (no UI.SideNav). Each menu item carries an
  * `anchorId` + an `onClick` that scrolls to it (built by `getInPageNav`); the
- * scroll-spy hook highlights the section currently in view.
+ * scroll-spy hook highlights the section currently in view. Rows are UI.Button named styles picked by
+ * navItemStyle / navItemActiveStyle (2026-10-16; project themes' own navItem looks are lifted into styles of
+ * their own — src/themes/_legacy/ui.js liftPatternRoles).
  */
 export default function InPageNav({ menuItems = [] }) {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {}
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {}
     const t = { ...sectionGroupTheme, ...getComponentTheme(themeFromContext, 'pages.sectionGroup') }
 
     const anchorIds = menuItems.map(m => m.anchorId).filter(Boolean)
@@ -26,13 +28,13 @@ export default function InPageNav({ menuItems = [] }) {
                     const isActive = item.anchorId && item.anchorId === activeId
                     return (
                         <li key={i}>
-                            <button
-                                type="button"
-                                className={isActive ? t.navItemActive : t.navItem}
+                            <UI.Button
+                                activeStyle={isActive ? t.navItemActiveStyle : t.navItemStyle}
+                                aria-current={isActive ? 'location' : undefined}
                                 onClick={item.onClick}
                             >
                                 {item.name}
-                            </button>
+                            </UI.Button>
                         </li>
                     )
                 })}

@@ -45,9 +45,9 @@ function ErrorPage({baseUrl = ''}) {
                     <div className={t.page}>
                         <section className={t.card}>
                             <PageStatePanel icon="Alert" tone="brick" title={t.title} text={MESSAGE}>
-                                <button type="button" className={t.actionBtn} onClick={() => navigate(0)}>
+                                <UI.Button activeStyle="action" onClick={() => navigate(0)}>
                                     {Icon ? <Icon icon="Refresh" className={t.actionIcon}/> : null}Try again
-                                </button>
+                                </UI.Button>
                                 <Link to={baseUrl || '/'} className={t.actionBtn}>Go to home</Link>
                             </PageStatePanel>
                         </section>

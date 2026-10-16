@@ -1,13 +1,14 @@
-import React, {useContext, useState} from "react";
+import React, {useContext, useRef, useState} from "react";
 import { useImmer } from "use-immer";
 import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { columnManagerTheme } from "./ColumnManager.theme";
 
-const Modal = ({ open, setOpen, columns, addCalculatedColumn }) => {
+const CalculatedDialog = ({ open, setOpen, columns, addCalculatedColumn }) => {
   const { UI } = useContext(ThemeContext);
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
-    const {Icon} = UI;
+    const {Icon, Button, Textarea, Modal} = UI;
+    const sqlField = useRef(null);   // Modal focuses it on open
     // mounted only while open (parent) — no early return before the hooks below
     const [state, setState] = useImmer({
      type: 'calculated',
@@ -22,52 +23,47 @@ const Modal = ({ open, setOpen, columns, addCalculatedColumn }) => {
     const isValidSql = true;
 
     return (
-        <div className={t.dialogBackdrop} onClick={() => setOpen(false)}>
-            <div className={t.dialogPanel} onClick={(e) => e.stopPropagation()}>
-                <div className={t.dialogCloseRow}>
-                    <div className={t.dialogClose} onClick={() => setOpen(false)}>
-                        <Icon icon={'XMark'} height={12} width={12} />
-                    </div>
-                </div>
-
+        <Modal open={open} setOpen={setOpen} activeStyle="aboveMenu" initialFocus={sqlField}>
+            <div className={t.dialogBody}>
                 <div className={t.dialogHeader}>
                     <div className={t.dialogTitle}>Add Calculated Column</div>
-                    {t.dialogCloseRow === 'hidden' ? <div className={t.dialogClose} onClick={() => setOpen(false)}><Icon icon={'XMark'} height={12} width={12} /></div> : null}
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
+                        <Icon icon={'XMark'} height={12} width={12} />
+                    </Button>
                 </div>
                     <div className={t.calcBody}>
-                        <textarea className={t.calcTextarea} placeholder={'Please enter sql...'} value={state.name} onChange={e => setState(draft => {draft.name = e.target.value})}/>
+                        <Textarea activeStyle="mono" rows={6} aria-label="SQL" ref={sqlField} placeholder={'Please enter sql...'} value={state.name || ''} onChange={e => setState(draft => {draft.name = e.target.value})}/>
                         <div className={t.dialogActions}>
                             {/* Clear Button */}
-                            <button className={t.clearBtn} onClick={() => {
+                            <Button activeStyle="action" onClick={() => {
                                 setState(draft => {
                                     draft.name = '';
                                 })
                             }}>
                                 Clear
-                            </button>
+                            </Button>
                             {/* Save Button */}
-                            <button disabled={!isValidSql} className={isValidSql ? t.saveBtn : t.saveBtnDisabled} onClick={handleSave}>
+                            <Button activeStyle="primary" disabled={!isValidSql} onClick={handleSave}>
                                 Add
-                            </button>
+                            </Button>
                         </div>
                     </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
 const AddCalculatedColumn = ({columns=[], addCalculatedColumn}) => {
     const [open, setOpen] = useState(false);
     const {UI} = useContext(ThemeContext);
-    const {Pill} = UI;
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            {t.addTrigger
-                ? <button type='button' className={t.addTrigger} onClick={() => setOpen(true)}>+ Calculated</button>
-                : <Pill text={'+ Calculated'} activeStyle={'blue'} onClick={() => setOpen(true)}/>}
-            {open && <Modal open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>}
+            <span className={t.addTriggerWrap}>
+                <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Calculated</UI.Button>
+            </span>
+            {open && <CalculatedDialog open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>}
         </>
     )
 }

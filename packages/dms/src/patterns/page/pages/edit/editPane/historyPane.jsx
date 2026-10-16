@@ -49,7 +49,7 @@ function classNames(...classes) {
 
 function HistoryList({history, onChange}) {
     const {UI} = useContext(ThemeContext);
-    const {Icon} = UI;
+    const {Icon, Input, Button} = UI;
   const [comment, setComment] = useState('');
   return (
     <>
@@ -67,17 +67,20 @@ function HistoryList({history, onChange}) {
             <div className="relative flex h-6 w-6 flex-none items-center justify-center bg-[var(--t-panel)]">
               <Icon icon={'Add'} width={10} height={10} className={'text-[var(--t-pencil)] hover:text-[var(--t-graphite)] cursor-pointer'} />
             </div>
-            <input className="flex-auto py-0.5 text-xs leading-5 text-[var(--t-graphite)] rounded-md"
-                   type={'text'}
-                   placeholder={'add a comment'}
-                   value={comment}
-                   onChange={e => setComment(e.target.value)}
-            />
+            <span className="flex-auto min-w-0 py-0.5">
+              <Input activeStyle='bare'
+                     type={'text'}
+                     aria-label='Add a comment'
+                     placeholder={'add a comment'}
+                     value={comment}
+                     onChange={e => setComment(e.target.value)}
+              />
+            </span>
             {
-              comment?.length ? <button className={'p-1 rounded-md bg-blue-300 hover:bg-blue-600 text-white'} onClick={() => {
+              comment?.length ? <Button activeStyle='small' onClick={() => {
                 onChange(`commented: ${comment}`)
                 setComment('')
-              }} >add</button> : null
+              }} >add</Button> : null
             }
           </>
         </li>
@@ -140,7 +143,7 @@ const dayBucket = (time) => {
 
 function HistoryV3({ t, history, onChange }) {
   const { UI } = useContext(ThemeContext)
-  const { Icon, ButtonSelect } = UI
+  const { Icon, ButtonSelect, Button, Textarea } = UI
   const [comment, setComment] = useState('')
   const [show, setShow] = useState('all')
   const entries = [...history]
@@ -159,12 +162,12 @@ function HistoryV3({ t, history, onChange }) {
   return (
     <div className={t.historyWrap}>
       <div className={t.composer}>
-        <textarea rows={2} className={t.composerInput} placeholder='Leave a note for other editors…' value={comment}
+        <Textarea activeStyle='bare' rows={2} aria-label='Leave a note for other editors' placeholder='Leave a note for other editors…' value={comment}
                   onChange={e => setComment(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) submit() }} />
         <div className={t.composerBar}>
           <span className={t.composerHint}>Shows in this page’s history</span>
-          <button type='button' className={t.btnPrimary} disabled={!comment.trim()} onClick={submit}>Comment</button>
+          <Button activeStyle='primary' disabled={!comment.trim()} onClick={submit}>Comment</Button>
         </div>
       </div>
       <div className={t.historyFilter}>

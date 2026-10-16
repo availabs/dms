@@ -226,7 +226,9 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
     return {options, loading};
 };
 
-export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = [], activeStyle}) => {
+// `timePickerMode`: 'author' (the section's filter editor — every axis + the exposure footer) or 'viewer' (the
+// page's external filters — only the axes the author exposed, no footer).
+export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = [], activeStyle, timePickerMode = 'author'}) => {
     const {UI, theme: themeFromContext = {}} = useContext(ThemeContext) || {};
     const {ColumnTypes} = UI;
     const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
@@ -277,6 +279,7 @@ export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, sibl
                 onChange={handleTimeChange}
                 columns={columns}
                 startCol={node.col}
+                mode={timePickerMode}
             />
         );
     }

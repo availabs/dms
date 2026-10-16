@@ -24,5 +24,15 @@ export const textareaTheme = {
       name: 'readonly',
       textarea: 'w-full px-2.5 py-2 rounded-md border-0 bg-[var(--t-well)] t-metaSM font-mono text-[var(--t-ink)] outline-none resize-y min-h-[6rem]',
     },
+    // 2026-10-16 (page-pattern pass): the settings pane's description (editPanes.textarea): well fill, border on hover
+    {
+      name: 'quiet',
+      textarea: 'w-full px-2.5 py-2 rounded-md border border-transparent bg-[var(--t-well)] t-proseSM text-[var(--t-graphite)] outline-none resize-none hover:border-[var(--t-rule)] focus:bg-[var(--t-panel)] focus:border-[var(--t-ink)] placeholder:text-[var(--t-pencil)]',
+    },
+    // a borderless textarea inside its own styled box (history pane composer, editPanes.composerInput)
+    {
+      name: 'bare',
+      textarea: 'w-full bg-transparent px-3 pt-2.5 t-proseSM text-[var(--t-ink)] outline-none resize-none placeholder:text-[var(--t-pencil)]',
+    },
   ],
 }

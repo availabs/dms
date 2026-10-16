@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import DraggableList from "../../../../ui/components/DraggableList";
-import Input from "../../../../ui/components/Input";
 import columnTypes from "../../../../ui/columnTypes";
 import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
@@ -12,7 +11,8 @@ import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
 import { columnManagerTheme } from "./ColumnManager.theme";
 
 const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const { Input } = UI;
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
     const [pickerSearch, setPickerSearch] = useState('');
@@ -136,14 +136,15 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
     );
 };
 
-const renderControl = (control, columnData, onUpdate, { Switch, dwAPI, t }) => {
+const renderControl = (control, columnData, onUpdate, { Switch, dwAPI, t, UI }) => {
+    const { FieldLabel, Input } = UI;
     if (typeof control.displayCdn === 'function' && !control.displayCdn({ display: dwAPI.state?.display, attribute: columnData })) return null;
     const isDisabled = typeof control.disabled === 'function' ? control.disabled({ attribute: columnData }) : control.disabled;
 
     if (control.type === 'toggle') {
         return (
             <div key={control.key} className={t.controlRow}>
-                <label className={t.controlLabel}>{control.label}</label>
+                <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" text={control.label} /></div>
                 <Switch
                     size="small"
                     enabled={!!columnData[control.key]}
@@ -159,7 +160,7 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI, t }) => {
         const filteredOptions = (control.options || []).filter(opt => typeof opt.displayCdn !== 'function' || opt.displayCdn({ display: dwAPI.state?.display, attribute: columnData }));
         return SelectComp ? (
             <div key={control.key} className={t.controlRow}>
-                <label className={t.controlLabel}>{control.label}</label>
+                <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" text={control.label} /></div>
                 <SelectComp
                     value={columnData[control.key]}
                     options={filteredOptions}
@@ -188,8 +189,9 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI, t }) => {
     if (control.type === 'input') {
         return (
             <div key={control.key} className={t.controlRow}>
-                <label className={t.controlLabel}>{control.label}</label>
+                <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" htmlFor={`cm-${control.key}`} text={control.label} /></div>
                 <Input
+                    id={`cm-${control.key}`}
                     value={columnData[control.key] || ''}
                     onChange={e => onUpdate(control.key, e.target.value, control.onChange)}
                 />
@@ -201,7 +203,8 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI, t }) => {
 };
 
 const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta }) => {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const { Button, FieldLabel, Input } = UI;
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const label = getColumnLabel(column);
     const onUpdate = useCallback((key, value, onChange) =>
@@ -216,13 +219,13 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                 </div>
                 <div className={t.rowIcons}>
                     {isOutOfDate && (
-                        <button
-                            className={t.staleBtn}
+                        <Button
+                            activeStyle="iconInlineWarn"
                             title="Metadata out of date"
                             onClick={onRefreshMeta}
                         >
                             <Icon icon="Alert" className={t.icon} />
-                        </button>
+                        </Button>
                     )}
                     {column.fn && (
                         <span className={t.fnBadge} title={column.fn}>
@@ -235,34 +238,37 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                             } className={t.fnIcon} />
                         </span>
                     )}
-                    <button className={`${t.toggleBtn} ${column.group ? t.toggleOn : t.toggleOff}`}
+                    <Button activeStyle={column.group ? 'iconInlineOn' : 'iconInline'}
                             title={column.group ? 'Grouping By' : 'Group By'}
+                            aria-pressed={!!column.group}
                             onClick={() => dwAPI.updateColumn(column, 'group', !column.group)}
                     >
                             <Icon icon="Group" className={t.icon} />
-                    </button>
-                    <button
-                        className={`${t.toggleBtn} ${column.show ? t.toggleOn : t.toggleOff}`}
+                    </Button>
+                    <Button
+                        activeStyle={column.show ? 'iconInlineOn' : 'iconInline'}
                         onClick={() => dwAPI.updateColumn(column, 'show', !column.show)}
                         title={column.show ? 'Hide' : 'Show'}
                     >
                         <Icon icon={column.show ? 'Eye' : 'EyeClosed'} className={t.icon} />
-                    </button>
-                    <button
-                        className={t.expandBtn}
+                    </Button>
+                    <Button
+                        activeStyle="iconInline"
                         onClick={onToggleExpand}
                         title="Settings"
+                        aria-expanded={!!isExpanded}
                     >
                         <Icon icon="CaretDown" className={t.icon} />
-                    </button>
+                    </Button>
                 </div>
             </div>
             {isExpanded && (
                 <div className={t.expanded} draggable={false}>
                     <div className={t.colName}>{column.name}</div>
                     <div className={t.controlRow}>
-                        <label className={t.controlLabel}>Name</label>
+                        <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" htmlFor={`cm-name-${index}`} text="Name" /></div>
                         <Input
+                            id={`cm-name-${index}`}
                             value={getColumnLabel(column)}
                             onChange={e => dwAPI.updateColumn(column, 'customName', e.target.value)}
                         />
@@ -272,7 +278,7 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                         // ...(resolvedControls?.inHeader || [])
                     ]
                         .filter(c => !c.hideFromSectionMenu)
-                        .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI, t }))}
+                        .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI, t, UI }))}
                     <div className={t.pillRow}>
                         <Pill text="Duplicate" activeStyle="blue" onClick={() => dwAPI.duplicateColumn(column)} />
                         <Pill text="Remove" activeStyle="orange" onClick={() => dwAPI.resetColumn(column)} />
@@ -287,7 +293,8 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
 };
 
 const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const { Button } = UI;
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const columns = dwAPI.config.columns || [];
 
@@ -313,20 +320,21 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
                     <span className={t.rowLabelStrong}>All Columns</span>
                 </div>
                 <div className={t.rowIcons}>
-                    <button
-                        className={`${t.toggleBtn} ${isEveryColVisible ? t.toggleOn : t.toggleOff}`}
+                    <Button
+                        activeStyle={isEveryColVisible ? 'iconInlineOn' : 'iconInline'}
                         onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                         title={isEveryColVisible ? 'Hide All' : 'Show All'}
                     >
                         <Icon icon={isEveryColVisible ? 'Eye' : 'EyeClosed'} className={t.icon} />
-                    </button>
-                    <button
-                        className={t.expandBtn}
+                    </Button>
+                    <Button
+                        activeStyle="iconInline"
                         onClick={onToggleExpand}
                         title="Settings"
+                        aria-expanded={!!isExpanded}
                     >
                         <Icon icon="CaretDown" className={t.icon} />
-                    </button>
+                    </Button>
                 </div>
             </div>
             {isExpanded && (
@@ -336,7 +344,7 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
                         ...(resolvedControls?.inHeader || [])
                     ]
                         .filter(c => !c.hideFromSectionMenu)
-                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI, t }))}
+                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI, t, UI }))}
                     <div className={t.pillRow}>
                         <Pill text="Remove All" activeStyle="orange" onClick={() => dwAPI.resetAllColumns()} />
                     </div>
@@ -347,7 +355,7 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
 };
 
 export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
-    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const { config: { columns: stateColumns, externalSource }, setState } = dwAPI;
     const [stagedColumns, setStagedColumns] = useState([]);
@@ -526,13 +534,13 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
                                         <Icon icon="Reorder" className={t.grip} />
                                         <span className={t.rowLabel}>{item.column.display_name || item.column.name}</span>
                                     </div>
-                                    <button
-                                        className={`${t.toggleBtn} ${item.column.show ? t.toggleOn : t.toggleOff}`}
+                                    <UI.Button
+                                        activeStyle={item.column.show ? 'iconInlineOn' : 'iconInline'}
                                         onClick={() => dwAPI.updateColumn(item.column, 'show', !item.column.show)}
                                         title={item.column.show ? 'Hide' : 'Show'}
                                     >
                                         <Icon icon={item.column.show ? 'Eye' : 'EyeClosed'} className={t.icon} />
-                                    </button>
+                                    </UI.Button>
                                 </div>
                             </div>
                         )}

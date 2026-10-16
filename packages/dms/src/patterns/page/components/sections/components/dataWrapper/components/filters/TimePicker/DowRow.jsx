@@ -1,5 +1,6 @@
-import React from "react";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import React, { useContext } from "react";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
 
 const DAYS = [
     { idx: 0, abbr: 'S', label: 'Sun' },
@@ -29,7 +30,8 @@ const summarize = (dow) => {
 };
 
 export const DowRow = ({ value, onChange }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
     const dow = Array.isArray(value?.dow) ? value.dow : [];
     const has = (i) => dow.includes(i);
 
@@ -51,50 +53,45 @@ export const DowRow = ({ value, onChange }) => {
     return (
         <div className={t.dowContainer}>
             <div className={t.rowHeader}>
-                <label className={t.rowLabel}>Day</label>
-                <span className={t.rowSummary}>{summarize(dow)}</span>
+                <div className={t.rowLabel}>Day</div>
+                <span className={dow.length ? t.rowSummary : t.rowSummaryAny}>{summarize(dow)}</span>
             </div>
 
             <div className={t.rowEditor}>
-                <button
-                    type="button"
-                    className={`${t.dowPresetButton} ${isWeekdays ? t.dowPresetActive : t.dowPresetIdle}`}
+                <UI.Button
+                    activeStyle={isWeekdays ? 'chipOn' : 'chip'}
+                    aria-pressed={isWeekdays}
                     onClick={() => setDow(isWeekdays ? [] : WEEKDAYS)}
                 >
                     Weekdays
-                </button>
-                <button
-                    type="button"
-                    className={`${t.dowPresetButton} ${isWeekends ? t.dowPresetActive : t.dowPresetIdle}`}
+                </UI.Button>
+                <UI.Button
+                    activeStyle={isWeekends ? 'chipOn' : 'chip'}
+                    aria-pressed={isWeekends}
                     onClick={() => setDow(isWeekends ? [] : WEEKENDS)}
                 >
                     Weekends
-                </button>
+                </UI.Button>
 
-                <div className={t.dowDayGrid}>
+                <span className={t.dowDayGrid} role="group" aria-label="Days of the week">
                     {DAYS.map(d => (
-                        <button
+                        <UI.Button
                             key={d.idx}
-                            type="button"
+                            activeStyle={has(d.idx) ? 'segmentOn' : 'segment'}
                             title={d.label}
+                            aria-label={d.label}
                             aria-pressed={has(d.idx)}
-                            className={`${t.dowDayButton} ${has(d.idx) ? t.dowDayActive : t.dowDayIdle}`}
                             onClick={() => toggle(d.idx)}
                         >
                             {d.abbr}
-                        </button>
+                        </UI.Button>
                     ))}
-                </div>
+                </span>
 
                 {dow.length > 0 && (
-                    <button
-                        type="button"
-                        className={t.rangeClearButton}
-                        onClick={() => setDow([])}
-                        aria-label="Clear day"
-                    >
-                        ✕
-                    </button>
+                    <UI.Button activeStyle="iconInline" onClick={() => setDow([])} aria-label="Clear day" title="Clear day">
+                        <UI.Icon icon="XMark" className={t.clearIcon} />
+                    </UI.Button>
                 )}
             </div>
         </div>
