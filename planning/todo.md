@@ -113,6 +113,7 @@
 
 ## dms-manager
 
+- [ ] [`*.netlify.app` hosts serve the root site](./tasks/current/netlify-app-hosts-are-root.md) — built 2026-10-16: `getSubdomain()` and its three copies treat Netlify addresses (incl. deploy previews) as the root site, hard-coded like `localhost`; 6 new tests; a Playwright check at a fake netlify host turns the 404s into the sign-in page. Waiting on the owner to commit + push.
 - [ ] Admin route on a cold direct navigation resolves `user` as a "public" stub, not the real
       authed user — found 2026-09-03 while browser-testing `pattern-filter-sync` with a
       Playwright session seeded via `localStorage.userToken` (not the real interactive login flow).
