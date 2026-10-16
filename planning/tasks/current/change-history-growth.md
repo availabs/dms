@@ -1,6 +1,6 @@
 # Change history: keep the history tables from growing without bound
 
-**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_qa_support](../../../../../planning/initiatives/dms_qa_support.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 Logged 2026-10-09 (owner: the history tables "have the potential to get GIGA big"). Not started. The writer is
 in [`qa-pattern-type.md`](./qa-pattern-type.md) Open work §4; the setting is documented in

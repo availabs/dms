@@ -1,6 +1,6 @@
 # Move the `qa` pattern ("Tickets") out of the library into dms-template
 
-**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** built · **Release:** deploy — dms-server + MNY client (see Deploy); committed by the owner 2026-10-14 · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Project:** DMS library (+ dms-template, the pattern's new home) · **Topic:** patterns · **Built:** 2026-10-14
 
@@ -9,14 +9,14 @@ the library, CLI and dms-server hold no QA code.
 - The data side is done in the prod DB:
   - the old installs are deleted
   - MitigateNY has a fresh install, **2860547** `QA` (`/qa`), with coverage, grants and theme set
-- **Left: the MNY deploy.** Follow [Deploy](#deploy-for-whoever-deploys-mny) (env vars, steps, checks); the owner
-  doesn't deploy.
+- **Deployed (owner, 2026-10-16):** dms-server and the MNY client are deployed, and Tickets 1.0 is in use by
+  internal staff. The steps stay in [Deploy](#deploy-for-whoever-deploys-mny).
 
 ## Objective
 
 Move the `qa` pattern type, and every piece of QA code the library held, into `dms-template/src/patterns/qa/`.
 It registers through the pattern-type registry exactly as the map editor does
-([`pluggable-patterns-mapeditor-extraction.md`](./pluggable-patterns-mapeditor-extraction.md)), and no
+([`pluggable-patterns-mapeditor-extraction.md`](../current/pluggable-patterns-mapeditor-extraction.md)), and no
 `pattern_type === 'qa'` branch is left in admin, the page pattern, the site factory, the CLI or the server.
 
 - **Owner direction (2026-10-14).** The map-editor doc had listed `qa` among the core patterns that stay
@@ -195,7 +195,7 @@ unchanged and set by `Dockerfile`.
     - **Grants:** `mitigat-ny-prod Admin` and **`AVAIL`**, both `*`.
       - `AVAIL` was added by CLI. The install grants only `<app> Admin`, and MNY's site grants are user 1,
         `AVAIL` and `DHSES`, so the creator was locked out.
-      - This is the queued "Install lockout fix" in [`qa-pattern-type.md`](./qa-pattern-type.md) §3.
+      - This is the queued "Install lockout fix" in [`qa-pattern-type.md`](../current/qa-pattern-type.md) §3.
     - **Switches:** page inventory on (owner, 2026-10-14). 282 pages tracked; the site cards collapse and open to
       their pages. Without it, a site card is only its name and tickets bar, as specced.
     - **Theme:** `mnyv1`, with a **top-nav layout override**: Logo on the left, the install's pages
@@ -213,7 +213,7 @@ unchanged and set by `Dockerfile`.
 - **A direct load of a Pattern Editor URL can render blank** (e.g. `/list/manage_pattern/251/configure`): the
   admin nav loses Sites/Themes and the editor shows nothing. Moving to another page and back fixes it.
   - Cause: defect 2 of
-    [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md), where the
+    [`route-auth-check-judges-placeholder-user.md`](../current/route-auth-check-judges-placeholder-user.md), where the
     admin case is logged. `EditWrapper` caches the route without `user`.
 - **The Theme tab's Save writes a full layout override.** On 2860547 it wrote a side-nav layout. After picking
   a theme for a new install, check the layout.

@@ -1,6 +1,6 @@
 # `qa` pattern type ("Tickets"): delivery QA and help desk as a library feature
 
-**Initiatives:** [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_qa_support](../../../../../planning/initiatives/dms_qa_support.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 The one task doc for the QA pattern: what's built, what's open, and the rules the work follows. Any site adds it
 from Add Pattern. It serves two products as switch groups over a shared tickets core: **Delivery QA** (TransportNY's
@@ -22,7 +22,7 @@ is ported later.
 
 - **Moved (2026-10-14): the QA pattern now lives in dms-template `src/patterns/qa/`**, registered from
   `src/patterns/index.js` like the map editor. The library holds no QA code.
-  - Record: [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md).
+  - Record: [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md).
   - The code map below is updated. Older sections and the archive cite `patterns/qa/…` under the
     library's `packages/dms/src/`; the same files are now under dms-template `src/patterns/qa/`.
   - Two mechanisms changed:
@@ -35,11 +35,12 @@ is ported later.
     - MNY's 2824062
   - **MNY's fresh install is 2860547 `QA` (`/qa`)**, with coverage, grants (`AVAIL` + `mitigat-ny-prod Admin`) and
     the `mnyv1` top-nav look set.
-  - Details: [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#state-after-the-build-2026-10-14).
-- **Next: the MNY deploy (a coworker; the owner doesn't deploy).**
-  - Steps, env vars and checks:
-    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
-  - Until it's done, devmny.org runs the old client against the same DB, so QA there may look broken (accepted).
+  - Details: [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md#state-after-the-build-2026-10-14).
+- **Deployed (owner, 2026-10-16): Tickets 1.0 is live on MitigateNY** (dms-server and the MNY client), in use by
+  internal staff. The build initiative `dms_qa_ticketing` closed the same day; follow-on fixes and feature
+  requests link to [`dms_qa_support`](../../../../../planning/initiatives/dms_qa_support.md).
+  - Deploy steps, env vars and checks:
+    [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
   - The change-history writer is opt-in per dataset, and 2860547's history is already on.
 - **Current loop:** the root `.env` points at MitigateNY (since 2026-10-14). `qa_test`'s install is 251 (no theme
   set).
@@ -172,7 +173,7 @@ is ported later.
 - [ ] **Deploy dms-server, then the client** with the MNY `.env`.
   - The server sends the stub's `public` settings; without it, county staff not granted on the install can't file.
   - Steps, env vars (no new server variables; `VITE_DMS_QA_PATTERN` optional) and checks:
-    [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
+    [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
 - [ ] Coworker: propagate to county patterns. Each needs a nav entry (`src/themes/mny/scripts/report_issue_nav.mjs`)
