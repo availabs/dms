@@ -75,7 +75,7 @@ is ported later.
   row's `public` settings; a `qa` row's `public.qaIntake` (`intake.js`) lets ungranted users still file.
 - **Switch group:** Delivery QA or Help desk, switched on and off on the install's Configure tab, with a switch per
   feature beneath it. The group's own switch does a preset's job. The shared tickets core has no switch (§5). Not
-  a feature flag: those are `.env` settings, e.g. `VITE_DMS_QA_PATTERN`.
+  a feature flag: those are `.env` settings. (`VITE_DMS_QA_PATTERN`, the example here, was removed 2026-10-15.)
 - **Report an issue:** the `ReportIssue` nav widget and its form. A theme places it in a nav slot. It shows only to
   signed-in users on covered pages.
 
@@ -91,7 +91,7 @@ is ported later.
 | Derived values (live open counts, a ticket's page name and stage) + track-on-publish (editor and CLI) | done | `8be023e9` |
 | Configure tab on `/list/manage_pattern/<id>/configure` | done | `d590c66f`, redesigned `5f853620` |
 | Design pass: core enrichments, QA tokens and styles, all four pages restyled | done | `1667bdad`, `e72145df` |
-| Opt-in flag: `VITE_DMS_QA_PATTERN=1` shows QA in Add Pattern (existing installs always render) | done | `3945d00b` |
+| Opt-in flag: `VITE_DMS_QA_PATTERN=1` shows QA in Add Pattern (existing installs always render) | done; **removed 2026-10-15** (owner): registration alone offers it, `addable: true` ([follow-up](./pluggable-patterns-qa-extraction.md#follow-up-2026-10-15-vite_dms_qa_pattern-removed-owner)) | `3945d00b` |
 | Report an issue widget + server intake stub | built; MNY deploy pending | `c309c77f` |
 | Collapsible section groups (generic) + Overview site cards start collapsed | done | `eec8278c` |
 | QA theme as a `qa` key (page/datasets model) + MNY's QA look | built; MNY switch pending | `a6d36282`, `1cc7561d` |
@@ -104,7 +104,7 @@ is ported later.
   - `siteConfig.jsx`: routes; registers the `ReportIssue` widget.
   - `pages/`: `index.js` (`buildQaPages`, `findQaPage`), `view.jsx`, `shell.jsx`, `overview.js`, `tickets.js`,
     `ticket.js`, `pageQa.js`, `helpers.js`.
-  - `ticketRecord.js`, `datasets.js`, `install.js` (holds the `QA_PATTERN_ENABLED` flag and the create hooks).
+  - `ticketRecord.js`, `datasets.js`, `install.js` (the create hooks; the `QA_PATTERN_ENABLED` flag it held was removed 2026-10-15).
   - `tracking.js` (track-on-publish and `pageTracking`; no browser imports), `publish.js` (the editor's
     `onPagePublish`), `cli/onPagePublish.js` (`dms page publish`'s hook, via `DMS_PAGE_PUBLISH_HOOK`), and
     `configure.js`.
@@ -171,7 +171,7 @@ is ported later.
   - The bands now fill the content card (`src/themes/mny/qa.theme.js`).
 - [ ] **Deploy dms-server, then the client** with the MNY `.env`.
   - The server sends the stub's `public` settings; without it, county staff not granted on the install can't file.
-  - Steps, env vars (no new server variables; `VITE_DMS_QA_PATTERN` optional) and checks:
+  - Steps, env vars (no new server variables; `VITE_DMS_QA_PATTERN` removed 2026-10-15) and checks:
     [`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
