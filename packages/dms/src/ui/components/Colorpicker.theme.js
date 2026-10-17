@@ -31,6 +31,9 @@ export const colorPickerTheme = {
     flatSwatchOnStyle: 'swatchOn',
     flatFull: 'mt-3 flex flex-col gap-3',
     flatSaturation: 'relative w-full rounded-md border border-[var(--t-rule)] select-none',   // height: 100 inline (the drag maths)
+    // the Lexical toolbar's colour dropdown body (lexical/editor/ui/ColorPicker.tsx: hex field, swatches, full picker);
+    // the dropdown panel is its box, so no fill here
+    lexicalWrapper: 'flex flex-col gap-3 p-3',
   }],
 };
 

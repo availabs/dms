@@ -43,22 +43,10 @@ const basicColors = [
 ];
 
 const WIDTH = 214;
-const HEIGHT = 150;
 
 
-const colorPickerStyles = {
-"color-picker-wrapper": "p-[20px]",
-
-"color-picker-saturation": "w-full relative mt-[15px] h-[150px] bg-[linear-gradient(transparent,_black),_linear-gradient(to_right,_white,_transparent)] select-none",
-
-"color-picker-saturation_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-[50%] [box-shadow:0_0_15px_#00000026] box-border -translate-x-[10px] -translate-y-[10px]",
-
-"color-picker-hue": "w-full relative mt-[15px] h-[12px] bg-[linear-gradient(_to_right,_rgb(255,_0,_0),_rgb(255,_255,_0),_rgb(0,_255,_0),_rgb(0,_255,_255),_rgb(0,_0,_255),_rgb(255,_0,_255),_rgb(255,_0,_0)_)] select-none rounded-[12px]",
-
-"color-picker-hue_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-full [box-shadow:#0003_0_0_0_0.5px] box-border -translate-x-[10px] -translate-y-[4px]",
-
-"color-picker-color": "border-[1px] border-[solid] border-[#ccc] mt-[15px] w-full h-[20px]"
-}
+// the look is the shared `colorPicker` theme (Colorpicker.theme.js; project themes: _legacy/ui.js, the same strings this
+// file hardcoded) — `lexicalWrapper` is this dropdown's own body (2026-10-17)
 
 export default function ColorPicker({
   color,
@@ -75,17 +63,18 @@ export default function ColorPicker({
   const [inputColor, setInputColor] = useState(color);
   const innerDivRef = useRef(null);
 
+  // cursor positions in % of their area (2026-10-17): the square fills the padded wrapper, narrower than WIDTH
   const saturationPosition = useMemo(
     () => ({
-      x: (selfColor.hsv.s / 100) * WIDTH,
-      y: ((100 - selfColor.hsv.v) / 100) * HEIGHT,
+      x: `${selfColor.hsv.s}%`,
+      y: `${100 - selfColor.hsv.v}%`,
     }),
     [selfColor.hsv.s, selfColor.hsv.v],
   );
 
   const huePosition = useMemo(
     () => ({
-      x: (selfColor.hsv.h / 360) * WIDTH,
+      x: `${(selfColor.hsv.h / 360) * 100}%`,
     }),
     [selfColor.hsv],
   );
@@ -98,19 +87,19 @@ export default function ColorPicker({
     }
   };
 
-  const onMoveSaturation = ({x, y}: Position) => {
+  const onMoveSaturation = ({x, y, width, height}: Position) => {
     const newHsv = {
       ...selfColor.hsv,
-      s: (x / WIDTH) * 100,
-      v: 100 - (y / HEIGHT) * 100,
+      s: (x / width) * 100,
+      v: 100 - (y / height) * 100,
     };
     const newColor = transformColor('hsv', newHsv);
     setSelfColor(newColor);
     setInputColor(newColor.hex);
   };
 
-  const onMoveHue = ({x}: Position) => {
-    const newHsv = {...selfColor.hsv, h: (x / WIDTH) * 360};
+  const onMoveHue = ({x, width}: Position) => {
+    const newHsv = {...selfColor.hsv, h: (x / width) * 360};
     const newColor = transformColor('hsv', newHsv);
 
     setSelfColor(newColor);
@@ -134,7 +123,7 @@ export default function ColorPicker({
 
   return (
     <div
-      className={`${colorPickerStyles[`color-picker-wrapper`]}`}
+      className={t.lexicalWrapper}
       style={{width: WIDTH}}
       ref={innerDivRef}>
       <FieldLabel text="Hex">
@@ -155,11 +144,16 @@ export default function ColorPicker({
         ))}
       </div>
       <MoveWrapper
-        className={`${colorPickerStyles[`color-picker-saturation`]}`}
-        style={{backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`}}
+        className={t.saturation}
+        // inline, not a class: an arbitrary-value multi-gradient utility compiles to no CSS under Tailwind v4 (the square
+        // rendered flat — same fix as Colorpicker.jsx)
+        style={{
+          backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
+          backgroundImage: 'linear-gradient(transparent, black), linear-gradient(to right, white, transparent)',
+        }}
         onChange={onMoveSaturation}>
         <div
-          className={`${colorPickerStyles[`color-picker-saturation_cursor`]}`}
+          className={t.saturationCursor}
           style={{
             backgroundColor: selfColor.hex,
             left: saturationPosition.x,
@@ -167,9 +161,9 @@ export default function ColorPicker({
           }}
         />
       </MoveWrapper>
-      <MoveWrapper className={`${colorPickerStyles[`color-picker-hue`]}`} onChange={onMoveHue}>
+      <MoveWrapper className={t.hue} onChange={onMoveHue}>
         <div
-          className={`${colorPickerStyles[`color-picker-hue_cursor`]}`}
+          className={t.hueCursor}
           style={{
             backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
             left: huePosition.x,
@@ -177,7 +171,7 @@ export default function ColorPicker({
         />
       </MoveWrapper>
       <div
-        className={`${colorPickerStyles["color-picker-color"]}`}
+        className={t.sample}
         style={{backgroundColor: selfColor.hex}}
       />
     </div>
@@ -187,6 +181,8 @@ export default function ColorPicker({
 export interface Position {
   x: number;
   y: number;
+  width: number;    // the area's measured size, so the maths never assumes it
+  height: number;
 }
 
 interface MoveWrapperProps {
@@ -207,7 +203,7 @@ function MoveWrapper({className, style, onChange, children}: MoveWrapperProps) {
       const x = clamp(e.clientX - left, width, 0);
       const y = clamp(e.clientY - top, height, 0);
 
-      onChange({x, y});
+      onChange({x, y, width, height});
     }
   };
 

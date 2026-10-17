@@ -142,6 +142,11 @@ background colour) still laid swatches out in its own `flex flex-wrap` row → 0
 swatch styles from the shared `colorPicker` theme (default = the 8-column grid; project themes = the frozen flex row,
 the same string Lexical had). Checked in the editor (`scratchpad/lex-toolbar2`, session `lexcolor.mjs`): default 15
 swatches at 18×24 in the grid; MNY / TNY v2 16×16 as before, light + dark, no errors.
-Left as is (pre-existing, not part of the regression): Lexical's saturation square renders flat (its arbitrary-value
-multi-gradient class compiles to nothing under Tailwind v4 — the main picker sets it inline), its cursor uses the old
-px-vs-width maths, and the grid sits flush under the hex field.
+Then fixed (owner: "yes, fix those three"): Lexical's picker reads its whole body from the shared `colorPicker` theme
+(its saturation / hue / cursor / sample strings were identical to the legacy freeze, so project themes are unchanged;
+new key `lexicalWrapper`: v6 `flex flex-col gap-3 p-3`, legacy `p-[20px]`). (1) the saturation gradient is inline (the
+arbitrary-value multi-gradient class compiled to no CSS) — renders on every theme now; (2) cursors in % of the measured
+area — a drag to the top-right gave #fd3131 (~81% saturation) on HEAD, #fd0101 now; (3) the grid sits 12px under the
+hex field in the default theme. Checked in the editor (`scratchpad/lex-toolbar3`, session `lexpick.mjs`): MNY / TNY v2
+layout identical to HEAD, light + dark, no errors. Not touched: the Lexical dropdown panel itself is white in dark mode
+(the lexical theme's `dropdown_base`).
