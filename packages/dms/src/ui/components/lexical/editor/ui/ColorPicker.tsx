@@ -11,7 +11,8 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import * as React from 'react';
 
-import { ThemeContext } from '../../../../useTheme';
+import { ThemeContext, getComponentTheme } from '../../../../useTheme';
+import { colorPickerTheme } from '../../../Colorpicker.theme';
 // 2026-10-17 (raw-HTML pass): the hex field + swatches render through UI primitives (the host UI wins; the imported
 // ones cover a Provider-less mount — they don't import the editor, so no cycle). Was TextInput (unstyled) + raw buttons.
 import DefaultInput from '../../../Input';
@@ -48,12 +49,6 @@ const HEIGHT = 150;
 const colorPickerStyles = {
 "color-picker-wrapper": "p-[20px]",
 
-"color-picker-basic-color": "flex flex-wrap gap-[10px] m-0 p-0",
-
-"color-picker-basic-color-button": "border-[1px] border-[solid] border-[#ccc] rounded-[4px] h-[16px] w-[16px] cursor-pointer list-none",
-
-"color-picker-basic-color-button.active": "[box-shadow:0px_0px_2px_2px_rgba(0,_0,_0,_0.3)]",
-
 "color-picker-saturation": "w-full relative mt-[15px] h-[150px] bg-[linear-gradient(transparent,_black),_linear-gradient(to_right,_white,_transparent)] select-none",
 
 "color-picker-saturation_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-[50%] [box-shadow:0_0_15px_#00000026] box-border -translate-x-[10px] -translate-y-[10px]",
@@ -69,7 +64,10 @@ export default function ColorPicker({
   color,
   onChange,
 }: Readonly<ColorPickerProps>): JSX.Element {
-  const { UI } = React.useContext(ThemeContext) || {};
+  const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  // the swatch row is the shared `colorPicker` theme's (Colorpicker.theme.js; legacy = this file's old flex row): the
+  // v6 swatch is a grid cell with no width of its own, so it must sit in the theme's grid, not a flex row (2026-10-17)
+  const t = { ...colorPickerTheme.styles[0], ...getComponentTheme(themeFromContext, 'colorPicker') };
   const Input = UI?.Input || DefaultInput;
   const Button = UI?.Button || DefaultButton;
   const FieldLabel = UI?.FieldLabel || DefaultFieldLabel;
@@ -142,11 +140,11 @@ export default function ColorPicker({
       <FieldLabel text="Hex">
         <Input value={inputColor} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSetHex(e.target.value)} />
       </FieldLabel>
-      <div className={`${colorPickerStyles[`color-picker-basic-color`]}`}>
+      <div className={t.swatches}>
         {basicColors.map((basicColor) => (
           // the fill stays the inline backgroundColor
           <Button
-            activeStyle={basicColor === selfColor.hex ? 'swatchOn' : 'swatch'}
+            activeStyle={basicColor === selfColor.hex ? t.swatchOnStyle : t.swatchStyle}
             key={basicColor}
             style={{backgroundColor: basicColor}}
             onClick={() => {
