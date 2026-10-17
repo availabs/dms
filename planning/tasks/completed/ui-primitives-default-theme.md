@@ -134,3 +134,14 @@ nav fixed; see datasets-page-pattern-v6-port.md page 16). It is applied in `src/
 - [x] Section menu (edit + not-editing + a submenu) matches page-edit.html / page-section-menu.html in the default theme; MNY / TNY menus unchanged — done in the UI controls effort (see the resume block; not re-checked 2026-10-17)
 - [x] `npm run build` clean (2026-10-17 ✓; its 10 css warnings are pre-existing Catalyst `has-[…]` classes); eslint on touched files: parse / undefined / unused only
 - [x] Local check only (scratch sqlite server + second Vite; never the 5173 dev server or prod)
+
+## Follow-up 2026-10-17 — Lexical colour picker swatches (lib dfa45794 / root bf81d923)
+Owner: "lexical also has color picker that doesn't show swatches." Regression from this task's commit (04459385): the
+v6 `swatch` style is a grid cell with no width of its own, and Lexical's `editor/ui/ColorPicker.tsx` (toolbar text /
+background colour) still laid swatches out in its own `flex flex-wrap` row → 0px wide. It now reads its swatch row and
+swatch styles from the shared `colorPicker` theme (default = the 8-column grid; project themes = the frozen flex row,
+the same string Lexical had). Checked in the editor (`scratchpad/lex-toolbar2`, session `lexcolor.mjs`): default 15
+swatches at 18×24 in the grid; MNY / TNY v2 16×16 as before, light + dark, no errors.
+Left as is (pre-existing, not part of the regression): Lexical's saturation square renders flat (its arbitrary-value
+multi-gradient class compiles to nothing under Tailwind v4 — the main picker sets it inline), its cursor uses the old
+px-vs-width maths, and the grid sits flush under the hex field.
