@@ -150,3 +150,21 @@ area — a drag to the top-right gave #fd3131 (~81% saturation) on HEAD, #fd0101
 hex field in the default theme. Checked in the editor (`scratchpad/lex-toolbar3`, session `lexpick.mjs`): MNY / TNY v2
 layout identical to HEAD, light + dark, no errors. Not touched: the Lexical dropdown panel itself is white in dark mode
 (the lexical theme's `dropdown_base`).
+
+## Follow-up 2026-10-17 — Lexical editor chrome in dark mode
+Owner: "in the dark mode, the lexical toolbar is also not properly colored. background and icon colors. fix the dropdown
+style too." The library lexical theme (styles[0]) hardcoded light colours, and every editor icon was a fixed-colour SVG
+`background-image` (`bg-[url(/images/icons/…)]`), so nothing followed dark mode. Default theme now:
+- icons: `mask-[url(…)] mask-no-repeat mask-center mask-contain bg-current` (link-editor icons keep `mask-size-[16px]`)
+  — the shape from the SVG, the colour from the text (ink, at the existing opacity); `iconChevronDown` lost a
+  `bg-transparent` that overrode the fill;
+- toolbar hover / active / text / divider, dropdown panel + items + divider, floating format bar, link editor (panel,
+  field, link, select, buttons) → panel / well / rule / ink / graphite / cobalt tokens (light mode: --t-panel is white,
+  so surfaces look the same; icons a touch darker where an SVG had #777; active rows now visibly well-toned);
+- MultiSelect 'lexLinkTarget' (the link-target select) follows the field (well / ink).
+Generated, not hand-edited: a script converted styles[0] (108 keys) and wrote the old value of every changed key into
+`_legacy/ui.js` `lexical` (+ the old 'lexLinkTarget' in `multiselect`), so project themes are unchanged. Left alone:
+`tableAddRows` / `tableAddColumns` (their + is an `after:` background image — out of scope).
+Verify: `scratchpad/lex-toolbar5` + session `lexdom5.mjs` (every element's classes in toolbar, 4 open menus, floating
+bar): MNY / TNY v2 / landbank / fusion identical to HEAD, default differs; resolver: of 574 lexical entries only
+default's changed. Dark + light shots checked (low-res).

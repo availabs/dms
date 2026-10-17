@@ -247,7 +247,7 @@ export const multiselectTheme = {
         // right end, as they did over the native select.
         {
             name: 'lexLinkTarget',
-            inputWrapper: 'relative flex items-center w-full cursor-pointer box-border p-2 rounded-[15px] bg-[#eee] text-[15px] text-[rgb(5,5,5)] border-0 outline-0 font-inherit',
+            inputWrapper: 'relative flex items-center w-full cursor-pointer box-border p-2 rounded-[15px] bg-[var(--t-well)] text-[15px] text-[var(--t-ink)] border-0 outline-0 font-inherit',   // = lexical linkEditor_linkInput_base (tokens, 2026-10-17)
             caretWrapper: 'hidden',
             singleValue: 'truncate',
             singlePlaceholder: 'truncate',
