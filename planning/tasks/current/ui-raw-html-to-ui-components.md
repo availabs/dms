@@ -2,6 +2,20 @@
 
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
+
+## Resume here (2026-10-16) — read this, skip the log below unless you need a detail
+
+- **Done:** admin + auth, datasets, page → 0 raw controls (committed). Carried-over list all resolved (owner 10/16).
+- **Next:** `ui` composites (117 raw controls; Drawer, TopNav, SideNav, ThemeToggle, Colorpicker, CardColumnPicker,
+  table, graph …). Run the extractor `src/themes/tessera/design_system_v6/scripts/inventory/rawhtml.mjs` on
+  `src/dms/packages/dms/src/ui` → list per file with proposed component + role → owner OK → swap → verify.
+- **Open questions:** none.
+- **Verify:** `scratchpad/verify/README.md` (servers, login, theme names, URLs, `cmp.mjs` class diff, `el.mjs`).
+- **Rules that keep biting:** project themes must not change (freeze in `_legacy/*`, check with `cmp.mjs` on
+  :5198 vs :5199); when a dialog's component changes, check modal layering + position; when a Popup trigger
+  changes, open the popup on both; Vite SSR scripts need a private `cacheDir`.
+- Work directly (extractor + edits), not via forks; a fresh briefed subagent only for a large file group.
+
 ## Objective
 
 Owner (2026-10-13): "html `<button>` should be replaced with UI buttons. for that matter, every html
@@ -163,14 +177,19 @@ Also from the table work: the spreadsheet add-row / inline-save / actions-column
 
 The hub ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)) closed on 2026-10-15.
 Items still open from it:
-- Auth sign-in / sign-up pages: icon mark, heading accent, "forgot password" link and the icon hover are still
-  cobalt (`auth/defaultTheme.js`); the sign-in submit was skipped by the owner on 10/13.
-- Profile avatar: solid cobalt square (`auth/defaultTheme.js` `avatar`). Asked 2026-10-15 whether it goes ink.
-- Polish from the 10/13 mockup walk (`ui-control-spec-and-mockups.md`): the skeleton is faint on a light cell; the
-  tooltip (board) is low-contrast in dark.
-- `UI.Switch` in dark mode: the on track is `--t-ink`, which is near-white in dark, with a dark knob. Owner
-  (2026-10-15) didn't see a problem on the theme toggle, which is a different control; the Switch is to be
-  checked with the owner.
+- [x] Auth sign-in / sign-up pages: icon mark, heading accent, "forgot password" link and the icon hover stay
+  cobalt. **Owner 2026-10-16: "sign in and sign up pages are good."** No change.
+- [x] Profile avatar: was a solid cobalt square. Already answered 2026-10-13 ("avatars → neutral (well, ink
+  initial)", ui-control-spec-and-mockups.md Group 1). **Done 2026-10-16:** `auth/defaultTheme.js` `avatar` →
+  `bg-[var(--t-well)] text-[var(--t-ink)]`. Owner: low contrast in dark (well #17181D on paper #131417) →
+  `bg-[var(--t-rule)]` on both this and the admin activity `feedAvatar`. Checked on /auth/manage/profile, light + dark.
+- [x] Polish from the 10/13 mockup walk (faint skeleton on a light cell, low-contrast tooltip in dark): **owner
+  2026-10-16: both fine.** No change.
+- [x] `UI.Switch` in dark mode: the on track is `--t-ink` (near-white in dark) with a dark knob. **Shown to the owner
+  2026-10-16** next to `ui-controls.html#switch`: live matches the mockup in light and dark (`scratchpad/switch-harness/`).
+  Gap found: live `disabled` wasn't dimmed. **Done 2026-10-16 (owner: "add the dimming"):** `Switch.theme.js`
+  `disabled: 'opacity-40 cursor-not-allowed'`, `aria-disabled` set; `_legacy/ui.js` `switch.disabled: 'cursor-pointer'`
+  so project themes are unchanged (checked MNY v1 + TNY v2 in the harness).
 - ~~TNY v2 / MNY define no `action` / `primary` Button roles~~ **Done 2026-10-15 (owner: "snapshots look good").**
   Traced through the real chain (loadThemes → withLegacyUi → getPatternTheme → getComponentTheme, Vite SSR):
   unset roles inherited styles[0], so on TNY v2 primary / action / small / full-width actions were `linkMono` text
@@ -361,7 +380,7 @@ Owner decisions:
   `linkProse` / `chip` / `chipOn` / `segmentIcon(On)` (segmentIcon = each theme's current `viewBtn` strings).
   Side effects seen: landbank "Advanced Metadata" (actionFull) + create "Cancel" (action) → its white secondary;
   WCDB "Advanced Metadata" → mono outline pill; MNY / TNY ExportPdf TOC chips; WCDB ButtonSelect segments.
-  **Open:** avail_site v1–v9 are registered and still lack 11 roles (fall back to their default buttons) — ask owner.
+  ~~Open: avail_site v1–v9 lack 11 roles~~ — owner 2026-10-16: not in use, no roles needed.
 - Shared UI: radio v6 (16px ink; `_legacy` freeze of the old row); checkbox `_legacy` freeze → browser default; checkbox
   `rowLabel` prop (not `label`: table cells spread the column object in); MultiSelect options take `group` (contiguous
   runs; `groupHeading` key); Button `iconInline` / `iconInlineDanger` / `segmentIcon(On)` / `linkInline`; Input
@@ -405,7 +424,7 @@ Owner decisions:
   classes are generated by the runtime Tailwind on live pages (measured: Delete Source = rgb(206,91,78)); preview
   harnesses don't load it. No change.
 - **Datasets: 0 raw controls** (was 155). Build OK; 20-page error sweep (5 patterns × list / settings / create / tasks)
-  clean; admin + auth re-diffed, unchanged. Uncommitted. Open: avail_site v1–v9 lack 11 Button roles (asked owner).
+  clean; admin + auth re-diffed, unchanged. Uncommitted. (avail_site v1–v9: not in use, owner 2026-10-16.)
 
 Next area: page (174), then ui composites (117).
 - Owner 2026-10-16: avail_site v1–v9 are not in use — no roles needed (they keep falling back; the segmentIcon /
@@ -559,8 +578,11 @@ menu Save icon unstyled (`sec.menuActionSave` undefined).
   `_legacy/ui.js`: frozen Input `compact` gets `relative` (MNY's input container layer hid the text — also the datasets
   glance input on MNY); frozen `dowDayGrid` = the frozen segmented tray. Day buttons follow the letter width (roles
   can't take w-7). Verified in `scratchpad/tp-harness/` (default = mockup; MNY / landbank keep layout, controls take
-  their roles), keyboard + selects. Open: dark mode looked washed out in the harness (forced data-theme) — check live;
-  viewer shows "Currently happening" when Range is exposed (existing coupling).
+  their roles), keyboard + selects. ~~Open: dark mode washed out~~ — **checked 2026-10-16**:
+  dark matches `ui-controls.html#time-filter` (the app's dark mode is the same `data-theme="dark"` the harness sets). Small
+  differences only: active tags read "last 14 days" (mockup "Last 14 days") and the day tag has no calendar icon (none in
+  the library). Viewer shows "Currently happening" when Range is exposed: it was already like that, so **owner 2026-10-16:
+  leave it.**
 - Owner 2026-10-16: "page rename and page delete modals open at different heights" — the v3 Pages pane had rename on
   UI.Dialog (upper-third positioner on themes that don't centre it) and delete on UI.DeleteModal (UI.Modal, centred).
   Rename → UI.Modal + `modalBody` text-left key + initialFocus on the field. The legacy (project) branch uses Dialog

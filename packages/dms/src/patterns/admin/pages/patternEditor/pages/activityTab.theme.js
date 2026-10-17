@@ -14,7 +14,7 @@ export const activityTabTheme = {
     feedCard: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden',
     feedDayHeader: 'px-4 py-1.5 bg-[var(--t-well)] border-b border-[var(--t-rule)] t-metaXS text-[var(--t-pencil)]',
     feedRow: 'px-4 py-2 border-b border-[var(--t-rule)] last:border-b-0 flex items-center gap-3 hover:bg-[var(--t-well)] transition-colors duration-150',
-    feedAvatar: 'w-6 h-6 rounded-full bg-[var(--t-well)] text-[var(--t-ink)] flex items-center justify-center t-metaXS flex-none',   // avatars neutral (owner 2026-10-13)
+    feedAvatar: 'w-6 h-6 rounded-full bg-[var(--t-rule)] text-[var(--t-ink)] flex items-center justify-center t-metaXS flex-none',   // avatars neutral (owner 2026-10-13)
     feedActor: 't-metaXS text-[var(--t-pencil)] hidden md:block',
     feedTime: 't-metaXS text-[var(--t-pencil)] w-16 text-right flex-none',
 

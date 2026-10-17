@@ -2,13 +2,21 @@
 
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** todo · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
+## Resume here (2026-10-16)
+
+- **Left:** `Colorpicker` (~3 hardcoded classes), `CardColumnPicker` (~21). `List` + `DraggableList` out of scope (owner).
+- **Done:** Switch (v6 + disabled dim 10/16), Textarea, Button, section menu, Pill.
+- **Next:** per component: v6 keys in its `*.theme.js` (match the mockup), old classes frozen in `_legacy/ui.js`,
+  verify with `scratchpad/verify/` (default = mockup, project themes unchanged). Overlaps with the ui composites step
+  of ui-raw-html-to-ui-components.md — do them together.
+
 **State 2026-10-15:** the datasets + page v6 redesign it waited for is finished, and the UI controls effort
 ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)) did part of this task:
 `Switch` (themed, `_legacy/ui.js` freeze), `Textarea` (locked, `styles[]`), `Button` (`themeOptions` gone, locked),
 the section menu (`navigableMenu` tokens, plain value) and `Pill` (named kinds). `Pagination`'s only grays are in
 commented-out code; `Card`'s one hardcoded `<label>` is in
-[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md). **Left: `List`, `Colorpicker`,
-`DraggableList`, `CardColumnPicker`.**
+[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md). **Left: `Colorpicker`, `CardColumnPicker`.**
+Owner 2026-10-16: `List` and `DraggableList` are not being styled (out of scope).
 
 ## Objective
 
@@ -29,9 +37,9 @@ Unthemed — no `ThemeContext` read at all (audit 2026-10-07):
 | Component | Hardcoded today | Notes |
 |---|---|---|
 | `Switch.jsx` | track `bg-indigo-600` / `bg-gray-200`, white knob | `Switch.theme.js` exists but holds only `docs`; not registered in `ui/defaultTheme.js`. Sizes (xs / small / medium pill, dot, translate) are structural — they stay in code. transportny v2 already declares a `switch` theme object nothing reads (`themev2.js`, `switch: switchTheme`) — check its keys against whatever key names we pick. |
-| `List.jsx` | ~9 palette classes | |
+| `List.jsx` | ~9 palette classes | out of scope (owner 2026-10-16) |
 | `Colorpicker.jsx` | ~3 | |
-| `DraggableList.jsx` | ~3 | |
+| `DraggableList.jsx` | ~3 | out of scope (owner 2026-10-16) |
 | `CardColumnPicker.jsx` | ~21 | |
 
 Partly themed — reads the theme but still has hardcoded classes:
@@ -99,7 +107,7 @@ nav fixed; see datasets-page-pattern-v6-port.md page 16). It is applied in `src/
 
 ## Files requiring changes
 
-- `src/dms/packages/dms/src/ui/components/{Switch,List,Colorpicker,DraggableList,CardColumnPicker,Textarea,Button,Pagination,Card,Pill}.jsx`, `navigableMenu/{index,theme}.jsx`
+- `src/dms/packages/dms/src/ui/components/{Switch,Colorpicker,CardColumnPicker,Textarea,Button,Pagination,Card,Pill}.jsx`, `navigableMenu/{index,theme}.jsx`
 - `src/dms/packages/dms/src/patterns/page/components/sections/sectionMenu.jsx` (action-row Pills → opt-in style)
 - matching `*.theme.js` siblings (new or extended)
 - `src/dms/packages/dms/src/ui/defaultTheme.js` — register the new keys
@@ -114,7 +122,7 @@ nav fixed; see datasets-page-pattern-v6-port.md page 16). It is applied in `src/
 - [ ] Each component: default theme renders the v6 look, light + dark
 - [ ] Each component: MNY, transportny (v1 + v2), wcdb, avail, landbank, fusion, tessera render
       exactly as before (screenshot compare against HEAD)
-- [ ] Switch states: on / off / disabled, all three sizes
+- [x] Switch states: on / off, all three sizes, light + dark — match `ui-controls.html#switch` (2026-10-16). Disabled dimmed to 40% (2026-10-16); project themes unchanged.
 - [ ] Section menu (edit + not-editing + a submenu) matches page-edit.html / page-section-menu.html in the default theme; MNY / TNY menus unchanged
 - [ ] `npm run build` clean; eslint on touched files vs `git show HEAD:<path>`
 - [ ] Local check only (scratch sqlite server + second Vite; never the 5173 dev server or prod)

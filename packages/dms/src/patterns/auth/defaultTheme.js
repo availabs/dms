@@ -152,7 +152,7 @@ const theme = {
             headerOuter: "w-full flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-[var(--t-rule)]", // groups only — flush, sits above pageWrapper
             headerRow: "w-full flex flex-wrap items-center gap-3 pb-3 mb-3 border-b border-[var(--t-rule)]", // users + profile — flush
             headerTitle: "t-displayMD text-[var(--t-ink)]",
-            avatar: "w-9 h-9 rounded-md bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] flex items-center justify-center text-sm font-medium flex-none", // profile
+            avatar: "w-9 h-9 rounded-md bg-[var(--t-rule)] text-[var(--t-ink)] flex items-center justify-center text-sm font-medium flex-none", // profile — avatars neutral (owner 2026-10-13)
             // Profile's second band — the Reset Password action's own card (the mockup's
             // separate "account" card, `admin-profile.html`'s "profile-actions" section) —
             // now carries the bg-panel treatment itself since `profileWrapper` no longer does.

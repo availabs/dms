@@ -41,6 +41,7 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
             role="switch"
             aria-checked={enabled}
             aria-label={label}
+            aria-disabled={disabled || undefined}
             tabIndex={0}
             onClick={() => !disabled && setEnabled && setEnabled(!enabled)}
             onKeyDown={(e) => {
@@ -50,7 +51,7 @@ export default function RenderSwitch({ enabled=false, setEnabled, label, disable
                     setEnabled && setEnabled(!enabled);
                 }
             }}
-            className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} cursor-pointer transition-colors duration-200 ease-in-out ${enabled ? t.trackOn : t.trackOff} ${t.focus || ''}`}
+            className={`relative inline-flex ${sizeClassesPill[size]} items-center ${roundedClasses[size]} ${disabled ? (t.disabled || '') : 'cursor-pointer'} transition-colors duration-200 ease-in-out ${enabled ? t.trackOn : t.trackOff} ${t.focus || ''}`}
         >
             <span className="sr-only">{label}</span>
             <span
