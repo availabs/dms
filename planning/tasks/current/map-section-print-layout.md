@@ -1,6 +1,6 @@
 # Map section: printing clips the map and leaves a blank page before it
 
-**Initiatives:** [tny_bug_fixes](../../../../../planning/initiatives/tny_bug_fixes.md) (primary), [dms_map_stack](../../../../../planning/initiatives/dms_map_stack.md) · **Status:** built · **Release:** deploy — owner-validated locally 2026-10-13, not deployed · **Created by:** rdubowsky@albany.edu · **Edited by:** rdubowsky@albany.edu
+**Initiatives:** [tny_bug_fixes](../../../../../planning/initiatives/tny_bug_fixes.md) · **Status:** built · **Release:** deploy — owner-validated locally 2026-10-13, not deployed · **Created by:** rdubowsky@albany.edu · **Edited by:** rdubowsky@albany.edu, amuro@albany.edu
 
 **Topic:** patterns/page (`ComponentRegistry/map`) · **Created:** 2026-10-13
 **Files:** dms-template `src/patterns/mapeditor/section/index.jsx` (the Map section moved out of the library on
@@ -80,3 +80,5 @@ unreliable.
 now renders in view mode only (edit-mode printouts carried every edit-only control). Verified on scratch
 report 2224562 (`claude_save_as_frozen_static_copy`): edit = Share / Save as / Done; view = Share / Print /
 Make a copy / Edit.
+
+> **2026-10-16** (closed_secondaries_2026-10-16): initiatives set to tny_bug_fixes.

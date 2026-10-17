@@ -3,7 +3,7 @@
 How the DMS library turns a pattern row's `pattern_type` into routes, and how a host app adds its own
 pattern types. Added 2026-10-08 (`planning/tasks/current/pluggable-patterns-mapeditor-extraction.md`);
 the admin, publish, CLI and server hooks came with the qa move, 2026-10-14
-(`planning/tasks/current/pluggable-patterns-qa-extraction.md`).
+(`planning/tasks/completed/pluggable-patterns-qa-extraction.md`).
 
 ## The model
 
@@ -152,7 +152,9 @@ An app pattern imports library code **only through the two entries**, never by d
 
 `dms-template/src/patterns/qa/` (`index.js` is the definition) uses every hook the map editor doesn't:
 
-- `admin.addable: QA_PATTERN_ENABLED`: offered in Add Pattern only with `VITE_DMS_QA_PATTERN` set.
+- `admin.addable: true`: registering the type is what offers it in Add Pattern and the Type select.
+  There's no env flag; an app that shouldn't offer Tickets doesn't register the pattern. (Until
+  2026-10-15 a `VITE_DMS_QA_PATTERN` build flag gated it.)
 - `admin.duplicable: false`: a copy would drop the install's own settings and dataset refs.
 - `admin.beforeCreate` (`install.js` `qaBeforeCreate`): refuses a taken URL or dataset name, and starts
   the install's switches off.

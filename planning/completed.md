@@ -290,6 +290,7 @@
 
 ### patterns/qa
 
+- [pluggable-patterns-qa-extraction.md](./tasks/completed/pluggable-patterns-qa-extraction.md) - The `qa` pattern ("Tickets") moved out of the library into dms-template `src/patterns/qa/`, registered through the pattern-type registry like the map editor, with new generic registry hooks (`admin.{beforeCreate,afterCreate,duplicable,editorTabs,SettingsPanel}`, `widgets`, `onPagePublish`, the CLI's `DMS_PAGE_PUBLISH_HOOK`, the stub's `public` settings). Old installs deleted; MitigateNY reinstalled as 2860547 `QA`. dms-server and the MNY client deployed by the owner; Tickets 1.0 in use by internal staff (2026-10-16)
 - [QA pages: implement the design pass](./tasks/current/qa-pattern-type-archive.md#part-2) - The approved Tessera v6 mockups turned into the live `/qa` pages: five core enrichments (Card `editField`, themable `radio`, compact `stage_progress`, `kv_chips` / `comment_thread`, the BarGraph time-axis fix), QA tokens and named styles, the Tickets, Ticket, Overview and Page QA conversions, and the Configure tab redesign. Merged into `qa-pattern-type.md` 2026-10-08 (2026-10-06)
 - [QA on MitigateNY: collapsible site cards, and a look that belongs to the site](./tasks/current/qa-pattern-type-archive.md#part-3) - Generic section-group Collapsible / Starts Collapsed + section Show When Collapsed (Overview site cards start collapsed); QA's look moved to a `qa` theme key like `pages`/`datasets`, with MNY's overrides in `src/themes/mny/qa.theme.js`. Merged into `qa-pattern-type.md` 2026-10-08 (2026-10-07)
 

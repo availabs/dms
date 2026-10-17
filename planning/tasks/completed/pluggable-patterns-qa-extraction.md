@@ -1,6 +1,6 @@
 # Move the `qa` pattern ("Tickets") out of the library into dms-template
 
-**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** built · **Release:** deploy — dms-server + MNY client (see Deploy); committed by the owner 2026-10-14 · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [tes_licensing_open_core](../../../../../planning/initiatives/tes_licensing_open_core.md) (primary), [dms_qa_ticketing](../../../../../planning/initiatives/dms_qa_ticketing.md) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library (+ dms-template, the pattern's new home) · **Topic:** patterns · **Built:** 2026-10-14
 
@@ -9,14 +9,14 @@ the library, CLI and dms-server hold no QA code.
 - The data side is done in the prod DB:
   - the old installs are deleted
   - MitigateNY has a fresh install, **2860547** `QA` (`/qa`), with coverage, grants and theme set
-- **Left: the MNY deploy.** Follow [Deploy](#deploy-for-whoever-deploys-mny) (env vars, steps, checks); the owner
-  doesn't deploy.
+- **Deployed (owner, 2026-10-16):** dms-server and the MNY client are deployed, and Tickets 1.0 is in use by
+  internal staff. The steps stay in [Deploy](#deploy-for-whoever-deploys-mny).
 
 ## Objective
 
 Move the `qa` pattern type, and every piece of QA code the library held, into `dms-template/src/patterns/qa/`.
 It registers through the pattern-type registry exactly as the map editor does
-([`pluggable-patterns-mapeditor-extraction.md`](./pluggable-patterns-mapeditor-extraction.md)), and no
+([`pluggable-patterns-mapeditor-extraction.md`](../current/pluggable-patterns-mapeditor-extraction.md)), and no
 `pattern_type === 'qa'` branch is left in admin, the page pattern, the site factory, the CLI or the server.
 
 - **Owner direction (2026-10-14).** The map-editor doc had listed `qa` among the core patterns that stay
@@ -36,7 +36,7 @@ It registers through the pattern-type registry exactly as the map editor does
 | `admin.afterCreate({ falcor, app, siteId, siteInstance, patternId, instance, row, siblings })`, run after the site row's save | `editSite.jsx`. `patternList.jsx` can't: it doesn't know the site row's id, and "finish set-up" covers that | `installQa(…)` |
 | `admin.duplicable: false` | `patternList.jsx`, and `patternActions(user, app, site, row, typeAdmin)` (callers pass the type's `admin`, so `utils/adminPermissions.js` stays import-free) | the `isQa` checks |
 | `admin.editorTabs: [{ name, path, icon, component }]` | `patternEditor/index.jsx` (tabs), `admin/siteConfig.jsx` (menu) | `qaConfigureTab` and its menu entry |
-| `admin.addable` (existing), set to `QA_PATTERN_ENABLED` by QA | the type select, the Add Pattern picker | three `VITE_DMS_QA_PATTERN` filters |
+| `admin.addable` (existing), `true` for QA (was `QA_PATTERN_ENABLED` until 2026-10-15; see the follow-up below) | the type select, the Add Pattern picker | three `VITE_DMS_QA_PATTERN` filters |
 | `onPagePublish({ page, pattern, sitePatterns, type, app, baseUrl, apiLoad, apiUpdate })`, not awaited, a failure logged | `page/pages/edit/editFunctions.jsx` `publish`; `pagesPane.jsx` passes the context from CMSContext, which now carries `pattern` | `qaPatterns` (site factory) and `CMSContext.qaTracking` |
 | The CLI's page-publish hook: `.dmsrc` `pagePublishHook` / `DMS_PAGE_PUBLISH_HOOK`, a module whose default export gets `{ falcor, config, pattern, page, helpers }` and returns output keys | `cli/src/commands/page.js` `runPublishHook` | the CLI's import of `qa/tracking.js` |
 | The no-access pattern stub carries the row's **`public`** settings, any type | `dms-server/src/routes/dms/dms.route.js` | the server's `qaIntake` |
@@ -48,7 +48,7 @@ not on the Overview) and a `widgets` slot (QA calls the exported `registerWidget
 ### QA in dms-template (`src/patterns/qa/`)
 
 - `index.js`, the definition:
-  - `addable: QA_PATTERN_ENABLED`, `order: 50`, `duplicable: false`
+  - `addable: true` (was `QA_PATTERN_ENABLED` until 2026-10-15), `order: 50`, `duplicable: false`
   - `beforeCreate: qaBeforeCreate` and `afterCreate: qaAfterCreate` (`install.js`)
   - `editorTabs`: the lazy `qa/ConfigureTab`
   - `onPagePublish: trackOnPublish` (`publish.js`)
@@ -125,6 +125,21 @@ not on the Overview) and a `widgets` slot (QA calls the exported `registerWidget
   - filing live as an ungranted user (covered in halves: the server's `public` stub test and the client
     intake tests)
 
+## Follow-up 2026-10-15: `VITE_DMS_QA_PATTERN` removed (owner)
+
+Owner (amuro@albany.edu, 2026-10-15): "this functionality should entirely by handled by pattern
+registration and shouldn't have an env variable to check."
+
+- `src/patterns/qa/index.js`: `admin.addable: true`. `install.js` no longer exports
+  `QA_PATTERN_ENABLED`.
+- `.env.example` drops the block; `src/dms/documentation/pattern-registry.md` describes `addable: true`.
+- **Effect:** every app dms-template builds registers `qa` (`src/patterns/index.js`), so every site's
+  Add Pattern picker and pattern Type select now offer **Tickets** to admins. An app that shouldn't
+  offer it doesn't register the pattern (per-app pattern selection is still deferred).
+- Existing installs were never gated, so 2860547 is unaffected.
+- **Not committed.** It ships with the MNY client deploy below, and needs no env var.
+- Verified: ESLint on the two files and a production `vite build` (see the test notes in this section).
+
 ## Deploy (for whoever deploys MNY)
 
 ### Env vars
@@ -135,7 +150,7 @@ unchanged and set by `Dockerfile`.
 
 | Variable | Read by | Needed for the deploy? | Value |
 |---|---|---|---|
-| `VITE_DMS_QA_PATTERN` | the client build (Vite): `src/patterns/qa/install.js` → the qa definition's `admin.addable` | **Optional.** It only gates Admin → Add Pattern → Tickets. Install 2860547 works without it. | `1` in the `.env` the MNY build uses, if MNY admins should be able to add installs |
+| ~~`VITE_DMS_QA_PATTERN`~~ | **Removed 2026-10-15** (owner). Registration alone offers Tickets; see the follow-up below. | — | — |
 | `DMS_PAGE_PUBLISH_HOOK` | the `dms` CLI only (shell env, or `.dmsrc` `pagePublishHook`); not Vite, not dms-server | **No.** It's for anyone running `dms page publish` on a site with an install | `src/patterns/qa/cli/onPagePublish.js` (relative to the cwd) |
 
 ### Steps
@@ -144,7 +159,7 @@ unchanged and set by `Dockerfile`.
    `public` settings on no-access stubs, which is what lets users not granted on the install file reports.
 2. **Client, devmny:**
    - The root `.env` needs the MNY block: `VITE_DMS_APP=mitigat-ny-prod`, `VITE_DMS_TYPE=prod`,
-     `VITE_DMS_PG_ENVS=hazmit_dama`, and `VITE_DMS_QA_PATTERN=1` if wanted.
+     `VITE_DMS_PG_ENVS=hazmit_dama`. (No `VITE_DMS_QA_PATTERN` any more: removed 2026-10-15.)
    - Then `npm run build`, then `npm run deploy-devmny`.
 3. **Client, prod:** `npm run deploy-mnyprod`. It runs its own build with `VITE_DMS_PRELOAD_THEMES=mnyv1,mny_admin`
    from the same `.env`.
@@ -195,7 +210,7 @@ unchanged and set by `Dockerfile`.
     - **Grants:** `mitigat-ny-prod Admin` and **`AVAIL`**, both `*`.
       - `AVAIL` was added by CLI. The install grants only `<app> Admin`, and MNY's site grants are user 1,
         `AVAIL` and `DHSES`, so the creator was locked out.
-      - This is the queued "Install lockout fix" in [`qa-pattern-type.md`](./qa-pattern-type.md) §3.
+      - This is the queued "Install lockout fix" in [`qa-pattern-type.md`](../current/qa-pattern-type.md) §3.
     - **Switches:** page inventory on (owner, 2026-10-14). 282 pages tracked; the site cards collapse and open to
       their pages. Without it, a site card is only its name and tickets bar, as specced.
     - **Theme:** `mnyv1`, with a **top-nav layout override**: Logo on the left, the install's pages
@@ -213,7 +228,7 @@ unchanged and set by `Dockerfile`.
 - **A direct load of a Pattern Editor URL can render blank** (e.g. `/list/manage_pattern/251/configure`): the
   admin nav loses Sites/Themes and the editor shows nothing. Moving to another page and back fixes it.
   - Cause: defect 2 of
-    [`route-auth-check-judges-placeholder-user.md`](./route-auth-check-judges-placeholder-user.md), where the
+    [`route-auth-check-judges-placeholder-user.md`](../current/route-auth-check-judges-placeholder-user.md), where the
     admin case is logged. `EditWrapper` caches the route without `user`.
 - **The Theme tab's Save writes a full layout override.** On 2860547 it wrote a side-nav layout. After picking
   a theme for a new install, check the layout.

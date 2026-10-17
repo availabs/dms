@@ -5,7 +5,7 @@
 **Project:** DMS library · **Topic:** patterns/datasets + api (dms-server) · **Started:** 2026-09-30
 
 > Split out of the MitigateNY stale-bindings task
-> ([`hazmit-dama-stale-bindings-repoint-plan.md`](../../../../../planning/mitigateny/tasks/current/hazmit-dama-stale-bindings-repoint-plan.md)).
+> ([`hazmit-dama-stale-bindings-repoint-plan.md`](../../../../../planning/mitigateny/tasks/completed/hazmit-dama-stale-bindings-repoint-plan.md)).
 > That task found many sources where the right view to bind cannot be read off the data (newest
 > date, highest version, most rows). A person has to decide from context the system does not hold,
 > and today there is nowhere to write that decision down.
