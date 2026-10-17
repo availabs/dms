@@ -259,7 +259,6 @@
 
 ### ui/theming
 
-- [ ] [Theme the unthemed UI primitives — v6 for the default theme, legacy for everyone else](./tasks/current/ui-primitives-default-theme.md) — left: the non-control chrome of Colorpicker (2 colours) and CardColumnPicker (17); their controls moved onto UI components 2026-10-17. List / DraggableList out of scope (owner). Switch / Textarea / Button / Pill / section menu done in the UI controls effort; `_legacy/ui.js` keeps project themes unchanged.
 - [ ] [Default Layout: logo and user menu below lg (mobile TopNav)](./tasks/current/default-layout-mobile-topnav.md) — below lg the default theme shows no logo / user menu (they live in the max-lg:hidden SideNav; TopNav is size none). Needs a Layout option to turn the TopNav on below a breakpoint. Split from the datasets + page v6 port (2026-10-15)
 - [x] ~~[Page edit sidebar unreadable in dark mode + light flash on load](./tasks/completed/edit-pane-dark-mode.md)~~ — done 2026-09-30 (`17a6f7f9`)
 - [ ] Dark-mode follow-ups from the edit-sidebar fix ([details](./tasks/completed/edit-pane-dark-mode.md#follow-ups-not-done-here)): colored `Pill` variants have no dark colors; `index.html`'s runtime Tailwind `dark:` variant lacks the `[data-theme="dark"]` match

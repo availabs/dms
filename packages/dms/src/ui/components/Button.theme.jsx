@@ -121,9 +121,11 @@ const SCALE_FILTER = 'font-semibold px-2 py-1 cursor-pointer select-none text-xs
 const SCALE_FILTER_ON = 'font-semibold px-2 py-1 cursor-pointer select-none text-xs text-blue-600';
 // treeNode column type's expand / collapse caret (its hardcoded classes; already on tokens, 18px so rows don't move)
 const TREE_CARET = 'w-[18px] h-[18px] rounded flex-shrink-0 inline-flex items-center justify-center text-[var(--t-pencil)] hover:bg-[var(--t-well)] hover:text-[var(--t-graphite)] text-[10px] cursor-pointer border-none bg-transparent';
-// Colorpicker swatches (their hardcoded classes); the fill is the caller's inline backgroundColor
-const SWATCH = 'border-[1px] border-[solid] border-[#ccc] rounded-[4px] h-[16px] w-[16px] cursor-pointer list-none';
-const SWATCH_FLAT = 'w-6 h-6 rounded cursor-pointer transition-all duration-150 hover:scale-110';
+// Colorpicker swatches — v6 2026-10-17 (ui-controls.html#color-picker): the section menu's swatch grid cell, the theme's
+// rule as an edge so pale colours read, the chosen one ink-ringed; the fill is the caller's inline backgroundColor.
+// swatchFlat(On) are the same look (both picker forms share it); pre-v6 strings: src/themes/_legacy/ui.js APPEND_LITERALS.
+const SWATCH = `h-6 rounded-md border border-[var(--t-rule)] cursor-pointer ${FOCUS}`;
+const SWATCH_ON = `${SWATCH} ring-2 ring-[var(--t-ink)] ring-offset-1 ring-offset-[var(--t-panel)]`;
 // the Lexical plugin dialogs' close ✕ (useModal; its fallback when the theme has no modal.closeButton)
 const LEX_MODAL_CLOSE = 'cursor-pointer text-sm hover:opacity-70';
 // the Lexical editor's controls: composed from the library lexical theme's own class keys (lexical/theme.js), so
@@ -267,9 +269,9 @@ export const buttonTheme = {
     { name: 'lexImageEdit',         button: lx('editor_inlineImage_editButton_base') },
     { name: 'lexActionButton',      button: lx('actionButton_base') },
     { name: 'swatch',               button: SWATCH },
-    { name: 'swatchOn',             button: `${SWATCH} [box-shadow:0px_0px_2px_2px_rgba(0,_0,_0,_0.3)]` },
-    { name: 'swatchFlat',           button: SWATCH_FLAT },
-    { name: 'swatchFlatOn',         button: `${SWATCH_FLAT} ring-2 ring-offset-1 ring-blue-500` },
+    { name: 'swatchOn',             button: SWATCH_ON },
+    { name: 'swatchFlat',           button: SWATCH },
+    { name: 'swatchFlatOn',         button: SWATCH_ON },
   ]
 }
 

@@ -36,7 +36,7 @@ dev warning (below). Project themes keep their look through `src/themes/_legacy/
 **Follow-on work:**
 - [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md): raw `<button>` / `<input>` /
   … → UI components; also holds the items carried over from this effort ("Carried over" there).
-- [ui-primitives-default-theme.md](../current/ui-primitives-default-theme.md): the UI primitives that still
+- [ui-primitives-default-theme.md](../completed/ui-primitives-default-theme.md): the UI primitives that still
   hardcode colours.
 - [default-theme-color-variant.md](../current/default-theme-color-variant.md): a more colourful default
   (deferred by the owner).

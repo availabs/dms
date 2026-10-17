@@ -1,20 +1,20 @@
 # Theme the unthemed UI primitives — v6 for the default theme, legacy for everyone else
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** next · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
-## Resume here (2026-10-17)
+## Closed (2026-10-17)
 
-- **Left:** the non-control chrome of `Colorpicker` (2 hardcoded colours: `color-picker-wrapper` `bg-white`, the hex
-  readout `text-slate-500`) and `CardColumnPicker` (17: the column search list `bg-white` / `hover:bg-blue-50`, the
-  selected-column chips `bg-blue-100 text-blue-700`, the blue insert line / dot / `+` trigger `bg-blue-400`, the popup
-  panel `bg-white border shadow-lg`). `List` + `DraggableList` out of scope (owner).
-- **Done 2026-10-17 by ui-raw-html-to-ui-components.md** (completed): their CONTROLS are UI components now —
-  Colorpicker swatches = Button 'swatch(On)' / 'swatchFlat(On)' (their old classes, fill still the inline colour);
-  CardColumnPicker buttons = 'small' / 'chip' / 'chipOn' (owner: purple / green dropped; + Formula / + Calculated /
-  + Static are one pill style).
-- **Done earlier:** Switch (v6 + disabled dim 10/16), Textarea, Button, section menu, Pill.
-- **Next:** per component: v6 keys in a `*.theme.js` (match the mockup), old classes frozen in `_legacy/ui.js`,
-  verify with `scratchpad/verify/` (default = mockup, project themes unchanged).
+Every primitive in scope now takes its look from the theme — v6 in the library default, the pre-v6 look frozen for
+project themes in `src/themes/_legacy/ui.js`: Switch, Textarea, Button, Pill, the section menu (UI controls effort), and
+on 2026-10-17 Colorpicker (`colorPicker`) and CardColumnPicker (`cardColumnPicker`), to the owner-approved spec on
+`design_system_v6/pages/ui-controls.html` (#color-picker, #column-picker). `List` / `DraggableList`: out of scope (owner).
+Pagination / Card: their remaining hardcoded classes were in commented-out code / moved by the raw-HTML task.
+
+2026-10-17 details: every class string in both components (layout included) is a theme key; swatch / swatchOn are the
+spec's swatch; ColorPickerFlat's inline border + shadow became (legacy) classes — the inline shadow had hidden the
+selected ring, so project themes keep no ring. The section-menu mockup's border colour now shows the hex read-only
+(owner). Fixed on the way: the full picker positioned its cursors in px against a width the padded square never had
+(cursor drawn outside, drag maxed at ~81% saturation) — now % of the measured area.
 
 **State 2026-10-15:** the datasets + page v6 redesign it waited for is finished, and the UI controls effort
 ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)) did part of this task:
@@ -125,10 +125,12 @@ nav fixed; see datasets-page-pattern-v6-port.md page 16). It is applied in `src/
 
 ## Testing checklist
 
-- [ ] Each component: default theme renders the v6 look, light + dark
-- [ ] Each component: MNY, transportny (v1 + v2), wcdb, avail, landbank, fusion, tessera render
+- [x] Each component: default theme renders the v6 look, light + dark — Colorpicker + CardColumnPicker match ui-controls.html#color-picker / #column-picker (2026-10-17)
+- [x] Each component: MNY, transportny (v1 + v2), wcdb, avail, landbank, fusion, tessera render
       exactly as before (screenshot compare against HEAD)
+      — 2026-10-17: `scratchpad/prim-check` HEAD vs working tree, 13 project themes × light/dark, every element's rect +
+      computed bg / border / radius / shadow: identical except the full picker's cursor (bug fix) and ±2px font-timing jitter
 - [x] Switch states: on / off, all three sizes, light + dark — match `ui-controls.html#switch` (2026-10-16). Disabled dimmed to 40% (2026-10-16); project themes unchanged.
-- [ ] Section menu (edit + not-editing + a submenu) matches page-edit.html / page-section-menu.html in the default theme; MNY / TNY menus unchanged
-- [ ] `npm run build` clean; eslint on touched files vs `git show HEAD:<path>`
-- [ ] Local check only (scratch sqlite server + second Vite; never the 5173 dev server or prod)
+- [x] Section menu (edit + not-editing + a submenu) matches page-edit.html / page-section-menu.html in the default theme; MNY / TNY menus unchanged — done in the UI controls effort (see the resume block; not re-checked 2026-10-17)
+- [x] `npm run build` clean (2026-10-17 ✓; its 10 css warnings are pre-existing Catalyst `has-[…]` classes); eslint on touched files: parse / undefined / unused only
+- [x] Local check only (scratch sqlite server + second Vite; never the 5173 dev server or prod)

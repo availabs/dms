@@ -23,11 +23,6 @@ import { ThemeContext } from '../../../../useTheme';
 // covers a Provider-less mount (it doesn't import the editor — no cycle).
 import DefaultButton from '../../../Button';
 
-const useButton = () => {
-  const { UI } = React.useContext(ThemeContext) || {};
-  return UI?.Button || DefaultButton;
-};
-
 type DropDownContextType = {
   registerItem: (ref: React.RefObject<HTMLButtonElement>) => void;
 };
@@ -56,7 +51,8 @@ export function DropDownItem({
   }
 
   const {registerItem} = dropDownContext;
-  const Button = useButton();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
 
   useEffect(() => {
     if (ref && ref.current) {
@@ -165,7 +161,8 @@ export default function DropDown({
   stopCloseOnClickSelf?: boolean;
 }): JSX.Element {
   const theme = useLexicalTheme();
-  const Button = useButton();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
   const dropDownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [showDropDown, setShowDropDown] = useState(false);

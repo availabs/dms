@@ -19,6 +19,8 @@ import {modalTheme} from "./components/Modal.theme";
 import {deleteModalTheme} from "./components/DeleteModal.theme";
 import {buttonSelectTheme} from "./components/ButtonSelect.theme";
 import {drawerTheme} from "./components/Drawer.theme";
+import {colorPickerTheme} from "./components/Colorpicker.theme";
+import {cardColumnPickerTheme} from "./components/CardColumnPicker.theme";
 import {labelTheme} from "./components/Label";
 import {pillTheme} from "./components/Pill.theme";
 import {switchTheme} from "./components/Switch.theme";
@@ -240,6 +242,8 @@ const components = {
     deleteModal: deleteModalTheme,
     buttonSelect: buttonSelectTheme,
     drawer: drawerTheme,
+    colorPicker: colorPickerTheme,
+    cardColumnPicker: cardColumnPickerTheme,
     label: labelTheme,
     pill: pillTheme,
     switch: switchTheme,
