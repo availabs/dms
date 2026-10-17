@@ -1,6 +1,7 @@
 import React, {useRef, useState} from "react";
 import Modal from "./Modal";
 import Icon from "./Icon";
+import Button from "./Button";
 import {ThemeContext, getComponentTheme} from "../useTheme";
 import {deleteModalTheme} from "./DeleteModal.theme";
 
@@ -33,22 +34,20 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, a
                 </div>
             </div>
             <div className={t.actions}>
-                <button
-                    type="button"
-                    className={t.cancelButton}
+                <Button
+                    activeStyle={t.cancelButtonStyle}
                     onClick={() => setOpen(false)}
                     ref={cancelButtonRef}
                 >
                     Cancel
-                </button>
-                <button
-                    type="button"
+                </Button>
+                <Button
+                    activeStyle={t.deleteButtonStyle}
                     disabled={loading}
-                    className={t.deleteButton}
                     onClick={onDelete}
                 >
                     Delet{loading ? 'ing...' : 'e'}
-                </button>
+                </Button>
             </div>
         </Modal>
     )

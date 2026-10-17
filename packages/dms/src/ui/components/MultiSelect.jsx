@@ -2,6 +2,7 @@ import React, {memo, useCallback, useContext, useEffect, useLayoutEffect, useRef
 import { createPortal } from "react-dom"
 import { ThemeContext, getComponentTheme } from "../useTheme"
 import { multiselectTheme } from "./MultiSelect.theme"
+import DefaultIcon from "./Icon"
 
 
 const looselyEqual = (a, b) => {
@@ -14,7 +15,7 @@ const looselyEqual = (a, b) => {
 
 const RenderToken = ({token={}, value, onChange, t, isSearching, setIsSearching, meta}) => {
     const { UI } = useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const Icon = UI?.Icon || DefaultIcon;
     const label = meta?.[token?.label || token] || token?.label || token;
     const safeLabel = label && typeof label === 'object' ? JSON.stringify(label) : label
     return (
@@ -54,7 +55,7 @@ const RenderMenu = ({
     t
 }) => {
     const { UI } = useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const Icon = UI?.Icon || DefaultIcon;
     const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
@@ -246,7 +247,7 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                   disabled=false
 }) => {
     const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const Icon = UI?.Icon || DefaultIcon;
     const t = { ...multiselectTheme.styles[0], ...getComponentTheme(themeFromContext, 'multiselect', activeStyle) };
     // Resolve the display mode: explicit `display` prop wins over the legacy
     // keepMenuOpen / tabular flag pair. After this point, only `isExpanded`

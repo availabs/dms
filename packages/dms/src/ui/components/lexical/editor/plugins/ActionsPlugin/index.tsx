@@ -36,6 +36,8 @@ import {
 } from '../SpeechToTextPlugin';
 import { useLexicalTheme } from '../../../useLexicalTheme';
 import { ThemeContext } from '../../../../../useTheme';
+// UI.Button (2026-10-17, raw-HTML pass): the host UI wins; the imported one covers a Provider-less mount
+import DefaultButton from '../../../../Button';
 
 async function sendEditorState(editor: LexicalEditor): Promise<void> {
   const stringifiedEditorState = JSON.stringify(editor.getEditorState());
@@ -82,6 +84,8 @@ export default function ActionsPlugin({
 }): JSX.Element {
   const [editor] = useLexicalComposerContext();
   const theme = useLexicalTheme();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
   const [isEditable, setIsEditable] = useState(() => editor.isEditable());
   const [isSpeechToText, setIsSpeechToText] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -162,31 +166,28 @@ export default function ActionsPlugin({
   return (
     <div className={`${theme.actions_base}` || "actions"}>
       {SUPPORT_SPEECH_RECOGNITION && (
-        <button
+        <Button
           onClick={() => {
             editor.dispatchCommand(SPEECH_TO_TEXT_COMMAND, !isSpeechToText);
             setIsSpeechToText(!isSpeechToText);
           }}
-          // action-button-mic not added to theme
-          className={
-            `${theme.actionButton_base} action-button-mic ` + (isSpeechToText ? 'active' : '')
-          }
+          activeStyle={theme.actionButton_style}
           title="Speech To Text"
           aria-label={`${
             isSpeechToText ? 'Enable' : 'Disable'
           } speech to text`}>
           <i className="mic" />
-        </button>
+        </Button>
       )}
-      <button
-        className={`${theme.actionButton_base} import`}
+      <Button
+        activeStyle={theme.actionButton_style}
         onClick={() => importFile(editor)}
         title="Import"
         aria-label="Import editor state from JSON">
         <i className={theme.icon_import || "import"} />
-      </button>
-      <button
-        className={`${theme.actionButton_base} export`}
+      </Button>
+      <Button
+        activeStyle={theme.actionButton_style}
         onClick={() =>
           exportFile(editor, {
             fileName: `Playground ${new Date().toISOString()}`,
@@ -196,9 +197,9 @@ export default function ActionsPlugin({
         title="Export"
         aria-label="Export editor state to JSON">
         <i className={theme.icon_export || "export"} />
-      </button>
-      <button
-        className={`${theme.actionButton_base} clear`}
+      </Button>
+      <Button
+        activeStyle={theme.actionButton_style}
         disabled={isEditorEmpty}
         onClick={() => {
           showModal('Clear editor', (onClose) => (
@@ -208,9 +209,9 @@ export default function ActionsPlugin({
         title="Clear"
         aria-label="Clear editor contents">
         <i className={theme.icon_clear || "clear"} />
-      </button>
-      <button
-        className={`${theme.actionButton_base} ${!isEditable ? 'unlock' : 'lock'}`}
+      </Button>
+      <Button
+        activeStyle={theme.actionButton_style}
         onClick={() => {
           // Send latest editor state to commenting validation server
           if (isEditable) {
@@ -221,14 +222,14 @@ export default function ActionsPlugin({
         title="Read-Only Mode"
         aria-label={`${!isEditable ? 'Unlock' : 'Lock'} read-only mode`}>
         <i className={!isEditable ? 'unlock' : 'lock'} />
-      </button>
-      <button
-        className={`${theme.actionButton_base}` }
+      </Button>
+      <Button
+        activeStyle={theme.actionButton_style}
         onClick={handleMarkdownToggle}
         title="Convert From Markdown"
         aria-label="Convert from markdown">
         <i className={theme.icon_markdown} />
-      </button>
+      </Button>
       {/*isCollabActive && (
         <button
           className="action-button connect"
@@ -257,51 +258,28 @@ function ShowClearDialog({
   onClose: () => void;
 }): JSX.Element {
   const { UI } = React.useContext(ThemeContext) || {};
-  const Button = UI?.Button;
+  const Button = UI?.Button || DefaultButton;
   return (
     <>
       Are you sure you want to clear the editor?
       <div className="Modal__content">
-        {Button ? (
-          <Button
-            activeStyle="danger"
-            onClick={() => {
-              editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
-              editor.focus();
-              onClose();
-            }}>
-            Clear
-          </Button>
-        ) : (
-          <button
-            onClick={() => {
-              editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
-              editor.focus();
-              onClose();
-            }}
-            className="px-3 py-1.5 bg-red-500 text-white">
-            Clear
-          </button>
-        )}{' '}
-        {Button ? (
-          <Button
-            activeStyle="plain"
-            onClick={() => {
-              editor.focus();
-              onClose();
-            }}>
-            Cancel
-          </Button>
-        ) : (
-          <button
-            onClick={() => {
-              editor.focus();
-              onClose();
-            }}
-            className="px-3 py-1.5">
-            Cancel
-          </button>
-        )}
+        <Button
+          activeStyle="danger"
+          onClick={() => {
+            editor.dispatchCommand(CLEAR_EDITOR_COMMAND, undefined);
+            editor.focus();
+            onClose();
+          }}>
+          Clear
+        </Button>{' '}
+        <Button
+          activeStyle="plain"
+          onClick={() => {
+            editor.focus();
+            onClose();
+          }}>
+          Cancel
+        </Button>
       </div>
     </>
   );

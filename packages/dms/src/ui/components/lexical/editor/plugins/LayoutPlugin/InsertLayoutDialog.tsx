@@ -12,11 +12,15 @@ import {type LexicalEditor} from 'lexical';
 import * as React from 'react';
 import {useState} from 'react';
 
-import DropDown, {DropDownItem} from '../../ui/DropDown';
 import {INSERT_LAYOUT_COMMAND} from './LayoutPlugin';
-import { useLexicalTheme } from '../../../useLexicalTheme';
 import {useLexicalComposerContext} from '@lexical/react/LexicalComposerContext';
 import { ThemeContext } from '../../../../../useTheme';
+// the UI primitives this dialog renders when the host ThemeContext has no `UI` (2026-10-17: they don't import
+// the editor, so there is no import cycle — this replaced raw-HTML fallbacks)
+import DefaultButton from '../../../../Button';
+import DefaultSelect from '../../../../Select';
+import DefaultDialogActions from '../../../../DialogActions';
+import DefaultFieldLabel from '../../../../FieldLabel';
 
 // Codebase-default column-layout templates. Themes can replace this set
 // by declaring `theme.lexical.layoutTemplates` — the editor entry mirrors
@@ -39,7 +43,6 @@ export default function InsertLayoutDialog({
   activeEditor: LexicalEditor;
   onClose: () => void;
 }): JSX.Element {
-  const theme = useLexicalTheme();
   // Theme can override the hardcoded codebase template list via
   // `theme.lexical.layoutTemplates` — mirrored onto _config.theme by
   // editor/index.tsx. Falls back to the hardcoded LAYOUTS export when
@@ -47,7 +50,6 @@ export default function InsertLayoutDialog({
   const [editor] = useLexicalComposerContext();
   const templates = ((editor?._config?.theme as { layoutTemplates?: typeof LAYOUTS })?.layoutTemplates) || LAYOUTS;
   const [layout, setLayout] = useState(templates[0].value);
-  const buttonLabel = templates.find((item) => item.value === layout)?.label;
 
   const onClick = () => {
     activeEditor.dispatchCommand(INSERT_LAYOUT_COMMAND, layout);
@@ -58,10 +60,10 @@ export default function InsertLayoutDialog({
   // MultiSelect) replaces the lexical-internal DropDown so the field renders
   // in the brand's form skin.
   const { UI } = React.useContext(ThemeContext) || {};
-  const Button = UI?.Button;
-  const Select = UI?.Select;
-  const DialogActions = UI?.DialogActions
-    || (({children}: {children: React.ReactNode}) => <div className="flex justify-end gap-2 mt-4">{children}</div>);
+  const Button = UI?.Button || DefaultButton;
+  const Select = UI?.Select || DefaultSelect;
+  const FieldLabel = UI?.FieldLabel || DefaultFieldLabel;
+  const DialogActions = UI?.DialogActions || DefaultDialogActions;
   const options = React.useMemo(
     () => templates.map(({label, value}) => ({label, value})),
     [templates],
@@ -69,38 +71,16 @@ export default function InsertLayoutDialog({
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Columns</span>
-        {Select ? (
-          <Select
-            options={options}
-            value={layout}
-            onChange={(next: string) => { if (next) setLayout(next); }}
-          />
-        ) : (
-          <DropDown
-            buttonClassName={`${theme.toolbar_toolbarItem_base} block-controls`}
-            buttonLabel={buttonLabel}>
-            {templates.map(({label, value}) => (
-              <DropDownItem
-                key={value}
-                className={`${theme.dropdown_item_base} item`}
-                onClick={() => setLayout(value)}>
-                <span className={`${theme.dropdown_item_text}`}>{label}</span>
-              </DropDownItem>
-            ))}
-          </DropDown>
-        )}
-      </label>
+      <FieldLabel text="Columns">
+        <Select
+          options={options}
+          value={layout}
+          onChange={(next: string) => { if (next) setLayout(next); }}
+        />
+      </FieldLabel>
 
       <DialogActions>
-        {Button ? (
-          <Button onClick={onClick}>Insert</Button>
-        ) : (
-          <button onClick={onClick} className="px-3 py-1.5 bg-slate-800 text-white">
-            Insert
-          </button>
-        )}
+        <Button onClick={onClick}>Insert</Button>
       </DialogActions>
     </div>
   );

@@ -17,6 +17,16 @@ import {
 } from 'react';
 import {createPortal} from 'react-dom';
 import { useLexicalTheme } from '../../useLexicalTheme';
+import { ThemeContext } from '../../../../useTheme';
+// 2026-10-17 (raw-HTML pass): the trigger and items are UI.Buttons — callers name a Button style (`buttonStyle` /
+// `activeStyle`, the lexical theme's *_style keys) instead of passing classes. The host UI wins; the imported Button
+// covers a Provider-less mount (it doesn't import the editor — no cycle).
+import DefaultButton from '../../../Button';
+
+const useButton = () => {
+  const { UI } = React.useContext(ThemeContext) || {};
+  return UI?.Button || DefaultButton;
+};
 
 type DropDownContextType = {
   registerItem: (ref: React.RefObject<HTMLButtonElement>) => void;
@@ -28,12 +38,12 @@ const dropDownPadding = 4;
 
 export function DropDownItem({
   children,
-  className,
+  activeStyle,
   onClick,
   title,
 }: {
   children: React.ReactNode;
-  className: string;
+  activeStyle?: string;
   onClick: (event: React.MouseEvent<HTMLButtonElement>) => void;
   title?: string;
 }) {
@@ -46,6 +56,7 @@ export function DropDownItem({
   }
 
   const {registerItem} = dropDownContext;
+  const Button = useButton();
 
   useEffect(() => {
     if (ref && ref.current) {
@@ -54,14 +65,13 @@ export function DropDownItem({
   }, [ref, registerItem]);
 
   return (
-    <button
-      className={className}
+    <Button
+      activeStyle={activeStyle}
       onClick={onClick}
       ref={ref}
-      title={title}
-      type="button">
+      title={title}>
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -141,20 +151,21 @@ export default function DropDown({
   disabled = false,
   buttonLabel,
   buttonAriaLabel,
-  buttonClassName,
+  buttonStyle,
   buttonIconClassName,
   children,
   stopCloseOnClickSelf,
 }: {
   disabled?: boolean;
   buttonAriaLabel?: string;
-  buttonClassName: string;
+  buttonStyle?: string;
   buttonIconClassName?: string;
   buttonLabel?: string;
   children: ReactNode;
   stopCloseOnClickSelf?: boolean;
 }): JSX.Element {
   const theme = useLexicalTheme();
+  const Button = useButton();
   const dropDownRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const [showDropDown, setShowDropDown] = useState(false);
@@ -229,11 +240,10 @@ export default function DropDown({
 
   return (
     <>
-      <button
-        type="button"
+      <Button
         disabled={disabled}
         aria-label={buttonAriaLabel || buttonLabel}
-        className={buttonClassName}
+        activeStyle={buttonStyle}
         onClick={() => setShowDropDown(!showDropDown)}
         ref={buttonRef}>
         {buttonIconClassName && <span className={buttonIconClassName} />}
@@ -241,7 +251,7 @@ export default function DropDown({
           <span className={`${theme.toolbar_toolbarItem_text} display-none`}>{buttonLabel}</span>
         )}
         <i className={`${theme.iconChevronDown}`} />
-      </button>
+      </Button>
 
       {showDropDown &&
         createPortal(

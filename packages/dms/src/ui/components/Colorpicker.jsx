@@ -6,6 +6,7 @@
  *
  */
 import {useEffect, useMemo, useRef, useState} from 'react';
+import Button from './Button';
 
 const basicColors = [
     '#d0021b',
@@ -291,9 +292,9 @@ function transformColor(
             ref={innerDivRef}>
             <div className={`${colorPickerStyles[`color-picker-basic-color`]}`}>
                 {colorOptions.map((basicColor) => (
-                    <button
-
-                        className={`${colorPickerStyles[`color-picker-basic-color-button`]} ${basicColor === selfColor.hex ? colorPickerStyles[`color-picker-basic-color-button.active`] : ''}`}
+                    // a UI.Button named style (2026-10-17, raw-HTML pass); the fill stays the inline backgroundColor
+                    <Button
+                        activeStyle={basicColor === selfColor.hex ? 'swatchOn' : 'swatch'}
                         key={basicColor}
                         style={{backgroundColor: basicColor}}
                         onClick={() => {
@@ -378,13 +379,10 @@ export function ColorPickerFlat({ color, onChange, colors, showColorPicker = fal
             {/* Color swatches */}
             <div className="flex flex-wrap gap-1.5">
                 {colorOptions.map((basicColor) => (
-                    <button
+                    // a UI.Button named style (2026-10-17, raw-HTML pass); the fill stays the inline backgroundColor
+                    <Button
                         key={basicColor}
-                        className={`w-6 h-6 rounded cursor-pointer transition-all duration-150 hover:scale-110 ${
-                            basicColor === selfColor.hex
-                                ? 'ring-2 ring-offset-1 ring-blue-500'
-                                : ''
-                        }`}
+                        activeStyle={basicColor === selfColor.hex ? 'swatchFlatOn' : 'swatchFlat'}
                         style={{
                             backgroundColor: basicColor,
                             border: '1px solid rgba(0,0,0,0.1)',

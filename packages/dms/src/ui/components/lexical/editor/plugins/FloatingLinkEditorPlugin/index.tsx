@@ -32,7 +32,15 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPositionForLinkEditor} from '../../utils/setFloatingElemPositionForLinkEditor';
 import {sanitizeUrl} from '../../utils/url';
 import { useLexicalTheme } from '../../../useLexicalTheme';
+import { ThemeContext } from '../../../../../useTheme';
+import DefaultSelect from '../../../../Select';
+import DefaultInput from '../../../../Input';
 import {TOGGLE_LINK_COMMAND} from "../LinkPlugin/commands";
+
+const LINK_TARGET_OPTIONS = [
+  { label: 'Same tab (_self)', value: '_self' },
+  { label: 'New tab (_blank)', value: '_blank' },
+];
 
 function FloatingLinkEditor({
   editor,
@@ -50,6 +58,9 @@ function FloatingLinkEditor({
   setIsLinkEditMode: Dispatch<boolean>;
 }): JSX.Element {
   const theme = useLexicalTheme();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Select = UI?.Select || DefaultSelect;
+  const Input = UI?.Input || DefaultInput;
   const editorRef = useRef<HTMLDivElement | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const [linkUrl, setLinkUrl] = useState('');
@@ -107,7 +118,8 @@ function FloatingLinkEditor({
         setFloatingElemPositionForLinkEditor(domRect, editorElem, anchorElem);
       }
       setLastSelection(selection);
-    } else if (!activeElement || activeElement.className !== (theme.linkEditor_linkInput_base)) {
+    // the URL field (a UI.Input since 2026-10-17) is recognised by its ref, not by matching its class string
+    } else if (!activeElement || activeElement !== inputRef.current) {
       if (rootElement !== null) {
         setFloatingElemPositionForLinkEditor(null, editorElem, anchorElem);
       }
@@ -218,9 +230,9 @@ function FloatingLinkEditor({
     <div ref={editorRef} className={theme.linkEditor_base || "link-editor z-[50]"}>
       {!isLink ? null : isLinkEditMode ? (
         <>
-          <input
+          <Input
             ref={inputRef}
-            className={theme.linkEditor_linkInput_base || "link-input"}
+            activeStyle={theme.linkEditor_linkInput_style}
             value={editedLinkUrl}
             onChange={(event) => {
               setEditedLinkUrl(event.target.value);
@@ -229,16 +241,15 @@ function FloatingLinkEditor({
               monitorInputInteraction(event);
             }}
           />
-          <select
-              className={theme.linkEditor_linkInput_base || 'link-input'}
-              value={linkTarget}
-              onChange={(event) => {
-                setLinkTarget(event.target.value);
-              }}
-          >
-            <option value="_self">Same tab (_self)</option>
-            <option value="_blank">New tab (_blank)</option>
-          </select>
+          {/* UI.Select (2026-10-17, owner: swap the native select); the wrapper carries the old field's layout */}
+          <div className="m-3 w-[calc(100%-75px)]">
+            <Select
+              activeStyle="lexLinkTarget"
+              value={linkTarget || '_self'}
+              options={LINK_TARGET_OPTIONS}
+              onChange={(next: string) => { if (next) setLinkTarget(next); }}
+            />
+          </div>
           <div>
             <div
               className={theme.linkEditor_div_linkCancel || "link-cancel"}

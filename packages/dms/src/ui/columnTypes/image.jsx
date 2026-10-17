@@ -1,6 +1,7 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useState } from "react";
 import { ThemeContext, getComponentTheme } from "../useTheme";
 import { CMSContext } from "../../patterns/page/context";
+import FileInput from "../components/FileInput";
 
 // Pulls the size class (max-w-* max-h-*) for a given size key from the
 // active dataCard theme. Falls back to imgDefault, then to a sensible
@@ -69,7 +70,6 @@ export const ImageEdit = ({ value, onChange, defaultImage, imageSize }) => {
     const dataCardTheme = useDataCardTheme();
     const cmsCtx = useContext(CMSContext) || {};
     const { fileUploadInfo } = cmsCtx;
-    const inputRef = useRef(null);
     const [uploading, setUploading] = useState(false);
     const [error, setError] = useState(null);
 
@@ -83,8 +83,8 @@ export const ImageEdit = ({ value, onChange, defaultImage, imageSize }) => {
         return <RenderImg src={src} imgClass={imgClass} />;
     }
 
-    const onSelectFile = async (e) => {
-        const file = e?.target?.files?.[0];
+    const onSelectFile = async (files) => {
+        const file = files?.[0];
         if (!file) return;
         setError(null);
         setUploading(true);
@@ -94,29 +94,20 @@ export const ImageEdit = ({ value, onChange, defaultImage, imageSize }) => {
             else setError('Upload failed');
         } finally {
             setUploading(false);
-            if (inputRef.current) inputRef.current.value = '';
         }
     };
 
-    const uploadDisabled = uploading || !fileUploadInfo;
-
     return (
         <div className="w-full flex flex-col items-center justify-center gap-1 p-3 border border-dashed border-slate-300 rounded-md text-sm">
-            <input
-                ref={inputRef}
-                type="file"
+            {/* UI.FileInput (2026-10-17, raw-HTML pass): was a hidden <input type=file> + a hardcoded white button */}
+            <FileInput
                 accept="image/*"
-                className="hidden"
+                label="Upload Image"
+                loading={uploading}
+                disabled={!fileUploadInfo}
+                showFileName={false}
                 onChange={onSelectFile}
             />
-            <button
-                type="button"
-                className="px-3 py-1.5 border rounded-md bg-white hover:bg-slate-50 disabled:opacity-50"
-                disabled={uploadDisabled}
-                onClick={() => inputRef.current?.click()}
-            >
-                {uploading ? 'Uploading…' : 'Upload Image'}
-            </button>
             {!fileUploadInfo && (
                 <span className="text-xs text-slate-500">File upload not configured</span>
             )}

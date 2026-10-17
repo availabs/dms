@@ -318,16 +318,20 @@ const FormulaDialog = ({ open, setOpen, columns, addFormulaColumn }) => {
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 
-const AddFormulaColumn = ({ columns = [], addFormulaColumn }) => {
+// triggerStyle / triggerOnStyle (2026-10-17): a caller that lays these out as pills beside its own (CardColumnPicker's
+// "+ Static" chip) names the Button styles; the trigger then sits unwrapped (no full-width addTriggerWrap)
+const AddFormulaColumn = ({ columns = [], addFormulaColumn, triggerStyle, triggerOnStyle }) => {
     const [open, setOpen] = useState(false);
     const { UI } = useContext(ThemeContext);
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            <span className={t.addTriggerWrap}>
-                <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Formula</UI.Button>
-            </span>
+            {triggerStyle
+                ? <UI.Button activeStyle={(open && triggerOnStyle) || triggerStyle} aria-expanded={open} onClick={() => setOpen(true)}>+ Formula</UI.Button>
+                : <span className={t.addTriggerWrap}>
+                    <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Formula</UI.Button>
+                  </span>}
             {open && <FormulaDialog open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />}
         </>
     );

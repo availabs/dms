@@ -20,6 +20,12 @@ import {createContext, useContext, useEffect, useMemo, useState} from 'react';
 import invariant from '../utils/invariant';
 
 import { ThemeContext } from '../../../../useTheme';
+// the UI primitives this dialog renders when the host ThemeContext has no `UI` (2026-10-17: they don't import
+// the editor, so there is no import cycle — this replaced raw-HTML fallbacks)
+import DefaultInput from '../../../Input';
+import DefaultButton from '../../../Button';
+import DefaultDialogActions from '../../../DialogActions';
+import DefaultFieldLabel from '../../../FieldLabel';
 
 export type InsertTableCommandPayload = Readonly<{
   columns: string;
@@ -85,10 +91,10 @@ export function InsertTableDialog({
   onClose: () => void;
 }): JSX.Element {
   const { UI } = React.useContext(ThemeContext) || {};
-  const Input = UI?.Input;
-  const Button = UI?.Button;
-  const DialogActions = UI?.DialogActions
-    || (({children}: {children: React.ReactNode}) => <div className="flex justify-end gap-2 mt-4">{children}</div>);
+  const Input = UI?.Input || DefaultInput;
+  const Button = UI?.Button || DefaultButton;
+  const FieldLabel = UI?.FieldLabel || DefaultFieldLabel;
+  const DialogActions = UI?.DialogActions || DefaultDialogActions;
 
   const [rows, setRows] = useState('5');
   const [columns, setColumns] = useState('5');
@@ -115,63 +121,30 @@ export function InsertTableDialog({
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Rows</span>
-        {Input ? (
-          <Input
-            type="number"
-            value={rows}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRows(e.target.value)}
-            placeholder="# of rows (1-500)"
-            data-test-id="table-modal-rows"
-          />
-        ) : (
-          <input
-            type="number"
-            value={rows}
-            onChange={(e) => setRows(e.target.value)}
-            placeholder="# of rows (1-500)"
-            className="border px-2 py-1"
-            data-test-id="table-modal-rows"
-          />
-        )}
-      </label>
+      <FieldLabel text="Rows">
+        <Input
+          type="number"
+          value={rows}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRows(e.target.value)}
+          placeholder="# of rows (1-500)"
+          data-test-id="table-modal-rows"
+        />
+      </FieldLabel>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Columns</span>
-        {Input ? (
-          <Input
-            type="number"
-            value={columns}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColumns(e.target.value)}
-            placeholder="# of columns (1-50)"
-            data-test-id="table-modal-columns"
-          />
-        ) : (
-          <input
-            type="number"
-            value={columns}
-            onChange={(e) => setColumns(e.target.value)}
-            placeholder="# of columns (1-50)"
-            className="border px-2 py-1"
-            data-test-id="table-modal-columns"
-          />
-        )}
-      </label>
+      <FieldLabel text="Columns">
+        <Input
+          type="number"
+          value={columns}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setColumns(e.target.value)}
+          placeholder="# of columns (1-50)"
+          data-test-id="table-modal-columns"
+        />
+      </FieldLabel>
 
       <DialogActions data-test-id="table-model-confirm-insert">
-        {Button ? (
-          <Button disabled={isDisabled} onClick={onClick}>
-            Confirm
-          </Button>
-        ) : (
-          <button
-            disabled={isDisabled}
-            onClick={onClick}
-            className="px-3 py-1.5 bg-slate-800 text-white">
-            Confirm
-          </button>
-        )}
+        <Button disabled={isDisabled} onClick={onClick}>
+          Confirm
+        </Button>
       </DialogActions>
     </div>
   );

@@ -2,6 +2,7 @@ import React, {createContext, useCallback, useEffect, useMemo, useRef, useState}
 import {getComponentTheme, ThemeContext} from '../../useTheme';
 import DataTypes from "../../columnTypes"
 import Icon from "../Icon";
+import Button from "../Button";
 import {handleMouseUp} from "./utils/mouse";
 import {TableRow} from "./components/TableRow";
 import {Header} from "./components/TableHeader";
@@ -139,13 +140,13 @@ const AddNew = ({allowAdddNew,
 
             <div className={theme?.addRowButtonCell}
                  style={{width: `${addNewButtonWidth}px`}}>
-                <button
-                    className={theme?.addRowButton}
+                <Button
+                    activeStyle={theme?.addRowButtonStyle}
                     onClick={e => {
                         addItem()
                     }}>
                     <Icon icon={'CirclePlus'} className={theme?.addRowButtonIcon} height={addNewButtonWidth} width={addNewButtonWidth}/>
-                </button>
+                </Button>
             </div>
             {
                 attrsToRender
@@ -248,13 +249,13 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
                     style={{ width: numColSize }}
                 >
                     {numColSize > 0 && (
-                        <button
-                            className={theme?.inlineAddSave}
+                        <Button
+                            activeStyle={theme?.inlineAddSaveStyle}
                             onClick={() => addItem?.()}
                             title="Save row (or press Enter)"
                         >
                             <Icon icon="Check" height={14} width={14} />
-                        </button>
+                        </Button>
                     )}
                 </div>
                 {attrsToRender.map((attribute, i) => {
@@ -308,13 +309,13 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
                 })}
             </div>
             {numColSize === 0 && (
-                <button
-                    className={theme?.inlineAddSaveFloating}
+                <Button
+                    activeStyle={theme?.inlineAddSaveFloatingStyle}
                     onClick={() => addItem?.()}
                     title="Save row"
                 >
                     ✓
-                </button>
+                </Button>
             )}
         </div>
     );

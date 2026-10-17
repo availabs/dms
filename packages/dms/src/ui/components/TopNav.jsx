@@ -3,6 +3,7 @@ import { get } from "lodash-es";
 import { useMatch, useNavigate, Link } from "react-router";
 import { SideNavItem } from './SideNav'
 import Icon from './Icon'
+import Button from './Button'
 import { ThemeContext, getComponentTheme } from '../useTheme'
 
 const NOOP = () => { return {} }
@@ -82,12 +83,12 @@ export const DesktopMenu = ({
         <div className={`${theme?.centerMenuContainer}`}>{mainMenu}</div>
         <div className={`${theme?.rightMenuContainer}`}>{rightMenu}</div>
         <div className={`${theme?.mobileButtonContainer}`}>
-          <button className={`${theme?.mobileButton}`} onClick={() => toggle(!open)}>
+          <Button activeStyle={theme?.mobileButtonStyle} onClick={() => toggle(!open)}>
             <span className="sr-only">Open main menu</span>
             <div className={`flex justify-center items-center text-2xl`}>
               <Icon icon = {!open ? theme?.menuOpenIcon : theme?.menuCloseIcon} />
             </div>
-          </button>
+          </Button>
         </div>
       </div>
     </div>

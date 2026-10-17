@@ -34,5 +34,12 @@ export const textareaTheme = {
       name: 'bare',
       textarea: 'w-full bg-transparent px-3 pt-2.5 t-proseSM text-[var(--t-ink)] outline-none resize-none placeholder:text-[var(--t-pencil)]',
     },
+    // 2026-10-17 (ui composites pass): a table header menu's textarea (table.headerCellControl); `contents` keeps
+    // the wrapper span out of the menu row's flex layout
+    {
+      name: 'tableHeaderControl',
+      textAreaContainer: 'contents',
+      textarea: 'p-0.5 w-full rounded-md bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] cursor-pointer',
+    },
   ],
 }

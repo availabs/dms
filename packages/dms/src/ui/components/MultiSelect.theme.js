@@ -232,5 +232,25 @@ export const multiselectTheme = {
             name: 'muted',
             singleValue: 'truncate t-proseSM text-[var(--t-pencil)]',
         },
+        // 'tableHeaderControl' (2026-10-17) — a select in a table column's header menu row (was a native <select> with
+        // table.headerCellControl): borderless like 'plain', inset from its caption, the row's hover fill
+        {
+            name: 'tableHeaderControl',
+            inputWrapper: 'relative flex items-center w-full min-h-0 rounded-md cursor-pointer pl-2 pr-6 py-0.5 bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] font-sans text-sm text-[var(--t-ink)] transition-colors duration-150',
+            singleValue: 'truncate font-sans text-sm text-[var(--t-ink)] text-right w-full',
+            singlePlaceholder: 'truncate font-sans text-sm text-[var(--t-pencil)]',
+            caretIcon: 'w-3.5 h-3.5 stroke-[var(--t-pencil)]',
+        },
+        // 'lexLinkTarget' (2026-10-17) — the Lexical link editor's target select (was a native <select> sharing the URL
+        // field's lexical `linkEditor_linkInput_base`): the same grey pill as that field, minus its layout (block /
+        // width / margin → the caller's wrapper); no caret — the editor's cancel / confirm icons sit over the pill's
+        // right end, as they did over the native select.
+        {
+            name: 'lexLinkTarget',
+            inputWrapper: 'relative flex items-center w-full cursor-pointer box-border p-2 rounded-[15px] bg-[#eee] text-[15px] text-[rgb(5,5,5)] border-0 outline-0 font-inherit',
+            caretWrapper: 'hidden',
+            singleValue: 'truncate',
+            singlePlaceholder: 'truncate',
+        },
     ],
 };

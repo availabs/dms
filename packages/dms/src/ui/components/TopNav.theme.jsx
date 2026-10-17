@@ -17,8 +17,9 @@ const topNavTheme = {
     "centerMenuContainer": `hidden lg:flex items-center flex-1 h-full overflow-visible gap-1`,
     "rightMenuContainer": "hidden md:flex h-full items-center gap-3 min-w-[320px] justify-end shrink-0",
     "mobileNavContainer": "px-6 py-3 bg-[var(--t-paper)] border-b border-[var(--t-rule)]",
-    // mobile button
-    "mobileButton": 'lg:hidden inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--t-rule)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer transition-colors duration-150',
+    // mobile button: a UI.Button named style (2026-10-17, raw-HTML pass), 'navMobile' in Button.theme.jsx; a project
+    // theme's own `mobileButton` classes are lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles)
+    "mobileButtonStyle": 'navMobile',
     "menuOpenIcon": `Menu`,
     "menuCloseIcon": `XMark`,
 
@@ -73,7 +74,7 @@ const themeClasses = {
     "rightMenuContainer",
     "mobileNavContainer",
     //
-    "mobileButton",
+    "mobileButtonStyle",
     "menuOpenIcon",
     "menuCloseIcon",
   ],

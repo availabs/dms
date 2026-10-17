@@ -9,7 +9,9 @@
  *     to 1/2/5 × 10ⁿ, strictly decreasing, never below the smallest bar;
  *   - each button is labelled with the value it crops to, in the compact form of the
  *     axis's own format;
- *   - a theme without the `scaleFilter*` tokens gets the pre-token literals, byte for byte.
+ *   - a theme without the `scaleFilter*` tokens gets the pre-token literals, byte for byte (since 2026-10-17 the
+ *     options are UI.Buttons: the literals live in the library Button roles 'scaleFilter' / 'scaleFilterOn', and a
+ *     theme names its own roles with `scaleFilterItemStyle` / `scaleFilterItemActiveStyle`).
  *
  * The four fixtures are the live county-template sections' own cached bar totals
  * (page 1300806, read 2026-10-06).
@@ -25,6 +27,8 @@ import { getScaleFilterStops, SCALE_FILTER_MIN_SPREAD } from "../src/ui/componen
 import { getCompactFormatFunc } from "../src/ui/components/graph_new/utils.js";
 import { BarGraphOption } from "../src/ui/components/graph_new/components/BarGraph.jsx";
 import { avlGraphTheme } from "../src/ui/components/graph_new/theme.js";
+import { buttonTheme } from "../src/ui/components/Button.theme.jsx";
+import { ThemeContext } from "../src/ui/useTheme.js";
 
 // One-series bars from a list of totals.
 const bars = totals => totals.map((v, i) => ({ index: String(i), v }));
@@ -178,8 +182,9 @@ const COLUMNS = [
 ];
 const rowsOf = totals => totals.map((loss, i) => ({ year: 1996 + i, loss }));
 
-const renderControl = ({ totals = LOSS_BY_YEAR, theme = {}, domainMax, showScaleFilter = true, format = getCompactFormatFunc("integer", true) } = {}) =>
-  renderToStaticMarkup(React.createElement(BarGraphWrapper, {
+// the options are UI.Buttons: their classes come from the context theme's button roles (the library's by default)
+const renderControl = ({ totals = LOSS_BY_YEAR, theme = {}, domainMax, showScaleFilter = true, format = getCompactFormatFunc("integer", true), button = buttonTheme } = {}) =>
+  renderToStaticMarkup(React.createElement(ThemeContext.Provider, { value: { theme: { button } } }, React.createElement(BarGraphWrapper, {
     viewData: rowsOf(totals),
     columns: COLUMNS,
     legend: { show: false },
@@ -195,7 +200,7 @@ const renderControl = ({ totals = LOSS_BY_YEAR, theme = {}, domainMax, showScale
     showScaleFilter,
     scaleFilterFormat: format,
     onSetDomainMax: () => {}
-  }));
+  })));
 
 // The control's own markup, sliced off the front of the wrapper's output.
 const controlOf = html => {
@@ -247,8 +252,8 @@ describe("BarGraph Scale Filter control", () => {
     const html = squash(controlOf(renderControl()));
     expect(html).toContain('<div class="mb-2 print:hidden" role="group" aria-label="Value axis scale">');
     expect(html).toContain('<div class="w-fit flex rounded-md p-1 divide-x border">');
-    expect(html).toContain('class=" font-semibold px-2 py-1 cursor-pointer select-none text-xs text-blue-600 "');
-    expect(html).toContain('class=" font-semibold px-2 py-1 cursor-pointer select-none text-xs text-gray-500 hover:text-gray-700 "');
+    expect(html).toContain('class="font-semibold px-2 py-1 cursor-pointer select-none text-xs text-blue-600"');
+    expect(html).toContain('class="font-semibold px-2 py-1 cursor-pointer select-none text-xs text-gray-500 hover:text-gray-700"');
     expect(html).toContain('<span class="font-normal">$332M</span>');
     // no lead-in label unless a theme styles one
     expect(html).not.toContain(">Scale<");
@@ -267,15 +272,16 @@ describe("BarGraph Scale Filter control", () => {
   it("every token reaches its element, and scaleFilterLabel turns on the lead-in", () => {
     const theme = {
       scaleFilterWrapper: "T-WRAP", scaleFilterLabel: "T-LABEL", scaleFilterTrack: "T-TRACK",
-      scaleFilterItem: "T-ITEM", scaleFilterItemActive: "T-ON", scaleFilterItemInactive: "T-OFF",
+      scaleFilterItemStyle: "tOff", scaleFilterItemActiveStyle: "tOn",
       scaleFilterValue: "T-VALUE"
     };
-    const html = squash(controlOf(renderControl({ theme, domainMax: 2e6 })));
+    const button = { styles: [...buttonTheme.styles, { name: "tOff", button: "T-ITEM T-OFF" }, { name: "tOn", button: "T-ITEM T-ON" }] };
+    const html = squash(controlOf(renderControl({ theme, domainMax: 2e6, button })));
     expect(html).toContain('<div class="T-WRAP print:hidden"');
     expect(html).toContain('<span class="T-LABEL">Scale</span>');
     expect(html).toContain('<div class="T-TRACK">');
-    expect(html).toContain('class=" T-ITEM T-ON "');
-    expect(html).toContain('class=" T-ITEM T-OFF "');
+    expect(html).toContain('class="T-ITEM T-ON"');
+    expect(html).toContain('class="T-ITEM T-OFF"');
     expect(html).toContain('<span class="T-VALUE">$332M</span>');
   });
 });

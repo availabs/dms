@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import Popup from './Popup';
 import Icon from './Icon';
 import Input from './Input';
+import Button from './Button';
 import columnTypes from '../columnTypes';
 
 const getColumnLabel = (col) => col.customName || col.display_name || col.name;
@@ -55,13 +56,9 @@ const StaticColumnForm = ({ insertAt, setState, setOpen }) => {
                 value={value}
                 onChange={e => setValue(e.target.value)}
             />
-            <button
-                className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-40"
-                disabled={!displayName.trim()}
-                onClick={confirm}
-            >
+            <Button activeStyle="small" disabled={!displayName.trim()} onClick={confirm}>
                 Add Static Column
-            </button>
+            </Button>
         </div>
     );
 };
@@ -149,12 +146,9 @@ const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }
                             <Icon icon="XMark" className="size-3" />
                         </span>
                     ))}
-                    <button
-                        className="px-2 py-0.5 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                        onClick={confirm}
-                    >
+                    <Button activeStyle="small" onClick={confirm}>
                         Add
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>
@@ -258,34 +252,33 @@ export default function CardColumnPicker({
             {({ open, setOpen }) => open ? (
                 <div className="flex flex-col gap-2 p-2 w-64 bg-white border rounded shadow-lg">
                     {(FormulaColumnModal || CalculatedColumnModal) && (
-                        <div className="flex gap-1">
+                        // the three add pills share one Button style; they wrap as whole pills, never mid-label
+                        <div className="flex flex-wrap gap-1 [&>*]:shrink-0">
                             {FormulaColumnModal && (
                                 <FormulaColumnModal
+                                    triggerStyle="chip" triggerOnStyle="chipOn"
                                     columns={allColumns}
                                     addFormulaColumn={col => { handleFormulaColumn(col); setOpen(false); }}
                                 />
                             )}
                             {CalculatedColumnModal && (
                                 <CalculatedColumnModal
+                                    triggerStyle="chip" triggerOnStyle="chipOn"
                                     columns={allColumns}
                                     addCalculatedColumn={col => { handleCalculatedColumn(col); setOpen(false); }}
                                 />
                             )}
-                            <button
-                                className={`px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300 ${showStaticForm ? `bg-purple-100` : ``}`}
-                                onClick={() => setShowStaticForm(v => !v)}
-                            >
+                            <Button activeStyle={showStaticForm ? 'chipOn' : 'chip'} onClick={() => setShowStaticForm(v => !v)}>
                                 + Static
-                            </button>
+                            </Button>
                         </div>
                     )}
                     {!(FormulaColumnModal || CalculatedColumnModal) && (
-                        <button
-                            className="self-start px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300"
-                            onClick={() => setShowStaticForm(v => !v)}
-                        >
-                            + Static Column
-                        </button>
+                        <div className="self-start">
+                            <Button activeStyle={showStaticForm ? 'chipOn' : 'chip'} onClick={() => setShowStaticForm(v => !v)}>
+                                + Static Column
+                            </Button>
+                        </div>
                     )}
                     {showStaticForm && (
                         <StaticColumnForm

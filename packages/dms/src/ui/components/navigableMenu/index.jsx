@@ -48,7 +48,7 @@ const Comps = {
     return (
       <Link className={theme?.menuItemIconLabelWrapper} to={menuItem.path}>
         <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon || theme?.menuItemDefaultIconLink || 'Blank'} />
-        <label className={`${theme?.menuItemLabel} ${theme?.menuItemLabelLink}`}>{menuItem.name}</label>
+        <span className={`${theme?.menuItemLabel} ${theme?.menuItemLabelLink}`}>{menuItem.name}</span>
       </Link>
     )
   }
@@ -71,7 +71,7 @@ const MenuItem = ({menuItem, setActiveParent, goBack, goHome, changeParent, clos
         {menuItem.showLabel ? (
             <div className={theme?.menuItemIconLabelWrapper}>
               <Icon className={theme?.menuItemIconWrapper} icon={menuItem?.icon || (menuItem.type === 'toggle' ? theme?.menuItemDefaultIconToggle : theme?.menuItemDefaultIcon) || 'Blank'} />
-              <label className={theme?.menuItemLabel}>{menuItem.name}</label>
+              <span className={theme?.menuItemLabel}>{menuItem.name}</span>
             </div>
         ) : null}
 

@@ -18,6 +18,14 @@ import {mergeRegister} from '@lexical/utils';
 import * as React from 'react';
 import {useEffect, useRef, useState} from 'react';
 import {ThemeContext} from "../../../../../useTheme";
+// the UI primitives this dialog renders when the host ThemeContext has no `UI` (2026-10-17: they don't import
+// the editor, so there is no import cycle — this replaced raw-HTML fallbacks)
+import DefaultInput from '../../../../Input';
+import DefaultButton from '../../../../Button';
+import DefaultSwitch from '../../../../Switch';
+import DefaultSelect from '../../../../Select';
+import DefaultDialogActions from '../../../../DialogActions';
+import DefaultFieldLabel from '../../../../FieldLabel';
 import {
   $createButtonNode,
   $isButtonNode,
@@ -60,12 +68,12 @@ export function InsertButtonDialog({
   // and the button-style dropdown is populated from the active theme's
   // button.styles[] — not from a hardcoded list.
   const { theme: fullTheme = {}, UI } = React.useContext(ThemeContext) || {};
-  const Input = UI?.Input;
-  const Button = UI?.Button;
-  const Select = UI?.Select;
-  const Switch = UI?.Switch;
-  const DialogActions = UI?.DialogActions
-    || (({children}: {children: React.ReactNode}) => <div className="flex justify-end gap-2 mt-4">{children}</div>);
+  const Input = UI?.Input || DefaultInput;
+  const Button = UI?.Button || DefaultButton;
+  const Select = UI?.Select || DefaultSelect;
+  const Switch = UI?.Switch || DefaultSwitch;
+  const FieldLabel = UI?.FieldLabel || DefaultFieldLabel;
+  const DialogActions = UI?.DialogActions || DefaultDialogActions;
 
   // Auto-generate style options from theme.button.styles[].name. Every
   // theme gets the right list for free: tessera → default / plain / active
@@ -134,189 +142,95 @@ export function InsertButtonDialog({
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Button Text</span>
-        {Input ? (
-          <Input
-            value={linkText}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLinkText(e.target.value)}
-            placeholder=""
-            data-test-id="image-modal-alt-text-input"
-          />
-        ) : (
-          <input
-            type="text"
-            value={linkText}
-            onChange={(e) => setLinkText(e.target.value)}
-            className="border px-2 py-1"
-          />
-        )}
-      </label>
+      <FieldLabel text="Button Text">
+        <Input
+          value={linkText}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setLinkText(e.target.value)}
+          placeholder=""
+          data-test-id="image-modal-alt-text-input"
+        />
+      </FieldLabel>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Click Action</span>
-        {Select ? (
-          <Select
-            options={actionTypeOptions}
-            value={actionType}
-            onChange={(next: string) => { if (next) setActionType(next); }}
-          />
-        ) : (
-          <select value={actionType} onChange={(e) => setActionType(e.target.value)} className="border px-2 py-1">
-            {actionTypeOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        )}
-      </label>
+      <FieldLabel text="Click Action">
+        <Select
+          options={actionTypeOptions}
+          value={actionType}
+          onChange={(next: string) => { if (next) setActionType(next); }}
+        />
+      </FieldLabel>
 
       {actionType === 'navigate' ? (
-        <label className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium">URL</span>
-          {Input ? (
-            <Input
-              value={path}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPath(e.target.value)}
-              placeholder="LinkPath"
-            />
-          ) : (
-            <input
-              type="text"
-              value={path}
-              onChange={(e) => setPath(e.target.value)}
-              className="border px-2 py-1"
-            />
-          )}
-        </label>
+        <FieldLabel text="URL">
+          <Input
+            value={path}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPath(e.target.value)}
+            placeholder="LinkPath"
+          />
+        </FieldLabel>
       ) : (
         <>
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Param Key</span>
-            {Input ? (
-              <Input
-                value={paramKey}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParamKey(e.target.value)}
-                placeholder="paramKey"
-              />
-            ) : (
-              <input
-                type="text"
-                value={paramKey}
-                onChange={(e) => setParamKey(e.target.value)}
-                className="border px-2 py-1"
-              />
-            )}
-          </label>
+          <FieldLabel text="Param Key">
+            <Input
+              value={paramKey}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParamKey(e.target.value)}
+              placeholder="paramKey"
+            />
+          </FieldLabel>
 
-          <label className="flex flex-col gap-1.5">
-            <span className="text-sm font-medium">Param Value</span>
-            {Input ? (
-              <Input
-                value={paramValue}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParamValue(e.target.value)}
-                placeholder="paramValue"
-              />
-            ) : (
-              <input
-                type="text"
-                value={paramValue}
-                onChange={(e) => setParamValue(e.target.value)}
-                className="border px-2 py-1"
-              />
-            )}
-          </label>
+          <FieldLabel text="Param Value">
+            <Input
+              value={paramValue}
+              onChange={(e: React.ChangeEvent<HTMLInputElement>) => setParamValue(e.target.value)}
+              placeholder="paramValue"
+            />
+          </FieldLabel>
         </>
       )}
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Style</span>
-        {Select ? (
-          <Select
-            options={styleOptions}
-            value={style}
-            onChange={(next: string) => { if (next) setStyle(next); }}
-          />
-        ) : (
-          <select value={style} onChange={(e) => setStyle(e.target.value)} className="border px-2 py-1">
-            {styleOptions.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        )}
-      </label>
+      <FieldLabel text="Style">
+        <Select
+          options={styleOptions}
+          value={style}
+          onChange={(next: string) => { if (next) setStyle(next); }}
+        />
+      </FieldLabel>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Icon (registered icon name, optional)</span>
-        {Input ? (
-          <Input
-            value={icon}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIcon(e.target.value)}
-            placeholder="e.g. Download"
-          />
-        ) : (
-          <input
-            type="text"
-            value={icon}
-            onChange={(e) => setIcon(e.target.value)}
-            className="border px-2 py-1"
-          />
-        )}
-      </label>
+      <FieldLabel text="Icon (registered icon name, optional)">
+        <Input
+          value={icon}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setIcon(e.target.value)}
+          placeholder="e.g. Download"
+        />
+      </FieldLabel>
 
       {actionType === 'navigate' && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          {Switch ? (
-            <Switch
-              enabled={keepSearchParams}
-              setEnabled={(checked: boolean) => setKeepSearchParams(checked)}
-            />
-          ) : (
-            <input
-              type="checkbox"
-              checked={keepSearchParams}
-              onChange={(e) => setKeepSearchParams(e.target.checked)}
-            />
-          )}
+        <div className="flex items-center gap-2">
+          <Switch
+            enabled={keepSearchParams}
+            setEnabled={(checked: boolean) => setKeepSearchParams(checked)}
+          />
           <span className="text-sm">Keep search params</span>
-        </label>
+        </div>
       )}
 
       {actionType === 'navigate' && (
-        <label className="flex items-center gap-2 cursor-pointer">
-          {Switch ? (
-            <Switch
-              enabled={isExternal}
-              setEnabled={(checked: boolean) => setIsExternal(checked)}
-            />
-          ) : (
-            <input
-              type="checkbox"
-              checked={isExternal}
-              onChange={(e) => setIsExternal(e.target.checked)}
-            />
-          )}
+        <div className="flex items-center gap-2">
+          <Switch
+            enabled={isExternal}
+            setEnabled={(checked: boolean) => setIsExternal(checked)}
+          />
           <span className="text-sm">Is External (open in new tab)</span>
-        </label>
+        </div>
       )}
 
       <DialogActions>
-        {Button ? (
-          <Button
-            data-test-id="create-button-node"
-            disabled={isDisabled}
-            onClick={handleOnClick}
-          >
-            Confirm
-          </Button>
-        ) : (
-          <button
-            disabled={isDisabled}
-            onClick={handleOnClick}
-            className="px-3 py-1.5 bg-slate-800 text-white"
-          >
-            Confirm
-          </button>
-        )}
+        <Button
+          data-test-id="create-button-node"
+          disabled={isDisabled}
+          onClick={handleOnClick}
+        >
+          Confirm
+        </Button>
       </DialogActions>
     </div>
   );

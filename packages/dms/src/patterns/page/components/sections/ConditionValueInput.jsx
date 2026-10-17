@@ -231,7 +231,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
 export const ConditionValueInput = ({node, path, columns, updateNodeAtPath, siblingConditions = [], activeStyle, timePickerMode = 'author'}) => {
     const {UI, theme: themeFromContext = {}} = useContext(ThemeContext) || {};
     const {ColumnTypes} = UI;
-    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
+    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'pages.complexFilters') };
     const {pageState, updatePageStateFilters} = useContext(PageContext) || {};
 
     const [search, setSearch] = useState('');

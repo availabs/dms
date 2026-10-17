@@ -1,4 +1,5 @@
 import React from 'react';
+import Button from '../components/Button';
 
 const statusDotClass = {
     draft: 'bg-amber-400',
@@ -43,14 +44,14 @@ export function TreeNodeView({ value, row = {}, className = '' }) {
 
             {/* expand / collapse caret */}
             {_hasChildren ? (
-                <button
-                    className="w-[18px] h-[18px] rounded flex-shrink-0 inline-flex items-center justify-center text-[var(--t-pencil)] hover:bg-[var(--t-well)] hover:text-[var(--t-graphite)] text-[10px] cursor-pointer border-none bg-transparent"
+                <Button
+                    activeStyle="treeCaret"
                     onClick={handleCaretClick}
                     title={_isExpanded ? 'Collapse' : 'Expand'}
                 >
                     {/* ▾/▸, not ▼/▶ — ▶ renders as an orange color emoji on some platforms */}
                     {_isExpanded ? '▾' : '▸'}
-                </button>
+                </Button>
             ) : (
                 <span className="w-[18px] h-[18px] flex-shrink-0 inline-flex" />
             )}

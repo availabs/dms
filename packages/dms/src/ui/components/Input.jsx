@@ -3,6 +3,7 @@ import Icon from './Icon'
 import {ThemeContext, getComponentTheme} from '../useTheme'
 import { warnLockedClassName } from '../warnLockedClassName'
 import {inputTheme} from './Input.theme'
+import { fieldOnTop } from './fieldOnTop'
 
 // Locked (2026-10-14, ui-control-fields.md): the look comes only from the theme — `activeStyle` picks a
 // named style of `theme.input` (styles[]); a `className` prop is dropped, never applied. Registered themes
@@ -13,7 +14,7 @@ export default function Input ({ type='text', label, description, value, onChang
   const t = { ...inputTheme.styles[0], ...getComponentTheme(themeFromContext, 'input', activeStyle) };
   return (
     <span className={t.inputContainer}>
-      <input type={type} className={t.input} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
+      <input type={type} className={fieldOnTop(t.input)} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
@@ -24,7 +25,7 @@ export function Textarea ({ type='text', label, description, value, onChange=() 
   const t = { ...inputTheme.styles[0], ...getComponentTheme(themeFromContext, 'input', activeStyle) };
   return (
     <span className={t.inputContainer}>
-      <textarea className={t.textarea} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
+      <textarea className={fieldOnTop(t.textarea)} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
@@ -39,7 +40,7 @@ export function ConfirmInput ({ type='text', label, description, value, onChange
   return (
     <span className={`${t.inputContainer}`}>
       { editing ?
-        <input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={`${t.input}`} /> :
+        <input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={fieldOnTop(t.input)} /> :
         <div className={`${t.input}`}>{tempValue}</div>
       }
 

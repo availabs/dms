@@ -107,24 +107,26 @@ export const tableTheme = {
             addRowGrid: 'bg-[var(--t-panel)] divide-x divide-y divide-[var(--t-rule)]',
             addRowGutterCell: 'w-full border border-[var(--t-rule)] bg-[var(--t-well)]',
             addRowButtonCell: 'bg-[var(--t-panel)] flex flex-row h-full justify-evenly items-center',
-            addRowButton: 'w-fit h-fit rounded-md text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer',
+            // the buttons below are UI.Button named styles (2026-10-17, raw-HTML pass; Button.theme.jsx); a project
+            // theme's own addRowButton / inlineAddSave / … classes are lifted (src/themes/_legacy/ui.js liftPatternRoles)
+            addRowButtonStyle: 'tableAddRow',
             addRowButtonIcon: '',
             addRowCell: 'flex border border-[var(--t-rule)] p-1 bg-[var(--t-panel)] hover:bg-[var(--t-well)] w-full h-full',
             addRowInput: 'p-1 bg-[var(--t-panel)] hover:bg-[var(--t-well)] w-full h-full',
             inlineAddGrid: 'divide-x divide-y divide-[var(--t-rule)]',
             inlineAddGutter: 'bg-[var(--t-well)] border border-[var(--t-rule)] flex items-center justify-center',
-            inlineAddSave: 'flex items-center justify-center text-[var(--t-go)] hover:text-[var(--t-ink)] cursor-pointer',
-            inlineAddSaveFloating: 'absolute top-1/2 right-2 -translate-y-1/2 z-10 bg-[var(--t-ink)] hover:opacity-90 text-[var(--t-paper)] rounded text-xs px-1.5 py-0.5 shadow cursor-pointer',
+            inlineAddSaveStyle: 'tableAddSave',
+            inlineAddSaveFloatingStyle: 'tableAddSaveFloating',
 
             // actions column (RenderActions.jsx): url / delete buttons and the ⋯ menu
             actionLinkBtn: 'flex items-center w-fit px-1.5 py-0.5 mx-0.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] text-[var(--t-ink)] t-metaXS hover:bg-[var(--t-well)]',
-            actionDeleteBtn: 'w-fit p-0.5 mx-0.5 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer',
+            actionDeleteBtnStyle: 'tableRowDelete',
             actionBtnIcon: '',
-            actionsMenuTrigger: 'flex items-center justify-center w-full h-full cursor-pointer',
+            actionsMenuTriggerStyle: 'tableActionsTrigger',
             actionsMenuTriggerIcon: 'text-[var(--t-pencil)] hover:text-[var(--t-ink)] size-4',
             actionsMenu: 'flex flex-col bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-md p-1 min-w-[100px]',
             actionsMenuItem: 'flex items-center gap-2 px-2 py-1.5 t-proseSM text-[var(--t-ink)] hover:bg-[var(--t-well)] rounded cursor-pointer whitespace-nowrap',
-            actionsMenuItemDanger: 'flex items-center gap-2 px-2 py-1.5 t-proseSM text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] rounded cursor-pointer whitespace-nowrap w-full text-left',
+            actionsMenuItemDangerStyle: 'tableActionsDelete',
             // Neutral default accent applied to a whole row by the `conditional_row_style`
             // Spreadsheet provider (left edge + faint tint). A brand theme overrides this by
             // defining its own `styleKey` (e.g. `rowAccentAmber`) and pointing the provider at it.
@@ -176,7 +178,13 @@ export const tableTheme = {
             headerCellMenu: 'py-0.5 flex flex-col gap-0.5 items-center px-1 font-mono text-[11px] text-[var(--t-graphite)] max-h-[500px] min-w-[180px] ' +
                 'z-[10] overflow-auto scrollbar-sm bg-[var(--t-panel)] divide-y divide-[var(--t-rule)] rounded-md shadow-[var(--t-shadow-drag)] border border-[var(--t-rule)]',
             headerCellControlWrapper: 'w-full group px-2 py-1 flex justify-between items-center rounded-md hover:bg-[var(--t-well)]',
-            headerCellControlLabel: 'w-fit font-mono text-[11px] text-[var(--t-pencil)] cursor-default',
+            // the header-menu caption / input / textarea are UI.FieldLabel / UI.Input / UI.Textarea named styles
+            // 'tableHeaderControl' (2026-10-17, raw-HTML pass); a project theme's own headerCellControlLabel /
+            // headerCellControl is lifted (src/themes/_legacy/ui.js liftPatternRoles). headerCellControl itself still
+            // styles the header menu's select / multiselect / toggle.
+            headerCellControlLabelStyle: 'tableHeaderControl',
+            headerCellControlInputStyle: 'tableHeaderControl',
+            headerCellControlTextareaStyle: 'tableHeaderControl',
             headerCellControl: 'p-0.5 w-full rounded-md bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] cursor-pointer'
         },
         // 'roomy' and 'rules' were the admin / auth lists' looks; since 2026-10-14 they are the list

@@ -3,18 +3,18 @@
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 
-## Resume here (2026-10-16) — read this, skip the log below unless you need a detail
+## Resume here (2026-10-17) — read this, skip the log below unless you need a detail
 
-- **Done:** admin + auth, datasets, page → 0 raw controls (committed). Carried-over list all resolved (owner 10/16).
-- **Next:** `ui` composites (117 raw controls; Drawer, TopNav, SideNav, ThemeToggle, Colorpicker, CardColumnPicker,
-  table, graph …). Run the extractor `src/themes/tessera/design_system_v6/scripts/inventory/rawhtml.mjs` on
-  `src/dms/packages/dms/src/ui` → list per file with proposed component + role → owner OK → swap → verify.
-- **Open questions:** none.
-- **Verify:** `scratchpad/verify/README.md` (servers, login, theme names, URLs, `cmp.mjs` class diff, `el.mjs`).
-- **Rules that keep biting:** project themes must not change (freeze in `_legacy/*`, check with `cmp.mjs` on
-  :5198 vs :5199); when a dialog's component changes, check modal layering + position; when a Popup trigger
-  changes, open the popup on both; Vite SSR scripts need a private `cacheDir`.
-- Work directly (extractor + edits), not via forks; a fresh briefed subagent only for a large file group.
+- **Done:** admin + auth, datasets, page → 0 raw (committed). ui composites: done, committed (see
+  "UI composites — started 2026-10-17" at the bottom: decisions, batches, verification).
+- **Next:** nothing queued. ui composites 0 raw + inputs audit + complexFilters key — committed 2026-10-17 (lib + root commits "UI controls: ui composites …", unpushed).
+- **Open questions:** none (owner answered 2026-10-17 — see "Owner answers + round 4").
+- **Verify:** `scratchpad/verify/README.md`; for lifts, `resolve_composites.mjs <root> old|new
+  [config]` (now `scratchpad/verify/resolve_composites.mjs`) on the HEAD worktree vs the working tree (13 themes, every style) — last run 1015/1015 equal. Harnesses:
+  `scratchpad/composites-harness`, `composites-hdr`, `composites-e`, `lexical-dialogs2` (Vite doesn't watch
+  scratchpad: edit → copy to a new dir name instead of restarting :5199). Base worktree moved to HEAD a551a60c/fe0826fa.
+- **Rules that keep biting:** project themes must not change; check modal layering when a dialog changes; open a
+  Popup on both when its trigger changes; Vite SSR scripts need a private `cacheDir`; owner: low-res screenshots only.
 
 ## Objective
 
@@ -589,3 +589,160 @@ menu Save icon unstyled (`sec.menuActionSave` undefined).
   for both, so they already matched. Measured on the default theme at 900 / 1300px: both centred.
 - **Page pattern 0 raw controls** (174 → 0). Admin / auth / datasets / page all 0. Build OK; 12-page sweep clean
   (only HEAD's own `placeHolder` warning); test pages 37 / 49 / 61 / 80 unchanged. Next: ui composites (117).
+
+## UI composites — started 2026-10-17
+
+Inventory (`rawhtml.mjs ui`): 129 raw controls / 46 files. Groups and owner decisions (2026-10-17):
+
+- **A. Primitives' own elements (17) — stay.** Button, Input/Textarea/ConfirmInput, FieldLabel, FileInput,
+  columnTypes checkbox/radio, MultiSelect's search input, Tabs' tab button.
+- **B. Dead — deleted.** `lexical/editor/ui/Modal.tsx`, `lexical/editor/ui/Switch.tsx` (owner: "make sure they're
+  not used" — no static/dynamic importer in library or app; `git rm`'d).
+- **C. Lexical no-UI fallbacks (~37) — OPEN, owner questioned.** ButtonPlugin, InlineImagePlugin,
+  InlineImageComponent, TablePlugin, InsertLayoutDialog, useModal. The code comment says "tests"; there are no
+  Lexical tests. Real constraint: Lexical can't import primitives directly (Button → useTheme → defaultTheme →
+  components → Lexical, circular; why `themeContext.js` exists), so it takes `UI` from `ThemeContext`, and
+  `Lexicals` accepts a `theme` prop as an alternative to context (embeddable without a Provider). Every current
+  mount is inside a Provider with `UI`. Recommended: keep as a documented exception. Waiting on owner.
+- **D. Composites with their own theme key (~45) — lift 1:1** (owner: "Do 1:1"): the key becomes a named style
+  with the same string; project themes' own key lifted via `liftPatternRoles` (PATTERN_LIFTS). No visual change.
+- **E. Hardcoded, no key (~20) — v6 roles.** Losing CardColumnPicker purple/green and the slate-800 confirm is OK.
+  Colorpicker: swatch fill colors that come from the theme must survive. Lexical DropDown: look must not change.
+- **F. navigableMenu `<label>` used as text → `<span>`** (OK).
+- Owner: screenshots low-res only (scale 1, element shots).
+
+### UI composites batch 1 — done 2026-10-17 (uncommitted)
+Drawer close, ThemeToggle, TopNav mobile button, DeleteModal cancel/delete, Permissions (2 buttons + heading →
+UI.FieldLabel), table (addRow, inlineAddSave(+Floating), row delete, actions ⋯ trigger, actions Delete item), SideNav
+mobile close (E: `iconTool` + XMark; it was an empty button with a missing `os-icon-x` font class).
+- New Button roles (Button.theme.jsx, appended): drawerClose, themeToggle, navMobile, modalCancel, modalDelete,
+  permInherited(Quiet), tableAddRow, tableAddSave(Floating), tableRowDelete, tableActionsTrigger, tableActionsDelete;
+  FieldLabel 'permHeading'. Strings = the library keys they replace. Component themes now carry `<key>Style` selectors.
+- `_legacy/ui.js` PATTERN_LIFTS: drawer, themeToggle, topnav, deleteModal, permissions (+fieldLabel), table.
+- Verify: session scratchpad `resolve_composites.mjs` (HEAD worktree vs working tree, 13 themes × every style):
+  652/652 strings identical. Live harness `scratchpad/composites-harness/` (copied into the base worktree) +
+  `live_composites.mjs` on default/MNY/landbank/TNY v2: identical classes + rects; only change `type` null → button;
+  DeleteModal focus still on Cancel; actions popup opens at the same spot. Wait for `document.fonts.ready` before rects.
+
+### UI composites batch 2 — done 2026-10-17 (uncommitted)
+- **D (1:1):** TableHeaderCell menu caption / input / textarea → UI.FieldLabel / UI.Input / UI.Textarea
+  'tableHeaderControl' (Input/Textarea roles use a `contents` wrapper so the menu row's flex layout is untouched;
+  PATTERN_LIFTS gained a `fixed` option for that). FieldSet captions → UI.FieldLabel 'fieldSetLabel' (`field.labelStyle`;
+  lifted from `field.label`). BarGraph scale options → UI.Button: library 'scaleFilter' / 'scaleFilterOn' (the old
+  literals; unset `scaleFilterItemStyle` / `scaleFilterItemActiveStyle` fall back to them in code); MNY (only theme with
+  tokens) got its own roles mnyScale(On) / mnyScaleDark(On) in its button.styles. barGraphScaleFilter.test.js updated
+  (ThemeContext with the library button roles; token test uses its own roles) — 27/27 pass.
+- **F:** navigableMenu `<label>` → `<span>` (Chrome gives `label` cursor:default; the link label now shows the link's pointer).
+- **E:** array Add → 'small'; boolean → UI.Select (values still the strings 'true'/'false'); image upload → UI.FileInput
+  (theme 'action' trigger + Upload icon); treeNode caret → 'treeCaret' (its own string, 18px); Card column-menu note →
+  FieldLabel + Textarea defaults; CardColumnPicker → 'small' / 'chip' / 'chipOn' (purple/green gone, owner OK; the
+  `self-start` moved to a wrapper div); Colorpicker swatches → 'swatch(On)' / 'swatchFlat(On)' (their own strings; fill
+  still the inline backgroundColor). SideNav mobile close → 'iconTool'.
+- Verify: resolve_composites.mjs 1002/1002 equal (adds field + table header + avlGraph); live `scratchpad/composites-e/`:
+  swatches / treeNode / FieldSet identical to HEAD on default + MNY; boolean select shows + returns the same strings.
+  CardColumnPicker + Card note not checked live (lint only).
+- **Held:** the table header menu's native `<select>` (headerCellControl): UI.Select is the MultiSelect dropdown, so it
+  can't be 1:1 — asked the owner.
+
+### UI composites batch 3 (Lexical dialogs) — done 2026-10-17 (uncommitted)
+- **C resolved by a better option than the two asked:** checked empirically (Vite SSR module graph, session scratchpad
+  `cycle.mjs`): loading Button / Input / Select / Switch / Modal / FieldLabel / DialogActions pulls in 0 Lexical editor
+  modules, so Lexical CAN import the primitives — no cycle. The five dialogs (ButtonPlugin, InlineImagePlugin,
+  InlineImageComponent, TablePlugin, InsertLayoutDialog) + useModal now use `UI?.X || DefaultX` (FileInput.jsx's
+  pattern): a host UI wins, the imported primitive covers a Provider-less mount; raw fallbacks deleted (~37 controls).
+  Captions `<label><span text-sm font-medium>` → UI.FieldLabel (default caption). Switch rows were `<label>` around a
+  `div role=switch` (not labelable — the label never toggled it) → plain `div`. Fixed on the way: both InlineImage
+  dialogs passed `checked`/`onChange` to UI.Switch (it takes `enabled`/`setEnabled`) — Show Caption never toggled.
+- useModal close ✕ → UI.Button 'lexModalClose' (the old fallback literal); `modal.closeButton` lifted
+  (landbank, avail_site) — resolve check 1015/1015.
+- Also batch 3: Lexical ColorPicker (hex field → FieldLabel + Input, swatches → 'swatch(On)'), InlineImagePlugin upload →
+  UI.FileInput; deleted the now-unused Lexical-internal `ui/FileInput.tsx` + `ui/TextInput.tsx` (unstyled — their
+  `InputStyles` was `{}`). MultiSelect: `Icon = UI?.Icon || DefaultIcon` (it crashed with no UI in context, which the
+  Provider-less dialogs now reach). Live `scratchpad/lexical-dialogs2/`: all 5 dialogs + picker render with UI (default,
+  MNY) and with NO UI in context, 0 errors; Show Caption toggles. Library tests: 726 pass, the same 12 fail on HEAD
+  (avlGraphThemeDefaults, radioTheme, sectionGroupCollapsible, syncDeltaConvergence, userMenus — pre-existing).
+
+### Left in ui composites (2026-10-17)
+- **Lexical toolbar (live):** FloatingTextFormatToolbar 8 (popupItem base+spaced / +active), ToolbarPlugin undo/redo 2,
+  DropDown trigger + DropDownItem (~7 trigger combos, 40+ item callers with dropDownActiveClass), TableHoverActions 2
+  (tableAddRows / tableAddColumns), ImageResizer caption, InlineImageComponent Edit, FloatingLinkEditor input + select.
+  Plan: 1:1 lifts from `lexical.styles[]` — needs an `inherit` option in PATTERN_LIFTS (a non-default lexical style
+  inherits styles[0]'s keys in getLexicalTheme, so a style overriding only `_active` must combine with styles[0]'s
+  `_base`). Marker classes (block-controls, alignment, color-picker, action-button-*, link-input, image-*-button) have
+  no CSS/JS anywhere — safe to drop. Themes with their own toolbar keys: avail, transportny, fusion.
+- **ActionsPlugin (8):** only rendered when `showActionBar` is passed; no caller passes it → asked owner: delete?
+- **Held:** TableHeaderCell native `<select>` and FloatingLinkEditor `<select>` — UI.Select is a dropdown, not 1:1.
+
+### Owner answers + round 4 — 2026-10-17 (uncommitted)
+- Owner: (1) swap the native selects — yes; (2) ActionsPlugin — keep it (so its 8 controls still get swapped with the
+  toolbar group); (3) group C approach — yes. Plus: "cardcolumnpicker's formula, calculated and static pills don't look
+  the same. they should look like the static pill."
+- CardColumnPicker pills: AddFormulaColumn / AddCalculatedColumn take optional `triggerStyle` / `triggerOnStyle`
+  (rendered unwrapped then; ColumnManager keeps `actionFull` in its full-width wrapper); CardColumnPicker passes
+  'chip' / 'chipOn'. Pill row is `flex flex-wrap gap-1 [&>*]:shrink-0` (three chips don't fit w-64; they broke "+" onto
+  its own line). Live `scratchpad/ccp-pills3`: three identical class + height on default / MNY / TNY v2.
+- TableHeaderCell select → UI.Select, new MultiSelect style 'tableHeaderControl' (borderless, inset, right-aligned
+  value, row hover fill; same on every theme — not 1:1, owner OK). Live `scratchpad/hdr-select2`: picks + returns value.
+- FloatingLinkEditor target select → UI.Select, MultiSelect style 'lexLinkTarget' = the URL field's grey pill (library
+  `linkEditor_linkInput_base` minus layout → wrapper div; caret hidden, the cancel/confirm icons overlay it as before);
+  value `linkTarget || '_self'` (a link with no target stored null → placeholder). Live `scratchpad/link-editor3` vs HEAD
+  (`link.mjs`): edit mode survives picking a target (the activeElement-className guard isn't hit), value updates, look
+  matches HEAD.
+
+### Lexical toolbar — done 2026-10-17 (uncommitted) → ui composites at 0 raw controls
+- FloatingTextFormatToolbar (8 + color trigger), ToolbarPlugin (undo/redo, 9 DropDown triggers, ~33 DropDownItems),
+  DropDown / DropDownItem (`buttonStyle` / `activeStyle` props replace `buttonClassName` / `className`; helper
+  `dropDownItemStyle` replaces `dropDownActiveClass`), TableHoverActions (2), ImageResizer caption, InlineImage Edit,
+  FloatingLinkEditor URL field (UI.Input 'lexLinkInput', `contents` wrapper), ActionsPlugin (6 + its clear dialog's
+  fallbacks). Commented-out raw buttons in ToolbarPlugin / FloatingTextFormat left as comments.
+- Library lexical theme styles[0] gained `*_style` selector keys; the library roles (Button `lex*`, Input
+  `lexLinkInput`) are COMPOSED from the lexical theme's own keys (Button.theme.jsx imports lexical/theme.js) — 1:1 by
+  construction. PATTERN_LIFTS gained `inherit` + `defaults` (lexical styles inherit styles[0]; a key a theme never sets
+  is the library's): fusion's own toolbarItem_base + the library's `mr-2` spacing → its lifted role.
+- Robustness: TableHoverActions found its add buttons by a selector built from their classes → now
+  `button[data-lex-table-add]`; FloatingLinkEditor kept edit mode by matching the focused element's class string →
+  now `activeElement !== inputRef.current`. Marker classes (block-controls, alignment, color-picker, font-*, item,
+  active …) dropped — no CSS/JS uses them.
+- Verify: resolve_composites.mjs 1589/1589 equal (574 lexical: 13 themes × every lexical style × 14 controls). Live
+  `scratchpad/lex-toolbar` (HEAD vs new) default / fusion / MNY: toolbar, 4 open dropdown menus, floating bar —
+  identical classes, rects, disabled; arrow-key focus through a menu identical. Link editor: typing + target select OK.
+
+### Inputs audit — 2026-10-17 (uncommitted)
+Owner: "in mny theme on the history pane in pages, the add comment input renders but isn't clickable due to the
+wrapping span class … make sure other themes and other places don't have similar issues."
+- **Cause:** a named field style that draws its own control (Input bare / title / menu / bareInherit / compact,
+  Textarea readonly …) sets no container, so it inherits styles[0]'s; on MNY / mny_admin / TNY v1 (and, for textarea,
+  every project theme via the `_legacy` freeze) that is the Catalyst field box — `before:absolute … before:bg-white`
+  — and a positioned ::before paints over an unpositioned <input>/<textarea>, taking its clicks.
+- **Fix 1 (structural, every theme incl. DB ones):** `ui/components/fieldOnTop.js` — Input / Input.Textarea /
+  ConfirmInput / Textarea render the control `relative` unless the theme's string already positions it (no theme
+  input/textarea string uses absolute/fixed/sticky — checked). Synthetic DB-style theme (`scratchpad/input-synth2`):
+  HEAD 4/4 unclickable → 0.
+- **Fix 2 (look, code themes):** `_legacy/ui.js` `undecorateOwnControlStyles`: when a theme's styles[0] container
+  carries ::before/::after classes, the library styles that draw their own control get that container minus those
+  classes (same layout, no box). An empty freeze (`{ name: 'mono' }` = the theme's full field) is left alone. First try
+  (explicit library `flex-1 relative w-full` containers) shifted fields 2–3px on undecorated themes — reverted.
+- **Verify:** `scratchpad/input-click3` + session `inclick.mjs` (elementFromPoint at centre + left edge, then a real
+  click must focus): 14 themes × light/dark × every Input / Textarea / Input.Textarea style + ConfirmInput = 956,
+  HEAD 20 unclickable → 0. `indiff.mjs` vs HEAD: no control moved anywhere; changes = `relative` on controls
+  (invisible) and the white box gone around bare/compact/title/menu/bareInherit (MNY, mny_admin, TNY v1) and textarea
+  readonly (all project themes).
+- Part 2 (other controls): `scratchpad/ctl-click` + `ctlclick.mjs` — every Select/MultiSelect style opens + selects,
+  checkbox box + label toggle, radio + option label select, Switch toggles, FileInput opens the chooser.
+- Part 2 result: 14 themes × light/dark — every Select / MultiSelect style opens + selects, checkbox (box + label),
+  radio (input + option label), Switch, FileInput (button → its file input) respond. The only probe "failures" were
+  artifacts identical on HEAD: `filter_chip` is an 80px `w-fit` trigger (opens when its trigger is clicked), fusion's
+  `facet` is an always-open list used outside its facet filter. No other control has the wrapper problem.
+- Live app: `/p-mny/edit/flooding` → History pane (`[title=History]` div): HEAD — click lands on
+  `span.group.flex.relative`, field never focuses; now — the input is hit, focuses, takes typing (session
+  `histpane.mjs`). Library tests: 726 pass, the same 12 pre-existing failures.
+
+### Section menu → Filters beige on MNY — fixed 2026-10-17 (uncommitted)
+Owner: "sectionmenu's filters screen shows beige in mny." Not from today's work (identical on HEAD): ComplexFilters.jsx
+and ConditionValueInput.jsx read the TOP-LEVEL `complexFilters` theme key, but the library registers the theme as
+`pages.complexFilters` and the pre-v6 freeze lives there (`_legacy/pages.js`, all 23 keys) — so every theme got the
+component's built-in v6 defaults (group panels `bg-[var(--t-well)]`, the v6 cream; MNY has no --t-* palette of its own)
+since the 10/13 v6 port. Both now read `pages.complexFilters`. Verified (`scratchpad/cfilters2`, session `cf.mjs`):
+default unchanged; MNY / TNY v2 / landbank back to the frozen slate panel (`bg-slate-50/40`, dashed white conditions).
+Same-shaped check over the whole page pattern (getComponentTheme with a bare key that is registered under `pages.*`):
+only complexFilters (2 readers) and timePicker (7 readers — deliberate, its freeze is top-level in `_legacy/ui.js`).

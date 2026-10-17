@@ -7,6 +7,7 @@ import {
 } from "d3-array"
 
 import { strictNaN } from "../utils"
+import Button from "../../Button"
 import { getAggFunc, buildValueColorScale, useLegendSqueezeGuard, isTopLegend, isBottomLegend, isColumnLegendPosition, legendRowJustify, getScaleFilterStops } from "./utils"
 import { getColorRange } from "../colorSchemeUnifier"
 
@@ -476,21 +477,21 @@ const BarGraphWrapper = props => {
         }
         <div className={ theme.scaleFilterTrack ?? "w-fit flex rounded-md p-1 divide-x border" }>
           { scaleFilter.items.map(({ value, max, custom, active }) => (
-            <button type="button" key={ max ? "max" : value }
+            // an option is a UI.Button named style (2026-10-17, raw-HTML pass): `scaleFilterItemStyle` /
+            // `scaleFilterItemActiveStyle` name it, unset → the library's 'scaleFilter' / 'scaleFilterOn' (the
+            // literals this control hardcoded). Was scaleFilterItem + scaleFilterItemActive / Inactive classes.
+            <Button key={ max ? "max" : value }
               aria-pressed={ active }
               title={ custom ? "Current axis maximum" : undefined }
-              className={ `
-                ${ theme.scaleFilterItem ?? "font-semibold px-2 py-1 cursor-pointer select-none text-xs" }
-                ${ active
-                  ? (theme.scaleFilterItemActive ?? "text-blue-600")
-                  : (theme.scaleFilterItemInactive ?? "text-gray-500 hover:text-gray-700") }
-              ` }
+              activeStyle={ active
+                ? (theme.scaleFilterItemActiveStyle ?? "scaleFilterOn")
+                : (theme.scaleFilterItemStyle ?? "scaleFilter") }
               onClick={ () => props.onSetDomainMax?.(value) }
             >
               { !max ? scaleFilterFormat(value) :
                 <>Max <span className={ theme.scaleFilterValue ?? "font-normal" }>{ scaleFilterFormat(scaleFilter.peak) }</span></>
               }
-            </button>
+            </Button>
           )) }
         </div>
       </div>

@@ -2,6 +2,7 @@ import React from 'react'
 import {ThemeContext, getComponentTheme} from '../useTheme'
 import { warnLockedClassName } from '../warnLockedClassName'
 import {textareaTheme} from './Textarea.theme'
+import { fieldOnTop } from './fieldOnTop'
 
 // Locked (2026-10-14, ui-control-fields.md): the look comes only from the theme — `activeStyle` picks a named
 // style of `theme.textarea` (styles[]); a `className` prop is dropped, never applied.
@@ -12,7 +13,7 @@ export default function Textarea ({description, value, onChange=() => {}, placeh
 
   return (
     <span className={t.textAreaContainer}>
-      <textarea className={t.textarea} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
+      <textarea className={fieldOnTop(t.textarea)} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }

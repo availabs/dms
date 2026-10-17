@@ -1,4 +1,5 @@
 import React from 'react'
+import { lexicalTheme } from './lexical/theme'
 
 // The v6 control looks (2026-10-13, planning/tasks/current/ui-control-consistency-audit.md; spec:
 // src/themes/tessera/design_system_v6/pages/ui-controls.html). Kept here, with the component — pattern
@@ -93,6 +94,43 @@ const NAV_RAIL_ON = `block w-full text-left -ml-px pl-3 py-1 border-l-2 border-[
 const SEARCH_TRIGGER = `flex items-center gap-2 h-8 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] hover:border-[var(--t-rule-strong)] transition-colors cursor-pointer ${FOCUS}`;
 // filters toggleChip (+ toggleChipOn ''): the external-filter switch container (track / knob are inner spans)
 const TOGGLE = `group inline-flex items-center gap-2 cursor-pointer select-none ${FOCUS} rounded-sm`;
+
+// ── ui composites raw-HTML pass (2026-10-17, ui-raw-html-to-ui-components.md "UI composites"). Each string is the
+// composite's own former theme key (named in the comment), copied 1:1 so no theme's look moves; a project theme's
+// own key is lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles).
+// drawer.closeButton
+const DRAWER_CLOSE = 'relative rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--t-ink)]';
+// themeToggle.button
+const THEME_TOGGLE = 'w-8 h-8 shrink-0 rounded-md border border-[var(--t-rule)] flex items-center justify-center text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer transition-colors duration-150';
+// topnav.mobileButton
+const NAV_MOBILE = 'lg:hidden inline-flex items-center justify-center w-8 h-8 rounded-md border border-[var(--t-rule)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer transition-colors duration-150';
+// deleteModal.cancelButton / deleteButton
+const MODAL_CANCEL = 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer';
+const MODAL_DELETE = 'h-8 inline-flex items-center px-3 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-brick)] hover:opacity-90 disabled:opacity-40 cursor-pointer';
+// permissions.inheritedAction / inheritedActionQuiet
+const PERM_INHERITED = 't-proseXS text-[var(--t-amber)] hover:underline cursor-pointer';
+const PERM_INHERITED_QUIET = 't-proseXS text-[var(--t-graphite)] underline decoration-dotted cursor-pointer';
+// table addRowButton / inlineAddSave / inlineAddSaveFloating / actionDeleteBtn / actionsMenuTrigger / actionsMenuItemDanger
+const TABLE_ADD_ROW = 'w-fit h-fit rounded-md text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer';
+const TABLE_ADD_SAVE = 'flex items-center justify-center text-[var(--t-go)] hover:text-[var(--t-ink)] cursor-pointer';
+const TABLE_ADD_SAVE_FLOATING = 'absolute top-1/2 right-2 -translate-y-1/2 z-10 bg-[var(--t-ink)] hover:opacity-90 text-[var(--t-paper)] rounded text-xs px-1.5 py-0.5 shadow cursor-pointer';
+const TABLE_ROW_DELETE = 'w-fit p-0.5 mx-0.5 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] cursor-pointer';
+const TABLE_ACTIONS_TRIGGER = 'flex items-center justify-center w-full h-full cursor-pointer';
+// BarGraph scale filter options: the literals the control hardcoded (scaleFilterItem + Inactive / Active)
+const SCALE_FILTER = 'font-semibold px-2 py-1 cursor-pointer select-none text-xs text-gray-500 hover:text-gray-700';
+const SCALE_FILTER_ON = 'font-semibold px-2 py-1 cursor-pointer select-none text-xs text-blue-600';
+// treeNode column type's expand / collapse caret (its hardcoded classes; already on tokens, 18px so rows don't move)
+const TREE_CARET = 'w-[18px] h-[18px] rounded flex-shrink-0 inline-flex items-center justify-center text-[var(--t-pencil)] hover:bg-[var(--t-well)] hover:text-[var(--t-graphite)] text-[10px] cursor-pointer border-none bg-transparent';
+// Colorpicker swatches (their hardcoded classes); the fill is the caller's inline backgroundColor
+const SWATCH = 'border-[1px] border-[solid] border-[#ccc] rounded-[4px] h-[16px] w-[16px] cursor-pointer list-none';
+const SWATCH_FLAT = 'w-6 h-6 rounded cursor-pointer transition-all duration-150 hover:scale-110';
+// the Lexical plugin dialogs' close ✕ (useModal; its fallback when the theme has no modal.closeButton)
+const LEX_MODAL_CLOSE = 'cursor-pointer text-sm hover:opacity-70';
+// the Lexical editor's controls: composed from the library lexical theme's own class keys (lexical/theme.js), so
+// each role is exactly what that control rendered
+const LX = lexicalTheme.styles[0];
+const lx = (...keys) => keys.map(k => LX[k]).filter(Boolean).join(' ');
+const TABLE_ACTIONS_DELETE = 'flex items-center gap-2 px-2 py-1.5 t-proseSM text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] rounded cursor-pointer whitespace-nowrap w-full text-left';
 
 export const buttonTheme = {
   options: {
@@ -196,6 +234,42 @@ export const buttonTheme = {
     { name: 'toggle',           button: TOGGLE },
     { name: 'toggleOn',         button: TOGGLE },
     { name: 'groupModalClose',  button: ICON_ROW },
+    // ── ui composites raw-HTML pass (2026-10-17); appended so indices don't move. Project themes with their own
+    // composite key get it lifted (src/themes/_legacy/ui.js liftPatternRoles).
+    { name: 'drawerClose',          button: DRAWER_CLOSE },
+    { name: 'themeToggle',          button: THEME_TOGGLE },
+    { name: 'navMobile',            button: NAV_MOBILE },
+    { name: 'modalCancel',          button: MODAL_CANCEL },
+    { name: 'modalDelete',          button: MODAL_DELETE },
+    { name: 'permInherited',        button: PERM_INHERITED },
+    { name: 'permInheritedQuiet',   button: PERM_INHERITED_QUIET },
+    { name: 'tableAddRow',          button: TABLE_ADD_ROW },
+    { name: 'tableAddSave',         button: TABLE_ADD_SAVE },
+    { name: 'tableAddSaveFloating', button: TABLE_ADD_SAVE_FLOATING },
+    { name: 'tableRowDelete',       button: TABLE_ROW_DELETE },
+    { name: 'tableActionsTrigger',  button: TABLE_ACTIONS_TRIGGER },
+    { name: 'tableActionsDelete',   button: TABLE_ACTIONS_DELETE },
+    { name: 'scaleFilter',          button: SCALE_FILTER },
+    { name: 'scaleFilterOn',        button: SCALE_FILTER_ON },
+    { name: 'treeCaret',            button: TREE_CARET },
+    { name: 'lexModalClose',        button: LEX_MODAL_CLOSE },
+    { name: 'lexFormatItem',        button: lx('floatingTextFormatPopup_popupItem_base', 'floatingTextFormatPopup_popupItem_spaced') },
+    { name: 'lexFormatItemOn',      button: lx('floatingTextFormatPopup_popupItem_base', 'floatingTextFormatPopup_popupItem_spaced', 'floatingTextFormatPopup_popupItem_active') },
+    { name: 'lexToolbarItem',       button: lx('toolbar_toolbarItem_base', 'toolbar_toolbarItem_spaced') },
+    { name: 'lexToolbarItemPlain',  button: lx('toolbar_toolbarItem_base') },
+    { name: 'lexToolbarCode',       button: lx('toolbar_toolbarItem_base', 'toolbar_codeLanguage') },
+    { name: 'lexDropdownItem',      button: lx('dropdown_item_base') },
+    { name: 'lexDropdownItemOn',    button: lx('dropdown_item_base', 'dropdownItemActive') },
+    { name: 'lexFontItemOn',        button: lx('toolbar_toolbarItem_base', 'dropdownItemActive') },
+    { name: 'lexTableAddRows',      button: lx('tableAddRows') },
+    { name: 'lexTableAddColumns',   button: lx('tableAddColumns') },
+    { name: 'lexImageCaption',      button: lx('editor_image_captionButton') },
+    { name: 'lexImageEdit',         button: lx('editor_inlineImage_editButton_base') },
+    { name: 'lexActionButton',      button: lx('actionButton_base') },
+    { name: 'swatch',               button: SWATCH },
+    { name: 'swatchOn',             button: `${SWATCH} [box-shadow:0px_0px_2px_2px_rgba(0,_0,_0,_0.3)]` },
+    { name: 'swatchFlat',           button: SWATCH_FLAT },
+    { name: 'swatchFlatOn',         button: `${SWATCH_FLAT} ring-2 ring-offset-1 ring-blue-500` },
   ]
 }
 

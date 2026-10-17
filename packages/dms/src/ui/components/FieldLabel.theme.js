@@ -26,6 +26,21 @@ export const fieldLabelTheme = {
       name: 'filterSetting',
       text: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
     },
+    // the Permissions header caption (permissions.selectLabel, 2026-10-17); a project theme's own is lifted
+    {
+      name: 'permHeading',
+      text: 't-metaXS text-[var(--t-pencil)] flex-1',
+    },
+    // a FieldSet field's caption (field.label, 2026-10-17); a project theme's own is lifted
+    {
+      name: 'fieldSetLabel',
+      text: 'font-sans text-sm font-medium text-[var(--t-ink)]',
+    },
+    // a table header menu row's caption (table.headerCellControlLabel, 2026-10-17); a project theme's own is lifted
+    {
+      name: 'tableHeaderControl',
+      text: 'w-fit font-mono text-[11px] text-[var(--t-pencil)] cursor-default',
+    },
   ],
 }
 

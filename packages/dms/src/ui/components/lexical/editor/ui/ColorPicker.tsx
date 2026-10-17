@@ -11,7 +11,12 @@
 import {useEffect, useMemo, useRef, useState} from 'react';
 import * as React from 'react';
 
-import TextInput from './TextInput';
+import { ThemeContext } from '../../../../useTheme';
+// 2026-10-17 (raw-HTML pass): the hex field + swatches render through UI primitives (the host UI wins; the imported
+// ones cover a Provider-less mount — they don't import the editor, so no cycle). Was TextInput (unstyled) + raw buttons.
+import DefaultInput from '../../../Input';
+import DefaultButton from '../../../Button';
+import DefaultFieldLabel from '../../../FieldLabel';
 
 interface ColorPickerProps {
   color: string;
@@ -64,6 +69,10 @@ export default function ColorPicker({
   color,
   onChange,
 }: Readonly<ColorPickerProps>): JSX.Element {
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Input = UI?.Input || DefaultInput;
+  const Button = UI?.Button || DefaultButton;
+  const FieldLabel = UI?.FieldLabel || DefaultFieldLabel;
   const [selfColor, setSelfColor] = useState(transformColor('hex', color));
   const [inputColor, setInputColor] = useState(color);
   const innerDivRef = useRef(null);
@@ -130,12 +139,14 @@ export default function ColorPicker({
       className={`${colorPickerStyles[`color-picker-wrapper`]}`}
       style={{width: WIDTH}}
       ref={innerDivRef}>
-      <TextInput label="Hex" onChange={onSetHex} value={inputColor} />
+      <FieldLabel text="Hex">
+        <Input value={inputColor} onChange={(e: React.ChangeEvent<HTMLInputElement>) => onSetHex(e.target.value)} />
+      </FieldLabel>
       <div className={`${colorPickerStyles[`color-picker-basic-color`]}`}>
         {basicColors.map((basicColor) => (
-          <button
-
-            className={`${colorPickerStyles[`color-picker-basic-color-button`]} ${basicColor === selfColor.hex ? colorPickerStyles[`color-picker-basic-color-button.active`] : ''}`}
+          // the fill stays the inline backgroundColor
+          <Button
+            activeStyle={basicColor === selfColor.hex ? 'swatchOn' : 'swatch'}
             key={basicColor}
             style={{backgroundColor: basicColor}}
             onClick={() => {

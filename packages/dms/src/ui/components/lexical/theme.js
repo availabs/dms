@@ -251,6 +251,24 @@ export const lexicalTheme = {
     linkEditor_button_hovered: "w-[20px] h-[20px] inline-block bg-gray-200",
     linkEditor_button_i: "bg-contain inline-block h-[20px] w-[20px] align-middle",
     linkEditor_linkInput_base: "block w-[calc(100%-75px)] box-border m-3 p-2 rounded-[15px] bg-[#eee] text-[15px] text-[rgb(5,5,5)] border-0 outline-0 relative font-inherit",
+    // UI named styles the editor's controls render with (2026-10-17, ui-raw-html-to-ui-components.md). The library
+    // roles (Button.theme.jsx / Input.theme.js `lex*`) are composed from this style's own class keys, so they match
+    // them exactly; a project theme's own keys are lifted into styles of its own (src/themes/_legacy/ui.js
+    // liftPatternRoles, `inherit` — a named lexical style inherits styles[0]'s keys).
+    floatingTextFormatPopup_popupItem_style: "lexFormatItem",           // popupItem_base + _spaced
+    floatingTextFormatPopup_popupItem_activeStyle: "lexFormatItemOn",   // + popupItem_active
+    toolbar_toolbarItem_style: "lexToolbarItem",                        // toolbarItem_base + _spaced
+    toolbar_toolbarItem_plainStyle: "lexToolbarItemPlain",              // toolbarItem_base
+    toolbar_codeLanguage_style: "lexToolbarCode",                       // toolbarItem_base + codeLanguage
+    dropdown_item_style: "lexDropdownItem",                             // dropdown_item_base
+    dropdown_item_activeStyle: "lexDropdownItemOn",                     // + dropdownItemActive
+    toolbar_fontItem_activeStyle: "lexFontItemOn",                      // toolbarItem_base + dropdownItemActive
+    tableAddRows_style: "lexTableAddRows",
+    tableAddColumns_style: "lexTableAddColumns",
+    editor_image_captionButton_style: "lexImageCaption",
+    editor_inlineImage_editButton_style: "lexImageEdit",
+    actionButton_style: "lexActionButton",
+    linkEditor_linkInput_style: "lexLinkInput",                         // a UI.Input style
     linkEditor_linkInput_a: "text-[rgb(33,111,219)] underline whitespace-nowrap overflow-hidden mr-[30px] overflow-ellipsis hover:underline",
     linkEditor_linkView_base: "block w-[calc(100%-24px)] m-2 p-2 rounded-[15px] text-[15px] text-[rgb(5,5,5)] border-0 outline-0 relative font-inherit",
     linkEditor_linkView_a: "block break-words w-[calc(100%-33px)]",

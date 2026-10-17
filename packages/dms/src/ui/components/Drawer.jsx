@@ -1,6 +1,7 @@
 import React, {useEffect, useState} from 'react'
 import {createPortal} from 'react-dom'
 import Icon from './Icon'
+import Button from './Button'
 import { ThemeContext, getComponentTheme } from '../useTheme.js'
 import { drawerTheme } from './Drawer.theme'
 
@@ -48,15 +49,11 @@ export default function Drawer ({ open, setOpen, width='max-w-64', children, clo
       {/* z-10: rendered before `children`, so without it a positioned child (e.g. the v6 edit
           drawer's Tabs wrapper, `relative … pt-14`) paints over the button and eats the click */}
       <div className="absolute right-2 top-2 z-10">
-        <button
-          type="button"
-          className={theme.closeButton}
-          onClick={() => setOpen?.(false)}
-        >
+        <Button activeStyle={theme.closeButtonStyle} onClick={() => setOpen?.(false)}>
           <span className="absolute -inset-2.5" />
           <span className="sr-only">Close panel</span>
           <Icon icon={'XMark'} className="size-6" aria-hidden="true" />
-        </button>
+        </Button>
       </div>
       {children}
     </div>

@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate, Link, useLocation, matchPath } from "react-router";
 import Icon from './Icon'
+import Button from './Button'
 import { MobileMenu } from './TopNav'
 import { ThemeContext, getComponentTheme } from '../useTheme'
 import { ABSOLUTE_URL } from '../../utils/nav'
@@ -34,10 +35,10 @@ const MobileSidebar = ({
 				<div className={`fixed inset-0 flex z-40 ${theme?.contentBgAccent}`}>
 					<div className={`flex-1 flex flex-col max-w-xs w-full transform ease-in-out duration-300 ${theme?.contentBg}`}>
 						<div className="absolute top-0 right-0 -mr-14 p-1">
-							<button
-								onClick={() => toggle(!open)}
-								className="flex items-center justify-center h-12 w-12 rounded-full focus:outline-none focus:bg-gray-600 os-icon os-icon-x"
-							/>
+							{/* was a raw button with an `os-icon-x` icon-font class (no such font loaded); 2026-10-17 raw-HTML pass */}
+							<Button activeStyle='iconTool' onClick={() => toggle(!open)} aria-label="Close menu">
+								<Icon icon='XMark' className='size-5' />
+							</Button>
 						</div>
 						<div
 							className={`flex-1 h-0 pt-2 pb-4 overflow-y-auto overflow-x-hidden flex`}

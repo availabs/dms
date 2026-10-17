@@ -96,7 +96,7 @@ const DebouncedFieldInput = ({ value, onChange, delay = 400, ...props }) => {
 export const ComplexFilters = ({ state, setState, value, onSave }) => {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const { Pill, Icon, Popup, Switch, MultiSelect, FieldLabel, ColumnTypes: {select} } = UI;
-    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
+    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'pages.complexFilters') };
     const { apiLoad } = useContext(PageContext) || {};
     const existingCtx = useContext(ComponentContext);
 

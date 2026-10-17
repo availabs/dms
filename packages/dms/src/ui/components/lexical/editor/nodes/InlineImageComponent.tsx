@@ -47,6 +47,15 @@ import ContentEditable from '../ui/ContentEditable';
 import Placeholder from '../ui/Placeholder';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import { ThemeContext } from '../../../../useTheme';
+import { useLexicalTheme } from '../../useLexicalTheme';
+// the UI primitives this dialog renders when the host ThemeContext has no `UI` (2026-10-17: they don't import
+// the editor, so there is no import cycle — this replaced raw-HTML fallbacks)
+import DefaultInput from '../../../Input';
+import DefaultButton from '../../../Button';
+import DefaultSwitch from '../../../Switch';
+import DefaultSelect from '../../../Select';
+import DefaultDialogActions from '../../../DialogActions';
+import DefaultFieldLabel from '../../../FieldLabel';
 import ImageResizer from "../ui/ImageResizer";
 
 const isDataURL = src => {
@@ -239,12 +248,12 @@ export function UpdateInlineImageDialog({
   onClose: () => void;
 }): JSX.Element {
   const { UI } = React.useContext(ThemeContext) || {};
-  const Input = UI?.Input;
-  const Button = UI?.Button;
-  const Switch = UI?.Switch;
-  const Select = UI?.Select;
-  const DialogActions = UI?.DialogActions
-    || (({children}: {children: React.ReactNode}) => <div className="flex justify-end gap-2 mt-4">{children}</div>);
+  const Input = UI?.Input || DefaultInput;
+  const Button = UI?.Button || DefaultButton;
+  const Switch = UI?.Switch || DefaultSwitch;
+  const Select = UI?.Select || DefaultSelect;
+  const FieldLabel = UI?.FieldLabel || DefaultFieldLabel;
+  const DialogActions = UI?.DialogActions || DefaultDialogActions;
 
   const editorState = activeEditor.getEditorState();
   const node = editorState.read(
@@ -272,77 +281,37 @@ export function UpdateInlineImageDialog({
 
   return (
     <div className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Alt Text</span>
-        {Input ? (
-          <Input
-            value={altText}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAltText(e.target.value)}
-            placeholder="Descriptive alternative text"
-            data-test-id="image-modal-alt-text-input"
-          />
-        ) : (
-          <input
-            type="text"
-            value={altText}
-            onChange={(e) => setAltText(e.target.value)}
-            placeholder="Descriptive alternative text"
-            className="border px-2 py-1"
-            data-test-id="image-modal-alt-text-input"
-          />
-        )}
-      </label>
+      <FieldLabel text="Alt Text">
+        <Input
+          value={altText}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setAltText(e.target.value)}
+          placeholder="Descriptive alternative text"
+          data-test-id="image-modal-alt-text-input"
+        />
+      </FieldLabel>
 
-      <label className="flex flex-col gap-1.5">
-        <span className="text-sm font-medium">Position</span>
-        {Select ? (
-          <Select
-            options={POSITION_OPTIONS}
-            value={position}
-            onChange={(next: string) => { if (next) setPosition(next as Position); }}
-          />
-        ) : (
-          <select
-            value={position}
-            onChange={(e) => setPosition(e.target.value as Position)}
-            className="border px-2 py-1">
-            {POSITION_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
-        )}
-      </label>
+      <FieldLabel text="Position">
+        <Select
+          options={POSITION_OPTIONS}
+          value={position}
+          onChange={(next: string) => { if (next) setPosition(next as Position); }}
+        />
+      </FieldLabel>
 
-      <label className="flex items-center gap-2 cursor-pointer">
-        {Switch ? (
-          <Switch
-            checked={showCaption}
-            onChange={(checked: boolean) => setShowCaption(checked)}
-          />
-        ) : (
-          <input
-            type="checkbox"
-            checked={showCaption}
-            onChange={(e) => setShowCaption(e.target.checked)}
-          />
-        )}
+      <div className="flex items-center gap-2">
+        <Switch
+          enabled={showCaption}
+          setEnabled={(checked: boolean) => setShowCaption(checked)}
+        />
         <span className="text-sm">Show Caption</span>
-      </label>
+      </div>
 
       <DialogActions>
-        {Button ? (
-          <Button
-            data-test-id="image-modal-file-upload-btn"
-            onClick={() => handleOnConfirm()}>
-            Confirm
-          </Button>
-        ) : (
-          <button
-            onClick={() => handleOnConfirm()}
-            className="px-3 py-1.5 bg-slate-800 text-white">
-            Confirm
-          </button>
-        )}
+        <Button
+          data-test-id="image-modal-file-upload-btn"
+          onClick={() => handleOnConfirm()}>
+          Confirm
+        </Button>
       </DialogActions>
     </div>
   );
@@ -385,6 +354,10 @@ export default function InlineImageComponent({
   const [isLinkEditMode, setIsLinkEditMode] = useState<boolean>(false);
   const isEditable = useLexicalEditable();
   const theme = editor?._config?.theme || {}
+  // the Edit button is a UI.Button (2026-10-17): its style name lives in the flat lexical theme
+  const lexTheme = useLexicalTheme();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
 
   const onDelete = useCallback(
     (payload: KeyboardEvent) => {
@@ -561,8 +534,8 @@ export default function InlineImageComponent({
     <Suspense fallback={null}>
       <>
         <div draggable={draggable} className={`${theme.editor.inlineImage.base}` }>
-           {isEditable && (<button
-            className={theme.editor.inlineImage.editButton.base || 'image-edit-button'}
+           {isEditable && (<Button
+            activeStyle={lexTheme.editor_inlineImage_editButton_style}
             ref={buttonRef}
             onClick={() => {
               showModal('Update Inline Image', (onClose) => (
@@ -574,7 +547,7 @@ export default function InlineImageComponent({
               ));
             }}>
             Edit
-          </button>
+          </Button>
           )}
           <LazyImage
             className={

@@ -13,7 +13,8 @@ export const permissionsTheme = {
 
     // header: heading + the two add pickers (MultiSelect style 'addAccess')
     headerRow: 'flex items-center gap-2',
-    selectLabel: 't-metaXS text-[var(--t-pencil)] flex-1',
+    // a UI.FieldLabel named style (2026-10-17, raw-HTML pass): 'permHeading' in FieldLabel.theme.js
+    selectLabelStyle: 'permHeading',
     addAccessWrapper: 'w-fit flex-none',
 
     // the grants card
@@ -41,8 +42,9 @@ export const permissionsTheme = {
     inheritedNameDisabled: 't-proseSM text-[var(--t-pencil)] line-through flex-1 min-w-0 truncate',
     disabledLabel: 't-metaXS text-[var(--t-brick)]',
     overriddenLabel: 't-metaXS text-[var(--t-amber)]',
-    inheritedAction: 't-proseXS text-[var(--t-amber)] hover:underline cursor-pointer',
-    inheritedActionQuiet: 't-proseXS text-[var(--t-graphite)] underline decoration-dotted cursor-pointer',
+    // UI.Button named styles (2026-10-17, raw-HTML pass): 'permInherited' / 'permInheritedQuiet' in Button.theme.jsx
+    inheritedActionStyle: 'permInherited',
+    inheritedActionQuietStyle: 'permInheritedQuiet',
 
     note: 't-proseXS text-[var(--t-pencil)]',
 }

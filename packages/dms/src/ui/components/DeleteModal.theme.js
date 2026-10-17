@@ -19,8 +19,10 @@ export const deleteModalTheme = {
       title: 't-displaySM text-[var(--t-ink)]',
       body: 'mt-1 t-proseSM text-[var(--t-graphite)]',
       actions: 'mt-5 flex justify-end gap-2',
-      cancelButton: 'h-8 inline-flex items-center px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
-      deleteButton: 'h-8 inline-flex items-center px-3 rounded-md t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-brick)] hover:opacity-90 disabled:opacity-40 cursor-pointer',
+      // UI.Button named styles (2026-10-17, raw-HTML pass): 'modalCancel' / 'modalDelete' in Button.theme.jsx; a
+      // project theme's own cancelButton / deleteButton is lifted (src/themes/_legacy/ui.js liftPatternRoles)
+      cancelButtonStyle: 'modalCancel',
+      deleteButtonStyle: 'modalDelete',
     }
   ]
 }

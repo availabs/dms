@@ -7,8 +7,9 @@ import React from 'react'
 export const drawerTheme = {
   // v6 2026-10-14 (ui-controls.html "Modal and drawer"): drag shadow; pre-v6 shadow-lg frozen in _legacy/ui.js
   panel: 'bg-[var(--t-panel)] text-[var(--t-ink)] border-l border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]',
-  // pointer cursor (inventory 10/13: "drawer Close panel" rendered the default arrow) + ink focus ring
-  closeButton: 'relative rounded-md text-[var(--t-pencil)] hover:text-[var(--t-ink)] cursor-pointer focus:outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--t-ink)]',
+  // the close button is a UI.Button named style (2026-10-17, raw-HTML pass): 'drawerClose' in Button.theme.jsx. A
+  // project theme's own `closeButton` classes are lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles).
+  closeButtonStyle: 'drawerClose',
 }
 
 export const docs = {

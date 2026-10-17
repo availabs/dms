@@ -7,6 +7,8 @@ import ColumnTypes from "../columnTypes";
 import NavigableMenu from "./navigableMenu";
 import CardColumnPicker from './CardColumnPicker';
 import Icon from "./Icon";
+import FieldLabel from "./FieldLabel";
+import Textarea from "./Textarea";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 import {
     isLayoutModelV2,
@@ -199,12 +201,13 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
                     noHover: true,
                     type: () => (
                         <div className={'p-2 w-full'}>
-                            <label className={'text-xs text-gray-500'}>{label}</label>
-                            <textarea
-                                className={'w-full border rounded p-1 text-sm'}
-                                value={attribute[key] || ''}
-                                onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
-                            />
+                            {/* UI.FieldLabel + UI.Textarea, theme defaults (2026-10-17, raw-HTML pass; was gray hardcoded) */}
+                            <FieldLabel text={label}>
+                                <Textarea
+                                    value={attribute[key] || ''}
+                                    onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
+                                />
+                            </FieldLabel>
                         </div>
                     )
                 };

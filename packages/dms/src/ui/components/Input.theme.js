@@ -1,3 +1,5 @@
+import { lexicalTheme } from './lexical/theme'
+
 // UI.Input / Input's Textarea / ConfirmInput — named styles (2026-10-14, ui-control-fields.md). The component
 // is locked: its look comes only from these styles (`activeStyle`), never from a `className`.
 export const inputTheme = {
@@ -59,6 +61,20 @@ export const inputTheme = {
     {
       name: 'bareInherit',
       input: 'w-full min-w-0 bg-transparent placeholder:text-[var(--t-pencil)] outline-none border-none p-0 h-auto',
+    },
+    // 2026-10-17 (ui composites pass): a table header menu's field (table.headerCellControl); `contents` keeps the
+    // wrapper span out of the menu row's flex layout, as the raw <input> it replaced was
+    // the Lexical link editor's URL field: the library lexical theme's linkEditor_linkInput_base, exactly (its layout
+    // included — `contents` keeps the wrapper span out of the editor box's flex row)
+    {
+      name: 'lexLinkInput',
+      inputContainer: 'contents',
+      input: lexicalTheme.styles[0].linkEditor_linkInput_base,
+    },
+    {
+      name: 'tableHeaderControl',
+      inputContainer: 'contents',
+      input: 'p-0.5 w-full rounded-md bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] cursor-pointer',
     },
   ],
 }

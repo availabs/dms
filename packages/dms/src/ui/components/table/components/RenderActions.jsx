@@ -4,6 +4,7 @@ import {uniq} from "lodash-es";
 import {convertToUrlParams} from "../../../../patterns/page/pages/_utils";
 import {DeleteModal} from "../../DeleteModal";
 import Icon from "../../Icon"
+import Button from "../../Button"
 import Popup from "../../Popup"
 import {TableCellContext} from "../index";
 
@@ -23,13 +24,13 @@ const DeleteBtn = ({removeItem, newItem}) => {
 
     return (
         <>
-            <button
+            <Button
                 key={`delete`}
                 title={'delete'}
-                className={theme.actionDeleteBtn}
+                activeStyle={theme.actionDeleteBtnStyle}
                 onClick={() => setShowDeleteModal(true)}>
                 <Icon className={theme.actionBtnIcon} icon={'TrashCan'}/>
-            </button>
+            </Button>
 
             <DeleteModal
                 title={`Delete Row`} open={showDeleteModal}
@@ -105,13 +106,13 @@ const DeleteMenuItem = ({removeItem, newItem}) => {
 
     return (
         <>
-            <button
-                className={theme.actionsMenuItemDanger}
+            <Button
+                activeStyle={theme.actionsMenuItemDangerStyle}
                 onClick={() => setShowDeleteModal(true)}
             >
                 <Icon icon={'TrashCan'} className={'size-3.5'}/>
                 <span>Delete</span>
-            </button>
+            </Button>
             <DeleteModal
                 title={'Delete Row'}
                 open={showDeleteModal}
@@ -130,9 +131,9 @@ export const RenderActionsPopup = ({ actionColumns=[], newItem={}, removeItem=()
     return (
         <Popup
             button={
-                <button className={theme.actionsMenuTrigger}>
+                <Button activeStyle={theme.actionsMenuTriggerStyle}>
                     <Icon icon={'EllipsisVertical'} className={theme.actionsMenuTriggerIcon} />
-                </button>
+                </Button>
             }
             preventCloseOnClickOutside={true}
         >

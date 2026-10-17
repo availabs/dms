@@ -28,7 +28,7 @@ export default function Permissions ({
 }) {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const permissionsTheme = { ...defaultPermissionsTheme, ...getComponentTheme(themeFromContext, 'permissions') };
-    const { MultiSelect, Button, ColumnTypes, Icon } = UI;
+    const { MultiSelect, Button, ColumnTypes, Icon, FieldLabel } = UI;
     const [users, setUsers] = React.useState([]);
     const [groups, setGroups] = React.useState([]);
     const [tmpValue, setTmpValue] = useState(parseIfJSON(value));
@@ -133,7 +133,7 @@ export default function Permissions ({
             {summary}
 
             <div className={permissionsTheme.headerRow}>
-                <label className={permissionsTheme.selectLabel}>{heading}</label>
+                <FieldLabel activeStyle={permissionsTheme.selectLabelStyle} text={heading} />
                 <div className={permissionsTheme.addAccessWrapper}>
                     <MultiSelect activeStyle='addAccess'
                             placeholder='+ group'
@@ -196,11 +196,11 @@ export default function Permissions ({
                                 {row.isDisabled && <span className={permissionsTheme.disabledLabel}>disabled here</span>}
                                 {row.hasOverride && !row.isDisabled && <span className={permissionsTheme.overriddenLabel}>changed here</span>}
                                 {!row.isDisabled &&
-                                    <button type='button' className={permissionsTheme.inheritedAction} onClick={() => disableInherited(row)}>disable here</button>}
+                                    <Button activeStyle={permissionsTheme.inheritedActionStyle} onClick={() => disableInherited(row)}>disable here</Button>}
                                 {row.hasOverride &&
-                                    <button type='button' className={permissionsTheme.inheritedActionQuiet} onClick={() => undoInherited(row)}>
+                                    <Button activeStyle={permissionsTheme.inheritedActionQuietStyle} onClick={() => undoInherited(row)}>
                                         {row.isDisabled ? 'undo' : 'reset'}
-                                    </button>}
+                                    </Button>}
                             </div>
                             {!row.isDisabled && permEditor(row.kind, row.key, row.effective)}
                         </div>

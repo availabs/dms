@@ -53,16 +53,20 @@ const CalculatedDialog = ({ open, setOpen, columns, addCalculatedColumn }) => {
     );
 };
 
-const AddCalculatedColumn = ({columns=[], addCalculatedColumn}) => {
+// triggerStyle / triggerOnStyle (2026-10-17): a caller that lays these out as pills beside its own (CardColumnPicker's
+// "+ Static" chip) names the Button styles; the trigger then sits unwrapped (no full-width addTriggerWrap)
+const AddCalculatedColumn = ({columns=[], addCalculatedColumn, triggerStyle, triggerOnStyle}) => {
     const [open, setOpen] = useState(false);
     const {UI} = useContext(ThemeContext);
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            <span className={t.addTriggerWrap}>
-                <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Calculated</UI.Button>
-            </span>
+            {triggerStyle
+                ? <UI.Button activeStyle={(open && triggerOnStyle) || triggerStyle} aria-expanded={open} onClick={() => setOpen(true)}>+ Calculated</UI.Button>
+                : <span className={t.addTriggerWrap}>
+                    <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Calculated</UI.Button>
+                  </span>}
             {open && <CalculatedDialog open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>}
         </>
     )
