@@ -1,21 +1,27 @@
 # Theme the unthemed UI primitives — v6 for the default theme, legacy for everyone else
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** todo · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** next · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** shaunak.sangdod@gmail.com, ssangdod@albany.edu
 
-## Resume here (2026-10-16)
+## Resume here (2026-10-17)
 
-- **Left:** `Colorpicker` (~3 hardcoded classes), `CardColumnPicker` (~21). `List` + `DraggableList` out of scope (owner).
-- **Done:** Switch (v6 + disabled dim 10/16), Textarea, Button, section menu, Pill.
-- **Next:** per component: v6 keys in its `*.theme.js` (match the mockup), old classes frozen in `_legacy/ui.js`,
-  verify with `scratchpad/verify/` (default = mockup, project themes unchanged). Overlaps with the ui composites step
-  of ui-raw-html-to-ui-components.md — do them together.
+- **Left:** the non-control chrome of `Colorpicker` (2 hardcoded colours: `color-picker-wrapper` `bg-white`, the hex
+  readout `text-slate-500`) and `CardColumnPicker` (17: the column search list `bg-white` / `hover:bg-blue-50`, the
+  selected-column chips `bg-blue-100 text-blue-700`, the blue insert line / dot / `+` trigger `bg-blue-400`, the popup
+  panel `bg-white border shadow-lg`). `List` + `DraggableList` out of scope (owner).
+- **Done 2026-10-17 by ui-raw-html-to-ui-components.md** (completed): their CONTROLS are UI components now —
+  Colorpicker swatches = Button 'swatch(On)' / 'swatchFlat(On)' (their old classes, fill still the inline colour);
+  CardColumnPicker buttons = 'small' / 'chip' / 'chipOn' (owner: purple / green dropped; + Formula / + Calculated /
+  + Static are one pill style).
+- **Done earlier:** Switch (v6 + disabled dim 10/16), Textarea, Button, section menu, Pill.
+- **Next:** per component: v6 keys in a `*.theme.js` (match the mockup), old classes frozen in `_legacy/ui.js`,
+  verify with `scratchpad/verify/` (default = mockup, project themes unchanged).
 
 **State 2026-10-15:** the datasets + page v6 redesign it waited for is finished, and the UI controls effort
 ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)) did part of this task:
 `Switch` (themed, `_legacy/ui.js` freeze), `Textarea` (locked, `styles[]`), `Button` (`themeOptions` gone, locked),
 the section menu (`navigableMenu` tokens, plain value) and `Pill` (named kinds). `Pagination`'s only grays are in
 commented-out code; `Card`'s one hardcoded `<label>` is in
-[ui-raw-html-to-ui-components.md](./ui-raw-html-to-ui-components.md). **Left: `Colorpicker`, `CardColumnPicker`.**
+[ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md). **Left: `Colorpicker`, `CardColumnPicker`.**
 Owner 2026-10-16: `List` and `DraggableList` are not being styled (out of scope).
 
 ## Objective

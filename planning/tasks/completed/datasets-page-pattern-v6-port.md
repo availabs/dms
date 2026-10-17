@@ -21,7 +21,7 @@ its spacing fix, then the owner said "looks good"). Committed on local `design-w
 The follow-on work is the shared control looks (buttons, pills, switches, tabs, fields), tracked in
 [ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md) and its sub-tasks; start there
 when resuming design work. That effort closed 2026-10-15; its follow-on is
-[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).
+[ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md).
 
 Closed 2026-10-15 (owner: "let's close them before we do new work"). The open items, resolved:
 - Live finding 2 (dead "Delete View" link): gone. The v6 version page replaced it with the Delete Version
@@ -29,7 +29,7 @@ Closed 2026-10-15 (owner: "let's close them before we do new work"). The open it
 - Live finding 3 (gis Uploads page): hooked up 2026-10-07 (Decision 11): `uploads` page of gis_dataset and
   csv_dataset, hidden from the tab bar.
 - Live finding 5 (unthemed surfaces): UdaTaskList, version.jsx and UI.DeleteModal themed 10/07; the Runs
-  page 10/15 ([ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md) "Carried over"). The search
+  page 10/15 ([ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md) "Carried over"). The search
   page stays unrouted and unthemed (Decision 12: keep it, don't route it).
 - Mobile TopNav: moved to its own task, [default-layout-mobile-topnav.md](../current/default-layout-mobile-topnav.md).
 - Schedule / runs never walked live: owner, 10/15: "no need". The Runs page was checked with a stubbed-data
@@ -55,7 +55,7 @@ Closed 2026-10-15 (owner: "let's close them before we do new work"). The open it
     snapshots, WCDB back to the pre-change look, which matches the pre-port admin buttons exactly).
   - WCDB's own `danger` (Delete download / Delete version / "empty name") was its dark-site outline, faint on
     the datasets pages: fixed 2026-10-15, red at rest (`wcdb_theme.js`; see
-    [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md) "Carried over").
+    [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md) "Carried over").
 
 ## Process rules (owner, 2026-10-05)
 

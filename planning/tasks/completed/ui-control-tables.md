@@ -4,7 +4,7 @@
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Picks up P4 and the
 "Tables" section of [ui-control-inventory.md](./ui-control-inventory.md). Comes before
-[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md) (owner 2026-10-14: "before we take on
+[ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md) (owner 2026-10-14: "before we take on
 ui-raw-html-to-ui-components.md, there are other ui elements that need to look same"; then "let's do tables").
 
 ## Objective
@@ -226,4 +226,4 @@ landbank, light + dark, build clean, eslint = HEAD. Mirror changes into the mock
 
 All done and committed (library `ffc7566f`). The GIS create flow's non-list tables (select-layer layout, file
 metadata, error blocks, schema field mapping) and the spreadsheet's raw add-row / inline-save / actions buttons
-are tracked in [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).
+are tracked in [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md).

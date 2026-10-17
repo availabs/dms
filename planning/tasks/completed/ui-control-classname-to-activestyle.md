@@ -128,7 +128,7 @@ caller used chip / chipOn.
 
 Verified: the scan finds no Button with className / themeOptions left in `patterns/page`. Default
 theme: the rename modal Cancel is exactly `action` (the default theme's delete modal is the shared
-`UI.DeleteModal`, whose raw buttons belong to [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md)).
+`UI.DeleteModal`, whose raw buttons belong to [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md)).
 Project themes (HEAD pixel diff): page edit view is unchanged on MNY / TNY v2 / landbank. The pages drawer
 changed only at "+ Add Page", which went from unstyled text to each theme's own button at full width.
 eslint same as HEAD.
@@ -383,4 +383,4 @@ the pattern list save / cancel states. Those use the same names and were checked
 ### 2026-10-15 — closed
 
 Done: every library and app-side `UI.Button` takes its look from `activeStyle` only; `Button.jsx` locked.
-Raw `<button>` elements are the follow-on, [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md).
+Raw `<button>` elements are the follow-on, [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md).

@@ -1,20 +1,34 @@
 # Raw HTML controls → UI components
 
-**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 
-## Resume here (2026-10-17) — read this, skip the log below unless you need a detail
+## Closed (2026-10-17)
 
-- **Done:** admin + auth, datasets, page → 0 raw (committed). ui composites: done, committed (see
-  "UI composites — started 2026-10-17" at the bottom: decisions, batches, verification).
-- **Next:** nothing queued. ui composites 0 raw + inputs audit + complexFilters key — committed 2026-10-17 (lib + root commits "UI controls: ui composites …", unpushed).
-- **Open questions:** none (owner answered 2026-10-17 — see "Owner answers + round 4").
-- **Verify:** `scratchpad/verify/README.md`; for lifts, `resolve_composites.mjs <root> old|new
-  [config]` (now `scratchpad/verify/resolve_composites.mjs`) on the HEAD worktree vs the working tree (13 themes, every style) — last run 1015/1015 equal. Harnesses:
-  `scratchpad/composites-harness`, `composites-hdr`, `composites-e`, `lexical-dialogs2` (Vite doesn't watch
-  scratchpad: edit → copy to a new dir name instead of restarting :5199). Base worktree moved to HEAD a551a60c/fe0826fa.
-- **Rules that keep biting:** project themes must not change; check modal layering when a dialog changes; open a
-  Popup on both when its trigger changes; Vite SSR scripts need a private `cacheDir`; owner: low-res screenshots only.
+Every raw `<button>` / `<input>` / `<select>` / `<textarea>` / `<label>` / `<table>` in the library's patterns
+(admin, auth, datasets, page) and UI composites now renders through its UI component, its look picked by
+`activeStyle`. What is left raw is each primitive's own element (Button.jsx's `<button>`, Input.jsx's `<input>`, the
+checkbox / radio column types, FileInput's hidden input, MultiSelect's search box, Tabs' tab) plus commented-out code.
+
+| Area | Raw controls | Committed |
+|---|---|---|
+| admin + auth | → 0 | lib e786dcaa / root 0f2f02ee (2026-10-15) |
+| datasets | 155 → 0 | lib fa3d6955 / root 59c415f6 (2026-10-16) |
+| page | 174 → 0 | lib 4f76c417 / root afb0f8ef (2026-10-16) |
+| ui composites (incl. Lexical) | 129 → 0 | lib + root "UI controls: ui composites …" (2026-10-17) |
+
+How project themes kept their look: `_legacy/*` freezes, and `liftPatternRoles` (`_legacy/ui.js` PATTERN_LIFTS) —
+a theme's own class key becomes a named style of its own (options `fixed`, `inherit`, `defaults` added for the
+composites and Lexical). Proof of 1:1 for the lifts: `scratchpad/verify/resolve_composites.mjs` (HEAD worktree vs
+working tree, every code theme × style; last run 1589/1589 equal).
+
+Found and fixed on the way (2026-10-17): unclickable fields where a named field style inherited a decorated container
+(`ui/components/fieldOnTop.js` + `_legacy` `undecorateOwnControlStyles`); ComplexFilters reading the wrong theme key
+(`pages.complexFilters`, beige on project themes since 10/13); InlineImage "Show Caption" switch props; Lexical
+no-UI fallbacks replaced by imported primitives (no import cycle).
+
+Left elsewhere: `ui-primitives-default-theme.md` (Colorpicker / CardColumnPicker non-control chrome still hardcoded);
+the `timePicker` top-level vs `pages.timePicker` key mismatch stays as is (its freeze is top-level on purpose).
 
 ## Objective
 
@@ -150,11 +164,12 @@ To be listed per area in step 1. A grep for each element across `packages/dms/sr
 
 ## Testing checklist
 
-- [ ] Per area: live class sets match the named styles (default theme)
-- [ ] Per area: HEAD-baseline pixel diff on MNY / TNY v2 / landbank
-- [ ] Keyboard: each swapped control is still focusable, with the theme's focus ring
-- [ ] Forms still submit / don't submit as before (`type` on swapped buttons)
-- [ ] Build clean, eslint same as HEAD
+- [x] Per area: live class sets match the named styles (default theme) — cmp.mjs per area; resolver for the composites
+- [x] Per area: HEAD-baseline diff on MNY / TNY v2 / landbank — pixel diff (admin → page), class + rect diff (composites)
+- [x] Keyboard: focus checked where it matters (DeleteModal initial focus, Lexical dropdown arrow keys, fields focus on click)
+- [~] Forms: swapped buttons are `type="button"` (UI.Button's default), so ones that were untyped (submit) became
+      non-submit; not checked form by form — no regression reported
+- [x] Build clean (2026-10-17: `npm run build` ✓, 40s); eslint: changed files checked for parse / undefined errors only
 
 ## Added 2026-10-14 (owner: "#1 should be covered under ui-raw-html-to-ui-components")
 

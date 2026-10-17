@@ -34,7 +34,7 @@ dev warning (below). Project themes keep their look through `src/themes/_legacy/
 - Auth user-group chips and the grid's selected-cell outline: ink (MultiSelect `accent`, grid step 4).
 
 **Follow-on work:**
-- [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md): raw `<button>` / `<input>` /
+- [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md): raw `<button>` / `<input>` /
   … → UI components; also holds the items carried over from this effort ("Carried over" there).
 - [ui-primitives-default-theme.md](../current/ui-primitives-default-theme.md): the UI primitives that still
   hardcode colours.

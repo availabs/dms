@@ -81,5 +81,5 @@ the HEAD-baseline pixel diff on MNY / TNY / landbank before calling a step done.
 ### 2026-10-15 — closed
 
 Spec page and mockup re-skin done. The polish noted above (faint skeleton on a light cell, low-contrast
-tooltip in dark) is carried in [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md)
+tooltip in dark) is carried in [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md)
 "Carried over".

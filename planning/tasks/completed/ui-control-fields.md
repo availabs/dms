@@ -3,7 +3,7 @@
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Owner 2026-10-14: other UI
-elements must look the same before [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); run in
+elements must look the same before [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md); run in
 parallel agents ("go ahead, run multiple agents to parallel work on next steps").
 
 ## Objective
@@ -129,5 +129,5 @@ lock Input.jsx / Textarea.jsx (look = theme only).
 
 All done and committed (library `ffc7566f`). Open question 1 answered and implemented (Input / Textarea
 locked); 2 (UI.Label as a tag chip) and 3 (page drawer inputs) moved to
-[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); 4 resolved by the lock (`bare` /
+[ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md); 4 resolved by the lock (`bare` /
 `headerFilter` styles).

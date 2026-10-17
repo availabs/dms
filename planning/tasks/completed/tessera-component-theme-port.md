@@ -52,7 +52,7 @@ ported in [datasets-page-pattern-v6-port.md](../completed/datasets-page-pattern-
 2026-10-15); the auth manage pages (Users / Groups / Profile) in the admin port and the UI controls effort
 ([ui-control-consistency-audit.md](../completed/ui-control-consistency-audit.md)). Auth sign-in / sign-up
 accents are still cobalt (owner skipped; carried in
-[ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md)).
+[ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md)).
 
 **Closed 2026-10-15 (owner).** The last open items:
 - `nestable` (`draggableNav.jsx`) and `nestableInHouse`: done. Owner: "draggablenav and nestable are used in

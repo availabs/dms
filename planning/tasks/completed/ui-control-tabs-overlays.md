@@ -3,7 +3,7 @@
 **Initiatives:** [dms_tessera_default_theme](../../../../../planning/initiatives/dms_tessera_default_theme.md) · **Status:** done · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 Part of [ui-control-consistency-audit.md](./ui-control-consistency-audit.md), the hub. Owner 2026-10-14: other UI
-elements must look the same before [ui-raw-html-to-ui-components.md](../current/ui-raw-html-to-ui-components.md); run in
+elements must look the same before [ui-raw-html-to-ui-components.md](../completed/ui-raw-html-to-ui-components.md); run in
 parallel agents ("go ahead, run multiple agents to parallel work on next steps").
 
 ## Objective
