@@ -93,8 +93,9 @@ export const tableTheme = {
             paginationRowsInfo: 'font-mono text-[11px] text-[var(--t-pencil)]',
             paginationContainer: 'w-full p-2 flex items-center justify-between border-t border-[var(--t-rule)]',
             paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
-            pageRangeItem: 'cursor-pointer px-3 text-[var(--t-graphite)] py-1 font-mono text-[11px] hover:bg-[var(--t-well)] uppercase tracking-[0.06em] rounded-md',
-            pageRangeItemInactive: '',
+            pageRangeItem: 'cursor-pointer px-3 text-[var(--t-graphite)] py-1 font-mono text-[11px] uppercase tracking-[0.06em] rounded-md',
+            // hover only on inactive items: on the active (ink) item a well hover hid the paper-coloured number
+            pageRangeItemInactive: 'hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]',
             pageRangeItemActive: 'bg-[var(--t-ink)] text-[var(--t-paper)]',
 
             totalRow: 'bg-[var(--t-well)] sticky bottom-0 z-[3] border-t border-[var(--t-rule-strong)]',
