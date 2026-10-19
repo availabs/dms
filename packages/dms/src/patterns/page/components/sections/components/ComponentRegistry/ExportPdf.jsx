@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { PageContext, CMSContext } from '../../../../context';
 import { selectablePDF2 } from '../../../saveAsPDF/PrintWell/selectablePDF';
 import { ThemeContext } from "../../../../../../ui/useTheme";
+import { getInstance } from "../../../../../../utils/type-utils";
 
 export function PdfExport({ }) {
   const [pdfPages, setPdfPages] = useState([]);
@@ -16,55 +17,25 @@ export function PdfExport({ }) {
   const [selectedCoverPage, setSelectCoverPage] = useState(null);
 
   const { UI } = React.useContext(ThemeContext)
-  const { app, API_HOST, siteType } = React.useContext(CMSContext) || {};
+  const { app, API_HOST, sitePatterns, type: currentType } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
   const { Icon, Button, MultiSelect, ColumnTypes } = UI || {};
   const CheckboxEdit = ColumnTypes?.checkbox?.EditComp;
 
+  // The site's patterns are already resolved (render/spa/utils sitePatterns) — pattern rows are typed
+  // `{siteInstance}|{slug}:pattern`, and a page pattern's pages live under its instance (the slug).
   useEffect(() => {
-    const fetchPatterns = async () => {
-      const res = await apiLoad({
-        format: {
-          app,
-          type: `${siteType}`,
-          attributes: ["id", "app", "type", "data"]
-        },
-        children: [{
-          type: () => { },
-          action: 'list',
-          path: '/',
-        }]
-      });
-      const [appData] = res;
-
-      if (appData && appData?.patterns) {
-        let data = await apiLoad({
-          format: {
-            app,
-            type: `pattern`,
-            attributes: ["id", "app", "type", "doc_type"]
-          },
-          children: [{
-            action: "list",
-            path: "/*",
-            filter: {
-              options: JSON.stringify({
-                filter: { "data->>'id'": appData?.patterns?.map(p => p.id) },
-              }),
-            },
-          }],
-        });
-        data = data?.map(d => ({
-          app: d.app,
-          doc_type: d.doc_type,
-          name: d.name,
-        }));
-        setPatterns(data);
-        if (data?.length > 0) setSelectedPattern(data[0]);
-      }
-    };
-    fetchPatterns();
-  }, [app, siteType]);
+    const data = (sitePatterns || [])
+      .filter(p => p?.pattern_type === 'page' && p.id !== 'no-access')
+      .map(p => ({
+        app: p.app || app,
+        doc_type: getInstance(p.type) || p.doc_type,
+        name: p.name,
+      }))
+      .filter(p => p.doc_type);
+    setPatterns(data);
+    setSelectedPattern(data.find(p => p.doc_type === currentType) || data[0] || null);
+  }, [app, sitePatterns, currentType]);
 
   const type = useMemo(() => selectedPattern?.doc_type, [selectedPattern]);
 
@@ -75,7 +46,8 @@ export function PdfExport({ }) {
       const res = await apiLoad({
         format: {
           app,
-          type: `${type}`,
+          // page rows are `{instance}|page` (initializePatternFormat over page.format.js)
+          type: `${type}|page`,
           attributes: [
             'title',
             'url_slug',
@@ -353,7 +325,7 @@ export function PdfExport({ }) {
       <div className="mb-3">
         <MultiSelect
           singleSelectOnly
-          searchable={false}
+          searchable
           options={patterns.map(o => ({
             label: `${o?.name ?? ''} (${o?.doc_type ?? ''})`,
             value: JSON.stringify(o),
