@@ -925,7 +925,27 @@
 
 ### patterns/auth
 
-- [ ] [Auth and datasets: replace auth levels with named permissions](./tasks/current/auth-levels-to-permissions.md) — filed 2026-09-30. The auth server still gates ~25 operations on group `auth_level` (5 = manager, 10 = admin, some on the global `avail_auth` project), so an `auth-users` grant on the auth pattern still lists 0 users. The dama admin endpoints (upload, publish, duplicate, sync-filters, downloads) check nothing at all. The task surveys every threshold, poses the design questions (which auth row governs a project, the vocabulary, the rank/anti-escalation rule, source creation, migrating level-5/10 groups), and phases it: datasets endpoints first, then auth "level OR permission", migrate grants, remove levels.
+- [ ] [Auth and datasets: replace auth levels with named permissions (hub)](./tasks/current/auth-levels-to-permissions.md) — filed 2026-09-30, **split into 19 tasks 2026-10-19** after a re-survey (only 7 server dataset routes check a source permission; `isUserAuthedForSource` fails open; ~30 auth-server level checks). The hub lists the order and the open design questions. Subtasks:
+  - [ ] [Inventory](./tasks/current/permissions-inventory.md) — read-only: level groups, active dataset writers, avail-falcor sites, external `authLevel` consumers
+  - [ ] [Access diff audit](./tasks/current/permissions-access-diff-audit.md) — auth level × source × operation, old vs new; losses → groups/users → remediation; reruns before each switch-over
+  - [ ] [Datasets permissions core](./tasks/current/permissions-server-source-auth-core.md) — vocabulary (`create-source`), fail-closed source/pattern check, middleware, user id from token
+  - [ ] [Client sends the token on dama-admin calls](./tasks/current/permissions-dama-admin-client-auth-headers.md) — prerequisite for REST enforcement
+  - [ ] [UDA Falcor writes](./tasks/current/permissions-ds-uda-falcor-writes.md) — `sources.update` (open, can write `auth_permissions`), view sets, index/PK DDL, clearData, settings
+  - [ ] [Upload / publish routes](./tasks/current/permissions-ds-upload-publish-routes.md) — gis/csv/file_upload/DMS publish+validate
+  - [ ] [Downloads and files](./tasks/current/permissions-ds-downloads-and-files.md) — `manage-downloads`; public `/files` decision
+  - [ ] [Schedules and tasks](./tasks/current/permissions-ds-schedules-and-tasks.md) — login-only today
+  - [ ] [Pattern ops](./tasks/current/permissions-ds-pattern-ops.md) — duplicate, sync-filters; `req.user` bug
+  - [ ] [Data-type plugin routes](../../../planning/shared/tasks/current/datatype-plugin-route-permissions.md) — dms-template shared task
+  - [ ] [Datasets client gates](./tasks/current/permissions-ds-client-gates.md) — ~35 `user.token`/`user.authed` gates
+  - [ ] [Row edits from sections](./tasks/current/permissions-ds-section-data-writes.md) — blocked:decision
+  - [ ] [Read visibility](./tasks/current/permissions-ds-read-visibility.md) — `view-source` on reads; last
+  - [ ] [Auth server permission source](./tasks/current/permissions-auth-server-permission-source.md) — blocked:decision (which row, anti-escalation)
+  - [ ] [Auth users and signup](./tasks/current/permissions-auth-users-and-signup.md)
+  - [ ] [Auth groups](./tasks/current/permissions-auth-groups.md) — incl. `/group/project/adjust` hole
+  - [ ] [Auth platform admin](./tasks/current/permissions-auth-platform-admin.md) — `avail_auth`/`AVAIL`
+  - [ ] [Auth client pages](./tasks/current/permissions-auth-client-pages.md)
+  - [ ] [Grant migration](./tasks/current/permissions-grant-migration.md) — dry-run/apply
+  - [ ] [Remove auth levels](./tasks/current/permissions-remove-auth-levels.md) — Phase 1 dead code any time
 - [ ] [Invite-link add-user flow + password-reset hardening](./tasks/current/auth-invite-link-and-reset-hardening.md) — filed 2026-09-24, design under review. **Two account-takeover holes (Phase 1, urgent):** (1) server `POST /password/reset` needs no login and returns the new password + a login token in its response, so anyone can take over any account by email; (2) `/signup/assign/group` ignores the admin token and accepts any `group`, so anyone can sign themselves into e.g. `AVAIL` (level 10). Then admin add-user moves to the existing but unused `/invite` + `/invite/accept` endpoints: 6h token link, a new `password/set` page with new/confirm fields, Resend/Revoke. Reset moves to the same page. No schema change needed.
 
 - [ ] [Expired session shows "You do not have permission" instead of login](./tasks/current/expired-session-shows-no-permission.md) — from TransportNY ticket #2224917 (2026-09-23). `view.jsx`/`edit/index.jsx` choose login vs no-permission from the client's `user.authed`, which likely stays `true` after the server-side token expires; plus `edit/index.jsx:292-295` never redirects an unauthed user to login. Not reproduced yet.

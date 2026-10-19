@@ -1,178 +1,139 @@
-# Auth and datasets: replace auth levels with named permissions
+# Auth and datasets: replace auth levels with named permissions (hub)
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
-**Project:** DMS library (`src/dms` submodule) · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama)
+**Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
+`data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
 ## Objective
 
-DMS is moving from numeric **auth levels** (a group's `auth_level` 0–10 per project, and the user's max
-across their groups) to **named permissions** granted on pattern rows (`authPermissions`). The site
-admin panel ([admin-granular-permissions.md](../completed/admin-granular-permissions.md)) and datasets sources
-(pattern ⊕ source) already use permissions. The **auth server** still decides almost everything by
-level, and the **dama admin endpoints** decide nothing at all.
+DMS is moving from numeric **auth levels** (a group's `auth_level` 0–10 per project; the user's max across
+their groups) to **named permissions** granted on pattern rows (`authPermissions`). The admin panel
+([admin-granular-permissions.md](../completed/admin-granular-permissions.md)) and the datasets client already use
+permissions. The auth server still decides by level, and almost no dataset route checks anything.
 
-This task plans the move for the auth and datasets areas, one slice at a time, without locking out
-anyone who has access today. It's a planning doc first: the design questions below need answers
-before any phase starts.
+This doc is the hub. The work is split into the tasks below; each holds its own file:line inventory, changes
+and tests. Re-surveyed 2026-10-19 (three read-only passes: dataset server routes, dataset client gates, auth
+levels); the first survey was 2026-09-30.
 
-## Current state (surveyed 2026-09-30)
+## Headline findings (2026-10-19)
 
-### Where levels are computed
-- `dms-server/src/auth/jwt.js:58`: the token's `authLevel` = max `auth_level` over the user's groups in
-  the login project. `meta` carries each group's level.
-- `auth/utils/queries.js` `getUserAuthLevel(db, email, project)`: the same, computed per request by the
-  handlers. `assignGroupToProject`, `ensureGroupInProject` and `adjustAuthLevel` write
-  `groups_in_projects.auth_level`.
-- Created by `initSetup`: `${project} Admin` at **10**, `${project} Public` at **0**. Groups created
-  from the DMS Auth → Groups page are always **0** (`authGroups.jsx:105`).
-- Some checks use the global project **`avail_auth`** instead of the current project (a platform
-  superuser): `createUser`, `passwordForce`.
+- Only 7 server dataset routes check a source permission. Everything else (uploads, publishes, downloads,
+  schedules, plugin routes, `uda.sources.update`, view edits, index/PK DDL, clearData, settings) is open or
+  login-only, and most take the owner's `user_id` from the request body.
+- `isUserAuthedForSource` allows when the source row is missing, on any query error, and on every DMS internal
+  env. No caller passes `patternId`, so pattern grants are never consulted server-side.
+- `uda.sources.update` has no check and can rewrite `auth_permissions`; it and the other raw-SET writers take
+  column names from the client.
+- The datasets Admin/Version tabs gate most writes on `user.token`; DataWrapper row edits are ungated by user.
+- The auth server has ~30 level checks (about 10 more than the first survey listed), two holes
+  (`/group/project/adjust` checks only the new level; `/invite` and `/create/user` don't rank-check the target
+  group) and one unguarded join (`/signup/assign/group`).
+- `authLevel` has almost no client consumers: one dead mapeditor component and a default in `auth/context.js`.
+  External: the TransportNY/NPMRDS app (`reqAuthLevel`) and sites on avail-falcor (library default `AUTH_HOST`).
 
-### Level thresholds in the auth server (every one)
+## Tasks, in order
 
-| Handler | Operation | Needs |
-|---|---|---|
-| `auth.js` `signupAccept` | accept a signup request | ≥ 5, and ≥ the target group's level |
-| `auth.js` `signupReject` / `deleteSignup` | reject / delete a request | ≥ 5 |
-| `auth.js` `sendInvite` | invite a user | ≥ 5 |
-| `auth.js` `passwordForce` | set another user's password | ≥ 10 on `avail_auth` |
-| `auth.js` `createUser` | create a user | ≥ 10 on `avail_auth` |
-| `auth.js` `signupAssignGroup` | self-signup / admin add-user | **nothing** (see [auth-invite-link-and-reset-hardening.md](./auth-invite-link-and-reset-hardening.md)) |
-| `group.js` | create group; create+assign; assign to project; remove from project; adjust level; edit meta | ≥ 5, and ≥ the group's level (anti-escalation) |
-| `user.js:115` | list users of a project | ≥ 10 |
-| `user.js:203` | create fake users | ≥ 10 |
-| `user.js` `assignToGroup`/`removeFromGroup` | membership | `checkGroupAuthority`: ≥ the group's level in every project it belongs to |
-| `project.js` | list projects (10 → all, ≥ 1 → own); create/delete project | ≥ 10 |
-| `message.js` | post to a group / to all | ≥ the group's level / ≥ the max level |
+**0. Inventory (read-only)**
+1. [permissions-inventory.md](./permissions-inventory.md): level-≥5 groups per project, active dataset writers and
+   their grants, which sites use avail-falcor, external `authLevel` consumers, editable page sections.
+1b. [permissions-access-diff-audit.md](./permissions-access-diff-audit.md): auth level × source × operation, old
+   rule vs new; losses expanded to the groups and users behind them, with a remediation plan. Reruns before each
+   switch-over and before level removal.
 
-**The rank rule is load-bearing.** "You can't manage a group ranked above you" is what stops a level-5
-manager from adding themselves to a level-10 Admin group. Any permission design has to keep an
-equivalent rule.
+**1. Datasets foundations**
+2. [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md): vocabulary
+   (`create-source`, `create-view`, maybe `edit-source-data`); a source/pattern check that fails closed, reads
+   pattern grants and DMS envs; Express middleware; user id from the token only.
+3. [permissions-dama-admin-client-auth-headers.md](./permissions-dama-admin-client-auth-headers.md): every REST call
+   sends `Authorization`. **Ship before any REST route enforces.**
 
-### Client (DMS library)
-- `mapeditor/SourceLayout.jsx:63`: `user?.authLevel >= 5` gates a UI block.
-- `auth/context.js:6`: default `authLevel: -1`.
-- `auth/pages/authGroups.jsx:105`: new groups at `auth_level: 0`.
-- The `auth_level` **pattern** field is copied on duplicate (`editSite.jsx`, `settings.jsx`,
-  `patternList.jsx`), but nothing reads it: a dead field.
-- The Auth → Users / Groups pages call the level-gated endpoints above. So a user granted `auth-users`
-  on the auth pattern (the permission that shows them the Users link) still gets **0 users** unless
-  their group is level 10. Seen live 2026-09-30.
-- Route `reqPermissions: ['auth-users'|'auth-groups']` don't block. That's defect A in
-  [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md).
+**2. Datasets server enforcement** (each depends on 2; the REST ones also on 3)
+4. [permissions-ds-uda-falcor-writes.md](./permissions-ds-uda-falcor-writes.md): `sources.update`, source/view sets,
+   setIndex, setPrimaryKey, clearData, settings, DMS-env deletes; column whitelists.
+5. [permissions-ds-upload-publish-routes.md](./permissions-ds-upload-publish-routes.md): gis/csv upload and publish,
+   file_upload (dama and dms-admin), DMS publish/validate.
+6. [permissions-ds-downloads-and-files.md](./permissions-ds-downloads-and-files.md): create/delete download,
+   PM tiles, the public `/files` mount (decision).
+7. [permissions-ds-schedules-and-tasks.md](./permissions-ds-schedules-and-tasks.md): schedules, fire, rerun, task
+   status reads.
+8. [permissions-ds-pattern-ops.md](./permissions-ds-pattern-ops.md): `duplicate`, `sync-filters`; the `req.user` bug.
+9. [datatype-plugin-route-permissions.md](../../../../../planning/shared/tasks/current/datatype-plugin-route-permissions.md)
+   (dms-template `planning/shared/`): ~30 plugin routes in `data-types/`, default-deny mount.
 
-### Datasets
-- **Reads and source edits are already permission-based.** `uda.route.js` checks `update-source` or
-  `edit-source-permissions` on source edits (`:190`) and `update-source` on version create (`:554`),
-  through `uda/sourceAuth.js` `isUserAuthedForSource` (pattern ⊕ source; a source with no grants
-  inherits the pattern's). Decision 2026-09-30: this is also how read visibility works; see
-  auth-permission-chain's "Decision".
-- **The dama admin endpoints check nothing.** `dama/upload/index.js`: upload, gis and csv publish,
-  validate, `dms/:appType/duplicate`, `sync-filters`, create- and delete-download, file upload, and
-  task status. Their "guards" (`gisGuard`, `downloadGuard`) only check that GDAL is installed.
-  `dama/tasks/schedule-routes.js` requires *some* logged-in user. Neither levels nor permissions.
-- **The datasets client uses "logged in" in place of permissions:** `DatasetsList/index.jsx:394-419`
-  shows Add/Settings/hidden buckets on `user?.authed`.
-- **No permission exists for creating a source.** Source permissions apply to an existing source; a
-  new one has no ACL yet.
+**3. Datasets client and data writes**
+10. [permissions-ds-client-gates.md](./permissions-ds-client-gates.md): ~35 `user.token` / `user.authed` / missing
+    gates → the permission each action needs. Can land early (UI only) once the vocabulary is decided.
+11. [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md): who may edit source rows from
+    a page section or the Table tab, client and `uda.data.*` (decision).
+12. [permissions-ds-read-visibility.md](./permissions-ds-read-visibility.md): `view-source` on catalog, source, view,
+    data and tile reads. **Last of the datasets tasks**; needs the page-section read decision.
 
-### Other consumers of levels (outside this repo; inventory before removing anything)
-- The legacy **avail-falcor** auth server has the same level model, and sites on the default
-  `AUTH_HOST` (`graph.availabs.org`) use it.
-- TransportNY's older app gates routes on `reqAuthLevel`
-  (`planning/transportny/tasks/current/auth-blank-pages-after-login.md`).
-- Anything reading the JWT's `authLevel`/`meta`. Keep both fields in the token until no consumer is
-  left.
+**4. Auth server and client**
+13. [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md): which auth row
+    governs a request, vocabulary, anti-escalation without ranks, transition mode ("permission **or** level").
+14. [permissions-auth-users-and-signup.md](./permissions-auth-users-and-signup.md): users, requests, invites,
+    membership, user delete, `isPublicGroup` replacement.
+15. [permissions-auth-groups.md](./permissions-auth-groups.md): group CRUD and project membership; fix the
+    `/group/project/adjust` hole.
+16. [permissions-auth-platform-admin.md](./permissions-auth-platform-admin.md): `avail_auth` / `AVAIL` operations
+    (projects, create user, force password, fake users, messages).
+17. [permissions-auth-client-pages.md](./permissions-auth-client-pages.md): Users / Groups / Profile pages.
 
-## Design questions (answer before Phase 1)
+**5. Migration and removal**
+18. [permissions-grant-migration.md](./permissions-grant-migration.md): dry-run/apply script granting today's
+    access as permissions. Runs before anything flips to permission-only.
+19. [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md): Phase 1 dead code (any time);
+    Phase 2 level checks out; Phase 3 `authLevel` off the user object and schema once external consumers are gone.
 
-1. **Where do auth-server permissions live?** The auth server works per *project* (the app name) in the
-   auth DB. Permissions live on the site's **auth pattern row** in the DMS DB. dms-server can read both,
-   but:
-   - An app can hold several sites or instances, and tenants each have their own auth row.
-     Which row governs a project-level operation?
-   - Proposal: the request names the site (`app` + auth pattern id, or the site type), and the server
-     loads that auth row's `authPermissions`, resolved for the request's subdomain.
-   - avail-falcor can't read DMS rows, so it either keeps levels or is retired for DMS sites.
-2. **Vocabulary.** Proposal, reusing what the auth pattern already offers:
-   - `auth-users`: list users, invite, add, reset or force a password for project users
-   - `auth-groups`: create, edit and delete groups, and manage membership
-   - `view-as`: impersonate
-   - maybe `auth-requests` for signup requests, or fold it into `auth-users`
-   - Platform-wide operations (projects, fake users, `avail_auth` superuser) → a platform admin group,
-     or `*` on the platform root site's auth row.
-3. **The anti-escalation rule without ranks.** Options:
-   - (a) you may only put a user in a group whose grants are a subset of your own
-   - (b) only `*` holders may manage groups that hold `*` or `auth-groups`
-   - (c) keep `auth_level` purely as a rank for this one rule, and drop it everywhere else
-   (b) is the simplest to reason about.
-4. **Datasets: creating sources.** Add a pattern-level `create-source`, or reuse `update-source` at
-   pattern level? Also which permission guards `duplicate` and `sync-filters`: these are
-   *pattern* operations, so `edit-pattern`?
-5. **Migration.** Existing level-5 and level-10 groups keep working how? Proposal: a one-time
-   CLI/SQL pass that grants each level-≥5 group the equivalent permissions on its project's auth
-   row (level 10 → `*`, 5 → `auth-users` + `auth-groups`). Dry-run first. Levels stay in the DB and
-   the token (read-only) until every consumer has moved.
+Tracks 1–3 (datasets) and track 4 (auth) are independent and can run in parallel. Within datasets, 4–9 can run in
+any order once 2 and 3 land.
 
-## Proposed phases
+## Design questions
 
-### Phase 0 — Inventory
-- [ ] List level-≥1 groups per project from the auth DB (prod), with member counts.
-- [ ] Inventory external consumers of `authLevel`/`reqAuthLevel`: TransportNY app, avail-falcor clients,
-  anything decoding the JWT.
-- [ ] Confirm which deployed DMS sites use avail-falcor vs dms-server for auth.
+Each is owned by the task in brackets; answer there.
 
-### Phase 1 — Datasets: close the unguarded dama endpoints (independent of the auth questions)
-- [ ] Resolve the user in every `/dama-admin/*` mutating route (`req.availAuthContext.user`). Then
-  require the relevant source permission through `isUserAuthedForSource`:
-  - publish into an existing source → `update-source`
-  - create/delete download → `manage-downloads`
-  - delete → `delete-source`
-  - new source → per question 4
-  - `duplicate`, `sync-filters` → a pattern-level permission, per question 4
-  - task status reads → the task's source visibility
-- [ ] Replace `user?.authed` gates in `DatasetsList` with the matching permission checks
-  (`DatasetsContext.isUserAuthed`).
-- [ ] Blast radius: check the 8 datasets patterns listed in auth-permission-chain before shipping, so
-  that current uploaders hold the permissions they'll now need. Where they don't, grant them with a
-  script first.
-
-### Phase 2 — Auth server: permissions alongside levels
-- [ ] Load the auth row's permissions for the request (question 1). Accept **either** the level
-  threshold **or** the new permission during the transition, so nobody loses access.
-- [ ] Apply to every row of the threshold table, with the anti-escalation rule from question 3.
-- [ ] Tests in `test-auth.js`: each operation passes by permission alone, passes by level alone
-  (transition), and fails with neither.
-
-### Phase 3 — Migrate grants
-- [ ] The dry-run / apply script from question 5, in `src/themes/<project>/scripts/` or the dms CLI.
-- [ ] Run it per site, and verify with the admin panel's Access tab on each auth row.
-
-### Phase 4 — Remove level checks
-- [ ] Drop the level branch from the handlers once Phase 3 has run everywhere and Phase 0 found no
-  remaining consumers.
-- [ ] Client: `SourceLayout.jsx` → a permission; remove the dead `auth_level` pattern-field copies;
-  stop sending `auth_level: 0` from `authGroups.jsx` (or keep it as a rank if 3(c) is chosen).
-- [ ] Keep `authLevel` in the JWT until external consumers are gone. Then remove it.
+1. **Where auth-server permissions live** and which auth row governs a request (multi-site apps, tenants).
+   Proposal: the client sends `app` + auth pattern id. [13]
+2. **Auth vocabulary.** Proposal: `auth-users`, `auth-groups`, `view-as`; platform operations by `AVAIL`
+   membership. [13, 16]
+3. **Anti-escalation without ranks.** Recommendation: only `*` / `${app} Admin` may touch groups that hold `*`,
+   `auth-groups` or `edit-pattern-permissions`. [13]
+4. **Datasets vocabulary.** Recommendation: new pattern-level `create-source`; enforce the existing `create-view`;
+   pattern operations use `edit-pattern`. [2]
+5. **Migration.** One-time grants matching today's access, dry-run first; levels stay readable until every
+   consumer has moved. [18]
+6. **Strict or lenient checks.** The client is lenient ("nothing configured → any logged-in user"), the server
+   source check is strict. Pick one per area and make both sides match. [2, 13]
+7. **Public files.** `/files` is public and can't carry a header. [6]
+8. **Row edits from page sections.** A source grant, the section's own `edit`, or a public-create split. [11]
+9. **Sources read by public pages.** Does `view-page` imply reading the sources its sections bind? [12]
 
 ## Relation to other tasks
 
-- [auth-invite-link-and-reset-hardening.md](./auth-invite-link-and-reset-hardening.md): its
-  `signupAssignGroup` and `sendInvite` checks are written in levels (≥ 5). If they land first, write
-  them in the Phase 2 "level or permission" form so they don't need redoing.
-- [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md):
-  defect A (route checks) and defect B (`dms.data.edit`) are the DMS-data half of the same move.
-- [admin-granular-permissions.md](../completed/admin-granular-permissions.md): defines `auth-users`,
-  `auth-groups`, `view-as` in the Access editor, and hides the Users/Groups links by them.
+- [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md): defect A (route
+  `reqPermissions` don't block) underlies the client `view-sources` gate; defects B/E (`dms.data.edit` / `create`
+  unchecked) are the write path for DMS internal sources and for granting permissions at all. Task 15's escalation
+  rule is moot until defect B is fixed.
+- [auth-invite-link-and-reset-hardening.md](./auth-invite-link-and-reset-hardening.md): rewrites
+  `signupAssignGroup` and invites; write its checks in task 14's transition form.
+- [sync-per-user-permission-filtering.md](./sync-per-user-permission-filtering.md): sync returns internal sources
+  and patterns to anyone; the read side of task 12.
+- [auth-login-token-carries-password-hash.md](./auth-login-token-carries-password-hash.md): JWT contents; touches
+  the same `jwt.js`.
+- [route-auth-check-judges-placeholder-user.md](./route-auth-check-judges-placeholder-user.md): client gates run on
+  the placeholder user while sign-in loads; affects task 10's gates.
+- [external-source-editable-crud.md](./external-source-editable-crud.md): built `uda.data.*` (login-only); task 11.
+- [admin-granular-permissions.md](../completed/admin-granular-permissions.md): the site/pattern vocabulary
+  (`view-pattern-list`, `create-pattern`, `edit-pattern`, `auth-users`, `auth-groups`, `view-as`).
 
-## Testing checklist
+## Testing checklist (whole move)
 
-- [ ] Transition: a level-10 user with no permission grants can still do everything they could before.
-- [ ] A level-0 group granted `auth-users` can list and invite users; granted `auth-groups`, it can
-  manage non-`*` groups but can't add anyone to a `*` group (the anti-escalation rule).
-- [ ] Datasets: a user without `update-source` gets 403 from gis/csv publish into that source; with it,
-  the upload succeeds. The same for downloads (`manage-downloads`) and delete.
-- [ ] Anonymous callers get 401 from every `/dama-admin/*` mutating route.
-- [ ] After the migration script: the admin panel's Access tab on each auth row shows the granted
-  permissions, and nobody lost an operation they had (compare against the Phase 0 inventory).
+- [ ] Transition: a level-10 user with no grants can still do everything they could before.
+- [ ] A level-0 group granted `auth-users` can list and invite users; granted `auth-groups`, can manage non-`*`
+  groups but can't add anyone to a `*` group.
+- [ ] Datasets: a user without the matching permission gets 401/403 from every `/dama-admin/*`, plugin and `uda.*`
+  write; with it, the operation succeeds, and the UI never shows a control that would 403.
+- [ ] After the migration script: the access diff ([1b](./permissions-access-diff-audit.md)) shows zero unintended
+  losses, and every intended loss is signed off.
+- [ ] After removal: no code reads `authLevel` / `auth_level` except kept-for-compat paths.
