@@ -6,6 +6,7 @@ import { DatasetsContext } from "../../../context";
 import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
 import { runsPageTheme } from "./runsPage.theme";
 import { getExternalEnv } from "../../../utils/datasources";
+import { authedFetch } from "../../../../../utils/authedFetch";
 import {
     cronToHuman,
     timeAgo,
@@ -170,7 +171,8 @@ const MAX_EVENTS = 500;
  */
 const RunDetail = ({ taskId, source, params }) => {
     const navigate = useNavigate();
-    const { user, datasources, API_HOST, falcor, pageBaseUrl } = useContext(DatasetsContext) || {};
+    const { user, datasources, API_HOST, falcor, pageBaseUrl, app, parent } = useContext(DatasetsContext) || {};
+    const pattern = { app, id: parent?.id };
     const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...runsPageTheme, ...getComponentTheme(theme, 'datasets.runsPage') };
     const { Button } = UI || {};
@@ -237,7 +239,7 @@ const RunDetail = ({ taskId, source, params }) => {
     // The schedule that fired this run (for the "fired by" label).
     useEffect(() => {
         if (!task?.schedule_id || !pgEnv) return;
-        fetch(`${rtPfx}/schedules?source_id=${task.source_id ?? source?.source_id}`)
+        authedFetch(`${rtPfx}/schedules?source_id=${task.source_id ?? source?.source_id}`, { user, pattern })
             .then(r => r.json())
             .then(rows => {
                 if (Array.isArray(rows)) {
@@ -251,9 +253,10 @@ const RunDetail = ({ taskId, source, params }) => {
         setRerunning(true);
         setRerunError(null);
         try {
-            const res = await fetch(`${rtPfx}/tasks/${taskId}/rerun`, {
+            const res = await authedFetch(`${rtPfx}/tasks/${taskId}/rerun`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+                headers: { 'Content-Type': 'application/json' },
+                user, pattern,
                 body: '{}',
             });
             const json = await res.json();
@@ -387,7 +390,8 @@ const RunDetail = ({ taskId, source, params }) => {
 
 const RunsList = ({ source, params }) => {
     const ref = useRef();
-    const { datasources, API_HOST, falcor, UI, pageBaseUrl } = useContext(DatasetsContext) || {};
+    const { datasources, API_HOST, falcor, UI, pageBaseUrl, user, app, parent } = useContext(DatasetsContext) || {};
+    const pattern = { app, id: parent?.id };
     const { Table, Pagination } = UI;
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...runsPageTheme, ...getComponentTheme(theme, 'datasets.runsPage') };
@@ -438,12 +442,12 @@ const RunsList = ({ source, params }) => {
         if (!pgEnv || !sourceId) return;
         const load = async () => {
             try {
-                const res = await fetch(`${rtPfx}/schedules?source_id=${sourceId}`);
+                const res = await authedFetch(`${rtPfx}/schedules?source_id=${sourceId}`, { user, pattern });
                 const schedules = await res.json();
                 if (!Array.isArray(schedules)) return;
                 setSchedulesById(schedules.reduce((out, s) => ({ ...out, [s.schedule_id]: s }), {}));
                 const eventLists = await Promise.all(schedules.map(async (s) => {
-                    const r = await fetch(`${rtPfx}/schedules/${s.schedule_id}/runs`);
+                    const r = await authedFetch(`${rtPfx}/schedules/${s.schedule_id}/runs`, { user, pattern });
                     const json = await r.json();
                     return (json?.events || []).map(ev => ({ ...ev, schedule_id: s.schedule_id }));
                 }));
@@ -455,7 +459,7 @@ const RunsList = ({ source, params }) => {
 
     useEffect(() => {
         if (!pgEnv) return;
-        fetch(`${rtPfx}/schedulables`)
+        authedFetch(`${rtPfx}/schedulables`, { user, pattern })
             .then(r => r.json())
             .then(json => { if (Array.isArray(json)) setSchedulables(json); })
             .catch(() => {});

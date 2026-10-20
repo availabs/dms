@@ -19,8 +19,9 @@ there's no permission for creating a source at all.
    still [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md)'s decision.
 2. **External sources: trust the client-named pattern.** Nothing in the db links a pgEnv to a pattern
    (pgEnvs are the client build setting `VITE_DMS_PG_ENVS`; every datasets pattern of the app sees all
-   of them). The request names its pattern (`X-DMS-Pattern: <app>/<patternId>` or body
-   `{app, patternId}`); the server only checks it is an existing **datasets** pattern of that app.
+   of them). The request names its pattern (query `dms_pattern=<app>/<patternId>`, or the
+   `X-DMS-Pattern` header; not the body, since sync-filters' body already has an unrelated `patternId`;
+   changed 2026-10-20 in task 3); the server only checks it is an existing **datasets** pattern of that app.
    ⚠ Accepted risk: anyone holding a grant (or `${app} Admin`) on *any* datasets pattern — e.g. their
    own tenant site — can name it and inherit its grants on any external source. Alternatives that were
    offered: a per-pgEnv allowlist of apps in the server config; source grants only.
@@ -75,10 +76,11 @@ modes, token-only user id. `test-uda` (141) and `test-datatypes` (9) still pass.
 
 ## Left for other tasks (deliberately not done here)
 
-- **Callers sending the pattern:** no client sends `X-DMS-Pattern` / `{app, patternId}` yet. The REST
-  side lands with [permissions-dama-admin-client-auth-headers.md](./permissions-dama-admin-client-auth-headers.md);
-  falcor `uda.*` calls carry it as an argument in [permissions-ds-uda-falcor-writes.md](./permissions-ds-uda-falcor-writes.md).
-  Until then external sources get no pattern grants under the strict rule, and `log` reports that.
+- **Callers sending the pattern:** the library's REST calls send `?dms_pattern=` since
+  [permissions-dama-admin-client-auth-headers.md](./permissions-dama-admin-client-auth-headers.md) (2026-10-20).
+  Falcor `uda.*` calls still don't; they get it as an argument in
+  [permissions-ds-uda-falcor-writes.md](./permissions-ds-uda-falcor-writes.md). Until then, those calls get no
+  pattern grants on external sources under the strict rule, and `log` reports it.
 - **New-source grants from the token user / no user → no create:** `createDamaSource` takes `user_id`
   from its callers, which read the body. Switching them to `requestUserId` is route work in
   [permissions-ds-upload-publish-routes.md](./permissions-ds-upload-publish-routes.md).

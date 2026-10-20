@@ -13,6 +13,7 @@ import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
 import { getPatternType, listPatternTypes } from '../../registry'
 import SiteTemplatePicker from './SiteTemplatePicker'
+import { authedFetch } from '../../../utils/authedFetch'
 
 function getSubdomainFromHost(host) {
   const hostname = (host || window.location.host).split(':')[0];
@@ -448,13 +449,14 @@ function PatternList({
 		setIsDuplicating(true);
 		try {
 			// call server to copy over pages and sections
-			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
+			const res = await authedFetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
 				{
 					method: "POST",
 					body: JSON.stringify({newApp: app, newType: newInstance}),
 					headers: {
 						"Content-Type": "application/json",
 					},
+					user,
 				});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.err) {

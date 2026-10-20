@@ -3,6 +3,7 @@ import { LayerAnalysisSection } from './components'
 import { useLocation } from "react-router";
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
+import { authedFetch } from '../../../../../../../../utils/authedFetch'
 
 export default function SelectLayer({state, dispatch}) {
   const { theme, UI } = useContext(ThemeContext) || {};
@@ -31,7 +32,7 @@ export default function SelectLayer({state, dispatch}) {
       try {
         const fetchData = async (gisUploadId) => {
           const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layerNames`;
-          const layerNamesRes = await fetch(url);
+          const layerNamesRes = await authedFetch(url, { user: state.authUser, pattern: state.pattern });
           const layerNames = await layerNamesRes.json();
           // set all layernames && select first layerName
           dispatch({type: 'update', payload: {layerNames, layerName: layerNames[0]}});
@@ -51,7 +52,7 @@ export default function SelectLayer({state, dispatch}) {
     if (gisUploadId && layerName) {
       try {
         const fetchData = async (gisUploadId, layerName) => {
-          const lyrAnlysRes = await fetch(
+          const lyrAnlysRes = await authedFetch(
             `${damaServerPath}/gis-dataset/${gisUploadId}/${layerName}/layerAnalysis`,
             {
               method: "POST",
@@ -59,6 +60,7 @@ export default function SelectLayer({state, dispatch}) {
               headers: {
                 "Content-Type": "application/json",
               },
+              user: state.authUser, pattern: state.pattern,
             }
           );
           const lyrAnlys = await lyrAnlysRes.json();
@@ -81,7 +83,7 @@ export default function SelectLayer({state, dispatch}) {
     //HOPEFULLY -- this pull the event we need
     const doPolling = async () => {
       const url = `${damaServerPath}/events/query?etl_context_id=${etlContextId}&event_id=-1`
-      const res = await fetch(url);
+      const res = await authedFetch(url, { user: state.authUser, pattern: state.pattern });
       const pollingData = await res.json()
 
       const finalEvent = pollingData.some(
@@ -123,7 +125,7 @@ export default function SelectLayer({state, dispatch}) {
   useEffect(() => {
     const doPolling = async () => {
       const url = `${damaServerPath}/events/query?etl_context_id=${analysisContextId}&event_id=-1`
-      const res = await fetch(url);
+      const res = await authedFetch(url, { user: state.authUser, pattern: state.pattern });
       const pollingData = await res.json();
       
       const finalEvent = pollingData.some(
@@ -165,8 +167,9 @@ export default function SelectLayer({state, dispatch}) {
   //FINAL API call, once polling is done for layer analysis
   useEffect(() => {
     const fetchAnalysis = async () => {
-      const lyrAnlysRes = await fetch(
-        `${damaServerPath}/gis-dataset/${gisUploadId}/${layerName}/layerAnalysis`
+      const lyrAnlysRes = await authedFetch(
+        `${damaServerPath}/gis-dataset/${gisUploadId}/${layerName}/layerAnalysis`,
+        { user: state.authUser, pattern: state.pattern }
       );
       const lyrAnlys = await lyrAnlysRes.json();
       dispatch({type: 'update', payload: { layerAnalysis: lyrAnlys }});

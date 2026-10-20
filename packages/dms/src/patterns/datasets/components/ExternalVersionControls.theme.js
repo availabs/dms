@@ -62,6 +62,8 @@ export const externalVersionControlsTheme = {
     deleteModalTitleWrapper: 'min-w-0',
     deleteModalTitle: 't-displaySM text-[var(--t-ink)]',
     deleteModalMessage: 'mt-3 t-proseSM text-[var(--t-graphite)] text-left',
+    // 401/403 from a download / PM tiles request (utils/authedFetch PermissionError)
+    modalError: 'mt-3 t-proseSM text-[var(--t-brick)] text-left',
     deleteModalFooter: 'mt-5 flex flex-row-reverse flex-wrap gap-2',
 
     // PmTilesModal

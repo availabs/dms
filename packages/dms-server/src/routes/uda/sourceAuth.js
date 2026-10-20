@@ -292,15 +292,16 @@ function requestUserIdWarnBody(req) {
     return id;
 }
 
-// The pattern a request names: `X-DMS-Pattern: <app>/<patternId>` or body/query `{ app, patternId }`.
+// The datasets pattern a request names: query `dms_pattern=<app>/<patternId>` (what the client sends:
+// a plain query param needs no CORS preflight) or the `X-DMS-Pattern: <app>/<patternId>` header.
+// Mirrors the client's utils/authedFetch.js. Not read from the body: some bodies already carry an
+// unrelated `patternId` (sync-filters).
 function requestPatternRef(req) {
-    const header = req && req.headers && req.headers['x-dms-pattern'];
-    if (header) {
-        const i = String(header).lastIndexOf('/');
-        if (i > 0) return { app: header.slice(0, i), patternId: +header.slice(i + 1) };
-    }
-    const src = { ...((req && req.query) || {}), ...((req && req.body) || {}) };
-    return src.app && src.patternId ? { app: src.app, patternId: +src.patternId } : null;
+    const raw = (req && req.query && req.query.dms_pattern) || (req && req.headers && req.headers['x-dms-pattern']);
+    if (!raw) return null;
+    const i = String(raw).lastIndexOf('/');
+    const patternId = i > 0 ? +String(raw).slice(i + 1) : NaN;
+    return Number.isFinite(patternId) && patternId > 0 ? { app: String(raw).slice(0, i), patternId } : null;
 }
 
 // Express helpers. Each answers the request itself (401 / 403, JSON) and returns null when the

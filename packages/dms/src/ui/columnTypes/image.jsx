@@ -2,6 +2,7 @@ import React, { useContext, useState } from "react";
 import { ThemeContext, getComponentTheme } from "../useTheme";
 import { CMSContext } from "../../patterns/page/context";
 import FileInput from "../components/FileInput";
+import { authedFetch } from "../../utils/authedFetch";
 
 // Pulls the size class (max-w-* max-h-*) for a given size key from the
 // active dataCard theme. Falls back to imgDefault, then to a sensible
@@ -33,7 +34,7 @@ const uploadImageFile = async (file, fileUploadInfo) => {
     formData.append("file", file);
 
     try {
-        const res = await fetch(
+        const res = await authedFetch(
             `${DAMA_HOST}/dama-admin/${pgEnv}/file_upload`,
             { method: "POST", body: formData }
         );

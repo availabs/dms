@@ -6,6 +6,7 @@ import { DatasetsContext } from "../../../context";
 import { ThemeContext, getComponentTheme } from "../../../../../ui/useTheme";
 import { schedulePageTheme } from "./schedulePage.theme";
 import { getExternalEnv } from "../../../utils/datasources";
+import { authedFetch } from "../../../../../utils/authedFetch";
 import {
     cronToHuman,
     nextCronFires,
@@ -96,7 +97,7 @@ const ParamInput = ({ param, value, onChange, sources }) => {
     );
 };
 
-const ScheduleForm = ({ schedulables, sources, source, editing, onSaved, onCancel, rtPfx, user }) => {
+const ScheduleForm = ({ schedulables, sources, source, editing, onSaved, onCancel, rtPfx, user, pattern }) => {
     const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };
     const { Button, FieldLabel, Input, Select } = UI;
@@ -178,11 +179,12 @@ const ScheduleForm = ({ schedulables, sources, source, editing, onSaved, onCance
             max_in_flight: Math.max(1, +maxInFlight || 1),
         };
         try {
-            const res = await fetch(
+            const res = await authedFetch(
                 editing ? `${rtPfx}/schedules/${editing.schedule_id}` : `${rtPfx}/schedules`,
                 {
                     method: editing ? 'PATCH' : 'POST',
-                    headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+                    headers: { 'Content-Type': 'application/json' },
+                user, pattern,
                     body: JSON.stringify(body),
                 });
             const json = await res.json();
@@ -350,7 +352,8 @@ const ScheduleRow = ({ schedule, schedulables, canEdit, onPatch, onDelete, onEdi
 
 export default function SchedulePage({ source, params }) {
     const navigate = useNavigate();
-    const { user, datasources, API_HOST, falcor, pageBaseUrl } = useContext(DatasetsContext) || {};
+    const { user, datasources, API_HOST, falcor, pageBaseUrl, app, parent } = useContext(DatasetsContext) || {};
+    const pattern = { app, id: parent?.id };
     const pgEnv = getExternalEnv(datasources);
     const rtPfx = `${API_HOST || ''}/dama-admin/${pgEnv}`;
     const sourceId = source?.source_id;
@@ -372,7 +375,7 @@ export default function SchedulePage({ source, params }) {
     const refresh = useCallback(async () => {
         if (!pgEnv || !sourceId) return;
         try {
-            const res = await fetch(`${rtPfx}/schedules?source_id=${sourceId}`);
+            const res = await authedFetch(`${rtPfx}/schedules?source_id=${sourceId}`, { user, pattern });
             const json = await res.json();
             if (Array.isArray(json)) setSchedules(json);
             else setLoadError(json?.error || 'Could not load schedules');
@@ -386,7 +389,7 @@ export default function SchedulePage({ source, params }) {
 
     useEffect(() => {
         if (!pgEnv) return;
-        fetch(`${rtPfx}/schedulables`)
+        authedFetch(`${rtPfx}/schedulables`, { user, pattern })
             .then(r => r.json())
             .then(json => { if (Array.isArray(json)) setSchedulables(json); })
             .catch(() => {});
@@ -420,18 +423,19 @@ export default function SchedulePage({ source, params }) {
     }, [falcor, pgEnv]);
 
     const patchSchedule = async (scheduleId, body) => {
-        const res = await fetch(`${rtPfx}/schedules/${scheduleId}`, {
+        const res = await authedFetch(`${rtPfx}/schedules/${scheduleId}`, {
             method: 'PATCH',
-            headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+            headers: { 'Content-Type': 'application/json' },
+                user, pattern,
             body: JSON.stringify(body),
         });
         if (res.ok) refresh();
     };
 
     const deleteSchedule = async (scheduleId) => {
-        await fetch(`${rtPfx}/schedules/${scheduleId}`, {
+        await authedFetch(`${rtPfx}/schedules/${scheduleId}`, {
             method: 'DELETE',
-            headers: { Authorization: user?.token },
+            user, pattern,
         });
         refresh();
     };
@@ -439,9 +443,10 @@ export default function SchedulePage({ source, params }) {
     const fireSchedule = async (scheduleId) => {
         setFireResults(prev => ({ ...prev, [scheduleId]: null }));
         try {
-            const res = await fetch(`${rtPfx}/schedules/${scheduleId}/fire`, {
+            const res = await authedFetch(`${rtPfx}/schedules/${scheduleId}/fire`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json', Authorization: user?.token },
+                headers: { 'Content-Type': 'application/json' },
+                user, pattern,
                 body: '{}',
             });
             const json = await res.json();
@@ -477,6 +482,7 @@ export default function SchedulePage({ source, params }) {
 
             {formOpen ? (
                 <ScheduleForm
+                    pattern={pattern}
                     schedulables={schedulables}
                     sources={sources}
                     source={source}

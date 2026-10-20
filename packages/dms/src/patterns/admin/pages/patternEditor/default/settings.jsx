@@ -10,6 +10,7 @@ import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../u
 import { settingsEditorTheme } from './settings.theme'
 import { patternActions } from '../../../../../utils/adminPermissions'
 import { getPatternType } from '../../../../registry'
+import { authedFetch } from '../../../../../utils/authedFetch'
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
@@ -209,10 +210,11 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
           // 1. Queue the duplicate task — returns { task_id } immediately.
           const dmsServerPath = `${API_HOST}/dama-admin`;
-          const dupRes = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+          const dupRes = await authedFetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
               method: "POST",
               body: JSON.stringify({ newApp: app, newType: newSlug }),
               headers: { "Content-Type": "application/json" },
+              user,
           });
           const dupBody = await dupRes.json().catch(() => ({}));
           if (!dupRes.ok || dupBody?.err) {
@@ -225,7 +227,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           const { task_id } = dupBody;
           for (;;) {
               await new Promise(r => setTimeout(r, 3000));
-              const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+              const statusRes = await authedFetch(`${dmsServerPath}/dms/tasks/${task_id}`, { user });
               const task = await statusRes.json().catch(() => ({}));
               if (task.progress != null) setDuplicateProgress(task.progress);
               if (task.status === 'done') break;
@@ -274,6 +276,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           }
 
           navigate(parentBaseUrl || '/');
+      } catch (err) {
+          console.error('[duplicate]', err);
+          window.alert(`Pattern duplicate failed: ${err.message}. Pattern not created.`);
       } finally {
           setIsDuplicating(false);
       }

@@ -17,7 +17,7 @@ export function PdfExport({ }) {
   const [selectedCoverPage, setSelectCoverPage] = useState(null);
 
   const { UI } = React.useContext(ThemeContext)
-  const { app, API_HOST, sitePatterns, type: currentType } = React.useContext(CMSContext) || {};
+  const { app, API_HOST, sitePatterns, type: currentType, user } = React.useContext(CMSContext) || {};
   const { apiLoad, format } = React.useContext(PageContext) || {};
   const { Icon, Button, MultiSelect, ColumnTypes } = UI || {};
   const CheckboxEdit = ColumnTypes?.checkbox?.EditComp;
@@ -244,7 +244,7 @@ export function PdfExport({ }) {
         coverUrl = coverPage ? `${origin}/${coverPage?.url_slug || coverPage?.path || ''}` : null;
       }
 
-      await selectablePDF2(results.map(r => `${origin}${r.path}`), toc, includeInTOC , coverUrl, API_HOST);
+      await selectablePDF2(results.map(r => `${origin}${r.path}`), toc, includeInTOC , coverUrl, API_HOST, user);
     } catch (error) {
       console.error('Error during PDF generation', error);
     } finally {

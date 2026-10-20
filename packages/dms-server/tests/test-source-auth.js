@@ -251,10 +251,12 @@ async function dbTests() {
             assert.strictEqual(warned.length, 1);
         } finally { console.warn = warn; }
     });
-    await ta('requestPatternRef: header, then body/query', async () => {
-        assert.deepStrictEqual(requestPatternRef({ headers: { 'x-dms-pattern': 'my-app/12' } }), { app: 'my-app', patternId: 12 });
-        assert.deepStrictEqual(requestPatternRef({ headers: {}, body: { app: 'a', patternId: '3' } }), { app: 'a', patternId: 3 });
-        assert.strictEqual(requestPatternRef({ headers: {}, body: {} }), null);
+    await ta('requestPatternRef: query dms_pattern, then header; never the body', async () => {
+        assert.deepStrictEqual(requestPatternRef({ query: { dms_pattern: 'my-app/12' }, headers: {} }), { app: 'my-app', patternId: 12 });
+        assert.deepStrictEqual(requestPatternRef({ query: {}, headers: { 'x-dms-pattern': 'a+b/3' } }), { app: 'a+b', patternId: 3 });
+        assert.strictEqual(requestPatternRef({ query: {}, headers: {}, body: { app: 'a', patternId: 3 } }), null);
+        assert.strictEqual(requestPatternRef({ query: { dms_pattern: 'nope' }, headers: {} }), null);
+        assert.strictEqual(requestPatternRef({ query: { dms_pattern: 'a/x' }, headers: {} }), null);
     });
 }
 

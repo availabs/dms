@@ -47,6 +47,7 @@ import ContentEditable from '../ui/ContentEditable';
 import Placeholder from '../ui/Placeholder';
 import {$isInlineImageNode, InlineImageNode} from './InlineImageNode';
 import { ThemeContext } from '../../../../useTheme';
+import { authedFetch } from '../../../../../utils/authedFetch';
 import { useLexicalTheme } from '../../useLexicalTheme';
 // the UI primitives this dialog renders when the host ThemeContext has no `UI` (2026-10-17: they don't import
 // the editor, so there is no import cycle — this replaced raw-HTML fallbacks)
@@ -89,7 +90,7 @@ const uploadFile = (file, altText, DAMA_HOST, pgEnv, id, directory) => {
 
 console.log("uploadFile::url", url)
 
-  return fetch(url, { method: "POST", body: formData })
+  return authedFetch(url, { method: "POST", body: formData })
     .then(res => res.json())
     .then(json => {
 console.log("uploadFile::response::json", json);

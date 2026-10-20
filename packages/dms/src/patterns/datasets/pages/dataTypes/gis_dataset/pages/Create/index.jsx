@@ -11,6 +11,7 @@ import SchemaEditorComp from "./schemaEditor";
 import PublishComp from "./publish";
 import CreateStep from "../../../../../components/CreateStep";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
+import { authedFetch } from "../../../../../../../utils/authedFetch";
 import { createPageTheme } from "../../../../createPage.theme";
 import { gisCreateTheme } from "./gisCreate.theme";
 
@@ -29,7 +30,7 @@ export default function UploadGisDataset({
   const { name: damaSourceName, source_id: sourceId, type, uploadedFile, gisUploadId, analysisContextId } = source;
   // dms-server hosts the DAMA upload endpoints under /dama-admin/ on the main
   // API host now. No separate DAMA_HOST.
-  const { datasources, baseUrl, falcor, user:ctxUser, API_HOST } = React.useContext(DatasetsContext);
+  const { datasources, baseUrl, falcor, user:ctxUser, API_HOST, app, parent } = React.useContext(DatasetsContext);
   const pgEnv = getExternalEnv(datasources);
   const navigate = useNavigate()
   const { theme } = React.useContext(ThemeContext) || {};
@@ -45,6 +46,9 @@ export default function UploadGisDataset({
     damaSourceName: damaSourceName,
     userId: user?.id ?? ctxUser.id,
     email: user?.email ?? ctxUser.email,
+    // who the dama-admin requests act as (token) and for which datasets pattern (utils/authedFetch)
+    authUser: ctxUser,
+    pattern: { app, id: parent?.id },
     etlContextId: null,
     analysisContextId: analysisContextId || null,
     customViewAttributes: { years: [] },
@@ -118,8 +122,9 @@ export default function UploadGisDataset({
     // currently it runs every refresh leaving orphaned contextIds
 
     async function getContextId () {
-      const newEtlCtxRes = await fetch(
-        `${state.damaServerPath}/etl/new-context-id`
+      const newEtlCtxRes = await authedFetch(
+        `${state.damaServerPath}/etl/new-context-id`,
+        { user: state.authUser, pattern: state.pattern }
       );
       const newEtlCtxId = +(await newEtlCtxRes.text());
       dispatch({ type: "update", payload: { etlContextId: newEtlCtxId } });

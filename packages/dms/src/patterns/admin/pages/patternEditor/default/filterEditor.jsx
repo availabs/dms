@@ -5,6 +5,7 @@ import { isEqual } from "lodash-es";
 import { filterEditorTheme } from './filterEditor.theme';
 import { parseIfJSON } from '../../../utils';
 import { getInstance } from '../../../../../utils/type-utils';
+import { authedFetch } from '../../../../../utils/authedFetch';
 
 // Normalise raw filters value (flat array or subdomain-keyed object) → subdomain-keyed object
 function normaliseFilters(raw) {
@@ -95,7 +96,7 @@ function FilterRows({ filters = [], onChange }) {
 export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) => {
     const { theme, UI } = useContext(ThemeContext);
     const t = { ...filterEditorTheme, ...(theme?.admin?.filterEditor || {}) }
-    const { apiUpdate, app, API_HOST } = useContext(AdminContext);
+    const { apiUpdate, app, API_HOST, user } = useContext(AdminContext);
 
     const normalised = normaliseFilters(value?.filters);
     const [tmpFilters, setTmpFilters] = useState(normalised);
@@ -114,10 +115,11 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
         const dmsServerPath = `${API_HOST}/dama-admin`;
         setSyncState(prev => ({ ...prev, [subdomain]: { syncing: true, progress: 0, message: null, isError: false } }));
         try {
-            const res = await fetch(`${dmsServerPath}/dms/${app}+${patternInstance}/sync-filters`, {
+            const res = await authedFetch(`${dmsServerPath}/dms/${app}+${patternInstance}/sync-filters`, {
                 method: 'POST',
                 body: JSON.stringify({ patternId: value.id, filterGroupKey: subdomain }),
                 headers: { 'Content-Type': 'application/json' },
+                user,
             });
             const body = await res.json().catch(() => ({}));
             if (!res.ok || body?.err) {
@@ -126,7 +128,7 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
             const { task_id } = body;
             for (;;) {
                 await new Promise(r => setTimeout(r, 3000));
-                const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+                const statusRes = await authedFetch(`${dmsServerPath}/dms/tasks/${task_id}`, { user });
                 const task = await statusRes.json().catch(() => ({}));
                 if (task.progress != null) {
                     setSyncState(prev => ({ ...prev, [subdomain]: { ...prev[subdomain], progress: task.progress } }));

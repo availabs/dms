@@ -3,24 +3,25 @@ import {InfoCircle} from "../../admin/ui/icons";
 import { getExternalEnv } from "../utils/datasources";
 import { ThemeContext } from "../../../ui/useTheme";
 import { uploadTheme } from "./upload.theme";
+import { authedFetch, PermissionError } from "../../../utils/authedFetch";
 
 // UI.Select reads '' as "no value": the "None (always insert)" primary-column choice
 const NO_PRIMARY = '__none__';
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
+const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName, setPublishStatus}) => {
     try {
         setLoading(true)
         const formData = new FormData();
-        formData.append("user_id", user.userId);
+        formData.append("user_id", user.id);
         formData.append("email", user.email);
         formData.append("fileSizeBytes", file.size);
         formData.append("file", file);
 
-        const res = await fetch(
+        const res = await authedFetch(
             `${damaServerPath}/gis-dataset/upload`,
-            { method: "POST", body: formData }
+            { method: "POST", body: formData, user }
         );
 
         const resValue = await res.json();
@@ -34,7 +35,7 @@ const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, set
                         const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
 
                         const pollForLayers = async () => {
-                            const res = await fetch(url);
+                            const res = await authedFetch(url, { user });
                             const layers = await res.json();
                             if (!Array.isArray(layers) || layers.length === 0) {
                                 await delay(2000);
@@ -62,15 +63,16 @@ const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, set
         }
     } catch (err) {
         setLoading(false)
+        if (err instanceof PermissionError) setPublishStatus(err.message)
         console.error(err?.message)
     }
 }
 
-const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
+const publish = async ({user, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
                            updateMetaData, existingAttributes = [], columns = [], sourceId, primaryColName}) => {
     const publishData = {
-        user_id: userId,
-        email: email,
+        user_id: user?.id,
+        email: user?.email,
         gisUploadId,
         layerName,
         columns,
@@ -88,14 +90,22 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         }), 'config');
     }
 
-    const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
-        {
-            method: "POST",
-            body: JSON.stringify(publishData),
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
+    let res;
+    try {
+        res = await authedFetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
+            {
+                method: "POST",
+                body: JSON.stringify(publishData),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                user,
+            });
+    } catch (err) {
+        setPublishing(false);
+        setPublishStatus(err instanceof PermissionError ? err.message : 'Error! There was a problem uploading the file.');
+        return;
+    }
 
     const publishFinalEvent = await res.json();
 
@@ -187,7 +197,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
             <div className={t.uploaderDropzone}>
                 <FileInput dropzone hint={'a zipped CSV or Excel'} loading={loading}
                            onChange={files => files[0] && uploadGisDataset({
-                               file: files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName
+                               file: files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName, setPublishStatus
                            })} />
             </div>
 
@@ -306,7 +316,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                 <Button activeStyle={'primary'}
                                         disabled={publishing}
                                         onClick={() => publish({
-                                            ...user,
+                                            user,
                                             gisUploadId,
                                             layerName,
                                             app: format.app,

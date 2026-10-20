@@ -1,6 +1,8 @@
+import { authedFetch } from '../../../../../utils/authedFetch';
+
 const tailwindcss = "https://cdn.jsdelivr.net/npm/tailwindcss@2.2.15/dist/tailwind.min.css";
 
-export const selectablePDF = async (pdfRef, API_HOST) => {
+export const selectablePDF = async (pdfRef, API_HOST, user) => {
     const html = `
                         <!DOCTYPE html>
                             <html lang="en">
@@ -29,13 +31,14 @@ export const selectablePDF = async (pdfRef, API_HOST) => {
                             </body>
                             </html>`;
     // console.log(html)
-   const response = await fetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
+   const response = await authedFetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
        {
           method: 'POST',
           headers: {
              'Content-Type': 'text/html',
           },
           body: html,
+          user,
        });
    console.log('res', response)
    if (response.ok) {
@@ -54,14 +57,15 @@ export const selectablePDF = async (pdfRef, API_HOST) => {
 };
 
 
-export const selectablePDF2 = async (urls, toc_data, is_toc_available, cover_url, API_HOST) => {
-   const response = await fetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
+export const selectablePDF2 = async (urls, toc_data, is_toc_available, cover_url, API_HOST, user) => {
+   const response = await authedFetch(`${API_HOST}/dama-admin/hazmit_dama/downloadpdf`,
        {
           method: 'POST',
           headers: {
              'Content-Type': 'application/json',
           },
           body: JSON.stringify({ urls, toc_data, is_toc_available, cover_url }),
+          user,
        });
    console.log('res', response)
    if (response.ok) {
