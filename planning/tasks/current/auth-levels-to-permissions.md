@@ -30,7 +30,8 @@ levels); the first survey was 2026-09-30.
   (`/group/project/adjust` checks only the new level; `/invite` and `/create/user` don't rank-check the target
   group) and one unguarded join (`/signup/assign/group`).
 - `authLevel` has almost no client consumers: one dead mapeditor component and a default in `auth/context.js`.
-  External: the TransportNY/NPMRDS app (`reqAuthLevel`) and sites on avail-falcor (library default `AUTH_HOST`).
+  TransportNY (including the `npmrds.`/`tsmo.` subdomains) runs on dms-template and dms-server, so it isn't an
+  external consumer. The only one left is a site that doesn't pass `AUTH_HOST` and falls back to avail-falcor.
 
 ## Tasks, in order
 

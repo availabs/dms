@@ -29,14 +29,14 @@ site, and on a clean last run of [permissions-access-diff-audit.md](./permission
 ## Phase 3 — the user object and schema (needs external consumers gone)
 
 - [ ] `authLevel` on the request user (`auth/jwt.js:58,63`), `meta[].authLevel` (`:67`), and in `/login`/`/auth`
-  responses (`auth/handlers/auth.js:35-52`). The TransportNY/NPMRDS app reads it (`reqAuthLevel`); it must move first
-  or keep a compatibility value. Per [permissions-inventory.md](./permissions-inventory.md).
+  responses (`auth/handlers/auth.js:35-52`). No dms-template site reads it beyond the Phase 1 dead
+  code. Per [permissions-inventory.md](./permissions-inventory.md).
 - [ ] `groups_in_projects.auth_level` (`db/sql/auth/auth_tables.sql:45,135-141,630`, `auth_tables.sqlite.sql:29-38,136`):
   keep the column (avail-falcor and old consumers may read the same DB) but stop reading it; drop in a later
   migration if nothing does.
 - [ ] Library default `AUTH_HOST='https://graph.availabs.org'` (`render/spa/dmsSiteFactory.jsx:41`) points sites at
   avail-falcor's level model. Decide whether the default moves to dms-server.
-- [ ] `grep -rn "authLevel\|auth_level\|reqAuthLevel"` over both repos returns only migrations, history docs and
+- [ ] `grep -rn "authLevel\|auth_level\|reqAuthLevel"` over dms-template returns only migrations, history docs and
   the kept column.
 
 ## Testing checklist
