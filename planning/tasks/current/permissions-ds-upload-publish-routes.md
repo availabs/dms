@@ -45,5 +45,5 @@ take the owner's `user_id` from the body.
 - [ ] Unit/integration tests above (`tests/test-upload-auth.js`, scratch sqlite + Postgres pgEnv).
 - [ ] Live: GIS upload → publish new source; CSV publish into an existing source; DMS internal upload → publish →
   validate; file_upload create; image cell upload. Each as a granted user (works) and an ungranted user (clear error).
-- [ ] Blast radius: the active uploaders from [permissions-inventory.md](./permissions-inventory.md) hold the
+- [ ] Blast radius: the active uploaders from [permissions-inventory.md](../completed/permissions-inventory.md) hold the
   grants before this ships.

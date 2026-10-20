@@ -81,7 +81,9 @@ const DATASETS_OPTIONS = [
     { label: 'View Sources', value: 'view-sources' },
     { label: 'View Source', value: 'view-source' },
     { label: 'Download Source', value: 'download-source' },
+    { label: 'Create Source', value: 'create-source' },   // pattern level only: new sources in this pattern
     { label: 'Update Source', value: 'update-source' },
+    { label: 'Edit Source Data', value: 'edit-source-data' }, // row create/edit/delete on editable sources
     { label: 'Create Version', value: 'create-view' },
     { label: 'Manage Downloads', value: 'manage-downloads' },
     { label: 'View Source API', value: 'view-source-api' },

@@ -36,7 +36,7 @@ levels); the first survey was 2026-09-30.
 ## Tasks, in order
 
 **0. Inventory (read-only)**
-1. [permissions-inventory.md](./permissions-inventory.md): level-≥5 groups per project, active dataset writers and
+1. [permissions-inventory.md](../completed/permissions-inventory.md): level-≥5 groups per project, active dataset writers and
    their grants, which sites use avail-falcor, external `authLevel` consumers, editable page sections.
 1b. [permissions-access-diff-audit.md](./permissions-access-diff-audit.md): auth level × source × operation, old
    rule vs new; losses expanded to the groups and users behind them, with a remediation plan. Reruns before each
@@ -100,11 +100,12 @@ Each is owned by the task in brackets; answer there.
    membership. [13, 16]
 3. **Anti-escalation without ranks.** Recommendation: only `*` / `${app} Admin` may touch groups that hold `*`,
    `auth-groups` or `edit-pattern-permissions`. [13]
-4. **Datasets vocabulary.** Recommendation: new pattern-level `create-source`; enforce the existing `create-view`;
-   pattern operations use `edit-pattern`. [2]
+4. **Datasets vocabulary.** ✅ Decided 2026-10-20: `create-source` (pattern), `edit-source-data` (source rows),
+   enforce `create-view`, pattern operations use `edit-pattern`. External sources inherit the grants of the
+   client-named datasets pattern; rollout by `DMS_SOURCE_AUTH_MODE` (default `log`). [2]
 5. **Migration.** One-time grants matching today's access, dry-run first; levels stay readable until every
    consumer has moved. [18]
-6. **Strict or lenient checks.** The client is lenient ("nothing configured → any logged-in user"), the server
+6. **Strict or lenient checks.** Datasets server: strict (decided 2026-10-20, [2]); the client aligns in [10]. The client is lenient ("nothing configured → any logged-in user"), the server
    source check is strict. Pick one per area and make both sides match. [2, 13]
 7. **Public files.** `/files` is public and can't carry a header. [6]
 8. **Row edits from page sections.** A source grant, the section's own `edit`, or a public-create split. [11]

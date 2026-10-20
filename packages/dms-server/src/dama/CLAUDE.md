@@ -201,7 +201,9 @@ Passed to every `routes` registration:
 | `deleteDamaView(pgEnv, viewIds, {cascade, db, authorize})` | `→ Promise<result>` | Delete views and drop their tables; see "Deleting" below. |
 | `getViewLineage(pgEnv, viewIds)` / `getSourceLineage(pgEnv, sourceIds)` | `→ Promise<Map>` | Derived lineage reads (`lineage.js`). |
 | `requireUser(req, res)` | `→ user \| null` | Answers 401 and returns null when nobody is signed in. |
-| `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict). |
+| `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict, under `DMS_SOURCE_AUTH_MODE`; see `routes/uda/sourceAuth.js`). The pattern is the one the request names (`X-DMS-Pattern: app/id`, or body `{app, patternId}`). |
+| `requirePatternPermission(req, res, perms)` | `→ Promise<user \| null>` | Same, for a pattern-level permission such as `create-source`. |
+| `requestUserId(req)` | `→ id \| null` | The caller's id, from the token. Use it instead of a body `user_id`. |
 | `getDb(pgEnv)` | `→ adapter` | Direct DB handle. |
 | `loadConfig(pgEnv)` | `→ config` | The raw db config JSON. |
 | `storage` | `{ write, read, getUrl }` | Local FS or S3 abstraction. |

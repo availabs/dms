@@ -3,7 +3,7 @@
 **Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
-[permissions-inventory.md](./permissions-inventory.md) (the levels in use per project, the sources and patterns)
+[permissions-inventory.md](../completed/permissions-inventory.md) (the levels in use per project, the sources and patterns)
 and on the vocabulary decisions in
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md) and
 [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md). It produces the

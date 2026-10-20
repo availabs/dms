@@ -3,7 +3,7 @@
 **Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub; design question 5). Depends on
-[permissions-inventory.md](./permissions-inventory.md), the vocabulary decisions, and the loss list and approved
+[permissions-inventory.md](../completed/permissions-inventory.md), the vocabulary decisions, and the loss list and approved
 fixes from [permissions-access-diff-audit.md](./permissions-access-diff-audit.md). **Runs before** any task flips
 from transition mode to permission-only, and before the datasets routes start enforcing.
 

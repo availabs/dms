@@ -48,6 +48,7 @@ export const source = {
         { label: 'View source',      value: 'view-source' },       // see metadata/overview
         { label: 'Download source',  value: 'download-source' },    // download the data (old DOWNLOAD level)
         { label: 'Update source',    value: 'update-source' },      // edit description/categories/metadata
+        { label: 'Edit source data', value: 'edit-source-data' },   // create/edit/delete rows (editable sources)
         { label: 'Create version',   value: 'create-view' },
         { label: 'Manage downloads', value: 'manage-downloads' },   // create/refresh download artifacts
         { label: 'View source API',  value: 'view-source-api' },

@@ -45,6 +45,7 @@ const crypto = require('crypto');
 const { registerHandler, queueTask } = require('../index');
 const { patchSectionElementData } = require('./filter-leaf-walk');
 const { getData } = require('../../mirrors/getData');
+const { requestUserId } = require('../../../routes/uda/sourceAuth');
 
 function parseIfJSON(raw, fallback) {
   if (raw == null) return fallback;
@@ -305,7 +306,7 @@ function createPatternFilterSyncHandler(controller) {
   return async function syncFilters(req, res) {
     const [app, patternInstance] = (req.params.appType || '').split('+');
     const { filterGroupKey = '*', patternId, scope = 'draft', clearKeys = [], dropRequestCache = false, concurrency } = req.body || {};
-    const userId = req.user?.id ?? null;
+    const userId = requestUserId(req);
 
     if (!app || !patternInstance || !patternId) {
       return res.status(400).json({ err: 'appType ("app+patternInstance") and body.patternId are required' });

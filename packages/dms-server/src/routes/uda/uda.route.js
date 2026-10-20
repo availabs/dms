@@ -191,7 +191,7 @@ module.exports = [
             // authPermissions column) are allowed (no prior enforcement to regress).
             const requiresPermEdit = JSON.stringify(sourcesById[sourceId] || {}).includes('auth_permissions');
             const reqPermissions = requiresPermEdit ? ['edit-source-permissions'] : ['update-source'];
-            const authed = await isUserAuthedForSource({ db, sourceId: +sourceId, reqPermissions, user: this.user });
+            const authed = await isUserAuthedForSource({ db, env: pgEnv, sourceId: +sourceId, reqPermissions, user: this.user });
             if (!authed) {
               console.log("uda: UNAUTHORIZED source modify", sourceId, this.user && this.user.email);
               throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
@@ -600,7 +600,7 @@ module.exports = [
         const [env, sourceId, entry = {}] = args;
         const { db } = await getEssentials({ env });
         const authed = await isUserAuthedForSource({
-          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
+          db, env, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
         });
         if (!authed) {
           console.log('uda: UNAUTHORIZED authoritative view set', sourceId, this.user && this.user.email);
@@ -629,7 +629,7 @@ module.exports = [
         const [env, sourceId, opts = {}] = args;
         const { db } = await getEssentials({ env });
         const authed = await isUserAuthedForSource({
-          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
+          db, env, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
         });
         if (!authed) {
           console.log('uda: UNAUTHORIZED authoritative view clear', sourceId, this.user && this.user.email);
@@ -665,7 +665,7 @@ module.exports = [
         const [env, source_id, version, copy_from_view_id] = args;
         const { db } = await getEssentials({ env });
         const authed = await isUserAuthedForSource({
-          db, sourceId: +source_id, reqPermissions: ['update-source'], user: this.user,
+          db, env, sourceId: +source_id, reqPermissions: ['update-source'], user: this.user,
         });
         if (!authed) {
           console.log('uda: UNAUTHORIZED version create', source_id, this.user && this.user.email);

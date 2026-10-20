@@ -1,9 +1,9 @@
 # Permissions move, step 0: inventory of who holds levels and grants today
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
-Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Read-only. Every other task
-in the move uses its numbers; [permissions-access-diff-audit.md](./permissions-access-diff-audit.md) turns them into
+Part of [auth-levels-to-permissions.md](../current/auth-levels-to-permissions.md) (hub). Read-only. Every other task
+in the move uses its numbers; [permissions-access-diff-audit.md](../current/permissions-access-diff-audit.md) turns them into
 the level × source loss check.
 
 ## Objective
@@ -28,7 +28,7 @@ what today, so each later task can show "nobody lost an operation".
 - [x] **Datasets grants, per pgEnv and DMS env** (external: `hazmit_dama` and `npmrds2`):
   - Sources with `auth_permissions` null/`{}`, and envs where the column is missing (these are open today
     because `isUserAuthedForSource` fails open, see
-    [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md)).
+    [permissions-server-source-auth-core.md](../current/permissions-server-source-auth-core.md)).
   - Every datasets pattern's `authPermissions`: who holds `update-source`, `create-view`, `delete-source`,
     `manage-downloads` at pattern level.
   - Who has actually uploaded, published, created downloads or scheduled in the last ~6 months
@@ -37,7 +37,7 @@ what today, so each later task can show "nobody lost an operation".
     [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md) are the start.
 - [x] **Page sections that write source data:** count DataWrapper/Card sections with `allowEditInView`,
   `allowAdddNew` or `allowDelete` bound to DMS or `isEditable` sources, per site. Needed by
-  [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md).
+  [permissions-ds-section-data-writes.md](../current/permissions-ds-section-data-writes.md).
 - [x] Write the results to `scratchpad/permissions-inventory/` (data) and a summary in this doc.
 
 ## Done when
@@ -49,15 +49,13 @@ grants they hold today. Each later task's blast-radius check can point at it.
 
 Run 2026-10-19, read-only (every session had `default_transaction_read_only=on`). Data:
 `dms-template/scratchpad/permissions-inventory/*.tsv` (gitignored). Sources: `avail_auth` and `dms3` on
-mercury, `hazmit_dms` (pgEnv `hazmit_dama`), `npmrds2` on neptune. **Not reached:** `tessera_auth` on
-tributarylab (connection refused); rerun when it's up.
+mercury, `hazmit_dms` (pgEnv `hazmit_dama`), `npmrds2` on neptune.
 
 ### Auth servers per site
 
 - **dms-server (`AUTH_HOST = API_HOST`, default `https://dmsserver.availabs.org`, `src/App.jsx:8,46`):** every
   dms-template deploy (mitigat-ny-prod, TransportNY/npmrdsv5 including the `npmrds.` and `tsmo.` subdomains,
   wcdb, landbank, avail, dms-site, dmsdocs, …). Its auth DB is `mercury:5435/avail_auth`.
-- **Tessera** uses `tributarylab.com` with its own auth DB (`tessera_auth`, not reached in this run).
 - avail-falcor's auth config points at the same `avail_auth` DB. The library default
   `AUTH_HOST = https://graph.availabs.org` (`dmsSiteFactory.jsx:41`) only matters for a site that doesn't pass
   `AUTH_HOST`; no dms-template deploy relies on it.
@@ -77,7 +75,7 @@ abandoned test apps (`clauderepro*`, `test_*`, `shaun-test-*`), each holding one
 | NPMRDS | AVAIL, NYSDOT, NYSDOT Admin (188) | 22 MPO/consultant groups, 126 members | |
 | npmrdsv5 | AVAIL, NYSDOT Admin (39) | 17 groups, 280 members, **NYSDOT at 5** | |
 | wcdb | AVAIL, wcdb Admin | — | |
-| landbank / availabs / tessera | `${app} Admin` only | — | |
+| landbank / availabs | `${app} Admin` only | — | |
 | TIG | AVAIL, NYMTC | — | |
 
 - No project except the small ones has a `${project} Admin` group: mitigat-ny-prod, npmrdsv5 and NPMRDS rely on
@@ -95,8 +93,8 @@ abandoned test apps (`clauderepro*`, `test_*`, `shaun-test-*`), each holding one
   create fake users. Confirm the DHSES members are meant to have this.
 - ⚠ **NYSDOT is level 5 in `avail_auth`** (149 members). `/group/create` and `/group/meta/update` check only
   `avail_auth ≥ 5` (`auth/handlers/group.js:109,230`), so every NYSDOT member can create groups and rewrite any
-  group's `meta` today. Feed this to [permissions-auth-platform-admin.md](./permissions-auth-platform-admin.md)
-  and [permissions-auth-groups.md](./permissions-auth-groups.md).
+  group's `meta` today. Feed this to [permissions-auth-platform-admin.md](../current/permissions-auth-platform-admin.md)
+  and [permissions-auth-groups.md](../current/permissions-auth-groups.md).
 - There's no project row named `AVAIL`; `message.js:144` uses the group name.
 
 ### External `authLevel` consumers
@@ -158,7 +156,7 @@ all unless the source inherits the pattern grant, and most patterns have none.
   mitigat-ny-prod**) also edited `roles`, which works only because `uda.data.*` is login-only today.
 - npmrdsv5: `reports_snap_2`, `routes_data` and `sitemgmt_tickets` are written by level-0 (1404) and level-5
   MPO users (1069, 631). These rows belong to the user who made them, so they need a public-create or own-row
-  rule ([permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md)).
+  rule ([permissions-ds-section-data-writes.md](../current/permissions-ds-section-data-writes.md)).
 - Many rows have null `updated_by` (mitigat-ny-prod 23k, npmrdsv5 71k, shaun-test-app 52k): bulk or CLI loads.
 
 ### Page sections that write source rows (`live_sections_with_row_writes.tsv`)

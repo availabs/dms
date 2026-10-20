@@ -38,7 +38,7 @@ trackers. Options:
   knowing the section.
 - (c) Split create from edit/delete: `create-source-row` can be public (forms), edit/delete need `edit-source-data`.
 Recommendation: (a), with (c)'s split if forms are a real use. Check the inventory of editable sections first
-([permissions-inventory.md](./permissions-inventory.md)).
+([permissions-inventory.md](../completed/permissions-inventory.md)).
 
 ## Proposed changes (after the decision)
 

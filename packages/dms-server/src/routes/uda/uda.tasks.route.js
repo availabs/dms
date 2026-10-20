@@ -24,16 +24,15 @@ const { isUserAuthedForSource } = require("./sourceAuth");
 /**
  * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and on DaMa
  * `delete-source` on every source the delete touches (a cascade reaches the sources of a run's
- * outputs). Un-migrated envs (no auth_permissions column) fall back to the sign-in check, as
- * isUserAuthedForSource does. DMS internal sources (env `app+instance`) get the sign-in check only.
+ * outputs). The decision follows DMS_SOURCE_AUTH_MODE (see sourceAuth.js): in `legacy` / `log`, DMS
+ * internal sources (env `app+instance`) and sources the check can't read get the sign-in check only.
  */
 function deleteAuthorizer(env, user) {
   if (!user) throw new Error("Sign in to delete");
-  if (String(env).includes("+")) return async () => {};
+  const db = String(env).includes("+") ? undefined : getDb(env);
   return async (sourceIds) => {
-    const db = getDb(env);
     for (const sourceId of sourceIds) {
-      const ok = await isUserAuthedForSource({ db, sourceId, reqPermissions: ["delete-source"], user });
+      const ok = await isUserAuthedForSource({ db, env, sourceId, reqPermissions: ["delete-source"], user });
       if (!ok) throw new Error(`Not authorized to delete source ${sourceId} (needs delete-source)`);
     }
   };

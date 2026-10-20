@@ -22,6 +22,7 @@
  */
 const { buildType } = require('../../db/type-utils');
 const { registerHandler, queueTask } = require('../../dms/tasks');
+const { requestUserId } = require('../../routes/uda/sourceAuth');
 
 const asObj = (d) => (typeof d === 'string'
   ? (() => { try { return JSON.parse(d); } catch { return {}; } })()
@@ -126,7 +127,7 @@ function createDuplicateHandler(controller) {
   return async function duplicate(req, res) {
     const [app, oldInstance] = (req.params.appType || '').split('+');
     const { newApp = app, newType: newInstance } = req.body || {};
-    const userId = req.user?.id ?? null;
+    const userId = requestUserId(req);
 
     if (!app || !oldInstance || !newInstance) {
       return res.status(400).json({ err: 'appType ("app+oldInstance") and newType are required' });

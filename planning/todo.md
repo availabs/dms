@@ -926,7 +926,6 @@
 ### patterns/auth
 
 - [ ] [Auth and datasets: replace auth levels with named permissions (hub)](./tasks/current/auth-levels-to-permissions.md) — filed 2026-09-30, **split into 19 tasks 2026-10-19** after a re-survey (only 7 server dataset routes check a source permission; `isUserAuthedForSource` fails open; ~30 auth-server level checks). The hub lists the order and the open design questions. Subtasks:
-  - [ ] [Inventory](./tasks/current/permissions-inventory.md) — read-only: level groups, active dataset writers, avail-falcor sites, external `authLevel` consumers
   - [ ] [Access diff audit](./tasks/current/permissions-access-diff-audit.md) — auth level × source × operation, old vs new; losses → groups/users → remediation; reruns before each switch-over
   - [ ] [Datasets permissions core](./tasks/current/permissions-server-source-auth-core.md) — vocabulary (`create-source`), fail-closed source/pattern check, middleware, user id from token
   - [ ] [Client sends the token on dama-admin calls](./tasks/current/permissions-dama-admin-client-auth-headers.md) — prerequisite for REST enforcement

@@ -30,7 +30,7 @@ site, and on a clean last run of [permissions-access-diff-audit.md](./permission
 
 - [ ] `authLevel` on the request user (`auth/jwt.js:58,63`), `meta[].authLevel` (`:67`), and in `/login`/`/auth`
   responses (`auth/handlers/auth.js:35-52`). No dms-template site reads it beyond the Phase 1 dead
-  code. Per [permissions-inventory.md](./permissions-inventory.md).
+  code. Per [permissions-inventory.md](../completed/permissions-inventory.md).
 - [ ] `groups_in_projects.auth_level` (`db/sql/auth/auth_tables.sql:45,135-141,630`, `auth_tables.sqlite.sql:29-38,136`):
   keep the column (avail-falcor and old consumers may read the same DB) but stop reading it; drop in a later
   migration if nothing does.
