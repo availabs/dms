@@ -2,6 +2,7 @@ import React, {memo, useCallback, useContext, useEffect, useLayoutEffect, useRef
 import { createPortal } from "react-dom"
 import { ThemeContext, getComponentTheme } from "../useTheme"
 import { multiselectTheme } from "./MultiSelect.theme"
+import DefaultIcon from "./Icon"
 
 
 const looselyEqual = (a, b) => {
@@ -14,7 +15,7 @@ const looselyEqual = (a, b) => {
 
 const RenderToken = ({token={}, value, onChange, t, isSearching, setIsSearching, meta}) => {
     const { UI } = useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const Icon = UI?.Icon || DefaultIcon;
     const label = meta?.[token?.label || token] || token?.label || token;
     const safeLabel = label && typeof label === 'object' ? JSON.stringify(label) : label
     return (
@@ -54,7 +55,7 @@ const RenderMenu = ({
     t
 }) => {
     const { UI } = useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const Icon = UI?.Icon || DefaultIcon;
     const mappedValue = value.filter(v => v).map(v => v.value || v);
     const selectAllOption = {label: 'Select All', value: 'select-all'};
     const removeAllOption = {label: 'Remove All', value: 'remove-all'};
@@ -116,11 +117,16 @@ const RenderMenu = ({
                                 const valueStr = (o?.value ?? '').toString().toLowerCase();
                                 return labelStr.includes(kw) || valueStr.includes(kw);
                             })
-                            .map((o, i) => {
+                            .map((o, i, shown) => {
                                 const isOptionSelected = mappedValue.includes(o.value || o);
+                                // option groups: a caption before the first shown option of each `group`
+                                // (options stay one flat list; consecutive options share a group)
+                                const group = o?.group;
+                                const showGroup = group && group !== shown[i - 1]?.group;
                                 return (
+                                    <React.Fragment key={`option-${i}`}>
+                                    {showGroup ? <div className={t.groupHeading} role="presentation">{group}</div> : null}
                                     <div
-                                        key={`option-${i}`}
                                         className={t.menuItem}
                                         onClick={e => {
                                             // newValue should return .value if available instead of full options mapped obj.
@@ -140,6 +146,7 @@ const RenderMenu = ({
                                         }
                                         {meta?.[o.label || o] ?? o.label ?? o}
                                     </div>
+                                    </React.Fragment>
                                 )
                             })
                     }
@@ -195,7 +202,9 @@ function useComponentVisible(initial, extraRefs = []) {
  * Props:
  *   value: array of selected values (or a single value when singleSelectOnly)
  *   onChange: (newValue) => void
- *   options: Array<string | {label, value}>
+ *   options: Array<string | {label, value, group?}> — `group` (2026-10-15): options with the same group string,
+ *     listed next to each other, get one caption above them in the menu (like <optgroup>; theme key
+ *     `groupHeading`). Search filters options; a caption shows only while its group has matches.
  *   meta: optional label→display-label map applied at render time
  *   placeholder: search-input placeholder
  *   loading: bool — shows a spinner inside the menu while options are loading
@@ -238,7 +247,7 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                   disabled=false
 }) => {
     const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const Icon = UI?.Icon || DefaultIcon;
     const t = { ...multiselectTheme.styles[0], ...getComponentTheme(themeFromContext, 'multiselect', activeStyle) };
     // Resolve the display mode: explicit `display` prop wins over the legacy
     // keepMenuOpen / tabular flag pair. After this point, only `isExpanded`

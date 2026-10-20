@@ -102,9 +102,9 @@ function ThemeList ({
 				<div className={t.toolbar}>
 					<div className={t.searchWrapper}>
 						<Icon icon='Search' className={t.searchIcon} />
-						<Input type={'text'} className={t.searchInput} value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter themes…'} />
+						<Input type={'text'} activeStyle='bare' value={search} onChange={e => setSearch(e.target.value)} placeholder={'filter themes…'} />
 					</div>
-					<Button className={t.addButton} onClick={() => setAddingNew(true)}>
+					<Button activeStyle='primary' onClick={() => setAddingNew(true)}>
 						<Icon icon='Plus' className={t.iconSm} /> add theme
 					</Button>
 				</div>
@@ -114,7 +114,7 @@ function ThemeList ({
 					   data={data}
 					   isEdit={false}
 					   gridRef={gridRef}
-					   activeStyle='rules'
+					   activeStyle='list'
 				/>
 			</div>
 
@@ -136,12 +136,12 @@ function ThemeList ({
 							})
 					}
 					<div className={t.modalActions}>
-						<button
-							className={t.btnAdd}
+						<UI.Button
+							activeStyle='primary'
 							onClick={() => addNewValue({...newItem, theme_id: nameToSlug(newItem.name || '')})}
 						>
 							add
-						</button>
+						</UI.Button>
 					</div>
 				</div>
 			</Modal>
@@ -164,7 +164,7 @@ function ThemeList ({
 					}
 					<div className={t.modalEditActions}>
 						<Button
-							className={t.btnSave}
+							activeStyle='primary'
 							type={'plain'}
 							title={'save item'}
 							onClick={() => {
@@ -177,7 +177,7 @@ function ThemeList ({
 						</Button>
 
 						<Button
-							className={t.btnCancel}
+							activeStyle='action'
 							type={'plain'}
 							title={'cancel item'}
 							onClick={() => {
@@ -190,7 +190,7 @@ function ThemeList ({
 						<span className='flex-1' />
 
 						<Button
-							className={t.btnDuplicate}
+							activeStyle='small'
 							type={'plain'}
 							title={'duplicate item'}
 							onClick={async () => {
@@ -205,7 +205,7 @@ function ThemeList ({
 						> duplicate
 						</Button>
 						<Button
-							className={t.btnRemove}
+							activeStyle='smallDanger'
 							type={'plain'}
 							title={'remove item'}
 							onClick={() => {

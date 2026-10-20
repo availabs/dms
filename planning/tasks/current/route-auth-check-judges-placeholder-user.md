@@ -41,7 +41,7 @@ A signed-in user who hard-loads a page they're allowed to see should see it, how
   - Mechanism: admin's route shell reads `user` from its route props (`patterns/admin/siteConfig.jsx:297`) and puts
     it into `AdminContext` (`:324`). It builds the nav menu from `props.user` (`:298`). `PatternEditor` returns
     `null` while that user is authenticating (`patternEditor/index.jsx`).
-  - Not caused by the qa move ([`pluggable-patterns-qa-extraction.md`](./pluggable-patterns-qa-extraction.md)),
+  - Not caused by the qa move ([`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md)),
     which didn't touch this path. The fix proposed below covers it.
 
 ## How the `qa` pattern works around them (2026-09-30)

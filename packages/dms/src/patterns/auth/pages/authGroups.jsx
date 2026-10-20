@@ -24,14 +24,11 @@ export default function AuthGroups (props) {
         headerOuter: "w-full flex",
         headerRow: "w-full flex justify-between border-b-2 border-blue-400",
         headerTitle: "text-2xl font-semibold text-gray-700",
-        headerAction: "shrink-0",
         tableHeaderCell: "flex gap-3 items-center",
         modalHeader: "flex items-center justify-between mb-2",
         modalTitle: "text-lg font-semibold text-gray-700",
-        modalCloseBtn: "text-gray-400 hover:text-gray-700",
         modalBody: "flex flex-row gap-3",
         notice: "",
-        rowAction: undefined, modalAction: undefined, headerInput: undefined,
         ...(theme?.auth?.authPages?.manage || {}),
     };
 
@@ -64,7 +61,7 @@ export default function AuthGroups (props) {
             <div className={m.headerOuter}>
                 <div className={m.headerTitle}>Groups</div>
                 <span className="flex-1" />
-                <Button className={m.headerAction} onClick={() => setAddingNew(true)}>Add new</Button>
+                <Button activeStyle='primary' onClick={() => setAddingNew(true)}>Add new</Button>
             </div>
 
             <div className={m.pageWrapper}>
@@ -72,13 +69,13 @@ export default function AuthGroups (props) {
                            data={groups.filter(r => !searchGroup || r.name.toLowerCase().includes(searchGroup))}
                            columns={groupColumns}
                            allowEdit={true}
-                           activeStyle="roomy"
+                           activeStyle="list"
                            controls={{header: {displayFn: (attribute) => (
                                        <div className={m.tableHeaderCell}>
                                            {attribute.display_name}
                                            {
                                                attribute.name === 'name' ?
-                                                   <Input type={'text'} className={m.headerInput} value={searchGroup} onChange={e => setSearchGroup(e.target.value)} placeHolder={'search...'}/> :
+                                                   <Input type={'text'} activeStyle='headerFilter' value={searchGroup} onChange={e => setSearchGroup(e.target.value)} placeHolder={'search...'}/> :
                                                    null
                                            }
                                        </div>
@@ -90,9 +87,9 @@ export default function AuthGroups (props) {
             <Modal open={addingNew} setOpen={setAddingNew}>
                 <div className={m.modalHeader}>
                     <div className={m.modalTitle}>Add a group</div>
-                    <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setAddingNew(false)}>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setAddingNew(false)}>
                         <Icon icon="XMark" />
-                    </button>
+                    </Button>
                 </div>
                 <div className={m.modalBody}>
                     <Input type={'text'}
@@ -100,7 +97,7 @@ export default function AuthGroups (props) {
                            onChange={e => setNewGroup({...newGroup, name: e.target.value})}
                            placeHolder={'Please enter Group Name'}
                     />
-                    <Button className={m.modalAction} onClick={async () => {
+                    <Button activeStyle='primary' onClick={async () => {
                         setStatus('Adding');
                         await AuthAPI.callAuthServer(`/group/create/project/assign`,
                             {

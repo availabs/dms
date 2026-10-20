@@ -5,8 +5,9 @@ import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
 
 export default function SelectLayer({state, dispatch}) {
-  const { theme } = useContext(ThemeContext) || {};
+  const { theme, UI } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const { FieldLabel, Select } = UI || {};
   const location = useLocation();
   const { 
     damaServerPath,
@@ -183,26 +184,18 @@ export default function SelectLayer({state, dispatch}) {
 
   return (
     <div className={t.selectLayerWrapper}>
-      <table className={t.selectLayerTable}>
-        <tbody>
-          <tr>
-            <td className={t.selectLayerTdLabel}>Select Layer</td>
-            <td className={t.selectLayerTdSelect}>
-              <select
-                className={t.selectLayerSelect}
-                value={layerName || ""}
-                onChange={(e) => dispatch({type:'update', payload: {layerName: e.target.value}})}
-              >
-                {["", ...layerNames].map((l) => (
-                  <option key={l} value={l}>
-                    {l}
-                  </option>
-                ))}
-              </select>
-            </td>
-          </tr>
-          </tbody>
-      </table>
+      {/* label + select (2026-10-15: was a one-row layout <table> around a native select) */}
+      <div className={t.selectLayerField}>
+        <FieldLabel activeStyle="inline" text="Select Layer" />
+        <div className={t.selectLayerControl}>
+          <Select
+            value={layerName || ""}
+            options={layerNames}
+            placeholder="Select a layer"
+            onChange={v => dispatch({type:'update', payload: {layerName: v || ""}})}
+          />
+        </div>
+      </div>
       <LayerAnalysisSection state={state} />
     </div>
   );

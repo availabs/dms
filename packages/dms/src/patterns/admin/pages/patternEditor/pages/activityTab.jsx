@@ -37,14 +37,15 @@ function clockLabel(iso) {
 
 function FeedRow({ row, t }) {
     const navigate = useNavigate();
+    const { UI } = useContext(ThemeContext) || {};
     return (
         <div className={t.feedRow}>
             <span className={t.feedAvatar}>{(row.user || '?').charAt(0)}</span>
             <span className={t[row.badge]}>{row.label}</span>
             {row._editUrl ? (
-                <button className={t.activityPageLink} onClick={() => navigate(row._editUrl)}>
+                <UI.Button activeStyle="linkTitle" onClick={() => navigate(row._editUrl)}>
                     {row.pageTitle}
-                </button>
+                </UI.Button>
             ) : (
                 <span className={t.activityPageName}>{row.pageTitle}</span>
             )}
@@ -188,16 +189,16 @@ export function ActivityTab({ value, apiLoad, falcor }) {
             <div className={t.toolbar}>
                 <div className={t.chipBar}>
                     {chips.map(c => (
-                        <button
+                        <UI.Button
                             key={c.id}
-                            className={category === c.id ? p.lensChipActive : p.lensChip}
+                            activeStyle={category === c.id ? 'chipOn' : 'chip'}
                             onClick={() => setCategory(c.id)}
                         >
                             {c.label}
                             {c.count != null && (
                                 <span className={category === c.id ? p.lensCountActive : p.lensCount}>{c.count}</span>
                             )}
-                        </button>
+                        </UI.Button>
                     ))}
                 </div>
                 <div className="flex-1" />

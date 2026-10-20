@@ -10,8 +10,9 @@ import { gisCreateTheme } from '../gisCreate.theme'
 
 
 export default function UploadGisDataset({ state, dispatch }) {
-  const { theme } = useContext(ThemeContext) || {};
+  const { theme, UI } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const { FileInput } = UI || {};
   const {
     etlContextId,
     userId,
@@ -96,15 +97,9 @@ export default function UploadGisDataset({ state, dispatch }) {
   if (!uploadedFile) {
     return (
       <>
-      <div className={t.uploadFileWrapper}>
-        <div className={t.uploadFileInner}>
-          <button>
-            <input
-              type="file"
-              onChange={(e) => uploadGisDataset(e.target.files[0])}
-            />
-          </button>
-        </div>
+      <div className={t.uploadFileField}>
+        <FileInput dropzone
+          onChange={files => files[0] && uploadGisDataset(files[0])}/>
       </div>
     
       {

@@ -207,8 +207,7 @@ export default function AuthSignup({ disableSignup, adminPath }) {
                 {status && <div className={sectionGroupTheme.status ?? 'text-sm text-red-600 mt-2'}>{status}</div>}
 
                 <Button
-                    type='plain'
-                    className={sectionGroupTheme.actionButton}
+                    activeStyle='primaryBlock'
                     disabled={submitting || credentials.password !== credentials.verifyPassword}
                     onClick={handleTenantSignup}
                 >
@@ -263,8 +262,7 @@ export default function AuthSignup({ disableSignup, adminPath }) {
             />
 
             <Button
-                type='plain'
-                className={sectionGroupTheme.actionButton}
+                activeStyle='primaryBlock'
                 disabled={credentials.password !== credentials.verifyPassword}
                 onClick={async () => {
                     const emailTheme = {

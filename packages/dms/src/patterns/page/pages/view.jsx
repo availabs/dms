@@ -14,7 +14,9 @@ import {
 } from './_utils'
 import SectionGroup from '../components/sections/sectionGroup'
 import { PageContext, CMSContext, DataSourceContext } from '../context';
-import { ThemeContext, mergeTheme } from "../../../ui/useTheme";
+import { ThemeContext, mergeTheme, getComponentTheme as getThemeKey } from "../../../ui/useTheme";
+import { errorPageTheme } from "./errorPage.theme";
+import { PageStateScreen } from "../components/PageStatePanel";
 import { ABSOLUTE_URL } from "../../../utils/nav";
 import { resolveSubdomainPath } from "../../../utils/subdomainPath";
 
@@ -213,6 +215,14 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         if (user?.isAuthenticating) return null;
         if (!user?.authed) {
             return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
+        }
+        // v6: a titled panel inside the page's own Layout (pages.errorPage.statePanel; '' → the old line)
+        if ({ ...errorPageTheme, ...getThemeKey(fullTheme, 'pages.errorPage') }.statePanel) {
+            return <PageStateScreen navItems={menuItems} resolveNav={resolveNav} secondNav={menuItemsSecondNav}
+                icon="Lock" tone="neutral" title="You do not have permission to view this page"
+                text="Ask an admin of this site for access.">
+                <Link to={baseUrl || '/'} className={{ ...errorPageTheme, ...getThemeKey(fullTheme, 'pages.errorPage') }.actionBtn}>Go to home</Link>
+            </PageStateScreen>;
         }
         return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
     }

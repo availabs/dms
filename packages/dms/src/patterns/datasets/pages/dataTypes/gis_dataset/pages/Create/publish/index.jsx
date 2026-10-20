@@ -2,29 +2,20 @@ import React, {useMemo, useContext} from 'react'
 import { get } from 'lodash-es'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
+import GisErrorTable from '../ErrorTable'
 
+// the button's text and UI.Button role per publish state (2026-10-15: was a raw <button> + publishBtn* colour keys)
 const buttonStates = {
-    AWAITING: {
-      text: 'Publish',
-      color: 'bg-blue-500'
-    },
-    IN_PROGRESS: {
-      text: "Publishing...",
-      color: "bg-amber-500"
-    },
-    PUBLISHED: {
-       text: "Publishing...",
-       color: "bg-amber-500"
-    },
-    ERROR : {
-       text: "Error...",
-       color: "bg-red-500"
-    }
+    AWAITING: { text: 'Publish', activeStyle: 'primary' },
+    IN_PROGRESS: { text: "Publishing...", activeStyle: 'primary', busy: true },
+    PUBLISHED: { text: "Publishing...", activeStyle: 'primary', busy: true },
+    ERROR: { text: "Error...", activeStyle: 'danger' },
 }
 
 export default function PublishButton({ state, dispatch }) {
-  const { theme } = useContext(ThemeContext) || {};
+  const { theme, UI } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const { Button } = UI || {};
 
   const {
     layerName,
@@ -49,7 +40,8 @@ export default function PublishButton({ state, dispatch }) {
 
   const {
     text: publishButtonText,
-    color: publishButtonBgColor } = useMemo(()=>
+    activeStyle: publishButtonStyle,
+    busy: publishBusy } = useMemo(()=>
       get(buttonStates, publishStatus, buttonStates['AWAITING'])
   , [publishStatus])
 
@@ -119,10 +111,10 @@ export default function PublishButton({ state, dispatch }) {
 
   return (
     <div>
-      <div>
-        <button
-          className={`${t.publishBtn} ${publishButtonBgColor}`}
-          //disabled={publishStatus'AWAITING'}
+      <div className={t.publishRow || undefined}>
+        <Button
+          activeStyle={publishButtonStyle}
+          disabled={!!publishBusy}
           onClick={() => {
             console.log('onClick publush', publishStatus)
             if (publishStatus === "AWAITING" || publishStatus === "ERROR" ) {
@@ -131,7 +123,8 @@ export default function PublishButton({ state, dispatch }) {
           }}
         >
           {publishButtonText}
-        </button>
+        </Button>
+        {t.publishHint ? <p className={t.publishHint}>Creates the source, loads the layer, then opens its upload status.</p> : null}
       </div>
       <PublishErrorMessage state={state} />
     </div>
@@ -139,7 +132,6 @@ export default function PublishButton({ state, dispatch }) {
 }
 
 function PublishErrorMessage({state}) {
-
   const {
     etlContextId,
     publishStatus,
@@ -150,56 +142,5 @@ function PublishErrorMessage({state}) {
     return "";
   }
 
-  return (
-    <table
-      className={t.publishErrorTable}
-      style={{
-        margin: "40px auto",
-        textAlign: "center",
-        border: "1px solid",
-        borderColor: "back",
-      }}
-    >
-      <thead
-        style={{
-          color: "black",
-          backgroundColor: "red",
-          fontWeight: "bolder",
-          textAlign: "center",
-          marginTop: "40px",
-          fontSize: "20px",
-          border: "1px solid",
-          borderColor: "black",
-        }}
-      >
-        <tr>
-          <th style={{ border: "1px solid", borderColor: "black" }}>
-            {" "}
-            Publish Error
-          </th>
-          <th style={{ border: "1px solid", borderColor: "black" }}>
-            {" "}
-            ETL Context ID
-          </th>
-        </tr>
-      </thead>
-      <tbody style={{ border: "1px solid" }}>
-        <tr style={{ border: "1px solid" }}>
-          <td
-            style={{
-              border: "1px solid",
-              padding: "10px",
-              backgroundColor: "white",
-              color: "darkred",
-            }}
-          >
-            {publishErrMsg}
-          </td>
-          <td style={{ border: "1px solid", backgroundColor: "white" }}>
-            {etlContextId}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  );
+  return <GisErrorTable title="Publish Error" message={publishErrMsg} etlContextId={etlContextId} />;
 }

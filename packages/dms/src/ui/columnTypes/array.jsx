@@ -1,4 +1,5 @@
 import React from "react"
+import Button from "../components/Button"
 
 export const ArrayEdit = ({Component, value, onChange, attr}) => {
     if (!value || !value.map) { 
@@ -16,7 +17,7 @@ export const ArrayEdit = ({Component, value, onChange, attr}) => {
                 <Component.ViewComp value={v} {...attr} key={i} />
             )}
             <Component.EditComp value={newValue} onChange={setNewValue} {...attr} />
-            <button onClick={addNewValue}>Add</button>
+            <Button activeStyle="small" onClick={addNewValue}>Add</Button>
             
         </>
     )

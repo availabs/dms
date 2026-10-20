@@ -1,10 +1,12 @@
-import React from "react";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import React, { useContext } from "react";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
 
 const isHHMM = (s) => /^\d{2}:\d{2}$/.test(s || '');
 
 export const TimeOfDayRow = ({ value, onChange }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
     const tod = value?.timeOfDay || null;
 
     const update = (patch) => {
@@ -44,39 +46,38 @@ export const TimeOfDayRow = ({ value, onChange }) => {
     return (
         <div className={t.todContainer}>
             <div className={t.rowHeader}>
-                <label className={t.rowLabel}>Time of day</label>
-                <span className={t.rowSummary}>{summary}</span>
+                <div className={t.rowLabel}>Time of day</div>
+                <span className={summary === 'Any' ? t.rowSummaryAny : t.rowSummary}>{summary}</span>
             </div>
 
             <div className={t.rowEditor}>
-                <input
-                    type="time"
-                    className={t.todInput}
-                    value={tod?.start || ''}
-                    onChange={e => update({ start: e.target.value })}
-                />
+                <span className={t.todInputWrap}>
+                    <UI.Input
+                        type="time"
+                        aria-label="From"
+                        value={tod?.start || ''}
+                        onChange={e => update({ start: e.target.value })}
+                    />
+                </span>
                 <span className={t.todSeparator}>to</span>
-                <input
-                    type="time"
-                    className={t.todInput}
-                    value={tod?.end || ''}
-                    onChange={e => update({ end: e.target.value })}
-                />
+                <span className={t.todInputWrap}>
+                    <UI.Input
+                        type="time"
+                        aria-label="To"
+                        value={tod?.end || ''}
+                        onChange={e => update({ end: e.target.value })}
+                    />
+                </span>
                 {(tod?.start || tod?.end) && (
-                    <button
-                        type="button"
-                        className={t.rangeClearButton}
-                        onClick={clear}
-                        aria-label="Clear time of day"
-                    >
-                        ✕
-                    </button>
+                    <UI.Button activeStyle="iconInline" onClick={clear} aria-label="Clear time of day" title="Clear time of day">
+                        <UI.Icon icon="XMark" className={t.clearIcon} />
+                    </UI.Button>
                 )}
             </div>
 
             {wrapping && (
                 <span className={t.todWarning}>
-                    Start must be before end. Midnight-wrapping windows aren’t supported yet — split into two filters.
+                    Start must be before end. Windows that wrap past midnight aren’t supported yet: split them into two filters.
                 </span>
             )}
         </div>

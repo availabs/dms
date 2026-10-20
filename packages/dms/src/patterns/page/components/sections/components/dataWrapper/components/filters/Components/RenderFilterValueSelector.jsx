@@ -71,7 +71,7 @@ export const RenderFilterValueSelector = ({
     // component usable if ever rendered without a parent providing `theme` (dms/CLAUDE.md's
     // "local-default spread" convention).
     const theme = themeProp || {...themeFromContext, filters: {...filterTheme, ...getComponentTheme(themeFromContext, 'filters')}};
-    const {Switch, MultiSelect, Input, Button, ColumnTypes} = UI;
+    const {Switch, MultiSelect, Input, Button, ColumnTypes, FieldLabel} = UI;
     const options = useMemo(() => filterOptions.find(fo => fo.column === filterColumn.name)?.uniqValues, [filterOptions, filterColumn.name]);
     // The value control's multiselect style comes from the active filter DESIGN
     // (theme.filters.<style>.controlStyle, passed down by RenderFilters), with a
@@ -199,7 +199,7 @@ export const RenderFilterValueSelector = ({
                                 {
                                     ['filter', 'exclude'].includes(filter.operation) ? (
                                         <div className={theme.filters.inlineSwitchRow}>
-                                            <label className={theme.filters.settingLabel}>Multiselect: </label>
+                                            <FieldLabel activeStyle={theme.filters.settingLabelStyle} text="Multiselect: " />
                                             <Switch label={'Multi'}
                                                     enabled={filter.isMulti}
                                                     setEnabled={value => updateFilter({
@@ -222,7 +222,7 @@ export const RenderFilterValueSelector = ({
                                     // others need the way back (a Region that starts statewide).
                                     ['filter', 'exclude'].includes(filter.operation) && !filter.isMulti ? (
                                         <div className={theme.filters.inlineSwitchRow}>
-                                            <label className={theme.filters.settingLabel}>Allow clear: </label>
+                                            <FieldLabel activeStyle={theme.filters.settingLabelStyle} text="Allow clear: " />
                                             <Switch label={'Allow clear'}
                                                     enabled={filter.allowClear}
                                                     setEnabled={value => updateFilter({
@@ -240,7 +240,7 @@ export const RenderFilterValueSelector = ({
 
                                 {/* UI to match to search params. only show if using search params.*/}
                                 <div className={theme.filters.inlineSwitchRow}>
-                                    <label className={theme.filters.settingLabel}>Use Page Filters: </label>
+                                    <FieldLabel activeStyle={theme.filters.settingLabelStyle} text="Use Page Filters: " />
                                     <Switch label={'Use Page Filters'}
                                             enabled={filter.usePageFilters}
                                             setEnabled={value => updateFilter({
@@ -257,7 +257,7 @@ export const RenderFilterValueSelector = ({
                                 {
                                     filter.usePageFilters ?
                                         <div className={theme.filters.searchKeyRow}>
-                                            <label className={`shrink-0 ${theme.filters.settingLabel}`}>Search key: </label>
+                                            <span className={theme.filters.settingLabelCell}><FieldLabel activeStyle={theme.filters.settingLabelStyle} text="Search key: " /></span>
                                             <RenderSearchKeySelector pageState={pageState}
                                                                      filter={filter}
                                                                      onChange={e => updateFilter({

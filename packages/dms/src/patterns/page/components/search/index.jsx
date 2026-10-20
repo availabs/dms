@@ -10,25 +10,30 @@ export default function SearchButton ({app, type, activeStyle}) {
     const [open, setOpen] = useState(false)
     const { theme: fullTheme = { pages: { searchButton: searchButtonTheme } }, UI } = useContext(ThemeContext);
     const theme = getComponentTheme(fullTheme, 'pages.searchButton', activeStyle);
-    const { Icon } = UI;
+    const { Icon, Button } = UI;
+    // buttonWrap holds the library trigger's layout; a theme whose own classes were lifted into its button style
+    // has it emptied, and then the button sits directly in the nav, exactly where its old raw <button> was.
+    const trigger = (
+        <Button
+            activeStyle={theme?.buttonStyle}
+            onClick={() => setOpen(true)}
+        >
+            <span className={theme?.buttonText}>Search</span>
+
+            <div className={theme?.iconWrapper}>
+                <Icon
+                    icon={theme?.icon}
+                    height={theme?.iconSize}
+                    width={theme?.iconSize}
+                    className={theme?.iconClass}
+                />
+            </div>
+        </Button>
+    );
 
     return (
         <>
-            <button
-                className={theme?.button}
-                onClick={() => setOpen(true)}
-            >
-                <span className={theme?.buttonText}>Search</span>
-
-                <div className={theme?.iconWrapper}>
-                    <Icon
-                        icon={theme?.icon}
-                        height={theme?.iconSize}
-                        width={theme?.iconSize}
-                        className={theme?.iconClass}
-                    />
-                </div>
-            </button>
+            {theme?.buttonWrap ? <div className={theme.buttonWrap}>{trigger}</div> : trigger}
             <SearchPallet open={open} setOpen={setOpen} app={app} type={type}/>
         </>
     )
@@ -38,7 +43,7 @@ function classNames(...classes) {
     return classes.filter(Boolean).join(' ')
 }
 
-const RenderSuggestions = ({individualTags, query, setQuery, theme}) => individualTags
+const RenderSuggestions = ({individualTags, query, setQuery, theme, Icon}) => individualTags
     .filter(tag => (!query?.length || tag.toLowerCase().includes(query.toLowerCase())))
     .length > 0 ? (
     <div className={theme?.suggestionsWrapper}>
@@ -52,10 +57,12 @@ const RenderSuggestions = ({individualTags, query, setQuery, theme}) => individu
                     onClick={() => setQuery(tag)}
                     className={theme?.suggestionItem}
                 >
-                    <div>
-                        <i className={theme?.suggestionTagIcon}/>
-                        <span className={theme?.suggestionTagText}> {tag} </span>
-                    </div>
+                    {theme?.suggestionTagIconName && Icon
+                        ? <><Icon icon={theme.suggestionTagIconName} className={theme?.suggestionTagIconClass}/><span className={theme?.suggestionTagText}>{tag}</span></>
+                        : <div>
+                            <i className={theme?.suggestionTagIcon}/>
+                            <span className={theme?.suggestionTagText}> {tag} </span>
+                          </div>}
                 </div>
             ))}
     </div>
@@ -140,16 +147,16 @@ const RenderItems = ({items, query, theme, Icon}) => Object.keys(items).length ?
     </div>
 ) : null;
 
-const RenderStatus = ({loading, query, itemsLen, theme}) =>
+const RenderStatus = ({loading, query, itemsLen, theme, Icon}) =>
     loading ? (
             <div className={theme?.loadingWrapper}>
-                <i className={theme?.loadingIcon}/>
+                {theme?.loadingIconName && Icon ? <Icon icon={theme.loadingIconName} className={theme?.loadingIconClass}/> : <i className={theme?.loadingIcon}/>}
                 <p className={theme?.loadingText}>Loading...</p>
             </div>
         ) :
         query && query !== '' && itemsLen === 0 && (
             <div className={theme?.noResultsWrapper}>
-                <i className={theme?.noResultsIcon}/>
+                {theme?.noResultsIconName && Icon ? <Icon icon={theme.noResultsIconName} className={theme?.noResultsIconClass}/> : <i className={theme?.noResultsIcon}/>}
                 <p className={theme?.noResultsTitle}>No results found</p>
                 <p className={theme?.noResultsText}>No components found for this search term. Please try again.</p>
             </div>
@@ -272,7 +279,7 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
                 <Input
                     autoFocus
                     placeholder="Search..."
-                    value={tmpQuery}
+                    value={tmpQuery || ''}
                     onChange={(event) => setTmpQuery(event.target.value)}
                 />
                 <div className={theme?.searchIconWrapper}>
@@ -280,8 +287,10 @@ export const SearchPallet = ({open, setOpen, app: appFromProps, type: typeFromPr
                 </div>
             </div>
 
+            {/* tag suggestions — loaded already (searchTags); shown when the theme opts in */}
+            {theme?.showSuggestions && tmpQuery ? <RenderSuggestions individualTags={individualTags} query={tmpQuery} setQuery={setTmpQuery} theme={theme} Icon={Icon}/> : null}
             <RenderItems key={'search-items'} items={items} query={query} theme={theme} Icon={Icon}/>
-            <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme}/>
+            <RenderStatus key={'search-suggestions'} query={query} loading={loading} itemsLen={Object.keys(items).length} theme={theme} Icon={Icon}/>
         </Modal>
     )
 }

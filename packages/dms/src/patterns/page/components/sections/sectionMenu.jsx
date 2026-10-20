@@ -1,8 +1,9 @@
 //RYAN TODO -- still prob need to clean up some of the sectionMenuItems
 import React, {useState, useEffect} from 'react'
 import {handleCopy, handleCopyToClipboard, handlePaste} from "./section_utils"
-import {TagComponent} from "./section_components"
+import {TagComponent, ActionBtn} from "./section_components"
 import { getComponentTheme, ThemeContext } from "../../../../ui/useTheme";
+import { sectionMenuTheme } from "./sectionMenu.theme";
 import {ComplexFilters} from "./ComplexFilters";
 import ColumnManager from "./ColumnManager";
 import TemplateManager from "./TemplateManager";
@@ -22,8 +23,12 @@ import ColorControls from "./components/ComponentRegistry/sharedControls/ColorCo
  * commit (draft stays, `Input` gets `aria-invalid` for the theme's red-border state,
  * a short message renders below) or a falsy value to allow it through.
  */
-const CommitInput = ({ initialValue = '', onCommit, validate }) => {
-    const { UI } = React.useContext(ThemeContext) || {};
+
+// `activeStyle`: the UI.Input named style ('menu' for the Page Nav Label / Anchor ID rows, 2026-10-16 — were raw
+// <input>s with pages.sectionMenu textInput; project themes keep that underline look via _legacy/ui.js Input 'menu').
+const CommitInput = ({ initialValue = '', onCommit, validate, activeStyle, ...rest }) => {
+    const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const sm = { ...sectionMenuTheme, ...getComponentTheme(themeFromContext, 'pages.sectionMenu') };
     const { Input } = UI || {};
     const [draft, setDraft] = useState(initialValue);
     const [error, setError] = useState('');
@@ -41,6 +46,8 @@ const CommitInput = ({ initialValue = '', onCommit, validate }) => {
     return (
         <>
             <Input
+                {...rest}
+                activeStyle={activeStyle}
                 type="text"
                 value={draft}
                 aria-invalid={!!error}
@@ -48,7 +55,7 @@ const CommitInput = ({ initialValue = '', onCommit, validate }) => {
                 onBlur={commit}
                 onKeyDown={e => { if (e.key === 'Enter') { commit(); e.target?.blur?.(); } }}
             />
-            {error ? <div className="text-red-500 text-xs mt-1">{error}</div> : null}
+            {error ? <div className={sm.menuError}>{error}</div> : null}
         </>
     );
 };
@@ -66,6 +73,11 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     // "1"…"12") offered the default fractions ("1/3"…), which matched nothing at
     // render time and silently fell back to full width.
     const sectionArrayTheme = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle)
+    // Icon size in the menu's action rows (copy link / copy / paste / move / edit / save / cancel,
+    // back / home) — `pages.section` menuActionIcon (pre-v6 'size-5', kept by the legacy freeze).
+    const menuActionIcon = getComponentTheme(theme, 'pages.section').menuActionIcon || 'size-5'
+    // the Layout sub-pages' pickers (padding / border / radius / background) — pages.sectionMenu
+    const sm = { ...sectionMenuTheme, ...getComponentTheme(theme, 'pages.sectionMenu') }
     const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
@@ -367,9 +379,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 return (
                     <div className={'w-full flex justify-between'}>
                         <div className={'flex gap-1'}>
-                            {/*{isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'InfoSquare'} className={'size-5'} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
+                            {/*{isEdit && canEditSection ? <Pill activeStyle={'blue'} text={<Icon icon={'InfoSquare'} className={menuActionIcon} />} title={'Add Help Text'} onClick={onAddHelpText} /> : null}*/}
 
-                            <Pill color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={'size-5'}/>}
+                            <ActionBtn color={copied === 'link' ? 'green' : 'blue'} text={<Icon icon={'Link'} className={menuActionIcon}/>}
                                   title={'Copy Link'}
                                   onClick={(e) => {
                                       handleCopyToClipboard(sectionLink)
@@ -380,7 +392,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                   }}/>
 
                             {(canEditSection || canEditPageContent) ?
-                                <Pill color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'}/>}
+                                <ActionBtn color={copied === 'section' ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={menuActionIcon}/>}
                                                     title={'Copy Section'}
                                                     onClick={(e) => {
                                                         handleCopy(value)
@@ -389,27 +401,27 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                                             setCopied('')
                                                         }, 2000);
                                                     }}/> : null}
-                            {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'}/>} title={'Paste Section'}
+                            {isEdit && canEditSection ? <ActionBtn color={'blue'} text={<Icon icon={'Paste'} className={menuActionIcon}/>} title={'Paste Section'}
                                                               onClick={e => handlePaste(e, setKey, setSectionState, value, onChange)}/> : null}
 
                             {!isEdit && canEditPageLayout && canEditSection ?
-                                <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
+                                <ActionBtn color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={menuActionIcon} />} title={'Move Up'}
                                       onClick={() => moveItem(i, -1)} />  : null}
 
                             {!isEdit && canEditPageLayout && canEditSection ?
-                                <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
+                                <ActionBtn color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={menuActionIcon} />} title={'Move Down'}
                                       onClick={() => moveItem(i, 1)} /> : null}
-                            {!isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'Refresh'} className={'size-5'} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
+                            {!isEdit && canEditSection ? <ActionBtn color={'blue'} text={<Icon icon={'Refresh'} className={menuActionIcon} />} title={'Refresh Data'} onClick={() => refreshDataBtnRef.current?.refresh({isRefreshingData, setIsRefreshingData})} /> : null}
 
                         </div>
 
                         <div className={'flex gap-1'}>
-                            {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={'size-5'} />} title={'Save'} onClick={onSave} /> : null}
+                            {isEdit && canEditSection ? <ActionBtn kind='save' color={'blue'} text={<Icon icon={'FloppyDisk'} className={menuActionIcon} />} title={'Save'} onClick={onSave} /> : null}
                             {isEdit ?
-                                <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'}/>}
+                                <ActionBtn color={'orange'} text={<Icon icon={'CancelCircle'} className={menuActionIcon}/>}
                                       title={'Cancel'} onClick={onCancel}/> :
                                 canEditSection ?
-                                    <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={'size-5'} />} title={'Edit'} onClick={onEdit} /> : null
+                                    <ActionBtn color={'blue'} text={<Icon icon={'PencilSquare'} className={menuActionIcon} />} title={'Edit'} onClick={onEdit} /> : null
                             }
                         </div>
                     </div>
@@ -424,17 +436,17 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             type: (_, {goBack, goHome}) => (
                 <div className={'w-full flex justify-between'}>
                     <div className={'flex gap-1'}>
-                        <Pill color={'blue'} text={<Icon icon={'ArrowLeft'} className={'size-5'} />} title={'Back'} onClick={goBack} />
-                        <Pill color={'blue'} text={<Icon icon={'Home'} className={'size-5'} />} title={'Home'} onClick={goHome} />
+                        <ActionBtn color={'blue'} text={<Icon icon={'ArrowLeft'} className={menuActionIcon} />} title={'Back'} onClick={goBack} />
+                        <ActionBtn color={'blue'} text={<Icon icon={'Home'} className={menuActionIcon} />} title={'Home'} onClick={goHome} />
                     </div>
 
                     <div className={'flex gap-1'}>
-                        {isEdit && canEditSection ? <Pill color={'blue'} text={<Icon icon={'FloppyDisk'} className={'size-5'} />} title={'Save'} onClick={onSave} /> : null}
+                        {isEdit && canEditSection ? <ActionBtn kind='save' color={'blue'} text={<Icon icon={'FloppyDisk'} className={menuActionIcon} />} title={'Save'} onClick={onSave} /> : null}
                         {isEdit ?
-                            <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'}/>}
+                            <ActionBtn color={'orange'} text={<Icon icon={'CancelCircle'} className={menuActionIcon}/>}
                                   title={'Cancel'} onClick={onCancel}/> :
                             canEditSection ?
-                                <Pill color={'blue'} text={<Icon icon={'PencilSquare'} className={'size-5'} />} title={'Edit'} onClick={onEdit} /> : null}
+                                <ActionBtn color={'blue'} text={<Icon icon={'PencilSquare'} className={menuActionIcon} />} title={'Edit'} onClick={onEdit} /> : null}
                     </div>
                 </div>
             )
@@ -980,10 +992,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     }
 
 
+    // totalLength is unset until the section's data has loaded (or when it never loads)
+    const totalLength = parseInt(state?.display?.totalLength);
     const filter = [
         {name: 'Filters', icon: 'Filter',
-            value: `${parseInt(state?.display?.totalLength).toLocaleString()} rows`,
-            showValue: true,
+            value: `${totalLength.toLocaleString()} rows`,
+            showValue: Number.isFinite(totalLength),
             cdn: () => isEdit && currentComponent?.useDataSource && canEditSection,
             items: [
                 // Suppresses the round Filter-icon pill that toggles the external-
@@ -1156,11 +1170,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     items: [
                         {
                             name: '',
-                            type: () => <input
-                                className='p-2 w-full bg-transparent border-b border-slate-200 text-sm focus:outline-none'
+                            type: () => <CommitInput
+                                activeStyle='menu'
+                                aria-label='Page nav label'
                                 placeholder={'e.g. Compliance snapshot'}
-                                defaultValue={value?.['navLabel'] || ''}
-                                onBlur={(e) => updateAttribute('navLabel', e.target.value)}
+                                initialValue={value?.['navLabel'] || ''}
+                                onCommit={v => updateAttribute('navLabel', v)}
                             />
                         }
                     ]
@@ -1173,11 +1188,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     items: [
                         {
                             name: '',
-                            type: () => <input
-                                className='p-2 w-full bg-transparent border-b border-slate-200 text-sm focus:outline-none'
+                            type: () => <CommitInput
+                                activeStyle='menu'
+                                aria-label='Anchor ID'
                                 placeholder={'auto from label'}
-                                defaultValue={value?.['anchorId'] || ''}
-                                onBlur={(e) => updateAttribute('anchorId', e.target.value)}
+                                initialValue={value?.['anchorId'] || ''}
+                                onCommit={v => updateAttribute('anchorId', v)}
                             />
                         }
                     ]
@@ -1206,7 +1222,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Hide Component</label>
+                            <span>Hide Component</span>
                             <Switch
                                 size={'small'}
                                 enabled={value?.['hideInView']}
@@ -1222,7 +1238,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection && Boolean(groupCollapsible),
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Show When Collapsed</label>
+                            <span>Show When Collapsed</span>
                             <Switch
                                 size={'small'}
                                 enabled={value?.['showWhenCollapsed']}
@@ -1244,7 +1260,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
             name: 'Layout', icon: 'Section',
             items: [
                 {
-                    name: 'Style', value: activeStyleName, showValue: true,
+                    name: 'Style', icon: 'Layers', value: activeStyleName, showValue: true,
                     cdn: () => canEditSection,
                     items: styles.map((style, idx) => ({
                         icon: idx === activeStyle ? 'CircleCheck' : '',
@@ -1314,7 +1330,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                     cdn: () => canEditSection && value?.rowspan > 1,
                     type: () => (
                         <div className={'self-start w-full flex justify-between pl-2'}>
-                            <label>Float</label>
+                            <span>Float</span>
                             <Switch
                                 size={'small'}
                                 enabled={value?.['sticky']}
@@ -1389,12 +1405,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 { key: 'left',   label: 'Left',  active: sideVals[3], pick: s => updateAttribute('padding', { ...cur, left: s }) },
                             ];
                             const renderRow = r => (
-                                <div key={r.key} className={'flex items-center gap-2 w-full'}>
-                                    <div className={`w-12 shrink-0 text-[11px] ${r.bold ? 'font-semibold text-slate-600' : 'text-slate-400'}`}>{r.label}</div>
-                                    <div className={'flex-1 min-w-0'} style={gridStyle}>
+                                <div key={r.key} className={sm.stepRow}>
+                                    <div className={r.bold ? sm.stepLabelBold : sm.stepLabel}>{r.label}</div>
+                                    <div className={sm.stepGrid} style={gridStyle}>
                                         {allSteps.map(step => (
                                             <div key={step} onClick={() => r.pick(step)}
-                                                className={`h-8 flex items-center justify-center rounded-md text-[12.5px] font-medium tabular-nums cursor-pointer transition ${String(r.active) === String(step) ? 'bg-[#1F3F8F] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                                className={`${sm.step} ${String(r.active) === String(step) ? sm.stepOn : sm.stepOff}`}>
                                                 {step}
                                             </div>
                                         ))}
@@ -1402,9 +1418,9 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                 </div>
                             );
                             return (
-                                <div className={'flex flex-col gap-1.5 px-1 py-1.5 w-full'}>
+                                <div className={sm.stepsWrap}>
                                     {renderRow(rows[0])}
-                                    <div className={'border-t border-slate-100 my-0.5'} />
+                                    <div className={sm.stepDivider} />
                                     {rows.slice(1).map(renderRow)}
                                 </div>
                             );
@@ -1428,7 +1444,7 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             const toggle = side => updateAttribute('border', { ...cur, [side]: cur[side] ? undefined : true });
                             const edge = (side, cls) => (
                                 <div onClick={() => toggle(side)}
-                                    className={`absolute ${cls} rounded cursor-pointer transition ${cur[side] ? 'bg-[#1F3F8F]' : 'bg-slate-200 hover:bg-slate-300'}`}/>
+                                    className={`absolute ${cls} ${sm.edge} ${cur[side] ? sm.edgeOn : sm.edgeOff}`}/>
                             );
                             const sa = getComponentTheme(theme, 'pages.sectionArray', sectionArrayStyle);
                             const widths = sa?.borderWidths || [1, 2, 3, 4, 6, 8];
@@ -1436,10 +1452,10 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             const setWidth = w => updateAttribute('border', { ...cur, width: cur.width === w ? undefined : w });
                             const setColor = c => updateAttribute('border', { ...cur, color: c });
                             return (
-                                <div className={'flex flex-col gap-2 py-2'}>
-                                    <div className={'flex justify-center'}>
-                                        <div className={'relative size-24'}>
-                                            <div className={'absolute inset-[10px] bg-slate-50 rounded flex items-center justify-center text-[10px] uppercase tracking-wide text-slate-400'}>edges</div>
+                                <div className={sm.borderWrap}>
+                                    <div className={sm.borderCenter}>
+                                        <div className={sm.pickerBox}>
+                                            <div className={sm.edgesLabel}>edges</div>
                                             {edge('top',    'top-0 left-2.5 right-2.5 h-2')}
                                             {edge('bottom', 'bottom-0 left-2.5 right-2.5 h-2')}
                                             {edge('left',   'left-0 top-2.5 bottom-2.5 w-2')}
@@ -1447,12 +1463,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                         </div>
                                     </div>
                                     {/* Width (px) — sets border.width; promotes the border to inline style. */}
-                                    <div className={'flex items-center gap-2 px-1'}>
-                                        <div className={'w-12 shrink-0 text-[11px] text-slate-400'}>Width</div>
-                                        <div className={'flex-1 min-w-0'} style={{ display: 'grid', gridTemplateColumns: `repeat(${widths.length}, minmax(0,1fr))`, gap: '2px' }}>
+                                    <div className={sm.widthRow}>
+                                        <div className={sm.stepLabel}>Width</div>
+                                        <div className={sm.stepGrid} style={{ display: 'grid', gridTemplateColumns: `repeat(${widths.length}, minmax(0,1fr))`, gap: '2px' }}>
                                             {widths.map(w => (
                                                 <div key={w} onClick={() => setWidth(w)}
-                                                    className={`h-8 flex items-center justify-center rounded-md text-[12.5px] font-medium tabular-nums cursor-pointer transition ${String(cur.width) === String(w) ? 'bg-[#1F3F8F] text-white shadow-sm' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                                    className={`${sm.step} ${String(cur.width) === String(w) ? sm.stepOn : sm.stepOff}`}>
                                                     {w}
                                                 </div>
                                             ))}
@@ -1476,12 +1492,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             const toggle = c => updateAttribute('radius', { ...cur, [c]: cur[c] ? undefined : true });
                             const corner = (c, cls) => (
                                 <div onClick={() => toggle(c)}
-                                    className={`absolute ${cls} size-3.5 rounded-full cursor-pointer transition ${cur[c] ? 'bg-[#1F3F8F]' : 'bg-slate-300 hover:bg-slate-400'}`}/>
+                                    className={`absolute ${cls} ${sm.corner} ${cur[c] ? sm.cornerOn : sm.cornerOff}`}/>
                             );
                             return (
-                                <div className={'flex justify-center py-2'}>
-                                    <div className={'relative size-24'}>
-                                        <div className={'absolute inset-2 border-2 border-slate-200 rounded-lg'}/>
+                                <div className={sm.radiusWrap}>
+                                    <div className={sm.pickerBox}>
+                                        <div className={sm.radiusFrame}/>
                                         {corner('tl', 'top-0.5 left-0.5')}
                                         {corner('tr', 'top-0.5 right-0.5')}
                                         {corner('bl', 'bottom-0.5 left-0.5')}
@@ -1502,12 +1518,12 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                             const bgMap = sa?.backgrounds || {};
                             const cur = value?.['bg'] || 'none';
                             return (
-                                <div className={'flex flex-wrap gap-1 px-1 py-1.5'}>
+                                <div className={sm.bgWrap}>
                                     {Object.keys(bgMap).map(name => (
                                         <div key={name} onClick={() => updateAttribute('bg', name)}
-                                            className={`pl-1.5 pr-2.5 h-8 inline-flex items-center gap-1.5 rounded-md text-[12.5px] capitalize cursor-pointer transition ${cur === name ? 'bg-[#1F3F8F] text-white' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}>
+                                            className={`${sm.bgPill} ${cur === name ? sm.stepOn : sm.stepOff}`}>
                                             {/* swatch showing the actual background (empty/transparent for "none") */}
-                                            <span className={`size-4 rounded border border-zinc-950/15 shrink-0 ${bgMap[name] || ''}`}/>
+                                            <span className={`${sm.bgSwatch} ${bgMap[name] || ''}`}/>
                                             {name}
                                         </div>
                                     ))}
@@ -1547,6 +1563,8 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                                     getGroups={AuthAPI.getGroups}
                                     permissionDomain={attributes?.authPermissions?.permissionDomain}
                                     defaultPermission={attributes?.authPermissions?.defaultPermission}
+                                    heading='on this section'
+                                    inheritedFrom='the page'
                                 />
                             )
                         }

@@ -66,8 +66,9 @@ export const FilterControlCell = ({
 }) => {
     const { state } = useContext(ComponentContext) || {};
     const { pageState, updatePageStateFilters } = useContext(PageContext) || {};
-    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
     const t = { ...filterControlCellTheme, ...getComponentTheme(themeFromContext, 'filterControlCell') };
+    const CheckboxEdit = UI?.ColumnTypes?.checkbox?.EditComp;
 
     const key = searchParamKey || name;
     const isLike = controlOp === 'like';
@@ -145,15 +146,15 @@ export const FilterControlCell = ({
         <div className={(isToggle && t.toggleCellWrapper) || t.wrapper}>
             {controlIcon ? <Icon icon={controlIcon} className={t.icon} /> : null}
             {isToggle ? (
-                <label className={t.toggleWrapper}>
-                    <input
-                        type={'checkbox'}
-                        className={t.checkbox}
-                        checked={toggleOn}
-                        onChange={() => write(toggleOn ? [] : [controlValue])}
-                    />
-                    {label ? <span className={t.toggleLabel || t.label}>{label}</span> : null}
-                </label>
+                // the checkbox column type with its text (2026-10-16, raw-HTML pass): the look is a checkbox named
+                // style picked by `toggleCheckboxStyle` — a project theme's own toggleWrapper / checkbox / toggleLabel
+                // strings become that style (src/themes/_legacy/ui.js liftPatternRoles)
+                <CheckboxEdit
+                    activeStyle={t.toggleCheckboxStyle}
+                    value={toggleOn}
+                    rowLabel={label || undefined}
+                    onChange={v => write(v ? [controlValue] : [])}
+                />
             ) : (
                 <>
                     {label ? <span className={t.label}>{label}</span> : null}

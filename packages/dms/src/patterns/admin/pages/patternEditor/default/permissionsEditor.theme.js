@@ -21,13 +21,12 @@ export const permissionsEditorTheme = {
     subdomainSection: 'border-b border-[var(--t-rule)] last:border-b-0',
     subdomainHeader: 'px-4 pt-3 pb-2 flex items-center gap-2',
     subdomainBadge: 't-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em]',
-    subdomainRemoveBtn: 't-metaXS text-[var(--t-brick)] hover:opacity-80 ml-auto cursor-pointer',
+    subdomainRemoveWrap: 'ml-auto',
     subdomainBody: 'px-4 pb-3',
 
     // Add subdomain row
     addSubdomainRow: 'px-4 py-2.5 border-b border-[var(--t-rule)] flex gap-2 items-center',
-    subdomainInput: 'border border-[var(--t-rule-strong)] rounded-md px-2.5 py-1.5 t-proseSM bg-[var(--t-panel)] outline-none focus:border-[var(--t-cobalt)]',
-    addSubdomainBtn: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-md px-2.5 py-1.5 hover:border-[var(--t-rule-strong)] cursor-pointer',
+    addSubdomainField: 'block w-48',   // the UI.Input's width (it fills its container)
 
     // Footer: can't-lock-yourself-out note (see ui/components/Permissions.jsx's
     // own lockoutNote — this is the domain-vocabulary summary alongside it) +
@@ -35,8 +34,6 @@ export const permissionsEditorTheme = {
     saveGrid: 'px-4 py-2.5 flex flex-wrap items-center gap-3',
     domainSummary: 't-metaXS text-[var(--t-pencil)]',
     lockoutWarning: 't-metaXS text-[var(--t-brick)]',
-    btnReset: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3.5 py-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
-    btnSave: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none',
 
     noAccess: 'flex items-center justify-center h-48 t-proseSM text-[var(--t-pencil)]',
 }

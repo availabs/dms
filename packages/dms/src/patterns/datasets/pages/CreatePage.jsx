@@ -8,6 +8,17 @@ import {buildEnvsForListing} from "../utils/datasources";
 import { clearDatasetsListCache } from "../utils/datasetsListCache";
 import { nameToSlug, getInstance } from "../../../utils/type-utils";
 import Breadcrumbs from "../components/Breadcrumbs";
+import { createPageTheme } from "./createPage.theme";
+
+// Type-card copy for the v6 card picker. Any registered dataType without an entry gets the generic card.
+const TYPE_INFO = {
+    '': {label: 'Blank table', icon: 'Add', blurb: 'An empty table — add its columns and rows later.'},
+    internal_table: {label: 'Table', icon: 'Table', blurb: 'Rows you edit and upload here — a spreadsheet that lives in the site.'},
+    gis_dataset: {label: 'GIS dataset', icon: 'Map', blurb: 'A shapefile, GeoPackage or GeoJSON, published as a table and a map layer.'},
+    csv_dataset: {label: 'CSV dataset', icon: 'TableColumns', blurb: 'A CSV or Excel file published as a queryable table.'},
+    file_upload: {label: 'File', icon: 'File', blurb: 'Any file — a PDF, a zip — kept as a downloadable artifact.'},
+};
+const GENERIC_TYPE = {icon: 'Database', blurb: 'A registered loader type — its own create page opens below.'};
 
 const range = (start, end) => Array.from({length: (end + 1 - start)}, (v, k) => k + start);
 
@@ -34,8 +45,8 @@ export default function CreatePage({apiUpdate, format}) {
     const ctx = useContext(DatasetsContext);
     const {baseUrl, user, falcor, type, app, parent, damaDataTypes, datasources, dmsEnv, UI} = ctx;
     const {theme: fullTheme} = useContext(ThemeContext) || {};
-    const theme = fullTheme?.datasets?.createPage || {};
-    const {Layout, LayoutGroup, MultiSelect, Input, Button} = UI;
+    const theme = { ...createPageTheme, ...(fullTheme?.datasets?.createPage || {}) };
+    const {Layout, LayoutGroup, MultiSelect, Input, Button, Icon, FieldLabel} = UI;
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
@@ -55,16 +66,21 @@ export default function CreatePage({apiUpdate, format}) {
 
     const ExternalComp = damaDataTypes[data?.type]?.sourceCreate?.component;
 
+    // known types first, in TYPE_INFO order (the card picker reads top-left to bottom-right)
+    const typeOrder = Object.keys(TYPE_INFO);
     const selectOptions = [
         {label: 'Create new', value: ''},
-        ...Object.keys(damaDataTypes).map(k => ({label: k, value: k})),
+        ...Object.keys(damaDataTypes)
+            .sort((a, b) => (typeOrder.indexOf(a) + 1 || 99) - (typeOrder.indexOf(b) + 1 || 99))
+            .map(k => ({label: k, value: k})),
     ];
 
     const handleSelectChange = (val) => {
         if (damaDataTypes[val]) {
             setData({...data, type: val});
         } else {
-            setData({name: ''});
+            // back to "Create new" — keep the name already typed (it used to be wiped)
+            setData({name: data.name || ''});
         }
     };
 
@@ -133,28 +149,60 @@ export default function CreatePage({apiUpdate, format}) {
         {name: 'Create'},
     ];
 
+    // v6 lays the page out directly; pre-v6 (theme.content '') keeps the LayoutGroup card
+    const Body = theme.content ? 'div' : LayoutGroup;
+    const bodyProps = theme.content ? {className: theme.content} : {};
+    const selectedType = data.id || data.type || '';
+
     return (
         <Layout navItems={[]} secondNav={menuItemsSecondNav}>
-            <div className={theme.pageWrapper || 'max-w-4xl mx-auto w-full'}>
+            <div className={theme.pageWrapper}>
                 <Breadcrumbs items={breadcrumbItems}/>
-                <LayoutGroup>
-                    <div className={theme.heading || 'text-2xl font-medium text-blue-600'}>
-                        Create Dataset
+                <Body {...bodyProps}>
+                    <div className={theme.heading}>
+                        {theme.headingText || 'Create Dataset'}
                     </div>
-                    <div className={theme.form || 'flex flex-col gap-4 mt-4'}>
-                        <div>
-                            <label className={theme.fieldLabel || 'text-sm font-medium text-gray-700'}>Type</label>
-                            <MultiSelect
-                                singleSelectOnly
-                                searchable={false}
-                                options={selectOptions}
-                                value={data.id || data.type || ''}
-                                onChange={handleSelectChange}
-                            />
+                    {theme.intro ?
+                        <p className={theme.intro}>Pick what you’re bringing in. New sources start private to you — share them from the Admin tab.</p> : null}
+                    <div className={theme.form}>
+                        <div className={theme.field}>
+                            <FieldLabel text={'Type'} />
+                            {theme.typeCards ? (
+                                <div className={theme.typeCards}>
+                                    {selectOptions.map(({value}) => {
+                                        const info = TYPE_INFO[value] || {...GENERIC_TYPE, label: value};
+                                        const active = selectedType === value;
+                                        return (
+                                            <Button key={value || 'blank'}
+                                                    activeStyle={active ? 'optionCardOn' : 'optionCard'}
+                                                    aria-pressed={active}
+                                                    onClick={() => handleSelectChange(value)}>
+                                                <span className={active ? theme.typeCardIconActive : theme.typeCardIcon}>
+                                                    <Icon icon={info.icon} className={theme.typeCardIconClass}/>
+                                                </span>
+                                                <span className={theme.typeCardText}>
+                                                    <span className={theme.typeCardLabel}>{info.label}</span>
+                                                    {value ? <span className={theme.typeCardKey}>{value}</span> : null}
+                                                    <span className={theme.typeCardBlurb}>{info.blurb}</span>
+                                                </span>
+                                            </Button>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <MultiSelect
+                                    singleSelectOnly
+                                    searchable={false}
+                                    options={selectOptions}
+                                    value={selectedType}
+                                    onChange={handleSelectChange}
+                                />
+                            )}
                         </div>
-                        <div>
-                            <label className={theme.fieldLabel || 'text-sm font-medium text-gray-700'}>Name</label>
+                        <div className={theme.nameField}>
+                            <FieldLabel htmlFor={'create-dataset-name'} text={'Name'} />
                             <Input
+                                id={'create-dataset-name'}
                                 value={data.name}
                                 placeholder={'Dataset name'}
                                 onChange={e => setData({...data, name: e.target.value})}
@@ -162,23 +210,24 @@ export default function CreatePage({apiUpdate, format}) {
                         </div>
 
                         {!ExternalComp ? (
-                            <div className={theme.actions || 'flex gap-2 mt-2'}>
+                            <div className={theme.actions}>
                                 <Button
+                                    activeStyle='primary'
                                     disabled={!data.name || submitting}
                                     onClick={handleCreate}
                                 >{submitting ? 'Creating...' : 'Create'}</Button>
                                 <Button
-                                    type="plain"
+                                    activeStyle='action'
                                     onClick={() => navigate(baseUrl || '/')}
                                 >Cancel</Button>
                             </div>
                         ) : (
-                            <div className={theme.externalWrapper || 'mt-6'}>
+                            <div className={theme.externalWrapper}>
                                 <ExternalComp context={DatasetsContext} source={data}/>
                             </div>
                         )}
                     </div>
-                </LayoutGroup>
+                </Body>
             </div>
         </Layout>
     )

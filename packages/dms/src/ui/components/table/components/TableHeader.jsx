@@ -158,7 +158,7 @@ export const Header = memo(function Header ({
 
                                     <div
                                         key={`resizer-${i}`}
-                                        className={colResizer ? tableTheme.colResizer : 'hidden'}
+                                        className={colResizer ? `${tableTheme.colResizer} ${tableTheme.colResizerHit || ''}` : 'hidden'}
                                         style={{ height: '100%', cursor: 'col-resize', position: 'relative', right: 0, top: 0 }}
                                         onMouseDown={colResizer ? colResizer(attribute) : () => {}}
                                     />

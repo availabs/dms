@@ -1,5 +1,5 @@
 import React, { useContext, useState } from 'react'
-import { CardSection } from './Card'
+import { CardSection, EmptyDefaultLabel } from './Card'
 import { ThemeContext, getComponentTheme } from '../../../../../../ui/useTheme'
 import ColorControls from './sharedControls/ColorControls'
 import columnTypes from '../../../../../../ui/columnTypes'
@@ -129,25 +129,25 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
             return (
                 <div className={'w-full flex justify-between gap-1'}>
                     <div className={'flex gap-1'}>
-                        <Pill color={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
+                        <Pill activeStyle={'blue'} text={<Icon icon={'ChevronUpSquare'} className={'size-5'} />} title={'Move Up'}
                               onClick={() => moveColumn(-1)} />
-                        <Pill color={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
+                        <Pill activeStyle={'blue'} text={<Icon icon={'ChevronDownSquare'} className={'size-5'} />} title={'Move Down'}
                               onClick={() => moveColumn(1)} />
-                        <Pill color={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'} />}
+                        <Pill activeStyle={copied ? 'green' : 'blue'} text={<Icon icon={'Copy'} className={'size-5'} />}
                               title={'Copy Format'}
                               onClick={() => {
                                   handleCopy(objToCopy);
                                   setCopied(true);
                                   setTimeout(() => setCopied(false), 2000);
                               }} />
-                        <Pill color={'blue'} text={<Icon icon={'Paste'} className={'size-5'} />} title={'Paste Format'}
+                        <Pill activeStyle={'blue'} text={<Icon icon={'Paste'} className={'size-5'} />} title={'Paste Format'}
                               onClick={() => handlePaste(attribute, setAttribute)} />
                     </div>
 
                     <div className={'flex gap-1'}>
-                        <Pill color={'orange'} text={<Icon icon={'TrashCan'} className={'size-5'} />} title={'Remove'}
+                        <Pill activeStyle={'orange'} text={<Icon icon={'TrashCan'} className={'size-5'} />} title={'Remove'}
                               onClick={removeColumn} />
-                        <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                        <Pill activeStyle={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
                               onClick={close} />
                     </div>
                 </div>
@@ -162,10 +162,10 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
             return (
                 <div className={'w-full flex justify-between gap-1'}>
                     <div className={'flex gap-1'}>
-                        <Pill color={'blue'} text={<Icon icon={'ArrowLeft'} className={'size-5'} />} title={'Back'} onClick={goBack} />
-                        <Pill color={'blue'} text={<Icon icon={'Home'} className={'size-5'} />} title={'Home'} onClick={goHome} />
+                        <Pill activeStyle={'blue'} text={<Icon icon={'ArrowLeft'} className={'size-5'} />} title={'Back'} onClick={goBack} />
+                        <Pill activeStyle={'blue'} text={<Icon icon={'Home'} className={'size-5'} />} title={'Home'} onClick={goHome} />
                     </div>
-                    <Pill color={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
+                    <Pill activeStyle={'orange'} text={<Icon icon={'CancelCircle'} className={'size-5'} />} title={'Close'}
                           onClick={close} />
                 </div>
             );
@@ -431,7 +431,7 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
             // matches the toggle/select/input styling.
             return (
                 <div className="flex flex-col gap-0.5">
-                    <label className="text-xs text-gray-600">Empty Default</label>
+                    <EmptyDefaultLabel />
                     <Edit
                         value={attribute?.blankDefault}
                         onChange={v => setAttribute({ ...attribute, blankDefault: v })}

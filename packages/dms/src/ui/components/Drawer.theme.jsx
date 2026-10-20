@@ -5,8 +5,11 @@ import React from 'react'
 // --t-* tokens so the panel follows dark mode. It used to hard-code `bg-white`,
 // which left token- and `dark:`-colored text white-on-white in dark mode.
 export const drawerTheme = {
-  panel: 'bg-[var(--t-panel)] text-[var(--t-ink)] border-l border-[var(--t-rule)] shadow-lg',
-  closeButton: 'relative rounded-md text-[var(--t-pencil)] hover:text-[var(--t-graphite)] focus:outline-none',
+  // v6 2026-10-14 (ui-controls.html "Modal and drawer"): drag shadow; pre-v6 shadow-lg frozen in _legacy/ui.js
+  panel: 'bg-[var(--t-panel)] text-[var(--t-ink)] border-l border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]',
+  // the close button is a UI.Button named style (2026-10-17, raw-HTML pass): 'drawerClose' in Button.theme.jsx. A
+  // project theme's own `closeButton` classes are lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles).
+  closeButtonStyle: 'drawerClose',
 }
 
 export const docs = {

@@ -30,6 +30,8 @@ const compOptions = [
 	{ label: 'MultiSelect', value: 'MultiSelect' },
 	{ label: 'SideNav', value: 'SideNav' },
 	{ label: 'Switch', value: 'Switch' },
+	{ label: 'FileInput', value: 'FileInput' },
+	{ label: 'FieldLabel', value: 'FieldLabel' },
 	{ label: 'Table', value: 'Table' },
 	{ label: 'Tabs', value: 'Tabs' },
 	{ label: 'TopNav', value: 'TopNav' },
@@ -172,7 +174,7 @@ function ComponentList ({
 					</div>
 				</div>
 				<span className='flex-1' />
-				<button className={t.backButton} onClick={() => navigate(-1)}>back</button>
+				<UI.Button activeStyle='action' onClick={() => navigate(-1)}>back</UI.Button>
 			</div>
 			<div className={t.body}>
 				<div className={t.sidebar}>
@@ -189,8 +191,8 @@ function ComponentList ({
    					/>
       		</div>
  					<div className={t.sidebarActions}>
-						<Button className={t.btnSave} onClick={() => onSubmit(currentTheme)}>save</Button>
-						<Button className={t.btnReset} onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>reset</Button>
+						<Button activeStyle='primary' onClick={() => onSubmit(currentTheme)}>save</Button>
+						<Button activeStyle='action' onClick={() => setCurrentTheme(mergeTheme(theme, parseIfJSON(themeObj?.theme)))}>reset</Button>
  					</div>
   				<div className={t.sidebarControls}>
             <div className={t.controlLabel}>{ currentThemeSetting }</div>

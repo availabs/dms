@@ -14,7 +14,7 @@ export default function SectionGroup ({group, attributes, edit}) {
   const { user } = React.useContext(CMSContext) || {};
 
   const { apiUpdate, item, updateAttribute, pageState, clearActionParam } = React.useContext(PageContext);
-  const { LayoutGroup, Modal, Icon } = UI;
+  const { LayoutGroup, Modal, Icon, Button } = UI;
 
   // group.theme also selects this band's `pages.sectionGroup` rail style (in addition
   // to its `layoutGroup` style above) — an unmatched/undefined value safely falls back
@@ -115,6 +115,13 @@ export default function SectionGroup ({group, attributes, edit}) {
       //         />
       //     </Modal>
       // );
+    const modalClose = (
+      <Button
+        activeStyle={t.modalCloseStyle}
+        aria-label='Close'
+        onClick={() => clearActionParam(modalParamKey)}
+      >{t.modalCloseIcon ? <Icon icon={t.modalCloseIcon} className={t.modalCloseIconClass} /> : t.modalCloseText}</Button>
+    );
     return (
       <div
         className={t.modalOverlay}
@@ -124,10 +131,9 @@ export default function SectionGroup ({group, attributes, edit}) {
           className={`${t.modalCard} ${modalWidthClass}`}
           onClick={e => e.stopPropagation()}
         >
-          <button
-            className={t.modalClose}
-            onClick={() => clearActionParam(modalParamKey)}
-          >{t.modalCloseIcon ? <Icon icon={t.modalCloseIcon} className={t.modalCloseIconClass} /> : t.modalCloseText}</button>
+          {/* modalCloseWrap carries the library button's sticky / float layout; a theme whose own modalClose classes
+              were lifted (they carried that layout) has it emptied, and the button sits directly in the card */}
+          {t.modalCloseWrap ? <div className={t.modalCloseWrap}>{modalClose}</div> : modalClose}
           <SectionArrayComp
             group={group}
             value={item?.['sections'] || [] }
@@ -155,15 +161,21 @@ export default function SectionGroup ({group, attributes, edit}) {
     <Icon icon={t.collapseIcon} className={`${t.collapseIconClass} ${collapsed ? t.collapseIconCollapsed : ''}`} />
   )
   const collapseControl = !collapsible ? null : hasCollapsedSummary ? (
-    <button type="button" className={t.collapseToggle} aria-expanded={!collapsed} aria-label={collapseLabel}
-            title={collapseLabel} onClick={() => setCollapsed(c => !c)}>
-      {collapseIcon}
-    </button>
+    <div className={t.collapseToggleWrap}>
+      <Button activeStyle='iconRow' aria-expanded={!collapsed} aria-label={collapseLabel}
+              title={collapseLabel} onClick={() => setCollapsed(c => !c)}>
+        {collapseIcon}
+      </Button>
+    </div>
   ) : (
-    <button type="button" className={t.collapseHeader} aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)}>
-      <span className={t.collapseHeaderTitle}>{group.displayName || group.name}</span>
-      {collapseIcon}
-    </button>
+    <div className={t.collapseHeaderCell}>
+      <Button activeStyle='bare' aria-expanded={!collapsed} onClick={() => setCollapsed(c => !c)}>
+        <span className={t.collapseHeader}>
+          <span className={t.collapseHeaderTitle}>{group.displayName || group.name}</span>
+          {collapseIcon}
+        </span>
+      </Button>
+    </div>
   )
 
   // The sticky in-page-nav rail: the generated nav + any sidebar-group sections.

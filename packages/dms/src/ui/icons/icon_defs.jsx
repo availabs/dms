@@ -190,8 +190,8 @@ export const Alert = (props) => (
 
 export const TouchInteraction = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"currentColor"} fill={"none"} {...props}>
-        <path d="M7 7.99678H6.17647C4.67907 7.99678 3.93037 7.99678 3.46518 7.55782C3 7.11886 3 6.41236 3 4.99937C3 3.58638 3 2.87988 3.46518 2.44091C3.93037 2.00195 4.67907 2.00195 6.17647 2.00195H17.8235C19.3209 2.00195 20.0696 2.00195 20.5348 2.44091C21 2.87988 21 3.58638 21 4.99937C21 6.41236 21 7.11886 20.5348 7.55782C20.0696 7.99678 19.3209 7.99678 17.8235 7.99678H16.5" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M18.0296 21.9913C17.9799 20.2775 18.1199 20.0519 18.2514 19.6706C18.3828 19.2893 19.1984 17.9357 19.5236 16.9534C20.576 13.7752 19.7712 13.2378 18.5104 12.2723C17.0658 11.1661 14.6208 10.6032 13.0946 10.7248V6.63467C13.0946 5.77207 12.2692 5.02148 11.3432 5.02148C10.4172 5.02148 9.59704 5.77207 9.59704 6.63467V14.3866L7.62568 12.7092C7.0938 12.1718 6.24275 12.221 5.62664 12.6277C5.43494 12.7543 5.27952 12.9319 5.18075 13.1393C4.90045 13.7279 4.98135 14.3942 5.42292 14.9396L6.54372 16.3843M9.52799 21.9972V21.0506C9.60063 19.8883 8.54484 18.9548 7.42153 17.516M7.42153 17.516C7.34059 17.4123 7.49821 17.613 7.42153 17.516ZM7.42153 17.516C7.08118 17.0856 6.81124 16.708 6.54372 16.3843M7.42153 17.516L8.52852 18.8698M7.42153 17.516L6.54372 16.3843" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M7 7.99678H6.17647C4.67907 7.99678 3.93037 7.99678 3.46518 7.55782C3 7.11886 3 6.41236 3 4.99937C3 3.58638 3 2.87988 3.46518 2.44091C3.93037 2.00195 4.67907 2.00195 6.17647 2.00195H17.8235C19.3209 2.00195 20.0696 2.00195 20.5348 2.44091C21 2.87988 21 3.58638 21 4.99937C21 6.41236 21 7.11886 20.5348 7.55782C20.0696 7.99678 19.3209 7.99678 17.8235 7.99678H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M18.0296 21.9913C17.9799 20.2775 18.1199 20.0519 18.2514 19.6706C18.3828 19.2893 19.1984 17.9357 19.5236 16.9534C20.576 13.7752 19.7712 13.2378 18.5104 12.2723C17.0658 11.1661 14.6208 10.6032 13.0946 10.7248V6.63467C13.0946 5.77207 12.2692 5.02148 11.3432 5.02148C10.4172 5.02148 9.59704 5.77207 9.59704 6.63467V14.3866L7.62568 12.7092C7.0938 12.1718 6.24275 12.221 5.62664 12.6277C5.43494 12.7543 5.27952 12.9319 5.18075 13.1393C4.90045 13.7279 4.98135 14.3942 5.42292 14.9396L6.54372 16.3843M9.52799 21.9972V21.0506C9.60063 19.8883 8.54484 18.9548 7.42153 17.516M7.42153 17.516C7.34059 17.4123 7.49821 17.613 7.42153 17.516ZM7.42153 17.516C7.08118 17.0856 6.81124 16.708 6.54372 16.3843M7.42153 17.516L8.52852 18.8698M7.42153 17.516L6.54372 16.3843" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
 // Navigation Icons
@@ -249,8 +249,8 @@ export const ArrowRight = (props) => (
 
 export const Upload = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} color={"currentColor"} fill={"none"} {...props}>
-        <path d="M2.99994 17C2.99994 17.93 2.99994 18.395 3.10216 18.7765C3.37956 19.8117 4.18821 20.6204 5.22348 20.8978C5.60498 21 6.06997 21 6.99994 21L16.9999 21C17.9299 21 18.3949 21 18.7764 20.8978C19.8117 20.6204 20.6203 19.8117 20.8977 18.7765C20.9999 18.395 20.9999 17.93 20.9999 17" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-        <path d="M16.5 7.49993C16.5 7.49993 13.1858 2.99997 12 2.99996C10.8141 2.99995 7.50002 7.49996 7.50002 7.49996M12 3.99996V16" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M2.99994 17C2.99994 17.93 2.99994 18.395 3.10216 18.7765C3.37956 19.8117 4.18821 20.6204 5.22348 20.8978C5.60498 21 6.06997 21 6.99994 21L16.9999 21C17.9299 21 18.3949 21 18.7764 20.8978C19.8117 20.6204 20.6203 19.8117 20.8977 18.7765C20.9999 18.395 20.9999 17.93 20.9999 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M16.5 7.49993C16.5 7.49993 13.1858 2.99997 12 2.99996C10.8141 2.99995 7.50002 7.49996 7.50002 7.49996M12 3.99996V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
 
@@ -337,9 +337,9 @@ export const Paste = (props) => (
 
 export const ListView = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} stroke={"currentColor"} fill={"none"} {...props}>
-        <path d="M2 11.4C2 10.2417 2.24173 10 3.4 10H20.6C21.7583 10 22 10.2417 22 11.4V12.6C22 13.7583 21.7583 14 20.6 14H3.4C2.24173 14 2 13.7583 2 12.6V11.4Z" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M2 3.4C2 2.24173 2.24173 2 3.4 2H20.6C21.7583 2 22 2.24173 22 3.4V4.6C22 5.75827 21.7583 6 20.6 6H3.4C2.24173 6 2 5.75827 2 4.6V3.4Z" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" />
-        <path d="M2 19.4C2 18.2417 2.24173 18 3.4 18H20.6C21.7583 18 22 18.2417 22 19.4V20.6C22 21.7583 21.7583 22 20.6 22H3.4C2.24173 22 2 21.7583 2 20.6V19.4Z" stroke="#141B34" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M2 11.4C2 10.2417 2.24173 10 3.4 10H20.6C21.7583 10 22 10.2417 22 11.4V12.6C22 13.7583 21.7583 14 20.6 14H3.4C2.24173 14 2 13.7583 2 12.6V11.4Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M2 3.4C2 2.24173 2.24173 2 3.4 2H20.6C21.7583 2 22 2.24173 22 3.4V4.6C22 5.75827 21.7583 6 20.6 6H3.4C2.24173 6 2 5.75827 2 4.6V3.4Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M2 19.4C2 18.2417 2.24173 18 3.4 18H20.6C21.7583 18 22 18.2417 22 19.4V20.6C22 21.7583 21.7583 22 20.6 22H3.4C2.24173 22 2 21.7583 2 20.6V19.4Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
 );
 
@@ -510,7 +510,7 @@ export const Group = (props) => (
 )
 
 export const SortAsc = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="#fff" {...props}>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" {...props}>
     <path d="M4 14H8.42109C9.35119 14 9.81624 14 9.94012 14.2801C10.064 14.5603 9.74755 14.8963 9.11466 15.5684L5.47691 19.4316C4.84402 20.1037 4.52757 20.4397 4.65145 20.7199C4.77533 21 5.24038 21 6.17048 21H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M4 9L6.10557 4.30527C6.49585 3.43509 6.69098 3 7 3C7.30902 3 7.50415 3.43509 7.89443 4.30527L10 9" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M17.5 20V4M17.5 20C16.7998 20 15.4915 18.0057 15 17.5M17.5 20C18.2002 20 19.5085 18.0057 20 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -518,7 +518,7 @@ export const SortAsc = (props) => (
 )
 
 export const SortDesc = (props) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="#fff" {...props}>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={16} height={16} fill="none" {...props}>
     <path d="M4 3H8.42109C9.35119 3 9.81624 3 9.94012 3.28013C10.064 3.56026 9.74755 3.89632 9.11466 4.56842L5.47691 8.43158C4.84402 9.10368 4.52757 9.43974 4.65145 9.71987C4.77533 10 5.24038 10 6.17048 10H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M4 21L6.10557 16.3053C6.49585 15.4351 6.69098 15 7 15C7.30902 15 7.50415 15.4351 7.89443 16.3053L10 21" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
     <path d="M17.5 20V4M17.5 20C16.7998 20 15.4915 18.0057 15 17.5M17.5 20C18.2002 20 19.5085 18.0057 20 17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -556,7 +556,7 @@ export const Minus = (props) => (
 // Page/Document Icons
 export const Page = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="30" height="42" viewBox="0 0 30 42" fill="none" {...props}>
-    <path d="M29.55 10.95L19.05 0.450044C18.918 0.303466 18.7558 0.18731 18.5745 0.109612C18.3932 0.0319142 18.1972 -0.00547053 18 4.40737e-05H3C2.20507 0.00237881 1.44336 0.319199 0.881259 0.881303C0.319155 1.44341 0.00233473 2.20511 0 3.00004V39C0.00233473 39.795 0.319155 40.5567 0.881259 41.1188C1.44336 41.6809 2.20507 41.9977 3 42H27C27.7949 41.9977 28.5566 41.6809 29.1187 41.1188C29.6808 40.5567 29.9977 39.795 30 39V12C30.0055 11.8029 29.9681 11.6069 29.8904 11.4256C29.8127 11.2443 29.6966 11.082 29.55 10.95ZM18 3.60004L26.4 12H18V3.60004ZM27 39H3V3.00004H15V12C15.0023 12.795 15.3192 13.5567 15.8813 14.1188C16.4434 14.6809 17.2051 14.9977 18 15H27V39Z" fill="#2D3E4C" />
+    <path d="M29.55 10.95L19.05 0.450044C18.918 0.303466 18.7558 0.18731 18.5745 0.109612C18.3932 0.0319142 18.1972 -0.00547053 18 4.40737e-05H3C2.20507 0.00237881 1.44336 0.319199 0.881259 0.881303C0.319155 1.44341 0.00233473 2.20511 0 3.00004V39C0.00233473 39.795 0.319155 40.5567 0.881259 41.1188C1.44336 41.6809 2.20507 41.9977 3 42H27C27.7949 41.9977 28.5566 41.6809 29.1187 41.1188C29.6808 40.5567 29.9977 39.795 30 39V12C30.0055 11.8029 29.9681 11.6069 29.8904 11.4256C29.8127 11.2443 29.6966 11.082 29.55 10.95ZM18 3.60004L26.4 12H18V3.60004ZM27 39H3V3.00004H15V12C15.0023 12.795 15.3192 13.5567 15.8813 14.1188C16.4434 14.6809 17.2051 14.9977 18 15H27V39Z" fill="currentColor" />
   </svg>
 )
 
@@ -571,9 +571,9 @@ export const PageRound = (props) => (
 export const Section = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48" fill="none" {...props}>
     <g clipPath="url(#clip0_2741_71019)">
-      <path d="M38.55 13.95L28.05 3.45C27.75 3.15 27.45 3 27 3H12C10.35 3 9 4.35 9 6V42C9 43.65 10.35 45 12 45H36C37.65 45 39 43.65 39 42V15C39 14.55 38.85 14.25 38.55 13.95ZM27 6.6L35.4 15H27V6.6ZM36 42H12V6H24V15C24 16.65 25.35 18 27 18H36V42Z" fill="#2D3E4C" />
-      <path d="M15 33H33V36H15V33Z" fill="#2D3E4C" />
-      <path d="M15 24H33V27H15V24Z" fill="#2D3E4C" />
+      <path d="M38.55 13.95L28.05 3.45C27.75 3.15 27.45 3 27 3H12C10.35 3 9 4.35 9 6V42C9 43.65 10.35 45 12 45H36C37.65 45 39 43.65 39 42V15C39 14.55 38.85 14.25 38.55 13.95ZM27 6.6L35.4 15H27V6.6ZM36 42H12V6H24V15C24 16.65 25.35 18 27 18H36V42Z" fill="currentColor" />
+      <path d="M15 33H33V36H15V33Z" fill="currentColor" />
+      <path d="M15 24H33V27H15V24Z" fill="currentColor" />
     </g>
     <defs>
       <clipPath id="clip0_2741_71019">
@@ -729,4 +729,126 @@ export const Moon = (props) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" {...props}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M21.752 15.002A9.72 9.72 0 0 1 18 15.75c-5.385 0-9.75-4.365-9.75-9.75 0-1.33.266-2.597.748-3.752A9.753 9.753 0 0 0 3 11.25C3 16.635 7.365 21 12.75 21a9.753 9.753 0 0 0 9.002-5.998Z" />
   </svg>
+)
+
+// ── tessera v6 glyphs (design_system_v6/theme/icons.js — same paths; 24px grid, 1.5 stroke, round
+// caps, currentColor). Added 2026-10-07 for the datasets create page's type cards; the library had no
+// Table / Map / File, and its `Columns` is a different glyph (kept — other pages use it).
+const T6 = {xmlns: "http://www.w3.org/2000/svg", viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.5, strokeLinecap: "round", strokeLinejoin: "round"};
+
+export const Table = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2"/>
+    <path d="M3.5 9.5h17M3.5 14.5h17M12 4.5v15"/>
+  </svg>
+)
+
+export const Map = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <path d="M9 4.5L4 6.5v13l5-2 6 2 5-2v-13l-5 2-6-2Z"/>
+    <path d="M9 4.5v13M15 6.5v13"/>
+  </svg>
+)
+
+export const File = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <path d="M6.5 3.5h7l4 4v13h-11v-17Z"/>
+    <path d="M13.5 3.5v4h4"/>
+  </svg>
+)
+
+export const TableColumns = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <rect x="3.5" y="4.5" width="5" height="15" rx="1.5"/>
+    <rect x="10.5" y="4.5" width="5" height="15" rx="1.5"/>
+    <rect x="17.5" y="4.5" width="3" height="15" rx="1.5"/>
+  </svg>
+)
+
+// Layout-grid toggle on the page editor's edit bar (2026-10-08). Named 'Grid' in editPane/index.jsx
+// but never registered here, so every theme without its own Icons.Grid drew the fallback glyph.
+export const Grid = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <path d="M3.5 9h17M3.5 15h17M9 3.5v17M15 3.5v17"/>
+  </svg>
+)
+
+// Names the page pattern's section menu (NavigableMenu), user menu and section-menu layout rows ask
+// for but that were never registered — every theme without its own Icons.<name> drew the fallback
+// shield (e.g. the submenu chevron). v6 paths; registered 2026-10-08.
+export const ChevronRight = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M9.5 6l6 6-6 6"/></svg>
+)
+export const Trash = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M4.5 6.5h15M9.5 6V4.5h5V6M6.5 6.5l.8 13h9.4l.8-13M10 10.5v5M14 10.5v5"/></svg>
+)
+export const Users = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <circle cx="9.5" cy="9" r="3.2"/>
+    <path d="M3.5 19c1-2.7 3.2-4 6-4s5 1.3 6 4"/>
+    <path d="M15.5 6.2a3.2 3.2 0 0 1 0 5.6M17.5 15.3c1.6.6 2.6 1.8 3 3.7"/>
+  </svg>
+)
+export const X = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M6 6l12 12M18 6L6 18"/></svg>
+)
+export const Logout = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M14 4.5h4.5v15H14M10 8l-4 4 4 4M6 12h9.5"/></svg>
+)
+// section menu → Layout: Width ('Column') = the v6 Columns glyph, Height / Rowspan ('Row') = Layout
+export const Column = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <rect x="3.5" y="4.5" width="5" height="15" rx="1.5"/><rect x="10.5" y="4.5" width="5" height="15" rx="1.5"/><rect x="17.5" y="4.5" width="3" height="15" rx="1.5"/>
+  </svg>
+)
+export const Row = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><path d="M3.5 9h17M9.5 9v11.5"/></svg>
+)
+// section menu → Layout → Style (page-edit / section-menu mockups)
+export const Layers = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <path d="M12 3.5l8.5 4.5L12 12.5 3.5 8 12 3.5Z"/><path d="M3.5 12.5L12 17l8.5-4.5"/><path d="M3.5 17L12 21.5 20.5 17"/>
+  </svg>
+)
+// page editor drawer panes, v3 (2026-10-08) — v6 paths
+export const ChevronDown = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M6 9.5l6 6 6-6"/></svg>
+)
+export const Globe = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.4 2.3 3.6 5.1 3.6 8.5S14.4 18.2 12 20.5c-2.4-2.3-3.6-5.1-3.6-8.5S9.6 5.8 12 3.5Z"/>
+  </svg>
+)
+export const Publish = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><circle cx="12" cy="12" r="8.5"/><path d="M12 16V8M8.5 11.5L12 8l3.5 3.5"/></svg>
+)
+export const Text = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M5 6.5V5h14v1.5M12 5v14M9.5 19h5"/></svg>
+)
+export const Check = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M4.5 12.5l5 5L19.5 7"/></svg>
+)
+export const Ellipsis = (props) => (
+  <svg width={24} height={24} {...T6} {...props}>
+    <circle cx="5" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1.1" fill="currentColor" stroke="none"/>
+  </svg>
+)
+
+// Generic menu-item glyphs (2026-10-08): NavigableMenu draws one of these for an item that names no
+// icon (navigableMenu theme `menuItemDefaultIcon*`), and the section menu's Padding / Border rows
+// use the last two (they were Blank aliases).
+export const Toggle = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><rect x="2.5" y="7" width="19" height="10" rx="5"/><circle cx="16.5" cy="12" r="2.5"/></svg>
+)
+export const Dot = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><circle cx="12" cy="12" r="2.25" fill="currentColor" stroke="none"/></svg>
+)
+export const Sliders = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+)
+export const Padding = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><rect x="3.5" y="3.5" width="17" height="17" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1" strokeDasharray="2 2"/></svg>
+)
+export const Border = (props) => (
+  <svg width={24} height={24} {...T6} {...props}><rect x="3.5" y="3.5" width="17" height="17" rx="2" strokeDasharray="2 2.5"/><path d="M3.5 20.5h17" strokeWidth="2.25"/></svg>
 )

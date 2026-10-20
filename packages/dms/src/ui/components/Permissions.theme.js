@@ -1,43 +1,52 @@
-// v6-token theme for the shared Permissions grants editor (users/groups ×
-// permission-domain, inherited-from-parent rows with disable/undo). Flat map
-// (no styles[]/activeStyle) — this component has no visual variants, just one
-// look, consistent everywhere it's used (page pane, section-menu popup,
-// dataset source uacPanel, admin pattern's Access page). Previously this
-// component never read the theme registry at all (a local hardcoded
-// `permissionsTheme` with raw grays) — registered here like every other
-// ported v6 primitive (2026-09-20).
+// Theme for the shared Permissions grants editor (users/groups × permission-domain, plus
+// inherited-from-parent rows with edit / reset / disable / undo). Flat map — one look,
+// consistent everywhere it's used: page Permissions pane, section menu, datasets source Admin
+// (SourceAccessEditor), admin pattern Access page.
+//
+// v3 layout (owner 2026-10-06, datasets-page-pattern-v6-port.md Decision 22): a header with
+// "+ group" / "+ person"; one card of grants (name line, then permission pills); inherited grants
+// collapsed into "Inherited from …" with a count; the keep-yourself-on note. The page pane adds its
+// own "who can do what" summary above (passed in as `summary`). No project theme overrides this
+// key (checked 2026-10-06), so the re-key below needs no per-project patches.
 export const permissionsTheme = {
-    componentWrapper: 'flex flex-col gap-4',
-    selectWrapper: 'flex flex-col gap-2',
-    // Label + "add access" picker inline on one row, matching the mockup's
-    // small `+ add group/user access` pill button. `<MultiSelect>`'s
-    // 'addUserAccess'/'addGroupAccess' styles (MultiSelect.theme.js) size
-    // themselves to their own content (`w-fit`) — this wrapper just keeps
-    // it from being stretched by the flex row.
-    headerRow: 'flex items-center gap-3',
-    selectLabel: 't-metaSM text-[var(--t-graphite)]',
+    componentWrapper: 'flex flex-col gap-3',
+
+    // header: heading + the two add pickers (MultiSelect style 'addAccess')
+    headerRow: 'flex items-center gap-2',
+    // a UI.FieldLabel named style (2026-10-17, raw-HTML pass): 'permHeading' in FieldLabel.theme.js
+    selectLabelStyle: 'permHeading',
     addAccessWrapper: 'w-fit flex-none',
-    valueWrapper: 'flex flex-col divide-y divide-[var(--t-rule)]',
-    valueWrapperInherited: 'flex flex-col divide-y divide-[var(--t-rule)] bg-[var(--t-well)] rounded-md',
-    valueSubWrapper: 'flex items-center gap-2.5 py-2 px-1',
-    valueSubWrapperInherited: 'flex flex-col gap-1.5 py-2 px-2.5',
-    // `min-w-[25%]` keeps the name column aligned across rows even when a
-    // name is short (e.g. "public") — `flex-none` alone sizes purely to
-    // content, so short and long names lined up at different widths.
-    title: 't-metaMD text-[var(--t-ink)] flex-none min-w-[25%] max-w-[220px] truncate',
-    // The permission-domain multiselect (ColumnTypes.multiselect.EditComp)
-    // defaults to `w-full` with no width prop of its own — wrapping it here
-    // constrains it to the ROW's leftover space instead of the full row
-    // width, so name + editor + remove sit on one line instead of each
-    // wrapping onto its own (found 2026-09-20). `max-w-[50%]` on top of that
-    // stops it from stretching edge-to-edge on wide rows (still `flex-1`, so
-    // it grows to fill up to that cap, just never past it — 2026-09-20).
-    valueEditorWrapper: 'flex-1 min-w-0 max-w-[50%]',
-    disabledLabel: 't-metaXS text-[var(--t-brick)] font-semibold',
-    // Icon-only remove button, matching the mockup's Trash icon
-    // (`text-pencil hover:text-brick`) instead of a plain "remove" text link.
-    removeBtn: 'w-fit p-1 rounded-md text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)] transition-colors duration-150',
-    removeIcon: 'w-4 h-4',
+
+    // the grants card
+    grantList: 'border border-[var(--t-rule)] rounded-lg divide-y divide-[var(--t-rule)]',
+    grantRow: 'px-3 py-2.5',
+    grantHead: 'flex items-center gap-2 min-w-0',
+    grantIcon: 'size-3.5 shrink-0 text-[var(--t-pencil)]',
+    title: 't-proseSM font-medium text-[var(--t-ink)] flex-1 min-w-0 truncate',
+    // the permission pills (ColumnTypes.multiselect.EditComp) sit under the name
+    valueEditorWrapper: 'mt-1.5 pl-5 min-w-0',
+    // named MultiSelect style for those pills (MultiSelect.theme.js)
+    permEditorStyle: 'permissions',
+    emptyText: 'px-3 py-3 t-proseXS text-[var(--t-pencil)]',
+    removeIcon: 'size-3.5',
+
+    // inherited grants — collapsed by default
+    inheritedWrap: 'border border-[var(--t-rule)] rounded-lg',
+    inheritedSummary: 'flex items-center gap-2 px-3 py-2.5 cursor-pointer list-none select-none',
+    inheritedSummaryLabel: 't-proseSM text-[var(--t-ink)] flex-1',
+    inheritedSummaryCount: 't-metaMD text-[11px] text-[var(--t-pencil)]',
+    inheritedSummaryIcon: 'size-3.5 text-[var(--t-pencil)]',
+    inheritedRow: 'px-3 py-2 border-t border-[var(--t-rule)]',
+    inheritedHead: 'flex items-center gap-2 min-w-0',
+    inheritedName: 't-proseSM text-[var(--t-graphite)] flex-1 min-w-0 truncate',
+    inheritedNameDisabled: 't-proseSM text-[var(--t-pencil)] line-through flex-1 min-w-0 truncate',
+    disabledLabel: 't-metaXS text-[var(--t-brick)]',
+    overriddenLabel: 't-metaXS text-[var(--t-amber)]',
+    // UI.Button named styles (2026-10-17, raw-HTML pass): 'permInherited' / 'permInheritedQuiet' in Button.theme.jsx
+    inheritedActionStyle: 'permInherited',
+    inheritedActionQuietStyle: 'permInheritedQuiet',
+
+    note: 't-proseXS text-[var(--t-pencil)]',
 }
 
 export default permissionsTheme

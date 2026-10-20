@@ -11,13 +11,14 @@ function sameTime(a, b) {
     return Math.abs(new Date(a) - new Date(b)) < 5000;
 }
 
+// Status pill (2026-10-13, ui-controls.html): r4 mono, token tones. Used by the admin activity tables.
 export function ActivityActionBadgeView({ row }) {
     if (!row) return null;
     if (isPublishedRow(row)) {
-        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">Published</span>;
+        return <span className="inline-flex items-center h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-go-soft)] text-[var(--t-go)]">Published</span>;
     }
     if (sameTime(row.created_at, row.updated_at)) {
-        return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-blue-50 text-blue-700 border border-blue-200">Created</span>;
+        return <span className="inline-flex items-center h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]">Created</span>;
     }
-    return <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-gray-100 text-gray-600 border border-gray-200">Edited</span>;
+    return <span className="inline-flex items-center h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-well)] text-[var(--t-graphite)]">Edited</span>;
 }

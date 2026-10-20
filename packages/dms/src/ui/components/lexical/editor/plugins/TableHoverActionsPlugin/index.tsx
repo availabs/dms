@@ -36,6 +36,10 @@ import {createPortal} from 'react-dom';
 
 import {getThemeSelector} from '../../utils/getThemeSelector';
 import useDebounce from '../../utils/useDebounce';
+import { useLexicalTheme } from '../../../useLexicalTheme';
+import { ThemeContext } from '../../../../../useTheme';
+// UI.Button (2026-10-17, raw-HTML pass): the host UI wins; the imported one covers a Provider-less mount
+import DefaultButton from '../../../../Button';
 
 const BUTTON_WIDTH_PX = 20;
 const IS_MAC = typeof navigator !== 'undefined' && /^mac/i.test(navigator.platform);
@@ -46,6 +50,9 @@ function TableHoverActionsContainer({
   anchorElem: HTMLElement;
 }): JSX.Element | null {
   const [editor, {getTheme}] = useLexicalComposerContext();
+  const lexTheme = useLexicalTheme();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
   const isEditable = useLexicalEditable();
   const [isShownRow, setShownRow] = useState<boolean>(false);
   const [isShownColumn, setShownColumn] = useState<boolean>(false);
@@ -267,15 +274,17 @@ function TableHoverActionsContainer({
   return (
     <>
       {isShownRow && (
-        <button
-          className={getTheme()?.tableAddRows ?? ''}
+        <Button
+          activeStyle={lexTheme.tableAddRows_style}
+          data-lex-table-add="rows"
           style={{...position}}
           onClick={() => insertAction(true)}
         />
       )}
       {isShownColumn && (
-        <button
-          className={getTheme()?.tableAddColumns ?? ''}
+        <Button
+          activeStyle={lexTheme.tableAddColumns_style}
+          data-lex-table-add="columns"
           style={{...position}}
           onClick={() => insertAction(false)}
         />
@@ -301,12 +310,8 @@ function getMouseInfo(
 
     const isOutside = !(
       tableDOMNode ||
-      target.closest<HTMLElement>(
-        `button${getThemeSelector(getTheme, 'tableAddRows')}`,
-      ) ||
-      target.closest<HTMLElement>(
-        `button${getThemeSelector(getTheme, 'tableAddColumns')}`,
-      ) ||
+      // the add buttons are found by attribute, not by their classes (a theme's Button style names them, 2026-10-17)
+      target.closest<HTMLElement>('button[data-lex-table-add]') ||
       target.closest<HTMLElement>('div.TableCellResizer__resizer')
     );
 

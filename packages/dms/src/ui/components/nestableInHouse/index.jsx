@@ -13,6 +13,11 @@ export const nestableInHouseTheme = {
         },
         {
             childrenWrapper: ""
+        },
+        {
+            // indented children, no rule — the page editor's Pages pane v3 (2026-10-08)
+            name: 'indent',
+            childrenWrapper: "ml-4"
         }
     ]
 }

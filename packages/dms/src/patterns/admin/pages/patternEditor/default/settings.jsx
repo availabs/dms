@@ -34,14 +34,16 @@ function LocationsEditor({ value, onChange }) {
                    onChange={e => update(i, 'subdomain', e.target.value)} />
             <Input value={loc?.base_url || ''} placeholder={'base URL (e.g. /freightatlas)'}
                    onChange={e => update(i, 'base_url', e.target.value)} />
-            <button type={'button'} className={t.listRemoveBtn} title={'remove location'}
-                    onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>remove</button>
+            <Button activeStyle='smallDanger' title={'remove location'}
+                    onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>remove</Button>
           </div>
         ))}
-        <button type={'button'} className={t.listAddBtn}
-                onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
-          + add location
-        </button>
+        <span className={t.listAddWrap}>
+          <Button activeStyle='linkProse'
+                  onClick={() => onChange([...rows, { subdomain: '', base_url: '' }])}>
+            + add location
+          </Button>
+        </span>
       </div>
     </div>
   );
@@ -57,7 +59,7 @@ function LocationsEditor({ value, onChange }) {
 function RetiredSubdomainsEditor({ value, onChange }) {
   const { UI, theme } = useContext(ThemeContext);
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const { Input } = UI;
+  const { Input, Button } = UI;
   const rows = Array.isArray(value) ? value : [];
   return (
     <div className={t.card}>
@@ -70,14 +72,16 @@ function RetiredSubdomainsEditor({ value, onChange }) {
           <div key={i} className={t.listRow}>
             <Input value={sub || ''} placeholder={'subdomain (e.g. tsmo2)'}
                    onChange={e => onChange(rows.map((r, ri) => ri === i ? e.target.value : r))} />
-            <button type={'button'} className={t.listRemoveBtn} title={'remove subdomain'}
-                    onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>remove</button>
+            <Button activeStyle='smallDanger' title={'remove subdomain'}
+                    onClick={() => onChange(rows.filter((_, ri) => ri !== i))}>remove</Button>
           </div>
         ))}
-        <button type={'button'} className={t.listAddBtn}
-                onClick={() => onChange([...rows, ''])}>
-          + add retired subdomain
-        </button>
+        <span className={t.listAddWrap}>
+          <Button activeStyle='linkProse'
+                  onClick={() => onChange([...rows, ''])}>
+            + add retired subdomain
+          </Button>
+        </span>
       </div>
     </div>
   );
@@ -280,7 +284,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
         <div className={t.header}>
           <span className={t.headerTitle}>{value.name || 'Pattern'}</span>
           {!!value.pattern_type && (
-            <span className={t.headerTypePill}>{Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type}</span>
+            <span className={`${t.headerTypePill} ${t.headerTypeTones?.[Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type] || t.headerTypeToneDefault || ''}`}>{Array.isArray(value.pattern_type) ? value.pattern_type[0] : value.pattern_type}</span>
           )}
           <span className={t.headerSubtitle}>{value.type} · id {value.id} · {value.base_url || '/'} on {value.subdomain || '*'}</span>
         </div>
@@ -292,12 +296,12 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
               : isDirty ? 'unsaved changes — applies to identity, locations, and retired subdomains below' : 'no unsaved changes'}
           </span>
           <span className='flex-1' />
-          <button type={'button'} className={t.btnReset} disabled={!isDirty} onClick={() => { setConfirmAdminMove(false); setTmpValue(value); }}>
+          <Button activeStyle='action' disabled={!isDirty} onClick={() => { setConfirmAdminMove(false); setTmpValue(value); }}>
             reset
-          </button>
-          <button type={'button'} className={t.btnSave} disabled={!isDirty} onClick={saveChanges}>
+          </Button>
+          <Button activeStyle='primary' disabled={!isDirty} onClick={saveChanges}>
             {confirmAdminMove ? 'confirm move' : 'save changes'}
-          </button>
+          </Button>
         </div>
 
         <div className={t.card}>
@@ -417,14 +421,14 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                   </div>
                 )}
               </div>
-              <button
-                className={t.btnDuplicate}
+              <Button
+                activeStyle='action'
                 disabled={isDuplicating}
                 onClick={handleDuplicate}
               >
                 <Icon icon='Copy' className={t.iconSm}/>
                 {isDuplicating ? 'duplicating…' : 'duplicate'}
-              </button>
+              </Button>
             </div>
             )}
 
@@ -434,28 +438,30 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
                 <p className={t.dangerRowTitle}>delete this pattern</p>
               </div>
               {!confirmDelete ? (
-                <button
-                  className={t.btnDelete}
-                  onClick={() => setConfirmDelete(true)}
-                >
-                  <Icon icon='TrashCan' className={t.iconSm}/>
-                  delete pattern…
-                </button>
+                <span className={t.deleteWrap}>
+                  <Button
+                    activeStyle='danger'
+                    onClick={() => setConfirmDelete(true)}
+                  >
+                    <Icon icon='TrashCan' className={t.iconSm}/>
+                    delete pattern…
+                  </Button>
+                </span>
               ) : (
                 <div className={t.confirmRow}>
                   <span className={t.confirmText}>are you sure?</span>
-                  <button
-                    className={t.btnConfirmDelete}
+                  <Button
+                    activeStyle='dangerSolid'
                     onClick={handleDelete}
                   >
                     confirm delete
-                  </button>
-                  <button
-                    className={t.btnCancelDelete}
+                  </Button>
+                  <Button
+                    activeStyle='action'
                     onClick={() => setConfirmDelete(false)}
                   >
                     cancel
-                  </button>
+                  </Button>
                 </div>
               )}
             </div>
@@ -473,7 +479,7 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
   const [localEnvs, setLocalEnvs] = useState(initialDmsEnvs);
   const { UI, theme } = useContext(ThemeContext);
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const { MultiSelect, Input, Button, Switch } = UI;
+  const { MultiSelect, Input, Button, Switch, FieldLabel } = UI;
 
   const envOptions = [
     { label: 'None (legacy)', value: '' },
@@ -531,7 +537,7 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
       </div>
       <div className={t.envGrid}>
         <div className={t.envColWide}>
-          <label className={t.envLabel}>dms environment</label>
+          <FieldLabel text="dms environment" />
           <MultiSelect
             singleSelectOnly
             searchable={false}
@@ -541,9 +547,10 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
           />
         </div>
         <div className={t.envColMid}>
-          <label className={t.envLabel}>create new environment</label>
+          <FieldLabel htmlFor="dms-env-new" text="create new environment" />
           <div className={t.envInputRow}>
             <Input
+              id="dms-env-new"
               value={newEnvName}
               placeholder='Environment name'
               onChange={e => setNewEnvName(e.target.value)}

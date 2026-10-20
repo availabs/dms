@@ -4,6 +4,9 @@ import { get } from "lodash-es";
 
 import { DatasetsContext } from "../../context";
 import { getExternalEnv } from "../../utils/datasources";
+import { ThemeContext } from "../../../../ui/useTheme";
+import { udaTaskPageTheme } from "./UdaTaskPage.theme";
+import { udaTaskListTheme } from "./UdaTaskList.theme";
 
 const TASK_ATTRS = [
   "task_id",
@@ -53,20 +56,25 @@ function formatDuration(startedAt, completedAt) {
   return `${Math.floor(ms / 3600000)} hours`;
 }
 
-const StatusBadge = ({ value, className = "", ...rest }) => {
+// Status chip — styled by datasets.udaTaskPage (shared with the task page's own StatusBadge).
+// The Table hands the cell its class + column props; keep the cell wrapper and put the pill inside,
+// so the chip doesn't stretch to fill the cell.
+const StatusBadge = ({ value, className = "" }) => {
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...udaTaskPageTheme, ...(theme?.datasets?.udaTaskPage || {}) };
   const colors = {
-    done: "bg-green-100 text-green-800",
-    error: "bg-red-100 text-red-800",
-    running: "bg-blue-100 text-blue-800",
-    queued: "bg-gray-100 text-gray-600",
+    done: t.statusDone,
+    error: t.statusError,
+    running: t.statusRunning,
+    queued: t.statusQueued,
   };
   return (
-    <span
-      className={`px-2 py-0.5 rounded text-xs font-medium ${colors[value] || "bg-gray-100"} ${className}`}
-      {...rest}
-    >
-      {value}
-    </span>
+    <div className={className}>
+      <span className={`${t.statusBadge} ${colors[value] || t.statusDefault}`}>
+        {value === "running" && t.statusRunningDot ? <span className={t.statusRunningDot}/> : null}
+        {value}
+      </span>
+    </div>
   );
 };
 
@@ -80,8 +88,15 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
   // layer dispatches by env.includes('+').
   const pgEnv = env || getExternalEnv(datasources);
   const { Table, Pagination } = UI;
+  const { theme } = React.useContext(ThemeContext) || {};
+  const t = { ...udaTaskListTheme, ...(theme?.datasets?.udaTaskList || {}) };
   const [currentPage, setCurrentPage] = React.useState(0);
   const [data, setData] = React.useState({ data: [], length: 0 });
+  const [loaded, setLoaded] = React.useState(false);
+
+  // UI.Table renders the list in every theme (`t.tableStyle`: the default theme's 'list'; '' on project
+  // themes → their own table look). Each cell's wrapper takes the table's cell class (`className`); the
+  // inner element takes this theme's class, so the two never compete on one element.
 
   const COLUMNS = [
     {
@@ -89,10 +104,10 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       display_name: "Task ID",
       show: true,
       type: "ui",
-      Comp: ({ value, ...rest }) => (
-        <Link to={`${baseUrl}/task/${value}`} {...rest}>
-          {value}
-        </Link>
+      Comp: ({ value, className }) => (
+        <div className={className}>
+          <Link to={`${baseUrl}/task/${value}`} className={t.idLink}>{value}</Link>
+        </div>
       ),
     },
     {
@@ -100,22 +115,19 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       display_name: "Type",
       show: true,
       type: "ui",
-      Comp: ({ value, className, ...rest }) => {
-        const formatted = (value || "").replace(/\//g, " ").replace(/-/g, " ");
-        return (
-          <div {...rest} className={`capitalize ${className}`}>
-            {formatted}
-          </div>
-        );
-      },
+      Comp: ({ value, className }) => (
+        <div className={className}>
+          <span className={t.typeCell}>{(value || "").replace(/\//g, " ").replace(/-/g, " ")}</span>
+        </div>
+      ),
     },
     {
       name: "source_name",
       display_name: "Source",
       show: true,
       type: "ui",
-      Comp: ({ value, ...rest }) => (
-        <div {...rest}>{typeof value === "string" ? value : ""}</div>
+      Comp: ({ value, className }) => (
+        <div className={className}>{typeof value === "string" ? value : ""}</div>
       ),
     },
     {
@@ -130,12 +142,18 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       display_name: "Started",
       show: true,
       type: "ui",
-      Comp: ({ value, ...rest }) => <div {...rest}>{timeAgo(value)}</div>,
+      Comp: ({ value, className }) => (
+        <div className={className}><span className={t.startedCell}>{timeAgo(value)}</span></div>
+      ),
     },
     {
       name: "duration",
       display_name: "Duration",
       show: true,
+      type: "ui",
+      Comp: ({ value, className }) => (
+        <div className={className}><span className={t.durationCell}>{value}</span></div>
+      ),
     },
   ];
 
@@ -151,6 +169,7 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       const length = +get(lenRes, ["json", ...lengthPath], 0);
       if (!length) {
         setData({ data: [], length: 0 });
+        setLoaded(true);
         return;
       }
 
@@ -235,22 +254,38 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
       }
 
       setData({ data: tasks, length });
+      setLoaded(true);
     };
     load();
   }, [falcor, pgEnv, currentPage, sourceId]);
 
-  if (!data.length) return null;
+  if (!data.length) {
+    // pre-v6 rendered nothing; v6 says so once the count has come back empty
+    return loaded && t.emptyTitle ? (
+      <div className={t.emptyWrapper}>
+        <p className={t.emptyTitle}>No tasks yet</p>
+        <p className={t.emptyText}>
+          {sourceId
+            ? "Loader runs, publishes and download builds for this source will show up here."
+            : "Tasks appear here when a source is published, a loader runs, or downloads are built."}
+        </p>
+      </div>
+    ) : null;
+  }
 
+  const pagination = (
+    <Pagination
+      currentPage={currentPage}
+      setCurrentPage={setCurrentPage}
+      pageSize={pageSize}
+      usePagination={true}
+      totalLength={data.length}
+    />
+  );
   return (
-    <div className={"w-full"}>
-      <Table data={data.data} columns={COLUMNS} gridRef={ref} />
-      <Pagination
-        currentPage={currentPage}
-        setCurrentPage={setCurrentPage}
-        pageSize={pageSize}
-        usePagination={true}
-        totalLength={data.length}
-      />
+    <div className={t.wrapper}>
+      <Table data={data.data} columns={COLUMNS.map(c => ({ ...c, size: t.columnSizes?.[c.name] }))} gridRef={ref} isEdit={false} activeStyle={t.tableStyle || undefined} />
+      {pagination}
     </div>
   );
 };

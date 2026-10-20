@@ -11,6 +11,7 @@ export const Table = lazyComponent('datasets/dataTypes/Table', () => import("./g
 export const GisMap = lazyComponent('datasets/dataTypes/Map', () => import("./gis_dataset/pages/Map"));
 export const Metadata = lazyComponent('datasets/dataTypes/Metadata', () => import("./gis_dataset/pages/metadata"));
 export const GisCreate = lazyComponent('datasets/dataTypes/GisCreate', () => import("./gis_dataset/pages/Create"));
+export const GisUploads = lazyComponent('datasets/dataTypes/GisUploads', () => import("./gis_dataset/pages/Uploads"));
 export const InternalUpload = lazyComponent('datasets/dataTypes/InternalUpload', () => import("./internal/pages/upload"));
 export const InternalValidate = lazyComponent('datasets/dataTypes/InternalValidate', () => import("./internal/pages/validate"));
 export const InternalAdmin = lazyComponent('datasets/dataTypes/InternalAdmin', () => import("./internal/pages/admin"));

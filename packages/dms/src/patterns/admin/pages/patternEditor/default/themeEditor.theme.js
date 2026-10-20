@@ -38,21 +38,16 @@ export const themeEditorTheme = {
     sidebar: 'w-[300px] flex-none border-l border-[var(--t-rule)] flex flex-col min-h-0 order-2',
     sidebarSelectorWrapper: 'flex-none border-b border-[var(--t-rule)] px-4 py-3 bg-[var(--t-panel)]',
     sidebarActions: 'flex-none border-b border-[var(--t-rule)] px-4 py-2.5 flex items-center gap-2 flex-wrap',
-    btnSave: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5 cursor-pointer',
-    btnReset: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md px-3.5 py-1.5 cursor-pointer',
     // "Full Reset" (clears ALL pattern-level theme overrides, not just the
     // current form's edits) is a more destructive action than `btnReset` —
     // brick-toned like the other section's `btnRemove`, not cobalt.
-    btnFullReset: 't-metaXS text-[var(--t-brick)] border border-[var(--t-brick-soft)] bg-[var(--t-brick-soft)] hover:opacity-80 rounded-md px-3 py-1.5 cursor-pointer',
     sidebarControls: 'flex-1 overflow-y-auto scrollbar-sm p-4 flex flex-col gap-5',
 
     // frameWrapper is now a flex-col hosting the tab bar + whichever pane (Frame
     // or debugPre) is active — both fixed-flex children so neither can ever grow
     // past the box's own bounds.
     frameWrapper: 'flex-1 min-w-0 bg-[var(--t-well)] p-6 overflow-hidden order-1 flex flex-col gap-3 min-h-0',
-    frameTabBar: 'flex-none inline-flex bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-md p-0.5 self-start',
-    frameTab: 't-metaXS text-[var(--t-pencil)] rounded px-3 py-1 cursor-pointer hover:text-[var(--t-ink)]',
-    frameTabActive: 't-metaXS text-[var(--t-ink)] bg-[var(--t-well)] rounded px-3 py-1 cursor-pointer shadow-[var(--t-shadow-lift)]',
+    frameTabBar: 'inline-flex p-0.5 gap-0.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-well)] flex-none self-start',
     frame: 'w-full flex-1 min-h-0 border border-[var(--t-rule)] rounded-lg bg-[var(--t-panel)]',
 
     // ControlRenderer

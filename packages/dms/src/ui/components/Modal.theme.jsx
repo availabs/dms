@@ -9,11 +9,41 @@ export const modalTheme = {
       // Was hardcoded `bg-gray-500/75` directly in Modal.jsx (never themed at
       // all) — found while translating the Users/Groups manage-page mockups,
       // fixed here so every modal in the app gets a dark-mode-correct scrim.
-      backdrop: 'fixed inset-0 bg-[var(--t-scrim)]'
+      backdrop: 'fixed inset-0 bg-[var(--t-scrim)]',
+      // overlay layout (was inline in Modal.jsx; 2026-10-14 moved to the theme, values unchanged)
+      overlay: 'fixed inset-0 z-30',
+      scroller: 'fixed inset-0 z-10 overflow-y-auto',
+      positioner: 'flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0'
     },
     {
+      // A wide picker / browser modal (map editor source + symbology pickers, TNY report / graph pickers).
+      // v6 2026-10-14 (ui-control-tabs-overlays.md): the panel on tokens (was bg-white / shadow-xl, white in
+      // dark mode). Pre-v6 frozen in src/themes/_legacy/ui.js `modal`.
       name: 'wide',
-      panel: 'relative transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl sm:my-8 sm:w-full sm:max-w-7xl sm:p-6'
+      panel: 'relative transform overflow-hidden rounded-lg bg-[var(--t-panel)] border border-[var(--t-rule)] px-4 pb-4 pt-5 text-left shadow-[var(--t-shadow-drag)] sm:my-8 sm:w-full sm:max-w-7xl sm:p-6'
+    },
+    {
+      // The default panel at max-w-2xl (2026-10-14) — replaces `className="max-w-2xl"` (datasets PM tiles modal).
+      name: 'large',
+      panel: 'relative bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-lg p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto'
+    },
+    {
+      // The default panel at max-w-3xl, text left (2026-10-14) — replaces the GIS map settings modal's
+      // `className="max-w-3xl! text-left"`, which the Modal lock dropped.
+      name: 'settings',
+      panel: 'relative bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto text-left'
+    },
+    {
+      // A modal launched from a popup / section menu (Popup panels sit at z-index 9999): only the overlay layer
+      // changes; every other key comes from the theme's own styles[0], so projects keep their modal look (2026-10-16)
+      name: 'aboveMenu',
+      overlay: 'fixed inset-0 z-[10000]',
+    },
+    {
+      // aboveMenu at the `settings` width (the column-manager Formula builder)
+      name: 'aboveMenuWide',
+      overlay: 'fixed inset-0 z-[10000]',
+      panel: 'relative bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-lg p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto text-left'
     }
   ]
 }

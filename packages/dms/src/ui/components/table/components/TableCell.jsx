@@ -320,7 +320,7 @@ export const TableCell = memo(function TableCell ({
         ? attribute.defaultValue
         : formattedValue;
 
-    const selectionColor = '#2100f8'
+    const selectionColor = theme?.selectionColor || '#2100f8'
     const selectionEdgeClassNames = {
         top: {borderTopColor: selectionColor},
         bottom: {borderBottomColor: selectionColor},

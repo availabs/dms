@@ -4,7 +4,5 @@ export const viewAsBarTheme = {
   label: 'text-amber-700',
   email: 'font-semibold text-amber-900',
   groupPills: 'flex gap-1',
-  groupPill: 'px-2 py-0.5 rounded-full bg-amber-200 text-amber-800 text-xs font-normal',
   spacer: 'flex-1',
-  exitButton: 'ml-auto px-3 py-1 rounded bg-amber-300 hover:bg-amber-400 text-amber-900 text-xs font-semibold cursor-pointer transition-colors',
 };

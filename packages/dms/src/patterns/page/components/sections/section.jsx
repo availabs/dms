@@ -10,7 +10,9 @@ import {getSectionHeaderExtensions} from './sectionHeaderExtensions'
 import {
     getHelpTextArray,
     initialState,
-    isJson
+    isJson,
+    sectionToken,
+    sectionTitleClass
 } from './section_utils'
 import {
     DeleteModal,
@@ -290,10 +292,10 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
              style={Object.keys(wrapperStyle).length ? wrapperStyle : undefined}>
             {/* -------------------top line buttons ----------------------*/}
             <div id={`#${value?.title?.replace(/ /g, '_')}`}
-                 className={`flex flex-row font-display font-medium uppercase scroll-mt-36 items-center`}>
-                <div className='flex-1'>
+                 className={sectionToken(theme, 'editHeaderRow')}>
+                <div className={sectionToken(theme, 'editHeaderTitleWrap')}>
                     <TitleViewComp
-                        className={`w-full ${fullTheme.heading?.[value?.['level']] || fullTheme.heading?.['default']}`}
+                        className={sectionTitleClass(theme, fullTheme, value?.['level'])}
                         value={value?.['title']}
                     />
                 </div>
@@ -304,6 +306,7 @@ export function SectionEdit({ i, value, attributes, siteType, format, onChange, 
                             helpTextArray={helpTextArray}
                             updateAttribute={updateAttribute}
                             HelpComp={HelpComp}
+                            sectionTheme={theme}
                         />
                         <div className={theme.menuPosition}>
                             <NavigableMenu
@@ -593,8 +596,10 @@ export function SectionView({ i, value, attributes, siteType, format, isActive, 
                     <div className={theme.menuPosition}>
                         {(showEditIcons) && (
                             <>
-                                {value.hideInView ? <Pill color={'orange'} text={'Hidden from View'} /> : null}
-                                {group?.collapsible && value.showWhenCollapsed ? <Pill color={'blue'} text={'Shown When Collapsed'} /> : null}
+                                {value.hideInView ? (theme.hiddenPill
+                                    ? <span className={theme.hiddenPill}><Icon icon={'EyeClosed'} className={theme.hiddenPillIcon} />Hidden from View</span>
+                                    : <Pill activeStyle={'orange'} text={'Hidden from View'} />) : null}
+                                {group?.collapsible && value.showWhenCollapsed ? <Pill activeStyle={'blue'} text={'Shown When Collapsed'} /> : null}
                                 <NavigableMenu
                                     config={sectionMenuItems}
                                     title={'Settings'}

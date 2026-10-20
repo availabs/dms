@@ -1,10 +1,13 @@
-import { useContext } from 'react'
+import { useContext, useRef } from 'react'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
+import GisErrorTable from '../ErrorTable'
 
 export const LayerAnalysisSection = ({state}) => {
-  const { theme } = useContext(ThemeContext) || {};
+  const { theme, UI } = useContext(ThemeContext) || {};
   const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
+  const { Table } = UI || {};
+  const gridRef = useRef();
   
   const { 
     etlContextId, 
@@ -25,7 +28,7 @@ export const LayerAnalysisSection = ({state}) => {
   }
 
   if (!layerAnalysis) {
-    return <div>Analyzing Layer... please wait.</div>;
+    return <div className={t.analyzingMsg || undefined}>Analyzing Layer... please wait.</div>;
   }
 
   const { layerGeometriesAnalysis } = layerAnalysis;
@@ -39,47 +42,35 @@ export const LayerAnalysisSection = ({state}) => {
     (a, b) => countsByPostGisType[b] - countsByPostGisType[a]
   );
 
+  // no geometries in the layer: say so instead of an empty table (2026-10-15, every theme)
+  if (!geomTypes.length) {
+    return (
+      <div>
+        <span className={t.layerAnalysisTitle}> Layer Analysis </span>
+        <div className={t.layerAnalysisEmpty}>
+          <p className={t.layerAnalysisEmptyTitle}>No features</p>
+          <p className={t.layerAnalysisEmptyText}>This layer has no geometries to load. Choose another layer or check the file.</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div>
       <span className={t.layerAnalysisTitle}> Layer Analysis </span>
       <div className={t.layerAnalysisOuter}>
-        <div style={{ width: "50%", margin: "10px auto" }}>
-          <table className={t.layerAnalysisTable}>
-            <thead style={{ backgroundColor: "black", color: "white" }}>
-              <tr>
-                <th
-                  className={t.layerAnalysisThCenter}
-                  style={{ padding: "10px", borderRight: "1px solid white" }}
-                >
-                  Geometry Type
-                </th>
-                <th className={t.layerAnalysisThCenter} style={{ padding: "10px" }}>
-                  Feature Count
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {geomTypes.map((type,i) => (
-                <tr className={t.layerAnalysisRowBorder} key={i}>
-                  <td
-                    className={t.layerAnalysisTdType}
-                    style={{ padding: "10px", border: "1px solid" }}
-                  >
-                    {type}
-                  </td>
-                  <td
-                    className={t.layerAnalysisTdCount}
-                    style={{ padding: "10px", border: "1px solid" }}
-                  >
-                    {countsByPostGisType[type]}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        {/* UI.Table (`t.tableStyle`, 2026-10-14 ui-control-tables.md); each cell's wrapper takes the table's
+            cell class, the inner element this theme's class */}
+        <Table data={geomTypes.map(type => ({ type, count: countsByPostGisType[type] }))} gridRef={gridRef}
+          isEdit={false} activeStyle={t.tableStyle || undefined} display={{ disableCellSelection: true }}
+          columns={[
+            { name: "type", display_name: "Geometry Type", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.layerAnalysisTdType}>{value}</span></div> },
+            { name: "count", display_name: "Feature Count", show: true, type: "ui",
+              Comp: ({ value, className }) => <div className={className}><span className={t.layerAnalysisTdCount}>{value}</span></div> },
+          ]}/>
           {/*For consistency, all features will be converted to{" "}
           {commonPostGisGeometryType}s.*/}
-        </div>
       </div>
     </div>
   );
@@ -87,31 +78,6 @@ export const LayerAnalysisSection = ({state}) => {
 
 
 
-export const ErrorMessage = ({etlContextId, errorMsg}) => {
-  const { theme } = useContext(ThemeContext) || {};
-  const t = { ...gisCreateTheme, ...(theme?.datasets?.gisCreate || {}) };
-  return (
-    <table className={t.errorTable}>
-      <thead className={t.errorThead}>
-        <tr>
-          <th>
-            Layer Analysis Error
-          </th>
-          <th>
-            ETL Context ID
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td className={t.errorTdMsg}>
-            {errorMsg}
-          </td>
-          <td>
-            {etlContextId}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  )
-}
+export const ErrorMessage = ({etlContextId, errorMsg}) => (
+  <GisErrorTable title="Layer Analysis Error" message={errorMsg} etlContextId={etlContextId} />
+)

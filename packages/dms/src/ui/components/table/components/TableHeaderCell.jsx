@@ -1,5 +1,9 @@
 import React, {memo, useCallback, useContext, useEffect, useMemo, useRef, useState} from "react";
 import Icon from "../../Icon";
+import Input from "../../Input";
+import Textarea from "../../Textarea";
+import FieldLabel from "../../FieldLabel";
+import Select from "../../Select";
 import Switch from "../../Switch";
 import Popup from "../../Popup";
 import { MultiSelectEdit as MultiselectEdit } from "../../MultiSelect"
@@ -26,7 +30,7 @@ const ToggleControl = ({value, setValue}) => {
     )
 }
 
-const InputControl = ({updateColumns, inputType, value='', attributeKey, onChange, dataFetch, className}) => {
+const InputControl = ({updateColumns, inputType, value='', attributeKey, onChange, dataFetch, activeStyle}) => {
     const [tmpValue, setTmpValue] = useState(value);
 
     useEffect(() => {
@@ -38,8 +42,8 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
     }, [tmpValue]);
 
     return (
-        <input
-            className={className}
+        <Input
+            activeStyle={activeStyle}
             type={inputType}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -47,7 +51,7 @@ const InputControl = ({updateColumns, inputType, value='', attributeKey, onChang
     )
 }
 
-const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataFetch, className}) => {
+const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataFetch, activeStyle}) => {
     const [tmpValue, setTmpValue] = useState(value);
 
     useEffect(() => {
@@ -59,8 +63,8 @@ const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataF
     }, [tmpValue]);
 
     return (
-        <textarea
-            className={className}
+        <Textarea
+            activeStyle={activeStyle}
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
         />
@@ -71,7 +75,7 @@ const TextAreaControl = ({updateColumns, value='', attributeKey, onChange, dataF
 
 // Server-backed column filter — writes to state.tableFilters (a runtime-only array, never
 // persisted and never shown in the section menu's filter editor). Cleaned up on unmount.
-const ServerFilterControl = ({ attribute, className }) => {
+const ServerFilterControl = ({ attribute, className, inputStyle }) => {
     const { state, setState: setCtxState } = useContext(ComponentContext) || {};
     const [search, setSearch] = useState('');
     const [textValue, setTextValue] = useState('');
@@ -165,8 +169,8 @@ const ServerFilterControl = ({ attribute, className }) => {
     }
 
     return (
-        <input
-            className={className}
+        <Input
+            activeStyle={inputStyle}
             type="text"
             value={textValue}
             onChange={e => setTextValue(e.target.value)}
@@ -311,7 +315,7 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
                                                     setAttribute: newValue => updateColumns(undefined, newValue, onChange, dataFetch)
                                                 }) :
                                                     <div key={`${colIdName}-${key}`} className={theme.headerCellControlWrapper}>
-                                                        <label className={theme.headerCellControlLabel}>{label}</label>
+                                                        <FieldLabel activeStyle={theme.headerCellControlLabelStyle} text={label} />
                                                         {
                                                             type === 'toggle' ?
                                                                 <ToggleControl
@@ -321,16 +325,16 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
                                                                     setValue={e => updateColumns(key, e, onChange, dataFetch)}
                                                                 /> :
                                                             type === 'select' ?
-                                                                <select
-                                                                    className={theme.headerCellControl}
+                                                                // UI.Select (2026-10-17, owner: swap the native select)
+                                                                <Select
+                                                                    activeStyle="tableHeaderControl"
                                                                     value={attribute[key]}
-                                                                    onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
-                                                                >
-                                                                    { options.map(({label, value}) => <option key={value} value={value}>{label}</option>) }
-                                                                </select> :
+                                                                    options={options}
+                                                                    onChange={v => updateColumns(key, v, onChange, dataFetch)}
+                                                                /> :
                                                                 type === 'input' ?
                                                                     <InputControl
-                                                                        className={theme.headerCellControl}
+                                                                        activeStyle={theme.headerCellControlInputStyle}
                                                                         inputType={inputType}
                                                                         value={attribute[key]}
                                                                         updateColumns={updateColumns}
@@ -339,7 +343,7 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
                                                                     /> :
                                                                     type === 'textarea' ?
                                                                         <TextAreaControl
-                                                                            className={theme.headerCellControl}
+                                                                            activeStyle={theme.headerCellControlTextareaStyle}
                                                                             value={attribute[key]}
                                                                             updateColumns={updateColumns}
                                                                             attributeKey={key}
@@ -348,6 +352,7 @@ export default memo(function TableHeaderCell({isEdit, attribute, columns, displa
                                                                         type === 'filter' ?
                                                                             <ServerFilterControl
                                                                                 className={theme.headerCellControl}
+                                                                                inputStyle={theme.headerCellControlInputStyle}
                                                                                 attribute={attribute}
                                                                             /> :
                                                                             `${type} not available`

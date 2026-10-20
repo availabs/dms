@@ -12,8 +12,6 @@ import { permissionsEditorTheme } from './pages/patternEditor/default/permission
 import { themeEditorTheme } from './pages/patternEditor/default/themeEditor.theme'
 import { themeListTheme } from './pages/themes/list.theme'
 import { editThemeTheme } from './pages/themes/editTheme.theme'
-import { adminLayoutTheme } from './ui/avail-layout.theme'
-import { adminUiTheme } from './ui/index.theme'
 import { sectionGroupTheme } from './siteConfig.theme'
 
 export default {
@@ -51,8 +49,6 @@ export default {
     themeEditor: themeEditorTheme,
     themeList: themeListTheme,
     editTheme: editThemeTheme,
-    adminLayout: adminLayoutTheme,
-    adminUi: adminUiTheme,
     sectionGroup: sectionGroupTheme,
     pagesEditor: pagesEditorTheme,
 }

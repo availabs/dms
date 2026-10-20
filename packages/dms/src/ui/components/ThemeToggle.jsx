@@ -1,6 +1,7 @@
 import React from 'react'
 import { ThemeContext, getComponentTheme } from '../useTheme.js'
 import Icon from './Icon'
+import Button from './Button'
 import { themeToggleTheme } from './ThemeToggle.theme'
 
 const STORAGE_KEY = 'dms-color-scheme'
@@ -48,8 +49,8 @@ export default function ThemeToggleComp(props) {
   }
 
   return (
-    <button type="button" onClick={toggle} aria-label="Toggle dark mode" className={theme.button}>
+    <Button activeStyle={theme.buttonStyle} onClick={toggle} aria-label="Toggle dark mode">
       <Icon icon={isDark ? 'Sun' : 'Moon'} className={theme.icon} />
-    </button>
+    </Button>
   )
 }

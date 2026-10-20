@@ -1,7 +1,20 @@
-import React, {useState, useContext} from "react";
+import React, {useState, useContext, useId} from "react";
 import {ComponentContext, PageContext} from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 import {InputControl} from "../../dataWrapper/components/InputControl";
+
+// The chart description field in the graph settings (2026-10-16: UI.FieldLabel + UI.Textarea, were a raw span +
+// textarea in graph_new/config.jsx's control function).
+export const DescriptionField = ({ value, setValue }) => {
+    const { UI } = useContext(ThemeContext) || {};
+    const id = useId();
+    return (
+        <div className='flex flex-col gap-0.5 w-full'>
+            <UI.FieldLabel activeStyle="inline" htmlFor={id} text="Description" />
+            <UI.Textarea id={id} rows={3} value={value || ''} onChange={e => setValue(e.target.value)} />
+        </div>
+    );
+};
 
 export const DomainEditor = ({value, setValue, display}) => {
     const [newTick, setNewTick] = useState('');

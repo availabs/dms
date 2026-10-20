@@ -43,6 +43,13 @@ const isLocationActive = (location, pageFilterValues, groupParamKeys) => {
 // column). Legacy `compactView` blobs are normalized to this shape on hydration
 // by Card.migrate.js (called from migrateToV2).
 
+// Caption for Card.config's Empty Default column control (2026-10-16: a UI.FieldLabel, was a raw <label>). A component
+// of its own so its context read never runs inside the control function the column menus call.
+export const EmptyDefaultLabel = () => {
+    const { UI } = useContext(ThemeContext) || {};
+    return <UI.FieldLabel activeStyle="inline" text="Empty Default" />;
+};
+
 export const CardSection = ({
                   isEdit, //edit mode
                   updateItem, addItem, removeItem,

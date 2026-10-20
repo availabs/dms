@@ -4,6 +4,10 @@ import ReactDOM from "react-dom";
 const useHandleClickOutside = (menuRef, buttonRef, preventCloseOnClickOutside, onClose) => {
     const handleClickOutside = useCallback(
         (e) => {
+            // a click inside a modal opened ON TOP of this popup (e.g. a dialog launched from a section menu) is not an
+            // outside click: the popup sits behind the modal. A popup that lives inside that modal still closes normally.
+            const dialog = e.target?.closest?.('[role="dialog"][aria-modal="true"]');
+            if (dialog && !dialog.contains(menuRef.current) && !dialog.contains(buttonRef?.current)) return;
             if (
                 menuRef.current &&
                 !menuRef.current.contains(e.target) &&

@@ -1,5 +1,4 @@
 import { breadcrumbsTheme } from './components/Breadcrumbs.theme'
-import { sourceTableTheme } from './components/sourceTable.theme'
 import { datasetsListTheme } from './pages/DatasetsList/datasetsList.theme'
 import { categoriesTheme } from './pages/DatasetsList/categories.theme'
 import { metadataCompTheme } from './components/MetadataComp/metadataComp.theme'
@@ -8,10 +7,14 @@ import { externalVersionControlsTheme } from './components/ExternalVersionContro
 import { uploadTheme } from './components/upload.theme'
 import { sourceOverviewTheme } from './pages/dataTypes/default/sourceOverview.theme'
 import { adminTheme } from './pages/dataTypes/default/admin.theme'
+import { versionTheme } from './pages/dataTypes/default/version.theme'
+import { internalPagesTheme } from './pages/dataTypes/internal/pages/internalPages.theme'
 import { sourcePageTheme } from './pages/sourcePage.theme'
 import { createPageTheme } from './pages/createPage.theme'
 import { settingsPageTheme } from './pages/settingsPage.theme'
 import { udaTaskPageTheme } from './pages/Tasks/UdaTaskPage.theme'
+import { udaTaskListTheme } from './pages/Tasks/UdaTaskList.theme'
+import { errorPageTheme } from './pages/dataTypes/default/errorPage.theme'
 import { createPageTheme as fileUploadCreateTheme } from './pages/dataTypes/file_upload/CreatePage.theme'
 import { gisCreateTheme } from './pages/dataTypes/gis_dataset/pages/Create/gisCreate.theme'
 import { gisMapTheme } from './pages/dataTypes/gis_dataset/pages/Map/gisMap.theme'
@@ -19,10 +22,11 @@ import { gisPagesTheme } from './pages/dataTypes/gis_dataset/pages/gisPages.them
 import { uploadsTheme } from './pages/dataTypes/gis_dataset/pages/Uploads/uploads.theme'
 import { changeHistoryEditorTheme } from './components/ChangeHistoryEditor.theme'
 import { rulesPageTheme } from './pages/dataTypes/default/rules.theme'
+import { runsPageTheme } from './pages/dataTypes/schedule/runsPage.theme'
+import { schedulePageTheme } from './pages/dataTypes/schedule/schedulePage.theme'
 
 export default {
     breadcrumbs: breadcrumbsTheme,
-    table: sourceTableTheme,
     datasetsList: datasetsListTheme,
     categories: categoriesTheme,
     metadataComp: metadataCompTheme,
@@ -30,11 +34,15 @@ export default {
     externalVersionControls: externalVersionControlsTheme,
     upload: uploadTheme,
     sourceOverview: sourceOverviewTheme,
+    version: versionTheme,
+    internalPages: internalPagesTheme,
     datasetsAdmin: adminTheme,
     sourcePage: sourcePageTheme,
     createPage: createPageTheme,
     settingsPage: settingsPageTheme,
     udaTaskPage: udaTaskPageTheme,
+    udaTaskList: udaTaskListTheme,
+    errorPage: errorPageTheme,
     fileUploadCreate: fileUploadCreateTheme,
     gisCreate: gisCreateTheme,
     gisMap: gisMapTheme,
@@ -42,4 +50,6 @@ export default {
     uploads: uploadsTheme,
     changeHistoryEditor: changeHistoryEditorTheme,
     rulesPage: rulesPageTheme,
+    runsPage: runsPageTheme,
+    schedulePage: schedulePageTheme,
 }

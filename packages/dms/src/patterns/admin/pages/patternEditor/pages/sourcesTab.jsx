@@ -257,15 +257,15 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                         <svg className={p.searchIcon} width="13" height="13" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                             <circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/>
                         </svg>
-                        <input
+                        <UI.Input
                             type="text"
-                            className={p.searchInput}
+                            activeStyle="search"
                             placeholder="Search sources…"
                             value={search}
                             onChange={e => setSearch(e.target.value)}
                         />
                     </div>
-                    <button className={p.ghostBtn} onClick={loadAll}>Refresh</button>
+                    <UI.Button activeStyle="small" onClick={loadAll}>Refresh</UI.Button>
                 </div>
 
                 <div className={p.toolbarRow2}>
@@ -334,6 +334,7 @@ export function SourcesTab({ value, apiLoad, falcor }) {
                             display={{ showGutters: false, virtualizeColumns: false }}
                             allowEdit={false}
                             isActive={true}
+                            activeStyle='list'
                         />
                     </ThemeContext.Provider>
                 )}

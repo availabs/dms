@@ -25,7 +25,7 @@ export default function SourceAccessEditor ({ source, setSource, format, apiUpda
 
     return (
         <div className={t.uacPanel}>
-            <label className={t.uacPanelLabel}>Access</label>
+            <div className={t.uacPanelLabel}>Access</div>
             <Permissions
                 value={source?.auth_permissions}
                 inheritedValue={patternAuthPermissions}
@@ -34,6 +34,8 @@ export default function SourceAccessEditor ({ source, setSource, format, apiUpda
                 getGroups={AuthAPI?.getGroups}
                 permissionDomain={authAttr?.permissionDomain}
                 defaultPermission={authAttr?.default}
+                heading='on this source'
+                inheritedFrom='the pattern'
                 onChange={(data) => updateSourceData({ data, attrKey: 'auth_permissions', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id })}
             />
         </div>

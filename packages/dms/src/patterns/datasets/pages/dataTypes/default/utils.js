@@ -46,6 +46,8 @@ export async function resolveInternalViewNames ({pgEnv, falcor, rawViews}) {
             // `file.dl_url` / `download` without re-parsing per render.
             file: parseIfJson(row.file) || v.file,
             download: parseIfJson(row.download) || v.download,
+            created_at: row.created_at || v.created_at,
+            updated_at: row.updated_at || v.updated_at,
         };
     });
 }
@@ -65,6 +67,22 @@ export async function getSourceAuthority ({pgEnv, falcor, source_id}) {
     }
 }
 
+// Row count of one version, from the UDA length route — the same count the Table tab uses for its
+// total, and it works for both storage models: pgEnv for a DAMA source, `${app}+${sourceSlug}` for
+// a DMS (internal) one. Views don't carry a row count of their own. Resolves null on any failure,
+// so a missing count just drops out of the UI instead of breaking the page.
+export async function getViewRowCount ({env, falcor, viewId}) {
+    if (!env || viewId == null || viewId === '') return null;
+    const reqPath = ['uda', env, 'viewsById', +viewId, 'options', '{}', 'length'];
+    try {
+        const res = await falcor.get(reqPath);
+        const n = get(res, ['json', ...reqPath], null);
+        return n == null ? null : +n;
+    } catch {
+        return null;
+    }
+}
+
 // A DMS source's dataType ('file_upload', 'internal_table', …) lives in the row's `data.type`.
 // The `source` FORMAT (datasets.format.js) does not declare a `type` attribute — deliberately,
 // since `item.type` is the STORAGE row-type string (`{dmsenv}|{instance}:source`) and the two
@@ -77,6 +95,11 @@ export async function getInternalDataType ({pgEnv, falcor, source_id}) {
     const value = get(res, ['json', ...reqPath], null);
     return typeof value === 'string' && value.length ? value : null;
 }
+
+// DMS rows share one id space: `internal_source/:id` can be handed a version, page or pattern row.
+// A source row's kind is exactly `source`: `{env}|{name}:source`, or legacy `{doc}|source` (strict
+// suffix, so a future kind that merely ends in "source" doesn't pass).
+export const isNotSourceRow = (type) => !!type && typeof type === 'string' && !/[:|]source$/.test(type);
 
 export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms}) {
     //console.log('gettting data')
@@ -103,7 +126,11 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms
         // ignore whatever `id`/`source_id` legacy migrations left in data.
         // Keep `source_id` exposed for legacy callers but mirror the row id.
         const authority = await getSourceAuthority({ pgEnv, falcor, source_id });
-        setSource({...res, id: +source_id, source_id: +source_id, views, authority, created_at: firstView?.created_at, updated_at: lastView?.updated_at });
+        // `missing`: no attribute came back — there's no source with this id in this env (the id fields
+        // below are stamped on regardless, so callers can't tell from them) — or, for DMS, the id is a
+        // row of another kind (a version, a page…)
+        const missing = !sourceAttributes.some(attr => res[attr] != null) || (isDms && isNotSourceRow(res.type));
+        setSource({...res, id: +source_id, source_id: +source_id, views, authority, created_at: firstView?.created_at, updated_at: lastView?.updated_at, ...(missing ? {missing} : {}) });
 
 }
 

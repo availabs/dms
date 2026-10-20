@@ -77,7 +77,6 @@ const theme = {
                 headingText: "Sign in",
                 subtitleText: "Your sites and datasets are where you left them.",
                 forgotPasswordText: "t-proseSM text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)]",
-                actionButton: "w-full flex items-center justify-center text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-2.5 cursor-pointer",
                 actionText: "t-proseSM font-medium text-center",
                 prompt: "t-proseSM text-[var(--t-graphite)] flex gap-1 justify-center mt-2",
                 // Notices. Defaults are the literals the pages carried before these
@@ -111,7 +110,7 @@ const theme = {
         // `manageAuthConfig` (siteConfig.jsx) — MNY resolves to the dedicated
         // `mny_admin` theme rather than overriding these keys directly.
         // `headerStats`/`headerStatsItem`/`headerStatsValue`/`headerStatsLabel`
-        // (Users' user/group counts), `modalHeader`/`modalTitle`/`modalCloseBtn`
+        // (Users' user/group counts), `modalHeader`/`modalTitle` (close = UI.Button iconRow)
         // (a title + working close button on every modal), and `avatar` (Profile's
         // initial-letter badge) are new elements added to the live components
         // alongside this theme pass — the mockups called for them, but they didn't
@@ -130,7 +129,7 @@ const theme = {
             breadcrumbBar: "h-14 flex-none border-b border-[var(--t-rule)] flex items-center gap-3 px-5 lg:px-8",
             breadcrumbHome: "t-metaMD text-[var(--t-graphite)] hover:text-[var(--t-ink)]",
             breadcrumbSep: "t-metaMD text-[var(--t-pencil)]",
-            breadcrumbCurrent: "t-metaMD text-[var(--t-cobalt)]",
+            breadcrumbCurrent: "t-metaMD text-[var(--t-ink)]",
             // holds the ThemeToggle on the trailing end of the breadcrumb bar
             // (moved here from the sidenav's bottomMenu, which now only
             // carries UserMenu — 2026-09-22), matching
@@ -153,17 +152,12 @@ const theme = {
             headerOuter: "w-full flex flex-wrap items-center justify-between gap-3 pb-3 mb-3 border-b border-[var(--t-rule)]", // groups only — flush, sits above pageWrapper
             headerRow: "w-full flex flex-wrap items-center gap-3 pb-3 mb-3 border-b border-[var(--t-rule)]", // users + profile — flush
             headerTitle: "t-displayMD text-[var(--t-ink)]",
-            avatar: "w-9 h-9 rounded-md bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] flex items-center justify-center text-sm font-medium flex-none", // profile
+            avatar: "w-9 h-9 rounded-md bg-[var(--t-rule)] text-[var(--t-ink)] flex items-center justify-center text-sm font-medium flex-none", // profile — avatars neutral (owner 2026-10-13)
             // Profile's second band — the Reset Password action's own card (the mockup's
             // separate "account" card, `admin-profile.html`'s "profile-actions" section) —
             // now carries the bg-panel treatment itself since `profileWrapper` no longer does.
             profileActions: "bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg p-4",
             profileActionsLabel: "t-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em] mb-3",
-            // NB `UI.Button` treats `className` as a REPLACEMENT for its style, so
-            // this is the whole look of the "Add new" button — cobalt primary,
-            // matching Button.theme.jsx's own default so it stays consistent with
-            // every other primary action in the app.
-            headerAction: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1.5",
             // Users' user/group counts (authUsers.jsx headerRow) — Groups doesn't
             // render these, so `headerStats*` only matters there. Boxed stat pair
             // (bg-panel/border/rounded-lg), matching Sites' own `statsStrip` look
@@ -188,26 +182,20 @@ const theme = {
             // Secondary/metadata text (Users' Created/Last Login columns) — muted,
             // distinct from the primary graphite body text `cellInner` already uses.
             metaText: "t-metaSM text-[var(--t-pencil)]",
+            // The manage pages' buttons pick a UI.Button named style (activeStyle):
+            // "Add new" and the modal submits are 'primary', the row actions 'small'.
             // Modal.jsx itself renders no title or close affordance — these three
             // keys are new, added to the Add User / Add Group / Reset Password
             // modals alongside this theme pass so every modal has one.
             modalHeader: "flex items-center justify-between mb-4",
             modalTitle: "t-displaySM text-[var(--t-ink)]",
-            modalCloseBtn: "text-[var(--t-pencil)] hover:text-[var(--t-ink)]",
             modalBody: "flex flex-row gap-3",
             notice: "p-4 text-sm text-[var(--t-graphite)]",
             profileLink: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-ink)] border border-[var(--t-rule-strong)] hover:border-[var(--t-ink)] rounded-md px-3.5 py-1.5 w-fit",
-            // A row's View As / reset password buttons — a quiet outline style,
-            // distinct from the solid-cobalt primary actions (headerAction/modalAction).
-            rowAction: "t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-md px-2 py-1 hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)]",
-            // The Add User / Add Group modal's submit button — matches headerAction's
-            // cobalt primary look (this happens to be UI.Button's own default too,
-            // but set explicitly so it stays correct if that default ever changes).
-            modalAction: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-4 py-2 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-[var(--t-cobalt)]",
             // The table-header search inputs (Input's className is also a full
             // replacement, same as Button) — compact, since they sit inside a
             // table header cell rather than a form.
-            headerInput: "bg-[var(--t-panel)] border border-[var(--t-rule)] rounded px-2 py-1 text-xs text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] outline-none focus:border-[var(--t-rule-strong)] w-32",
+            // 2026-10-14: now UI.Input's own 'headerFilter' style (Input is locked — no className); same classes.
             // Unset = the manager's Sites / Themes / Auth menu. A client site
             // sets `[{name, path}]` — typically just Profile / Users / Groups.
             menuItems: undefined,

@@ -1,5 +1,6 @@
-import React from "react";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import React, { useContext } from "react";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
 
 const PRESETS = [
     { id: 'today', label: 'Today',
@@ -26,7 +27,8 @@ const sameRange = (a, b) => {
 };
 
 export const PresetBar = ({ value, onChange }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
     const activeId = (() => {
         if (!value || !Array.isArray(value.ranges) || value.ranges.length !== 1) return null;
         if ((value.dow && value.dow.length) || value.timeOfDay) return null;
@@ -51,14 +53,14 @@ export const PresetBar = ({ value, onChange }) => {
             {PRESETS.map(p => {
                 const active = p.id === activeId;
                 return (
-                    <button
+                    <UI.Button
                         key={p.id}
-                        type="button"
-                        className={`${t.presetButton} ${active ? t.presetButtonActive : t.presetButtonIdle}`}
+                        activeStyle={active ? 'chipOn' : 'chip'}
+                        aria-pressed={active}
                         onClick={() => apply(p)}
                     >
                         {p.label}
-                    </button>
+                    </UI.Button>
                 );
             })}
         </div>

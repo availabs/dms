@@ -287,7 +287,7 @@ comment says it prevents. The expansion now carries a `no_access: true` flag tha
 `hasNoAccessPatterns` checks it.
 
 This closes fix 3 of
-[`no-access-stub-default-theme.md`](./no-access-stub-default-theme.md) (marked DONE 2026-07-02).
+[`no-access-stub-default-theme.md`](../completed/no-access-stub-default-theme.md) (marked DONE 2026-07-02).
 Its test — `packages/dms/tests/siteSnapshot.test.js` — passed all along because it built stubs in the
 **unexpanded** server shape (`id: 'no-access'`), which is not the shape the guard ever sees. Two cases
 in the ref-expanded shape are added there now (8 tests, green); they fail against the old guard.

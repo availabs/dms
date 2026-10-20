@@ -11,6 +11,9 @@ import type {LexicalEditor} from 'lexical';
 import * as React from 'react';
 import {useRef} from 'react';
 import { useLexicalTheme } from '../../useLexicalTheme';
+import { ThemeContext } from '../../../../useTheme';
+// UI.Button (2026-10-17, raw-HTML pass): the host UI wins; the imported one covers a Provider-less mount
+import DefaultButton from '../../../Button';
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -45,6 +48,8 @@ export default function ImageResizer({
   captionsEnabled: boolean;
 }): JSX.Element {
   const theme = useLexicalTheme();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
   const controlWrapperRef = useRef<HTMLDivElement>(null);
   const userSelect = useRef({
     priority: '',
@@ -253,14 +258,14 @@ export default function ImageResizer({
   return (
     <div ref={controlWrapperRef}>
       {!showCaption && captionsEnabled && (
-        <button
-          className={`${theme.editor_image_captionButton}` || "image-caption-button"}
+        <Button
+          activeStyle={theme.editor_image_captionButton_style}
           ref={buttonRef}
           onClick={() => {
             setShowCaption(!showCaption);
           }}>
           Add Caption
-        </button>
+        </Button>
       )}
       <div
         className={`${theme.editor_image_resizer_base} ${theme.editor_image_resizer_n}`}

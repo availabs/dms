@@ -1,11 +1,15 @@
-import React, {useContext, useState} from "react";
+import React, {useContext, useRef, useState} from "react";
 import { useImmer } from "use-immer";
-import { ThemeContext } from "../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
+import { columnManagerTheme } from "./ColumnManager.theme";
 
-const Modal = ({ open, setOpen, columns, addCalculatedColumn }) => {
+const CalculatedDialog = ({ open, setOpen, columns, addCalculatedColumn }) => {
   const { UI } = useContext(ThemeContext);
-    const {Icon} = UI;
-    if (!open) return null;
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
+    const {Icon, Button, Textarea, Modal} = UI;
+    const sqlField = useRef(null);   // Modal focuses it on open
+    // mounted only while open (parent) — no early return before the hooks below
     const [state, setState] = useImmer({
      type: 'calculated',
         show: true
@@ -19,45 +23,51 @@ const Modal = ({ open, setOpen, columns, addCalculatedColumn }) => {
     const isValidSql = true;
 
     return (
-        <div className="fixed inset-0 h-full w-full z-100 content-center bg-black/40" onClick={() => setOpen(false)}>
-            <div className="w-3/4 h-1/2 overflow-auto flex flex-col gap-3 p-4 bg-white place-self-center rounded-md" onClick={(e) => e.stopPropagation()}>
-                <div className="w-full flex justify-end">
-                    <div className="p-2 text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer" onClick={() => setOpen(false)}>
+        <Modal open={open} setOpen={setOpen} activeStyle="aboveMenu" initialFocus={sqlField}>
+            <div className={t.dialogBody}>
+                <div className={t.dialogHeader}>
+                    <div className={t.dialogTitle}>Add Calculated Column</div>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
                         <Icon icon={'XMark'} height={12} width={12} />
-                    </div>
+                    </Button>
                 </div>
-
-                <div className="text-lg font-semibold">Add Calculated Column</div>
-                    <div className="w-full h-full px-2 flex flex-col gap-1">
-                        <textarea className={'p-1 text-gray-400'} placeholder={'Please enter sql...'} value={state.name} onChange={e => setState(draft => {draft.name = e.target.value})}/>
-                        <div className={'flex gap-1 place-self-end'}>
+                    <div className={t.calcBody}>
+                        <Textarea activeStyle="mono" rows={6} aria-label="SQL" ref={sqlField} placeholder={'Please enter sql...'} value={state.name || ''} onChange={e => setState(draft => {draft.name = e.target.value})}/>
+                        <div className={t.dialogActions}>
                             {/* Clear Button */}
-                            <button className="px-3 py-1 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded" onClick={() => {
+                            <Button activeStyle="action" onClick={() => {
                                 setState(draft => {
                                     draft.name = '';
                                 })
                             }}>
                                 Clear
-                            </button>
+                            </Button>
                             {/* Save Button */}
-                            <button disabled={!isValidSql} className={`px-3 py-1 ${isValidSql ? `bg-blue-500/15 hover:bg-blue-500/25` : `bg-gray-200`} text-blue-700 rounded`} onClick={handleSave}>
+                            <Button activeStyle="primary" disabled={!isValidSql} onClick={handleSave}>
                                 Add
-                            </button>
+                            </Button>
                         </div>
                     </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
-const AddCalculatedColumn = ({columns=[], addCalculatedColumn}) => {
+// triggerStyle / triggerOnStyle (2026-10-17): a caller that lays these out as pills beside its own (CardColumnPicker's
+// "+ Static" chip) names the Button styles; the trigger then sits unwrapped (no full-width addTriggerWrap)
+const AddCalculatedColumn = ({columns=[], addCalculatedColumn, triggerStyle, triggerOnStyle}) => {
     const [open, setOpen] = useState(false);
     const {UI} = useContext(ThemeContext);
-    const {Pill} = UI;
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            <Pill text={'+ Calculated'} color={'blue'} onClick={() => setOpen(true)}/>
-            <Modal open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>
+            {triggerStyle
+                ? <UI.Button activeStyle={(open && triggerOnStyle) || triggerStyle} aria-expanded={open} onClick={() => setOpen(true)}>+ Calculated</UI.Button>
+                : <span className={t.addTriggerWrap}>
+                    <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Calculated</UI.Button>
+                  </span>}
+            {open && <CalculatedDialog open={open} setOpen={setOpen} columns={columns} addCalculatedColumn={addCalculatedColumn}/>}
         </>
     )
 }

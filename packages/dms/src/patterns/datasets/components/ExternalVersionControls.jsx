@@ -31,22 +31,18 @@ const INITIAL_DELETE_MODAL_STATE = {
 }
 
 const DownloadModalCheckbox = ({ inputName, checked, onChange, disabled=false }) => {
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
+    const CheckboxEdit = UI.ColumnTypes.checkbox.EditComp;
     return (
         <div className={t.checkboxRow}>
-            <input
-                id={inputName}
-                disabled={disabled}
+            <CheckboxEdit
                 name={inputName}
-                type="checkbox"
-                className={t.checkboxInput}
-                checked={checked}
+                disabled={disabled}
+                value={!!checked}
                 onChange={() => onChange(inputName)}
+                rowLabel={inputName}
             />
-            <label htmlFor={inputName} className={t.checkboxLabel}>
-                {inputName}
-            </label>
         </div>
     );
 };
@@ -68,65 +64,34 @@ const DownloadModalGroupedBy = ({ children }) => {
 };
 
 const DownloadModalGroupColumnSelect = ({ options, modalState, onChange }) => {
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
+    const { Select } = UI;
     return (
         <div className={t.groupColumnSelectRow}>
             <div className={t.groupColumnSelectLabel}>
                 Output will have 1 file per distinct value in:
             </div>
-            <select
-                className={t.groupColumnSelect}
+            <Select
+                options={options}
                 value={modalState}
-                onChange={(e) => onChange(e.target.value)}
-            >
-                {options.map((option, i) => (
-                    <option key={i} className={t.selectOption} value={option}>
-                        {option}
-                    </option>
-                ))}
-            </select>
+                onChange={(v) => onChange(v || "")}
+            />
         </div>
     );
 };
 
 const DownloadModalGroupByToggle = ({ onChange, modalState }) => {
-    const { theme } = useContext(ThemeContext) || {};
+    const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
+    const RadioEdit = UI.ColumnTypes.radio.EditComp;
     return (
         <div className={t.groupByToggleWrapper}>
-            <div className={t.groupByToggleRow}>
-                <input
-                    id={"enableGroupedBy"}
-                    name={"enableGroupedBy"}
-                    value={true}
-                    type="radio"
-                    className={t.groupByToggleInput}
-                    checked={modalState}
-                    onChange={() => onChange(true)}
-                />
-                <label
-                    htmlFor={"enableGroupedBy"}
-                    className={t.groupByToggleLabel}
-                >
-                    Yes
-                </label>
-                <input
-                    id={"disableGroupedBy"}
-                    name={"disableGroupedBy"}
-                    value={true}
-                    type="radio"
-                    className={t.groupByToggleInputNo}
-                    checked={!modalState}
-                    onChange={() => onChange(false)}
-                />
-                <label
-                    htmlFor={"enableGroupedBy"}
-                    className={t.groupByToggleLabel}
-                >
-                    No
-                </label>
-            </div>
+            <RadioEdit
+                value={modalState ? "yes" : "no"}
+                options={[{ label: "Yes", value: "yes" }, { label: "No", value: "no" }]}
+                onChange={(v) => onChange(v === "yes")}
+            />
         </div>
     );
 };
@@ -148,7 +113,7 @@ const DownloadModalCheckboxGroup = ({
                 <div className={t.checkboxGroupTitleText}>{title}:</div>
                 <div>
                     <Button
-                        themeOptions={{ size: "sm" }}
+                        activeStyle='linkMeta'
                         onClick={() => {
                             if (modalState.length === options.length) {
                                 onChange([]);
@@ -164,9 +129,9 @@ const DownloadModalCheckboxGroup = ({
             <div className={t.checkboxGroupValidRow}>
                 One or more must be selected
                 {modalState.length > 0 ? (
-                    <Icon icon={'CheckCircleIcon'} className={t.iconSuccess} />
+                    <Icon icon={t.validIcon} className={t.iconSuccess} />
                 ) : (
-                    <Icon icon={'XCircleIcon'} className={t.iconError} />
+                    <Icon icon={t.invalidIcon} className={t.iconError} />
                 )}
             </div>
             {hasCalcColumn ? <div className={t.calcColumnWarning}>(cannot include "Calculated Columns")</div>: ""}
@@ -191,7 +156,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
     // dms-server hosts the DAMA upload/download REST endpoints under
     // `/dama-admin/` on the main API host. No separate DAMA_HOST anymore.
     const apiBase = API_HOST;
-    const {Button, Modal} = UI;
+    const {Button, Modal, Icon} = UI;
 
     const [modalState, setModalState] = useState(INITIAL_MODAL_STATE);
     const [deleteModalState, setDeleteModalState] = useState(INITIAL_DELETE_MODAL_STATE)
@@ -396,33 +361,37 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
         setPmTilesModalState(prev => ({ ...prev, progress }));
     }, []);
 
-    const doesViewHaveDownload = view?.metadata?.value?.download && Object.keys(view?.metadata?.value?.download).length > 0;
+    // view metadata arrives unwrapped (`{download}`) from the UDA views route; older rows nest it under
+    // `value` — accept both (only checking `.value` hid "Delete Download" for every current view)
+    const viewDownloads = view?.metadata?.value?.download || view?.metadata?.download;
+    const doesViewHaveDownload = viewDownloads && Object.keys(viewDownloads).length > 0;
     //console.log('do i get here?', user, sourceDataColumns)
     return (
         <div className={t.wrapper}>
             {isUserAuthed(['manage-downloads']) ? (
                 <div className={t.adminControls}>
+                    {t.sectionLabel ? <div className={t.sectionLabel}>downloads</div> : null}
                     <Button
-                        className={t.createDownloadBtn}
+                        activeStyle='actionFull'
                         onClick={() => {
                             setModalState({...modalState, open: true});
                         }}
                     >
-                        <i className={'fa fa-download'}/> Create Download
+                        <Icon icon={t.downloadIcon} className={t.btnIconClass}/> Create Download
                     </Button>
                     {doesViewHaveDownload && <Button
-                        className={t.deleteDownloadBtn}
+                        activeStyle='dangerFull'
                         onClick={() => {
                             setDeleteModalState({...deleteModalState, open: true});
                         }}
                     >
-                        <i className={t.trashIcon}/> Delete Download
+                        <Icon icon={t.trashIcon} className={t.btnIconClass}/> Delete Download
                     </Button>}
                     <Button
-                        className={t.cachePmTilesBtn}
+                        activeStyle='actionFull'
                         onClick={ openPmTilesModal }
                     >
-                        <i className={'fa fa-download'}/> Cache PM Tiles
+                        <Icon icon={t.pmTilesIcon} className={t.btnIconClass}/> Cache PM Tiles
                     </Button>
                 </div>
             ) : (
@@ -441,14 +410,11 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
             <Modal
                 open={modalState.open}
                 setOpen={setModalOpen}
-                themeOptions={{size:"large"}}
+                activeStyle={t.createModalStyle || undefined}
             >
                 <div className={t.createModalHeader}>
                     <div className={t.createModalIconWrapper}>
-                        <i
-                            className={t.layerGroupIcon}
-                            aria-hidden="true"
-                        />
+                        <Icon icon={t.layerGroupIcon} className={t.createModalIconClass} aria-hidden="true"/>
                     </div>
                     <div className={t.createModalTitleWrapper}>
                         <div className={t.createModalTitle}>
@@ -492,7 +458,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                             modalState.columns.length === 0 ||
                             modalState.columns.some(colName => isCalculatedCol(sourceDataColumns.find(c => c.name === colName)))
                         }
-                        className={t.createModalConfirmBtn}
+                        activeStyle='primary'
                         onClick={createDownload}
                     >
                         {modalState.loading
@@ -501,7 +467,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     </Button>
                     <Button
                         type="button"
-                        className={t.createModalCancelBtn}
+                        activeStyle='action'
                         onClick={() => setModalOpen(false)}
                     >
                         Cancel
@@ -516,10 +482,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
             >
                 <div className={t.deleteModalHeader}>
                     <div className={t.deleteModalIconWrapper}>
-                        <i
-                            className={t.layerGroupIcon}
-                            aria-hidden="true"
-                        />
+                        <Icon icon={t.deleteModalIcon} className={t.deleteModalIconClass} aria-hidden="true"/>
                     </div>
                     <div className={t.deleteModalTitleWrapper}>
                         <div className={t.deleteModalTitle}>
@@ -537,7 +500,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         disabled={
                             deleteModalState.loading
                         }
-                        className={t.deleteModalConfirmBtn}
+                        activeStyle='dangerSolid'
                         onClick={deleteDownload}
                     >
                         {deleteModalState.loading
@@ -546,7 +509,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     </Button>
                     <Button
                         type="button"
-                        className={t.deleteModalCancelBtn}
+                        activeStyle='action'
                         onClick={() => setDeleteModalOpen(false)}
                     >
                         Cancel
@@ -572,10 +535,15 @@ const PmTilesModal = props => {
     const {UI} = useContext(DatasetsContext);
     const { theme: pmTheme } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(pmTheme?.datasets?.externalVersionControls || {}) };
-    const {Modal} = UI;
+    const {Modal, Icon} = UI;
     return (
-        <Modal { ...modalState }>
+        <Modal { ...modalState } activeStyle={t.pmTilesModalStyle || undefined}>
             <div className={t.pmTilesModalWrapper}>
+                {t.pmTilesModalTitle ?
+                    <div className={t.pmTilesModalHeader}>
+                        <div className={t.createModalIconWrapper}><Icon icon={t.pmTilesIcon} className={t.createModalIconClass} aria-hidden="true"/></div>
+                        <div className={t.createModalTitleWrapper}><div className={t.createModalTitle}>{t.pmTilesModalTitle}</div></div>
+                    </div> : null}
 
                 <div className={t.pmTilesModalContent}>
                     <div className={t.pmTilesModalGrid}>
@@ -715,10 +683,8 @@ const EventItem = ({ damaEvent }) => {
     )
 }
 
-const PmTilesModalButton = ({ className = "", onClick, disabled = false, children }) => {
+const PmTilesModalButton = ({ activeStyle, onClick, disabled = false, children }) => {
     const {UI} = useContext(DatasetsContext);
-    const { theme: btnTheme } = useContext(ThemeContext) || {};
-    const t = { ...externalVersionControlsTheme, ...(btnTheme?.datasets?.externalVersionControls || {}) };
     const {Button} = UI;
 
     const doOnClick = React.useCallback(e => {
@@ -728,26 +694,12 @@ const PmTilesModalButton = ({ className = "", onClick, disabled = false, childre
     return (
         <Button disabled={ disabled }
                 onClick={ doOnClick }
-                className={ `${ t.pmTilesModalBtnBase } ${ className }` }
+                activeStyle={ activeStyle }
         >
             { children }
         </Button>
     )
 }
 
-const GreenPmTilesModalButton = props => {
-    const { theme: gTheme } = useContext(ThemeContext) || {};
-    const t = { ...externalVersionControlsTheme, ...(gTheme?.datasets?.externalVersionControls || {}) };
-    return (
-        <PmTilesModalButton { ...props }
-                            className={t.pmTilesModalBtnGreen}/>
-    )
-}
-const SlatePmTilesModalButton = props => {
-    const { theme: sTheme } = useContext(ThemeContext) || {};
-    const t = { ...externalVersionControlsTheme, ...(sTheme?.datasets?.externalVersionControls || {}) };
-    return (
-        <PmTilesModalButton { ...props }
-                            className={t.pmTilesModalBtnSlate}/>
-    )
-}
+const GreenPmTilesModalButton = props => <PmTilesModalButton { ...props } activeStyle='primary'/>;
+const SlatePmTilesModalButton = props => <PmTilesModalButton { ...props } activeStyle='action'/>;

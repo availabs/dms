@@ -13,20 +13,24 @@ export const filterTheme = {
     input: 'w-full font-sans text-sm border border-[var(--t-rule-strong)] rounded-md bg-[var(--t-panel)] text-[var(--t-ink)] p-2',
     settingPillsWrapper: 'flex flex-wrap gap-1.5',
     settingPill: 'inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.06em] bg-[var(--t-panel)] border border-[var(--t-rule)] text-[var(--t-graphite)]',
-    settingLabel: 'font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--t-pencil)]',
+    // a filter setting's caption (Multiselect / Allow clear / Use Page Filters / Search key): a UI.FieldLabel named style
+    // (2026-10-16, raw-HTML pass). A project theme's own `settingLabel` string is lifted into a style of its own
+    // (src/themes/_legacy/ui.js liftPatternRoles). `settingLabelCell`: the caption's cell where it sits in a row.
+    settingLabelStyle: 'filterSetting',
+    settingLabelCell: 'shrink-0',
     filtersWrapper: 'w-full p-3 flex flex-col gap-2 rounded-lg bg-[var(--t-well)] border border-[var(--t-rule)]',
 
-    // Round pill that toggles the filter panel open/closed. Pulled out of inline
-    // JSX so themes can resize / reposition it (or set display:none) without
-    // touching the component. Used by both RenderFilters and ExternalFilters.
+    // Wrapper around the button that toggles the filter panel open/closed: its
+    // position, or display:none ('hidden') to drop the toggle. The button's look
+    // is UI.Button activeStyle 'iconTool'. Used by both RenderFilters and ExternalFilters.
     // NOT ported from tessera (`hidden`/`hidden`) — that's tessera's OWN filter
     // panel deliberately having no expand/collapse affordance at all, not a
     // portable "look." Several other projects (mny's default filter style,
     // wcdb — neither overrides these) actively use a visible toggle to
     // expand/collapse the panel; inheriting `hidden` silently deleted that
     // working control. Kept as the pre-port library default.
-    toggleButton: 'w-fit -mt-4 p-2 border rounded-full self-end',
-    toggleIcon: 'text-slate-400 hover:text-blue-500 size-4 hover:cursor-pointer',
+    toggleButton: 'w-fit -mt-4 self-end',
+    toggleIcon: 'size-4',
     // Grid wrapper holding the rendered filter / condition rows.
     conditionsGrid: 'grid gap-2',
     // Per-row layout, parameterized by display.placement.
@@ -40,8 +44,11 @@ export const filterTheme = {
     // overrides these to the "Needs priority" pill look. The on-state is driven
     // by a `data-on` attribute on the chip (`group`), so track/knob respond via
     // `group-data-[on]:` variants — no hardcoded brand colour in the component.
-    toggleChip: 'group inline-flex items-center gap-2 cursor-pointer select-none',
-    toggleChipOn: '',
+    // the toggle itself is a UI.Button named style picked here (2026-10-16, raw-HTML pass): 'toggle' / 'toggleOn'
+    // (Button.theme.jsx; the `group` + data-on drive the track / knob below). A project theme's own toggleChip /
+    // toggleChipOn classes are lifted into styles of its own (src/themes/_legacy/ui.js liftPatternRoles).
+    toggleStyle: 'toggle',
+    toggleOnStyle: 'toggleOn',
     toggleTrack: 'relative inline-flex h-5 w-9 shrink-0 items-center rounded-full bg-gray-200 transition-colors group-data-[on]:bg-gray-600',
     toggleKnob: 'inline-block size-4 translate-x-0.5 rounded-full bg-white shadow transition-transform group-data-[on]:translate-x-4',
 

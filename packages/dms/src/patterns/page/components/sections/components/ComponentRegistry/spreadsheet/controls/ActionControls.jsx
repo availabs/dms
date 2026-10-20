@@ -1,146 +1,120 @@
-import React, {useState, useContext, useCallback} from "react";
+import {useState, useContext, useCallback, useMemo} from "react";
 import {ComponentContext} from '../../../../../../context'
-import {ThemeContext} from "../../../../../../../../ui/useTheme";
+import {ThemeContext, getComponentTheme} from "../../../../../../../../ui/useTheme";
+import {actionControlsTheme} from "./ActionControls.theme";
 
-const Icons = []
+// 2026-10-16 (ui-raw-html-to-ui-components.md): every control is a UI component; layout from
+// theme.pages.actionControls (ActionControls.theme.js). The icon picker lists the theme's registered icons
+// (theme.Icons — it was an empty list before). `display` / `actionType` are UI.Select with a placeholder and
+// deselect: unset is empty, never the placeholder text (the old native selects stored 'display' / 'type').
+const DISPLAY_OPTIONS = ['edit only', 'view only', 'both'];
+const TYPE_OPTIONS = ['delete', 'url'];
 
 const RenderIconSelector = ({onClick, icon}) => {
-    const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>}}
-    const { Icon } = UI;
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...actionControlsTheme, ...getComponentTheme(themeFromContext, 'pages.actionControls') };
+    const { Icon, Button, Input } = UI;
     const [open, setOpen] = useState(false);
     const [search, setSearch] = useState('');
+    const iconNames = useMemo(() => Object.keys(themeFromContext?.Icons || {}).sort((a, b) => a.localeCompare(b)), [themeFromContext?.Icons]);
+    const matches = useMemo(() => {
+        const q = search.trim().toLowerCase();
+        return (q ? iconNames.filter(n => n.toLowerCase().includes(q)) : iconNames).slice(0, 120);
+    }, [iconNames, search]);
 
     return (
-        <div className="p-1 bg-white border rounded-md">
-            <button
-                type="button"
-                className="flex w-full justify-between items-center bg-white rounded-md shadow-sm"
-                id="dropdown-button"
-                onClick={() => setOpen(!open)}
-            >
-                <Icon icon={icon} />
-                <Icon icon={'ArrowDown'} />
-            </button>
-
-            <div
-                className={open ? "grid grid-cols-5 gap-2 absolute z-10 mt-2 w-full bg-white border border-gray-300 rounded-md shadow-lg" : 'hidden'}
-                role="menu"
-            >
-                <input key={'search'} className={'p-1 mx-1 text-sm rounded-md col-span-5'} placeholder={'search...'}
-                       value={search} onChange={e => setSearch(e.target.value)}/>
-                {Object.keys(Icons)
-                    .filter(icon => icon.toLowerCase().includes(search.toLowerCase()))
-                    .sort((a, b) => a.localeCompare(b))
-                    .map(icon => {
-                        //const Comp = Icons[icon];
-
-                        return (
-                            <button
-                                key={icon}
-                                className="flex items-center justify-center w-full px-1 py-2 text-sm text-gray-700 hover:bg-gray-100 rounded-md"
+        <div className={t.iconPicker}>
+            <Button activeStyle="fieldTrigger" aria-expanded={open} aria-label="Icon" onClick={() => setOpen(!open)}>
+                <Icon icon={icon || 'TouchInteraction'} className={t.pickIcon} />
+                <Icon icon={'CaretDown'} className={t.pickIcon} />
+            </Button>
+            {open ? (
+                <div className={t.iconMenu} role="menu">
+                    <Input aria-label="Search icons" placeholder={'search...'}
+                           value={search} autoFocus onChange={e => setSearch(e.target.value)}/>
+                    <div className={t.iconGrid}>
+                        {matches.map(name => (
+                            <Button
+                                key={name}
+                                activeStyle={name === icon ? 'iconPickOn' : 'iconPick'}
                                 role="menuitem"
-                                onClick={() => onClick(icon)}
+                                title={name}
+                                aria-label={name}
+                                onClick={() => { onClick(name); setOpen(false); }}
                             >
-                                <Icon icon={icon} />
-                            </button>
-                        )
-                    })}
+                                <Icon icon={name} className={t.pickIcon} />
+                            </Button>
+                        ))}
+                    </div>
+                    {!matches.length && <div className={t.iconEmpty}>No icons match.</div>}
+                </div>
+            ) : null}
+        </div>
+    )
+}
+
+const ActionForm = ({value, setValue, nameDisabled, onSave, saveLabel, onCancel}) => {
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...actionControlsTheme, ...getComponentTheme(themeFromContext, 'pages.actionControls') };
+    const { Button, Input, Select } = UI;
+    return (
+        <div className={t.form}>
+            <Input aria-label="Action name" placeholder={'name'} disabled={nameDisabled}
+                   value={value.name || ''}
+                   onChange={e => setValue({...value, name: e.target.value})}
+            />
+            <div className={t.selectRow}>
+                <RenderIconSelector icon={value.icon} onClick={e => setValue({...value, icon: e})} />
+                <Select placeholder={'display'} allowDeselect
+                        options={DISPLAY_OPTIONS}
+                        value={value.display}
+                        onChange={v => setValue({...value, display: v || undefined})}
+                />
+                <Select placeholder={'type'} allowDeselect
+                        options={TYPE_OPTIONS}
+                        value={value.actionType}
+                        onChange={v => setValue({...value, actionType: v || ''})}
+                />
+            </div>
+            <div className={t.formActions}>
+                {value.actionType === 'url' ? (
+                    <span className={t.urlField}>
+                        <Input aria-label="URL" placeholder={'url'}
+                               value={value.url || ''}
+                               onChange={e => setValue({...value, url: e.target.value})}
+                        />
+                    </span>
+                ) : null}
+                <Button activeStyle="primary" onClick={onSave}>{saveLabel}</Button>
+                <Button activeStyle="action" onClick={onCancel}>cancel</Button>
             </div>
         </div>
     )
 }
-const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
-    const { UI } = React.useContext(ThemeContext) || {UI: {Icon: () => <></>}}
-    const { Icon } = UI;
+
+const RenderAction = ({updateAction, deleteAction, action = {}}) => {
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...actionControlsTheme, ...getComponentTheme(themeFromContext, 'pages.actionControls') };
+    const { Icon, Button } = UI;
     const [isEditing, setIsEditing] = useState(false);
     const [newAction, setNewAction] = useState(action);
 
+    if (isEditing) {
+        return (
+            <ActionForm value={newAction} setValue={setNewAction} nameDisabled saveLabel="save"
+                        onSave={() => { updateAction(newAction); setIsEditing(false); }}
+                        onCancel={() => setIsEditing(false)} />
+        );
+    }
     return (
-        <div className={'w-full'}>
-            {
-                isEditing ? (
-                    <div className={'flex flex-col w-full px-2 py-1 text-gray-500'}>
-                        <input className={'px-1 my-0.5 border w-full rounded-md cursor-disabled'} disabled
-                               placeholder={'name'}
-                               value={newAction.name || ''}
-                               // onChange={e => setNewAction({...newAction, name: e.target.value})}
-                        />
-
-                        <div className={'grid grid-cols-3 gap-1'}>
-                            <RenderIconSelector icon={newAction.icon} onClick={e => setNewAction({...newAction, icon: e})} />
-
-                            <select className={'p-1 bg-white border rounded-md'}
-                                    value={newAction.display}
-                                    onChange={e => setNewAction({...newAction, display: e.target.value})}
-                            >
-                                {
-                                    [undefined, 'edit only', 'view only', 'both'].map(option => <option
-                                        key={option || 'default'}
-                                        value={option}>{option || 'display'}</option>)
-                                }
-                            </select>
-                            <select className={'p-1 bg-white border rounded-md'}
-                                    value={newAction.actionType}
-                                    onChange={e => setNewAction({...newAction, actionType: e.target.value})}
-                            >
-                                {
-                                    [undefined, 'delete', 'url'].map(option => <option key={option || 'default'}
-                                                                                       value={option}>{option || 'type'}</option>)
-                                }
-                            </select>
-                        </div>
-
-                        <div className={'my-0.5 flex w-full justify-end'}>
-                            {
-                                newAction.actionType === 'url' ?
-                                    <input className={'px-1 border w-full rounded-md'}
-                                           placeholder={'url'}
-                                           value={newAction.url || ''}
-                                           onChange={e => setNewAction({...newAction, url: e.target.value})}
-                                    />
-                                    : null
-                            }
-                            <div>
-                                <button className={'px-1 border rounded-md place-self-end'}
-                                        onClick={() => {
-                                            updateAction(newAction);
-                                            setIsEditing(false)
-                                        }}
-                                >save
-                                </button>
-                                <button className={'px-1 border rounded-md place-self-end'}
-                                        onClick={() => {
-                                            setIsEditing(false)
-                                        }}
-                                >cancel
-                                </button>
-                            </div>
-                        </div>
-
-                    </div>
-                ) : (
-                    <div
-                        className="flex items-center cursor-pointer px-2 mx-1 text-sm text-gray-700 hover:bg-gray-100 hover:text-gray-900 rounded-md"
-                    >
-                        <Icon icon="Reorder" className="size-4 text-gray-400 shrink-0 cursor-grab" />
-                        <div key={'icon'} className={'h-4 w-4 m-0.5 cursor-pointer text-gray-800'}>
-                            <Icon icon='TouchInteraction' />
-                        </div>
-
-                        <div key={`${action.name}`} className={'grid grid-cols-3 m-1 w-full'}>
-                            {action.name}
-                            <button key={'action-edit'} className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
-                                    onClick={() => setIsEditing(!isEditing)}>
-                                {isEditing ? 'cancel' : 'edit'}
-                            </button>
-                            <button key={'action-delete'} className={'p-0.5 m-0.5 text-gray-500 text-sm border rounded-md '}
-                                    onClick={() => deleteAction(action)}>
-                                delete
-                            </button>
-                        </div>
-                    </div>
-                )
-            }
+        <div className={t.row}>
+            <Icon icon="Reorder" className={t.grip} />
+            <Icon icon={action.icon || 'TouchInteraction'} className={t.rowIcon} />
+            <div key={`${action.name}`} className={t.rowBody}>
+                <span className={t.rowName}>{action.name}</span>
+                <Button activeStyle="linkMeta" onClick={() => setIsEditing(true)}>edit</Button>
+                <Button activeStyle="linkMetaDanger" onClick={() => deleteAction(action)}>delete</Button>
+            </div>
         </div>
     )
 }
@@ -148,76 +122,21 @@ const RenderAction = ({actions, updateAction, deleteAction, action = {}}) => {
 const RenderAddAction = ({addAction}) => {
     // {type: action, actionType: link / delete, name, url}
     const blankAction = {show: true, actionType: '', name: '', url: ''};
+    const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...actionControlsTheme, ...getComponentTheme(themeFromContext, 'pages.actionControls') };
     const [isAdding, setIsAdding] = useState(false);
     const [newAction, setNewAction] = useState(blankAction);
 
     return (
-        <div className={'w-full flex flex-col justify-end'}>
-            <button className={'w-fit p-0.5 m-0.5 text-gray-500 text-sm border place-self-end rounded-md'}
-                    onClick={() => setIsAdding(!isAdding)}>{'+ add new'}</button>
-            {
-                isAdding ? (
-                    <div className={'flex flex-col w-full px-2 py-1 text-gray-500'}>
-                        <input className={'px-1 my-0.5 border w-full rounded-md'}
-                               placeholder={'name'}
-                               value={newAction.name}
-                               onChange={e => setNewAction({...newAction, name: e.target.value})}
-                        />
-
-                        <div className={'grid grid-cols-3 gap-1'}>
-
-                            <RenderIconSelector icon={newAction.icon} onClick={e => setNewAction({...newAction, icon: e})}/>
-
-                            <select className={'p-1 bg-white border rounded-md'}
-                                    value={newAction.display}
-                                    onChange={e => setNewAction({...newAction, display: e.target.value})}
-                            >
-                                {
-                                    [undefined, 'edit only', 'view only', 'both'].map(option => <option
-                                        key={option || 'default'}
-                                        value={option}>{option || 'display'}</option>)
-                                }
-                            </select>
-                            <select className={'p-1 bg-white border rounded-md'}
-                                    value={newAction.actionType}
-                                    onChange={e => setNewAction({...newAction, actionType: e.target.value})}
-                            >
-                                {
-                                    [undefined, 'delete', 'url'].map(option => <option key={option || 'default'}
-                                                                                       value={option}>{option || 'type'}</option>)
-                                }
-                            </select>
-                        </div>
-
-                        <div className={'my-0.5 flex w-full justify-end'}>
-                            {
-                                ['url'].includes(newAction.actionType) ?
-                                    <input className={'px-1 border w-full rounded-md'}
-                                           placeholder={'url'}
-                                           value={newAction.url}
-                                           onChange={e => setNewAction({...newAction, url: e.target.value})}
-                                    />
-                                    : null
-                            }
-                            <button className={'px-1 border rounded-md place-self-end'}
-                                    onClick={() => {
-                                        addAction(newAction)
-                                        setNewAction(blankAction)
-                                    }}
-                            >add
-                            </button>
-                            <button className={'px-1 border rounded-md place-self-end'}
-                                    onClick={() => {
-                                        setIsAdding(false)
-                                        setNewAction(blankAction)
-                                    }}
-                            >cancel
-                            </button>
-                        </div>
-
-                    </div>
-                ) : null
-            }
+        <div className={t.addWrap}>
+            <span className={t.addTriggerWrap}>
+                <UI.Button activeStyle="small" aria-expanded={isAdding} onClick={() => setIsAdding(!isAdding)}>{'+ add new'}</UI.Button>
+            </span>
+            {isAdding ? (
+                <ActionForm value={newAction} setValue={setNewAction} saveLabel="add"
+                            onSave={() => { addAction(newAction); setNewAction(blankAction); }}
+                            onCancel={() => { setIsAdding(false); setNewAction(blankAction); }} />
+            ) : null}
         </div>
     )
 }
@@ -244,7 +163,8 @@ export default function ActionControls({context, isInMenu=false, dwAPI}) {
     const state = dwAPI?.state || ctx.state;
     const setState = dwAPI?.setState || ctx.setState;
     const columns = state?.columns || [];
-    const {UI} = useContext(ThemeContext) || {UI: {}};
+    const {UI, theme: themeFromContext = {}} = useContext(ThemeContext) || {UI: {}};
+    const t = { ...actionControlsTheme, ...getComponentTheme(themeFromContext, 'pages.actionControls') };
     const {Icon, Button, Popup, Input, DraggableList} = UI;
     const [search, setSearch] = useState();
     const actionColumns = columns.filter(column => column.actionType); //two types of actions.
@@ -293,54 +213,36 @@ export default function ActionControls({context, isInMenu=false, dwAPI}) {
         })
     }, [setState, columns])
 
-    if(isInMenu){
-        return (
-            <div className={`visible transition ease-in duration-200 w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white`}
-            >
-                <Input key={'search'}
-                       placeHolder={'search...'}
-                       onChange={e => setSearch(e.target.value)} />
-                <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
-                <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                    <DraggableList
-                        dataItems={filteredActionColumns}
-                        onChange={reorderActions}
-                        renderItem={({item: action}) => (
-                            <RenderAction key={action.name} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
-                        )}
-                    />
-                </div>
+    const body = (
+        <>
+            <Input aria-label="Search actions"
+                   placeholder={'search...'}
+                   onChange={e => setSearch(e.target.value)} />
+            <RenderAddAction addAction={addAction} />
+            <div key={'actions'} className={t.list}>
+                <DraggableList
+                    dataItems={filteredActionColumns}
+                    onChange={reorderActions}
+                    renderItem={({item: action}) => (
+                        <RenderAction key={action.name} action={action} updateAction={updateAction} deleteAction={deleteAction} />
+                    )}
+                />
             </div>
-        )
+        </>
+    );
+
+    if(isInMenu){
+        return <div className={t.menuPanel}>{body}</div>
     }
 
     return (
-        <div className="relative inline-block text-left">
-            <Popup button={<Button type={'transparent'}
-                                   className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
-                                   ring-1 ring-inset ring-gray-300
-                 text-gray-900 shadow-sm bg-white hover:bg-gray-50 cursor-pointer`}>
-                Action <Icon icon={'ArrowDown'} height={18} width={18} className={'mt-1'}/>
+        <div className={t.triggerWrap}>
+            <Popup button={<Button activeStyle='action'>
+                Action <Icon icon={'ArrowDown'} className={t.triggerIcon}/>
             </Button>}>
                 {
-                    ({open, setOpen}) => (
-                        <div className={`${open ? 'visible transition ease-in duration-200' : 'hidden transition ease-in duration-200'} w-72 origin-top-left divide-y divide-gray-100 rounded-md bg-white shadow-lg ring-1 ring-black ring-opacity-5 transition focus:outline-none`}
-                        >
-                            <input key={'search'}
-                                   className={'px-3 py-1 w-full rounded-md'}
-                                   placeholder={'search...'}
-                                   onChange={e => setSearch(e.target.value)}/>
-                            <RenderAddAction ket={'add-action'} actions={actionColumns} addAction={addAction} />
-                            <div key={'actions'} className="py-1 max-h-[500px] overflow-auto scrollbar-sm">
-                                <DraggableList
-                                    dataItems={filteredActionColumns}
-                                    onChange={reorderActions}
-                                    renderItem={({item: action}) => (
-                                        <RenderAction key={action.name} action={action} actions={actionColumns} updateAction={updateAction} deleteAction={deleteAction} />
-                                    )}
-                                />
-                            </div>
-                        </div>
+                    ({open}) => (
+                        <div className={open ? t.panel : t.panelHidden}>{body}</div>
                     )
                 }
             </Popup>

@@ -31,10 +31,7 @@ export default function MoreControls({context}) {
     return (
         <div className="relative inline-block text-left">
             <Popup button={
-                <Button type={'transparent'}
-                        className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
-                        ring-1 ring-inset ring-gray-300
-                 text-gray-900 shadow-sm bg-white hover:bg-gray-50 cursor-pointer`}>
+                <Button activeStyle='action'>
                 More <Icon icon='ArrowDown' height={18} width={18} className={'mt-1'}/>
                 </Button>}
             >
@@ -66,15 +63,14 @@ export default function MoreControls({context}) {
                                                         className={`group inline-flex w-full justify-between items-center rounded-md px-1.5 py-1 text-sm font-regular text-gray-900 bg-white hover:bg-gray-50 cursor-pointer`}
                                                     >
                                                         <span className={'flex-0 select-none mr-1'}>{label}</span>
-                                                        <select
-                                                            className={'flex-1 p-1 w-full rounded-md bg-white group-hover:bg-gray-50 cursor-pointer'}
-                                                            value={display[key]}
-                                                            onChange={e => updateDisplayValue(key, e.target.value, onChange)}
-                                                        >
-                                                            {
-                                                                options.map(({label, value}) => <option key={value} value={value}>{label}</option>)
-                                                            }
-                                                        </select>
+                                                        <span className={'flex-1 min-w-0'}>
+                                                            <UI.Select
+                                                                aria-label={typeof label === 'string' ? label : undefined}
+                                                                value={display[key]}
+                                                                options={options}
+                                                                onChange={v => updateDisplayValue(key, v, onChange)}
+                                                            />
+                                                        </span>
                                                     </div> :
                                                     typeof type === 'function' ? type({value: display[key], setValue: newValue => updateDisplayValue(key, newValue)}) :
                                                         `${type} not available`

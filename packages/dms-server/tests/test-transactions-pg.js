@@ -323,6 +323,38 @@ async function testDamaSourceDeletes() {
     assert((await count('views', f.sid)) === 2, 'views intact');
     assert((await count('tasks', f.sid)) === 1, 'task intact');
   });
+
+  // Data tables are dropped inside the same transaction (2026-10-07): a failure must leave them.
+  async function withTables(f) {
+    const tables = f.viewIds.map((vid) => `tx_${STAMP}_v${vid}`);
+    for (const [i, vid] of f.viewIds.entries()) {
+      await damaDb.query(`CREATE TABLE public."${tables[i]}" (id int)`);
+      await damaDb.query(`UPDATE data_manager.views SET table_schema = 'public', table_name = $1 WHERE view_id = $2`, [tables[i], vid]);
+    }
+    return tables;
+  }
+  const tableExists = async (t) =>
+    (await damaDb.query(`SELECT to_regclass($1) AS r`, [`public."${t}"`])).rows[0].r !== null;
+
+  await test('hardDeleteSource drops each view\'s data table', async () => {
+    const f = await fixture('hardtables');
+    const tables = await withTables(f);
+    const r = await hardDeleteSource(DAMA_DB, f.sid);
+    assert(r.dropped_tables.length === 2, JSON.stringify(r));
+    for (const t of tables) assert(!(await tableExists(t)), `${t} dropped`);
+    assert((await count('sources', f.sid)) === 0, 'source gone');
+  });
+
+  await test('hardDeleteSource: a failure keeps the data tables (drops roll back too)', async () => {
+    const f = await fixture('hardtablesfail');
+    const tables = await withTables(f);
+    let msg = '';
+    await withSourceDeleteRejected(f.sid, () => hardDeleteSource(DAMA_DB, f.sid).catch((e) => { msg = e.message; }));
+    assert(/rejected by/.test(msg), `expected failure, got: ${msg || '(none)'}`);
+    for (const t of tables) assert(await tableExists(t), `${t} still there`);
+    assert((await count('sources', f.sid)) === 1 && (await count('views', f.sid)) === 2, 'source + views intact');
+    for (const t of tables) await damaDb.query(`DROP TABLE IF EXISTS public."${t}"`);
+  });
 }
 
 // ---------------------------------------------------------------------------

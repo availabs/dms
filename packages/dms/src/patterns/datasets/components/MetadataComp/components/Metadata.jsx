@@ -7,7 +7,7 @@ import {isEqual} from "lodash-es";
 const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = true}) => {
     const {UI, app} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const [metaObj, setMetaObj] = React.useState(editing);
 
     useEffect(() => {
@@ -16,8 +16,11 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = tr
 
     const {FieldSet} = UI;
     const customTheme = {
-        field: t.metadataFieldTheme
+        field: t.metadataFieldTheme,
+        ...(t.metadataFieldLabel ? {label: t.metadataFieldLabel} : {})
     }
+    // v6: buttons get the inputs' field wrapper (no mb-4) so they line up; '' → FieldSet default
+    const btnField = t.metadataFieldLabel ? {customTheme} : {};
     return type === 'datasource' ? (
         <FieldSet
             className={t.customGrid4}
@@ -69,7 +72,7 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = tr
                     customTheme
                 },
                 {
-                    type: 'Button', children: 'save', activeStyle: 'active', disabled: !canEdit,
+                    type: 'Button', children: 'save', activeStyle: 'primary', disabled: !canEdit, ...btnField,
                     onClick: () => {
                         canEdit && updateAttribute(col, {[attr]: JSON.stringify(metaObj)});
                     }
@@ -82,13 +85,16 @@ const DataSourceForm = ({editing, updateAttribute, col, attr, type, canEdit = tr
 const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const {FieldSet, Button} = UI;
     const [metaObj, setMetaObj] = React.useState(Object.keys(editing).map(k => ({key: k, value: editing[k]})));
     const [newPair, setNewPair] = React.useState({});
     const customTheme = {
-        field: t.metadataFieldTheme
+        field: t.metadataFieldTheme,
+        ...(t.metadataFieldLabel ? {label: t.metadataFieldLabel} : {})
     }
+    // v6: buttons get the inputs' field wrapper (no mb-4) so they line up; '' → FieldSet default
+    const btnField = t.metadataFieldLabel ? {customTheme} : {};
 
     useEffect(() => {
         const transformedValue = Object.keys(editing).map(k => ({key: k, value: editing[k]}));
@@ -96,13 +102,13 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
     }, [editing]);
     if(type !== 'custom') return null;
     return (
-        <>
+        <div className={t.customList}>
             {metaObj.map((pair, i) => (
                 <FieldSet
                     className={t.customGrid6}
                     components={[
                         {
-                            type: 'Input', placeHolder: 'key', value: pair.key,
+                            type: 'Input', placeholder: 'key', value: pair.key,
                             onChange: e => setMetaObj(metaObj.map((m, mi) => mi === i ? {
                                 key: e.target.value,
                                 value: pair.value
@@ -110,7 +116,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                             customTheme
                         },
                         {
-                            type: 'Input', placeHolder: 'value', value: pair.value,
+                            type: 'Input', placeholder: 'value', value: pair.value,
                             onChange: e => setMetaObj(metaObj.map((m, mi) => mi === i ? {
                                 key: pair.key,
                                 value: e.target.value
@@ -118,7 +124,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                             customTheme
                         },
                         {
-                            type: 'Button', children: 'update', activeStyle: 'active', disabled: !canEdit,
+                            type: 'Button', children: 'update', activeStyle: 'action', disabled: !canEdit, ...btnField,
                             onClick: () => {
                                 if (!canEdit) return;
                                 const finalObj = metaObj.reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
@@ -126,7 +132,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                             }
                         },
                         {
-                            type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit,
+                            type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit, ...btnField,
                             onClick: () => {
                                 if (!canEdit) return;
                                 const finalObj = metaObj.filter((_, mi) => mi !== i).reduce((acc, curr) => ({...acc, [curr.key]: curr.value}) , {})
@@ -141,17 +147,17 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                     className={t.customGrid6}
                     components={[
                         {
-                            type: 'Input', placeHolder: 'key', value: newPair.key,
+                            type: 'Input', placeholder: 'key', value: newPair.key,
                             onChange: e => setNewPair({...newPair, key: e.target.value}),
                             customTheme
                         },
                         {
-                            type: 'Input', placeHolder: 'value', value: newPair.value,
+                            type: 'Input', placeholder: 'value', value: newPair.value,
                             onChange: e => setNewPair({...newPair, value: e.target.value}),
                             customTheme
                         },
                         {
-                            type: 'Button', children: 'add', activeStyle: 'active',
+                            type: 'Button', children: 'add', activeStyle: 'action', ...btnField,
                             onClick: () => {
                                 const finalObj = {...editing, [newPair.key]: newPair.value};
                                 updateAttribute(col, {[attr]: JSON.stringify(finalObj)});
@@ -161,7 +167,7 @@ const CustomEntryForm = ({editing, updateAttribute, col, attr, type, canEdit = t
                     ]}
                 />
             }
-        </>
+        </div>
     );
 }
 
@@ -178,7 +184,7 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     const [type, setType] = React.useState(editing?.view_id ? 'datasource' : 'custom');
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const {Tabs, Button} = UI;
 
     useEffect(() => {
@@ -186,14 +192,17 @@ export const Metadata = ({value={}, col, drivingAttribute, attr, updateAttribute
     }, [value])
     if(drivingAttribute !== 'meta') return null;
     return (
-        <div>
+        <div className={t.metaWrapper}>
             <div className={t.metadataHeader}>
-                <label className={t.labelUpperCase}>metadata</label>
+                <div className={t.metadataHeaderLabel}>
+                    metadata{t.labelHint ? <span className={t.labelHint}>— lookup values from another source</span> : null}
+                </div>
                 {canEdit &&
-                    <Button activeStyle={'danger'} onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
+                    <Button activeStyle='danger' onClick={() => updateAttribute(col, {[attr]: undefined})}>clear metadata</Button>
                 }
             </div>
             <Tabs
+                activeStyle={t.tabsStyle || undefined}
                 selectedIndex={type === 'datasource' ? 0 : 1}
                 setSelectedIndex={i => setType(i === 0 ? 'datasource' : 'custom')}
                 tabs={[

@@ -54,7 +54,7 @@ const themeWithOwnMenu = (rawTheme, items) => {
 
 export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
   const { UI, theme } = React.useContext(ThemeContext) || {};
-  const { Icon, MultiSelect } = UI;
+  const { Icon, MultiSelect, Button, Input, FieldLabel } = UI;
   const t = { ...userMenuEditorTheme, ...(theme?.admin?.userMenuEditor || {}) };
   const {
     app, siteType, user, themes, parentBaseUrl, datasources = [], authPermissions,
@@ -304,15 +304,14 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
           <>
             {justSaved && !dirty && <span className={t.savedNote}>saved</span>}
             {dirty && <span className={t.dirtyNote}><span className={t.dirtyDot} />unsaved</span>}
-            {dirty && <button type="button" className={t.discardBtn} disabled={saving} onClick={discard}>discard</button>}
+            {dirty && <Button activeStyle="action" disabled={saving} onClick={discard}>discard</Button>}
             {dirty && (
-              <button
-                type="button"
-                className={t.saveBtn}
+              <Button
+                activeStyle="primary"
                 disabled={saving || (!readOnly && incomplete)}
                 title={!readOnly && incomplete ? 'Every link needs a label and a link' : undefined}
                 onClick={save}
-              >{saving ? 'saving…' : 'save'}</button>
+              >{saving ? 'saving…' : 'save'}</Button>
             )}
           </>
         }
@@ -325,8 +324,8 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
           <div className={t.modeRow}>
             <span className={t.modeLabel}>menu for this pattern</span>
             <div className={t.segmented}>
-              <button type="button" disabled={!canSwitch} className={mode === 'default' ? t.segmentActive : t.segment} onClick={() => switchMode('default')}>{DEFAULT_USER_MENU_NAME}</button>
-              <button type="button" disabled={!canSwitch} className={mode === 'own' ? t.segmentActive : t.segment} onClick={() => switchMode('own')}>own menu</button>
+              <Button disabled={!canSwitch} activeStyle={mode === 'default' ? 'segmentOn' : 'segment'} onClick={() => switchMode('default')}>{DEFAULT_USER_MENU_NAME}</Button>
+              <Button disabled={!canSwitch} activeStyle={mode === 'own' ? 'segmentOn' : 'segment'} onClick={() => switchMode('own')}>own menu</Button>
             </div>
           </div>
 
@@ -373,12 +372,12 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
                   <span className={t.spacer} />
                   {!readOnly && (
                     <>
-                      <button type="button" className={t.ghostBtn} onClick={addDivider}>
+                      <Button activeStyle="small" onClick={addDivider}>
                         <Icon icon="Minus" className={t.ghostBtnIcon} />divider
-                      </button>
-                      <button type="button" className={t.addBtn} onClick={addLink}>
+                      </Button>
+                      <Button activeStyle="primary" onClick={addLink}>
                         <Icon icon="Plus" className={t.addBtnIcon} />add link
-                      </button>
+                      </Button>
                     </>
                   )}
                 </div>
@@ -409,9 +408,11 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
                           {grip}
                           <span className={t.dividerLine} />
                           <span className={t.dividerLabel}>divider</span>
-                          <button type="button" className={t.dividerRemove} aria-label="remove divider" onClick={() => remove(i)}>
-                            <Icon icon="XMark" className={t.dividerRemoveIcon} />
-                          </button>
+                          <span className={t.dividerRemoveWrap}>
+                            <Button activeStyle="linkMetaDanger" aria-label="remove divider" onClick={() => remove(i)}>
+                              <Icon icon="XMark" className={t.dividerRemoveIcon} />
+                            </Button>
+                          </span>
                         </li>
                       );
                     }
@@ -438,39 +439,38 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
                         {open && (
                           <div className={t.editor}>
                             <div className={t.fields}>
-                              <label className={t.label}>label</label>
-                              <input className={t.input} value={it.name || ''} autoFocus={!it.name} onChange={(e) => setField(i, 'name', e.target.value)} />
+                              <div className={t.labelCell}><FieldLabel activeStyle="inline" htmlFor={`umi-${i}-name`} text="label" /></div>
+                              <Input id={`umi-${i}-name`} value={it.name || ''} autoFocus={!it.name} onChange={(e) => setField(i, 'name', e.target.value)} />
 
-                              <label className={t.label}>link</label>
+                              <div className={t.labelCell}><FieldLabel activeStyle="inline" htmlFor={`umi-${i}-path`} text="link" /></div>
                               <div>
-                                <input className={t.pathInput} value={it.path || ''} placeholder="/page-path or https://…" onChange={(e) => setField(i, 'path', e.target.value)} />
+                                <Input id={`umi-${i}-path`} activeStyle="mono" value={it.path || ''} placeholder="/page-path or https://…" onChange={(e) => setField(i, 'path', e.target.value)} />
                                 <p className={t.help}>{isExternal(it.path) ? 'A full URL, to another site.' : 'A path on this site, like /data or /list.'}</p>
                               </div>
 
-                              <label className={t.label}>icon</label>
+                              <div className={t.labelCell}><FieldLabel activeStyle="inline" text="icon" /></div>
                               <div>
-                                <button type="button" className={pickerOpen ? t.iconBtnOpen : t.iconBtn} onClick={() => setPickerOpen(!pickerOpen)}>
+                                <Button activeStyle="fieldTrigger" aria-expanded={pickerOpen} onClick={() => setPickerOpen(!pickerOpen)}>
                                   <span className={t.iconBtnTile}><Icon icon={it.icon || 'PageRound'} className={t.iconBtnIcon} /></span>
                                   <span className={t.iconBtnName}>{it.icon || 'PageRound'}</span>
                                   <Icon icon="CaretDown" className={t.iconBtnCaret} />
-                                </button>
+                                </Button>
                                 {pickerOpen && (
                                   <div className={t.picker}>
                                     <div className={t.pickerSearch}>
                                       <Icon icon="Search" className={t.pickerSearchIcon} />
-                                      <input className={t.pickerSearchInput} placeholder="search icons…" value={iconQuery} autoFocus onChange={(e) => setIconQuery(e.target.value)} />
+                                      <Input activeStyle="bare" placeholder="search icons…" value={iconQuery} autoFocus onChange={(e) => setIconQuery(e.target.value)} />
                                     </div>
                                     <div className={t.pickerGrid}>
                                       {iconMatches.map(name => (
-                                        <button
+                                        <Button
                                           key={name}
-                                          type="button"
                                           title={name}
-                                          className={name === it.icon ? t.pickerItemActive : t.pickerItem}
+                                          activeStyle={name === it.icon ? 'iconPickOn' : 'iconPick'}
                                           onClick={() => { setField(i, 'icon', name); setPickerOpen(false); setIconQuery(''); }}
                                         >
                                           <Icon icon={name} className={t.pickerItemIcon} />
-                                        </button>
+                                        </Button>
                                       ))}
                                       {!iconMatches.length && <div className={t.pickerEmpty}>No icons match.</div>}
                                     </div>
@@ -478,11 +478,11 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
                                 )}
                               </div>
 
-                              <label className={t.label}>who sees it</label>
+                              <div className={t.labelCell}><FieldLabel activeStyle="inline" text="who sees it" /></div>
                               <div className={t.audienceWrap}>
                                 <div className={t.segmented}>
-                                  <button type="button" className={!restricted ? t.segmentActive : t.segment} onClick={() => setRestricted(i, false)}>everyone signed in</button>
-                                  <button type="button" className={restricted ? t.segmentActive : t.segment} onClick={() => setRestricted(i, true)}>only some groups</button>
+                                  <Button activeStyle={!restricted ? 'segmentOn' : 'segment'} onClick={() => setRestricted(i, false)}>everyone signed in</Button>
+                                  <Button activeStyle={restricted ? 'segmentOn' : 'segment'} onClick={() => setRestricted(i, true)}>only some groups</Button>
                                 </div>
                                 {restricted && (
                                   <>
@@ -504,13 +504,13 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
                             </div>
 
                             <div className={t.editorFooter}>
-                              <button type="button" className={t.removeBtn} onClick={() => remove(i)}>
+                              <Button activeStyle="linkMetaDanger" onClick={() => remove(i)}>
                                 <Icon icon="TrashCan" className={t.removeBtnIcon} />remove link
-                              </button>
+                              </Button>
                               <span className={t.spacer} />
-                              <button type="button" className={t.moveBtn} disabled={i === 0} onClick={() => move(i, i - 1)}>up</button>
-                              <button type="button" className={t.moveBtn} disabled={i === items.length - 1} onClick={() => move(i, i + 1)}>down</button>
-                              <button type="button" className={t.doneBtn} onClick={() => toggleOpen(i)}>done</button>
+                              <Button activeStyle="small" disabled={i === 0} onClick={() => move(i, i - 1)}>up</Button>
+                              <Button activeStyle="small" disabled={i === items.length - 1} onClick={() => move(i, i + 1)}>down</Button>
+                              <Button activeStyle="small" onClick={() => toggleOpen(i)}>done</Button>
                             </div>
                           </div>
                         )}
@@ -545,13 +545,13 @@ export default function UserMenuEditor({ value, apiLoad, apiUpdate }) {
                 {mode === 'default' && savedMode === 'default' && defaultSaved !== null && canEditDefault && (confirmReset ? (
                   <span className={t.confirmRow}>
                     <span className={t.confirmLabel}>Remove the site's {DEFAULT_USER_MENU_NAME} and use the theme's links on every pattern without its own menu?</span>
-                    <button type="button" className={t.confirmYes} disabled={saving} onClick={() => { setConfirmReset(false); resetDefault(); }}>reset</button>
-                    <button type="button" className={t.confirmNo} onClick={() => setConfirmReset(false)}>cancel</button>
+                    <Button activeStyle="linkMetaDanger" disabled={saving} onClick={() => { setConfirmReset(false); resetDefault(); }}>reset</Button>
+                    <Button activeStyle="linkMeta" onClick={() => setConfirmReset(false)}>cancel</Button>
                   </span>
                 ) : (
-                  <button type="button" className={t.resetBtn} disabled={saving} onClick={() => setConfirmReset(true)}>
+                  <Button activeStyle="linkMeta" disabled={saving} onClick={() => setConfirmReset(true)}>
                     reset to theme default
-                  </button>
+                  </Button>
                 ))}
                 <span className={t.footerNote}>{scopeLabel}</span>
               </div>

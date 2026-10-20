@@ -9,13 +9,16 @@ import { getInstance } from "../../../../../utils/type-utils";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { createPageTheme } from "./CreatePage.theme";
+import CreateStep from "../../../components/CreateStep";
 
 const MIN_SOURCE_NAME_LENGTH = 4;
 const intFormat = d3format(",d");
 
 const CreatePage = ({ source }) => {
 	const { theme } = React.useContext(ThemeContext) || {};
-	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreatePage || {}) };
+	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreate || {}) };
+	const { UI } = React.useContext(DatasetsContext) || {};
+	const { FileInput } = UI || {};
 
 	const sourceId = React.useMemo(() => {
 		return source?.source_id || null;
@@ -31,40 +34,34 @@ const CreatePage = ({ source }) => {
   	return Boolean(sourceId) || sourceName.length >= MIN_SOURCE_NAME_LENGTH;
   }, [sourceId, sourceName]);
 
-	const [ref, setRef] = React.useState(null);
-
 	const [file, setFile] = React.useState(null);
-	const doSetFile = React.useCallback(e => {
-		setFile(e.target.files[0]);
+	const doSetFile = React.useCallback(files => {
+		setFile(files[0]);
 	}, []);
-	const clickFileInput = React.useCallback(e => {
-		ref.click();
-	}, [ref]);
 
 	return (
 		<div className={t.wrapper}>
+			<CreateStep n={1} title="Select a file" state={file ? 'done' : 'active'}>
 			<div className={t.topRow}>
-				<input type="file"
-					ref={ setRef }
-					className={t.fileInputHidden}
-					onChange={ doSetFile }/>
-				<button onClick={ clickFileInput }
+				<FileInput
+					label="Select a File"
 					disabled={ !okToUpload }
-					className={t.selectFileBtn}
-				>
-					Select a File
-				</button>
+					showFileName={ false }
+					onChange={ doSetFile }/>
 				{ okToUpload ? null :
 					<div className={t.noNameHint}>
 						Enter a source name of length { MIN_SOURCE_NAME_LENGTH } or longer.
 					</div>
 				}
 			</div>
+			</CreateStep>
 			{ !file ? null :
+				<CreateStep n={2} title="File info">
 				<File file={ file }
 					sourceId={ sourceId }
 					sourceName={ sourceName }
 					okToUpload={ okToUpload }/>
+				</CreateStep>
 			}
 		</div>
 	)
@@ -74,9 +71,10 @@ export default CreatePage;
 
 const File = ({ file, sourceId, sourceName, okToUpload }) => {
 	const { theme } = React.useContext(ThemeContext) || {};
-	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreatePage || {}) };
+	const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreate || {}) };
 
 	const {
+		UI,
 		app,
 		baseUrl,
 		falcor,
@@ -103,6 +101,7 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
   	setDescription(e.target.value);
   }, []);
 
+  const { Button, Input, Textarea } = UI;
   const [uploading, setUploading] = React.useState(false);
 
   const navigate = useNavigate();
@@ -185,18 +184,18 @@ console.log("uploadFile::response", json);
 		<>
 			{ !uploading ? null :
 				<div className={t.uploadingOverlay}>
-					UPLOADING FILE...
+					{ t.uploadingText }
 				</div>
 			}
 			{ !error ? null :
 				<div className={t.errorOverlay}>
 					<div>There was an error uploading your file:</div>
 					<div>{ error }</div>
-					<button onClick={ clearError }
-						className={t.errorCloseBtn}
-					>
-						Close
-					</button>
+					<div className={t.errorCloseWrap}>
+						<Button activeStyle="action" onClick={ clearError }>
+							Close
+						</Button>
+					</div>
 				</div>
 			}
 			<div>
@@ -231,12 +230,12 @@ console.log("uploadFile::response", json);
 					<div className={t.dirPathLabel}>
 						Directory Path:
 					</div>
-					<input type="text"
-						value={ directory }
-						onChange={ doSetDirectory }
-						placeholder="enter an optional directory path..."
-						className={t.dirPathInput}
-						rows="5"/>
+					<div className={t.dirPathField}>
+						<Input
+							value={ directory }
+							onChange={ doSetDirectory }
+							placeholder="enter an optional directory path..."/>
+					</div>
 				</div>
 
 				<div className={t.divider}/>
@@ -245,20 +244,18 @@ console.log("uploadFile::response", json);
 					<div className={t.descLabel}>
 						Description:
 					</div>
-					<textarea value={ description }
-						onChange={ doSetDescription }
-						placeholder="enter an optional description..."
-						className={t.descTextarea}
-						rows="5"/>
+					<div className={t.descField}>
+						<Textarea value={ description }
+							onChange={ doSetDescription }
+							placeholder="enter an optional description..."
+							rows="5"/>
+					</div>
 				</div>
 
 				<div className={t.uploadBtnRow}>
-					<button onClick={ uploadFile }
-						disabled={ !okToUpload }
-						className={t.uploadBtn}
-					>
+					<Button activeStyle="primary" onClick={ uploadFile } disabled={ !okToUpload }>
 						Upload File
-					</button>
+					</Button>
 				</div>
 
 			</div>

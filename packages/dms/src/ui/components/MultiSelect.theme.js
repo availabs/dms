@@ -31,12 +31,14 @@ export const multiselectTheme = {
 
             // Trigger / input shell.
             inputWrapper: [
-                'relative flex flex-wrap items-center gap-1 w-full min-h-9 rounded-md cursor-pointer',
-                'pl-3 pr-7 py-1.5',
+                // v6 field (2026-10-14, ui-controls.html "Fields" SELECT_T): 32px (h-6 tags + py-1), ink focus
+                // border, no ring. Pre-v6 min-h-9 / cobalt ring frozen in src/themes/_legacy/ui.js.
+                'relative flex flex-wrap items-center gap-1 w-full min-h-8 rounded-md cursor-pointer',
+                'pl-2.5 pr-7 py-1',
                 'border border-[var(--t-rule-strong)] hover:border-[var(--t-graphite)]',
                 'bg-[var(--t-panel)]',
-                'font-sans text-sm text-[var(--t-ink)]',
-                'focus-within:ring-1 focus-within:ring-[var(--t-cobalt)] focus-within:border-[var(--t-cobalt)]',
+                't-proseSM text-[var(--t-ink)]',
+                'focus-within:border-[var(--t-ink)]',
                 'transition-colors duration-150',
             ].join(' '),
 
@@ -59,23 +61,16 @@ export const multiselectTheme = {
             // Single-select mode (singleSelectOnly=true). The selected value
             // renders as inline text in the trigger — no pill chip, no remove
             // button — mirroring Catalyst Listbox / Select trigger typography.
-            singleValue: 'truncate font-sans text-sm text-[var(--t-ink)]',
-            singlePlaceholder: 'truncate font-sans text-sm text-[var(--t-pencil)]',
+            singleValue: 'truncate t-proseSM text-[var(--t-ink)]',
+            singlePlaceholder: 'truncate t-proseSM text-[var(--t-pencil)]',
 
             // Clear × for single-select with allowDeselect — absolutely positioned
             // just left of the caret (which sits at right-0). Glyph reuses
             // removeIconName / removeIconClass.
-            singleClearWrapper: 'absolute inset-y-0 right-6 flex items-center cursor-pointer text-zinc-500 hover:text-red-600',
+            singleClearWrapper: 'absolute inset-y-0 right-6 flex items-center cursor-pointer text-[var(--t-pencil)] hover:text-[var(--t-brick)]',
 
-            // Selected-value chip.
-            tokenWrapper: [
-                'inline-flex items-center gap-x-1 rounded-full px-2 py-0.5',
-                'font-mono text-xs font-normal',
-                'bg-[var(--t-well)] text-[var(--t-ink)]',
-                'border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)]',
-                'transition-colors duration-150',
-                'whitespace-nowrap',
-            ].join(' '),
+            // Selected-value chip — the spec's tag (controls.py TAG): h-6 r4 well, prose XS.
+            tokenWrapper: 'inline-flex items-center gap-1 h-6 px-1.5 rounded bg-[var(--t-well)] t-proseXS text-[var(--t-ink)] whitespace-nowrap',
 
             // Clickable × button on each chip — styles the wrapper button; the
             // actual glyph is rendered as `<Icon icon={removeIconName} ... />`
@@ -105,11 +100,14 @@ export const multiselectTheme = {
             // mt-1 separates it from the search input above.
             optionsWrapper: 'mt-1 max-h-[300px] overflow-auto',
 
+            // Option-group caption (options carrying `group`, 2026-10-15) — the v6 menu heading (controls.py MENU_HEAD).
+            groupHeading: 'px-2 pt-2 pb-1 t-metaXS text-[var(--t-pencil)] select-none cursor-default',
+
             // A single option row.
             menuItem: [
                 'flex items-center gap-2 rounded-md cursor-pointer outline-none',
                 'px-2 py-1.5',
-                'font-sans text-sm text-[var(--t-ink)]',
+                't-proseSM text-[var(--t-ink)]',
                 'hover:bg-[var(--t-well)]',
                 'transition-colors duration-150',
             ].join(' '),
@@ -128,7 +126,7 @@ export const multiselectTheme = {
 
             // Selected-row check icon shown when displayDetailedValues=false.
             selectedValueIconName: 'Check',
-            selectedValueIcon: 'w-4 h-4 text-[var(--t-cobalt)]',
+            selectedValueIcon: 'w-4 h-4 text-[var(--t-ink)]',
         },
         // A cobalt-accented chip variant — opt in per-column via `activeStyle:
         // 'accent'` on the column config (forwarded through by TableCell.jsx,
@@ -141,11 +139,10 @@ export const multiselectTheme = {
         {
             name: 'accent',
             tokenWrapper: [
-                'inline-flex items-center gap-x-1 rounded-full px-2 py-0.5',
-                'font-mono text-xs font-normal',
-                'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
-                'border border-[var(--t-cobalt-line)] hover:border-[var(--t-cobalt)]',
-                'transition-colors duration-150',
+                // owner 2026-10-14 "turn it into ink": the spec's tag (was cobalt-soft / cobalt rounded-full mono;
+                // frozen for project themes in src/themes/_legacy/ui.js `multiselect`)
+                'inline-flex items-center gap-1 h-6 px-1.5 rounded',
+                'bg-[var(--t-well)] t-proseXS text-[var(--t-ink)]',
                 'whitespace-nowrap',
             ].join(' '),
         },
@@ -199,6 +196,61 @@ export const multiselectTheme = {
                 'isolate min-w-[22rem] p-1 rounded-lg',
                 'bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)]',
             ].join(' '),
+        },
+        // Permission pills under each grant in Permissions.jsx (v3 layout, 2026-10-06): readable
+        // labels as soft pills, no field chrome, the caret is the "add" affordance. (Named styles
+        // merge by NAME — mergeComponentStyles in ui/useTheme.js — so position doesn't matter.)
+        {
+            name: 'permissions',
+            inputWrapper: [
+                'relative flex flex-wrap items-center gap-1.5 w-full min-h-0 rounded-md cursor-pointer',
+                'pl-0 pr-6 py-0.5 bg-transparent',
+                'transition-colors duration-150',
+            ].join(' '),
+            tokenWrapper: 'inline-flex items-center gap-1 rounded-full pl-2.5 pr-1.5 py-0.5 t-proseXS bg-[var(--t-well)] text-[var(--t-ink)]',
+            singlePlaceholder: 'truncate t-proseXS text-[var(--t-pencil)]',
+            caretIcon: 'w-3.5 h-3.5 stroke-[var(--t-pencil)]',
+        },
+        // 'input' — a select the same height as the text inputs beside it (datasets metadata editor's
+        // column type, 2026-10-07). Since 2026-10-14 fields and selects are both 32px, so it is the
+        // default trigger; kept as a name for its callers. Pre-v6 (Input's 42px padding) frozen in _legacy.
+        {
+            name: 'input',
+            inputWrapper: [
+                'relative flex flex-wrap items-center gap-1 w-full min-h-8 rounded-md cursor-pointer',
+                'pl-2.5 pr-7 py-1',
+                'border border-[var(--t-rule-strong)] hover:border-[var(--t-graphite)]',
+                'bg-[var(--t-panel)]',
+                't-proseSM text-[var(--t-ink)]',
+                'focus-within:border-[var(--t-ink)]',
+                'transition-colors duration-150',
+            ].join(' '),
+        },
+        // 'muted' (2026-10-15, ui-raw-html-to-ui-components.md) — a single select whose current value is a "no match" /
+        // fallback: the chosen text reads pencil instead of ink (datasets upload column matching).
+        {
+            name: 'muted',
+            singleValue: 'truncate t-proseSM text-[var(--t-pencil)]',
+        },
+        // 'tableHeaderControl' (2026-10-17) — a select in a table column's header menu row (was a native <select> with
+        // table.headerCellControl): borderless like 'plain', inset from its caption, the row's hover fill
+        {
+            name: 'tableHeaderControl',
+            inputWrapper: 'relative flex items-center w-full min-h-0 rounded-md cursor-pointer pl-2 pr-6 py-0.5 bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] font-sans text-sm text-[var(--t-ink)] transition-colors duration-150',
+            singleValue: 'truncate font-sans text-sm text-[var(--t-ink)] text-right w-full',
+            singlePlaceholder: 'truncate font-sans text-sm text-[var(--t-pencil)]',
+            caretIcon: 'w-3.5 h-3.5 stroke-[var(--t-pencil)]',
+        },
+        // 'lexLinkTarget' (2026-10-17) — the Lexical link editor's target select (was a native <select> sharing the URL
+        // field's lexical `linkEditor_linkInput_base`): the same grey pill as that field, minus its layout (block /
+        // width / margin → the caller's wrapper); no caret — the editor's cancel / confirm icons sit over the pill's
+        // right end, as they did over the native select.
+        {
+            name: 'lexLinkTarget',
+            inputWrapper: 'relative flex items-center w-full cursor-pointer box-border p-2 rounded-[15px] bg-[var(--t-well)] text-[15px] text-[var(--t-ink)] border-0 outline-0 font-inherit',   // = lexical linkEditor_linkInput_base (tokens, 2026-10-17)
+            caretWrapper: 'hidden',
+            singleValue: 'truncate',
+            singlePlaceholder: 'truncate',
         },
     ],
 };

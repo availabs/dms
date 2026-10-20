@@ -19,8 +19,10 @@ export const TextareaEdit = ({value, onChange, className, placeholder,
     // Destructure non-DOM props so they don't reach <textarea>
     loading, singleSelectOnly, displayDetailedValues, keepMenuOpen,
     tabular, displayInvalidMsg, onSearch, theme: _theme, format,
-    // a Card style's editField: when set, the field's whole class (else its input theme)
-    fieldClassName,
+    // a Card style's editFieldStyle: a UI.Input named style for this field (Input takes no className);
+    // else 'inline' — the textarea editor's own style (project themes keep their pre-lock look there)
+    fieldStyle,
+    activeStyle: _activeStyle,
     ...rest}) => {
     const [tmpValue, setTmpValue] = useState(() => toInputValue(value))
 
@@ -31,7 +33,7 @@ export const TextareaEdit = ({value, onChange, className, placeholder,
     return (
         <Textarea
             {...rest}
-            {...(fieldClassName ? { className: fieldClassName } : {})}
+            activeStyle={fieldStyle || 'inline'}
             value={tmpValue}
             placeholder={placeholder}
             onChange={(e) => {

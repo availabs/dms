@@ -1,52 +1,55 @@
 import React from 'react'
 import Icon from './Icon'
 import {ThemeContext, getComponentTheme} from '../useTheme'
+import { warnLockedClassName } from '../warnLockedClassName'
 import {inputTheme} from './Input.theme'
+import { fieldOnTop } from './fieldOnTop'
 
-// `activeStyle` is a THEMING key (named-style selector) passed by themed callers (filter
-// controls, column types). Resolved through getComponentTheme so a site theme may register
-// `input` as an options/styles[] map with named variants (e.g. a borderless 'pill' style for
-// filter-bar controls). BC: a flat `theme.input` map passes through getComponentTheme
-// unchanged regardless of activeStyle, so themes without styles[] behave exactly as before.
-export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
-  const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
-  const theme = {...themeFromContext, input: {...inputTheme, ...(getComponentTheme(themeFromContext, 'input', activeStyle) || {})}};
+// Locked (2026-10-14, ui-control-fields.md): the look comes only from the theme — `activeStyle` picks a
+// named style of `theme.input` (styles[]); a `className` prop is dropped, never applied. Registered themes
+// with a flat `input` are wrapped into styles[0] by src/themes/_legacy/ui.js withLegacyUi.
+export default function Input ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, className, ...props}) {
+  warnLockedClassName('Input', className);
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const t = { ...inputTheme.styles[0], ...getComponentTheme(themeFromContext, 'input', activeStyle) };
   return (
-    <span className={`${theme?.input?.inputContainer}`}>
-      <input type={type} className={`${theme?.input?.input}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
+    <span className={t.inputContainer}>
+      <input type={type} className={fieldOnTop(t.input)} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
 
-export function Textarea ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, ...props}) {
-  const { theme: themeFromContext = {} } = React.useContext(ThemeContext);
-  const theme = {...themeFromContext, input: {...inputTheme, ...(themeFromContext.input || {})}};
+export function Textarea ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle, className, ...props}) {
+  warnLockedClassName('Input.Textarea', className);
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const t = { ...inputTheme.styles[0], ...getComponentTheme(themeFromContext, 'input', activeStyle) };
   return (
-    <span className={`${theme?.input?.inputContainer}`}>
-      <textarea className={`${theme?.input?.textarea}`} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
+    <span className={t.inputContainer}>
+      <textarea className={fieldOnTop(t.textarea)} value={value} onChange={onChange} placeholder={placeholder} disabled={disabled} {...props}/>
     </span>
   )
 }
 
-export function ConfirmInput ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, EditIcon='PencilIcon', ConfirmIcon='CircleCheck', CancelIcon='CircleX'}) {
-  const { theme = {input: inputTheme}} = React.useContext(ThemeContext);
+export function ConfirmInput ({ type='text', label, description, value, onChange=() => {}, placeholder, disabled, onClick=()=>{}, rounded, activeStyle='inline', EditIcon='PencilIcon', ConfirmIcon='CircleCheck', CancelIcon='CircleX'}) {
+  const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+  const t = { ...inputTheme.styles[0], ...getComponentTheme(themeFromContext, 'input', activeStyle) };
   const [tempValue, setTempValue] = React.useState(value)
   const [editing, setEditing] = React.useState(false)
   React.useEffect(() => setTempValue(value), [value])
 
   return (
-    <span className={`${theme?.input?.inputContainer}`}>
+    <span className={`${t.inputContainer}`}>
       { editing ?
-        <input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={`${theme?.input?.input}`} /> :
-        <div className={`${theme?.input?.input}`}>{tempValue}</div>
+        <input type={type} value={tempValue} onChange={e => setTempValue(e.target.value)} className={fieldOnTop(t.input)} /> :
+        <div className={`${t.input}`}>{tempValue}</div>
       }
 
       {!editing ?
-        (<div className={`${theme?.input?.confirmButtonContainer} ${theme?.input?.editButton}`} onClick={() => setEditing(true)}><Icon icon={EditIcon} className={'size-5.5'} /></div>) :
-        (<div className={`${theme?.input?.confirmButtonContainer}`}>
+        (<div className={`${t.confirmButtonContainer} ${t.editButton}`} onClick={() => setEditing(true)}><Icon icon={EditIcon} className={'size-5.5'} /></div>) :
+        (<div className={`${t.confirmButtonContainer}`}>
 
-            <div className={`${theme?.input?.confirmButton}`} onClick={() => { onChange(tempValue); setEditing(false); }}><Icon icon={ConfirmIcon} /></div>
-            <div className={`${theme?.input?.cancelButton}`} onClick={() => { setTempValue(value);setEditing(false);}}><Icon icon={CancelIcon} /></div>
+            <div className={`${t.confirmButton}`} onClick={() => { onChange(tempValue); setEditing(false); }}><Icon icon={ConfirmIcon} /></div>
+            <div className={`${t.cancelButton}`} onClick={() => { setTempValue(value);setEditing(false);}}><Icon icon={CancelIcon} /></div>
 
         </div>
         )

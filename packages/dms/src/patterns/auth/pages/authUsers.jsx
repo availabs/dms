@@ -6,7 +6,7 @@ import {isEqual} from "lodash-es";
 import { isUserAuthed } from "../../../utils/auth";
 import { useManagePageGate } from "./useManagePageGate";
 
-const InputControl = ({show, value, onChange, placeHolder, className}) => {
+const InputControl = ({show, value, onChange, placeHolder}) => {
     const { UI } = React.useContext(ThemeContext);
     const { Input } = UI;
 
@@ -26,7 +26,7 @@ const InputControl = ({show, value, onChange, placeHolder, className}) => {
 
     if (!show) return null;
     return (
-        <Input className={className}
+        <Input activeStyle='headerFilter'
             type="text"
             value={tmpValue}
             onChange={e => setTmpValue(e.target.value)}
@@ -41,7 +41,6 @@ const MANAGE_DEFAULTS = {
     pageWrapper: "flex flex-col gap-3",
     headerRow: "w-full flex justify-between border-b-2 border-blue-400",
     headerTitle: "text-2xl font-semibold text-gray-700",
-    headerAction: "shrink-0",
     headerStats: "flex items-stretch gap-3",
     headerStatsItem: "",
     headerStatsValue: "text-xl font-semibold",
@@ -51,7 +50,6 @@ const MANAGE_DEFAULTS = {
     metaText: "text-gray-500 text-sm",
     modalHeader: "flex items-center justify-between mb-2",
     modalTitle: "text-lg font-semibold text-gray-700",
-    modalCloseBtn: "text-gray-400 hover:text-gray-700",
     modalBody: "flex flex-row gap-3",
     notice: "",
 };
@@ -71,9 +69,9 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
         <Modal open={open} setOpen={setOpen}>
             <div className={m.modalHeader}>
                 <div className={m.modalTitle}>Add a user</div>
-                <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setOpen(false)}>
+                <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
                     <Icon icon="XMark" />
-                </button>
+                </Button>
             </div>
             <div className={m.modalBody}>
                 <Input
@@ -82,7 +80,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
                     onChange={e => setEmail(e.target.value)}
                     placeHolder="Enter user email"
                 />
-                <Button className={m.modalAction} disabled={loading} onClick={() => onAdd(email)}>
+                <Button activeStyle='primary' disabled={loading} onClick={() => onAdd(email)}>
                     {loading ? "Adding" : status || "Add"}
                 </Button>
             </div>
@@ -245,7 +243,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 return (
                     <div className={className}>
                         <Button
-                            className={m.rowAction}
+                            activeStyle='small'
                             onClick={() => setViewAsUser(isActive ? null : { ...row, groups: [...new Set([...(row.groups || []), 'public'])], authed: true, isAuthenticating: false })}
                         >
                             {isActive ? 'Viewing As' : 'View As'}
@@ -256,7 +254,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
         },
         {
             name: '', display_name: '', show: true, type: 'ui',
-            Comp: d => <div className={d.className}><Button className={m.rowAction} onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
+            Comp: d => <div className={d.className}><Button activeStyle='small' onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
         },
     ];
 
@@ -267,13 +265,13 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 <div className={m.tableHeaderCell}>
                     {attribute.display_name}
                     { attribute.name === 'email' &&
-                        <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..." className={m.headerInput}/> }
+                        <InputControl show value={searchUser} onChange={setSearchUser} placeHolder="search..."/> }
                     { attribute.name === 'groups' &&
-                        <InputControl show value={searchGroup} onChange={setSearchGroup} placeHolder="filter group..." className={m.headerInput}/> }
+                        <InputControl show value={searchGroup} onChange={setSearchGroup} placeHolder="filter group..."/> }
                 </div>
             )
         }
-    }), [searchUser, searchGroup, m.tableHeaderCell, m.headerInput]);
+    }), [searchUser, searchGroup, m.tableHeaderCell]);
 
     // const requestsTableControls = {
     //     header: {
@@ -350,7 +348,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                         <p className={m.headerStatsLabel}>groups</p>
                     </div>
                 </div>
-                <Button className={m.headerAction} onClick={() => { setAddStatus(''); setAddingNew(true); }}>Add new</Button>
+                <Button activeStyle='primary' onClick={() => { setAddStatus(''); setAddingNew(true); }}>Add new</Button>
             </div>
 
             <div className={m.pageWrapper}>
@@ -361,7 +359,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 data={filteredUsers}
                 columns={userColumns}
                 allowEdit={true}
-                activeStyle="roomy"
+                activeStyle="list"
                 updateItem={async (_, __, e) => {
                     const original = users.find(u => u.email === e.email);
 
@@ -400,13 +398,13 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
             <Modal open={Boolean(editUser)} setOpen={setEditUser}>
                 <div className={m.modalHeader}>
                     <div className={m.modalTitle}>Reset password</div>
-                    <button type="button" aria-label="Close" className={m.modalCloseBtn} onClick={() => setEditUser(null)}>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setEditUser(null)}>
                         <Icon icon="XMark" />
-                    </button>
+                    </Button>
                 </div>
                 <div className={m.modalBody}>
                     Reset password for: {editUser?.email}?
-                    <Button className={m.modalAction} disabled={resetLocked} onClick={async () => {
+                    <Button activeStyle='primary' disabled={resetLocked} onClick={async () => {
                         setResetLocked(true);
                         setResetStatus('sending');
                         const res = await callAuthServer(`${AUTH_HOST}/password/reset`, {

@@ -32,6 +32,9 @@ import {getSelectedNode} from '../../utils/getSelectedNode';
 import {setFloatingElemPosition} from '../../utils/setFloatingElemPosition';
 import { useLexicalTheme } from '../../../useLexicalTheme';
 import DropdownColorPicker from '../../ui/DropdownColorPicker';
+import { ThemeContext } from '../../../../../useTheme';
+// the format buttons are UI.Buttons (2026-10-17): the host UI wins; the imported one covers a Provider-less mount
+import DefaultButton from '../../../../Button';
 //import {INSERT_INLINE_COMMAND} from '../CommentPlugin';
 
 function TextFormatFloatingToolbar({
@@ -60,6 +63,8 @@ function TextFormatFloatingToolbar({
   fontColor: string;
 }): JSX.Element {
   const theme = useLexicalTheme();
+  const { UI } = React.useContext(ThemeContext) || {};
+  const Button = UI?.Button || DefaultButton;
   const popupCharStylesEditorRef = useRef<HTMLDivElement | null>(null);
 
   const applyStyleText = useCallback(
@@ -197,72 +202,72 @@ function TextFormatFloatingToolbar({
     <div ref={popupCharStylesEditorRef} className={editor.isEditable() ? `${theme.floatingTextFormatPopup_base}`  : ''}>
       {editor.isEditable() && (
         <>
-          <button
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'bold');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} `) + (isBold ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isBold ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             aria-label="Format text as bold">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_bold}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'italic');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} ` ) + (isItalic ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isItalic ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             aria-label="Format text as italics">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_italic}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'underline');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} `) + (isUnderline ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isUnderline ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             aria-label="Format text to underlined">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_underline}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'strikethrough');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced}`) + (isStrikethrough ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isStrikethrough ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             aria-label="Format text with a strikethrough">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_strikethrough}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'subscript');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} `) + (isSubscript ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isSubscript ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             title="Subscript"
             aria-label="Format Subscript">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_subscript}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'superscript');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} `) + (isSuperscript ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isSuperscript ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             title="Superscript"
             aria-label="Format Superscript">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_subscript}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={() => {
               editor.dispatchCommand(FORMAT_TEXT_COMMAND, 'code');
             }}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced}`) + (isCode ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isCode ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             aria-label="Insert code block">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_code}`} />
-          </button>
-          <button
+          </Button>
+          <Button
             onClick={insertLink}
-            className={(`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced}`) + (isLink ? `${theme.floatingTextFormatPopup_popupItem_active}` || 'active' : '')}
+            activeStyle={isLink ? theme.floatingTextFormatPopup_popupItem_activeStyle : theme.floatingTextFormatPopup_popupItem_style}
             aria-label="Insert link">
             <i className={`${theme.floatingTextFormatPopup_popupItem_icon} ${theme.icon_link}`} />
-          </button>
+          </Button>
           <DropdownColorPicker
-            buttonClassName={`${theme.floatingTextFormatPopup_popupItem_base} ${theme.floatingTextFormatPopup_popupItem_spaced} color-picker`}
+            buttonStyle={theme.floatingTextFormatPopup_popupItem_style}
             buttonAriaLabel="Formatting text color"
             buttonIconClassName={`${theme.dropdown_item_icon} ${theme.icon_fontColor}`}
             color={fontColor}

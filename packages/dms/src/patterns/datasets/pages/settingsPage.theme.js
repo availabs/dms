@@ -1,69 +1,82 @@
+// Datasets settings page (pages/SettingsPage.jsx) — tessera v6, 2026-10-07, from
+// src/themes/tessera/design_system_v6/pages/datasets-settings.html. No accent colour (owner direction
+// 2026-10-07); amber stays for the warning / overridden / deprecated states. Pre-v6 values frozen in
+// src/themes/_legacy/datasets.js `settingsPage`.
+const RULE = 'border-[var(--t-rule)]';
+const CARD = `rounded-lg border ${RULE} bg-[var(--t-panel)]`;
+const EYEBROW = 't-metaXS text-[var(--t-pencil)]';
+
 export const settingsPageTheme = {
-    pageWrapper: 'max-w-5xl mx-auto w-full',
-    heading: 'text-2xl font-medium text-blue-600',
-    envPanel: 'mt-3 p-3 border rounded-lg bg-slate-50 flex flex-col gap-1',
-    envPanelLabel: 'text-xs font-semibold uppercase tracking-wide text-slate-500',
-    envRow: 'flex items-baseline gap-2 text-sm',
-    envRowLabel: 'text-slate-600 w-24 shrink-0',
-    envRowValue: 'font-mono text-slate-900',
-    envRowMuted: 'text-xs text-slate-500',
-    envRowEmpty: 'italic text-slate-400',
-    toggleRow: 'flex items-center gap-3 my-3',
-    togglePanel: 'mt-3 p-3 border rounded-lg bg-slate-50 flex flex-col gap-2',
-    togglePanelLabel: 'text-xs font-semibold uppercase tracking-wide text-slate-500',
-    toggleLabel: 'text-sm text-slate-700',
-    toggleHint: 'text-xs text-slate-500',
-    searchWrapper: 'my-4',
-    columnsWrapper: 'flex flex-col sm:flex-row gap-4',
-    column: 'flex-1 border rounded-lg p-3 bg-slate-50',
-    columnLabel: 'text-sm font-medium text-gray-700',
-    columnHint: 'text-xs italic text-gray-500 ml-1',
-    categoryList: 'flex flex-wrap gap-1 mt-2 max-h-[70vh] overflow-auto',
-    categoryButton: 'bg-white hover:bg-blue-50 px-3 py-1.5 rounded-md flex items-center gap-2 text-sm border border-gray-200',
-    categoryCount: 'bg-blue-100 text-blue-600 text-xs w-5 h-5 shrink-0 rounded-full flex items-center justify-center',
-    // ── lifecycle visibility (the redesign) ────────────────────────────────
-    // Panels are self-describing: every row carries its own count and its
-    // inherited/overridden state, because a per-pattern setting that does not
-    // show where its value came from is a debugging nightmare.
-    lcPanel: 'mt-6 rounded-lg border border-gray-200 bg-white',
-    lcHeader: 'px-5 pt-4 pb-3 border-b border-gray-100 flex items-start justify-between gap-4 flex-wrap',
-    lcTitle: 'text-base font-semibold text-gray-900',
-    lcSub: 'text-sm text-gray-600 mt-0.5 max-w-2xl',
-    lcScope: 'inline-flex items-center gap-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-1.5 text-xs text-gray-600',
-    lcScopeValue: 'font-semibold text-gray-900',
-    lcRows: 'divide-y divide-gray-100',
-    lcRow: 'px-5 py-3.5 flex items-start gap-4',
+    pageWrapper: 'w-full min-w-0',
+    // box-content: max-w-4xl measures the content, as in the mockup ('' → LayoutGroup, pre-v6)
+    content: 'box-content max-w-4xl pl-6 lg:pl-12 pr-6 lg:pr-8 py-8 flex flex-col gap-5',
+    heading: 't-displayMD text-[var(--t-ink)]',
+
+    // Environment (read-only)
+    envPanel: `${CARD} px-5 py-4 flex flex-col gap-2`,
+    envPanelLabel: 't-proseSM font-medium text-[var(--t-ink)] mb-1',
+    envRow: 'flex items-baseline gap-4',
+    envRowLabel: 't-proseSM text-[var(--t-pencil)] w-24 shrink-0',
+    envRowValue: 't-metaMD text-[var(--t-ink)]',
+    envRowMuted: 't-metaMD text-[var(--t-pencil)]',
+    envRowEmpty: 't-proseSM italic text-[var(--t-pencil)]',
+
+    // Source lists
+    togglePanel: `${CARD} px-5 py-4 flex flex-col gap-2`,
+    togglePanelLabel: 't-proseSM font-medium text-[var(--t-ink)]',
+    toggleRow: 'flex items-center gap-3',
+    toggleLabel: 't-proseSM text-[var(--t-ink)]',
+    toggleHint: 't-proseXS text-[var(--t-graphite)] max-w-[70ch]',
+
+    // Legacy category filter
+    searchWrapper: 'px-5 pt-4 max-w-sm',
+    columnsWrapper: 'grid grid-cols-1 md:grid-cols-2 gap-6 px-5 py-4',
+    column: 'min-w-0',
+    columnLabel: EYEBROW,
+    columnHint: 'ml-1 normal-case tracking-normal',
+    categoryList: 'flex flex-wrap gap-1.5 mt-2 max-h-[50vh] overflow-auto',
+    categoryCount: 't-metaXS rounded-full bg-[var(--t-well)] text-[var(--t-graphite)] px-1.5',
+
+    // ── lifecycle visibility ───────────────────────────────────────────────
+    lcPanel: CARD,
+    lcHeader: `px-5 py-4 border-b ${RULE} flex items-start justify-between gap-4 flex-wrap`,
+    lcTitle: 't-proseSM font-medium text-[var(--t-ink)] flex items-center gap-2',
+    lcSub: 't-proseSM text-[var(--t-graphite)] mt-1 max-w-[70ch]',
+    lcScope: `inline-flex items-center gap-1.5 ${EYEBROW} border ${RULE} rounded px-1.5 py-0.5 flex-none`,
+    lcScopeValue: 'font-medium text-[var(--t-ink)]',
+    lcRows: `border-t ${RULE} divide-y divide-[var(--t-rule)]`,
+    lcRow: 'px-5 py-3 flex items-start gap-4',
     lcRowBody: 'flex-1 min-w-0',
     lcRowTitle: 'flex items-center gap-2 flex-wrap',
-    lcRowName: 'text-sm font-semibold text-gray-900',
-    lcRowCount: 'text-xs tabular-nums text-gray-400',
-    lcRowHint: 'text-sm text-gray-600 mt-0.5',
-    lcRequired: 'inline-flex items-center px-1.5 h-4 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-600 text-white',
+    lcRowName: 't-proseSM text-[var(--t-ink)]',
+    lcRowCount: EYEBROW,
+    lcRowHint: 't-proseXS text-[var(--t-graphite)] mt-0.5',
+    lcRequired: 'inline-flex items-center t-metaXS text-[var(--t-brick)] bg-[var(--t-brick-soft)] rounded px-1.5 py-0.5',
     lcState: 'shrink-0 mt-0.5 text-right',
-    lcStateDefault: 'text-[10px] uppercase tracking-wider text-gray-400',
-    lcStateOverridden: 'text-[10px] uppercase tracking-wider text-amber-700',
-    lcReset: 'text-xs text-blue-700 hover:underline',
-    lcNote: 'px-5 py-3 border-t border-gray-100 bg-gray-50/70 flex items-start gap-2.5 text-xs text-gray-600 leading-snug',
-    lcWarn: 'px-5 py-3 border-t border-amber-200 bg-amber-50 text-xs text-amber-900 leading-snug',
+    lcStateDefault: EYEBROW,
+    lcStateOverridden: 't-metaXS text-[var(--t-amber)]',
+    lcResetWrap: 'block mt-1',   // 'reset to default' (UI.Button linkMeta)
+    lcNote: `px-5 py-3 border-t ${RULE} t-proseXS text-[var(--t-pencil)]`,
+    lcWarn: 'px-5 py-3 border-t border-[var(--t-amber)] bg-[var(--t-amber-soft)] t-proseSM text-[var(--t-amber)]',
     // live effect
-    fxPanel: 'rounded-lg bg-slate-800 text-white p-4',
-    fxBig: 'text-3xl font-semibold leading-none tabular-nums',
-    fxBigMuted: 'text-lg text-white/40',
-    fxCaption: 'text-xs text-white/70 mt-1',
-    fxRow: 'flex items-center justify-between text-xs mt-1',
-    fxRowLabel: 'text-white/60',
-    fxRowValue: 'tabular-nums text-white/90',
-    fxHint: 'text-xs text-gray-500 leading-snug mt-2',
+    fxPanel: 'flex flex-wrap items-center gap-x-6 gap-y-1 bg-[var(--t-well)] rounded-lg px-4 py-3',
+    fxBig: 'text-2xl font-semibold leading-none tabular-nums text-[var(--t-ink)] basis-full sm:basis-auto',
+    fxBigMuted: 'text-base font-normal text-[var(--t-pencil)]',
+    fxCaption: `${EYEBROW} basis-full sm:basis-auto`,
+    fxRow: 'inline-flex items-center gap-1.5 t-proseSM',
+    fxRowLabel: 'text-[var(--t-pencil)]',
+    fxRowValue: 'font-medium tabular-nums text-[var(--t-ink)]',
+    fxHint: 't-proseXS text-[var(--t-pencil)] mt-2',
     // new-source defaults
     nsGrid: 'px-5 py-4 grid grid-cols-1 md:grid-cols-2 gap-6',
-    nsLabel: 'text-[10px] uppercase tracking-wider text-gray-500 mb-2',
-    nsPill: 'inline-flex items-center gap-2 px-3 py-2 rounded-md border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-900',
-    nsMuted: 'text-[10px] uppercase tracking-wider text-gray-400',
-    nsCheckRow: 'flex items-center gap-2.5 text-sm text-gray-700',
-    nsHint: 'text-xs text-gray-600 mt-2 leading-snug',
+    nsLabel: `${EYEBROW} mb-1.5`,
+    nsPill: 'inline-flex items-baseline gap-2 t-proseSM text-[var(--t-ink)]',
+    nsMuted: EYEBROW,
+    nsCheckItem: 'flex py-1',          // a promotion-gate checkbox (ColumnTypes.checkbox with rowLabel)
+    nsHint: 't-proseXS text-[var(--t-graphite)] mt-1.5',
     // legacy panel
-    legacyPanel: 'mt-6 rounded-lg border border-amber-300 bg-white',
-    legacyHeader: 'px-5 pt-4 pb-3 border-b border-amber-200 bg-amber-50',
-    legacyBadge: 'inline-flex items-center px-1.5 h-4 rounded text-[10px] font-semibold uppercase tracking-wide bg-amber-600 text-white',
-    emptyMessage: 'text-gray-400 text-sm italic p-2',
+    legacyPanel: CARD,
+    legacyHeader: `px-5 py-4 border-b ${RULE}`,
+    legacyBadge: 'inline-flex items-center t-metaXS text-[var(--t-amber)] bg-[var(--t-amber-soft)] rounded px-1.5 py-0.5',
+    emptyMessage: 't-proseSM text-[var(--t-pencil)]',
 }

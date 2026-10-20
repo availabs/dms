@@ -1,8 +1,11 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useContext } from 'react';
 import Popup from './Popup';
 import Icon from './Icon';
 import Input from './Input';
+import Button from './Button';
 import columnTypes from '../columnTypes';
+import { ThemeContext, getComponentTheme } from '../useTheme';
+import { cardColumnPickerTheme } from './CardColumnPicker.theme';
 
 const getColumnLabel = (col) => col.customName || col.display_name || col.name;
 const isEqualColumns = (a, b) =>
@@ -23,6 +26,8 @@ const applyCardHintDefaults = (col) => {
 };
 
 const StaticColumnForm = ({ insertAt, setState, setOpen }) => {
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...cardColumnPickerTheme.styles[0], ...getComponentTheme(themeFromContext, 'cardColumnPicker') };
     const [displayName, setDisplayName] = useState('');
     const [value, setValue] = useState('');
 
@@ -44,7 +49,7 @@ const StaticColumnForm = ({ insertAt, setState, setOpen }) => {
     };
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className={t.form}>
             <Input
                 placeHolder="Display name"
                 value={displayName}
@@ -55,18 +60,16 @@ const StaticColumnForm = ({ insertAt, setState, setOpen }) => {
                 value={value}
                 onChange={e => setValue(e.target.value)}
             />
-            <button
-                className="px-2 py-1 text-xs bg-purple-500 text-white rounded hover:bg-purple-600 disabled:opacity-40"
-                disabled={!displayName.trim()}
-                onClick={confirm}
-            >
+            <Button activeStyle="small" disabled={!displayName.trim()} onClick={confirm}>
                 Add Static Column
-            </button>
+            </Button>
         </div>
     );
 };
 
 const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }) => {
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...cardColumnPickerTheme.styles[0], ...getComponentTheme(themeFromContext, 'cardColumnPicker') };
     const [search, setSearch] = useState('');
     const [staged, setStaged] = useState([]);
     const [focused, setFocused] = useState(false);
@@ -116,7 +119,7 @@ const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }
     };
 
     return (
-        <div className="flex flex-col gap-1">
+        <div className={t.form}>
             <Input
                 placeHolder="Search columns to add..."
                 value={search}
@@ -125,11 +128,11 @@ const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }
                 onBlur={() => setTimeout(() => setFocused(false), 150)}
             />
             {(focused || search) && available.length > 0 && (
-                <div className="max-h-40 overflow-y-auto border rounded bg-white text-sm">
+                <div className={t.list}>
                     {available.map(col => (
                         <div
                             key={col.name}
-                            className="px-2 py-1 hover:bg-blue-50 cursor-pointer"
+                            className={t.listRow}
                             onMouseDown={e => { e.preventDefault(); stage(col); }}
                         >
                             {getColumnLabel(col)}
@@ -138,23 +141,20 @@ const ColumnSearch = ({ allColumns, sourceColumns, insertAt, setState, setOpen }
                 </div>
             )}
             {staged.length > 0 && (
-                <div className="flex flex-wrap gap-1 pt-0.5">
+                <div className={t.stagedRow}>
                     {staged.map(col => (
                         <span
                             key={col.name}
-                            className="flex items-center gap-0.5 px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded cursor-pointer hover:bg-blue-200"
+                            className={t.staged}
                             onClick={() => unstage(col)}
                         >
                             {getColumnLabel(col)}
-                            <Icon icon="XMark" className="size-3" />
+                            <Icon icon="XMark" className={t.stagedIcon} />
                         </span>
                     ))}
-                    <button
-                        className="px-2 py-0.5 text-xs bg-green-500 text-white rounded hover:bg-green-600"
-                        onClick={confirm}
-                    >
+                    <Button activeStyle="small" onClick={confirm}>
                         Add
-                    </button>
+                    </Button>
                 </div>
             )}
         </div>
@@ -185,6 +185,8 @@ export default function CardColumnPicker({
     setIsPickerOpen=() => {},
     orientation = 'icon', // 'horizontal' | 'vertical' | 'icon'
 }) {
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...cardColumnPickerTheme.styles[0], ...getComponentTheme(themeFromContext, 'cardColumnPicker') };
     const allColumns = useMemo(() => {
         const activeNames = new Set((columns || []).map(c => c.name));
         return [
@@ -227,24 +229,24 @@ export default function CardColumnPicker({
     const visible = hovered || parentHovered;
 
     const triggerContent = orientation === 'horizontal' ? (
-        <div className="w-full flex items-center">
-            <div className="flex-1 h-px bg-blue-400" />
-            <div className="shrink-0 size-3.5 rounded-full bg-blue-400 flex items-center justify-center text-white">
-                <Icon icon="Add" className="size-2.5" />
+        <div className={t.insertH}>
+            <div className={t.lineH} />
+            <div className={t.dot}>
+                <Icon icon="Add" className={t.dotIcon} />
             </div>
-            <div className="flex-1 h-px bg-blue-400" />
+            <div className={t.lineH} />
         </div>
     ) : orientation === 'vertical' ? (
-        <div className="h-full flex flex-col items-center">
-            <div className="flex-1 w-px bg-blue-400" />
-            <div className="shrink-0 size-3.5 rounded-full bg-blue-400 flex items-center justify-center text-white">
-                <Icon icon="Add" className="size-2.5" />
+        <div className={t.insertV}>
+            <div className={t.lineV} />
+            <div className={t.dot}>
+                <Icon icon="Add" className={t.dotIcon} />
             </div>
-            <div className="flex-1 w-px bg-blue-400" />
+            <div className={t.lineV} />
         </div>
     ) : (
-        <div className="flex items-center justify-center rounded hover:bg-blue-100 text-blue-400 hover:text-blue-600 w-4 h-4">
-            <Icon icon="Add" className="size-3" />
+        <div className={t.iconTrigger}>
+            <Icon icon="Add" className={t.iconTriggerIcon} />
         </div>
     );
 
@@ -256,36 +258,35 @@ export default function CardColumnPicker({
         >
         <Popup button={<div>{triggerContent}</div>} preferredPosition="bottom" onOpenChange={setIsPickerOpen}>
             {({ open, setOpen }) => open ? (
-                <div className="flex flex-col gap-2 p-2 w-64 bg-white border rounded shadow-lg">
+                <div className={t.panel}>
                     {(FormulaColumnModal || CalculatedColumnModal) && (
-                        <div className="flex gap-1">
+                        // the three add pills share one Button style; they wrap as whole pills, never mid-label
+                        <div className={t.pills}>
                             {FormulaColumnModal && (
                                 <FormulaColumnModal
+                                    triggerStyle="chip" triggerOnStyle="chipOn"
                                     columns={allColumns}
                                     addFormulaColumn={col => { handleFormulaColumn(col); setOpen(false); }}
                                 />
                             )}
                             {CalculatedColumnModal && (
                                 <CalculatedColumnModal
+                                    triggerStyle="chip" triggerOnStyle="chipOn"
                                     columns={allColumns}
                                     addCalculatedColumn={col => { handleCalculatedColumn(col); setOpen(false); }}
                                 />
                             )}
-                            <button
-                                className={`px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300 ${showStaticForm ? `bg-purple-100` : ``}`}
-                                onClick={() => setShowStaticForm(v => !v)}
-                            >
+                            <Button activeStyle={showStaticForm ? 'chipOn' : 'chip'} onClick={() => setShowStaticForm(v => !v)}>
                                 + Static
-                            </button>
+                            </Button>
                         </div>
                     )}
                     {!(FormulaColumnModal || CalculatedColumnModal) && (
-                        <button
-                            className="self-start px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300"
-                            onClick={() => setShowStaticForm(v => !v)}
-                        >
-                            + Static Column
-                        </button>
+                        <div className={t.pillAlone}>
+                            <Button activeStyle={showStaticForm ? 'chipOn' : 'chip'} onClick={() => setShowStaticForm(v => !v)}>
+                                + Static Column
+                            </Button>
+                        </div>
                     )}
                     {showStaticForm && (
                         <StaticColumnForm

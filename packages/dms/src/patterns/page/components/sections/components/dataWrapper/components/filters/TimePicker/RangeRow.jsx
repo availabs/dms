@@ -1,5 +1,6 @@
-import React from "react";
-import { useTimePickerTheme } from "./useTimePickerTheme";
+import React, { useContext } from "react";
+import { ThemeContext, getComponentTheme } from "../../../../../../../../../ui/useTheme";
+import { timePickerTheme } from "./timePicker.theme";
 
 const UNITS = [
     { value: 'minute', label: 'minutes' },
@@ -8,6 +9,11 @@ const UNITS = [
     { value: 'week', label: 'weeks' },
     { value: 'month', label: 'months' },
     { value: 'year', label: 'years' },
+];
+
+const DIRECTIONS = [
+    { value: 'past', label: 'Last' },
+    { value: 'future', label: 'Next' },
 ];
 
 const sanitizeCount = (raw) => {
@@ -34,7 +40,8 @@ const summarize = (range) => {
 };
 
 export const RangeRow = ({ value, onChange }) => {
-    const t = useTimePickerTheme();
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...timePickerTheme, ...getComponentTheme(themeFromContext, 'timePicker') };
     const range = value && Array.isArray(value.ranges) ? value.ranges[0] : null;
     const isCustomRelative = range && range.kind === 'relative';
 
@@ -64,51 +71,47 @@ export const RangeRow = ({ value, onChange }) => {
     return (
         <div className={t.rangeContainer}>
             <div className={t.rowHeader}>
-                <label className={t.rowLabel}>Range</label>
-                <span className={t.rowSummary}>{summarize(range)}</span>
+                <div className={t.rowLabel}>Range</div>
+                <span className={range ? t.rowSummary : t.rowSummaryAny}>{summarize(range)}</span>
             </div>
 
             {isCustomRelative ? (
                 <div className={t.rowEditor}>
-                    <select
-                        className={t.rangeSelect}
-                        value={range.direction}
-                        onChange={e => updateRelative({ direction: e.target.value })}
-                    >
-                        <option value="past">Last</option>
-                        <option value="future">Next</option>
-                    </select>
-                    <input
-                        type="number"
-                        min={0}
-                        className={t.rangeNumberInput}
-                        value={range.count}
-                        onChange={e => updateRelative({ count: sanitizeCount(e.target.value) })}
-                    />
-                    <select
-                        className={t.rangeSelect}
-                        value={range.unit}
-                        onChange={e => updateRelative({ unit: e.target.value })}
-                    >
-                        {UNITS.map(u => <option key={u.value} value={u.value}>{u.label}</option>)}
-                    </select>
-                    <button
-                        type="button"
-                        className={t.rangeClearButton}
-                        onClick={clear}
-                        aria-label="Clear range"
-                    >
-                        ✕
-                    </button>
+                    <span className={t.rangeDirWrap}>
+                        <UI.Select
+                            value={range.direction}
+                            options={DIRECTIONS}
+                            onChange={v => v && updateRelative({ direction: v })}
+                        />
+                    </span>
+                    <span className={t.rangeNumberWrap}>
+                        <UI.Input
+                            type="number"
+                            activeStyle="compact"
+                            min={0}
+                            aria-label="Count"
+                            value={range.count}
+                            onChange={e => updateRelative({ count: sanitizeCount(e.target.value) })}
+                        />
+                    </span>
+                    <span className={t.rangeUnitWrap}>
+                        <UI.Select
+                            value={range.unit}
+                            options={UNITS}
+                            onChange={v => v && updateRelative({ unit: v })}
+                        />
+                    </span>
+                    <UI.Button activeStyle="iconInline" onClick={clear} aria-label="Clear range" title="Clear range">
+                        <UI.Icon icon="XMark" className={t.clearIcon} />
+                    </UI.Button>
                 </div>
             ) : (
-                <button
-                    type="button"
-                    className={t.rangeCustomButton}
-                    onClick={setEditing}
-                >
-                    Custom relative range…
-                </button>
+                <div className={t.rowEditor}>
+                    <UI.Button activeStyle="small" onClick={setEditing}>
+                        <UI.Icon icon="Plus" className={t.customIcon} />
+                        Custom relative range
+                    </UI.Button>
+                </div>
             )}
         </div>
     );

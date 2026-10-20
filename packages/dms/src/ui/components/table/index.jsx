@@ -2,6 +2,7 @@ import React, {createContext, useCallback, useEffect, useMemo, useRef, useState}
 import {getComponentTheme, ThemeContext} from '../../useTheme';
 import DataTypes from "../../columnTypes"
 import Icon from "../Icon";
+import Button from "../Button";
 import {handleMouseUp} from "./utils/mouse";
 import {TableRow} from "./components/TableRow";
 import {Header} from "./components/TableHeader";
@@ -125,27 +126,27 @@ const AddNew = ({allowAdddNew,
 
     return (
         <div
-            className={`grid bg-white divide-x divide-y border-slate-50 ${isDragging ? `select-none` : ``} sticky bottom-0 z-[3]`}
+            className={`grid ${theme?.addRowGrid || ''} ${isDragging ? `select-none` : ``} sticky bottom-0 z-[3]`}
             style={{
                 gridTemplateColumns: slicedGridTemplateColumns,
                 gridColumn: `span ${attrsToRender.length + 3} / ${attrsToRender.length + 3}`
             }}
         >
             <div className={'flex justify-between sticky left-0 z-[3]'} style={{width: numColSize}}>
-                <div key={'#'} className={`w-full font-semibold border border-slate-50 bg-gray-50 text-gray-500`}>
+                <div key={'#'} className={theme?.addRowGutterCell}>
 
                 </div>
             </div>
 
-            <div className={'bg-white flex flex-row h-full justify-evenly items-center border-slate-50'}
+            <div className={theme?.addRowButtonCell}
                  style={{width: `${addNewButtonWidth}px`}}>
-                <button
-                    className={'w-fit h-fit bg-blue-300 hover:bg-blue-500 text-white rounded-lg'}
+                <Button
+                    activeStyle={theme?.addRowButtonStyle}
                     onClick={e => {
                         addItem()
                     }}>
-                    <Icon icon={'CirclePlus'} className={'text-white'} height={addNewButtonWidth} width={addNewButtonWidth}/>
-                </button>
+                    <Icon icon={'CirclePlus'} className={theme?.addRowButtonIcon} height={addNewButtonWidth} width={addNewButtonWidth}/>
+                </Button>
             </div>
             {
                 attrsToRender
@@ -162,13 +163,13 @@ const AddNew = ({allowAdddNew,
                         return (
                             <div
                                 key={`add-new-${attrI}`}
-                                className={`flex border border-slate-50 p-1 bg-white hover:bg-blue-50 w-full h-full'`}
+                                className={theme?.addRowCell}
                                 style={{width: attrI === 0 ? size : (attribute._hasFixedSize ? attribute.size : undefined)}}
                             >
                                 <Comp
                                     key={`${attribute.name}`}
                                     menuPosition={'top'}
-                                    className={'p-1 bg-white hover:bg-blue-50 w-full h-full'}
+                                    className={theme?.addRowInput}
                                     {...attribute}
                                     size={size}
                                     value={newItem[attribute.name]}
@@ -239,22 +240,22 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
         <div ref={rowRef} className="relative">
             <div
                 ref={containerRef}
-                className="grid divide-x divide-y border-slate-50"
+                className={`grid ${theme?.inlineAddGrid || ''}`}
                 style={{ gridTemplateColumns, gridColumn: `span ${attrsToRender.length + 2} / ${attrsToRender.length + 2}` }}
                 onKeyDown={handleKeyDown}
             >
                 <div
-                    className="bg-gray-50 border border-slate-50 flex items-center justify-center"
+                    className={theme?.inlineAddGutter}
                     style={{ width: numColSize }}
                 >
                     {numColSize > 0 && (
-                        <button
-                            className="flex items-center justify-center text-green-500 hover:text-green-700"
+                        <Button
+                            activeStyle={theme?.inlineAddSaveStyle}
                             onClick={() => addItem?.()}
                             title="Save row (or press Enter)"
                         >
                             <Icon icon="Check" height={14} width={14} />
-                        </button>
+                        </Button>
                     )}
                 </div>
                 {attrsToRender.map((attribute, i) => {
@@ -270,13 +271,13 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
                     return (
                         <div
                             key={`inline-add-${i}`}
-                            className="flex border border-slate-50 p-1 w-full h-full bg-white hover:bg-blue-50"
+                            className={theme?.addRowCell}
                             style={{ width: attribute._hasFixedSize ? attribute.size : undefined }}
                         >
                             <Comp
                                 key={attribute.name}
                                 menuPosition="top"
-                                className="p-1 bg-white hover:bg-blue-50 w-full h-full"
+                                className={theme?.addRowInput}
                                 {...attribute}
                                 size={attribute.size || defaultColumnSize}
                                 value={newItem[attribute.name]}
@@ -308,13 +309,13 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
                 })}
             </div>
             {numColSize === 0 && (
-                <button
-                    className="absolute top-1/2 right-2 -translate-y-1/2 z-10 bg-green-500 hover:bg-green-600 text-white rounded text-xs px-1.5 py-0.5 shadow"
+                <Button
+                    activeStyle={theme?.inlineAddSaveFloatingStyle}
                     onClick={() => addItem?.()}
                     title="Save row"
                 >
                     ✓
-                </button>
+                </Button>
             )}
         </div>
     );
@@ -364,13 +365,18 @@ export default function Table ({
     }, [highlightedRow, theme]);
 
     const [defaultColumnSize, setDefaultColumnSize] = React.useState(defColSize);
+    // Column widths dragged on a table whose caller passes no `setState` (lists, admin tables): kept here for the
+    // session, keyed like isEqualColumns, over the caller's / theme's `size` (owner 2026-10-16: session only).
+    const [localColSizes, setLocalColSizes] = useState({});
+    const colSizeKey = c => `${c?.name}|${c?.isDuplicate ? 1 : 0}|${c?.copyNum ?? ''}`;
 
     const actionsColSize = 50;
     const structureValues = useMemo(() => {
         // selectOnly columns participate in the query (fetched into the row) but
         // render no cell — so a column type can read them off `row` (e.g. a data_bar
         // scaling to a sibling `max() over ()` column) without showing a column.
-        const visibleAttributes = columns.filter(c => c.show && !c.selectOnly && !c.actionType).map(c => augmentColSizing(c, defaultColumnSize));
+        const withLocalSize = c => localColSizes[colSizeKey(c)] ? { ...c, size: localColSizes[colSizeKey(c)], stretch: false } : c;
+        const visibleAttributes = columns.filter(c => c.show && !c.selectOnly && !c.actionType).map(c => augmentColSizing(withLocalSize(c), defaultColumnSize));
         const actionColumns = columns.filter(c => c.show && c.actionType && (c.display === 'both' || isEdit)).map(c => augmentColSizing(c, defaultColumnSize));
         const regularAttrsWithoutOpenOut = visibleAttributes.filter(c => !c.openOut);
         // The actions column is always a fixed, narrow utility column.
@@ -396,7 +402,7 @@ export default function Table ({
             // as a full-width row beneath the clicked row. Only 'inline' changes behaviour.
             openOutMode: display.openOutMode,
         };
-    }, [columns, defaultColumnSize, display]);
+    }, [columns, defaultColumnSize, display, localColSizes]);
     const {
         visibleAttributes,
         visibleAttrsWithoutOpenOut,
@@ -482,30 +488,37 @@ export default function Table ({
     // =================================================================================================================
     // =========================================== Mouse Controls begin ================================================
     // =================================================================================================================
-    const colResizer = (attribute) => (e) => {
-        const element = gridRef?.current;
-        if(!element) return;
-
+    // Drag a header's right edge to resize its column. With a `setState` the width is written into the caller's
+    // columns (the spreadsheet section saves it); without one it's kept in localColSizes for the session.
+    // Listeners are on window, so releasing outside the table still ends the drag. `display.disableColumnResize`
+    // turns it off (and hides the handle).
+    const colResizer = display.disableColumnResize ? undefined : (attribute) => (e) => {
         const column = visibleAttributes.find(va => isEqualColumns(va, attribute));
+        if (!column) return;
+        e.preventDefault();
         const startX = e.clientX;
-        const startWidth = column.size || 0;
+        // start from the column's rendered width: an unsized / stretch column is wider than its nominal `size`
+        const rendered = e.currentTarget?.parentElement?.getBoundingClientRect().width;
+        const startWidth = Math.round(rendered || column.size || 0);
         const handleMouseMove = (moveEvent) => {
-            if(!setState) return;
-
             const newWidth = Math.max(minColSize, startWidth + moveEvent.clientX - startX);
-            setState(draft => {
-                const idx = draft.columns.findIndex(column => isEqualColumns(column, attribute));
-                draft.columns[idx].size = newWidth;
-            })
+            if (setState) {
+                setState(draft => {
+                    const idx = draft.columns.findIndex(column => isEqualColumns(column, attribute));
+                    if (idx >= 0) draft.columns[idx].size = newWidth;
+                })
+            } else {
+                setLocalColSizes(prev => ({ ...prev, [colSizeKey(attribute)]: newWidth }));
+            }
         };
 
         const handleMouseUp = () => {
-            element.removeEventListener('mousemove', handleMouseMove);
-            element.removeEventListener('mouseup', handleMouseUp);
+            window.removeEventListener('mousemove', handleMouseMove);
+            window.removeEventListener('mouseup', handleMouseUp);
         };
 
-        element.addEventListener('mousemove', handleMouseMove);
-        element.addEventListener('mouseup', handleMouseUp);
+        window.addEventListener('mousemove', handleMouseMove);
+        window.addEventListener('mouseup', handleMouseUp);
     };
     // =========================================== Mouse Controls end ==================================================
 
@@ -710,7 +723,8 @@ export default function Table ({
     }, [fullData, unFilteredData, visibleAttrsWithoutOpenOut]);
 
     const components = useMemo(() => ({
-        Header: ({start, end}) => (
+        // display.hideHeader (2026-10-15): no header row at all (a key / value list such as the datasets file metadata)
+        Header: ({start, end}) => display.hideHeader ? null : (
             <Header tableTheme={theme}
                     visibleAttrsWithoutOpenOut={visibleAttrsWithoutOpenOut}
                     numColSize={numColSize}

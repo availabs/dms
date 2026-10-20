@@ -14,18 +14,17 @@ export const activityTabTheme = {
     feedCard: 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg overflow-hidden',
     feedDayHeader: 'px-4 py-1.5 bg-[var(--t-well)] border-b border-[var(--t-rule)] t-metaXS text-[var(--t-pencil)]',
     feedRow: 'px-4 py-2 border-b border-[var(--t-rule)] last:border-b-0 flex items-center gap-3 hover:bg-[var(--t-well)] transition-colors duration-150',
-    feedAvatar: 'w-6 h-6 rounded-full bg-[var(--t-cobalt)] text-[var(--t-accent-ink)] flex items-center justify-center t-metaXS flex-none',
+    feedAvatar: 'w-6 h-6 rounded-full bg-[var(--t-rule)] text-[var(--t-ink)] flex items-center justify-center t-metaXS flex-none',   // avatars neutral (owner 2026-10-13)
     feedActor: 't-metaXS text-[var(--t-pencil)] hidden md:block',
     feedTime: 't-metaXS text-[var(--t-pencil)] w-16 text-right flex-none',
 
-    activityPageLink: 't-proseSM font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)] text-left bg-transparent border-none cursor-pointer p-0 truncate',
     activityPageName: 't-proseSM font-medium text-[var(--t-ink)] truncate',
     activityEmpty: 'flex items-center justify-center h-32 text-[var(--t-pencil)] t-proseSM italic',
 
     // action badges
-    badgePublish: 't-metaXS text-[var(--t-go)] bg-[var(--t-go-soft)] rounded-full px-2 py-0.5 flex-none',
-    badgeEdit: 't-metaXS text-[var(--t-cobalt)] bg-[var(--t-cobalt-soft)] rounded-full px-2 py-0.5 flex-none',
-    badgeDiscard: 't-metaXS text-[var(--t-amber)] bg-[var(--t-amber-soft)] rounded-full px-2 py-0.5 flex-none',
-    badgeNeutral: 't-metaXS text-[var(--t-graphite)] bg-[var(--t-well)] border border-[var(--t-rule)] rounded-full px-2 py-0.5 flex-none',
-    badgeDelete: 't-metaXS text-[var(--t-brick)] bg-[var(--t-brick-soft)] rounded-full px-2 py-0.5 flex-none',
+    badgePublish: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-go-soft)] text-[var(--t-go)] flex-none',
+    badgeEdit: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)] flex-none',
+    badgeDiscard: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-amber-soft)] text-[var(--t-amber)] flex-none',
+    badgeNeutral: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-well)] text-[var(--t-graphite)] flex-none',
+    badgeDelete: 'inline-flex items-center gap-1.5 h-[18px] px-1.5 rounded t-metaXS bg-[var(--t-brick-soft)] text-[var(--t-brick)] flex-none',
 }

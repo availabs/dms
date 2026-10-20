@@ -6,7 +6,7 @@ import { categoriesTheme } from "./categories.theme"
 
 const CategoryItem = ({ children, remove, indices, editing, className="" }) => {
     const { theme, UI } = React.useContext(ThemeContext) || {};
-    const { Icon } = UI || {};
+    const { Icon, Button } = UI || {};
     const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const doRemove = React.useCallback(e => {
         remove(...indices);
@@ -17,9 +17,9 @@ const CategoryItem = ({ children, remove, indices, editing, className="" }) => {
                 { children }
             </div>
             { !editing ? null :
-                <button onClick={ doRemove } className={t.categoryItemRemoveBtn}>
+                <Button activeStyle='iconInlineDanger' onClick={ doRemove } aria-label={'Remove category'}>
                     <Icon icon="XMark" className={t.removeIcon}/>
-                </button>
+                </Button>
             }
         </div>
     )
@@ -115,7 +115,8 @@ const SourceCategories = ({
                               editingCategories,
                               stopEditingCategories: stopAll,
                           }) => {
-    const { theme } = React.useContext(ThemeContext) || {};
+    const { theme, UI } = React.useContext(ThemeContext) || {};
+    const { Button } = UI || {};
     const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
     const addNewCategory = React.useCallback((cat, parent = -1) => {
         if (parent === -1) {
@@ -167,9 +168,11 @@ const SourceCategories = ({
                 <div className={t.sourceCategoriesNewWrapper}>
                     <CategoryAdder
                         addNewCategory={ addNewCategory }/>
-                    <button onClick={ stopAll } className={t.stopBtn}>
-                        Stop editing categories
-                    </button>
+                    <div className={t.stopBtnWrap}>
+                        <Button activeStyle='linkMeta' onClick={ stopAll }>
+                            Stop editing categories
+                        </Button>
+                    </div>
                 </div>
             }
         </div>
@@ -178,8 +181,7 @@ const SourceCategories = ({
 export default SourceCategories;
 
 const Input = ({ onChange, ...props }) => {
-    const { theme } = React.useContext(ThemeContext) || {};
-    const t = { ...categoriesTheme, ...(theme?.datasets?.categories || {}) };
+    const { UI } = React.useContext(ThemeContext) || {};
     const doOnChange = React.useCallback(e => {
         onChange(e.target.value);
     }, [onChange]);
@@ -190,9 +192,8 @@ const Input = ({ onChange, ...props }) => {
         };
     }, [ref]);
     return (
-        <input type="text" ref={ setRef } { ...props }
-               className={t.input}
-               onChange={ doOnChange }/>
+        <UI.Input type="text" ref={ setRef } { ...props }
+                  onChange={ doOnChange }/>
     )
 }
 

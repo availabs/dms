@@ -5,7 +5,7 @@
 > where defaultTheme is built from." That makes tessera *be* the library baseline outright, so this
 > loader-registry indirection is unnecessary ("that way we don't need the default loader"). The
 > `collectThemeNames` change described below has been reverted to its original form. See
-> [`tessera-component-theme-port.md`](../current/tessera-component-theme-port.md) for the actual work.
+> [`tessera-component-theme-port.md`](./tessera-component-theme-port.md) for the actual work.
 
 # `collectThemeNames` never requests the `'default'` theme sentinel
 

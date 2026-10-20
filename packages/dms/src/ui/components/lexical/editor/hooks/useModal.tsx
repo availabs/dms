@@ -23,6 +23,10 @@ import {useCallback, useMemo, useState} from 'react';
 import * as React from 'react';
 
 import { ThemeContext, getComponentTheme } from '../../../../useTheme';
+// used when the host ThemeContext has no `UI` (2026-10-17: the primitives don't import the editor, so no import
+// cycle — this replaced a raw-HTML fallback shell)
+import DefaultModal from '../../../Modal';
+import DefaultButton from '../../../Button';
 
 function ModalShell({
   open,
@@ -36,47 +40,21 @@ function ModalShell({
   children: React.ReactNode;
 }): JSX.Element | null {
   const { theme: full = {}, UI } = React.useContext(ThemeContext) || {};
-  const Modal = UI?.Modal;
+  const Modal = UI?.Modal || DefaultModal;
+  const Button = UI?.Button || DefaultButton;
   const m = getComponentTheme(full, 'modal') as
-    | { header?: string; title?: string; closeButton?: string; body?: string }
+    | { header?: string; title?: string; closeButtonStyle?: string; body?: string }
     | undefined;
-
-  // Fallback path: no UI in context (shouldn't happen in normal use,
-  // but the editor can be embedded outside ThemeContext in tests).
-  if (!Modal) {
-    if (!open) return null;
-    return (
-      <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-30"
-        onClick={onClose}
-        role="dialog"
-        aria-modal="true"
-      >
-        <div className="bg-white p-6 max-w-md" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center justify-between mb-3 pb-2 border-b">
-            <h2 className="font-medium text-lg">{title}</h2>
-            <button onClick={onClose} aria-label="Close" className="cursor-pointer">
-              ✕
-            </button>
-          </div>
-          {children}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <Modal open={open} setOpen={(v: boolean) => { if (!v) onClose(); }}>
       <div className={m?.header || 'flex items-center justify-between mb-3 pb-2 border-b border-gray-200'}>
         <h2 className={m?.title || 'text-lg font-medium'}>{title}</h2>
-        <button
-          onClick={onClose}
-          aria-label="Close"
-          className={m?.closeButton || 'cursor-pointer text-sm hover:opacity-70'}
-          type="button"
-        >
+        {/* a UI.Button named style (2026-10-17, raw-HTML pass): 'lexModalClose' (the old fallback literal) unless the
+            theme's own modal.closeButton was lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles) */}
+        <Button activeStyle={m?.closeButtonStyle || 'lexModalClose'} onClick={onClose} aria-label="Close">
           ✕
-        </button>
+        </Button>
       </div>
       <div className={m?.body || ''}>{children}</div>
     </Modal>

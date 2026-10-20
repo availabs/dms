@@ -1,19 +1,19 @@
 // The Change history panel on an internal dataset's Admin tab (ChangeHistoryEditor.jsx), next to
-// the Access panel and in its look (admin.theme.js uacPanel).
+// the Access panel and in its look (admin.theme.js uacPanel). v6 2026-10-14 (step 2e audit): was hardcoded
+// gray / blue / red; pre-change values frozen in src/themes/_legacy/datasets.js `changeHistoryEditor`.
 export const changeHistoryEditorTheme = {
-  panel: 'shadow-md rounded-md p-4 w-full mt-6 flex flex-col gap-4',
+  panel: 'rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] p-4 w-full mt-6 flex flex-col gap-4',
   header: 'flex items-center gap-3',
-  title: 'text-xl text-gray-900 font-semibold',
+  title: 't-proseSM font-medium text-[var(--t-ink)]',
   spacer: 'flex-1',
-  description: 'text-sm text-gray-600',
+  description: 't-proseSM text-[var(--t-graphite)]',
   row: 'grid grid-cols-[7rem_minmax(0,1fr)] items-start gap-3',
-  label: 'text-sm font-medium text-gray-700 pt-1.5',
+  label: 't-metaXS text-[var(--t-pencil)] pt-2',
   control: 'flex flex-col gap-2 min-w-0',
   inline: 'flex flex-wrap items-center gap-2',
-  choice: 'inline-flex items-center gap-1.5 text-sm text-gray-700 cursor-pointer',
-  hint: 'text-xs text-gray-500',
-  targetLink: 'text-sm text-blue-600 hover:underline pt-1.5 w-fit',
+  hint: 't-proseXS text-[var(--t-pencil)]',
+  targetLink: 't-proseSM text-[var(--t-cobalt)] hover:underline pt-1.5 w-fit',   // link in text
   footer: 'flex items-center justify-end gap-3',
-  status: 'text-sm text-gray-500',
-  error: 'text-sm text-red-700',
+  status: 't-proseSM text-[var(--t-graphite)]',
+  error: 't-proseSM text-[var(--t-brick)]',
 }

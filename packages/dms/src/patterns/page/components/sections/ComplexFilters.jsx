@@ -95,8 +95,8 @@ const DebouncedFieldInput = ({ value, onChange, delay = 400, ...props }) => {
 // behavior is identical to the original `state.filters` read/write.
 export const ComplexFilters = ({ state, setState, value, onSave }) => {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
-    const { Pill, Icon, Popup, Switch, MultiSelect, ColumnTypes: {select} } = UI;
-    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'complexFilters') };
+    const { Pill, Icon, Popup, Switch, MultiSelect, FieldLabel, ColumnTypes: {select} } = UI;
+    const t = { ...complexFiltersTheme, ...getComponentTheme(themeFromContext, 'pages.complexFilters') };
     const { apiLoad } = useContext(PageContext) || {};
     const existingCtx = useContext(ComponentContext);
 
@@ -263,7 +263,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                         </div>
                         {!isRoot && (
                             <Pill
-                                color={'orange'}
+                                activeStyle={'orange'}
                                 text={<Icon icon={'TrashCan'} className={t.popupTrash} />}
                                 title={'Remove group'}
                                 onClick={() => removeAtPath(path)}
@@ -285,12 +285,12 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
 
                     <div className={t.groupActions}>
                         <Pill
-                            color={'blue'}
+                            activeStyle={'blue'}
                             text={'+ Condition'}
                             onClick={() => addAtPath(path, emptyCondition(columns))}
                         />
                         <Pill
-                            color={'blue'}
+                            activeStyle={'blue'}
                             text={'+ Group'}
                             onClick={() => addAtPath(path, emptyGroup())}
                         />
@@ -316,7 +316,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                 <div className={t.popup}>
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={t.popupRowLabel}>Is Multiselect:</label>
+                                        <FieldLabel activeStyle="row" text="Is Multiselect:" />
                                         <Switch label={'Multi'}
                                                 disabled={!['filter', 'exclude'].includes(node.op)}
                                                 enabled={node.isMulti}
@@ -327,7 +327,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     {isGrouping && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label className={t.popupRowLabel}>Aggregate fn:</label>
+                                            <FieldLabel activeStyle="row" text="Aggregate fn:" />
                                             <MultiSelect
                                                 singleSelectOnly
                                                 searchable={false}
@@ -345,7 +345,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     )}
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={t.popupRowLabel}>Use Page Filters:</label>
+                                        <FieldLabel activeStyle="row" text="Use Page Filters:" />
                                         <Switch label={'Use Page Filters'}
                                                 enabled={node.usePageFilters}
                                                 setEnabled={value => updateNodeAtPath(path, n => {
@@ -369,7 +369,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                         a formula column. See applyPageFilters in buildUdaConfig.js. */}
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={t.popupRowLabel}>Include Prior Period:</label>
+                                        <FieldLabel activeStyle="row" text="Include Prior Period:" />
                                         <Switch label={'Include Prior Period'}
                                                 enabled={node.includePriorPeriod}
                                                 setEnabled={value => updateNodeAtPath(path, n => { n.includePriorPeriod = value; })}
@@ -387,7 +387,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     </div>
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={t.popupRowLabel}>External:</label>
+                                        <FieldLabel activeStyle="row" text="External:" />
                                         <Switch label={'External'}
                                                 enabled={node.isExternal}
                                                 setEnabled={value => updateNodeAtPath(path, n => { n.isExternal = value; })}
@@ -397,7 +397,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     {node.isExternal && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label className={t.popupRowLabel}>Display Name:</label>
+                                            <FieldLabel activeStyle="row" text="Display Name:" />
                                             <DebouncedFieldInput
                                                 value={node.displayName || ''}
                                                 placeholder={node.col || 'label…'}
@@ -408,7 +408,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     {node.isExternal && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label className={t.popupRowLabel}>Display:</label>
+                                            <FieldLabel activeStyle="row" text="Display:" />
                                             <MultiSelect
                                                 singleSelectOnly
                                                 searchable={false}
@@ -424,7 +424,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     )}
                                     <div className={t.popupRow}>
                                         <Icon icon={'Filter'} className={t.popupIcon} />
-                                        <label className={t.popupRowLabel}>Normal Filter:</label>
+                                        <FieldLabel activeStyle="row" text="Normal Filter:" />
                                         <Switch label={'Normal Filter'}
                                                 enabled={node.isNormalFilter}
                                                 setEnabled={value => updateNodeAtPath(path, n => {
@@ -442,7 +442,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                                     {node.isNormalFilter && (
                                         <div className={t.popupRow}>
                                             <Icon icon={'Filter'} className={t.popupIcon} />
-                                            <label className={t.popupRowLabel}>Value Column:</label>
+                                            <FieldLabel activeStyle="row" text="Value Column:" />
                                             <MultiSelect
                                                 singleSelectOnly
                                                 searchable={false}
@@ -471,7 +471,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                     fieldWithEllipsisGutter row leaves space for the absolute-
                     positioned ellipsis in the top-right corner. */}
                 <div className={t.fieldWithEllipsisGutter}>
-                    <label className={t.fieldLabel}>Column</label>
+                    <FieldLabel activeStyle="inline" text="Column" />
                     <MultiSelect
                         singleSelectOnly
                         searchable={true}
@@ -500,7 +500,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                 </div>
 
                 <div className={t.field}>
-                    <label className={t.fieldLabel}>Operation</label>
+                    <FieldLabel activeStyle="inline" text="Operation" />
                     <MultiSelect
                         singleSelectOnly
                         searchable={false}
@@ -546,7 +546,7 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
 
                 {showValueEditor && (
                     <div className={t.field}>
-                        <label className={t.fieldLabel}>Value</label>
+                        <FieldLabel activeStyle="inline" text="Value" />
                         <ConditionValueInput
                             node={node}
                             path={path}
@@ -570,19 +570,19 @@ export const ComplexFilters = ({ state, setState, value, onSave }) => {
                 {renderNode(filterGroups)}
                 <div className={t.filterActions}>
                     <Pill
-                        color={isDirty ? 'green' : 'blue'}
+                        activeStyle={isDirty ? 'green' : 'blue'}
                         text={<Icon icon={'FloppyDisk'} className={'size-4'} />}
                         title={isDirty ? 'Save (unsaved changes)' : 'Save'}
                         onClick={save}
                     />
                     <Pill
-                        color={copied ? 'green' : 'blue'}
+                        activeStyle={copied ? 'green' : 'blue'}
                         text={<Icon icon={'Copy'} className={'size-4'} />}
                         title={'Copy filters'}
                         onClick={handleCopyFilters}
                     />
                     <Pill
-                        color={'blue'}
+                        activeStyle={'blue'}
                         text={<Icon icon={'Paste'} className={'size-4'} />}
                         title={'Paste filters (replaces current)'}
                         onClick={handlePasteFilters}

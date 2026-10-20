@@ -27,6 +27,8 @@ const compOptions = [
     {label: 'MultiSelect', value: 'MultiSelect'},
     {label: 'SideNav', value: 'SideNav'},
     {label: 'Switch', value: 'Switch'},
+    {label: 'FileInput', value: 'FileInput'},
+    {label: 'FieldLabel', value: 'FieldLabel'},
     {label: 'Table', value: 'Table'},
     {label: 'Tabs', value: 'Tabs'},
     {label: 'TopNav', value: 'TopNav'},
@@ -241,9 +243,9 @@ export function PatternThemeEditor({
                         />
                     </div>
                     <div className={t.sidebarActions}>
-                        <Button className={t.btnSave} onClick={() => onSubmit(currentTheme)}>save</Button>
-                        <Button className={t.btnReset} onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>reset</Button>
-                        <Button className={t.btnFullReset} onClick={() => setPatternTheme({layout: {options: baseTheme?.layout?.options}})}>full reset</Button>
+                        <Button activeStyle='primary' onClick={() => onSubmit(currentTheme)}>save</Button>
+                        <Button activeStyle='action' onClick={() => setPatternTheme(parseIfJSON(inputTheme))}>reset</Button>
+                        <Button activeStyle='smallDanger' onClick={() => setPatternTheme({layout: {options: baseTheme?.layout?.options}})}>full reset</Button>
                     </div>
                     <div className={t.sidebarControls}>
                         {
@@ -259,14 +261,14 @@ export function PatternThemeEditor({
                 </div>
                 <div className={t.frameWrapper}>
                     <div className={t.frameTabBar}>
-                        <button
-                            className={previewTab === 'preview' ? t.frameTabActive : t.frameTab}
+                        <UI.Button
+                            activeStyle={previewTab === 'preview' ? 'segmentOn' : 'segment'}
                             onClick={() => setPreviewTab('preview')}
-                        >preview</button>
-                        <button
-                            className={previewTab === 'json' ? t.frameTabActive : t.frameTab}
+                        >preview</UI.Button>
+                        <UI.Button
+                            activeStyle={previewTab === 'json' ? 'segmentOn' : 'segment'}
                             onClick={() => setPreviewTab('json')}
-                        >raw overrides</button>
+                        >raw overrides</UI.Button>
                     </div>
                     {previewTab === 'json' ? (
                         <pre className={t.debugPre}>{JSON.stringify(patternTheme, null, 3)}</pre>

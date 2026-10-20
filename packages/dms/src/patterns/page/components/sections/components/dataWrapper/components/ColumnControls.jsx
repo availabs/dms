@@ -3,7 +3,7 @@ import {cloneDeep} from "lodash-es";
 import {isCalculatedCol} from "./filters/utils";
 import {getColumnLabel, isEqualColumns} from "../utils/utils";
 
-import AddFormulaColumn from "./AddFormulaColumn";
+import AddFormulaColumn from "../../../AddFormulaColumn";
 import { ComponentContext } from "../../../../../context";
 import { ThemeContext } from "../../../../../../../ui/useTheme";
 
@@ -235,10 +235,7 @@ export default function ColumnControls({context, cms_context}) {
     const isSystemIDColOn = columns.find(c => c.systemCol && c.name === 'id');
     return (
         <div className="inline-block text-left">
-            <Popup button={<Button type={'transparent'}
-                                   className={`inline-flex w-full justify-center items-center rounded-md px-1.5 py-1 text-sm font-regular
-                 text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300
-                  bg-white hover:bg-gray-50 cursor-pointer`}
+            <Popup button={<Button activeStyle='action'
                                    onClick={() => {
                                        setSearch(undefined);
                                    }}>
@@ -269,7 +266,7 @@ export default function ColumnControls({context, cms_context}) {
                                     >
                                         <div className={'flex flex-col items-center md:flex-row place-self-stretch'}>
                                             <span className={'px-2'}>Column</span>
-                                            <input className={'px-4 py-1 w-full text-xs rounded-md'} placeholder={'search...'}
+                                            <UI.Input aria-label="Search columns" placeholder={'search...'}
                                                    onChange={e => {
                                                        setSearch(e.target.value)
                                                    }}/>
@@ -289,11 +286,11 @@ export default function ColumnControls({context, cms_context}) {
                                     <div className={`flex gap-1 m-1 w-full`}>
                                         {
                                             controls.columns.find(({key}) => key === 'show') ?
-                                                <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} color={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
+                                                <Pill text={isEveryColVisible ? 'Hide all' : 'Show all'} activeStyle={'blue'} onClick={() => toggleGlobalVisibility(!isEveryColVisible)}/> : null
                                         }
                                         <AddFormulaColumn columns={columnsToRender} addFormulaColumn={addFormulaColumn} cms_context={cms_context}/>
-                                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} color={'blue'} onClick={() => toggleIdFilter()}/>
-                                        <Pill text={'Reset all'} color={'orange'} onClick={() => resetAllColumns()}/>
+                                        <Pill text={isSystemIDColOn ? 'Hide ID column' : 'Show ID column'} activeStyle={'blue'} onClick={() => toggleIdFilter()}/>
+                                        <Pill text={'Reset all'} activeStyle={'orange'} onClick={() => resetAllColumns()}/>
                                     </div>
                                 </div>
                             </div>
@@ -325,10 +322,12 @@ export default function ColumnControls({context, cms_context}) {
                                                 <div className={`${gridClass} gap-0.5 m-1 w-full`}
                                                      style={{gridTemplateColumns}}
                                                 >
-                                                    <input key={`${attribute.name}-${attribute.copyNum}`} className={'place-self-stretch'}
-                                                           value={getColumnLabel(attribute)}
-                                                           onChange={e => updateColumns(attribute, 'customName', e.target.value)}
-                                                    />
+                                                    <span key={`${attribute.name}-${attribute.copyNum}`} className={'place-self-stretch'}>
+                                                        <UI.Input aria-label="Column name"
+                                                               value={getColumnLabel(attribute)}
+                                                               onChange={e => updateColumns(attribute, 'customName', e.target.value)}
+                                                        />
+                                                    </span>
                                                     {
                                                         controls.columns
                                                         .filter(control => typeof control.displayCdn !== 'function' || control.displayCdn({ display, attribute }))
@@ -339,18 +338,13 @@ export default function ColumnControls({context, cms_context}) {
                                                                 <div key={`${control.key}-${i}`}>
                                                                     {
                                                                         control.type === 'select' ?
-                                                                            <select
-                                                                                key={attribute[control.key]}
-                                                                                className={`px-0.5 appearance-none w-fit rounded-md ${attribute[control.key] ? `bg-blue-500/15 text-blue-700 hover:bg-blue-500/25` : `bg-gray-100`} h-fit text-center cursor-pointer`}
+                                                                            <UI.Select
+                                                                                aria-label={typeof control.label === 'string' ? control.label : control.key}
                                                                                 value={attribute[control.key]}
                                                                                 disabled={isDisabled}
-                                                                                onChange={e => updateColumns(attribute, control.key, e.target.value, control.onChange)}
-                                                                            >
-                                                                                {
-                                                                                    filteredOptions.map(({label, value}) => <option
-                                                                                        key={value} value={value}>{label}</option>)
-                                                                                }
-                                                                            </select> :
+                                                                                options={filteredOptions}
+                                                                                onChange={v => updateColumns(attribute, control.key, v, control.onChange)}
+                                                                            /> :
                                                                             control.type === 'toggle' ?
                                                                                 <div key={attribute[control.key]}
                                                                                      className={'justify-self-stretch'}>
@@ -377,9 +371,11 @@ export default function ColumnControls({context, cms_context}) {
                                                         })
                                                     }
 
-                                                    <button key={'restore-btn'} className={'w-fit place-self-end'} onClick={() => resetColumn(attribute)}>
-                                                        <Icon icon='TrashCan' className={'text-orange-500 hover:text-orange-700 size-4'} />
-                                                    </button>
+                                                    <span key={'restore-btn'} className={'w-fit place-self-end'}>
+                                                        <UI.Button activeStyle="iconInlineDanger" title="Reset column" aria-label="Reset column" onClick={() => resetColumn(attribute)}>
+                                                            <Icon icon='TrashCan' className={'size-4'} />
+                                                        </UI.Button>
+                                                    </span>
                                                 </div>
                                             </div>
                                         ))

@@ -1,5 +1,49 @@
 import { getComponentTheme } from '../../useTheme';
 
+// The list table (2026-10-14, ui-controls.html "List table", ui-control-tables.md): a short read-only
+// list in a card — well header band, mono labels, row rules + row hover, no zebra, no cell lines and no
+// selection look. Admin / auth / datasets lists use it; an author can pick it for a Spreadsheet section.
+const LIST = {
+    // contain:inline-size — the list's width comes from its parent, never from its columns' minimum widths
+    // (those otherwise widen a min-width:auto flex ancestor: TNY's layout column)
+    tableContainer: 'flex flex-col overflow-x-auto min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto [contain:inline-size]',
+    stickyHeader: 'top-0 sticky z-[5] bg-[var(--t-well)]',
+    headerCellContainer: 'w-full px-4 py-2 content-center t-metaXS text-[var(--t-pencil)] whitespace-nowrap border-b border-[var(--t-rule)]',
+    headerCellContainerBg: 'bg-[var(--t-well)]',
+    headerCellContainerBgSelected: 'bg-[var(--t-well)]',
+    headerCellBtnActive: '',
+    colResizer: 'z-5 -ml-2 w-[1px] hover:w-[2px] bg-transparent hover:bg-[var(--t-rule-strong)]',
+    // the grab area around the 1px colResizer line (2026-10-16, owner: "widen it"): an invisible ::before strip 4px
+    // each side. Hovering / pressing the pseudo-element counts as the element, so every theme's own `hover:` line
+    // styles still apply. Structural — themes keep styling `colResizer`.
+    colResizerHit: "before:content-[''] before:absolute before:inset-y-0 before:-left-1 before:-right-1",
+    row: 'group/row',
+    cell: 'relative flex items-center border-b border-[var(--t-rule)]',
+    cellInner: 'w-full min-h-full flex flex-wrap items-center truncate px-4 py-2.5 t-proseSM text-[var(--t-ink)]',
+    cellBg: 'bg-[var(--t-panel)] group-hover/row:bg-[var(--t-paper)]',
+    cellBgOdd: 'bg-[var(--t-panel)] group-hover/row:bg-[var(--t-paper)]',
+    cellBgEven: 'bg-[var(--t-panel)] group-hover/row:bg-[var(--t-paper)]',
+    cellBgSelected: 'bg-[var(--t-panel)] group-hover/row:bg-[var(--t-paper)]',
+    stripedRow: '',
+    emptyRow: 'px-4 py-6 text-center t-proseSM text-[var(--t-pencil)]',   // display.emptyRowMode 'placeholder'
+};
+
+// 'error' (2026-10-15, ui-raw-html-to-ui-components.md): the list look in brick, for a failed step's message rows
+// (datasets gis publish / upload / layer-analysis errors). Pick with activeStyle='error'.
+const ERROR = {
+    ...LIST,
+    tableContainer: 'flex flex-col overflow-x-auto min-h-[40px] max-h-[calc(78vh_-_10px)] overflow-y-auto [contain:inline-size] border border-[var(--t-brick)] rounded-md',
+    stickyHeader: 'top-0 sticky z-[5] bg-[var(--t-brick-soft)]',
+    headerCellContainer: 'w-full px-4 py-2 content-center t-metaXS text-[var(--t-brick)] whitespace-nowrap border-b border-[var(--t-brick)]',
+    headerCellContainerBg: 'bg-[var(--t-brick-soft)]',
+    headerCellContainerBgSelected: 'bg-[var(--t-brick-soft)]',
+    cellInner: 'w-full min-h-full flex flex-wrap items-center px-4 py-2.5 t-proseSM text-[var(--t-brick)] whitespace-normal break-words',
+    cellBg: 'bg-[var(--t-panel)]',
+    cellBgOdd: 'bg-[var(--t-panel)]',
+    cellBgEven: 'bg-[var(--t-panel)]',
+    cellBgSelected: 'bg-[var(--t-panel)]',
+};
+
 export const tableTheme = {
     options: {
         activeStyle: 0
@@ -21,9 +65,11 @@ export const tableTheme = {
             stickyHeader: 'top-0 sticky z-[5] bg-[var(--t-panel)]',
             stickyBottom: 'bottom-0 sticky z-[5] bg-[var(--t-panel)]',
             headerCellContainer: 'w-full font-mono px-3 py-1 content-center text-[10px] uppercase tracking-[0.08em] text-[var(--t-pencil)]',
-            headerCellContainerBgSelected: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
+            // chosen states are ink (2026-10-14, ui-control-tables.md step 4); pre-v6 cobalt frozen in _legacy/ui.js
+            headerCellContainerBgSelected: 'bg-[var(--t-rule)] !text-[var(--t-ink)]',
             headerCellContainerBg: 'bg-[var(--t-well)] text-[var(--t-pencil)]',
             colResizer: "z-5 -ml-2 w-[1px] hover:w-[2px] bg-[var(--t-rule)] hover:bg-[var(--t-rule-strong)]",
+            colResizerHit: "before:content-[''] before:absolute before:inset-y-0 before:-left-1 before:-right-1",   // wide grab area (see LIST)
 
             wrapText: 'whitespace-pre-wrap',
             cell: 'relative flex items-center min-h-[35px] border border-[var(--t-rule)]',
@@ -31,26 +77,57 @@ export const tableTheme = {
             cellBgOdd: 'bg-[var(--t-well)] hover:bg-[var(--t-rule)]',
             cellBgEven: 'bg-[var(--t-panel)] hover:bg-[var(--t-well)]',
             cellBg: 'bg-[var(--t-panel)] hover:bg-[var(--t-well)]',
-            cellBgSelected: 'bg-[var(--t-cobalt-soft)] hover:bg-[var(--t-cobalt-soft)]',
+            cellBgSelected: 'bg-[var(--t-rule)] hover:bg-[var(--t-rule)]',
+            // the selected range's outline (an inline border colour, so any CSS colour / var)
+            selectionColor: 'var(--t-ink)',
             totalCell: 'hover:bg-[var(--t-well)]',
-            cellEditableTextBox: 'absolute border border-[var(--t-cobalt)] bg-[var(--t-panel)] focus:outline-none min-w-[180px] min-h-[50px] z-[10] whitespace-pre-wrap',
+            cellEditableTextBox: 'absolute border border-[var(--t-ink)] bg-[var(--t-panel)] focus:outline-none min-w-[180px] min-h-[50px] z-[10] whitespace-pre-wrap',
             cellFrozenCol: '',
             cellInvalid: 'bg-[var(--t-brick-soft)] hover:bg-[var(--t-brick-soft)]',
             gutterCellWrapper: `flex font-mono text-[10px] items-center justify-center cursor-pointer sticky left-0 z-[1]`,
             gutterCellWrapperNotSelected: 'bg-[var(--t-well)] text-[var(--t-pencil)]',
-            gutterCellWrapperSelected: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
+            gutterCellWrapperSelected: 'bg-[var(--t-rule)] !text-[var(--t-ink)]',
 
             paginationInfoContainer: '',
             paginationPagesInfo: 'font-mono text-[11px] uppercase tracking-[0.06em] text-[var(--t-graphite)]',
             paginationRowsInfo: 'font-mono text-[11px] text-[var(--t-pencil)]',
             paginationContainer: 'w-full p-2 flex items-center justify-between border-t border-[var(--t-rule)]',
             paginationControlsContainer: 'flex flex-row items-center overflow-hidden gap-0.5',
-            pageRangeItem: 'cursor-pointer px-3 text-[var(--t-graphite)] py-1 font-mono text-[11px] hover:bg-[var(--t-well)] uppercase tracking-[0.06em] rounded-md',
-            pageRangeItemInactive: '',
-            pageRangeItemActive: 'bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]',
+            pageRangeItem: 'cursor-pointer px-3 text-[var(--t-graphite)] py-1 font-mono text-[11px] uppercase tracking-[0.06em] rounded-md',
+            // hover only on inactive items: on the active (ink) item a well hover hid the paper-coloured number
+            pageRangeItemInactive: 'hover:bg-[var(--t-well)] hover:text-[var(--t-ink)]',
+            pageRangeItemActive: 'bg-[var(--t-ink)] text-[var(--t-paper)]',
 
             totalRow: 'bg-[var(--t-well)] sticky bottom-0 z-[3] border-t border-[var(--t-rule-strong)]',
             stripedRow: 'even:bg-[var(--t-well)]',
+            // empty-table placeholder row (display.emptyRowMode 'placeholder')
+            emptyRow: 'border-b border-[var(--t-rule)] p-2 t-proseSM text-[var(--t-pencil)] italic',
+
+            // add-row bar (display.allowAdddNew) and inline add row (emptyRowMode 'inline_add') — was
+            // hardcoded white / gray / blue / green markup (2026-10-14, step 5; old strings frozen in _legacy/ui.js)
+            addRowGrid: 'bg-[var(--t-panel)] divide-x divide-y divide-[var(--t-rule)]',
+            addRowGutterCell: 'w-full border border-[var(--t-rule)] bg-[var(--t-well)]',
+            addRowButtonCell: 'bg-[var(--t-panel)] flex flex-row h-full justify-evenly items-center',
+            // the buttons below are UI.Button named styles (2026-10-17, raw-HTML pass; Button.theme.jsx); a project
+            // theme's own addRowButton / inlineAddSave / … classes are lifted (src/themes/_legacy/ui.js liftPatternRoles)
+            addRowButtonStyle: 'tableAddRow',
+            addRowButtonIcon: '',
+            addRowCell: 'flex border border-[var(--t-rule)] p-1 bg-[var(--t-panel)] hover:bg-[var(--t-well)] w-full h-full',
+            addRowInput: 'p-1 bg-[var(--t-panel)] hover:bg-[var(--t-well)] w-full h-full',
+            inlineAddGrid: 'divide-x divide-y divide-[var(--t-rule)]',
+            inlineAddGutter: 'bg-[var(--t-well)] border border-[var(--t-rule)] flex items-center justify-center',
+            inlineAddSaveStyle: 'tableAddSave',
+            inlineAddSaveFloatingStyle: 'tableAddSaveFloating',
+
+            // actions column (RenderActions.jsx): url / delete buttons and the ⋯ menu
+            actionLinkBtn: 'flex items-center w-fit px-1.5 py-0.5 mx-0.5 rounded-md border border-[var(--t-rule-strong)] bg-[var(--t-panel)] text-[var(--t-ink)] t-metaXS hover:bg-[var(--t-well)]',
+            actionDeleteBtnStyle: 'tableRowDelete',
+            actionBtnIcon: '',
+            actionsMenuTriggerStyle: 'tableActionsTrigger',
+            actionsMenuTriggerIcon: 'text-[var(--t-pencil)] hover:text-[var(--t-ink)] size-4',
+            actionsMenu: 'flex flex-col bg-[var(--t-panel)] border border-[var(--t-rule)] shadow-[var(--t-shadow-drag)] rounded-md p-1 min-w-[100px]',
+            actionsMenuItem: 'flex items-center gap-2 px-2 py-1.5 t-proseSM text-[var(--t-ink)] hover:bg-[var(--t-well)] rounded cursor-pointer whitespace-nowrap',
+            actionsMenuItemDangerStyle: 'tableActionsDelete',
             // Neutral default accent applied to a whole row by the `conditional_row_style`
             // Spreadsheet provider (left edge + faint tint). A brand theme overrides this by
             // defining its own `styleKey` (e.g. `rowAccentAmber`) and pointing the provider at it.
@@ -58,7 +135,7 @@ export const tableTheme = {
             // Default accent for the `row_highlight` provider's 'accent' style (the active
             // master-detail row, e.g. a click-to-switch selector). Its cells go transparent
             // (TableCell) so this tint + left edge shows.
-            rowHighlightAccent: 'bg-[var(--t-cobalt-soft)] shadow-[inset_3px_0_0_var(--t-cobalt)]',
+            rowHighlightAccent: 'bg-[var(--t-well)] shadow-[inset_3px_0_0_var(--t-ink)]',
 
             openOutContainer: 'w-[330px] overflow-auto scrollbar-sm flex flex-col gap-[12px] p-[16px] bg-[var(--t-panel)] h-full float-right border-l border-[var(--t-rule)]',
             openOutContainerWrapper: 'fixed inset-0 right-0 h-full w-full z-[100]',
@@ -87,7 +164,7 @@ export const tableTheme = {
             headerCellWrapper: 'relative w-full',
             headerCellBtn: 'group inline-flex items-center w-full justify-between gap-x-1.5 rounded-md cursor-pointer',
             headerCellLabel: 'truncate select-none',
-            headerCellBtnActive: 'bg-[var(--t-cobalt-soft)]',
+            headerCellBtnActive: 'bg-[var(--t-rule)]',
             headerCellFnIconClass: 'text-[var(--t-pencil)]',
             headerCellCountIcon: 'TallyMark',
             headerCellListIcon: 'LeftToRightListBullet',
@@ -102,36 +179,24 @@ export const tableTheme = {
             headerCellMenu: 'py-0.5 flex flex-col gap-0.5 items-center px-1 font-mono text-[11px] text-[var(--t-graphite)] max-h-[500px] min-w-[180px] ' +
                 'z-[10] overflow-auto scrollbar-sm bg-[var(--t-panel)] divide-y divide-[var(--t-rule)] rounded-md shadow-[var(--t-shadow-drag)] border border-[var(--t-rule)]',
             headerCellControlWrapper: 'w-full group px-2 py-1 flex justify-between items-center rounded-md hover:bg-[var(--t-well)]',
-            headerCellControlLabel: 'w-fit font-mono text-[11px] text-[var(--t-pencil)] cursor-default',
+            // the header-menu caption / input / textarea are UI.FieldLabel / UI.Input / UI.Textarea named styles
+            // 'tableHeaderControl' (2026-10-17, raw-HTML pass); a project theme's own headerCellControlLabel /
+            // headerCellControl is lifted (src/themes/_legacy/ui.js liftPatternRoles). headerCellControl itself still
+            // styles the header menu's select / multiselect / toggle.
+            headerCellControlLabelStyle: 'tableHeaderControl',
+            headerCellControlInputStyle: 'tableHeaderControl',
+            headerCellControlTextareaStyle: 'tableHeaderControl',
             headerCellControl: 'p-0.5 w-full rounded-md bg-[var(--t-panel)] group-hover:bg-[var(--t-well)] cursor-pointer'
         },
-        {
-            // A roomier cell style — opt in per-`<Table>` via `activeStyle="roomy"`
-            // (forwarded straight through by TableCell.jsx like any other
-            // activeStyle). Only `cell`/`cellInner` differ; every other key
-            // inherits from styles[0]. Matches the tessera design-system
-            // mockups' own table density (`px-3 py-2.5`, e.g.
-            // design_system_v6/pages/admin-users.html), which is roomier than
-            // this base/fallback table's compact default (`py-0.5 px-1`) —
-            // added for the auth manage pages' Users/Groups tables
-            // (2026-09-17) rather than changing the shared default, since that
-            // default is used by every table across the whole app.
-            // Horizontal rules only, 0.5px each side (1px seam between rows).
-            name: 'roomy',
-            cell: 'relative flex items-center min-h-[42px] border-x-0 border-y-[0.5px] border-[var(--t-rule)]',
-            cellInner: 'w-full min-h-full flex flex-wrap items-center truncate px-3 py-2.5 font-sans font-[400] text-[14px] leading-[18px] text-[var(--t-graphite)]',
-        },
-        {
-            // The default density with horizontal rules only — admin Themes list.
-            name: 'rules',
-            cell: 'relative flex items-center min-h-[35px] border-x-0 border-y-[0.5px] border-[var(--t-rule)]',
-        },
+        // 'roomy' and 'rules' were the admin / auth lists' looks; since 2026-10-14 they are the list
+        // table. Kept (not deleted) so a stored style index after them doesn't move.
+        { name: 'roomy', ...LIST },
+        { name: 'rules', ...LIST },
         {
             name: 'below-row',
-            // openOut opens inline below the row instead of a fixed right-side drawer.
-            // Horizontal rules only, 0.5px each side so stacked rows meet at a 1px seam.
-            // All other keys inherit from styles[0].
-            cell: 'relative flex items-center min-h-[35px] border-x-0 border-y-[0.5px] border-[var(--t-rule)]',
+            // The list table, with openOut opening inline below the row instead of a fixed
+            // right-side drawer (admin Pages tree). All other keys inherit from styles[0].
+            ...LIST,
             openOutContainer: 'w-full flex flex-col bg-[var(--t-panel)]',
             openOutContainerWrapper: 'w-full',
             openOutContainerWrapperBgColor: 'transparent',
@@ -142,7 +207,9 @@ export const tableTheme = {
             openOutIconWrapper: 'hidden',
             openOutBelowRow: true,
             openOutHideTitle: true,
-        }
+        },
+        { name: 'list', ...LIST },
+        { name: 'error', ...ERROR },
     ]
 }
 

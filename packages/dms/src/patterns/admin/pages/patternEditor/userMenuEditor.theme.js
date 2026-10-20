@@ -16,16 +16,14 @@ export const userMenuEditorTheme = {
   dirtyNote: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-amber)]',
   dirtyDot: 'size-1.5 rounded-full bg-[var(--t-amber)]',
   savedNote: 't-metaXS text-[var(--t-go)]',
-  discardBtn: 't-proseSM text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-md px-3 py-1 hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
-  saveBtn: 't-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3.5 py-1 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
 
   modeRow: 'flex flex-wrap items-center gap-3',
   modeLabel: 't-metaXS text-[var(--t-pencil)]',
   ownList: 'mt-1',
   ownListSummary: 'cursor-pointer text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
   ownListNames: 'block mt-1 text-[var(--t-graphite)]',
-  notice: 'flex items-start gap-2 bg-[var(--t-cobalt-soft)] border border-[var(--t-rule)] rounded-md p-3 t-proseXS text-[var(--t-ink)]',
-  noticeIcon: 'size-4 text-[var(--t-cobalt)] flex-none mt-0.5',
+  notice: 'flex items-start gap-2 bg-[var(--t-well)] border border-[var(--t-rule)] rounded-md p-3 t-proseXS text-[var(--t-graphite)]',   // info callout = neutral (owner 2026-10-13)
+  noticeIcon: 'size-4 text-[var(--t-pencil)] flex-none mt-0.5',
   error: 't-proseSM text-[var(--t-brick)]',
   loading: 't-proseSM text-[var(--t-pencil)] py-6',
 
@@ -39,16 +37,14 @@ export const userMenuEditorTheme = {
   cardTitle: 't-metaSM text-[var(--t-graphite)]',
   count: 't-metaXS text-[var(--t-pencil)] border border-[var(--t-rule)] rounded-full px-2 py-0.5',
   spacer: 'flex-1',
-  ghostBtn: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full px-2.5 py-1 hover:border-[var(--t-rule-strong)] hover:text-[var(--t-ink)] cursor-pointer',
   ghostBtnIcon: 'size-3.5',
-  addBtn: 'inline-flex items-center gap-1.5 t-proseSM font-medium text-[var(--t-accent-ink)] bg-[var(--t-cobalt)] hover:bg-[var(--t-cobalt-deep)] rounded-md px-3 py-1 cursor-pointer',
   addBtnIcon: 'size-4',
   empty: 't-proseSM text-[var(--t-pencil)] px-4 py-6 text-center',
 
   list: 'divide-y divide-[var(--t-rule)]',
   row: 'hover:bg-[var(--t-well)]',
   rowOpen: 'bg-[var(--t-well)]',
-  rowDragOver: 'shadow-[inset_0_2px_0_var(--t-cobalt)]',
+  rowDragOver: 'shadow-[inset_0_2px_0_var(--t-ink)]',
   rowHead: 'flex items-center gap-3 px-4 py-2.5 cursor-pointer',
   grip: 'flex-none cursor-grab text-[var(--t-pencil)] hover:text-[var(--t-ink)]',
   gripIcon: 'size-4',
@@ -67,18 +63,15 @@ export const userMenuEditorTheme = {
   dividerRow: 'group flex items-center gap-3 px-4 py-2',
   dividerLine: 'flex-1 h-px bg-[var(--t-rule-strong)]',
   dividerLabel: 't-metaXS text-[var(--t-pencil)]',
-  dividerRemove: 'text-[var(--t-pencil)] hover:text-[var(--t-brick)] cursor-pointer sm:opacity-0 sm:group-hover:opacity-100',
+  // the remove button shows on row hover (sm+); focus-within keeps it visible for keyboard users
+  dividerRemoveWrap: 'inline-flex sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100',
   dividerRemoveIcon: 'size-4',
 
   // inline editor for the open link
   editor: 'px-4 pb-4 pt-1 sm:pl-[3.25rem] flex flex-col gap-4',
   fields: 'grid grid-cols-1 sm:grid-cols-[auto_1fr] gap-x-4 gap-y-3 items-start',
-  label: 't-metaXS text-[var(--t-pencil)] sm:pt-2',
-  input: 'w-full bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-md px-3 py-1.5 t-proseSM text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]',
-  pathInput: 'w-full bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-md px-3 py-1.5 font-mono text-[13px] text-[var(--t-ink)] outline-none focus:border-[var(--t-cobalt)]',
+  labelCell: 'flex sm:pt-2',   // the grid cell holding a UI.FieldLabel 'inline' caption (flex: no line-box strut)
   help: 't-proseXS text-[var(--t-pencil)] mt-1',
-  iconBtn: 'inline-flex items-center gap-2 bg-[var(--t-panel)] border border-[var(--t-rule)] hover:border-[var(--t-rule-strong)] rounded-md pl-2 pr-2.5 py-1.5 cursor-pointer',
-  iconBtnOpen: 'inline-flex items-center gap-2 bg-[var(--t-panel)] border border-[var(--t-cobalt)] rounded-md pl-2 pr-2.5 py-1.5 cursor-pointer',
   iconBtnTile: 'size-6 rounded bg-[var(--t-well)] flex items-center justify-center text-[var(--t-ink)]',
   iconBtnIcon: 'size-4',
   iconBtnName: 't-proseSM text-[var(--t-ink)]',
@@ -86,24 +79,16 @@ export const userMenuEditorTheme = {
   picker: 'mt-2 border border-[var(--t-rule)] rounded-md bg-[var(--t-panel)] p-2 shadow-[var(--t-shadow-lift)]',
   pickerSearch: 'flex items-center gap-1.5 border border-[var(--t-rule)] rounded px-2 py-1 mb-2',
   pickerSearchIcon: 'size-3.5 text-[var(--t-pencil)]',
-  pickerSearchInput: 'flex-1 min-w-0 bg-transparent t-proseXS text-[var(--t-ink)] outline-none placeholder:text-[var(--t-pencil)]',
   pickerGrid: 'grid grid-cols-8 gap-1 max-h-48 overflow-y-auto',
-  pickerItem: 'aspect-square flex items-center justify-center rounded text-[var(--t-graphite)] hover:bg-[var(--t-well)] hover:text-[var(--t-ink)] cursor-pointer',
-  pickerItemActive: 'aspect-square flex items-center justify-center rounded bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)] ring-1 ring-[var(--t-cobalt)] cursor-pointer',
   pickerItemIcon: 'size-4',
   pickerEmpty: 'col-span-8 t-proseXS text-[var(--t-pencil)] py-2 text-center',
 
-  segmented: 'inline-flex self-start border border-[var(--t-rule)] rounded-md p-0.5 bg-[var(--t-well)]',
-  segment: 't-proseXS text-[var(--t-graphite)] rounded px-2.5 py-1 cursor-pointer disabled:cursor-not-allowed disabled:opacity-60',
-  segmentActive: 't-proseXS text-[var(--t-ink)] bg-[var(--t-panel)] shadow-[var(--t-shadow-lift)] rounded px-2.5 py-1 cursor-pointer',
+  segmented: 'inline-flex p-0.5 gap-0.5 rounded-md border border-[var(--t-rule)] bg-[var(--t-well)] self-start',
   audienceWrap: 'flex flex-col gap-2',
   groupSelect: 'w-full max-w-md',
 
   editorFooter: 'flex flex-wrap items-center gap-2 pt-3 border-t border-[var(--t-rule)]',
-  removeBtn: 'inline-flex items-center gap-1.5 t-metaXS text-[var(--t-brick)] hover:underline cursor-pointer',
   removeBtnIcon: 'size-3.5',
-  moveBtn: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full px-2 py-1 hover:border-[var(--t-rule-strong)] cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed',
-  doneBtn: 't-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full px-2.5 py-1 hover:border-[var(--t-rule-strong)] cursor-pointer',
 
   // built-in rows (appended by userMenu.jsx, not editable)
   builtins: 'border-t border-[var(--t-rule)] bg-[var(--t-well)] rounded-b-lg',
@@ -118,12 +103,9 @@ export const userMenuEditorTheme = {
   builtinNote: 't-metaXS text-[var(--t-pencil)]',
 
   footerLinks: 'flex flex-wrap items-center gap-3 px-1',
-  resetBtn: 't-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)] underline underline-offset-2 cursor-pointer',
   footerNote: 't-metaXS text-[var(--t-pencil)]',
   confirmRow: 'inline-flex flex-wrap items-center gap-2 t-proseXS',
   confirmLabel: 'text-[var(--t-graphite)]',
-  confirmYes: 'text-[var(--t-brick)] font-semibold hover:underline cursor-pointer',
-  confirmNo: 'text-[var(--t-pencil)] hover:underline cursor-pointer',
 
   // live preview
   previewCard: 'bg-[var(--t-well)] border border-[var(--t-rule)] rounded-lg overflow-hidden t6-sheet',

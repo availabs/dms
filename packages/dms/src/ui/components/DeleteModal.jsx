@@ -1,48 +1,53 @@
 import React, {useRef, useState} from "react";
 import Modal from "./Modal";
+import Icon from "./Icon";
+import Button from "./Button";
+import {ThemeContext, getComponentTheme} from "../useTheme";
+import {deleteModalTheme} from "./DeleteModal.theme";
 
-export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete})  {
+// `modalStyle`: the UI.Modal named style to open with — layering, not look: a confirmation launched from a popup /
+// section menu passes 'aboveMenu' so it sits above the menu (2026-10-16).
+export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, activeStyle, modalStyle})  {
     const cancelButtonRef = useRef(null)
     const [loading, setLoading] = useState(false)
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...deleteModalTheme.styles[0], ...getComponentTheme(themeFromContext, 'deleteModal', activeStyle) };
     return (
         <Modal
             open={open}
             setOpen={setOpen}
             initialFocus={cancelButtonRef}
+            activeStyle={modalStyle}
         >
-            <div className="sm:flex sm:items-start">
-                <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100 sm:mx-0 sm:h-10 sm:w-10">
-                    <i className="fa fa-danger h-6 w-6 text-red-600" aria-hidden="true" />
-                </div>
-                <div className="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
-                    <h3 className="text-base font-semibold leading-6 text-gray-900">
+            <div className={t.content}>
+                {t.icon && <div className={t.iconWrap}>
+                    <Icon icon={t.icon} className={t.iconClass} aria-hidden="true" />
+                </div>}
+                <div className={t.textWrap}>
+                    <h3 className={t.title}>
                         {title || `Delete ${item.title || ''} ${item.id}`}
                     </h3>
-                    <div className="mt-2">
-                        <p className="text-sm text-gray-500">
-                            {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
+                    <p className={t.body}>
+                        {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
               from our servers forever. This action cannot be undone.`}
-                        </p>
-                    </div>
+                    </p>
                 </div>
             </div>
-            <div className="mt-5 sm:mt-4 sm:flex sm:flex-row-reverse">
-                <button
-                    type="button"
-                    disabled={loading}
-                    className="inline-flex w-full justify-center rounded-md bg-red-600 px-3 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-500 sm:ml-3 sm:w-auto"
-                    onClick={onDelete}
-                >
-                    Delet{loading ? 'ing...' : 'e'}
-                </button>
-                <button
-                    type="button"
-                    className="mt-3 inline-flex w-full justify-center rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-sm ring-1 ring-inset ring-gray-300 hover:bg-gray-50 sm:mt-0 sm:w-auto"
+            <div className={t.actions}>
+                <Button
+                    activeStyle={t.cancelButtonStyle}
                     onClick={() => setOpen(false)}
                     ref={cancelButtonRef}
                 >
                     Cancel
-                </button>
+                </Button>
+                <Button
+                    activeStyle={t.deleteButtonStyle}
+                    disabled={loading}
+                    onClick={onDelete}
+                >
+                    Delet{loading ? 'ing...' : 'e'}
+                </Button>
             </div>
         </Modal>
     )

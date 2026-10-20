@@ -1,25 +1,26 @@
 import React from 'react'
-import {ThemeContext} from '../useTheme'
+import {ThemeContext, getComponentTheme} from '../useTheme'
+import {buttonSelectTheme} from './ButtonSelect.theme'
 import Button from "./Button";
 
-const buttonSelectTheme = {
-
-}
-
-export default function ButtonSelect({ options=[], value, onChange=()=>{}, disabled=false }) {
-    const { theme: themeFromContext = {buttonSelect: buttonSelectTheme}} = React.useContext(ThemeContext);
-    const theme = {...themeFromContext, buttonSelect: {...buttonSelectTheme, ...(themeFromContext.buttonSelect || {})}};
+export default function ButtonSelect({ options=[], value, onChange=()=>{}, disabled=false, activeStyle }) {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const theme = { ...buttonSelectTheme.styles[0], ...getComponentTheme(themeFromContext, 'buttonSelect', activeStyle) };
     return (
-        <div className={'flex gap-0.5'}>
+        <div className={theme.wrapper}>
             {
-                options.map(option =>
-                    <Button key={option.value || option}
-                            disabled={disabled}
-                            onClick={() => !disabled && onChange(option?.value || option)}
-                            activeStyle={value === (option?.value || option) ? 'active' : 'plain'}
-                    >
-                        {option?.label || option}
-                    </Button>)
+                options.map(option => {
+                    const isActive = value === (option?.value || option);
+                    return (
+                        <Button key={option.value || option}
+                                disabled={disabled}
+                                onClick={() => !disabled && onChange(option?.value || option)}
+                                activeStyle={isActive ? theme.buttonActiveStyle : theme.buttonStyle}
+                        >
+                            {option?.label || option}
+                        </Button>
+                    )
+                })
             }
         </div>
     )

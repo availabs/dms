@@ -6,6 +6,7 @@ import Upload from "../../../../components/upload";
 import { nameToSlug, getInstance } from "../../../../../../utils/type-utils";
 import { clearDatasetsListCache } from "../../../../utils/datasetsListCache";
 import { createPageTheme } from "../../file_upload/CreatePage.theme";
+import CreateStep from "../../../../components/CreateStep";
 
 function getNewId(falcorRes) {
     return Object.keys(falcorRes?.json?.dms?.data?.byId || {})
@@ -15,7 +16,7 @@ function getNewId(falcorRes) {
 export default function SourceCreate({ context, source }) {
     const ctx = useContext(DatasetsContext);
     const { UI, theme } = useContext(ThemeContext);
-    const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreatePage || {}) };
+    const t = { ...createPageTheme, ...(theme?.datasets?.fileUploadCreate || {}) };
     const { falcor, parent, user, type, app, baseUrl, dmsEnv } = ctx;
     const navigate = useNavigate();
     const { Button } = UI;
@@ -119,6 +120,9 @@ export default function SourceCreate({ context, source }) {
 
     if (stage === 'uploading' && createdSource && viewId) {
         return (
+            <>
+            <CreateStep n={1} title="Create the table" state="done"/>
+            <CreateStep n={2} title="Upload rows">
             <div className={t.sourceCreateUploading}>
                 <Upload.EditComp
                     onChange={() => {}}
@@ -136,25 +140,34 @@ export default function SourceCreate({ context, source }) {
                 />
                 <div>
                     <Button
-                        type="plain"
+                        activeStyle='action'
                         onClick={() => navigate(`${baseUrl}/internal_source/${createdSource.id}`)}
                     >
                         Go to Dataset
                     </Button>
                 </div>
             </div>
+            </CreateStep>
+            </>
         );
     }
 
     return (
+        <>
+        <CreateStep n={1} title="Create the table">
         <div className={t.sourceCreateIdle}>
             {error && <div className={t.sourceCreateError}>{error}</div>}
             <Button
+                activeStyle='primary'
                 disabled={!source.name?.trim() || stage === 'creating'}
                 onClick={handleCreate}
             >
                 {stage === 'creating' ? 'Creating...' : 'Create & Upload'}
             </Button>
+            {t.sourceCreateHint ? <p className={t.sourceCreateHint}>Creates the source and its first version, then opens the uploader.</p> : null}
         </div>
+        </CreateStep>
+        <CreateStep n={2} title="Upload rows" state="todo"/>
+        </>
     );
 }

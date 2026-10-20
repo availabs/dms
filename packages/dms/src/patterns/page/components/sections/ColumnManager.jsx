@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import DraggableList from "../../../../ui/components/DraggableList";
-import Input from "../../../../ui/components/Input";
 import columnTypes from "../../../../ui/columnTypes";
 import { getColumnLabel, isEqualColumns } from "./controls_utils";
 import AddFormulaColumn from "./AddFormulaColumn";
@@ -8,8 +7,13 @@ import AddCalculatedColumn from "./AddCalculatedColumn";
 import AddStaticColumn from "./AddStaticColumn";
 import { isEqual, uniqWith } from "lodash-es";
 import { calculateIsJoinPresent } from "./components/dataWrapper/utils/joinUtils";
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
+import { columnManagerTheme } from "./ColumnManager.theme";
 
 const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill, Icon }) => {
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const { Input } = UI;
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const { config: { columns: stateColumns, externalSource, join }, setState } = dwAPI;
     const [pickerSearch, setPickerSearch] = useState('');
     const [isFocused, setIsFocused] = useState(false);
@@ -65,8 +69,8 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
     const showDropdown = isFocused && availableColumns.length > 0;
 
     return (
-        <div className="flex flex-col p-1 gap-1 w-full relative bg-blue-50 rounded-md">
-            <div className={'flex gap-1'}>
+        <div className={t.picker}>
+            <div className={t.pickerButtons}>
                 <AddFormulaColumn columns={allColumns} addFormulaColumn={col => dwAPI.addFormulaColumn(col)} />
                 <AddCalculatedColumn columns={allColumns} addCalculatedColumn={col => dwAPI.addCalculatedColumn(col)} />
                 <AddStaticColumn addStaticColumn={col => dwAPI.addStaticColumn(col)} />
@@ -79,7 +83,7 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                 onBlur={() => setTimeout(() => setIsFocused(false), 150)}
             />
             {showDropdown && (
-                <div className="max-h-40 overflow-y-auto border rounded bg-white scrollbar-sm overflow-x-hidden">
+                <div className={t.dropdown}>
                     {uniqWith(availableColumns, isEqual).map(col => {
                         const tableAlias = col.source_id ? Object.keys(join?.sources).find(jSourceKey => join?.sources[jSourceKey].source === col.source_id) : 0;
                         const match = isJoinPresent && tableAlias?.match(/\d+$/);
@@ -87,23 +91,23 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                         return (
                             <div
                                 key={`${col.source_id}_${col.name}`}
-                                className="flex items-center justify-between px-2 h-7 text-sm hover:bg-blue-100 cursor-pointer min-w-0"
+                                className={t.dropdownItem}
                                 onMouseDown={(e) => {
                                     e.preventDefault();
                                     stageColumn(col);
                                 }}
                             >
-                                <span className="truncate mr-2">{getColumnLabel(col)}</span>
+                                <span className={t.dropdownLabel}>{getColumnLabel(col)}</span>
                                 {isJoinPresent && (
-                                    <div className="relative flex-shrink-0 h-4 w-4 flex items-center justify-center">
+                                    <div className={t.joinBadgeWrap}>
                                         {tableIdx > 0 ?
                                             <>
                                                 <Icon icon="Link" size={14}/>
-                                                <span className="absolute -top-1 -right-1 flex h-3 w-3 items-center justify-center rounded-full bg-blue-500 text-[7px] font-bold text-white border border-white">
+                                                <span className={t.joinBadge}>
                                                     {tableIdx}
                                                 </span>
                                             </>
-                                            : <Icon icon="Database" className="text-slate-300" />
+                                            : <Icon icon="Database" className={t.sourceIcon} />
                                         }
                                     </div>
                                 )}
@@ -113,33 +117,34 @@ const ColumnPicker = ({ dwAPI, allColumns, stagedColumns, setStagedColumns, Pill
                 </div>
             )}
             {stagedColumns.length > 0 && (
-                <div className="flex flex-wrap items-center gap-1">
+                <div className={t.staged}>
                     {stagedColumns.map(col => (
                         <Pill
                             key={col.name}
-                            text={<span className="flex items-center gap-1">
+                            text={<span className={t.controlRow}>
                                 {getColumnLabel(col)}
-                                <Icon icon="XMark" className="size-3 cursor-pointer" />
+                                <Icon icon="XMark" className={t.stagedX} />
                             </span>}
-                            color="blue"
+                            activeStyle="blue"
                             onClick={() => unstageColumn(col)}
                         />
                     ))}
-                    <Pill text="Add" color="green" onClick={confirmAdd} />
+                    <Pill text="Add" activeStyle="green" onClick={confirmAdd} />
                 </div>
             )}
         </div>
     );
 };
 
-const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
+const renderControl = (control, columnData, onUpdate, { Switch, dwAPI, t, UI }) => {
+    const { FieldLabel, Input } = UI;
     if (typeof control.displayCdn === 'function' && !control.displayCdn({ display: dwAPI.state?.display, attribute: columnData })) return null;
     const isDisabled = typeof control.disabled === 'function' ? control.disabled({ attribute: columnData }) : control.disabled;
 
     if (control.type === 'toggle') {
         return (
-            <div key={control.key} className="flex items-center gap-1">
-                <label className="text-xs text-gray-600">{control.label}</label>
+            <div key={control.key} className={t.controlRow}>
+                <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" text={control.label} /></div>
                 <Switch
                     size="small"
                     enabled={!!columnData[control.key]}
@@ -154,8 +159,8 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
         const SelectComp = columnTypes?.select?.EditComp;
         const filteredOptions = (control.options || []).filter(opt => typeof opt.displayCdn !== 'function' || opt.displayCdn({ display: dwAPI.state?.display, attribute: columnData }));
         return SelectComp ? (
-            <div key={control.key} className="flex items-center gap-1">
-                <label className="text-xs text-gray-600">{control.label}</label>
+            <div key={control.key} className={t.controlRow}>
+                <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" text={control.label} /></div>
                 <SelectComp
                     value={columnData[control.key]}
                     options={filteredOptions}
@@ -183,9 +188,10 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
 
     if (control.type === 'input') {
         return (
-            <div key={control.key} className="flex items-center gap-1">
-                <label className="text-xs text-gray-600">{control.label}</label>
+            <div key={control.key} className={t.controlRow}>
+                <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" htmlFor={`cm-${control.key}`} text={control.label} /></div>
                 <Input
+                    id={`cm-${control.key}`}
                     value={columnData[control.key] || ''}
                     onChange={e => onUpdate(control.key, e.target.value, control.onChange)}
                 />
@@ -197,66 +203,72 @@ const renderControl = (control, columnData, onUpdate, { Switch, dwAPI }) => {
 };
 
 const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch, isExpanded, onToggleExpand, isOutOfDate, onRefreshMeta }) => {
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const { Button, FieldLabel, Input } = UI;
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const label = getColumnLabel(column);
     const onUpdate = useCallback((key, value, onChange) =>
         dwAPI.updateColumn(column, key, value, onChange), [column, dwAPI.updateColumn]);
 
     return (
-        <div className="border rounded bg-white mb-0.5">
-            <div className="flex items-center justify-between px-2 py-1 gap-1">
-                <div className="flex items-center gap-1 flex-1 min-w-0">
-                    <Icon icon="Reorder" className="size-4 text-gray-400 shrink-0 cursor-grab" />
-                    <span className="text-sm truncate">{label}</span>
+        <div className={t.row}>
+            <div className={t.rowHead}>
+                <div className={t.rowTitleWrap}>
+                    <Icon icon="Reorder" className={t.grip} />
+                    <span className={t.rowLabel}>{label}</span>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className={t.rowIcons}>
                     {isOutOfDate && (
-                        <button
-                            className="p-0.5 rounded hover:bg-gray-100 text-amber-500 cursor-pointer"
+                        <Button
+                            activeStyle="iconInlineWarn"
                             title="Metadata out of date"
                             onClick={onRefreshMeta}
                         >
-                            <Icon icon="Alert" className="size-4" />
-                        </button>
+                            <Icon icon="Alert" className={t.icon} />
+                        </Button>
                     )}
                     {column.fn && (
-                        <span className="p-0.5 text-gray-400" title={column.fn}>
+                        <span className={t.fnBadge} title={column.fn}>
                             <Icon icon={
                                 column.fn === 'count' ? 'TallyMark' :
                                     column.fn === 'list' ? 'LeftToRightListBullet' :
                                         column.fn === 'sum' ? 'Sum' :
                                             column.fn === 'avg' ? 'Avg' :
                                                 'TallyMark'
-                            } className="size-4 text-blue-500" />
+                            } className={t.fnIcon} />
                         </span>
                     )}
-                    <button className={`p-0.5 rounded hover:bg-gray-100 ${column.group ? `text-blue-500` : `text-gray-300`} cursor-pointer`}
+                    <Button activeStyle={column.group ? 'iconInlineOn' : 'iconInline'}
                             title={column.group ? 'Grouping By' : 'Group By'}
+                            aria-pressed={!!column.group}
                             onClick={() => dwAPI.updateColumn(column, 'group', !column.group)}
                     >
-                            <Icon icon="Group" className="size-4" />
-                    </button>
-                    <button
-                        className={`p-0.5 rounded hover:bg-gray-100 ${column.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
+                            <Icon icon="Group" className={t.icon} />
+                    </Button>
+                    <Button
+                        activeStyle={column.show ? 'iconInlineOn' : 'iconInline'}
                         onClick={() => dwAPI.updateColumn(column, 'show', !column.show)}
                         title={column.show ? 'Hide' : 'Show'}
                     >
-                        <Icon icon={column.show ? 'Eye' : 'EyeClosed'} className="size-4" />
-                    </button>
-                    <button
-                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500 cursor-pointer"
+                        <Icon icon={column.show ? 'Eye' : 'EyeClosed'} className={t.icon} />
+                    </Button>
+                    <Button
+                        activeStyle="iconInline"
                         onClick={onToggleExpand}
                         title="Settings"
+                        aria-expanded={!!isExpanded}
                     >
-                        <Icon icon="CaretDown" className="size-4" />
-                    </button>
+                        <Icon icon="CaretDown" className={t.icon} />
+                    </Button>
                 </div>
             </div>
             {isExpanded && (
-                <div className="px-3 py-2 border-t bg-gray-50 flex flex-col gap-1.5" draggable={false}>
-                    <div className={'text-xs text-gray-900 py-0.5'}>{column.name}</div>
-                    <div className="flex items-center gap-1">
-                        <label className="text-xs text-gray-600">Name</label>
+                <div className={t.expanded} draggable={false}>
+                    <div className={t.colName}>{column.name}</div>
+                    <div className={t.controlRow}>
+                        <div className={t.controlLabelCell}><FieldLabel activeStyle="inline" htmlFor={`cm-name-${index}`} text="Name" /></div>
                         <Input
+                            id={`cm-name-${index}`}
                             value={getColumnLabel(column)}
                             onChange={e => dwAPI.updateColumn(column, 'customName', e.target.value)}
                         />
@@ -266,12 +278,12 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
                         // ...(resolvedControls?.inHeader || [])
                     ]
                         .filter(c => !c.hideFromSectionMenu)
-                        .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI }))}
-                    <div className="flex gap-1 pt-1">
-                        <Pill text="Duplicate" color="blue" onClick={() => dwAPI.duplicateColumn(column)} />
-                        <Pill text="Remove" color="orange" onClick={() => dwAPI.resetColumn(column)} />
+                        .map(c => renderControl(c, column, onUpdate, { Switch, dwAPI, t, UI }))}
+                    <div className={t.pillRow}>
+                        <Pill text="Duplicate" activeStyle="blue" onClick={() => dwAPI.duplicateColumn(column)} />
+                        <Pill text="Remove" activeStyle="orange" onClick={() => dwAPI.resetColumn(column)} />
                         {isOutOfDate && (
-                            <Pill text="Refresh Meta" color="orange" onClick={onRefreshMeta} />
+                            <Pill text="Refresh Meta" activeStyle="orange" onClick={onRefreshMeta} />
                         )}
                     </div>
                 </div>
@@ -281,6 +293,9 @@ const ColumnRow = ({ column, index, dwAPI, resolvedControls, Pill, Icon, Switch,
 };
 
 const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon, Switch, isExpanded, onToggleExpand }) => {
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const { Button } = UI;
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const columns = dwAPI.config.columns || [];
 
     const aggregateColumn = useMemo(() => {
@@ -298,39 +313,40 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
         dwAPI.updateAllColumns(key, value, onChange), [dwAPI.updateAllColumns]);
 
     return (
-        <div className="border rounded bg-white mb-0.5">
-            <div className="flex items-center justify-between px-2 py-1 gap-1">
-                <div className="flex items-center gap-1 flex-1 min-w-0">
-                    <Icon icon="Settings" className="size-4 text-gray-400 shrink-0" />
-                    <span className="text-sm font-medium truncate">All Columns</span>
+        <div className={t.row}>
+            <div className={t.rowHead}>
+                <div className={t.rowTitleWrap}>
+                    <Icon icon="Settings" className={t.settingsIcon} />
+                    <span className={t.rowLabelStrong}>All Columns</span>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
-                    <button
-                        className={`p-0.5 rounded hover:bg-gray-100 ${isEveryColVisible ? 'text-blue-500' : 'text-gray-300'}`}
+                <div className={t.rowIcons}>
+                    <Button
+                        activeStyle={isEveryColVisible ? 'iconInlineOn' : 'iconInline'}
                         onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                         title={isEveryColVisible ? 'Hide All' : 'Show All'}
                     >
-                        <Icon icon={isEveryColVisible ? 'Eye' : 'EyeClosed'} className="size-4" />
-                    </button>
-                    <button
-                        className="p-0.5 rounded hover:bg-gray-100 text-gray-500"
+                        <Icon icon={isEveryColVisible ? 'Eye' : 'EyeClosed'} className={t.icon} />
+                    </Button>
+                    <Button
+                        activeStyle="iconInline"
                         onClick={onToggleExpand}
                         title="Settings"
+                        aria-expanded={!!isExpanded}
                     >
-                        <Icon icon="CaretDown" className="size-4" />
-                    </button>
+                        <Icon icon="CaretDown" className={t.icon} />
+                    </Button>
                 </div>
             </div>
             {isExpanded && (
-                <div className="px-3 py-2 border-t bg-gray-50 flex flex-col gap-1.5" draggable={false}>
+                <div className={t.expanded} draggable={false}>
                     {[
                         ...(resolvedControls?.columns || []),
                         ...(resolvedControls?.inHeader || [])
                     ]
                         .filter(c => !c.hideFromSectionMenu)
-                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI }))}
-                    <div className="flex gap-1 pt-1">
-                        <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
+                        .map(c => renderControl(c, aggregateColumn, onUpdate, { Switch, dwAPI, t, UI }))}
+                    <div className={t.pillRow}>
+                        <Pill text="Remove All" activeStyle="orange" onClick={() => dwAPI.resetAllColumns()} />
                     </div>
                 </div>
             )}
@@ -339,6 +355,8 @@ const AllColumnsRow = ({ dwAPI, resolvedControls, isEveryColVisible, Pill, Icon,
 };
 
 export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Switch, showAllColumnsControl }) {
+    const { theme: themeFromContext = {}, UI } = React.useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     const { config: { columns: stateColumns, externalSource }, setState } = dwAPI;
     const [stagedColumns, setStagedColumns] = useState([]);
     const [expandedColumns, setExpandedColumns] = useState(new Set());
@@ -432,7 +450,7 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
     }, [dwAPI.reorderColumns, stateColumns]);
     const isAllExpanded = activeColumns.length > 0 && activeColumns.every(i => expandedColumns.has(i.id));
     return (
-        <div className="flex flex-col gap-2 w-full p-1">
+        <div className={t.root}>
             {/* Column Picker */}
             <ColumnPicker
                 dwAPI={dwAPI}
@@ -444,22 +462,22 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
             />
 
             {/* Bulk Actions */}
-            <div className="flex flex-wrap gap-1">
-                <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} color="blue"
+            <div className={t.fnRow}>
+                <Pill text={isSystemIDColOn ? 'Hide ID' : 'Use ID'} activeStyle="blue"
                       onClick={() => dwAPI.toggleIdFilter()} />
                 <Pill
                     text={isAllExpanded ? 'Collapse All' : 'Expand All'}
-                    color="gray"
+                    activeStyle="gray"
                     onClick={() => {
                         setExpandedColumns(isAllExpanded ? new Set() : new Set(activeColumns.map(i => i.id)));
                     }}
                 />
                 <Pill
-                    color={isEveryColVisible ? 'orange' : 'blue'}
+                    activeStyle={isEveryColVisible ? 'orange' : 'blue'}
                     onClick={() => dwAPI.toggleGlobalVisibility(!isEveryColVisible)}
                     text={isEveryColVisible ? 'Hide All' : 'Show All'}
                 />
-                <Pill text="Remove All" color="orange" onClick={() => dwAPI.resetAllColumns()} />
+                <Pill text="Remove All" activeStyle="orange" onClick={() => dwAPI.resetAllColumns()} />
             </div>
 
             {/* All Columns Row */}
@@ -502,27 +520,27 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
 
             {/* Pivot Columns — orderable; row column always precedes this section */}
             {activePivotColumns.length > 0 && (
-                <div className="flex flex-col gap-1">
-                    <div className="text-xs font-medium text-gray-500 px-1 pt-1 uppercase tracking-wide">
+                <div className={t.staticField}>
+                    <div className={t.pivotTitle}>
                         Pivot Columns
                     </div>
                     <DraggableList
                         dataItems={activePivotColumns}
                         onChange={onReorderPivot}
                         renderItem={({ item }) => (
-                            <div className="border rounded bg-white mb-0.5">
-                                <div className="flex items-center justify-between px-2 py-1 gap-1">
-                                    <div className="flex items-center gap-1 flex-1 min-w-0">
-                                        <Icon icon="Reorder" className="size-4 text-gray-400 shrink-0 cursor-grab" />
-                                        <span className="text-sm truncate">{item.column.display_name || item.column.name}</span>
+                            <div className={t.row}>
+                                <div className={t.rowHead}>
+                                    <div className={t.rowTitleWrap}>
+                                        <Icon icon="Reorder" className={t.grip} />
+                                        <span className={t.rowLabel}>{item.column.display_name || item.column.name}</span>
                                     </div>
-                                    <button
-                                        className={`p-0.5 rounded hover:bg-gray-100 ${item.column.show ? 'text-blue-500' : 'text-gray-300'} cursor-pointer`}
+                                    <UI.Button
+                                        activeStyle={item.column.show ? 'iconInlineOn' : 'iconInline'}
                                         onClick={() => dwAPI.updateColumn(item.column, 'show', !item.column.show)}
                                         title={item.column.show ? 'Hide' : 'Show'}
                                     >
-                                        <Icon icon={item.column.show ? 'Eye' : 'EyeClosed'} className="size-4" />
-                                    </button>
+                                        <Icon icon={item.column.show ? 'Eye' : 'EyeClosed'} className={t.icon} />
+                                    </UI.Button>
                                 </div>
                             </div>
                         )}
@@ -531,7 +549,7 @@ export default function ColumnManager({ dwAPI, resolvedControls, Pill, Icon, Swi
             )}
 
             {activeColumns.length === 0 && pivotColumns.length === 0 && (
-                <div className="text-sm text-gray-400 text-center py-2">
+                <div className={t.empty}>
                     No columns configured. Use search above to add columns.
                 </div>
             )}

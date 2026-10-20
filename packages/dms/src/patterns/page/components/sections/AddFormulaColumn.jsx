@@ -1,7 +1,8 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useImmer } from "use-immer";
 import { getColumnLabel } from "./controls_utils";
-import { ThemeContext } from "../../../../ui/useTheme";
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
+import { columnManagerTheme } from "./ColumnManager.theme";
 
 // ─── AST Validation ──────────────────────────────────────────────────────────
 
@@ -47,10 +48,13 @@ const attachToContext = (draft, node) => {
 
 // ─── Modal ───────────────────────────────────────────────────────────────────
 
-const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
+const FormulaDialog = ({ open, setOpen, columns, addFormulaColumn }) => {
     const { UI } = useContext(ThemeContext);
-    const { Icon } = UI;
-    if (!open) return null;
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
+    const { Icon, Button, Input, FieldLabel, Modal } = UI;
+    const nameField = useRef(null);   // Modal focuses it on open
+    // mounted only while open (parent) — no early return before the hooks below
 
     const [state, setState] = useImmer({
         formulaAST: {},
@@ -169,156 +173,166 @@ const Modal = ({ open, setOpen, columns, addFormulaColumn }) => {
     // ── render ───────────────────────────────────────────────────────────────
 
     return (
-        <div className="fixed inset-0 h-full w-full z-[100] content-center bg-black/40" onClick={() => setOpen(false)}>
-            <div className="w-3/4 max-h-[80vh] overflow-auto flex flex-col gap-3 p-4 bg-white place-self-center rounded-md"
-                 onClick={e => e.stopPropagation()}>
+        <Modal open={open} setOpen={setOpen} activeStyle="aboveMenuWide" initialFocus={nameField}>
+            <div className={t.dialogBody}>
 
                 {/* Header */}
-                <div className="flex justify-between items-center">
-                    <div className="text-lg font-semibold">Add Formula Column</div>
-                    <div className="p-2 text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer" onClick={() => setOpen(false)}>
+                <div className={t.dialogHeader}>
+                    <div className={t.dialogTitle}>Add Formula Column</div>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
                         <Icon icon="XMark" height={12} width={12} />
-                    </div>
+                    </Button>
                 </div>
 
-                <div className="flex w-full gap-3">
+                <div className={t.formulaGrid}>
                     {/* ── Left panel ─────────────────────────────────────── */}
-                    <div className="w-1/3 flex flex-col gap-3">
+                    <div className={t.formulaLeft}>
 
                         {/* Binary operators */}
                         <div>
-                            <div className="text-xs text-gray-500 mb-1">Operators</div>
-                            <div className="flex gap-1 flex-wrap">
+                            <div className={t.formulaLabel}>Operators</div>
+                            <div className={t.opsRow}>
                                 {BINARY_OPS.map(({ operation, label }) => (
-                                    <button key={operation}
-                                            className="cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
+                                    <Button key={operation}
+                                            activeStyle="action"
                                             onClick={() => addOperation(operation)}>
                                         {label}
-                                    </button>
+                                    </Button>
                                 ))}
-                                <button className="cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-                                        onClick={openParen}>(</button>
-                                <button className="cursor-pointer px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-mono"
-                                        onClick={closeParen}>)</button>
+                                <Button activeStyle="action"
+                                        onClick={openParen}>(</Button>
+                                <Button activeStyle="action"
+                                        onClick={closeParen}>)</Button>
                             </div>
                         </div>
 
                         {/* Functions */}
                         <div>
-                            <div className="text-xs text-gray-500 mb-1">Functions</div>
-                            <div className="flex flex-wrap gap-1">
+                            <div className={t.formulaLabel}>Functions</div>
+                            <div className={t.fnRow}>
                                 {FUNCTIONS.map(({ fn, label, note }) => (
-                                    <button key={fn}
+                                    <Button key={fn}
                                             title={note}
-                                            className="cursor-pointer px-2 py-1 bg-blue-100 hover:bg-blue-200 rounded text-xs font-mono"
+                                            activeStyle="small"
                                             onClick={() => openFunction(fn)}>
                                         {label}
-                                    </button>
+                                    </Button>
                                 ))}
                             </div>
-                            <div className="flex items-center gap-1 mt-1.5">
-                                <span className="text-xs text-gray-500">round decimals:</span>
-                                <input
+                            <div className={t.roundRow}>
+                                <FieldLabel activeStyle="row" htmlFor="formula-round" text="round decimals:" />
+                                <span className={t.roundField}>
+                                <Input
+                                    id="formula-round"
+                                    activeStyle="compact"
                                     type="number" min={0} max={10}
-                                    className="w-14 border rounded px-1 text-xs"
                                     value={state.roundDecimals}
                                     onChange={e => setState(draft => {
                                         draft.roundDecimals = Math.max(0, parseInt(e.target.value) || 0);
                                     })}
                                 />
+                                </span>
                             </div>
                         </div>
 
                         {/* Constant */}
                         <div>
-                            <div className="text-xs text-gray-500 mb-1">Constant</div>
-                            <div className="flex gap-1">
-                                <input
+                            <div className={t.formulaLabel}>Constant</div>
+                            <div className={t.constRow}>
+                                <span className={t.constField}>
+                                <Input
                                     type="number"
-                                    className="border rounded px-1 text-sm flex-1 min-w-0"
+                                    aria-label="Constant"
                                     placeholder="e.g. 100"
                                     value={state.constantInput}
                                     onChange={e => setState(draft => { draft.constantInput = e.target.value; })}
                                     onKeyDown={e => e.key === 'Enter' && addConstant()}
                                 />
-                                <button className="px-2 py-1 bg-gray-200 hover:bg-gray-300 rounded text-xs shrink-0"
+                                </span>
+                                <Button activeStyle="action"
                                         onClick={addConstant}>
                                     Add
-                                </button>
+                                </Button>
                             </div>
                         </div>
 
                         {/* Columns */}
-                        <div className="flex-1 flex flex-col min-h-0">
-                            <div className="text-xs text-gray-500 mb-1">Columns</div>
-                            <div className="overflow-y-auto border rounded max-h-48">
+                        <div className={t.colsWrap}>
+                            <div className={t.formulaLabel}>Columns</div>
+                            <div className={t.colsList}>
                                 {columns.map(c => (
-                                    <div key={`${c.name}-${c.copyNum}`}
-                                         className="cursor-pointer px-2 py-1 text-sm hover:bg-blue-50"
+                                    <Button key={`${c.name}-${c.copyNum}`}
+                                         activeStyle="menuItem"
                                          onClick={() => addLeaf(
                                              { ...c, type: 'variable', key: c.normalName || c.name, display_name: getColumnLabel(c) },
                                              getColumnLabel(c)
                                          )}>
                                         {getColumnLabel(c)}
-                                    </div>
+                                    </Button>
                                 ))}
                             </div>
                         </div>
                     </div>
 
                     {/* ── Right panel ────────────────────────────────────── */}
-                    <div className="flex-1 flex flex-col gap-2">
-                        <input
-                            className="border rounded p-1 text-sm"
+                    <div className={t.formulaRight}>
+                        <Input
+                            aria-label="Formula name"
+                            ref={nameField}
                             placeholder="Formula name..."
                             value={state.display_name}
                             onChange={e => setState(draft => { draft.display_name = e.target.value; })}
                         />
 
                         {/* Formula display */}
-                        <div className="flex-1 min-h-[80px] p-2 border border-gray-300 rounded bg-gray-50 font-mono text-sm break-all">
+                        <div className={t.formulaDisplay}>
                             {state.formulaDisplay.length
                                 ? state.formulaDisplay.join(' ')
-                                : <span className="text-gray-400">Click columns, operators, and functions to build formula...</span>
+                                : <span className={t.formulaPlaceholder}>Click columns, operators, and functions to build formula...</span>
                             }
                         </div>
 
                         {unclosed > 0 && (
-                            <div className="text-xs text-amber-600">{unclosed} unclosed bracket{unclosed > 1 ? 's' : ''}</div>
+                            <div className={t.formulaWarn}>{unclosed} unclosed bracket{unclosed > 1 ? 's' : ''}</div>
                         )}
 
-                        <div className="flex gap-1 justify-end">
-                            <button
-                                className="px-3 py-1 bg-orange-100 text-orange-700 hover:bg-orange-200 rounded text-sm"
+                        <div className={t.formulaActions}>
+                            <Button
+                                activeStyle="action"
                                 onClick={handleClear}>
                                 Clear
-                            </button>
-                            <button
+                            </Button>
+                            <Button
+                                activeStyle="primary"
                                 disabled={!isValid || !state.display_name}
-                                className={`px-3 py-1 rounded text-sm ${isValid && state.display_name
-                                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200 cursor-pointer'
-                                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'}`}
                                 onClick={handleSave}>
                                 Add Column
-                            </button>
+                            </Button>
                         </div>
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 
-const AddFormulaColumn = ({ columns = [], addFormulaColumn }) => {
+// triggerStyle / triggerOnStyle (2026-10-17): a caller that lays these out as pills beside its own (CardColumnPicker's
+// "+ Static" chip) names the Button styles; the trigger then sits unwrapped (no full-width addTriggerWrap)
+const AddFormulaColumn = ({ columns = [], addFormulaColumn, triggerStyle, triggerOnStyle }) => {
     const [open, setOpen] = useState(false);
     const { UI } = useContext(ThemeContext);
-    const { Pill } = UI;
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            <Pill text="+ Formula" color="blue" onClick={() => setOpen(true)} />
-            <Modal open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />
+            {triggerStyle
+                ? <UI.Button activeStyle={(open && triggerOnStyle) || triggerStyle} aria-expanded={open} onClick={() => setOpen(true)}>+ Formula</UI.Button>
+                : <span className={t.addTriggerWrap}>
+                    <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>+ Formula</UI.Button>
+                  </span>}
+            {open && <FormulaDialog open={open} setOpen={setOpen} columns={columns} addFormulaColumn={addFormulaColumn} />}
         </>
     );
 };

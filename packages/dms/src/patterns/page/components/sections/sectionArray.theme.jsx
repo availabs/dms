@@ -14,21 +14,32 @@ export const sectionArrayTheme = {
           fullwidth: ''
       },
       sectionEditWrapper: 'relative group',
-      sectionEditHover: 'absolute inset-0 border border-transparent group-hover:border-blue-900 border border-2 pointer-events-none z-10 rounded-md',
-      sectionEditing: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md',
-      sectionHighlight: 'absolute inset-0 border border-orange-300 border-dashed pointer-events-none z-10 rounded-md', // on scroll url hash
+      // Edit-mode states — an overlay div inside each section (tessera v6, 2026-10-08, from
+      // page-edit.html; pre-v6 frozen in src/themes/_legacy/pages.js `sectionArray`). Neutral, no
+      // accent: hover = strong rule, being edited = dashed ink, #hash target = dashed amber.
+      sectionEditHover: 'absolute inset-0 border-2 border-transparent group-hover:border-[var(--t-rule-strong)] pointer-events-none z-10 rounded-lg',
+      sectionEditing: 'absolute inset-0 border-2 border-dashed border-[var(--t-ink)] pointer-events-none z-10 rounded-lg',
+      // URL-hash target (#<section id>) — the same overlay in view and edit mode.
+      sectionHighlight: 'absolute inset-0 border-2 border-dashed border-[var(--t-amber)] pointer-events-none z-10 rounded-lg', // on scroll url hash
       sectionViewWrapper: 'relative group',
       sectionPadding: 'p-4',
       defaultPaddingStep: '4',      // per-side gutter default (matches the old p-4 spacing)
-      gridviewGrid: 'z-0 bg-slate-50 h-full',
-      gridviewItem: 'border-x bg-white border-slate-100/75 border-dashed h-full p-[6px]',
+      // Layout-grid overlay (EditPane grid toggle): one dashed column per grid track.
+      gridviewGrid: 'z-0 h-full',
+      gridviewItem: 'h-full border-x border-dashed border-[var(--t-rule-strong)] bg-[var(--t-well)] opacity-50',
       defaultOffset: 16,
-      addSectionButton: 'cursor-pointer py-0.5 text-sm text-blue-200 hover:text-blue-400 truncate w-full -ml-4 my-2 hidden group-hover:flex absolute -top-5 z-11',
-      spacer: 'flex-1',
-      addSectionIconWrapper: 'flex items-center group/icon',
-      addSectionIcon: 'size-6 p-1.5 text-white bg-blue-900 rounded-full group-hover/icon:hidden',
+      // "+ add" at each section's top edge (on hover): rule · pill · rule. The pill shows "Add"
+      // when hovered.
+      addSectionButton: 'absolute -top-3 left-0 right-0 z-20 hidden group-hover:flex items-center gap-2 px-3',
+      spacer: 'h-px flex-1 bg-[var(--t-rule-strong)]',
+      addSectionIconWrapper: 'group/icon inline-flex items-center gap-1 h-6 pl-1 pr-1 hover:pr-2.5 rounded-full border border-[var(--t-rule-strong)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] cursor-pointer',
+      addSectionIcon: 'size-4',
       addSectionTextWrapper: 'hidden group-hover/icon:flex items-center',
-      addSectionText: 'px-1.5 py-1 text-white text-sm font-semibold bg-blue-900 rounded-full',
+      addSectionText: 't-metaXS',
+      // The add button after the last section — always visible ('' → addSectionButton inside a
+      // 'p-[1px]' box, i.e. only on hover, the pre-v6 behaviour).
+      addSectionEndWrapper: 'relative h-10',
+      addSectionEndButton: 'absolute inset-x-0 top-1/2 -translate-y-1/2 z-20 flex items-center gap-2 px-3',
       sizes: {
           "1/3": { className: 'col-span-12 md:col-span-2', iconSize: 33 },
           "1/2": { className: 'col-span-12 md:col-span-3', iconSize: 50 },
@@ -48,23 +59,24 @@ export const sectionArrayTheme = {
       // Legacy named border presets (radius baked in) — kept so existing sections
       // (`border: 'full'`, etc.) render unchanged. New edits use `borderSides` +
       // `radiusCorners` (per-side / per-corner) below.
+      // v6 2026-10-08: the brand line is the --t-rule token (was #E0EBF0).
       border: {
           none: '',
-          full: 'border border-[#E0EBF0] rounded-lg',
-          openLeft: 'border border-[#E0EBF0] border-l-transparent rounded-r-lg',
-          openRight: 'border border-[#E0EBF0] border-r-transparent rounded-l-lg',
-          openTop: 'border border-[#E0EBF0] border-t-transparent rounded-b-lg',
-          openBottom: 'border border-[#E0EBF0] border-b-transparent rounded-t-lg',
-          borderX: 'border border-[#E0EBF0] border-y-transparent'
+          full: 'border border-[var(--t-rule)] rounded-lg',
+          openLeft: 'border border-[var(--t-rule)] border-l-transparent rounded-r-lg',
+          openRight: 'border border-[var(--t-rule)] border-r-transparent rounded-l-lg',
+          openTop: 'border border-[var(--t-rule)] border-t-transparent rounded-b-lg',
+          openBottom: 'border border-[var(--t-rule)] border-b-transparent rounded-t-lg',
+          borderX: 'border border-[var(--t-rule)] border-y-transparent'
       },
       // ── Compound-card per-edge controls (literal classes so Tailwind generates
       // them; the picker offers these, the render composes the chosen ones). ──
       // Per-side border toggles against the one brand line.
       borderSides: {
-          top:    'border-t border-[#E0EBF0]',
-          right:  'border-r border-[#E0EBF0]',
-          bottom: 'border-b border-[#E0EBF0]',
-          left:   'border-l border-[#E0EBF0]',
+          top:    'border-t border-[var(--t-rule)]',
+          right:  'border-r border-[var(--t-rule)]',
+          bottom: 'border-b border-[var(--t-rule)]',
+          left:   'border-l border-[var(--t-rule)]',
       },
       // Per-corner radius toggles (one brand corner size).
       radiusCorners: {
@@ -89,8 +101,9 @@ export const sectionArrayTheme = {
           '#067647', // green
       ],
       // Inner-card background options (the per-side border carries no bg of its own).
+      // v6: white → the panel token, tint → the well token (dark-mode aware).
       backgrounds: {
-          none: '', white: 'bg-white', tint: 'bg-slate-50',
+          none: '', white: 'bg-[var(--t-panel)]', tint: 'bg-[var(--t-well)]',
       },
       // Per-side padding steps the picker offers.
       // Curated gutter steps (fewer = wider, more usable buttons).

@@ -1,27 +1,60 @@
-// Ported to tessera's var(--t-*) tokens (2026-09-17) — used by both the
-// "New Site" page (/create) and TenantList's "Add tenant" modal (via
-// SiteTemplatePicker), both of which render under AdminLayout's hardcoded
-// "default" theme, so a plain zinc/white palette (plus catalyst-style
-// `dark:`-variant classes that never applied — this app's dark mode is
-// driven by a `[data-theme="dark"]` attribute selector, not `.dark` or
-// `prefers-color-scheme`) stayed light in dark mode regardless of the page
-// around it.
+// The "New site" page (/create) and SiteTemplatePicker (also used by TenantList's "Add tenant" modal and the
+// multi-tenant sign-up page). v6, 2026-10-15: matches design_system_v6/pages/admin-create-site.html — one form
+// card in sections (site / first admin / start from), radio template cards, inline validation, and a step
+// list while the site is being created. Admin pages always render the library default (getAdminTheme).
+const SECTION_LABEL = 't-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em]';
+const CARD = 'bg-[var(--t-panel)] border border-[var(--t-rule)] rounded-lg';
+
 export const createSiteTheme = {
-    wrapper: 'h-full w-full bg-[var(--t-paper)] flex items-top justify-center',
-    form: 'w-full h-fit max-h-fit p-4 flex flex-col justify-between gap-3',
+    // page: the sibling admin pages' geometry (Sites / Themes): title + rule, then the form card across the column
+    wrapper: 'w-full flex flex-col gap-4',
+    header: 'flex flex-col gap-1 pb-3 border-b border-[var(--t-rule)]',
+    headerTitle: 't-displayMD text-[var(--t-ink)]',
+    headerSubtitle: 't-proseSM text-[var(--t-graphite)]',
+    grid: 'grid grid-cols-12 gap-4',
+    formColumn: 'col-span-12 min-w-0',
 
-    // InputComp sub-elements
-    inputWrapper: 'w-full [&>[data-slot=label]+[data-slot=control]]:mt-3 [&>[data-slot=label]+[data-slot=description]]:mt-1 [&>[data-slot=description]+[data-slot=control]]:mt-3 [&>[data-slot=control]+[data-slot=description]]:mt-3 [&>[data-slot=control]+[data-slot=error]]:mt-3 [&>[data-slot=label]]:font-medium',
-    inputLabel: 'select-none text-base/6 text-[var(--t-ink)] data-[disabled]:opacity-50 sm:text-sm/',
-    inputControlSpan: 'relative block w-full before:absolute before:inset-px before:rounded-[calc(theme(borderRadius.lg)-1px)] before:bg-[var(--t-panel)] before:shadow after:pointer-events-none after:absolute after:inset-0 after:rounded-lg after:ring-inset after:ring-transparent sm:after:focus-within:ring-2 sm:after:focus-within:ring-[var(--t-cobalt)] has-[[data-disabled]]:opacity-50 before:has-[[data-disabled]]:shadow-none before:has-[[data-invalid]]:shadow-[var(--t-brick)]/10',
-    input: 'relative shadow block w-full appearance-none rounded-lg px-[calc(theme(spacing[3.5])-1px)] py-[calc(theme(spacing[2.5])-1px)] sm:px-[calc(theme(spacing[3])-1px)] sm:py-[calc(theme(spacing[1.5])-1px)] text-base/6 text-[var(--t-ink)] placeholder:text-[var(--t-pencil)] sm:text-sm/ border border-[var(--t-rule-strong)] data-[hover]:border-[var(--t-graphite)] bg-transparent focus:outline-none data-[invalid]:border-[var(--t-brick)] data-[invalid]:data-[hover]:border-[var(--t-brick)] data-[disabled]:border-[var(--t-rule)]',
+    // the form card
+    form: CARD,
+    formSection: 'p-4 flex flex-col gap-3',
+    formSectionDivided: 'p-4 flex flex-col gap-3 border-t border-[var(--t-rule)]',
+    sectionLabel: SECTION_LABEL,
+    fieldPair: 'grid sm:grid-cols-2 gap-3',
+    field: 'min-w-0',
+    fieldHint: 't-proseXS text-[var(--t-pencil)] mt-1',
+    fieldError: 't-proseXS text-[var(--t-brick)] mt-1',
+    sectionHint: 't-proseXS text-[var(--t-pencil)]',   // a section-level note; the section's gap spaces it
+    // fields are UI.Input's default style; an invalid field gets `aria-invalid` (brick border)
+    formFooter: 'px-4 py-3 border-t border-[var(--t-rule)] flex items-center justify-end gap-3',
+    submitButtonStyle: 'primary',
 
-    // Site template picker (also used by TenantList's "Add tenant" modal)
-    templateSection: 'mt-1',
-    templateLabel: 'select-none text-base/6 text-[var(--t-ink)] font-medium block mb-2',
-    templateGrid: 'grid grid-cols-2 gap-2',
-    templateCard: 'border border-[var(--t-rule)] rounded-lg p-3 cursor-pointer select-none bg-[var(--t-well)] hover:border-[var(--t-rule-strong)] hover:bg-[var(--t-panel)] transition-colors',
-    templateCardSelected: 'border-2 border-[var(--t-cobalt)] rounded-lg p-3 cursor-pointer select-none bg-[var(--t-panel)] ring-2 ring-[var(--t-cobalt-soft)]',
-    templateCardName: 'text-sm font-semibold text-[var(--t-ink)]',
-    templateCardDesc: 'text-xs text-[var(--t-pencil)] mt-0.5 leading-snug',
+    // creating: the form is replaced by progress
+    progress: `${CARD} p-4`,
+    progressTitle: 't-proseSM font-medium text-[var(--t-ink)]',
+    progressSteps: 'mt-3 flex flex-col gap-2',
+    progressHint: 't-proseXS text-[var(--t-pencil)] mt-3',
+    step: 'flex items-center gap-2.5 t-proseSM',
+    stepDone: 'text-[var(--t-graphite)]',
+    stepNow: 'text-[var(--t-ink)] font-medium',
+    stepTodo: 'text-[var(--t-pencil)]',
+    stepIconDone: 'size-5 rounded-full bg-[var(--t-go-soft)] text-[var(--t-go)] flex items-center justify-center flex-none',
+    stepIconDoneGlyph: 'size-3.5',
+    stepIconNow: 'size-5 rounded-full bg-[var(--t-cobalt-soft)] flex items-center justify-center flex-none',
+    stepIconNowDot: 'size-2 rounded-full bg-[var(--t-cobalt)] animate-pulse',
+    stepIconTodo: 'size-5 rounded-full border border-[var(--t-rule)] flex-none',
+
+    // failed: message above the form, Create enabled again
+    errorBox: 'rounded-md border border-[var(--t-brick)] bg-[var(--t-brick-soft)] px-3 py-2',
+    errorTitle: 't-proseSM text-[var(--t-brick)] font-medium',
+    errorText: 't-proseXS text-[var(--t-graphite)] mt-0.5',
+
+    // Site template picker
+    templateSection: 'flex flex-col gap-2',
+    templateLabel: 'block t-metaXS text-[var(--t-pencil)] mb-0.5',
+    templateGrid: 'grid sm:grid-cols-2 gap-2',
+    templateRadio: 'mt-0.5 size-4 rounded-full border border-[var(--t-rule-strong)] flex-none',
+    templateRadioSelected: 'mt-0.5 size-4 rounded-full border-[5px] border-[var(--t-ink)] flex-none',
+    templateCardBody: 'min-w-0',
+    templateCardName: 'block t-proseSM font-medium text-[var(--t-ink)]',
+    templateCardDesc: 'block t-proseXS text-[var(--t-pencil)] mt-0.5 leading-snug',
 }

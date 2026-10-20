@@ -14,7 +14,7 @@ import DropDown from './DropDown';
 type Props = {
   disabled?: boolean;
   buttonAriaLabel?: string;
-  buttonClassName: string;
+  buttonStyle?: string;
   buttonIconClassName?: string;
   buttonLabel?: string;
   title?: string;

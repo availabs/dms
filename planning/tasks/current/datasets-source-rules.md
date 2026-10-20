@@ -421,6 +421,13 @@ rules; they never write SQL.
 - [x] The Metadata-page Auto-number shortcut: a banner above the column list (not on the PK switch,
       see design notes) when the PK is an integer with no default.
 
+**Follow-ups after the 2026-10-20 merge with the UI-controls port (`755567c1`):**
+- [ ] Admin-page Rules button: `<Button activeStyle='actionFull'>` with `t.actionIconRules`
+      (`'Sliders'` in `admin.theme.js`), matching its restyled siblings.
+- [ ] Rules page + Metadata banner onto `UI` components (`FieldLabel`, `Input`, `Select`, the
+      checkbox column type, themed buttons), as `fa3d6955` did for the Schedule page this one was
+      modelled on.
+
 ### Phase 6: Docs — DONE (2026-10-16)
 - [x] `data-types/CLAUDE.md`: a "`rules` contract" section with a worked `uppercase_code`
       example, the safety rule, and the note that rule ids are global.
@@ -607,3 +614,7 @@ Built with the planned default for 1, 2 and 4; change any of them if you disagre
     client permission check is looser than the server's.
   - Left: the owner call on gating `setIndex`/`setPrimaryKey`; clicking through the dashboard
     modal; row 1314; commit and deploy.
+- **2026-10-20 — Merge with origin/master (the UI-controls/v6 port).** Three add/add conflicts
+  (`datasets/defaultTheme.js`, `gis_dataset/index.js`, `csv_dataset/index.js`) resolved by keeping
+  both sides: the Rules page next to the incoming Uploads page and Schedule/Runs themes. The merged
+  tree builds. Two styling follow-ups listed under Phase 5.

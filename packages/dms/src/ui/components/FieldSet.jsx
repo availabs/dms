@@ -7,6 +7,7 @@ import { MultiSelectEdit } from './MultiSelect'
 
 import {ThemeContext, getComponentTheme} from '../useTheme';
 import {fieldTheme} from './FieldSet.theme';
+import FieldLabel from './FieldLabel';
 
 const Spacer = ({ children, ...props }) => <div >{children}</div>;
 
@@ -69,11 +70,11 @@ export function FieldComp  ({ label, description, children, customTheme, activeS
     <div className={theme.field}>
       {labelAccessory ? (
         <div className={theme?.labelRow}>
-          {label && <label htmlFor={inputId} className={theme?.label}>{label}</label>}
+          {label && <FieldLabel htmlFor={inputId} activeStyle={theme?.labelStyle} text={label} />}
           {labelAccessory}
         </div>
       ) : (
-        label && <label htmlFor={inputId} className={theme?.label}>{label}</label>
+        label && <FieldLabel htmlFor={inputId} activeStyle={theme?.labelStyle} text={label} />
       )}
       {description && <p className={theme?.description}>{description}</p>}
       {enhancedChildren}

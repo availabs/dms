@@ -121,13 +121,20 @@ const LegendCmp = ({ domain, range, title }) => {
 export const LegendContainer = ({ name, title, toggle, isOpen, children }) => {
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
+  const { UI } = React.useContext(DatasetsContext) || {};
+  const { Icon, Button } = UI || {};
   return (
     <div className={t.legendContainerOuter}>
       <div className={t.legendContainerInner}>
         <div className={t.legendContainerTitleRow}>
           <div className={t.legendContainerTitle}>{ name || title }</div>
+          {/* `toggle` was passed but never rendered, so LegendControls could never open (2026-10-07) */}
+          { toggle && Icon ?
+            <Button activeStyle="iconRow" title="Legend settings" aria-pressed={ !!isOpen } onClick={ toggle }>
+              <Icon icon={ t.legendToggleIcon } className={ t.legendToggleIconClass }/>
+            </Button> : null }
         </div>
-        <div>{ children }</div>
+        <div className={t.legendContainerBody || undefined}>{ children }</div>
       </div>
     </div>
   )
@@ -596,8 +603,9 @@ const RemoveDomainItem = ({ value, remove }) => {
   )
 }
 const DomainItem = ({ domain, index, disabled, remove, edit }) => {
-  const { theme } = React.useContext(ThemeContext) || {};
+  const { theme, UI } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
+  const { Button, Input } = UI || {};
   const [editing, setEditing] = React.useState(false);
   const [value, setValue] = React.useState("");
 
@@ -647,25 +655,22 @@ const DomainItem = ({ domain, index, disabled, remove, edit }) => {
         { editing ?
           <div className={t.domainItemEditRow}>
             <div className={t.domainItemEditInput}>
-              <input ref={ setRef }
-                className={t.domainItemEditInputEl}
+              <Input ref={ setRef }
                 value={ value }
                 onChange={ e => setValue(e.target.value) }/>
             </div>
-            <button onClick={ doEdit }
-              className={t.domainItemEditBtn}>
+            <Button activeStyle="action" onClick={ doEdit }>
               Edit
-            </button>
+            </Button>
           </div> :
           <div className={t.domainItemStaticVal}>{ domain }</div>
         }
       </div>
       { disabled ? null :
         editing ?
-        <button onClick={ stopEditing }
-          className={t.domainItemStopBtn}>
+        <Button activeStyle="danger" onClick={ stopEditing }>
           Stop
-        </button> :
+        </Button> :
         <RemoveDomainItem remove={ remove } value={ domain }/>
       }
     </div>
@@ -673,8 +678,9 @@ const DomainItem = ({ domain, index, disabled, remove, edit }) => {
 }
 
 const ThresholdEditor = ({ domain, range, updateLegend }) => {
-  const { theme } = React.useContext(ThemeContext) || {};
+  const { theme, UI } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
+  const { Button, Input } = UI || {};
 
   const removeDomain = React.useCallback(v => {
     updateLegend(domain.filter(d => d !== v));
@@ -724,24 +730,18 @@ const ThresholdEditor = ({ domain, range, updateLegend }) => {
               }
               <div className={t.thresholdEditorAddRow}>
                 <div className={t.thresholdEditorAddInputWrapper}>
-                  <input type="number" placeholder="enter a threshold value..."
-                    className={t.thresholdEditorAddInput}
+                  <Input type="number" placeholder="enter a threshold value..."
                     onChange={ e => setValue(e.target.value) }
                     value={ value }/>
                 </div>
-                <button onClick={ addDomain } disabled={ !value }
-                  className={t.thresholdEditorAddBtn}
-                >
+                <Button activeStyle="action" onClick={ addDomain } disabled={ !value }>
                   Add
-                </button>
+                </Button>
               </div>
-              <div>
-                <button
-                  onClick={ useCKMeans }
-                  className={t.thresholdEditorResetBtn}
-                >
+              <div className={t.thresholdEditorResetWrap}>
+                <Button activeStyle="actionFull" onClick={ useCKMeans }>
                   Reset with 6 bins
-                </button>
+                </Button>
               </div>
             </div>
           </div>
@@ -875,7 +875,7 @@ const LegendControls = ({ legend, updateLegend, isOpen, close }) => {
           </div>
 
           <div className={t.legendControlsScrollArea}
-            style={ { height: "30rem" } }
+            style={ { height: t.legendControlsScrollHeight } }
           >
             { Colors.map(color => (
                 <LegendColorBar key={ color.name }

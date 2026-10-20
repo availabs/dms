@@ -48,20 +48,21 @@ const defaultFnTypes = [
 const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttribute}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Input} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {Input, FieldLabel} = UI;
     const [newValue, setNewValue] = useState(value);
 
     const delayedUpdate = (val) => setTimeout(updateAttribute(col, {[attr]: val}), 500);
     if(hidden) return null;
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" htmlFor={`metadata-${col}-${attr}`} text={label} />
             <Input
+                id={`metadata-${col}-${attr}`}
                 type={'text'}
                 disabled={disabled}
                 value={newValue}
-                placeHolder={label}
+                placeholder={label}
                 onChange={e => {
                     setNewValue(e.target.value)
                     delayedUpdate(e.target.value)
@@ -74,13 +75,14 @@ const RenderInputText = ({label, value, col, attr, disabled, hidden, updateAttri
 const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribute, placeHolder='please select...', options}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {MultiSelect} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {MultiSelect, FieldLabel} = UI;
 
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <MultiSelect
+                activeStyle={t.typeSelectStyle || undefined}
                 disabled={disabled}
                 singleSelectOnly
                 searchable={false}
@@ -103,12 +105,12 @@ const RenderInputSelect = ({disabled, label, value='', col, attr, updateAttribut
 const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueValue=true, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Switch} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {Switch, FieldLabel} = UI;
 
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <Switch
                 enabled={value === trueValue}
                 disabled={disabled}
@@ -122,11 +124,11 @@ const RenderInputSwitch = ({label, value='', col, attr, updateAttribute, trueVal
 const RenderIndexSwitch = ({value, col, onSetIndex, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Switch} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {Switch, FieldLabel} = UI;
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>Index</label>
+            <FieldLabel activeStyle="inline" text="Index" />
             <Switch
                 enabled={!!value}
                 disabled={disabled}
@@ -136,6 +138,14 @@ const RenderIndexSwitch = ({value, col, onSetIndex, disabled}) => {
         </div>
     );
 };
+
+// Modal footer: v6 adds a cancel button next to the action; modalFooter '' → the action alone (pre-v6).
+const ModalActions = ({t, Button, onCancel, children}) => t.modalFooter ? (
+    <div className={t.modalFooter}>
+        <Button activeStyle='action' onClick={onCancel}>cancel</Button>
+        {children}
+    </div>
+) : children;
 
 // External sources only — internal_table sources already have a synthetic PK and never
 // render this. A column's own switch stays clickable both ways: turning it on sets the
@@ -152,8 +162,8 @@ const RenderIndexSwitch = ({value, col, onSetIndex, disabled}) => {
 const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Switch, Modal, Button} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {Switch, Modal, Button, FieldLabel} = UI;
     const [showRemoveModal, setShowRemoveModal] = useState(false);
     const isThisColumnPk = !!(pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn === col);
     const anotherColumnIsPk = pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn && pkeyInfo.pkeyColumn !== col;
@@ -165,26 +175,28 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit =
             : 'Set as primary key — requires unique, non-null values';
     return (
         <div className={t.inputWrapper} title={title}>
-            <label className={t.label}>Primary Key</label>
+            <FieldLabel activeStyle="inline" text="Primary Key" />
             <Switch
                 enabled={isThisColumnPk}
                 disabled={disabled}
                 setEnabled={e => e ? onSetPrimaryKey(col, true) : setShowRemoveModal(true)}
                 size={'small'}
             />
-            <Modal open={showRemoveModal} setOpen={setShowRemoveModal} className={t.deleteModalBorder}>
+            <Modal open={showRemoveModal} setOpen={setShowRemoveModal}>
                 <div className={t.deleteTitle}>Remove Primary Key</div>
                 <div className={t.deleteMessage}>
-                    This drops the PRIMARY KEY constraint on column <span className={'font-semibold'}>{col}</span> from
+                    This drops the PRIMARY KEY constraint on column <span className={t.emphasis}>{col}</span> from
                     the underlying table, and disables editing for this source until a new primary key is set.
                     <div>This action can not be undone from here.</div>
                 </div>
-                <Button
-                    activeStyle={'danger'}
-                    onClick={() => { onSetPrimaryKey(col, false); setShowRemoveModal(false); }}
-                >
-                    remove primary key
-                </Button>
+                <ModalActions t={t} Button={Button} onCancel={() => setShowRemoveModal(false)}>
+                    <Button
+                        activeStyle='dangerSolid'
+                        onClick={() => { onSetPrimaryKey(col, false); setShowRemoveModal(false); }}
+                    >
+                        remove primary key
+                    </Button>
+                </ModalActions>
             </Modal>
         </div>
     );
@@ -193,13 +205,14 @@ const RenderPrimaryKeySwitch = ({item, col, pkeyInfo, onSetPrimaryKey, canEdit =
 const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, options, disabled}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {ButtonSelect} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {ButtonSelect, FieldLabel} = UI;
 
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
             <ButtonSelect
+                activeStyle={t.buttonSelectStyle || undefined}
                 value={value}
                 options={options}
                 disabled={disabled}
@@ -212,8 +225,8 @@ const RenderInputButtonSelect = ({label, value='', col, attr, updateAttribute, o
 const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
     const {UI} = useContext(DatasetsContext);
     const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {ColumnTypes: {lexical: {EditComp}}} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {ColumnTypes: {lexical: {EditComp}}, FieldLabel} = UI;
     // Lexical's onChange fires once on mount as a side effect of hydrating `value` into
     // the editor, not from typing — and can also fire on a selection-only commit with no
     // content change. `e` is a Lexical EditorState, not a string, so `.toString()` gives
@@ -235,10 +248,11 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
     useEffect(() => () => clearTimeout(debounceRef.current), []);
     return (
         <div className={t.inputWrapper}>
-            <label className={t.label}>{label}</label>
+            <FieldLabel activeStyle="inline" text={label} />
+            <DescEditorWrap className={t.descEditor}>
             <EditComp
                 value={value}
-                bgColor={'#ffffff'}
+                bgColor={t.descBgColor}
                 onChange={e => {
                     const serialized = JSON.stringify(e);
                     const changed = lastSerialized.current !== null && serialized !== lastSerialized.current;
@@ -249,14 +263,18 @@ const RenderInputLexical = ({label, value, col, attr, updateAttribute}) => {
                 }}
                 placeHolder={label}
             />
+            </DescEditorWrap>
         </div>
     )
 }
 
+// '' → no wrapper (pre-v6 markup)
+const DescEditorWrap = ({className, children}) => className ? <div className={className}>{children}</div> : children;
+
 const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const {Input, Button} = UI;
 
     if(editing !== undefined) return null;
@@ -273,10 +291,10 @@ const RenderAddForm = ({editing, newOption, setNewOption, addNewValue, value}) =
                         newOption?.length && addNewValue(value, newOption) // only add if not blank
                     }
                 }}
-                placeHolder={'Add new option...'}
+                placeholder={'Add new option...'}
             />
             <Button
-                activeStyle={'active'}
+                activeStyle='action'
                 onClick={e => newOption?.length && addNewValue(value, newOption)}>
                 add
             </Button>
@@ -289,30 +307,30 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
 
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const {Input, Textarea, Button} = UI;
     const [editingCopy, setEditingCopy] = useState(item); // using prop as state is fine since uniq key is used to render this component.
 
     return (
-        <div className={t.optionFormRow}>
+        <div className={t.optionEditRow}>
             <Input
                 value={editingCopy.label}
                 onChange={e => setEditingCopy({...editingCopy, label: e.target.value})}
-                placeHolder={'label'}
+                placeholder={'label'}
             />
             <Input
                 value={editingCopy.value} // if you change value, it's not going to match
                 disabled={true}
                 onChange={e => setEditingCopy({...editingCopy, value: e.target.value})}
-                placeHolder={'value'}
+                placeholder={'value'}
             />
             <Textarea
                 value={editingCopy.filter}
                 onChange={e => setEditingCopy({...editingCopy, filter: e.target.value})}
-                placeHolder={'filter'}
+                placeholder={'filter'}
             />
             <Button
-                activeStyle={'active'}
+                activeStyle='primary'
                 onClick={e => {
                     replaceValue(value, editingCopy, editingIndex)
                     setEditing(undefined)
@@ -325,8 +343,8 @@ const RenderEditingForm = ({editingIndex, item, setEditing, value, replaceValue}
 const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], dependsOn=[], updateAttribute, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Input, Button} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {Input, Button, Icon} = UI;
     const [newOption, setNewOption] = useState('');
     const [editing, setEditing] = useState(undefined);
     const options = useMemo(() => (value || [])?.map(v => v.label ? v : ({label: v, value: v})), [value]);
@@ -352,7 +370,7 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
 
     return (
         <div className={t.optionsWrapper}>
-            <label className={t.labelUpperCase}>options</label>
+            <div className={t.labelUpperCase}>options</div>
             <div className={t.optionsInner}>
                 {canEdit && <RenderAddForm {...{editing, Input, newOption, setNewOption, addNewValue, Button, value}} />}
                 {canEdit && <RenderEditingForm key={editing} {...{editingIndex: editing, item: options[editing], setEditing, value, replaceValue}} />}
@@ -361,12 +379,16 @@ const RenderOptions = ({attributeList, col, drivingAttribute, attr, value=[], de
                     {
                         options?.map((option, optionI) => (
                             <div key={optionI} className={t.optionTag}>
-                                <label className={t.optionTagLabel} onClick={() => canEdit && setEditing(optionI)}>{option?.label || option}</label>
+                                <span className={t.optionTagLabel}>
+                                    {canEdit
+                                        ? <Button activeStyle="linkInline" onClick={() => setEditing(optionI)}>{option?.label || option}</Button>
+                                        : (option?.label || option)}
+                                </span>
                                 {canEdit &&
                                     <div title={'remove'}
                                          className={t.optionRemove}
                                          onClick={e => removeValue(value, option)}
-                                    >x</div>
+                                    >{t.optionRemoveIcon ? <Icon icon={t.optionRemoveIcon} className={t.optionRemoveIconClass}/> : 'x'}</div>
                                 }
                             </div>
                         ))
@@ -389,12 +411,15 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     // {"viewId": "1346450", "sourceId": "1346449", "labelColumn": "municipality_name", "valueColumn": "geoid", "isDms": true, "type": "477b3e18-2b35-4e98-82f1-feb821ba4fc3"}
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const [newOption, setNewOption] = useState(parseIfJSON(value));
     const {FieldSet} = UI;
     const customTheme = {
-        field: t.metadataFieldTheme
+        field: t.metadataFieldTheme,
+        ...(t.metadataFieldLabel ? {label: t.metadataFieldLabel} : {})
     }
+    // v6: buttons get the inputs' field wrapper (no mb-4) so they line up; '' → FieldSet default
+    const btnField = t.metadataFieldLabel ? {customTheme} : {};
     const inputKeys = [
         {key: 'sourceId', placeHolder: 'source id'},
         {key: 'viewId', placeHolder: 'view id'},
@@ -404,14 +429,16 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
     ]
     if(!['select', 'multiselect'].includes(drivingAttribute)) return null;
     return (
-        <>
-            <label className={t.labelUpperCase}>Options Map</label>
+        <div className={t.mappedWrapper}>
+            <div className={t.labelUpperCase}>
+                Options Map{t.labelHint ? <span className={t.labelHint}>— pull options from another source</span> : null}
+            </div>
             <FieldSet
                 className={t.mappedGrid}
                 components={[
                     ...inputKeys.map(({key, placeHolder}) => (
                         {
-                            type: 'Input', label: placeHolder, placeHolder, value: newOption[key] || '',
+                            type: 'Input', label: placeHolder, placeholder: placeHolder, value: newOption[key] || '',
                             onChange: e => setNewOption({...newOption, [key]: e.target.value}),
                             customTheme
                         }
@@ -426,13 +453,13 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
                         customTheme
                     },
                     {
-                        type: 'Button', children: 'update', activeStyle: 'active', disabled: !canEdit,
+                        type: 'Button', children: 'update', activeStyle: 'action', disabled: !canEdit, ...btnField,
                         onClick: () => {
                             canEdit && updateAttribute(col, {[attr]: JSON.stringify(newOption)});
                         }
                     },
                     {
-                        type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit,
+                        type: 'Button', children: 'remove', activeStyle: 'danger', disabled: !canEdit, ...btnField,
                         onClick: () => {
                             if (!canEdit) return;
                             updateAttribute(col, {[attr]: undefined});
@@ -441,50 +468,55 @@ const RenderMappedOptions = ({col, drivingAttribute, attr, value='', updateAttri
                     }
                 ]}
             />
-        </>
+        </div>
     )
 }
 
 const RenderRemoveBtn = ({col, removeAttribute, canEdit = true}) => {
     const {UI} = React.useContext(DatasetsContext);
     const {theme} = React.useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
-    const {Button, Modal} = UI;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
+    const {Button, Modal, Icon} = UI;
     const [showDeleteModal, setShowDeleteModal] = React.useState(false);
 
     if (!canEdit) return null;
     return (
         <div className={t.deleteWrapper}>
-            <Modal open={showDeleteModal} setOpen={setShowDeleteModal} className={t.deleteModalBorder}>
+            <Modal open={showDeleteModal} setOpen={setShowDeleteModal}>
                 <div className={t.deleteTitle}>Confirm Delete</div>
                 <div className={t.deleteMessage}>
-                    Are you sure you want to delete column: <span className={'font-semibold'}>{col}</span>?
+                    Are you sure you want to delete column: <span className={t.emphasis}>{col}</span>?
                 <div>This action can not be undone.</div>
                 </div>
-                <Button
-                    activeStyle={'danger'}
-                    onClick={() => removeAttribute(col)}
-                >
-                    delete
-                </Button>
+                <ModalActions t={t} Button={Button} onCancel={() => setShowDeleteModal(false)}>
+                    <Button
+                        activeStyle='dangerSolid'
+                        onClick={() => removeAttribute(col)}
+                    >
+                        delete
+                    </Button>
+                </ModalActions>
             </Modal>
             <Button
-                activeStyle={'danger'}
+                activeStyle='danger'
                 onClick={() => setShowDeleteModal(true)}
             >
-                delete
+                {t.removeColumnIcon ? <><Icon icon={t.removeColumnIcon} className={t.btnIcon}/>remove column</> : 'delete'}
             </Button>
         </div>
     )
 }
 
 export const RenderField = ({isDms, i, item, attribute, attributeList=[], updateAttribute, removeAttribute, onSetIndex, pkeyInfo, onSetPrimaryKey, apiLoad, format, dragStart, dragEnter, dragOver, drop, canEdit = true}) => {
+    const {UI} = useContext(DatasetsContext);
+    const {Icon} = UI;
     const {theme} = useContext(ThemeContext) || {};
-    const t = theme?.datasets?.metadataComp || metadataCompTheme;
+    const t = { ...metadataCompTheme, ...(theme?.datasets?.metadataComp || {}) };
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const toggleIcon = showAdvanced ? t.advancedToggleIconOpen : t.advancedToggleIcon;
     return (
             <div key={i}
-                 className={`${i % 2 ? t.fieldRowOdd : t.fieldRowEven} ${t.fieldRow}`}
+                 className={showAdvanced ? t.fieldRowOpen : `${i % 2 ? t.fieldRowOdd : t.fieldRowEven} ${t.fieldRow}`}
                  onDragStart={(e) => canEdit && dragStart(e, i)}
                  onDragEnter={(e) => canEdit && dragEnter(e, i)}
 
@@ -493,7 +525,8 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                  onDragEnd={(e) => canEdit && drop(e)}
                  draggable={canEdit}
             >
-                <div className={showAdvanced ? `${t.fieldHeader} bg-blue-50` : t.fieldHeader}>
+                <div className={showAdvanced ? t.fieldHeaderOpen : t.fieldHeader}>
+                    <div className={t.gripCol}>
                     {item.isIndex && <span className={t.pkBadge}>IDX</span>}
                     {!isDms && pkeyInfo?.hasPkey && pkeyInfo?.pkeyColumn === item.name && <span className={t.pkBadge}>PK</span>}
                     <div className={t.dragHandle}>
@@ -503,6 +536,7 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                             <path fill="currentColor"
                                   d="M8.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m0 6.5a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0M15.5 7a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3m1.5 5a1.5 1.5 0 1 1-3 0a1.5 1.5 0 0 1 3 0m-1.5 8a1.5 1.5 0 1 0 0-3a1.5 1.5 0 0 0 0 3"></path>
                         </svg>
+                    </div>
                     </div>
                     <div className={t.fieldControls}>
                         <RenderInputText
@@ -537,15 +571,15 @@ export const RenderField = ({isDms, i, item, attribute, attributeList=[], update
                         />
 
                         <div title={'Advanced Settings'}
-                             className={t.advancedToggle}
+                             className={showAdvanced ? t.advancedToggleOpen : t.advancedToggle}
                              onClick={() => setShowAdvanced(!showAdvanced)}
-                        >...
+                        >{toggleIcon ? <Icon icon={toggleIcon} className={t.advancedToggleIconClass}/> : '...'}
                         </div>
                     </div>
                 </div>
 
                 <div className={showAdvanced ? t.advancedPanel : 'hidden'}>
-                    <div className={`flex flex-row justify-between p-4 bg-blue-50 items-center`}>
+                    <div className={t.advancedSwitchRow}>
                         <RenderIndexSwitch
                             key={`${item.name}-index`}
                             value={item.isIndex}

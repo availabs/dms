@@ -12,6 +12,8 @@ import {docs as Label} from "./components/Label";
 import {docs as Pill} from "./components/Pill.theme";
 import {docs as FieldSet} from "./components/FieldSet.theme";
 import {docs as Switch} from "./components/Switch.theme";
+import {docs as FileInput} from "./components/FileInput.theme";
+import {docs as FieldLabel} from "./components/FieldLabel.theme";
 import {docs as Tabs} from "./components/Tabs.theme";
 import {docs as Drawer} from "./components/Drawer.theme";
 import {docs as DeleteModal} from "./components/DeleteModal.theme";
@@ -37,6 +39,8 @@ const output = {
     Pill,
     FieldSet,
     Switch,
+    FileInput,
+    FieldLabel,
     Tabs,
     Drawer,
     DeleteModal,

@@ -5,6 +5,7 @@ import { getExternalEnv } from '../../../../utils/datasources';
 import Upload from "../../../../components/upload";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import { nameToSlug } from "../../../../../../utils/type-utils";
+import { internalPagesTheme } from "./internalPages.theme";
 
 const UploadPage = ({
     apiUpdate,
@@ -18,12 +19,18 @@ const UploadPage = ({
     const { API_HOST, baseUrl, pageBaseUrl, user, falcor, datasources } = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const {theme} = useContext(ThemeContext) || {};
+    const t = { ...internalPagesTheme, ...(theme?.datasets?.internalPages || {}) };
+    const viewName = (source?.views || []).find(v => +(v.view_id || v.id) === +view_id)?.name;
 
     if(!isDms) return <></>
     return (
-            <div>
+            <div className={t.uploadPage || undefined}>
+                {t.uploadIntro && view_id && view_id !== 'undefined' ?
+                    <p className={t.uploadIntro}>
+                        Add rows to <b className={t.uploadIntroEm}>{viewName || `version ${view_id}`}</b> from a spreadsheet. Detected columns are matched to this source’s columns; matched rows update, the rest insert.
+                    </p> : null}
                 {
-                    !view_id || view_id === 'undefined' ? 'Please select a version' :
+                    !view_id || view_id === 'undefined' ? <span className={t.emptyMsg || undefined}>Please select a version</span> :
                         <Upload.EditComp
                             onChange={() => {}}
                             size={1}

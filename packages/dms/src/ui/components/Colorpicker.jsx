@@ -5,7 +5,10 @@
  * LICENSE file in the root directory of this source tree.
  *
  */
-import {useEffect, useMemo, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import Button from './Button';
+import { ThemeContext, getComponentTheme } from '../useTheme';
+import { colorPickerTheme } from './Colorpicker.theme';
 
 const basicColors = [
     '#d0021b',
@@ -26,37 +29,10 @@ const basicColors = [
 ];
 
 const WIDTH = 214;
-const HEIGHT = 150;
 
 
-const colorPickerStyles = {
-    "color-picker-wrapper": "p-[20px] bg-white",
-
-    "color-picker-basic-color": "flex flex-wrap gap-[10px] m-0 p-0",
-
-    "color-picker-basic-color-button": "border-[1px] border-[solid] border-[#ccc] rounded-[4px] h-[16px] w-[16px] cursor-pointer list-none",
-
-    "color-picker-basic-color-button.active": "[box-shadow:0px_0px_2px_2px_rgba(0,_0,_0,_0.3)]",
-
-    // The saturation/value gradient overlay is applied via inline style (see call
-    // sites), not a Tailwind arbitrary-value class — a multi-layer
-    // `bg-[linear-gradient(...),_linear-gradient(...)]` utility silently compiled to
-    // no CSS at all under this project's Tailwind v4 setup (confirmed via computed
-    // style: `backgroundImage: "none"`), leaving only the inline hue backgroundColor
-    // visible — a flat square with no saturation/value gradient. Never caught before
-    // because both pre-existing callers pass `showColorPicker={false}`, so this panel
-    // had never actually been rendered in production until a `showColorPicker={true}`
-    // caller (see ReportRouteList's per-route color picker) exercised it.
-    "color-picker-saturation": "w-full relative mt-[15px] h-[150px] select-none",
-
-    "color-picker-saturation_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-[50%] [box-shadow:0_0_15px_#00000026] box-border -translate-x-[10px] -translate-y-[10px]",
-
-    "color-picker-hue": "w-full relative mt-[15px] h-[12px] bg-[linear-gradient(_to_right,_rgb(255,_0,_0),_rgb(255,_255,_0),_rgb(0,_255,_0),_rgb(0,_255,_255),_rgb(0,_0,_255),_rgb(255,_0,_255),_rgb(255,_0,_0)_)] select-none rounded-[12px]",
-
-    "color-picker-hue_cursor": "absolute w-[20px] h-[20px] border-[2px] border-[solid] border-[#ffffff] rounded-full [box-shadow:#0003_0_0_0_0.5px] box-border -translate-x-[10px] -translate-y-[4px]",
-
-    "color-picker-color": "border-[1px] border-[solid] border-[#ccc] mt-[15px] w-full h-[20px]"
-};
+// the look is Colorpicker.theme.js (`colorPicker`), read through ThemeContext; the old hardcoded map (the pre-v6
+// strings) is frozen for project themes in src/themes/_legacy/ui.js (2026-10-17)
 
 
 function MoveWrapper({className, style, onChange, children}) {
@@ -70,7 +46,7 @@ function MoveWrapper({className, style, onChange, children}) {
             const x = clamp(e.clientX - left, width, 0);
             const y = clamp(e.clientY - top, height, 0);
 
-            onChange({x, y});
+            onChange({x, y, width, height});   // the area's own size: the maths never assumes its width
         }
     };
 
@@ -221,21 +197,25 @@ function transformColor(
 
  function ColorPicker (props) {
      const {color, onChange, colors, showColorPicker=true} = props;
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...colorPickerTheme.styles[0], ...getComponentTheme(themeFromContext, 'colorPicker') };
     const [selfColor, setSelfColor] = useState(transformColor('hex', color));
     const [inputColor, setInputColor] = useState(color);
     const innerDivRef = useRef(null);
 
+    // cursor positions in % of their area (2026-10-17): the square fills the padded wrapper, so it is narrower than
+    // WIDTH — placing by px put the cursor outside it and the drag never reached full saturation
     const saturationPosition = useMemo(
         () => ({
-            x: (selfColor.hsv.s / 100) * WIDTH,
-            y: ((100 - selfColor.hsv.v) / 100) * HEIGHT,
+            x: `${selfColor.hsv.s}%`,
+            y: `${100 - selfColor.hsv.v}%`,
         }),
         [selfColor.hsv.s, selfColor.hsv.v],
     );
 
     const huePosition = useMemo(
         () => ({
-            x: (selfColor.hsv.h / 360) * WIDTH,
+            x: `${(selfColor.hsv.h / 360) * 100}%`,
         }),
         [selfColor.hsv],
     );
@@ -248,19 +228,19 @@ function transformColor(
         }
     };
 
-    const onMoveSaturation = ({x, y}) => {
+    const onMoveSaturation = ({x, y, width, height}) => {
         const newHsv = {
             ...selfColor.hsv,
-            s: (x / WIDTH) * 100,
-            v: 100 - (y / HEIGHT) * 100,
+            s: (x / width) * 100,
+            v: 100 - (y / height) * 100,
         };
         const newColor = transformColor('hsv', newHsv);
         setSelfColor(newColor);
         setInputColor(newColor.hex);
     };
 
-    const onMoveHue = ({x}) => {
-        const newHsv = {...selfColor.hsv, h: (x / WIDTH) * 360};
+    const onMoveHue = ({x, width}) => {
+        const newHsv = {...selfColor.hsv, h: (x / width) * 360};
         const newColor = transformColor('hsv', newHsv);
 
         setSelfColor(newColor);
@@ -286,14 +266,14 @@ function transformColor(
 
     return (
         <div
-            className={`${colorPickerStyles[`color-picker-wrapper`]}`}
+            className={t.wrapper}
             style={{width: WIDTH}}
             ref={innerDivRef}>
-            <div className={`${colorPickerStyles[`color-picker-basic-color`]}`}>
+            <div className={t.swatches}>
                 {colorOptions.map((basicColor) => (
-                    <button
-
-                        className={`${colorPickerStyles[`color-picker-basic-color-button`]} ${basicColor === selfColor.hex ? colorPickerStyles[`color-picker-basic-color-button.active`] : ''}`}
+                    // a UI.Button named style (2026-10-17, raw-HTML pass); the fill stays the inline backgroundColor
+                    <Button
+                        activeStyle={basicColor === selfColor.hex ? t.swatchOnStyle : t.swatchStyle}
                         key={basicColor}
                         style={{backgroundColor: basicColor}}
                         onClick={() => {
@@ -307,14 +287,14 @@ function transformColor(
                 showColorPicker ? (
                     <>
                         <MoveWrapper
-                            className={`${colorPickerStyles[`color-picker-saturation`]}`}
+                            className={t.saturation}
                             style={{
                                 backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
                                 backgroundImage: 'linear-gradient(transparent, black), linear-gradient(to right, white, transparent)'
                             }}
                             onChange={onMoveSaturation}>
                             <div
-                                className={`${colorPickerStyles[`color-picker-saturation_cursor`]}`}
+                                className={t.saturationCursor}
                                 style={{
                                     backgroundColor: selfColor.hex,
                                     left: saturationPosition.x,
@@ -322,9 +302,9 @@ function transformColor(
                                 }}
                             />
                         </MoveWrapper>
-                        <MoveWrapper className={`${colorPickerStyles[`color-picker-hue`]}`} onChange={onMoveHue}>
+                        <MoveWrapper className={t.hue} onChange={onMoveHue}>
                             <div
-                                className={`${colorPickerStyles[`color-picker-hue_cursor`]}`}
+                                className={t.hueCursor}
                                 style={{
                                     backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
                                     left: huePosition.x,
@@ -332,7 +312,7 @@ function transformColor(
                             />
                         </MoveWrapper>
                         <div
-                            className={`${colorPickerStyles["color-picker-color"]}`}
+                            className={t.sample}
                             style={{backgroundColor: selfColor.hex}}
                         />
                     </>
@@ -347,6 +327,8 @@ function transformColor(
  * Renders color swatches directly inline, suitable for use in menus
  */
 export function ColorPickerFlat({ color, onChange, colors, showColorPicker = false }) {
+    const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
+    const t = { ...colorPickerTheme.styles[0], ...getComponentTheme(themeFromContext, 'colorPicker') };
     const [selfColor, setSelfColor] = useState(transformColor('hex', color || '#ffffff'));
     const colorOptions = useMemo(() => colors || basicColors, [colors]);
 
@@ -363,33 +345,20 @@ export function ColorPickerFlat({ color, onChange, colors, showColorPicker = fal
     };
 
     return (
-        <div className="px-2 py-1.5">
+        <div className={t.flatWrapper}>
             {/* Current color indicator */}
-            <div className="flex items-center gap-2 mb-2">
-                <div
-                    className="w-5 h-5 rounded shadow-sm"
-                    style={{
-                        backgroundColor: selfColor.hex,
-                        border: '1px solid rgba(0,0,0,0.1)'
-                    }}
-                />
-                <span className="text-xs text-slate-500 font-mono">{selfColor.hex}</span>
+            <div className={t.flatHeader}>
+                <div className={t.flatCurrent} style={{ backgroundColor: selfColor.hex }} />
+                <span className={t.flatHex}>{selfColor.hex}</span>
             </div>
             {/* Color swatches */}
-            <div className="flex flex-wrap gap-1.5">
+            <div className={t.flatSwatches}>
                 {colorOptions.map((basicColor) => (
-                    <button
+                    // a UI.Button named style (2026-10-17, raw-HTML pass); the fill stays the inline backgroundColor
+                    <Button
                         key={basicColor}
-                        className={`w-6 h-6 rounded cursor-pointer transition-all duration-150 hover:scale-110 ${
-                            basicColor === selfColor.hex
-                                ? 'ring-2 ring-offset-1 ring-blue-500'
-                                : ''
-                        }`}
-                        style={{
-                            backgroundColor: basicColor,
-                            border: '1px solid rgba(0,0,0,0.1)',
-                            boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                        }}
+                        activeStyle={basicColor === selfColor.hex ? t.flatSwatchOnStyle : t.flatSwatchStyle}
+                        style={{ backgroundColor: basicColor }}
                         onClick={(e) => {
                             e.stopPropagation();
                             handleColorSelect(basicColor);
@@ -399,20 +368,19 @@ export function ColorPickerFlat({ color, onChange, colors, showColorPicker = fal
             </div>
             {/* Optional: Full color picker with saturation/hue */}
             {showColorPicker && (
-                <div className="mt-3" style={{ width: WIDTH }}>
+                <div className={t.flatFull} style={{ width: WIDTH }}>
                     <MoveWrapper
-                        className={colorPickerStyles['color-picker-saturation']}
+                        className={t.flatSaturation}
                         style={{
                             backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
                             backgroundImage: 'linear-gradient(transparent, black), linear-gradient(to right, white, transparent)',
                             height: 100,
-                            borderRadius: 4
                         }}
-                        onChange={({ x, y }) => {
+                        onChange={({ x, y, width, height }) => {
                             const newHsv = {
                                 ...selfColor.hsv,
-                                s: (x / WIDTH) * 100,
-                                v: 100 - (y / 100) * 100,
+                                s: (x / width) * 100,
+                                v: 100 - (y / height) * 100,
                             };
                             const newColor = transformColor('hsv', newHsv);
                             setSelfColor(newColor);
@@ -420,28 +388,28 @@ export function ColorPickerFlat({ color, onChange, colors, showColorPicker = fal
                         }}
                     >
                         <div
-                            className={colorPickerStyles['color-picker-saturation_cursor']}
+                            className={t.saturationCursor}
                             style={{
                                 backgroundColor: selfColor.hex,
-                                left: (selfColor.hsv.s / 100) * WIDTH,
-                                top: ((100 - selfColor.hsv.v) / 100) * 100,
+                                left: `${selfColor.hsv.s}%`,
+                                top: `${100 - selfColor.hsv.v}%`,
                             }}
                         />
                     </MoveWrapper>
                     <MoveWrapper
-                        className={colorPickerStyles['color-picker-hue']}
-                        onChange={({ x }) => {
-                            const newHsv = { ...selfColor.hsv, h: (x / WIDTH) * 360 };
+                        className={t.hue}
+                        onChange={({ x, width }) => {
+                            const newHsv = { ...selfColor.hsv, h: (x / width) * 360 };
                             const newColor = transformColor('hsv', newHsv);
                             setSelfColor(newColor);
                             onChange?.(newColor.hex);
                         }}
                     >
                         <div
-                            className={colorPickerStyles['color-picker-hue_cursor']}
+                            className={t.hueCursor}
                             style={{
                                 backgroundColor: `hsl(${selfColor.hsv.h}, 100%, 50%)`,
-                                left: (selfColor.hsv.h / 360) * WIDTH,
+                                left: `${(selfColor.hsv.h / 360) * 100}%`,
                             }}
                         />
                     </MoveWrapper>

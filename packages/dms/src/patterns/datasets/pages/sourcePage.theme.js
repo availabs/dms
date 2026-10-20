@@ -1,37 +1,47 @@
-// Default (un-branded) SourcePage theme. A site theme overrides via
-// `datasets.sourcePage` (see src/themes/transportny for the branded version).
-// The shell is: full-bleed breadcrumb bar (datasets.breadcrumbs) → header band
-// (title + version selector) → tab bar (active underline) → page body.
+// Default SourcePage (source shell) theme — tessera v6, ported 2026-10-06 from
+// src/themes/tessera/design_system_v6/pages/datasets-source.html. A site theme overrides via
+// `datasets.sourcePage`; project themes keep their pre-v6 look through
+// src/themes/_legacy/datasets.js. The shell is: breadcrumb bar (datasets.breadcrumbs) → header
+// band (title + subtitle + headerRight, tab bar at its base) → page body.
 export const sourcePageTheme = {
     // flex column so the content band can flex-1 fill to the page bottom.
     // min-w-0 (here AND on body) keeps a wide child (Table) from propagating its width up the flex
     // chain and scrolling the whole page — the table scrolls inside its own overflow-auto container.
     pageWrapper: 'w-full min-w-0 flex flex-col flex-1',
 
-    // full-bleed content band — gray field that fills remaining height (flex-1) so the
-    // background reaches the page bottom no matter how short the page content is.
-    // min-w-0 so a wide child (e.g. the Table) scrolls within itself instead of widening the page.
-    // flex-col so a fill-height page (Table) can flex-1 to the remaining height; content-height pages
-    // (Overview/Admin) keep their natural size with the gray band filling below them.
-    body: 'w-full min-w-0 bg-gray-50 flex-1 flex flex-col',
+    // content band — fills remaining height (flex-1); flex-col so a fill-height page (Table) can
+    // flex-1 to the remaining height while Overview/Admin keep their natural size.
+    body: 'w-full min-w-0 flex-1 flex flex-col',
 
-    // header band — title row + tab bar share the same full-width white band;
-    // the band's bottom border doubles as the tab-underline track.
-    header: 'w-full bg-white border-b border-gray-200 px-6 pt-4',
-    headerInner: 'flex items-center justify-between gap-4',
-    title: 'min-w-0 text-2xl font-semibold tracking-tight text-gray-900 truncate',
-    headerRight: 'flex items-center gap-2 shrink-0',
-    // page-injected header actions (e.g. Table's "Set Default Columns"), shown next to the version selector
-    headerActionBtn: 'h-8 inline-flex items-center gap-1.5 px-3 rounded-md border border-gray-300 bg-white text-gray-600 text-xs uppercase tracking-wide hover:bg-gray-50 cursor-pointer',
-    versionLabel: 'text-xs uppercase tracking-wide text-gray-400',
-    versionSelect: 'text-sm rounded-md border border-gray-300 bg-white px-2 py-1 text-gray-700 hover:bg-gray-50',
+    // header band — title row + tab bar share one band; its bottom border is the tab track.
+    header: 'w-full border-b border-[var(--t-rule)] pl-6 lg:pl-12 pr-6 lg:pr-8 pt-5',
+    headerInner: 'flex flex-wrap items-center gap-x-4 gap-y-2',
+    titleWrap: 'min-w-0',
+    title: 'min-w-0 t-displayMD text-[var(--t-ink)] truncate',
+    // type · rows · versions line under the title ('' → not rendered)
+    subtitle: 't-metaSM text-[var(--t-pencil)] mt-1',
+    // while the source loads: placeholder bars in place of the title '…' ('' → '…', pre-v6)
+    titleSkeleton: 'h-7 w-64 max-w-full rounded bg-[var(--t-well)] animate-pulse',
+    subtitleSkeleton: 'h-3 w-48 max-w-full rounded bg-[var(--t-well)] animate-pulse mt-2',
+    headerRight: 'ml-auto flex items-center gap-2 shrink-0',
+    // page-injected header actions (e.g. Table's "Set Default Columns"), next to the version select
+    versionLabel: 't-metaXS text-[var(--t-pencil)]',
+    versionSelectWrap: 'w-48',   // UI.Select (fills its container)
 
     // tabs
     tabBarWrap: 'mt-3 -mb-px',
-    tabNav: 'flex items-end gap-1',
-    tab: 'px-4 h-10 inline-flex items-center text-sm font-medium border-b-2 -mb-px transition-colors',
-    tabActive: 'border-blue-600 text-blue-700',
-    tabInactive: 'border-transparent text-gray-500 hover:text-gray-800 hover:border-gray-300',
+    // wraps on narrow screens; no overflow scroll (the tabs' -mb-px always overflowed → stray scrollbar)
+    tabNav: 'flex flex-wrap items-end gap-x-5',
+    tab: 'h-10 inline-flex items-center gap-1.5 px-1 t-proseSM font-medium lowercase border-b-2 -mb-px transition-colors whitespace-nowrap',
+    tabActive: 'border-[var(--t-ink)] text-[var(--t-ink)]',   // ink (owner 2026-10-13: tabs ink in the default theme)
+    tabInactive: 'border-transparent text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
+    tabIcon: 'size-3.5',
+    adminTabIcon: 'Lock',
 
-    loading: 'p-4 text-gray-400',
+    loading: 'pl-6 lg:pl-12 pr-6 py-8 t-proseSM text-[var(--t-pencil)]',
+    versionStates: 'yes',   // '' → no 'No versions yet' / 'No version #N' cards on version tabs (pre-v6)
+    // source id that loads nothing — a StatePanel card (datasets.errorPage); '' → blank body (pre-v6)
+    notFound: 'w-full max-w-[1200px] pl-6 lg:pl-12 pr-6 lg:pr-8 py-6',
+    notFoundCard: 'rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)]',
+    notFoundBtn: 'h-8 inline-flex items-center justify-center gap-1.5 px-3 rounded-md border border-[var(--t-rule)] bg-[var(--t-panel)] t-proseSM text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer',
 }

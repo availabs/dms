@@ -1,12 +1,15 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useImmer } from "use-immer";
-import { ThemeContext } from "../../../../ui/useTheme";
-import Input from "../../../../ui/components/Input";
+import { ThemeContext, getComponentTheme } from "../../../../ui/useTheme";
+import { columnManagerTheme } from "./ColumnManager.theme";
 
-const Modal = ({ open, setOpen, addStaticColumn }) => {
+const StaticDialog = ({ open, setOpen, addStaticColumn }) => {
     const { UI } = useContext(ThemeContext);
-    const { Icon } = UI;
-    if (!open) return null;
+    const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
+    const { Icon, Button, Input, FieldLabel, Modal } = UI;
+    const firstField = useRef(null);   // Modal focuses it on open (autoFocus would hide the opener from its focus return)
+    // mounted only while open (parent) — no early return before the hooks below
     const [state, setState] = useImmer({
         display_name: '',
         staticValue: '',
@@ -35,57 +38,61 @@ const Modal = ({ open, setOpen, addStaticColumn }) => {
     };
 
     return (
-        <div className="fixed inset-0 h-full w-full z-100 content-center bg-black/40" onClick={() => setOpen(false)}>
-            <div className="w-3/4 h-1/2 overflow-auto flex flex-col gap-3 p-4 bg-white place-self-center rounded-md" onClick={(e) => e.stopPropagation()}>
-                <div className="w-full flex justify-between items-center">
-                    <div className="text-lg font-semibold">Add Static Column</div>
-                    <div className="p-2 text-[#37576B] border border-[#E0EBF0] rounded-full cursor-pointer" onClick={() => setOpen(false)}>
+        <Modal open={open} setOpen={setOpen} activeStyle="aboveMenu" initialFocus={firstField}>
+            <div className={t.dialogBody}>
+                <div className={t.dialogHeader}>
+                    <div className={t.dialogTitle}>Add Static Column</div>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setOpen(false)}>
                         <Icon icon={'XMark'} height={12} width={12} />
-                    </div>
+                    </Button>
                 </div>
 
-                <div className="w-full h-full px-2 flex flex-col gap-2">
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs text-gray-500">Display name</label>
+                <div className={t.staticBody}>
+                    <div className={t.staticField}>
+                        <FieldLabel activeStyle="inline" htmlFor="static-col-name" text="Display name" />
                         <Input
+                            id="static-col-name"
+                            ref={firstField}
                             placeholder="e.g. Category"
                             value={state.display_name}
                             onChange={e => setState(draft => { draft.display_name = e.target.value; })}
                         />
                     </div>
-                    <div className="flex flex-col gap-1">
-                        <label className="text-xs text-gray-500">Static value</label>
+                    <div className={t.staticField}>
+                        <FieldLabel activeStyle="inline" htmlFor="static-col-value" text="Static value" />
                         <Input
+                            id="static-col-value"
                             placeholder="Value shown for every row"
                             value={state.staticValue}
                             onChange={e => setState(draft => { draft.staticValue = e.target.value; })}
                         />
                     </div>
-                    <div className={'flex gap-1 place-self-end'}>
-                        <button className="px-3 py-1 bg-orange-500/15 text-orange-700 hover:bg-orange-500/25 rounded" onClick={handleClear}>
+                    <div className={t.dialogActions}>
+                        <Button activeStyle="action" onClick={handleClear}>
                             Clear
-                        </button>
-                        <button disabled={!isValid} className={`px-3 py-1 ${isValid ? `bg-blue-500/15 hover:bg-blue-500/25` : `bg-gray-200`} text-blue-700 rounded`} onClick={handleSave}>
+                        </Button>
+                        <Button activeStyle="primary" disabled={!isValid} onClick={handleSave}>
                             Add
-                        </button>
+                        </Button>
                     </div>
                 </div>
             </div>
-        </div>
+        </Modal>
     );
 };
 
 const AddStaticColumn = ({ addStaticColumn }) => {
     const [open, setOpen] = useState(false);
+    const { theme: themeFromContext = {}, UI } = useContext(ThemeContext) || {};
+    const t = { ...columnManagerTheme, ...getComponentTheme(themeFromContext, 'pages.columnManager') };
     return (
         <>
-            <button
-                className={`px-2 py-1 text-xs border rounded hover:bg-purple-50 text-purple-600 border-purple-300 ${open ? 'bg-purple-100' : ''}`}
-                onClick={() => setOpen(true)}
-            >
-                + Static
-            </button>
-            <Modal open={open} setOpen={setOpen} addStaticColumn={addStaticColumn} />
+            <span className={t.addTriggerWrap}>
+                <UI.Button activeStyle="actionFull" aria-expanded={open} onClick={() => setOpen(true)}>
+                    + Static
+                </UI.Button>
+            </span>
+            {open && <StaticDialog open={open} setOpen={setOpen} addStaticColumn={addStaticColumn} />}
         </>
     );
 };

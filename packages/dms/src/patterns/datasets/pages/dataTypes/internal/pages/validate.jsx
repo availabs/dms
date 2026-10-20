@@ -4,6 +4,7 @@ import { getExternalEnv } from '../../../../utils/datasources'
 import {useNavigate} from "react-router";
 import {ThemeContext} from "../../../../../../ui/useTheme";
 import ValidateComp from "../../../../components/ValidateComp";
+import { internalPagesTheme } from "./internalPages.theme";
 
 export default function Validate ({apiUpdate, apiLoad, format, source, setSource, isDms, params}) {
     const {id, view_id} = params;
@@ -20,11 +21,13 @@ export default function Validate ({apiUpdate, apiLoad, format, source, setSource
         }
     }, [source.views]);
 
+    const t = { ...internalPagesTheme, ...(theme?.datasets?.internalPages || {}) };
+
     if(!isDms) return;
 
-    return (isDms && !source.config)? <div className={'p-1 text-center'}>Please setup metadata.</div> :
-            !params.view_id || params.view_id === 'undefined' ? 'Please select a version' :
-            <div className={`${theme?.page?.wrapper1} max-w-7xl mx-auto bg-white`}>
+    return (isDms && !source.config)? <div className={t.noMetaMsg}>Please setup metadata.</div> :
+            !params.view_id || params.view_id === 'undefined' ? <span className={t.emptyMsg || undefined}>Please select a version</span> :
+            <div className={t.validatePage || `${theme?.page?.wrapper1} max-w-7xl mx-auto bg-white`}>
                 <ValidateComp
                     API_HOST={API_HOST} baseUrl={baseUrl} pageBaseUrl={pageBaseUrl} theme={theme} user={user} falcor={falcor}
                     item={{...source, view_id: params.view_id, source_id: params.id, default_columns: source.default_columns || source.defaultColumns}}

@@ -3,11 +3,13 @@ import {Link, useNavigate} from "react-router";
 import {DatasetsContext} from "../context";
 import {ThemeContext, getComponentTheme} from "../../../ui/useTheme";
 import {dataItemsNav} from "../../../utils/nav";
-import {getSourceData, resolveInternalViewNames, getInternalDataType, getSourceAuthority, parseIfJson} from "./dataTypes/default/utils";
+import {getSourceData, isNotSourceRow, resolveInternalViewNames, getInternalDataType, getSourceAuthority, getViewRowCount, parseIfJson} from "./dataTypes/default/utils";
+import { nameToSlug } from "../../../utils/type-utils";
 import {preferredViewId, authorityMarker} from "../utils/authority";
 import { getExternalEnv } from "../utils/datasources";
 import { sourcePageTheme } from "./sourcePage.theme";
 import Breadcrumbs from "../components/Breadcrumbs";
+import StatePanel from "../components/StatePanel";
 import Overview from "./dataTypes/default/overview"
 import Admin from "./dataTypes/default/admin"
 import Version from "./dataTypes/default/version"
@@ -26,7 +28,7 @@ const defaultPages = {
     metadata: Metadata
 }
 
-const SourceNav = ({t, navItems, page, pageBaseUrl, id, view_id, isDms, sourceType}) => (
+const SourceNav = ({t, Icon, navItems, page, pageBaseUrl, id, view_id, isDms, sourceType}) => (
     <nav className={t.tabNav} aria-label="Source tabs">
         {navItems
             .filter(p => !p.cdn || p.cdn({isDms, sourceType}))
@@ -36,6 +38,7 @@ const SourceNav = ({t, navItems, page, pageBaseUrl, id, view_id, isDms, sourceTy
                     <Link key={p.name}
                           className={`${t.tab} ${isActive ? t.tabActive : t.tabInactive}`}
                           to={`${pageBaseUrl}/${id}/${p.viewDependentPage ? `${p.href}/${view_id || ''}` : p.href}`}>
+                        {p.href === 'admin' && t.adminTabIcon && <Icon icon={t.adminTabIcon} className={t.tabIcon}/>}
                         {p.name}
                     </Link>
                 )
@@ -49,7 +52,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const {baseUrl, isUserAuthed: patternIsUserAuthed, UI, datasources, falcor, damaDataTypes} = ctx;
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourcePageTheme, ...getComponentTheme(fullTheme, 'datasets.sourcePage')};
-    const {Layout} = UI;
+    const {Layout, Button, Select} = UI;
     // Shared secondary nav — mount-aware base (pattern.navPrefix; '' on primary mounts) (see DatasetsList).
     const menuItemsSecondNav = React.useMemo(
         () => dataItemsNav(fullTheme?.navOptions?.secondaryNav?.navItems || [], ctx?.parent?.navPrefix || '', false),
@@ -59,6 +62,8 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     const pgEnv = getExternalEnv(datasources);
     const [source, setSource] = useState(isDms ? item : {});
     const [loading, setLoading] = useState(false);
+    // the id whose load finished — tells "still loading" from "this id has no source"
+    const [loadedId, setLoadedId] = useState(null);
     // view-dependent pages (e.g. Table) can inject buttons into the header next to the version
     // selector via setHeaderActions([{label, onClick}]) on the context. Cleared on page unmount.
     const [headerActions, setHeaderActions] = useState([]);
@@ -81,6 +86,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                 isDms
             });
             setLoading(false)
+            setLoadedId(id)
         }
 
         if (((!isDms && pgEnv) || (isDms && !item)) && id) {
@@ -98,7 +104,14 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
         if (!rawViews.length) return;
         let cancelled = false;
         resolveInternalViewNames({ pgEnv: `${sourceFormat.app}+${sourceFormat.type}`, falcor, rawViews })
-            .then(views => { if (!cancelled) setSource(s => ({...s, views})) });
+            .then(views => {
+                if (cancelled) return;
+                // same derivation getSourceData uses: created = first version, updated = last version
+                // (the preloaded item carries neither, so the Overview's Created / Updated were blank)
+                setSource(s => ({...s, views,
+                    created_at: views[0]?.created_at || s.created_at,
+                    updated_at: views[views.length - 1]?.updated_at || s.updated_at}));
+            });
         return () => { cancelled = true };
     }, [isDms, item, falcor, sourceFormat.app, sourceFormat.type])
 
@@ -167,6 +180,35 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     // one is marked (utils/authority.js), else to the latest view as before.
     const latestViewId = views.length ? (isDms ? views[views.length - 1]?.id : views[views.length - 1]?.view_id) : null;
     const defaultViewId = preferredViewId(source, views, v => (isDms ? v?.id : v?.view_id)) ?? latestViewId;
+
+    // Row count for the subtitle — ONE count, for the version in effect only (owner 2026-10-06).
+    // Same env the Table tab queries: pgEnv for DAMA, `${app}+${sourceSlug}` for DMS sources.
+    const [rowCount, setRowCount] = useState({viewId: null, count: null});
+    const countEnv = isDms ? (source?.name ? `${source.app || sourceFormat.app}+${nameToSlug(source.name)}` : null) : pgEnv;
+    // the URL's trailing id is a version only when it matches one — on Uploads it's an ETL context id
+    const urlViewIsView = view_id != null && views.some(v => String(isDms ? v?.id : v?.view_id) === String(view_id));
+    const countViewId = (urlViewIsView ? view_id : null) || defaultViewId;
+    useEffect(() => {
+        if (!t.subtitle || !sourceLoaded || !countEnv || countViewId == null) return;
+        let cancelled = false;
+        getViewRowCount({env: countEnv, falcor, viewId: countViewId})
+            .then(count => { if (!cancelled) setRowCount({viewId: countViewId, count}); });
+        return () => { cancelled = true; };
+    }, [t.subtitle, sourceLoaded, countEnv, countViewId, falcor]);
+
+    // Subtitle under the title: type · rows · versions (Decision 8 in
+    // planning/tasks/current/datasets-page-pattern-v6-port.md). Rows belong to ONE version — the one in
+    // effect (the URL's view, else the authoritative one, else the latest) — so that version is named.
+    // The type is the resolved dataType, never a DMS row's raw `source.type` (a storage row-type string).
+    const subtitleParts = [];
+    if (sourceDataType) subtitleParts.push(sourceDataType);
+    const effectiveViewId = countViewId;
+    const effectiveView = views.find(v => String(isDms ? v?.id : v?.view_id) === String(effectiveViewId));
+    if (rowCount.count != null && String(rowCount.viewId) === String(effectiveViewId)) {
+        const viewLabel = effectiveView?.name || effectiveView?.version || `v${effectiveViewId}`;
+        subtitleParts.push(`${rowCount.count.toLocaleString()} rows (${viewLabel})`);
+    }
+    subtitleParts.push(views.length ? `${views.length} ${views.length === 1 ? 'version' : 'versions'}` : 'no versions yet');
     useEffect(() => {
         if (!showVersionSelector || view_id || !defaultViewId) return;
         navigate(`${pageBaseUrl}/${id}/${page}/${defaultViewId}`, {replace: true});
@@ -174,9 +216,19 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
 
+    // v6 (t.notFound set): an id that loaded nothing gets a not-found card and no header band / tabs
+    // (DAMA / DMS-by-id loads flag `missing`; a DMS route that preloads no row hands over an empty item)
+    const notFound = !!t.notFound && !loading && (
+        (loadedId === id && !!source.missing) ||
+        (isDms && !!item && ((!item.id && !item.source_id) || isNotSourceRow(item.type))));
+    // v6 (t.versionStates set): a version tab (table / upload / validate / map) on a source with no
+    // versions, or with a URL version id that isn't one of this source's versions
+    const versionState = !t.versionStates || !sourceLoaded || notFound || !showVersionSelector ? null
+        : !views.length ? 'none'
+        : (view_id != null && !urlViewIsView) ? 'unknown' : null;
     const breadcrumbItems = [
         {icon: 'Database', href: baseUrl},
-        {name: source?.name || '...', href: `${pageBaseUrl}/${id}`},
+        {name: notFound ? `#${id}` : (source?.name || '...'), href: `${pageBaseUrl}/${id}`},
         ...(page ? [{name: page}] : []),
     ];
 
@@ -187,27 +239,38 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                     <Breadcrumbs items={breadcrumbItems} />
 
                     {/* header band: title + version selector, with the tab bar at its base */}
-                    <div className={t.header}>
+                    {!notFound && <div className={t.header}>
                         <div className={t.headerInner}>
-                            <h1 className={t.title}>{source?.name || '…'}</h1>
+                            <div className={t.titleWrap}>
+                                {!sourceLoaded && t.titleSkeleton ? (
+                                    <><div className={t.titleSkeleton}/><div className={t.subtitleSkeleton}/></>
+                                ) : <h1 className={t.title}>{source?.name || '…'}</h1>}
+                                {t.subtitle && sourceLoaded && (!isDms || internalDataType !== null) && <div className={t.subtitle}>{subtitleParts.join(' · ')}</div>}
+                            </div>
                             {(showVersionSelector || headerActions.length > 0) && (
                                 <div className={t.headerRight}>
                                     {headerActions.map((a, i) => (
-                                        <button key={i} type="button" className={t.headerActionBtn} onClick={a.onClick}>{a.label}</button>
+                                        <Button key={i} activeStyle='action' onClick={a.onClick}>{a.label}</Button>
                                     ))}
                                     {showVersionSelector && (
                                         <>
                                             <span className={t.versionLabel}>version</span>
-                                            <select id={'version-selector'}
-                                                    onChange={e => {
+                                            {/* UI.Select: onChange gets the chosen view_id; with none chosen the placeholder
+                                                shows "No version selected" (the old native option had value={undefined}, which
+                                                navigated to its own text) */}
+                                            <span className={t.versionSelectWrap}>
+                                                <Select
+                                                    id={'version-selector'}
+                                                    placeholder={'No version selected'}
+                                                    options={views.map(view => ({value: view.view_id, label: (view.name || view.view_id) + authorityMarker(source, view.view_id)}))}
+                                                    value={view_id}
+                                                    onChange={v => {
+                                                        if (v === undefined || v === null || v === '') return;
                                                         const pageUrl = `${pageBaseUrl}/${id}${page ? `/${page}` : ''}`;
-                                                        navigate(`${pageUrl}/${e.target.value}`)
+                                                        navigate(`${pageUrl}/${v}`)
                                                     }}
-                                                    className={t.versionSelect}
-                                                    value={view_id}>
-                                                <option key={'default'} value={undefined}>No version selected</option>
-                                                {views.map(view => <option key={view.view_id} value={view.view_id}>{(view.name || view.view_id) + authorityMarker(source, view.view_id)}</option>)}
-                                            </select>
+                                                />
+                                            </span>
                                         </>
                                     )}
                                 </div>
@@ -216,6 +279,7 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                         <div className={t.tabBarWrap}>
                             <SourceNav
                                 t={t}
+                                Icon={UI.Icon}
                                 navItems={allNavItems}
                                 page={page}
                                 pageBaseUrl={pageBaseUrl}
@@ -225,12 +289,39 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                                 sourceType={isDms ? 'internal' : source?.type}
                             />
                         </div>
-                    </div>
+                    </div>}
 
                     {/* full-bleed content band — flex-1 fills to the page bottom regardless of
                         content height; the page provides its own max-width/padding inner container */}
                     <div className={t.body}>
-                        {sourceLoaded ? (
+                        {notFound ? (
+                            <div className={t.notFound}>
+                                <section className={t.notFoundCard}>
+                                    <StatePanel icon="Search" tone="amber" title={`No source #${id}`}
+                                                text="It may have been deleted, or it lives in an environment this catalog isn’t bound to.">
+                                        <Link to={baseUrl || '/'} className={t.notFoundBtn}>Back to data sources</Link>
+                                    </StatePanel>
+                                </section>
+                            </div>
+                        ) : versionState ? (
+                            <div className={t.notFound}>
+                                <section className={t.notFoundCard}>
+                                    {versionState === 'none' ? (
+                                        <StatePanel icon="MapLayers" tone="amber" title="No versions yet"
+                                                    text="Table, map, upload and validate need a version. Add one from the Admin tab.">
+                                            <Link to={`${pageBaseUrl}/${id}/admin`} className={t.notFoundBtn}>Open admin</Link>
+                                        </StatePanel>
+                                    ) : (
+                                        <StatePanel icon="Search" tone="amber" title={`No version #${view_id}`}
+                                                    text="This source has no version with that id. It may have been deleted.">
+                                            {defaultViewId != null && (
+                                                <Link to={`${pageBaseUrl}/${id}/${page}/${defaultViewId}`} className={t.notFoundBtn}>Open the current version</Link>
+                                            )}
+                                        </StatePanel>
+                                    )}
+                                </section>
+                            </div>
+                        ) : sourceLoaded ? (
                             <Page format={sourceFormat}
                                   source={source} setSource={setSource}
                                   params={params}

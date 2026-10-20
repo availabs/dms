@@ -1,5 +1,7 @@
 export const themeToggleTheme = {
-  button: 'w-8 h-8 shrink-0 rounded-md border border-[var(--t-rule)] flex items-center justify-center text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)] cursor-pointer transition-colors duration-150',
+  // a UI.Button named style (2026-10-17, raw-HTML pass): 'themeToggle' in Button.theme.jsx; a project theme's own
+  // `button` classes are lifted into a style of its own (src/themes/_legacy/ui.js liftPatternRoles)
+  buttonStyle: 'themeToggle',
   icon: 'w-4 h-4',
 }
 

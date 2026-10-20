@@ -7,6 +7,8 @@ import ColumnTypes from "../columnTypes";
 import NavigableMenu from "./navigableMenu";
 import CardColumnPicker from './CardColumnPicker';
 import Icon from "./Icon";
+import FieldLabel from "./FieldLabel";
+import Textarea from "./Textarea";
 import TableHeaderCell from "./table/components/TableHeaderCell";
 import {
     isLayoutModelV2,
@@ -199,12 +201,13 @@ function buildCardColumnMenuItems({ attribute, controls, display, isEdit, setSta
                     noHover: true,
                     type: () => (
                         <div className={'p-2 w-full'}>
-                            <label className={'text-xs text-gray-500'}>{label}</label>
-                            <textarea
-                                className={'w-full border rounded p-1 text-sm'}
-                                value={attribute[key] || ''}
-                                onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
-                            />
+                            {/* UI.FieldLabel + UI.Textarea, theme defaults (2026-10-17, raw-HTML pass; was gray hardcoded) */}
+                            <FieldLabel text={label}>
+                                <Textarea
+                                    value={attribute[key] || ''}
+                                    onChange={e => updateColumns(key, e.target.value, onChange, dataFetch)}
+                                />
+                            </FieldLabel>
                         </div>
                     )
                 };
@@ -285,6 +288,7 @@ const CompWrapper = ({
                          componentWrapperClassName, // useful in edit mode to control edit comp width
                       isValueFormatted, id,
                       editFieldClassName, // the dataCard style's `editField` (unset = 'border'): the edit component's frame
+                      editFieldStyle, // the dataCard style's `editFieldStyle`: a UI.Input named style for a text field
                       updateItem, liveEdit, tmpItem, setTmpItem, allowEdit, formatFunctions,
                       isNewItem, newItem, setNewItem, // when allowAddNewItem is on
                   }) => {
@@ -378,9 +382,9 @@ const CompWrapper = ({
                   id={compIdEdit}
                   onChange={onChange}
                   className={`${editMode ? (editFieldClassName ?? 'border') : ''} ${className}`}
-                  // a style's editField also replaces a text field's own input look (TextEdit /
-                  // TextareaEdit); only passed when a style sets one, so other Cards are unchanged
-                  {...(editMode && editFieldClassName ? { fieldClassName: editFieldClassName } : {})}
+                  // a style's editFieldStyle picks the text field's own look (TextEdit / TextareaEdit pass it
+                  // to UI.Input as activeStyle — Input takes no className); only passed when a style sets one
+                  {...(editMode && editFieldStyle ? { fieldStyle: editFieldStyle } : {})}
                   {...attributeProps}
                   row={row}
                   options={options}
@@ -652,7 +656,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
-                                                 editFieldClassName={theme.editField}
+                                                 editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -672,7 +676,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
-                                                 editFieldClassName={theme.editField}
+                                                 editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -693,7 +697,7 @@ const CardColumnField = ({
                                                  id={id}
                                                  allowEdit={allowEdit || attr.allowEditInView}
                                                  formatFunctions={formatFunctions}
-                                                 editFieldClassName={theme.editField}
+                                                 editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                                  className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
@@ -712,7 +716,7 @@ const CardColumnField = ({
                                              id={id}
                                              allowEdit={allowEdit || attr.allowEditInView}
                                              formatFunctions={formatFunctions}
-                                             editFieldClassName={theme.editField}
+                                             editFieldClassName={theme.editField} editFieldStyle={theme.editFieldStyle}
                                              className={`${theme[valueTextJustifyClass]} ${theme.valueWrapper}`}
                                              componentWrapperClassName={theme.componentWrapper}
                                 />
@@ -931,8 +935,8 @@ const RenderItem = memo(function RenderItem ({
                 // One action row per record: [delete …] [cancel] [save]. Delete shows on an
                 // existing row when `display.allowDelete` is set and the wrapper handed us a
                 // removeItem (editable source); save/cancel keep their form-edit gate. Each
-                // button takes an optional theme class (`formSaveButton` …) and otherwise
-                // renders the stock Button as before.
+                // button picks its look by UI.Button activeStyle (primary / action / danger /
+                // dangerSolid); a theme restyles those roles in its own button.styles.
                 (() => {
                     const showSaveCancel = isFormLikeEditMode && !controls?.clickSaveActive;
                     const showDelete = allowDelete && item?.id && removeItem && !isNewItem;
@@ -942,22 +946,22 @@ const RenderItem = memo(function RenderItem ({
                             {showDelete ? (
                                 confirmDelete ? (
                                     <>
-                                        <Button className={theme.formDeleteConfirmButton} activeStyle="active"
+                                        <Button activeStyle='dangerSolid'
                                                 onClick={() => { setConfirmDelete(false); removeItem(item); }}>
                                             {`Confirm: ${deleteItemLabel || 'delete'}`}
                                         </Button>
-                                        <Button className={theme.formCancelButton} onClick={() => setConfirmDelete(false)}>keep</Button>
+                                        <Button activeStyle='action' onClick={() => setConfirmDelete(false)}>keep</Button>
                                     </>
                                 ) : (
-                                    <Button className={theme.formDeleteButton} onClick={() => setConfirmDelete(true)}>
+                                    <Button activeStyle='danger' onClick={() => setConfirmDelete(true)}>
                                         {deleteItemLabel || 'delete'}
                                     </Button>
                                 )
                             ) : null}
                             {showSaveCancel ? (
                                 <>
-                                    <Button className={theme.formSaveButton} activeStyle="active" onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
-                                    <Button className={theme.formCancelButton} onClick={() => setTmpItem(item)}>cancel</Button>
+                                    <Button activeStyle='primary' onClick={() => updateItem(undefined, undefined, tmpItem)}>save</Button>
+                                    <Button activeStyle='action' onClick={() => setTmpItem(item)}>cancel</Button>
                                 </>
                             ) : null}
                         </div>
@@ -967,7 +971,7 @@ const RenderItem = memo(function RenderItem ({
             {
                 isAddingNewItem ? (
                     <div className={theme.formAddNewItemWrapper}>
-                        <Button className={theme.formAddButton} activeStyle="active" onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
+                        <Button activeStyle='primary' onClick={() => addItem()}>{display?.addItemLabel || 'add'}</Button>
                     </div>
                 ) : null
             }
