@@ -7,7 +7,8 @@
  *   node tests/postgres-docker.js run     — start, run all PG tests, stop (even on failure)
  *
  * Container config:
- *   Image:     postgres:17-alpine
+ *   Image:     postgres:17-alpine (DMS_TEST_PG_IMAGE overrides it — e.g. postgis/postgis:16-3.4
+ *              for tests that need PostGIS, like test-source-rules.js)
  *   Port:      5499 (host) → 5432 (container)
  *   Database:  dms_test
  *   User:      dms_test
@@ -19,7 +20,7 @@ const { execSync, spawn } = require('child_process');
 const net = require('net');
 
 const CONTAINER = 'dms-test-postgres';
-const IMAGE = 'postgres:17-alpine';
+const IMAGE = process.env.DMS_TEST_PG_IMAGE || 'postgres:17-alpine';
 const PORT = 5499;
 const DB = 'dms_test';
 const USER = 'dms_test';
@@ -119,7 +120,11 @@ async function waitReady(timeoutMs = 30000) {
   while (Date.now() - startTime < timeoutMs) {
     try {
       exec(`docker exec ${CONTAINER} pg_isready -U ${USER} -d ${DB}`);
-      consecutiveOk++;
+      // The official images (and postgis/postgis, which runs extra init scripts and restarts
+      // later) log this line once first-start initialisation is over; until then a pg_isready
+      // success can be the temporary init server that is about to shut down.
+      const initDone = exec(`docker logs ${CONTAINER} 2>&1`).includes('init process complete');
+      consecutiveOk = initDone ? consecutiveOk + 1 : 0;
       if (consecutiveOk >= 2) {
         console.log(`PostgreSQL ready on port ${PORT}`);
         return;

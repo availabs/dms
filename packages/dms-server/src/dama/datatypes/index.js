@@ -16,6 +16,7 @@
  */
 
 const { registerHandler } = require('../tasks');
+const { registerRule } = require('../rules/registry');
 
 const datatypes = {};
 
@@ -33,6 +34,8 @@ const schedulables = {};
  *   { label, defaultCron, params, buildDescriptor({schedule, db, pgEnv}),
  *     preflight({schedule, descriptor, db, pgEnv}) } — opts the worker into
  *   cron scheduling (see dama/tasks/schedules.js).
+ * @param {Object} [definition.rules] - Map of ruleId → source-rule spec (see dama/rules/registry.js):
+ *   table rules an author can attach to any DAMA source from the datasets Rules page.
  */
 function registerDatatype(name, definition) {
   if (datatypes[name]) {
@@ -53,6 +56,16 @@ function registerDatatype(name, definition) {
         continue;
       }
       schedulables[workerPath] = { ...spec, datatype: name };
+    }
+  }
+
+  if (definition.rules) {
+    for (const [ruleId, spec] of Object.entries(definition.rules)) {
+      try {
+        registerRule(ruleId, spec);
+      } catch (e) {
+        console.warn(`[datatypes] rule ${ruleId} from ${name} skipped: ${e.message}`);
+      }
     }
   }
 

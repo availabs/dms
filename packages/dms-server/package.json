@@ -13,6 +13,7 @@
     "test:change-history": "node tests/test-change-history.js",
     "test:transaction-guard": "node tests/test-transaction-guard.js",
     "test:pg:transactions": "node tests/postgres-docker.js run tests/test-transactions-pg.js",
+    "test:pg:source-rules": "DMS_TEST_PG_IMAGE=postgis/postgis:16-3.4 node tests/postgres-docker.js run tests/test-source-rules.js",
     "test:stream-json": "node tests/test-stream-json.js",
     "test:falcor-limit": "node tests/test-falcor-response-limit.js",
     "test:sqlite": "node tests/test-sqlite.js",

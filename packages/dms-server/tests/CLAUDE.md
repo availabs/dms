@@ -63,6 +63,9 @@ npm run test:schema-drift # create_*.sql vs migrate_*.sql drift guard
 ### PostgreSQL (via Docker)
 
 Requires Docker. Spins up a `postgres:17-alpine` container on port 5499, runs tests, tears down.
+`DMS_TEST_PG_IMAGE` swaps the image (e.g. `postgis/postgis:16-3.4` for the source-rules suite). `waitReady`
+waits for the image's "init process complete" log line, because PostGIS's longer first-start setup restarts
+the server after the old two-`pg_isready` check had already passed.
 
 ```bash
 npm run test:pg           # Start container, run graph + workflow + auth, stop container
@@ -103,6 +106,7 @@ DMS_TEST_DB=dms-postgres-test node tests/test-graph.js
 | test-transactions-pg.js | No | Yes | PG-only: pg_stat_activity, per-backend trace, Bug 14 repro, DAMA deletes |
 | test-transaction-guard.js | n/a | n/a | No DB: fails on hand-rolled BEGIN / old transaction API outside the adapters |
 | test-change-history.js | Yes | Yes | A dataset's `change_history` writes (`routes/dms/changeHistory.js`); via `DMS_TEST_DB` |
+| test-source-rules.js | No | Yes (PostGIS) | DAMA source rules (`dama/rules`): generated SQL, routes, triggers, publish re-apply. Needs PostGIS: `npm run test:pg:source-rules` sets `DMS_TEST_PG_IMAGE=postgis/postgis:16-3.4` |
 
 ## Test Graph Harness
 

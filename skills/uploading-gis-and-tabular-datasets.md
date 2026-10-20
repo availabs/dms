@@ -127,6 +127,15 @@ log each step's JSON the first time so you can adapt the `done(...)` predicates 
   `dms dataset views <id>` should show the new source/view; a Card/Map `externalSource` bound to
   `{ source_id, view_id, env: '<pgEnv>' }` renders. The physical table is
   `gis_datasets.s{source_id}_v{view_id}_{slug}`.
+- **If staff will add or edit rows** (an editable source behind a form or table), open the source's
+  **Rules** page (Admin → Rules):
+  - **Point from lat/lon** keeps the map pin in step with a latitude/longitude pair. Set bounds
+    around the area the data covers, so swapped coordinates or a missing minus sign are refused.
+  - **Auto-number new rows** gives the ID column a default. GIS uploads since 2026-10-16 already
+    have one; older ones fail every add until this rule is on. The Metadata page warns when it's
+    missing.
+  - Rules apply to every later version too. Details: `packages/dms-server/src/dama/CLAUDE.md`
+    "Source rules".
 
 ## Gotchas
 - **Run upload → publish CONTINUOUSLY (no long gap).** The uploaded file is staged on the dms-server's

@@ -17,7 +17,7 @@
  *      plugin authors know it exists.
  */
 
-import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage, Outputs } from "./lazyPages";
+import { Table, GisMap as Map, Metadata, SchedulePage, RunsPage, Outputs, Rules } from "./lazyPages";
 
 const defaultPages = {
   table: {
@@ -60,6 +60,15 @@ const defaultPages = {
     path: "/outputs",
     cdn: ({ isDms }) => !isDms,
     component: Outputs,
+  },
+  // Table rules the server installs on every table behind the source (auto-number, point from
+  // lat/lon — datasets-source-rules.md). DAMA-only. Reached from the Admin page, like Metadata,
+  // so the public tab bar doesn't change.
+  rules: {
+    name: "Rules",
+    path: "/rules",
+    cdn: () => false,
+    component: Rules,
   },
 };
 
