@@ -67,6 +67,13 @@ a source from the datasets pattern):
 listed in [datatype-plugin-route-permissions.md](../../../../../planning/shared/tasks/current/datatype-plugin-route-permissions.md).
 Body `user_id` is still sent (removed in task 19's cleanup).
 
+**Found, not fixed (2026-10-20 live check):** on a **sqlite** DMS db, in-process DMS tasks get
+`ctx.task.descriptor` as an unparsed JSON string (`claimNextTask` → `RETURNING *`; the sqlite adapter only parses
+`data`/`attributes`). `dms/pattern_filter_sync` fails with "Pattern undefined not found (app=undefined)", and
+`dms/pattern_duplicate` reports done after cloning **zero** pages. Postgres returns jsonb parsed, so prod is
+unaffected. The forked worker-runner already parses it (`worker-runner.js:77`); `startTaskWorker` doesn't.
+Not caused by this task.
+
 **Found, not fixed:** `ExternalVersionControls.jsx` deleteDownload calls `getData(...)`, which is undefined (in
 HEAD too). A successful delete throws right afterwards, and the catch reopens the delete modal.
 
@@ -85,6 +92,23 @@ and pass-through of other statuses. `test-source-auth` still passes (48; `reques
 
 ## Testing checklist
 
-- [ ] Network tab (not done yet; needs the local browser setup): each flow (GIS upload→publish, CSV publish, internal upload, validate, create/delete download,
+- [x] Network check, 2026-10-20 (scratch dms-server :3458 on current code + a copy of the v6test sqlite DB,
+  Vite :5197 with its own cacheDir, Playwright recording every REST request; scripts in
+  `dms-template/scratchpad/verify/authcheck/`). Each request below carried a valid admin JWT:
+  - create download, cache PM tiles (`dms_pattern=v6test/17`);
+  - CSV create flow end to end: new-context-id, `gis-dataset/upload`, events, layerNames, layerAnalysis
+    (POST + GET), tableDescriptor, `csv-dataset/publish` → source 50 (all `dms_pattern=v6test/17`);
+  - file source create: `/dms-admin/v6test/file_upload` (`dms_pattern`) → internal source 97;
+  - internal validate, upload, layers, publish; publish body `user_id=1` (was undefined);
+  - admin duplicate + its task poll; sync-filters + its task poll; the tasks now record `userId: 1`
+    (the `req.user` fix);
+  - schedule page reads (`schedules`, `schedulables`, with `dms_pattern`) through a harness
+    (`scratchpad/authcheck-harness/`), since no seeded type has schedule pages;
+  - image cell upload through a harness (`scratchpad/authcheck-image/`): it sent the stored
+    `localStorage.userToken` with no user passed.
+  **Not exercised live:** schedule create/patch/delete/fire and rerun (no loaders, rerun disabled in the
+  harness), Lexical inline image upload (same `authedFetch`-with-fallback swap as the image cell), PDF
+  export (`downloadpdf`).
+  Each flow listed (GIS upload→publish, CSV publish, internal upload, validate, create/delete download,
   cache PM tiles, file upload, image upload in a Lexical/image cell, duplicate, sync-filters, PDF) carries the header.
-- [ ] Nothing changes for a user today (the server doesn't enforce yet). Expected by construction: only headers and a query param are added, and non-401/403 responses pass through. Not yet seen live.
+- [x] Nothing changes for a user today: every flow above completed as before; the server log had no `would-deny` lines (none of these routes check yet) and no new errors.
