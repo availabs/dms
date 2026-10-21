@@ -1,7 +1,5 @@
-// Which subdomain a host serves. Netlify's own addresses ("<site>.netlify.app" and deploy
-// previews "<id>--<site>.netlify.app") must serve the root site: their first label names the
-// Netlify site, not a DMS subdomain. Before, every root-bound pattern 404'd on them.
-// planning: src/dms/planning/tasks/current/netlify-app-hosts-are-root.md
+// Which subdomain a host serves. Site hosting relies on these rules too: a laptop opens
+// "www.devtny.org.localhost", whose first label must read as it does in production.
 import { describe, expect, test } from 'vitest';
 import { getSubdomain } from './index';
 import { getBaseHost } from '../../../utils/subdomainPath';
@@ -25,10 +23,10 @@ describe('getSubdomain', () => {
     expect(getSubdomain('74.50.76.166:8080')).toBe(false);
   });
 
-  test('*.netlify.app hosts serve the root site', () => {
-    expect(getSubdomain('avail-dms-qa-test.netlify.app')).toBe(false);
-    expect(getSubdomain('6ad255f063360337c704f7bc--avail-dms-qa-test.netlify.app')).toBe(false);
-    expect(getSubdomain('6ad255f063360337c704f7bc--avail-dms-qa-test.netlify.app:443')).toBe(false);
+  test('a production host opened through .localhost keeps its first label', () => {
+    expect(getSubdomain('www.devtny.org.localhost:3001')).toBe('www');
+    expect(getSubdomain('npmrds.devtny.org.localhost:3001')).toBe('npmrds');
+    expect(getSubdomain('albany.hazardmitigation.ny.gov.localhost:3001')).toBe('albany');
   });
 });
 
@@ -37,9 +35,5 @@ describe('getBaseHost', () => {
     expect(getBaseHost('tsmo2.devtny.org')).toBe('devtny.org');
     expect(getBaseHost('npmrds.localhost:5173')).toBe('localhost:5173');
     expect(getBaseHost('devtny.org')).toBe('devtny.org');
-  });
-
-  test('a *.netlify.app host has nothing to strip', () => {
-    expect(getBaseHost('6ad255f063360337c704f7bc--avail-dms-qa-test.netlify.app')).toBe('6ad255f063360337c704f7bc--avail-dms-qa-test.netlify.app');
   });
 });

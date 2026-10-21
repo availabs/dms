@@ -19,8 +19,6 @@
 // (utils/retiredSubdomain.js) needs the same base to build its target host.
 export function getBaseHost(host) {
   const hostname = `${host || ''}`.split(':')[0];
-  // A "*.netlify.app" host has no subdomain to strip (see getSubdomain).
-  if (hostname.endsWith('.netlify.app')) return host;
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost ? 2 : 3;
   const parts = hostname.split('.');

@@ -16,8 +16,6 @@ import SiteTemplatePicker from './SiteTemplatePicker'
 
 function getSubdomainFromHost(host) {
   const hostname = (host || window.location.host).split(':')[0];
-  // A "*.netlify.app" host has no subdomain (see getSubdomain in render/spa/utils).
-  if (hostname.endsWith('.netlify.app')) return '';
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost ? 2 : 3;
   const parts = hostname.split('.');

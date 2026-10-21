@@ -203,8 +203,6 @@ function getSubdomain(req) {
   const origin = req.headers.origin || '';
   const raw = origin ? origin.replace(/^https?:\/\//, '') : (req.headers.host || '');
   const hostname = raw.split(':')[0];
-  // A "*.netlify.app" host (a Netlify site or deploy preview) has no subdomain.
-  if (hostname.endsWith('.netlify.app')) return '';
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost || process.env.NODE_ENV === 'development' ? 2 : 3;
   const parts = hostname.split('.');
