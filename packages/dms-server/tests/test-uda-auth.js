@@ -1,6 +1,6 @@
 /**
  * Permission checks on the UDA Falcor writes (permissions-ds-uda-falcor-writes): source / view sets and
- * their update calls, setIndex, setPrimaryKey, clearData, views.create, settings, deletes. Each is
+ * their update calls, setIndex, setPrimaryKey, setRule, backfillRule, clearData, views.create, settings, deletes. Each is
  * refused with no user, refused without the permission, and passes the gate with it; auth_permissions
  * needs edit-source-permissions through either source path; DaMa writes take whitelisted columns only.
  * Internal sources are addressed the way the client does (`app+internal_table`, `app+<slug>`).
@@ -218,6 +218,37 @@ async function run() {
                 await passesGate(call(dsEditor, ['uda', 'sources', name], [DAMA_DB, extB, 'nope', true, dsPatternRef]));
             });
         });
+    }
+    // setRule / backfillRule answer a refusal as a value at sources.byId[id].rulesCall ({ ok, error }).
+    const ruleRefusal = async (user, name, env, sourceId, args) => {
+        const res = await call(user, ['uda', 'sources', name], [env, sourceId, ...args]);
+        const out = res.jsonGraph.uda[env].sources.byId[sourceId].rulesCall;
+        const r = (out && out.value) || out || {};
+        return r.ok ? null : (r.error || 'error');
+    };
+    const ruleRefused = async (...a) => {
+        const msg = await ruleRefusal(...a);
+        assert(msg && AUTH_RE.test(msg), `expected a refusal, got: ${msg}`);
+    };
+    const rulePassesGate = async (...a) => {
+        const msg = await ruleRefusal(...a);
+        assert(!(msg && AUTH_RE.test(msg)), `expected to pass the permission gate, got: ${msg}`);
+    };
+    const ruleArgs = { setRule: [{ id: 'nope', params: {} }, true], backfillRule: ['nope'] };
+    for (const name of ['setRule', 'backfillRule']) {
+        await t(`${name}: anon refused, stranger refused (enforce), update-source passes; pattern arg last`, async () => {
+            await ruleRefused(anon, name, DAMA_DB, extA, ruleArgs[name]);
+            await withMode('enforce', async () => {
+                await ruleRefused(stranger, name, DAMA_DB, extA, ruleArgs[name]);
+                await rulePassesGate(editor, name, DAMA_DB, extA, ruleArgs[name]);
+                await ruleRefused(dsEditor, name, DAMA_DB, extB, ruleArgs[name]);
+                await rulePassesGate(dsEditor, name, DAMA_DB, extB, [...ruleArgs[name], dsPatternRef]);
+            });
+        });
+        await t(`${name} on an internal source is checked against the env's pattern, not as an external source (enforce)`, async () => withMode('enforce', async () => {
+            await rulePassesGate(dsEditor, name, INT_ENV, intSrc, [...ruleArgs[name], pattern]);
+            await ruleRefused(stranger, name, INT_ENV, intSrc, [...ruleArgs[name], pattern]);
+        }));
     }
     await t('views.create: create-view or update-source passes; stranger refused', async () => {
         await refused(call(anon, ['uda', 'views', 'create'], [DAMA_DB, extA, 'v9', null]), /Sign in/);
