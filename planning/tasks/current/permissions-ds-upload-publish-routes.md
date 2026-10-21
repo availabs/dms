@@ -1,6 +1,6 @@
 # Datasets: permission checks on upload, publish, validate and file upload routes
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** commit — committed on master 2026-10-21, not pushed; deploy pending · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md) (vocabulary: `create-source`,
@@ -28,7 +28,33 @@ take the owner's `user_id` from the body.
 | `routes.js:584` POST `/dama-admin/dms/:appType/validate` | re-validates, updates `isValid` or moves rows | none | `update-source` |
 | `dama/datatypes/pmtiles.js:230` POST `/:pgEnv/pmtiles/cache-pmtiles` | queue PMTiles build | none | `manage-downloads` (moved to [permissions-ds-downloads-and-files.md](./permissions-ds-downloads-and-files.md)) |
 
-## Proposed changes
+## What was built (2026-10-21)
+
+Gates live in a new `dama/upload/auth.js`; the core helpers in `routes/uda/sourceAuth.js` gained
+`requireSourcePermission(..., { wasOpen })` and `requirePatternPermission(..., { app })` (a pattern of another app
+is dropped, so denies). Every route below checked nothing before, so `legacy` / `log` allow and log would-denies;
+`enforce` decides. **Login is required unconditionally** (`requireLogin`, mounted in `upload/index.js`), as for the
+uda writes: the client sends its token on every one of these calls (task 3, checked live).
+
+| route | gate |
+|---|---|
+| new-context-id, gis-dataset/upload | login; the upload records the token user (`store.create(id, { userId })`) |
+| layers, layerNames, layerAnalysis (POST + GET), tableDescriptor | login; **403 unless the caller staged the upload** (`checkUploadOwner`) |
+| gis / csv publish | login; own upload; no `source_id` → `create-source` on the named pattern; `source_id` → `create-view` or `update-source` on it (as uda `views.create`). The upload is now looked up **before** `createDamaSource`, so a bad upload id no longer leaves an empty source behind |
+| `/dama-admin/:pgEnv/file_upload` (image cells, Lexical) | login; `source_id` → `create-view`/`update-source`; a named pattern → `create-source` on it; **no pattern named → login only** (owner decision 2026-10-21: each upload makes a private, hidden `file_upload` source owned by the uploader) |
+| `/dms-admin/:app/file_upload` | login; `source_id` → `create-view`/`update-source` on the internal source; new → `create-source` on the named pattern of `:app`, and **`owner_id` must be that pattern or its dmsEnv** (else a grant on one pattern could rewrite `sources` on any row of the app; enforce 403s, log logs) |
+| `/dama-admin/dms/:appType/publish` | login; own upload; `edit-source-data` or `update-source` (owner decision 2026-10-21) on **both** the source the data type names (`sourceIdForDataType`: rows go to its table) and the body's `sourceId` (its `config` gets the new attributes). Under enforce, a type that resolves to no source is refused |
+| `/dama-admin/dms/:appType/validate` | login; same permission on the type's source (fallback: body `parentId`) |
+
+Owner = token user everywhere: `createDamaSource` / `createDamaView` `user_id` (so the new source's
+`auth_permissions.users`), the queued task descriptor's `user_id`, DMS rows' `created_by`. A different body
+`user_id` is logged (`requestUserIdWarnBody`; for multipart routes `req.body` is set to the parsed fields).
+Refusals clean up the temp file. The descriptor's `email` still comes from the body (display only).
+
+Not changed: `events/query` (polled for upload and task progress; task status reads are task 7); PM tiles moved to
+task 6.
+
+## Proposed changes (original plan)
 
 - [ ] Apply the core middleware to each route. Read the target `source_id` from the body before deciding
   which permission applies.
@@ -42,8 +68,22 @@ take the owner's `user_id` from the body.
 
 ## Testing checklist
 
-- [ ] Unit/integration tests above (`tests/test-upload-auth.js`, scratch sqlite + Postgres pgEnv).
-- [ ] Live: GIS upload → publish new source; CSV publish into an existing source; DMS internal upload → publish →
-  validate; file_upload create; image cell upload. Each as a granted user (works) and an ungranted user (clear error).
+- [x] `tests/test-upload-auth.js` (new, 24): every route 401s anon; upload ownership on the reads and publishes;
+  gis/csv: bad upload → 400 with no source created, enforce refusals (no create-source, no pattern, no create-view);
+  `authorizePublish` allow/deny under enforce and would-deny under log; pgEnv file_upload with no pattern creates a
+  source owned by the token user (body `user_id: 999` ignored; source + view `user_id`, `auth_permissions.users`);
+  DMS file_upload create (listed on the dmsEnv), refused without grant / other app's pattern / foreign owner row;
+  DMS publish writes rows with `edit-source-data`, refused for a stranger and for a body `sourceId` the caller
+  can't write; validate under enforce and log; unresolvable type refused. Fixtures go through
+  `controller.createData` (raw INSERTs collide with the controller's id allocator). SQLite ✓, Postgres ✓
+  (`DMS_TEST_DB=dms-postgres-test DMS_DB_ENV=dms-postgres-test DAMA_TEST_DB=dama-postgres-test`).
+  Also green: `test-source-auth` 48, `test-uda-auth` 24 (SQLite + Postgres), `test-upload-pipeline` 12,
+  `test-tasks` 22, `test-schedules` 29, `test-delete-cascade` 16.
+- [x] Live, **under `DMS_SOURCE_AUTH_MODE=enforce`**, as `v6test Admin` (3458 current code + 5197, verify kit
+  `authcheck/`): CSV create → publish (source 72, owner user 1); file source create (`/dms-admin/v6test/file_upload`
+  → internal source 96); internal source 4 validate + upload + publish (2 rows created, config +2 attrs); image
+  cell upload (`flow-image.mjs`, stored URL returned). No 401/403 or would-deny lines. test_dama writes reverted.
+- [ ] Live as a non-admin (granted / ungranted): not run, no such user in v6test; covered by unit tests. The
+  create wizard shows `PermissionError` messages where it already catches them (upload.jsx); the rest is task 10.
 - [ ] Blast radius: the active uploaders from [permissions-inventory.md](../completed/permissions-inventory.md) hold the
-  grants before this ships.
+  grants before `enforce` (the access-diff audit, 1b).

@@ -12,6 +12,8 @@ const Busboy = require('busboy');
 const storage = require('../storage');
 const { createDamaSource, createDamaView } = require('./metadata');
 const { sharpAvailable, getSharp } = require('./sharp');
+const { requestUserIdWarnBody } = require('../../routes/uda/sourceAuth');
+const { authorizePublish } = require('./auth');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];
 const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
@@ -63,8 +65,18 @@ function fileUpload(req, res) {
 
       const {
         source_name, source_id: existingSourceId,
-        file_name, file_type, directory, description, categories, user_id,
+        file_name, file_type, directory, description, categories,
       } = fields;
+      // The owner is the token user. A multipart body isn't parsed into req.body: hand it the fields.
+      req.body = fields;
+      const user_id = requestUserIdWarnBody(req);
+
+      // New version on `source_id`, or a new private file source. Image cells and Lexical images name
+      // no datasets pattern: signing in is enough for those (auth.js authorizePublish).
+      if (!await authorizePublish(req, res, existingSourceId ? +existingSourceId : null, { allowUnnamed: true })) {
+        try { fs.unlinkSync(savedFilePath); } catch (e) {}
+        return;
+      }
 
       const fileName = file_name || originalFileName;
       const ext = path.extname(fileName).toLowerCase();

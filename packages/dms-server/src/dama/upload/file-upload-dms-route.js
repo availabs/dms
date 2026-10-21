@@ -20,6 +20,8 @@ const Busboy = require('busboy');
 const storage = require('../storage');
 const { sharpAvailable, getSharp } = require('./sharp');
 const { nameToSlug, getInstance } = require('../../db/type-utils');
+const { authMode, requestPatternRef, requestUserIdWarnBody } = require('../../routes/uda/sourceAuth');
+const { authorizePublish } = require('./auth');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];
 const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
@@ -28,6 +30,17 @@ const MIN_SOURCE_NAME_LENGTH = 4;
 
 function firstId(rows) {
   return rows?.[0]?.id != null ? +rows[0].id : null;
+}
+
+// A new source is listed on `owner_id`, so the owner must be the datasets pattern the request names
+// or the dmsEnv that pattern links: otherwise a create-source grant on one pattern would let the
+// caller rewrite `sources` on any row of the app.
+async function ownerIsNamedPattern(controller, app, ownerId, ref) {
+  if (!ref || ref.app !== app) return false;
+  if (+ownerId === +ref.patternId) return true;
+  const [row] = await controller.getDataById([ref.patternId], ['data'], app);
+  const data = typeof row?.data === 'string' ? JSON.parse(row.data) : (row?.data || {});
+  return data.dmsEnvId != null && +data.dmsEnvId === +ownerId;
 }
 
 function createFileUploadDmsHandler(controller) {
@@ -76,13 +89,25 @@ function createFileUploadDmsHandler(controller) {
           owner_id, owner_ref, owner_instance,
           source_id: existingSourceIdRaw,
           source_name,
-          file_name, file_type, directory, description, categories, user_id,
+          file_name, file_type, directory, description, categories,
         } = fields;
 
         const existingSourceId = existingSourceIdRaw ? +existingSourceIdRaw : null;
 
         if (!owner_id || !owner_instance) {
           return res.status(400).json({ ok: false, error: 'owner_id and owner_instance are required' });
+        }
+
+        // The owner is the token user. A multipart body isn't parsed into req.body: hand it the fields.
+        req.body = fields;
+        const user_id = requestUserIdWarnBody(req);
+        const refused = () => { try { fs.unlinkSync(savedFilePath); } catch (e) {} };
+        if (!await authorizePublish(req, res, existingSourceId, { env: `${app}+${owner_instance}`, app })) return refused();
+        if (!existingSourceId && !await ownerIsNamedPattern(controller, app, owner_id, requestPatternRef(req))) {
+          const ref = requestPatternRef(req);
+          const msg = `owner ${owner_id} is not the datasets pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'} or its dmsEnv`;
+          if (authMode() === 'enforce') { refused(); return res.status(403).json({ ok: false, error: msg }); }
+          console.warn(`[source-auth] would-deny file_upload_dms ${app} reason=${msg}`);
         }
 
         if (!existingSourceId && (!source_name || source_name.length < MIN_SOURCE_NAME_LENGTH)) {

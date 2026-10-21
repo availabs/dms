@@ -12,6 +12,8 @@ const store = require('./store');
 const { getProcessor } = require('./processors');
 const { isSplitType, parseSplitDataType } = require('#db/type-utils.js');
 const dmsTasks = require('../../dms/tasks');
+const { requestUserId, requestUserIdWarnBody } = require('../../routes/uda/sourceAuth');
+const { checkUploadOwner, authorizeRowWrite } = require('./auth');
 
 const UPLOAD_DIR = process.env.DAMA_ETL_DIR || path.join(__dirname, '../../../var/tmp-etl');
 
@@ -76,7 +78,7 @@ function upload(req, res) {
     console.log(`[upload] ${uploadId} received "${savedFileName}" (${(fileSize / 1024).toFixed(1)} KB)`);
 
     // Create store entry and return immediately
-    store.create(uploadId);
+    store.create(uploadId, { userId: requestUserId(req) });
 
     // Link etlContextId to uploadId so /events/query can find this upload's status
     if (fields.etlContextId) {
@@ -200,6 +202,7 @@ function getLayers(req, res) {
   if (!entry) {
     return res.json([]);
   }
+  if (!checkUploadOwner(req, res, entry)) return;
 
   if (entry.status === 'error') {
     return res.status(500).json({ error: entry.error });
@@ -226,7 +229,8 @@ function getLayers(req, res) {
 function createPublishHandler(controller) {
   return async function publish(req, res) {
     const { appType } = req.params;
-    const { gisUploadId, layerName, columns = [], user_id, sourceId, primaryColName } = req.body;
+    const { gisUploadId, layerName, columns = [], sourceId, primaryColName } = req.body;
+    const user_id = requestUserIdWarnBody(req);
 
     const [app, type] = appType.split('+');
     if (!app || !type) {
@@ -242,6 +246,12 @@ function createPublishHandler(controller) {
       console.log(`[publish] ${app}+${type} FAILED — upload ${gisUploadId} not found or not ready`);
       return res.json({ err: 'Upload not found or not ready' });
     }
+    if (!checkUploadOwner(req, res, entry)) return;
+
+    // Rows land in the table of the source the type names; new attributes go on `sourceId`'s config.
+    // Both must be writable (a grant on one source can't reach another's table through the type).
+    const typeSourceId = await sourceIdForDataType(controller, app, type);
+    if (!await authorizeRowWrite(req, res, [typeSourceId, sourceId], appType)) return;
 
     const processor = getProcessor(entry.fileExt);
     if (!processor || !processor.parseRows) {
@@ -513,6 +523,22 @@ function createPublishHandler(controller) {
 }
 
 /**
+ * The internal source a data row type belongs to: `{source}|{view}:data` names the source's slug;
+ * legacy `{docType}-{viewId}[-invalid-entry]` its doc_type. Null when no source row matches.
+ */
+async function sourceIdForDataType(controller, app, type) {
+  const base = type.replace(/-invalid-entry$/, '');
+  const parsed = parseSplitDataType(base);
+  const docType = parsed ? parsed.source : base.replace(/-\d+$/, '');
+  try {
+    return await controller.findSourceIdByDocType(app, docType);
+  } catch (e) {
+    console.warn(`[publish] source lookup for ${app}+${type} failed: ${e.message}`);
+    return null;
+  }
+}
+
+/**
  * Build a data object from a row of cell values using column mappings.
  * Handles validation, pivot columns, and multiselect splitting.
  */
@@ -593,6 +619,9 @@ function createValidateHandler(controller) {
       console.log(`[validate] FAILED — missing app/type/parentDocType`);
       return res.json({ err: 'Insufficient info to validate.' });
     }
+    // Rows are rewritten in the table the type names; fall back to the parent the body names.
+    const typeSourceId = await sourceIdForDataType(controller, app, type);
+    if (!await authorizeRowWrite(req, res, [typeSourceId ?? parentId], appType)) return;
 
     // New format: type ends with ':data' — all rows share one type, only data.isValid changes
     const isNewFormat = isSplitType(type);

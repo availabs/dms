@@ -343,23 +343,26 @@ function requireUser(req, res) {
     return user;
 }
 
-async function requireSourcePermission(req, res, sourceId, perms, { env } = {}) {
+// `env` defaults to the route's :pgEnv; `wasOpen` as for isUserAuthedForSource.
+async function requireSourcePermission(req, res, sourceId, perms, { env, wasOpen = false } = {}) {
     const user = requireUser(req, res);
     if (!user) return null;
     const pgEnv = env || req.params.pgEnv || req.params.env;
     const reqPermissions = [].concat(perms);
     const ok = await isUserAuthedForSource({
         env: pgEnv, db: isDmsEnv(pgEnv) ? undefined : getDb(pgEnv), sourceId: +sourceId, reqPermissions, user,
-        patternRef: requestPatternRef(req),
+        patternRef: requestPatternRef(req), wasOpen,
     });
     if (!ok) { res.status(403).json({ error: `requires ${reqPermissions.join(' or ')} on source ${sourceId}` }); return null; }
     return user;
 }
 
-async function requirePatternPermission(req, res, perms, { patternRef } = {}) {
+// `app`: the route acts on that DMS app, so a pattern of another app is dropped (and so denies).
+async function requirePatternPermission(req, res, perms, { patternRef, app } = {}) {
     const user = requireUser(req, res);
     if (!user) return null;
-    const ref = patternRef || requestPatternRef(req);
+    const named = patternRef || requestPatternRef(req);
+    const ref = named && (!app || named.app === app) ? named : null;
     const reqPermissions = [].concat(perms);
     const ok = await isUserAuthedForPattern({ patternRef: ref, reqPermissions, user });
     if (!ok) { res.status(403).json({ error: `requires ${reqPermissions.join(' or ')} on pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'}` }); return null; }

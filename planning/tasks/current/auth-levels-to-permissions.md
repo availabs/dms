@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-21)
+## ▶ Resume here (updated 2026-10-21, after task 5)
 
 **Done so far** (all on `master`, **not pushed**; library commits, root bumps in brackets):
 - **0. Inventory** — closed, in `tasks/completed/permissions-inventory.md` (a9b7c1c3). Tessera / `tessera_auth`
@@ -26,6 +26,12 @@
   name internal envs by type/slug, not pattern — owners now found from the source), DMS-env deletes skipping
   `authorize`, and a **per-app SQLite Clear Data that emptied the app's main table**. Tests: `test-uda-auth.js` (24).
   `legacy`/`log` now allow whatever `enforce` would (owner, 10-21).
+- **5. Upload / publish routes** — `built` (2026-10-21, committed; see that task). New `dama/upload/auth.js`: login on
+  every upload/publish/file-upload route; staged uploads are their uploader's only; new source → `create-source` on
+  the named pattern (image/Lexical `file_upload` with no pattern: login only, owner decision); new version →
+  `create-view`/`update-source`; DMS publish/validate → `edit-source-data`/`update-source` on every source touched
+  (owner decision); DMS file upload's `owner_id` must be the named pattern or its dmsEnv; owner = token user
+  everywhere. Tests: `test-upload-auth.js` (24, SQLite + Postgres). Live under `enforce` as admin: all flows pass.
 
 **Decisions to keep in mind** (details in task 2's "Decisions"):
 - External sources inherit the grants of the **client-named** datasets pattern (`?dms_pattern=`); the server only checks
@@ -38,8 +44,8 @@
 - `${app} Admin` passes everything. Server strict for writes; client lenient until task 10 aligns it.
 
 **Next, in order:**
-1. Then 5–8 (upload/publish routes → switch `createDamaSource` callers to `requestUserId(req)`; downloads; schedules;
-   pattern ops) and 9 (plugins: client pages listed in the shared task). 10 (client gates) can land any time.
+1. Then 6–8 (downloads + PM tiles + `/files`; schedules + task status reads incl. `events/query`; pattern ops) and 9
+   (plugins: client pages listed in the shared task). 10 (client gates) can land any time.
 3. Auth track (13–17) is independent; the first quick win is the NYSDOT `avail_auth` level-5 hole (task 16).
 
 **Open bugs found along the way (not fixed, not ours):**

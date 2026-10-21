@@ -10,6 +10,8 @@ const { gdalAvailable } = require('./gdal');
 const { analyzeLayer, generateTableDescriptor } = require('./analysis');
 const { createDamaSource, createDamaView, ensureSchema, DEFAULT_SCHEMA } = require('./metadata');
 const { queueTask, getTaskEvents, dispatchEvent, completeTask, failTask } = require('../tasks');
+const { requestUserIdWarnBody } = require('../../routes/uda/sourceAuth');
+const { checkUploadOwner, authorizePublish } = require('./auth');
 
 function gisGuard(req, res, next) {
   if (!gdalAvailable) {
@@ -29,6 +31,7 @@ function layerNames(req, res) {
   if (!upload) {
     return res.status(404).json({ error: `Upload ${fileId} not found` });
   }
+  if (!checkUploadOwner(req, res, upload)) return;
 
   if (upload.status === 'processing') {
     return res.json([]);
@@ -54,6 +57,7 @@ async function startLayerAnalysis(req, res) {
   if (!upload || upload.status !== 'ready') {
     return res.status(404).json({ error: `Upload ${fileId} not ready` });
   }
+  if (!checkUploadOwner(req, res, upload)) return;
 
   // Check disk cache
   const cacheDir = path.join(path.dirname(upload.dataFilePath), `layer_${layerName}`);
@@ -108,6 +112,7 @@ function getLayerAnalysis(req, res) {
   if (!upload) {
     return res.status(404).json({ error: `Upload ${fileId} not found` });
   }
+  if (!checkUploadOwner(req, res, upload)) return;
 
   const cacheDir = path.join(path.dirname(upload.dataFilePath), `layer_${layerName}`);
   const cachePath = path.join(cacheDir, 'layer_analysis.json');
@@ -131,6 +136,7 @@ function getTableDescriptor(req, res) {
   if (!upload) {
     return res.status(404).json({ error: `Upload ${fileId} not found` });
   }
+  if (!checkUploadOwner(req, res, upload)) return;
 
   // Find the layer metadata
   const layerMeta = (upload.layers || []).find(l => l.layerName === layerName);
@@ -179,26 +185,31 @@ async function gisPublish(req, res) {
   const { pgEnv } = req.params;
 
   try {
-    let { source_id, source_values, user_id, email, gisUploadId } = req.body;
+    let { source_id, source_values, gisUploadId } = req.body;
+    const user_id = requestUserIdWarnBody(req);
+
+    // The upload first, so a bad id doesn't leave a new, empty source behind.
+    const upload = store.get(gisUploadId);
+    if (!upload?.dataFilePath) {
+      return res.status(400).json({ error: `Upload ${gisUploadId} not found or not ready` });
+    }
+    if (!checkUploadOwner(req, res, upload)) return;
+    if (!await authorizePublish(req, res, source_id)) return;
 
     if (!source_id && source_values) {
       const source = await createDamaSource({ ...source_values, user_id }, pgEnv);
       source_id = source.source_id;
     }
 
-    // Resolve file path from upload store and include in descriptor
-    // (the forked worker process can't access the in-memory store)
-    const upload = store.get(gisUploadId);
-    const dataFilePath = upload?.dataFilePath;
-    if (!dataFilePath) {
-      return res.status(400).json({ error: `Upload ${gisUploadId} not found or not ready` });
-    }
+    // The file path goes in the descriptor: the forked worker process can't access the in-memory store.
+    const dataFilePath = upload.dataFilePath;
 
     const taskId = await queueTask({
       workerPath: 'gis/publish',
       sourceId: source_id,
       ...req.body,
       source_id,
+      user_id,
       dataFilePath,
     }, pgEnv);
 
@@ -222,25 +233,30 @@ async function csvPublish(req, res) {
   const { pgEnv } = req.params;
 
   try {
-    let { source_id, source_values, user_id, email, gisUploadId } = req.body;
+    let { source_id, source_values, gisUploadId } = req.body;
+    const user_id = requestUserIdWarnBody(req);
+
+    // The upload first, so a bad id doesn't leave a new, empty source behind.
+    const upload = store.get(gisUploadId);
+    if (!upload?.dataFilePath) {
+      return res.status(400).json({ error: `Upload ${gisUploadId} not found or not ready` });
+    }
+    if (!checkUploadOwner(req, res, upload)) return;
+    if (!await authorizePublish(req, res, source_id)) return;
 
     if (!source_id && source_values) {
       const source = await createDamaSource({ ...source_values, user_id }, pgEnv);
       source_id = source.source_id;
     }
 
-    // Resolve file path from upload store
-    const upload = store.get(gisUploadId);
-    const dataFilePath = upload?.dataFilePath;
-    if (!dataFilePath) {
-      return res.status(400).json({ error: `Upload ${gisUploadId} not found or not ready` });
-    }
+    const dataFilePath = upload.dataFilePath;
 
     const taskId = await queueTask({
       workerPath: 'csv/publish',
       sourceId: source_id,
       ...req.body,
       source_id,
+      user_id,
       dataFilePath,
     }, pgEnv);
 

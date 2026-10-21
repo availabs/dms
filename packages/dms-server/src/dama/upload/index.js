@@ -8,6 +8,7 @@ const { gisGuard, layerNames, startLayerAnalysis, getLayerAnalysis, getTableDesc
 const { downloadGuard, createDownload, deleteDownload } = require('./download-routes');
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
+const { requireLogin } = require('./auth');
 const { createDuplicateHandler } = require('./dms-duplicate');
 const { createPatternFilterSyncHandler } = require('../../dms/tasks/pattern-filter-sync/pattern-filter-sync');
 const dmsTasks = require('../../dms/tasks');
@@ -22,20 +23,23 @@ const { createController } = require('../../routes/dms/dms.controller');
  * @param {Object} app - Express app instance
  */
 function registerUploadRoutes(app) {
+  // Upload, analysis, publish and file upload need a signed-in user (`requireLogin`); the handlers
+  // check upload ownership and source / pattern permissions (./auth.js).
+
   // Phase 1: Upload + analysis
-  app.get('/dama-admin/:pgEnv/etl/new-context-id', newContextId);
-  app.post('/dama-admin/:pgEnv/gis-dataset/upload', upload);
-  app.get('/dama-admin/:pgEnv/gis-dataset/:id/layers', getLayers);
+  app.get('/dama-admin/:pgEnv/etl/new-context-id', requireLogin, newContextId);
+  app.post('/dama-admin/:pgEnv/gis-dataset/upload', requireLogin, upload);
+  app.get('/dama-admin/:pgEnv/gis-dataset/:id/layers', requireLogin, getLayers);
 
   // Phase 2: Publish
   // The controller uses the default DMS database. The :pgEnv param is accepted
   // for DAMA compat but the controller's database is determined by DMS_DB_ENV.
   const dbEnv = process.env.DMS_DB_ENV || 'dms-sqlite';
   const controller = createController(dbEnv);
-  app.post('/dama-admin/dms/:appType/publish', createPublishHandler(controller));
+  app.post('/dama-admin/dms/:appType/publish', requireLogin, createPublishHandler(controller));
 
   // Phase 3: Validate
-  app.post('/dama-admin/dms/:appType/validate', createValidateHandler(controller));
+  app.post('/dama-admin/dms/:appType/validate', requireLogin, createValidateHandler(controller));
 
   // Pattern duplicate — queues a background task; client polls /dms/tasks/:taskId for status.
   app.post('/dama-admin/dms/:appType/duplicate', createDuplicateHandler(controller));
@@ -57,23 +61,23 @@ function registerUploadRoutes(app) {
   });
 
   // GIS analysis + publish routes (some require GDAL)
-  app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/layerNames', layerNames);
-  app.post('/dama-admin/:pgEnv/gis-dataset/:fileId/:layerName/layerAnalysis', gisGuard, startLayerAnalysis);
-  app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/:layerName/layerAnalysis', getLayerAnalysis);
-  app.get('/dama-admin/:pgEnv/staged-geospatial-dataset/:fileId/:layerName/tableDescriptor', getTableDescriptor);
-  app.post('/dama-admin/:pgEnv/gis-dataset/publish', gisGuard, gisPublish);
-  app.post('/dama-admin/:pgEnv/csv-dataset/publish', csvPublish);
+  app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/layerNames', requireLogin, layerNames);
+  app.post('/dama-admin/:pgEnv/gis-dataset/:fileId/:layerName/layerAnalysis', requireLogin, gisGuard, startLayerAnalysis);
+  app.get('/dama-admin/:pgEnv/gis-dataset/:fileId/:layerName/layerAnalysis', requireLogin, getLayerAnalysis);
+  app.get('/dama-admin/:pgEnv/staged-geospatial-dataset/:fileId/:layerName/tableDescriptor', requireLogin, getTableDescriptor);
+  app.post('/dama-admin/:pgEnv/gis-dataset/publish', requireLogin, gisGuard, gisPublish);
+  app.post('/dama-admin/:pgEnv/csv-dataset/publish', requireLogin, csvPublish);
 
   // Download creation/deletion (requires GDAL for create)
   app.post('/dama-admin/:pgEnv/gis-dataset/create-download', downloadGuard, createDownload);
   app.delete('/dama-admin/:pgEnv/gis-dataset/delete-download', deleteDownload);
 
   // Generic file upload (images, documents) — legacy pgEnv-backed path.
-  app.post('/dama-admin/:pgEnv/file_upload', fileUpload);
+  app.post('/dama-admin/:pgEnv/file_upload', requireLogin, fileUpload);
 
   // DMS-backed file upload. Stores source/view metadata as `data_items` rows
   // owned by a dmsEnv (or pattern row). Preferred path; works without a pgEnv.
-  app.post('/dms-admin/:app/file_upload', createFileUploadDmsHandler(controller));
+  app.post('/dms-admin/:app/file_upload', requireLogin, createFileUploadDmsHandler(controller));
 
   // Dynamic MVT tile serving (PostGIS only)
   app.get('/dama-admin/:pgEnv/tiles/:view_id/:z/:x/:y/t.pbf', serveTile);
