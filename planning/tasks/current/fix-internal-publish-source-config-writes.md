@@ -9,8 +9,9 @@ check. Neither bug comes from that task.
 
 Nothing is left to build or check. Prod checks are done (below) and the owner closed the clean-up: columns were
 intentional, **leave the 12 strays alone**. What's left is release only:
-1. Push lib `afec3aa9` (+ planning commits) and the root bump; both repos are ahead of `origin/master` (11 commits
-   each on 2026-10-21, shared with the permissions work). **Owner pushes or says to.**
+1. **Not pushed on its own.** The work is on local branch `permissions_move` (both repos, `origin/master` merged in
+   2026-10-21). Owner: no push until every step of the permissions move is done and every feature touched is tested
+   end to end; this fix ships with that branch.
 2. Deploy client + dms-server. Once both are out, set Status to `done`, move this file to `tasks/completed/`, fix
    inbound links (`permissions-ds-upload-publish-routes.md`), add it to `completed.md`, and run
    `node planning/shared/scripts/refresh_initiatives.mjs` from the dms-template root.
