@@ -25,8 +25,8 @@ there's no permission for creating a source at all.
    ⚠ Accepted risk: anyone holding a grant (or `${app} Admin`) on *any* datasets pattern — e.g. their
    own tenant site — can name it and inherit its grants on any external source. Alternatives that were
    offered: a per-pgEnv allowlist of apps in the server config; source grants only.
-3. **Rollout:** `DMS_SOURCE_AUTH_MODE = legacy | log | enforce`, default **`log`**: today's rule decides,
-   and every request the strict rule would deny is logged (`[source-auth] would-deny …`). Feeds
+3. **Rollout:** `DMS_SOURCE_AUTH_MODE = legacy | log | enforce`, default **`log`**: today's rule decides
+   (since 2026-10-21: today's rule OR the strict rule — see below), and every request the strict rule would deny is logged (`[source-auth] would-deny …`). Feeds
    [permissions-access-diff-audit.md](./permissions-access-diff-audit.md) and the grant migration;
    flip a server to `enforce` after the migration. (Replaces the `DMS_SOURCE_AUTH_LEGACY_OPEN` idea.)
 4. **Strict on the server for writes** (no "unconfigured ⇒ logged-in may"). The client stays lenient
@@ -41,13 +41,19 @@ there's no permission for creating a source at all.
     DMS db; the pattern grants are the env's own pattern(s) (`getSitePatterns`, the same lookup the
     sources list uses), counted **only if the source is one of theirs** (`getSiteSources`; dmsEnv-linked
     and legacy sources-on-pattern both work). Several patterns on one env → union of their grants.
+    **Changed 2026-10-21 (task 4):** clients never name an internal env by its pattern (`app+<row type>`,
+    `app+internal_table`, `app+<slug>`), so the owners are now every **datasets** pattern of the env's app that
+    lists the source; only the env's app is used. See permissions-ds-uda-falcor-writes.md.
   - **External sources:** the source's own grants on the pgEnv db, plus the client-named datasets
     pattern's grants (read from the DMS db). An unusable pattern name loses only the pattern grants.
   - `${app} Admin` (the pattern's app) passes everything, matching `isAppAdmin`.
 - `decidePattern({ patternRef, reqPermissions, user })` for `create-source` / `edit-pattern`.
 - `isUserAuthedForSource` / `isUserAuthedForPattern` apply the mode. `legacyAllows` is today's rule
   exactly (DMS env, missing row or query error → allow; a found external source → its own grants),
-  so `log` changes no outcome. Pattern checks never existed, so `legacy`/`log` allow them.
+  so `log` changed no outcome. Pattern checks never existed, so `legacy`/`log` allow them.
+  **Changed 2026-10-21 (owner):** `legacy`/`log` allow `legacyAllows || strict`. Today's rule reads only the
+  source's own grants, so it refused `${app} Admin` and pattern grantees on external sources with `{}` grants,
+  which `enforce` allows. Would-denies are still logged when today's rule allows and strict denies.
 - `requestUserId(req)` (token only), `requestUserIdWarnBody(req)` (logs a disagreeing body
   `user_id`), `requestPatternRef(req)`.
 - Express helpers `requireUser`, `requireSourcePermission(req, res, sourceId, perms, {env})`,
