@@ -7,6 +7,12 @@
 
 ## ▶ Resume here (updated 2026-10-21, after task 5)
 
+**Branch (owner, 2026-10-21): work on `permissions_move` in both repos, not `master`.** Each merged `origin/master`
+(lib d85ddc4e, root f292ea59). **No push until every step is done and every feature touched is tested end to end.**
+The lib merge moved master's new `sources.setRule` / `sources.backfillRule` onto `assertSourcePermission` (pattern as
+last arg; `rules.jsx` sends `datasetsPattern`); `test-uda-auth.js` covers them (28, SQLite + Postgres). Not yet run:
+`test-source-rules.js` Part 2 (needs PostGIS; the :5499 container has none and Docker isn't usable here).
+
 **Done so far** (all on `master`, **not pushed**; library commits, root bumps in brackets):
 - **0. Inventory** — closed, in `tasks/completed/permissions-inventory.md` (a9b7c1c3). Tessera / `tessera_auth`
   is out of scope (owner, 2026-10-20).
