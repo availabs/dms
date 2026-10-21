@@ -246,6 +246,9 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
 
     res.set(SECURITY_HEADERS);
     const build = match.site.live ? loadBuild(clientDir(match.name, match.site.live)) : null;
+    // Which build answered: the deploy tooling checks it after publishing, and it tells anyone debugging
+    // what they're looking at. Builds of the same commits have identical files, so the files can't say.
+    if (build) res.set('X-Site-Build', match.site.live);
     if (!build) {
       return res.status(503).type('text/plain').send('This site has no live build.');
     }

@@ -194,7 +194,9 @@ async function run() {
   await test('a new live build is picked up without a restart', async () => {
     writeBuild('alpha', 'b2', 'alpha b2');
     writeSite('alpha', { hosts: ['www.alpha.test', 'alpha.test', '*.alpha.test'], live: 'b2' });
-    assert((await request('www.alpha.test')).body.includes('alpha b2'), 'still b1');
+    const r = await request('www.alpha.test');
+    assert(r.body.includes('alpha b2'), 'still b1');
+    assert(r.headers['x-site-build'] === 'b2', `x-site-build ${r.headers['x-site-build']}`);
   });
   await test('rolling back is the same switch', async () => {
     writeSite('alpha', { hosts: ['www.alpha.test', 'alpha.test', '*.alpha.test'], live: 'b1' });

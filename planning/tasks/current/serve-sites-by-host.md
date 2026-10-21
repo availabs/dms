@@ -76,6 +76,9 @@ site request never reaches the API routes, the CORS/no-store middleware or the J
     which is Netlify's shadowing rule.
   - **Not served:** the build's `_redirects`.
   - **Not logged:** site requests are registered before the request logger, so they don't appear in its log.
+  - **`X-Site-Build: <live build id>`** on every site response (added 2026-10-21). The deploy tooling checks it
+    after publishing: builds of the same commits have identical files, so only the server can say which
+    one answered. Covered in `tests/test-sites.js`.
 
 ## Testing Checklist
 
