@@ -32,7 +32,7 @@ there's no permission for creating a source at all.
 4. **Strict on the server for writes** (no "unconfigured ⇒ logged-in may"). The client stays lenient
    until [permissions-ds-client-gates.md](./permissions-ds-client-gates.md) aligns it.
 
-## Built (2026-10-20, uncommitted)
+## Built (2026-10-20, committed 8bed976f; query-param pattern ref 42b79799)
 
 `dms-server/src/routes/uda/sourceAuth.js` rewritten:
 - `decideSource({ db, env, sourceId, patternRef, subdomain, reqPermissions, user })` — strict, fails

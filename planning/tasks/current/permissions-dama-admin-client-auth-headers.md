@@ -1,6 +1,6 @@
 # Datasets: every dama-admin / dms-admin call from the client sends the user's token
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** commit — 42b79799 / root e09d25ef, not pushed · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). **Ship before any REST dataset
 route starts enforcing**, or uploads, downloads and duplicates break for everyone. Client only, no behaviour change.
@@ -27,7 +27,7 @@ from the datasets, admin and page patterns send none and pass the user id in the
 - **Already send it:** schedule pages (`SchedulePage.jsx`, `RunsPage.jsx`). Plugins: see
   [datatype-plugin-route-permissions.md](../../../../../planning/shared/tasks/current/datatype-plugin-route-permissions.md).
 
-## Built (2026-10-20, uncommitted)
+## Built (2026-10-20, committed 42b79799)
 
 **Helper:** `packages/dms/src/utils/authedFetch.js`, also exported from the package index (`authedFetch`,
 `PermissionError`, `authHeaders`, `withPatternParam`).

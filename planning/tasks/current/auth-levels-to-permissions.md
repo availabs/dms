@@ -1,9 +1,60 @@
 # Auth and datasets: replace auth levels with named permissions (hub)
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
+
+## ▶ Resume here (updated 2026-10-21)
+
+**Done so far** (all on `master`, **not pushed**; library commits, root bumps in brackets):
+- **0. Inventory** — closed, in `tasks/completed/permissions-inventory.md` (a9b7c1c3). Tessera / `tessera_auth`
+  is out of scope (owner, 2026-10-20).
+- **2. Datasets permissions core** — `doing`: code done + tested (8bed976f [f94566f9]). Strict, fail-closed
+  resolver in `dms-server/src/routes/uda/sourceAuth.js`; `DMS_SOURCE_AUTH_MODE = legacy | log | enforce`,
+  **default `log`** (today's rule decides; strict would-denies are logged as `[source-auth] would-deny …`).
+  New vocabulary `create-source` (pattern) and `edit-source-data` (source rows). Only open item: deploy and read the
+  would-deny log before any `enforce`.
+- **3. Client auth headers** — `built` (42b79799 [e09d25ef]; live check 25bea9d4 [64ef3f1c]). `utils/authedFetch.js`
+  (exported from `@availabs/dms`) sends the token (falls back to `localStorage.userToken`) and
+  `?dms_pattern=<app>/<id>`, and turns a 401/403 into a `PermissionError`. Every library REST call uses it. Network-checked
+  live; see that task's checklist.
+
+**Decisions to keep in mind** (details in task 2's "Decisions"):
+- External sources inherit the grants of the **client-named** datasets pattern (`?dms_pattern=`); the server only checks
+  it's an existing datasets pattern of that app. Owner accepted the forgery risk (alternatives: per-pgEnv app
+  allowlist in server config, or source grants only).
+- The pattern travels as a **query param**, not a header (CORS: client and server deploy separately). The server also
+  accepts `X-DMS-Pattern` now; switch the client to the header once every server has the new CORS list. Never read
+  from the body.
+- Internal (`app+instance`) sources get pattern grants from their env's own pattern(s), only if the source is theirs.
+- `${app} Admin` passes everything. Server strict for writes; client lenient until task 10 aligns it.
+
+**Next, in order:**
+1. **4. `uda` Falcor writes** ([permissions-ds-uda-falcor-writes.md](./permissions-ds-uda-falcor-writes.md)): gate
+   `sources.update`, source/view sets, setIndex/setPrimaryKey, clearData, settings, DMS-env deletes, with column
+   whitelists. Falcor calls can't use `?dms_pattern=`, so pass the pattern as a call **argument** (or a falcor-level
+   query param) and feed it to `isUserAuthedForSource({ env, sourceId, patternRef, … })`.
+2. Then 5–8 (upload/publish routes → switch `createDamaSource` callers to `requestUserId(req)`; downloads; schedules;
+   pattern ops) and 9 (plugins: client pages listed in the shared task). 10 (client gates) can land any time.
+3. Auth track (13–17) is independent; the first quick win is the NYSDOT `avail_auth` level-5 hole (task 16).
+
+**Open bugs found along the way (not fixed, not ours):**
+- sqlite only: in-process DMS tasks get `ctx.task.descriptor` as a string (`dms/tasks/index.js` `startTaskWorker`;
+  the forked `worker-runner.js:77` already parses). Sync-filters fails and duplicate copies zero pages on sqlite
+  servers; prod (Postgres) is fine. About a one-line fix.
+- `ExternalVersionControls.jsx` deleteDownload calls an undefined `getData`, which reopens the modal after a successful delete.
+- Auth pages' `/users/byProject` and `/groups/byproject` send no `Authorization` (tasks 14/15).
+
+**How to test** (don't rediscover):
+- Server unit tests: `cd src/dms/packages/dms-server && DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node
+  tests/test-source-auth.js` (48). Postgres: needs the owner's `dms-test-postgres` container on :5499 plus a temporary
+  `src/db/configs/dama-postgres-test.config.json` (gitignored on purpose; delete after), then
+  `DMS_TEST_DB=dms-postgres-test DMS_DB_ENV=dms-postgres-test DAMA_TEST_DB=dama-postgres-test`.
+- **Never** `require('src/index.js')` or start dms-server without an explicit local `DMS_DB_ENV`: the default config is
+  prod `dms3`. Use `node --check` for syntax.
+- Live: `dms-template/scratchpad/verify/README.md` → "Request-capture checks (`authcheck/`)". Scratch server :3458
+  (current code + sqlite copy, built in the session scratchpad, so rebuild it) + Vite :5197 (`vite.5197.config.mjs`).
 
 ## Objective
 
