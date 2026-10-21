@@ -10,8 +10,12 @@
 **Branch (owner, 2026-10-21): work on `permissions_move` in both repos, not `master`.** Each merged `origin/master`
 (lib d85ddc4e, root f292ea59). **No push until every step is done and every feature touched is tested end to end.**
 The lib merge moved master's new `sources.setRule` / `sources.backfillRule` onto `assertSourcePermission` (pattern as
-last arg; `rules.jsx` sends `datasetsPattern`); `test-uda-auth.js` covers them (28, SQLite + Postgres). Not yet run:
-`test-source-rules.js` Part 2 (needs PostGIS; the :5499 container has none and Docker isn't usable here).
+last arg; `rules.jsx` sends `datasetsPattern`; refusals keep the Rules page wording "You don't have permission to change
+this source…"). Post-merge, all green: `test-uda-auth` 28, `test-source-auth` 48, `test-upload-auth` 24,
+`test-dms-publish-config` 3 (SQLite + Postgres); `test-upload-pipeline`, `test-sites` 30 (SQLite); `test-source-rules`
+29 (PostGIS: the owner runs `npm run test:pg:source-rules` from `packages/dms-server`, Docker isn't usable from this
+account; it needs the temporary `dama-postgres-test` config and removes the :5499 container when done); `npm run build` ✓.
+Still to do before any push: end-to-end (browser) testing of every feature touched.
 
 **Done so far** (all on `master`, **not pushed**; library commits, root bumps in brackets):
 - **0. Inventory** — closed, in `tasks/completed/permissions-inventory.md` (a9b7c1c3). Tessera / `tessera_auth`
