@@ -50,6 +50,18 @@ async function assertViewWrite(router, env, viewId, patternRef) {
   await assertSourcePermission(router, env, sourceId ?? 0, 'update-source', { patternRef, wasOpen: true });
 }
 
+// A source rule change needs `update-source`. The Rules page shows the refusal as is, so it reads as a sentence.
+async function assertRuleWrite(router, env, sourceId, pattern) {
+  try {
+    await assertSourcePermission(router, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+  } catch (err) {
+    if (/^Not authorized/.test(err.message)) {
+      throw new Error(`You don't have permission to change this source (update-source on source ${sourceId}).`);
+    }
+    throw err;
+  }
+}
+
 // Echo every column of a written row at `basePath`.
 const rowPathValues = (basePath, row) => Object.keys(row).map(key => ({
   path: [...basePath, key],
@@ -688,7 +700,7 @@ module.exports = [
       const resultPath = ["uda", env, "sources", "byId", +sourceId, "rulesCall"];
       try {
         if (!this.user) throw new Error('Sign in to change source rules');
-        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+        await assertRuleWrite(this, env, sourceId, pattern);
         const info = await setSourceRule(env, +sourceId, ruleArgs, enable !== false, this.user);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId, "rulesInfo"], value: $atom(info) },
@@ -714,7 +726,7 @@ module.exports = [
       const resultPath = ["uda", env, "sources", "byId", +sourceId, "rulesCall"];
       try {
         if (!this.user) throw new Error('Sign in to apply a source rule');
-        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+        await assertRuleWrite(this, env, sourceId, pattern);
         const counts = await backfillSourceRule(env, +sourceId, key);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId, "rulesBackfill", key], value: $atom(counts) },

@@ -220,6 +220,8 @@ async function run() {
         });
     }
     // setRule / backfillRule answer a refusal as a value at sources.byId[id].rulesCall ({ ok, error }).
+    // Their refusals are worded for the Rules page.
+    const RULE_AUTH_RE = /Sign in|don't have permission/;
     const ruleRefusal = async (user, name, env, sourceId, args) => {
         const res = await call(user, ['uda', 'sources', name], [env, sourceId, ...args]);
         const out = res.jsonGraph.uda[env].sources.byId[sourceId].rulesCall;
@@ -228,11 +230,11 @@ async function run() {
     };
     const ruleRefused = async (...a) => {
         const msg = await ruleRefusal(...a);
-        assert(msg && AUTH_RE.test(msg), `expected a refusal, got: ${msg}`);
+        assert(msg && RULE_AUTH_RE.test(msg), `expected a refusal, got: ${msg}`);
     };
     const rulePassesGate = async (...a) => {
         const msg = await ruleRefusal(...a);
-        assert(!(msg && AUTH_RE.test(msg)), `expected to pass the permission gate, got: ${msg}`);
+        assert(!(msg && RULE_AUTH_RE.test(msg)), `expected to pass the permission gate, got: ${msg}`);
     };
     const ruleArgs = { setRule: [{ id: 'nope', params: {} }, true], backfillRule: ['nope'] };
     for (const name of ['setRule', 'backfillRule']) {
