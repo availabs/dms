@@ -5,6 +5,7 @@
 
 const fs = require('fs');
 const { createDamaView, ensureSchema, DEFAULT_SCHEMA } = require('../metadata');
+const { ensureSourceRules } = require('../../rules');
 
 module.exports = async function csvPublishWorker(ctx) {
   const { task, pgEnv, db, dispatchEvent, updateProgress } = ctx;
@@ -153,6 +154,16 @@ module.exports = async function csvPublishWorker(ctx) {
     console.error(`[csv-publish] Source metadata init error (non-fatal): ${e.message}`);
   }
 
+  // The source's rules (dama/rules) apply to every version: install them on the new table.
+  // A rule that can't install is reported, never fatal — the Rules page shows it as missing.
+  let rules = null;
+  try {
+    rules = await ensureSourceRules(db, view_id);
+  } catch (e) {
+    rules = { installed: [], failed: [{ error: e.message }] };
+    console.error(`[csv-publish] Source rules error (non-fatal): ${e.message}`);
+  }
+
   await updateProgress(1);
 
   const result = {
@@ -162,6 +173,7 @@ module.exports = async function csvPublishWorker(ctx) {
     view_id,
     table_schema,
     table_name,
+    ...(rules && (rules.installed.length || rules.failed.length) ? { rules } : {}),
   };
 
   await dispatchEvent('csv-dataset:FINAL', 'CSV publish complete', result);

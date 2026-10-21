@@ -264,6 +264,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                     </>
                                 ) : (
                                     <>
+                                        <Button><Link to={`${pageBaseUrl}/${id}/rules`}>Rules</Link></Button>
                                         <AddExternalVersionBtn source={source} />
                                         <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />

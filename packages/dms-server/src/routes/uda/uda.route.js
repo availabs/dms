@@ -30,6 +30,7 @@ const {
   deleteExternalRow
 } = require("./uda.controller");
 const { assertSourcePermission, sourceIdForView, parsePatternRef } = require("./sourceAuth");
+const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
 
 // A source write needs `update-source`, plus `edit-source-permissions` when it carries
 // auth_permissions (decided per key; DMS keys are trimmed before they're written, so compare trimmed).
@@ -259,6 +260,31 @@ module.exports = [
         return result;
       } catch (err) {
         console.error(err);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.byId.rulesInfo ---------------------------------
+  // The source's rules (dama/rules, datasets-source-rules.md): { supported, available, attached
+  // (+ per-table status read from the catalog), tables, latest (the newest table's columns and
+  // geometry columns, for the Rules page's pickers) }. Fetch it in its own request: an older
+  // server reads `rulesInfo` as a column and fails the batch.
+  {
+    route: `uda[{keys:envs}].sources.byId[{integers:ids}].rulesInfo`,
+    get: async function(pathSet) {
+      try {
+        const { envs, ids } = pathSet;
+        const result = [];
+        for (const env of envs) {
+          for (const id of ids) {
+            const info = await listSourceRules(env, id);
+            result.push({ path: ["uda", env, "sources", "byId", id, "rulesInfo"], value: $atom(info) });
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error('[uda] sources.byId.rulesInfo error:', err.message);
         throw err;
       }
     },
@@ -640,6 +666,63 @@ module.exports = [
       } catch (err) {
         console.error('[uda] sources.setPrimaryKey error:', err.message);
         throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.setRule (call) ---------------------------------
+  // Args: [env, sourceId, { id, params, replaceKey? } | { id, key }, enable = true, pattern?]
+  // Attach / edit (enable) or remove a source rule. Runs DDL on every table behind the source, so
+  // it is gated on `update-source`, like any other modification of the source. Returns the fresh
+  // rulesInfo, so the page needs no refetch.
+  //
+  // The outcome comes back as a value at sources.byId[id].rulesCall — { ok: true } or
+  // { ok: false, error } — instead of a thrown error: the falcor HTTP client turns a 500's JSON
+  // body into `new Error(<object>)`, so a thrown message reaches the page as "[object Object]",
+  // and these messages ("…must hold numbers", "not authorized") are the author's only guide.
+  // Same pattern as uda.colorDomain.route.js.
+  {
+    route: `uda.sources.setRule`,
+    call: async function(callPath, args) {
+      const [env, sourceId, ruleArgs = {}, enable = true, pattern] = args;
+      const resultPath = ["uda", env, "sources", "byId", +sourceId, "rulesCall"];
+      try {
+        if (!this.user) throw new Error('Sign in to change source rules');
+        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+        const info = await setSourceRule(env, +sourceId, ruleArgs, enable !== false, this.user);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId, "rulesInfo"], value: $atom(info) },
+          { path: resultPath, value: $atom({ ok: true }) },
+          { path: ["uda", env, "sources", "byId", +sourceId, "metadata"], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.setRule error:', err.message);
+        return [{ path: resultPath, value: $atom({ ok: false, error: err.message }) }];
+      }
+    },
+  },
+
+  // --------------------------------- sources.backfillRule (call) ---------------------------------
+  // Args: [env, sourceId, key, pattern?]
+  // Brings existing rows into line with an attached rule ("Apply to existing rows"). Returns the
+  // per-table counts at sources.byId[id].rulesBackfill[key], and the outcome at rulesCall (see
+  // setRule for why errors come back as a value). Same gate as setRule.
+  {
+    route: `uda.sources.backfillRule`,
+    call: async function(callPath, args) {
+      const [env, sourceId, key, pattern] = args;
+      const resultPath = ["uda", env, "sources", "byId", +sourceId, "rulesCall"];
+      try {
+        if (!this.user) throw new Error('Sign in to apply a source rule');
+        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+        const counts = await backfillSourceRule(env, +sourceId, key);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId, "rulesBackfill", key], value: $atom(counts) },
+          { path: resultPath, value: $atom({ ok: true }) },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.backfillRule error:', err.message);
+        return [{ path: resultPath, value: $atom({ ok: false, error: err.message }) }];
       }
     },
   },

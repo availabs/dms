@@ -21,6 +21,7 @@ import { gisMapTheme } from './pages/dataTypes/gis_dataset/pages/Map/gisMap.them
 import { gisPagesTheme } from './pages/dataTypes/gis_dataset/pages/gisPages.theme'
 import { uploadsTheme } from './pages/dataTypes/gis_dataset/pages/Uploads/uploads.theme'
 import { changeHistoryEditorTheme } from './components/ChangeHistoryEditor.theme'
+import { rulesPageTheme } from './pages/dataTypes/default/rules.theme'
 import { runsPageTheme } from './pages/dataTypes/schedule/runsPage.theme'
 import { schedulePageTheme } from './pages/dataTypes/schedule/schedulePage.theme'
 
@@ -48,6 +49,7 @@ export default {
     gisPages: gisPagesTheme,
     uploads: uploadsTheme,
     changeHistoryEditor: changeHistoryEditorTheme,
+    rulesPage: rulesPageTheme,
     runsPage: runsPageTheme,
     schedulePage: schedulePageTheme,
 }

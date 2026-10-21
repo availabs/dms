@@ -18,6 +18,7 @@ const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
 const { getViewLineage, getSourceLineage } = require('../../dama/lineage');
+const { ensureSourceRules } = require('../../dama/rules');
 
 const pgIdent = n => (n.length <= 63 ? n : n.slice(0, 63));
 
@@ -289,6 +290,9 @@ async function getSourceById(env, ids, attributes) {
 
 const METADATA_CAS_ATTEMPTS = 5;
 
+// Metadata keys only their own write paths may change; updateSource keeps the stored values.
+const SERVER_OWNED_METADATA_KEYS = ['authority', 'rules'];
+
 // The stored metadata as text (the CAS token) plus its parsed value ({} when absent or not an object).
 async function readSourceMetadata(ess, sourceId) {
   const { isDms, db, app, splitMode } = ess;
@@ -432,15 +436,19 @@ async function updateSource(env, sourceId, updates) {
   if (!isDms) assertWritableColumns('source', updates, WRITABLE_SOURCE_COLUMNS);
 
   // A generic write that carries `metadata` replaces the whole blob. It must never change or drop
-  // `metadata.authority`: only setAuthoritativeView / clearAuthoritativeView write that. Keep the
-  // stored authority, ignore any incoming one, and write metadata by compare-and-swap.
+  // the server-owned keys: `metadata.authority` (only setAuthoritativeView / clearAuthoritativeView
+  // write it) and `metadata.rules` (only dama/rules setSourceRule writes it — the rule's triggers
+  // live in the database, so a stale copy here would misreport them). Keep the stored values,
+  // ignore any incoming ones, and write metadata by compare-and-swap.
   if (Object.prototype.hasOwnProperty.call(updates, 'metadata')) {
     const { metadata, ...rest } = updates;
     const incoming = parseJsonish(metadata);
     const rows = await mutateSourceMetadata(ess, sourceId, (stored) => {
       const next = incoming && typeof incoming === 'object' && !Array.isArray(incoming) ? { ...incoming } : {};
-      delete next.authority;
-      if (stored.authority !== undefined) next.authority = stored.authority;
+      for (const key of SERVER_OWNED_METADATA_KEYS) {
+        delete next[key];
+        if (stored[key] !== undefined) next[key] = stored[key];
+      }
       return next;
     });
     if (!Object.keys(rest).length) return rows;
@@ -1179,6 +1187,20 @@ async function resolveEditableTable(env, view_id) {
   // plain identifier costs nothing and closes the case of an unexpectedly-named table/column.
   for (const ident of [view.table_schema, view.table_name, pkCol]) {
     if (!SAFE_IDENTIFIER.test(ident)) throw new Error(`Unsupported identifier: ${ident}`);
+  }
+
+  // Safety net for the source's rules (dama/rules): a version published by a path that doesn't
+  // re-apply them (a plugin, a duplicated view) gets them before its first edit. Cached per
+  // process, so a normal write pays a map lookup. A rule that can't install doesn't block the
+  // write; the Rules page shows it as missing.
+  if (Array.isArray(metadata.rules) && metadata.rules.length) {
+    try {
+      await ensureSourceRules(db, view_id, {
+        table_schema: view.table_schema, table_name: view.table_name, metadata,
+      });
+    } catch (e) {
+      console.warn(`[rules] ensure on write failed for view ${view_id}: ${e.message}`);
+    }
   }
 
   return { db, table_schema: view.table_schema, table_name: view.table_name, columns: metadata.columns || [], pkCol };

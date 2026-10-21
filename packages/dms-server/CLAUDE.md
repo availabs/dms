@@ -18,6 +18,7 @@ npm run test:workflow   # Test full DMS workflow
 ```
 src/
   index.js                    # Express server, single endpoint: POST /graph
+  sites/index.js              # Site hosting: serves each site's built client files by Host, from <checkout>-sites
   db/
     index.js                  # Connection management, table initialization
     config.js                 # Config loader (JSON files from db/configs/)

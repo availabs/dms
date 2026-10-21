@@ -1,4 +1,4 @@
-import { GisCreate as CreatePage, GisMap as Map, Table, Metadata, GisUploads as Uploads } from "../lazyPages";
+import { GisCreate as CreatePage, GisMap as Map, Table, Metadata, GisUploads as Uploads, Rules } from "../lazyPages";
 
 const GisDatasetConfig = {
     table: {
@@ -24,6 +24,12 @@ const GisDatasetConfig = {
         path: "/uploads",
         cdn: () => false, // hide from nav
         component: Uploads,
+    },
+    rules: {
+        name: "Rules",
+        path: "/rules",
+        cdn: () => false, // reached from the Admin page
+        component: Rules,
     },
     sourceCreate: {
         name: "Create",
