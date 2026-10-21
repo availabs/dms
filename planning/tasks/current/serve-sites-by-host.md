@@ -103,5 +103,8 @@ site request never reaches the API routes, the CORS/no-store middleware or the J
 - [x] Owner's dev server, no setting (2026-10-21): with `~/code/dms-template-sites` in place, `:3001` answers
   `www.devtny.org.localhost` → TransportNY, `hazardmitigation.ny.gov.localhost` and `albany.…` → MitigateNY, plain
   `localhost` → the API status page, and a Falcor read still works.
+- [x] Inside Docker via `deploy.sh` (2026-10-21, image `…-3b94ec60-dms-4beec22c`): sites served from the read-only
+  `/app-sites` mount, both sites render in Chromium, and a live-build switch is picked up with no container restart.
+  Details in the dms-template plan, step 2.
 - [ ] The end-to-end local run "as on mercury" (dms-template plan) belongs to the next step, after the build
   script exists.
