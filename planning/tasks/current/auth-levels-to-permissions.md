@@ -15,7 +15,8 @@ this source…"). Post-merge, all green: `test-uda-auth` 28, `test-source-auth` 
 `test-dms-publish-config` 3 (SQLite + Postgres); `test-upload-pipeline`, `test-sites` 30 (SQLite); `test-source-rules`
 29 (PostGIS: the owner runs `npm run test:pg:source-rules` from `packages/dms-server`, Docker isn't usable from this
 account; it needs the temporary `dama-postgres-test` config and removes the :5499 container when done); `npm run build` ✓.
-Still to do before any push: end-to-end (browser) testing of every feature touched.
+Still to do before any push: the **End-to-end test plan** section below (start with its Setup; `test_dama` on :5499 was
+wiped 2026-10-21 and must be re-seeded).
 
 **Done so far** (all on `master`, **not pushed**; library commits, root bumps in brackets):
 - **0. Inventory** — closed, in `tasks/completed/permissions-inventory.md` (a9b7c1c3). Tessera / `tessera_auth`
@@ -76,6 +77,149 @@ Still to do before any push: end-to-end (browser) testing of every feature touch
   `DMS_TEST_DB`/`DMS_DB_ENV` set: their default `dms-sqlite` config is a remote Postgres.
 - Live: `dms-template/scratchpad/verify/README.md` → "Request-capture checks (`authcheck/`)". Scratch server :3458
   (current code + sqlite copy, built in the session scratchpad, so rebuild it) + Vite :5197 (`vite.5197.config.mjs`).
+
+## ▶ End-to-end test plan (gate before any push; written 2026-10-21)
+
+**Owner rule:** nothing on `permissions_move` (both repos) is pushed until every step is done and every feature
+touched passes end to end. Server unit suites and the build are green (see the branch note above). Those run as
+fixtures. Every live check so far ran as the `v6test Admin` only, and that's the gap this plan closes. Record
+results in the **Results** table at the end of this section as you go, with the date, the mode and the evidence.
+
+Ground rules: never prod (memory: local configs point at prod `dms3`), never the owner's :5173. Read
+`dms-template/scratchpad/verify/README.md` first: servers, login, the `authcheck/` request-capture scripts.
+
+### 0. Setup
+
+1. **Test Postgres on :5499, with PostGIS.** The GIS create flow and the Rules page need it. Owner runs (Docker
+   isn't usable from Claude's account), from `src/dms/packages/dms-server`:
+   `npm run test:pg:stop; DMS_TEST_PG_IMAGE=postgis/postgis:16-3.4 npm run test:pg:start`.
+   **`test_dama` (= `dms_test` on :5499) was wiped on 2026-10-21** when the container was replaced for the
+   source-rules suite. Source 2 / version 3, which the `authcheck` flows use, no longer exist. Only stray `srcauth_*`
+   rows 3–4 are left; delete them.
+2. **Server 3458 on branch code + Vite 5197** (README "Request-capture checks" recipe; rebuild in the session
+   scratchpad). Start 3458 with `DMS_SOURCE_AUTH_MODE=log`, and restart it to switch modes.
+3. **Re-seed external fixtures through the UI as admin.** That's test G1 below, so it doubles as a test. Create
+   CSV source **E1** (own grants `{}`) with version **E1v1**, and CSV source **E2** with its own grants (via the
+   Access editor, test B). Use a sheet with a lat/lon pair and an integer id for the Rules tests. A GIS source
+   **E3** comes from a small GeoJSON (test G3). Write the new ids into the verify README (replacing source 2 / v3)
+   and update `flow-*.mjs` constants.
+4. **Internal fixtures** (DMS env of pattern 17 `/data`): **I1** = the existing internal source 4. Add **I2**
+   (blank internal table) for destructive tests (Clear data, delete).
+5. **Users** in the `v6test` project (`/auth/manage/users`, `/auth/manage/groups` on 5197, on the 3458 sqlite
+   copy). Each gets its own token for the `authcheck` scripts.
+
+   | User | Grants | Expected |
+   |---|---|---|
+   | `admin` | `v6test Admin` | everything |
+   | `src_editor` | group `SrcEditors`: `update-source`, `edit-source-data` on E2 and I1 (source Access editor) | edits those two, nothing else |
+   | `pat_editor` | group `PatEditors` in pattern 17's authPermissions: `create-source`, `update-source`, `edit-source-data`, `create-view`, `edit-pattern` | everything in pattern 17 via the pattern; E1 (no own grants) only through calls that name the pattern |
+   | `versioner` | `create-view` only on E2 | add a version to E2; no metadata edit |
+   | `viewer` | logged in, no grants | read only; every write refused |
+   | anon | — | read only; writes say "Sign in" |
+
+### 1. Mode matrix
+
+Every row in section 2 runs under **`enforce`** (the target) and **`log`** (what deploys first). `log` must allow
+everything `enforce` allows. For an actor `enforce` refuses, `log` allows only if today's rule did, and then writes
+one `[source-auth] would-deny …` line. Spot-check **`legacy`** on A, G1 and D for admin and `viewer`. At the end
+of the `log` pass, grep the 3458 log: every would-deny line must be explained by a row here. None may appear for
+`admin`, or for a user on a source they're granted.
+
+### 2. Features (each: actors × expected; evidence = `authcheck` capture + DB state + what the UI shows)
+
+**A. Source metadata (Overview / Metadata pages):** description, categories, column display names, on E1, E2, I1.
+`sources.update` call (no more `set`), args end with the datasets pattern. `src_editor` ✓ on E2/I1, ✗ on E1.
+`pat_editor` ✓ on all three (E1 via the pattern). `viewer` ✗, anon "Sign in". A refusal shows a message and
+the UI doesn't pretend it saved (check the value after reload).
+
+**B. Access editor (`SourceAccessEditor`)** writing `auth_permissions`: needs `edit-source-permissions`.
+`src_editor` (update-source only) ✗ even on E2. Admin ✓. The stored grants are unchanged after a refusal (DB).
+
+**C. Version page:** rename (`views.update`), authoritative view (`AuthorityControl` → `setAuthoritativeView`),
+lineage (`LineageControls`), delete version (`ExternalVersionControls`; known bug: it reopens the modal after a
+delete). `src_editor` ✓ on E2, ✗ on E1. `versioner` ✗ on rename. `viewer` ✗.
+
+**D. Admin page:** `setIndex`, `setPrimaryKey`, Clear data, delete source (cascade), duplicate.
+- Clear data on **I2** as `pat_editor`: rows gone **and the app's main table row count unchanged** (the per-app
+  SQLite bug fixed in task 4).
+- Delete I2 as `viewer` ✗ (`delete-source`); as admin ✓, and the dmsEnv `sources` list loses it.
+- `setIndex` / `setPrimaryKey` on E1/E2 per actor (owner question 3 in `datasets-source-rules.md` still open:
+  record what happens, don't change it).
+
+**E. Settings page** (`SettingsPage.jsx`, hidden source types): `settings.update` needs `edit-pattern` on the
+named pattern. `pat_editor` ✓, `src_editor` ✗, anon "Sign in". Restore the settings afterwards.
+
+**F. Rules page (merged from master; `rules.jsx`):** attach Auto-number and Point from lat/lon on E1 (needs
+PostGIS), Apply to existing rows, Edit, Remove.
+- The request args end with `datasetsPattern`.
+- `pat_editor` ✓ on E1 (via pattern). `src_editor` on E1: the page shows "You don't have permission to change this
+  source (update-source on source N)." `viewer` same. Anon "Sign in to change source rules".
+- After a refusal, `rulesInfo` shows nothing attached (no DDL).
+
+**G. Uploads / publish (task 5 + internal-publish fix):**
+1. CSV create → publish (`flow-csv.mjs`): `create-source` on pattern 17. `pat_editor` ✓, `src_editor` ✗ (403
+   shown in the wizard), anon 401. The new source's owner/grants name the token user, not a body `user_id`.
+2. Add a version to E2: `versioner` ✓ (`create-view`), `viewer` ✗.
+3. GIS create flow (upload file → select layer → schema editor → publish) as `pat_editor` ✓ and `viewer` ✗.
+4. `file_upload` source (`CreatePage.jsx`, `flow-create.mjs`): ✓/✗ per actor; post-create redirect works.
+5. **Internal source upload page on I1** (`flow-internal.mjs`) with a sheet that adds 2 columns, as `src_editor`
+   and `pat_editor`:
+   - publish carries `sourceId` = I1's row id;
+   - the source's `config.attributes` gains the 2 columns, and `updated_at` moves;
+   - **no new `…|source` row** (no `sync/push I …|source`);
+   - a repeat upload adds nothing.
+
+   `viewer` ✗ (`edit-source-data`).
+6. Staged uploads are their uploader's: a staged upload id from `pat_editor` used by `src_editor` (validate /
+   publish) is refused.
+7. Validate (`ValidateComp`) on I1: `edit-source-data` ✓/✗.
+8. DMS file upload owner check: an `owner_id` that isn't pattern 17 or its dmsEnv is refused.
+
+**H. Client auth headers (task 3), per call:** the capture shows the token and `?dms_pattern=` on every
+dama-admin/dms-admin REST call. Covers uploads, publish, validate, downloads (`flow-downloads.mjs`), PM tiles
+(`Map/Layer2.jsx`), file_upload, the GIS flow, schedules, admin duplicate / sync-filters, PDF, image uploads.
+**Expired / removed token:** each shows a permission or sign-in message (`PermissionError`), not a silent failure
+or `{}`.
+
+**I. Schedules + Runs pages** (`SchedulePage.jsx`, `RunsPage.jsx`; plugin types only:
+`scratchpad/authcheck-harness/`, `flow-sched.mjs`): create/edit/run a schedule as admin ✓. Task 7 will gate these;
+until then, record each actor's result.
+
+**J. Pattern admin:** duplicate pattern (`dms-duplicate.js`, `flow-dup.mjs`), sync filters
+(`pattern-filter-sync.js`, `flow-sync.mjs`, needs a saved filter on pattern 27), `editSite`, `patternList`,
+`filterEditor`.
+- Admin ✓; `viewer` ✗.
+- **Run on a Postgres-backed DMS server**: on sqlite the in-process task descriptor bug makes sync-filters fail and
+  duplicate copy nothing, which isn't this branch.
+
+**K. Images and PDF:** Lexical inline image upload (`InlineImageComponent.tsx`), image column (`columnTypes/image.jsx`),
+Export PDF (`ExportPdf.jsx` / `selectablePDF.js`). Each works for an author, sends the token, and refuses anon.
+(`file_upload` with no pattern: login only, owner decision.)
+
+**L. Regression smoke, outside datasets:** page pattern view/edit/publish on test pages 37 / 49 / 61 / 80, admin
+sites list `/list`, auth manage pages. Site hosting middleware (master): with no `<checkout>-sites` folder, the API
+on 3458 still answers. Check the browser console for new errors on each.
+
+### 3. Postgres pass
+
+prod is Postgres per-app, so repeat **A, D (Clear data), F, G1, G5, J** with 3458's DMS db on
+`dms-postgres-test` (:5499) instead of the sqlite copy. That needs a seeded site there: seed it the way 3457 was,
+or via the CLI against 3458.
+
+### 4. Exit criteria (then the owner pushes)
+
+- Every row passes under `enforce` and `log`; the would-deny log is fully explained.
+- Unit suites green (SQLite + Postgres, `test-source-rules` on PostGIS); `npm run build` green.
+- Results recorded below; owner signs off.
+- **Tasks 6–10 aren't built yet.** Each one, as it lands, adds its rows here (6: downloads / PM tiles / `/files`;
+  7: schedules / task status; 8: pattern ops; 9: plugins; 10: client gates, i.e. "the UI never shows a control
+  that would 403"). The full pass reruns once, on the final branch, before the push.
+
+### Results
+
+| Row | Mode | Date | Result | Evidence / notes |
+|---|---|---|---|---|
+| — | — | — | not started | — |
 
 ## Objective
 
