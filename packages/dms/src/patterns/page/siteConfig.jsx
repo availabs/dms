@@ -16,6 +16,7 @@ import { registerComponents, preloadSectionComponents } from './components/secti
 import { registerSectionMenuExtensions } from './components/sections/sectionMenuExtensions';
 import { registerSectionHeaderExtensions } from './components/sections/sectionHeaderExtensions';
 import { registerColumnType } from "../../ui/columnTypes";
+import { registerFormatFunction } from "./components/sections/components/dataWrapper/utils/utils";
 import { FilterControlCell } from "./components/sections/FilterControlCell";
 
 // `filter_control` — a Card cell that hosts a viewer-facing filter control
@@ -91,6 +92,20 @@ const pagesConfig = ({
   // built-ins silently (themes are trusted code).
   if (theme.columnTypes) {
     Object.entries(theme.columnTypes).forEach(([k, v]) => registerColumnType(k, v))
+  }
+
+  // Auto-register theme-provided format functions. A theme ships
+  // { name: fn | { fn, label, preserveSpaces } }; each appears in the Card /
+  // Spreadsheet Format control and is applied to filter-control / multiselect
+  // option labels (ConditionValueInput). Mirrors theme.columnTypes just above;
+  // see dataWrapper/utils/utils.jsx for the registry.
+  if (theme.formatFunctions) {
+    Object.entries(theme.formatFunctions).forEach(([name, def]) =>
+      registerFormatFunction(
+        name,
+        typeof def === 'function' ? def : def.fn,
+        typeof def === 'function' ? {} : def,
+      ))
   }
 
   // Auto-register theme-provided section-menu extensions — additional

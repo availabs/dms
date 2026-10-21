@@ -453,7 +453,13 @@ const CardColumnField = ({
                 attr.formatFn === 'combine' && formatFunctions.combine ?
                     formatFunctions.combine(rawValue?.value ?? rawValue, source, attr) :
                 attr.formatFn && formatFunctions[attr.formatFn] ?
-                    formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar).replaceAll(' ', '') :
+                    // The trailing `.replaceAll(' ', '')` is a numeric-formatter
+                    // cleanup. A formatter registered with `preserveSpaces`
+                    // (a label formatter like "Mon, Sep 14, 2026") opts out; all
+                    // built-ins keep the strip, so their output is unchanged.
+                    (formatFunctions[attr.formatFn].preserveSpaces
+                        ? formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar)
+                        : formatFunctions[attr.formatFn](rawValue?.value || rawValue, attr.isDollar).replaceAll(' ', '')) :
                     rawValue;
 
     const formatClass = attr.formatFn === 'title' ? 'capitalize' : '';

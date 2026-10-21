@@ -558,6 +558,39 @@ async function testWebSocketBroadcastFromFalcor() {
   console.log('  \u2713 WebSocket receives broadcast from Falcor mutation\n');
 }
 
+async function testServerNotifyWiringReachesTheRouteController() {
+  console.log('--- Test: the server wires notifyChange onto the controller its routes use ---');
+
+  // Why this test exists: testWebSocketBroadcastFromFalcor (above) passes even when
+  // production is broken, because this suite builds its own controller and wires it
+  // correctly (`graph.controller.setNotifyChange`). The server did not: it set the
+  // callback on dms.controller.js's module default, a different instance that never
+  // serves a request, so every Falcor write wrote its change_log row and broadcast
+  // nothing — from sync's first commit to 2026-10-21 (falcor-writes-not-broadcast.md).
+  //
+  // So assert the invariant the server's own wiring depends on, rather than the
+  // mechanism this suite already proves.
+  const routeModule = require('../src/routes/dms/dms.route');
+  const defaultController = require('../src/routes/dms/dms.controller');
+
+  assert(routeModule.controller, 'dms.route.js exports the controller it serves routes from');
+  assert(typeof routeModule.controller.setNotifyChange === 'function',
+    'that controller exposes setNotifyChange');
+  assert(routeModule.controller !== defaultController,
+    'it is NOT dms.controller.js\'s module default — the two are different instances, ' +
+    'which is exactly why the callback has to be set on the exported one');
+
+  // And the server must actually use it. Read index.js rather than booting a second
+  // server: the wiring is three lines and a regression here is a silent one.
+  const serverSrc = require('fs').readFileSync(require('path').join(__dirname, '../src/index.js'), 'utf8');
+  assert(/dmsRoutes\.controller\.setNotifyChange\(notifyChange\)/.test(serverSrc),
+    'src/index.js sets notifyChange on dms.route.js\'s exported controller');
+  assert(!/require\(.\.\/routes\/dms\/dms\.controller.\)\.setNotifyChange/.test(serverSrc),
+    'src/index.js does not set it on the module default instead');
+
+  console.log('  \u2713 server notify wiring reaches the route controller\n');
+}
+
 async function testSequentialRevisions() {
   console.log('--- Test: sequential revisions ---');
 
@@ -1004,6 +1037,7 @@ const tests = [
   testDeltaRequiresApp,
   testWebSocketBroadcast,
   testWebSocketBroadcastFromFalcor,
+  testServerNotifyWiringReachesTheRouteController,
   testWebSocketSkeletonRowsReachPatternSubscribers,
   testSequentialRevisions,
   // Phase 4: Collaborative editing

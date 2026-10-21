@@ -403,13 +403,19 @@ async function setupAndListen() {
   initWebSocket(server, syncDb);
   startCompaction(syncDb, syncDb.type);
 
-  // Wire change notifications: controller → WS broadcast, push endpoint → WS broadcast
-  const { createController } = require('./routes/dms/dms.controller');
-  // The default controller is already instantiated by dms.route.js.
-  // We need to reach the same instance. Since dms.route.js uses the default export
-  // (which is createController(DMS_DB_ENV)), we set the notify callback on it.
-  const controller = require('./routes/dms/dms.controller');
-  controller.setNotifyChange(notifyChange);
+  // Wire change notifications: controller → WS broadcast, push endpoint → WS broadcast.
+  //
+  // This must be set on the instance dms.route.js serves its routes from, which it exports
+  // as `.controller`. dms.controller.js's module default is a DIFFERENT instance (created at
+  // import time, never used to serve a request) — and `_notifyChange` is private to each
+  // controller closure, so setting it there silently leaves the Falcor path unnotified:
+  // change_log rows get written, nothing is ever broadcast. That was the bug from sync's
+  // first commit until 2026-10-21; see falcor-writes-not-broadcast.md.
+  //
+  // Still unwired, same cause: the per-dbEnv controller dama/upload/index.js:34 builds for
+  // the file-upload publish handlers.
+  const dmsRoutes = require('./routes/dms/dms.route');
+  dmsRoutes.controller.setNotifyChange(notifyChange);
 
   // Also wire the push endpoint's broadcast callback
   createSyncRoutes._notifyChange = notifyChange;

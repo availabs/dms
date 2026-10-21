@@ -60,8 +60,59 @@ the client registers a type, SSR silently skips its rows.
 
 - Read your theme through `getComponentTheme(themeFromContext, '<name>.<themeObject>')`, spreading your
   local default first. This is the same idiom as every library component.
+- **`ThemeContext`'s value is `{ theme, UI, getComponentTheme }` — destructure it.**
+  `const { theme: themeFromContext = {} } = useContext(ThemeContext) || {}`. Passing the whole context
+  object to `getComponentTheme` fails silently: your own defaults still render, so it looks right, and
+  a site's overrides are simply never applied.
 - Site themes override under the same key:
   `{ <name>: { <themeObject>: { wrapper: '…' } } }`.
+- **Each component the pattern ships registers its own default theme.** One `<Component>.theme.js`
+  beside each component, composed into `defaultTheme.js` under the pattern's key — the shape
+  `qa`'s `reportIssue` uses. Keep those files to layout and the few text bits the shared parts don't
+  draw: everything a `UI.*` primitive renders should be left to the host theme, so the pattern looks
+  like the site it sits on.
+- **Icon NAMES belong in the theme, not in the component.** Each brand ships its own icon set and an
+  unregistered name renders *nothing*. Put an `icons: { … }` map in the component's theme file with
+  defaults that exist in the library set.
+
+## 4b. Wrap the pattern's surface in `UI.Layout`
+
+**Almost every pattern wants this**, and for two reasons:
+
+1. `Layout` reads `theme.layout.options` — the `sideNav` / `topNav` / `activeStyle` a site sets in the
+   pattern's **theme settings**. Without it those settings do nothing at all.
+2. The nav bars are where the theme's **widget slots** render — the user menu, the theme toggle, a
+   site's own registered widgets. A pattern that skips Layout leaves its users with no account menu
+   and no way out of the pattern, however the theme is configured. This is usually the bigger loss.
+
+```jsx
+const { Layout } = UI
+return (
+  <Layout navItems={navItems}>
+    {/* the pattern's own surface */}
+  </Layout>
+)
+```
+
+If you don't, the pattern renders bare: the theme's nav settings have no effect at all, which reads
+as "the theme is broken" rather than "the pattern never asked for chrome". Two ways to get it:
+
+- **Render it yourself** (what the page pattern does in `pages/view.jsx`, and what the `chat` pattern
+  does) — necessary when your surface is not a stack of sections.
+- **Render through the page pattern's `PageView`** (what `qa` does): build page *items* and hand them
+  over, and the Layout, nav, theme and section rendering all come for free.
+
+Borrowing the page pattern's config — `getPatternType("page").siteConfig[0](...)` — gives you
+CMSContext, route auth and the format, but **not** the Layout: that lives in the view, not the shell.
+
+`navItems` are `{ id, name, path }`, and a pattern's nav is built from its own items the way the page
+pattern builds it from pages. **If your surface has its own internal navigation, keep the two
+separate**: the Layout nav is for getting *out* of the pattern and into the rest of the site, your own
+rail or tab bar is for moving *within* it. Putting the same list in both shows it twice.
+
+`chat` is the worked example: its channel rail owns in-chat navigation, so channels are deliberately
+not nav items, and `navItems` is reserved for chat's own non-channel surfaces (a settings page, say)
+as they appear.
 
 ## 5. Shipping page section types (optional)
 
@@ -110,6 +161,14 @@ For a type that has more to do than route and render. All of these are optional,
   apply. If it has `afterCreate` or `editorTabs`, check what they set up and that the tab opens.
 
 ## Gotchas
+
+- **The pattern renders but the theme's nav settings do nothing** → the surface isn't wrapped in
+  `UI.Layout` (§4b). Borrowing the page pattern's config gives you its shell (CMSContext, auth), not
+  its Layout — that is in `pages/view.jsx`.
+- **A site's theme overrides are ignored, but your own defaults render** → you passed the whole
+  `ThemeContext` value to `getComponentTheme` instead of its `.theme` (§4).
+- **An icon renders nothing** → the name isn't in the host brand's set. Icon names belong in your
+  component's theme file, with library-set defaults (§4).
 
 - **The pattern_type string is data.** Existing rows keep whatever `pattern_type` they were created with.
   Register under that exact name.

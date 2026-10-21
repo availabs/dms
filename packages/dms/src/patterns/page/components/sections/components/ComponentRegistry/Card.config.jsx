@@ -3,6 +3,7 @@ import { CardSection, EmptyDefaultLabel } from './Card'
 import { ThemeContext, getComponentTheme } from '../../../../../../ui/useTheme'
 import ColorControls from './sharedControls/ColorControls'
 import columnTypes from '../../../../../../ui/columnTypes'
+import { getFormatFunctionOptions } from '../dataWrapper/utils/utils'
 
 // Build the header/value font-style options dynamically from the resolved
 // `textSettings` theme block. Card.jsx applies the chosen value as a class via
@@ -211,21 +212,13 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
             { label: 'Right', value: 'right' },
         ]
     },
+    // Options come from the format-function registry, so a theme can add one via
+    // `theme.formatFunctions` (patterns/page/siteConfig.jsx) and it appears here
+    // for every column. See dataWrapper/utils/utils.jsx.
     { type: 'select', label: 'Format', key: 'formatFn', isBatchUpdatable: true,
         options: [
             { label: 'No Format Applied', value: ' ' },
-            { label: 'Comma Separated', value: 'comma' },
-            { label: 'Comma Separated ($)', value: 'comma_dollar' },
-            { label: 'Percent (append %)', value: 'percent' },
-            { label: 'Abbreviated', value: 'abbreviate' },
-            { label: 'Abbreviated ($)', value: 'abbreviate_dollar' },
-            { label: 'Date', value: 'date' },
-            { label: 'Time (HH:MM am/pm)', value: 'time' },
-            { label: 'Date + Time', value: 'datetime' },
-            { label: 'Title', value: 'title' },
-            { label: 'Icon', value: 'icon' },
-            { label: 'Color', value: 'color' },
-            { label: 'Combine columns', value: 'combine' },
+            ...getFormatFunctionOptions(),
         ]
     },
     // `combine` formatFn: renders `<value><separator><row[combineWith]>` in one
