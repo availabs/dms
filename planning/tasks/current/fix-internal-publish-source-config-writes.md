@@ -5,6 +5,31 @@
 Found 2026-10-21 during [permissions-ds-upload-publish-routes.md](./permissions-ds-upload-publish-routes.md)'s live
 check. Neither bug comes from that task.
 
+## ▶ Next session: prod checks (owner, 2026-10-21: "a new session will do that")
+
+The code fix is done and tested (below). What's left is checking prod for damage these bugs already did. **Read
+only: report what you find to the owner and change nothing on prod without their go-ahead.** Prod is `dms3`
+(Postgres, mercury:5435, per-app: one schema per app, `dms_<app>.data_items`). Per CLAUDE.md, use the DMS CLI
+(`dms raw list` / `dms raw get`, with `DMS_HOST`/`DMS_APP`/`DMS_TYPE` per site) where it can answer. Never start
+dms-server on the default config to do this: it points at prod (memory: local configs point at PROD dms3).
+
+1. **Stray source rows (Bug 2), since 2026-06-17.** Each internal-source upload that added columns inserted a
+   new row of type `<datasets pattern type>|source` (e.g. `data|form-manager|source`) whose `data` is only
+   `{ config: "<attributes JSON>" }`: no `name`, no `views`, not listed in any pattern / dmsEnv `sources`.
+   Per app with a datasets pattern: list rows of type `<pattern type>|source` created on or after 2026-06-17,
+   check for that shape and that no `sources` array references them. Report count, ids, app and created_at per
+   site. Their configs also show which real sources were meant to get those columns: match each stray to its
+   source by attribute names, so the owner can decide whether to apply the missing columns (Bug 1 dropped them
+   too) and then delete the strays.
+2. **Legacy-table collisions (Bug 1), since 2026-02-24.** The lost write was
+   `UPDATE dms.data_items SET data = data || {config} WHERE id = <source id>`. If `dms.data_items` on `dms3`
+   still exists and holds rows, look for rows whose `updated_at` is on or after 2026-02-24 and whose `data`
+   has a `config` key that row shouldn't have. Matching ids to internal source ids in the per-app schemas
+   makes it a collision. Report any matches; the change log (`dms.change_log`, technique in memory
+   `reference_dms_changelog_page_restore_technique`) gives the row's state before the write.
+3. Record the findings here, tick the clean-up item under "Fix" or split it into its own task, and run
+   `node planning/shared/scripts/refresh_initiatives.mjs` if the header changes.
+
 ## Objective
 
 Uploading a spreadsheet into an internal source (`internal_source/:id/upload`) should append the sheet's new
