@@ -37,6 +37,13 @@ if (HEAP_SNAPSHOT_THRESHOLD_MB > 0) {
 const app = express();
 app.use(compression())
 
+// Site hosting: a request for a site's host gets that site's built client files
+// and never reaches the API routes, CORS or auth middleware below. Sites live in
+// the "<checkout>-sites" folder next to the app checkout (the same root the SSR
+// mount uses); without that folder no request matches. See sites/index.js.
+const { createSitesMiddleware } = require('./sites');
+app.use(createSitesMiddleware({ sitesDir: `${require('path').resolve(__dirname, '../../../../..')}-sites` }));
+
 const PORT = process.env.PORT || 3001;
 
 app.use(express.raw({ limit: "500mb", type: "application/octet-stream" }));
