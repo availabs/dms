@@ -15,7 +15,7 @@ this source…"). Post-merge, all green: `test-uda-auth` 28, `test-source-auth` 
 `test-dms-publish-config` 3 (SQLite + Postgres); `test-upload-pipeline`, `test-sites` 30 (SQLite); `test-source-rules`
 29 (PostGIS: the owner runs `npm run test:pg:source-rules` from `packages/dms-server`, Docker isn't usable from this
 account; it needs the temporary `dama-postgres-test` config and removes the :5499 container when done); `npm run build` ✓.
-Still to do before any push: the **End-to-end test plan** section below (start with its Setup; `test_dama` on :5499 was
+Still to do before any push: the **End-to-end test plan** section below, **stage 1 next** (start with its Setup; `test_dama` on :5499 was
 wiped 2026-10-21 and must be re-seeded).
 
 **Done so far** (all on `master`, **not pushed**; library commits, root bumps in brackets):
@@ -206,20 +206,43 @@ prod is Postgres per-app, so repeat **A, D (Clear data), F, G1, G5, J** with 345
 `dms-postgres-test` (:5499) instead of the sqlite copy. That needs a seeded site there: seed it the way 3457 was,
 or via the CLI against 3458.
 
-### 4. Exit criteria (then the owner pushes)
+### 4. Stages and exit criteria (owner, 2026-10-21: test in layers, not only at the end)
 
+The plan runs three times, at different scopes:
+
+1. **Stage 1, now: tasks 2–5 as built.** Setup, then sections 1–3 for features A–L. Fix what it finds before
+   building task 6. Until this passes, the resolver has only been seen live as the admin.
+2. **Stage 2, per task, as each lands:** 6 (downloads / PM tiles / `/files`), 7 (schedules / task status),
+   8 (pattern ops), 9 (plugins), 10 (client gates: "the UI never shows a control that would 403"), and the auth
+   tasks 13–17. Each task:
+   - adds its rows to section 2 (a new letter per task);
+   - runs them under `enforce` and `log`;
+   - reruns a **regression sample** of earlier rows: A, D (Clear data), F, G1, G5, H, plus any row whose code the
+     task touched.
+
+   Also after **every merge from `origin/master`**, check each new write path in the merge against the permission
+   gates (today's example: `sources.setRule` / `backfillRule`), then rerun the sample.
+3. **Stage 3, final: after the grant migration and level removal.**
+   - The access-diff audit ([1b](./permissions-access-diff-audit.md)) passes on real data: zero unintended losses,
+     and every intended loss signed off.
+   - Then the **full plan** reruns once on the final branch, with the migrated grants instead of the hand-set
+     ones. The users from Setup are re-checked as level-holders migrated to grants.
+   - The auth server / client pages that level removal touches get their own rows.
+
+**Exit criteria for the push** (owner pushes, after stage 3):
 - Every row passes under `enforce` and `log`; the would-deny log is fully explained.
 - Unit suites green (SQLite + Postgres, `test-source-rules` on PostGIS); `npm run build` green.
-- Results recorded below; owner signs off.
-- **Tasks 6–10 aren't built yet.** Each one, as it lands, adds its rows here (6: downloads / PM tiles / `/files`;
-  7: schedules / task status; 8: pattern ops; 9: plugins; 10: client gates, i.e. "the UI never shows a control
-  that would 403"). The full pass reruns once, on the final branch, before the push.
+- Results recorded below with their stage; owner signs off.
+
+Open (owner): whether to push at a milestone instead of only after stage 3. For example, the datasets enforcement in
+`log` mode once stage 1 passes, since `log` was designed to ship without changing anyone's access. Today's rule:
+no push until stage 3.
 
 ### Results
 
-| Row | Mode | Date | Result | Evidence / notes |
-|---|---|---|---|---|
-| — | — | — | not started | — |
+| Stage | Row | Mode | Date | Result | Evidence / notes |
+|---|---|---|---|---|---|
+| 1 | — | — | — | not started | — |
 
 ## Objective
 
