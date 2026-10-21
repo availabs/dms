@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "dev": "nodemon --ignore var/ --ignore '*.sqlite' --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
-    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-schema-drift.js && node tests/test-stream-json.js && node tests/test-falcor-response-limit.js && node tests/test-transaction-guard.js && node tests/test-transactions.js && node tests/test-change-history.js",
+    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-schema-drift.js && node tests/test-stream-json.js && node tests/test-falcor-response-limit.js && node tests/test-transaction-guard.js && node tests/test-transactions.js && node tests/test-change-history.js && node tests/test-sites.js",
     "test:delete-cascade": "node tests/test-delete-cascade.js",
     "test:transactions": "node tests/test-transactions.js",
     "test:change-history": "node tests/test-change-history.js",
@@ -38,6 +38,7 @@
     "test:ch-tiles": "node tests/test-tile-join-ch.js",
     "test:migrate-dama-symbologies": "node tests/test-migrate-dama-symbologies.js",
     "test:storage": "node tests/test-storage.js",
+    "test:sites": "node tests/test-sites.js",
     "test:datatypes": "node tests/test-datatypes.js",
     "test:migrate-dama": "node tests/test-migrate-dama.js",
     "db:migrate-dama": "node src/scripts/migrate-dama-tasks.js",
