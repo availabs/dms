@@ -133,6 +133,7 @@
 
 ## dms-server
 
+- [ ] [Serve each site's built files by request host](./tasks/current/serve-sites-by-host.md) — started 2026-10-21. One dms-server serves several sites' client builds from the `<checkout>-sites` folder next to the checkout, chosen by `Host`, which replaces Netlify for static SPA hosting (files, `index.html` fallback, `_redirects`, security headers). First step of dms-template's `serve-sites-from-mercury.md`.
 - [ ] [Change history: keep the history tables from growing without bound](./tasks/current/change-history-growth.md) — logged 2026-10-09, not started. One row per changed field per save (plus creates once "Filed" lands); any internal dataset can opt in with `'*'`. History split tables have no JSON indexes, so the Ticket page's `row_id` lookup seq-scans. First step: measure + expression indexes; then a per-dataset retention setting.
 - [ ] [Auth: login tokens carry the user's bcrypt hash; `JWT_SECRET` has a hard-coded fallback](./tasks/current/auth-login-token-carries-password-hash.md): filed 2026-10-06. `createUserToken` signs `{ email, password: <bcrypt hash>, project }`, which anyone holding a token can read and attack offline. The hash is also how a password change revokes old tokens, so the fix replaces it with an HMAC of the hash (`pwv`), accepts both claims for one 6h `JWT_EXPIRY` window, and then removes the legacy claim. It also stops the server running in production on the public default secret. Open: whether dms-server and avail-falcor share tokens anywhere, since avail-falcor uses the same scheme.
 
