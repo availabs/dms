@@ -438,7 +438,7 @@ function createPublishHandler(controller) {
             );
             if (newAttrs.length) {
               const config = JSON.stringify({ attributes: [...existingAttrs, ...newAttrs] });
-              await controller.setDataById(resolvedSourceId, { config }, { id: user_id });
+              await controller.setDataById(resolvedSourceId, { config }, { id: user_id }, app);
               await dispatch(
                 'publish:config-saved',
                 `Added ${newAttrs.length} new attribute(s) to source ${resolvedSourceId}.config (existing: ${existingAttrs.length})`,

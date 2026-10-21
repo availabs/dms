@@ -794,6 +794,7 @@
 
 ### patterns/datasets
 
+- [ ] [Internal publish: new columns never reach the source; upload page makes stray source rows](./tasks/current/fix-internal-publish-source-config-writes.md) — server config write missed `app` (since 2026-02-24, per-app DBs incl. prod); client `parent.source_id` undefined for internal sources (since 2026-06-17).
 - [ ] [Datasets catalog — authority on the sources list; archived out of search and pickers](./tasks/current/datasets-catalog-authority-and-archive-visibility.md) — filed 2026-10-14 from the MNY close-out (`hazmit-dama-closeout.md`). (A) Show each source's authoritative view (★ label, keyed count, undecided, superseded-by) on the catalog cards/table, mockup first in `datasets-catalog.html`. (B) Search and "Show all" currently return every source (`isListAll || isSearching` bypasses the lifecycle hidden set), and the dataWrapper source picker lists hidden-lifecycle sources. Make both respect the hidden set, with an explicit toggle; bound sections keep working.
 
 - [ ] **Deferred — JS bundle split follow-ups** (task CLOSED 2026-09-24, see [bundle-split-initial-graph.md](./tasks/completed/bundle-split-initial-graph.md) → *Remaining*).

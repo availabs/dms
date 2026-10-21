@@ -153,11 +153,14 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // pivot columns convert column headers into their values if source column has any data in them.
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
+    // An internal source arrives as its DMS row (`id`); one loaded through getSourceData carries `source_id`.
+    // Without an id, apiUpdate creates a new row instead of updating the source.
+    const parentId = parent?.source_id ?? parent?.id;
     const updateMetaData = (data, attrKey) => {
       if (!updateMeta) return;
         const editFormat = parentFormat || format;
-        console.log('updateMetadata', {data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
-        apiUpdate({data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
+        console.log('updateMetadata', {data: {id: parentId, [attrKey]: data}, config: {format: editFormat}})
+        apiUpdate({data: {id: parentId, [attrKey]: data}, config: {format: editFormat}})
     }
     // ================================================= get layers begin ==============================================
 
@@ -329,7 +332,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                             setPublishing,
                                             existingAttributes,
                                             updateMetaData,
-                                            sourceId: parent?.source_id
+                                            sourceId: parentId
                                         })}>
                                     {publishing ? 'publishing...' : 'publish'}
                                 </Button>
