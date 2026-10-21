@@ -29,8 +29,31 @@ const {
   updateExternalRow,
   deleteExternalRow
 } = require("./uda.controller");
-const { getEssentials } = require("./utils");
-const { isUserAuthedForSource } = require("./sourceAuth");
+const { assertSourcePermission, sourceIdForView, parsePatternRef } = require("./sourceAuth");
+
+// A source write needs `update-source`, plus `edit-source-permissions` when it carries
+// auth_permissions (decided per key; DMS keys are trimmed before they're written, so compare trimmed).
+async function assertSourceWrite(router, env, sourceId, updates, patternRef) {
+  const keys = Object.keys(updates || {}).map(k => k.trim());
+  if (keys.some(k => k !== 'auth_permissions')) {
+    await assertSourcePermission(router, env, sourceId, 'update-source', { patternRef });
+  }
+  if (keys.includes('auth_permissions')) {
+    await assertSourcePermission(router, env, sourceId, 'edit-source-permissions', { patternRef });
+  }
+}
+
+// A view write needs `update-source` on the view's source. Nothing checked it before (`wasOpen`).
+async function assertViewWrite(router, env, viewId, patternRef) {
+  const sourceId = await sourceIdForView(env, viewId);
+  await assertSourcePermission(router, env, sourceId ?? 0, 'update-source', { patternRef, wasOpen: true });
+}
+
+// Echo every column of a written row at `basePath`.
+const rowPathValues = (basePath, row) => Object.keys(row).map(key => ({
+  path: [...basePath, key],
+  value: row[key] !== null && typeof row[key] === "object" ? $atom(row[key]) : row[key],
+}));
 
 // ================================================= UDA Source Routes =================================================
 
@@ -183,19 +206,11 @@ module.exports = [
         for (const pgEnv of pgEnvs) {
           const sourcesById = jsonGraph.uda[pgEnv].sources.byId;
           const ids = Object.keys(sourcesById);
-          const { db } = await getEssentials({ env: pgEnv });
 
           for (const sourceId of ids) {
-            // Per-source enforcement (pattern ⊕ source). Editing authPermissions itself needs
-            // `edit-source-permissions`; other writes need `update-source`. Un-migrated envs (no
-            // authPermissions column) are allowed (no prior enforcement to regress).
-            const requiresPermEdit = JSON.stringify(sourcesById[sourceId] || {}).includes('auth_permissions');
-            const reqPermissions = requiresPermEdit ? ['edit-source-permissions'] : ['update-source'];
-            const authed = await isUserAuthedForSource({ db, env: pgEnv, sourceId: +sourceId, reqPermissions, user: this.user });
-            if (!authed) {
-              console.log("uda: UNAUTHORIZED source modify", sourceId, this.user && this.user.email);
-              throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
-            }
+            // A set can't name a datasets pattern, so an external source's pattern grants don't
+            // count here; the client writes through the sources.update call, which can.
+            await assertSourceWrite(this, pgEnv, sourceId, sourcesById[sourceId], null);
 
             const rows = await updateSource(pgEnv, sourceId, sourcesById[sourceId]);
             const row = rows.find(r => +r.source_id === +sourceId || +r.id === +sourceId);
@@ -370,6 +385,7 @@ module.exports = [
           const ids = Object.keys(viewsById);
 
           for (const viewId of ids) {
+            await assertViewWrite(this, pgEnv, viewId, null); // no pattern on a set: see sources.byId
             const rows = await updateView(pgEnv, viewId, viewsById[viewId]);
             const row = rows.find(r => +r.view_id === +viewId || +r.id === +viewId);
 
@@ -542,14 +558,56 @@ module.exports = [
     },
   },
 
+  // --------------------------------- sources.update (call) ---------------------------------
+  // Args: [env, sourceId, updates, pattern?]
+  // The sources.byId set as a call, so it can name the datasets pattern (`pattern`, { app, id }) whose
+  // grants an external source inherits. Same write (updateSource: column whitelist, authority kept)
+  // and same gate. Echoes the row's columns at sources.byId, like the set.
+  {
+    route: `uda.sources.update`,
+    call: async function(callPath, args) {
+      try {
+        const [env, sourceId, updates = {}, pattern] = args;
+        await assertSourceWrite(this, env, sourceId, updates, parsePatternRef(pattern));
+        const rows = await updateSource(env, sourceId, updates);
+        const row = rows.find(r => +r.source_id === +sourceId || +r.id === +sourceId);
+        return row ? rowPathValues(["uda", env, "sources", "byId", sourceId], row) : [];
+      } catch (err) {
+        console.error('[uda] sources.update error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- views.update (call) ---------------------------------
+  // Args: [env, viewId, updates, pattern?]. The views.byId set as a call; see sources.update.
+  {
+    route: `uda.views.update`,
+    call: async function(callPath, args) {
+      try {
+        const [env, viewId, updates = {}, pattern] = args;
+        await assertViewWrite(this, env, viewId, parsePatternRef(pattern));
+        const rows = await updateView(env, viewId, updates);
+        const row = rows.find(r => +r.view_id === +viewId || +r.id === +viewId);
+        return row ? rowPathValues(["uda", env, "views", "byId", viewId], row) : [];
+      } catch (err) {
+        console.error('[uda] views.update error:', err.message);
+        throw err;
+      }
+    },
+  },
+
   // --------------------------------- sources.setIndex (call) ---------------------------------
-  // Args: [env, sourceId, columnName, enable]
+  // Args: [env, sourceId, columnName, enable, pattern?]
   // Toggles isIndex on the named column. enable=true creates the DB index, enable=false drops it.
+  // Needs `update-source`. `pattern` ({ app, id } of the datasets pattern) brings its grants to an
+  // external source, as `?dms_pattern=` does on the REST routes.
   {
     route: `uda.sources.setIndex`,
     call: async function(callPath, args) {
       try {
-        const [env, sourceId, columnName, enable = true] = args;
+        const [env, sourceId, columnName, enable = true, pattern] = args;
+        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern), wasOpen: true });
         await setIndexColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
@@ -562,7 +620,7 @@ module.exports = [
   },
 
   // --------------------------------- sources.setPrimaryKey (call) ---------------------------------
-  // Args: [env, sourceId, columnName, enable]
+  // Args: [env, sourceId, columnName, enable, pattern?]  (gate as setIndex)
   // External (DAMA) sources only. enable=true (default) validates the column (no NULLs, no
   // duplicates) across every physical table backing the source, then runs
   // ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY. Throws (no partial DDL) if any table fails
@@ -572,7 +630,8 @@ module.exports = [
     route: `uda.sources.setPrimaryKey`,
     call: async function(callPath, args) {
       try {
-        const [env, sourceId, columnName, enable = true] = args;
+        const [env, sourceId, columnName, enable = true, pattern] = args;
+        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern), wasOpen: true });
         await setPrimaryKeyColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
@@ -586,7 +645,7 @@ module.exports = [
   },
 
   // --------------------------------- sources.setAuthoritativeView (call) ---------------------------------
-  // Args: [env, sourceId, { view_id, key?, note }]
+  // Args: [env, sourceId, { view_id, key?, note }, pattern?]
   // Marks the view pages should bind (see ./authority.js). Without `key` it is the source's single
   // authoritative view; with `key` (e.g. { year: '2024' }) it is the authoritative view for that
   // key value. Replaces the entry with the same key; `note` (why this view) is required.
@@ -596,16 +655,8 @@ module.exports = [
     route: `uda.sources.setAuthoritativeView`,
     call: async function(callPath, args) {
       try {
-        if (!this.user) throw new Error('Authentication required to mark an authoritative view');
-        const [env, sourceId, entry = {}] = args;
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, env, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED authoritative view set', sourceId, this.user && this.user.email);
-          throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
-        }
+        const [env, sourceId, entry = {}, pattern] = args;
+        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
         const authority = await setAuthoritativeView(env, +sourceId, entry, this.user);
         return [
           { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
@@ -619,22 +670,14 @@ module.exports = [
   },
 
   // --------------------------------- sources.clearAuthoritativeView (call) ---------------------------------
-  // Args: [env, sourceId, { key? }]
+  // Args: [env, sourceId, { key? }, pattern?]
   // Removes the authoritative view for `key` (no key = the single entry). Same gate as set.
   {
     route: `uda.sources.clearAuthoritativeView`,
     call: async function(callPath, args) {
       try {
-        if (!this.user) throw new Error('Authentication required to clear an authoritative view');
-        const [env, sourceId, opts = {}] = args;
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, env, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED authoritative view clear', sourceId, this.user && this.user.email);
-          throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
-        }
+        const [env, sourceId, opts = {}, pattern] = args;
+        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
         const authority = await clearAuthoritativeView(env, +sourceId, opts);
         return [
           { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
@@ -648,29 +691,21 @@ module.exports = [
   },
 
   // --------------------------------- views.create (call) ---------------------------------
-  // Args: [env, source_id, version, copy_from_view_id]
+  // Args: [env, source_id, version, copy_from_view_id, pattern?]
   //
   // Creates a new VERSION of an external source: a data_manager.views row plus its own
   // physical table, cloned (structure only, or structure + rows) from an existing version.
   // `copy_from_view_id` null/absent → a blank version whose schema comes from the source's
   // newest view; set → a duplicate of that view, rows included.
   //
-  // Gated on `update-source` for the source, the same permission an attribute write needs:
-  // adding a version is a modification of the dataset, not a read of it.
+  // Gated on `create-view` (the grant named for this) or `update-source` (the gate it had before
+  // create-view existed, kept so no grantee loses it).
   {
     route: `uda.views.create`,
     call: async function(callPath, args) {
       try {
-        if (!this.user) throw new Error('Authentication required to create a version');
-        const [env, source_id, version, copy_from_view_id] = args;
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, env, sourceId: +source_id, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED version create', source_id, this.user && this.user.email);
-          throw new Error(`User not authorized to modify source id(s): ${source_id}`);
-        }
+        const [env, source_id, version, copy_from_view_id, pattern] = args;
+        await assertSourcePermission(this, env, source_id, ['create-view', 'update-source'], { patternRef: parsePatternRef(pattern) });
 
         const view = await createSourceView(env, {
           source_id: +source_id,
@@ -696,13 +731,17 @@ module.exports = [
   },
 
   // --------------------------------- viewsById.clearData (call) ---------------------------------
-  // Args: [env, view_id]
-  // Truncates / deletes all rows in the split table for the given view.
+  // Args: [env, view_id, pattern?]
+  // Truncates / deletes all rows in the split table for the given view. Needs `edit-source-data` or
+  // `delete-source` on the view's source; nothing checked it before (`wasOpen`).
   {
     route: 'uda.viewsById.clearData',
     call: async function(callPath, args) {
       try {
-        const [env, view_id] = args;
+        const [env, view_id, pattern] = args;
+        const sourceId = await sourceIdForView(env, view_id);
+        await assertSourcePermission(this, env, sourceId ?? 0, ['edit-source-data', 'delete-source'],
+          { patternRef: parsePatternRef(pattern), wasOpen: true });
         await clearViewData(env, +view_id);
         return [
           { path: ['uda', env, 'viewsById', +view_id], invalidated: true },

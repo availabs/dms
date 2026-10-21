@@ -407,9 +407,29 @@ async function clearAuthoritativeView(env, sourceId, { key } = {}) {
 
 
 
+// The DaMa columns a client may write (sources.byId / views.byId sets, sources.update / views.update
+// calls). Ids, owners and timestamps are the server's, and so is a view's table: a writable
+// table_name would point the view at any table in the pgEnv. Anything else is refused before it
+// reaches the SET clause, which is built from these names.
+const WRITABLE_SOURCE_COLUMNS = [
+  'name', 'display_name', 'type', 'update_interval', 'category', 'description', 'statistics',
+  'metadata', 'categories', 'auth_permissions', 'source_dependencies',
+];
+const WRITABLE_VIEW_COLUMNS = [
+  'data_type', 'interval_version', 'geography_version', 'version', 'source_url', 'publisher',
+  'download_url', 'tiles_url', 'start_date', 'end_date', 'last_updated', 'statistics', 'metadata',
+  'view_dependencies',
+];
+
+function assertWritableColumns(kind, updates, allowed) {
+  const bad = Object.keys(updates || {}).filter(k => !allowed.includes(k));
+  if (bad.length) throw new Error(`Not writable on a ${kind}: ${bad.join(', ')}`);
+}
+
 async function updateSource(env, sourceId, updates) {
   const ess = await getEssentials({ env });
   const { isDms, db, app, splitMode } = ess;
+  if (!isDms) assertWritableColumns('source', updates, WRITABLE_SOURCE_COLUMNS);
 
   // A generic write that carries `metadata` replaces the whole blob. It must never change or drop
   // `metadata.authority`: only setAuthoritativeView / clearAuthoritativeView write that. Keep the
@@ -603,6 +623,7 @@ async function getViewBySrcCategories (env, category){
 }
 async function updateView(env, viewId, updates) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
+  if (!isDms) assertWritableColumns('view', updates, WRITABLE_VIEW_COLUMNS);
 
   if (isDms) {
     const patch = {};
@@ -1251,9 +1272,15 @@ async function deleteExternalRow(env, view_id, id) {
 }
 
 async function clearViewData(env, view_id) {
-  const { isDms, db, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
+  const { isDms, db, app, splitMode, table_schema, table_name } = await getEssentials({ env, view_id: +view_id });
   if (!isDms) throw new Error('clearViewData only supported for DMS internal_table sources');
-  if (table_name === 'data_items') throw new Error('Cannot clear main data_items table — split table not found for this view');
+
+  // Only ever a split table. A type that doesn't resolve to one falls back to the main table, which
+  // is `data_items` in legacy mode and on per-app Postgres, but `data_items__<app>` on per-app
+  // SQLite: comparing with 'data_items' alone let a clear empty a whole app there.
+  const mainTbl = await dmsMainTable(db, app, splitMode);
+  const isMain = (ts, tn) => tn === 'data_items' || tn === mainTbl || `${ts}.${tn}` === mainTbl;
+  if (isMain(table_schema, table_name)) throw new Error('Cannot clear the main data_items table — split table not found for this view');
 
   const execClear = async (ts, tn) => {
     const fqt = db.type === 'postgres' ? `"${ts}"."${tn}"` : `"${tn}"`;
@@ -1262,11 +1289,12 @@ async function clearViewData(env, view_id) {
 
   await execClear(table_schema, table_name);
 
-  // Clear the invalid-entry split table too (may not exist yet — safe to skip)
+  // Old data kept invalid rows in their own split table; clear it too when there is one. Today
+  // invalid rows share the view's split table, and this type resolves to the main table: skipped.
   const [appPart, sourceSlug] = env.split('+');
   try {
     const inv = await getEssentials({ env: `${appPart}+${sourceSlug}-invalid-entry`, view_id: +view_id });
-    if (inv.table_name !== 'data_items') await execClear(inv.table_schema, inv.table_name);
+    if (!isMain(inv.table_schema, inv.table_name)) await execClear(inv.table_schema, inv.table_name);
   } catch (e) {
     // invalid-entry table not yet created — nothing to clear
   }

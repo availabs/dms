@@ -11,8 +11,8 @@
  *   - Internal source (env = `app+instance`): `data->'auth_permissions'` on the source row in the
  *     DMS db.
  *   - Pattern: `data->'authPermissions'` on the pattern row in the DMS db (never the pgEnv db).
- *     Internal sources: the env's own pattern(s), found the way the sources list finds them
- *     (getSitePatterns), and only when the source is one of theirs. External sources: nothing in
+ *     Internal sources: the datasets pattern(s) of the env's app whose source list (own `sources`
+ *     or linked dmsEnv) holds the source; none ⇒ deny. External sources: nothing in
  *     the db links a pgEnv to a pattern (pgEnvs are a client build setting), so the CLIENT names
  *     the pattern (`patternRef = { app, patternId }`). The server checks it is an existing datasets
  *     pattern and otherwise trusts it (owner decision 2026-10-20) — whoever holds a grant on a
@@ -23,10 +23,11 @@
  * CLOSED: a missing row, a missing column or any query error denies.
  *
  * Rollout (`DMS_SOURCE_AUTH_MODE`):
- *   - `legacy`  — today's rule only (`legacyAllows`): missing row / query error / DMS env ⇒ allow.
- *   - `log`     — (default) today's rule decides; every request the strict rule would deny is
- *                 logged (`[source-auth] would-deny …`), to feed the access-diff audit and the
- *                 grant migration before anything flips.
+ *   - `legacy`  — today's rule (`legacyAllows`: missing row / query error / DMS env ⇒ allow) OR the
+ *                 strict rule: whatever `enforce` would allow is never refused.
+ *   - `log`     — (default) as `legacy`; every request the strict rule would deny is logged
+ *                 (`[source-auth] would-deny …`), to feed the access-diff audit and the grant
+ *                 migration before anything flips.
  *   - `enforce` — the strict rule decides.
  *
  * Mirrors the merge + check of the client `utils/auth.js` (mirror, don't import); the client keeps
@@ -34,7 +35,7 @@
  */
 const { resolveAuthPermissions } = require('../dms/auth');
 const { getDb, loadConfig } = require('../../db');
-const { dmsMainTable, getSitePatterns, getSiteSources } = require('./utils');
+const { dmsMainTable, getSiteSources } = require('./utils');
 
 // merge source override onto pattern base: [] disables an inherited grant, non-empty replaces
 function mergeAuthPermissions(base = {}, override) {
@@ -151,7 +152,9 @@ async function readNamedPattern({ app, patternId }, subdomain) {
     }
 }
 
-// Internal source's own grants + the grants of the env's pattern(s), if the source is theirs.
+// Internal source's own grants + the grants of the datasets pattern(s) that list it. Only the env's
+// app is used: clients name an internal source's env by its data type (`app+internal_table`) or its
+// slug (`app+roads`, clearData), not by its pattern, so the owners are found from the source itself.
 async function readInternalSource(env, sourceId, subdomain) {
     const [app] = env.split('+');
     try {
@@ -163,22 +166,49 @@ async function readInternalSource(env, sourceId, subdomain) {
         );
         if (!rows.length) return { ok: false, reason: 'source not found' };
 
-        const patternIds = await getSitePatterns({ db, app, env, splitMode });
-        const owning = [];
-        for (const id of patternIds) {
-            const refs = await getSiteSources({ db, app, pattern_ids: [id], splitMode });
-            if (refs.some(r => +(r && r.id) === +sourceId)) owning.push(id);
-        }
-        if (!owning.length) return { ok: false, reason: `source ${sourceId} is not in env ${env}` };
-
         const { rows: patterns } = await db.query(
-            `SELECT data->>'authPermissions' AS ap FROM ${tbl} WHERE id = ANY($1)`,
-            [owning.map(Number)]
+            `SELECT id, data->>'authPermissions' AS ap FROM ${tbl}
+             WHERE app = $1 AND type LIKE '%:pattern' AND data->>'pattern_type' = 'datasets'`,
+            [app]
         );
-        const patternAP = unionAuthPermissions(patterns.map(p => resolveAuthPermissions(p.ap, subdomain)));
+        const owning = [];
+        for (const p of patterns) {
+            const refs = await getSiteSources({ db, app, pattern_ids: [p.id], splitMode });
+            if (refs.some(r => +(r && r.id) === +sourceId)) owning.push(p);
+        }
+        if (!owning.length) return { ok: false, reason: `source ${sourceId} is in no datasets pattern of ${app}` };
+
+        const patternAP = unionAuthPermissions(owning.map(p => resolveAuthPermissions(p.ap, subdomain)));
         return { ok: true, app, ap: parseJson(rows[0].ap) || {}, patternAP };
     } catch (e) {
         return { ok: false, reason: `internal source query failed: ${e.message}` };
+    }
+}
+
+// The source a view belongs to: `views.source_id` on a pgEnv; on a DMS env, the source row whose
+// `data.views` refs list the view. Null when nothing is found (the decision then denies).
+async function sourceIdForView(env, viewId) {
+    try {
+        if (!isDmsEnv(env)) {
+            const db = getDb(env);
+            const { rows } = await db.query(
+                `SELECT source_id FROM ${db.type === 'postgres' ? 'data_manager.views' : 'views'} WHERE view_id = $1`,
+                [+viewId]
+            );
+            return rows.length ? +rows[0].source_id : null;
+        }
+        const [app] = env.split('+');
+        const { db, splitMode } = getDmsDb();
+        const tbl = await dmsMainTable(db, app, splitMode);
+        const { rows } = await db.query(
+            `SELECT id, data->'views' AS views FROM ${tbl} WHERE app = $1 AND type LIKE '%:source'`,
+            [app]
+        );
+        const row = rows.find(r => (parseJson(r.views) || []).some(v => +(v && v.id) === +viewId));
+        return row ? +row.id : null;
+    } catch (e) {
+        console.warn(`[source-auth] view ${env}/${viewId} lookup failed: ${e.message}`);
+        return null;
     }
 }
 
@@ -241,15 +271,16 @@ function logWouldDeny(kind, target, reqPermissions, user, reason) {
 /**
  * Authorize `user` for `reqPermissions` on a source, under DMS_SOURCE_AUTH_MODE.
  * `env` (pgEnv or `app+instance`) is preferred; `db` alone means an external source on that db.
+ * `wasOpen`: the route checked nothing before, so today's rule is "allow" (as for patterns).
  */
 async function isUserAuthedForSource(opts) {
     const mode = authMode();
-    if (mode === 'enforce') return (await decideSource(opts)).allow;
-    const legacy = await legacyAllows(opts);
-    if (mode === 'log' && legacy) {
-        const d = await decideSource(opts);
-        if (!d.allow) logWouldDeny('source', `${opts.env || 'db'}/${opts.sourceId}`, opts.reqPermissions, opts.user, d.reason);
-    }
+    const d = await decideSource(opts);
+    if (mode === 'enforce' || d.allow) return d.allow;
+    // legacy / log: today's rule may allow what the strict rule denies, never the reverse. (Today's rule
+    // reads only the source's own grants, so it refused `${app} Admin` and pattern grantees.)
+    const legacy = opts.wasOpen || await legacyAllows(opts);
+    if (mode === 'log' && legacy) logWouldDeny('source', `${opts.env || 'db'}/${opts.sourceId}`, opts.reqPermissions, opts.user, d.reason);
     return legacy;
 }
 
@@ -335,6 +366,52 @@ async function requirePatternPermission(req, res, perms, { patternRef } = {}) {
     return user;
 }
 
+// ------------------------------------------------------------------------------------------------
+// Falcor helpers. A Falcor route has no response to answer, so these THROW (the client's call / set
+// rejects) and return the user otherwise. `router` is the route's `this` (user, subdomain).
+// ------------------------------------------------------------------------------------------------
+
+// The datasets pattern a Falcor call names in its last argument: `{ app, patternId }`, `{ app, id }`
+// (the client's `{ app, id: parent.id }`) or `'app/id'`. Calls can't carry `?dms_pattern=`: the
+// falcor client is shared by every pattern and batches requests.
+function parsePatternRef(v) {
+    if (!v) return null;
+    if (typeof v === 'string') return requestPatternRef({ query: { dms_pattern: v } });
+    const patternId = +(v.patternId ?? v.id);
+    return v.app && Number.isFinite(patternId) && patternId > 0 ? { app: String(v.app), patternId } : null;
+}
+
+function requireFalcorUser(router) {
+    const user = router && router.user;
+    if (!user) throw new Error('Sign in to do this');
+    return user;
+}
+
+/** Throw unless the router's user holds one of `perms` on the source. Options as isUserAuthedForSource. */
+async function assertSourcePermission(router, env, sourceId, perms, { patternRef = null, wasOpen = false } = {}) {
+    const user = requireFalcorUser(router);
+    const reqPermissions = [].concat(perms);
+    const ok = await isUserAuthedForSource({
+        env, db: isDmsEnv(env) ? undefined : getDb(env), sourceId: +sourceId, reqPermissions, user,
+        patternRef, wasOpen, subdomain: (router && router.subdomain) || '',
+    });
+    if (!ok) throw new Error(`Not authorized: needs ${reqPermissions.join(' or ')} on source ${sourceId}`);
+    return user;
+}
+
+/**
+ * Throw unless the router's user holds one of `perms` on the named datasets pattern. On a DMS env the
+ * pattern must belong to the env's app (a ref to another app's pattern is dropped, and so denies).
+ */
+async function assertPatternPermission(router, env, perms, patternRef) {
+    const user = requireFalcorUser(router);
+    const reqPermissions = [].concat(perms);
+    const ref = patternRef && (!isDmsEnv(env) || patternRef.app === env.split('+')[0]) ? patternRef : null;
+    const ok = await isUserAuthedForPattern({ patternRef: ref, reqPermissions, user, subdomain: (router && router.subdomain) || '' });
+    if (!ok) throw new Error(`Not authorized: needs ${reqPermissions.join(' or ')} on pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'}`);
+    return user;
+}
+
 module.exports = {
     mergeAuthPermissions,
     unionAuthPermissions,
@@ -352,4 +429,8 @@ module.exports = {
     requireUser,
     requireSourcePermission,
     requirePatternPermission,
+    sourceIdForView,
+    parsePatternRef,
+    assertSourcePermission,
+    assertPatternPermission,
 };

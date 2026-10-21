@@ -2152,13 +2152,13 @@ async function testDamaModeAuthoritativeViews() {
   pass('keyed authority over one key name; refuses an unkeyed mark on a keyed source');
 
   await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
-    [DAMA_DB, other.id, { view_id: vOther, note: 'x' }]), /not authorized/, 'source without an update-source grant');
+    [DAMA_DB, other.id, { view_id: vOther, note: 'x' }]), /not authorized/i, 'source without an update-source grant');
   pass('a source that does not grant update-source refuses the mark');
 
   const anon = createTestGraph(DMS_DB, { user: null });
   await anon.ready;
   await expectRefused(anon.callAsync(['uda', 'sources', 'setAuthoritativeView'],
-    [DAMA_DB, src.id, { view_id: v1, note: 'x' }]), /Authentication required/, 'unauthenticated');
+    [DAMA_DB, src.id, { view_id: v1, note: 'x' }]), /Sign in/, 'unauthenticated');
   pass('unauthenticated set is refused');
 
   await db.query(`DELETE FROM ${srcTbl} WHERE source_id = ANY($1)`, [[src.id, other.id]]);

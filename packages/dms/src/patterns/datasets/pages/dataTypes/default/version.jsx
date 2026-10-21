@@ -53,13 +53,13 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
     )
 }
 
-const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
+const ClearDataBtn = ({app, sourceSlug, view_id, falcor, pattern}) => {
     const {UI, theme} = useContext(ThemeContext);
     const {DeleteModal, Button} = UI;
     const t = { ...versionTheme, ...(theme?.datasets?.version || {}) };
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const clearData = async () => {
-        await falcor.call(['uda', 'viewsById', 'clearData'], [`${app}+${sourceSlug}`, +view_id]);
+        await falcor.call(['uda', 'viewsById', 'clearData'], [`${app}+${sourceSlug}`, +view_id, pattern]);
     }
     return (
         <div className={t.btnWrap}>
@@ -85,7 +85,7 @@ const ClearDataBtn = ({app, sourceSlug, view_id, falcor}) => {
 export default function ManageForm ({ status, apiLoad, apiUpdate, format, source, setSource, params, isDms }) {
     const {id} = params;
     const navigate = useNavigate();
-    const { app, baseUrl, pageBaseUrl, theme, falcor, datasources, isUserAuthed } = React.useContext(DatasetsContext) || {}
+    const { app, baseUrl, pageBaseUrl, theme, falcor, datasources, isUserAuthed, datasetsPattern } = React.useContext(DatasetsContext) || {}
     const { theme: fullTheme } = React.useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const tv = { ...versionTheme, ...(fullTheme?.datasets?.version || {}) };
@@ -160,7 +160,8 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                         data: e.target.value,
                                         attrKey: isDms ? 'name' : 'version',
                                         isDms, apiUpdate,
-                                        view: currentView, setView: setCurrentView, format, source, pgEnv, falcor, id: currentView.view_id || currentView.id
+                                        view: currentView, setView: setCurrentView, format, source, pgEnv, falcor, id: currentView.view_id || currentView.id,
+                                        pattern: datasetsPattern
                                     })
                                 }}/>
                                 {tv.versionHint ? <p className={tv.versionHint}>Saved as you type.</p> : null}
@@ -171,7 +172,7 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                 {
                                     isDms ? (
                                             <>
-                                                <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor}/>
+                                                <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor} pattern={datasetsPattern}/>
                                                 <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
                                     ) : (

@@ -79,7 +79,7 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, falcor, pageBaseUrl} = useContext(DatasetsContext);
+    const {UI, falcor, pageBaseUrl, datasetsPattern} = useContext(DatasetsContext);
     const {Icon, Button} = UI;
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -92,7 +92,7 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
         if (!sourceId) { setRefusal({error: 'No source_id on this source'}); return; }
         setBusy(true); setRefusal(null);
         try {
-            const result = await udaDeleteSource(falcor, {env: pgEnv, source_id: sourceId, cascade});
+            const result = await udaDeleteSource(falcor, {env: pgEnv, source_id: sourceId, cascade, pattern: datasetsPattern});
             if (!result || result.error) {
                 setRefusal(result || {error: 'The server did not answer the delete.'});
                 setBusy(false);
@@ -159,7 +159,7 @@ const AddExternalVersionBtn = ({source}) => {
 const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, falcor} = useContext(DatasetsContext);
+    const {UI, falcor, datasetsPattern} = useContext(DatasetsContext);
     const {Switch, Icon, FieldLabel} = UI;
     const [pkeyInfo, setPkeyInfo] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -186,7 +186,7 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
         setSaving(true);
         try {
             const data = {...(source?.metadata || {}), isEditable: e};
-            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id});
+            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
             if (!!confirmed?.isEditable !== e) {
                 setError('The change did not save — please try again.');
             }

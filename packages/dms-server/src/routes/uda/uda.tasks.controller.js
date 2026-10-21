@@ -228,36 +228,6 @@ async function setSettings(env, value) {
   }
 }
 
-// --- Source update (call route) ---
-
-async function updateSourceMetadata(env, sourceId, updates) {
-  const db = resolveDb(env);
-  const dbType = db.type;
-  const table = dbType === 'postgres' ? 'data_manager.sources' : 'sources';
-
-  const setClauses = [];
-  const values = [];
-  let paramIdx = 1;
-
-  for (const [key, val] of Object.entries(updates)) {
-    if (['source_id', '_created_timestamp'].includes(key)) continue;
-    setClauses.push(`${key} = $${paramIdx}`);
-    values.push(val);
-    paramIdx++;
-  }
-
-  if (setClauses.length === 0) return null;
-
-  values.push(sourceId);
-  const { rows } = await db.query(`
-    UPDATE ${table} SET ${setClauses.join(', ')}
-    WHERE source_id = $${paramIdx}
-    RETURNING *
-  `, values);
-
-  return rows[0] || null;
-}
-
 // --- Source delete (call routes) ---
 
 /**
@@ -476,6 +446,7 @@ async function deleteInternalSource(env, sourceId) {
  */
 async function softDeleteSource(env, sourceId, opts = {}) {
   if (isDmsEnv(env)) {
+    if (opts.authorize) await opts.authorize([+sourceId]);
     return deleteInternalSource(env, sourceId);
   }
   const { deleteDamaSource } = require('../../dama/delete');
@@ -494,7 +465,6 @@ module.exports = {
   getTaskEventsByIndex,
   getSettings,
   setSettings,
-  updateSourceMetadata,
   softDeleteSource,
   hardDeleteSource,
   deleteInternalSource,

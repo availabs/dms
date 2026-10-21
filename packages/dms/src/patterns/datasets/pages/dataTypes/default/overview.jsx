@@ -66,7 +66,7 @@ export default function Overview ({
   isDms,
   dataType
 }) {
-    const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST, parent} = useContext(DatasetsContext);
+    const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST, parent, datasetsPattern} = useContext(DatasetsContext);
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const pgEnv = getExternalEnv(datasources);
@@ -168,11 +168,11 @@ export default function Overview ({
         // (not yet reviewed) and `Data Processing` (an ETL intermediate), and
         // promoting it out of the sandbox must not un-mark it as pipeline.
         const next = categoriesValue.filter(c => (Array.isArray(c) ? c[0] : c) !== SANDBOX_CATEGORY);
-        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id});
+        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
     };
     const returnToSandbox = () => {
         const next = [...categoriesValue.filter(c => (Array.isArray(c) ? c[0] : c) !== SANDBOX_CATEGORY), [SANDBOX_CATEGORY]];
-        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id});
+        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
     };
 
     return (
@@ -190,7 +190,7 @@ export default function Overview ({
                                 hideControls={true}
                                 value={source?.description || 'No description'}
                                 onChange={(data) => {
-                                    updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                    updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})
                                 }}
                             />
                         </div>
@@ -261,7 +261,7 @@ export default function Overview ({
                                     {editing === 'update_interval'
                                         ? <span className={t.glanceInputWrap}>
                                             <Input activeStyle='compact' autoFocus value={source?.update_interval || ''}
-                                                   onChange={e => updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})}/>
+                                                   onChange={e => updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})}/>
                                           </span>
                                         : <span className={t.glanceValue}>{source?.update_interval || '—'}</span>}
                                     {isAdmin && (
@@ -287,7 +287,7 @@ export default function Overview ({
                             <SourceCategories
                                 value={categoriesValue}
                                 onChange={(data) => {
-                                    updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                    updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})
                                 }}
                                 editingCategories={true}
                                 stopEditingCategories={() => setEditing(null)}

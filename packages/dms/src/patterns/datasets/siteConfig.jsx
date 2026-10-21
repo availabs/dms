@@ -84,6 +84,9 @@ const datasetsConfig = ({
                           theme, app, type, siteType,
                           parent: pattern, API_HOST, DAMA_HOST,
                           authPermissions,
+                          // This pattern, as the server's write routes take it (Falcor call
+                          // argument / authedFetch `pattern`): external sources inherit its grants.
+                          datasetsPattern: { app, id: pattern?.id },
                           // Expand any plugin's `defaultPages: ['table', ...]`
                           // shorthand against the built-in defaultPages
                           // registry. Plugin's own page entries always win.

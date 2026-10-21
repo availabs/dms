@@ -60,7 +60,7 @@ const getSources = async ({envs, falcor}) => {
 }
 
 export default function SettingsPage({format}) {
-    const {baseUrl, falcor, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
+    const {baseUrl, falcor, datasources, dmsEnv, UI, parent, datasetsPattern} = useContext(DatasetsContext);
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
     const {Layout, LayoutGroup, Input, Switch, Button, ColumnTypes} = UI;
@@ -104,17 +104,12 @@ export default function SettingsPage({format}) {
         const {filtered_categories, ...newOther} = {...otherSettings, ...updates};
         setFilteredCategories(newFiltered);
         setOtherSettings(newOther);
-        falcor.set({
-            paths: [['uda', pgEnv, 'settings']],
-            jsonGraph: {
-                uda: {
-                    [pgEnv]: {
-                        settings: JSON.stringify({...newOther, filtered_categories: newFiltered})
-                    }
-                }
-            }
-        }).then(() => setSaving(false));
-    }, [pgEnv, falcor, filteredCategories, otherSettings]);
+        // A call, not a set, so it can name this pattern: the server checks edit-pattern on it.
+        falcor.call(
+            ['uda', 'settings', 'update'],
+            [pgEnv, JSON.stringify({...newOther, filtered_categories: newFiltered}), datasetsPattern]
+        ).then(() => setSaving(false), () => setSaving(false)); // a falcor ModelResponse: no .finally
+    }, [pgEnv, falcor, filteredCategories, otherSettings, datasetsPattern]);
 
     // `hidden_source_types` is read server-side by the source enumeration
     // (uda.controller): listed types are dropped from `sources.length` /

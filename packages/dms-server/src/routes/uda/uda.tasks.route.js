@@ -14,25 +14,29 @@ const {
   getTaskEventsByIndex,
   getSettings,
   setSettings,
-  updateSourceMetadata,
   softDeleteSource,
   hardDeleteSource,
 } = require("./uda.tasks.controller");
 const { getDb } = require("../../db");
-const { isUserAuthedForSource } = require("./sourceAuth");
+const { isUserAuthedForSource, parsePatternRef, assertPatternPermission } = require("./sourceAuth");
 
 /**
- * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and on DaMa
+ * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and
  * `delete-source` on every source the delete touches (a cascade reaches the sources of a run's
  * outputs). The decision follows DMS_SOURCE_AUTH_MODE (see sourceAuth.js): in `legacy` / `log`, DMS
- * internal sources (env `app+instance`) and sources the check can't read get the sign-in check only.
+ * internal sources (env `app+instance`) and sources the check can't read get the sign-in check only;
+ * `enforce` checks them too. `pattern` (opts.pattern, { app, id }) brings the datasets pattern's grants.
  */
-function deleteAuthorizer(env, user) {
+function deleteAuthorizer(env, router, pattern) {
+  const user = router.user;
   if (!user) throw new Error("Sign in to delete");
   const db = String(env).includes("+") ? undefined : getDb(env);
+  const patternRef = parsePatternRef(pattern);
   return async (sourceIds) => {
     for (const sourceId of sourceIds) {
-      const ok = await isUserAuthedForSource({ db, env, sourceId, reqPermissions: ["delete-source"], user });
+      const ok = await isUserAuthedForSource({
+        db, env, sourceId, reqPermissions: ["delete-source"], user, patternRef, subdomain: router.subdomain || "",
+      });
       if (!ok) throw new Error(`Not authorized to delete source ${sourceId} (needs delete-source)`);
     }
   };
@@ -248,57 +252,43 @@ module.exports = [
         return [];
       }
     },
+    // Needs `edit-pattern` on the datasets pattern that owns the env. A set can't name it, so this
+    // logs a would-deny on every save (and denies under `enforce`); the client uses settings.update.
     set: async function (jsonGraph) {
-      try {
-        const result = [];
-        const envs = Object.keys(jsonGraph.uda || {});
-        for (const env of envs) {
-          const value = jsonGraph.uda[env].settings;
-          await setSettings(env, value);
-          result.push({ path: ["uda", env, "settings"], value });
-        }
-        return result;
-      } catch (err) {
-        console.error("[uda.tasks] settings set error:", err.message);
-        return [];
+      const result = [];
+      const envs = Object.keys(jsonGraph.uda || {});
+      for (const env of envs) {
+        await assertPatternPermission(this, env, "edit-pattern", null);
+        const value = jsonGraph.uda[env].settings;
+        await setSettings(env, value);
+        result.push({ path: ["uda", env, "settings"], value });
       }
+      return result;
     },
   },
 
-  // --------------------------------- sources.update (call) ---------------------------------
+  // --------------------------------- settings.update (call) ---------------------------------
+  // Args: [env, value, pattern]. The settings set as a call, naming the datasets pattern
+  // ({ app, id }) whose `edit-pattern` it needs. On a DMS env the pattern must be of the env's app.
   {
-    route: `uda.sources.update`,
+    route: `uda.settings.update`,
     call: async function (callPath, args) {
-      try {
-        const [env, sourceId, updates] = args;
-        const row = await updateSourceMetadata(env, sourceId, updates);
-        if (!row) return [];
-
-        const result = [];
-        for (const attr of Object.keys(row)) {
-          const val = row[attr];
-          result.push({
-            path: ["uda", env, "sources", "byId", row.source_id, attr],
-            value: val !== undefined && val !== null && typeof val === 'object' ? $atom(val) : (val ?? null),
-          });
-        }
-        return result;
-      } catch (err) {
-        console.error("[uda.tasks] sources.update error:", err.message);
-        return [];
-      }
+      const [env, value, pattern] = args;
+      await assertPatternPermission(this, env, "edit-pattern", parsePatternRef(pattern));
+      await setSettings(env, value);
+      return [{ path: ["uda", env, "settings"], value }];
     },
   },
 
   // --------------------------------- sources.delete (call) ---------------------------------
   // Deletes the source, every view and its table, its files and tasks (see dama/delete.js).
-  // Args: [env, sourceId, {cascade}?]. Returns a result atom on the sources.delete path.
+  // Args: [env, sourceId, {cascade, pattern}?]. Returns a result atom on the sources.delete path.
   {
     route: `uda.sources.delete`,
     call: async function (callPath, args) {
       const [env, sourceId, opts = {}] = args;
       try {
-        const authorize = deleteAuthorizer(env, this.user);
+        const authorize = deleteAuthorizer(env, this, opts?.pattern);
         const result = await softDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -318,7 +308,7 @@ module.exports = [
     call: async function (callPath, args) {
       const [env, sourceId, opts = {}] = args;
       try {
-        const authorize = deleteAuthorizer(env, this.user);
+        const authorize = deleteAuthorizer(env, this, opts?.pattern);
         const result = await hardDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -334,14 +324,14 @@ module.exports = [
   // --------------------------------- views.delete (call) ---------------------------------
   // Delete one DaMa view and drop its table. Refused while another view was built from it, while
   // it is authoritative, or while it is a run view with outputs (unless {cascade: true}).
-  // Args: [env, viewId, {cascade}?]. Returns a result atom on the views.delete path.
+  // Args: [env, viewId, {cascade, pattern}?]. Returns a result atom on the views.delete path.
   {
     route: `uda.views.delete`,
     call: async function (callPath, args) {
       const [env, viewId, opts = {}] = args;
       try {
         if (String(env).includes("+")) throw new Error("views.delete is for DaMa views; internal views are removed from the source");
-        const authorize = deleteAuthorizer(env, this.user);
+        const authorize = deleteAuthorizer(env, this, opts?.pattern);
         const { deleteDamaView } = require("../../dama/delete");
         const result = await deleteDamaView(env, +viewId, { cascade: !!opts?.cascade, authorize });
         return [

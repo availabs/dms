@@ -17,7 +17,7 @@ export default function ManageForm ({
     isDms,
 }) {
     const {id} = params;
-    const { baseUrl, pageBaseUrl, theme: pageTheme, falcor, datasources, isUserAuthed } = React.useContext(DatasetsContext) || {}
+    const { baseUrl, pageBaseUrl, theme: pageTheme, falcor, datasources, isUserAuthed, datasetsPattern } = React.useContext(DatasetsContext) || {}
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...gisPagesTheme, ...(theme?.datasets?.gisPages || {}) };
     const pgEnv = getExternalEnv(datasources);
@@ -51,14 +51,14 @@ export default function ManageForm ({
                     accessKey={isDms ? 'attributes' : 'columns'}
                     onChange={(v) => {
                         if (!canEdit) return;
-                        updateSourceData({data: v, attrKey: isDms ? 'config' : 'metadata', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                        updateSourceData({data: v, attrKey: isDms ? 'config' : 'metadata', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})
                             .catch(e => console.error('Failed to save source metadata', e));
                     }}
                     onIndexChange={canEdit ? async (columnName, enable) => {
-                        await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName, enable]);
+                        await falcor.call(['uda', 'sources', 'setIndex'], [env, id, columnName, enable, datasetsPattern]);
                     } : undefined}
                     onSetPrimaryKey={(isDms || !canEdit) ? undefined : async (columnName, enable = true) => {
-                        await falcor.call(['uda', 'sources', 'setPrimaryKey'], [env, id, columnName, enable]);
+                        await falcor.call(['uda', 'sources', 'setPrimaryKey'], [env, id, columnName, enable, datasetsPattern]);
                         const res = await falcor.get(['uda', env, 'sources', 'byId', +id, 'pkeyInfo']);
                         setPkeyInfo(res?.json?.uda?.[env]?.sources?.byId?.[id]?.pkeyInfo || null);
                     }}

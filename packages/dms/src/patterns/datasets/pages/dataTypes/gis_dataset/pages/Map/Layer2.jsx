@@ -265,10 +265,13 @@ const GISDatasetRenderComponent = props => {
         // }
       });
 
+      // Never saved: `symbology` isn't a sources column, and the server refuses unknown columns
+      // ("Not writable on a source"). Kept as-is until symbology gets a real home.
       falcor.call(
         ["uda", "sources", "update"],
         [pgEnv, sourceId, { symbology: toSave }]
       ).then(res => console.log("SAVE RESPONSE:", res))
+        .catch(e => console.warn("symbology save refused:", e?.message || e))
     }
   }, [falcor, pgEnv, sourceId, legend, symbology, activeVar, layers]);
 

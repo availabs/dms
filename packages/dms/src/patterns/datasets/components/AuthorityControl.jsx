@@ -4,6 +4,7 @@ import {
     isAuthoritative, authorityState, authorityKeyNames, keyLabel,
 } from '../utils/authority'
 import {udaSetAuthoritativeView, udaClearAuthoritativeView} from '../../../api'
+import {DatasetsContext} from '../context'
 
 // Key names authors reach for most. Free-form (any snake_case name works); these are suggestions.
 const KEY_SUGGESTIONS = ['year', 'region', 'level', 'vintage', 'variant', 'return_period'];
@@ -27,6 +28,7 @@ export const AuthorityBadge = ({t, entry}) => {
  */
 export default function AuthorityControl({t, source, setSource, viewId, viewLabel, envKey, canEdit, falcor}) {
     const {UI} = useContext(ThemeContext) || {};
+    const {datasetsPattern} = useContext(DatasetsContext) || {};
     const {Button, Input, Textarea, ColumnTypes} = UI;
     const CheckboxEdit = ColumnTypes.checkbox.EditComp;
     const entry = isAuthoritative(source, viewId);
@@ -70,10 +72,10 @@ export default function AuthorityControl({t, source, setSource, viewId, viewLabe
         }
     };
     const save = () => run(() => udaSetAuthoritativeView(falcor, {
-        env: envKey, source_id: source.id || source.source_id, view_id: viewId, key, note: note.trim(),
+        env: envKey, source_id: source.id || source.source_id, view_id: viewId, key, note: note.trim(), pattern: datasetsPattern,
     }));
     const clear = () => run(() => udaClearAuthoritativeView(falcor, {
-        env: envKey, source_id: source.id || source.source_id, key: entry?.key,
+        env: envKey, source_id: source.id || source.source_id, key: entry?.key, pattern: datasetsPattern,
     }));
 
     const markLabel = state === 'undecided' ? 'Mark authoritative…'

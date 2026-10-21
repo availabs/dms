@@ -93,7 +93,7 @@ export function DeleteSourceModal ({open, onClose, sourceName = '', overviewHref
 export function DeleteDmsSourceBtn ({source, baseUrl}) {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, app, type, falcor, dmsEnv, pageBaseUrl} = useContext(DatasetsContext);
+    const {UI, app, type, falcor, dmsEnv, pageBaseUrl, datasetsPattern} = useContext(DatasetsContext);
     const {Icon, Button} = UI;
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -110,7 +110,7 @@ export function DeleteDmsSourceBtn ({source, baseUrl}) {
         setError(null);
         try {
             const udaEnv = `${app}+${type}`;
-            const res = await falcor.call(['uda', 'sources', 'delete'], [udaEnv, sourceId]);
+            const res = await falcor.call(['uda', 'sources', 'delete'], [udaEnv, sourceId, { pattern: datasetsPattern }]);
             // The route used to return server-side errors to a path that
             // dropped the env segment. Read both the env-scoped and bare
             // paths so older deployments still surface their errors here.

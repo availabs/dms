@@ -272,12 +272,15 @@ async function runTests() {
 
   console.log('\n  --- Falcor route tests ---');
 
-  // Build a minimal Falcor router with just the UDA task routes
+  // Build a minimal Falcor router with the UDA task routes (+ the UDA routes, home of sources.update).
+  // Writes need a signed-in user (permissions-ds-uda-falcor-writes).
   const Router = require('../src/utils/falcor-router/src/Router');
   const taskRoutes = require('../src/routes/uda/uda.tasks.route');
-  const BaseRouter = Router.createClass(taskRoutes);
+  const udaRoutes = require('../src/routes/uda/uda.route');
+  const BaseRouter = Router.createClass([...taskRoutes, ...udaRoutes]);
+  const TEST_USER = { id: 1, email: 'test@test.com', groups: [] };
   class TestRouter extends BaseRouter {
-    constructor() { super({ maxPaths: 500000 }); }
+    constructor() { super({ maxPaths: 500000 }); this.user = TEST_USER; }
   }
   const router = new TestRouter();
 
@@ -389,7 +392,9 @@ async function runTests() {
   await test('Falcor: sources.update call', async () => {
     // Insert a source to update
     const srcTable = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-    await db.query(`INSERT INTO ${srcTable} (name) VALUES ($1)`, ['test-update-src']);
+    // the source grants the test user, as update-source is checked against its own grants
+    await db.query(`INSERT INTO ${srcTable} (name, auth_permissions) VALUES ($1, $2)`,
+      ['test-update-src', JSON.stringify({ users: { [TEST_USER.id]: ['update-source'] } })]);
     const { rows } = await db.query(`SELECT source_id FROM ${srcTable} WHERE name = 'test-update-src'`);
     const srcId = rows[0].source_id;
 

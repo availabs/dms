@@ -12,7 +12,7 @@ import { adminTheme } from "../pages/dataTypes/default/admin.theme";
 // is itself gated by `edit-source-permissions`. Vocabulary comes from the source format's
 // `authPermissions` attribute (permissionDomain) — see datasets.format.js.
 export default function SourceAccessEditor ({ source, setSource, format, apiUpdate, isDms, id }) {
-    const { UI, user, authPermissions: patternAuthPermissions, isUserAuthed, falcor, datasources } = useContext(DatasetsContext) || {};
+    const { UI, user, authPermissions: patternAuthPermissions, isUserAuthed, falcor, datasources, datasetsPattern } = useContext(DatasetsContext) || {};
     const { AuthAPI } = useContext(AuthContext) || {};
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
@@ -36,7 +36,7 @@ export default function SourceAccessEditor ({ source, setSource, format, apiUpda
                 defaultPermission={authAttr?.default}
                 heading='on this source'
                 inheritedFrom='the pattern'
-                onChange={(data) => updateSourceData({ data, attrKey: 'auth_permissions', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id })}
+                onChange={(data) => updateSourceData({ data, attrKey: 'auth_permissions', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern })}
             />
         </div>
     );
