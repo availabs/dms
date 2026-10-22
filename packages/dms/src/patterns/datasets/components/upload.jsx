@@ -82,14 +82,6 @@ const publish = async ({user, gisUploadId, layerName, app, type, dmsServerPath, 
 
     setPublishing(true);
 
-    // add columns not present in metadata currently
-    const newColumns = columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name));
-    if(newColumns.length){
-        updateMetaData(JSON.stringify({
-            attributes: [...existingAttributes, ...newColumns]
-        }), 'config');
-    }
-
     let res;
     try {
         res = await authedFetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
@@ -113,6 +105,15 @@ const publish = async ({user, gisUploadId, layerName, app, type, dmsServerPath, 
         setPublishStatus('Error! There was a problem uploading the file.')
         throw new Error(`Error while publishing: ${publishFinalEvent.err}`)
     }else{
+        // add columns not present in metadata currently. Only after the server accepted the publish
+        // (it adds them to the source's config itself, under its permission check): written before,
+        // a refused publish still changed the source's columns.
+        const newColumns = columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name));
+        if(newColumns.length){
+            updateMetaData(JSON.stringify({
+                attributes: [...existingAttributes, ...newColumns]
+            }), 'config');
+        }
         setPublishing(false);
         setPublishStatus('The Sheet has been Processed. Please validate your records.')
     }

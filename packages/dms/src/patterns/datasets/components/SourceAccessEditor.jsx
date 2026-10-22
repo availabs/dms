@@ -5,6 +5,7 @@ import { ThemeContext } from "../../../ui/useTheme";
 import { updateSourceData } from "../pages/dataTypes/default/utils";
 import { getExternalEnv } from "../utils/datasources";
 import { adminTheme } from "../pages/dataTypes/default/admin.theme";
+import { source as sourceFormatDef } from "../datasets.format";
 
 // Per-source Access editor — the new string-permission model (replaces the legacy numeric
 // statistics.auth UAC panels). Writes `source.authPermissions` ({groups,users} → [perm…]);
@@ -21,7 +22,10 @@ export default function SourceAccessEditor ({ source, setSource, format, apiUpda
 
     if (!isUserAuthed || !isUserAuthed(['edit-source-permissions'])) return null;
 
-    const authAttr = (format?.attributes || []).find(a => a.key === 'auth_permissions');
+    // SourcePage's `format` can be the pattern format (its registerFormats lookup misses: the source
+    // format registers as `<instance>|source`, the lookup asks for `<instance>|form-manager|source`),
+    // so fall back to the source format's own vocabulary rather than UI.Permissions' generic one.
+    const authAttr = [...(format?.attributes || []), ...sourceFormatDef.attributes].find(a => a.key === 'auth_permissions');
 
     return (
         <div className={t.uacPanel}>
@@ -33,7 +37,8 @@ export default function SourceAccessEditor ({ source, setSource, format, apiUpda
                 getUsers={AuthAPI?.getUsers}
                 getGroups={AuthAPI?.getGroups}
                 permissionDomain={authAttr?.permissionDomain}
-                defaultPermission={authAttr?.default}
+                // the attribute's `default` ({}) is the column's empty value, not a grant's starting perms
+                defaultPermission={Array.isArray(authAttr?.default) ? authAttr.default : []}
                 heading='on this source'
                 inheritedFrom='the pattern'
                 onChange={(data) => updateSourceData({ data, attrKey: 'auth_permissions', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern })}

@@ -60,7 +60,9 @@ const getSources = async ({envs, falcor}) => {
 }
 
 export default function SettingsPage({format}) {
-    const {baseUrl, falcor, datasources, dmsEnv, UI, parent, datasetsPattern} = useContext(DatasetsContext);
+    const {baseUrl, falcor, datasources, dmsEnv, UI, parent, datasetsPattern, isUserAuthed} = useContext(DatasetsContext);
+    // The server checks edit-pattern on this pattern for every settings write.
+    const canEdit = isUserAuthed ? isUserAuthed(['edit-pattern']) : false;
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...settingsPageTheme, ...getComponentTheme(fullTheme, 'datasets.settingsPage') };
     const {Layout, LayoutGroup, Input, Switch, Button, ColumnTypes} = UI;
@@ -98,8 +100,9 @@ export default function SettingsPage({format}) {
     }, [pgEnv]);
 
     const saveSettings = useCallback((updates) => {
-        if (!pgEnv) return;
+        if (!pgEnv || !canEdit) return;
         setSaving(true);
+        const [prevFiltered, prevOther] = [filteredCategories, otherSettings];
         const newFiltered = updates.filtered_categories ?? filteredCategories;
         const {filtered_categories, ...newOther} = {...otherSettings, ...updates};
         setFilteredCategories(newFiltered);
@@ -108,8 +111,13 @@ export default function SettingsPage({format}) {
         falcor.call(
             ['uda', 'settings', 'update'],
             [pgEnv, JSON.stringify({...newOther, filtered_categories: newFiltered}), datasetsPattern]
-        ).then(() => setSaving(false), () => setSaving(false)); // a falcor ModelResponse: no .finally
-    }, [pgEnv, falcor, filteredCategories, otherSettings, datasetsPattern]);
+        ).then(() => setSaving(false), () => {
+            // refused (or failed): don't leave the page showing a change that didn't save
+            setFilteredCategories(prevFiltered);
+            setOtherSettings(prevOther);
+            setSaving(false);
+        }); // a falcor ModelResponse: no .finally
+    }, [pgEnv, falcor, filteredCategories, otherSettings, datasetsPattern, canEdit]);
 
     // `hidden_source_types` is read server-side by the source enumeration
     // (uda.controller): listed types are dropped from `sources.length` /
@@ -266,7 +274,7 @@ export default function SettingsPage({format}) {
                                             : hiddenSourceTypes.filter(t => t !== UPLOAD_SOURCE_TYPE)
                                     })}
                                     label="Hide uploaded files from dataset lists"
-                                    disabled={saving}
+                                    disabled={saving || !canEdit}
                                     size="small"
                                 />
                                 <span className={theme.toggleLabel}>Hide uploaded files from dataset lists</span>
@@ -322,7 +330,7 @@ export default function SettingsPage({format}) {
                                                 enabled={hidden}
                                                 setEnabled={() => saveLifecycle(toggleHidden(cat, patternDelta, [...resolveHiddenForPattern({...settingsBlob, hidden_categories_by_pattern: {}}, patternId)]))}
                                                 label={`Hide ${cat}`}
-                                                disabled={saving}
+                                                disabled={saving || !canEdit}
                                                 size="small"
                                             />
                                             <div className={theme.lcRowBody}>
@@ -338,7 +346,7 @@ export default function SettingsPage({format}) {
                                                     <>
                                                         <div className={theme.lcStateOverridden}>overridden</div>
                                                         <div className={theme.lcResetWrap}>
-                                                            <Button activeStyle='linkMeta' disabled={saving}
+                                                            <Button activeStyle='linkMeta' disabled={saving || !canEdit}
                                                                     onClick={() => saveLifecycle(resetHidden(cat, patternDelta))}>
                                                                 reset to default
                                                             </Button>
@@ -400,7 +408,7 @@ export default function SettingsPage({format}) {
                                     {PROMOTION_GATE.map(g => (
                                         <div key={g.key} className={theme.nsCheckItem}>
                                             <ColumnTypes.checkbox.EditComp
-                                                disabled={saving}
+                                                disabled={saving || !canEdit}
                                                 rowLabel={g.label}
                                                 value={(promotionGate || []).includes(g.key)}
                                                 onChange={v => saveSettings({
@@ -449,7 +457,7 @@ export default function SettingsPage({format}) {
                                         key={cat}
                                         activeStyle='chip'
                                         onClick={() => saveSettings({filtered_categories: filteredCategories.filter(c => c !== cat)})}
-                                        disabled={saving}
+                                        disabled={saving || !canEdit}
                                     >
                                         {cat}
                                         <span className={theme.categoryCount}>
@@ -474,7 +482,7 @@ export default function SettingsPage({format}) {
                                         key={cat}
                                         activeStyle='chip'
                                         onClick={() => saveSettings({filtered_categories: [...filteredCategories, cat]})}
-                                        disabled={saving}
+                                        disabled={saving || !canEdit}
                                     >
                                         {cat}
                                         <span className={theme.categoryCount}>

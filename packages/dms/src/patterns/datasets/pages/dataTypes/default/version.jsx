@@ -155,7 +155,9 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                         <div className={tv.body}>
                             <div className={tv.mainCol}>
                                 <FieldLabel htmlFor={'version-name'} text={'Version'} />
-                                <Input id={'version-name'} type={'text'} value={currentView.version || currentView.name || ''} onChange={e => {
+                                <Input id={'version-name'} type={'text'} value={currentView.version || currentView.name || ''}
+                                       disabled={!(isUserAuthed && isUserAuthed(['update-source']))}
+                                       onChange={e => {
                                     updateVersionData({
                                         data: e.target.value,
                                         attrKey: isDms ? 'name' : 'version',
@@ -172,7 +174,9 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                 {
                                     isDms ? (
                                             <>
-                                                <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor} pattern={datasetsPattern}/>
+                                                {isUserAuthed && isUserAuthed(['edit-source-data', 'delete-source']) ? (
+                                                    <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor} pattern={datasetsPattern}/>
+                                                ) : null}
                                                 <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
                                             </>
                                     ) : (

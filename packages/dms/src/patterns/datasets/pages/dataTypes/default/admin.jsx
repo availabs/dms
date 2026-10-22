@@ -79,7 +79,7 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, falcor, pageBaseUrl, datasetsPattern} = useContext(DatasetsContext);
+    const {UI, falcor, pageBaseUrl, datasetsPattern, isUserAuthed} = useContext(DatasetsContext);
     const {Icon, Button} = UI;
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -108,6 +108,9 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
             setBusy(false);
         }
     };
+
+    // Hidden without delete-source (the server refuses it anyway).
+    if (!isUserAuthed || !isUserAuthed(['delete-source'])) return null;
 
     return (
         <>
