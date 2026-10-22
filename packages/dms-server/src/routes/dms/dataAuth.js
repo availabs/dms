@@ -135,7 +135,9 @@ function createJudge(ctx) {
         const type = row.type || '';
         const kind = getKind(type);
         const keys = op === 'edit' ? changedKeys(patch, row.data) : [];
-        // an edit that changes nothing writes only updated_at / updated_by: judged as any edit of the row
+        // An edit that changes nothing writes only updated_at / updated_by: any of the row's edit
+        // permissions passes it (a permissions-only user re-saving unchanged grants, say).
+        const noChange = op === 'edit' && keys.length === 0;
         const only = (allowed) => keys.length > 0 && keys.every(k => allowed.includes(k));
 
         switch (kind) {
@@ -172,7 +174,8 @@ function createJudge(ctx) {
                 const pattern = parseJson(row.data) || {};
                 const groups = op === 'delete' ? [['delete-pattern']] : [
                     ...(keys.includes('authPermissions') ? [['edit-pattern-permissions']] : []),
-                    ...(!keys.length || keys.some(k => k !== 'authPermissions') ? [['edit-pattern']] : []),
+                    ...(keys.some(k => k !== 'authPermissions') ? [['edit-pattern']] : []),
+                    ...(noChange ? [['edit-pattern', 'edit-pattern-permissions']] : []),
                 ];
                 for (const perms of groups) {
                     if (!(await patternCan(pattern, perms))) return deny(`pattern ${row.id} ${needs(perms)}`);
@@ -201,10 +204,14 @@ function createJudge(ctx) {
                     const patchData = parseJson(patch) || {};
                     const isPublish = (k) => ['sections', 'section_groups', 'dataSources'].includes(k)
                         || (k === 'published' && patchData.published !== 'draft');
+                    // `filters` is the editor's Filters pane, which edit-page-params opens
+                    const isOther = (k) => k !== 'authPermissions' && k !== 'filters' && !isPublish(k);
                     groups = [
                         ...(keys.includes('authPermissions') ? [['edit-page-permissions']] : []),
                         ...(keys.some(isPublish) ? [['publish-page']] : []),
-                        ...(!keys.length || keys.some(k => k !== 'authPermissions' && !isPublish(k)) ? [['edit-page']] : []),
+                        ...(keys.includes('filters') ? [['edit-page', 'edit-page-params']] : []),
+                        ...(keys.some(isOther) ? [['edit-page']] : []),
+                        ...(noChange ? [['edit-page', 'publish-page', 'edit-page-permissions', 'edit-page-params']] : []),
                     ];
                 }
                 if (await siteCan('*')) return allow('site *');
@@ -226,6 +233,7 @@ function createJudge(ctx) {
                 if (op === 'delete') perms = ['delete-source'];
                 else if (keys.includes('auth_permissions')) perms = ['edit-source-permissions'];
                 else if (only(['views'])) perms = ['create-view', 'update-source', 'delete-source'];
+                else if (noChange) perms = ['update-source', 'edit-source-permissions', 'create-view'];
                 return onSource(row.id, perms, getInstance(type));
             }
             case 'view': {

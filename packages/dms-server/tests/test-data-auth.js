@@ -81,6 +81,7 @@ async function run() {
     const creator = u(16, ['Creators']);
     const dsEditor = u(17, ['DsEditors']);
     const admin = u(18, [`${APP} Admin`]);
+    const paramsUser = u(19, ['Params']);
     const graphs = {};
     const as = (user) => graphs[user ? user.id : 'anon'] || (graphs[user ? user.id : 'anon'] = createTestGraph(DMS_DB, { user }));
     const call = (user, path, args) => as(user).callAsync(path, args);
@@ -97,7 +98,7 @@ async function run() {
         pattern_type: 'page', name: 'Docs',
         authPermissions: { groups: {
             public: ['view-page'], Editors: ['edit-page'], Publishers: ['edit-page', 'publish-page'],
-            PageAdmins: ['edit-page-permissions', 'create-page'], PatEditors: ['edit-pattern'],
+            PageAdmins: ['edit-page-permissions', 'create-page'], PatEditors: ['edit-pattern'], Params: ['edit-page-params'],
         } },
     });
     const open = await insert('site|open:pattern', { pattern_type: 'page', name: 'Open' });
@@ -118,7 +119,7 @@ async function run() {
     });
     const ROAD_ROWS = `roads|${viewId}:data`;
     const TICKET_ROWS = `tickets|1:data`;
-    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin]) await as(user).ready;
+    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser]) await as(user).ready;
 
     console.log('\npages and components (enforce):');
     await t('a page edit needs edit-page; signed-out and no-grant users are refused', () => withMode('enforce', async () => {
@@ -195,6 +196,17 @@ async function run() {
         await refused(create(stranger, 'docs|page-edit', { entries: [] }));
     }));
 
+    await t('page filters: edit-page-params (the Filters pane) or edit-page; nothing else', () => withMode('enforce', async () => {
+        await allowed(edit(paramsUser, docsPage, { filters: [{ searchKey: 'county' }] }));
+        await allowed(edit(editor, docsPage, { filters: [] }));
+        await refused(edit(paramsUser, docsPage, { title: 'x' }));
+    }));
+    await t('an edit that changes nothing passes with any of the row\'s edit permissions', () => withMode('enforce', async () => {
+        const { data } = await dataOf(docsPage);
+        await allowed(edit(pageAdmin, docsPage, { authPermissions: data.authPermissions }));  // edit-page-permissions only
+        await refused(edit(stranger, docsPage, { title: data.title }));
+    }));
+
     console.log('\ninternal datasets (enforce):');
     await t('data rows need edit-source-data on their source', () => withMode('enforce', async () => {
         await refused(create(anon, ROAD_ROWS, { a: 1 }));
@@ -243,7 +255,8 @@ async function run() {
     }));
     await t('type.edit is judged under the old type and the new one', () => withMode('enforce', async () => {
         await refused(call(stranger, ['dms', 'type', 'edit'], [APP, docsPage, 'open|page']));
-        // pageAdmin may create docs pages but not edit them: moving one out needs edit-page on docs
+        // a move is a delete from docs (edit-page) + a create in open: pageAdmin (create-page,
+        // edit-page-permissions on docs) can't move a docs page out
         await refused(call(pageAdmin, ['dms', 'type', 'edit'], [APP, docsPage, 'open|page']));
     }));
     await t('a page delete needs edit-page (before: any signed-in user)', () => withMode('enforce', async () => {

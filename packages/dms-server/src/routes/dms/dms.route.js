@@ -523,7 +523,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // New format: [app, id, type]
           const [app, id, type] = args;
           const [stored] = await storedRows(app, [id]);
-          await assertDataWrite(this, controller, 'edit', app, stored, stored.data);
+          // a move: out of the old type (as a delete), into the new one (as a create)
+          await assertDataWrite(this, controller, 'delete', app, stored, null);
           await assertDataWrite(this, controller, 'create', app, { id, type, data: stored.data }, null);
           const rows = await controller.setTypeById(id, type, this.user, app, this.reqMeta);
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
@@ -531,7 +532,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         // Legacy format: [id, type]
         const [id, type] = args;
         const [stored] = await storedRows(null, [id]);
-        await assertDataWrite(this, controller, 'edit', stored.app, stored, stored.data);
+        // a move: out of the old type (as a delete), into the new one (as a create)
+        await assertDataWrite(this, controller, 'delete', stored.app, stored, null);
         await assertDataWrite(this, controller, 'create', stored.app, { id, type, data: stored.data }, null);
         const rows = await controller.setTypeById(id, type, this.user, null, this.reqMeta);
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
