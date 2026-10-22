@@ -65,10 +65,12 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   Check-to-write gap closed the same day: optimistic re-check inside the write's transaction, retry 3×
   (defect task, "No gap between check and write"). Race tests (3) fail with the check off. `test-data-auth.js`
   49/49 on SQLite **and Postgres** (:5499); related suites green on both; live editor rerun clean.
-- Not yet: the Postgres pass, steps 6+ (tasks 6–10).
+- **Postgres pass 2 (10-22) ✓**: everything built today, plus the regression sample, on a Postgres-backed DMS
+  (Results rows "Postgres pass 2"). Found: the editor sends whole-row sync saves on PG (handled).
+- Not yet: steps 6+ (tasks 6–10).
 
-**Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22 and the live page-editor pass ran
-(Progress above); next is item 6.
+**Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
+the Postgres pass ran (Progress above); next is item 6.
 1. **Defect B/E into this branch**: guard `dms.data.edit` / `dms.data.create` (anon and any viewer can write any row
    today, so internal sources' gates are bypassable; the internal Add Version goes through them). Design and history in
    [auth-permission-chain-and-unguarded-writes](./auth-permission-chain-and-unguarded-writes.md) (defects B/E, status
@@ -378,6 +380,14 @@ no push until stage 3.
 | 3 | F, G1, G5 | enforce (PG) | 10-21 | ✓ | Same outcomes as on SQLite: pat_editor attach / remove Auto-number, src_editor read-only; G1 pat_editor 200 / src_editor 403 + message; G5 viewer 403 (I1 untouched) / src_editor adds `pg_x, pg_y`, `updated_at` moves. |
 | 3 | J pattern admin | enforce (PG) | 10-21 | ✓ admin / **open (task 8)** | Admin duplicate of pattern 27 → task done, new pattern 132 `pages_pg_copy` with 4 pages + 11 components (matches the source; the sqlite task-descriptor bug doesn't apply on PG). Saved filter `county=36001` on 27 through the Filters panel, then sync-filters → task done, 4 pages scanned. pat_editor / viewer: `/list/manage_pattern/*` redirects to `/` (a 404 page), even pat_editor on pattern 17 where they hold `edit-pattern` (UX, task 8/10). **Server: `POST /dama-admin/dms/:appType/sync-filters` and `/duplicate` check no user at all** (no `requireLogin` on the mount, handlers only read `requestUserId`): anon queued sync-filters task 5. Task 8's scope. sync-filters / duplicate requests carry the token but no `?dms_pattern=`. |
 | 1 | H (internal upload) | enforce | 10-21 | partial | Internal upload page REST calls (`gis-dataset/upload`, `dms/<env>|<view>:data/publish`) carry the JWT but **no `?dms_pattern=`**. Works (internal sources' patterns resolve server-side), but H expects the param on every call. |
+| 3 | Postgres pass 2: setup | — | 10-22 | done | Same 10-21 copy (`dms_v6test.data_items`, 110 rows) on :5499; 3458 on current branch code: `DMS_DB=dms-postgres-test DATA_MODE=enforce ./restart3458.sh enforce` (auth stays sqlite). Pattern 27 given the page-pass grants. Left as found afterwards (110 rows, site list, test_dama sources 1–4, 8). |
+| 3 | L smoke | enforce (PG) | 10-22 | ✓ | `flow-smoke.mjs` admin + anon: same landings as SQLite, 0 page errors / failing requests (only the known `placeHolder` warning). |
+| 3 | A–F matrix | enforce / log (PG) | 10-22 | ✓ 120/120 both | log: 25 allowed only by today's rule = exactly 25 `[source-auth] would-deny` lines, all non-admins without the perm, plus the deliberate `E-settings-ext-nopattern` row (admin, no pattern ⇒ no app). |
+| 3 | B/E page editor | enforce / log (PG) | 10-22 | ✓ | `flow-pageedit.mjs` per actor: same panes / landings as SQLite; every offered write 200. **On PG the editor sends whole-row sync saves** (every page key, also on open), all passed through the changed-keys rule (pat_editor's carries unchanged `sections`). `neg-pageedit.mjs` 12/12 (fixed: PG ids come back as strings; `rearm63.sh` now resets the footer too). log: UI flows 0 data-auth would-deny lines; refusals logged one each (8: anon's refused toggle lands in log, so viewer / versioner then send the stored value). |
+| 3 | C internal version | enforce (PG) | 10-22 | ✓ | Add Version (admin) → view 143 + ref; src_editor rename refused (no grant on I2); Delete Version hidden for viewer / pat_editor; admin → `/sync/push` D with cascade: row and ref gone. |
+| 3 | J pattern ops (task 8 gates) | enforce (PG) | 10-22 | ✓ | Admin UI duplicate → task done (7 pages, 13 components); sync-filters → done (7 scanned). `neg-patternops.mjs` 8/8: anon 401; viewer / pat_editor / src_editor / versioner 403 ("missing edit-pattern on pattern 27" / "…-permissions"); id 17 named for `pg` → 403 "not found". Granted (temporarily PatEditors edit-pattern + edit-pattern-permissions on 27, site create-pattern on admin row 3): pat_editor duplicate + sync-filters → 200, tasks done, `userId` 5 (token user). Grants reverted. Note: the server task copies pages only; the UI creates the pattern row. |
+| 3 | H token cache | enforce | 10-22 | ✓ | `stale.mjs warm`: after a forced password change the warmed token is refused at once (`/graph` "Sign in", REST 401; was up to 5 min). `stale-group.mjs`: src_editor removed from SrcEditors → next E2 write refused; re-added → allowed. |
+| 3 | G1 / G5 / D | enforce (PG) | 10-22 | ✓ | G1: pat_editor creates source 9 (owner 5), src_editor 403 + message. G5 on I1: viewer validate / publish 403, I1 unchanged; src_editor 200 (columns already there: unchanged). D on I2 (seeded 1 row): hidden for viewer / src_editor; pat_editor 1 → 0, main table unchanged. |
 
 ## Objective
 
