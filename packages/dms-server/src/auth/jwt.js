@@ -22,7 +22,9 @@ function getCachedUser(token) {
     tokenCache.delete(token);
     return null;
   }
-  entry.time = Date.now(); // refresh TTL on access
+  // The TTL counts from verification, not from last use: a sliding TTL kept a token in steady use
+  // cached forever, past a password change or a removed group. (auth/index.js also empties the cache
+  // on those changes.)
   return entry.user;
 }
 
