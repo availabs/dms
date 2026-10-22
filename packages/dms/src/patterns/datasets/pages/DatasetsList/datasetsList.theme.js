@@ -49,6 +49,12 @@ export const datasetsListTheme = {
     sidebarItemHidden: 'flex items-center gap-2 px-2 py-1.5 rounded-md t-proseSM text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]',
     sidebarHiddenIcon: 'EyeClosed',
     sidebarHiddenIconClass: 'size-3.5 shrink-0',
+    // authority facet (authoritative · keyed · undecided) — rows reuse sidebarItem / sidebarItemActive /
+    // sidebarBadge; '' sidebarFacetGroup → facet not rendered
+    sidebarFacetGroup: 'mt-3 pt-2 border-t border-[var(--t-rule)]',
+    sidebarFacetLabel: 'px-2 pb-1 t-metaXS text-[var(--t-pencil)]',
+    sidebarFacetMark: 'w-3 shrink-0 text-center t-metaXS text-[var(--t-go)]',
+    sidebarFacetBadgeUndecided: 'ml-auto shrink-0 t-metaXS tabular-nums text-[var(--t-amber)]',
     sidebarSubItem: 'flex items-center ml-3 pl-4 pr-2 py-1 border-l border-[var(--t-rule)] t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
     sidebarSubItemActive: 'flex items-center ml-3 pl-4 pr-2 py-1 border-l-2 border-[var(--t-ink)] t-proseXS font-medium text-[var(--t-ink)]',
 
@@ -66,6 +72,13 @@ export const datasetsListTheme = {
     categoryPill: 'inline-flex items-center gap-1 t-proseXS text-[var(--t-ink)] bg-[var(--t-well)] hover:bg-[var(--t-rule)] rounded px-1.5 py-0.5',
     categoryDot: 'size-1.5 rounded-full',
     subCategoryPill: 'inline-flex items-center t-proseXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded px-1.5 py-0.5 hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]',
+    // authority (2026-10-21, datasets-catalog-authority-and-archive-visibility.md) — the source Overview's
+    // verAuthBadge look: ★ <view label> · ★ N keyed. Undecided sources stay blank (owner 2026-10-21);
+    // a theme that wants a chip sets authUndecidedChip (e.g. the Overview's verUndecidedChip classes).
+    authChip: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-go)] bg-[var(--t-go-soft)] rounded px-1.5 py-0.5 whitespace-nowrap',
+    authUndecidedChip: '',
+    supersededLine: 't-proseXS text-[var(--t-amber)] mt-0.5',
+    supersededLink: 'text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)]',
     cardTitle: 'block t-displaySM text-[var(--t-ink)] hover:text-[var(--t-cobalt)]',
     cardDescription: 'mt-1 t-proseSM text-[var(--t-graphite)] line-clamp-2',
     cardView: 'self-start shrink-0 mt-3 t-metaXS text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)]',
@@ -74,12 +87,32 @@ export const datasetsListTheme = {
     tableWrap: 'flex-1 min-w-0 rounded-lg border border-[var(--t-rule)] bg-[var(--t-panel)] self-start overflow-hidden',   // UI.Table scrolls inside
     // table view — UI.Table named style + per-column px widths (2026-10-14, ui-control-tables.md)
     tableStyle: 'list',
-    columnSizes: { type: 150 },
+    columnSizes: { type: 150, authority: 190 },
     tdName: 'font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)]',
     descCell: 'text-[var(--t-graphite)] truncate',
     tableCatWrap: 'flex flex-wrap items-center gap-x-3 gap-y-1',
     tableCatItem: 'inline-flex items-center gap-1.5 t-proseXS text-[var(--t-graphite)] hover:text-[var(--t-ink)]',
     tableCatDot: 'size-1.5 rounded-full',
+
+    // signed-in search hits in a hidden lifecycle — their own labelled group under the results.
+    // hiddenMatchWrap spans the grid (it sits inside sourceGrid / sourceStack); hiddenMatchColumn holds the
+    // table or the empty state plus the group, only while the group shows. '' hiddenMatchWrap → no group.
+    hiddenMatchColumn: 'flex-1 min-w-0 h-full overflow-y-auto pb-6 pr-1 space-y-4',
+    hiddenMatchWrap: 'col-span-full mt-2 pt-3 border-t border-dashed border-[var(--t-rule-strong)]',
+    hiddenMatchHeader: 'flex items-center gap-2 mb-2 t-metaXS text-[var(--t-pencil)]',
+    hiddenMatchIcon: 'EyeClosed',
+    hiddenMatchIconClass: 'size-3 shrink-0',
+    hiddenMatchNote: 'ml-auto',
+    hiddenMatchList: 'flex flex-col gap-2',
+    hiddenMatchRow: 'flex items-start gap-4 bg-[var(--t-paper)] border border-dashed border-[var(--t-rule-strong)] rounded-lg px-4 py-3',
+    hiddenMatchMain: 'flex-1 min-w-0',
+    hiddenMatchBadges: 'flex flex-wrap items-center gap-1.5 mb-1',
+    lifecycleChip: 'inline-flex items-center gap-1 t-metaXS text-[var(--t-pencil)] border border-[var(--t-rule)] rounded px-1.5 py-0.5',
+    lifecycleChipIcon: 'EyeClosed',
+    lifecycleChipIconClass: 'size-3 shrink-0',
+    hiddenMatchTitle: 't-proseSM font-medium text-[var(--t-graphite)] hover:text-[var(--t-cobalt)]',
+    hiddenMatchDescription: 't-proseXS text-[var(--t-pencil)] mt-0.5 line-clamp-1',
+    hiddenMatchView: 'shrink-0 mt-1 t-metaXS text-[var(--t-cobalt)] hover:text-[var(--t-cobalt-deep)]',
 
     // empty state — no sources in this view, or a search with no hits
     emptyWrap: 'flex-1 min-w-0 self-start flex flex-col items-center text-center border border-dashed border-[var(--t-rule-strong)] rounded-lg px-6 py-12',

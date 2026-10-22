@@ -89,6 +89,23 @@ export const sortAuthoritativeFirst = (source, views = [], idOf = (v) => v?.view
     return [...views.filter(v => ids.has(+idOf(v))), ...views.filter(v => !ids.has(+idOf(v)))];
 };
 
+// The catalog's one-chip summary of a source's authority (DatasetsList cards, table, facet):
+//   single    → '★ <label of the view>'  (labelOf(view_id) names it; falls back to 'v<id>')
+//   keyed     → '★ <n> keyed'            (title lists the keys)
+//   undecided → 'undecided'
+// Returns { state, text, title }.
+export const authoritySummary = (sourceOrAuthority, labelOf = () => null) => {
+    const views = authoritativeViews(sourceOrAuthority);
+    if (!views.length) {
+        return { state: 'undecided', text: 'undecided', title: 'No view is marked authoritative yet, so pages have no recorded view to bind' };
+    }
+    if (authorityState(sourceOrAuthority) === 'keyed') {
+        return { state: 'keyed', text: `★ ${views.length} keyed`, title: `authoritative views: ${views.map(e => keyLabel(e.key)).join(' · ')}` };
+    }
+    const label = labelOf(views[0].view_id) || `v${views[0].view_id}`;
+    return { state: 'single', text: `★ ${label}`, title: `authoritative view: ${label}` };
+};
+
 // Picker label suffix: ' ★' or ' ★ year 2024'
 export const authorityMarker = (source, viewId) => {
     const e = isAuthoritative(source, viewId);

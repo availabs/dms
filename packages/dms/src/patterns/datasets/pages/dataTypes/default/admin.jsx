@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from "../../../context";
 import { cloneDeep } from "lodash-es";
-import {useNavigate, Link} from "react-router";
+import {useNavigate} from "react-router";
 import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
@@ -237,6 +237,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const {baseUrl, pageBaseUrl, user, parent, UI, datasources} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const {Button, Icon} = UI;
+    const navigate = useNavigate();
 
     if(!user || !user.token) return <></>
 
@@ -254,7 +255,8 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                            {/* navigate from the button: a <Link> inside a native <button> only takes clicks on its text */}
+                            <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/metadata`)}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}Advanced Metadata</Button>
                             {
                                 isDms ? (
                                     <>
@@ -264,7 +266,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                     </>
                                 ) : (
                                     <>
-                                        <Button><Link to={`${pageBaseUrl}/${id}/rules`}>Rules</Link></Button>
+                                        <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/rules`)}>{t.actionIconRules && <Icon icon={t.actionIconRules} className={t.actionIcon}/>}Rules</Button>
                                         <AddExternalVersionBtn source={source} />
                                         <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />

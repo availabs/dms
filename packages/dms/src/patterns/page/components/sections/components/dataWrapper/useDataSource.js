@@ -7,13 +7,25 @@ import { DEFAULT_SOURCE_JOIN } from "./utils/utils";
 import { SchemaManager } from "./SchemaManager";
 import { calculateIsJoinPresent } from "./utils/joinUtils"
 import { singleAuthoritativeViewId, sortAuthoritativeFirst, authorityMarker } from "../../../../../datasets/utils/authority";
+import { resolveHiddenForPattern, hiddenLifecycleOf } from "../../../../../datasets/utils/lifecycle";
 
 const range = (start, end) => Array.from({ length: end + 1 - start }, (_, k) => k + start);
 
 const EMPTY_JOIN_SOURCES = {};
 
+// Category values arrive as JSON text (DMS `data->>'categories'`) or as the parsed array (DaMa jsonb).
+const parseCategories = (value) => {
+    if (Array.isArray(value)) return value;
+    if (typeof value !== "string" || !value.trim()) return [];
+    try { const v = JSON.parse(value); return Array.isArray(v) ? v : []; } catch { return []; }
+};
+
+// Returns the source objects plus `categoriesById` (source_id → categories), which drives the
+// lifecycle filter. Categories ride the same request (like `row_type`) but stay OUT of the source
+// objects, because those are merged into the section's persisted externalSource.
 const getSources = async ({ envs, falcor }) => {
-    if (!envs || !Object.keys(envs).length) return [];
+    if (!envs || !Object.keys(envs).length) return { sources: [], categoriesById: {} };
+    const categoriesById = {};
 
     const lenRes = await falcor.get(["uda", Object.keys(envs), "sources", "length"]);
 
@@ -28,9 +40,11 @@ const getSources = async ({ envs, falcor }) => {
             // drifts from the instance whenever they differ ("Site Management — Tickets" →
             // site_management__tickets vs instance sitemgmt_tickets), and a drifted env
             // resolves NO source server-side (silent nulls on every later fetch).
-            const fetchAttributes = envs[e].isDms
-                ? [...new Set([...envs[e].srcAttributes, "row_type"])]
-                : envs[e].srcAttributes;
+            const fetchAttributes = [...new Set([
+                ...envs[e].srcAttributes,
+                ...(envs[e].isDms ? ["row_type"] : []),
+                "categories",
+            ])];
             const r = await falcor.get(["uda", e, "sources", "byIndex", { from: 0, to: len - 1 }, fetchAttributes]);
 
             const valueGetter = (i, attr) =>
@@ -44,6 +58,8 @@ const getSources = async ({ envs, falcor }) => {
                 const instance = envs[e].isDms ? getInstance(valueGetter(i, "row_type") || "") : null;
                 const sourceSlug = instance || (name ? nameToSlug(name) : null);
                 const env = sourceSlug && app ? `${app}+${sourceSlug}` : e;
+                const source_id = get(r, ["json", "uda", e, "sources", "byIndex", i, "$__path", 4]);
+                if (source_id != null) categoriesById[source_id] = parseCategories(valueGetter(i, "categories"));
 
                 return {
                     // externalSource.type for internal tables = the instance slug (addItem
@@ -70,10 +86,7 @@ const getSources = async ({ envs, falcor }) => {
                         }
                         return { ...acc, [attr]: value };
                     }, {}),
-                    source_id: get(
-                        r,
-                        ["json", "uda", e, "sources", "byIndex", i, "$__path", 4]
-                    ),
+                    source_id,
                     env,
                     srcEnv: e,
                     isDms: envs[e].isDms,
@@ -82,7 +95,27 @@ const getSources = async ({ envs, falcor }) => {
         })
     );
 
-    return sources.flat();
+    return { sources: sources.flat(), categoriesById };
+};
+
+// The hidden-lifecycle set per env (patterns/datasets/utils/lifecycle.js): the library defaults
+// plus the env's own `hidden_categories` delta. The per-pattern layer belongs to a datasets
+// catalog and isn't reachable from the page editor. A DMS env has no settings of its own, so it
+// takes the first external env's set, as its catalog does. Unreadable settings → the defaults.
+const getHiddenSets = async ({ envs, falcor }) => {
+    const external = Object.keys(envs).filter((e) => !envs[e].isDms);
+    const byEnv = {};
+    await Promise.all(external.map(async (e) => {
+        try {
+            const res = await falcor.get(["uda", e, "settings"]);
+            const raw = get(res, ["json", "uda", e, "settings"]);
+            byEnv[e] = resolveHiddenForPattern(typeof raw === "string" ? JSON.parse(raw || "{}") : (raw || {}), null);
+        } catch {
+            // keep the defaults below
+        }
+    }));
+    const fallback = byEnv[external[0]] || resolveHiddenForPattern({}, null);
+    return Object.fromEntries(Object.keys(envs).map((e) => [e, byEnv[e] || fallback]));
 };
 
 // Authoritative views per source (patterns/datasets/utils/authority.js), fetched in a separate
@@ -157,6 +190,10 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     const [views, setViews] = useState([]);
     // source_id → authority record ({views}); see getSourceAuthorities
     const [authorityBySource, setAuthorityBySource] = useState({});
+    // source_id → the hidden lifecycle it sits in ('Archive', …); absent = shown in the picker
+    const [hiddenLifecycleBySource, setHiddenLifecycleBySource] = useState({});
+    // The author's explicit "show hidden datasets" switch (Dataset › Source)
+    const [includeHiddenSources, setIncludeHiddenSources] = useState(false);
     // Set when the AUTHOR picks a source, consumed once that source's views load: preselect its
     // single authoritative view. Never fires on load, so existing bindings are left alone.
     const pendingAuthorityPreselect = useRef(null);
@@ -208,9 +245,15 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
     useEffect(() => {
         if (!envsKeyCount) return;
         const timeoutId = setTimeout(() => {
-            getSources({ envs, falcor }).then((data) => {
+            Promise.all([getSources({ envs, falcor }), getHiddenSets({ envs, falcor })]).then(([{ sources: data, categoriesById }, hiddenSets]) => {
                 setSources(data);
                 getSourceAuthorities({ sources: data, falcor }).then(setAuthorityBySource);
+                const lifecycles = {};
+                for (const s of data) {
+                    const lc = hiddenLifecycleOf({ categories: categoriesById[s.source_id] }, hiddenSets[s.srcEnv]);
+                    if (lc) lifecycles[s.source_id] = lc;
+                }
+                setHiddenLifecycleBySource(lifecycles);
 
                 const existing = data.find((d) => +d.source_id === +sourceId);
 
@@ -480,16 +523,32 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         [onJoinSourceChange, onJoinViewChange, onMergeStrategyChange, onJoinColumnsChange, setState]
     );
 
+    // Sources in a hidden lifecycle (Archive, Sandbox, …) are left out unless the author asks for
+    // them. One the section already binds, as its source or a join, stays listed (marked with its
+    // lifecycle) so the menu still shows the current value.
+    const boundSourceIds = useMemo(
+        () => new Set([sourceId, ...Object.values(joinSources).map((j) => j?.source)]
+            .filter((id) => id != null && id !== "").map(String)),
+        [sourceId, joinSources]
+    );
+    const hiddenSourceCount = useMemo(
+        () => sources.filter((s) => hiddenLifecycleBySource[s.source_id]).length,
+        [sources, hiddenLifecycleBySource]
+    );
+
     const sourceOptions = useMemo(() => [
         {key: `${app}+${type}|page`, label: `${type} (pages)`},
         {key: `${app}+${type}|component`, label: `${type} (sections)`},
-        ...sources.map(({source_id, name, srcEnv}) => {
-            const envLabel = srcEnv?.includes('+')
-                ? srcEnv.split('+')[1]
-                : envs[srcEnv]?.label;
-            return {key: source_id, label: `${name}${envLabel ? ` [${envLabel}]` : ''}`};
-        })
-    ], [sources, app, type, envs]);
+        ...sources
+            .filter(({source_id}) => includeHiddenSources || !hiddenLifecycleBySource[source_id] || boundSourceIds.has(String(source_id)))
+            .map(({source_id, name, srcEnv}) => {
+                const envLabel = srcEnv?.includes('+')
+                    ? srcEnv.split('+')[1]
+                    : envs[srcEnv]?.label;
+                const lifecycle = hiddenLifecycleBySource[source_id];
+                return {key: source_id, label: `${name}${envLabel ? ` [${envLabel}]` : ''}${lifecycle ? ` · ${lifecycle}` : ''}`};
+            })
+    ], [sources, app, type, envs, includeHiddenSources, hiddenLifecycleBySource, boundSourceIds]);
 
     // Authoritative views sort first and carry a ★ marker; everything stays selectable.
     const viewOptions = useMemo(
@@ -536,6 +595,9 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         activeSource: sourceId,
         activeView: viewId,
         sources: sourceOptions,
+        hiddenSourceCount,
+        includeHiddenSources,
+        setIncludeHiddenSources,
         views: viewOptions,
         isJoinPresent,
         activeJoinViewsByAlias: joinViewOptionsByAlias,
@@ -544,5 +606,5 @@ export function useDataSource({ state, setState, sourceTypes = DEFAULT_SOURCE_TY
         onJoinChange,
         addJoinSource,
         removeJoinSource
-    }), [sourceId, viewId, sourceOptions, viewOptions, joinViewOptionsByAlias, onSourceChange, onViewChange, onJoinChange, addJoinSource, removeJoinSource]);
+    }), [sourceId, viewId, sourceOptions, hiddenSourceCount, includeHiddenSources, viewOptions, joinViewOptionsByAlias, onSourceChange, onViewChange, onJoinChange, addJoinSource, removeJoinSource]);
 }
