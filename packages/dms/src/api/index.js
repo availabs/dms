@@ -812,6 +812,42 @@ export async function udaGetSourceAuthorities(falcor, { env, source_ids }) {
 }
 
 /**
+ * `metadata.superseded_by` for several sources ({[source_id]: successor source_id|null}), read through
+ * the derived attribute. Fault-tolerant and in its own request: a server without the attribute reads
+ * it as a column and fails the whole batch.
+ */
+export async function udaGetSourcesSupersededBy(falcor, { env, source_ids }) {
+	const ids = [...new Set((source_ids || []).map(Number).filter(Boolean))];
+	if (!falcor || !env || !ids.length) return {};
+	try {
+		const res = await falcor.get(["uda", env, "sources", "byId", ids, "superseded_by"]);
+		const byId = get(res, ["json", "uda", env, "sources", "byId"], {});
+		return Object.fromEntries(ids.map(id => {
+			const v = byId?.[id]?.superseded_by;
+			return [id, Number.isInteger(+v) && v !== null && v !== "" ? +v : null];
+		}));
+	} catch {
+		return {};
+	}
+}
+
+/** Display labels for several views ({[view_id]: label}): DaMa `version`, DMS `name`. Fault-tolerant. */
+export async function udaGetViewLabels(falcor, { env, view_ids, isDms = false }) {
+	const ids = [...new Set((view_ids || []).map(Number).filter(Boolean))];
+	if (!falcor || !env || !ids.length) return {};
+	const attr = isDms ? "name" : "version";
+	try {
+		const res = await falcor.get(["uda", env, "views", "byId", ids, attr]);
+		const byId = get(res, ["json", "uda", env, "views", "byId"], {});
+		return Object.fromEntries(ids
+			.map(id => [id, byId?.[id]?.[attr]])
+			.filter(([, label]) => typeof label === "string" && label.trim()));
+	} catch {
+		return {};
+	}
+}
+
+/**
  * Delete a DaMa view and drop its table. The server refuses (result `{error, reason}`) while another
  * view was built from it (`has_dependents`), while it is authoritative (`authoritative`), or while it
  * is a run view whose outputs would be orphaned (`has_outputs`, unless `cascade`). Needs a signed-in

@@ -422,8 +422,15 @@ rules; they never write SQL.
       see design notes) when the PK is an integer with no default.
 
 **Follow-ups after the 2026-10-20 merge with the UI-controls port (`755567c1`):**
-- [ ] Admin-page Rules button: `<Button activeStyle='actionFull'>` with `t.actionIconRules`
-      (`'Sliders'` in `admin.theme.js`), matching its restyled siblings.
+- [x] Admin-page Rules button: `<Button activeStyle='actionFull'>` with `t.actionIconRules`
+      (`'Sliders'` in `admin.theme.js`), matching its restyled siblings. (2026-10-20)
+- [x] **Rules and Advanced Metadata now navigate from the button** (`onClick` → `navigate`). They
+      had a `<Link>` inside a native `<button>`, which only takes clicks on the link text (Firefox
+      never follows it). Found by the owner testing on :5173; verified with a click near the
+      button's edge → `/datasets/source/3/rules`. (2026-10-20)
+- [x] The Rules page now says when the API server doesn't have the rules routes yet (a GET on an
+      old server rejects with `column "rulesInfo" does not exist`), instead of "Could not load the
+      rules". (2026-10-20)
 - [ ] Rules page + Metadata banner onto `UI` components (`FieldLabel`, `Input`, `Select`, the
       checkbox column type, themed buttons), as `fa3d6955` did for the Schedule page this one was
       modelled on.
@@ -618,3 +625,7 @@ Built with the planned default for 1, 2 and 4; change any of them if you disagre
   (`datasets/defaultTheme.js`, `gis_dataset/index.js`, `csv_dataset/index.js`) resolved by keeping
   both sides: the Rules page next to the incoming Uploads page and Schedule/Runs themes. The merged
   tree builds. Two styling follow-ups listed under Phase 5.
+- **2026-10-20 — Owner test on :5173.** The page couldn't load because `.env` points `VITE_API_HOST`
+  at the deployed dmsserver (old code; its generic attribute route reads `rulesInfo` as a column)
+  and the local :3001 has run since 2026-09-10. Testing needs a server with this code: the deploy, or a
+  restarted :3001 with `VITE_API_HOST=http://localhost:3001`. Also fixed the Admin buttons (above).

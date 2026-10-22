@@ -428,3 +428,8 @@ The stale-binding detector reads `authority` for every bound source. A binding i
   record" bug. `npm run build` is clean. Phase 4b (stale chips in the admin pages editor) is split out
   as a follow-up. Status → `built`; release = dms-server deploy, then frontend. The marked-state
   UI checks wait on that deploy.
+- 2026-10-22 — **Bug found in production use, fixed (built, not deployed).** `setAuthoritativeView` on a DaMa
+  source whose `metadata` is a bare ARRAY (a legacy column list) read it as `{}` and wrote `{authority}` over
+  it, losing the columns (hazmit_dama 542). `uda.controller.js` `readSourceMetadata` now reports the stored
+  kind, and `mutateSourceMetadata` refuses anything but an object or nothing, for authority and rules alike.
+  Test: "setAuthoritativeView refuses bare-array metadata and leaves it intact" (`test-uda.js`, 144 passed).

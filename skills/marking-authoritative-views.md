@@ -42,6 +42,13 @@ Rules (enforced by the server):
   - The row gets an **authoritative** badge.
   - A source with nothing marked shows an **undecided** chip.
   - The source's pages open on the authoritative view by default.
+  - **On the catalog** (the datasets list), a marked source's card and table row carry a chip:
+    `★ <view label>` or `★ N keyed` (the tooltip lists the keys). An undecided source shows nothing
+    (a theme can opt in with `datasetsList.authUndecidedChip`). A view with no label shows `v<id>`,
+    as on the Versions card, so label the view (DaMa `version`, DMS `name`) for the chip to read well.
+  - The rail's **authority** facet (authoritative · keyed · undecided) filters the list. It appears
+    once any source in view is marked.
+  - A source whose `metadata.superseded_by` names a successor shows "superseded by <name> →".
 - **Section and map pickers:** authoritative views sort first with a `★` (or `★ year 2024`).
   Choosing a source that has exactly one authoritative view preselects it.
 - **Who can mark:** requires `update-source` on the source.
@@ -50,8 +57,12 @@ Rules (enforced by the server):
 
 - **Read:**
   - Falcor: `uda[env].sources.byId[id].authority`, a derived, read-only attribute.
+    `uda[env].sources.byId[id].superseded_by` is derived from `metadata.superseded_by` the same way.
+    Fetch each in **its own request**, because an older server reads an unknown attribute as a column
+    and fails the batch (`api/index.js` `udaGetSourceAuthorities`, `udaGetSourcesSupersededBy`).
   - Client helpers: `patterns/datasets/utils/authority.js` (`readAuthority`, `isAuthoritative`,
-    `authorityState`, `singleAuthoritativeViewId`, `sortAuthoritativeFirst`, `keyLabel`).
+    `authorityState`, `singleAuthoritativeViewId`, `sortAuthoritativeFirst`, `keyLabel`,
+    `authoritySummary` for the catalog chip).
 - **Write:** only through the calls, never by editing `metadata`:
   - `falcor.call(['uda','sources','setAuthoritativeView'], [env, sourceId, {view_id, key?, note}])`
   - `falcor.call(['uda','sources','clearAuthoritativeView'], [env, sourceId, {key?}])`
