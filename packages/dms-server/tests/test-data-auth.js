@@ -151,6 +151,28 @@ async function run() {
         await refused(create(anon, 'open|page', { title: 'x' }));
     }));
 
+    await t('race (falcor edit): a page grant revoked between the check and the write refuses the edit', () => withMode('enforce', async () => {
+        // the stranger can edit this page only through a page-level grant
+        await withMode('legacy', () => edit(admin, openPage, { authPermissions: { groups: { Editors: ['edit-page'] } } }));
+        await withMode('legacy', () => edit(admin, docsPage, { authPermissions: { users: { [stranger.id]: ['edit-page'] } } }));
+        const ctl = as(stranger).controller; const orig = ctl.getPatternRows; let fired = false;
+        ctl.getPatternRows = async (...a) => {
+            if (!fired) { fired = true; await withMode('legacy', () => edit(admin, docsPage, { authPermissions: { users: { [stranger.id]: [] } } })); }
+            return orig(...a);
+        };
+        try {
+            // read under the grant; the write's transaction sees the row changed, so it is judged again
+            await refused(edit(stranger, docsPage, { title: 'after revoke' }));
+        } finally { ctl.getPatternRows = orig; }
+        assert.notStrictEqual((await dataOf(docsPage)).data.title, 'after revoke');
+        await withMode('legacy', () => edit(admin, docsPage, { authPermissions: null }));
+        await withMode('legacy', () => edit(admin, openPage, { authPermissions: null }));
+    }));
+    await t('a judged edit of a row that does not exist still writes nothing (no retry loop)', () => withMode('enforce', async () => {
+        const res = await outcome(edit(admin, 99999999, { title: 'ghost' }));
+        assert(res === null || !/changed while/.test(res), res);
+    }));
+
     console.log('\npatterns and site rows (enforce):');
     await t('pattern edits need edit-pattern; authPermissions need edit-pattern-permissions', () => withMode('enforce', async () => {
         await allowed(edit(patEditor, docs, { name: 'Docs 2' }));
@@ -265,7 +287,11 @@ async function run() {
         await allowed(call(editor, ['dms', 'data', 'delete'], [APP, 'docs|page', docsPage2]));
     }));
     await t('${app} Admin passes everything', () => withMode('enforce', async () => {
-        await allowed(edit(admin, docs, { authPermissions: { groups: {} } }));
+        // the same grants written back plus one (SQLite merges nested objects, Postgres replaces them:
+        // an empty `groups` would leave the pattern without grants on Postgres only)
+        const { data } = await dataOf(docs);
+        const ap = data.authPermissions;
+        await allowed(edit(admin, docs, { authPermissions: { ...ap, groups: { ...ap.groups, Extra: ['view-page'] } } }));
         await allowed(create(admin, ROAD_ROWS, { a: 3 }));
     }));
 
@@ -275,9 +301,10 @@ async function run() {
         const { createSyncRoutes } = require('../src/routes/sync/sync');
         const http = require('http');
         let pushUser = null;
+        const syncRouter = createSyncRoutes(DMS_DB);
         const server = express().use(express.json())
             .use((req, res, next) => { req.availAuthContext = { user: pushUser }; next(); })
-            .use(createSyncRoutes(DMS_DB)).listen(0);
+            .use(syncRouter).listen(0);
         await new Promise(r => server.once('listening', r));
         const push = (user, body) => { pushUser = user; return new Promise((resolve, reject) => {
             const payload = JSON.stringify(body);
@@ -351,6 +378,33 @@ async function run() {
             const { data } = await dataOf(docsPage);
             assert.strictEqual(data.created_at, undefined);
             assert.strictEqual(data.updated_by, undefined);
+        }));
+        await t('race (sync I replace): a change between the check and the write is not reverted', () => withMode('enforce', async () => {
+            await withMode('legacy', () => edit(admin, docsPage, { sections: [{ id: 1 }] }));
+            const { data } = await dataOf(docsPage);
+            // someone publishes new sections while the editor's save is being judged
+            const ctl = syncRouter.controller; const orig = ctl.getPatternRows; let fired = false;
+            ctl.getPatternRows = async (...a) => {
+                if (!fired) { fired = true; await withMode('legacy', () => edit(admin, docsPage, { sections: [{ id: 2 }] })); }
+                return orig(...a);
+            };
+            try {
+                // whole row as the editor last saw it (old sections) + a new title: a plain replace
+                // would put sections [1] back; judged again on the changed row, it removes [2] → publish-page
+                const r = await push(editor, { action: 'I', item: { app: APP, type: 'docs|page', id: docsPage, data: { ...data, title: 'race' } } });
+                assert.strictEqual(r.status, 403, r.body);
+            } finally { ctl.getPatternRows = orig; }
+            assert.deepStrictEqual((await dataOf(docsPage)).data.sections, [{ id: 2 }]);
+        }));
+        await t('race (sync U): a row that keeps changing gives up with 409 after 3 tries', () => withMode('enforce', async () => {
+            const ctl = syncRouter.controller; const orig = ctl.getPatternRows; let n = 0;
+            ctl.getPatternRows = async (...a) => { await withMode('legacy', () => edit(admin, docsPage, { title: `moving ${++n}` })); return orig(...a); };
+            try {
+                const r = await push(editor, { action: 'U', item: { app: APP, type: 'docs|page', id: docsPage, data: { description: 'x' } } });
+                assert.strictEqual(r.status, 409, r.body);
+                assert.strictEqual(n, 3);
+            } finally { ctl.getPatternRows = orig; }
+            assert.strictEqual((await dataOf(docsPage)).data.description, undefined, 'nothing written');
         }));
         await t('D of a view through sync cascades like dms.data.delete (the ref leaves the source)', () => withMode('enforce', async () => {
             const doomed = await insert('roads|v8:view', { name: 'v8' });

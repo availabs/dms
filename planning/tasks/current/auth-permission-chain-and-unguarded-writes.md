@@ -203,6 +203,14 @@ its push, together with a guard on `/sync/push` (it accepted viewer's update of 
 - **`/sync/push` I onto an existing id replaces the whole data**: stored keys it leaves out are judged as removed
   (before: a user with edit-page could wipe `sections` / `authPermissions` that way), and every key judged
   unchanged is written from the stored row.
+- **No gap between check and write** (2026-10-22): the guard reads the row with its data as stored text
+  (`getRowsForWrite`); the write's transaction re-reads it (`assertRowUnchanged`, `FOR UPDATE` on Postgres;
+  SQLite's transaction holds the only connection) and writes nothing when its type or data text differs, or a
+  row appeared where none was. The route then reads and judges again, 3 tries, then fails ("This row changed
+  while it was being saved"; `/sync/push` answers 409). Text, not parsed values, so the double-precision blind
+  spot can't hide a concurrent change. Covers `dms.data.edit`, `dms.type.edit`, `/sync/push` U / I / D. Not
+  covered: grants changing on the PATTERN row between check and write (a separate row; same as any
+  check-then-act), and `dms.data.delete` (multi-id; judged on type + page grants).
 - `dms.type.edit` is a move: judged as a delete under the old type plus a create under the new one.
 - `/sync/push` D now runs `dms.data.delete`'s cascade (`controller.cascadeDeletedRow`): the client deletes
   through the local store when sync is on, and that path removed only the row (found live: internal Delete

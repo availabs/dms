@@ -509,6 +509,27 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   }
 
   /**
+   * Optimistic check for a judged write (routes/dms/dataAuth.js): inside the write's transaction, the
+   * row must still be what the guard judged, `expect = { type, dataText }` from getRowsForWrite (or
+   * `{ missing: true }`: still no row). The
+   * data is compared as stored text, not parsed (parsing hides changes past double precision).
+   * Postgres locks the row until the write commits; SQLite's transaction already holds the only
+   * connection. Throws a DMS_STALE_ROW error when the row changed or is gone.
+   */
+  async function assertRowUnchanged(tx, table, id, expect) {
+    if (!expect) return;
+    const [row] = await tx.promise(
+      `SELECT type, CAST(data AS TEXT) AS data_text FROM ${table} WHERE id = $1${dbType === 'postgres' ? ' FOR UPDATE' : ''};`,
+      [id]
+    );
+    // `missing`: the check saw no row; one that appeared since was never judged
+    const changed = expect.missing ? !!row : (!row || row.type !== expect.type || row.data_text !== expect.dataText);
+    if (changed) {
+      throw Object.assign(new Error('This row changed while it was being saved'), { code: 'DMS_STALE_ROW' });
+    }
+  }
+
+  /**
    * What a deleted row takes with it (sources, views, the page delete hook). Runs inside the
    * deleting transaction, after the row's own DELETE. Returns true for a source or view.
    */
@@ -967,6 +988,17 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return Promise.all(promises)
     },
 
+    // Rows as a write's permission check needs them: parsed data plus the stored text (the
+    // optimistic check in assertRowUnchanged compares that). Main table only.
+    getRowsForWrite: async (ids, app = null) => {
+      const table = app ? await mainTable(app) : tableName('data_items');
+      const arrayResult = buildArrayComparison('id', ids, dbType);
+      return dms_db.promise(
+        `SELECT id, app, type, data, CAST(data AS TEXT) AS data_text FROM ${table} WHERE ${arrayResult.sql}`,
+        arrayResult.values
+      );
+    },
+
     getDataById: async (ids, attributes=["id", "data", "updated_at", "created_at"], app = null) => {
       // When app is provided, resolve per-app table; otherwise data_items (legacy)
       const table = app ? await mainTable(app) : tableName('data_items');
@@ -998,7 +1030,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     // `changeHistory: true`: write the dataset's change history, if it has a `change_history` setting.
     // Off by default: only the Falcor edit route (the UI and the CLI) asks for it, so a server-side
     // caller (workers, upload, duplicating pages) writes none unless it opts in.
-    setDataById: async (id, data, user, app = null, type = null, reqMeta = null, { changeHistory = false } = {}) => {
+    // `expect`: the row as the permission check saw it (see assertRowUnchanged).
+    setDataById: async (id, data, user, app = null, type = null, reqMeta = null, { changeHistory = false, expect = null } = {}) => {
       // When type is provided, resolve the split table (for dataset row updates).
       // Otherwise fall back to the main table.
       let table;
@@ -1019,6 +1052,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const userId = get(user, "id", null);
 
       const rows = await dms_db.withTransaction(async (tx) => {
+        await assertRowUnchanged(tx, table, id, expect);
         // the row as it was, locked until the edit commits, for the history's old values
         const [current] = history
           ? await tx.promise(`SELECT data FROM ${table} WHERE id = $1${dbType === 'postgres' ? ' FOR UPDATE' : ''};`, [id])
@@ -1090,12 +1124,13 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       )
     },
 
-    setTypeById: async (id, type, user, app = null, reqMeta = null) => {
+    setTypeById: async (id, type, user, app = null, reqMeta = null, { expect = null } = {}) => {
       // When app is provided, resolve per-app table; otherwise data_items (legacy)
       const table = app ? await mainTable(app) : tableName('data_items');
       const userId = get(user, "id", null);
 
       return dms_db.withTransaction(async (tx) => {
+        await assertRowUnchanged(tx, table, id, expect);
         const sql = `
           UPDATE ${table}
           SET type = $1,
@@ -1233,6 +1268,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
     // For /sync/push deletes: the same cascade as deleteData, inside the caller's transaction (`row`:
     // the deleted row as it was stored, { id, app, type }).
+    assertRowUnchanged: (tx, table, id, expect) => assertRowUnchanged(tx, table, id, expect),
+
     cascadeDeletedRow: async (tx, row, userId, reqMeta = null) => {
       const removed = await cascadeDeletedRow(tx, row, userId, reqMeta);
       tx.afterCommit(() => { _tagsCache.clear(); if (removed) _changeHistoryCache.clear(); });

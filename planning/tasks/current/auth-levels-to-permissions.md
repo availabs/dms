@@ -62,7 +62,9 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   changed keys (`planEdit`), and a sync I onto an existing id judges the keys it removes. Closes: values that only
   compare equal in JS (big numbers), JSON-string coercion, and a whole-row wipe through sync I. Tests: 45 (the 4
   new refusal tests fail on the old code). Live editor rerun under enforce: publish + footer toggle land correctly.
-  Open (low): the guard's read and the write aren't one transaction (a concurrent change in between).
+  Check-to-write gap closed the same day: optimistic re-check inside the write's transaction, retry 3×
+  (defect task, "No gap between check and write"). Race tests (3) fail with the check off. `test-data-auth.js`
+  49/49 on SQLite **and Postgres** (:5499); related suites green on both; live editor rerun clean.
 - Not yet: the Postgres pass, steps 6+ (tasks 6–10).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22 and the live page-editor pass ran
@@ -155,6 +157,10 @@ wiped 2026-10-21 and must be re-seeded).
 3. Auth track (13–17) is independent; the first quick win is the NYSDOT `avail_auth` level-5 hole (task 16).
 
 **Open bugs found along the way (not fixed, not ours):**
+- SQLite and Postgres merge an edit differently: `json_patch` merges nested objects (and `null` deletes a key),
+  Postgres `||` replaces each top-level key. So `{authPermissions: {groups: {}}}` keeps a pattern's grants on
+  SQLite and wipes them on Postgres (found by test-data-auth on Postgres, 2026-10-22). Clients send whole values,
+  so it mostly doesn't show; a partial nested write (CLI, scripts) behaves per database.
 - sqlite only: in-process DMS tasks get `ctx.task.descriptor` as a string (`dms/tasks/index.js` `startTaskWorker`;
   the forked `worker-runner.js:77` already parses). Sync-filters fails and duplicate copies zero pages on sqlite
   servers; prod (Postgres) is fine. About a one-line fix.

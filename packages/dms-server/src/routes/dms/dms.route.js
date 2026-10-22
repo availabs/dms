@@ -5,7 +5,7 @@ const falcorJsonGraph = require("falcor-json-graph"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
 const { isUserAuthed, resolveAuthPermissions } = require('./auth');
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
-const { assertDataWrite } = require('./dataAuth');
+const { assertDataWrite, dataAuthMode } = require('./dataAuth');
 
 /*
  Controller Settings
@@ -163,8 +163,25 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // the type the client names.
   const storedRows = async (app, ids, type) => {
     if (type && isSplitType(type)) return ids.map(id => ({ id, type, data: null }));
-    const rows = await controller.getDataById(ids, ['id', 'app', 'type', 'data'], app);
-    return ids.map(id => rows.find(r => String(r.id) === String(id)) || { id, type: '', data: null });
+    const rows = await controller.getRowsForWrite(ids, app);
+    return ids.map(id => rows.find(r => String(r.id) === String(id)) || { id, type: '', data: null, missing: true });
+  };
+
+  // Read → judge → write, with the write checking (in its transaction) that the row is still what was
+  // judged; when it changed in between, read and judge again (3 tries). `write(stored, expect)`.
+  // Split rows are never compared (their edit doesn't depend on the stored data). `legacy` checks
+  // nothing, as before.
+  const judgedWrite = async (app, id, type, write) => {
+    for (let attempt = 0; ; attempt++) {
+      const [stored] = await storedRows(app, [id], type);
+      const expect = dataAuthMode() === 'legacy' || (type && isSplitType(type)) ? null
+        : stored.missing ? { missing: true } : { type: stored.type, dataText: stored.data_text };
+      try {
+        return await write(stored, expect);
+      } catch (e) {
+        if (e.code !== 'DMS_STALE_ROW' || attempt >= 2) throw e;
+      }
+    }
   };
 
   return [
@@ -487,17 +504,19 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
-          const [stored] = await storedRows(app, [id], type);
-          // only what the guard judged is written (dataAuth.js planEdit)
-          const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data);
-          const rows = await controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true });
+          const rows = await judgedWrite(app, id, type, async (stored, expect) => {
+            // only what the guard judged is written (dataAuth.js planEdit)
+            const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data);
+            return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });
+          });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
         const [id, data] = args;
-        const [stored] = await storedRows(null, [id]);
-        const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
-        const rows = await controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta);
+        const rows = await judgedWrite(null, id, null, async (stored, expect) => {
+          const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
+          return controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta, { expect });
+        });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
@@ -523,20 +542,22 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         if (args.length >= 3) {
           // New format: [app, id, type]
           const [app, id, type] = args;
-          const [stored] = await storedRows(app, [id]);
-          // a move: out of the old type (as a delete), into the new one (as a create)
-          await assertDataWrite(this, controller, 'delete', app, stored, null);
-          await assertDataWrite(this, controller, 'create', app, { id, type, data: stored.data }, null);
-          const rows = await controller.setTypeById(id, type, this.user, app, this.reqMeta);
+          const rows = await judgedWrite(app, id, null, async (stored, expect) => {
+            // a move: out of the old type (as a delete), into the new one (as a create)
+            await assertDataWrite(this, controller, 'delete', app, stored, null);
+            await assertDataWrite(this, controller, 'create', app, { id, type, data: stored.data }, null);
+            return controller.setTypeById(id, type, this.user, app, this.reqMeta, { expect });
+          });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, type]
         const [id, type] = args;
-        const [stored] = await storedRows(null, [id]);
-        // a move: out of the old type (as a delete), into the new one (as a create)
-        await assertDataWrite(this, controller, 'delete', stored.app, stored, null);
-        await assertDataWrite(this, controller, 'create', stored.app, { id, type, data: stored.data }, null);
-        const rows = await controller.setTypeById(id, type, this.user, null, this.reqMeta);
+        const rows = await judgedWrite(null, id, null, async (stored, expect) => {
+          // a move: out of the old type (as a delete), into the new one (as a create)
+          await assertDataWrite(this, controller, 'delete', stored.app, stored, null);
+          await assertDataWrite(this, controller, 'create', stored.app, { id, type, data: stored.data }, null);
+          return controller.setTypeById(id, type, this.user, null, this.reqMeta, { expect });
+        });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
