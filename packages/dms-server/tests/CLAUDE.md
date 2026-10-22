@@ -105,6 +105,7 @@ DMS_TEST_DB=dms-postgres-test node tests/test-graph.js
 | test-transactions.js | Yes | Yes | `withTransaction` contract + converted call sites; via `DMS_TEST_DB` |
 | test-transactions-pg.js | No | Yes | PG-only: pg_stat_activity, per-backend trace, Bug 14 repro, DAMA deletes |
 | test-transaction-guard.js | n/a | n/a | No DB: fails on hand-rolled BEGIN / old transaction API outside the adapters |
+| test-sites.js | n/a | n/a | No DB: site hosting by `Host` (`src/sites/`) over HTTP, against a temp sites folder |
 | test-change-history.js | Yes | Yes | A dataset's `change_history` writes (`routes/dms/changeHistory.js`); via `DMS_TEST_DB` |
 | test-source-rules.js | No | Yes (PostGIS) | DAMA source rules (`dama/rules`): generated SQL, routes, triggers, publish re-apply. Needs PostGIS: `npm run test:pg:source-rules` sets `DMS_TEST_PG_IMAGE=postgis/postgis:16-3.4` |
 
