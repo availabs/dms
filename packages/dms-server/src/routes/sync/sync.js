@@ -542,10 +542,15 @@ function createSyncRoutes(dbName) {
         ? await dms_db.promise(`SELECT id, app, type, data FROM ${pushTable} WHERE id = $1`, [item.id])
         : [];
       const op = action === 'D' ? 'delete' : (action === 'U' || stored) ? 'edit' : 'create';
+      // What gets written: for an edit, only the keys the guard judged (dataAuth.js planEdit). An I
+      // onto an existing row replaces its whole data, so keys it leaves out are judged as removed.
+      let writeData = item.data;
       try {
-        await assertDataWrite({ user, subdomain: getSubdomain(req) }, controller, op, item.app,
+        const judged = await assertDataWrite({ user, subdomain: getSubdomain(req) }, controller, op, item.app,
           stored || { id: item.id ?? null, type: item.type, data: item.data || {} },
-          op === 'edit' ? (typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {})) : null);
+          op === 'edit' ? (typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {})) : null,
+          { replace: action === 'I' });
+        if (op === 'edit') writeData = judged;
       } catch (e) {
         if (!e.status) throw e;
         return res.status(e.status).json({ error: e.message });
@@ -556,7 +561,7 @@ function createSyncRoutes(dbName) {
 
         if (action === 'I') {
           // Create — use ON CONFLICT for idempotent retries
-          const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
+          const dataStr = typeof writeData === 'string' ? writeData : JSON.stringify(writeData || {});
 
           if (item.id) {
             // Client-provided ID (e.g., from pending queue retry)
@@ -586,7 +591,7 @@ function createSyncRoutes(dbName) {
           }
 
         } else if (action === 'U') {
-          const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
+          const dataStr = typeof writeData === 'string' ? writeData : JSON.stringify(writeData || {});
           const rows = await tx.promise(
             `UPDATE ${pushTable}
              SET data = ${jsonMerge('data', '$1', dbType)},

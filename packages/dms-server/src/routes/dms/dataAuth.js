@@ -44,17 +44,39 @@ const parseJson = (v) => {
 const hasGrants = (ap) =>
     Object.keys((ap && ap.groups) || {}).some(g => g !== 'public') || Object.keys((ap && ap.users) || {}).length > 0;
 
-// Row columns a client echoes back in its data (whole-row saves); never a change.
-const ROW_COLUMNS = ['id', 'app', 'type', 'created_at', 'updated_at', 'created_by', 'updated_by'];
+// Row columns some clients copy into a whole-row save's data. The timestamps / authors are never
+// judged and never written into data; `id` / `app` / `type` count as unchanged when they equal the
+// stored data's value or the row's own column (the site editor echoes `type: 'prod:site'`).
+const ECHO_ONLY = ['created_at', 'updated_at', 'created_by', 'updated_by'];
+const ROW_KEYS = ['id', 'app', 'type'];
 
-// The keys an edit actually changes. Editors often save the whole row (the site editor sends
-// `site_name` with a new `patterns` list; the pattern editor sends its unchanged `authPermissions`),
-// so a key whose value equals the stored one doesn't count. Without the stored row (split rows),
-// every key counts.
-function changedKeys(patch, stored) {
+/**
+ * How an edit is judged and what it writes. Editors often save whole rows (the site editor sends
+ * `site_name` with a new `patterns` list; the pattern editor its unchanged `authPermissions`), so a
+ * key equal to the stored value is not a change. It is also NOT WRITTEN: `write` holds only the
+ * changed keys, each of which the guard judged. So a comparison that wrongly says "equal" (numbers
+ * past double precision, say) can only drop a key from the write, never let a value through unjudged.
+ *
+ * `replace` (sync/push I onto an existing row: the whole data is replaced): a stored key the patch
+ * leaves out is removed, so it is a change too; `write` is the full new data, with every key judged
+ * unchanged taken from the stored row.
+ *
+ * Without the stored row (split rows) every key is a change and the patch is written as sent.
+ * Returns { keys, write }.
+ */
+function planEdit(row, patch, { replace = false } = {}) {
     const p = parseJson(patch) || {};
-    const s = parseJson(stored);
-    return Object.keys(p).filter(k => !ROW_COLUMNS.includes(k) && !(s && isEqual(parseJson(p[k]) ?? p[k], parseJson(s[k]) ?? s[k])));
+    const s = parseJson(row && row.data);
+    if (!s) return { keys: Object.keys(p).filter(k => !ECHO_ONLY.includes(k)), write: p };
+    const unchanged = (k) => isEqual(p[k], s[k]) || (ROW_KEYS.includes(k) && row[k] != null && String(p[k]) === String(row[k]));
+    const sent = Object.keys(p).filter(k => !ECHO_ONLY.includes(k));
+    const changed = sent.filter(k => !unchanged(k));
+    const removed = replace ? Object.keys(s).filter(k => !ECHO_ONLY.includes(k) && !(k in p)) : [];
+    const pick = (obj, ks) => Object.fromEntries(ks.map(k => [k, obj[k]]));
+    const write = replace
+        ? { ...pick(s, Object.keys(s).filter(k => ECHO_ONLY.includes(k))), ...pick(s, sent.filter(unchanged)), ...pick(p, changed) }
+        : pick(p, changed);
+    return { keys: [...changed, ...removed], write };
 }
 
 const allow = (reason) => ({ allow: true, reason });
@@ -131,10 +153,9 @@ function createJudge(ctx) {
 
     // ---- per kind. `op`: create | edit | delete. `row`: { id, type, data } (data = stored row for
     // edits/deletes, the new data for creates). `patch`: the edit's data.
-    async function judge(op, row, patch) {
+    async function judge(op, row, patch, keys) {
         const type = row.type || '';
         const kind = getKind(type);
-        const keys = op === 'edit' ? changedKeys(patch, row.data) : [];
         // An edit that changes nothing writes only updated_at / updated_by: any of the row's edit
         // permissions passes it (a permissions-only user re-saving unchanged grants, say).
         const noChange = op === 'edit' && keys.length === 0;
@@ -253,10 +274,11 @@ function createJudge(ctx) {
         return user ? allow('signed in') : deny('sign in required');
     }
 
-    const decide = async (op, row, patch) => {
+    // `keys`: the edit's changed keys (planEdit); computed here when the caller has none.
+    const decide = async (op, row, patch, keys = op === 'edit' ? planEdit(row, patch).keys : []) => {
         if (isAppAdmin(user, app)) return allow(`${app} Admin`);
         try {
-            return await judge(op, row, patch);
+            return await judge(op, row, patch, keys);
         } catch (e) {
             return deny(`lookup failed: ${e.message}`);
         }
@@ -274,19 +296,23 @@ function logWouldDeny(op, app, row, user, reason) {
 }
 
 /**
- * Throw unless `router.user` may do `op` on `row` (under DMS_DATA_AUTH_MODE). `row.type` must be the
- * stored type for edits / deletes (see the routes). `patch`: an edit's data.
+ * Throw unless `router.user` may do `op` on `row` (under DMS_DATA_AUTH_MODE). `row` must be the stored
+ * row ({ id, app, type, data }) for edits / deletes (see the routes). `patch`: an edit's data;
+ * `replace`: the write replaces the whole data (sync/push I onto an existing id).
+ * Returns the data to write: for an edit judged against its stored row, only what planEdit judged
+ * (see there); otherwise `patch` as given. `legacy` checks and filters nothing.
  */
-async function assertDataWrite(router, controller, op, app, row, patch) {
+async function assertDataWrite(router, controller, op, app, row, patch, { replace = false } = {}) {
     const mode = dataAuthMode();
-    if (mode === 'legacy') return;
+    if (mode === 'legacy') return patch;
     const user = (router && router.user) || null;
-    const d = await createJudge({ app, subdomain: (router && router.subdomain) || '', user, controller })(op, row, patch);
-    if (d.allow) return;
-    if (mode === 'log') { logWouldDeny(op, app, row, user, d.reason); return; }
+    const plan = op === 'edit' ? planEdit(row, patch, { replace }) : { keys: [], write: patch };
+    const d = await createJudge({ app, subdomain: (router && router.subdomain) || '', user, controller })(op, row, patch, plan.keys);
+    if (d.allow) return plan.write;
+    if (mode === 'log') { logWouldDeny(op, app, row, user, d.reason); return plan.write; }
     const e = new Error(user ? `Not authorized: ${d.reason}` : 'Sign in to do this');
     e.status = user ? 403 : 401; // for the REST callers (sync/push)
     throw e;
 }
 
-module.exports = { assertDataWrite, dataAuthMode, createJudge, logWouldDeny };
+module.exports = { assertDataWrite, dataAuthMode, createJudge, logWouldDeny, planEdit };

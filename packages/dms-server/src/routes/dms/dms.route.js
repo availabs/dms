@@ -488,15 +488,16 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
           const [stored] = await storedRows(app, [id], type);
-          await assertDataWrite(this, controller, 'edit', app, stored, data);
-          const rows = await controller.setDataById(id, data, this.user, app, type || null, this.reqMeta, { changeHistory: true });
+          // only what the guard judged is written (dataAuth.js planEdit)
+          const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data);
+          const rows = await controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
         const [id, data] = args;
         const [stored] = await storedRows(null, [id]);
-        await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
-        const rows = await controller.setDataById(id, data, this.user, null, null, this.reqMeta);
+        const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
+        const rows = await controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta);
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },

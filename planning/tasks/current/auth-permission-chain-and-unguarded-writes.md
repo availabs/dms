@@ -194,6 +194,15 @@ its push, together with a guard on `/sync/push` (it accepted viewer's update of 
   `type`, timestamps). An edit that changes nothing passes with any of the row's edit permissions (page:
   edit-page / publish-page / edit-page-permissions / edit-page-params; pattern: edit-pattern /
   edit-pattern-permissions; source: update-source / edit-source-permissions / create-view).
+- **Only judged keys are written** (2026-10-22, `planEdit`): an edit writes just its changed keys; unchanged ones
+  are dropped from the write, so a comparison that wrongly says "equal" (numbers past double precision,
+  confirmed: `12345678901234567890` = `…891` in JS) can only skip a key, never let a value through unjudged.
+  Values are compared as sent (no per-key JSON parse: a JSON string of the same array is a change). Echoed
+  `created_at`/`updated_at`/`created_by`/`updated_by` are never judged or written; `id`/`app`/`type` count as
+  unchanged when equal to the stored data or the row's own column. `legacy` mode writes the patch as sent.
+- **`/sync/push` I onto an existing id replaces the whole data**: stored keys it leaves out are judged as removed
+  (before: a user with edit-page could wipe `sections` / `authPermissions` that way), and every key judged
+  unchanged is written from the stored row.
 - `dms.type.edit` is a move: judged as a delete under the old type plus a create under the new one.
 - `/sync/push` D now runs `dms.data.delete`'s cascade (`controller.cascadeDeletedRow`): the client deletes
   through the local store when sync is on, and that path removed only the row (found live: internal Delete

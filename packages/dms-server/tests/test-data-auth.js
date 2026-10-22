@@ -309,6 +309,49 @@ async function run() {
             assert.strictEqual((await push(patEditor, { action: 'D', item: { app: APP, type: 'site|docs:pattern', id: docs } })).status, 403);
             assert.ok((await dataOf(docs)).data, 'the pattern is still there');
         }));
+        const rawData = async (id) => {
+            const { rows } = await dms.query(`SELECT CAST(data AS TEXT) AS t FROM ${tbl} WHERE id = $1`, [id]);
+            return rows[0] && rows[0].t;
+        };
+        await t('a value that only compares equal (past double precision) is not written', () => withMode('enforce', async () => {
+            const made = await push(admin, { action: 'I', item: { app: APP, type: 'docs|page', data: '{"title":"big","sections":[{"id":12345678901234567890}]}' } });
+            const bigPage = JSON.parse(made.body).item.id;
+            // the editor has edit-page, not publish-page: in JS the two ids are the same double
+            const r = await push(editor, { action: 'U', item: { app: APP, type: 'docs|page', id: bigPage,
+                data: '{"title":"big 2","sections":[{"id":12345678901234567891}]}' } });
+            assert.strictEqual(r.status, 200, r.body);
+            const text = await rawData(bigPage);
+            assert.match(text, /12345678901234567890/, `sections must be unchanged: ${text}`);
+            assert.match(text, /big 2/);
+        }));
+        await t('sections resent as a JSON string of the same array are a change (publish-page)', () => withMode('enforce', async () => {
+            const { data } = await dataOf(docsPage);
+            const r = await push(editor, { action: 'U', item: { app: APP, type: 'docs|page', id: docsPage,
+                data: { sections: JSON.stringify(data.sections || []) } } });
+            assert.strictEqual(r.status, 403, r.body);
+        }));
+        await t('I onto an existing row replaces it: keys it leaves out are judged as removed', () => withMode('enforce', async () => {
+            await withMode('legacy', () => edit(admin, docsPage, { sections: [{ id: 1 }], authPermissions: { groups: { Editors: ['edit-page'] } } }));
+            const r = await push(editor, { action: 'I', item: { app: APP, type: 'docs|page', id: docsPage, data: { title: 'wiped' } } });
+            assert.strictEqual(r.status, 403, `dropping sections + authPermissions needs publish-page / edit-page-permissions: ${r.body}`);
+            const { data } = await dataOf(docsPage);
+            assert.deepStrictEqual(data.sections, [{ id: 1 }]);
+        }));
+        await t('I onto an existing row with every key kept + one changed: allowed, the rest from the stored row', () => withMode('enforce', async () => {
+            const { data } = await dataOf(docsPage);
+            const r = await push(editor, { action: 'I', item: { app: APP, type: 'docs|page', id: docsPage, data: { ...data, title: 'replaced' } } });
+            assert.strictEqual(r.status, 200, r.body);
+            const after = (await dataOf(docsPage)).data;
+            assert.strictEqual(after.title, 'replaced');
+            assert.deepStrictEqual(after.sections, data.sections);
+            assert.deepStrictEqual(after.authPermissions, data.authPermissions);
+        }));
+        await t('echoed row columns (created_at …) are never written into data', () => withMode('enforce', async () => {
+            await allowed(edit(editor, docsPage, { title: 'echo', created_at: '2020-01-01', updated_by: 999 }));
+            const { data } = await dataOf(docsPage);
+            assert.strictEqual(data.created_at, undefined);
+            assert.strictEqual(data.updated_by, undefined);
+        }));
         await t('D of a view through sync cascades like dms.data.delete (the ref leaves the source)', () => withMode('enforce', async () => {
             const doomed = await insert('roads|v8:view', { name: 'v8' });
             const before = (await dataOf(roads)).data.views;

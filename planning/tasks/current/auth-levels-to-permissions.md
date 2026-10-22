@@ -58,6 +58,11 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
     page `filters` accept `edit-page-params` (the Filters pane's gate). `test-data-auth.js`: 40.
   - ⚠ In `log` mode refused writes still happen: `neg-pageedit.mjs`'s delete case deleted page 63 once (restored
     with its id from `change_log`); the script now deletes a throwaway page it makes itself.
+- **Write = what was judged** (2026-10-22, after owner review of the equality check): edits write only their
+  changed keys (`planEdit`), and a sync I onto an existing id judges the keys it removes. Closes: values that only
+  compare equal in JS (big numbers), JSON-string coercion, and a whole-row wipe through sync I. Tests: 45 (the 4
+  new refusal tests fail on the old code). Live editor rerun under enforce: publish + footer toggle land correctly.
+  Open (low): the guard's read and the write aren't one transaction (a concurrent change in between).
 - Not yet: the Postgres pass, steps 6+ (tasks 6–10).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22 and the live page-editor pass ran
