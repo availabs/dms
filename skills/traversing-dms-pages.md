@@ -258,6 +258,25 @@ Learned on the MNY worklists build (2026-08-31), verified on `mny-inventory`-sty
   expression strings as keys — into the row's data JSONB (see src/dms task
   `datawrapper-liveedit-writes-expression-columns.md`).
 
+## 3c. The page edit pane (Settings / Pages / Publish) — driving it in automation
+
+Found 2026-10-22 (permissions live pass, `scratchpad/verify/authcheck/flow-pageedit.mjs`, tessera_v6 default theme):
+
+- The pane buttons on `/edit/<slug>` are `div[title="Settings"]`, `Filters`, `Section Groups`, `Pages`, `History`,
+  `Permissions` (`pages/edit/editPane/index.jsx`). Each is filtered by its own permission (`edit-page`,
+  `edit-page-params`, `edit-page`, `create-page`, none, `edit-page-permissions`), so the set shown is a quick read
+  of what the signed-in user may do. The bar shows nothing at all without `edit-page` or `edit-page-permissions`.
+- Settings pane toggles are `[role=switch]` with the label in the parent's text, in v6 lower case ("Show in footer",
+  "Show in nav", "Cover page"); select by `parentElement.innerText`, not by the old "Show in Footer" label.
+  Settings save live (no draft), so they never enable Publish.
+- Publish is a button whose text is `Publish` or `No Changes` (disabled); it renders only with `publish-page`.
+  It enables when `published === 'draft'` or `has_changes` is set.
+- `+ page` (Pages pane) opens the template picker: cards are `div`s (click the card text, e.g. "Blank…") and the
+  confirm is a **span** "Create Page", not a button.
+- With sync on, the editor's writes go through `POST /sync/push` (`{action, item: {app, type, id, data}}`, `data`
+  a JSON **string**), not `/graph` calls; capture both. Publish sends a `|page-edit` history create, component
+  creates, then the page update.
+
 ## 4. Known state-machine / URL gotchas (check this list before concluding a bug)
 
 - **Subdomain routing OR path-mount routing — check the pattern's actual mount, don't assume.**

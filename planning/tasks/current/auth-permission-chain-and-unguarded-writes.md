@@ -180,7 +180,7 @@ its push, together with a guard on `/sync/push` (it accepted viewer's update of 
   | `:theme` | `manage-themes` | `manage-themes` | `manage-themes` |
   | `:tenant` | `manage-tenants` | `manage-tenants` | `manage-tenants` |
   | `:pattern` | site `create-pattern` | `authPermissions` → `edit-pattern-permissions`; other keys → `edit-pattern` (mirrors `patternCan`) | `delete-pattern` |
-  | `\|page` | `create-page` | `authPermissions` → `edit-page-permissions`; `sections`/`section_groups`/`dataSources`, or `published` set to anything but `'draft'` → `publish-page`; else `edit-page` | `edit-page` |
+  | `\|page` | `create-page` | `authPermissions` → `edit-page-permissions`; `sections`/`section_groups`/`dataSources`, or `published` set to anything but `'draft'` → `publish-page`; `filters` → `edit-page` or `edit-page-params` (the Filters pane's gate); else `edit-page` | `edit-page` |
   | `\|component`, `\|page-edit` (a page's edit history) | `edit-page` or `publish-page` | same | same |
   | `:dmsenv` | `create-source`/`delete-source`/`edit-pattern` on the app's datasets patterns | same | same |
   | `:source` (internal) | `create-source` (app's datasets patterns) | `auth_permissions` → `edit-source-permissions`; `views` only → `create-view`/`update-source`/`delete-source`; else `update-source` | `delete-source` |
@@ -191,7 +191,10 @@ its push, together with a guard on `/sync/push` (it accepted viewer's update of 
 - **Only changed keys count** on an edit: editors save whole rows (recorded requests, 2026-10-22: the site
   editor sends `site_name`/`tenants` with a new `patterns` list, the pattern editor its unchanged
   `authPermissions`), so a key equal to the stored value is ignored, as are the row columns (`id`, `app`,
-  `type`, timestamps). An edit that changes nothing is judged as any edit of the row.
+  `type`, timestamps). An edit that changes nothing passes with any of the row's edit permissions (page:
+  edit-page / publish-page / edit-page-permissions / edit-page-params; pattern: edit-pattern /
+  edit-pattern-permissions; source: update-source / edit-source-permissions / create-view).
+- `dms.type.edit` is a move: judged as a delete under the old type plus a create under the new one.
 - `/sync/push` D now runs `dms.data.delete`'s cascade (`controller.cascadeDeletedRow`): the client deletes
   through the local store when sync is on, and that path removed only the row (found live: internal Delete
   Version left its ref on the source).

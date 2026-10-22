@@ -40,10 +40,28 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   now judges only changed keys (defect task, "B/E design"). `tests/test-data-auth.js`: 38.
 - Live (3458 log mode, admin): smoke (all pages), internal Add Version, Delete Version → **0 would-deny lines**.
   `restart3458.sh` takes `DATA_MODE=` (defaults to the source mode).
-- Not yet: page-editor flows live as non-admin actors, the Postgres pass, steps 6+ (tasks 6–10).
+- **Live page-editor pass (2026-10-22, 3458 + 5197):** grants on page pattern 27 (`/p`): PatEditors edit-page;
+  SrcEditors edit/publish/create-page; versioner (user 6) edit-page-permissions; viewer none. Test page `/p/probe`
+  (63). Scripts `authcheck/flow-pageedit.mjs <slug>` (opens the editor as `AUTHCHECK_USER`: panes shown, Show in
+  footer toggle, Publish, + page from Blank; records every /graph + /sync/push write), `neg-pageedit.mjs` (the
+  writes the UI hides, sent as each actor), `rearm63.sh` (gives page 63 an unpublished draft again).
+  - UI per actor matches the grants: pat_editor → Settings/Section Groups/History, no Publish; src_editor → + Pages,
+    Publish; versioner → History/Permissions only; viewer → redirected to `/`; anon → `/auth/login`.
+  - Every write the UI offered passed under `enforce`; editor writes all go through `/sync/push` (data as a JSON
+    string): footer `[id, show_in_footer]`; Publish = `page-edit` history I + component I + page U
+    (`sections`, `section_groups`, `published`, …); + page = page I + `page-edit` I.
+  - `neg-pageedit.mjs` under `enforce`: 12/12 as expected (anon 401; viewer settings / new section / history row /
+    delete → 403; pat_editor publish / new page / page permissions → 403; versioner settings → 403, permissions → 200;
+    src_editor publish → 200). `log` mode: UI flows 0 would-deny lines; each hidden write logged once.
+  - Fixed from this pass: an unchanged save needs any of the row's edit permissions (it needed edit-page, so a
+    permissions-only user re-saving was refused); `dms.type.edit` judged as delete + create (a move);
+    page `filters` accept `edit-page-params` (the Filters pane's gate). `test-data-auth.js`: 40.
+  - ⚠ In `log` mode refused writes still happen: `neg-pageedit.mjs`'s delete case deleted page 63 once (restored
+    with its id from `change_log`); the script now deletes a throwaway page it makes itself.
+- Not yet: the Postgres pass, steps 6+ (tasks 6–10).
 
-**Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22 (Progress above); next is the
-live page-editor pass as non-admin actors, then item 6.
+**Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22 and the live page-editor pass ran
+(Progress above); next is item 6.
 1. **Defect B/E into this branch**: guard `dms.data.edit` / `dms.data.create` (anon and any viewer can write any row
    today, so internal sources' gates are bypassable; the internal Add Version goes through them). Design and history in
    [auth-permission-chain-and-unguarded-writes](./auth-permission-chain-and-unguarded-writes.md) (defects B/E, status
