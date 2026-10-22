@@ -6,6 +6,18 @@ Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). 
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md) (`isUserAuthedForPattern`,
 `requestUserId`) and [permissions-dama-admin-client-auth-headers.md](./permissions-dama-admin-client-auth-headers.md).
 
+## Owner rule 2026-10-22 (from the stage 1 e2e)
+
+**Whoever can reach them in the UI may use them**, so the server mirrors the UI gate:
+- **sync-filters** is on the pattern's Access tab (`tabPermission('permissions')`) → `edit-pattern-permissions` on that
+  pattern.
+- **duplicate** is on the pattern's Overview tab (`edit-pattern`) and in the sites list (`patternList.jsx`, site-level
+  pattern editing).
+
+Found live 2026-10-21 (Postgres DMS): both routes (`dama/upload/index.js:45,50`) check nothing, not even a login; anon
+queued a sync-filters task. Both validate the body before any auth. Neither request sends `?dms_pattern=`. Non-admins
+who hold `edit-pattern` on a pattern still can't open `/list/manage_pattern/<id>` (redirect to `/`, a 404 page).
+
 ## Objective
 
 Two pattern-wide operations run under `/dama-admin/dms/` with no check at all. The admin UI already decides who

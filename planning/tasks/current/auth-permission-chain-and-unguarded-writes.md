@@ -153,6 +153,14 @@ directly to the row. Per this repo's author-empowerment principle, that gap is i
 fixed. Details and live results are in [admin-granular-permissions.md](../completed/admin-granular-permissions.md).
 Datasets' `view-sources` and the other routes listed here are still affected.
 
+## Decision 2026-10-22 (owner): B/E ship with `permissions_move`
+
+The permissions e2e (stage 1, 2026-10-21) showed the consequence live: anon and a no-grant viewer change an internal
+source's row with `dms.data.edit` (and the internal Add Version uses `dms.data.create` + `edit`), so the new
+datasets gates on internal sources are bypassable. Owner: fix defects B/E on the `permissions_move` branch, before
+its push, together with a guard on `/sync/push` (it accepted viewer's update of a source row). See the hub's
+"▶ Resume here".
+
 ## Decision 2026-09-30 (user): datasets visibility comes from permissions, per source
 
 > **Answer to the product question below:** the datasets pattern is not "public" or "private" as a

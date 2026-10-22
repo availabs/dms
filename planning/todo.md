@@ -615,6 +615,7 @@
 
 ### patterns/page
 
+- [ ] [PDF export: the client calls a route dms-server doesn't have](./tasks/current/pdf-export-route-missing-on-dms-server.md) — filed 2026-10-22 (permissions e2e row K); owner: fix in the PDF export redesign sweep. `selectablePDF.js` posts to a hard-coded `${API_HOST}/dama-admin/hazmit_dama/downloadpdf`; the route only exists in old `avail-falcor` (`pdf-generator.routes.js`, puppeteer), so export 404s on dms-server.
 - [ ] [Route auth runs on the placeholder user while sign-in is still loading](./tasks/current/route-auth-check-judges-placeholder-user.md) — logged 2026-09-30, not scheduled. `defaultCheckAuth` has no `isAuthenticating` guard (fast-rendering group-gated routes redirect to `/` on refresh), and `EditWrapper`'s cached render keeps the placeholder user in `CMSContext`. The `qa` pattern works around both locally.
 - [x] [Card liveEdit: one shared save timer per section drops quick edits](./tasks/completed/card-liveedit-shared-debounce-drops-saves.md) — DONE 2026-10-01 (`0cdba46b`, built as the `qa` pattern's status-change writes, parts 1–3): per-row pending saves with flush on unmount, `setDateOnValue` on live pages, `save_publish` after a discrete live edit.
 
