@@ -15,7 +15,7 @@ library, **uncommitted** (`npm run build` ✓; ask the owner before committing):
 `DeleteSource.jsx` / `default/admin.jsx` (Delete Source gated), `SettingsPage.jsx` (gated on `edit-pattern`, a refused
 save reverts), `upload.jsx` (new columns written only after a successful publish).
 
-**Progress 2026-10-22 (session 3d06f4d0, uncommitted unless noted):**
+**Progress 2026-10-22 (session 3d06f4d0; committed: lib 6ec2837f token cache, a943738b guards, root 6b7176e8; not pushed):**
 - Stage-1 client fixes committed (lib 50ade155, planning 354e5381, root 8f832731).
 - Steps 1–2 **built**: `routes/dms/dataAuth.js` guards `dms.data.edit/create/delete`, `dms.type.edit`,
   `dms.data.massedit` (token user, not the argument) and `/sync/push`, under `DMS_DATA_AUTH_MODE` (default
