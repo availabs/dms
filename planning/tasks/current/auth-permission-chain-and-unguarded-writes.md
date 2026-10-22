@@ -161,6 +161,46 @@ datasets gates on internal sources are bypassable. Owner: fix defects B/E on the
 its push, together with a guard on `/sync/push` (it accepted viewer's update of a source row). See the hub's
 "▶ Resume here".
 
+### B/E design (owner answers 2026-10-22, session 3d06f4d0)
+
+- **Mode:** its own `DMS_DATA_AUTH_MODE = legacy | log | enforce`, **default `log`** (allow everything, log
+  `[data-auth] would-deny …`). Not shared with `DMS_SOURCE_AUTH_MODE`.
+- **Anon:** honors `public` grants (anon may write where the `public` group explicitly holds the permission
+  needed). With no explicit grant, anon is refused. The "no grants ⇒ open" leniency never applies to anon.
+- **Kinds the map doesn't name** (app-registered types such as `|symbology`): **login only**.
+- Guarded calls: `dms.data.edit`, `dms.data.create`, `dms.type.edit` (edit under the old type + create
+  under the new), `dms.data.massedit` (its `user` argument ignored, the token user is written), and
+  `dms.data.delete` (same defect class: today any signed-in user deletes any row).
+- Permission per row kind (`${app} Admin` passes everything; site-level grants = the admin row's,
+  falling back to the auth pattern's, as `pattern2routes` resolves them):
+
+  | Kind | Create | Edit | Delete |
+  |---|---|---|---|
+  | `:site` | site `*` | per changed key: `patterns` → `create-pattern`/`delete-pattern`; `theme_refs` → `manage-themes`; `tenants` → `manage-tenants`; `dms_envs` → `create-source`/`edit-pattern` on the datasets patterns; any other key → site `*` | site `*` |
+  | `:theme` | `manage-themes` | `manage-themes` | `manage-themes` |
+  | `:tenant` | `manage-tenants` | `manage-tenants` | `manage-tenants` |
+  | `:pattern` | site `create-pattern` | `authPermissions` → `edit-pattern-permissions`; other keys → `edit-pattern` (mirrors `patternCan`) | `delete-pattern` |
+  | `\|page` | `create-page` | `authPermissions` → `edit-page-permissions`; `sections`/`section_groups`/`dataSources`, or `published` set to anything but `'draft'` → `publish-page`; else `edit-page` | `edit-page` |
+  | `\|component`, `\|page-edit` (a page's edit history) | `edit-page` or `publish-page` | same | same |
+  | `:dmsenv` | `create-source`/`delete-source`/`edit-pattern` on the app's datasets patterns | same | same |
+  | `:source` (internal) | `create-source` (app's datasets patterns) | `auth_permissions` → `edit-source-permissions`; `views` only → `create-view`/`update-source`/`delete-source`; else `update-source` | `delete-source` |
+  | `:view` (internal) | `create-view` on its source | `update-source` or `create-view` | `delete-source` |
+  | `:data` (split) | `edit-source-data` on its source | same | same |
+  | anything else | login | login | login |
+
+- **Only changed keys count** on an edit: editors save whole rows (recorded requests, 2026-10-22: the site
+  editor sends `site_name`/`tenants` with a new `patterns` list, the pattern editor its unchanged
+  `authPermissions`), so a key equal to the stored value is ignored, as are the row columns (`id`, `app`,
+  `type`, timestamps). An edit that changes nothing is judged as any edit of the row.
+- `/sync/push` D now runs `dms.data.delete`'s cascade (`controller.cascadeDeletedRow`): the client deletes
+  through the local store when sync is on, and that path removed only the row (found live: internal Delete
+  Version left its ref on the source).
+- Page and pattern content keep the client's leniency for signed-in users (a pattern/page with no grants
+  besides `public` is open, as the read gate in `dataByIdResponse` and `patternCan` already treat it).
+  Sources/views/data use the strict `sourceAuth` decision.
+- **First-run Create Site** wrote the site, core patterns and templates **signed out** (login was its last
+  step). It now signs in right after `/init/setup`, so every write carries the new `${app} Admin` token.
+
 ## Decision 2026-09-30 (user): datasets visibility comes from permissions, per source
 
 > **Answer to the product question below:** the datasets pattern is not "public" or "private" as a

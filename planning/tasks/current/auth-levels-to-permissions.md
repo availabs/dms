@@ -15,7 +15,35 @@ library, **uncommitted** (`npm run build` ✓; ask the owner before committing):
 `DeleteSource.jsx` / `default/admin.jsx` (Delete Source gated), `SettingsPage.jsx` (gated on `edit-pattern`, a refused
 save reverts), `upload.jsx` (new columns written only after a successful publish).
 
-**Next session, in order (owner decisions 2026-10-22):**
+**Progress 2026-10-22 (session 3d06f4d0, uncommitted unless noted):**
+- Stage-1 client fixes committed (lib 50ade155, planning 354e5381, root 8f832731).
+- Steps 1–2 **built**: `routes/dms/dataAuth.js` guards `dms.data.edit/create/delete`, `dms.type.edit`,
+  `dms.data.massedit` (token user, not the argument) and `/sync/push`, under `DMS_DATA_AUTH_MODE` (default
+  `log`). Design + owner answers: the defect task's "B/E design". `getSubdomain` moved to `utils/subdomain.js`.
+  First-run Create Site now signs in before its writes (`createSite.jsx`). Tests: `tests/test-data-auth.js` (28).
+  Regression green: graph, workflow, uda-auth 28, source-auth 48, upload-auth 24, delete-cascade, change-history,
+  pattern-stub, publish-config, transactions, sync 90, auth 104. `test-table-splitting` fails the same way
+  without these changes (pre-existing). Open: tenant-subdomain first-run (logs in under the subdomain's
+  project, so `${app} Admin` may not match): check the would-deny log on a tenant create.
+- Step 3 **built**: TTL no longer slides (`jwt.js`); `auth/index.js` empties the token cache after a successful
+  identity-changing route (`IDENTITY_ROUTES`). Tests in `test-jwt-failures.js` (8). Single-process cache only.
+- Step 4 **built + live-checked**: internal Delete Version (`version.jsx` `DeleteViewBtn`) deletes the view row
+  (`apiUpdate` delete), hidden without `delete-source`. With sync on it goes through `/sync/push` D, which had **no
+  cascade** (left the view's ref on the source; found live): `/sync/push` D now runs `controller.cascadeDeletedRow`,
+  the same cascade as `dms.data.delete`. Live on 3458 (enforce): viewer → button hidden, server refuses ("missing
+  delete-source"); admin → view row + ref gone.
+- Step 5 **built**: duplicate (`edit-pattern` on the pattern + site `create-pattern` on the target app) and
+  sync-filters (`edit-pattern-permissions` on the named pattern, id and instance must match) gated by
+  `requirePatternAction` (`dama/upload/auth.js`, login always; permission under `DMS_DATA_AUTH_MODE`).
+- Recorded editor requests (`dms-server/logs/*.jsonl`, 2,888 writes) showed whole-row saves, `theme_refs` /
+  `tenants` / `dms_envs` site keys, `published: 'draft'` on new pages and `|page-edit` history rows: the rule
+  now judges only changed keys (defect task, "B/E design"). `tests/test-data-auth.js`: 38.
+- Live (3458 log mode, admin): smoke (all pages), internal Add Version, Delete Version → **0 would-deny lines**.
+  `restart3458.sh` takes `DATA_MODE=` (defaults to the source mode).
+- Not yet: page-editor flows live as non-admin actors, the Postgres pass, steps 6+ (tasks 6–10).
+
+**Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22 (Progress above); next is the
+live page-editor pass as non-admin actors, then item 6.
 1. **Defect B/E into this branch**: guard `dms.data.edit` / `dms.data.create` (anon and any viewer can write any row
    today, so internal sources' gates are bypassable; the internal Add Version goes through them). Design and history in
    [auth-permission-chain-and-unguarded-writes](./auth-permission-chain-and-unguarded-writes.md) (defects B/E, status
