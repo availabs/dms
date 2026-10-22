@@ -508,6 +508,24 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     });
   }
 
+  /**
+   * What a deleted row takes with it (sources, views, the page delete hook). Runs inside the
+   * deleting transaction, after the row's own DELETE. Returns true for a source or view.
+   */
+  async function cascadeDeletedRow(tx, row, userId, reqMeta) {
+    const kind = typeof row.type === 'string' && row.type.includes(':') ? getKind(row.type) : null;
+    if (kind === 'source') await cascadeSourceDelete(tx, row, userId, reqMeta);
+    else if (kind === 'view') await cascadeViewDelete(tx, row, userId, reqMeta);
+    // Pages are colon-less by design (`{pattern}|page`), not legacy —
+    // checked by literal suffix rather than widening the `includes(':')`
+    // guard above, which exists specifically to keep genuinely-legacy
+    // (pre-refactor, colon-less) types out of cascade dispatch.
+    else if (typeof row.type === 'string' && row.type.endsWith('|page')) {
+      cascadePageDelete(tx, row, userId, reqMeta);
+    }
+    return kind === 'source' || kind === 'view';
+  }
+
   return {
     // Expose for testing/inspection
     dbType,
@@ -554,6 +572,15 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         .find(d => d.pattern_type !== 'admin' && d.pattern_type !== 'auth');
       if (!parent) return null;
       return resolveAuthPermissions(parent.authPermissions, subdomain);
+    },
+
+    // Every pattern row of the app (sites have a handful), for the write checks in dataAuth.js.
+    async getPatternRows(app) {
+      const table = await mainTable(app);
+      return dms_db.promise(
+        `SELECT id, type, data FROM ${table} WHERE app = $1 AND type LIKE '%:pattern'`,
+        [app]
+      );
     },
 
     getFormat: appKeys => {
@@ -1204,6 +1231,14 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return rows;
     },
 
+    // For /sync/push deletes: the same cascade as deleteData, inside the caller's transaction (`row`:
+    // the deleted row as it was stored, { id, app, type }).
+    cascadeDeletedRow: async (tx, row, userId, reqMeta = null) => {
+      const removed = await cascadeDeletedRow(tx, row, userId, reqMeta);
+      tx.afterCommit(() => { _tagsCache.clear(); if (removed) _changeHistoryCache.clear(); });
+      return removed;
+    },
+
     deleteData: async (app, type, ids, user, reqMeta = null) => {
       const resolved = await ensureForRead(app, type);
       const userId = get(user, "id", null);
@@ -1238,17 +1273,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // the {ref, id} entries parents hold for it — a bare row delete leaves
         // ghost entries in the datasets list and orphans view rows/split tables.
         for (const row of doomed) {
-          const kind = typeof row.type === 'string' && row.type.includes(':') ? getKind(row.type) : null;
-          if (kind === 'source' || kind === 'view') removedSourceOrView = true;
-          if (kind === 'source') await cascadeSourceDelete(tx, row, userId, reqMeta);
-          else if (kind === 'view') await cascadeViewDelete(tx, row, userId, reqMeta);
-          // Pages are colon-less by design (`{pattern}|page`), not legacy —
-          // checked by literal suffix rather than widening the `includes(':')`
-          // guard above, which exists specifically to keep genuinely-legacy
-          // (pre-refactor, colon-less) types out of cascade dispatch.
-          else if (typeof row.type === 'string' && row.type.endsWith('|page')) {
-            cascadePageDelete(tx, row, userId, reqMeta);
-          }
+          if (await cascadeDeletedRow(tx, row, userId, reqMeta)) removedSourceOrView = true;
         }
 
         return result;

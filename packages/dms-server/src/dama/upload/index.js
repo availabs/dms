@@ -8,7 +8,7 @@ const { gisGuard, layerNames, startLayerAnalysis, getLayerAnalysis, getTableDesc
 const { downloadGuard, createDownload, deleteDownload } = require('./download-routes');
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
-const { requireLogin } = require('./auth');
+const { requireLogin, requirePatternAction } = require('./auth');
 const { createDuplicateHandler } = require('./dms-duplicate');
 const { createPatternFilterSyncHandler } = require('../../dms/tasks/pattern-filter-sync/pattern-filter-sync');
 const dmsTasks = require('../../dms/tasks');
@@ -42,12 +42,22 @@ function registerUploadRoutes(app) {
   app.post('/dama-admin/dms/:appType/validate', requireLogin, createValidateHandler(controller));
 
   // Pattern duplicate — queues a background task; client polls /dms/tasks/:taskId for status.
-  app.post('/dama-admin/dms/:appType/duplicate', createDuplicateHandler(controller));
+  // Gated as the admin UI's Duplicate: edit-pattern on the pattern + create-pattern on the target site.
+  app.post('/dama-admin/dms/:appType/duplicate', async (req, res, next) => {
+    const [app, instance] = (req.params.appType || '').split('+');
+    const siteApp = (req.body && req.body.newApp) || app;
+    if (await requirePatternAction(req, res, controller, { app, instance, perms: 'edit-pattern', siteApp, sitePerms: 'create-pattern' })) next();
+  }, createDuplicateHandler(controller));
 
   // Pattern filter sync — reconciles a pattern filter group into draft sections; queues a
   // background task, client polls /dms/tasks/:taskId for status (same as duplicate above).
   // See src/dms/planning/tasks/current/pattern-filter-sync.md.
-  app.post('/dama-admin/dms/:appType/sync-filters', createPatternFilterSyncHandler(controller));
+  // Gated as its button on the pattern's Access tab: edit-pattern-permissions on that pattern.
+  app.post('/dama-admin/dms/:appType/sync-filters', async (req, res, next) => {
+    const [app, instance] = (req.params.appType || '').split('+');
+    const id = req.body && req.body.patternId;
+    if (await requirePatternAction(req, res, controller, { app, id, instance, perms: 'edit-pattern-permissions' })) next();
+  }, createPatternFilterSyncHandler(controller));
 
   // Task status — used by the client to poll for duplicate (and future long-running) tasks.
   app.get('/dama-admin/dms/tasks/:taskId', async (req, res) => {

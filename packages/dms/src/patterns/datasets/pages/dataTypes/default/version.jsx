@@ -8,29 +8,30 @@ import AuthorityControl, { AuthorityBadge } from "../../../components/AuthorityC
 import { VersionLineage, DeleteVersionButton } from "../../../components/LineageControls";
 import {getSourceData, updateVersionData} from "./utils";
 import { getExternalEnv } from "../../../utils/datasources";
-import {cloneDeep} from "lodash-es";
 import ExternalVersionControl from "../../../components/ExternalVersionControls";
 import { nameToSlug } from "../../../../../utils/type-utils";
 import { versionTheme } from "./version.theme";
 
-const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
+const DeleteViewBtn = ({source, view_id, format, url, apiUpdate}) => {
     const {UI, theme} = useContext(ThemeContext);
+    const {falcor, isUserAuthed} = useContext(DatasetsContext);
     const {DeleteModal, Icon, Button} = UI;
     const t = { ...versionTheme, ...(theme?.datasets?.version || {}) };
-    // update parent to exclude source. the source still stays in the DB.
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const navigate = useNavigate();
 
-    const deleteSource = async () => {
-        const config = {format}
-        const data = cloneDeep(source);
-        data.views = data.views.filter(s => s.id !== view_id);
-        console.log('parent', config, data, source)
-
-        await apiUpdate({data, config});
-        // navigate(baseUrl)
-        navigate(url);
+    // Deletes the view row. The server (dms.data.delete, under delete-source) drops the version's data
+    // table and removes the view from the source's `views` list. This used to only rewrite that list,
+    // comparing each ref's numeric id to the route's string id, so it removed nothing.
+    const deleteView = async () => {
+        const viewsAttr = (format?.attributes || []).find(a => a.key === 'views');
+        const [app, type] = (viewsAttr?.format || `${format?.app}+view`).split('+');
+        await apiUpdate({data: {id: +view_id}, config: {format: {app, type}}, requestType: 'delete', newPath: url});
+        // the source row's cached `views` still lists the deleted view
+        await falcor.invalidate(['dms', 'data', format?.app, 'byId', source.id], ['dms', 'data', 'byId', source.id]);
     }
+
+    if (!isUserAuthed || !isUserAuthed(['delete-source'])) return null;
+
     return (
         <div className={t.btnWrap}>
             <Button activeStyle='dangerFull' onClick={() => setShowDeleteModal(true)}>{t.dangerIcon && <Icon icon={t.dangerIcon} className={t.btnIconClass}/>}Delete Version</Button>
@@ -42,7 +43,7 @@ const DeleteViewBtn = ({source, view_id, format, url, apiUpdate, baseUrl}) => {
                 setOpen={(v) => setShowDeleteModal(v)}
                 onDelete={() => {
                     async function deleteItem() {
-                        await deleteSource()
+                        await deleteView()
                         setShowDeleteModal(false)
                     }
 
@@ -177,7 +178,7 @@ export default function ManageForm ({ status, apiLoad, apiUpdate, format, source
                                                 {isUserAuthed && isUserAuthed(['edit-source-data', 'delete-source']) ? (
                                                     <ClearDataBtn app={app} sourceSlug={nameToSlug(source.name)} view_id={params.view_id} falcor={falcor} pattern={datasetsPattern}/>
                                                 ) : null}
-                                                <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate} baseUrl={baseUrl}/>
+                                                <DeleteViewBtn source={source} format={format} view_id={params.view_id} url={`${pageBaseUrl}/${params.id}`} apiUpdate={apiUpdate}/>
                                             </>
                                     ) : (
                                         <>

@@ -14,6 +14,10 @@ const {
     authMode, requireUser, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
 } = require('../../routes/uda/sourceAuth');
 
+const { createJudge, dataAuthMode } = require('../../routes/dms/dataAuth');
+const { getInstance } = require('#db/type-utils.js');
+const { getSubdomain } = require('../../utils/subdomain');
+
 const ADD_VIEW_PERMS = ['create-view', 'update-source'];
 const WRITE_ROWS_PERMS = ['edit-source-data', 'update-source'];
 
@@ -57,4 +61,42 @@ async function authorizeRowWrite(req, res, sourceIds, env) {
     return user;
 }
 
-module.exports = { ADD_VIEW_PERMS, WRITE_ROWS_PERMS, requireLogin, checkUploadOwner, authorizePublish, authorizeRowWrite };
+/**
+ * Gate a pattern action (duplicate, sync-filters) the way the admin UI gates its button: `perms` on the
+ * pattern `app` + (`id` or `instance`), plus optional site-level `sitePerms` on `siteApp`. Judged by
+ * routes/dms/dataAuth.js under DMS_DATA_AUTH_MODE (these routes checked nothing before: `log` allows
+ * and logs). A signed-in user is always required. Returns the user, or null when refused.
+ */
+async function requirePatternAction(req, res, controller, { app, id, instance, perms, siteApp = app, sitePerms }) {
+    const user = requireUser(req, res);
+    if (!user) return null;
+    const mode = dataAuthMode();
+    if (mode === 'legacy') return user;
+    const subdomain = req.headers ? getSubdomain(req) : '';
+    const judge = createJudge({ app, subdomain, user, controller });
+    let reason = null;
+    try {
+        const rows = await judge.patterns();
+        const row = rows.find(r => (id != null ? +r.id === +id : true)
+            && (instance ? getInstance(r.type) === instance : true)
+            && !['admin', 'auth'].includes(r.data.pattern_type));
+        if (!row) reason = `pattern ${app}/${id ?? instance} not found`;
+        else if (!(await judge.patternCan(row.data, perms))) reason = `missing ${[].concat(perms).join(' or ')} on pattern ${row.id}`;
+        else if (sitePerms) {
+            const siteJudge = siteApp === app ? judge : createJudge({ app: siteApp, subdomain, user, controller });
+            if (!(await siteJudge.siteCan(sitePerms))) reason = `missing site ${[].concat(sitePerms).join(' or ')} on ${siteApp}`;
+        }
+    } catch (e) {
+        reason = `lookup failed: ${e.message}`;
+    }
+    if (!reason) return user;
+    if (mode === 'log') {
+        console.warn(`[data-auth] would-deny ${req.method} ${req.originalUrl || req.url} user=${user.id ?? user.email} ` +
+            `groups=${(user.groups || []).join('|')} reason=${reason}`);
+        return user;
+    }
+    res.status(403).json({ error: `Not authorized: ${reason}` });
+    return null;
+}
+
+module.exports = { requirePatternAction, ADD_VIEW_PERMS, WRITE_ROWS_PERMS, requireLogin, checkUploadOwner, authorizePublish, authorizeRowWrite };

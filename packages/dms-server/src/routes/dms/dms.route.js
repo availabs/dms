@@ -4,7 +4,8 @@ const falcorJsonGraph = require("falcor-json-graph"),
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
 const { isUserAuthed, resolveAuthPermissions } = require('./auth');
-const { getKind, getParent } = require('#db/type-utils.js');
+const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
+const { assertDataWrite } = require('./dataAuth');
 
 /*
  Controller Settings
@@ -155,6 +156,15 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       }
     }
     return response;
+  };
+
+  // The rows a write touches, as stored, for assertDataWrite: a split type resolves its own table
+  // (every row in it is that type); anything else is read from the app's main table, never trusting
+  // the type the client names.
+  const storedRows = async (app, ids, type) => {
+    if (type && isSplitType(type)) return ids.map(id => ({ id, type, data: null }));
+    const rows = await controller.getDataById(ids, ['id', 'app', 'type', 'data'], app);
+    return ids.map(id => rows.find(r => String(r.id) === String(id)) || { id, type: '', data: null });
   };
 
   return [
@@ -477,21 +487,28 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
+          const [stored] = await storedRows(app, [id], type);
+          await assertDataWrite(this, controller, 'edit', app, stored, data);
           const rows = await controller.setDataById(id, data, this.user, app, type || null, this.reqMeta, { changeHistory: true });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
         const [id, data] = args;
+        const [stored] = await storedRows(null, [id]);
+        await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
         const rows = await controller.setDataById(id, data, this.user, null, null, this.reqMeta);
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
     {
       route: "dms.data.massedit",
-      call: function(callPath, args) {
-        const [app, type, column, maps, user] = args;
+      call: async function(callPath, args) {
+        // the 5th argument (a user id) is ignored: updated_by is the token's user
+        const [app, type, column, maps] = args;
         console.log('massedit', app, type, column, JSON.stringify(maps, null, 3))
-        return controller.setMassData(app, type, column, maps, user).then((rows) => {
+        // every row of `type`: judged as one edit of that type
+        await assertDataWrite(this, controller, 'edit', app, { id: null, type, data: null }, { [column]: null });
+        return controller.setMassData(app, type, column, maps, this.user?.id ?? null).then((rows) => {
           return [{
             path: ['dms', 'data', 'massedit'],
             value: $atom(rows)
@@ -505,11 +522,17 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         if (args.length >= 3) {
           // New format: [app, id, type]
           const [app, id, type] = args;
+          const [stored] = await storedRows(app, [id]);
+          await assertDataWrite(this, controller, 'edit', app, stored, stored.data);
+          await assertDataWrite(this, controller, 'create', app, { id, type, data: stored.data }, null);
           const rows = await controller.setTypeById(id, type, this.user, app, this.reqMeta);
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, type]
         const [id, type] = args;
+        const [stored] = await storedRows(null, [id]);
+        await assertDataWrite(this, controller, 'edit', stored.app, stored, stored.data);
+        await assertDataWrite(this, controller, 'create', stored.app, { id, type, data: stored.data }, null);
         const rows = await controller.setTypeById(id, type, this.user, null, this.reqMeta);
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
@@ -517,7 +540,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     {
       route: "dms.data.create",
       call: async function(callPath, args) {
-        const [app, type] = args;
+        const [app, type, data] = args;
+        await assertDataWrite(this, controller, 'create', app, { id: null, type, data: data || {} }, null);
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         try {
@@ -538,11 +562,14 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     },
     {
       route: "dms.data.delete",
-      call: function(callPath, args) {
+      call: async function(callPath, args) {
         if (!this.user) {
           throw new Error('Authentication required to delete items');
         }
         const [app, type, ...ids] = args;
+        for (const row of await storedRows(app, ids, type)) {
+          await assertDataWrite(this, controller, 'delete', app, row, null);
+        }
         return controller.deleteData(app, type, ids, this.user, this.reqMeta).then((rows) => [
           // Invalidate both old and new paths
           ...ids.flatMap((id) => ([

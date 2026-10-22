@@ -61,6 +61,18 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					return;
 				}
 
+				// Sign in before writing anything: the server checks every dms.data write
+				// (dataAuth.js), and the new `${app} Admin` user is what may create the site.
+				// The token goes to localStorage now (falcor sends it per request); the user
+				// state is set at the end, so nothing re-renders mid-provisioning.
+				const loginRes = await AuthAPI.callAuthServer(`/login`, {
+					email: newUser.email,
+					password: newUser.password,
+					project: PROJECT_NAME,
+				});
+				if (!loginRes?.user?.token) throw new Error(`Sign-in failed: ${loginRes?.error || 'no token'}`);
+				window.localStorage.setItem('userToken', loginRes.user.token);
+
 				// 1. Create the site
 				setStep(1);
 				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
@@ -106,17 +118,9 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					await apiUpdate({ data: siteUpdate, skipNavigate: true });
 				}
 
-				// 5. Auto-login so the user lands directly on the admin edit page
+				// 5. Signed in (above), so the user lands directly on the admin edit page
 				setStep(3);
-				const loginRes = await AuthAPI.callAuthServer(`/login`, {
-					email: newUser.email,
-					password: newUser.password,
-					project: PROJECT_NAME,
-				});
-				if (loginRes?.user?.token) {
-					window.localStorage.setItem('userToken', loginRes.user.token);
-					setUser({ ...loginRes.user, groups: [...(loginRes.user.groups || []), 'public'], authed: true, isAuthenticating: false });
-				}
+				setUser({ ...loginRes.user, groups: [...(loginRes.user.groups || []), 'public'], authed: true, isAuthenticating: false });
 
 				navigate(baseUrl || '/');
 			} catch (error) {

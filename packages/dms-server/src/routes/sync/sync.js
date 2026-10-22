@@ -12,6 +12,9 @@
 const { Router } = require('express');
 const { getDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
+const { createController } = require('../dms/dms.controller.js');
+const { assertDataWrite } = require('../dms/dataAuth');
+const { getSubdomain } = require('../../utils/subdomain');
 const {
   isSplitType,
   changeLogData,
@@ -173,6 +176,10 @@ function createSyncRoutes(dbName) {
   const config = loadConfig(dbName);
   const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
   const requireAuth = process.env.DMS_SYNC_AUTH === '1';
+  // the pattern / source lookups of assertDataWrite, and the delete cascade. Its change_log writes
+  // (refs vacated by a cascade) broadcast like the push itself.
+  const controller = createController(dbName);
+  controller.setNotifyChange((app, msg) => createSyncRoutes._notifyChange && createSyncRoutes._notifyChange(app, msg));
 
   function tbl(name) {
     return dbType === 'postgres' ? `dms.${name}` : name;
@@ -528,6 +535,22 @@ function createSyncRoutes(dbName) {
       const pushTable = await mainTable(item.app);
       const changeLogReady = await hasChangeLog();
 
+      // The same permission check as the dms.data.* Falcor writes (routes/dms/dataAuth.js). U and D
+      // are judged on the stored row; an I with an id that already exists updates it (ON CONFLICT
+      // below), so it is judged as an edit of that row.
+      const [stored] = item.id != null
+        ? await dms_db.promise(`SELECT id, app, type, data FROM ${pushTable} WHERE id = $1`, [item.id])
+        : [];
+      const op = action === 'D' ? 'delete' : (action === 'U' || stored) ? 'edit' : 'create';
+      try {
+        await assertDataWrite({ user, subdomain: getSubdomain(req) }, controller, op, item.app,
+          stored || { id: item.id ?? null, type: item.type, data: item.data || {} },
+          op === 'edit' ? (typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {})) : null);
+      } catch (e) {
+        if (!e.status) throw e;
+        return res.status(e.status).json({ error: e.message });
+      }
+
       const outcome = await dms_db.withTransaction(async (tx) => {
         let resultItem;
 
@@ -582,7 +605,11 @@ function createSyncRoutes(dbName) {
             `DELETE FROM ${pushTable} WHERE id = $1`,
             [item.id]
           );
-          resultItem = { id: item.id, app: item.app, type: item.type };
+          // the stored type: clients send none (the local store's delete)
+          resultItem = { id: item.id, app: item.app, type: stored?.type || item.type };
+          // what dms.data.delete cascades (a view's table and its ref on the source, a source's
+          // views, the page delete hook): without it a delete through sync left them behind
+          if (stored) await controller.cascadeDeletedRow(tx, stored, userId, { ip: req.clientIp || null, userAgent: req.headers['user-agent'] || null, authState: userId ? 'authenticated' : 'sync' });
         }
 
         // Write change_log (skip if table doesn't exist — sync not fully set up)
