@@ -67,7 +67,12 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   49/49 on SQLite **and Postgres** (:5499); related suites green on both; live editor rerun clean.
 - **Postgres pass 2 (10-22) ✓**: everything built today, plus the regression sample, on a Postgres-backed DMS
   (Results rows "Postgres pass 2"). Found: the editor sends whole-row sync saves on PG (handled).
-- Not yet: steps 6+ (tasks 6–10).
+- **Task 6 (2026-10-23, uncommitted):** download / PM tiles routes gated on `manage-downloads` (view's own
+  source); `/files` decided (b): signed download route + Versions menu uses it; delete-download now deletes
+  the files. Prod check: downloads and images share `availabs-bucket` (by prefix). Ops step open
+  (see that task's Progress). `test-upload-auth.js` 37. **Live ✓ (enforce + log)**: Results rows "K downloads". The
+  10-22 rig was gone; the new one is persistent at repo `scratchpad/srv3458/` (verify README, "Persistent rig").
+- Not yet: tasks 7–10.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
@@ -388,6 +393,11 @@ no push until stage 3.
 | 3 | J pattern ops (task 8 gates) | enforce (PG) | 10-22 | ✓ | Admin UI duplicate → task done (7 pages, 13 components); sync-filters → done (7 scanned). `neg-patternops.mjs` 8/8: anon 401; viewer / pat_editor / src_editor / versioner 403 ("missing edit-pattern on pattern 27" / "…-permissions"); id 17 named for `pg` → 403 "not found". Granted (temporarily PatEditors edit-pattern + edit-pattern-permissions on 27, site create-pattern on admin row 3): pat_editor duplicate + sync-filters → 200, tasks done, `userId` 5 (token user). Grants reverted. Note: the server task copies pages only; the UI creates the pattern row. |
 | 3 | H token cache | enforce | 10-22 | ✓ | `stale.mjs warm`: after a forced password change the warmed token is refused at once (`/graph` "Sign in", REST 401; was up to 5 min). `stale-group.mjs`: src_editor removed from SrcEditors → next E2 write refused; re-added → allowed. |
 | 3 | G1 / G5 / D | enforce (PG) | 10-22 | ✓ | G1: pat_editor creates source 9 (owner 5), src_editor 403 + message. G5 on I1: viewer validate / publish 403, I1 unchanged; src_editor 200 (columns already there: unchanged). D on I2 (seeded 1 row): hidden for viewer / src_editor; pat_editor 1 → 0, main table unchanged. |
+| 2 | Setup (rig rebuilt) | — | 10-23 | done | The 10-22 rig was gone, so it was rebuilt in the **repo** `scratchpad/srv3458/` (persists): `start.sh <mode>` copies the working-tree dms-server, configs `rig` (sqlite dms+auth) + `test_dama` (:5499 PostGIS, fresh), local files in `dms-server/files`. First-run Create Site (Dashboard) → site `main`, datasets pattern **4** at `/datasets`. Groups `Downloaders`, `Viewers`; users `downloader@` (id 2), `viewer@` (id 3), password `test123`. E1' = external GIS source **1** / view **1** (`fixture.geojson`, through the UI). Grant on source 1: `Downloaders` [manage-downloads, download-source] (Access UI). |
+| 2 | K downloads: gates | enforce | 10-23 | ✓ | Version page (`flows/flow-downloads.mjs`): viewer sees no Create Download; downloader create-download → 200, task done, 4 zips under `test_dama/s_1/`, task user 2 (token); cache-pmtiles → 200 (worker then fails: no `tippecanoe` here; not the gate). Viewer over HTTP, skipping the UI: create / delete / cache-pmtiles → 403 ×3. |
+| 2 | K downloads: signed link | enforce | 10-23 | ✓ | Source page Versions menu (`flows/flow-signed.mjs`): downloader → sign 200, file 200 with no auth, browser saves `…_CSV.zip` (288 bytes = on disk); viewer → sign 403, the card shows "You don't have permission to do this (requires download-source on source 1)."; anon → this pattern redirects to login. With `public: [download-source]` (set by `call.mjs`; the Access UI can't edit the `public` row): anon sign → 200, file is a valid zip (GPKG inside), `attachment`, `no-store`. Grant reverted. ⚠ `/files/test_dama/s_1/…` still serves the zip anonymously (local storage, open item). |
+| 2 | K downloads: delete | enforce | 10-23 | ✓ | `flows/flow-deldl.mjs` as downloader → 200; all 4 files removed from storage; sign afterwards → 404 "no CSV download". Console `getData is not defined` = the known ExternalVersionControls bug (open bugs list). |
+| 2 | K downloads | log | 10-23 | ✓ | Viewer create-download / sign and anon sign → allowed, one would-deny line each (`missing manage-downloads` / `missing download-source`). Downloader + admin flows (sign, file, create, cache-pmtiles) → **0** would-deny lines. |
 
 ## Objective
 
