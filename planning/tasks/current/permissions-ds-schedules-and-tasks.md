@@ -1,6 +1,6 @@
 # Datasets: permission checks on schedules, reruns and task status
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** commit — lib fc74b404, not pushed (branch permissions_move) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md).
@@ -34,13 +34,38 @@ descriptors can hold anything sensitive; decide):
 
 There is no task-cancel route. Out of scope.
 
-## Proposed changes
+## Decisions (owner, 2026-10-23)
 
-- [ ] Swap `requireAuth` for the core source middleware on each mutating route, resolving the source from the
-  body, the schedule row or the task row.
-- [ ] Gate the read routes (decision above). The GIS upload flow polls `events/query` during an upload, so its
-  check must accept the uploader of an upload not yet tied to a source.
-- [ ] Tests: schedule create/patch/delete/fire and rerun denied without `update-source`, allowed with it.
+- **Reads: a signed-in user now; per-source `view-source` waits for task 12** (read visibility), so reads move in
+  one place. Only admin tabs and the upload wizard read these, and both are always signed in. Reads were open, so
+  the login follows `DMS_SOURCE_AUTH_MODE`: `enforce` refuses anon (401, or nothing from falcor), `log` answers and
+  logs `would-deny read … not signed in`, `legacy` answers.
+- **No source → `edit-pattern` on the named datasets pattern** (`?dms_pattern=`); `${app} Admin` passes. The only
+  source-less task today is GIS layer analysis (`gis/analysis`); publish / download tasks carry their source.
+
+## Progress 2026-10-23 (built, committed lib fc74b404)
+
+- [x] `schedule-routes.js`: `authorizeTarget` = `update-source` on the source (`wasOpen`: the routes needed only a
+  login, so `legacy` / `log` allow and log), or `edit-pattern` with no source. Create judges `body.source_id`;
+  patch / delete / fire judge the **stored** schedule's source; a patch that moves a schedule needs it on both
+  sources; rerun judges the task row's `source_id`. A signed-in user comes first, so anon never learns whether
+  an id exists (401 before 404). `created_by` = token user (as before); a rerun now records `rerun_by`.
+- [x] Reads: `requireReader` (Express) / `readerAllowed` (falcor) in `routes/uda/sourceAuth.js`, on GET
+  `schedules`, `schedules/:id/runs`, `dms/tasks/:taskId`, `events/query` and the seven `uda[env].tasks.*` gets
+  (refused → `[]`). `/schedulables` stays open (the registry). Every client caller already sends the token
+  (`authedFetch`); the GIS wizard's `events/query` poll included.
+- [x] Client: `SchedulePage.jsx` `canEdit` and `RunsPage.jsx` Re-run gated on `isUserAuthed(['update-source'])`
+  (SourcePage's source-merged check) instead of `user.token`.
+- [x] Tests: `tests/test-schedule-auth.js` (13; 10 fail on the old code). Regression: `test-schedules` 29,
+  `test-upload-auth` 37, `test-uda-auth` 28, `test-source-auth` 48, `test-data-auth` 49, `test-delete-cascade` 16,
+  `test-upload-pipeline` 12 (SQLite). `npm run build` ✓. Not run on a Postgres DAMA db as a unit suite; the live
+  check below ran on the rig's Postgres `test_dama`.
+- [x] Live (hub Results, rows "M schedules"): enforce + log on the persistent rig.
+- Not covered: a schedule's descriptor can name **other** sources (`source_id`-typed loader params, e.g.
+  `npmrds_prod_id`); only the schedule's own source is judged. Reading those is task 12's question.
+- Not covered: the stage-2 regression sample (A, D, F, G1, G5, H). Those fixtures aren't in the persistent rig.
+  The code they exercise isn't touched here (`sourceAuth.js` only gained two functions); the unit suites above
+  cover it.
 
 ## Client to recheck
 
@@ -49,5 +74,6 @@ There is no task-cancel route. Out of scope.
 
 ## Testing checklist
 
-- [ ] Tests above.
-- [ ] Live: a granted user schedules, fires and reruns; an ungranted logged-in user can't, and sees why.
+- [x] Tests above.
+- [x] Live: a granted user schedules, fires and reruns; an ungranted logged-in user can't (controls hidden; 403
+  "requires update-source on source 2" over HTTP).

@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-22, after stage 1 e2e + owner answers)
+## ▶ Resume here (updated 2026-10-23, task 7 committed)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -67,12 +67,18 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   49/49 on SQLite **and Postgres** (:5499); related suites green on both; live editor rerun clean.
 - **Postgres pass 2 (10-22) ✓**: everything built today, plus the regression sample, on a Postgres-backed DMS
   (Results rows "Postgres pass 2"). Found: the editor sends whole-row sync saves on PG (handled).
-- **Task 6 (2026-10-23, uncommitted):** download / PM tiles routes gated on `manage-downloads` (view's own
+- **Task 6 (2026-10-23, committed lib 48d297c3 / root 90052539):** download / PM tiles routes gated on `manage-downloads` (view's own
   source); `/files` decided (b): signed download route + Versions menu uses it; delete-download now deletes
   the files. Prod check: downloads and images share `availabs-bucket` (by prefix). Ops step open
   (see that task's Progress). `test-upload-auth.js` 37. **Live ✓ (enforce + log)**: Results rows "K downloads". The
   10-22 rig was gone; the new one is persistent at repo `scratchpad/srv3458/` (verify README, "Persistent rig").
-- Not yet: tasks 7–10.
+- **Task 7 (2026-10-23, committed lib fc74b404):** schedule create / patch / delete / fire and task rerun need `update-source`
+  on the stored row's source (both sources on a move), or `edit-pattern` on the named pattern with no source;
+  schedule / run / task / event reads need a signed-in user (owner: `view-source` waits for task 12). Schedule and
+  Runs pages gated on `update-source`. `tests/test-schedule-auth.js` 13. **Live ✓ (enforce + log)**: Results rows
+  "M schedules". Rig additions: `rig-datatypes.cjs` (schedulable `rig_sched/run`), source **2** `sched fixture`
+  (type `transcom`), Vite 5197 with `RIG_DATATYPES=1` (verify README).
+- Not yet: tasks 8 (gates landed with step 5; its task file still to close), 9, 10.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
@@ -397,6 +403,9 @@ no push until stage 3.
 | 2 | K downloads: gates | enforce | 10-23 | ✓ | Version page (`flows/flow-downloads.mjs`): viewer sees no Create Download; downloader create-download → 200, task done, 4 zips under `test_dama/s_1/`, task user 2 (token); cache-pmtiles → 200 (worker then fails: no `tippecanoe` here; not the gate). Viewer over HTTP, skipping the UI: create / delete / cache-pmtiles → 403 ×3. |
 | 2 | K downloads: signed link | enforce | 10-23 | ✓ | Source page Versions menu (`flows/flow-signed.mjs`): downloader → sign 200, file 200 with no auth, browser saves `…_CSV.zip` (288 bytes = on disk); viewer → sign 403, the card shows "You don't have permission to do this (requires download-source on source 1)."; anon → this pattern redirects to login. With `public: [download-source]` (set by `call.mjs`; the Access UI can't edit the `public` row): anon sign → 200, file is a valid zip (GPKG inside), `attachment`, `no-store`. Grant reverted. ⚠ `/files/test_dama/s_1/…` still serves the zip anonymously (local storage, open item). |
 | 2 | K downloads: delete | enforce | 10-23 | ✓ | `flows/flow-deldl.mjs` as downloader → 200; all 4 files removed from storage; sign afterwards → 404 "no CSV download". Console `getData is not defined` = the known ExternalVersionControls bug (open bugs list). |
+| 2 | M schedules: setup | — | 10-23 | done | Rig: `rig-datatypes.cjs` registers schedulable `rig_sched/run` (`start.sh` sets `DMS_EXTRA_DATATYPES`); source **2** `sched fixture` (type `transcom`, inserted on `test_dama`, grants copied from source 1); Vite 5197 restarted with `RIG_DATATYPES=1` (the 5197 config gives an app with no `src/data-types.js` entry a `transcom` type with Schedule / Runs). Temporary: `Downloaders` + update-source on source 1 (Access UI), reverted. |
+| 2 | M schedules | enforce | 10-23 | ✓ | UI (`flows/flow-sched-live.mjs`, `sched-peek.mjs`): downloader (update-source) sees New schedule → create 200 (`created_by` 2 = token user), Run now 200 (task 10 done), Runs → Re-run 200 (task 11, `rerun_of` 10, `rerun_by` 2); every call carries the token + `dms_pattern=v6test/4`. viewer: no New schedule, no Re-run button. HTTP (`flows/neg-sched.mjs 1 10 2`): viewer create / patch / fire / rerun / delete → 403 "requires update-source on source 2", reads 200; anon → 401 on all 8 (writes and reads). |
+| 2 | M schedules | log | 10-23 | ✓ | viewer's 5 writes → 200 with exactly 5 `would-deny source test_dama/2 … missing update-source` lines; anon writes still 401, anon reads 200 with 3 `would-deny read … not signed in` lines; downloader's whole UI flow → 0 lines. ⚠ as before, `log` lets the refused writes happen: viewer's DELETE removed schedule 1. Rig schedules deleted afterwards; rig back on `enforce`. |
 | 2 | K downloads | log | 10-23 | ✓ | Viewer create-download / sign and anon sign → allowed, one would-deny line each (`missing manage-downloads` / `missing download-source`). Downloader + admin flows (sign, file, create, cache-pmtiles) → **0** would-deny lines. |
 
 ## Objective
