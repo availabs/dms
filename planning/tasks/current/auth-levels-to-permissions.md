@@ -78,7 +78,8 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   Runs pages gated on `update-source`. `tests/test-schedule-auth.js` 13. **Live ✓ (enforce + log)**: Results rows
   "M schedules". Rig additions: `rig-datatypes.cjs` (schedulable `rig_sched/run`), source **2** `sched fixture`
   (type `transcom`), Vite 5197 with `RIG_DATATYPES=1` (verify README).
-- Not yet: tasks 8 (gates landed with step 5; its task file still to close), 9, 10.
+- **Task 8 closed (2026-10-23):** gates built as step 5 (a943738b), live ✓ 10-22; task file now `built`.
+- Not yet: tasks 9 (plugin routes, `planning/shared/`), 10 (client gates).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.

@@ -1,6 +1,6 @@
 # Datasets/admin: permission checks on pattern duplicate and sync-filters
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — lib a943738b, not pushed (branch permissions_move) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md) (`isUserAuthedForPattern`,
@@ -34,15 +34,28 @@ match it.
 Client callers: `admin/pages/patternEditor/default/settings.jsx:212`, `admin/pages/editSite.jsx:451`,
 `admin/components/patternList.jsx:293` (duplicate); `patternEditor/default/filterEditor.jsx:117` (sync-filters).
 
-## Proposed changes
+## Progress (built 2026-10-22 as hub Resume step 5, lib a943738b; file closed 2026-10-23)
 
-- [ ] Server-side site-permission check mirroring `utils/adminPermissions.js` `siteCan` / `patternCan`
-  (admin row grants, auth-row fallback, `${app} Admin`). Mirror with a cross-reference comment; don't import.
-- [ ] Guard both routes; take `userId` from the token.
-- [ ] Tests: denied without the grants, allowed with them; the duplicate's created rows carry the real user id.
+- [x] `requirePatternAction` (`dama/upload/auth.js`): a login always; the permission under `DMS_DATA_AUTH_MODE`
+  (`legacy | log | enforce`). The site and pattern checks run through `routes/dms/dataAuth.js` (same server, no
+  client import needed). `${app} Admin` passes.
+- [x] Mounts (`dama/upload/index.js`): duplicate = `edit-pattern` on the pattern **and** site `create-pattern` on
+  the target app; sync-filters = `edit-pattern-permissions` on the named pattern (owner rule: it lives on the Access
+  tab), id and instance must match.
+- [x] `userId` from the token (`requestUserId`) in both handlers; the `req.user` bug is gone.
+- [x] Tests: `tests/test-data-auth.js`, "pattern REST actions": anon 401, each grant alone 403, admin 200, id /
+  instance mismatch 403, `log` lets a refusal through with one line. The created rows' user id is checked live, not
+  in a unit test (the task runs in a worker).
 
 ## Testing checklist
 
-- [ ] Tests above.
-- [ ] Live: duplicate a pattern and run sync-filters from the admin panel as an `${app} Admin` and as a user with
-  only `view-pattern-list`.
+- [x] Tests above.
+- [x] Live (hub Results, row "J pattern ops (task 8 gates)", enforce on Postgres, 10-22): admin UI duplicate and
+  sync-filters → tasks done; `neg-patternops.mjs` 8/8 (anon 401; viewer / pat_editor / src_editor / versioner 403);
+  temporarily granted pat_editor → both 200, task `userId` 5 = the token user. Grants reverted.
+
+## Left open (not this task)
+
+- Non-admins who hold `edit-pattern` still can't open `/list/manage_pattern/<id>` (redirect to `/`). Client gates,
+  task 10.
+- The requests send no `?dms_pattern=`; the server judges the pattern named in the body / path instead.
