@@ -352,12 +352,13 @@ const ScheduleRow = ({ schedule, schedulables, canEdit, onPatch, onDelete, onEdi
 
 export default function SchedulePage({ source, params }) {
     const navigate = useNavigate();
-    const { user, datasources, API_HOST, falcor, pageBaseUrl, app, parent } = useContext(DatasetsContext) || {};
+    const { user, datasources, API_HOST, falcor, pageBaseUrl, app, parent, isUserAuthed } = useContext(DatasetsContext) || {};
     const pattern = { app, id: parent?.id };
     const pgEnv = getExternalEnv(datasources);
     const rtPfx = `${API_HOST || ''}/dama-admin/${pgEnv}`;
     const sourceId = source?.source_id;
-    const canEdit = !!user?.token;
+    // The server's rule for create / edit / fire / delete (permissions-ds-schedules-and-tasks).
+    const canEdit = isUserAuthed ? isUserAuthed(['update-source']) : false;
     const runsBaseUrl = `${pageBaseUrl}/${params.id}/runs`;
     const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...schedulePageTheme, ...getComponentTheme(theme, 'datasets.schedulePage') };

@@ -171,7 +171,9 @@ const MAX_EVENTS = 500;
  */
 const RunDetail = ({ taskId, source, params }) => {
     const navigate = useNavigate();
-    const { user, datasources, API_HOST, falcor, pageBaseUrl, app, parent } = useContext(DatasetsContext) || {};
+    const { user, datasources, API_HOST, falcor, pageBaseUrl, app, parent, isUserAuthed } = useContext(DatasetsContext) || {};
+    // The server's rule for a rerun of this source's task (permissions-ds-schedules-and-tasks).
+    const canRerun = isUserAuthed ? isUserAuthed(['update-source']) : false;
     const pattern = { app, id: parent?.id };
     const { theme, UI } = useContext(ThemeContext) || {};
     const t = { ...runsPageTheme, ...getComponentTheme(theme, 'datasets.runsPage') };
@@ -295,7 +297,7 @@ const RunDetail = ({ taskId, source, params }) => {
                                 <div className={t.attempt}>attempt {task.attempt || 1}/{task.max_attempts}</div>
                             ) : null}
                             <div className={t.spacer} />
-                            {user?.token ? (
+                            {canRerun ? (
                                 <Button activeStyle={t.rerunButtonStyle} disabled={rerunning || isLive} onClick={rerun}
                                         title={isLive ? 'Wait for the run to finish' : 'Queue a new run with this exact descriptor'}>
                                     {rerunning ? 'Queuing…' : 'Re-run with same descriptor'}

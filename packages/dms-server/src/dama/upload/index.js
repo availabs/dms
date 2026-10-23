@@ -9,6 +9,7 @@ const { downloadGuard, createDownload, deleteDownload, signDownload, serveDownlo
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
 const { requireLogin, requirePatternAction } = require('./auth');
+const { requireReader } = require('../../routes/uda/sourceAuth');
 const { createDuplicateHandler } = require('./dms-duplicate');
 const { createPatternFilterSyncHandler } = require('../../dms/tasks/pattern-filter-sync/pattern-filter-sync');
 const dmsTasks = require('../../dms/tasks');
@@ -60,7 +61,8 @@ function registerUploadRoutes(app) {
   }, createPatternFilterSyncHandler(controller));
 
   // Task status — used by the client to poll for duplicate (and future long-running) tasks.
-  app.get('/dama-admin/dms/tasks/:taskId', async (req, res) => {
+  // Task and event reads need a signed-in user (requireReader, under DMS_SOURCE_AUTH_MODE).
+  app.get('/dama-admin/dms/tasks/:taskId', requireReader, async (req, res) => {
     try {
       const task = await dmsTasks.getTaskStatus(Number(req.params.taskId));
       if (!task) return res.status(404).json({ err: 'Task not found' });
@@ -97,7 +99,7 @@ function registerUploadRoutes(app) {
   app.get('/dama-admin/:pgEnv/tiles/:view_id/:z/:x/:y/t.pbf', serveTile);
 
   // Event polling compat shim (legacy clients poll this for task progress)
-  app.get('/dama-admin/:pgEnv/events/query', eventsQuery);
+  app.get('/dama-admin/:pgEnv/events/query', requireReader, eventsQuery);
 
   console.log('Upload: registered 21 routes at /dama-admin/ and /dms-admin/');
 }

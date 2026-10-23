@@ -18,7 +18,7 @@ const {
   hardDeleteSource,
 } = require("./uda.tasks.controller");
 const { getDb } = require("../../db");
-const { isUserAuthedForSource, parsePatternRef, assertPatternPermission } = require("./sourceAuth");
+const { isUserAuthedForSource, parsePatternRef, assertPatternPermission, readerAllowed } = require("./sourceAuth");
 
 /**
  * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and
@@ -45,6 +45,8 @@ function deleteAuthorizer(env, router, pattern) {
 // A refused or failed delete comes back as an error atom; DeleteRefused also carries its reason.
 const deleteError = (err) => ({ error: err.message, ...(err.details ? { reason: err.details.reason, details: err.details } : {}) });
 
+// Task and event reads need a signed-in user (readerAllowed, under DMS_SOURCE_AUTH_MODE); refused reads
+// return nothing. Per-source view-source comes with read visibility (permissions-ds-read-visibility).
 const TASK_ATTRS = [
   "task_id", "host_id", "source_id", "worker_path", "status", "progress",
   "result", "error", "descriptor", "queued_at", "started_at", "completed_at", "worker_pid"
@@ -61,6 +63,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.length`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.length")) return [];
         const { envs } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -80,6 +83,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byIndex")) return [];
         const { envs, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -106,6 +110,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byId")) return [];
         const { envs, taskIds, attributes } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -133,6 +138,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].length`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.forSource.length")) return [];
         const { envs, sourceIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -157,6 +163,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.forSource.byIndex")) return [];
         const { envs, sourceIds, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -185,6 +192,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.length`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.length")) return [];
         const { envs, taskIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -209,6 +217,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.byIndex[{integers:indices}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.byIndex")) return [];
         const { envs, taskIds, indices, attributes } = pathSet;
         const result = [];
         for (const env of envs) {

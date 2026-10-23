@@ -343,6 +343,25 @@ function requireUser(req, res) {
     return user;
 }
 
+/**
+ * Reads that were open to anyone (task and schedule status: lists, runs, events). They now need a signed-in
+ * user: `enforce` refuses anon, `log` lets anon through and logs it, `legacy` allows. Per-source
+ * `view-source` comes with read visibility (permissions-ds-read-visibility). `what` names the read in the log.
+ */
+function readerAllowed(user, what) {
+    const mode = authMode();
+    if (user || mode === 'legacy') return true;
+    if (mode === 'log') { logWouldDeny('read', what, [], null, 'not signed in'); return true; }
+    return false;
+}
+
+// Express middleware form of readerAllowed.
+function requireReader(req, res, next) {
+    const user = req.availAuthContext && req.availAuthContext.user;
+    if (readerAllowed(user, `${req.method} ${req.originalUrl || req.url}`)) return next();
+    res.status(401).json({ error: 'authentication required' });
+}
+
 // `env` defaults to the route's :pgEnv; `wasOpen` as for isUserAuthedForSource.
 async function requireSourcePermission(req, res, sourceId, perms, { env, wasOpen = false } = {}) {
     const user = requireUser(req, res);
@@ -430,6 +449,8 @@ module.exports = {
     requestUserIdWarnBody,
     requestPatternRef,
     requireUser,
+    readerAllowed,
+    requireReader,
     requireSourcePermission,
     requirePatternPermission,
     sourceIdForView,
