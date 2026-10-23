@@ -6,12 +6,15 @@
  * Every route here needs a signed-in user (`requireLogin`, mounted in index.js). On top of that:
  *   - new source:      `create-source` on the datasets pattern the request names (`?dms_pattern=`);
  *   - new version:     `create-view` or `update-source` on the source (as uda `views.create`);
- *   - rows into an internal source (DMS publish / validate): `edit-source-data` or `update-source`.
+ *   - rows into an internal source (DMS publish / validate): `edit-source-data` or `update-source`;
+ *   - a view's downloads and PM tiles (create / delete download, cache-pmtiles): `manage-downloads` on the
+ *     view's source.
  * These routes checked nothing before, so `legacy` / `log` allow and log would-denies; `enforce`
  * decides (DMS_SOURCE_AUTH_MODE, see routes/uda/sourceAuth.js).
  */
 const {
     authMode, requireUser, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
+    sourceIdForView,
 } = require('../../routes/uda/sourceAuth');
 
 const { createJudge, dataAuthMode } = require('../../routes/dms/dataAuth');
@@ -20,6 +23,7 @@ const { getSubdomain } = require('../../utils/subdomain');
 
 const ADD_VIEW_PERMS = ['create-view', 'update-source'];
 const WRITE_ROWS_PERMS = ['edit-source-data', 'update-source'];
+const MANAGE_DOWNLOADS_PERMS = ['manage-downloads'];
 
 function requireLogin(req, res, next) {
     if (requireUser(req, res)) next();
@@ -62,6 +66,24 @@ async function authorizeRowWrite(req, res, sourceIds, env) {
 }
 
 /**
+ * Gate an action on a view's downloads / tiles (create-download, delete-download, cache-pmtiles): `perms` on
+ * the source the view belongs to, found from the view (`views.source_id`), not from the body's `source_id`.
+ * Returns `{ user, sourceId }` (the view's own source, or the body's when the view has none, which the strict
+ * rule then denies), or null when refused. These routes checked nothing before: `legacy` / `log` allow.
+ */
+async function authorizeViewAction(req, res, viewId, perms, bodySourceId) {
+    if (!requireUser(req, res)) return null;
+    const env = req.params.pgEnv;
+    const sourceId = await sourceIdForView(env, viewId);
+    if (sourceId != null && bodySourceId != null && +bodySourceId !== sourceId) {
+        console.warn(`[source-auth] view ${env}/${viewId} belongs to source ${sourceId}, body named ${bodySourceId}; using ${sourceId}`);
+    }
+    const id = sourceId ?? bodySourceId;
+    const user = await requireSourcePermission(req, res, id ?? 0, perms, { wasOpen: true });
+    return user ? { user, sourceId: id } : null;
+}
+
+/**
  * Gate a pattern action (duplicate, sync-filters) the way the admin UI gates its button: `perms` on the
  * pattern `app` + (`id` or `instance`), plus optional site-level `sitePerms` on `siteApp`. Judged by
  * routes/dms/dataAuth.js under DMS_DATA_AUTH_MODE (these routes checked nothing before: `log` allows
@@ -99,4 +121,4 @@ async function requirePatternAction(req, res, controller, { app, id, instance, p
     return null;
 }
 
-module.exports = { requirePatternAction, ADD_VIEW_PERMS, WRITE_ROWS_PERMS, requireLogin, checkUploadOwner, authorizePublish, authorizeRowWrite };
+module.exports = { requirePatternAction, authorizeViewAction, ADD_VIEW_PERMS, WRITE_ROWS_PERMS, MANAGE_DOWNLOADS_PERMS, requireLogin, checkUploadOwner, authorizePublish, authorizeRowWrite };

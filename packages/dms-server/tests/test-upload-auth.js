@@ -74,9 +74,27 @@ function multipart(fields, file) {
     return { stream: Readable.from([Buffer.from(parts.join(''))]), contentType: `multipart/form-data; boundary=${boundary}` };
 }
 
+// A response the file route can pipe into: collects the body, records headers and redirects.
+function streamRes() {
+    const { Writable } = require('stream');
+    let finish;
+    const chunks = [];
+    const res = new Writable({ write(c, _e, cb) { chunks.push(Buffer.from(c)); cb(); } });
+    Object.assign(res, {
+        statusCode: 200, body: undefined, headers: {}, headersSent: false,
+        done: new Promise(r => { finish = r; }),
+        status(c) { this.statusCode = c; return this; },
+        json(o) { this.body = o; finish(); return this; },
+        setHeader(k, v) { this.headers[k.toLowerCase()] = v; },
+        redirect(c, u) { this.statusCode = c; this.location = u; finish(); },
+    });
+    res.on('finish', () => { res.body = Buffer.concat(chunks).toString(); finish(); });
+    return res;
+}
+
 let routes;
 // Run a route's handler chain the way express would; resolves with the response once one is sent.
-async function hit(key, { user = null, params = {}, query = {}, body = {}, form = null } = {}) {
+async function hit(key, { user = null, params = {}, query = {}, body = {}, form = null, stream = false } = {}) {
     const handlers = routes[key];
     assert(handlers, `no route ${key}`);
     let req;
@@ -88,7 +106,7 @@ async function hit(key, { user = null, params = {}, query = {}, body = {}, form 
         req = { headers: {} };
     }
     Object.assign(req, { params, query, body: form ? undefined : body, method: 'POST', originalUrl: key, availAuthContext: { user } });
-    const res = fakeRes();
+    const res = stream ? streamRes() : fakeRes();
     for (const h of handlers) {
         let nextCalled = false;
         await h(req, res, () => { nextCalled = true; });
@@ -376,6 +394,165 @@ async function run() {
         await withMode('enforce', async () => {
             const res = await hit(VAL, { user: loader, params: { appType: `${APP}+nowhere|1:data` }, body: { parentDocType: 'nowhere' } });
             assert.strictEqual(status(res), 403);
+        });
+    });
+
+    console.log('downloads and PM tiles (manage-downloads on the view\'s source):');
+    const downloader = { authed: true, id: 12, email: 'd@x', groups: ['Downloaders'] };
+    const extB = (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
+        [`uplauth_b_${Date.now()}`, JSON.stringify({ groups: { Downloaders: ['manage-downloads'] }, users: {} })])).rows[0].source_id;
+    createdExt.push(extB);
+    const viewB = (await dama.query(`INSERT INTO ${viewTbl} (source_id, metadata) VALUES ($1, $2) RETURNING view_id`,
+        [extB, JSON.stringify({ download: { csv: 'x' } })])).rows[0].view_id;
+    const viewA = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [extA])).rows[0].view_id;
+    const CREATE_DL = 'POST /dama-admin/:pgEnv/gis-dataset/create-download';
+    const DELETE_DL = 'DELETE /dama-admin/:pgEnv/gis-dataset/delete-download';
+    const PMTILES = 'POST /cache-pmtiles';
+    const queued = [];
+    // The plugin router, with a stub queue: these tests check the gate, not the worker.
+    const pmRoutes = captureRoutes(r => require('../src/dama/datatypes/pmtiles').routes(r, {
+        authorizeViewAction: require('../src/dama/upload/auth').authorizeViewAction,
+        queueTask: async (d) => { queued.push(d); return 1; },
+    }));
+    for (const [k, v] of Object.entries(pmRoutes)) routes[k] = v;
+    const taskTbl = pg ? 'data_manager.tasks' : 'tasks';
+    const dlBody = (view_id, source_id, extra = {}) => ({ source_id, view_id, fileTypes: ['CSV'], columns: ['name'], ...extra });
+    const dlCases = (view_id, source_id) => [
+        [CREATE_DL, dlBody(view_id, source_id)],
+        [DELETE_DL, { source_id, view_id }],
+        [PMTILES, { source_id, view_id, columns: [] }],
+    ];
+    await t('create / delete download and cache-pmtiles answer 401 without a user', async () => {
+        for (const [key, body] of dlCases(viewB, extB)) {
+            assert.strictEqual(status(await hit(key, { params: { pgEnv: DAMA_DB }, body })), 401, key);
+        }
+    });
+    await t('enforce: a user without manage-downloads is refused; a grantee passes', async () => {
+        await withMode('enforce', async () => {
+            for (const [key, body] of dlCases(viewB, extB)) {
+                assert.strictEqual(status(await hit(key, { user: stranger, params: { pgEnv: DAMA_DB }, body })), 403, key);
+                const res = await hit(key, { user: downloader, params: { pgEnv: DAMA_DB }, body });
+                assert.strictEqual(status(res), 200, `${key}: ${JSON.stringify(res.body)}`);
+            }
+        });
+    });
+    await t('enforce: the view\'s own source decides, not the body\'s source_id', async () => {
+        await withMode('enforce', async () => {
+            // downloader holds manage-downloads on extB only; viewA belongs to extA
+            for (const [key, body] of dlCases(viewA, extB)) {
+                assert.strictEqual(status(await hit(key, { user: downloader, params: { pgEnv: DAMA_DB }, body })), 403, key);
+            }
+        });
+    });
+    await t('enforce: an unknown view is refused', async () => {
+        await withMode('enforce', async () => {
+            assert.strictEqual(status(await hit(DELETE_DL, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: 99999999 } })), 403);
+        });
+    });
+    await t('the queued download records the token user and the view\'s source, whatever the body says', async () => {
+        await withMode('enforce', async () => {
+            const res = await hit(CREATE_DL, { user: downloader, params: { pgEnv: DAMA_DB }, body: dlBody(viewB, extA, { user_id: 999, email: 'forged@x' }) });
+            assert.strictEqual(status(res), 200, JSON.stringify(res.body));
+            assert.strictEqual(+res.body.source_id, +extB);
+            const { rows } = await dama.query(`SELECT descriptor FROM ${taskTbl} WHERE task_id = $1`, [res.body.etl_context_id]);
+            const d = typeof rows[0].descriptor === 'string' ? JSON.parse(rows[0].descriptor) : rows[0].descriptor;
+            assert.strictEqual(+d.user_id, downloader.id);
+            assert.strictEqual(d.email, downloader.email);
+            assert.strictEqual(+d.source_id, +extB);
+            const pm = await hit(PMTILES, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, source_id: extA } });
+            assert.strictEqual(status(pm), 200);
+            assert.strictEqual(+queued[queued.length - 1].source_id, +extB);
+        });
+    });
+    await t('log: a user without manage-downloads passes and is logged', async () => {
+        await withMode('log', async (warned) => {
+            const res = await hit(DELETE_DL, { user: stranger, params: { pgEnv: DAMA_DB }, body: { view_id: viewA } });
+            assert.strictEqual(status(res), 200);
+            assert(warned.some(w => w.includes('manage-downloads')), warned.join('\n'));
+        });
+    });
+    await dama.query(`DELETE FROM ${taskTbl} WHERE source_id IN ($1, $2)`, [extA, extB]);
+
+    console.log('signed downloads (download-source on the view\'s source; the link carries the check):');
+    const storage = require('../src/dama/storage');
+    const { signToken } = require('../src/auth/utils/crypto');
+    const SIGN = 'POST /dama-admin/:pgEnv/downloads/sign';
+    const FILE = 'GET /dama-admin/:pgEnv/downloads/file';
+    const extP = (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
+        [`uplauth_p_${Date.now()}`, JSON.stringify({ groups: { public: ['download-source'] }, users: {} })])).rows[0].source_id;
+    createdExt.push(extP);
+    await dama.query(`UPDATE ${srcTbl} SET auth_permissions = $1 WHERE source_id = $2`,
+        [JSON.stringify({ groups: { Downloaders: ['manage-downloads', 'download-source'] }, users: {} }), extB]);
+    const keyB = `${DAMA_DB}/s_${extB}/roads_s${extB}_v${viewB}_CSV.zip`;
+    const keyB2 = `${DAMA_DB}/s_${extB}/roads_s${extB}_v${viewB}_GPKG.zip`;
+    await storage.write(keyB, 'zip-bytes-B');
+    await storage.write(keyB2, 'zip-bytes-B2');
+    const setDownloads = async (view, map) => dama.query(`UPDATE ${viewTbl} SET metadata = $1 WHERE view_id = $2`, [JSON.stringify({ download: map }), view]);
+    await setDownloads(viewB, { CSV: storage.getUrl(keyB), GPKG: storage.getUrl(keyB2), GeoJSON: 'https://elsewhere.example/x.zip' });
+    const viewP = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [extP])).rows[0].view_id;
+    const keyP = `${DAMA_DB}/s_${extP}/open_CSV.zip`;
+    await storage.write(keyP, 'zip-bytes-P');
+    await setDownloads(viewP, { CSV: `$HOST${storage.getUrl(keyP)}` });
+    const tokenOf = (res) => decodeURIComponent(String(res.body.url).split('token=')[1]);
+    const fetchFile = (token, pgEnv = DAMA_DB) => hit(FILE, { params: { pgEnv }, query: { token }, stream: true });
+
+    await t('enforce: anonymous without a public grant → 401, a stranger → 403, a grantee gets a link', async () => {
+        await withMode('enforce', async () => {
+            assert.strictEqual(status(await hit(SIGN, { params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'CSV' } })), 401);
+            assert.strictEqual(status(await hit(SIGN, { user: stranger, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'CSV' } })), 403);
+            const res = await hit(SIGN, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'CSV' } });
+            assert.strictEqual(status(res), 200, JSON.stringify(res.body));
+            assert(res.body.url.startsWith(`/dama-admin/${DAMA_DB}/downloads/file?token=`), res.body.url);
+        });
+    });
+    await t('the link streams the file, with no login, as an attachment', async () => {
+        const signed = await withMode('enforce', () => hit(SIGN, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'CSV' } }));
+        const res = await fetchFile(tokenOf(signed));
+        assert.strictEqual(status(res), 200, JSON.stringify(res.body));
+        assert.strictEqual(res.body, 'zip-bytes-B');
+        assert(/attachment/.test(res.headers['content-disposition']), res.headers['content-disposition']);
+        assert.strictEqual(res.headers['cache-control'], 'private, no-store');
+    });
+    await t('anonymous gets a link for a source that grants public download-source (old $HOST/files url)', async () => {
+        await withMode('enforce', async () => {
+            const signed = await hit(SIGN, { params: { pgEnv: DAMA_DB }, body: { view_id: viewP, file_type: 'CSV' } });
+            assert.strictEqual(status(signed), 200, JSON.stringify(signed.body));
+            const res = await fetchFile(tokenOf(signed));
+            assert.strictEqual(res.body, 'zip-bytes-P');
+        });
+    });
+    await t('a link only opens its own file: forged, wrong-env, login and expired tokens are refused', async () => {
+        const signed = await withMode('enforce', () => hit(SIGN, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'CSV' } }));
+        const token = tokenOf(signed);
+        assert.strictEqual(status(await fetchFile(token.slice(0, -2) + 'xx')), 403);
+        assert.strictEqual(status(await fetchFile(token, 'other_env')), 403);
+        assert.strictEqual(status(await fetchFile(await signToken({ email: 'd@x', password: 'h' }))), 403);
+        assert.strictEqual(status(await fetchFile(await signToken({ purpose: 'download', pgEnv: DAMA_DB, view_id: viewB, file_type: 'CSV' }, '-1s'))), 403);
+        assert.strictEqual(status(await fetchFile('')), 403);
+    });
+    await t('a file type the view lacks → 404; a url outside storage is redirected to', async () => {
+        await withMode('enforce', async () => {
+            assert.strictEqual(status(await hit(SIGN, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'SHP' } })), 404);
+            const signed = await hit(SIGN, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'GeoJSON' } });
+            const res = await fetchFile(tokenOf(signed));
+            assert.strictEqual(status(res), 302);
+            assert.strictEqual(res.location, 'https://elsewhere.example/x.zip');
+        });
+    });
+    await t('log: a stranger still gets a link and is logged', async () => {
+        await withMode('log', async (warned) => {
+            const res = await hit(SIGN, { user: stranger, params: { pgEnv: DAMA_DB }, body: { view_id: viewB, file_type: 'CSV' } });
+            assert.strictEqual(status(res), 200);
+            assert(warned.some(w => w.includes('download-source')), warned.join('\n'));
+        });
+    });
+    await t('delete-download removes the files the view names (create-download\'s <pgEnv>/s_<source>/ paths)', async () => {
+        await withMode('enforce', async () => {
+            const res = await hit(DELETE_DL, { user: downloader, params: { pgEnv: DAMA_DB }, body: { view_id: viewB } });
+            assert.strictEqual(status(res), 200, JSON.stringify(res.body));
+            assert.strictEqual(await storage.exists(keyB), false);
+            assert.strictEqual(await storage.exists(keyB2), false);
+            assert.strictEqual(await storage.exists(keyP), true); // another source's file is untouched
         });
     });
 

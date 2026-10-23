@@ -271,10 +271,12 @@ async function setupAndListen() {
   const lineage = require('./dama/lineage');
   const damaDelete = require('./dama/delete');
   const { requireUser, requireSourcePermission, requirePatternPermission, requestUserId } = require('./routes/uda/sourceAuth');
+  const { authorizeViewAction } = require('./dama/upload/auth');
   const { getDb, loadConfig } = require('./db');
   // Plugin routes are open unless they check, so a route that writes calls one of these first.
   // Each answers the request itself (401 / 403) and returns null when the caller is refused.
-  // requireSourcePermission(req, res, sourceId, perms) reads the pgEnv from req.params.pgEnv.
+  // requireSourcePermission(req, res, sourceId, perms) reads the pgEnv from req.params.pgEnv;
+  // authorizeViewAction(req, res, viewId, perms, bodySourceId) checks the view's own source.
   mountDatatypeRoutes(app, {
     queueTask: tasks.queueTask,
     getTaskStatus: tasks.getTaskStatus,
@@ -289,6 +291,7 @@ async function setupAndListen() {
     requireUser,
     requireSourcePermission,
     requirePatternPermission,
+    authorizeViewAction,
     requestUserId,
     getDb,
     loadConfig,

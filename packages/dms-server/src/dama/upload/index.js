@@ -5,7 +5,7 @@
 
 const { newContextId, upload, getLayers, createPublishHandler, createValidateHandler } = require('./routes');
 const { gisGuard, layerNames, startLayerAnalysis, getLayerAnalysis, getTableDescriptor, gisPublish, csvPublish, eventsQuery } = require('./gis-routes');
-const { downloadGuard, createDownload, deleteDownload } = require('./download-routes');
+const { downloadGuard, createDownload, deleteDownload, signDownload, serveDownload } = require('./download-routes');
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
 const { requireLogin, requirePatternAction } = require('./auth');
@@ -81,6 +81,10 @@ function registerUploadRoutes(app) {
   // Download creation/deletion (requires GDAL for create)
   app.post('/dama-admin/:pgEnv/gis-dataset/create-download', downloadGuard, createDownload);
   app.delete('/dama-admin/:pgEnv/gis-dataset/delete-download', deleteDownload);
+  // Download a generated export: sign (download-source, anonymous allowed via `public`), then fetch
+  // the file with the short-lived link. Plain links can't send a token, so the link carries the check.
+  app.post('/dama-admin/:pgEnv/downloads/sign', signDownload);
+  app.get('/dama-admin/:pgEnv/downloads/file', serveDownload);
 
   // Generic file upload (images, documents) — legacy pgEnv-backed path.
   app.post('/dama-admin/:pgEnv/file_upload', requireLogin, fileUpload);
@@ -95,7 +99,7 @@ function registerUploadRoutes(app) {
   // Event polling compat shim (legacy clients poll this for task progress)
   app.get('/dama-admin/:pgEnv/events/query', eventsQuery);
 
-  console.log('Upload: registered 19 routes at /dama-admin/ and /dms-admin/');
+  console.log('Upload: registered 21 routes at /dama-admin/ and /dms-admin/');
 }
 
 module.exports = { registerUploadRoutes };

@@ -207,6 +207,7 @@ Passed to every `routes` registration:
 | `requireUser(req, res)` | `→ user \| null` | Answers 401 and returns null when nobody is signed in. |
 | `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict, under `DMS_SOURCE_AUTH_MODE`; see `routes/uda/sourceAuth.js`). The pattern is the one the request names (`?dms_pattern=app/id`, or the `X-DMS-Pattern` header). |
 | `requirePatternPermission(req, res, perms)` | `→ Promise<user \| null>` | Same, for a pattern-level permission such as `create-source`. |
+| `authorizeViewAction(req, res, viewId, perms, bodySourceId)` | `→ Promise<{user, sourceId} \| null>` | Same, judged on the source the **view** belongs to (not the body's `source_id`); for routes that act on a view's files (downloads, PM tiles). `legacy` / `log` allow, as for a route that checked nothing before. |
 | `requestUserId(req)` | `→ id \| null` | The caller's id, from the token. Use it instead of a body `user_id`. |
 | `getDb(pgEnv)` | `→ adapter` | Direct DB handle. |
 | `loadConfig(pgEnv)` | `→ config` | The raw db config JSON. |
