@@ -116,6 +116,14 @@ export const buildAdminPatternData = ({ adminPath, subdomain } = {}) => ({
 
 const createdId = (res) => Object.keys(res?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
 
+// The `<name> Admin` group a new site's patterns grant `*` to. Falls back to the app (the group /init/setup
+// creates) so a missing name never writes an `undefined Admin` grant, as old create-site code did on wcdb.
+function adminGroupKey(adminGroupName, app) {
+  const name = adminGroupName || app;
+  if (!name) throw new Error('No admin group name or app to grant the new patterns to');
+  return `${name} Admin`;
+}
+
 /**
  * Creates the two patterns every site needs — auth and admin — and registers
  * them on the site row straight away, so an interrupted flow still leaves a
@@ -135,13 +143,14 @@ const createdId = (res) => Object.keys(res?.json?.dms?.data?.byId || {}).find(k 
  * @returns {Array} pattern refs, auth first then admin — pass as `initialPatternRefs`
  */
 export async function createCorePatterns(falcor, { app, siteInstance, siteId, adminGroupName, subdomain, adminPath }) {
+  const adminGroup = adminGroupKey(adminGroupName, app);
   const authType = `${siteInstance}|auth:pattern`;
   const authRes = await falcor.call(['dms', 'data', 'create'], [app, authType, {
     pattern_type: 'auth',
     name: 'Auth',
     base_url: 'auth',
     ...(subdomain ? { subdomain } : {}),
-    authPermissions: JSON.stringify({ groups: { [`${adminGroupName} Admin`]: ['*'], public: [] }, users: {} }),
+    authPermissions: JSON.stringify({ groups: { [adminGroup]: ['*'], public: [] }, users: {} }),
   }]);
   const authId = createdId(authRes);
   if (!authId) throw new Error('Failed to create auth pattern');
@@ -298,6 +307,7 @@ export async function backfillAdminPattern(falcor, { app, siteInstance, siteId, 
  */
 export async function provisionTemplatePatterns(falcor, { app, siteInstance, selectedTemplateId, siteTemplates, pageTemplates, adminGroupName, subdomain, siteId, initialPatternRefs = [] }) {
   const selectedTemplate = (siteTemplates || []).find(t => t.id === selectedTemplateId) ?? { patterns: [] };
+  const adminGroup = adminGroupKey(adminGroupName, app);
   let allPatternRefs = [];
   let allEnvRefs = [];
   let wiredContext = null;
@@ -316,7 +326,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
       pattern_type: patternSpec.pattern_type,
       name: patternSpec.name,
       base_url: patternSpec.base_url,
-      authPermissions: JSON.stringify({ groups: { [`${adminGroupName} Admin`]: ['*'], public: [] }, users: {} }),
+      authPermissions: JSON.stringify({ groups: { [adminGroup]: ['*'], public: [] }, users: {} }),
       ...(subdomain ? { subdomain } : {}),
     }]);
     const templatePatternId = Object.keys(templatePatternRes?.json?.dms?.data?.byId || {})

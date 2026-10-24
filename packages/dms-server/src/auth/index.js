@@ -11,6 +11,8 @@ const projectRoutes = require('./routes/project.routes');
 const messageRoutes = require('./routes/message.routes');
 const preferencesRoutes = require('./routes/preferences.routes');
 const { tokenCache } = require('./jwt');
+const { createAuthGrants } = require('./utils/permissions');
+const { getSubdomain } = require('../utils/subdomain');
 
 const allRoutes = [
   ...authRoutes,
@@ -36,13 +38,28 @@ function afterAuthCall(route, result) {
   if (IDENTITY_ROUTES.has(route) && !(result && result.error)) tokenCache.clear();
 }
 
+// The auth row a request names lives in the DMS database. The controller is created on first use, so
+// loading this module (tests, scripts) opens no DMS connection.
+let dmsController;
+const loadPatternRows = (dmsApp) => {
+  if (!dmsController) {
+    const { createController } = require('../routes/dms/dms.controller');
+    dmsController = createController(process.env.DMS_DB_ENV || 'dms-sqlite');
+  }
+  return dmsController.getPatternRows(dmsApp);
+};
+
 /**
  * Register all auth routes with the Express app.
+ * Handlers are called as handler(authDb, body, ctx); ctx = { subdomain, authGrants } (auth/utils/permissions.js).
  * @param {Object} app - Express app instance
  * @param {Object} db - Database adapter for auth database
  * @param {string} [basePath=''] - URL prefix for all auth routes (e.g. '/auth')
+ * @param {Object} [options]
+ * @param {Function} [options.loadPatternRows] - (app) => the app's DMS pattern rows; tests pass their own
  */
-function registerAuthRoutes(app, db, basePath = '') {
+function registerAuthRoutes(app, db, basePath = '', options = {}) {
+  const authGrants = createAuthGrants({ loadPatternRows: options.loadPatternRows || loadPatternRows });
   for (const { route, method, handler } of allRoutes) {
     const fullRoute = basePath + route;
 
@@ -51,7 +68,7 @@ function registerAuthRoutes(app, db, basePath = '') {
 // console.log("dms-server/auth::req.clientIp", req.clientIp);
 
       try {
-        const result = await handler(db, { ...req.body, clientIp: req.clientIp });
+        const result = await handler(db, { ...req.body, clientIp: req.clientIp }, { subdomain: getSubdomain(req), authGrants });
         afterAuthCall(route, result);
         res.json(typeof result === 'string' ? { message: result } : result);
       } catch (e) {

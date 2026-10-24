@@ -191,6 +191,9 @@ const theme = {
             modalTitle: "t-displaySM text-[var(--t-ink)]",
             modalBody: "flex flex-row gap-3",
             notice: "p-4 text-sm text-[var(--t-graphite)]",
+            // Users / Groups: warning to admins while the auth pattern grants nothing (OpenAuthWarning.jsx)
+            openAuthWarning: "mb-3 rounded-md px-4 py-3 text-sm bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
+            openAuthWarningLink: "underline font-medium",
             profileLink: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-ink)] border border-[var(--t-rule-strong)] hover:border-[var(--t-ink)] rounded-md px-3.5 py-1.5 w-fit",
             // The table-header search inputs (Input's className is also a full
             // replacement, same as Button) — compact, since they sit inside a

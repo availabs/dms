@@ -21,6 +21,16 @@ export const getUser = ({AUTH_HOST, PROJECT_NAME}) => {
         });
 }
 
+// The auth row that governs this site's auth calls: the server reads its grants (auth-users,
+// auth-groups, view-as) when a call names `app` + `authPatternId` (dms-server auth/utils/permissions.js).
+// Set by the auth pattern's route config once the site's patterns are known (auth/siteConfig.jsx);
+// one site per page load, so module state is enough. A body that names its own keeps them.
+let authRequestScope = {};
+export const setAuthRequestScope = ({ app, authPatternId } = {}) => {
+    authRequestScope = authPatternId != null ? { app, authPatternId } : {};
+};
+const withAuthScope = (body) => ({ ...authRequestScope, ...body });
+
 export const callAuthServer = (url, body, options = {}) =>
     fetch(url, {
         method: "POST",
@@ -28,7 +38,7 @@ export const callAuthServer = (url, body, options = {}) =>
             Accept: 'application/json, text/plain',
             "Content-type": "application/json"
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(withAuthScope(body)),
         ...options
     })
         .then(r => {
@@ -82,7 +92,7 @@ export const getAPI = ({AUTH_HOST, PROJECT_NAME}) => {
           Accept: 'application/json, text/plain',
           "Content-type": "application/json"
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify(withAuthScope(body)),
         ...options
       })
         .then(r => {

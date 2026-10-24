@@ -84,7 +84,9 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					app,
 					siteInstance,
 					siteId: siteResult.id,
-					adminGroupName: PROJECT_NAME,
+					// The group /init/setup created above (`${app} Admin`), not PROJECT_NAME:
+					// a site whose PROJECT_NAME isn't its app would grant a group nobody is in.
+					adminGroupName: app,
 					adminPath: baseUrl || '/',
 				});
 
@@ -100,7 +102,7 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 					selectedTemplateId,
 					siteTemplates,
 					pageTemplates,
-					adminGroupName: PROJECT_NAME,
+					adminGroupName: app,
 					siteId: siteResult.id,
 					initialPatternRefs: corePatternRefs,
 				});

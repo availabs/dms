@@ -8,6 +8,8 @@ import { useAuth } from "./context";
 import { isUserAuthed } from "../../utils/auth";
 import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
+import { setAuthRequestScope } from "./api";
+import OpenAuthWarning from "./components/OpenAuthWarning";
 
 // Code-split: auth pages load only when an auth route renders. See
 // planning/tasks/completed/bundle-split-initial-graph.md.
@@ -146,6 +148,8 @@ const authConfig = ({
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
+    // Every auth call from now on names this auth row, so the server reads its grants (api.js)
+    setAuthRequestScope({ app, authPatternId: pattern?.id });
     // hard coding mny_admin for dev, needs to come from pattern
     const theme = getPatternTheme(themes, pattern, ssrCollect); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
@@ -278,6 +282,11 @@ const manageAuthConfig = ({
 
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
+    setAuthRequestScope({ app, authPatternId: pattern?.id });
+    // The auth pattern's Access tab, for the open-auth warning
+    const authAccessUrl = pattern?.id
+        ? `${adminPath.replace(/\/+$/, '')}/manage_pattern/${pattern.id}/permissions`
+        : null;
 
     // Same theme as the admin pattern's pages (Sites/Themes/Pattern Editor):
     // the library default plus this auth pattern's theme's `admin` key (its
@@ -344,12 +353,18 @@ const manageAuthConfig = ({
         path: `/*`,
         children: [
           {
-            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} />,
+            type: props => <>
+                <OpenAuthWarning app={app} authPermissions={authPermissions} editUrl={authAccessUrl} />
+                <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} />
+            </>,
             reqPermissions: ['auth-users'],
             path: "users",
           },
           {
-            type: props => <AuthGroups {...props} authPermissions={authPermissions} />,
+            type: props => <>
+                <OpenAuthWarning app={app} authPermissions={authPermissions} editUrl={authAccessUrl} />
+                <AuthGroups {...props} authPermissions={authPermissions} />
+            </>,
             reqPermissions: ['auth-groups'],
             path: "groups",
           },
