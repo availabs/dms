@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-23, task 9 committed)
+## ▶ Resume here (updated 2026-10-23, task 10 built)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -85,7 +85,10 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   new helpers `authorizePublish` / `authorizeSourceWrite` (owner = token user). Client pages use `authedFetch`
   with the pattern and gate their buttons. Tests: `test-datatype-auth.js` 9, `data-types/tests/plugin-auth.
   integration.js` (34 routes, anon 401 + stranger 403). **Live ✓ (enforce + log)**: Results rows "N plugin routes".
-- Not yet: task 10 (client gates).
+- **Task 10 (2026-10-23, committed lib b34ca5e1):** client gates + the server's rule made lenient (owner: no permission set → open; hub
+  open question 6). Live ✓: Results rows "O client gates", "O lenient rule".
+- Next: the auth tasks (13–17) per the hub list, task 11 (section data writes, blocked on a decision) and task 12
+  (read visibility).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
@@ -416,6 +419,9 @@ no push until stage 3.
 | 2 | N plugin routes: setup | — | 10-23 | done | Rig: `rig-datatypes.cjs` also registers the real `hazard_loss_pipeline` plugin; Vite 5197's `rig-data-types` adds its pages for apps without an entry. Temporary: `Downloaders` + Create Source on datasets pattern 4 (Access tab), removed afterwards (`flows/flow-access-remove.mjs`). |
 | 2 | N plugin routes | enforce | 10-23 | ✓ | UI (`flows/flow-plugin-create.mjs`): downloader → Create pipeline enabled, `POST …/hazard_loss_pipeline/create` with token + `dms_pattern=v6test/4` → 200, source 3 + 19 children owned by user 2 (token user), children copy the grants; viewer → button disabled, note "needs Create source on this datasets pattern". HTTP (`flows/neg-plugin.mjs 3`): viewer create → 403 "requires create-source on pattern v6test/4", run on 3 → 403 "requires create-view on source 3"; anon → 401 on create, run and an unknown write path (the mount gate); GET `/products` open for both. |
 | 2 | N plugin routes | log | 10-23 | ✓ | viewer create → 200 with one `would-deny pattern … missing create-source` line (and the source was created, owner user 3: `log` lets refusals happen); anon create → one `would-deny route … not signed in` line from the gate, then 401 (hazard create needed a login before); anon unknown path → one gate line, 404. downloader's whole UI flow → 0 lines. The 60 test sources deleted; rig back on `enforce`. |
+| 2 | O client gates: setup | — | 10-23 | done | Fixtures: DAMA source 2 (Downloaders: update-source, download-source, manage-downloads), internal source 6 (Downloaders + Update source through the Access UI, temporary; reset to no grants afterwards). Users viewer (no grants) / downloader / admin. Flows `flows/flow-gates.mjs`, `peek-access.mjs`, `neg-open.mjs`. |
+| 2 | O client gates | enforce | 10-23 | ✓ | viewer: list shows no Add / Settings / Uploads; Create → no-access line; tabs DAMA `overview · table · schedule · runs`, internal `overview · table` (no Admin / Upload / Validate); `/admin` and `/upload` by URL → "No access" panel. downloader (update-source): Admin tab; DAMA Admin = Advanced Metadata, Rules, Add Version, Tasks (no Delete, no Access editor); internal = Advanced Metadata, Tasks (no Add Version: create-view), Upload + Validate tabs. admin: everything incl. Delete Source, Access editor, internal Add Version. |
+| 2 | O lenient rule | enforce | 10-23 | ✓ | `neg-open.mjs 63 1` (schedule create = update-source): viewer on a no-grants source with no pattern named → 200; on the creator-only source 1 → 403; anon → 401 on both (the route requires a sign-in). Naming pattern 4 (which grants `v6test Admin`) makes the merged grants "set", so viewer → 403 there, as designed. Fixture source 63 deleted. |
 | 2 | K downloads | log | 10-23 | ✓ | Viewer create-download / sign and anon sign → allowed, one would-deny line each (`missing manage-downloads` / `missing download-source`). Downloader + admin flows (sign, file, create, cache-pmtiles) → **0** would-deny lines. |
 
 ## Objective
@@ -518,8 +524,15 @@ Each is owned by the task in brackets; answer there.
    client-named datasets pattern; rollout by `DMS_SOURCE_AUTH_MODE` (default `log`). [2]
 5. **Migration.** One-time grants matching today's access, dry-run first; levels stay readable until every
    consumer has moved. [18]
-6. **Strict or lenient checks.** Datasets server: strict (decided 2026-10-20, [2]); the client aligns in [10]. The client is lenient ("nothing configured → any logged-in user"), the server
-   source check is strict. Pick one per area and make both sides match. [2, 13]
+6. **Strict or lenient checks.** ✅ **Decided 2026-10-23 (owner): lenient everywhere.** "Unless there is a permission
+   set, it's open to anyone. It's great that the server now actually checks for permissions, but we don't want to
+   reject a request because there are no permissions set." The server's strict datasets checks (sourceAuth, and the
+   dms.data guard's source / site / dmsenv checks) move to the repo's lenient rule (`routes/dms/auth.js`
+   `isUserAuthed`, the client's mirror): signed-in users pass when nothing beyond `public` is set; anon passes only
+   when nothing at all is set, else needs an explicit `public` grant (owner: "as the lenient rule"). `${app} Admin`
+   still passes. The dms.data guard keeps its 10-22 anon rule (explicit `public` grant). Routes that require a
+   sign-in keep requiring it. A source with any grant set (new sources: creator `*`, `public: []`) stays private.
+   Supersedes the 10-20 "strict" call. [2, 10, 13]
 7. **Public files.** `/files` is public and can't carry a header. [6]
 8. **Row edits from page sections.** A source grant, the section's own `edit`, or a public-create split. [11]
 9. **Sources read by public pages.** Does `view-page` imply reading the sources its sections bind? [12]

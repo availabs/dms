@@ -5,6 +5,13 @@
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). **Every datasets server task
 depends on this one.** Server only, plus the vocabulary constants on the client.
 
+
+> **2026-10-23 (owner): the rule is lenient now, not strict.** "Unless there is a permission set, it's open to
+> anyone." `isUserAuthed` in `sourceAuth.js` is the repo's rule (`routes/dms/auth.js`); the strict check survives
+> only as `holdsExplicitly` (the dms.data guard's anonymous writes). Lookup failures and an unnamed pattern still
+> deny. Details: hub open question 6, and [permissions-ds-client-gates.md](./permissions-ds-client-gates.md). The
+> "strict" wording below is the history of how this task was built.
+
 ## Objective
 
 One server helper that every dataset route calls to decide "may this user do X to this source / this
