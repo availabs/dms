@@ -362,10 +362,32 @@ function requireReader(req, res, next) {
     res.status(401).json({ error: 'authentication required' });
 }
 
-// `env` defaults to the route's :pgEnv; `wasOpen` as for isUserAuthedForSource.
-async function requireSourcePermission(req, res, sourceId, perms, { env, wasOpen = false } = {}) {
-    const user = requireUser(req, res);
-    if (!user) return null;
+// The caller let through by requireUserOrOpen when nobody is signed in: truthy, so route code reads it as
+// "allowed", with no id (an owner taken from it is null).
+const ANON_CALLER = Object.freeze({ id: null, groups: [], anonymous: true });
+
+/**
+ * A write route anyone could call before (the data-type plugin routes): `enforce` refuses an anonymous
+ * caller (401), `log` lets it through and logs once per request, `legacy` lets it through. Returns the
+ * user, ANON_CALLER, or null (refused, answered).
+ */
+function requireUserOrOpen(req, res) {
+    const user = req.availAuthContext && req.availAuthContext.user;
+    if (user) return user;
+    const mode = authMode();
+    if (mode === 'enforce') return requireUser(req, res);
+    if (mode === 'log' && !req.anonWouldDenyLogged) {
+        req.anonWouldDenyLogged = true;
+        logWouldDeny('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in');
+    }
+    return ANON_CALLER;
+}
+
+// `env` defaults to the route's :pgEnv; `wasOpen` as for isUserAuthedForSource. `anonWasOpen`: anyone
+// could call the route before, so an anonymous caller is judged by requireUserOrOpen, not refused outright.
+async function requireSourcePermission(req, res, sourceId, perms, { env, wasOpen = false, anonWasOpen = false } = {}) {
+    const user = anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
+    if (!user || user === ANON_CALLER) return user;
     const pgEnv = env || req.params.pgEnv || req.params.env;
     const reqPermissions = [].concat(perms);
     const ok = await isUserAuthedForSource({
@@ -377,9 +399,9 @@ async function requireSourcePermission(req, res, sourceId, perms, { env, wasOpen
 }
 
 // `app`: the route acts on that DMS app, so a pattern of another app is dropped (and so denies).
-async function requirePatternPermission(req, res, perms, { patternRef, app } = {}) {
-    const user = requireUser(req, res);
-    if (!user) return null;
+async function requirePatternPermission(req, res, perms, { patternRef, app, anonWasOpen = false } = {}) {
+    const user = anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
+    if (!user || user === ANON_CALLER) return user;
     const named = patternRef || requestPatternRef(req);
     const ref = named && (!app || named.app === app) ? named : null;
     const reqPermissions = [].concat(perms);
@@ -449,6 +471,8 @@ module.exports = {
     requestUserIdWarnBody,
     requestPatternRef,
     requireUser,
+    requireUserOrOpen,
+    ANON_CALLER,
     readerAllowed,
     requireReader,
     requireSourcePermission,

@@ -177,6 +177,11 @@ A definition can also carry `schedulables` (cron-scheduled runs, see `data-types
 
 `registerDatatype('my_plugin', def)` → routes mount at `/dama-admin/:pgEnv/my_plugin/*`. The `:pgEnv` segment is mandatory and is what callers (admin UI, plugin pages) use to pick which DAMA database to operate on.
 
+Every plugin router gets `writeGate` (`datatypes/auth.js`) in front of it: a write (anything but GET / HEAD /
+OPTIONS) needs a signed-in user unless the plugin lists the route in `openRoutes: ['POST /path/:id']`.
+`enforce` refuses an anonymous write (401), `log` lets it through with one `would-deny route` line, `legacy`
+lets it through. The route then checks its own permission with the helpers below.
+
 ### Worker `ctx`
 
 Passed to every worker handler:
@@ -204,6 +209,8 @@ Passed to every `routes` registration:
 | `ensureSchema(db, schemaName)` | `→ Promise` | `CREATE SCHEMA IF NOT EXISTS` on Postgres; no-op on SQLite. |
 | `deleteDamaView(pgEnv, viewIds, {cascade, db, authorize})` | `→ Promise<result>` | Delete views and drop their tables; see "Deleting" below. |
 | `getViewLineage(pgEnv, viewIds)` / `getSourceLineage(pgEnv, sourceIds)` | `→ Promise<Map>` | Derived lineage reads (`lineage.js`). |
+| `authorizePublish(req, res, sourceId)` | `→ Promise<caller \| null>` | For a route that creates a source or adds a version: no `sourceId` → `create-source` on the named datasets pattern; a `sourceId` → `create-view` or `update-source` on it. `caller.id` is the owner (null for an anonymous call `log` let through). Follows `DMS_SOURCE_AUTH_MODE` as for a route that was open. |
+| `authorizeSourceWrite(req, res, {sourceId, viewId}, perms)` | `→ Promise<caller \| null>` | `perms` on an existing source, or on the view's own source when `viewId` is given. With neither, only `enforce` refuses. Same mode rules. |
 | `requireUser(req, res)` | `→ user \| null` | Answers 401 and returns null when nobody is signed in. |
 | `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict, under `DMS_SOURCE_AUTH_MODE`; see `routes/uda/sourceAuth.js`). The pattern is the one the request names (`?dms_pattern=app/id`, or the `X-DMS-Pattern` header). |
 | `requirePatternPermission(req, res, perms)` | `→ Promise<user \| null>` | Same, for a pattern-level permission such as `create-source`. |

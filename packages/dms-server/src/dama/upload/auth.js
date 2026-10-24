@@ -13,7 +13,7 @@
  * decides (DMS_SOURCE_AUTH_MODE, see routes/uda/sourceAuth.js).
  */
 const {
-    authMode, requireUser, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
+    authMode, requireUser, requireUserOrOpen, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
     sourceIdForView,
 } = require('../../routes/uda/sourceAuth');
 
@@ -44,10 +44,10 @@ function checkUploadOwner(req, res, entry) {
  * create the source (image cells and Lexical images upload private file sources from page editors,
  * which name no datasets pattern; owner decision 2026-10-21).
  */
-async function authorizePublish(req, res, sourceId, { env, app, allowUnnamed = false } = {}) {
-    if (sourceId) return requireSourcePermission(req, res, sourceId, ADD_VIEW_PERMS, { env, wasOpen: true });
-    if (allowUnnamed && !requestPatternRef(req)) return requireUser(req, res);
-    return requirePatternPermission(req, res, 'create-source', { app });
+async function authorizePublish(req, res, sourceId, { env, app, allowUnnamed = false, anonWasOpen = false } = {}) {
+    if (sourceId) return requireSourcePermission(req, res, sourceId, ADD_VIEW_PERMS, { env, wasOpen: true, anonWasOpen });
+    if (allowUnnamed && !requestPatternRef(req)) return anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
+    return requirePatternPermission(req, res, 'create-source', { app, anonWasOpen });
 }
 
 /** Gate a write of rows into each of `sourceIds` (internal sources of `env`); all must pass. */
@@ -71,15 +71,16 @@ async function authorizeRowWrite(req, res, sourceIds, env) {
  * Returns `{ user, sourceId }` (the view's own source, or the body's when the view has none, which the strict
  * rule then denies), or null when refused. These routes checked nothing before: `legacy` / `log` allow.
  */
-async function authorizeViewAction(req, res, viewId, perms, bodySourceId) {
-    if (!requireUser(req, res)) return null;
+async function authorizeViewAction(req, res, viewId, perms, bodySourceId, { anonWasOpen = false } = {}) {
+    const caller = anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
+    if (!caller) return null;
     const env = req.params.pgEnv;
     const sourceId = await sourceIdForView(env, viewId);
     if (sourceId != null && bodySourceId != null && +bodySourceId !== sourceId) {
         console.warn(`[source-auth] view ${env}/${viewId} belongs to source ${sourceId}, body named ${bodySourceId}; using ${sourceId}`);
     }
     const id = sourceId ?? bodySourceId;
-    const user = await requireSourcePermission(req, res, id ?? 0, perms, { wasOpen: true });
+    const user = await requireSourcePermission(req, res, id ?? 0, perms, { wasOpen: true, anonWasOpen });
     return user ? { user, sourceId: id } : null;
 }
 
