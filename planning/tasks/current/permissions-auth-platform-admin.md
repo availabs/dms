@@ -1,6 +1,6 @@
 # Auth server: platform-admin operations (`avail_auth` / `AVAIL`) without levels
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:decision · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md).
@@ -26,7 +26,10 @@ global `avail_auth` project (seeded with group `AVAIL` at 10: `db/sql/auth/auth_
 | `message.js:115-126` | type=project | caller ≥ the max level in the project |
 | `message.js:140-146` | type=all | member of `AVAIL` (not a level) |
 
-## Decision needed
+## Decision
+
+**Owner 2026-10-24: (a), membership in `AVAIL`** (checked by name, no levels). Mapping as in the recommendation below.
+
 
 - (a) **Membership in a platform group** (`AVAIL`), checked by name, no levels. Simplest; matches the `type=all`
   message check today.

@@ -1,6 +1,6 @@
 # Permissions move: grant everyone the permissions that match the access they have today
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub; design question 5). Depends on
 [permissions-inventory.md](../completed/permissions-inventory.md), the vocabulary decisions, and the loss list and approved
@@ -32,6 +32,22 @@ dataset routes start checking.
 
 **Pages with editable sections:** per the decision in
 [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md).
+
+## Required: wcdb and avail auth rows (owner 2026-10-24)
+
+Both auth rows grant nothing (prod check in [task 13](./permissions-auth-server-permission-source.md), "Prod
+check"). Under the lenient rule any signed-in user of those projects can manage users and groups once tasks 14–16
+are live. **Do this before or at the release, never after.** The owner adds the groups once every task is done, so
+no `auth_level` is involved:
+1. Look up today's admins of projects `wcdb` and `avail` (read-only); the owner confirms the list.
+2. Create groups `wcdb Admin` / `avail Admin`, link each to its project (membership needs the link, no level),
+   add the confirmed admins.
+3. Auth rows, whole value replaced, then a fresh read to verify:
+   wcdb `1471742` `{"undefined Admin":["*"]}` → `{"groups":{"wcdb Admin":["*"],"public":[]},"users":{}}`;
+   avail `1449669` (unset) → `{"groups":{"avail Admin":["*"],"public":[]},"users":{}}`.
+   The `${app} Admin` name also gets the built-in pass-everything rule. `AVAIL: ["*"]` only if the owner asks.
+4. A stray `undefined Admin` group in the auth DB: owner's call.
+5. Re-run the five-site auth-row check (all restricted).
 
 ## Proposed changes
 

@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-23, task 10 built)
+## ▶ Resume here (updated 2026-10-24, task 13 built)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -87,8 +87,15 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   integration.js` (34 routes, anon 401 + stranger 403). **Live ✓ (enforce + log)**: Results rows "N plugin routes".
 - **Task 10 (2026-10-23, committed lib b34ca5e1):** client gates + the server's rule made lenient (owner: no permission set → open; hub
   open question 6). Live ✓: Results rows "O client gates", "O lenient rule".
-- Next: the auth tasks (13–17) per the hub list, task 11 (section data writes, blocked on a decision) and task 12
-  (read visibility).
+- **2026-10-24: tasks 13 + 16 decided** (owner): client sends app + auth id; escalation (b) protected groups; auth
+  **lenient** too, plus an open-auth warning to `${app} Admin` / `*` holders; platform ops = `AVAIL` membership.
+  Prod check (CLI): wcdb (1471742, malformed `undefined Admin`) and avail (1449669, none) auth rows are **open**;
+  change list for both now in task 18 (owner: `wcdb Admin` / `avail Admin`, added after every task is done, no
+  level, **before or at the release**; not applied).
+- **Task 13 built (2026-10-24, uncommitted):** `auth/utils/permissions.js` (lookup, `can`, `canOrLevel`,
+  `canManageGroup`, `authScope`), handlers get `ctx`, client sends app + authPatternId, open-auth warning,
+  `undefined Admin` fix. Tests 21 + test-auth 104; live ✓ on the rig (task file).
+- Next: tasks 14–16 (handlers onto task 13; 16 decided), then 17; task 11 (blocked on a decision) and 12.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
@@ -514,10 +521,10 @@ any order once 2 and 3 land.
 Each is owned by the task in brackets; answer there.
 
 1. **Where auth-server permissions live** and which auth row governs a request (multi-site apps, tenants).
-   Proposal: the client sends `app` + auth pattern id. [13]
-2. **Auth vocabulary.** Proposal: `auth-users`, `auth-groups`, `view-as`; platform operations by `AVAIL`
-   membership. [13, 16]
-3. **Anti-escalation without ranks.** Recommendation: only `*` / `${app} Admin` may touch groups that hold `*`,
+   ✅ Decided 2026-10-24: the client sends `app` + auth pattern id. [13]
+2. **Auth vocabulary.** ✅ 2026-10-24: `auth-users`, `auth-groups`, `view-as`; platform operations by `AVAIL`
+   membership (owner chose `AVAIL` membership for task 16). [13, 16]
+3. **Anti-escalation without ranks.** ✅ Decided 2026-10-24 (b): only `*` / `${app} Admin` may touch groups that hold `*`,
    `auth-groups` or `edit-pattern-permissions`. [13]
 4. **Datasets vocabulary.** ✅ Decided 2026-10-20: `create-source` (pattern), `edit-source-data` (source rows),
    enforce `create-view`, pattern operations use `edit-pattern`. External sources inherit the grants of the
@@ -532,7 +539,8 @@ Each is owned by the task in brackets; answer there.
    when nothing at all is set, else needs an explicit `public` grant (owner: "as the lenient rule"). `${app} Admin`
    still passes. The dms.data guard keeps its 10-22 anon rule (explicit `public` grant). Routes that require a
    sign-in keep requiring it. A source with any grant set (new sources: creator `*`, `public: []`) stays private.
-   Supersedes the 10-20 "strict" call. [2, 10, 13]
+   Supersedes the 10-20 "strict" call. **Auth too** (owner 10-24): lenient, plus a warning to `${app} Admin` /
+   `*` holders when an auth row sets no grants (task 13). [2, 10, 13]
 7. **Public files.** `/files` is public and can't carry a header. [6]
 8. **Row edits from page sections.** A source grant, the section's own `edit`, or a public-create split. [11]
 9. **Sources read by public pages.** Does `view-page` imply reading the sources its sections bind? [12]
