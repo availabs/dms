@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-23, task 7 committed)
+## ▶ Resume here (updated 2026-10-23, task 9 built)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -79,7 +79,13 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   "M schedules". Rig additions: `rig-datatypes.cjs` (schedulable `rig_sched/run`), source **2** `sched fixture`
   (type `transcom`), Vite 5197 with `RIG_DATATYPES=1` (verify README).
 - **Task 8 closed (2026-10-23):** gates built as step 5 (a943738b), live ✓ 10-22; task file now `built`.
-- Not yet: tasks 9 (plugin routes, `planning/shared/`), 10 (client gates).
+- **Task 9 (2026-10-23, uncommitted at time of writing):** plugin routes (`planning/shared/`
+  datatype-plugin-route-permissions). The mount puts `writeGate` on every plugin router (writes need a signed-in
+  user, `openRoutes` opt-out: now_playing webhook, routing's POST searches); each write route checks first via
+  new helpers `authorizePublish` / `authorizeSourceWrite` (owner = token user). Client pages use `authedFetch`
+  with the pattern and gate their buttons. Tests: `test-datatype-auth.js` 9, `data-types/tests/plugin-auth.
+  integration.js` (34 routes, anon 401 + stranger 403). **Live ✓ (enforce + log)**: Results rows "N plugin routes".
+- Not yet: task 10 (client gates).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
@@ -407,6 +413,9 @@ no push until stage 3.
 | 2 | M schedules: setup | — | 10-23 | done | Rig: `rig-datatypes.cjs` registers schedulable `rig_sched/run` (`start.sh` sets `DMS_EXTRA_DATATYPES`); source **2** `sched fixture` (type `transcom`, inserted on `test_dama`, grants copied from source 1); Vite 5197 restarted with `RIG_DATATYPES=1` (the 5197 config gives an app with no `src/data-types.js` entry a `transcom` type with Schedule / Runs). Temporary: `Downloaders` + update-source on source 1 (Access UI), reverted. |
 | 2 | M schedules | enforce | 10-23 | ✓ | UI (`flows/flow-sched-live.mjs`, `sched-peek.mjs`): downloader (update-source) sees New schedule → create 200 (`created_by` 2 = token user), Run now 200 (task 10 done), Runs → Re-run 200 (task 11, `rerun_of` 10, `rerun_by` 2); every call carries the token + `dms_pattern=v6test/4`. viewer: no New schedule, no Re-run button. HTTP (`flows/neg-sched.mjs 1 10 2`): viewer create / patch / fire / rerun / delete → 403 "requires update-source on source 2", reads 200; anon → 401 on all 8 (writes and reads). |
 | 2 | M schedules | log | 10-23 | ✓ | viewer's 5 writes → 200 with exactly 5 `would-deny source test_dama/2 … missing update-source` lines; anon writes still 401, anon reads 200 with 3 `would-deny read … not signed in` lines; downloader's whole UI flow → 0 lines. ⚠ as before, `log` lets the refused writes happen: viewer's DELETE removed schedule 1. Rig schedules deleted afterwards; rig back on `enforce`. |
+| 2 | N plugin routes: setup | — | 10-23 | done | Rig: `rig-datatypes.cjs` also registers the real `hazard_loss_pipeline` plugin; Vite 5197's `rig-data-types` adds its pages for apps without an entry. Temporary: `Downloaders` + Create Source on datasets pattern 4 (Access tab), removed afterwards (`flows/flow-access-remove.mjs`). |
+| 2 | N plugin routes | enforce | 10-23 | ✓ | UI (`flows/flow-plugin-create.mjs`): downloader → Create pipeline enabled, `POST …/hazard_loss_pipeline/create` with token + `dms_pattern=v6test/4` → 200, source 3 + 19 children owned by user 2 (token user), children copy the grants; viewer → button disabled, note "needs Create source on this datasets pattern". HTTP (`flows/neg-plugin.mjs 3`): viewer create → 403 "requires create-source on pattern v6test/4", run on 3 → 403 "requires create-view on source 3"; anon → 401 on create, run and an unknown write path (the mount gate); GET `/products` open for both. |
+| 2 | N plugin routes | log | 10-23 | ✓ | viewer create → 200 with one `would-deny pattern … missing create-source` line (and the source was created, owner user 3: `log` lets refusals happen); anon create → one `would-deny route … not signed in` line from the gate, then 401 (hazard create needed a login before); anon unknown path → one gate line, 404. downloader's whole UI flow → 0 lines. The 60 test sources deleted; rig back on `enforce`. |
 | 2 | K downloads | log | 10-23 | ✓ | Viewer create-download / sign and anon sign → allowed, one would-deny line each (`missing manage-downloads` / `missing download-source`). Downloader + admin flows (sign, file, create, cache-pmtiles) → **0** would-deny lines. |
 
 ## Objective
