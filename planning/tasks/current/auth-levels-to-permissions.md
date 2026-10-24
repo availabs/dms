@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-23, task 9 built)
+## ▶ Resume here (updated 2026-10-23, task 9 committed)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -79,7 +79,7 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   "M schedules". Rig additions: `rig-datatypes.cjs` (schedulable `rig_sched/run`), source **2** `sched fixture`
   (type `transcom`), Vite 5197 with `RIG_DATATYPES=1` (verify README).
 - **Task 8 closed (2026-10-23):** gates built as step 5 (a943738b), live ✓ 10-22; task file now `built`.
-- **Task 9 (2026-10-23, uncommitted at time of writing):** plugin routes (`planning/shared/`
+- **Task 9 (2026-10-23, committed lib dc7b1e93 / root 1417a991):** plugin routes (`planning/shared/`
   datatype-plugin-route-permissions). The mount puts `writeGate` on every plugin router (writes need a signed-in
   user, `openRoutes` opt-out: now_playing webhook, routing's POST searches); each write route checks first via
   new helpers `authorizePublish` / `authorizeSourceWrite` (owner = token user). Client pages use `authedFetch`
