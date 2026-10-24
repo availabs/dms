@@ -81,7 +81,7 @@ Moved to [permissions-grant-migration.md](./permissions-grant-migration.md), "Re
 
 ## Proposed changes (after the decisions)
 
-**Built 2026-10-24 (uncommitted, branch `permissions_move`).** The foundation only: no handler uses it yet; tasks
+**Built 2026-10-24, committed lib 5a192e40 / root b3716f8d (branch `permissions_move`, not pushed).** The foundation only: no handler uses it yet; tasks
 14–16 move the handlers onto it.
 
 - [x] `dms-server/src/auth/utils/permissions.js`: `createAuthGrants({ loadPatternRows, ttlMs = 30s })` →

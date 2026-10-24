@@ -92,7 +92,7 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   Prod check (CLI): wcdb (1471742, malformed `undefined Admin`) and avail (1449669, none) auth rows are **open**;
   change list for both now in task 18 (owner: `wcdb Admin` / `avail Admin`, added after every task is done, no
   level, **before or at the release**; not applied).
-- **Task 13 built (2026-10-24, uncommitted):** `auth/utils/permissions.js` (lookup, `can`, `canOrLevel`,
+- **Task 13 built (2026-10-24, committed lib 5a192e40 / root b3716f8d):** `auth/utils/permissions.js` (lookup, `can`, `canOrLevel`,
   `canManageGroup`, `authScope`), handlers get `ctx`, client sends app + authPatternId, open-auth warning,
   `undefined Admin` fix. Tests 21 + test-auth 104; live ✓ on the rig (task file).
 - Next: tasks 14–16 (handlers onto task 13; 16 decided), then 17; task 11 (blocked on a decision) and 12.
