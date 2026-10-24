@@ -18,22 +18,23 @@
  *     pattern and otherwise trusts it (owner decision 2026-10-20) — whoever holds a grant on a
  *     datasets pattern can claim it for any external source.
  *
- * Decision (`decideSource` / `decidePattern`): STRICT — an explicit perm or `*`, no "unconfigured ⇒
- * logged-in may". `${app} Admin` passes everything, as `isAppAdmin` does in the admin UI. FAILS
- * CLOSED: a missing row, a missing column or any query error denies.
+ * Decision (`decideSource` / `decidePattern`): the repo's rule, as the client (owner, 2026-10-23; it was
+ * strict until then): no permission set → open, otherwise an explicit perm or `*` (isUserAuthed below).
+ * `${app} Admin` passes everything, as `isAppAdmin` does in the admin UI. FAILS CLOSED on lookups: a
+ * missing row, a missing column, an unnamed pattern or any query error denies.
  *
  * Rollout (`DMS_SOURCE_AUTH_MODE`):
  *   - `legacy`  — today's rule (`legacyAllows`: missing row / query error / DMS env ⇒ allow) OR the
- *                 strict rule: whatever `enforce` would allow is never refused.
- *   - `log`     — (default) as `legacy`; every request the strict rule would deny is logged
+ *                 resolver's rule: whatever `enforce` would allow is never refused.
+ *   - `log`     — (default) as `legacy`; every request the resolver's rule would deny is logged
  *                 (`[source-auth] would-deny …`), to feed the access-diff audit and the grant
  *                 migration before anything flips.
- *   - `enforce` — the strict rule decides.
+ *   - `enforce` — the resolver's rule decides.
  *
- * Mirrors the merge + check of the client `utils/auth.js` (mirror, don't import); the client keeps
- * a "logged-in ⇒ allow" UI escape hatch that the server deliberately does not.
+ * Mirrors the merge + check of the client `utils/auth.js` (mirror, don't import). Same rule on both sides
+ * (owner, 2026-10-23): no permission set → open (see isUserAuthed below); `${app} Admin` passes.
  */
-const { resolveAuthPermissions } = require('../dms/auth');
+const { resolveAuthPermissions, isUserAuthed: lenientIsUserAuthed } = require('../dms/auth');
 const { getDb, loadConfig } = require('../../db');
 const { dmsMainTable, getSiteSources } = require('./utils');
 
@@ -67,8 +68,13 @@ function unionAuthPermissions(list) {
     return out;
 }
 
-// STRICT: grant only on an explicit perm or `*`. No "logged-in ⇒ allow" / "unconfigured ⇒ allow".
-function isUserAuthed({ user = {}, reqPermissions = [], authPermissions = {} }) {
+// The repo's rule (owner, 2026-10-23): no permission set → open. `routes/dms/auth.js` isUserAuthed, the
+// client's mirror: a signed-in user passes when nothing beyond `public` is set, anyone when nothing at all
+// is; otherwise an explicit perm or `*` (the `public` group counts for everyone).
+const isUserAuthed = lenientIsUserAuthed;
+
+// Explicit grants only (no "nothing set ⇒ open"): the dms.data guard's rule for anonymous writes.
+function holdsExplicitly({ user = {}, reqPermissions = [], authPermissions = {} }) {
     if (!reqPermissions || !reqPermissions.length) return true;
     const groups = authPermissions.groups || {};
     const users = authPermissions.users || {};
@@ -220,7 +226,8 @@ async function sourceIdForView(env, viewId) {
  * Strict decision for `reqPermissions` on a source. `env` picks internal vs external; without it
  * the source is treated as external on `db`. Returns { allow, reason }.
  */
-async function decideSource({ db, env, sourceId, patternRef, subdomain = '', reqPermissions, user }) {
+// `explicitOnly`: explicit grants only (holdsExplicitly), for the dms.data guard's anonymous writes.
+async function decideSource({ db, env, sourceId, patternRef, subdomain = '', reqPermissions, user, explicitOnly = false }) {
     if (!reqPermissions || !reqPermissions.length) return { allow: true, reason: 'nothing required' };
 
     let sourceAP, patternAP = {}, app = null;
@@ -240,11 +247,12 @@ async function decideSource({ db, env, sourceId, patternRef, subdomain = '', req
     }
 
     if (isAppAdmin(user, app)) return { allow: true, reason: `${app} Admin` };
-    const allow = isUserAuthed({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, sourceAP) });
+    const check = explicitOnly ? holdsExplicitly : isUserAuthed;
+    const allow = check({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, sourceAP) });
     return { allow, reason: allow ? 'granted' : `missing ${reqPermissions.join(' or ')}` };
 }
 
-/** Strict decision for a pattern-level permission (`create-source`, `edit-pattern`). */
+/** Decision for a pattern-level permission (`create-source`, `edit-pattern`). */
 async function decidePattern({ patternRef, subdomain = '', reqPermissions, user }) {
     if (!reqPermissions || !reqPermissions.length) return { allow: true, reason: 'nothing required' };
     const p = await readNamedPattern(patternRef || {}, subdomain);
@@ -255,7 +263,7 @@ async function decidePattern({ patternRef, subdomain = '', reqPermissions, user 
 }
 
 // Today's rule, kept for `legacy` / `log`: missing row, query error or DMS env ⇒ allow; a found
-// external source is checked strictly against its own grants (patternId was never passed).
+// external source is checked against its own grants (patternId was never passed).
 async function legacyAllows({ db, env, sourceId, reqPermissions, user }) {
     if (isDmsEnv(env)) return true;
     const r = await readExternalSource(db || getDb(env), sourceId);
@@ -277,7 +285,7 @@ async function isUserAuthedForSource(opts) {
     const mode = authMode();
     const d = await decideSource(opts);
     if (mode === 'enforce' || d.allow) return d.allow;
-    // legacy / log: today's rule may allow what the strict rule denies, never the reverse. (Today's rule
+    // legacy / log: today's rule may allow what the resolver's rule denies, never the reverse. (Today's rule
     // reads only the source's own grants, so it refused `${app} Admin` and pattern grantees.)
     const legacy = opts.wasOpen || await legacyAllows(opts);
     if (mode === 'log' && legacy) logWouldDeny('source', `${opts.env || 'db'}/${opts.sourceId}`, opts.reqPermissions, opts.user, d.reason);
@@ -460,6 +468,7 @@ module.exports = {
     mergeAuthPermissions,
     unionAuthPermissions,
     isUserAuthed,
+    holdsExplicitly,
     isAppAdmin,
     authMode,
     decideSource,

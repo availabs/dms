@@ -1,6 +1,7 @@
 /**
  * Per-source permission enforcement (datasets-permissions-model · P4, permissions-server-source-auth-core).
- * Part 1: pure-logic matrix for mergeAuthPermissions + the STRICT server isUserAuthed.
+ * Part 1: pure-logic matrix for mergeAuthPermissions + the server isUserAuthed (the repo's rule: no
+ *         permission set → open, owner 2026-10-23).
  * Part 2: the resolver against real sqlite DBs (a DMS db and a DaMa pgEnv): fail-closed reads,
  *         internal sources and their env's pattern, client-named patterns, ${app} Admin, modes,
  *         token-only user id.
@@ -36,16 +37,22 @@ t('user [] disables / non-empty sets', () => {
     assert.deepStrictEqual(mergeAuthPermissions(base, { users: { 9: ['view-source'] } }).users[9], ['view-source']);
 });
 
-console.log('isUserAuthed — STRICT server semantics:');
+console.log('isUserAuthed — no permission set → open, else explicit grants:');
 t('no required perms → allow', () => assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: [], authPermissions: {} }), true));
-t('empty/unconfigured → DENY (no "unconfigured ⇒ allow")', () => {
-    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['view-source'], authPermissions: {} }), false);
-    assert.strictEqual(isUserAuthed({ user: avail, reqPermissions: ['view-source'], authPermissions: { groups: {}, users: {} } }), false);
+t('nothing set → open to anyone, anon included', () => {
+    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['update-source'], authPermissions: {} }), true);
+    assert.strictEqual(isUserAuthed({ user: avail, reqPermissions: ['delete-source'], authPermissions: { groups: {}, users: {} } }), true);
 });
-t('logged-in + only-public → DENY beyond public (no client escape hatch)', () => {
+t('only public set → signed-in users pass, anon gets only the public perms', () => {
     const ap = { groups: { public: ['view-source'] }, users: {} };
-    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['update-source'], authPermissions: ap }), false);
-    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['view-source'], authPermissions: ap }), true);
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['update-source'], authPermissions: ap }), true);
+    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['view-source'], authPermissions: ap }), true);
+    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['update-source'], authPermissions: ap }), false);
+});
+t('any other grant set → explicit grants only', () => {
+    const ap = { groups: { public: [] }, users: { 1: ['*'] } };   // a new source: creator only
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['view-source'], authPermissions: ap }), false);
+    assert.strictEqual(isUserAuthed({ user: { authed: true, id: 1, groups: [] }, reqPermissions: ['delete-source'], authPermissions: ap }), true);
 });
 t('* grants everything', () => assert.strictEqual(isUserAuthed({ user: avail, reqPermissions: ['delete-source'], authPermissions: { groups: { AVAIL: ['*'] } } }), true));
 t('user-specific grant', () => assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['update-source'], authPermissions: { groups: {}, users: { 7: ['update-source'] } } }), true));
@@ -80,7 +87,7 @@ t('stranger: only public perms (view/download), not update', () => {
     assert.strictEqual(can(['update-source'], { user: stranger, pattern, source }), false);
 });
 t('source [] revokes an inherited pattern grant', () => {
-    const p = { groups: { public: ['view-source'], NYSDOT: ['update-source'] }, users: {} };
+    const p = { groups: { public: ['view-source'], NYSDOT: ['update-source'], AVAIL: ['*'] }, users: {} };
     const s = { groups: { NYSDOT: [] }, users: {} };
     assert.strictEqual(can(['update-source'], { user: editor, pattern: p, source: s }), false);
 });
@@ -138,6 +145,7 @@ async function dbTests() {
         [`srcauth_${Date.now()}_${Math.random()}`, JSON.stringify(ap)])).rows[0].source_id;
     const extGranted = await ext({ groups: { AVAIL: ['*'], public: [] }, users: {} });
     const extEmpty = await ext({});
+    const extOwned = await ext({ groups: { public: [] }, users: { 1: ['*'] } }); // a new source: creator only
 
     const ENV = `${APP}+ds`; // env = app + the datasets pattern's instance
     const LEGACY_ENV = `${APP}+legacy_ds`;
@@ -179,16 +187,18 @@ async function dbTests() {
     console.log('\ndecideSource — external (pgEnv) sources:');
     await ta('source grant counts with no pattern named', async () =>
         assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extGranted, reqPermissions: ['delete-source'], user: avail }), true));
-    await ta('empty grants deny', async () =>
-        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses }), false));
+    await ta('no grants set → open (owner 2026-10-23)', async () =>
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses }), true));
+    await ta('a creator-only source denies others', async () =>
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['update-source'], user: dhses }), false));
     await ta('a named datasets pattern is inherited', async () =>
-        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses, patternRef: { app: APP, patternId: dsPattern } }), true));
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['update-source'], user: dhses, patternRef: { app: APP, patternId: dsPattern } }), true));
     await ta('named pattern + its ${app} Admin passes', async () =>
-        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['delete-source'], user: admin, patternRef: { app: APP, patternId: dsPattern } }), true));
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['delete-source'], user: admin, patternRef: { app: APP, patternId: dsPattern } }), true));
     await ta('a non-datasets pattern is ignored', async () =>
-        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: rando, patternRef: { app: APP, patternId: pagePattern } }), false));
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['update-source'], user: rando, patternRef: { app: APP, patternId: pagePattern } }), false));
     await ta('a pattern named under the wrong app is ignored', async () =>
-        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: rando, patternRef: { app: APP, patternId: otherDs } }), false));
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['update-source'], user: rando, patternRef: { app: APP, patternId: otherDs } }), false));
     await ta('missing row is denied (fail closed)', async () =>
         assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: 99999999, reqPermissions: ['update-source'], user: avail }), false));
     await ta('query error is denied (fail closed)', async () => {
@@ -225,7 +235,7 @@ async function dbTests() {
         assert.strictEqual(warned.length, 1);
     }));
     await ta('log: a migrated external source still denies as today', async () => withMode('log', async () =>
-        assert.strictEqual(await isUserAuthedForSource({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses }), false)));
+        assert.strictEqual(await isUserAuthedForSource({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['update-source'], user: dhses }), false)));
     await ta('log: a granted request logs nothing', async () => withMode('log', async (warned) => {
         assert.strictEqual(await isUserAuthedForSource({ env: ENV, sourceId: bareSrc, reqPermissions: ['update-source'], user: dhses }), true);
         assert.strictEqual(warned.length, 0);

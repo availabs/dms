@@ -237,11 +237,15 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const {id} = params;
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {baseUrl, pageBaseUrl, user, parent, UI, datasources} = React.useContext(DatasetsContext) || {};
+    const {baseUrl, pageBaseUrl, parent, UI, datasources, isUserAuthed} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const {Button, Icon} = UI;
+    // Each control shows to the users the server lets use it (SourcePage gates the tab on any of these).
+    const can = (perms) => (isUserAuthed ? isUserAuthed(perms) : false);
+    const canUpdate = can(['update-source']);
+    const canAddVersion = can(isDms ? ['create-view'] : ['create-view', 'update-source']);
 
-    if(!user || !user.token) return <></>
+    if (!can(['update-source', 'edit-source-permissions', 'delete-source', 'create-view'])) return <></>
 
     // todo add setAuth feature for internal and external sources.
     // use statistics column. make a route to update sources.
@@ -257,19 +261,19 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
+                            {canUpdate && <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>}
                             {
                                 isDms ? (
                                     <>
-                                        <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                        {canAddVersion && <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>}
                                         {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
                                         <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                                     </>
                                 ) : (
                                     <>
-                                        <Button><Link to={`${pageBaseUrl}/${id}/rules`}>Rules</Link></Button>
-                                        <AddExternalVersionBtn source={source} />
-                                        <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />
+                                        {canUpdate && <Button><Link to={`${pageBaseUrl}/${id}/rules`}>Rules</Link></Button>}
+                                        {canAddVersion && <AddExternalVersionBtn source={source} />}
+                                        {canUpdate && <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />}
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />
                                     </>
                                 )
@@ -279,7 +283,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                     </div>
                 </div>
                 {
-                    isDms ? null : (
+                    isDms || !canUpdate ? null : (
                         <div className={t.tasksWrapper}>
                             <div className={t.tasksLabel}>Tasks</div>
                             <UdaTaskList sourceId={source.source_id} />

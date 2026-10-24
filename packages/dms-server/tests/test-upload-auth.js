@@ -146,7 +146,7 @@ async function run() {
     const insert = async (table, app, type, data) => +(await controller.createData([app, type, data], null))[0].id;
     const viewId = await insert(tbl, APP, 'roads|v1:view', { name: 'v1' });
     const intSrc = await insert(tbl, APP, 'env1|roads:source', { name: 'roads', type: 'internal_table', views: [{ id: viewId }] });
-    const intSrc2 = await insert(tbl, APP, 'env1|bridges:source', { name: 'bridges', type: 'internal_table', views: [], auth_permissions: { groups: { Loaders: [] } } });
+    const intSrc2 = await insert(tbl, APP, 'env1|bridges:source', { name: 'bridges', type: 'internal_table', views: [], auth_permissions: { groups: { Loaders: [] }, users: { 999999: ['*'] } } }); // revokes Loaders; another holder keeps it set (nothing set would be open)
     const envRow = await insert(tbl, APP, 'site|env1:dmsenv', { sources: [{ id: intSrc }, { id: intSrc2 }] });
     const dsPattern = await insert(tbl, APP, 'site|ds:pattern', {
         pattern_type: 'datasets', dmsEnvId: envRow,

@@ -109,7 +109,7 @@ async function run() {
     const ext = async (ap) => (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
         [`udaauth_${Date.now()}_${Math.random()}`, JSON.stringify(ap)])).rows[0].source_id;
     const extA = await ext({ groups: { Editors: ['update-source'], Owners: ['*'], Versioners: ['create-view'] }, users: {} });
-    const extB = await ext({});
+    const extB = await ext({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
     const view = async (sourceId) => (await dama.query(`INSERT INTO ${viewTbl} (source_id, version, table_schema, table_name) VALUES ($1, 'v1', $2, $3) RETURNING view_id`,
         [sourceId, pg ? 'public' : 'main', `udaauth_missing_${sourceId}`])).rows[0].view_id;
     const viewA = await view(extA);

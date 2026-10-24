@@ -170,7 +170,10 @@ const SourceCard = React.memo(({ source = {}, t, Icon, swatches, full }) => {
 });
 
 export default function DatasetsList ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
+    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI, parent, isUserAuthed} = useContext(DatasetsContext);
+    // Toolbar controls, shown to the users the server lets use them.
+    const canCreate = isUserAuthed ? isUserAuthed(['create-source']) : false;
+    const canEditPattern = isUserAuthed ? isUserAuthed(['edit-pattern']) : false;
     const {theme} = useContext(ThemeContext) || {};
     const t = {...datasetsListTheme, ...getComponentTheme(theme, 'datasets.datasetsList')};
     // Secondary nav shared across the subdomain's patterns — items are authored
@@ -399,9 +402,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         </Button>
                     }
 
-                    {user?.authed && t.toolbarDivider && <span className={t.toolbarDivider} aria-hidden="true"/>}
+                    {(canCreate || canEditPattern) && t.toolbarDivider && <span className={t.toolbarDivider} aria-hidden="true"/>}
 
-                    {user?.authed &&
+                    {canCreate &&
                         <Button activeStyle={showUploads ? 'iconToolOn' : 'iconTool'}
                                 title={showUploads ? 'Hide uploaded files' : 'Show uploaded files'}
                                 onClick={() => setShowUploads(!showUploads)}>
@@ -409,10 +412,10 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         </Button>
                     }
 
-                    {user?.authed &&
+                    {canEditPattern &&
                         <Link to={`${baseUrl}/settings`} title={'Settings'} className={t.settingsLink}><Icon icon="Settings" className={t.iconMd}/></Link>}
 
-                    {user?.authed &&
+                    {canCreate &&
                         <Link to={`${baseUrl}/create`} title={'Add'} className={t.newBtn}><Icon icon={t.newBtnIcon} className={t.iconMd}/>{t.newBtnText}</Link>}
                 </div>
             </div>
@@ -451,9 +454,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                     }
                     {/* Hidden lifecycle buckets — at the END of the rail (owner 2026-10-06):
                         a back door, not part of the catalog's browse structure. Shown to
-                        authed users without needing "Show all": a dataset you just uploaded
-                        should not require a mode switch to find. */}
-                    {user?.authed && Object.keys(hiddenBuckets).length > 0 &&
+                        whoever can see the list (view-sources, owner 2026-10-23) without needing
+                        "Show all": a dataset you just uploaded should not require a mode switch to find. */}
+                    {Object.keys(hiddenBuckets).length > 0 &&
                         <div className={t.sidebarHiddenGroup}>
                             <div className={t.sidebarHiddenLabel}>Hidden</div>
                             {Object.keys(hiddenBuckets).sort().map(cat => (

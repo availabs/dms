@@ -61,7 +61,7 @@ async function run() {
     const mkSource = async (ap) => (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
         [`dtauth_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, JSON.stringify(ap)])).rows[0].source_id;
     const srcA = await mkSource({ groups: { Loaders: ['update-source'] }, users: {} });
-    const srcB = await mkSource({ groups: {}, users: {} });
+    const srcB = await mkSource({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
     const viewA = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [srcA])).rows[0].view_id;
 
     // ---- a plugin with each kind of route

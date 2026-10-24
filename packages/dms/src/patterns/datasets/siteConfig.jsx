@@ -5,6 +5,7 @@ import { DatasetsContext } from "./context";
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
 import { isUserAuthed, mergeAuthPermissions } from "../../utils/auth";
+import { isAppAdmin } from "../../utils/adminPermissions";
 import UI from "../../ui"
 
 // pages
@@ -98,8 +99,10 @@ const datasetsConfig = ({
                             ...damaDataTypes
                           }),
                           // Pattern-level check, with optional per-SOURCE override merged on top
-                          // (pattern ⊕ source). Same merge the server uses for data enforcement.
+                          // (pattern ⊕ source). Same merge and rule as the server (routes/uda/sourceAuth.js):
+                          // no permission set → open, `${app} Admin` passes.
                           isUserAuthed: (reqPermissions, customAuthPermissions) =>
+                            isAppAdmin(user, app) ||
                             isUserAuthed({ user, authPermissions: mergeAuthPermissions(authPermissions, customAuthPermissions), reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>

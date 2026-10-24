@@ -26,11 +26,15 @@ const InternalDatasetConfig = {
     upload: {
         name: "Upload",
         path: "/upload",
+        // rows into the version: what the server's DMS publish / validate route requires (dama/upload/auth.js)
+        reqPermissions: ['edit-source-data', 'update-source'],
         component: Upload,
     },
     validate: {
         name: "Validate",
         path: "/validate",
+        // rows into the version: what the server's DMS publish / validate route requires (dama/upload/auth.js)
+        reqPermissions: ['edit-source-data', 'update-source'],
         component: Validate,
     },
     debug: {

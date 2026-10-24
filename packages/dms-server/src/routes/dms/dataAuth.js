@@ -9,10 +9,11 @@
  *   - site / theme / tenant   — site-level grants (the admin row's, falling back to the auth pattern's)
  *   - pattern                 — the pattern's own grants, as the admin UI's `patternCan`
  *   - page / component        — pattern ⊕ page grants, as the read gate in dms.route.js
- *   - dmsenv / source / view / data — the datasets permissions (uda/sourceAuth.js, strict)
+ *   - dmsenv / source / view / data — the datasets permissions (uda/sourceAuth.js)
  *   - anything else           — a signed-in user
- * Anonymous callers pass only where the `public` group explicitly holds the permission; the "no grants
- * ⇒ open" leniency of page / pattern content is for signed-in users only.
+ * Signed-in callers: the repo's rule, no permission set → open (owner, 2026-10-23; site and datasets checks
+ * were strict until then). Anonymous callers pass only where the `public` group explicitly holds the
+ * permission (owner, 2026-10-22).
  *
  * Rollout (`DMS_DATA_AUTH_MODE`):
  *   - `legacy`  — nothing checked (today's behaviour).
@@ -25,7 +26,7 @@ const { isEqual } = require('lodash');
 const { getKind, getParent, getInstance, isSplitType } = require('#db/type-utils.js');
 const { isUserAuthed: lenientAuthed, resolveAuthPermissions } = require('./auth');
 const {
-    isUserAuthed: strictAuthed, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView,
+    holdsExplicitly, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView,
 } = require('../uda/sourceAuth');
 
 function dataAuthMode() {
@@ -83,13 +84,10 @@ const allow = (reason) => ({ allow: true, reason });
 const deny = (reason) => ({ allow: false, reason });
 const needs = (perms) => `missing ${[].concat(perms).join(' or ')}`;
 
-// Every perm the user holds in resolved grants (`*` counts for all).
-const holds = (user, ap, perms) => strictAuthed({ user: user || {}, reqPermissions: [].concat(perms), authPermissions: ap || {} });
-
-// Page / pattern content: signed in → the read gate's rule (no grants ⇒ open); anon → explicit grants only.
-const contentAuthed = (user, ap, perms) => (user && user.authed
+// Signed in → the repo's rule (no permission set ⇒ open); anon → explicit grants only (`*` counts for all).
+const holds = (user, ap, perms) => (user && user.authed
     ? lenientAuthed({ user, reqPermissions: [].concat(perms), authPermissions: ap || {} })
-    : holds(null, ap, perms));
+    : holdsExplicitly({ user: {}, reqPermissions: [].concat(perms), authPermissions: ap || {} }));
 
 /**
  * One judge per write. `ctx`: { app, subdomain, user, controller }. Pattern rows of the app are read
@@ -148,7 +146,8 @@ function createJudge(ctx) {
 
     async function onSource(sourceId, perms, slug) {
         if (!sourceId) return deny('source not found');
-        return decideSource({ env: internalEnv(slug), sourceId, subdomain, reqPermissions: [].concat(perms), user });
+        return decideSource({ env: internalEnv(slug), sourceId, subdomain, reqPermissions: [].concat(perms), user,
+            explicitOnly: !(user && user.authed) });
     }
 
     // ---- per kind. `op`: create | edit | delete. `row`: { id, type, data } (data = stored row for
@@ -237,7 +236,7 @@ function createJudge(ctx) {
                 }
                 if (await siteCan('*')) return allow('site *');
                 for (const perms of groups) {
-                    if (!contentAuthed(user, ap, perms)) return deny(`${kind} ${row.id || 'new'} of ${getParent(type)} ${needs(perms)}`);
+                    if (!holds(user, ap, perms)) return deny(`${kind} ${row.id || 'new'} of ${getParent(type)} ${needs(perms)}`);
                 }
                 return allow('page grant');
             }

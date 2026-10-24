@@ -82,6 +82,8 @@ export default function Overview ({
 
     const {id} = params;
     const isAdmin = isUserAuthed(['update-source']);
+    // Exports go through the signed route, which checks download-source; file_upload files stay public (task 6).
+    const canDownload = isUserAuthed(['download-source']);
 
     const [editing, setEditing] = useState();
     const [showAllColumns, setShowAllColumns] = useState(false);
@@ -388,7 +390,7 @@ export default function Overview ({
                             {downloadError && <div role="alert" className={t.verDownloadError}>{downloadError}</div>}
                             {orderedViews.map((view, i) => {
                                 const viewId = isDms ? view?.id : view?.view_id;
-                                const available = downloadItemsForView(view, DAMA_HOST);
+                                const available = downloadItemsForView(view, DAMA_HOST).filter(item => !item.signed || canDownload);
                                 const isCurrent = viewId != null && viewId === latestId;
                                 const authEntry = isAuthoritative(source, viewId);
                                 const isPrimary = authState === 'undecided' ? isCurrent : !!authEntry;

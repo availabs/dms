@@ -105,7 +105,7 @@ async function run() {
     const mkSource = async (ap) => (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
         [`schedauth_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, JSON.stringify(ap)])).rows[0].source_id;
     const srcA = await mkSource({ groups: { Schedulers: ['update-source'] }, users: {} });
-    const srcB = await mkSource({ groups: {}, users: {} });
+    const srcB = await mkSource({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
     const made = [];
     const mkSchedule = async (source_id) => {
         const row = await schedules.createSchedule({ source_id, worker_path: 'schedauth_dt/run', cron: '0 2 * * *', timezone: 'America/New_York', descriptor: {}, enabled: false, max_in_flight: 1, created_by: 1 }, DAMA_DB);

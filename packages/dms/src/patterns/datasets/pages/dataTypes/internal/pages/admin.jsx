@@ -150,7 +150,10 @@ const AddViewBtn = ({source, setSource}) => {
 
 const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const {id} = params;
-    const {app, type, baseUrl, pageBaseUrl, user, UI} = React.useContext(DatasetsContext) || {};
+    const {app, type, baseUrl, pageBaseUrl, UI, isUserAuthed} = React.useContext(DatasetsContext) || {};
+    // Each control shows to the users the server lets use it (SourcePage gates the tab on any of these).
+    const can = (perms) => (isUserAuthed ? isUserAuthed(perms) : false);
+    const canUpdate = can(['update-source']);
     // Tasks for internal_table sources live in the DMS task tables
     // (`dms.tasks` / `dms_tasks`), not in any DAMA pgEnv. The UDA route
     // layer routes to DMS when the env contains '+', so we build the
@@ -160,7 +163,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
 
-    if(!user || !user.token) return <></>
+    if (!can(['update-source', 'edit-source-permissions', 'delete-source', 'create-view'])) return <></>
 
     return (
             <div className={t.adminWrapper}>
@@ -176,13 +179,13 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>
-                            <AddViewBtn source={source} setSource={setSource}/>
+                            {canUpdate && <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>}
+                            {can(['create-view']) && <AddViewBtn source={source} setSource={setSource}/>}
                             <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                         </div>
                     </div>
                 </div>
-                {taskEnv && (
+                {taskEnv && canUpdate && (
                     <div className={t.tasksWrapper}>
                         <div className={t.tasksLabel}>Tasks</div>
                         <UdaTaskList env={taskEnv} sourceId={source.id || source.source_id} />

@@ -19,7 +19,10 @@ const fixedPages = ['overview', 'admin']
 const viewDependentPages = ['table', 'upload', 'validate', 'map']
 
 const overviewNav = {name: 'Overview', href: '', viewDependentPage: false}
-const adminNav = {name: 'Admin', href: 'admin', viewDependentPage: false}
+// The Admin tab holds the Access editor, Add Version, Allow editing, Rules and Delete: shown to users
+// who can use any of them.
+const ADMIN_PERMS = ['update-source', 'edit-source-permissions', 'delete-source', 'create-view'];
+const adminNav = {name: 'Admin', href: 'admin', viewDependentPage: false, reqPermissions: ADMIN_PERMS}
 
 const defaultPages = {
     overview: Overview,
@@ -167,12 +170,14 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                     name: p.name,
                     href,
                     cdn: p.cdn, // condition fn ({isDms, sourceType}) controlling nav visibility
+                    reqPermissions: p.reqPermissions, // a page config may name the permissions it needs
                     viewDependentPage: viewDependentPages.includes(href),
                 };
             })
             .filter(p => p.href && !fixedPages.includes(p.href));
 
-    const allNavItems = [overviewNav, ...sourcePagesNavItems, adminNav];
+    const allNavItems = [overviewNav, ...sourcePagesNavItems, adminNav]
+        .filter(p => !p.reqPermissions || isUserAuthed(p.reqPermissions));
     const views = source.views || [];
     const showVersionSelector = viewDependentPages.includes(page);
 
@@ -215,6 +220,9 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
     }, [showVersionSelector, view_id, defaultViewId])
 
     const Page = sourcePages[page]?.component || defaultPages[page] || Overview;
+    // A page opened by URL without the permissions its config names (or Admin without any of ADMIN_PERMS).
+    const pageReqPermissions = page === 'admin' ? ADMIN_PERMS : sourcePages[page]?.reqPermissions;
+    const pageDenied = !!pageReqPermissions && !isUserAuthed(pageReqPermissions);
 
     // v6 (t.notFound set): an id that loaded nothing gets a not-found card and no header band / tabs
     // (DAMA / DMS-by-id loads flag `missing`; a DMS route that preloads no row hands over an empty item)
@@ -319,6 +327,15 @@ export default function SourcePage ({ apiLoad, apiUpdate, format, item, params, 
                                             )}
                                         </StatePanel>
                                     )}
+                                </section>
+                            </div>
+                        ) : sourceLoaded && pageDenied ? (
+                            <div className={t.notFound}>
+                                <section className={t.notFoundCard}>
+                                    <StatePanel icon="Lock" tone="amber" title="No access"
+                                                text={`This page needs ${pageReqPermissions.join(' or ')} on this source.`}>
+                                        <Link to={`${pageBaseUrl}/${id}`} className={t.notFoundBtn}>Back to the overview</Link>
+                                    </StatePanel>
                                 </section>
                             </div>
                         ) : sourceLoaded ? (

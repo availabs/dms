@@ -192,7 +192,9 @@ const GISDatasetRenderComponent = props => {
   const [legend, setLegend] = React.useState(null);
   const [layerData, setLayerData] = React.useState(null);
 
-  const { datasources, falcor, falcorCache, ...rest } = React.useContext(DatasetsContext);
+  const { datasources, falcor, falcorCache, isUserAuthed, ...rest } = React.useContext(DatasetsContext);
+  // Legend changes save symbology onto the source: only for users who may update it.
+  const canSaveSymbology = isUserAuthed ? isUserAuthed(['update-source']) : false;
   const { theme } = React.useContext(ThemeContext) || {};
   const t = { ...gisMapTheme, ...(theme?.datasets?.gisMap || {}) };
   const pgEnv = getExternalEnv(datasources);
@@ -253,6 +255,7 @@ const GISDatasetRenderComponent = props => {
 
     if (!isEqual(rest, prevLegend.current)) {
       prevLegend.current = rest;
+      if (!canSaveSymbology) return;
 
       const toSave = JSON.parse(JSON.stringify(symbology));
 
@@ -273,7 +276,7 @@ const GISDatasetRenderComponent = props => {
       ).then(res => console.log("SAVE RESPONSE:", res))
         .catch(e => console.warn("symbology save refused:", e?.message || e))
     }
-  }, [falcor, pgEnv, sourceId, legend, symbology, activeVar, layers]);
+  }, [falcor, pgEnv, sourceId, legend, symbology, activeVar, layers, canSaveSymbology]);
 
   React.useEffect(() => {
     const pinnedIds = activePins?.map(pin => pin.ogc_fid);

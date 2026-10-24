@@ -80,7 +80,7 @@ const StatusBadge = ({ value, className = "" }) => {
 
 const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
   const ref = React.useRef();
-  const { datasources, falcor, falcorCache, baseUrl, UI } =
+  const { datasources, falcor, falcorCache, baseUrl, UI, user } =
     React.useContext(DatasetsContext);
   // `env` may be passed explicitly (DMS env like `app+instance` for
   // internal_table sources) or fall through to the pattern's external pgEnv
@@ -260,6 +260,12 @@ const UdaTaskList = ({ sourceId, pageSize = 10, env }) => {
   }, [falcor, pgEnv, currentPage, sourceId]);
 
   if (!data.length) {
+    // Task reads need a signed-in user (permissions-ds-schedules-and-tasks): say so rather than "no tasks".
+    if (!user?.authed) return (
+      <div className={t.emptyWrapper}>
+        <p className={t.emptyTitle}>Sign in to see tasks</p>
+      </div>
+    );
     // pre-v6 rendered nothing; v6 says so once the count has come back empty
     return loaded && t.emptyTitle ? (
       <div className={t.emptyWrapper}>
