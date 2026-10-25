@@ -211,6 +211,22 @@ async function getSourceIdsByIndex(env, indices, { includeHidden = false } = {})
   return rows.map(r => +r.id);
 }
 
+/** `metadata.superseded_by` (one source id, written by curation such as the MNY retag), or null. */
+function readSupersededBy(metadata) {
+  const meta = parseJsonish(metadata);
+  const id = meta && typeof meta === 'object' && !Array.isArray(meta) ? meta.superseded_by : null;
+  return id != null && id !== '' && Number.isInteger(+id) ? +id : null;
+}
+
+// Source attributes DERIVED from `metadata`, so lists and pickers can read them without fetching
+// the whole blob (tens of KB per DaMa source). Read in JS because a DMS source's `data.metadata`
+// may be stored as an object or as JSON text. Clients fetch each in its own request: an older
+// server reads an unknown attribute as a column and fails the whole batch.
+const METADATA_DERIVED_ATTRS = {
+  authority: readAuthority,          // the authoritative views (./authority.js)
+  superseded_by: readSupersededBy,   // the source that replaced this one
+};
+
 async function getSourceById(env, ids, attributes) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
 
@@ -218,16 +234,14 @@ async function getSourceById(env, ids, attributes) {
   const requestedAttrs = sanitizeName(attributes).filter(f => f && f !== 'value');
   if (!requestedAttrs.length) return [];
 
-  // `authority` is DERIVED (metadata.authority, see ./authority.js), so pickers and lists can read
-  // the authoritative views without fetching the whole metadata blob. It is read in JS because a
-  // DMS source's `data.metadata` may be stored as an object or as JSON text.
-  const wantsAuthority = requestedAttrs.includes('authority');
-  const sanitizedAttrs = requestedAttrs.filter(a => a !== 'authority');
-  const withAuthority = (rows) => {
-    if (!wantsAuthority) return rows;
+  const derivedAttrs = requestedAttrs.filter(a => a in METADATA_DERIVED_ATTRS);
+  const wantsMetadata = derivedAttrs.length > 0;
+  const sanitizedAttrs = requestedAttrs.filter(a => !(a in METADATA_DERIVED_ATTRS));
+  const withDerived = (rows) => {
+    if (!wantsMetadata) return rows;
     for (const r of rows) {
-      r.authority = readAuthority(r.__authority_meta);
-      delete r.__authority_meta;
+      for (const a of derivedAttrs) r[a] = METADATA_DERIVED_ATTRS[a](r.__derived_meta);
+      delete r.__derived_meta;
     }
     return rows;
   };
@@ -246,10 +260,10 @@ async function getSourceById(env, ids, attributes) {
         : a === 'source_id' ? `COALESCE(data->>'source_id', CAST(id AS TEXT)) AS source_id`
         : `data->>'${a}' AS ${quoteAlias(a)}`
     );
-    if (wantsAuthority) {
+    if (wantsMetadata) {
       formattedAttrs.push(db.type === 'postgres'
-        ? `data->'metadata' AS "__authority_meta"`
-        : `json_extract(data, '$.metadata') AS "__authority_meta"`);
+        ? `data->'metadata' AS "__derived_meta"`
+        : `json_extract(data, '$.metadata') AS "__derived_meta"`);
     }
 
     const tbl = await dmsMainTable(db, app, splitMode);
@@ -257,7 +271,7 @@ async function getSourceById(env, ids, attributes) {
       `SELECT ${formattedAttrs.join(', ')} FROM ${tbl} WHERE id = ANY($1::INT[])`,
       [ids.map(Number)]
     );
-    return withAuthority(rows);
+    return withDerived(rows);
   }
 
   // DAMA: select specific columns from data_manager.sources.
@@ -269,12 +283,12 @@ async function getSourceById(env, ids, attributes) {
   // 'row_type' is a DMS-only attribute (see above) — data_manager.sources has no such column
   const dataAttrs = sanitizedAttrs.filter(a => a !== 'id' && a !== 'row_type');
   const colList = dataAttrs.length ? `, ${dataAttrs.map(a => `"${a}"`).join(', ')}` : '';
-  const authCol = wantsAuthority ? `, metadata AS "__authority_meta"` : '';
+  const authCol = wantsMetadata ? `, metadata AS "__derived_meta"` : '';
   const { rows } = await db.query(
     `SELECT source_id AS id${colList}${authCol} FROM ${tbl} WHERE source_id = ANY($1::INT[])`,
     [ids.map(Number)]
   );
-  return withAuthority(rows);
+  return withDerived(rows);
 }
 
 // ------------------------------------------- source metadata compare-and-swap -------------------------------------------
@@ -311,7 +325,10 @@ async function readSourceMetadata(ess, sourceId) {
   if (!rows.length) throw new Error(`Source ${sourceId} not found`);
   const token = rows[0].meta_text ?? null;
   const parsed = parseJsonish(token);
-  return { token, meta: parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {} };
+  const isObject = parsed && typeof parsed === 'object' && !Array.isArray(parsed);
+  // `kind` lets writers refuse a stored value they would otherwise replace: a legacy bare-array
+  // metadata (a column list) read as {} and written back as {authority} loses every column (542, 2026-10-22).
+  return { token, meta: isObject ? parsed : {}, kind: parsed == null ? 'none' : isObject ? 'object' : Array.isArray(parsed) ? 'array' : typeof parsed };
 }
 
 // Write `next` only if the stored metadata is still `token`. Returns the updated rows ([] = conflict).
@@ -339,7 +356,10 @@ async function casWriteSourceMetadata(ess, sourceId, token, next) {
 
 async function mutateSourceMetadata(ess, sourceId, mutate) {
   for (let attempt = 0; attempt < METADATA_CAS_ATTEMPTS; attempt++) {
-    const { token, meta } = await readSourceMetadata(ess, sourceId);
+    const { token, meta, kind } = await readSourceMetadata(ess, sourceId);
+    if (kind !== 'object' && kind !== 'none') {
+      throw new Error(`Source ${sourceId}: metadata is ${kind === 'array' ? 'an array' : `a ${kind}`}, not an object; fix it (e.g. wrap a column list as { columns: [...] }) before writing authority or rules`);
+    }
     const rows = await casWriteSourceMetadata(ess, sourceId, token, mutate(meta));
     if (rows.length) return rows;
   }

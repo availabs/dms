@@ -1,7 +1,7 @@
 import React, {useContext, useEffect, useState} from "react";
 import { DatasetsContext } from "../../../context";
 import { cloneDeep } from "lodash-es";
-import {useNavigate, Link} from "react-router";
+import {useNavigate} from "react-router";
 import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
@@ -244,6 +244,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const can = (perms) => (isUserAuthed ? isUserAuthed(perms) : false);
     const canUpdate = can(['update-source']);
     const canAddVersion = can(isDms ? ['create-view'] : ['create-view', 'update-source']);
+    const navigate = useNavigate();
 
     if (!can(['update-source', 'edit-source-permissions', 'delete-source', 'create-view'])) return <></>
 
@@ -261,7 +262,8 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
-                            {canUpdate && <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>}
+                            {/* navigate from the button: a <Link> inside a native <button> only takes clicks on its text */}
+                            {canUpdate && <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/metadata`)}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}Advanced Metadata</Button>}
                             {
                                 isDms ? (
                                     <>
@@ -271,7 +273,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                                     </>
                                 ) : (
                                     <>
-                                        {canUpdate && <Button><Link to={`${pageBaseUrl}/${id}/rules`}>Rules</Link></Button>}
+                                        {canUpdate && <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/rules`)}>{t.actionIconRules && <Icon icon={t.actionIconRules} className={t.actionIcon}/>}Rules</Button>}
                                         {canAddVersion && <AddExternalVersionBtn source={source} />}
                                         {canUpdate && <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />}
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />

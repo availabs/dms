@@ -115,6 +115,18 @@ export const resetHidden = (name, delta) => {
     return out;
 };
 
+/** The first hidden lifecycle among the source's top-levels ('Archive', …), or null. */
+export const hiddenLifecycleOf = (source, hiddenSet) => {
+    for (const c of (Array.isArray(source?.categories) ? source.categories : [])) {
+        const top = Array.isArray(c) ? c[0] : c;
+        if (top && hiddenSet.has(top)) return top;
+    }
+    return null;
+};
+
+/** Does the source carry a hidden lifecycle as one of its top-levels? (`isSourceHidden`'s new rule alone.) */
+export const inHiddenLifecycle = (source, hiddenSet) => hiddenLifecycleOf(source, hiddenSet) !== null;
+
 /**
  * Is this source hidden from a catalog?
  *
@@ -133,9 +145,34 @@ export const isSourceHidden = (source, hiddenSet, legacyFiltered = []) => {
         .map(c => (Array.isArray(c) ? c[0] : c))
         .filter(Boolean);
     if (!cats.length) return null;                                  // uncategorized — caller decides
-    if (cats.some(c => hiddenSet.has(c))) return true;              // new rule
+    if (inHiddenLifecycle(source, hiddenSet)) return true;          // new rule
     if (!legacyFiltered.length) return false;
     return cats.every(c => legacyFiltered.includes(c));             // legacy rule, untouched
+};
+
+/**
+ * The catalog's pool for one mode, and the sources held back from it by a hidden lifecycle.
+ *
+ * One rule for every mode: a source in a hidden lifecycle is never `visible` — not by default, not
+ * under "Show all", and so not in search, which only filters this pool. "Show all" widens the pool
+ * to uncategorized sources and the legacy `filtered_categories`, nothing more. The hidden buckets,
+ * and the signed-in ways in that read `hidden`, are the deliberate routes to the rest.
+ *
+ * `keep(source)` wins over everything: the uploads toggle asks for `file_upload` sources
+ * explicitly, and envs routinely list `Uploaded File` as hidden, so re-hiding them would make the
+ * toggle look broken.
+ *
+ * @returns {{visible: object[], hidden: object[]}}
+ */
+export const catalogVisibility = ({ sources, hiddenSet, legacyFiltered = [], listAll = false, keep }) => {
+    const visible = [];
+    const hidden = [];
+    for (const s of (sources || [])) {
+        if (keep?.(s)) visible.push(s);
+        else if (inHiddenLifecycle(s, hiddenSet)) hidden.push(s);
+        else if (listAll || isSourceHidden(s, hiddenSet, legacyFiltered) === false) visible.push(s);
+    }
+    return { visible, hidden };
 };
 
 /**

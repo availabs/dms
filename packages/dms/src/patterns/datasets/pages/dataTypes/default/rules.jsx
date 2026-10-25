@@ -200,7 +200,12 @@ export default function RulesPage({ params, isDms }) {
             const res = await falcor.get(['uda', pgEnv, 'sources', 'byId', +id, 'rulesInfo']);
             setInfo(res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.rulesInfo || null);
         } catch (e) {
-            setLoadError(errorText(e, 'Could not load the rules for this source.'));
+            // A falcor GET that hits an error node rejects with [{ path, value: { message } }].
+            const msg = (Array.isArray(e) ? e[0]?.value?.message : null) || errorText(e, '');
+            // A server without source rules routes reads `rulesInfo` as a source column.
+            setLoadError(/rulesInfo/.test(msg || '')
+                ? "The API server this site uses doesn't have source rules yet. It needs the dms-server update that adds them."
+                : (msg || 'Could not load the rules for this source.'));
         }
     }, [falcor, pgEnv, id, isDms]);
 

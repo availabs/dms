@@ -2100,6 +2100,34 @@ async function testDamaModeAuthoritativeViews() {
   assert(unwrap(await readAuth()) == null, 'unmarked source reads authority null');
   pass('unmarked source: authority is null (undecided)');
 
+  // `superseded_by` is derived from metadata the same way (lineage written by curation scripts)
+  const { rows: [succ] } = await db.query(
+    `INSERT INTO ${srcTbl} (name, type, metadata) VALUES ($1, $2, $3) RETURNING source_id AS id`,
+    ['Authority Superseded', 'csv', JSON.stringify({ superseded_by: String(src.id), columns: [] })]);
+  const both = (await graph.getAsync([['uda', DAMA_DB, 'sources', 'byId', [src.id, succ.id], ['superseded_by', 'authority', 'name']]]))
+    .jsonGraph.uda[DAMA_DB].sources.byId;
+  assert(unwrap(both[succ.id].superseded_by) === +src.id, `superseded_by reads the successor id, got ${JSON.stringify(both[succ.id].superseded_by)}`);
+  assert(unwrap(both[src.id].superseded_by) == null, 'a source with no successor reads null');
+  assert(unwrap(both[succ.id].authority) == null && both[succ.id].name === 'Authority Superseded',
+    'derived and real attributes resolve together');
+  await db.query(`DELETE FROM ${srcTbl} WHERE source_id = $1`, [succ.id]);
+  pass('superseded_by: derived from metadata, null when unset, alongside other attributes');
+
+  // A legacy bare-array metadata (a column list) must not be replaced by { authority } (542, 2026-10-22).
+  const cols = [{ name: 'ogc_fid', type: 'integer' }, { name: 'geoid', type: 'text' }];
+  const { rows: [arr] } = await db.query(
+    `INSERT INTO ${srcTbl} (name, type, metadata, auth_permissions) VALUES ($1, $2, $3, $4) RETURNING source_id AS id`,
+    ['Authority Array Metadata', 'csv', JSON.stringify(cols), grant]);
+  const vArr = await mkView(arr.id, 'auth_v1');
+  await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
+    [DAMA_DB, arr.id, { view_id: vArr, note: 'x' }]), /metadata is an array/, 'array metadata');
+  const { rows: [arrAfter] } = await db.query(`SELECT metadata FROM ${srcTbl} WHERE source_id = $1`, [arr.id]);
+  const arrMeta = typeof arrAfter.metadata === 'string' ? JSON.parse(arrAfter.metadata) : arrAfter.metadata;
+  assert(Array.isArray(arrMeta) && arrMeta.length === 2, `array metadata left intact, got ${JSON.stringify(arrMeta)}`);
+  await db.query(`DELETE FROM ${viewTbl} WHERE source_id = $1`, [arr.id]);
+  await db.query(`DELETE FROM ${srcTbl} WHERE source_id = $1`, [arr.id]);
+  pass('setAuthoritativeView refuses bare-array metadata and leaves it intact');
+
   const setRes = await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
     [DAMA_DB, src.id, { view_id: v1, note: 'v1 is the QA\'d build' }]);
   const echoed = unwrap(setRes.jsonGraph.uda[DAMA_DB].sources.byId[src.id].authority);
@@ -2359,6 +2387,8 @@ async function testDmsModeAuthoritativeViews() {
     .jsonGraph.uda[env].sources.byId[srcId].authority);
 
   assert((await readAuth()) == null, 'unmarked DMS source reads null');
+  assert(unwrap((await graph.getAsync([['uda', env, 'sources', 'byId', srcId, 'superseded_by']]))
+    .jsonGraph.uda[env].sources.byId[srcId].superseded_by) == null, 'DMS superseded_by null when unset');
   await graph.callAsync(['uda', 'sources', 'setAuthoritativeView'], [env, srcId, { view_id: v2, note: 'v2 has the fixes' }]);
   const a = await readAuth();
   assert(a?.views?.[0]?.view_id === v2, `DMS authority persisted, got ${JSON.stringify(a)}`);
@@ -2374,6 +2404,15 @@ async function testDmsModeAuthoritativeViews() {
   });
   assert((await readAuth())?.views?.[0]?.view_id === v2, 'DMS generic metadata write kept authority');
   pass('DMS source: generic metadata write preserves authority');
+
+  await graph.setAsync({
+    jsonGraph: { uda: { [env]: { sources: { byId: { [srcId]: { metadata: JSON.stringify({ note_for_test: false, superseded_by: 4242 }) } } } } } },
+    paths: [['uda', env, 'sources', 'byId', srcId, 'metadata']],
+  });
+  const sup = unwrap((await graph.getAsync([['uda', env, 'sources', 'byId', srcId, 'superseded_by']]))
+    .jsonGraph.uda[env].sources.byId[srcId].superseded_by);
+  assert(sup === 4242, `DMS superseded_by read from metadata stored as JSON text, got ${JSON.stringify(sup)}`);
+  pass('DMS source: superseded_by derived from metadata');
 
   await graph.callAsync(['uda', 'sources', 'clearAuthoritativeView'], [env, srcId, {}]);
   assert((await readAuth()) == null, 'DMS clear leaves the source undecided');

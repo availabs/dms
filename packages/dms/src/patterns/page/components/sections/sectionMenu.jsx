@@ -78,7 +78,15 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
     const menuActionIcon = getComponentTheme(theme, 'pages.section').menuActionIcon || 'size-5'
     // the Layout sub-pages' pickers (padding / border / radius / background) — pages.sectionMenu
     const sm = { ...sectionMenuTheme, ...getComponentTheme(theme, 'pages.sectionMenu') }
-    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent } = dataSource;
+    const { activeSource, activeView, sources=[], views=[], onSourceChange, onViewChange, onJoinChange, activeJoinViewsByAlias={}, isJoinPresent,
+        hiddenSourceCount = 0, includeHiddenSources = false, setIncludeHiddenSources } = dataSource;
+    // Sources in a hidden lifecycle (Archive, Sandbox, …) are left out of the Source lists unless the
+    // author turns this on (useDataSource). Listed only when there is something to reveal.
+    const showHiddenSourcesItem = (id) => hiddenSourceCount > 0 && setIncludeHiddenSources ? [
+        { id, name: `Show hidden datasets (${hiddenSourceCount})`, type: 'toggle', showLabel: true,
+          enabled: includeHiddenSources, setEnabled: setIncludeHiddenSources },
+        { type: 'separator' },
+    ] : [];
 
     const sectionLink = window ? `${window.location.origin}${window.location.pathname}#${value.id}` : '';
     const sectionHasPermissions = sectionAuthPermissions && !isEmpty(sectionAuthPermissions)
@@ -477,13 +485,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 // Direct source/version picker (creates inline, auto-promotes to page level)
                 {name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
                     value: sources?.find(s => s.key === activeSource)?.label, showValue: true,
-                    items: sources.map(({key, label}) => ({
+                    items: [...showHiddenSourcesItem('source_show_hidden'), ...sources.map(({key, label}) => ({
                         icon: key === activeSource ? 'CircleCheck' : 'Blank',
                         id: `source_${key}`,
                         name: label,
                         onClickGoBack: true,
                         onClick: () => onSourceChange(key)
-                    }))},
+                    }))]},
                 {name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
                     value: views?.find(s => s.key === activeView)?.label || activeView, showValue: true,
                     items: views.map(({key, label}) => ({
@@ -514,13 +522,13 @@ export const getSectionMenuItems = ({ sectionState, actions, auth, ui, dataSourc
                 items: [
                     { name: 'Source', icon: 'Database', showSearch: true, cdn: () => isEdit,
                         value: sources?.find(s => s.key === state.join.sources[sourceAlias].source)?.label, showValue: true,
-                        items: sources.map(({key, label}) => ({
+                        items: [...showHiddenSourcesItem(`source_${sourceAlias}_show_hidden`), ...sources.map(({key, label}) => ({
                             icon: key === state.join.sources[sourceAlias].source ? 'CircleCheck' : 'Blank',
                             id: `source_${sourceAlias}_${key}`,
                             name: label,
                             onClickGoBack: true,
                             onClick: () => onJoinChange(sourceAlias, 'source', key)
-                        }))
+                        }))]
                     },
                     { name: 'Version', icon: 'Database', showSearch: true, cdn: () => isEdit,
                         value: activeJoinViewsByAlias[sourceAlias]?.find(s => s.key === state.join.sources[sourceAlias].view)?.label || state.join.sources[sourceAlias].view, showValue: true,
