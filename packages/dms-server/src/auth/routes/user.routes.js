@@ -7,6 +7,7 @@ module.exports = [
   { route: '/user/group/assign', method: 'post', handler: handlers.assignToGroup },
   { route: '/user/group/remove', method: 'post', handler: handlers.removeFromGroup },
   { route: '/user/delete', method: 'post', handler: handlers.deleteUser },
+  { route: '/user/project/remove', method: 'post', handler: handlers.removeFromProject },
   { route: '/user/create/fake', method: 'post', handler: handlers.createFake },
   { route: '/users/preferences', method: 'post', handler: handlers.getUsersPreferences },
 ];

@@ -52,6 +52,9 @@ const MANAGE_DEFAULTS = {
     modalTitle: "text-lg font-semibold text-gray-700",
     modalBody: "flex flex-row gap-3",
     notice: "",
+    removeBody: "flex flex-col gap-3 text-sm text-left",
+    removeList: "list-disc pl-5",
+    removeWarning: "rounded-md px-3 py-2 bg-amber-50 text-amber-800",
 };
 const useManageTheme = () => {
     const { theme } = React.useContext(ThemeContext);
@@ -88,7 +91,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     );
 }
 
-export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme: authEmailTheme = {} }) {
+export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme: authEmailTheme = {}, pgEnvs = [] }) {
     const [groups, setGroups] = useState([]);
     const [users, setUsers] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -102,6 +105,10 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
     const [resetStatus, setResetStatus] = useState('');
     // locks the reset button while the request is in flight and after it succeeds
     const [resetLocked, setResetLocked] = useState(false);
+    // Remove from site: the user whose removal is being confirmed, and the server's dry-run plan
+    const [removeUser, setRemoveUser] = useState(null);
+    const [removePlan, setRemovePlan] = useState(null);
+    const [removeStatus, setRemoveStatus] = useState('');
     const { UI } = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, baseUrl, viewAsUser, setViewAsUser } = React.useContext(AuthContext);
     const canViewAs = (user?.groups || []).some(g => g === `${app} Admin`)
@@ -141,6 +148,27 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
             setAddStatus(res.error)
         }
         setLoadingAdd(false);
+    };
+
+    // Remove from site (dms-server /user/project/remove): the dry run fills the confirm dialog; the
+    // server decides and strips the user's grants here, then their memberships. The account stays.
+    const removeRequest = (row, extra = {}) => ({
+        token: user.token, user_email: row.email, project: PROJECT_NAME, pgEnvs, ...extra,
+    });
+    const openRemove = async (row) => {
+        setRemoveUser(row);
+        setRemovePlan(null);
+        setRemoveStatus('');
+        const plan = await callAuthServer(`${AUTH_HOST}/user/project/remove`, removeRequest(row, { dryRun: true }));
+        if (plan.error) setRemoveStatus(plan.error);
+        else setRemovePlan(plan);
+    };
+    const confirmRemove = async () => {
+        setRemoveStatus('removing');
+        const res = await callAuthServer(`${AUTH_HOST}/user/project/remove`, removeRequest(removeUser));
+        if (res.error) { setRemoveStatus(res.error); return; }
+        setRemoveUser(null);
+        await loadUsers();
     };
 
     /* ---------------------- Load Data (parallel) ---------------------- */
@@ -254,7 +282,10 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
         },
         {
             name: '', display_name: '', show: true, type: 'ui',
-            Comp: d => <div className={d.className}><Button activeStyle='small' onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button></div>
+            Comp: d => <div className={d.className}>{d.row.manageable !== false && <>
+                <Button activeStyle='small' onClick={() => { setResetStatus(''); setResetLocked(false); setEditUser(d.row); }}>reset password</Button>
+                <Button activeStyle='small' onClick={() => openRemove(d.row)}>remove from site</Button>
+            </>}</div>
         },
     ];
 
@@ -359,6 +390,9 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 data={filteredUsers}
                 columns={userColumns}
                 allowEdit={true}
+                // The server marks users in groups this caller can't manage (/users/byProject `manageable`);
+                // their rows are read-only here and the server refuses their writes anyway.
+                canEdit={({ row }) => row?.manageable !== false}
                 activeStyle="list"
                 updateItem={async (_, __, e) => {
                     const original = users.find(u => u.email === e.email);
@@ -366,20 +400,23 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                     const added = e.groups.find(g => !(original.groups || []).includes(g));
                     const removed = original.groups?.find(g => !(e.groups || []).includes(g));
 
+                    let res;
                     if (added) {
-                        await callAuthServer(`${AUTH_HOST}/user/group/assign`, {
+                        res = await callAuthServer(`${AUTH_HOST}/user/group/assign`, {
                             token: user.token,
                             user_email: original.email,
                             group_name: added,
                         });
                     }
-                    if (removed) {
-                        await callAuthServer(`${AUTH_HOST}/user/group/remove`, {
+                    if (removed && !res?.error) {
+                        res = await callAuthServer(`${AUTH_HOST}/user/group/remove`, {
                             token: user.token,
                             user_email: original.email,
                             group_name: removed,
                         });
                     }
+                    // Re-read either way: a refused change reverts, a saved one becomes the next diff's base.
+                    if (res) await loadUsers();
                 }}
                 controls={usersTableControls}
             />
@@ -393,6 +430,47 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 loading={loadingAdd}
                 status={addStatus}
             />
+
+            {/* Remove from site modal */}
+            <Modal open={Boolean(removeUser)} setOpen={setRemoveUser}>
+                <div className={m.modalHeader}>
+                    <div className={m.modalTitle}>Remove from site</div>
+                    <Button activeStyle="iconRow" aria-label="Close" onClick={() => setRemoveUser(null)}>
+                        <Icon icon="XMark" />
+                    </Button>
+                </div>
+                <div className={m.removeBody}>
+                    <div>Remove {removeUser?.email} from {PROJECT_NAME}? Their account stays.</div>
+                    {removePlan && <>
+                        <div>Groups they leave: {removePlan.groups.join(', ')}</div>
+                        {removePlan.sharedGroups.length > 0 &&
+                            <div className={m.removeWarning}>
+                                These groups are shared with other projects, so they lose that access too:
+                                <ul className={m.removeList}>
+                                    {removePlan.sharedGroups.map(s =>
+                                        <li key={s.group}>{s.group}: {s.otherProjects.join(', ')}</li>)}
+                                </ul>
+                            </div>}
+                        {removePlan.siteGrants.length > 0 &&
+                            <div>Their own permissions on {removePlan.siteGrants.length} pattern, page or source row(s) here are removed.</div>}
+                        {removePlan.externalSources.length > 0 &&
+                            <div className={m.removeWarning}>
+                                They keep their own permissions on these external sources (other sites may use them);
+                                remove them from each source's Access tab:
+                                <ul className={m.removeList}>
+                                    {removePlan.externalSources.map(e =>
+                                        <li key={`${e.pgEnv}-${e.source_id}`}>{e.name || e.source_id} ({e.pgEnv}{e.error ? `: ${e.error}` : ''})</li>)}
+                                </ul>
+                            </div>}
+                    </>}
+                    {removeStatus && <div className={m.metaText}>{removeStatus}</div>}
+                    <div>
+                        <Button activeStyle='primary' disabled={!removePlan || removeStatus === 'removing'} onClick={confirmRemove}>
+                            Remove
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
 
             {/* Reset password modal */}
             <Modal open={Boolean(editUser)} setOpen={setEditUser}>

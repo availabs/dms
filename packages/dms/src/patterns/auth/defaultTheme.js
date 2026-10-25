@@ -191,6 +191,10 @@ const theme = {
             modalTitle: "t-displaySM text-[var(--t-ink)]",
             modalBody: "flex flex-row gap-3",
             notice: "p-4 text-sm text-[var(--t-graphite)]",
+            // Users: the Remove from site dialog (plan, shared-group and external-source notes)
+            removeBody: "flex flex-col gap-3 text-sm text-left text-[var(--t-graphite)]",
+            removeList: "list-disc pl-5 mt-1",
+            removeWarning: "rounded-md px-3 py-2 bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
             // Users / Groups: warning to admins while the auth pattern grants nothing (OpenAuthWarning.jsx)
             openAuthWarning: "mb-3 rounded-md px-4 py-3 text-sm bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
             openAuthWarningLink: "underline font-medium",

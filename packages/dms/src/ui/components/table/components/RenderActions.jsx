@@ -43,7 +43,7 @@ const DeleteBtn = ({removeItem, newItem}) => {
     )
 }
 
-export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], action={}}) => {
+export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], action={}, canDelete=true}) => {
     const { theme = {} } = useContext(TableCellContext) || {};
     // Key off the row's display alias (normalName) when present, falling back to `name`.
     // Joined/aggregated group columns store their value under normalName (e.g. `meta.county as county`
@@ -68,7 +68,7 @@ export const RenderAction = ({ newItem={}, removeItem=() => {}, columns=[], acti
                   to={`${action.url}?${searchParams}`}>
                 <IconComp className={theme.actionBtnIcon}/>
             </Link>
-        ) : groupBy.length ? null : (
+        ) : groupBy.length || !canDelete ? null : (
             <DeleteBtn newItem={newItem} removeItem={removeItem} />
         )
     )
@@ -124,7 +124,7 @@ const DeleteMenuItem = ({removeItem, newItem}) => {
     );
 };
 
-export const RenderActionsPopup = ({ actionColumns=[], newItem={}, removeItem=() => {}, columns=[] }) => {
+export const RenderActionsPopup = ({ actionColumns=[], newItem={}, removeItem=() => {}, columns=[], canDelete=true }) => {
     const { theme = {} } = useContext(TableCellContext) || {};
     const {groupBy, searchParams} = getSearchParams({newItem, columns});
 
@@ -147,7 +147,7 @@ export const RenderActionsPopup = ({ actionColumns=[], newItem={}, removeItem=()
                             <Icon icon={action.icon || 'ArrowRight'} className={'size-3.5'}/>
                             <span>{action.name}</span>
                         </Link>
-                    ) : groupBy.length ? null : (
+                    ) : groupBy.length || !canDelete ? null : (
                         <DeleteMenuItem key={action.name || 'delete'} removeItem={removeItem} newItem={newItem} />
                     )
                 )}

@@ -15,6 +15,7 @@ const {
 } = require('../utils/crypto');
 const q = require('../utils/queries');
 const { sendEmail, buildEmailHtml } = require('../utils/email');
+const { AUTH_USERS, authority, canManageGroupIn } = require('../utils/permissions');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,6 +51,26 @@ async function buildUserObject(db, email, passwordHash, project, id) {
     meta: groups.map(g => ({ group: g.name, meta: g.meta, authLevel: g.auth_level })),
     authed: true,
   };
+}
+
+/** The level a group has in a project (0 when unlinked). */
+async function groupLevel(db, group_name, project_name) {
+  const { rows } = await db.query(
+    'SELECT auth_level FROM groups_in_projects WHERE group_name = $1 AND project_name = $2',
+    [group_name, project_name]
+  );
+  return rows.length ? +rows[0].auth_level || 0 : 0;
+}
+
+/**
+ * Whether the caller may put users into `group_name` of `project_name` (signup accept, invite, admin
+ * add user). Transition form: `auth-users` on the named auth row + the group manageable from it, or
+ * level ≥ 5 and ≥ the group's level (task permissions-auth-users-and-signup).
+ */
+async function mayAddToGroup(db, userData, body, ctx, group_name, project_name) {
+  const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
+  if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) return true;
+  return a.byLevel && a.authLevel >= await groupLevel(db, group_name, project_name);
 }
 
 // ---------------------------------------------------------------------------
@@ -114,10 +135,9 @@ async function signupRequest(db, { email, project, addToGroup, sendEmail = true 
   const pendingCount = await q.getPendingSignupCount(db, email, project);
   if (pendingCount > 0) throw new Error('You already have a pending request for this project. Ask an administrator to complete your request.');
 
-  // If addToGroup specified and it's a public group (auth_level 0)
+  // Self-signup may join only the project's public group (owner 2026-10-25).
   if (addToGroup) {
-    const isPublic = await q.isPublicGroup(db, addToGroup, project);
-    if (!isPublic) throw new Error('The requested group does not have auth level 0 across all projects.');
+    if (addToGroup !== `${project} Public`) throw new Error(`Self-signup can only join ${project} Public.`);
 
     // Check if user already exists
     const { rows: existingUsers } = await q.getUserByEmail(db, email);
@@ -191,9 +211,7 @@ async function signupRequestVerified(db, { token, password }) {
 
   if (from !== 'signup-request-addToGroup') throw new Error('Invalid request.');
 
-  // Verify group is public
-  const isPublic = await q.isPublicGroup(db, group, project);
-  if (!isPublic) throw new Error(`You cannot be added to group ${group}.`);
+  if (group !== `${project} Public`) throw new Error(`You cannot be added to group ${group}.`);
 
   // Check awaiting request exists
   const { rows } = await db.query(
@@ -219,19 +237,12 @@ async function signupRequestVerified(db, { token, password }) {
 }
 
 /** POST /signup/accept — admin accepts a signup request */
-async function signupAccept(db, { token, group_name, user_email, project_name }) {
-  user_email = user_email.toLowerCase();
+async function signupAccept(db, body, ctx) {
+  const { token, group_name, project_name } = body;
+  const user_email = body.user_email.toLowerCase();
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, project_name);
 
-  // Check group's auth level
-  const { rows: gipRows } = await db.query(
-    'SELECT auth_level FROM groups_in_projects WHERE group_name = $1 AND project_name = $2',
-    [group_name, project_name]
-  );
-  const groupAuthLevel = gipRows.length ? gipRows[0].auth_level : 0;
-
-  if (authLevel < 5 || authLevel < groupAuthLevel) {
+  if (!await mayAddToGroup(db, userData, body, ctx, group_name, project_name)) {
     throw new Error(`You do not have authority to assign users to group ${group_name}.`);
   }
 
@@ -263,12 +274,13 @@ async function signupAccept(db, { token, group_name, user_email, project_name })
 }
 
 /** POST /signup/reject — admin rejects a signup request */
-async function signupReject(db, { token, user_email, project_name }) {
-  user_email = user_email.toLowerCase();
+async function signupReject(db, body, ctx) {
+  const { token, project_name } = body;
+  const user_email = body.user_email.toLowerCase();
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, project_name);
+  const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
 
-  if (authLevel < 5) throw new Error(`You do not have the required authority to reject invites to ${project_name}.`);
+  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the required authority to reject invites to ${project_name}.`);
 
   await q.updateSignupRequest(db, user_email, project_name, 'rejected', userData.email);
   // Email notification would go here (Phase 5)
@@ -276,12 +288,13 @@ async function signupReject(db, { token, user_email, project_name }) {
 }
 
 /** POST /signup/delete — delete a rejected signup request */
-async function deleteSignup(db, { token, user_email, project_name }) {
-  user_email = user_email.toLowerCase();
+async function deleteSignup(db, body, ctx) {
+  const { token, project_name } = body;
+  const user_email = body.user_email.toLowerCase();
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, project_name);
+  const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
 
-  if (authLevel < 5) throw new Error(`You do not have the authority to delete requests for project ${project_name}.`);
+  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the authority to delete requests for project ${project_name}.`);
 
   const { rows } = await db.query(
     "SELECT count(1) AS count FROM signup_requests WHERE user_email = $1 AND project_name = $2 AND state = 'rejected'",
@@ -297,13 +310,16 @@ async function deleteSignup(db, { token, user_email, project_name }) {
 }
 
 /** POST /invite — admin sends invite to user */
-async function sendInvite(db, { token, group_name, user_email, project_name }) {
+async function sendInvite(db, body, ctx) {
+  const { token, group_name, project_name } = body;
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, project_name);
 
-  if (authLevel < 5) throw new Error(`You do not have the authority to invite user to project ${project_name}.`);
+  // The target group is now checked too (it wasn't: a level-5 user could invite into Admin).
+  if (!await mayAddToGroup(db, userData, body, ctx, group_name, project_name)) {
+    throw new Error(`You do not have the authority to invite user to project ${project_name}.`);
+  }
 
-  user_email = user_email.toLowerCase();
+  const user_email = body.user_email.toLowerCase();
 
   // Check user doesn't already exist
   const { rows: existingUsers } = await q.getUserByEmail(db, user_email);
@@ -500,8 +516,22 @@ async function initSetup(db, { email, password, project }) {
 }
 
 /** POST /requests — get signup requests visible to authenticated user */
-async function getRequests(db, { token }) {
-  const userData = await verifyAndGetUserData(db, token);
+async function getRequests(db, body, ctx) {
+  const userData = await verifyAndGetUserData(db, body.token);
+  // auth-users on the named auth row: that project's requests, besides the level-based ones.
+  const a = await authority(db, userData, body, ctx, { perm: AUTH_USERS, minLevel: 5 });
+  if (a.byPermission) {
+    const { rows } = await db.query(
+      `SELECT * FROM signup_requests
+       WHERE project_name = $2 OR project_name IN (
+         SELECT project_name FROM users_in_groups AS uig
+         INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+         WHERE user_email = $1 AND gip.auth_level >= 5
+       )`,
+      [userData.email, a.project]
+    );
+    return { requests: rows };
+  }
   const { rows } = await db.query(
     `SELECT * FROM signup_requests
      WHERE project_name IN (
@@ -515,8 +545,17 @@ async function getRequests(db, { token }) {
 }
 
 /** POST /requests/byProject — get requests for a specific project */
-async function getRequestsForProject(db, { token, project_name }) {
+async function getRequestsForProject(db, body, ctx) {
+  const { token, project_name } = body;
   const userData = await verifyAndGetUserData(db, token);
+  const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
+  if (a.byPermission) {
+    const { rows } = await db.query(
+      "SELECT * FROM signup_requests WHERE project_name = $1 AND state != 'accepted'",
+      [project_name]
+    );
+    return { requests: rows };
+  }
   const { rows } = await db.query(
     `SELECT * FROM signup_requests
      WHERE project_name IN (
@@ -531,11 +570,24 @@ async function getRequestsForProject(db, { token, project_name }) {
 }
 
 /** POST /signup/assign/group — create user and assign to group */
-async function signupAssignGroup(db, { email, password, project, group, url, emailTheme = {} }) {
+async function signupAssignGroup(db, body, ctx) {
+  let { email, password, project, group, url, emailTheme = {}, token } = body;
   if (!email || !project) throw new Error('Invalid request.');
   email = email.toLowerCase();
-  const groupName = group || `${project} Public`;
+  const publicGroup = `${project} Public`;
+  const groupName = group || publicGroup;
   let generatedPassword;
+
+  // Anonymous self-signup: a password, and the project's public group only. Anything else (an admin's
+  // "Add user" with a generated password, or another group) needs the caller's authority.
+  if (token) {
+    const userData = await verifyAndGetUserData(db, token);
+    if (!await mayAddToGroup(db, userData, body, ctx, groupName, project)) {
+      throw new Error(`You do not have authority to assign users to group ${groupName}.`);
+    }
+  } else if (!password || groupName !== publicGroup) {
+    throw new Error(`Self-signup needs a password and can only join ${publicGroup}.`);
+  }
 
   if (!password) {
     generatedPassword = passwordGen();
@@ -553,12 +605,14 @@ async function signupAssignGroup(db, { email, password, project, group, url, ema
       userEmail = email;
     }
 
-    // Check if group exists, create if not
+    // The public group is created if missing; any other group must already exist (creating groups is
+    // auth-groups, not this route).
     const { rows: groupRows } = await tx.query('SELECT count(1) AS count FROM groups WHERE name = $1', [groupName]);
     if (+(groupRows[0]?.count || 0) === 0) {
+      if (groupName !== publicGroup) throw new Error(`Group ${groupName} does not exist.`);
       await q.createGroup(tx, groupName, null, 'signup_accept_script');
       await q.assignGroupToProject(tx, groupName, project, 0, 'signup_accept_script');
-    } else if (groupName === `${project} Public`) {
+    } else if (groupName === publicGroup) {
       // The default public group may exist globally (e.g. left over from a
       // deleted project) without being linked to this project. Without the
       // link, signup reports success but login fails with "no access".

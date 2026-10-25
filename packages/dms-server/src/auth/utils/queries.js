@@ -320,18 +320,6 @@ const getProjectCount = async (db, project) => {
   return +(rows[0]?.count || 0);
 };
 
-const isPublicGroup = async (db, groupName, project) => {
-  const { rows } = await db.query(
-    `SELECT count(1) AS count FROM groups_in_projects
-     WHERE group_name = $1 AND project_name = $2
-     AND group_name NOT IN (
-       SELECT DISTINCT group_name FROM groups_in_projects WHERE auth_level > 0
-     )`,
-    [groupName, project]
-  );
-  return +(rows[0]?.count || 0) === 1;
-};
-
 const checkIfIpIsLocked = async (db, ip, LOCKOUT_INTERVAL, MAXIMUM_LOGIN_ATTEMPTS) => {
   // `NOW() - INTERVAL '30 minutes'` is Postgres-only syntax — SQLite has no
   // INTERVAL type and rejects it outright ("near '30 minutes': syntax
@@ -426,5 +414,4 @@ module.exports = {
 
   // Utilities
   getProjectCount,
-  isPublicGroup,
 };

@@ -604,6 +604,19 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       );
     },
 
+    // Rows of the app whose data carries grants (patterns, pages: `authPermissions`; internal sources:
+    // `auth_permissions`), with the stored text for a stale-row check. For "Remove from site"
+    // (auth/utils/siteGrants.js); the text match is only a pre-filter, the caller parses.
+    async getRowsWithGrants(app) {
+      const table = await mainTable(app);
+      return dms_db.promise(
+        `SELECT id, type, data, CAST(data AS TEXT) AS data_text FROM ${table}
+         WHERE app = $1
+           AND (CAST(data AS TEXT) LIKE '%authPermissions%' OR CAST(data AS TEXT) LIKE '%auth_permissions%')`,
+        [app]
+      );
+    },
+
     getFormat: appKeys => {
       const arrayResult = buildArrayComparison("app || '+' || type", appKeys, dbType);
       const sql = `

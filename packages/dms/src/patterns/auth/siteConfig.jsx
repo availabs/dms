@@ -224,9 +224,12 @@ const manageAuthConfig = ({
   adminThemeSource,
   authPermissions = {},
   adminAuthPermissions = {},
+  datasources = [],
   rightMenu = <DefaultMenu />,
   ssrCollect,
 }) => {
+    // The site's DAMA envs (a client build setting): Remove from site lists the user's grants there.
+    const pgEnvs = datasources.filter(d => d.type === 'external').map(d => d.env);
 
     // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — a
     // theme's own icon set merges with, rather than replaces, this base set
@@ -355,7 +358,7 @@ const manageAuthConfig = ({
           {
             type: props => <>
                 <OpenAuthWarning app={app} authPermissions={authPermissions} editUrl={authAccessUrl} />
-                <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} />
+                <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} pgEnvs={pgEnvs} />
             </>,
             reqPermissions: ['auth-users'],
             path: "users",

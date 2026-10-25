@@ -140,7 +140,44 @@ function canManageGroup(user, groupName, scope) {
     || holdsExplicitly({ user, reqPermissions: ['*'], authPermissions: scope.grants });
 }
 
+/**
+ * Transition-mode authority for a handler (task permissions-auth-users-and-signup): `byPermission` when the
+ * caller holds `perm` on the named auth row AND belongs to its project (so a token from another project
+ * can't use an open row), `byLevel` when today's level threshold passes. Handlers check the permission
+ * path first and fall back to the level path with today's level checks.
+ * @returns {{ user, authLevel, scope, project, byPermission: boolean, byLevel: boolean }}
+ */
+async function authority(authDb, userData, { project, app, authPatternId } = {}, ctx = {}, { perm, minLevel }) {
+  // Routes that name no project (membership, delete) are governed by the named app's project.
+  const proj = project || app;
+  const { user, authLevel, scope } = await authScope(authDb, userData, { project: proj, app, authPatternId }, ctx);
+  return {
+    user, authLevel, scope, project: proj,
+    byPermission: user.groups.length > 0 && can(user, perm, scope),
+    byLevel: authLevel >= minLevel,
+  };
+}
+
+/** The projects a group is linked to. */
+async function groupProjects(authDb, groupName) {
+  const { rows } = await authDb.query(
+    'SELECT project_name FROM groups_in_projects WHERE group_name = $1', [groupName]);
+  return rows.map(r => r.project_name);
+}
+
+/**
+ * canManageGroup for a group of the calling site: it must be linked to the row's project (a group of
+ * another project only isn't this site's to manage). Only the calling site's grants count, so a group
+ * shared with other projects is judged by this site's grants alone (owner 2026-10-25).
+ */
+async function canManageGroupIn(authDb, user, groupName, scope) {
+  if (!scope || scope.error) return false;
+  if (!(await groupProjects(authDb, groupName)).includes(scope.app)) return false;
+  return canManageGroup(user, groupName, scope);
+}
+
 module.exports = {
   AUTH_USERS, AUTH_GROUPS, VIEW_AS, PROTECTED_PERMISSIONS,
   createAuthGrants, authScope, authUser, can, canOrLevel, canManageGroup, isProtectedGroup, hasGrants,
+  authority, groupProjects, canManageGroupIn,
 };

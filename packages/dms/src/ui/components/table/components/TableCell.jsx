@@ -6,6 +6,7 @@ import DataTypes from "../../../columnTypes";
 import {formatFunctions} from "../../../../patterns/page/components/sections/components/dataWrapper/utils/utils";
 import { RenderAction, RenderActionsPopup } from "./RenderActions";
 import {TableCellContext, TableStructureContext} from "../index";
+import {cellEditable} from "../utils/canEdit";
 import {handleMouseDown, handleMouseMove, handleMouseUp} from "../utils/mouse";
 import {MountContext} from "../../../mountContext";
 import {resolveMountPath} from "../../../../utils/mountPath";
@@ -28,7 +29,7 @@ const parseIfJson = strValue => {
 
 const DisplayCalculatedCell = ({value, className}) => <div className={className}>{typeof value === 'object' ? JSON.stringify(value) : value}</div>
 
-const LinkComp = ({attribute, columns, newItem, removeItem, value, mount}) => {
+const LinkComp = ({attribute, columns, newItem, removeItem, value, mount, canDelete}) => {
     const {actionType, location, linkText, isLink, isLinkExternal, useId} = attribute;
     // isLink:
         // linkText
@@ -111,7 +112,7 @@ const LinkComp = ({attribute, columns, newItem, removeItem, value, mount}) => {
     }
 
     if(actionType){
-        return (props) => <RenderAction {...props} action={attribute} newItem={newItem} removeItem={removeItem} columns={columns} />
+        return (props) => <RenderAction {...props} action={attribute} newItem={newItem} removeItem={removeItem} columns={columns} canDelete={canDelete} />
     }
 }
 
@@ -182,7 +183,7 @@ export const TableCell = memo(function TableCell ({
     attribute, openOutTitle, openOutInline
 }) {
     const {
-        frozenCols, allowEdit: allowEditComp, editing, setEditing, isDragging, isSelecting,
+        frozenCols, allowEdit: allowEditComp, canEdit, editing, setEditing, isDragging, isSelecting,
         setSelection, setIsDragging, startCellCol, startCellRow, selection, selectionRange,
         updateItem, removeItem, columns, display, theme
     } = useContext(TableCellContext);
@@ -197,7 +198,8 @@ export const TableCell = memo(function TableCell ({
     // =================================================================================================================
     const cellRef = useRef(null);
     const isFrozen = frozenCols?.includes(attrI)
-    const allowEdit = allowEditComp || attribute.allowEditInView;
+    const allowEdit = (allowEditComp || attribute.allowEditInView) && cellEditable(canEdit, item, attribute);
+    const canDelete = cellEditable(canEdit, item, attribute, 'delete');
 
     const isCellEditing = editing?.index === index && editing?.attrI === attrI;
     const edge = selection?.find(s => s.index === index && s.attrI === attrI) || selection?.includes(index) ?
@@ -264,7 +266,7 @@ export const TableCell = memo(function TableCell ({
     }, [index, attrI, setSelection, setEditing]);
 
     const onDoubleClick = useCallback(() => {
-        setEditing && (allowEdit || attribute.allowEditInView) && setEditing(prev => {
+        setEditing && allowEdit && setEditing(prev => {
             if (prev?.index === index && prev?.attrI === attrI) {
                 return prev; // no change
             }
@@ -302,13 +304,13 @@ export const TableCell = memo(function TableCell ({
 
     const Comp = useMemo(() =>
         attribute._isActionsColumn ?
-            (props) => <RenderActionsPopup actionColumns={attribute.actionColumns} newItem={newItem} removeItem={removeItem} columns={columns} /> :
+            (props) => <RenderActionsPopup actionColumns={attribute.actionColumns} newItem={newItem} removeItem={removeItem} columns={columns} canDelete={canDelete} /> :
         compType === 'ui' ? (attribute.Comp || DisplayCalculatedCell) :
             renderTextBox ? DataTypes.textarea.EditComp :
                 attribute.isLink || attribute.actionType ?
-                    LinkComp({attribute, columns, newItem, removeItem, value: rawValue, mount}) :
+                    LinkComp({attribute, columns, newItem, removeItem, value: rawValue, mount, canDelete}) :
                     (DataTypes[compType]?.[compMode] || DisplayCalculatedCell),
-        [compType, compMode, renderTextBox, attribute, newItem, rawValue, mount]);
+        [compType, compMode, renderTextBox, attribute, newItem, rawValue, mount, canDelete]);
 
     const formattedValue = isTotalCell && !(attribute.showTotal || display.showTotal) ? null :
         compMode === 'EditComp' ? rawValue : // edit mode should always show raw value

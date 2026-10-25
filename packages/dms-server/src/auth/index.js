@@ -12,6 +12,7 @@ const messageRoutes = require('./routes/message.routes');
 const preferencesRoutes = require('./routes/preferences.routes');
 const { tokenCache } = require('./jwt');
 const { createAuthGrants } = require('./utils/permissions');
+const { createSiteGrants } = require('./utils/siteGrants');
 const { getSubdomain } = require('../utils/subdomain');
 
 const allRoutes = [
@@ -28,7 +29,7 @@ const allRoutes = [
 // empties that cache: otherwise a revoked grant or password kept working for up to TOKEN_TTL.
 const IDENTITY_ROUTES = new Set([
   '/password/set', '/password/force', '/password/update', '/password/reset',
-  '/user/delete', '/user/group/assign', '/user/group/remove',
+  '/user/delete', '/user/project/remove', '/user/group/assign', '/user/group/remove',
   '/group/delete', '/group/project/assign', '/group/project/remove', '/group/project/adjust',
   '/group/create/project/assign', '/project/delete',
   '/signup/accept', '/signup/assign/group', '/invite/accept', '/init/setup',
@@ -41,25 +42,39 @@ function afterAuthCall(route, result) {
 // The auth row a request names lives in the DMS database. The controller is created on first use, so
 // loading this module (tests, scripts) opens no DMS connection.
 let dmsController;
-const loadPatternRows = (dmsApp) => {
+const getDmsController = () => {
   if (!dmsController) {
     const { createController } = require('../routes/dms/dms.controller');
     dmsController = createController(process.env.DMS_DB_ENV || 'dms-sqlite');
+    // Its writes (Remove from site strips grants) reach sync clients like any edit, as sync.js wires its own.
+    dmsController.setNotifyChange((app, msg) => require('../routes/sync/ws').notifyChange(app, msg));
   }
-  return dmsController.getPatternRows(dmsApp);
+  return dmsController;
+};
+const loadPatternRows = (dmsApp) => getDmsController().getPatternRows(dmsApp);
+
+// A DAMA pgEnv's db, for listing external-source grants; only configs with the dama role.
+const getDamaDb = (pgEnv) => {
+  const { getDb, loadConfig } = require('../db');
+  const role = loadConfig(pgEnv).role;
+  if (!(Array.isArray(role) ? role : [role]).includes('dama')) throw new Error(`${pgEnv} is not a DAMA env`);
+  return getDb(pgEnv);
 };
 
 /**
  * Register all auth routes with the Express app.
- * Handlers are called as handler(authDb, body, ctx); ctx = { subdomain, authGrants } (auth/utils/permissions.js).
+ * Handlers are called as handler(authDb, body, ctx); ctx = { subdomain, authGrants, siteGrants }
+ * (auth/utils/permissions.js, auth/utils/siteGrants.js).
  * @param {Object} app - Express app instance
  * @param {Object} db - Database adapter for auth database
  * @param {string} [basePath=''] - URL prefix for all auth routes (e.g. '/auth')
  * @param {Object} [options]
  * @param {Function} [options.loadPatternRows] - (app) => the app's DMS pattern rows; tests pass their own
+ * @param {Object} [options.siteGrants] - createSiteGrants() result; tests pass their own
  */
 function registerAuthRoutes(app, db, basePath = '', options = {}) {
   const authGrants = createAuthGrants({ loadPatternRows: options.loadPatternRows || loadPatternRows });
+  const siteGrants = options.siteGrants || createSiteGrants({ getController: getDmsController, getDamaDb });
   for (const { route, method, handler } of allRoutes) {
     const fullRoute = basePath + route;
 
@@ -68,7 +83,7 @@ function registerAuthRoutes(app, db, basePath = '', options = {}) {
 // console.log("dms-server/auth::req.clientIp", req.clientIp);
 
       try {
-        const result = await handler(db, { ...req.body, clientIp: req.clientIp }, { subdomain: getSubdomain(req), authGrants });
+        const result = await handler(db, { ...req.body, clientIp: req.clientIp }, { subdomain: getSubdomain(req), authGrants, siteGrants });
         afterAuthCall(route, result);
         res.json(typeof result === 'string' ? { message: result } : result);
       } catch (e) {
