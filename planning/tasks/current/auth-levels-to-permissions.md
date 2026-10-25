@@ -103,6 +103,14 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   memberships; external-source grants listed only); external groups get their own button later (15 / 17).
   Tests: `test-auth-users` 26, `test-site-grants` 6, test-auth 104; live ✓ on the rig (task file Results). Open: the
   level path lets a level-1 user add people to level-1 groups (today's rule; disappears with level removal).
+- **Merge of `origin/master` (2026-10-25; lib f3d335f6, root b77374a7):** conflicts: source Admin buttons (master:
+  navigate on click; kept our gates). Write-path check: master's server changes are reads (`superseded_by`); new
+  plugin route `volume_data_report/publish` had **no check** (a signed-in stranger got 200): now `authorizePublish`,
+  client on `authedFetch` + gated (root a13f2ec1), sweep 36/36 (35 write routes). New **chat** pattern (root):
+  its source is in no dmsEnv / datasets pattern, so under `enforce` every non-admin channel / message write is
+  refused ("source … is in no datasets pattern"); `log` lets them through with would-deny lines. Owner call needed.
+  test-uda's "no update-source grant" fixture set no grants (open under the lenient rule): re-fixtured (d16043b3).
+  Sample green: uda 144, uda-auth 28, source-auth 50, upload-auth 37, data-auth 49, auth suites; lifecycle vitest 21.
 - Next: tasks 15–16 (16 decided), then 17; task 11 (blocked on a decision) and 12.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
