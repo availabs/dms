@@ -108,7 +108,9 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   plugin route `volume_data_report/publish` had **no check** (a signed-in stranger got 200): now `authorizePublish`,
   client on `authedFetch` + gated (root a13f2ec1), sweep 36/36 (35 write routes). New **chat** pattern (root):
   its source is in no dmsEnv / datasets pattern, so under `enforce` every non-admin channel / message write is
-  refused ("source … is in no datasets pattern"); `log` lets them through with would-deny lines. Owner call needed.
+  refused ("source … is in no datasets pattern"); `log` lets them through with would-deny lines. Owner (10-25): recorded on the chat task for its author
+  (root `planning/tessera/tasks/current/chat-pattern-implementation.md`, "Permissions and privacy"); chat has
+  other privacy concerns to think through first. Must be settled before any site runs data-auth `enforce`.
   test-uda's "no update-source grant" fixture set no grants (open under the lenient rule): re-fixtured (d16043b3).
   Sample green: uda 144, uda-auth 28, source-auth 50, upload-auth 37, data-auth 49, auth suites; lifecycle vitest 21.
 - Next: tasks 15–16 (16 decided), then 17; task 11 (blocked on a decision) and 12.
