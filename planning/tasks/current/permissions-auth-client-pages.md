@@ -6,6 +6,13 @@ Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). 
 [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md) (the client sends
 `app` + auth pattern id) and the server tasks it calls.
 
+
+## Owner decision carried from task 14 (2026-10-25)
+
+Group lists show only the project's own groups. Adding an **external group** (one of another project) to a site is a
+separate feature with its own button ("Add external group"), never mixed into the same list. Only the calling site's
+grants count for a shared group ([permissions-auth-users-and-signup.md](./permissions-auth-users-and-signup.md),
+decisions 5–6).
 ## Objective
 
 The auth pattern pages already gate on `auth-users` / `auth-groups`, but call endpoints gated by level, so a granted

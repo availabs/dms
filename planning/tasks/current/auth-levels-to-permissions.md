@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-24, task 13 built)
+## ▶ Resume here (updated 2026-10-25, task 14 built)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -95,7 +95,15 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
 - **Task 13 built (2026-10-24, committed lib 5a192e40 / root b3716f8d):** `auth/utils/permissions.js` (lookup, `can`, `canOrLevel`,
   `canManageGroup`, `authScope`), handlers get `ctx`, client sends app + authPatternId, open-auth warning,
   `undefined Admin` fix. Tests 21 + test-auth 104; live ✓ on the rig (task file).
-- Next: tasks 14–16 (handlers onto task 13; 16 decided), then 17; task 11 (blocked on a decision) and 12.
+- **Task 14 built (2026-10-25, uncommitted):** owner decisions: public = only `${project} Public`; Users page shows
+  unmanageable users read-only (server `manageable` flag + new ui Table `canEdit({ row, attribute, op })`, reusable for
+  row-level auth); membership = `auth-users` only; `/signup/assign/group` closed (anon: password + Public only).
+  Later the same day: only the calling site's grants count (shared groups included); a site **removes** a user
+  instead of deleting the account (new `/user/project/remove`: strips their own grants on the site's rows, then
+  memberships; external-source grants listed only); external groups get their own button later (15 / 17).
+  Tests: `test-auth-users` 26, `test-site-grants` 6, test-auth 104; live ✓ on the rig (task file Results). Open: the
+  level path lets a level-1 user add people to level-1 groups (today's rule; disappears with level removal).
+- Next: tasks 15–16 (16 decided), then 17; task 11 (blocked on a decision) and 12.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.

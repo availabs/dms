@@ -6,6 +6,13 @@ Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). 
 [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md) (`can`,
 `canManageGroup`, transition mode).
 
+
+## Owner decision carried from task 14 (2026-10-25)
+
+Group lists show only the project's own groups. Adding an **external group** (one of another project) to a site is a
+separate feature with its own button ("Add external group"), never mixed into the same list. Only the calling site's
+grants count for a shared group ([permissions-auth-users-and-signup.md](./permissions-auth-users-and-signup.md),
+decisions 5–6).
 ## Objective
 
 Move every group-handler level check to `auth-groups` plus the escalation rule, and fix the two holes the
