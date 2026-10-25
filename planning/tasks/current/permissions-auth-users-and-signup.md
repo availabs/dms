@@ -70,7 +70,7 @@ The responses also return `projects[].auth_level` (`user.js:55-64`); stop once t
 - [x] `isPublicGroup` replaced by "only `${project} Public`" (query removed from `queries.js`).
 - [x] Tests: `tests/test-auth-users.js` (21, real SQLite auth DB, injected pattern rows).
 
-## Progress 2026-10-25 (built, uncommitted)
+## Progress 2026-10-25 (built, committed lib 84777ccc)
 
 Server (`dms-server/src/auth/`):
 - `utils/permissions.js`: `authority()` (transition authority: `byPermission` = `auth-users` on the named row **and**

@@ -95,7 +95,7 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
 - **Task 13 built (2026-10-24, committed lib 5a192e40 / root b3716f8d):** `auth/utils/permissions.js` (lookup, `can`, `canOrLevel`,
   `canManageGroup`, `authScope`), handlers get `ctx`, client sends app + authPatternId, open-auth warning,
   `undefined Admin` fix. Tests 21 + test-auth 104; live ✓ on the rig (task file).
-- **Task 14 built (2026-10-25, uncommitted):** owner decisions: public = only `${project} Public`; Users page shows
+- **Task 14 built (2026-10-25, committed lib 84777ccc):** owner decisions: public = only `${project} Public`; Users page shows
   unmanageable users read-only (server `manageable` flag + new ui Table `canEdit({ row, attribute, op })`, reusable for
   row-level auth); membership = `auth-users` only; `/signup/assign/group` closed (anon: password + Public only).
   Later the same day: only the calling site's grants count (shared groups included); a site **removes** a user
