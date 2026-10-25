@@ -2079,8 +2079,10 @@ async function testDamaModeAuthoritativeViews() {
     `INSERT INTO ${srcTbl} (name, type, metadata, auth_permissions) VALUES ($1, $2, $3, $4) RETURNING source_id AS id`,
     ['Authority Test Source', 'csv', JSON.stringify(metadata), grant]
   );
+  // grants set, none to the test user: with no grants a source is open (lenient rule, owner 2026-10-23)
   const { rows: [other] } = await db.query(
-    `INSERT INTO ${srcTbl} (name, type) VALUES ($1, $2) RETURNING source_id AS id`, ['Authority Other', 'csv']);
+    `INSERT INTO ${srcTbl} (name, type, auth_permissions) VALUES ($1, $2, $3) RETURNING source_id AS id`,
+    ['Authority Other', 'csv', JSON.stringify({ groups: {}, users: { 999999: ['*'] } })]);
   const mkView = async (sid, name) => (await db.query(
     `INSERT INTO ${viewTbl} (source_id, table_schema, table_name, version) VALUES ($1, 'public', $2, $2) RETURNING view_id AS id`,
     [sid, name])).rows[0].id;
