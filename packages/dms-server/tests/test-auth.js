@@ -406,6 +406,12 @@ async function run() {
   });
   ok('assign user to group succeeds', assignRes.message?.includes('Assigned'));
 
+  // A user's groups come back highest project level first, then by name (getUserGroups ORDER BY)
+  const twoGroups = await post('/auth', { token: afterResetLogin.user?.token, project: 'testproj' });
+  ok('user groups ordered by level, then name',
+    twoGroups.user?.groups?.length > 1 && twoGroups.user.groups[0] === 'TestGroup'
+    && JSON.stringify(twoGroups.user.meta.map(m => m.authLevel)) === JSON.stringify(twoGroups.user.meta.map(m => m.authLevel).sort((a, b) => b - a)));
+
   // Verify assignment via users by group
   const usersByGroup = await post('/users/bygroup', {
     token: adminToken,

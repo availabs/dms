@@ -84,3 +84,23 @@ export function isUserAuthed ({user={}, reqPermissions=[], authPermissions={}}) 
 
     return userAuthPermissions.some(permission => permission === '*' || reqPermissions.includes(permission));
 }
+
+// The user's project groups in the order a user menu shows them: first the groups granted something on
+// this pattern (`authPermissions` is already resolved for the subdomain, so a group granted only on
+// `songs` leads only there), ranked by a `*` grant, then how many permissions, then `${app} Admin`,
+// then project auth level, then name; then the rest by level and name. `public` is never listed.
+// [0] is the group the menu shows. Server order (getUserGroups) is not relied on.
+export function rankUserGroups ({ user = {}, authPermissions = {}, app } = {}) {
+    const groups = [...new Set(user?.groups || [])].filter(g => g && g !== 'public');
+    const granted = authPermissions?.groups || {};
+    const perms = g => [].concat(granted[g] ?? []).filter(Boolean);
+    const level = g => Number((user?.meta || []).find(m => m?.group === g)?.authLevel) || 0;
+    const rest = (a, b) => level(b) - level(a) || a.localeCompare(b);
+    const isAdmin = g => g === `${app} Admin`;
+    const granting = groups.filter(g => perms(g).length).sort((a, b) =>
+        (perms(b).includes('*') - perms(a).includes('*'))
+        || perms(b).length - perms(a).length
+        || (isAdmin(b) - isAdmin(a))
+        || rest(a, b));
+    return [...granting, ...groups.filter(g => !perms(g).length).sort(rest)];
+}
