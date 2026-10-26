@@ -2,6 +2,8 @@ import React, {useContext} from "react"
 import {Link, useLocation} from 'react-router'
 import { AuthContext } from '../context'
 import { ThemeContext } from "../../../ui/useTheme";
+import { rankUserGroups } from "../../../utils/auth";
+import { PatternAuthContext } from "../../../utils/patternAuthContext";
 
 // import {NavItem, NavMenu, NavMenuItem, NavMenuSeparator, withAuth} from 'components/avl-components/src'
 // import user from "@availabs/ams/dist/reducers/user";
@@ -37,6 +39,7 @@ export default function AuthMenu ({title, children}) {
     const location = useLocation();
     let authMenuItems = theme?.navOptions?.authMenu?.navItems || []
     const m = useMenuTheme(theme)
+    const groups = rankUserGroups({ user, ...React.useContext(PatternAuthContext) })
 
     return (
         <>
@@ -50,7 +53,7 @@ export default function AuthMenu ({title, children}) {
                             type: () => (
                                 <div className={m.header}>
                                     <Link className={m.headerEmail} to={`${baseUrl}/manage/profile`}>{user.email ? user.email : ''}</Link>
-                                    <div className={m.headerGroup}>{user?.groups?.[0] ? user.groups[0] : ''}</div>
+                                    <div className={m.headerGroup} title={groups.length > 1 ? groups.join(', ') : undefined}>{groups[0] || ''}</div>
                                 </div>
                             ),
                         },
