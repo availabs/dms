@@ -402,15 +402,20 @@ export const TableCell = memo(function TableCell ({
         rawValue
     ]);
 
+    // The options the editor offers. `isValid` checks a value against all of `attribute.options`; an option
+    // with `selectable: false` is a valid value that isn't offered (e.g. a group this user may not assign).
     const options = useMemo(() => {
+        const offered = (attribute.options || []).some(o => o?.selectable === false)
+            ? attribute.options.filter(o => o?.selectable !== false)
+            : attribute.options;
         if (
             !['select', 'multiselect', 'radio'].includes(attribute.type) ||
-            !(attribute.options || []).some(o => o.filter)
+            !(offered || []).some(o => o.filter)
         ) {
-            return attribute.options;
+            return offered;
         }
 
-        return attribute.options.filter(o => {
+        return offered.filter(o => {
             const optionFilter = parseIfJson(o.filter);
 
             return Object.keys(optionFilter).every(col => {

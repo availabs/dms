@@ -110,6 +110,14 @@ async function main() {
     const { groups } = await groupH.groupsForProject(db, { token: tok['umgr@t'], project: 'siteA', ...A }, ctx);
     assert.ok(groups.some(g => g.name === 'siteA Admin'));
     assert.ok(groups.filter(g => g.name !== 'public').every(g => g.manageable === false));
+    const as = Object.fromEntries(groups.map(g => [g.name, g.assignable]));
+    assert.strictEqual(as.Viewers, true, 'auth-users may add members to an ordinary group');
+    assert.strictEqual(as['siteA Admin'], false, 'not to a protected one');
+    assert.strictEqual(as.Owners, false);
+  });
+  await t('assignable follows /user/group/assign: auth-groups alone may not add members', async () => {
+    const { groups } = await groupH.groupsForProject(db, { token: tok['gmgr@t'], project: 'siteA', ...A }, ctx);
+    assert.strictEqual(groups.find(g => g.name === 'Viewers').assignable, false);
   });
   await t('no permission: the level rule hides groups above the caller; nothing manageable below 5', async () => {
     const { groups } = await groupH.groupsForProject(db, { token: tok['viewer@t'], project: 'siteA', ...A }, ctx);
@@ -134,7 +142,19 @@ async function main() {
     await refused(groupH.createAndAssign(db, { token: tok['viewer@t'], group_name: 'NewV', project_name: 'siteA', auth_level: 0, ...A }, ctx));
   });
 
-  console.log('/group/project/assign (link an existing group):');
+  console.log('/groups/linkable, /group/project/assign (link an existing group):');
+  await t('/groups/linkable: every group not on the site, with member counts, for auth-groups or level 5', async () => {
+    const { groups } = await groupH.linkableGroups(db, { token: tok['gmgr@t'], project: 'siteA', ...A }, ctx);
+    const names = groups.map(g => g.name);
+    for (const g of ['BGroup', 'Ghost', 'Orphan', 'siteB Admin']) assert.ok(names.includes(g), g);
+    assert.ok(!names.includes('Viewers') && !names.includes('siteA Admin'), 'groups already on the site are left out');
+    assert.deepStrictEqual(names, [...names].sort(), 'by name');
+    assert.strictEqual(groups.find(g => g.name === 'siteB Admin').num_members, 1);
+    assert.ok(!('projects' in groups[0]), 'which projects use a group is not shown');
+    await groupH.linkableGroups(db, { token: tok['lvl5@t'], project: 'siteA' }, ctx);
+    await refused(groupH.linkableGroups(db, { token: tok['viewer@t'], project: 'siteA', ...A }, ctx));
+    await refused(groupH.linkableGroups(db, { token: tok['umgr@t'], project: 'siteA', ...A }, ctx));
+  });
   await t('auth-groups links another project\'s group at level 0', async () => {
     await groupH.assignToProject(db, { token: tok['gmgr@t'], group_name: 'BGroup', project_name: 'siteA', auth_level: 10, ...A }, ctx);
     assert.deepStrictEqual(await links('BGroup'), { siteB: 0, siteA: 0 });

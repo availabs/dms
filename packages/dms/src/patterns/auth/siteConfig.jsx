@@ -366,7 +366,7 @@ const manageAuthConfig = ({
           {
             type: props => <>
                 <OpenAuthWarning app={app} authPermissions={authPermissions} editUrl={authAccessUrl} />
-                <AuthGroups {...props} authPermissions={authPermissions} />
+                <AuthGroups {...props} authPermissions={authPermissions} pgEnvs={pgEnvs} />
             </>,
             reqPermissions: ['auth-groups'],
             path: "groups",

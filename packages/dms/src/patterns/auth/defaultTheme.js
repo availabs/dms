@@ -195,6 +195,15 @@ const theme = {
             removeBody: "flex flex-col gap-3 text-sm text-left text-[var(--t-graphite)]",
             removeList: "list-disc pl-5 mt-1",
             removeWarning: "rounded-md px-3 py-2 bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
+            // Groups: the header's two buttons (Add external group, Add new) and the external-group picker
+            headerActions: "flex items-center gap-2",
+            linkList: "flex flex-col max-h-80 overflow-y-auto divide-y divide-[var(--t-rule)]",
+            linkRow: "flex items-center justify-between gap-3 py-1.5",
+            linkName: "text-sm text-[var(--t-ink)]",
+            // Profile: a labelled line in the account card (groups)
+            profileField: "flex items-baseline gap-3 mb-3",
+            profileFieldLabel: "t-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em] w-16 flex-none",
+            profileFieldValue: "text-sm text-[var(--t-ink)]",
             // Users / Groups: warning to admins while the auth pattern grants nothing (OpenAuthWarning.jsx)
             openAuthWarning: "mb-3 rounded-md px-4 py-3 text-sm bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
             openAuthWarningLink: "underline font-medium",

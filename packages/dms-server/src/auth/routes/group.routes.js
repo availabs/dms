@@ -3,6 +3,7 @@ const handlers = require('../handlers/group');
 module.exports = [
   { route: '/groups', method: 'post', handler: handlers.getGroups },
   { route: '/groups/byproject', method: 'post', handler: handlers.groupsForProject },
+  { route: '/groups/linkable', method: 'post', handler: handlers.linkableGroups },
   { route: '/group/create', method: 'post', handler: handlers.createGroup },
   { route: '/group/create/project/assign', method: 'post', handler: handlers.createAndAssign },
   { route: '/group/delete', method: 'post', handler: handlers.deleteGroup },

@@ -254,7 +254,10 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
         // `activeStyle: 'accent'` selects MultiSelect.theme.js's cobalt-accented
         // chip variant for this column only — the shared 'default' style (used
         // by every other multiselect in the app) is untouched.
-        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', options: groups.map(g => g.name), activeStyle: 'accent'},
+        // The picker offers only groups this caller may add members to (/groups/byproject `assignable`; the
+        // server refuses the rest). The others stay valid values, so read-only rows still show them.
+        {name: 'groups', display_name: 'Groups', show: true, type: 'multiselect', activeStyle: 'accent',
+            options: groups.map(g => g.assignable === false ? { label: g.name, value: g.name, selectable: false } : g.name)},
         // `className` here is TableCell's own computed cell class (cellInner +
         // background + selection state) — a custom `type: 'ui'` Comp is handed
         // it like every other cell, but unlike `text`/`multiselect` columns

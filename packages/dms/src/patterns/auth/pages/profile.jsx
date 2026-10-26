@@ -1,70 +1,18 @@
-import React, {useEffect, useMemo, useRef, useState} from "react";
+import React from "react";
 import {Link} from "react-router";
 import {ThemeContext} from "../../../ui/useTheme";
 import {AuthContext} from "../context";
-import {callAuthServer} from "../api";
+import { rankUserGroups } from "../../../utils/auth";
+import { PatternAuthContext } from "../../../utils/patternAuthContext";
 
-// list users: dropdown to change groups
-// list user requests: two buttons to accept and reject
-// admin should be able to set user permissions.
-// permit users for pattern, and actions in the pattern (CRUD pages, sections)
-export default function Profile (props) {
-    const [groups, setGroups] = React.useState([]);
-    const [users, setUsers] = React.useState([]);
-    const [requests, setRequests] = React.useState([]);
-    const [searchUser, setSearchUser] = React.useState('');
-    const [searchGroup, setSearchUGroup] = React.useState('');
-    const [searchRequest, setSearchRequest] = React.useState('');
-    const [newUser, setNewUser] = React.useState({});
-    const [addingNew, setAddingNew] = React.useState(false);
-    const [status, setStatus] = React.useState('');
+// The signed-in user's own account: their groups on this site (from their sign-in, ranked like the user
+// menu) and a reset-password link. Nothing here needs an admin grant.
+export default function Profile () {
     const {theme, UI} = React.useContext(ThemeContext);
-    const { user, AUTH_HOST, PROJECT_NAME, defaultRedirectUrl, baseUrl } = React.useContext(AuthContext);
-    const gridRef = useRef(null)
+    const { user, baseUrl } = React.useContext(AuthContext);
+    const patternAuth = React.useContext(PatternAuthContext);
     const {Icon} = UI;
-
-    useEffect(() => {
-        async function loadGroups(){
-            await callAuthServer(`${AUTH_HOST}/groups/byproject`, {
-                token: user.token,
-                project: PROJECT_NAME
-            }).then(res => {
-                if(res.error){
-                    console.error(res.error);
-                }else{
-                    setGroups(res.groups || [])
-                }
-            });
-        }
-        async function loadUsers(){
-            await callAuthServer(`${AUTH_HOST}/users/byProject`, {
-                token: user.token,
-                project: PROJECT_NAME
-            }).then(res => {
-                if(res.error){
-                    console.error(res.error);
-                }else{
-                    setUsers((res.users || []).filter(u => u.email !== user.email)) // all users in the project, except logged in user
-                }
-            });
-        }
-        async function loadRequests(){
-            await callAuthServer(`${AUTH_HOST}/requests/byProject`, {
-                token: user.token,
-                project_name: PROJECT_NAME
-            }).then(res => {
-                if(res.error){
-                    console.error(res.error);
-                }else{
-                    setRequests(res.requests || [])
-                }
-            });
-        }
-
-        loadGroups();
-        loadUsers()
-        loadRequests();
-    }, [PROJECT_NAME]);
+    const groups = rankUserGroups({ user, ...patternAuth });
 
     // Manage-page chrome from `theme.auth.authPages.manage`; fallbacks are the
     // literals this page carried before the keys existed.
@@ -77,6 +25,9 @@ export default function Profile (props) {
         profileLink: "",
         profileActions: "",
         profileActionsLabel: "hidden",
+        profileField: "flex items-baseline gap-3 mb-3",
+        profileFieldLabel: "text-xs text-gray-500 w-16",
+        profileFieldValue: "text-sm",
         ...(theme?.auth?.authPages?.manage || {}),
     };
     if(!user?.authed) return <div className={m.notice}>To access this page, you need to login.</div>
@@ -88,6 +39,10 @@ export default function Profile (props) {
                 <div className={m.headerTitle}>{user.email}</div>
             </div>
             <div className={m.profileActions}>
+                <div className={m.profileField}>
+                    <span className={m.profileFieldLabel}>groups</span>
+                    <span className={m.profileFieldValue}>{groups.length ? groups.join(' · ') : 'none on this site'}</span>
+                </div>
                 <Link to={`${baseUrl}/password/reset`} className={m.profileLink}>
                     <Icon icon="Key" className="w-4 h-4" />
                     Reset Password

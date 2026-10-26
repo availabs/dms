@@ -128,6 +128,7 @@ async function groupsForProject(db, body, ctx) {
   const a = await groupsAuthority(db, userData, body, ctx, Infinity, [AUTH_GROUPS, AUTH_USERS]);
   const myAuthLevel = a.authLevel;
   const managesGroups = holds(a, AUTH_GROUPS);
+  const managesUsers = holds(a, AUTH_USERS);
 
   const { rows: groups } = await db.query(
     `SELECT g.name, g.meta, g.created_at, g.created_by, gip.auth_level
@@ -161,10 +162,34 @@ async function groupsForProject(db, body, ctx) {
       projects: projRows,
       manageable: (managesGroups && await canManageGroupIn(db, a.user, group.name, a.scope))
         || (myAuthLevel >= 5 && await levelCoversGroup(db, userData.email, group.name)),
+      // whether the caller may add members to it or remove them (user handlers' checkGroupAuthority, the
+      // rule of /user/group/assign and /remove): the Users page's group picker
+      assignable: (managesUsers && await canManageGroupIn(db, a.user, group.name, a.scope))
+        || await levelCoversGroup(db, userData.email, group.name),
     });
   }
 
   return { groups: [{ name: 'public' }, ...visible] };
+}
+
+/**
+ * POST /groups/linkable — groups that exist but aren't in the calling project, for "Add external group"
+ * (owner 2026-10-26: a searchable list of every group). auth-groups on the project's auth row, or level
+ * 5 there (the level rule of /group/project/assign). Names and member counts only: not which projects
+ * use them.
+ */
+async function linkableGroups(db, body, ctx) {
+  const userData = await verifyAndGetUserData(db, body.token);
+  const a = await groupsAuthority(db, userData, body, ctx, 5);
+  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the authority to add groups to ${a.project}.`);
+  const { rows } = await db.query(
+    `SELECT g.name, (SELECT count(1) FROM users_in_groups AS uig WHERE uig.group_name = g.name) AS num_members
+     FROM groups AS g
+     WHERE g.name NOT IN (SELECT group_name FROM groups_in_projects WHERE project_name = $1)
+     ORDER BY g.name`,
+    [a.project]
+  );
+  return { groups: rows.map(r => ({ name: r.name, num_members: +r.num_members })) };
 }
 
 /** POST /group/create — create a group in no project (platform admin: AVAIL member, or avail_auth level 5) */
@@ -366,6 +391,7 @@ async function updateGroup(db, body, ctx) {
 module.exports = {
   getGroups,
   groupsForProject,
+  linkableGroups,
   createGroup,
   createAndAssign,
   deleteGroup,
