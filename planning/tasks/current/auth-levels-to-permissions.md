@@ -113,7 +113,13 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   other privacy concerns to think through first. Must be settled before any site runs data-auth `enforce`.
   test-uda's "no update-source grant" fixture set no grants (open under the lenient rule): re-fixtured (d16043b3).
   Sample green: uda 144, uda-auth 28, source-auth 50, upload-auth 37, data-auth 49, auth suites; lifecycle vitest 21.
-- Next: tasks 15–16 (16 decided), then 17; task 11 (blocked on a decision) and 12.
+- **Task 15 built (2026-10-25, uncommitted):** owner: delete from a site = unlink, delete if last; a group
+  leaving a site loses its grants there; every strip keeps each row's format, validates, reports malformed rows;
+  link (`/group/project/assign`) open to auth-groups at level 0. The permission path never sets a level, adjust
+  stays level-only (current-level hole fixed); a group in no project is platform-only to delete (was anyone).
+  Tests `test-auth-groups` 19, `test-site-grants` 8, test-auth 104; live ✓ (task file Results).
+- Next: task 16 (decided: AVAIL membership), then 17 (Users / Groups / Profile pages); task 11 (blocked on a
+  decision) and 12.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
