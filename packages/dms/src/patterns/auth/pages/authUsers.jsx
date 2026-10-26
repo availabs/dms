@@ -453,6 +453,15 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                             </div>}
                         {removePlan.siteGrants.length > 0 &&
                             <div>Their own permissions on {removePlan.siteGrants.length} pattern, page or source row(s) here are removed.</div>}
+                        {removePlan.skippedGrants?.length > 0 &&
+                            <div className={m.removeWarning}>
+                                These rows name them in permissions that aren&apos;t in the expected format, so they are left
+                                unchanged; fix them in each row&apos;s Access editor:
+                                <ul className={m.removeList}>
+                                    {removePlan.skippedGrants.map(s =>
+                                        <li key={s.id}>{s.type} #{s.id}: {s.reason}</li>)}
+                                </ul>
+                            </div>}
                         {removePlan.externalSources.length > 0 &&
                             <div className={m.removeWarning}>
                                 They keep their own permissions on these external sources (other sites may use them);

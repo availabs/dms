@@ -6,7 +6,9 @@
 const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const { hashPassword } = require('../utils/crypto');
-const { AUTH_USERS, authority, canManageGroupIn, groupProjects } = require('../utils/permissions');
+const {
+  AUTH_USERS, authority, canManageGroupIn, groupProjects, levelCoversGroup, levelOutranks,
+} = require('../utils/permissions');
 
 // Task permissions-auth-users-and-signup: each check runs in transition form, `auth-users` on the
 // auth row the request names (permissions.js authority) or today's level rule.
@@ -266,15 +268,17 @@ async function removeFromProject(db, body, ctx = {}) {
   }
   const { rows: [target] } = await q.getUserByEmail(db, user_email);
   if (!ctx.siteGrants) throw new Error('Site grants are unavailable.');
-  const siteGrants = await ctx.siteGrants.listSiteGrants(a.project, target.id);
-  const externalSources = await ctx.siteGrants.listExternalGrants(pgEnvs, target.id);
+  const who = { users: target.id };
+  const { grants, skipped } = await ctx.siteGrants.listSiteGrants(a.project, who);
+  const externalSources = await ctx.siteGrants.listExternalGrants(pgEnvs, who);
   const plan = {
     user_email, project: a.project, groups, sharedGroups,
-    siteGrants: siteGrants.map(({ id, type }) => ({ id, type })), externalSources,
+    siteGrants: grants.map(({ id, type }) => ({ id, type })), skippedGrants: skipped, externalSources,
   };
   if (dryRun) return plan;
 
-  await ctx.siteGrants.stripSiteGrants(a.project, target.id, { id: userData.id, email: userData.email });
+  const stripped = await ctx.siteGrants.stripSiteGrants(a.project, who, { id: userData.id, email: userData.email });
+  plan.skippedGrants = stripped.skipped;
   await db.withTransaction(async (tx) => {
     for (const g of groups) await q.removeUserFromGroup(tx, user_email, g);
   });
@@ -339,46 +343,6 @@ async function getUsersPreferences(db, body, ctx) {
 // ---------------------------------------------------------------------------
 // Helpers: authority over a group / a user
 // ---------------------------------------------------------------------------
-
-/** Level rule: the caller's level ≥ the group's in every project the group belongs to. */
-async function levelCoversGroup(db, requestingEmail, group_name) {
-  const { rows: groupProjects } = await db.query(
-    'SELECT project_name, auth_level FROM groups_in_projects WHERE group_name = $1',
-    [group_name]
-  );
-  const myAuth = await levelsByProject(db, requestingEmail);
-  return groupProjects.every(({ project_name, auth_level }) =>
-    myAuth[project_name] && myAuth[project_name] >= auth_level);
-}
-
-/** Level rule: the caller's level ≥ the target's in every project the target belongs to. */
-async function levelOutranks(db, requestingEmail, targetEmail) {
-  const { rows: targetProjects } = await db.query(
-    `SELECT project_name, auth_level
-     FROM users_in_groups AS uig
-     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
-     WHERE uig.user_email = $1`,
-    [targetEmail]
-  );
-  const myAuth = await levelsByProject(db, requestingEmail);
-  return targetProjects.every(({ project_name, auth_level }) =>
-    myAuth[project_name] && myAuth[project_name] >= auth_level);
-}
-
-async function levelsByProject(db, email) {
-  const { rows } = await db.query(
-    `SELECT project_name, auth_level
-     FROM users_in_groups AS uig
-     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
-     WHERE uig.user_email = $1`,
-    [email]
-  );
-  const myAuth = {};
-  for (const { project_name, auth_level } of rows) {
-    myAuth[project_name] = Math.max(myAuth[project_name] || 0, auth_level);
-  }
-  return myAuth;
-}
 
 /**
  * Membership changes (owner 2026-10-25: `auth-users` only): `auth-users` on the named auth row + the

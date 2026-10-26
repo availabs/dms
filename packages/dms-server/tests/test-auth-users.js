@@ -42,11 +42,14 @@ const ROWS = {
 const calls = [];
 let db;
 const siteGrants = {
-  listSiteGrants: async (app, userId) => [{ id: 100, type: 'docs|page' }].map(g => ({ ...g, app, userId })),
-  listExternalGrants: async (pgEnvs, userId) => (pgEnvs || []).map(pgEnv => ({ pgEnv, source_id: 5, name: 'ext', userId })),
-  stripSiteGrants: async (app, userId) => {
-    const { rows } = await db.query('SELECT group_name FROM users_in_groups uig INNER JOIN users u ON u.email = uig.user_email WHERE u.id = $1', [userId]);
-    calls.push({ app, userId, groupsAtStrip: rows.map(r => r.group_name) });
+  listSiteGrants: async (app, who) => ({ grants: [{ id: 100, type: 'docs|page', app, who }], skipped: [] }),
+  listExternalGrants: async (pgEnvs, who) => (pgEnvs || []).map(pgEnv => ({ pgEnv, source_id: 5, name: 'ext', who })),
+  stripSiteGrants: async (app, who) => {
+    const { rows } = who.users != null
+      ? await db.query('SELECT group_name FROM users_in_groups uig INNER JOIN users u ON u.email = uig.user_email WHERE u.id = $1', [who.users])
+      : await db.query('SELECT project_name AS group_name FROM groups_in_projects WHERE group_name = $1', [who.groups]);
+    calls.push({ app, who, userId: who.users, groupsAtStrip: rows.map(r => r.group_name) });
+    return { written: [{ id: 100 }], skipped: [] };
   },
 };
 const ctx = { subdomain: '', authGrants: createAuthGrants({ loadPatternRows: async (app) => ROWS[app] || [] }), siteGrants };

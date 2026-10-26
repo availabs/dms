@@ -357,9 +357,11 @@ async function run() {
   });
   ok('remove group from project succeeds', removeFromProj.message?.includes('removed'));
 
-  // Delete group (should fully delete since it's no longer in any project)
+  // A group in no project belongs to no site: deleting it is platform-only (avail_auth ≥ 5; task
+  // permissions-auth-groups). It used to be deletable by anyone signed in. A site's own delete
+  // (unlink, then delete once unused) is covered in test-auth-groups.js.
   const deleteGroup = await post('/group/delete', { token: adminToken, name: 'Editors' });
-  ok('delete group succeeds', typeof deleteGroup.message === 'string');
+  ok('delete a group in no project is platform-only', deleteGroup.error?.includes('platform only'));
 
   // Cannot create group at auth level > own (10)
   const createHighAuth = await post('/group/create/project/assign', {

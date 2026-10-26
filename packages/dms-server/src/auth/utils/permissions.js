@@ -142,7 +142,7 @@ function canManageGroup(user, groupName, scope) {
 
 /**
  * Transition-mode authority for a handler (task permissions-auth-users-and-signup): `byPermission` when the
- * caller holds `perm` on the named auth row AND belongs to its project (so a token from another project
+ * caller holds `perm` (or any of a list) on the named auth row AND belongs to its project (so a token from another project
  * can't use an open row), `byLevel` when today's level threshold passes. Handlers check the permission
  * path first and fall back to the level path with today's level checks.
  * @returns {{ user, authLevel, scope, project, byPermission: boolean, byLevel: boolean }}
@@ -153,7 +153,7 @@ async function authority(authDb, userData, { project, app, authPatternId } = {},
   const { user, authLevel, scope } = await authScope(authDb, userData, { project: proj, app, authPatternId }, ctx);
   return {
     user, authLevel, scope, project: proj,
-    byPermission: user.groups.length > 0 && can(user, perm, scope),
+    byPermission: user.groups.length > 0 && [].concat(perm).some(p => can(user, p, scope)),
     byLevel: authLevel >= minLevel,
   };
 }
@@ -176,8 +176,50 @@ async function canManageGroupIn(authDb, user, groupName, scope) {
   return canManageGroup(user, groupName, scope);
 }
 
+// ---- Today's level rules, for the transition fallback (removed with levels, task permissions-remove-auth-levels)
+
+/** Level rule: the caller's level ≥ the group's in every project the group belongs to. */
+async function levelCoversGroup(db, requestingEmail, group_name) {
+  const { rows: links } = await db.query(
+    'SELECT project_name, auth_level FROM groups_in_projects WHERE group_name = $1',
+    [group_name]
+  );
+  const myAuth = await levelsByProject(db, requestingEmail);
+  return links.every(({ project_name, auth_level }) =>
+    myAuth[project_name] && myAuth[project_name] >= auth_level);
+}
+
+/** Level rule: the caller's level ≥ the target's in every project the target belongs to. */
+async function levelOutranks(db, requestingEmail, targetEmail) {
+  const { rows: targetProjects } = await db.query(
+    `SELECT project_name, auth_level
+     FROM users_in_groups AS uig
+     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+     WHERE uig.user_email = $1`,
+    [targetEmail]
+  );
+  const myAuth = await levelsByProject(db, requestingEmail);
+  return targetProjects.every(({ project_name, auth_level }) =>
+    myAuth[project_name] && myAuth[project_name] >= auth_level);
+}
+
+async function levelsByProject(db, email) {
+  const { rows } = await db.query(
+    `SELECT project_name, auth_level
+     FROM users_in_groups AS uig
+     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+     WHERE uig.user_email = $1`,
+    [email]
+  );
+  const myAuth = {};
+  for (const { project_name, auth_level } of rows) {
+    myAuth[project_name] = Math.max(myAuth[project_name] || 0, auth_level);
+  }
+  return myAuth;
+}
+
 module.exports = {
   AUTH_USERS, AUTH_GROUPS, VIEW_AS, PROTECTED_PERMISSIONS,
   createAuthGrants, authScope, authUser, can, canOrLevel, canManageGroup, isProtectedGroup, hasGrants,
-  authority, groupProjects, canManageGroupIn,
+  authority, groupProjects, canManageGroupIn, levelCoversGroup, levelOutranks,
 };
