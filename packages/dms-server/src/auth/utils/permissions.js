@@ -176,6 +176,27 @@ async function canManageGroupIn(authDb, user, groupName, scope) {
   return canManageGroup(user, groupName, scope);
 }
 
+// ---- Platform admin (task permissions-auth-platform-admin, owner 2026-10-24: membership in `AVAIL`)
+
+const PLATFORM_GROUP = 'AVAIL';
+
+/** Whether `email` belongs to the platform group, by name (no project, no level). */
+async function isPlatformAdmin(authDb, email) {
+  const { rows } = await authDb.query(
+    'SELECT count(1) AS count FROM users_in_groups WHERE group_name = $1 AND user_email = $2',
+    [PLATFORM_GROUP, String(email || '').toLowerCase()]);
+  return +(rows[0]?.count || 0) > 0;
+}
+
+/**
+ * Transition mode for operations on the auth DB as a whole: `AVAIL` membership, or today's level in the
+ * global `avail_auth` project (until levels are removed, task permissions-remove-auth-levels).
+ */
+async function platformAuthority(authDb, email, minLevel) {
+  if (await isPlatformAdmin(authDb, email)) return true;
+  return (await q.getUserAuthLevel(authDb, email, 'avail_auth')) >= minLevel;
+}
+
 // ---- Today's level rules, for the transition fallback (removed with levels, task permissions-remove-auth-levels)
 
 /** Level rule: the caller's level ≥ the group's in every project the group belongs to. */
@@ -222,4 +243,5 @@ module.exports = {
   AUTH_USERS, AUTH_GROUPS, VIEW_AS, PROTECTED_PERMISSIONS,
   createAuthGrants, authScope, authUser, can, canOrLevel, canManageGroup, isProtectedGroup, hasGrants,
   authority, groupProjects, canManageGroupIn, levelCoversGroup, levelOutranks,
+  PLATFORM_GROUP, isPlatformAdmin, platformAuthority,
 };

@@ -7,7 +7,7 @@ const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const { hashPassword } = require('../utils/crypto');
 const {
-  AUTH_USERS, authority, canManageGroupIn, groupProjects, levelCoversGroup, levelOutranks,
+  AUTH_USERS, authority, canManageGroupIn, groupProjects, levelCoversGroup, levelOutranks, platformAuthority,
 } = require('../utils/permissions');
 
 // Task permissions-auth-users-and-signup: each check runs in transition form, `auth-users` on the
@@ -285,12 +285,11 @@ async function removeFromProject(db, body, ctx = {}) {
   return { ...plan, message: `Removed ${user_email} from ${a.project}.` };
 }
 
-/** POST /user/create/fake — create test user (avail_auth auth 10 only) */
+/** POST /user/create/fake — create test user (platform admin: AVAIL member, or avail_auth level 10) */
 async function createFake(db, { token }) {
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, 'avail_auth');
 
-  if (authLevel < 10) throw new Error('You do not have the authority to create fake users.');
+  if (!(await platformAuthority(db, userData.email, 10))) throw new Error('You do not have the authority to create fake users.');
 
   const { rows: fakeUsers } = await db.query(
     "SELECT email FROM users WHERE email LIKE 'fake.user.%@fake.email.com'"

@@ -15,7 +15,7 @@ const {
 } = require('../utils/crypto');
 const q = require('../utils/queries');
 const { sendEmail, buildEmailHtml } = require('../utils/email');
-const { AUTH_USERS, authority, canManageGroupIn } = require('../utils/permissions');
+const { AUTH_USERS, authority, canManageGroupIn, platformAuthority, groupProjects } = require('../utils/permissions');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -375,12 +375,11 @@ async function passwordSet(db, { token, password }) {
   return { token: newToken, message: 'Your password has been set.' };
 }
 
-/** POST /password/force — admin forces a user's password */
+/** POST /password/force — a platform admin (AVAIL member, or avail_auth level 10) sets a user's password */
 async function passwordForce(db, { token, userEmail, password }) {
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, 'avail_auth');
 
-  if (authLevel < 10) throw new Error('You do not have the authority to set the password for other users.');
+  if (!(await platformAuthority(db, userData.email, 10))) throw new Error('You do not have the authority to set the password for other users.');
 
   const passwordHash = hashPassword(password);
   await q.updateUserPassword(db, userEmail, passwordHash);
@@ -445,12 +444,20 @@ async function passwordReset(db, { email, project_name, url, emailTheme = {} }) 
   return { message: 'Your password has been reset. You should receive an email shortly.', password: newPassword, token: newToken };
 }
 
-/** POST /create/user — admin creates a user */
+/**
+ * POST /create/user — a platform admin (AVAIL member, or avail_auth level 10) creates a user in a group. The
+ * group must exist, and belong to `project` when one is named (it used to take any name, existing or not).
+ */
 async function createUser(db, { token, email, password, project, group }) {
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, 'avail_auth');
 
-  if (authLevel < 10) throw new Error('You do not have the authority to create users.');
+  if (!(await platformAuthority(db, userData.email, 10))) throw new Error('You do not have the authority to create users.');
+  if (!group) throw new Error('A group is required.');
+  const { rows: [g] } = await db.query('SELECT count(1) AS count FROM groups WHERE name = $1', [group]);
+  if (!+(g?.count || 0)) throw new Error(`Group "${group}" does not exist.`);
+  if (project && !(await groupProjects(db, group)).includes(project)) {
+    throw new Error(`Group "${group}" is not in project ${project}.`);
+  }
 
   email = email.toLowerCase();
   const passwordHash = hashPassword(password);

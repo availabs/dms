@@ -7,6 +7,7 @@ const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const {
   AUTH_GROUPS, AUTH_USERS, authority, can, canManageGroup, canManageGroupIn, groupProjects, levelCoversGroup,
+  platformAuthority,
 } = require('../utils/permissions');
 
 // Task permissions-auth-groups: each check in transition form, `auth-groups` on the auth row the
@@ -166,12 +167,11 @@ async function groupsForProject(db, body, ctx) {
   return { groups: [{ name: 'public' }, ...visible] };
 }
 
-/** POST /group/create — create group (auth ≥ 5 in avail_auth) */
+/** POST /group/create — create a group in no project (platform admin: AVAIL member, or avail_auth level 5) */
 async function createGroup(db, { token, name, meta }) {
   const userData = await verifyAndGetUserData(db, token);
-  const authLevel = await q.getUserAuthLevel(db, userData.email, 'avail_auth');
 
-  if (authLevel < 5) throw new Error('You do not have the required authority level to create groups.');
+  if (!(await platformAuthority(db, userData.email, 5))) throw new Error('You do not have the required authority level to create groups.');
 
   await q.createGroup(db, name, meta, userData.email);
   return { message: `Group ${name} was successfully created.` };
@@ -224,12 +224,12 @@ async function deleteGroup(db, body, ctx = {}) {
     return groupLeavesSite(db, ctx, { app: a.project, groupName: name, actor, deleteIfLast: true, dryRun, pgEnvs });
   }
 
-  // A group no project uses belongs to no site: platform only (as /group/create; AVAIL membership in
-  // task permissions-auth-platform-admin). It used to be deletable by anyone signed in.
+  // A group no project uses belongs to no site: platform only (as /group/create). It used to be deletable
+  // by anyone signed in.
   if (!(await groupProjects(db, name)).length) {
     const { rows: [g] } = await db.query('SELECT count(1) AS count FROM groups WHERE name = $1', [name]);
     if (!+(g?.count || 0)) throw new Error(`Group "${name}" does not exist.`);
-    if (await q.getUserAuthLevel(db, userData.email, 'avail_auth') < 5) {
+    if (!(await platformAuthority(db, userData.email, 5))) {
       throw new Error(`You do not have the authority to delete group ${name}: it is in no project (platform only).`);
     }
     if (dryRun) return { group_name: name, projects: [], deletes: true };
@@ -342,17 +342,16 @@ async function adjustAuthLevel(db, { token, group_name, project_name, auth_level
   return `Successfully adjusted group ${group_name} authority level for project ${project_name} to ${auth_level}.`;
 }
 
-/** POST /group/meta/update — update group metadata (auth ≥ 5 in avail_auth) */
+/** POST /group/meta/update — update group metadata (auth-groups for a site's group; else platform admin) */
 async function updateGroup(db, body, ctx) {
   const { token, group_name, meta } = body;
   const userData = await verifyAndGetUserData(db, token);
-  // auth-groups on the calling site, for a group of that site (only its grants count, owner); or the
-  // platform level rule
+  // auth-groups on the calling site, for a group of that site (only its grants count, owner); or a
+  // platform admin (AVAIL member, or avail_auth level 5)
   const a = await groupsAuthority(db, userData, body, ctx, Infinity);
   const bySite = a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope);
-  const authLevel = bySite ? Infinity : await q.getUserAuthLevel(db, userData.email, 'avail_auth');
 
-  if (authLevel < 5) throw new Error('You do not have the required authority level to edit groups.');
+  if (!bySite && !(await platformAuthority(db, userData.email, 5))) throw new Error('You do not have the required authority level to edit groups.');
 
   // Merge with existing meta
   const { rows } = await db.query('SELECT meta FROM groups WHERE name = $1', [group_name]);
