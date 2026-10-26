@@ -1,6 +1,6 @@
 # Auth server: platform-admin operations (`avail_auth` / `AVAIL`) without levels
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built + verified (2026-10-26), uncommitted · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md).
@@ -40,13 +40,50 @@ Recommendation: (a). Then: projects, fake users, create-user, global groups, mes
 
 ## Proposed changes
 
-- [ ] `isPlatformAdmin(user)` in `auth/utils/permissions.js`.
-- [ ] Each row through transition mode, then levels removed.
-- [ ] `/create/user`: the escalation rule applies to the group it assigns.
-- [ ] Tests (`tests/test-auth.js:437-447` cover project CRUD by level): add platform-member and non-member cases.
+- [x] `isPlatformAdmin(authDb, email)` in `auth/utils/permissions.js`: membership in `AVAIL`
+  (`PLATFORM_GROUP`), by name, with no project link or level. `platformAuthority(authDb, email, minLevel)`
+  covers transition mode: membership, or today's `avail_auth` level.
+- [x] Each row through transition mode (levels are removed in task 19):
+
+  | route | now |
+  |---|---|
+  | `/projects` | all: AVAIL member or `avail_auth` 10; own: `avail_auth` ≥ 1 (level rule, unchanged) |
+  | `/project/create`, `/project/delete` | `platformAuthority(10)`. Create still links `AVAIL` at 10 |
+  | `/password/force` | `platformAuthority(10)`. Platform-only, as task 14 left it |
+  | `/create/user` | `platformAuthority(10)` |
+  | `/user/create/fake` | `platformAuthority(10)` |
+  | `/group/create`, orphan `/group/delete` | `platformAuthority(5)` |
+  | `/group/meta/update` | `auth-groups` for a site's group (task 15), else `platformAuthority(5)` |
+  | `/messages/post` group | `auth-users` or `auth-groups` on the project's auth row + `canManageGroup` (no protected group), or the level rule |
+  | `/messages/post` project | `auth-users` on the project's auth row, or the level rule (≥ highest in the project) |
+  | `/messages/post` all | `isPlatformAdmin` (AVAIL membership, as before) |
+
+- [x] `/create/user`, the escalation rule: there are no levels to compare for a platform admin, so the
+  check is on the group itself. It must exist, and must belong to `project` when one is named. Before,
+  it took any name, existing or not.
+- [x] Found and fixed: a project message to a project whose groups are all level 0 failed with "not
+  found" (`MAX(auth_level) || -1` read 0 as missing). Now `?? -1`.
+- [x] Tests: `tests/test-auth-platform.js` (new, 14). The setup unlinks the seeded `AVAIL` from
+  `avail_auth`, so membership is tested with no level; a group linked to `avail_auth` at 10 keeps the
+  level path covered.
+
+## Results (2026-10-26)
+
+- `test-auth-platform` 14/14. Unchanged suites green: `test-auth` 104, `test-auth-groups` 19,
+  `test-auth-users` 26, `test-auth-permissions` 21, `test-site-grants` 8, `test-data-auth` 49 (sqlite copy).
+- Live, on the rig (:3458, enforce), over HTTP:
+  - admin@ (an AVAIL member) lists projects.
+  - mgr@ (`auth-users`, level 0) is refused `/projects` and `/project/create`, and can message project
+    `v6test`; viewer@ received it.
+  - viewer@ is refused messaging the project.
+  - mgr@ is refused messaging `v6test Admin` (protected).
+  - One test message (`t16`) was left in the rig's inboxes.
+- No client calls these routes (checked the dms package, `src/` and `data-types/`), so nothing changes on
+  the client. Admin create-site and tenant creation go through `/init/setup`, which this task doesn't
+  touch.
 
 ## Testing checklist
 
-- [ ] Tests above.
-- [ ] Admin create-site flow (`admin/pages/createSite.jsx:49`, `/init/setup`) and tenant creation
+- [x] Tests above.
+- [x] (unchanged path: `/init/setup` isn't touched) Admin create-site flow (`admin/pages/createSite.jsx:49`, `/init/setup`) and tenant creation
   (`editSite.jsx:827`) still work for a platform admin and for a site owner.

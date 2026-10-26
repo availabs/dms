@@ -118,8 +118,13 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   link (`/group/project/assign`) open to auth-groups at level 0. The permission path never sets a level, adjust
   stays level-only (current-level hole fixed); a group in no project is platform-only to delete (was anyone).
   Tests `test-auth-groups` 19, `test-site-grants` 8, test-auth 104; live ✓ (task file Results).
-- Next: task 16 (decided: AVAIL membership), then 17 (Users / Groups / Profile pages); task 11 (blocked on a
-  decision) and 12.
+- **Task 16 built (2026-10-26, uncommitted):** platform operations by `AVAIL` membership (`isPlatformAdmin`,
+  `platformAuthority` = membership or today's `avail_auth` level); group / project messages by `auth-users` /
+  `auth-groups` on the project's auth row; `/create/user` checks the group exists and belongs to the
+  project; level-0 project message "not found" fixed. `test-auth-platform` 14; suites green; live ✓.
+- The user-menu group fix landed on master (2026-10-26, lib 254c996b): `rankUserGroups` + `PatternAuthContext`,
+  `getUserGroups` ORDER BY. Merge master into this branch before the e2e pass.
+- Next: 17 (Users / Groups / Profile pages); task 11 (blocked on a decision) and 12.
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
