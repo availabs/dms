@@ -124,7 +124,15 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   project; level-0 project message "not found" fixed. `test-auth-platform` 14; suites green; live ✓.
 - The user-menu group fix landed on master (2026-10-26, lib 254c996b): `rankUserGroups` + `PatternAuthContext`,
   `getUserGroups` ORDER BY. Merge master into this branch before the e2e pass.
-- Next: 17 (Users / Groups / Profile pages); task 11 (blocked on a decision) and 12.
+- **Task 17 built (2026-10-26, uncommitted):**
+  - Groups page: remove from site (dry-run plan dialog), and Add external group (searchable list, new
+    `/groups/linkable`).
+  - Users picker offers only `assignable` groups (new flag; `manageable` meant auth-groups). Table
+    options gain `selectable: false`.
+  - Profile shows the user's own groups.
+  - Page gate requires project membership, like the server.
+  - Mockups synced. Tests and live ✓ (task file Results).
+- Next: task 11 (blocked on a decision) and 12; then 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
