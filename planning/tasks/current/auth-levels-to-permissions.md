@@ -132,7 +132,16 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   - Profile shows the user's own groups.
   - Page gate requires project membership, like the server.
   - Mockups synced. Tests and live ✓ (task file Results).
-- Next: task 11 (blocked on a decision) and 12; then 18 (grant migration), 19 (level removal).
+- **Task 12 built (2026-10-26, uncommitted):** datasets reads behind `DMS_READ_AUTH_MODE` (default `log`):
+  - catalog, source / view metadata, data, color domain and tiles, judged by `view-source` or any
+    permission that implies it (`routes/uda/readAuth.js`);
+  - grant lists trimmed for non-editors under `enforce`; secret `statistics` keys dropped for
+    non-updaters;
+  - now_playing's webhook URL hidden from non-updaters.
+  `test-read-auth` 20; suites green; live ✓. Open (owner): tile requests carry no token; external
+  sources don't inherit their pattern on reads. **New sources are private, so read the would-deny log
+  before any site goes `enforce`.**
+- Next: task 11 (blocked on a decision); then 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
