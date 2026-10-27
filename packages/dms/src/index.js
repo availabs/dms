@@ -34,6 +34,15 @@ export { preloadSectionComponents } from './patterns/page/components/sections/co
 export { pageSectionTypes } from './api/preloadSectionData.js'
 export { applyCreateDefaults } from './patterns/page/components/sections/components/dataWrapper/getData'
 export { lexicalElementData, headingBodyLexicalState } from './ui/pageTemplates'
+// Lexical editor state → static HTML, with no editor instance and no browser. The read-only
+// path for anything that renders MANY rich-text values at once (the chat pattern's message
+// list: 50 messages a window, none of them editable in place). `LexicalView` mounts a real
+// editor per value, which is right for one section on a page and wrong for a list.
+export { getHtmlSync as lexicalToHtml } from './ui/components/lexical/ssr'
+// The editor itself, for a pattern that composes rich text outside a page section (the chat
+// composer). No bundle cost: `dmsColumnTypes` above already imports both statically, so they
+// are in the main graph either way.
+export { LexicalEdit, LexicalView } from './ui/components/lexical'
 export { AdminContext } from './patterns/admin/context'
 export { getSourceIdsBySlug } from './api/sourceIdBySlug'
 export { CHANGE_HISTORY_COLUMNS } from './patterns/datasets/utils/changeHistory'

@@ -114,6 +114,42 @@ rail or tab bar is for moving *within* it. Putting the same list in both shows i
 not nav items, and `navItems` is reserved for chat's own non-channel surfaces (a settings page, say)
 as they appear.
 
+## 4c. Reading data that changes under you
+
+A pattern that reads live data — anything that is not "load a page once and render it" — hits four
+traps that have nothing to do with pattern registration and everything to do with how the data layer
+is built. All four were found the hard way building the `chat` pattern; each looked like a different
+bug and all four are cheap once named.
+
+**1. Read the `get()` RESPONSE, never `falcor.getCache()`.** The browser's avl-falcor and the CLI's
+lightweight client disagree about the cache's shape, so `getCache()` code works headless and returns
+nothing in the browser (or the reverse). `res?.json?.dms?.…` is the shape they share, and it is what
+the library itself uses (`api/sourceIdBySlug.js`). This matters more than it sounds: a pattern's data
+module is usually the one piece you also want to run from a script or an importer.
+
+**2. Invalidate before any read whose answer can change.** Falcor caches by path, and "the newest 50
+messages", "the channels", "my memberships" are the *same path* before and after a write. A re-read
+therefore returns the answer to the same question asked a moment ago — the row is in the table and
+your UI swears it isn't. `await falcor.invalidate(path)` first, as `getSourceIdsBySlug` does, and for
+the same stated reason. Three separate "it didn't save" bugs in one pattern were this.
+
+**3. A windowed read pads short ranges.** Asking for indices 0–49 of a 40-row view returns 40 rows
+**and ten empty placeholders**. Drop rows with no id. Invisible against a large view, obvious against
+a small one — so it survives every test written against seeded data.
+
+**4. Live updates: the broadcast is a trigger, not a payload.**
+- Split-row (`:data`) changes arrive with `dataOmitted: true` and no `data` (`ws.js`'s
+  `stripSplitRowData`), so re-read rather than appending what arrived.
+- A client holding ANY pattern subscription receives only matching types, and `sync-manager`
+  subscribes for the patterns *it* loaded — not yours. Send your own `{type:'subscribe', app,
+  pattern}` frames on the shared socket; the server keeps a set, so you add rather than replace.
+- `globalThis.__dmsSyncAPI` is published *after* `initSync` resolves, which is later than your first
+  effect. Wait for it; don't read it once and give up (a hook that bails is silently dead forever).
+- `/sync/delta` excludes `:data` types, so a missed broadcast is missed for good. Re-read on
+  reconnect and on tab-visible — a correctness requirement for that data, not an optimisation.
+
+Worked example for all four: `src/patterns/chat/{messages.js,channels.js,useLiveTail.js}`.
+
 ## 5. Shipping page section types (optional)
 
 `pageComponents` entries are ordinary section registry entries
@@ -169,6 +205,10 @@ For a type that has more to do than route and render. All of these are optional,
   `ThemeContext` value to `getComponentTheme` instead of its `.theme` (§4).
 - **An icon renders nothing** → the name isn't in the host brand's set. Icon names belong in your
   component's theme file, with library-set defaults (§4).
+- **A write lands but the UI shows the old value** → a cached falcor read; invalidate first (§4c.2).
+- **A live feature works alone and not with a second tab open** → the cache again, or your types are
+  not in any WebSocket subscription (§4c.2, §4c.4).
+- **Rows appear dated 1970 at the top of a list** → placeholder rows from a short window (§4c.3).
 
 - **The pattern_type string is data.** Existing rows keep whatever `pattern_type` they were created with.
   Register under that exact name.
