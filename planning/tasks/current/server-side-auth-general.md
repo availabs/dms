@@ -846,11 +846,16 @@ switch, so that adding a pattern adds no branch.
 | *"changing `authPermissions` needs `edit-page-permissions`"*, `SITE_KEYS`, `isPublish(k)` — **which verb governs which field** | the pattern's **format**, beside the `permissionDomain` that already declares its vocabulary. |
 | *"an unknown kind means signed-in is enough"* | nowhere — it is a **default that should not exist**. |
 
-**Feasibility is already there.** `permissionDomain` is declared per attribute in `page.format.js`
-and `datasets.format.js` — the vocabulary is data today, it is simply read only by the Access editor
-UI. And formats are **rows in the `formats` table** keyed by `app+type`, which the server already
-reads (`dms.controller.js` `getFormat`). So a pattern can declare its own auth rules and the server
-can aggregate them with no new storage and no new transport.
+**Correction (2026-10-27): formats are NOT data today.** The `formats` table and the server's
+`getFormat` read path both exist, but **nothing writes the table and the client never reads it** — at
+runtime a pattern's format comes from `import cmsFormat from "./page.format.js"` in `siteConfig.jsx`.
+It is client code in the bundle; the table is vestigial. `permissionDomain` is therefore declared as
+data *in source*, read only by the Access editor UI, and never reaches the server.
+
+So "patterns declare auth rules in the format and the server aggregates them" is **not free today**.
+Making it true means populating the table and guarding it (a pattern must not be able to rewrite its
+own auth rules) — worthwhile, but its own piece of work. It must not block this one. See the verb
+model below, which is deliberately designed to need none of it.
 
 ### Revised position on the verb collapse
 
@@ -882,6 +887,366 @@ whose *application* is hand-wired per type is not.**
 - Whether the aggregate is computed per request (cached) or at pattern-registration time.
 - How a pattern declares parentage for rows whose type path points the wrong way — chat's messages
   reach the source, not the channel (see "Does it fit chat?").
+
+## The server's verbs: five, structural, never extended (decided 2026-10-27)
+
+### The question this answers
+
+Not "how big should the vocabulary be" but **"who decides which verb a request requires?"** Three
+possibilities, and only one is both safe and registration-free:
+
+| Source | Verdict |
+|---|---|
+| the **request** names it | unsafe — a client that picks its own check picks the weakest one |
+| the **server** derives it from the row's type | safe, but that is per-type knowledge: a server registry and a deploy per pattern |
+| the **server** derives it **structurally**, from what the request physically does | safe, and needs no type knowledge at all |
+
+This — not tidiness — is the real justification for a small server vocabulary. The server may only be
+trusted with a verb it can identify from the operation itself.
+
+### The five
+
+| Verb | The server knows it applies because | Earns its place because |
+|---|---|---|
+| `read` | the request returns row data | — |
+| `create` | a create route, with no row yet | **it resolves against a different row** — the parent, not the row |
+| `edit` | the request modifies an existing row | — |
+| `delete` | a delete route | deleting a **parent** has consequences for children that editing never has |
+| `grant` | the write touches the `auth` column | without it, `edit` on a row is `edit` of its own grants — escalation |
+
+All five are facts about the operation (`dms.data.create` / `edit` / `delete` are separate routes;
+sync push carries `I`/`U`/`D`; "did this payload name the auth column" is inspectable), true for
+every row of every pattern forever. **Nothing else qualifies.** `publish-page`, `download-source`,
+`view-as` and any pattern's own verbs cannot be identified without knowing the type — publishing is
+structurally just an edit — so they stay client-side.
+
+### Consequences
+
+- **Patterns are never registered on the server.** Client-side changes extend the *pattern*
+  vocabulary freely and the server's set never moves.
+- **No `IMPLIES` table on the server.** The bridge is written at grant time by the client, which
+  knows its own vocabulary: granting `edit-page` stores the pattern verb *and* the structural verbs
+  that pattern intends. The server checks `edit` and knows nothing; the client checks `edit-page`.
+  `IMPLIES` survives only as each pattern's own expansion map, which is where pattern knowledge
+  belongs.
+- **Retracts the chat container-row workaround.** "Members may post but not administer" was solved by
+  splitting grants across the view row and the channel row, costing `createChannel` two grants to
+  keep in step. With `create` as a verb it is one row: members get `create`, admins get `edit`. The
+  two-row dance goes. (See "Does it fit chat?" — the finding that messages must reach their channel
+  still stands; only the post/administer half is superseded.)
+- **`delete` is split now, not later.** Fold it into `edit` and split afterwards and everyone holding
+  `edit` loses delete until a backfill; split now and merge later and nobody loses anything. Starting
+  fine is the recoverable error.
+
+### The cost, stated plainly
+
+**Field-level enforcement is given up.** The branch enforces "changing `sections` needs
+`publish-page`" on the server; here that is an `edit`, and the distinction lives only in the UI.
+Field-level rules require the server to know which fields matter — per-type knowledge, the thing this
+design refuses. If it becomes necessary the path is making formats genuinely data (above), **not**
+adding verbs.
+
+## Grants have a scope: `self` vs `descendants` (decided 2026-10-27)
+
+Owner, reading the `implies` sketch: `permissionDomain` entries are named for a *relationship*
+("View Page", "Edit Page") and live on the **pattern**, but the server knows nothing about pages
+under patterns — only that a row's descendants inherit its grants. That felt like a mismatch, and it
+is a real gap.
+
+**The problem.** Grant `edit-page` on the pattern row, expand it to `['read','edit']`, and plain
+chain inheritance puts that grant *on the pattern row* — so it governs the pattern row as well as
+everything beneath it. But "Edit Page Content" was never meant to confer editing the pattern row;
+that is `edit-pattern`. The same structural verb does two different jobs depending on which row it
+lands on. This is the same conflation as chat's post-vs-administer, and it is more general than
+either of the two workarounds previously recorded here.
+
+**The fix is a missing axis, not a different mechanism.** A grant carries a scope:
+
+```js
+{ value: 'edit-pattern',          implies: { self:        ['edit'] } },
+{ value: 'edit-page',             implies: { descendants: ['edit'] } },
+{ value: 'create-page',           implies: { descendants: ['create'] } },
+{ value: 'edit-page-permissions', implies: { descendants: ['grant'] } },
+{ value: 'view-page',             implies: { descendants: ['read'] } },
+{ value: 'download-source',       implies: {} },                      // UI only
+```
+
+The distinction has been in the vocabulary all along, carried by the noun: `-pattern` verbs are
+**self**, `-page` verbs are **descendants**. That is why the names read as if they meant something
+the server could not see — they did.
+
+**Resolution.** A row's effective auth is the merge of every ancestor's `descendants` block, then the
+row's own `self` block on top. The server still knows nothing about types: it knows two scopes, *mine*
+and *below me*. Narrowing is unchanged — a child's `self` clamps against its ancestors'
+`descendants`.
+
+**The split is OPT-IN (revised 2026-10-27).** A flat auth object means *"me and everything below
+me"*, so the common case carries no scope keys at all:
+
+```js
+auth: { otherwise: [], groups: { Editors: ['read','edit'] } }        // a private page
+```
+
+`self` / `descendants` appear only on a row that delegates differently than it governs itself — a
+pattern, a chat channel. Resolver cost is two lines: `handsDown(r) = r.descendants ?? r`,
+`governsSelf(r) = r.self ?? (r.descendants ? {} : r)`.
+
+**Why keep it available at all**, given most rows never use it: without the split, granting "Edit Page
+Content" on a pattern also confers editing the **pattern row** — renaming it, changing its theme, and
+changing its `base_url` / `subdomain`, which is routing and can break or hijack a site. `grant` and
+`delete` being separate verbs does not help; this is plain `edit`. Corroboration from the other
+direction: `permissions_move` independently added `edit-source-data`, defined as "row
+create/edit/delete, **separate from `update-source` = metadata`" — self versus descendants, solved
+there by adding a verb rather than a scope.
+
+**`*` semantics** (verified): expands to all five structural verbs including `grant` and `delete`,
+flows to descendants, is scoped like any other grant, and **cannot escalate past an ancestor** — a
+child granting `['*']` under a parent that gave only `read` still yields `read`. It stays literal in
+the data and expands at *resolve* time, not on save, so a future sixth verb is picked up by existing
+`*` grants automatically.
+
+Declaration shape — scope stated once per bucket, not tagged per entry:
+
+```js
+permissionDomain: {
+  self: [
+    { label: 'Edit Pattern',             value: 'edit-pattern',             implies: ['edit'] },
+    { label: 'Edit Pattern Permissions', value: 'edit-pattern-permissions', implies: ['grant'] },
+  ],
+  descendants: [
+    { label: 'View Page',             value: 'view-page',             implies: ['read'] },
+    { label: 'Edit Page Content',     value: 'edit-page',             implies: ['edit'] },
+    { label: 'Create Page',           value: 'create-page',           implies: ['create'] },
+    { label: 'Edit Page Permissions', value: 'edit-page-permissions', implies: ['grant'] },
+    { label: 'Publish Page',          value: 'publish-page' },          // no implies = UI only
+  ],
+}
+```
+
+**Verified** (`scratchpad/auth-as-data/` — `scoped.cjs`, `deep.cjs` for three levels, `optional.cjs`
+for flat-by-default and `*`; all pass):
+
+| Case | Result |
+|---|---|
+| `edit-page` on the pattern → editor may edit a page | allow |
+| same grant → editor may edit the **pattern row** | **deny** |
+| `edit-pattern` self-scoped → admin edits the pattern row | allow |
+| …and does not thereby inherit page edit | deny |
+| chat on **one** row: member may post (`descendants: create`) | allow |
+| …may not administer the channel (`self: edit`) | deny |
+| a page trying to grant itself `grant` past the pattern's ceiling | deny |
+| **3 levels** — `edit-page` on the pattern reaches a **section** | allow |
+| a page narrowing its own sections mid-chain | section read-only, page still editable |
+| a private page's restriction reaching its sections | deny to outsiders |
+| flat auth (no scope keys) governing self **and** descendants | allow both |
+| `*` in a child escalating past an ancestor's `['read']` | **deny** |
+
+**Supersedes two earlier decisions in this document:**
+
+- The **container-row workaround** for chat (grants split across the view row and the channel row) is
+  retired. One row carries both: `self` for administration, `descendants` for posting.
+- The justification for `create` as a *structural verb* is weakened — scope alone separates posting
+  from administering. `create` stays, because it still answers a different question (it resolves
+  against the parent, since the row does not exist yet), but it is no longer load-bearing for chat.
+
+## Direction settled: build on `permissions_move`, strict defaults (2026-10-27)
+
+**Build off the `permissions_move` branch.** Keep its route coverage, rollout modes, tests and audit
+script. Replace **kind-based enforcement** (`dataAuth.js` `judge()`, 317 of ~4,400 implementation
+lines) with **parent/child row-based enforcement**. Everything guarding non-row surfaces — external
+sources in pgEnv databases, the auth server's user/group endpoints, route operations like upload and
+schedule — stays untouched; a chain resolver has nothing to say about any of it.
+
+### Row-based enforcement implies strict defaults
+
+The branch's lenient rule (hub design question 6, 2026-10-23) was motivated explicitly by *"we don't
+want to reject a request because there are no permissions set."* Under kind-dispatch that is a forced
+choice: a row with no grants has nothing to consult, so you either deny and lock people out of apps
+that never configured anything, or you allow.
+
+**Inheritance dissolves the dilemma rather than overriding it.** A row with no grants of its own is
+not blank — it is governed by its pattern and its site. "Nothing is set" stops being the common case
+and becomes the rare one, so the reason for leniency goes away. Read in hindsight, lenient was a
+transition accommodation for unmigrated data, not a philosophical position — and the branch already
+leans strict where it can (new sources are seeded `creator: '*'`, `public: []`, explicitly private at
+creation).
+
+**Strict, stated precisely:**
+
+- `create` / `edit` / `delete` / `grant` **require a grant**. No "unconfigured ⇒ a signed-in user may".
+- A **blank chain is readable**. Strict-as-deny-everything would lock out whoever must set the first
+  grant; rule 5 (empty is not denial) covers this.
+- **`${app} Admin` always passes** — the bootstrap escape, kept from both designs.
+- **The anon rule is unchanged** from the branch: anonymous callers pass only where `public`
+  explicitly holds the permission. Already strict, and it composes with inheritance.
+
+**This does not change the rollout.** Existing grants were written for two-level, kind-dispatch,
+lenient semantics, so enforcement still goes `legacy → log → enforce` per surface, and
+[permissions-grant-migration.md](./permissions-grant-migration.md) still has to grant people the
+access they hold today before anything flips. Strict is the destination; the modes are the road.
+
+**Closes** the one conflict this document flagged as needing a person: strict vs lenient defaults.
+
+## One decision function for dms, uda and sync (owner requirement, 2026-10-27)
+
+**All reads and edits across dms, uda and sync go through the same function.** This is not how any of
+it is engineered now.
+
+### Where decisions are made today
+
+| Surface | Reads | Writes |
+|---|---|---|
+| dms rows | `dms.route.js` — 7 inline `isUserAuthed` calls, pattern ⊕ page merged inline, 2 kinds | `dataAuth.js` `judge()` (branch) — 11 kinds |
+| uda / sources | `uda/readAuth.js` (branch) | `uda/sourceAuth.js` — 7 call sites |
+| auth rows | `auth/utils/permissions.js` (branch) | same |
+| sync | **nothing** | `/sync/push` → `dataAuth.js` |
+| websocket | **nothing** | n/a |
+
+Five independent implementations post-merge, sharing only the `isUserAuthed` primitive — which
+decides set membership, not *what governs what*. Nothing structurally keeps them in agreement.
+
+### The target
+
+Two functions, split by purity:
+
+```
+resolve(rows)            → merged auth per row    // the only part that touches a database
+can(merged, user, verb)  → boolean                // pure
+```
+
+Every call site becomes the same two lines:
+
+| Call site | Becomes |
+|---|---|
+| dms read | resolve → `can(read)`, else the `no-access` stub |
+| dms write | resolve → `can(edit \| create \| delete \| grant)` |
+| uda read / write | resolve → `can(read)` / `can(edit)` |
+| sync bootstrap, delta | resolve the **set** (one recursive CTE) → filter on `can(read)` |
+| sync push | resolve → `can(edit)` |
+| websocket | resolve once per broadcast → `can(read)` per recipient |
+
+### The caveat: ancestry is pluggable, semantics are not
+
+External sources live in **pgEnv databases, not `data_items`** — no `parent_id`, no chain to walk.
+`decideSource` derives their ancestry from the client-named datasets pattern. So `resolve` cannot be
+one literal implementation across every store.
+
+The honest requirement is **one merge, one check, N ancestry providers**. Universal: the merge rules,
+the five verbs, narrowing, `otherwise`, `self`/`descendants`. Varying: how a row's ancestors are
+discovered — `parent_id` for `data_items`, the owning datasets pattern for external sources. That
+keeps the part that matters shared (two surfaces can never disagree about what a grant *means*)
+without pretending pgEnv rows have parentage they do not.
+
+### Why kind-dispatch forecloses this
+
+`judge()`'s switch is over `data_items` kinds; UDA's surface has different ones; sync has no kinds at
+the read layer at all. **A type-keyed rule cannot be shared across surfaces that do not share types**
+— which is precisely why there are five implementations instead of one. Type-free rules are what make
+consolidation possible, not merely tidier.
+
+## Running on unmigrated schema (owner, 2026-10-27)
+
+**The code runs on unmigrated schema, and where it cannot resolve the right information it behaves
+as it does today.** Not all parents will be derivable before the data migration. `data.authPermissions`
+is coalesced with the `auth` column wherever the column is absent or null.
+
+### Legacy data already means what flat means
+
+Today a pattern's `data.authPermissions` does double duty: `patternCan` uses it to decide
+`edit-pattern` (**self**), and `dms.route.js:83` merges that same object with the page's to govern
+pages (**descendants**). One object, both roles. So coalescing it into a flat `auth` value
+**reinterprets nothing** — flat already meant "me and everything below me" before this design named
+it. The `self`/`descendants` split only appears where an author opts in.
+
+### Truncation widens; it never wrongly restricts
+
+An unresolvable parent yields a **shorter chain, not a failure**. Because ancestors only narrow, a
+truncated chain can only be more permissive — the safe direction to fail during a migration, and the
+same reasoning as the cycle rule.
+
+**The cost, which must be written down rather than discovered:** a row that is private *only by
+inheritance* becomes readable when its parent cannot be resolved. A page relying on its pattern's
+`otherwise: []`, with `parent_id` null and an unresolvable type path, opens up.
+
+**So: parent-resolution coverage gates the `enforce` flip.** Before a surface moves from `log` to
+`enforce` for an app, every row in it must resolve its parentage.
+[permissions-access-diff.js](../../../packages/dms-server/src/scripts/permissions-access-diff.js) is
+already shaped to check this — it exists to diff access per app before each switch. In `log` mode
+nothing is enforced, so the exposure only matters at the moment of the flip, which is where the gate
+sits.
+
+### Fallback matrix
+
+| Condition | Behaviour |
+|---|---|
+| no `auth` column | read `data.authPermissions` — one capability probe per process, memoized like `hasChangeLog()` |
+| `auth` column present, row's value null | coalesce to `data.authPermissions` |
+| legacy value (flat) | flat = self + descendants — today's semantics exactly |
+| no `parent_id` column | derive from the type path (`{parent}\|{instance}:{kind}`) |
+| `parent_id` null, type path resolves | use it |
+| **parent unresolvable** | **chain starts at this row** — its own grants decide; empty means today's default for that surface |
+| cycle, or depth > 16 | truncate, resolve against the partial chain, log |
+
+Two query shapes (column present / absent), chosen once per process from the memoized probe — never
+per request.
+
+## Where `implies` is applied: the pattern row, at resolve time (decided 2026-10-27)
+
+A pattern declares `edit-page → ['edit']`. Something must apply that map, turning a human-meaningful
+grant into the structural verbs the server checks. Two candidates: **at write time** (the Access
+editor expands on save, storing `['edit-page','read','edit']`; the server does pure set membership)
+or **at resolve time** (storage keeps `['edit-page']`; the server applies the map).
+
+### Why this is not a toss-up
+
+Grants are written in at least six places: the Access editor, the CLI, site seeding
+(`createSite.jsx`), tenant provisioning, pattern creation hooks (`beforeCreate` / `afterCreate` — what
+seeds a new source `creator: '*'`, `public: []`), and **the grant migration**
+([permissions-grant-migration.md](./permissions-grant-migration.md)), which writes grants in bulk,
+server-side.
+
+Write-time expansion needs the map in all six. Two run on the server — and **`dms-server` has no
+dependency on `packages/dms`** (checked: its `package.json` lists no such dependency), so client code
+is not importable server-side. The migration would therefore write grants conferring **nothing** — a
+silent, total failure of the one job it exists to do.
+
+Resolve-time expansion needs the map in **zero writers and one reader**.
+
+Write-time has two lesser faults as well: stored expansions go stale when a pattern changes its map,
+and a grant written by hand or by script confers nothing (fails closed — safe, but reads as a bug).
+
+### Decided: the vocabulary lives on the pattern row
+
+The pattern's auth vocabulary goes in the pattern row's own `data`, published by the client that
+registered the pattern. **The server already loads pattern rows per request and memoizes them**
+(`getPatternAuthPermissions`, `patternAuthCache` in `dms.route.js`), so the read costs nothing new.
+
+```js
+// on the pattern row
+authVocabulary: {
+  self:        { 'edit-pattern': ['edit'], 'edit-pattern-permissions': ['grant'] },
+  descendants: { 'view-page': ['read'], 'edit-page': ['edit'],
+                 'create-page': ['create'], 'edit-page-permissions': ['grant'],
+                 'publish-page': [] },          // declared, confers nothing server-side
+}
+```
+
+Satisfies the principle — the server reads data and knows no types — **without needing the `formats`
+table populated**. Far smaller than "make formats real data", and it reuses a row already in hand.
+
+### Three rules this carries
+
+1. **Writing `authVocabulary` requires `grant` on the pattern row.** Otherwise a client declares
+   `view-page → ['*']` and escalates. The same guard, applied to the declaration rather than the grant.
+2. **Which map applies to an inherited grant:** the one belonging to the pattern in the chain of **the
+   row being judged**, not the row the grant sits on. A site-level `view-page` grant therefore means
+   "read wherever `view-page` exists", interpreted per pattern.
+3. **An unknown verb maps to nothing.** A grant naming a verb the vocabulary does not declare confers
+   no structural access — same behaviour as a missing map. Fails closed.
+
+**Fallback if the pattern-row write proves blocked:** write-time expansion with the map duplicated
+server-side for the migration only. Avoid unless forced — two sources of truth for the thing most
+likely to be wrong.
 
 ## Plan (after the decisions)
 
