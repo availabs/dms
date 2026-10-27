@@ -139,6 +139,74 @@ const MyComponent = () => {
 
 This keeps Falcor as an implementation detail of the API layer, making components testable and ensuring data flows through a single well-understood path.
 
+## DMS Interprets Data — It Never Knows Types
+
+**The core library, client and server, must contain no knowledge of any specific type, format,
+pattern, or app.** It interprets data that describes those things. Customization lives in **patterns,
+components and themes**; when behaviour has to vary by type, that variation is *exported as data*
+from one of those three places and interpreted by the core. It never lands in the core itself.
+
+The test is deployment: **can a new pattern, type or app be added without editing anything under
+`packages/dms` or `packages/dms-server`?** If it cannot, the design is wrong — not inconvenient,
+wrong. A library `switch` on a type name is a deployment blocker wearing a readable face.
+
+### The registry is the model to copy
+
+`packages/dms/src/patterns/registry.js` already does this properly, and says so: patterns register
+metadata and *"the admin lists read the entries' metadata instead of hard-coding types"*. A pattern
+declares a **capability**; the core checks the capability, never the name:
+
+```js
+// RIGHT — the core asks what a pattern can do
+registry[type].providesDatasources        // → this type's rows are datasources
+registry[type].admin.duplicable           // → Duplicate is offered
+registry[type].pageComponents             // → section types it ships
+
+// WRONG — the core asks what a pattern is called
+pattern.pattern_type === 'datasets'
+switch (getKind(row.type)) { case 'page': ... }
+if (format.type === 'source') { ... }
+```
+
+Every `=== 'datasets'` is a missing capability flag. Reach for a new registry or format field before
+reaching for a name comparison.
+
+### Where the core still knows too much
+
+Current debt, so this reads as a standard and not an aspiration:
+
+| Location | Violation |
+|---|---|
+| `render/spa/utils/index.js` | seven `pattern_type === 'admin' / 'auth' / 'datasets'` checks in the router |
+| `utils/adminPermissions.js` | `permissionOptionsFor` switches on pattern type to pick a vocabulary |
+| `dms-server/routes/dms/dataAuth.js` | `judge()` — a `switch` over eleven row kinds, each with hand-written rules |
+| `dms-server/auth/utils/permissions.js` | auth-row rules keyed by type name |
+
+### Auth is the live case
+
+Authorization is where this matters most right now, because getting it wrong is silent. A hardcoded
+`judge()` means a pattern with new auth rules cannot be deployed without a library release, and — far
+worse — a kind nobody added a `case` for falls through to a default. **The default must be
+inheritance, never permission.** An unrecognised row resolves through its parent; it is never "signed
+in is enough", which silently opens every pattern the library has not been taught about.
+
+Two kinds of knowledge get hardcoded in auth, and each already has a data home:
+
+| Hardcoded | Belongs in |
+|---|---|
+| *"a page's grants merge with its pattern's"* — relationships between rows | the row's **parentage** (`parent_id`, falling back to the type path), reconstructed by walking it |
+| *"changing `authPermissions` needs `edit-page-permissions`"* — which verb governs which field | the pattern's **format**, beside the `permissionDomain` that already declares its vocabulary |
+
+Formats are rows in the `formats` table keyed by `app+type`, which the server already reads
+(`dms.controller.js` `getFormat`). So patterns can declare their own auth rules and the server can
+aggregate them across every registered pattern, with no new storage and no new transport. A judging
+function is then an **interpreter over that aggregate** — it gains no branch when a pattern is added.
+
+**Prefer rules that reconstruct over rules that enumerate.** Parent/child relationships plus per-row
+grants reproduce most of what per-kind cases spell out by hand, with one rule instead of eleven. A
+vocabulary larger than `read`/`edit` is fine; a vocabulary whose *application* is hand-wired per type
+is not.
+
 ## Task Management
 
 All **library** tasks are tracked in the `planning/` directory following a consistent workflow.

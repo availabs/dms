@@ -827,6 +827,62 @@ This is its own library task — a protocol change with consumers beyond chat. T
 exist on `/sync/bootstrap` and `/sync/delta`: those are HTTP and already have
 `req.availAuthContext.user` (`sync.js:518`), so the resolver drops straight in.
 
+## Reconciliation with `permissions_move` — auth rules must be data (2026-10-27)
+
+Owner, on reading `dataAuth.js`'s `judge()`: **it is unacceptable DMS code because it is
+unconfigurable.** Deploying a pattern with new auth rules requires editing a library `switch`. In DMS
+everything is data; auth has to be data too. Recorded as a standing rule in `src/dms/CLAUDE.md`
+("Auth Rules Are Data, Not Code").
+
+This does **not** reject the branch's approach — it constrains it. `judge()` may stay, provided its
+rules come from **pattern registration aggregated across patterns** rather than a hand-written
+switch, so that adding a pattern adds no branch.
+
+### What `judge()` hardcodes, and where each part already has a data home
+
+| Hardcoded today | Data home |
+|---|---|
+| *"a page's grants merge with its pattern's"*, *"a view belongs to a source"* — **relationships between rows** | **parentage** — `parent_id`, falling back to the type path. Walking it reconstructs these. |
+| *"changing `authPermissions` needs `edit-page-permissions`"*, `SITE_KEYS`, `isPublish(k)` — **which verb governs which field** | the pattern's **format**, beside the `permissionDomain` that already declares its vocabulary. |
+| *"an unknown kind means signed-in is enough"* | nowhere — it is a **default that should not exist**. |
+
+**Feasibility is already there.** `permissionDomain` is declared per attribute in `page.format.js`
+and `datasets.format.js` — the vocabulary is data today, it is simply read only by the Access editor
+UI. And formats are **rows in the `formats` table** keyed by `app+type`, which the server already
+reads (`dms.controller.js` `getFormat`). So a pattern can declare its own auth rules and the server
+can aggregate them with no new storage and no new transport.
+
+### Revised position on the verb collapse
+
+Owner: the collapse to `read`/`edit` was **not** the valuable part, and is partly the same mistake —
+it fixes the vocabulary in library code. **A larger server vocabulary is acceptable; a vocabulary
+whose *application* is hand-wired per type is not.**
+
+- **Drop "the server recognises exactly two verbs."** Patterns register their verbs, as they nearly do
+  already via `permissionDomain`, and the server honours what the aggregate declares.
+- **Keep `IMPLIES`, demoted.** No longer the model — a compatibility shim so a chain-resolved row
+  understands grants written in today's vocabulary. It belongs with the per-pattern declaration, not
+  as a server constant.
+- **Keep the field→verb mapping, but as format data**, not `SITE_KEYS` / `isPublish()` in a server
+  file. The branch's per-key judging is a real capability and should survive the move — `planEdit` is
+  worth keeping entirely; only its *rule source* changes.
+
+### The resulting shape
+
+1. **Parentage carries relationships** — one walk reconstructs what eleven cases spell out.
+2. **Formats carry field rules and vocabulary** — aggregated across registered patterns.
+3. **`judge()` becomes an interpreter** over (1) and (2), gaining no branch when a pattern is added.
+4. **The default is inheritance, never permission** — an unrecognised kind resolves through its
+   parent. The single most important correction to the branch, and the one chat needs.
+
+### Still to work out
+
+- The declaration format itself: what a pattern writes to say "this field needs this verb" and "my
+  rows parent to X". Should extend `permissionDomain`, not sit beside it.
+- Whether the aggregate is computed per request (cached) or at pattern-registration time.
+- How a pattern declares parentage for rows whose type path points the wrong way — chat's messages
+  reach the source, not the channel (see "Does it fit chat?").
+
 ## Plan (after the decisions)
 
 ### Phase A — the columns and the resolver
