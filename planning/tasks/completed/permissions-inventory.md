@@ -1,6 +1,6 @@
 # Permissions move, step 0: inventory of who holds levels and grants today
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](../current/auth-levels-to-permissions.md) (hub). Read-only. Every other task
 in the move uses its numbers; [permissions-access-diff-audit.md](../current/permissions-access-diff-audit.md) turns them into

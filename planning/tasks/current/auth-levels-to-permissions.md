@@ -1,6 +1,6 @@
 # Auth and datasets: replace auth levels with named permissions (hub)
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** doing · **Created by:** shaunak.sangdod@gmail.com · **Edited by:** ssangdod@albany.edu
 
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
@@ -144,6 +144,20 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
 - Task 12 committed (lib 0a2e1cef / 0d9ad153, root 613b9516).
 - 2026-10-27: task 11 moved out of this hub (owner) to its own task,
   [section-row-write-auth.md](./section-row-write-auth.md).
+- 2026-10-27: access diff audit script built (task file Progress); prod baseline blocked on network access.
+- **Deploy-order constraints (review 2026-10-27; record before any release):**
+  - Server and **every** site build ship together. An old build on the new server: every REST upload, publish,
+    validate, image upload, download, PM tiles, duplicate and sync-filters call sends no token, and the new server
+    requires a login on them in every mode, so they 401 for everyone, admin included.
+  - The new client on master's auth server: the Groups page's remove dialog sends `/group/delete` with
+    `dryRun: true` (`authGroups.jsx:69`); master ignores `dryRun`, so **opening the dialog deletes the group**.
+    **Stopgap 2026-10-27:** the dialogs no longer fetch a plan; the fix is
+    [destructive-call-plan-routes.md](./destructive-call-plan-routes.md).
+    Also missing on master: `uda.views.update`, `uda.settings.update`, `/downloads/sign`, `/user/project/remove`,
+    `/groups/linkable`.
+  - `log` is not "nothing changes": anonymous UDA writes are refused in every mode, and client gates hide
+    controls (Create / Upload / Settings, source Admin / Delete, version rename / Clear / Delete, Rules,
+    Schedules, download links) on rows with grants set; new sources carry a creator grant, so non-grantees lose them.
 - Next: 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and

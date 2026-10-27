@@ -1,6 +1,6 @@
 # Datasets: enforce `view-sources` / `view-source` on reads (catalog, source, views, data, tiles)
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built + verified (2026-10-26), uncommitted; `enforce` waits for each site's would-deny log · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built + verified (2026-10-26), uncommitted; `enforce` waits for each site's would-deny log · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md) and on defect A of

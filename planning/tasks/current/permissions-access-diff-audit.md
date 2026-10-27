@@ -1,6 +1,6 @@
 # Permissions move: access diff by auth level × source, before each switch-over
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing (script built 2026-10-27; prod baseline waits for network access) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-inventory.md](../completed/permissions-inventory.md) (the levels in use per project, the sources and patterns)
@@ -10,6 +10,33 @@ and on the vocabulary decisions in
 loss list that [permissions-grant-migration.md](./permissions-grant-migration.md) must close, and has to come back
 clean before any area flips to permission-only and before
 [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md) Phase 2.
+
+## Progress 2026-10-27
+
+- **Unblocked:** its dependencies (inventory, vocabulary in tasks 2 / 13) are done.
+- **Built:** `dms-server/src/scripts/permissions-access-diff.js` + `permissions-access-diff.ops.js` (uncommitted).
+  Changes from the Method below:
+  - **Three states, not two:** `old` (master), `now` (this branch at default flags) and `final` (enforce, no
+    levels). `now` also models the **client gates**: the client has no mode flag, so a control it hides is lost on
+    deploy while the server only logs.
+  - **Per user, not per level:** each project member is decided with all their groups (plus an anonymous visitor),
+    so "drop members covered elsewhere" is built in. The matrix aggregates per operation × target.
+  - **Lenient rule** (owner 10-23), not "nothing configured = deny".
+  - **Three kinds of loss:** `unintended` (level- or grant-based access, gets a proposed grant), `hole` (the old
+    rule let anyone signed in, or the level path's missing floor; a grant is proposed only for users who used it in
+    the change_log window, 30 days) and `intended` (owner decisions: anonymous writes, level adjust, list pages).
+  - **Read-only by construction:** opens its own adapters from the config files (`getDb` would run schema init
+    and migrations) and runs only SELECTs.
+  - Output: `matrix.csv`, `losses.csv` (with `last_use`), `gains.csv`, `remediation.md`, `grants.json`, which is
+    the shape `--overlay` reads back for the "against the migration dry run" pass.
+  - Not yet: external (DAMA) last use (`views.user_id`, `tasks`); a fixture test.
+- **Rig run** (copy of `scratchpad/srv3458` rig.sqlite, app v6test): 0 unintended losses on the server; 6 controls
+  hidden by the client for real grantees; 63 holes, 2 used recently (grants proposed: `edit-pattern` to GroupMgrs
+  and Managers on pattern 4).
+- **Prod baseline blocked:** mercury:5435 (auth + dms3), neptune:5758 (npmrds2) and ssh to mercury time out from
+  here. Run it where they're reachable:
+  `node src/scripts/permissions-access-diff.js --auth auth-sqlite --dms dms-sqlite --app <app> [--pgenv hazmit_dama]`
+  (the local `auth-sqlite` / `dms-sqlite` configs point at mercury's avail_auth / dms3).
 
 ## Objective
 
