@@ -5,7 +5,7 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
-## ▶ Resume here (updated 2026-10-25, task 14 built)
+## ▶ Resume here (updated 2026-10-27, task 11 moved out)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -141,7 +141,10 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   `test-read-auth` 20; suites green; live ✓. Open (owner): tile requests carry no token; external
   sources don't inherit their pattern on reads. **New sources are private, so read the would-deny log
   before any site goes `enforce`.**
-- Next: task 11 (blocked on a decision); then 18 (grant migration), 19 (level removal).
+- Task 12 committed (lib 0a2e1cef / 0d9ad153, root 613b9516).
+- 2026-10-27: task 11 moved out of this hub (owner) to its own task,
+  [section-row-write-auth.md](./section-row-write-auth.md).
+- Next: 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
 the Postgres pass ran (Progress above); next is item 6.
@@ -537,8 +540,8 @@ levels); the first survey was 2026-09-30.
 **3. Datasets client and data writes**
 10. [permissions-ds-client-gates.md](./permissions-ds-client-gates.md): ~35 `user.token` / `user.authed` / missing
     gates → the permission each action needs. Can land early (UI only) once the vocabulary is decided.
-11. [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md): who may edit source rows from
-    a page section or the Table tab, client and `uda.data.*` (decision).
+11. ~~Section row writes~~: **moved out 2026-10-27** (owner: an auth task, not part of this move) to
+    [section-row-write-auth.md](./section-row-write-auth.md).
 12. [permissions-ds-read-visibility.md](./permissions-ds-read-visibility.md): `view-source` on catalog, source, view,
     data and tile reads. **Last of the datasets tasks**; needs the page-section read decision.
 

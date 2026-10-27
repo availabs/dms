@@ -30,8 +30,9 @@ dataset routes start checking.
 - the existing `dms-server/src/scripts/migrate-source-auth-to-permissions.js` (numeric `statistics.auth` → names,
   `:31-38`) is the precedent; reuse its shape.
 
-**Pages with editable sections:** per the decision in
-[permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md).
+**Pages with editable sections:** no grants needed here. The owner chose (b) on 2026-10-27: the section's own
+edit right decides, and a section with no grants stays open. Tracked outside this move in
+[section-row-write-auth.md](./section-row-write-auth.md).
 
 ## Required: wcdb and avail auth rows (owner 2026-10-24)
 

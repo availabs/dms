@@ -37,7 +37,7 @@ what today, so each later task can show "nobody lost an operation".
     [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md) are the start.
 - [x] **Page sections that write source data:** count DataWrapper/Card sections with `allowEditInView`,
   `allowAdddNew` or `allowDelete` bound to DMS or `isEditable` sources, per site. Needed by
-  [permissions-ds-section-data-writes.md](../current/permissions-ds-section-data-writes.md).
+  [section-row-write-auth.md](../current/section-row-write-auth.md).
 - [x] Write the results to `scratchpad/permissions-inventory/` (data) and a summary in this doc.
 
 ## Done when
@@ -156,7 +156,7 @@ all unless the source inherits the pattern grant, and most patterns have none.
   mitigat-ny-prod**) also edited `roles`, which works only because `uda.data.*` is login-only today.
 - npmrdsv5: `reports_snap_2`, `routes_data` and `sitemgmt_tickets` are written by level-0 (1404) and level-5
   MPO users (1069, 631). These rows belong to the user who made them, so they need a public-create or own-row
-  rule ([permissions-ds-section-data-writes.md](../current/permissions-ds-section-data-writes.md)).
+  rule ([section-row-write-auth.md](../current/section-row-write-auth.md)).
 - Many rows have null `updated_by` (mitigat-ny-prod 23k, npmrdsv5 71k, shaun-test-app 52k): bulk or CLI loads.
 
 ### Page sections that write source rows (`live_sections_with_row_writes.tsv`)

@@ -941,7 +941,6 @@
   - [ ] [Pattern ops](./tasks/current/permissions-ds-pattern-ops.md) — duplicate, sync-filters; `req.user` bug
   - [ ] [Data-type plugin routes](../../../planning/shared/tasks/current/datatype-plugin-route-permissions.md) — dms-template shared task
   - [ ] [Datasets client gates](./tasks/current/permissions-ds-client-gates.md) — ~35 `user.token`/`user.authed` gates
-  - [ ] [Row edits from sections](./tasks/current/permissions-ds-section-data-writes.md) — blocked:decision
   - [ ] [Read visibility](./tasks/current/permissions-ds-read-visibility.md) — `view-source` on reads; last
   - [ ] [Auth server permission source](./tasks/current/permissions-auth-server-permission-source.md) — blocked:decision (which row, anti-escalation)
   - [ ] [Auth users and signup](./tasks/current/permissions-auth-users-and-signup.md)
@@ -950,6 +949,7 @@
   - [ ] [Auth client pages](./tasks/current/permissions-auth-client-pages.md)
   - [ ] [Grant migration](./tasks/current/permissions-grant-migration.md) — dry-run/apply
   - [ ] [Remove auth levels](./tasks/current/permissions-remove-auth-levels.md) — Phase 1 dead code any time
+- [ ] [Who may write source rows from a page section](./tasks/current/section-row-write-auth.md) — moved out of the permissions hub 2026-10-27 (was task 11). Owner: (b) the section's own edit right + its flags, or the source grant; client names the section id, server reads the component. Open: writes naming no section.
 - [ ] [Invite-link add-user flow + password-reset hardening](./tasks/current/auth-invite-link-and-reset-hardening.md) — filed 2026-09-24, design under review. **Two account-takeover holes (Phase 1, urgent):** (1) server `POST /password/reset` needs no login and returns the new password + a login token in its response, so anyone can take over any account by email; (2) `/signup/assign/group` ignores the admin token and accepts any `group`, so anyone can sign themselves into e.g. `AVAIL` (level 10). Then admin add-user moves to the existing but unused `/invite` + `/invite/accept` endpoints: 6h token link, a new `password/set` page with new/confirm fields, Resend/Revoke. Reset moves to the same page. No schema change needed.
 
 - [ ] [Expired session shows "You do not have permission" instead of login](./tasks/current/expired-session-shows-no-permission.md) — from TransportNY ticket #2224917 (2026-09-23). `view.jsx`/`edit/index.jsx` choose login vs no-permission from the client's `user.authed`, which likely stays `true` after the server-side token expires; plus `edit/index.jsx:292-295` never redirects an unauthed user to login. Not reproduced yet.

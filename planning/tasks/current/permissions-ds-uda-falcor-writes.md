@@ -4,7 +4,7 @@
 
 Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Depends on
 [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md). Row-level
-`uda.data.*` writes are in [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md);
+`uda.data.*` writes are in [section-row-write-auth.md](./section-row-write-auth.md);
 the generic `dms.data.*` writes (which also edit internal source/view rows) are defects B/E of
 [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md).
 

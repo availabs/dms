@@ -23,7 +23,7 @@ there's no permission for creating a source at all.
 1. **Vocabulary:** new pattern-level `create-source`; new source-level `edit-source-data` (row
    create/edit/delete, separate from `update-source` = metadata); `create-view` enforced as is; pattern
    operations use `edit-pattern` (+ `create-pattern` for duplicate). Who *gets* `edit-source-data` is
-   still [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md)'s decision.
+   still [section-row-write-auth.md](./section-row-write-auth.md)'s decision.
 2. **External sources: trust the client-named pattern.** Nothing in the db links a pgEnv to a pattern
    (pgEnvs are the client build setting `VITE_DMS_PG_ENVS`; every datasets pattern of the app sees all
    of them). The request names its pattern (query `dms_pattern=<app>/<patternId>`, or the
@@ -132,7 +132,7 @@ modes, token-only user id. `test-uda` (141) and `test-datatypes` (9) still pass.
     version to an existing source.
   - `edit-source-data` (source level, new): row create/edit/delete on an editable source, from the datasets
     Table tab or a page section. Or reuse `update-source`. Decide with
-    [permissions-ds-section-data-writes.md](./permissions-ds-section-data-writes.md).
+    [section-row-write-auth.md](./section-row-write-auth.md).
   - Pattern-level operations (`duplicate`, `sync-filters`, `uda[env].settings` set) use the existing
     `edit-pattern` (+ `create-pattern` for duplicate, as the admin UI already requires).
   - Add the new names to `utils/adminPermissions.js` `DATASETS_OPTIONS` (`:77-90`) and, for source-level ones,
