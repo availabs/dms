@@ -5,6 +5,7 @@ import { useFalcor } from "@availabs/avl-falcor"
 import { withAuth,  dmsPageFactory } from '../../../'
 import { parseIfJSON } from '../../../patterns/page/pages/_utils';
 import { resolveSubdomainAuthPermissions, hasAuthGrants } from '../../../utils/auth';
+import { PatternAuthContext } from '../../../utils/patternAuthContext';
 import { getInstance } from '../../../utils/type-utils';
 import { collectSiteRootPaths } from '../../../utils/mountPath';
 import { getDefaultUserMenuItems, withUserMenuThemes, withPatternMenuPrecedence, patternOwnMenuItems } from '../../../utils/userMenus';
@@ -547,11 +548,12 @@ export function pattern2routes (siteData, props) {
                     || pattern?.name
                     || '';
                 const defaultColorScheme = getPatternColorScheme(themes, pattern);
+                const patternAuth = { app: configObj.app || dmsConfigUpdated?.format?.app || dmsConfigUpdated.app, authPermissions };
                 return ({
                   ...route,
                   Component: (props) => React.createElement(
-                    React.Fragment,
-                    null,
+                    PatternAuthContext.Provider,
+                    { value: patternAuth },
                     React.createElement(PatternTitle, { title: titleValue }),
                     React.createElement(PatternColorScheme, { defaultColorScheme }),
                     React.createElement(InnerComponent, props)

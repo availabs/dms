@@ -40,6 +40,17 @@ findings, ranked Blocker → Major → Minor → Info:
 `--list` prints the manifest (which entries exist, when each was last captured/verified, what each
 covers) without probing anything — the fast "what does this even cover" check.
 
+**Auth is automatic (2026-10-22).** Before probing, the runner refreshes
+`scratchpad/npmrds-sub/.dms-auth-token` from `qa_auth.mjs token` (the root `.env` login the QA tools
+use), so there's no manual `mint_token.sh` step. If a page still comes back logged out, the run
+**stops at once** (exit 2) instead of retrying: an expired token fails every entry the same way. It
+used to spend 3 full page loads per entry on that, a 12+ minute run with nothing captured.
+
+**It runs one entry at a time, about 6 minutes for all 9.** Each probe launches a fresh Chromium that
+loads the unbundled Vite dev app from a cold cache. Running 3 entries at once (tried 2026-10-22)
+overloaded the local stack and every probe failed (`net::ERR_`, no API response within 20s), so
+don't parallelize it. Use `--only` for a targeted check.
+
 ## 3. Is a finding real, or noise?
 
 **A Map-bearing entry's `non-200` and `pending-at-close` counts are inherently jittery** (added

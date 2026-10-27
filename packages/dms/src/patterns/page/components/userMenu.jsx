@@ -4,7 +4,8 @@ import { CMSContext } from '../context'
 import { AuthContext } from "../../auth/context";
 import { ThemeContext, getComponentTheme } from "../../../ui/useTheme";
 import {userMenuTheme} from './userMenu.theme'
-import { isUserAuthed } from "../../../utils/auth";
+import { isUserAuthed, rankUserGroups } from "../../../utils/auth";
+import { PatternAuthContext } from "../../../utils/patternAuthContext";
 import { loadItemFresh } from "../../../api";
 import { SiteUserMenuContext } from "../../../utils/userMenuContext";
 import { resolveUserMenuItems } from "../../../utils/userMenus";
@@ -31,6 +32,8 @@ const roomHealthThemeDefaults = Object.fromEntries(
 const UserMenu = ({activeStyle, syncStatus, roomStale}) => {
     const { theme, UI } = useContext(ThemeContext)
     const { user } = useContext(AuthContext)
+    const patternAuth = useContext(PatternAuthContext)
+    const groups = rankUserGroups({ user, ...patternAuth })
     const { Icon } = UI;
     const menuTheme = { ...roomHealthThemeDefaults, ...(getComponentTheme(theme, 'pages.userMenu', activeStyle) || userMenuTheme.styles[0]) }
     // A stale page room outranks connection status: saving here would revert the page.
@@ -45,7 +48,7 @@ const UserMenu = ({activeStyle, syncStatus, roomStale}) => {
         </div>
         <div className={menuTheme.infoWrapper}>
           <div className={menuTheme.emailText}>{user.email ? user.email : ''}</div>
-          <div className={menuTheme.groupText}>{user?.groups?.[0] ? user.groups[0] : ''}</div>
+          <div className={menuTheme.groupText} title={groups.length > 1 ? groups.join(', ') : undefined}>{groups[0] || ''}</div>
         </div>
       </div>
     )
