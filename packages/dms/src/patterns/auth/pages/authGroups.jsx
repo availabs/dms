@@ -60,15 +60,13 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
     }, [PROJECT_NAME, canManage]);
 
     // Remove from site (owner 2026-10-25): the server strips the group's grants here, unlinks it, and
-    // deletes it once no other site uses it. The dry run fills the dialog.
+    // deletes it once no other site uses it. No plan is fetched: a `dryRun` flag on /group/delete deletes on a
+    // server that doesn't know it (owner 2026-10-27); a read-only plan route is task destructive-call-plan-routes.
     const removeRequest = (name, extra = {}) => ({ token: user.token, name, project: PROJECT_NAME, pgEnvs, ...extra });
-    const openRemove = async (row) => {
+    const openRemove = (row) => {
         setRemoveGroup(row);
         setRemovePlan(null);
         setRemoveStatus('');
-        const plan = await callAuthServer(`${AUTH_HOST}/group/delete`, removeRequest(row.name, { dryRun: true }));
-        if (plan.error) setRemoveStatus(plan.error);
-        else setRemovePlan(plan);
     };
     const confirmRemove = async () => {
         setRemoveStatus('removing');
@@ -209,6 +207,9 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
                 </div>
                 <div className={m.removeBody}>
                     <div>Remove {removeGroup?.name} from {PROJECT_NAME}?</div>
+                    {!removePlan && <div>Its members lose the access it gives here, and its permissions on this
+                        site&apos;s patterns, pages and sources are removed. If no other site uses it, the group is
+                        deleted.</div>}
                     {removePlan && <>
                         {removePlan.members > 0 &&
                             <div>Its {removePlan.members} member{removePlan.members === 1 ? '' : 's'} lose the access it gives here.</div>}
@@ -240,7 +241,7 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
                     </>}
                     {removeStatus && <div className={m.metaText}>{removeStatus}</div>}
                     <div>
-                        <Button activeStyle='primary' disabled={!removePlan || removeStatus === 'removing'} onClick={confirmRemove}>
+                        <Button activeStyle='primary' disabled={removeStatus === 'removing'} onClick={confirmRemove}>
                             Remove
                         </Button>
                     </div>

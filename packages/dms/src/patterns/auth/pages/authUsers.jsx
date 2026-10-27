@@ -150,18 +150,16 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
         setLoadingAdd(false);
     };
 
-    // Remove from site (dms-server /user/project/remove): the dry run fills the confirm dialog; the
-    // server decides and strips the user's grants here, then their memberships. The account stays.
+    // Remove from site (dms-server /user/project/remove): the server decides and strips the user's grants
+    // here, then their memberships. The account stays. No plan is fetched: a `dryRun` flag on a destructive
+    // route isn't safe on a server that doesn't know it (owner 2026-10-27); task destructive-call-plan-routes.
     const removeRequest = (row, extra = {}) => ({
         token: user.token, user_email: row.email, project: PROJECT_NAME, pgEnvs, ...extra,
     });
-    const openRemove = async (row) => {
+    const openRemove = (row) => {
         setRemoveUser(row);
         setRemovePlan(null);
         setRemoveStatus('');
-        const plan = await callAuthServer(`${AUTH_HOST}/user/project/remove`, removeRequest(row, { dryRun: true }));
-        if (plan.error) setRemoveStatus(plan.error);
-        else setRemovePlan(plan);
     };
     const confirmRemove = async () => {
         setRemoveStatus('removing');
@@ -444,6 +442,9 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 </div>
                 <div className={m.removeBody}>
                     <div>Remove {removeUser?.email} from {PROJECT_NAME}? Their account stays.</div>
+                    {!removePlan && <div>They leave this site&apos;s groups (shared groups too, so they lose that
+                        access on other sites), and their own permissions on this site&apos;s patterns, pages and
+                        sources are removed.</div>}
                     {removePlan && <>
                         <div>Groups they leave: {removePlan.groups.join(', ')}</div>
                         {removePlan.sharedGroups.length > 0 &&
@@ -477,7 +478,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                     </>}
                     {removeStatus && <div className={m.metaText}>{removeStatus}</div>}
                     <div>
-                        <Button activeStyle='primary' disabled={!removePlan || removeStatus === 'removing'} onClick={confirmRemove}>
+                        <Button activeStyle='primary' disabled={removeStatus === 'removing'} onClick={confirmRemove}>
                             Remove
                         </Button>
                     </div>
