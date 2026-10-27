@@ -610,3 +610,10 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
 
 module.exports = createRoutes(controller);
 module.exports.createRoutes = createRoutes;
+// The controller instance every Falcor route is actually served from. It is NOT the module
+// default export of dms.controller.js — that one is a separate instance created at import
+// time and never serves a request. `index.js` wires the sync WebSocket's notifyChange onto
+// THIS object; setting it on the default instance leaves `_notifyChange` null here, so every
+// Falcor write appends its change_log row and broadcasts nothing (found 2026-09-25 testing
+// Bug 20, fixed 2026-10-21 — falcor-writes-not-broadcast.md).
+module.exports.controller = controller;

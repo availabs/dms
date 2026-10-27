@@ -134,7 +134,7 @@ is ported later.
 | Install | Where | State (2026-10-14) |
 |---|---|---|
 | 251 `QA move check`, app `qa_test` (made 2026-10-14 through the new create hooks) | `/qa_move_check`; datasets in environment 42 | The `qa_test` install since the move. No coverage, switches or fields yet; theme not set. The old 126 `QA`, 170 `QA2` and 219 `QA switches` were deleted 2026-10-14: their datasets, then their site links and rows. Backup: `scratchpad/qa_test/old_installs_backup_2026-10-14/`. `/qa` is free to re-add. |
-| 2860547 `QA`, MitigateNY (`dms_mitigat_ny_prod`; made 2026-10-14 through Add Pattern) | `/qa`, main site only; datasets in env 1676363 (`/cenrep`) | Covers 566466 (`admin`, a page pattern), 2265530 `mitigateny_actions`, 985070 `mitigateny_2025` and 1300890 `mitigateny_county_template`, whose nav rows carry the widget. Access: `mitigat-ny-prod Admin` and `AVAIL` (`AVAIL` added by CLI after the lockout, §3). Theme: `mnyv1` with a top-nav layout override. Switches: page inventory on (owner, 2026-10-14; 282 pages tracked, the same count as the old install), so the site cards collapse and open to their pages. Page stages and stories are off, and there are no fields yet. It replaced 2824062, deleted 2026-10-14 (backup `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/`). |
+| 2860547 `QA`, MitigateNY (`dms_mitigat_ny_prod`; made 2026-10-14 through Add Pattern) | `/qa`, main site only; datasets in env 1676363 (`/cenrep`) | Covers 61 rows (2026-10-27): admin 566466, actions, the main site, the County Template, every live county and planning-guide (twice); all their patterns carry the widget (§1). Access: `mitigat-ny-prod Admin` and `AVAIL` (`AVAIL` added by CLI after the lockout, §3). Theme: `mnyv1` with a top-nav layout override. Switches: page inventory on (owner, 2026-10-14; 282 pages tracked, the same count as the old install), so the site cards collapse and open to their pages. Page stages and stories are off, and there are no fields yet. It replaced 2824062, deleted 2026-10-14 (backup `scratchpad/mitigat-ny-prod-prod/old_qa_install_backup_2026-10-14/`). |
 
 ## Rules the work follows (owner)
 
@@ -176,9 +176,16 @@ is ported later.
     [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md#deploy-for-whoever-deploys-mny).
   - **Until then:** admin 566466's side rail on the live site shows a 48px blank gap, because the nav rows were
     written before the deploy.
-- [ ] Coworker: propagate to county patterns. Each needs a nav entry (`src/themes/mny/scripts/report_issue_nav.mjs`)
-  and a covered-sites row on Configure. **Who adds the coverage rows isn't agreed yet** (open decision on the
-  initiative).
+- [x] **Nav entries on every enrolled pattern (2026-10-27).** All 61 enrolled rows were already switched on in
+  Configure; their patterns lacked the nav entry (sullivan and `/guide` reported missing the button). Ran
+  `report_issue_nav.mjs --apply` on 53 patterns (51 counties, planning-guide 1603896, sullivan 2043199) through
+  the local dms-server (the live host doesn't accept a locally minted token; same prod DB). Backups:
+  `scratchpad/mitigat-ny-prod-prod/report_issue_nav/`. Verified from dmsserver.availabs.org: 56 patterns carry it.
+  The 4 with no stored nav (2249247 Suffolk template, 2304223 Schenectady Draft V2, 2323808 Delaware Draft,
+  2448336 Westchester) get it from `src/themes/mny/theme.js`'s default `rightMenu`, which now lists `ReportIssue`
+  (**needs the deploy**). Admin 566466 left as is (side rail). `Search` entries left unchanged (owner).
+- [ ] planning-guide 1603896 is enrolled twice (`planning_guide` and `planning-guide`/short key `guide`); a
+  report files under whichever comes first in sort order. Owner to pick one.
 
 ### 2. MNY look: leftovers
 

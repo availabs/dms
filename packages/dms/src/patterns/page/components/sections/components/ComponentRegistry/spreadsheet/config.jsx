@@ -2,6 +2,7 @@ import React, { useContext } from 'react'
 import { RenderTable } from './index'
 import ActionControls from './controls/ActionControls'
 import { ThemeContext } from '../../../../../../../ui/useTheme'
+import { getFormatFunctionOptions } from '../../dataWrapper/utils/utils'
 
 const handleCopy = async (obj) => {
     try {
@@ -317,18 +318,13 @@ const buildControls = (theme) => ({
                     { label: 'Right', value: 'right' },
                 ], displayCdn: ({ isEdit }) => isEdit
             },
+            // Registry-driven, so a theme-registered formatter appears here too.
+            // Excludes the row-dependent / element-returning ones (`combine`,
+            // `icon`, `color`) the table cell gives no context for.
             { type: 'select', label: 'Format', key: 'formatFn',
                 options: [
                     { label: 'No Format Applied', value: ' ' },
-                    { label: 'Comma Separated', value: 'comma' },
-                    { label: 'Comma Separated ($)', value: 'comma_dollar' },
-                    { label: 'Abbreviated', value: 'abbreviate' },
-                    { label: 'Abbreviated ($)', value: 'abbreviate_dollar' },
-                    { label: 'Date', value: 'date' },
-                    { label: 'Time (HH:MM am/pm)', value: 'time' },
-                    { label: 'Date + Time', value: 'datetime' },
-                    { label: 'Title', value: 'title' },
-                    { label: '0 = N/A', value: 'zero_to_na' },
+                    ...getFormatFunctionOptions({ exclude: ['icon', 'color', 'combine'] }),
                 ], displayCdn: ({ isEdit }) => isEdit
             },
             { type: 'input', inputType: 'text', label: 'Default Value', key: 'defaultValue', displayCdn: ({ isEdit }) => isEdit },
