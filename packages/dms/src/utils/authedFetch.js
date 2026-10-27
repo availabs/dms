@@ -25,6 +25,20 @@ export function withPatternParam(url, pattern) {
     return `${url}${sep}dms_pattern=${encodeURIComponent(`${pattern.app}/${pattern.id}`)}`;
 }
 
+// Tags every request of one Falcor model (the datasets pattern's, render/dmsPageFactory.jsx) with
+// `dms_pattern`, so its reads of external sources inherit the pattern's grants (dms-server
+// routes/uda/readAuth.js). Wraps the model's data source hook; the token header it sets still goes on.
+export function tagFalcorRequests(falcor, pattern) {
+    const source = falcor?._source;
+    if (!source || !pattern?.app || !pattern?.id) return falcor;
+    const before = source.onBeforeRequest?.bind(source);
+    source.onBeforeRequest = (config) => {
+        before?.(config);
+        if (config?.url) config.url = withPatternParam(config.url, pattern);
+    };
+    return falcor;
+}
+
 function storedToken() {
     try { return typeof window !== 'undefined' ? window.localStorage?.getItem('userToken') : null; }
     catch { return null; }

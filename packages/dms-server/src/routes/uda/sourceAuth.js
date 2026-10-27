@@ -479,6 +479,7 @@ module.exports = {
     requestUserId,
     requestUserIdWarnBody,
     requestPatternRef,
+    readNamedPattern,
     requireUser,
     requireUserOrOpen,
     ANON_CALLER,

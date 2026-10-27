@@ -55,6 +55,8 @@ function createTestGraph(dbName = 'dms-sqlite', options = {}) {
     constructor(config) {
       super({ maxPaths: 4000000 });
       this.user = user;
+      this.subdomain = config.subdomain || '';
+      this.patternRef = config.patternRef || null;
       this.reqMeta = config.reqMeta || {
         ip: '127.0.0.1',
         userAgent: 'test-harness',

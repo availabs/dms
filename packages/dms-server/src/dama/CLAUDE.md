@@ -216,6 +216,7 @@ Passed to every `routes` registration:
 | `requirePatternPermission(req, res, perms)` | `→ Promise<user \| null>` | Same, for a pattern-level permission such as `create-source`. |
 | `authorizeViewAction(req, res, viewId, perms, bodySourceId)` | `→ Promise<{user, sourceId} \| null>` | Same, judged on the source the **view** belongs to (not the body's `source_id`); for routes that act on a view's files (downloads, PM tiles). `legacy` / `log` allow, as for a route that checked nothing before. |
 | `requestUserId(req)` | `→ id \| null` | The caller's id, from the token. Use it instead of a body `user_id`. |
+| `holdsSourcePermission(req, sourceId, perms)` | `→ Promise<boolean>` | Whether the caller holds one of `perms` on the source, **without answering the request**: for what a reply carries (a secret only an editor sees). Judged as reads are (`DMS_READ_AUTH_MODE`; `legacy` says yes). |
 | `getDb(pgEnv)` | `→ adapter` | Direct DB handle. |
 | `loadConfig(pgEnv)` | `→ config` | The raw db config JSON. |
 | `storage` | `{ write, read, getUrl }` | Local FS or S3 abstraction. |
@@ -229,6 +230,37 @@ Passed to every `routes` registration:
 Routes that queue a task **must** return `{ etl_context_id, source_id }`. `etl_context_id === task_id` — the legacy admin-UI poll loop hits `/dama-admin/:pgEnv/events/query?etl_context_id=…` and that path still works.
 
 ---
+
+## Reads (`DMS_READ_AUTH_MODE`)
+
+Reads of a source (the catalog, source and view rows, data rows, color domains, vector tiles) are judged by
+`routes/uda/readAuth.js`: `view-source`, or any source permission that implies reading it, on pattern ⊕
+source grants, the lenient rule (nothing set → open), `${app} Admin` passes. External sources: the datasets
+pattern the request names lends its grants. The datasets pattern's Falcor model adds `dms_pattern=<app>/<id>` to
+every request (`tagFalcorRequests`, client `utils/authedFetch.js`), and the server accepts the name as writes do:
+any existing datasets pattern (`readNamedPattern`). No pattern named (page sections, the CLI) → the source's own
+grants only. **This is a placeholder, not a boundary:** the client picks the pattern, so with two datasets patterns
+granting different permissions a caller can name the looser one (writes have the same gap). Open in
+`planning/tasks/current/permissions-ds-read-visibility.md`.
+
+- `legacy`: nothing checked.
+- `log` (default): nothing refused; each read `enforce` would refuse is logged once per user / source / kind
+  per ten minutes as `[read-auth] would-deny …`. Secret keys in `statistics` (`*_secret`, `*_token`) are
+  already left out for readers without `update-source`.
+- `enforce`: a refused read answers null / 0 / an empty catalog entry (never an error), the catalog lists
+  only readable sources, and `auth_permissions` is trimmed to the caller's own entries for anyone without
+  `edit-source-permissions` / `update-source`.
+
+**New sources are private by default** (creator `*`, `public: []`), so a public page charting one goes blank
+under `enforce` unless the source grants `public: ['view-source']`. Read a site's would-deny log before
+switching it to `enforce`. Grants are cached per env for 30 s.
+
+**Vector tiles are exempt from `enforce`**: they stay at `log` (`logOnly` in `tiles.rest.js`), so would-denies
+still log as kind `tiles` but no tile is refused. MapLibre fetches tiles without the token, so enforcing would
+judge every map viewer anonymous and blank editors' maps of private sources. The cost: anyone who knows a view
+id can read a private source's geometry and any `cols=` through its tiles. To move tiles under `enforce` later,
+send identity with tile requests (a short-lived token added in `AvlMap`'s `transformRequest`, all map screens
+go through it) and drop `logOnly`.
 
 ## Tasks
 

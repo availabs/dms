@@ -9,6 +9,7 @@ import { useAuth } from "../patterns/auth/context";
 // import defaultTheme from './theme/default-theme'
 
 import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor";
+import { tagFalcorRequests } from "../utils/authedFetch";
 //const noAuth = Component => Component
 
 export default function dmsPageFactory({
@@ -24,6 +25,8 @@ export default function dmsPageFactory({
   const dmsPath = `${baseUrl}${baseUrl === "/" ? "" : "/"}`;
   // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST);
+  // A pattern that names itself on its requests (the datasets pattern: `requestPattern`).
+  if (dmsConfig.requestPattern) tagFalcorRequests(falcor, dmsConfig.requestPattern);
   // Tracks the login token across loader calls so the no-access retry below
   // can tell "user just logged in, cache is stale" apart from "this visitor
   // genuinely can't see this content" — see that check for why the distinction

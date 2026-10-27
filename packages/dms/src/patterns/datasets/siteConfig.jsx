@@ -59,6 +59,9 @@ const datasetsConfig = ({
         format: patternFormat,
         baseUrl: `${baseUrl}`,
         API_HOST,
+        // Sent with this pattern's Falcor requests (render/dmsPageFactory.jsx): the server's reads of
+        // external sources inherit this pattern's grants.
+        requestPattern: { app, id: pattern?.id },
         children: [
             {
               type: (props) => {

@@ -31,6 +31,25 @@ const {
 } = require("./uda.controller");
 const { assertSourcePermission, sourceIdForView, parsePatternRef } = require("./sourceAuth");
 const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
+const { readMode, allowSourceRead, allowViewRead, filterReadableSources, redactSourceRow } = require("./readAuth");
+
+// ---- Reads (readAuth.js, DMS_READ_AUTH_MODE): a refused read answers null, never an error, so a page
+// section or list renders empty instead of failing the whole batch.
+// `patternRef`: the datasets pattern the request names, whose grants external sources inherit.
+const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', patternRef: router.patternRef || null });
+const canReadSource = (router, env, sourceId, kind) => allowSourceRead({ env, sourceId, kind, ...reader(router) });
+const canReadView = (router, env, viewId, kind) => allowViewRead({ env, viewId, kind, ...reader(router) });
+
+// The env's catalog as this reader sees it, in order: under `enforce` only readable sources (so length and
+// byIndex agree); otherwise null (the routes keep their own queries). Under `log` it still runs, to log.
+async function readableCatalog(router, env, opts = {}) {
+  const mode = readMode();
+  if (mode === 'legacy') return null;
+  const len = +(await getSourcesLength(env, opts)) || 0;
+  const all = len ? await getSourceIdsByIndex(env, { from: 0, to: len - 1 }, opts) : [];
+  const readable = await filterReadableSources({ env, sourceIds: all.filter(id => id != null), kind: 'list', ...reader(router) });
+  return mode === 'enforce' ? readable : null;
+}
 
 // A source write needs `update-source`, plus `edit-source-permissions` when it carries
 // auth_permissions (decided per key; DMS keys are trimmed before they're written, so compare trimmed).
@@ -81,7 +100,8 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const numRows = await getSourcesLength(env);
+          const catalog = await readableCatalog(this, env);
+          const numRows = catalog ? catalog.length : await getSourcesLength(env);
           result.push({
             path: ["uda", env, "sources", "length"],
             value: +numRows,
@@ -104,7 +124,10 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const idsByIdx = await getSourceIdsByIndex(env, { from: indices[0], to: indices[indices.length - 1] });
+          const catalog = readMode() === 'enforce' ? await readableCatalog(this, env) : null;
+          const idsByIdx = catalog
+            ? indices.map(i => catalog[i])
+            : await getSourceIdsByIndex(env, { from: indices[0], to: indices[indices.length - 1] });
 
           indices.forEach((srcIdx, ii) => {
             const id = idsByIdx[ii];
@@ -137,7 +160,8 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const numRows = await getSourcesLength(env, { includeHidden: true });
+          const catalog = await readableCatalog(this, env, { includeHidden: true });
+          const numRows = catalog ? catalog.length : await getSourcesLength(env, { includeHidden: true });
           result.push({
             path: ["uda", env, "sourcesAll", "length"],
             value: +numRows,
@@ -160,11 +184,14 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const idsByIdx = await getSourceIdsByIndex(
-            env,
-            { from: indices[0], to: indices[indices.length - 1] },
-            { includeHidden: true }
-          );
+          const catalog = readMode() === 'enforce' ? await readableCatalog(this, env, { includeHidden: true }) : null;
+          const idsByIdx = catalog
+            ? indices.map(i => catalog[i])
+            : await getSourceIdsByIndex(
+              env,
+              { from: indices[0], to: indices[indices.length - 1] },
+              { includeHidden: true }
+            );
 
           indices.forEach((srcIdx, ii) => {
             const id = idsByIdx[ii];
@@ -194,10 +221,13 @@ module.exports = [
           const rows = await getSourceById(env, ids, attributes);
 
           for (const id of ids) {
-            const source = rows.find(r => +r.id === +id) || {};
+            const readable = await canReadSource(this, env, id, 'source');
+            const source = readable
+              ? await redactSourceRow({ env, sourceId: id, row: { ...(rows.find(r => +r.id === +id) || {}) }, ...reader(this) })
+              : {};
 
             for (const attribute of attributes) {
-              const value = source[attribute];
+              const value = readable ? source[attribute] : null;
               result.push({
                 path: ["uda", env, "sources", "byId", id, attribute],
                 value: typeof value === 'object' ? $atom(value) : value,
@@ -262,7 +292,7 @@ module.exports = [
 
         for (const env of envs) {
           for (const id of ids) {
-            const info = await getSourcePrimaryKeyInfo(env, id);
+            const info = await canReadSource(this, env, id, 'source') ? await getSourcePrimaryKeyInfo(env, id) : null;
             result.push({
               path: ["uda", env, "sources", "byId", id, "pkeyInfo"],
               value: $atom(info),
@@ -290,7 +320,7 @@ module.exports = [
         const result = [];
         for (const env of envs) {
           for (const id of ids) {
-            const info = await listSourceRules(env, id);
+            const info = await canReadSource(this, env, id, 'source') ? await listSourceRules(env, id) : null;
             result.push({ path: ["uda", env, "sources", "byId", id, "rulesInfo"], value: $atom(info) });
           }
         }
@@ -315,7 +345,8 @@ module.exports = [
         for (const env of envs) {
           const lineage = await getSourceLineageById(env, ids);
           for (const id of ids) {
-            result.push({ path: ["uda", env, "sources", "byId", id, "lineage"], value: $atom(lineage.get(+id) ?? null) });
+            const readable = await canReadSource(this, env, id, 'source');
+            result.push({ path: ["uda", env, "sources", "byId", id, "lineage"], value: $atom(readable ? lineage.get(+id) ?? null : null) });
           }
         }
         return result;
@@ -338,7 +369,7 @@ module.exports = [
           const rows = await getViewLengthBySourceId(env, ids);
 
           for (const id of ids) {
-            const length = rows.find(r => +r.id === +id)?.num_views || 0;
+            const length = await canReadSource(this, env, id, 'source') ? rows.find(r => +r.id === +id)?.num_views || 0 : 0;
             result.push({
               path: ["uda", env, "sources", "byId", id, "views", "length"],
               value: length,
@@ -365,7 +396,7 @@ module.exports = [
           const rows = await getViewsByIndexBySourceId(env, ids, { from: indices[0], to: indices[indices.length - 1] });
 
           for (const id of ids) {
-            const views = rows.find(r => +r.id === +id)?.views || [];
+            const views = await canReadSource(this, env, id, 'source') ? rows.find(r => +r.id === +id)?.views || [] : [];
             indices.forEach((idx, ii) => {
               result.push({
                 path: ["uda", env, "sources", "byId", id, "views", "byIndex", idx],
@@ -396,10 +427,11 @@ module.exports = [
           const rows = await getViewById(env, ids, attributes);
 
           for (const id of ids) {
-            const view = rows.find(r => +r.id === +id) || {};
+            const readable = await canReadView(this, env, id, 'view');
+            const view = readable ? rows.find(r => +r.id === +id) || {} : {};
 
             for (const attribute of attributes) {
-              const value = view[attribute];
+              const value = readable ? view[attribute] : null;
               result.push({
                 path: ["uda", env, "views", "byId", id, attribute],
                 value: typeof value === 'object' ? $atom(value) : value,
@@ -462,7 +494,8 @@ module.exports = [
         for (const env of envs) {
           const lineage = await getViewLineageById(env, ids);
           for (const id of ids) {
-            result.push({ path: ["uda", env, "views", "byId", id, "lineage"], value: $atom(lineage.get(+id) ?? null) });
+            const readable = await canReadView(this, env, id, 'view');
+            result.push({ path: ["uda", env, "views", "byId", id, "lineage"], value: $atom(readable ? lineage.get(+id) ?? null : null) });
           }
         }
         return result;
@@ -483,7 +516,11 @@ module.exports = [
 
         for (const pgEnv of pgEnvs) {
           for (const category of categories) {
-            const rows = await getViewBySrcCategories(pgEnv, category);
+            const all = await getViewBySrcCategories(pgEnv, category);
+            const rows = [];
+            for (const r of all || []) {
+              if (r.source_id == null || await canReadSource(this, pgEnv, r.source_id, 'list')) rows.push(r);
+            }
             result.push({
               path: ["uda", pgEnv, "views", "bySourceCategory", category],
               value: $atom(rows),
@@ -511,7 +548,7 @@ module.exports = [
         for (const env of envs) {
           for (const viewId of viewIds) {
             for (const option of options) {
-              const numRows = await simpleFilterLength(env, viewId, option);
+              const numRows = await canReadView(this, env, viewId, 'data') ? await simpleFilterLength(env, viewId, option) : 0;
 
               result.push({
                 path: ["uda", env, "viewsById", viewId, "options", option, "length"],
@@ -539,7 +576,9 @@ module.exports = [
         for (const env of envs) {
           for (const viewId of viewIds) {
             for (const option of options) {
-              const rows = await simpleFilter(env, viewId, option, attributes, { from: indices[0], to: indices[indices.length - 1] });
+              const rows = await canReadView(this, env, viewId, 'data')
+                ? await simpleFilter(env, viewId, option, attributes, { from: indices[0], to: indices[indices.length - 1] })
+                : [];
 
               indices.forEach((i, ii) => {
                 attributes.forEach(attribute => {
@@ -574,7 +613,9 @@ module.exports = [
         for (const env of envs) {
           for (const viewId of viewIds) {
             for (const option of options) {
-              const rows = await simpleFilter(env, viewId, option, ['id'], { from: indices[0], to: indices[indices.length - 1] });
+              const rows = await canReadView(this, env, viewId, 'data')
+                ? await simpleFilter(env, viewId, option, ['id'], { from: indices[0], to: indices[indices.length - 1] })
+                : [];
 
               indices.forEach((i, ii) => {
                 const id = rows?.[ii]?.id;
@@ -922,7 +963,7 @@ module.exports = [
 
         for (const env of envs) {
           for (const viewId of viewIds) {
-            const rows = await dataById(env, viewId, ids, attributes);
+            const rows = await canReadView(this, env, viewId, 'data') ? await dataById(env, viewId, ids, attributes) : [];
 
             ids.forEach((id) => {
               const row = rows.find(r => +r.id === +id);

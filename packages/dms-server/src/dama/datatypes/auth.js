@@ -12,8 +12,10 @@
  * Each helper answers the request itself (401 / 403) and returns null when the caller is refused,
  * otherwise the user (or ANON_CALLER, an anonymous caller let through: its id is null).
  */
-const { authMode, requireUserOrOpen, requireSourcePermission } = require('../../routes/uda/sourceAuth');
+const { authMode, requireUserOrOpen, requireSourcePermission, requestPatternRef } = require('../../routes/uda/sourceAuth');
 const upload = require('../upload/auth');
+const { readMode, holdsOnSource } = require('../../routes/uda/readAuth');
+const { getSubdomain } = require('../../utils/subdomain');
 
 const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
 
@@ -57,4 +59,16 @@ async function authorizeSourceWrite(req, res, { sourceId, viewId } = {}, perms) 
     return user;
 }
 
-module.exports = { writeGate, compileOpenRoute, pluginHelpers: { authorizePublish, authorizeSourceWrite } };
+/**
+ * Whether the caller holds one of `perms` on the source, without answering the request: for what a reply
+ * carries, e.g. a secret only an editor may see (now_playing's webhook URL). Judged as reads are
+ * (routes/uda/readAuth.js): `legacy` (DMS_READ_AUTH_MODE) says yes, as before; `log` and `enforce` decide.
+ */
+async function holdsSourcePermission(req, sourceId, perms) {
+    if (readMode() === 'legacy') return true;
+    const user = (req.availAuthContext && req.availAuthContext.user) || null;
+    return holdsOnSource({ env: req.params.pgEnv, sourceId, user, subdomain: req.headers ? getSubdomain(req) : '',
+        patternRef: requestPatternRef(req), perms: [].concat(perms) });
+}
+
+module.exports = { writeGate, compileOpenRoute, pluginHelpers: { authorizePublish, authorizeSourceWrite, holdsSourcePermission } };

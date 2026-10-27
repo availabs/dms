@@ -197,6 +197,7 @@ app.use('/graph', (req, res, next) => {
 });
 
 const { getSubdomain } = require('./utils/subdomain');
+const { requestPatternRef } = require('./routes/uda/sourceAuth');
 
 app.use(
   '/graph',
@@ -211,7 +212,7 @@ app.use(
         // how the write arrived, for change history rows: the CLI sends 'cli', a browser nothing
         via: req.headers['x-dms-via'] || null,
       };
-      return falcorRoutes({ user, subdomain, reqMeta });
+      return falcorRoutes({ user, subdomain, reqMeta, patternRef: requestPatternRef(req) });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);
       throw e;
@@ -280,6 +281,8 @@ async function setupAndListen() {
   // { sourceId, viewId }, perms) — both follow DMS_SOURCE_AUTH_MODE (dama/datatypes/auth.js).
   // Strict ones (login always): requireSourcePermission(req, res, sourceId, perms) reads the pgEnv from
   // req.params.pgEnv; authorizeViewAction(req, res, viewId, perms, bodySourceId) checks the view's own source.
+  // holdsSourcePermission(req, sourceId, perms) answers nothing: for what a reply carries (a secret only an
+  // editor sees), judged as reads are (DMS_READ_AUTH_MODE).
   mountDatatypeRoutes(app, {
     queueTask: tasks.queueTask,
     getTaskStatus: tasks.getTaskStatus,

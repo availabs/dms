@@ -17,6 +17,8 @@
  * The geometry view is PostgreSQL only — requires PostGIS.
  */
 
+const { allowViewRead } = require('../../routes/uda/readAuth');
+const { getSubdomain } = require('../../utils/subdomain');
 const { getDb } = require('../../db');
 const { getEssentials } = require('../../routes/uda/utils');
 const { buildSimpleFilterSql } = require('../../routes/uda/query_sets/postgres');
@@ -297,6 +299,14 @@ async function getJoinedTileData(pgEnv, viewId, z, x, y, columns, filter, join) 
   }
 }
 
+// A joined tile also reads the joined view (its `viewId`, on the same pgEnv).
+async function allowJoinRead(joinRaw, pgEnv, user, subdomain) {
+  let join;
+  try { join = JSON.parse(joinRaw); } catch { return true; } // the route answers 400 for bad JSON
+  if (!join || join.viewId == null) return true;
+  return allowViewRead({ env: pgEnv, viewId: join.viewId, user, subdomain, kind: 'tiles', logOnly: true });
+}
+
 async function serveTile(req, res) {
   const { pgEnv, view_id, z, x, y } = req.params;
   const { cols, filter, join: joinRaw } = req.query;
@@ -309,6 +319,17 @@ async function serveTile(req, res) {
   if (db.type !== 'postgres') {
     return res.status(501).json({ error: 'Tile serving requires PostgreSQL with PostGIS' });
   }
+
+  // view-source on the view's source (routes/uda/readAuth.js, DMS_READ_AUTH_MODE), log only: tiles are
+  // exempt from `enforce`. MapLibre fetches tiles without the token, so every tile request reads as
+  // anonymous and enforcing would blank editors' maps of private sources. Would-denies still log
+  // (kind `tiles`). To enforce later, send identity with tile requests (e.g. a short-lived token added
+  // in AvlMap's transformRequest) and drop `logOnly` here: read-visibility task, "Tiles".
+  const user = (req.availAuthContext && req.availAuthContext.user) || null;
+  const subdomain = req.headers ? getSubdomain(req) : '';
+  const readable = await allowViewRead({ env: pgEnv, viewId: view_id, user, subdomain, kind: 'tiles', logOnly: true })
+    && (!joinRaw || await allowJoinRead(joinRaw, pgEnv, user, subdomain));
+  if (!readable) return res.status(204).send();
 
   let join = null;
   if (joinRaw) {
