@@ -158,6 +158,13 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   - `log` is not "nothing changes": anonymous UDA writes are refused in every mode, and client gates hide
     controls (Create / Upload / Settings, source Admin / Delete, version rename / Clear / Delete, Rules,
     Schedules, download links) on rows with grants set; new sources carry a creator grant, so non-grantees lose them.
+- **Merge of `origin/master` (2026-10-27; root 665277a1; the library had nothing new):** new plugin `acs5`'s
+  `/publish` checked only a login for a new source and `create-view` alone for a new year, after body
+  validation: now `authorizePublish`, checked first (root 2f7acd7a); plugin sweep 37/37 (36 write routes), acs5
+  unit 20/20. **`npm run build` fails, on master too:** `src/patterns/chat/components/MessageBody.jsx` imports
+  `lexicalToHtml` from the library, which no pushed dms commit has (master's own merge note: library pointer
+  b368a054 "was never pushed"). Waits on the chat author pushing that library commit. Master's planning also
+  names a library task `server-side-auth-general.md` that is in the same unpushed commit.
 - Next: 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
