@@ -2494,6 +2494,12 @@ B. Not through `change_log`: dms-server raw-SQL scripts (`migrate-site`, `consol
 
 ### Found while testing: Falcor/CLI writes are never live-broadcast (FOUND, ROOT-CAUSED, NOT FIXED — 2026-09-25)
 
+> **2026-10-21:** still unfixed, and now blocking — the chat pattern's live tail depends on it
+> (chat messages are `:data` rows, which sync never intercepts, so they can only be written through
+> Falcor). The fix is tracked in [`falcor-writes-not-broadcast.md`](./falcor-writes-not-broadcast.md),
+> which carries the caveats below forward. Re-confirmed independently by a two-path test on
+> 2026-10-21; the pre-commit-broadcast caveat is now moot (`tx.afterCommit`).
+
 Owner observed an open `/edit/page_3` tab needed a refresh to show sections the CLI had just added. Verified live: a WS client subscribed to `shaun-test-app` (app + `pages|page` pattern, same messages `sync-manager.js` sends) received **zero** `change` messages while the CLI created a page and a section on dmsserver.availabs.org.
 
 Root cause: two different controller instances. `routes/dms/dms.route.js:13` builds its own `createController(DMS_DB_ENV)` and serves every Falcor route from it (`:522 module.exports = createRoutes(controller)`), while `index.js:381-386` calls `setNotifyChange(notifyChange)` on `dms.controller.js`'s module-level `defaultController` (`:1245`) — on the stated but false assumption (`index.js:382-384` comment) that the route uses that same instance. So the Falcor path's `_notifyChange` is always null: `appendChangeLog` writes `change_log` but never broadcasts. Only `/sync/push` writes broadcast. The route's separate instance predates sync (`3e5debbd`, 2026-02-06); the wiring was wrong from sync's first commit (`d62b4f36`, 2026-03-09). `dms.controller.js:45`'s comment already notes the two instances exist (for the page-delete hook, which is why that hook is module-level).
