@@ -161,10 +161,19 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
 - **Merge of `origin/master` (2026-10-27; root 665277a1; the library had nothing new):** new plugin `acs5`'s
   `/publish` checked only a login for a new source and `create-view` alone for a new year, after body
   validation: now `authorizePublish`, checked first (root 2f7acd7a); plugin sweep 37/37 (36 write routes), acs5
-  unit 20/20. **`npm run build` fails, on master too:** `src/patterns/chat/components/MessageBody.jsx` imports
-  `lexicalToHtml` from the library, which no pushed dms commit has (master's own merge note: library pointer
-  b368a054 "was never pushed"). Waits on the chat author pushing that library commit. Master's planning also
-  names a library task `server-side-auth-general.md` that is in the same unpushed commit.
+  unit 20/20. `npm run build` then failed on master too (`lexicalToHtml` in library commit b368a054, unpushed).
+- **Second merge of `origin/master` (2026-10-27, both repos; lib dd37e301):** b368a054 is pushed now; the build
+  passes. Master's server change (`dms.route.js` exports `.controller`, so `index.js` wires the sync broadcast on
+  the instance that serves Falcor) doesn't touch the guards. Server suites all pass: sync 95, data-auth 49,
+  source-auth 50, read-auth 25, uda-auth 28, upload-auth 37, schedule-auth 13, datatype-auth 9, auth-groups 21,
+  auth-users 26, auth-platform 14, auth-permissions 21, site-grants 8, jwt 8. (`test-auth.js` needs a server on
+  :3097 and wasn't run; `test-sync` must run with `DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test`.)
+  - **Overlap to settle with amuro:** master brought `server-side-auth-general.md` (an `auth` column, one resolver
+    walking `parent_id`, `read`/`edit` on the server, "empty = read allowed, edit denied"). Its Phase C covers the
+    writes `dataAuth.js` already guards, with a different rule for rows with no grants.
+  - **Master's library `CLAUDE.md` now lists `dataAuth.js` `judge()` as debt:** a per-kind `switch`, and a kind
+    with no `case` falls through to "signed in" (`:274`). Its rule: the default is inheritance through the parent,
+    never "signed in is enough", and which verb governs which field belongs in the pattern's format.
 - Next: 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and
