@@ -148,6 +148,11 @@ function clearReadSnapshots() { snapshots.clear(); namedPatterns.clear(); }
 // `named`: the request's datasets pattern ({ app, ap }), used for external sources only (internal sources
 // find their own patterns), as sourceAuth.js decideSource does.
 function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, named = null) {
+    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
+    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+    if (require('./rowSourceAuth').udaGate() === 'row') {
+        return require('./rowSourceAuth').decideFromRow(snap, sourceId, user, reqPermissions, named);
+    }
     const s = snap.sources.get(+sourceId);
     if (!s) return { allow: false, reason: 'source not found' };
     if (s.orphan) return { allow: false, reason: `source ${sourceId} is in no datasets pattern of ${snap.app}` };

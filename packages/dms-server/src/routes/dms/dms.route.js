@@ -4,8 +4,12 @@ const falcorJsonGraph = require("falcor-json-graph"),
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
 const { isUserAuthed, resolveAuthPermissions } = require('./auth');
+const { createGate, rowAuthMode } = require('./rowAuthGate');
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
-const { assertDataWrite, dataAuthMode } = require('./dataAuth');
+// KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
+// comment the next one out to move this surface back onto it.
+// const { assertDataWrite, dataAuthMode } = require('./dataAuth');
+const { assertDataWrite, dataAuthMode } = require('./rowAuthGate');
 
 /*
  Controller Settings
@@ -35,6 +39,14 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     const response = [];
     // Cache pattern auth results within this response to avoid repeated DB lookups
     const patternAuthCache = new Map();
+    // One row-auth gate per (app, user) within this response: the resolver memoises its container
+    // map, so sharing it means the type-path lookup is loaded once rather than per row.
+    const gateCache = new Map();
+    const rowAuthGateFor = (a, u, sub) => {
+      const k = `${a}:${(u && u.id) ?? 'anon'}:${sub}`;
+      if (!gateCache.has(k)) gateCache.set(k, createGate({ controller, app: a, user: u, subdomain: sub }));
+      return gateCache.get(k);
+    };
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
@@ -86,6 +98,29 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
               users:  { ...(patternAuth?.users  || {}), ...(pageAuth?.users  || {}) },
             };
             blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: mergedAuth });
+          }
+        } else if (rowAuthMode() !== 'legacy') {
+          // EVERY OTHER KIND. Until now nothing gated these at all — site, theme, tenant, dmsenv,
+          // source, view, component, page-edit and split `:data` are guarded on WRITE (dataAuth.js)
+          // and were open on READ, because `judge()` is write-only and this gate knows two kinds.
+          //
+          // Added as a separate branch on purpose: `pattern` and `page` keep their existing logic
+          // untouched, which also preserves the exemptions above — auth and admin pattern rows stay
+          // publicly readable so a logged-out visitor can load the login page and build routes.
+          //
+          // Under DMS_ROW_AUTH_MODE=log (the default) this only writes `would-deny` lines; it
+          // decides nothing until a server is flipped to `enforce`. Errors fall back to today's
+          // behaviour: a resolver fault must not take the read path down, and in `log` the verdict
+          // was never going to be used anyway.
+          try {
+            const appForLookup = app || row.app;
+            if (appForLookup) {
+              const gate = rowAuthGateFor(appForLookup, user, subdomain);
+              const v = await gate.judgeOne(row, 'read');
+              blocked = !v.allow;
+            }
+          } catch (e) {
+            console.warn(`[row-auth] read gate failed for ${row.type} ${idStr}: ${e.message} — allowing`);
           }
         }
 

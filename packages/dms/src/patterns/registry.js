@@ -32,6 +32,18 @@
 //                     editorTabs   optional [{ name, path, icon, component }]:
 //                                  Pattern Editor tabs (and admin menu entries)
 //                                  this type adds after Overview
+//   authVocabulary  optional { self: [...], descendants: [...] } — the verbs
+//                   this type's grants may use and what each confers
+//                   structurally. Validated here; stamped onto the pattern row
+//                   at create, because dms-server cannot read this registry and
+//                   the row is the only channel to it. See ./authVocabulary.js
+//                   and planning/tasks/current/row-auth-vocabulary.md.
+//   childRefs       optional { [ownerKind]: { [attribute]: childKind } } — which
+//                   of this type's rows own other rows, and through which
+//                   attributes. Server-readable copy of what `type: 'dms-format'`
+//                   already declares per attribute; drives the parentage
+//                   migration and the parent a row may name. See
+//                   ./page/page.childRefs.js.
 //   providesDatasources  this type's rows become internal datasources
 //                   (CMSContext.datasources — the page source pickers)
 //   pageComponents  optional { elementType: definition } handed to the page
@@ -54,6 +66,7 @@
 //                   register code a site theme ships for it under the type's
 //                   theme key (e.g. plugins at `theme.<name>.plugins`) — site-wide,
 //                   whichever pattern's theme declared them.
+import { validateAuthVocabulary, validateChildRefs } from './authVocabulary'
 import defaultTheme from '../ui/defaultTheme'
 import { mergeTheme, resetBaseThemeCache } from '../ui/useTheme'
 import { registerComponents } from './page/components/sections/componentRegistry'
@@ -66,6 +79,14 @@ export function registerPatternTypes(types = {}) {
     Object.entries(types).forEach(([name, definition]) => {
         if (!Array.isArray(definition?.siteConfig)) {
             throw new Error(`registerPatternTypes: "${name}" needs a siteConfig array`)
+        }
+        if (definition.authVocabulary) {
+            // Deploy-time, not runtime: a verb that confers nothing because of a typo fails closed
+            // and silently, which is the worst way for an auth rule to be wrong.
+            validateAuthVocabulary(definition.authVocabulary, `registerPatternTypes: "${name}" authVocabulary`)
+        }
+        if (definition.childRefs) {
+            validateChildRefs(definition.childRefs, `registerPatternTypes: "${name}" childRefs`)
         }
         if (patternTypes[name] && isDev) {
             console.warn(`registerPatternTypes: "${name}" was already registered; replacing it`)

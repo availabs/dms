@@ -257,6 +257,14 @@ function PatternEdit({
 			if (prepared) row = prepared;
 		}
 
+		// Stamp the type's auth vocabulary onto the row. dms-server cannot read the pattern-type
+		// registry (it has no dependency on this package), so the pattern row is how a type's verbs
+		// reach the resolver — row-auth-vocabulary.md. Read from the registry rather than left to
+		// each type's beforeCreate, so a type cannot forget.
+		const { authVocabulary, childRefs } = getPatternType(data.pattern_type) || {};
+		if (authVocabulary) row = { ...row, authVocabulary };
+		if (childRefs) row = { ...row, childRefs };
+
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
 			['dms', 'data', 'create'],

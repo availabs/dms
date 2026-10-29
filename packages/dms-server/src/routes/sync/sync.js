@@ -13,7 +13,10 @@ const { Router } = require('express');
 const { getDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
 const { createController } = require('../dms/dms.controller.js');
-const { assertDataWrite, dataAuthMode } = require('../dms/dataAuth');
+// KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
+// comment the next one out to move this surface back onto it.
+// const { assertDataWrite, dataAuthMode } = require('../dms/dataAuth');
+const { assertDataWrite, dataAuthMode } = require('../dms/rowAuthGate');
 const { getSubdomain } = require('../../utils/subdomain');
 const {
   isSplitType,
@@ -563,6 +566,13 @@ function createSyncRoutes(dbName) {
         const expect = item.id == null || dataAuthMode() === 'legacy' ? null
           : stored ? { type: stored.type, dataText: stored.data_text } : { missing: true };
 
+        // Resolved before the transaction: both lookups are adapter queries, which must not run
+        // inside one (dms-server/CLAUDE.md), and a failed capability probe is cached as "unmigrated"
+        // for the life of the process.
+        // Resolved for a delete too: a deleted owner's children are swept the same way
+        // dms.data.delete sweeps them.
+        const childRefs = await controller.childStampPlan(item.app, stored?.type || item.type);
+
         try {
           outcome = await dms_db.withTransaction(async (tx) => {
             await controller.assertRowUnchanged(tx, pushTable, item.id, expect);
@@ -601,6 +611,12 @@ function createSyncRoutes(dbName) {
 
             } else if (action === 'U') {
               const dataStr = typeof writeData === 'string' ? writeData : JSON.stringify(writeData || {});
+              // The BEFORE half of the child sweep, read inside the transaction rather than taken
+              // from `stored` (which was read outside it): which children an update drops is a
+              // difference between two states, so a stale "before" would sweep the wrong rows.
+              const [pre] = childRefs
+                ? await tx.promise(`SELECT data FROM ${pushTable} WHERE id = $1`, [item.id])
+                : [];
               const rows = await tx.promise(
                 `UPDATE ${pushTable}
                  SET data = ${jsonMerge('data', '$1', dbType)},
@@ -613,6 +629,10 @@ function createSyncRoutes(dbName) {
               resultItem = rows[0];
               // The UPDATE matched nothing, so there is nothing to roll back.
               if (!resultItem) return { notFound: true };
+              await controller.sweepDeclaredChildren(tx, {
+                table: pushTable, app: resultItem.app, id: resultItem.id, type: resultItem.type,
+                before: pre?.data, after: resultItem.data, childRefs,
+              });
 
             } else {
               await tx.promise(
@@ -624,6 +644,23 @@ function createSyncRoutes(dbName) {
               // what dms.data.delete cascades (a view's table and its ref on the source, a source's
               // views, the page delete hook): without it a delete through sync left them behind
               if (stored) await controller.cascadeDeletedRow(tx, stored, userId, { ip: req.clientIp || null, userAgent: req.headers['user-agent'] || null, authState: userId ? 'authenticated' : 'sync' });
+              // …and the children the deleted owner parented, which the cascade above cannot know
+              // about without the library knowing what a page is. Same declaration the stamp reads.
+              await controller.sweepChildrenOfDeleted(tx, {
+                table: pushTable, app: resultItem.app, id: resultItem.id,
+                type: resultItem.type, childRefs,
+              });
+            }
+
+            // Parentage: the row just written names its children in its declared arrays, and this
+            // is the only moment they can be stamped — sync pushes a page's children before the
+            // page, so the children had no parent id to claim. Same helper as the Falcor writes,
+            // inside this transaction, and it never throws (routes/dms/parentId.js).
+            if (action !== 'D' && resultItem) {
+              await controller.stampDeclaredChildren(tx, {
+                table: pushTable, app: resultItem.app, id: resultItem.id,
+                type: resultItem.type, data: writeData, childRefs,
+              });
             }
 
             // Write change_log (skip if table doesn't exist — sync not fully set up)

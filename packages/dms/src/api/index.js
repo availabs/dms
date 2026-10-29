@@ -533,6 +533,16 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
 							delete d[key];
 						}
+						// The row being saved OWNS these children — that is what `dms-format` declares.
+						// Say so on the way in: the server cannot derive it, because the type system
+						// does not model the page → component edge (pages carry no instance name, so
+						// nothing can name one as a parent). We have the id right here; it is only
+						// ever rediscovered later at greater cost. Generic — no pattern or kind
+						// appears in this loop, so every type that declares a dms-format attribute
+						// gets correct parentage for free. Dropped by the server if it fails
+						// validation, so an absent `id` (a brand-new parent, back-filled below) is
+						// harmless rather than an error.
+						if (id) d.parent_id = id;
 						if (childId) {
 							if (dirty) {
 								await sync.localUpdate(childId, d);
@@ -565,7 +575,7 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 		// --- End sync intercept ---
 
 		// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
-		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
+		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor, id)
 		row = {...row, ...updates}
 
 

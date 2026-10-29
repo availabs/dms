@@ -1,0 +1,17 @@
+{
+  "_README": [
+    "Every test in UDA's kind-auth contract suite (tests/test-source-auth.js) that the ROW judge is",
+    "expected to disagree with, and why. Regenerate the NAMES with:",
+    "    DMS_UDA_GATE=row node tests/test-source-auth.js",
+    "but never regenerate the REASONS mechanically — an entry without a reason someone wrote is",
+    "the whole thing this fixture exists to prevent.",
+    "Categories: parentage | OPEN"
+  ],
+  "cascade": [],
+  "expected": {
+    "log: a granted request logs nothing": "parentage"
+  },
+  "reasons": {
+    "parentage": "THE MISSING pattern -> dmsEnv HOP. An internal source's type path runs source -> dmsEnv -> site; the datasets pattern is a SIBLING of the env (it points at it with a scalar `data.dmsEnvId`), so the pattern's grants are not in the chain. A user who holds update-source on the PATTERN is therefore refused by row auth, which logs a would-deny under `log` while today's rule still allows — hence one warning where the test expects none. Fails CLOSED, which is the safe direction. Closes when the datasets pattern declares childRefs { datasets: { dmsEnvId: 'dmsenv' } } and stampChildren writes the env's parent_id (planning/tasks/current/row-auth-uda.md). The test fixture is an UNMIGRATED sqlite table with no parent_id column at all, so it cannot close there — the real check is the audit on a migrated app."
+  }
+}

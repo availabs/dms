@@ -282,8 +282,14 @@ function logWouldDeny(kind, target, reqPermissions, user, reason) {
  * `wasOpen`: the route checked nothing before, so today's rule is "allow" (as for patterns).
  */
 async function isUserAuthedForSource(opts) {
+    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
+    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
     const mode = authMode();
-    const d = await decideSource(opts);
+    // `legacy` checks nothing, so do not pay for a lookup (or warm a capability probe) to ignore it.
+    if (mode === 'legacy') return opts.wasOpen || await legacyAllows(opts);
+    const d = require('./rowSourceAuth').udaGate() === 'row'
+        ? await require('./rowSourceAuth').decideSourceRow(opts)
+        : await decideSource(opts);
     if (mode === 'enforce' || d.allow) return d.allow;
     // legacy / log: today's rule may allow what the resolver's rule denies, never the reverse. (Today's rule
     // reads only the source's own grants, so it refused `${app} Admin` and pattern grantees.)
@@ -299,7 +305,11 @@ async function isUserAuthedForSource(opts) {
 async function isUserAuthedForPattern(opts) {
     const mode = authMode();
     if (mode === 'legacy') return true;
-    const d = await decidePattern(opts);
+    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
+    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+    const d = require('./rowSourceAuth').udaGate() === 'row'
+        ? await require('./rowSourceAuth').decidePatternRow(opts)
+        : await decidePattern(opts);
     if (mode === 'enforce') return d.allow;
     if (!d.allow) {
         const ref = opts.patternRef || {};

@@ -4,29 +4,11 @@ import SectionArray from './components/sections/sectionArray'
 export const cmsSection = {
   app: "dms-site",
   type: "component",
+  // A component declares no `parent` / `url_slug` of its own. Both used to sit here, resolving
+  // through `joinKey: 'parent'` + `serverFn: 'recurse_extract_data'` — a reader wired up for a
+  // field that was measured 52.6% wrong and has since been retired (see rowAuth.js's header, and
+  // planning/tasks/current/row-auth-parentage.md). A component's containment is `parent_id`.
   attributes: [
-      {
-          "key": "parent",
-          "name": "parent",
-          "type": "text",
-          "display_name": "parent",
-          joinKey: "parent", // this is the id key.
-          keepOriginal: false,
-          valueKey: "title",
-          joinWithChar: ",", // if undefined, an array is returned
-          serverFn: "recurse_extract_data"
-      },
-      {
-          "key": "url_slug",
-          "name": "url_slug",
-          "type": "text",
-          "display_name": "url",
-          joinKey: "parent", // this is the id key.
-          keepOriginal: false,
-          valueKey: "url_slug",
-          joinWithChar: ",", // if undefined, an array is returned
-          serverFn: "recurse_extract_data"
-      },
     { key: "title",
       type: "text",
       required: false,

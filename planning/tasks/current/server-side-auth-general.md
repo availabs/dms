@@ -1,6 +1,159 @@
-# General server-side auth for DMS records: an `auth` column and one resolver
+# Row auth: one resolver for every DMS surface (hub)
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_chat_pattern](../../../../../planning/initiatives/tes_chat_pattern.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary), [tes_chat_pattern](../../../../../planning/initiatives/tes_chat_pattern.md) · **Status:** doing · **Created by:** amuro@albany.edu · **Edited by:** —
+
+## ▶ Resume here (updated 2026-10-29)
+
+**Built: tasks 0, 1, 2, 3, 4 — and parentage.** Nothing has touched a production app. All of it was
+built and measured against a **clone**, `dms_rowauth_test` (33,967 rows from `mitigat-ny-prod`).
+
+| | |
+|---|---|
+| `routes/dms/mergeAuth.js` | the pure merge — five rules, scope, five structural verbs |
+| `routes/dms/rowAuth.js` | ancestry — `parent_id` then type path, breadth-first and batched |
+| `routes/dms/rowAuthCaps.js` | memoised capability probes, and the projection they imply |
+| `routes/dms/rowAuthGate.js` | verdicts, defaults, `DMS_ROW_AUTH_MODE` (`legacy\|log\|enforce`, default `log`) |
+| `routes/dms/authVocabulary.js` | the pattern's declared vocabulary and `childRefs` |
+| `routes/dms/legacyVerbs.js` | **transitional** vocabulary shim — delete when patterns declare their own |
+| `routes/dms/parentId.js` | claim validation, `stampChildren`, `sweepRemovedChildren`, `sweepAllChildren` |
+| `dms.route.js`, `dms.controller.js` | the read gate, the loaders, and all three parentage hooks |
+| `scripts/migrate-row-auth.js` | the four-pass backfill, `--verify-parents`, `--drop-data-parent` |
+
+**Tasks 5 AND 6 are BUILT but not switched on** (2026-10-29). The handoff worry is resolved without a
+handoff: `dataAuth.js` is untouched and still the default. The row write judge lives in
+`rowAuthGate.js` — which is also task 7's destination, since reads already go through it — behind
+`DMS_WRITE_GATE` (`kind` default | `row`). `tests/test-row-auth-diff.js` runs kind auth's own
+contract suite against the row judge and pins all 26 disagreements with written reasons, so a new
+one fails the build.
+
+Task 6 followed the same shape: `routes/uda/rowSourceAuth.js` behind `DMS_UDA_GATE`, three
+delegations, `sourceAuth.js` / `readAuth.js` left whole, and `test-row-auth-uda-diff.js` pinning the
+difference — **one entry**, where dms writes had 26. The differential runner is now shared
+(`tests/lib/differential.js`).
+
+**Left: 7, then 8** — plus three smaller ones that came out of 5 and 6:
+
+- **task 7** consolidate — one decision function. Riskiest edit in the programme.
+- **task 8** the production cutover, which is where prod is touched for the first time.
+- [row-auth-scoped-grants.md](./row-auth-scoped-grants.md) — the one `OPEN` entry in the
+  differential, and the gate on `DMS_WRITE_GATE=row` ever reaching `enforce`. No server change;
+  needs the Access editor to write scoped grants, and an owner decision on existing flat ones.
+- **Task 6's loose ends**: a positive row contract suite for uda (only the differential exists), the
+  grant sweep (10 external + 76 internal), and retiring `metadata.isEditable` in favour of
+  `edit-source-data`. See [row-auth-uda.md](./row-auth-uda.md), "Not done".
+- **The Phase D audit script is now a prerequisite, not a nicety.** 13 of the 26 disagreements are
+  the strict-default rule: kind auth opens a write when nothing is configured, row auth refuses it.
+  So every app with unconfigured patterns loses editing the moment anything flips. Which rows those
+  are is measurable on the clone today.
+
+**Two things still need the owner:**
+
+1. **A forced semantic decision** — see "Decision made during implementation" below. An ancestor's
+   `otherwise` binds only principals the child does not name. It was the only way to keep "edit your
+   own message" working, and it opens a bounded widening path.
+2. ~~Task 7's "one real app under `enforce`" precondition~~ — **settled 2026-10-29: it is
+   `rowauth-test`**, exercised by a local server run with every flag on. See
+   [row-auth-consolidate.md](./row-auth-consolidate.md), "The precondition — SETTLED".
+
+**Direction settled.** Build on `permissions_move`; replace **kind-based** enforcement with
+**parent/child row-based** enforcement. Everything below the "Tasks" list is the design record — the
+decisions, their reasoning, and the case tables the resolver is held to. Nothing here is unbuilt
+*design*; what remains is unbuilt *work*.
+
+**The one thing not decided by thinking:** `permissions_move` was committed to on 2026-10-27 by its
+author, with uncommitted client fixes in flight. Task 5 replaces a file they are working in, and task
+3 touched `SourceAccessEditor.jsx`, which is in their uncommitted set. **Agree the handoff before
+starting task 5.**
+
+## Tasks, in order
+
+> The **bold headings are stages**; the **`(task N)`** on each doc is the number this file's prose
+> uses ("task 5 replaces `judge()`"). Only `0` is both. Added 2026-10-29 after the two sequences
+> were read as one.
+
+**0. Measure first**
+- **(task 0)** [row-auth-chain-spike.md](./row-auth-chain-spike.md) — chain depth, recursive-CTE cost, and how much
+  parentage is derivable per app today. Read-only. Runs before 1 so the resolver is shaped by numbers.
+
+**1. The function** (everything depends on it)
+- **(task 1)** [row-auth-resolver.md](./row-auth-resolver.md) — `resolve(rows)` + `can(merged, user, verb)`, the
+  five merge rules, scope, five verbs, cycles. Changes no behaviour.
+- **(task 2)** [row-auth-schema.md](./row-auth-schema.md) — the `auth` and `parent_id` columns, capability probes,
+  and the fallback matrix that lets all of it run unmigrated.
+- **(task 3)** [row-auth-vocabulary.md](./row-auth-vocabulary.md) — **built 2026-10-28.** `authVocabulary`
+  declared in `registerPatternTypes`, transported on the pattern row, interpreted by
+  `dms-server/routes/dms/authVocabulary.js`; `--sync-vocabulary` reconciles existing rows from a
+  manifest the client emits. `permissionDomain` was **not** reshaped and the five client readers
+  were left alone — a pattern has three row kinds with vocabularies, not two scopes, so a test
+  asserts `permissionDomain ⊆ authVocabulary` instead. The ⚠ collision with the other author's
+  uncommitted file is therefore avoided. `legacyVerbs.js` still stands: host-app types have not
+  declared, and no production app has been measured.
+
+**2. Move the call sites** (each independently shippable, each under its own existing mode flag)
+- **(task 4)** [row-auth-dms-reads.md](../completed/row-auth-dms-reads.md) — **built 2026-10-28.** Closes the
+  **nine kinds nothing guards**. New ground; `permissions_move` never touched reads. The four
+  unchecked search routes were **deliberately left open** (owner, 2026-10-28: that search is to be
+  deprecated, so gating it is wasted effort) — the exposure moved to
+  [deprecate-dms-search-routes.md](./deprecate-dms-search-routes.md).
+- **(task 5)** [row-auth-dms-writes.md](./row-auth-dms-writes.md) — `judge()` out, `planEdit` /
+  `assertRowUnchanged` / the modes stay. ⚠ coordinate.
+- **(task 6)** [row-auth-uda.md](./row-auth-uda.md) — datasets onto the resolver, with the external-source
+  ancestry provider.
+
+**3. Then remove what they replaced**
+- **(task 7)** [row-auth-consolidate.md](./row-auth-consolidate.md) — **one decision function for
+  every server auth call.** Retire the per-kind logic. Tasks 4–6 each
+  move a surface onto the gate but **remove nothing**, so the count has gone from 5 decision points
+  to 6. This is the one that makes "one decision function" true, and it is the riskiest edit in the
+  programme: the `pattern`/`page` branch guards every page read in production and carries both the
+  auth/admin exemption and the exact `no-access` stub shape. **Completion test: one decision
+  module.**
+
+**Prerequisite for task 5, not a stage of its own**
+- [row-auth-parentage.md](./row-auth-parentage.md) — the client states `parent_id`, the server
+  validates it (`validateParentId`), the owner re-asserts it from its own declared arrays on every
+  save (`stampChildren`), and deletes the children it drops (`sweepRemovedChildren`, behind
+  `DMS_CHILD_SWEEP_MODE`, default `log`). `data.parent` retired. `--verify-parents` is the
+  reconciler the `enforce` and `delete` gates both read.
+
+**8. Production is a CUTOVER** (owner, 2026-10-29)
+- [row-auth-production-cutover.md](./row-auth-production-cutover.md) — everything finishes and is
+  proven on `rowauth-test` first; prod then goes in **one** operation, writes quiesced, not as a
+  sequence of independently-shipped steps. Half-migrated is the worst state available: a component
+  resolves through the type path, which skips its page. Shipping behind flags is the intended
+  shape, not a compromise.
+
+**Owned elsewhere — update, do not duplicate**
+- [sync-per-user-permission-filtering.md](./sync-per-user-permission-filtering.md) owns sync reads
+  **and** the WebSocket, with detail this hub does not have (synced rows survive logout in
+  IndexedDB). The hub's decisions on socket identity and per-message verdicts belong there.
+- [auth-permission-chain-and-unguarded-writes.md](./auth-permission-chain-and-unguarded-writes.md)
+  owns defects B and E, which task 5 closes.
+- [permissions-grant-migration.md](./permissions-grant-migration.md) owns the migration — whose shape
+  the "`implies` at resolve time" decision changed: it writes **plain pattern verbs**, and needs no
+  expansion map.
+- Chat's view→channel back-pointer belongs on the chat task
+  (`planning/tessera/tasks/current/chat-pattern-implementation.md`, "Permissions and privacy").
+
+**Gate on every `enforce` flip:** parent-resolution coverage for that app — see "Running on unmigrated
+schema". A row private *only by inheritance* opens up when its parent cannot be resolved.
+
+**Field-level rules are out of scope** (owner, 2026-10-29). Row auth is five structural verbs on a
+row and does not learn which attribute needs which verb — that is business logic and belongs in the
+pattern. This supersedes the hub's earlier note that *"which verb governs which field"* belongs in
+the pattern's format: it belongs in the pattern, and the SERVER does not read it. The cost is that
+`publish-page`, `edit-page-params` and `edit-source-data` stop being enforced server-side once a
+surface moves off kind auth — see
+[row-auth-dms-writes.md](./row-auth-dms-writes.md), "Field-level rules are out of scope". Changing
+the grants themselves stays server-side under the structural verb `grant`.
+
+**Gate on `DMS_CHILD_SWEEP_MODE=delete`:** `--verify-parents` reporting zero rows "named by 2+
+owners" for that app — see task 8.
+
+**No production app is migrated until tasks 3, 5, 6 and 7 — and parentage — are finished and green
+on `rowauth-test`** (owner, 2026-10-29). Task 8 is the single operation that moves one.
+
+---
 
 **Supersedes the per-kind plan** in [`server-side-auth.md`](../completed/server-side-auth.md)'s
 "Phase 3 — Sources and views", which was deferred in 2026-05 and never started. Phases 1 and 2 of
@@ -547,6 +700,22 @@ merge. Reference implementation written and exercised against chat's cases; **al
 3. **A child may only narrow — but only where an ancestor has spoken.** The clamp is per principal: a
    child's entry is intersected with what an ancestor explicitly stated for *that* principal. If no
    ancestor ever mentioned it, there is no ceiling and the child may grant freely.
+   **Two consequences, confirmed in code 2026-10-29** (`mergeAuth.js` `ceilingFor`, pinned in
+   `tests/test-row-auth-writes.js`):
+
+   - **Per-page delegation only works for principals the pattern has not named.** A pattern granting
+     `Editors: ['edit-page']` (read + edit) makes a page-level `Editors: [… 'create']` unreachable —
+     the page cannot widen it back. To vary a group's rights per page, do not name that group at the
+     pattern level. This is the practical limit on using a claimed `parent_id` to express "may add
+     sections to THIS page".
+   - **Where an ancestor is silent, a page's access admin may grant freely — including to a group
+     containing themselves.** That is delegation, not escalation (someone made them that page's
+     authority, and the blast radius stops at its descendants), but "a child may only narrow" is how
+     people will paraphrase this rule, and that sentence is only true for principals an ancestor
+     named.
+
+   Only the five STRUCTURAL verbs are clamped; a pattern verb passes through as a string for the
+   client to check.
 4. **`otherwise` is the ceiling**, a sibling field — not a `'*'` key inside `groups`. It caps every
    principal the object does not name, which is how a row declares a **closed set**
    (`otherwise: []` = private). It is a property of the whole object, not a principal, so it does not
@@ -1184,11 +1353,64 @@ sits.
 | legacy value (flat) | flat = self + descendants — today's semantics exactly |
 | no `parent_id` column | derive from the type path (`{parent}\|{instance}:{kind}`) |
 | `parent_id` null, type path resolves | use it |
+| **`parent_id` present but its chain ends** | **continue via the type path** — they are a *sequence*, not alternatives (see below) |
 | **parent unresolvable** | **chain starts at this row** — its own grants decide; empty means today's default for that surface |
 | cycle, or depth > 16 | truncate, resolve against the partial chain, log |
 
 Two query shapes (column present / absent), chosen once per process from the memoized probe — never
 per request.
+
+### Correction from the spike (2026-10-27): both parentage sources are required
+
+[row-auth-chain-spike.md](./row-auth-chain-spike.md) measured `mitigat-ny-prod` (541,228 rows) and
+found this matrix implied a false choice. In production `data.parent` carries **only the
+within-pattern hierarchy**:
+
+```
+528,158  component → page
+  4,159  page      → page
+```
+
+**Nothing points at a pattern.** The link up to pattern and site comes from the **type path**. So:
+
+- **The type path alone is wrong for components** — it routes them to their *pattern*, skipping the
+  page, so a private page's restriction would not reach its own components.
+- **`parent_id` alone is incomplete** — a page's chain ends at another page or at nothing.
+
+**The walk is therefore: follow `parent_id` while present; when it runs out, continue via the type
+path; when that fails, stop.** Not "one or the other".
+
+### Superseded 2026-10-28 (owner): make `parent_id` complete instead
+
+Owner's call: fix this in the **data migration** — fill `parent_id` for the hops `data.parent` never
+carried (top-level page → its pattern, pattern → the site) and keep client code maintaining it — so
+the runtime walk is **pure `parent_id`**. The type path demotes from a runtime mechanism to
+*migration-time seeding* plus the unmigrated fallback.
+
+**The data strongly supports this.** Asked whether type could carry parentage on its own:
+
+- **Instance names collide.** `mitigat-ny-prod` has 323 container rows but only **239 distinct
+  instance names** — **21 ambiguous**, including `"admin"` resolving to *two* rows both typed
+  `prod|admin:pattern` (ids 2724987 and 566466). The runtime resolver currently takes first-wins,
+  i.e. it guesses, on every request. A migration can **detect and report** the collisions instead.
+- **Type encodes only one level.** `{parent}|{instance}:{kind}` has a single parent segment, so a
+  page under a page cannot express both its parent page and its pattern.
+
+**And it is cheap.** The rows needing a `parent_id` the data never had, in the largest app:
+
+| | rows |
+|---|---|
+| top-level pages (no `data.parent`) → their pattern | 815 |
+| patterns → the site | 112 |
+| **total** | **927** |
+
+Runtime keeps the type-path fallback for unmigrated schemas — but on a migrated app it should never
+fire, and a metric on how often it does is the signal that a migration is incomplete.
+
+The spike also found **three encodings of `data.parent`** in production — jsonb object, *JSON text
+inside a string* (double-encoded, ~284k rows), and bare numeric string — all of which the derivation
+must handle. Measured derivability: **99.2%**, resolving: 98.4%. Depth: max 5 via `data.parent`,
+about 7 end to end, so the cap of 16 stands.
 
 ## Where `implies` is applied: the pattern row, at resolve time (decided 2026-10-27)
 
@@ -1248,6 +1470,43 @@ table populated**. Far smaller than "make formats real data", and it reuses a ro
 server-side for the migration only. Avoid unless forced — two sources of truth for the thing most
 likely to be wrong.
 
+## ⚠ Decision made during implementation — needs confirmation (2026-10-27)
+
+Building the merge surfaced a **genuine conflict between two rules both previously agreed**, which
+could not be deferred. Flagged here because I chose one while the owner was away.
+
+**The conflict.** Both of these are "a descendant names a principal its ancestors never named, under
+an `otherwise: []` ceiling" — structurally identical, and we want opposite answers:
+
+| Case | Wanted |
+|---|---|
+| a message grants its author `users: { u2: ['read','edit'] }` under a private channel | **allow** — "only the author may edit their own message" (owner, explicitly: *"you simply add the more specific edit:user_id to that message"*) |
+| a page grants `Staff: ['read']` under a private pattern | refuse — narrowing only |
+
+The merge cannot tell them apart: it sees principal *names*, and does not know that `u2` is already
+inside via `members` while `Staff` is outside. That mapping is request-time user data, not chain data.
+
+**Chosen:** an ancestor's `otherwise` binds principals the child does **not** name; a principal the
+child names deliberately is clamped only by an **explicit** ancestor entry for that same principal.
+
+- "Edit your own message" works. ✔ (the requirement that cannot be dropped)
+- Principals an ancestor *did* name can still only be narrowed. ✔
+- A row **may** name a principal its ancestors never named — a widening path.
+
+**Why the widening is acceptable:** writing a row's auth requires **`grant`**, which is itself
+inherited and clamped. So widening is only available to someone already trusted to administer
+permissions on that row — the ordinary meaning of `grant`. It is delegation, not escalation.
+
+**The alternative, if this is judged wrong:** move the clamp from merge time to check time, so the
+ceiling applies to the effective *user* rather than to principal names. That distinguishes the two
+cases correctly, but requires carrying the ceiling chain into `can()` and makes the merged object no
+longer self-contained — losing the property that one resolved object answers every question.
+
+Implemented in `mergeAuth.js` `ceilingFor(…, explicitOnly)`; both behaviours are asserted in
+`tests/test-merge-auth.js`.
+
+**✅ Confirmed by the owner, 2026-10-28.**
+
 ## Plan (after the decisions)
 
 ### Phase A — the columns and the resolver
@@ -1291,9 +1550,15 @@ likely to be wrong.
 
 ### Phase D — writes
 - [ ] create / edit / delete gated behind a flag, default off — a blank row denies `edit`
-- [ ] an audit script: for a given app, which rows would become uneditable if the flag were turned
+- [x] an audit script: for a given app, which rows would become uneditable if the flag were turned
       on, and who holds `edit` today. Run it per site before enabling, because the answer on a site
-      with no grants is "everyone loses editing"
+      with no grants is "everyone loses editing".
+      **Built 2026-10-29 as `migrate-row-auth.js --audit-writes`** — read-only, and it needs no
+      migration, so it is the one piece of this programme that can measure PRODUCTION before the
+      cutover touches it. Four sections: the unstated-chain census by kind, who states anything
+      today, the most recently edited of the affected rows, and a cross-check of a random sample
+      through the REAL resolver. On `rowauth-test`: **22,475 of 33,967 rows (66.2%)** would become
+      writable by `rowauth-test Admin` only.
 - [ ] decide the CSRF guard's fate (`X-Requested-With`, currently commented out in `src/index.js`)
 
 ## Testing Checklist

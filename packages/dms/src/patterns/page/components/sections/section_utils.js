@@ -13,8 +13,17 @@ export const handlePaste = async (e, setKey, setState, value, onChange) => {
         setState(isJson(elementData) ? JSON.parse(elementData) : elementData) // state inits with element-data from prop. need to update on paste.
         const pastedValue = {}
 
+        // Paste moves CONTENT; the target section keeps its own identity. `id`/`ref` name the row
+        // being pasted into, so taking the source's would alias two sections onto one row.
+        // `trackingId` is the `$self` stable id — copying it makes two live sections collide (the
+        // create path mints a fresh one, so this only bites when pasting over an existing section).
+        // `draft_id`/`is_draft` describe the target's own draft state. `parent` is the retired
+        // containment field (dms-server routes/dms/rowAuth.js's header) and must not come back from
+        // a clipboard payload copied before it was removed.
+        const identityKeys = ['id', 'ref', 'trackingId', 'draft_id', 'is_draft', 'parent'];
+
         Object.keys(copiedValue)
-            .filter(key => !['id', 'ref'].includes(key))
+            .filter(key => !identityKeys.includes(key))
             .map(key => {
                 pastedValue[key] = copiedValue[key]
             })

@@ -2,7 +2,7 @@ import { cloneDeep } from "lodash-es"
 import { json2DmsForm, getUrlSlug, toSnakeCase, parseJSON } from '../_utils'
 // import { ButtonSelector,SidebarSwitch } from '../../ui'
 
-import { appendHistoryEntry } from '../../../utils';
+import { appendHistoryEntry, sanitizeSectionsForTemplate } from '../../../utils';
 import { resolveMountPath } from '../../../../utils/mountPath';
 import { listPatternTypes } from '../../../registry';
 
@@ -39,7 +39,6 @@ export const duplicateItem = (item, dataItems, user, apiUpdate) => {
     newItem.index = highestIndex + 1
     newItem.url_slug = getUrlSlug(newItem, dataItems)
     newItem.sections.forEach(s => {
-        // delete s.parent; // todo update this with the new parent id
         delete s.ref
         delete s.id
         // Fresh identity per duplicated section — sharing the source page's trackingId
@@ -85,11 +84,18 @@ export const newPage = async (item, dataItems, user, apiUpdate, template, mountB
 
     if (template) {
       if (template.draft_sections !== undefined) {
-        // Fresh identity per section materialized from the template — sharing the
-        // template's own trackingId would make every page spawned from it collide on
-        // the `$self` stable-id mechanism (see the draft/published section-identity
-        // task notes).
-        newItem.draft_sections = cloneDeep(template.draft_sections).map(s => ({ ...s, trackingId: crypto.randomUUID() }));
+        // A "template" is either a saved page_template row — whose sections were stripped of their
+        // identity by `sanitizeSectionsForTemplate` when it was saved — or an ordinary PAGE being
+        // used as one, whose sections still name that page's own component rows. Sanitizing here
+        // covers both: without it the second kind hands the new page the template's rows, so
+        // editing the new page edits the template, and the component ends up listed by two pages.
+        // Measured on `rowauth-test`: 54 of the 72 multi-owner components came from
+        // `mitigateny_county_template_copy` exactly this way.
+        //
+        // Fresh identity per section too — sharing the template's own trackingId would make every
+        // page spawned from it collide on the `$self` stable-id mechanism.
+        newItem.draft_sections = sanitizeSectionsForTemplate(cloneDeep(template.draft_sections))
+          .map(s => ({ ...s, trackingId: crypto.randomUUID() }));
       }
       if (template.draft_section_groups !== undefined) newItem.draft_section_groups = template.draft_section_groups;
       // Link pages (`nav_link`, page.format.js) are created from a template like any
