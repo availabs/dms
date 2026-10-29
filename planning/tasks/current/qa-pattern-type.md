@@ -21,8 +21,9 @@ is ported later.
 ## ▶ Start here (2026-10-14)
 
 - **2026-10-29 (Open work §9):** the sync fix for "counties show not covered", per-site Overview cards (off by
-  default) and the home page choice are built and owner-verified, awaiting the owner's commit. Site groups on the
-  Overview are next, after the commit (scope in §9). MNY needs a client deploy for the fix.
+  default) and the home page choice are committed (`d1bbd618`, library `ca3896ff`). **Site groups on the Overview
+  are built and live-checked on 251, awaiting the owner's look and commit** (§9). MNY needs a client deploy for
+  the fix and the groups.
 - **Moved (2026-10-14): the QA pattern now lives in dms-template `src/patterns/qa/`**, registered from
   `src/patterns/index.js` like the map editor. The library holds no QA code.
   - Record: [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md).
@@ -828,8 +829,8 @@ yet; the owner commits. Groups come after the commit.
     card.
   - **On deploy, MNY's Overview shows no site cards** until an admin switches some on (existing rows have no value).
   - Existing installs' stored column lists lack `overview`; rows hold it all the same (new installs get the column).
-- [ ] **Next, after the commit (owner): site groups on the Overview** (one card for several sites, e.g. all
-  counties). Scope:
+- [x] **Site groups on the Overview** (one card for several sites, e.g. all counties). **Built and live-checked on
+  251 (2026-10-29); not committed, the owner commits.** Scope:
   - An `overview_group` text column on covered-sites rows; sites with the same group share a card (blank: its own
     card). Configure: a group box beside each site's overview switch.
   - The Overview builds one card per group. Its stage and tickets bars span the group's sites (the filters already
@@ -837,6 +838,47 @@ yet; the owner commits. Groups come after the commit.
   - Open: the group card's table. Every page (about 2,800 for MNY's counties, 10 a page) or one row per site
     (pages, open tickets). Recommended: one row per site for a group.
   - About half a day with tests, on top of the `overview` column.
+  - **Decided (owner, 2026-10-29):** one row per site, a plain table, no stage bar. Building.
+    - Columns: site, pages and client accepted (with the page inventory / stages), open tickets. The table
+      reads the covered-sites rows (`ds`, one per site, in sort order) with the pages (`p`) and tickets
+      (`t`) left-joined on the short key, counted `distinct` (a section's `join` takes several aliases:
+      `buildJoinOnClause` joins each onto `ds`). So a site with no pages yet still has its row, and its open
+      count matches the tickets bar (both by site, including tickets with no page).
+    - Clicks: the site's name opens `/tickets?surface=<key>` (the Tickets page already reads `?surface=`);
+      its open count opens the same with the open statuses.
+    - Tickets page: its All / Open / Closed shortcuts get `persistSearchParams`, so they keep the site (and
+      any other URL filter) instead of replacing the whole query.
+    - Configure: the group box is greyed out while the site's Overview switch is off, and suggests the
+      groups already typed (a `datalist`). Names match trimmed and case-blind; the card shows the first
+      site's spelling and sits where its first site sits. A one-site group is still a group card. Group ids
+      `overview_group_<slug>`, apart from `overview_site_<key>`.
+    - Without a page inventory a group card still has its table (site, open tickets), since it's the only
+      per-site view a group has.
+    - MNY: typing a group on 57 rows is slow on Configure. Offered to set the county rows from the CLI after
+      the deploy, on the owner's go.
+  - **Built (2026-10-29).** `tracking.js` `overviewCards` (the cards in order) and `overviewGroupKey`;
+    `datasets.js` the `overview_group` column; `configure.js` the entry field, its saved row (trimmed, kept while
+    the card is off), the save bar's "X's Overview group", `overviewGroupNames` (the suggestions);
+    `admin/configureTab.jsx` + theme the group box (a column after "overview"); `pages/helpers.js`
+    `coveredSitesSource`; `pages/overview.js` the card loop over `overviewCards` and `groupSitesSection`;
+    `pages/tickets.js` `persistSearchParams` on the shortcuts. A count of 0 shows '—' (a table cell shows a bare
+    0 as blank). Tests: 11 new (qaOverviewPages "Overview groups", qaTracking, qaConfigure, qaTicketPages), one
+    expectation updated (qaTicketRecord's appended columns). QA tests 253/253.
+  - **Live check on 251 (2026-10-29):** Configure: the group box greys out without a card, suggests "Counties",
+    saves " counties" trimmed, save bar "AlphaPage's Overview group, BetaPage's Overview card, BetaPage's
+    Overview group". Overview with the page inventory off: one "Counties · 2 sites" card, rows AlphaPage /
+    BetaPage. With the page inventory and stages on (backfill: 7 pages, 3 + 4) and two tickets filed on
+    AlphaPage's Blank page through Report an issue (#101 row 285, #102), then #101 Resolved: AlphaPage reads
+    3 pages, — accepted, 1 open (2 before the resolve); the card's bar "1 done · 1 open"; header 7 pages, 1 open.
+    So the counts are distinct over the pages × tickets rows. The name opens `/tickets?surface=alphapage`; the
+    count opens it at Open; there Closed, All and Open keep `surface=alphapage` (Closed: "No tickets match").
+  - **251 is left as the check set it, for the owner's look:** both sites with a card, group "Counties" /
+    "counties"; Page inventory and Page stages on (Stories off); 7 pages rows; test tickets #101 (Resolved)
+    and #102 (Triage) with their history rows; home Tickets. Before: AlphaPage card only, no groups, no
+    features, no pages or tickets. Delete the test tickets once reviewed.
+  - Not changed, library: a Spreadsheet whose columns fill its width scrolls sideways by 4px. The last column's
+    resize handle has an 8px `::before` hit area (`before:-left-1 before:-right-1`) that reaches past the
+    table. Seen on the group table and on the Tickets page's table (both 984px wide, 988px of content).
 - [x] **Home page choice:** `qa.home` (`'overview'` | `'tickets'`), a "home page" card on Configure. Unset means
   the Overview with the page inventory on, else Tickets (new installs start with no features, so Tickets). The
   home page is the `index: 0` page: the bare URL and the nav's first entry. Built and live-checked on 251 both
