@@ -147,10 +147,14 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
             if (!child) return ref;
             const parsed = typeof child.data === 'string'
               ? JSON.parse(child.data) : (child.data || {});
+            // the row's own columns over its data, as the Falcor path's ref fetch returns them
+            // (proecessNewData.js: data, type and the four stamps). Without `type`, a ref's instance
+            // is lost to anything that reads it, e.g. a pattern's `getInstance(type)`.
             return {
               ...(typeof ref === 'object' ? ref : { id: ref }),
               ...parsed,
               id: String(child.id),
+              type: child.type,
               created_at: child.created_at,
               updated_at: child.updated_at,
               created_by: child.created_by,
@@ -169,6 +173,7 @@ async function loadFromLocalDB(sync, app, type, format, dmsAttrsConfigs, activeC
             ...item[key],
             ...parsed,
             id: String(child.id),
+            type: child.type,
             created_at: child.created_at,
             updated_at: child.updated_at,
             created_by: child.created_by,

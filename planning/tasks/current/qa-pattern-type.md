@@ -20,6 +20,9 @@ is ported later.
 
 ## ▶ Start here (2026-10-14)
 
+- **2026-10-29 (Open work §9):** the sync fix for "counties show not covered", per-site Overview cards (off by
+  default) and the home page choice are built and owner-verified, awaiting the owner's commit. Site groups on the
+  Overview are next, after the commit (scope in §9). MNY needs a client deploy for the fix.
 - **Moved (2026-10-14): the QA pattern now lives in dms-template `src/patterns/qa/`**, registered from
   `src/patterns/index.js` like the map editor. The library holds no QA code.
   - Record: [`pluggable-patterns-qa-extraction.md`](../completed/pluggable-patterns-qa-extraction.md).
@@ -97,6 +100,9 @@ is ported later.
 | Collapsible section groups (generic) + Overview site cards start collapsed | done | `eec8278c` |
 | QA theme as a `qa` key (page/datasets model) + MNY's QA look | built; MNY switch pending | `a6d36282`, `1cc7561d` |
 | Feature switches: Delivery QA group (page inventory, stages, stories) on Configure; card renamed "Tickets" | built, live-checked; committed `4f969c26` | §5 step 1 |
+| Sync fix: locally served refs carry their row's `type` (the "counties not covered" bug) | built; owner-verified 2026-10-29; MNY deploy pending | §9 |
+| Overview card per covered site (`overview` column, default off) | built; owner-verified 2026-10-29 | §9 |
+| Home page choice (`qa.home`: Overview or Tickets) | built; owner-verified 2026-10-29 | §9 |
 
 **Where the code is** (dms-template `src/patterns/qa/` since 2026-10-14; library paths under `packages/dms/src/`):
 - `src/patterns/qa/`:
@@ -782,6 +788,65 @@ section 2:
 - [ ] After a sign-in without a refresh, `/qa` shows "isn't set up yet": the routes keep the signed-out boot's
   pattern stub. Logged, not scheduled: [`routes-keep-pre-login-pattern-stubs.md`](./routes-keep-pre-login-pattern-stubs.md).
 - Not checked live: Configure's datasets-missing state and its overlap refusal (both unit-tested).
+
+### 9. Owner requests (2026-10-29)
+
+**Owner verified §9's three builds locally on 2026-10-29** (the fix, Overview cards and home page). Not committed
+yet; the owner commits. Groups come after the commit.
+
+- [x] **Configure showed MNY's county sites as not covered, until a refresh or two** (a coworker's report, then the
+  owner's on 2860547). **Fixed in the library; MNY needs a client deploy.**
+  - Cause: with sync on (`VITE_DMS_SYNC=1`; devmny.org has it, its `dms-sync` IndexedDB is current), the site's
+    list can be served from local SQLite. `loadFromLocalDB` (`api/index.js`) resolved the `patterns` refs with the
+    four stamps but not the row's `type`, which the Falcor path fetches. Configure matches covered-sites rows to
+    patterns by instance (`getInstance(pattern.type)`), so a pattern without `type` matched nothing.
+  - Why "pretty much all": only a pattern whose stored data happens to hold a `type` kept a match. On MNY that's
+    26 of the site's 81 patterns; 50 of the 57 county rows lose theirs. Whether a load is local or Falcor depends on
+    the sync bootstrap state, hence the refresh that "fixes" it.
+  - Why some patterns hold a `type` in their data: every pattern row has a `type` column; the copy inside `data` is
+    a stray. All 26 copies come with `id` and `app` too, which is a loaded row written back whole:
+    `dmsDataEditor` sends the row it's given as the new data (`dms.data.edit [app, id, row, type]`), and a row
+    loaded through `dmsDataLoader` carries `id`, `app` and `type`. So a pattern saved that way (e.g. the
+    Configure Save on 2860547) gets them. 49 of the 55 without were created together on 2026-09-15 (the
+    county duplicates) and never saved that way. Two hold a legacy `type: 'pattern'` (1006405, 1603896). Audit:
+    `scratchpad/mny-qa/pattern_type_audit.jsonl`. Not changed.
+  - Ruled out first: MNY's covered-sites data is intact (62 rows, all enabled, no duplicates; dump
+    `scratchpad/mny-qa/covered_sites_2026-10-29.json`), and the dataset reads gave the same 62 rows on 8 replays
+    against dmsserver.availabs.org.
+  - Fix: `type: child.type` on both local ref branches (array and single), matching the Falcor path. Test:
+    `packages/dms/tests/syncLocalRefsType.test.js` (fails without the fix).
+  - Live check on `qa_test` 251: with the fix out, two enabled rows (AlphaPage, BetaPage) showed "not covered" and
+    0 sites; with it in, 2 covered across reloads. Without the fix, Configure in sync mode also defaulted a new
+    row's short key to blank ("needs a short key").
+  - Not changed: `updateDMSAttrs` writes a ref's `type` into the child's data on save (how 27 MNY patterns got one).
+    Harmless, since both read paths override it with the row's own.
+- [x] **Overview cards per site, default off.** Built and live-checked on 251.
+  - A covered-sites row's new `overview` column (`'yes'`, blank = no card) picks the sites that get a card;
+    Configure's covered-sites table has an "overview" switch per covered site.
+  - Header figures, "How delivery works" and Recent activity still count every covered site. Page tracking is
+    unchanged, since tickets join to it. The title line says "N sites covered · M shown below" when not all have a
+    card.
+  - **On deploy, MNY's Overview shows no site cards** until an admin switches some on (existing rows have no value).
+  - Existing installs' stored column lists lack `overview`; rows hold it all the same (new installs get the column).
+- [ ] **Next, after the commit (owner): site groups on the Overview** (one card for several sites, e.g. all
+  counties). Scope:
+  - An `overview_group` text column on covered-sites rows; sites with the same group share a card (blank: its own
+    card). Configure: a group box beside each site's overview switch.
+  - The Overview builds one card per group. Its stage and tickets bars span the group's sites (the filters already
+    take a list of short keys); the header reads "N sites · M pages".
+  - Open: the group card's table. Every page (about 2,800 for MNY's counties, 10 a page) or one row per site
+    (pages, open tickets). Recommended: one row per site for a group.
+  - About half a day with tests, on top of the `overview` column.
+- [x] **Home page choice:** `qa.home` (`'overview'` | `'tickets'`), a "home page" card on Configure. Unset means
+  the Overview with the page inventory on, else Tickets (new installs start with no features, so Tickets). The
+  home page is the `index: 0` page: the bare URL and the nav's first entry. Built and live-checked on 251 both
+  ways. 251 is left covering AlphaPage (card) and BetaPage (no card), home Tickets.
+- **Files:** library `packages/dms/src/api/index.js` (`loadFromLocalDB`) and `packages/dms/tests/syncLocalRefsType.test.js`;
+  dms-template `src/patterns/qa/` (`configure.js`, `tracking.js`, `datasets.js`, `pages/index.js`, `pages/overview.js`,
+  `admin/configureTab.jsx`, `admin/configureTab.theme.js`, five tests); the coworker how-to
+  `planning/mitigateny/skills/report-an-issue-widget.md` (step 2). QA tests 242/242.
+- **On MNY's deploy:** the Overview loses its site cards until an admin switches some on (2860547's Configure,
+  "overview" column). The home page stays the Overview (its page inventory is on).
 
 ## Decisions on record
 
