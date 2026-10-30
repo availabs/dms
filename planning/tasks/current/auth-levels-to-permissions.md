@@ -29,23 +29,25 @@
 10. **Rules live in pattern data**, not client or server code (see 2).
 
 Tests: `test-data-auth` 51/51 (new: no-change save writes nothing; `auth_permissions` + key needs both); with the
-rules judge 50/51 (the open-pattern clause, 5). Other auth suites and sync pass. Uncommitted.
+rules judge 50/51 (the open-pattern clause, 5): **51/51 since 10-30** (`ifOwnerBlank`). Other auth suites and sync
+pass.
 
 ## ▶ Next work (2026-10-30)
 
-State: the 10-29 changes (trial judge files, decisions 3 + 7, tests, the two new tasks) are **uncommitted** in lib;
-merges with master are committed but **unpushed** (root ahead 19, lib ahead 11). Commit/push only when the owner asks.
+State (10-30): the 10-29 changes are committed and master is merged into both repos again (unpushed). The blank-row
+audit is uncommitted. Commit/push only when the owner asks.
 
 In order:
-1. **[permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md)** (decisions 1 and 6). Start with
-   the audit extension (plan step 4), so the blank rows recent editors touched are known before `isUserAuthed`
-   changes. Then the read-verb list, the server split behind the modes, the client gates.
+1. **[permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md)** (decisions 1 and 6). The audit
+   extension (plan step 4) is **built** 2026-10-30 (`permissions-access-diff.blank.js`, `test:blank-audit` 7/7);
+   its prod runs need VPN. Next: the read-verb list, the server split behind the modes, the client gates.
 2. **Access log admin page** (option 1) and the destructive-call **plan routes** (their own initiative; remove stays
    enabled while no plan exists). Unbuilt.
 3. **Prod audit baseline** (`scripts/permissions-access-diff.js`): needs VPN. Rerun after 1 lands.
 4. **Task 18** (grant migration), then **task 19** (level removal): see "Resume here" below.
-5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): the open-pattern
-   clause first (brings the trial to 51/51), then storage, defaults, Advanced auth tab mockup.
+5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): open-pattern clause
+   **done** 10-30 (trial 51/51); next storage (pattern row, not the code-only format), defaults, Advanced auth tab
+   mockup.
 6. Coordinate with amuro (decisions 1, 9: `parent_id` resolver, Phase D writes) and Alex (rules structure, 5's clause).
 
 ## ▶ Resume here (updated 2026-10-27, task 11 moved out)

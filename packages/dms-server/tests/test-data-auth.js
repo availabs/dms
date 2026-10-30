@@ -83,6 +83,7 @@ async function run() {
     const admin = u(18, [`${APP} Admin`]);
     const paramsUser = u(19, ['Params']);
     const srcPerms = u(20, ['SrcPerms']);
+    const lister = u(21, ['Listers']);
     const graphs = {};
     const as = (user) => graphs[user ? user.id : 'anon'] || (graphs[user ? user.id : 'anon'] = createTestGraph(DMS_DB, { user }));
     const call = (user, path, args) => as(user).callAsync(path, args);
@@ -93,7 +94,7 @@ async function run() {
     const siteRow = await insert('site:site', { site_name: 'Site', patterns: [] });
     await insert('site|admin:pattern', {
         pattern_type: 'admin',
-        authPermissions: { groups: { Themers: ['manage-themes'], Creators: ['create-pattern'] } },
+        authPermissions: { groups: { Themers: ['manage-themes'], Creators: ['create-pattern'], Listers: ['view-pattern-list'] } },
     });
     const docs = await insert('site|docs:pattern', {
         pattern_type: 'page', name: 'Docs',
@@ -123,7 +124,7 @@ async function run() {
     });
     const ROAD_ROWS = `roads|${viewId}:data`;
     const TICKET_ROWS = `tickets|1:data`;
-    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser, srcPerms]) await as(user).ready;
+    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser, srcPerms, lister]) await as(user).ready;
 
     console.log('\npages and components (enforce):');
     await t('a page edit needs edit-page; signed-out and no-grant users are refused', () => withMode('enforce', async () => {
@@ -192,6 +193,8 @@ async function run() {
     }));
     await t('an open pattern needs view-pattern-list at the site level', () => withMode('enforce', async () => {
         await refused(edit(stranger, open, { name: 'x' }));
+        await allowed(edit(lister, open, { name: 'Listed' }));
+        await refused(edit(lister, docs, { name: 'x' }));  // a pattern with grants is judged on them
     }));
     await t('a new pattern needs site create-pattern', () => withMode('enforce', async () => {
         await refused(create(editor, 'site|new:pattern', { pattern_type: 'page' }));

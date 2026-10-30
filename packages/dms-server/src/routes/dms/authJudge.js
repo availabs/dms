@@ -1,5 +1,6 @@
 'use strict';
-// Trial (DMS_DATA_AUTH_JUDGE=data): judge.cjs from auth-as-data (2026-10-27), unchanged. A pure interpreter over authRules.js.
+// Trial (DMS_DATA_AUTH_JUDGE=data): judge.cjs from auth-as-data (2026-10-27). A pure interpreter over authRules.js.
+// Ours since: `ifOwnerBlank` (2026-10-30, the open-pattern rule) and the `row` / `env.isBlank` inputs it reads.
 const allow = (reason) => ({ allow: true, reason });
 const deny  = (reason) => ({ allow: false, reason });
 const list  = (v) => [].concat(v == null ? [] : v);
@@ -15,6 +16,20 @@ const req = (clause, defaultOwner) =>
 const satisfied = (env, r) =>
   r.anyOf ? r.anyOf.some(alt => satisfied(env, alt))
           : env.holds(env.grants[r.owner], r.perms);
+
+// Grants besides the `public` group. An owner that wasn't found (null) is not blank: it fails closed.
+const blankGrants = (ap) => ap != null
+  && !Object.keys(ap.groups || {}).some(g => g !== 'public') && !Object.keys(ap.users || {}).length;
+
+// `ifOwnerBlank`: when the kind's own owner grants nothing, a signed-in user's requirements on that owner are
+// checked as this clause instead (`unless` a field of the stored row says otherwise).
+function blankSwap(rule, env, row) {
+  const c = rule.ifOwnerBlank;
+  if (!c || !(env.user && env.user.authed)) return null;
+  if (c.unless && list(c.unless.in).includes((row || {})[c.unless.field])) return null;
+  const isBlank = env.isBlank || blankGrants;
+  return isBlank(env.grants[rule.owner], rule.owner) ? { owner: c.owner, perms: list(c.perms) } : null;
+}
 
 // Which requirements an edit's changed keys produce.
 function editRequirements(spec, defaultOwner, { keys, patch }) {
@@ -41,7 +56,7 @@ function editRequirements(spec, defaultOwner, { keys, patch }) {
   return out;
 }
 
-function judge(rules, env, { kind, op, keys = [], patch = {}, split = false }) {
+function judge(rules, env, { kind, op, keys = [], patch = {}, split = false, row = {} }) {
   if (env.isAppAdmin) return allow('app admin');
 
   const rule = rules[kind];
@@ -53,10 +68,13 @@ function judge(rules, env, { kind, op, keys = [], patch = {}, split = false }) {
 
   if (rule.escape && satisfied(env, req(rule.escape, rule.owner)[0])) return allow('escape');
 
+  const swap = blankSwap(rule, env, row);
+  const check = (r) => (swap && !r.anyOf && r.owner === rule.owner ? satisfied(env, swap) : satisfied(env, r));
+
   const noChange = op === 'edit' && keys.length === 0;
   if (noChange && rule.noChange) {
-    return satisfied(env, { owner: rule.owner, perms: list(rule.noChange) })
-      ? allow('no change') : deny(`missing ${list(rule.noChange).join(' or ')}`);
+    return check({ owner: rule.owner, perms: list(rule.noChange) })
+      ? allow('no change') : deny(`missing ${list(swap ? swap.perms : rule.noChange).join(' or ')}`);
   }
 
   const spec = rule.ops[op] !== undefined ? rule.ops[op] : rule.ops['*'];
@@ -67,8 +85,8 @@ function judge(rules, env, { kind, op, keys = [], patch = {}, split = false }) {
     : req(spec, rule.owner);
 
   for (const r of requirements) {
-    if (!satisfied(env, r)) {
-      const p = r.anyOf ? r.anyOf.flatMap(a => a.perms) : r.perms;
+    if (!check(r)) {
+      const p = r.anyOf ? r.anyOf.flatMap(a => a.perms) : swap && r.owner === rule.owner ? swap.perms : r.perms;
       return deny(`${kind} missing ${p.join(' or ')}`);
     }
   }

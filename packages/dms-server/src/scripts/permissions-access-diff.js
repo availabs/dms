@@ -13,9 +13,15 @@
  *        [--subdomain <s>]             resolve subdomain-keyed grants
  *        [--overlay <grants.json>]     grants to apply before deciding (the grant migration's dry run)
  *        [--out <dir>]                 default: dms-template scratchpad/permissions-access-diff/<date>/<app>
+ *        [--days <n>]                  change_log window for the blank-row section (default 30)
  *
  * Users are decided one by one with every group they hold, so someone who keeps an operation through another
  * group is never listed as losing it. Writes matrix.csv, losses.csv, gains.csv, remediation.md and grants.json.
+ *
+ * Blank rows (task permissions-blank-row-read-only): every write in change_log's window is decided under today's
+ * rule (no grants ⇒ anyone signed in) and the blank-row rule (no grants ⇒ read-only), by
+ * permissions-access-diff.blank.js. Writes blank-rows.csv, blank-grants.json (same shape as grants.json) and the
+ * "Blank rows" section of remediation.md.
  *
  * Read-only by construction: it opens its own adapters from the config files instead of `getDb`, which would run
  * the schema init and migrations, and it only ever runs SELECTs.
@@ -28,8 +34,9 @@ const { loadConfig } = require('../db');
 const { resolveTable } = require('../db/table-resolver');
 const { resolveAuthPermissions, isUserAuthed } = require('../routes/dms/auth');
 const { mergeAuthPermissions, unionAuthPermissions, holdsExplicitly, isAppAdmin } = require('../routes/uda/sourceAuth');
-const { getInstance } = require('../db/type-utils');
+const { getInstance, getKind, getParent } = require('../db/type-utils');
 const { OPS } = require('./permissions-access-diff.ops');
+const { judgeBlank, hasGrants } = require('./permissions-access-diff.blank');
 
 const PROTECTED_PERMISSIONS = ['*', 'auth-groups', 'edit-pattern-permissions'];
 const asList = (p) => (Array.isArray(p) ? p : p ? [p] : []);
@@ -92,7 +99,12 @@ async function loadAuth(db, project) {
             availLevel: levelIn(u.email, 'avail_auth'),
             inAvail: (groupsOf[u.email] || []).includes('AVAIL'),
         }));
-    return { projectGroups, linksByGroup, projectUsers, membersOf: (g) => members.filter(m => m.group_name === g).length };
+    // Every user by id, for change_log's created_by: groups in the project, plus `${app} Admin` held anywhere
+    const usersById = new Map(users.map(u => [+u.id, u.email.toLowerCase()]));
+    return {
+        projectGroups, linksByGroup, projectUsers, usersById, groupsOf: (email) => groupsOf[email] || [],
+        membersOf: (g) => members.filter(m => m.group_name === g).length,
+    };
 }
 
 async function loadDms(db, config, app, subdomain) {
@@ -127,6 +139,11 @@ async function loadDms(db, config, app, subdomain) {
     }
     const resolve = (raw) => resolveAuthPermissions(raw, subdomain);
     return {
+        tbl, patterns,
+        internalBySlug: new Map([...internal.values()].map(({ row, patterns }) => [getInstance(row.type), {
+            id: row.id, ap: parseJson(row.data.auth_permissions) || {},
+            patternAP: unionAuthPermissions(patterns.map(p => resolve(p.data.authPermissions))),
+        }])),
         authRow: auth[0] || null,
         authRows: auth.length,
         adminGrants: admin.map(r => normalize(resolve(r.data.authPermissions))),
@@ -163,6 +180,25 @@ async function loadUsage(db, app) {
         console.warn(`change_log not read (${e.message}): recent use is unknown`);
     }
     return used;
+}
+
+// Every write in the window, per user × row × action (blank-row section). `data` rows are counted per type.
+async function loadWrites(db, app, days) {
+    const tbl = db.type === 'postgres' ? 'dms.change_log' : 'change_log';
+    const since = new Date(Date.now() - days * 864e5).toISOString().slice(0, 19).replace('T', ' ');
+    try {
+        const { rows } = await db.query(
+            `SELECT created_by, CASE WHEN type LIKE '%:data' THEN NULL ELSE item_id END AS item_id, type, action,
+                    COUNT(*) AS n, MAX(created_at) AS last
+             FROM ${tbl}
+             WHERE app = $1 AND created_by IS NOT NULL AND created_at >= $2
+             GROUP BY 1, 2, 3, 4`, [app, since]);
+        return rows.map(r => ({ user: +r.created_by, id: r.item_id == null ? null : +r.item_id, type: r.type,
+            action: r.action, n: +r.n, last: String(r.last) }));
+    } catch (e) {
+        console.warn(`change_log not read (${e.message}): blank-row writes are unknown`);
+        return null;
+    }
 }
 
 // The change_log key that shows `op` was used on `target`, or null when change_log can't tell.
@@ -248,6 +284,90 @@ function proposeFix(op, target, u, data) {
     // a source: at pattern level when the source inherits, else on the source
     const own = Object.keys(normalize(target.ap).groups).length || Object.keys(normalize(target.ap).users).length;
     return { where: own ? `source:${target.env}/${target.id}` : `pattern-of:${target.env}/${target.id}`, principal, perm };
+}
+
+// ------------------------------------------------------------------------------------------------
+// Blank rows
+// ------------------------------------------------------------------------------------------------
+
+async function blankRows({ db, dms, auth, app, subdomain, writes, levelOf }) {
+    const resolve = (raw) => resolveAuthPermissions(raw, subdomain);
+    const ofType = (pt) => dms.patterns.filter(p => p.data.pattern_type === pt);
+    const union = (rows) => unionAuthPermissions(rows.map(p => resolve(p.data.authPermissions)));
+    // site grants: the admin row's, falling back to the auth pattern's while it grants nothing (dataAuth siteGrants)
+    const siteFrom = hasGrants(union(ofType('admin'))) || !ofType('auth').length ? 'admin' : 'auth';
+    const siteRow = ofType(siteFrom)[0];
+    const env = {
+        app, siteAP: union(ofType(siteFrom)), siteRowId: siteRow ? siteRow.id : '?',
+        datasetsAP: union(ofType('datasets')), datasetsIds: ofType('datasets').map(p => p.id),
+    };
+
+    // a page's own grants: from the row, or none once it's deleted
+    const pageIds = [...new Set(writes.filter(w => getKind(w.type) === 'page' && w.id != null).map(w => w.id))];
+    const pageAP = new Map();
+    for (let i = 0; i < pageIds.length; i += 500) {
+        const ids = pageIds.slice(i, i + 500);
+        const { rows } = await db.query(
+            `SELECT id, data FROM ${dms.tbl} WHERE app = $1 AND id IN (${ids.map((_, k) => `$${k + 2}`).join(', ')})`,
+            [app, ...ids]);
+        for (const r of rows) pageAP.set(+r.id, resolve((parseJson(r.data) || {}).authPermissions));
+    }
+    const patternById = new Map(dms.patterns.map(p => [p.id, p]));
+    const contentPattern = (instance) => dms.patterns.find(p =>
+        getInstance(p.type) === instance && !['admin', 'auth'].includes(p.data.pattern_type));
+    const inProject = new Set(auth.projectGroups.map(g => g.group));
+
+    const merge = (a, b) => ({ groups: { ...(a.groups || {}), ...(b.groups || {}) }, users: { ...(a.users || {}), ...(b.users || {}) } });
+    const out = [];
+    const unjudged = {};
+    for (const w of writes) {
+        const kind = getKind(w.type);
+        const op = w.action === 'D' ? 'delete' : w.action === 'I' ? 'create' : 'edit';
+        // dataAuth.js resolveOwner, from the loaded rows: the rules' owner names → grants, and where a grant goes
+        const self = patternById.get(w.id);
+        const parent = contentPattern(getParent(w.type));
+        const parentAP = resolve(parent && parent.data.authPermissions);
+        const rowAP = kind === 'page' ? pageAP.get(w.id) || {} : resolve(self && self.data.authPermissions);
+        const src = dms.internalBySlug.get(kind === 'source' ? getInstance(w.type) : getParent(w.type));
+        const srcAP = src ? mergeAuthPermissions(src.patternAP || {}, src.ap || {}) : null;
+        const srcWhere = src && (hasGrants(src.ap) ? `source:${app}/${src.id}` : `pattern-of:${app}/${src.id}`);
+        const owners = {
+            grants: {
+                'site-grants': env.siteAP,
+                'datasets-grants': env.datasetsAP,
+                'self-pattern': rowAP,
+                'parent-pattern': parentAP,
+                'parent-pattern+row': op === 'create' ? parentAP : merge(parentAP, rowAP),
+                'self-source': srcAP, 'owning-source': srcAP, 'source-by-slug': srcAP,
+            },
+            where: {
+                'site-grants': `pattern:${env.siteRowId}`,
+                'datasets-grants': `pattern:${env.datasetsIds[0] ?? '?'}`,
+                'self-pattern': `pattern:${w.id}`,
+                'parent-pattern': `pattern:${parent ? parent.id : '?'}`,
+                'parent-pattern+row': `pattern:${parent ? parent.id : '?'}`,
+                'self-source': srcWhere, 'owning-source': srcWhere, 'source-by-slug': srcWhere,
+            },
+        };
+        const email = auth.usersById.get(w.user) || `user ${w.user}`;
+        const groups = auth.groupsOf(email).filter(g => inProject.has(g) || g === `${app} Admin`);
+        const user = { id: w.user, email, groups, authed: true };
+        owners.isAppAdmin = isAppAdmin(user, app);
+        const j = judgeBlank({ kind, op, split: w.type.endsWith(':data'), row: self ? self.data : {} }, user, owners);
+        if (!j) { unjudged[kind] = (unjudged[kind] || 0) + w.n; continue; }
+        if (!j.blank.length) continue;  // every grant the decision read is set: not a blank-row write
+
+        const holder = [...groups].filter(g => inProject.has(g)).sort((a, b) => (levelOf[b] || 0) - (levelOf[a] || 0))[0];
+        out.push({
+            kind, op, row: w.id ?? '', type: w.type, blank: j.blank.join('|'),
+            user: email, user_id: w.user, groups: groups.join('|'), writes: w.n, last: w.last,
+            outcome: j.lost ? 'refused' : j.keptBy ? `kept (${j.keptBy === 'app Admin' ? `${app} Admin` : j.keptBy})` : 'refused today too',
+            row_gone: (kind === 'pattern' && !self) || (kind === 'page' && !pageAP.has(w.id)) ? 'yes' : '',
+            fix: j.fix && { where: j.fix.where, perm: j.fix.perm,
+                principal: holder ? { kind: 'group', name: holder } : { kind: 'user', name: String(w.user) } },
+        });
+    }
+    return { rows: out, unjudged, env, siteFrom };
 }
 
 async function run(args) {
@@ -347,6 +467,22 @@ async function run(args) {
         }
     }
 
+    const days = +args.days || 30;
+    const writes = await loadWrites(dmsA.db, app, days);
+    const blank = writes && await blankRows({ db: dmsA.db, dms, auth, app, subdomain, writes, levelOf: data.levelOf });
+    const blankGrants = {};
+    const blankFixes = new Map();
+    for (const r of (blank ? blank.rows : []).filter(r => r.fix && !r.row_gone)) {
+        const f = r.fix;
+        const k = `${f.where}\t${f.principal.kind}:${f.principal.name}\t${f.perm}`;
+        const e = blankFixes.get(k) || { ...f, users: new Set(), rows: new Set(), writes: 0 };
+        e.users.add(r.user); e.rows.add(`${r.kind} ${r.row}`); e.writes += r.writes;
+        blankFixes.set(k, e);
+        const slot = (blankGrants[f.where] ||= { groups: {}, users: {} });
+        const bucket = f.principal.kind === 'group' ? slot.groups : slot.users;
+        bucket[f.principal.name] = [...new Set([...asList(bucket[f.principal.name]), f.perm])];
+    }
+
     const date = new Date().toISOString().slice(0, 10);
     const out = typeof args.out === 'string' ? args.out
         : path.resolve(__dirname, '../../../../../../scratchpad/permissions-access-diff', date, app + (args.overlay ? '-overlay' : ''));
@@ -362,6 +498,11 @@ async function run(args) {
         ['op', 'task', 'target', 'user', 'user_id', 'groups', 'level', 'lost_at', 'kind', 'why', 'last_use']));
     fs.writeFileSync(path.join(out, 'gains.csv'), csv(gains, ['op', 'target', 'user', 'groups', 'level']));
     fs.writeFileSync(path.join(out, 'grants.json'), JSON.stringify(grants, null, 2) + '\n');
+    if (blank) {
+        fs.writeFileSync(path.join(out, 'blank-rows.csv'), csv(blank.rows, ['kind', 'op', 'row', 'type', 'blank', 'user',
+            'user_id', 'groups', 'writes', 'last', 'outcome', 'row_gone']));
+        fs.writeFileSync(path.join(out, 'blank-grants.json'), JSON.stringify(blankGrants, null, 2) + '\n');
+    }
 
     const unintended = losses.filter(l => l.kind === 'unintended');
     const holes = losses.filter(l => l.kind === 'hole');
@@ -404,12 +545,45 @@ async function run(args) {
     for (const g of gains) (byGain[g.op] ||= new Set()).add(g.user);
     if (!Object.keys(byGain).length) md.push('None.');
     for (const [op, us] of Object.entries(byGain)) md.push(`- ${op}: ${us.size} users`);
+    md.push('', `## Blank rows (read-only rule, last ${days} days of change_log)`, '');
+    if (!blank) md.push('change_log not readable: unknown.');
+    else {
+        const refused = blank.rows.filter(r => r.outcome === 'refused');
+        const kept = blank.rows.filter(r => r.outcome.startsWith('kept'));
+        md.push(`Writes to rows with no grants up the chain, decided under today's rule and under "no grants ⇒ ` +
+            `read-only" (task permissions-blank-row-read-only). Site grants from the ${blank.siteFrom} row ` +
+            `(${blank.env.siteRowId})${hasGrants(blank.env.siteAP) ? '' : ', which has none: every site-level write is a blank-row write'}.`, '');
+        md.push(`| | writes | users | rows |`, `|---|---|---|---|`);
+        const line = (label, rs) => md.push(`| ${label} | ${rs.reduce((a, r) => a + r.writes, 0)} | ` +
+            `${new Set(rs.map(r => r.user)).size} | ${new Set(rs.map(r => `${r.kind} ${r.row}`)).size} |`);
+        line('Refused once the rule lands', refused);
+        line('Kept (app Admin, site `*`, `view-pattern-list`, an explicit grant)', kept);
+        line('Refused today too', blank.rows.filter(r => r.outcome === 'refused today too'));
+        md.push('', 'By kind (refused): ' + (Object.entries(refused.reduce((a, r) => ({ ...a, [r.kind]: (a[r.kind] || 0) + r.writes }), {}))
+            .map(([k, n]) => `${k} ${n}`).join(', ') || 'none') + '.', '');
+        const gone = refused.filter(r => r.row_gone);
+        if (gone.length) md.push(`${gone.length} refused rows are deleted now (no grant proposed).`, '');
+        const unj = Object.entries(blank.unjudged);
+        if (unj.length) md.push(`Not judged (kinds the rules don't cover, "signed in" today; decision 8): ` +
+            unj.map(([k, n]) => `${k} ${n}`).join(', ') + '.', '');
+        md.push('Decided with routes/dms/authRules.js through authJudge.js.', '');
+        md.push('### Grants that keep this access (blank-grants.json)', '',
+            'The first permission each row needs, at the row whose grants the chain reads. Writes keep no patch, so ' +
+            'a page edit is proposed as `edit-page` even where it was a publish: review before applying.', '');
+        if (!blankFixes.size) md.push('None.');
+        else {
+            md.push('| Where | To | Permission | Users | Rows | Writes |', '|---|---|---|---|---|---|');
+            for (const f of [...blankFixes.values()].sort((a, b) => b.writes - a.writes)) {
+                md.push(`| ${f.where} | ${f.principal.kind} ${f.principal.name} | ${f.perm} | ${f.users.size} | ${f.rows.size} | ${f.writes} |`);
+            }
+        }
+    }
     fs.writeFileSync(path.join(out, 'remediation.md'), md.join('\n') + '\n');
 
     for (const a of new Set([authA, dmsA])) await a.db.end();
     console.log(md.slice(0, 10).join('\n'));
     console.log(`\nwrote ${out}`);
-    return { out, losses, gains, matrix: [...matrix.values()], grants };
+    return { out, losses, gains, matrix: [...matrix.values()], grants, blank, blankGrants };
 }
 
 if (require.main === module) {

@@ -338,7 +338,9 @@ function createJudge(ctx) {
             grants,
             // an owner that couldn't be found holds nothing (fail closed, as onSource's 'source not found')
             holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)),
-        }, { kind, op, keys, patch: parseJson(patch) || {}, split: isSplitType(type) });
+            isBlank: (ap) => ap != null && !hasGrants(ap),
+        }, { kind, op, keys, patch: parseJson(patch) || {}, split: isSplitType(type),
+            row: op === 'create' ? parseJson(patch) || {} : parseJson(row.data) || {} });
     }
 
     // `keys`: the edit's changed keys (planEdit); computed here when the caller has none.

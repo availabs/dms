@@ -1,7 +1,8 @@
 'use strict';
 // Trial (DMS_DATA_AUTH_JUDGE=data): Alex's rules.cjs structure (auth-as-data, 2026-10-27), with the rules as agreed
 // 2026-10-29 (hub auth-levels-to-permissions.md, "Decisions 2026-10-29"). To move into pattern data:
-// planning/tasks/current/pattern-auth-rules-as-data.md. Known gap: an open pattern's view-pattern-list rule.
+// planning/tasks/current/pattern-auth-rules-as-data.md. `ifOwnerBlank` (2026-10-30) is ours, not Alex's: the
+// open-pattern rule (decision 5) needed a clause.
 module.exports = {
   site: {
     owner: 'site-grants',
@@ -30,6 +31,11 @@ module.exports = {
   pattern: {
     owner: 'self-pattern',
     escape: { owner: 'site-grants', perms: ['*'] },   // site * may do anything to any pattern (decision 4)
+    // a pattern with no grants is open to whoever may see the pattern list (decision 5), core patterns excepted
+    ifOwnerBlank: {
+      owner: 'site-grants', perms: ['view-pattern-list'],
+      unless: { field: 'pattern_type', in: ['auth', 'admin'] },
+    },
     ops: {
       create: { owner: 'site-grants', perms: ['create-pattern'] },
       delete: ['delete-pattern'],

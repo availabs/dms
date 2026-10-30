@@ -18,12 +18,30 @@ Authors edit them in the pattern editor, in a **Settings → Advanced auth** tab
 
 - `dms-server/src/routes/dms/authRules.js`: Alex's `rules.cjs` structure with the agreed rules (hub
   `auth-levels-to-permissions.md`, "Decisions 2026-10-29").
-- `authJudge.js`: Alex's `judge.cjs`, unchanged: `judge(rules, env, req) → { allow, reason }`. No I/O; the caller
-  supplies `env.grants` (owner name → authPermissions) and `env.holds`.
+- `authJudge.js`: Alex's `judge.cjs`: `judge(rules, env, req) → { allow, reason }`. No I/O; the caller supplies
+  `env.grants` (owner name → authPermissions) and `env.holds`. One addition (2026-10-30, below).
 - `dataAuth.js`: `judgeAsData` + `resolveOwner` (the eight owner lookups the rules can't express), behind
   `DMS_DATA_AUTH_JUDGE=data`. Default is still `judge()`.
-- Result: `test-data-auth` 50/51 with the rules judge. The miss is the open-pattern rule below; every other auth
-  suite and sync pass.
+- Result: `test-data-auth` **51/51 with both judges** since the open-pattern clause (2026-10-30); every other
+  auth suite passes.
+
+## Progress
+
+**2026-10-30: open-pattern clause (decision 5) added.** A generic rule key, no kind name in the interpreter:
+`ifOwnerBlank: { owner, perms, unless: { field, in } }`. When the kind's own owner grants nothing (besides
+`public`), a signed-in user's requirements on that owner are checked as the clause instead, unless the stored
+row's `field` is in the list. The pattern rule uses it: `site-grants` / `view-pattern-list`, unless
+`pattern_type` is `auth` or `admin`. The interpreter takes two new inputs: `row` (the stored data, or the new data
+on create) and an optional `env.isBlank(ap, ownerName)` (dataAuth passes `hasGrants`; the blank-row audit records
+which owners were blank through it). Test: `test-data-auth` gains a `view-pattern-list` holder who may edit the
+open pattern but not one with grants. **Tell Alex** (his structure; decision 6 of the hub).
+- The blank-row audit (`permissions-access-diff.blank.js`) now runs on these rules too, so it follows whatever
+  they become.
+- Not built: storage, defaults per pattern type, the Advanced auth tab. **Storage premise (2026-10-30):** a
+  pattern's "format" is a JS object in the library (`page.format.js`, `datasets.format.js`), not data. The
+  `formats` table and `dms.format` route exist but nothing writes the table and no client reads the route, so the
+  library CLAUDE.md's "Formats are rows … the server already reads" is misleading. Per-pattern rules belong on
+  the pattern row (beside `authPermissions`); defaults per pattern type need a home the server can read.
 
 ## Design
 
@@ -56,10 +74,10 @@ Authors edit them in the pattern editor, in a **Settings → Advanced auth** tab
 
 ## Open
 
-- **Open-pattern rule (decision 5, keep).** A pattern with no grants is editable only by site `view-pattern-list`
-  holders. The rule language can't say this yet: it needs a clause like
-  `ifOwnerEmpty: { owner: 'site-grants', perms: ['view-pattern-list'] }`, and core patterns (admin, auth) excluded by
-  a capability, not by name.
+- **Open-pattern rule (decision 5, keep).** ~~The rule language can't say this yet.~~ Built 10-30 as `ifOwnerBlank`
+  (Progress). **Still open:** core patterns are excluded by name in the rules data
+  (`unless: { field: 'pattern_type', in: ['auth', 'admin'] }`), not by a capability. The interpreter knows no
+  names; the rules file does, until the rules move to pattern data and the core patterns carry their own.
 - **Unknown kinds (decision 8).** Refuse once every registered pattern type ships its rules; until then chat
   (`channel`, `member`) and the mapeditor rely on "signed in".
 - **Blank rows (decision 1, read-only).** With no grants anywhere up the chain, edits are refused: the interpreter's
@@ -70,7 +88,7 @@ Authors edit them in the pattern editor, in a **Settings → Advanced auth** tab
 
 ## Testing checklist
 
-- [ ] The rules judge reproduces `test-data-auth` in full (open-pattern clause added).
+- [x] The rules judge reproduces `test-data-auth` in full (open-pattern clause added, 2026-10-30).
 - [ ] A pattern with overridden rules: the server and the client gate agree on every op.
 - [ ] Writing `auth_rules` without `edit-pattern-permissions` (site `*` for the admin pattern) is refused.
 - [ ] Invalid rules are refused on save; a pattern with none uses its type's defaults.
