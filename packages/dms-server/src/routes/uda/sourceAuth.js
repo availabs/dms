@@ -252,6 +252,17 @@ async function decideSource({ db, env, sourceId, patternRef, subdomain = '', req
     return { allow, reason: allow ? 'granted' : `missing ${reqPermissions.join(' or ')}` };
 }
 
+/**
+ * An internal source's effective grants (owning datasets patterns ⊕ the source's own), as decideSource
+ * merges them, for callers that judge with their own rule (dataAuth.js). Null when the source can't be
+ * read, so the caller fails closed.
+ */
+async function internalSourceGrants(env, sourceId, subdomain = '') {
+    if (!sourceId) return null;
+    const r = await readInternalSource(env, sourceId, subdomain);
+    return r.ok ? mergeAuthPermissions(r.patternAP, r.ap) : null;
+}
+
 /** Decision for a pattern-level permission (`create-source`, `edit-pattern`). */
 async function decidePattern({ patternRef, subdomain = '', reqPermissions, user }) {
     if (!reqPermissions || !reqPermissions.length) return { allow: true, reason: 'nothing required' };
@@ -472,6 +483,7 @@ module.exports = {
     isAppAdmin,
     authMode,
     decideSource,
+    internalSourceGrants,
     decidePattern,
     legacyAllows,
     isUserAuthedForSource,

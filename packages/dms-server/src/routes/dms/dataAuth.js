@@ -26,8 +26,10 @@ const { isEqual } = require('lodash');
 const { getKind, getParent, getInstance, isSplitType } = require('#db/type-utils.js');
 const { isUserAuthed: lenientAuthed, resolveAuthPermissions } = require('./auth');
 const {
-    holdsExplicitly, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView,
+    holdsExplicitly, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView, internalSourceGrants,
 } = require('../uda/sourceAuth');
+const AUTH_RULES = require('./authRules');
+const { judge: judgeRules } = require('./authJudge');
 
 function dataAuthMode() {
     const m = String(process.env.DMS_DATA_AUTH_MODE || 'log').toLowerCase();
@@ -251,7 +253,11 @@ function createJudge(ctx) {
                 }
                 let perms = ['update-source'];
                 if (op === 'delete') perms = ['delete-source'];
-                else if (keys.includes('auth_permissions')) perms = ['edit-source-permissions'];
+                else if (keys.includes('auth_permissions')) {
+                    // and update-source for any other key, as uda.sources.update (owner 2026-10-29)
+                    const d = await onSource(row.id, ['edit-source-permissions'], getInstance(type));
+                    if (!d.allow || keys.every(k => k === 'auth_permissions')) return d;
+                }
                 else if (only(['views'])) perms = ['create-view', 'update-source', 'delete-source'];
                 else if (noChange) perms = ['update-source', 'edit-source-permissions', 'create-view'];
                 return onSource(row.id, perms, getInstance(type));
@@ -273,10 +279,73 @@ function createJudge(ctx) {
         return user ? allow('signed in') : deny('sign in required');
     }
 
+    // ---- TRIAL (DMS_DATA_AUTH_JUDGE=data): the same decision as authRules.js data + the authJudge.js
+    // interpreter. The owner lookups below are the part the rules can't express (auth-as-data README).
+    async function resolveOwner(name, op, row) {
+        const type = row.type || '';
+        const ownGrants = () => resolveAuthPermissions((parseJson(row.data) || {}).authPermissions, subdomain);
+        const patternOf = async () => {
+            const p = await contentPattern(getParent(type));
+            return resolveAuthPermissions(p && p.data.authPermissions, subdomain);
+        };
+        switch (name) {
+            case 'site-grants': return siteGrants();
+            case 'datasets-grants': return datasetsGrants();
+            case 'self-pattern': return ownGrants();
+            case 'parent-pattern': return patternOf();
+            case 'parent-pattern+row': {
+                const p = await patternOf();
+                const r = op === 'create' ? {} : ownGrants();
+                return { groups: { ...(p.groups || {}), ...(r.groups || {}) }, users: { ...(p.users || {}), ...(r.users || {}) } };
+            }
+            case 'self-source': return internalSourceGrants(internalEnv(getInstance(type)), row.id, subdomain);
+            case 'owning-source': {
+                const env = internalEnv(getParent(type));
+                return internalSourceGrants(env, await sourceIdForView(env, row.id), subdomain);
+            }
+            case 'source-by-slug': {
+                const slug = getParent(type);
+                return internalSourceGrants(internalEnv(slug), await controller.getSourceIdBySlug(app, slug), subdomain);
+            }
+        }
+        return null;
+    }
+
+    // Every owner a kind's rule names: its default owner, plus any clause's own.
+    function ownersIn(rule) {
+        const out = new Set([rule.owner]);
+        const walk = (n) => {
+            if (n && typeof n === 'object') {
+                if (typeof n.owner === 'string') out.add(n.owner);
+                Object.values(n).forEach(walk);
+            }
+        };
+        walk(rule);
+        return [...out].filter(Boolean);
+    }
+
+    async function judgeAsData(op, row, patch, keys) {
+        const type = row.type || '';
+        const kind = getKind(type);
+        const rule = AUTH_RULES[kind];
+        const grants = {};
+        if (rule) {
+            for (const name of ownersIn(rule)) grants[name] = await resolveOwner(name, op, row);
+        }
+        return judgeRules(AUTH_RULES, {
+            user,
+            isAppAdmin: false,  // checked by decide()
+            grants,
+            // an owner that couldn't be found holds nothing (fail closed, as onSource's 'source not found')
+            holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)),
+        }, { kind, op, keys, patch: parseJson(patch) || {}, split: isSplitType(type) });
+    }
+
     // `keys`: the edit's changed keys (planEdit); computed here when the caller has none.
     const decide = async (op, row, patch, keys = op === 'edit' ? planEdit(row, patch).keys : []) => {
         if (isAppAdmin(user, app)) return allow(`${app} Admin`);
         try {
+            if (process.env.DMS_DATA_AUTH_JUDGE === 'data') return await judgeAsData(op, row, patch, keys);
             return await judge(op, row, patch, keys);
         } catch (e) {
             return deny(`lookup failed: ${e.message}`);
@@ -300,12 +369,17 @@ function logWouldDeny(op, app, row, user, reason) {
  * `replace`: the write replaces the whole data (sync/push I onto an existing id).
  * Returns the data to write: for an edit judged against its stored row, only what planEdit judged
  * (see there); otherwise `patch` as given. `legacy` checks and filters nothing.
+ * `skipNoChange`: an edit of a stored row that changes nothing returns NO_CHANGE, unjudged, and the caller
+ * writes nothing (owner 2026-10-29: a save with no changes is not an update).
  */
-async function assertDataWrite(router, controller, op, app, row, patch, { replace = false } = {}) {
+const NO_CHANGE = Symbol('no change');
+
+async function assertDataWrite(router, controller, op, app, row, patch, { replace = false, skipNoChange = false } = {}) {
     const mode = dataAuthMode();
     if (mode === 'legacy') return patch;
     const user = (router && router.user) || null;
     const plan = op === 'edit' ? planEdit(row, patch, { replace }) : { keys: [], write: patch };
+    if (skipNoChange && op === 'edit' && parseJson(row && row.data) && plan.keys.length === 0) return NO_CHANGE;
     const d = await createJudge({ app, subdomain: (router && router.subdomain) || '', user, controller })(op, row, patch, plan.keys);
     if (d.allow) return plan.write;
     if (mode === 'log') { logWouldDeny(op, app, row, user, d.reason); return plan.write; }
@@ -314,4 +388,4 @@ async function assertDataWrite(router, controller, op, app, row, patch, { replac
     throw e;
 }
 
-module.exports = { assertDataWrite, dataAuthMode, createJudge, logWouldDeny, planEdit };
+module.exports = { assertDataWrite, NO_CHANGE, dataAuthMode, createJudge, logWouldDeny, planEdit };

@@ -5,6 +5,49 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
+## ▶ Decisions 2026-10-29 (owner), on Alex's `auth-as-data` judge and amuro's `server-side-auth-general.md`
+
+1. **A row with no grants is read-only**: read allowed, edit refused. Replaces "no permission set → open" for edits
+   (2026-10-23). Task: [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md).
+2. **Alex's judge stays a trial** behind `DMS_DATA_AUTH_JUDGE=data` (`authRules.js`, `authJudge.js`, `dataAuth.js`
+   `judgeAsData`). His files are a structure; the rules they define can change. Rules move into pattern data, edited
+   in a pattern editor **Settings → Advanced auth** tab: [pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md).
+3. **A save that changes nothing writes nothing**, so it isn't judged. Built: `assertDataWrite(…, { skipNoChange })`
+   returns `NO_CHANGE` and `dms.data.edit` returns the stored row. `/sync/push` still writes (and judges) a no-op U/I.
+4. **Site `*` may do anything in any pattern.** True today for site, theme, tenant, pattern, page, section; **not**
+   for datasets kinds (`dmsenv` / `source` / `view` / `data`) or the UDA routes. Follow-up, listed in the rules task.
+5. **A pattern with no grants needs site `view-pattern-list` to edit** (kept). The rules language needs a new clause.
+6. **Datasets Settings bypass of 5: decision 1 closes it** (owner 2026-10-30). `uda.settings.update` →
+   `decidePattern` checks lenient `edit-pattern`, so any signed-in user can save a no-grant datasets pattern's
+   settings today. No separate fix: once blank rows are read-only, that save is refused. Listed as a caller and a
+   test in [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md).
+7. **A source edit changing `auth_permissions` and other keys needs `update-source` too** (as `uda.sources.update`).
+   Built in `judge()`.
+8. **Unknown kinds:** refuse, then inherit. Not built: chat (`channel`, `member`) and the mapeditor rely on "signed
+   in" until their pattern types carry rules (the rules task).
+9. **Owner lookups:** ours now, amuro's `parent_id` resolver when it lands.
+10. **Rules live in pattern data**, not client or server code (see 2).
+
+Tests: `test-data-auth` 51/51 (new: no-change save writes nothing; `auth_permissions` + key needs both); with the
+rules judge 50/51 (the open-pattern clause, 5). Other auth suites and sync pass. Uncommitted.
+
+## ▶ Next work (2026-10-30)
+
+State: the 10-29 changes (trial judge files, decisions 3 + 7, tests, the two new tasks) are **uncommitted** in lib;
+merges with master are committed but **unpushed** (root ahead 19, lib ahead 11). Commit/push only when the owner asks.
+
+In order:
+1. **[permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md)** (decisions 1 and 6). Start with
+   the audit extension (plan step 4), so the blank rows recent editors touched are known before `isUserAuthed`
+   changes. Then the read-verb list, the server split behind the modes, the client gates.
+2. **Access log admin page** (option 1) and the destructive-call **plan routes** (their own initiative; remove stays
+   enabled while no plan exists). Unbuilt.
+3. **Prod audit baseline** (`scripts/permissions-access-diff.js`): needs VPN. Rerun after 1 lands.
+4. **Task 18** (grant migration), then **task 19** (level removal): see "Resume here" below.
+5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): the open-pattern
+   clause first (brings the trial to 51/51), then storage, defaults, Advanced auth tab mockup.
+6. Coordinate with amuro (decisions 1, 9: `parent_id` resolver, Phase D writes) and Alex (rules structure, 5's clause).
+
 ## ▶ Resume here (updated 2026-10-27, task 11 moved out)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the

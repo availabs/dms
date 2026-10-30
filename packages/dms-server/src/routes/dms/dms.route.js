@@ -5,7 +5,7 @@ const falcorJsonGraph = require("falcor-json-graph"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
 const { isUserAuthed, resolveAuthPermissions } = require('./auth');
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
-const { assertDataWrite, dataAuthMode } = require('./dataAuth');
+const { assertDataWrite, NO_CHANGE, dataAuthMode } = require('./dataAuth');
 
 /*
  Controller Settings
@@ -505,8 +505,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
           const rows = await judgedWrite(app, id, type, async (stored, expect) => {
-            // only what the guard judged is written (dataAuth.js planEdit)
-            const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data);
+            // only what the guard judged is written (dataAuth.js planEdit); nothing changed → no write
+            const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data, { skipNoChange: true });
+            if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
             return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });
           });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
@@ -514,7 +515,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         // Legacy format: [id, data]
         const [id, data] = args;
         const rows = await judgedWrite(null, id, null, async (stored, expect) => {
-          const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
+          const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data, { skipNoChange: true });
+          if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);
           return controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta, { expect });
         });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);

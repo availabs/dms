@@ -82,6 +82,7 @@ async function run() {
     const dsEditor = u(17, ['DsEditors']);
     const admin = u(18, [`${APP} Admin`]);
     const paramsUser = u(19, ['Params']);
+    const srcPerms = u(20, ['SrcPerms']);
     const graphs = {};
     const as = (user) => graphs[user ? user.id : 'anon'] || (graphs[user ? user.id : 'anon'] = createTestGraph(DMS_DB, { user }));
     const call = (user, path, args) => as(user).callAsync(path, args);
@@ -115,11 +116,14 @@ async function run() {
     const envRow = await insert('site|env1:dmsenv', { sources: [{ id: roads }, { id: tickets }] });
     await insert('site|ds:pattern', {
         pattern_type: 'datasets', dmsEnvId: envRow,
-        authPermissions: { groups: { DsEditors: ['update-source', 'edit-source-data', 'create-view', 'create-source'] } },
+        authPermissions: { groups: {
+            DsEditors: ['update-source', 'edit-source-data', 'create-view', 'create-source'],
+            SrcPerms: ['edit-source-permissions'],
+        } },
     });
     const ROAD_ROWS = `roads|${viewId}:data`;
     const TICKET_ROWS = `tickets|1:data`;
-    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser]) await as(user).ready;
+    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser, srcPerms]) await as(user).ready;
 
     console.log('\npages and components (enforce):');
     await t('a page edit needs edit-page; signed-out and no-grant users are refused', () => withMode('enforce', async () => {
@@ -127,6 +131,13 @@ async function run() {
         await refused(edit(stranger, docsPage, { title: 'x' }));
         await allowed(edit(editor, docsPage, { title: 'edited' }));
         assert.strictEqual((await dataOf(docsPage)).data.title, 'edited');
+    }));
+    await t('a save that changes nothing writes nothing, so it needs no permission', () => withMode('enforce', async () => {
+        const before = await dataOf(docsPage);
+        await allowed(edit(stranger, docsPage, { title: before.data.title }));
+        const after = await dataOf(docsPage);
+        assert.deepStrictEqual(after, before, 'the row was rewritten');
+        await refused(edit(stranger, docsPage, { title: 'changed' }));
     }));
     await t('publishing (sections / published) needs publish-page', () => withMode('enforce', async () => {
         await refused(edit(editor, docsPage, { sections: [], published: '' }));
@@ -147,7 +158,7 @@ async function run() {
     }));
     await t('a pattern with no grants stays open to signed-in users, never to anon', () => withMode('enforce', async () => {
         await allowed(edit(stranger, openPage, { title: 'x' }));
-        await refused(edit(anon, openPage, { title: 'x' }));
+        await refused(edit(anon, openPage, { title: 'y' }));  // a real change: 'x' is now stored, a no-op
         await refused(create(anon, 'open|page', { title: 'x' }));
     }));
 
@@ -223,10 +234,11 @@ async function run() {
         await allowed(edit(editor, docsPage, { filters: [] }));
         await refused(edit(paramsUser, docsPage, { title: 'x' }));
     }));
-    await t('an edit that changes nothing passes with any of the row\'s edit permissions', () => withMode('enforce', async () => {
-        const { data } = await dataOf(docsPage);
-        await allowed(edit(pageAdmin, docsPage, { authPermissions: data.authPermissions }));  // edit-page-permissions only
-        await refused(edit(stranger, docsPage, { title: data.title }));
+    await t('an edit that changes nothing is not judged or written (owner 2026-10-29)', () => withMode('enforce', async () => {
+        const before = await dataOf(docsPage);
+        await allowed(edit(pageAdmin, docsPage, { authPermissions: before.data.authPermissions }));
+        await allowed(edit(stranger, docsPage, { title: before.data.title }));
+        assert.deepStrictEqual(await dataOf(docsPage), before, 'the row was rewritten');
     }));
 
     console.log('\ninternal datasets (enforce):');
@@ -242,6 +254,11 @@ async function run() {
         await refused(edit(stranger, roads, { description: 'x' }));
         await allowed(edit(dsEditor, roads, { description: 'roads' }));
         await refused(edit(dsEditor, roads, { auth_permissions: { groups: { DsEditors: ['*'] } } }));
+    }));
+    await t('auth_permissions with another key needs update-source too (as uda.sources.update)', () => withMode('enforce', async () => {
+        const grants = { groups: { SrcPerms: ['edit-source-permissions'] } };
+        await refused(edit(srcPerms, roads, { auth_permissions: grants, description: 'x' }));
+        await allowed(edit(srcPerms, roads, { auth_permissions: grants }));
     }));
     await t('a new version needs create-view on the source; a new source needs create-source', () => withMode('enforce', async () => {
         await refused(create(stranger, 'roads|v2:view', { name: 'v2' }));
