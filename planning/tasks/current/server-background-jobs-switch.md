@@ -30,6 +30,22 @@ So a server deploy during a running load, such as an NPMRDS download or a patter
 it's still running, or cut it off. To confirm it happens: compare the deploy times in `dms-template-deploys.jsonl` with
 `data_manager.tasks` and `dms.tasks` rows whose error is that message.
 
+**What the switch doesn't fix (read 2026-10-30):** the cutover itself kills any task that's still running.
+`deploy.sh` stops the old container with `docker stop` (`deploy.sh:479`: SIGTERM, then SIGKILL after 10 s).
+dms-server has no SIGTERM handler, so the task dies, and the new container's boot marks it `error`. A load that
+outlasts the deploy, such as an NPMRDS download, fails with or without the switch. The switch removes only the
+damage done during the staging window (at most `HEALTH_TIMEOUT`, 180 s):
+- A task that finishes in the window is marked `error` and gets an error event. `completeTask` then sets it to
+  `done`, because its update has no status guard (`src/dama/tasks/index.js:240-251`).
+- A task queued in the window can be claimed by staging, since polling claims any queued task carrying the shared
+  host ID (`src/dama/tasks/index.js:98-115`). Staging is stopped within the window, and the new container marks the
+  task `error`.
+- A schedule that staging fires has its next fire time moved forward first (`src/dama/tasks/schedules.js:331-345`).
+  If staging also claims the task that run queued, the run is lost until the next scheduled time.
+
+Keeping a long load alive through a server deploy would need more: a deploy that waits for running tasks or refuses
+to start while any run, or tasks that can resume. Neither is scoped.
+
 ## Proposed Changes
 
 - One env setting, e.g. `DMS_BACKGROUND_JOBS=off`. Unset means today's behaviour. Precedent: `DMS_SSR`,

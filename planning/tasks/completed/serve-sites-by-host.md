@@ -1,6 +1,6 @@
 # dms-server serves each site's built files by request host
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** commit — library `auto_deploy`, uncommitted · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** rdubowsky@albany.edu
 
 The library half of the first step of
 [serve-sites-from-mercury.md](../../../../../planning/shared/tasks/current/serve-sites-from-mercury.md) (dms-template):
@@ -61,7 +61,12 @@ site request never reaches the API routes, the CORS/no-store middleware or the J
 - `packages/dms-server/src/index.js`: the one registration block
 - `packages/dms-server/tests/test-sites.js` (new), `package.json` scripts
 
-## Status (2026-10-21): built, uncommitted
+## Status (2026-10-30): done
+
+Merged to library `master` on 2026-10-21 (`cee73df2`, "Deploy script changes (#6)"). On mercury it serves
+weatherenterprise.com, devtny.org (since 2026-10-26) and transportny.org (since 2026-10-27); the rollout is in
+dms-template's plan. Preview slots build on it: [sites-preview-slots.md](../current/sites-preview-slots.md).
+
 
 - [x] `packages/dms-server/src/sites/index.js`: `createSitesMiddleware`, `parseRedirects`, `normalizeHost`.
 - [x] `packages/dms-server/src/index.js`: registered right after `compression()`, pointed at `<checkout>-sites`.
@@ -109,5 +114,5 @@ site request never reaches the API routes, the CORS/no-store middleware or the J
 - [x] Inside Docker via `deploy.sh` (2026-10-21, image `…-3b94ec60-dms-4beec22c`): sites served from the read-only
   `/app-sites` mount, both sites render in Chromium, and a live-build switch is picked up with no container restart.
   Details in the dms-template plan, step 2.
-- [ ] The end-to-end local run "as on mercury" (dms-template plan) belongs to the next step, after the build
-  script exists.
+- [x] The end-to-end local run "as on mercury" (dms-template plan) belongs to the next step, after the build
+  script exists. Superseded by the live sites on mercury (see Status).

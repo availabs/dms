@@ -4,7 +4,7 @@
 
 Library half of dms-template's
 [preview-slots.md](../../../../../planning/shared/tasks/current/preview-slots.md), which holds the design, the scope
-and why. Builds on [serve-sites-by-host.md](./serve-sites-by-host.md).
+and why. Builds on [serve-sites-by-host.md](../completed/serve-sites-by-host.md).
 
 ## Objective
 
