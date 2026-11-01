@@ -36,80 +36,17 @@ export const DELETE_PATTERN = 'delete-pattern';
 // Any one of these opens the Pattern Editor (the tabs are filtered further).
 export const PATTERN_EDITOR_PERMISSIONS = [EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS];
 // Any one of these means the list row isn't fully locked.
-export const PATTERN_ADMIN_PERMISSIONS = [EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS, DELETE_PATTERN];
+// `DELETE_PATTERN` is NOT here: deleting a pattern is a site operation (owner, 2026-10-30), so it
+// is not one of the pattern-row verbs that decide whether a row is shown locked.
+export const PATTERN_ADMIN_PERMISSIONS = [EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS];
 
-// ---------------------------------------------------------------------------
-// Access editor dropdown options, per pattern_type
-// ---------------------------------------------------------------------------
-
-const ALL = { label: '*', value: '*' };
-
-const SITE_OPTIONS = [
-    { label: 'View Pattern List', value: VIEW_PATTERN_LIST },
-    { label: 'Create Pattern', value: CREATE_PATTERN },
-    { label: 'Manage Themes', value: MANAGE_THEMES },
-    { label: 'Manage Tenants', value: MANAGE_TENANTS },
-];
-
-const AUTH_OPTIONS = [
-    { label: 'Manage Users', value: AUTH_USERS },
-    { label: 'Manage Groups', value: AUTH_GROUPS },
-    { label: 'View As User', value: VIEW_AS },
-];
-
-const PATTERN_ADMIN_OPTIONS = [
-    { label: 'Edit Pattern', value: EDIT_PATTERN },
-    { label: 'Edit Pattern Permissions', value: EDIT_PATTERN_PERMISSIONS },
-    { label: 'Delete Pattern', value: DELETE_PATTERN },
-];
-
-const PAGE_OPTIONS = [
-    { label: 'View Page', value: 'view-page' },
-    { label: 'Edit Page Content', value: 'edit-page' },
-    { label: 'Create Page', value: 'create-page' },
-    { label: 'Edit Page Permissions', value: 'edit-page-permissions' },
-    { label: 'Publish Page', value: 'publish-page' },
-];
-
-// Pattern-level grants of the source permissions are defaults for every
-// source (pattern ⊕ source: datasets/siteConfig.jsx, server uda/sourceAuth.js).
-// Keep in step with datasets.format.js's source `authPermissions` domain.
-const DATASETS_OPTIONS = [
-    // The server needs view-page to load ANY non-auth/admin pattern row
-    // (dms-server dms.route.js), datasets included — keep it grantable.
-    { label: 'View Pattern', value: 'view-page' },
-    { label: 'View Sources', value: 'view-sources' },
-    { label: 'View Source', value: 'view-source' },
-    { label: 'Download Source', value: 'download-source' },
-    { label: 'Create Source', value: 'create-source' },   // pattern level only: new sources in this pattern
-    { label: 'Update Source', value: 'update-source' },
-    { label: 'Edit Source Data', value: 'edit-source-data' }, // row create/edit/delete on editable sources
-    { label: 'Create Version', value: 'create-view' },
-    { label: 'Manage Downloads', value: 'manage-downloads' },
-    { label: 'View Source API', value: 'view-source-api' },
-    { label: 'Delete Source', value: 'delete-source' },
-    { label: 'Edit Source Permissions', value: 'edit-source-permissions' },
-];
-
-// The options the Access editor offers for a pattern. `adminRowHasGrants`:
-// while the admin row grants nothing, site access still comes from the auth
-// pattern, so the auth pattern offers the site-level list too.
-// Only changes what's OFFERED — MultiSelect keeps saved values that aren't in
-// its options, so nothing stored is dropped.
-export function permissionOptionsFor(patternType, { adminRowHasGrants = true } = {}) {
-    switch (patternType) {
-        case 'admin':
-            return [ALL, ...SITE_OPTIONS];
-        case 'auth':
-            return [ALL, ...AUTH_OPTIONS, ...(adminRowHasGrants ? [] : SITE_OPTIONS)];
-        case 'page':
-            return [ALL, ...PATTERN_ADMIN_OPTIONS, ...PAGE_OPTIONS];
-        case 'datasets':
-            return [ALL, ...PATTERN_ADMIN_OPTIONS, ...DATASETS_OPTIONS];
-        default:
-            return [ALL, ...PATTERN_ADMIN_OPTIONS];
-    }
-}
+// Access editor dropdown options used to live here, as a `permissionOptionsFor` switch over
+// pattern_type plus five hand-written option lists (SITE/AUTH/PATTERN_ADMIN/PAGE/DATASETS). They
+// were a fifth copy of verbs already declared in the formats' `permissionDomain`s, and they drifted
+// — PAGE_OPTIONS was an item-for-item hand-copy of page.format.js's domain, missing
+// `edit-page-params`. The list is now composed from the derived vocabulary by
+// `patternPermissionOptions` in patterns/registry.js, which is where the registry entries live.
+// See planning/tasks/current/permission-domain-single-source.md.
 
 // ---------------------------------------------------------------------------
 // Checks
@@ -178,7 +115,8 @@ export function patternActions(user, app, siteAuthPermissions, pattern, typeAdmi
         open: edit || editPermissions,
         edit,
         editPermissions,
-        delete: !isCore && can(DELETE_PATTERN),
+        // a site grant, symmetric with `duplicate` below and with dms-server's dataAuth.js
+        delete: !isCore && siteCan(user, app, siteAuthPermissions, DELETE_PATTERN),
         duplicate: !isCore && duplicable && edit && siteCan(user, app, siteAuthPermissions, CREATE_PATTERN),
         // nothing at all: shown locked and counted in the no-access banner
         locked: !PATTERN_ADMIN_PERMISSIONS.some(can),

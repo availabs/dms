@@ -259,7 +259,63 @@ childRefs and grants) rather than only adding the column. A half-migrated table 
 nothing backfilled — makes every row resolve to empty, because the projection stops selecting
 `data` the moment `auth` exists. That is a real deployment hazard, not a test artifact.
 
-### Not done
+### RESOLVED 2026-10-29 — an env may have several parents, so the chain is BUILT, not walked
+
+> "I think an env can have multiple parents" (owner)
+
+That settles it, and it rules `parent_id` out for envs: **one column cannot hold two parents**, and
+kind auth has always UNIONED the grants of every owning pattern
+(`sourceAuth.readInternalSource` → `unionAuthPermissions`). A single-parent walk would have picked
+one and silently dropped the rest. Measured on `rowauth-test`: `datasets` #1499610 and `qa` #2860547
+both name env 1676363.
+
+**The `childRefs: { pattern: { dmsEnvId: 'dmsenv' } }` declaration is WITHDRAWN** — deleted from
+`datasets.childRefs.js` (file removed), `patterns/index.js` and the emitter. It was unsound twice:
+
+- `childRefs` is keyed by row KIND, and every pattern TYPE shares the kind `pattern`, so a
+  datasets-specific declaration applied to **every pattern row in the app** — which is how `qa`
+  came to claim the env;
+- the runtime and the migration read the declaration from different places (`childRefsForType`
+  from the owner's own pattern; `mergeChildRefs` app-wide by kind), and nothing had exposed the
+  split before because only one pattern type had ever declared.
+
+It was also a **prod data-corruption risk**: on prod env 1676363 exists, and the multi-owner repair
+would have DUPLICATED it. Caught by `--verify-parents` going CLEAN → 1 drift, which is what that
+check is for.
+
+**What replaced it.** `mergedAuthForSource` builds the chain explicitly, and internal and external
+now produce the same two levels:
+
+| | chain |
+|---|---|
+| internal (`app+env`) | `[union of the patterns that LIST this source, the source's own grants]` |
+| external (pgEnv) | `[the client-named pattern, the source's own grants]` |
+
+Closer to the owner's "one internally consistent system" than the walk was: the only difference left
+is *where the pattern level comes from*.
+
+### Two more bugs the rewrite surfaced
+
+1. **Verbs were never expanded.** A hand-built chain skips what `authOf` does for DMS rows, so a
+   grant of `update-source` never became `read`+`edit` and every verdict was a refusal. Each level
+   is now expanded before merging — against ITS OWN pattern's vocabulary, since two patterns may
+   declare the same verb differently, and unioning raw strings first would lose that.
+2. **`SELECT auth` throws on an unmigrated table.** `no such column: auth`, caught by
+   `decideSourceRow`, which fails closed — so every request was denied with `lookup failed: …`,
+   reading as a would-deny on a request that should have been granted. The column is now probed
+   (`authColExpr`) and selected as literal `NULL` when absent.
+
+### Result: `test-source-auth.js` is 50/50 under BOTH gates
+
+`tests/fixtures/row-auth-uda-expected-diff.json` is **empty** — zero pinned disagreements. That is
+not "row auth equals kind auth": two differences exist that this suite does not exercise, and the
+fixture's README names them (the clamp, and strict defaults). A new name appearing there is a
+finding.
+
+`tests/test-row-auth-uda.js` — **16 cases**, rewritten for the chain model, including the multi-
+pattern union and the clamp (a source may NARROW what its patterns gave a principal, never widen).
+
+### Not done### Not done
 
 - The sweep: 10 external (`hazmit_dama` #1515/#12453/#13824, `wcdb-dama` all but #14) + prod's 76
   internal `:source` rows. Needs `--sync-vocabulary` to land the new `childRefs` first.
@@ -413,3 +469,263 @@ The branch's **accepted risk** stands and is not this task's to re-open: anyone 
 
 A `grep` for auth decision points finds **one module**. That is the hub's completion test, and this
 is the task that makes it true.
+
+
+## `decideSourceRow` fails closed on an unresolvable chain (found 2026-10-30, live run)
+
+`row-auth-uda-expected-diff.json` is EMPTY and `test-source-auth.js` is 50/50 under both gates. The
+differential still missed this, because every case in it names a source whose chain resolves. The
+first anonymous page load in a real browser found it.
+
+### What was observed
+
+`chenango.localhost/the_plan/jurisdictional_annexes/select_jurisdiction`, logged out, renders
+**4,768 characters under `enforce` against 16,649–17,056 under `legacy`** — 4 runs each, and the
+`enforce` figure is identical every time, so this is not the stale-fetch race. 327 lines of public
+content disappear: the jurisdiction narrative, the profile, the building-stock and critical-facility
+tables. The jurisdiction's name never resolves either, so the dropdown shows the bare GEOID.
+
+Reduced to one request — same view, same options string, same server:
+
+```python
+paths = [["uda","mitigat-ny-prod+jurisdictions","viewsById",1346450,"options",opts,"length"]]
+```
+
+| caller | mode | `length` |
+|---|---|---|
+| anonymous | **enforce** | **0** |
+| signed in (AVAIL, LHMP Template Editor) | enforce | 1662 |
+| anonymous | legacy | 1662 |
+
+### The mechanism — confirmed, not inferred
+
+My first reading of this blamed `rowSourceAuth.js:245` (`if (!got.ok) return { allow: false }`,
+an unresolvable chain failing closed). **That was wrong.** Reading code to choose between candidate
+mechanisms was the mistake; the server states its reason if you run it in `log` mode:
+
+```
+[read-auth] would-deny data mitigat-ny-prod+jurisdictions/1346449 user=anon groups=
+reason=missing view-source or download-source or update-source or edit-source-data or ...
+```
+
+Not "source not found", not "is in no datasets pattern". The chain **resolved**. This is an ordinary
+grant decision, and the read path is `allowViewRead → allowSourceRead → decideFrom → decideFromRow`,
+never `decideSourceRow`. (A related correction: an earlier query of mine found "0 datasets patterns"
+in `mitigat-ny-prod` because it read `dms.data_items`; this config is **per-app split**, so prod is
+in `dms_mitigat_ny_prod`. The patterns were there all along.)
+
+What is actually true, from the right schema:
+
+| | |
+|---|---|
+| `dms_mitigat_ny_prod` | **unmigrated** — no `auth`, no `parent_id` |
+| owning pattern 1499610 `Datasets` | `data.authVocabulary` = **absent**, grants `public: ["view-page"]` |
+| source 1346449 | own grants `null` (unstated) |
+
+`holdsAny` compares **structurally**: it maps each required permission through `verbsFor` and asks
+`verdict` for the structural verb. `view-source` → `read`. The datasets vocabulary does say
+`view-page` implies `read` for descendants — **but that vocabulary lives in the pattern ROW, and
+this app has none**, so `impliesMaps` is empty and `view-page` is never expanded into anything.
+Public therefore holds a string that confers no structural verb at all.
+
+`AVAIL` holds `["*"]`, and a wildcard is honoured without any vocabulary. Hence:
+
+- anonymous → no structural verb → denied → `length: 0`
+- AVAIL → wildcard → allowed → `length: 1662`
+- legacy → `legacyAllows` short-circuits on `isDmsEnv(env) ⇒ true`; **nothing was ever checked**
+
+### Why this is the dangerous shape
+
+**An app with no vocabulary silently voids every grant written as a named verb, while leaving every
+`*` holder untouched.** Admins and AVAIL see a fully working site. Only the public loses access, and
+only on data-backed sections, with no error anywhere — the page renders its headings and empty
+tables. That is why four browser runs were needed to see it at all, and why no suite caught it:
+`test-source-auth.js` and the differential both build rows that have a vocabulary.
+
+This is the dependency task 8 step 4 (`--sync-vocabulary`) exists for, but it is **broader than the
+runbook currently states**: the vocabulary must be synced for every app whose sources are
+*referenced*, not only the app being flipped. A page can name a source in another app, and that
+app's migration state then governs what the public can read.
+
+### Before this is called fixed
+
+- [x] ~~Trace the caller-dependent branch~~ — there was none; `*` is honoured without a vocabulary, named verbs are not.
+- [ ] Pre-flight check in `migrate-row-auth.js`: per app, count grants naming verbs where no vocabulary exists — "these principals confer nothing on flip". Runnable read-only against prod.
+- [ ] Add the no-vocabulary case to `test-source-auth.js` and the differential: a pattern granting a NAMED verb to `public`, on an app with no vocabulary row —
+      the whole point of that harness is that it should have caught this.
+- [ ] Re-run the live page and compare rendered length against the `legacy` figures above, which is
+      the only check that would have caught it this time.
+
+
+## Root cause, after the cross-app move (2026-10-30)
+
+The cross-app reference was a **confound, not the cause**. With it removed the denial is identical,
+now inside the app's own namespace:
+
+```
+[read-auth] would-deny data rowauth-test+jurisdictions/1346449 user=anon groups=
+reason=missing view-source or download-source or ...
+```
+
+### The two UDA auth paths disagree about vocabulary expansion
+
+| path | builds grants via | expands named verbs? |
+|---|---|---|
+| `decideSourceRow` → `internalSourceChain` | `expandLevel(…, impliesMaps(vocabularyOf(row)))` | **yes** (`rowSourceAuth.js:206-211`) |
+| `decideFromRow` → `readAuth.snapshot` | `unionAuthPermissions(owning)` | **no** (`readAuth.js:111`) |
+
+`holdsAny` expands the REQUIRED permission into structural verbs (`view-source` → `read`) and then
+asks `verdict` for each. The snapshot hands it grants that were never expanded, so a structural verb
+is compared against a raw named string and never matches. Proven against the live clone row:
+
+```
+vocabulary present on pattern 1499610 : true
+raw      public grant                 : ["view-page"]
+EXPANDED public grant                 : ["view-page","read"]     ← what the other path would use
+```
+
+`AVAIL: ["*"]` is unaffected because a wildcard needs no expansion — which is exactly why this is
+invisible to anyone who holds one.
+
+**Why the differential missed it:** `test-source-auth.js` and
+`row-auth-uda-expected-diff.json` exercise `decideSourceRow`. The READ path that every page actually
+uses is `allowViewRead → allowSourceRead → decideFrom → decideFromRow`, and nothing covers it.
+
+### The fix
+
+`readAuth.snapshot` must expand each owning pattern's grants against that pattern's own vocabulary
+before unioning — the same three lines `internalSourceChain` already runs — and expand the source's
+own grants with the resulting maps. The snapshot already loads the pattern rows, so this adds no
+query; it needs the `auth` column in that SELECT where it is not already fetched.
+
+**Not applied yet.** It loosens an auth path, so it wants a failing test first: an anonymous caller,
+a datasets pattern granting `public: ['view-page']`, a vocabulary present — asserted through
+`allowSourceRead`, not `decideSourceRow`. That test is the thing whose absence allowed this.
+
+
+## Implemented 2026-10-30 — owner's rules for source reads
+
+Three changes, all in `routes/uda/readAuth.js` plus one line in `routes/dms/rowAuth.js`.
+
+**1. The `auth` column is the system of record here too.** `loadInternal` read grants from `data`
+only; a grant written to the column and not mirrored into `data` was invisible. New `ownAuthOf()`
+applies `rawAuthOf`'s precedence — column wins, but a column holding only DECLARATIONS
+(`vocabulary`, `childRefs`, `view`) names nothing and falls through to `data`, so an explicitly
+empty `{groups:{},users:{}}` still reads as "someone cleared the grants". Measured first: on the
+clone, 0 rows had column-only grants, so this was latent, not live — it goes live the moment the
+Access editor writes the column as the record.
+
+**2. Verbs are expanded against the pattern's vocabulary.** `internalSourceChain` did this;
+the snapshot path never did, so `holdsAny` compared the structural `read` against the raw string
+`view-page` and never matched. `rawAuthOf` now also strips `view`.
+
+**3. Source reads default open (owner, 2026-10-30).** *"If all auth settings in `auth` or the `data`
+auth attributes are null then view/read should be true and edit should be false."* Grants otherwise
+work exactly as before — DAMA scopes an upload to its creator with real grants, and those keep
+working. New `decideRead()`:
+
+| source state | read |
+|---|---|
+| states nothing anywhere | **allowed** |
+| `auth: { view: false }`, nothing else | refused (its own grantees and `${app} Admin` only) |
+| states its own grants | judged as always; the pattern may still LEND, never gate |
+
+A datasets pattern's grants can no longer DENY a source read. `view-page` was never meant to be the
+verb that opens a source. Writes are untouched — they still resolve the whole chain.
+
+`decideRead` is separate from `decideFrom` on purpose: `holdsOnSource` asks `decideFrom` about WRITE
+permissions, where pattern grants must still count.
+
+### Verification
+
+- `test-read-auth.js` 25 → **30 cases, 30 passing**, including the live bug reduced to a fixture
+  (blank source under a pattern granting only `view-page`), `view: false` with and without own
+  grants, and column-beats-stale-`data`.
+- One expectation deliberately changed: *"a source in no pattern is refused"* → **readable**. Being
+  unreferenced is the absence of a statement, not a statement. Orphanhood still denies writes.
+- Everything else green: `npm test` exit 0 · `source-auth` 50/50 under **both** gates ·
+  `row-auth-reads` 20 · `row-auth-uda` 16 · `row-auth-gate` 21.
+- Under `DMS_UDA_GATE=row`, `test-read-auth.js` went from **14/30 to 28/30**. The 2 that remain fail
+  with the old read rule too — pre-existing row-gate gaps in `holdsOnSource` redaction, not ours.
+
+### Live result, and what is still missing
+
+Anonymous, full `enforce`, same page: **4,768 → 13,709 characters** (legacy baseline 16,657). The
+dataset reads flow — `uda.rowauth-test+jurisdictions` now returns 2.65 MB where it returned a
+`length: 0`.
+
+**~2,950 characters / 286 lines still missing**, and the trail is concrete: the page still issues two
+`uda.mitigat-ny-prod+…` requests although **zero clone rows contain that prefix**. They come from the
+other place env strings live:
+
+| table (pgEnv `hazmit_dama`) | rows mentioning `mitigat-ny-prod+` |
+|---|---|
+| `data_manager.sources` | **12,977** |
+| `data_manager.views` | **11,894** |
+
+`app-scope-dmsenvs.js --check` scans an app's `data_items` and reports CLEAN, because this is outside
+it. **This needs an owner decision, not a patch:** a dmsEnv reference is app-scoped by the new rule,
+but it is stored here inside a pgEnv that is deliberately cross-app. Either the check must cover DAMA
+metadata for every pgEnv an app uses, or these references mean something different from the ones in
+`data_items` and are legitimate.
+
+
+## Where the last of the gap was (2026-10-30) — and it is DATA, not code
+
+Two separate things were conflated. Both are now settled.
+
+### 1. The clone was still naming the prod app — in a form the `+` regex could not see
+
+`--check` reported CLEAN while **14,508 references remained**, because both the check and the rewrite
+required `{app}+`. The app half is also stored on its own under an `app` key, and the CLIENT composes
+the env from it:
+
+- `data.app` on every copied source row (463 rows)
+- `sourceInfo.app` / `externalSource.app` inside section state, **escaped**, because that state is
+  JSON encoded inside JSON
+
+That is what kept `uda.mitigat-ny-prod+jurisdictions` being requested from an app whose rows no
+longer contained the string `mitigat-ny-prod+` anywhere. Both the check and the rewrite now handle
+the bare `"app": "…"` form, escaped or not, and only ever rewrite that KEY — the 244 remaining
+mentions are S3 image URLs (`…/img/mitigat-ny-prod/…`) and must not be touched. Catching the bare
+form also surfaced a third app, `dms-site`, with 4 references.
+
+**It did not change the rendering**: 13,709 before the rewrite, 13,709 after. Real, worth fixing,
+and not the cause.
+
+### 2. The remaining ~2,950 characters are 389 DAMA sources granted to AVAIL only
+
+Re-measured on the CURRENT data, so the comparison is honest (the earlier baseline predated the
+adopt):
+
+| mode | anonymous |
+|---|---|
+| legacy | 16,620 – 17,037 |
+| **enforce** | **13,709**, every run |
+| log | 16,616 — renders, and names what it would refuse |
+
+In `log` mode the page logs **389 distinct refusals**, all but one on the external pgEnv:
+
+```
+would-deny source hazmit_dama/885  reason=missing view-source      ×389
+would-deny source rowauth-test+datasets/2726687                    ×1
+```
+
+Every one of them states grants, and the grants are the whole story:
+
+```
+auth_permissions = {"users": {}, "groups": {"AVAIL": ["*"]}}
+```
+
+AVAIL `*`, public nothing. And across `hazmit_dama`, **0 of 13,390 sources have a NULL
+`auth_permissions`** — so the owner's "all null ⇒ read true" default never applies to any of them.
+`src/scripts/grant-groups-star-on-sources.js` is presumably how they all came to look like this.
+
+**This is correct enforcement of what the data says, not a defect.** Today it is invisible because
+`allowSourceRead` returns `true` immediately under `legacy` — external source reads are not checked
+at all. At cutover, every public MitigateNY page backed by a DAMA source would lose that content for
+logged-out visitors.
+
+It needs a data decision, not a patch: either grant `public: ['view-source']` on the sources the
+public pages read, or clear `auth_permissions` on them so the unstated default applies. The count to
+work from is the 389 the page actually touches, not all 13,390.

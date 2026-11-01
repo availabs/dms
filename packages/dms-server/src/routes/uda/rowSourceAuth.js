@@ -29,14 +29,26 @@
  *
  * `chainForSource` is the ONLY place uda auth asks "internal or external":
  *
- *   internal (`app+env`)  a `data_items` row — walk it: source → dmsEnv → pattern → site.
- *                         The dmsEnv→pattern hop needs the datasets pattern to declare
- *                         `childRefs: { datasets: { dmsEnvId: 'dmsenv' } }` so `stampChildren`
- *                         writes the env's parent_id. Until it does, the walk stops at the site
- *                         and the pattern's grants are not seen — which is a MISSING grant, i.e.
- *                         it fails closed.
- *   external (pgEnv)      no DMS row at all. The chain is [named pattern, source], known in one
- *                         step, so there is nothing to walk.
+ *   internal (`app+env`)  [union of the patterns that LIST this source, the source's own grants]
+ *   external (pgEnv)      [the client-named pattern, the source's own grants]
+ *
+ * Both build the same two-level chain; only where the pattern level comes from differs. That is the
+ * whole of the internal/external split in uda auth.
+ *
+ * **Why not `parent_id` for the internal case.** A first version declared
+ * `childRefs: { pattern: { dmsEnvId: 'dmsenv' } }` so `stampChildren` would give a dmsEnv a parent
+ * and the chain could be walked. It is withdrawn (owner, 2026-10-29: *"I think an env can have
+ * multiple parents"*), and the owner is right twice over:
+ *
+ *   - a dmsEnv IS referenced by several patterns — on `rowauth-test`, `datasets` #1499610 and `qa`
+ *     #2860547 both name env 1676363 — and `parent_id` is ONE column. It cannot hold two.
+ *   - kind auth has always UNIONED the grants of every owning pattern
+ *     (`sourceAuth.readInternalSource` → `unionAuthPermissions`). A single-parent walk would pick
+ *     one and silently drop the rest.
+ *
+ * The declaration was also unsound for a second reason worth remembering: `childRefs` is keyed by
+ * row KIND, and every pattern TYPE shares the kind `pattern`, so a datasets-specific declaration
+ * applied to every pattern row in the app.
  *
  * ---------------------------------------------------------------------------
  * Permissions in, verbs out
@@ -52,13 +64,24 @@
  */
 
 const { getDb, loadConfig } = require('../../db');
-const { createResolver } = require('../dms/rowAuth');
 const { mergeAuthChain } = require('../dms/mergeAuth');
-const { verdict, verbsFor } = require('../dms/rowAuthGate');
-const { authColumns, rowAuthCaps } = require('../dms/rowAuthCaps');
+const { verdict, verbsFor, holdsPermission } = require('../dms/rowAuthGate');
 const { resolveAuthPermissions } = require('../dms/auth');
+const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../dms/authVocabulary');
+const { expandAuth } = require('../dms/legacyVerbs');
+const { dmsMainTable, getSiteSources } = require('./utils');
+const { rowAuthCaps } = require('../dms/rowAuthCaps');
 const { resolveTable } = require('../../db/table-resolver');
-const { dmsMainTable } = require('./utils');
+
+/**
+ * Expand one level's grants into structural verbs before it is merged.
+ *
+ * `resolve()` does this for DMS rows via `authOf`; a chain built by hand has to do it too, or a
+ * grant of `update-source` never becomes `read`+`edit` and every verdict is a refusal. The
+ * declared vocabulary wins where the pattern has one, exactly as `authOf` chooses; `expandAuth` is
+ * the transitional shim for grants written before any pattern declared.
+ */
+const expandLevel = (auth, maps) => (maps ? expandWithVocabulary(auth, maps) : expandAuth(auth));
 
 /** `DMS_UDA_GATE`: `kind` (default) | `row`. Kind auth stays live until this says otherwise. */
 function udaGate() {
@@ -83,6 +106,23 @@ function getDmsDb() {
   return { db, splitMode: splitMode || process.env.DMS_SPLIT_MODE || 'legacy', dbEnv };
 }
 
+/**
+ * `auth` as a selectable expression, or the literal NULL when the table has no such column.
+ *
+ * A plain `SELECT auth` throws on an UNMIGRATED table — `no such column: auth` on sqlite — and the
+ * throw is caught by `decideSourceRow`, which fails closed. The symptom is every request denied
+ * with `lookup failed: …`, which under `log` reads as a would-deny on a request that should have
+ * been granted. The vocabulary then comes from `data.authVocabulary` alone, which is where an
+ * unmigrated app keeps it anyway.
+ */
+async function authColExpr(db, app, splitMode) {
+  try {
+    const t = resolveTable(app, '', db.type, splitMode);
+    const caps = await rowAuthCaps(db, t.schema, t.table, db.type);
+    return caps.auth ? 'auth' : 'NULL';
+  } catch { return 'NULL'; }
+}
+
 async function externalSourceAuth(db, sourceId) {
   const { rows } = await db.query(
     `SELECT auth_permissions AS ap FROM ${sourcesTable(db)} WHERE source_id = $1`, [sourceId]);
@@ -95,40 +135,15 @@ async function namedPatternAuth({ app, patternId } = {}, subdomain = '') {
   if (!app || !patternId) return { ok: false, reason: 'no pattern named' };
   const { db, splitMode } = getDmsDb();
   const tbl = await dmsMainTable(db, app, splitMode);
+  const authCol = await authColExpr(db, app, splitMode);
   const { rows } = await db.query(
-    `SELECT data->>'authPermissions' AS ap, data->>'pattern_type' AS pattern_type
+    `SELECT data->>'authPermissions' AS ap, data->>'pattern_type' AS pattern_type,
+            ${authCol} AS authcol, data->'authVocabulary' AS av
        FROM ${tbl} WHERE id = $1 AND app = $2 AND type LIKE '%:pattern'`, [+patternId, app]);
   if (!rows.length) return { ok: false, reason: `pattern ${app}/${patternId} not found` };
   if (rows[0].pattern_type !== 'datasets') return { ok: false, reason: `pattern ${patternId} is not a datasets pattern` };
-  return { ok: true, app, auth: resolveAuthPermissions(rows[0].ap, subdomain) || {} };
-}
-
-/** A resolver over one app's `data_items`, with the projection the row-auth contract requires. */
-async function dmsResolver(app, subdomain) {
-  const { db, splitMode } = getDmsDb();
-  const t = resolveTable(app, '', db.type, splitMode);
-  const caps = await rowAuthCaps(db, t.schema, t.table, db.type);
-  const cols = authColumns(caps, db.type).join(', ');
-  const loadByIds = async (ids) => {
-    if (!ids.length) return [];
-    const ph = ids.map((_, i) => `$${i + 2}`).join(',');
-    const { rows } = await db.query(
-      `SELECT ${cols} FROM ${t.fullName} WHERE app = $1 AND id IN (${ph})`, [app, ...ids]);
-    return rows;
-  };
-  return {
-    db,
-    loadByIds,
-    resolver: createResolver({
-      loadByIds,
-      loadContainers: async () => {
-        const { rows } = await db.query(
-          `SELECT ${cols} FROM ${t.fullName} WHERE app = $1 AND type LIKE '%:%'`, [app]);
-        return rows.filter(r => typeof r.type === 'string' && /([^|]+):[^:]+$/.test(r.type));
-      },
-      subdomain,
-    }),
-  };
+  const maps = impliesMaps(vocabularyOf({ auth: rows[0].authcol, data: { authVocabulary: rows[0].av } }));
+  return { ok: true, app, maps, auth: resolveAuthPermissions(rows[0].ap, subdomain) || {} };
 }
 
 /**
@@ -141,9 +156,9 @@ async function mergedAuthForSource({ db, env, sourceId, patternRef, subdomain = 
 
   if (isDmsEnv(env)) {
     const [app] = String(env).split('+');
-    const merged = await resolveRowById(app, sourceId, subdomain);
-    if (!merged) return { ok: false, reason: 'source not found' };
-    return { ok: true, merged, app };
+    const r = await internalSourceChain(app, sourceId, subdomain);
+    if (!r.ok) return r;
+    return { ok: true, merged: mergeAuthChain(r.chain), app };   // levels already expanded
   }
 
   const src = await externalSourceAuth(db || getDb(env), sourceId);
@@ -151,31 +166,73 @@ async function mergedAuthForSource({ db, env, sourceId, patternRef, subdomain = 
   const pat = await namedPatternAuth(patternRef, subdomain);
   // An unusable pattern name only loses the pattern's grants; the source's own still count — same
   // rule kind auth applies, and the accepted risk recorded on this task is unchanged by it.
-  const chain = pat.ok ? [pat.auth, src.auth] : [src.auth];
+  const maps = pat.ok ? pat.maps : null;
+  const chain = pat.ok
+    ? [expandLevel(pat.auth, maps), expandLevel(src.auth, maps)]
+    : [expandLevel(src.auth, null)];
   return { ok: true, merged: mergeAuthChain(chain), app: pat.ok ? pat.app : null };
 }
 
 /**
- * One DMS row's chain, merged — or null when the row is gone.
+ * The two-level chain for an INTERNAL source: [patterns that list it (unioned), its own grants].
  *
- * The row is LOADED first: `resolve()` walks upward FROM the rows it is given, so it needs the
- * leaf's own `type`, `parent_id` and `auth`, not just an id.
+ * Which patterns list it is a reference-list question — a datasets pattern reaches its sources
+ * through its dmsEnv (`data.dmsEnvId` → the env's `data.sources`) or, on an older pattern, through
+ * its own `data.sources`. Mirrors `sourceAuth.readInternalSource` exactly, including the union: a
+ * source may belong to SEVERAL patterns, and every one of their grants counts.
  */
-async function resolveRowById(app, id, subdomain) {
-  const { loadByIds, resolver } = await dmsResolver(app, subdomain);
-  const [row] = await loadByIds([String(id)]);
-  if (!row) return null;
-  const got = await resolver.resolve([row]);
-  return got.get(String(row.id)) || null;
+async function internalSourceChain(app, sourceId, subdomain) {
+  const { db, splitMode } = getDmsDb();
+  const tbl = await dmsMainTable(db, app, splitMode);
+  const { rows: srcRows } = await db.query(
+    `SELECT data->>'auth_permissions' AS ap FROM ${tbl} WHERE id = $1 AND app = $2 AND type LIKE '%:source'`,
+    [+sourceId, app]);
+  if (!srcRows.length) return { ok: false, reason: 'source not found' };
+
+  const authCol = await authColExpr(db, app, splitMode);
+  const { rows: pats } = await db.query(
+    `SELECT id, data->>'authPermissions' AS ap, ${authCol} AS authcol, data->'authVocabulary' AS av
+       FROM ${tbl}
+      WHERE app = $1 AND type LIKE '%:pattern' AND data->>'pattern_type' = 'datasets'`, [app]);
+  const owning = [];
+  for (const p of pats) {
+    const refs = await getSiteSources({ db, app, pattern_ids: [p.id], splitMode });
+    if (refs.some(r => +(r && r.id) === +sourceId)) owning.push(p);
+  }
+  if (!owning.length) return { ok: false, reason: `source ${sourceId} is in no datasets pattern of ${app}` };
+
+  // Expand EACH pattern against ITS OWN vocabulary before unioning: two patterns may declare the
+  // same verb with different implications, and unioning the raw strings first would lose that.
+  const patternLevel = unionAuthPermissions(owning.map((p) => expandLevel(
+    resolveAuthPermissions(p.ap, subdomain) || {},
+    impliesMaps(vocabularyOf({ auth: p.authcol, data: { authVocabulary: p.av } })))));
+  const maps = owning.map((p) => impliesMaps(vocabularyOf({ auth: p.authcol, data: { authVocabulary: p.av } })))
+    .find(Boolean) || null;
+  return { ok: true, chain: [patternLevel, expandLevel(parseJson(srcRows[0].ap) || {}, maps)] };
 }
 
-/** Does `user` hold ANY of `reqPermissions` under `merged`? All structural verbs within one. */
+/** Union per principal — several patterns may list one source, and every grant counts. */
+function unionAuthPermissions(list) {
+  const out = { groups: {}, users: {} };
+  const asList = (p) => (Array.isArray(p) ? p : p ? [p] : []);
+  for (const ap of list) {
+    for (const key of ['groups', 'users']) {
+      for (const [k, perms] of Object.entries((ap && ap[key]) || {})) {
+        out[key][k] = [...new Set([...(out[key][k] || []), ...asList(perms)])];
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Does `user` hold ANY of `reqPermissions` under `merged`? All structural verbs within one — or,
+ * for a permission that implies none, the permission itself by name (`holdsPermission`). That is
+ * what keeps `download-source` a capability rather than a flavour of `edit`.
+ */
 function holdsAny(merged, user, app, reqPermissions) {
   for (const perm of [].concat(reqPermissions || [])) {
-    const verbs = verbsFor([perm]);
-    if (verbs.every(v => verdict(merged, user, v, app).allow)) {
-      return { allow: true, reason: 'granted' };
-    }
+    if (holdsPermission(merged, user, app, perm)) return { allow: true, reason: 'granted' };
   }
   return { allow: false, reason: `missing ${[].concat(reqPermissions || []).join(' or ')}` };
 }
@@ -199,9 +256,7 @@ async function decidePatternRow({ patternRef, subdomain = '', reqPermissions, us
   try {
     const pat = await namedPatternAuth(patternRef, subdomain);
     if (!pat.ok) return { allow: false, reason: pat.reason };
-    const merged = await resolveRowById(pat.app, patternRef.patternId, subdomain);
-    // The pattern row resolved through its own chain (site included), not its grants in isolation.
-    return holdsAny(merged || pat.auth, user, pat.app, reqPermissions);
+    return holdsAny(pat.auth, user, pat.app, reqPermissions);
   } catch (e) {
     return { allow: false, reason: `lookup failed: ${e.message}` };
   }
@@ -226,7 +281,24 @@ function decideFromRow(snap, sourceId, user, reqPermissions, named = null) {
   return holdsAny(mergeAuthChain([patternAP || {}, s.ap || {}]), user, app, reqPermissions);
 }
 
+/**
+ * THE ONE QUESTION THE READ GATE ASKS: does this chain grant structural `read`?
+ *
+ * Not "does the user hold one of nine named permissions" — that list (`READ_PERMISSIONS` in
+ * readAuth.js) was a hand-maintained restatement of which verbs happen to include reading, and it
+ * drifted: every verb that should confer a read already declares `read` in its `implies`
+ * (datasets.format.js), and the three that should NOT — `download-source`, `manage-downloads`,
+ * `view-source-api` — declare `implies: []` and are checked by name where they are used.
+ *
+ * So reading is derived, not maintained. `view-source` alone reads without downloading;
+ * `download-source` alone downloads without reading. See
+ * planning/tasks/current/permission-domain-single-source.md, Phase 4(a).
+ */
+function readsRow(patternAP, ownAP, user, app) {
+  return verdict(mergeAuthChain([patternAP || {}, ownAP || {}]), user, 'read', app);
+}
+
 module.exports = {
   udaGate, mergedAuthForSource, decideSourceRow, decidePatternRow, decideFromRow,
-  holdsAny, isDmsEnv,
+  holdsAny, readsRow, isDmsEnv,
 };

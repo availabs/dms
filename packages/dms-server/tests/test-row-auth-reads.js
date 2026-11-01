@@ -51,7 +51,15 @@ async function run() {
         const res = await as(user).getAsync([['dms', 'data', APP, 'byId', String(id), ['data', 'type']]]);
         return res?.jsonGraph?.dms?.data?.[APP]?.byId?.[String(id)]?.data;
     };
-    const refused = (d) => d === 'no-access';
+    // A refusal takes TWO shapes. Every kind answers the bare string `no-access` — except a
+    // PATTERN, which answers `$atom({ id: 'no-access', base_url, subdomain, theme, … })` so the
+    // client can still build the route and redirect to login (dms.route.js's stub). A helper that
+    // checked only the string therefore returned false for EVERY pattern, blocked or not, which
+    // made the two assertions guarding the auth/admin exemption — the login page — unable to fail.
+    // Fixed 2026-10-29 while adding the `publicRead` cases below.
+    const refused = (d) => d === 'no-access'
+        || !!(d && d.$type === 'atom' && d.value && d.value.id === 'no-access')
+        || !!(d && d.id === 'no-access');
 
     // ---- fixtures: a site, a locked-down pattern, and rows of kinds nothing used to gate
     await insert('site:site', { site_name: 'Site', patterns: [] });
@@ -90,6 +98,69 @@ async function run() {
     }));
     await t('an admin pattern stays publicly readable under enforce', () => withMode('enforce', async () => {
         assert.ok(!refused(await readData(stranger, adminPatternId)));
+    }));
+
+    // ---- the exemption is a DECLARATION now (task 7 Phase 1), and under `enforce` the gate is
+    // what reads it (Phase 2). The two cases above pass on an unstated chain — rule 5 — so they
+    // say nothing about a real auth pattern, which DOES carry grants. These do.
+    const grantedAuthPattern = await insert('site|auth2:pattern', {
+        pattern_type: 'auth', name: 'auth2',
+        authPermissions: { groups: { Admins: ['edit-pattern'] } },
+    });
+    await t('⚠ a GRANTED auth pattern that has not synced its vocabulary is REFUSED under enforce',
+        () => withMode('enforce', async () => {
+            // The deployment hazard, pinned deliberately: flip `enforce` before
+            // `--sync-vocabulary` has written `publicRead` onto the pattern rows and the login
+            // page stops rendering for logged-out visitors. Task 8's runbook syncs first.
+            assert.ok(refused(await readData(stranger, grantedAuthPattern)),
+                'without the declaration the gate has no reason to exempt it');
+        }));
+    await t('…and readable once it declares publicRead', () => withMode('enforce', async () => {
+        await withMode('legacy', () => call(admin, ['dms', 'data', 'edit'],
+            [APP, grantedAuthPattern, { authVocabulary: { publicRead: true } }, 'site|auth2:pattern']));
+        assert.ok(!refused(await readData(stranger, grantedAuthPattern)),
+            'the declaration is what carries the exemption to the gate');
+    }));
+    await t('…while a granted NON-declaring pattern stays refused', () => withMode('enforce', async () => {
+        const locked = await insert('site|locked:pattern', {
+            pattern_type: 'page', name: 'locked',
+            authPermissions: { groups: { Admins: ['edit-pattern'] } },
+        });
+        assert.ok(refused(await readData(stranger, locked)), 'publicRead is opt-in, not a default');
+    }));
+
+    // ---- TASK 7 PHASE 3: the LISTING gate (dms.data[key].length / .byIndex)
+    console.log('\nlistings');
+    const docsPattern = await insert('site|docs:pattern', {
+        pattern_type: 'page', name: 'docs',
+        authPermissions: { groups: { Docs: ['view-page'] } },
+    });
+    await insert('docs|page', { title: 'one' });
+    await insert('docs|page', { title: 'two' });
+    const docsReader = { authed: true, id: 20, email: 'd@x', groups: ['Docs'] };
+    const KEY = `${APP}+docs|page`;
+    const lengthFor = async (user) => {
+        const res = await as(user).getAsync([['dms', 'data', KEY, 'length']]);
+        return res?.jsonGraph?.dms?.data?.[KEY]?.length;
+    };
+
+    for (const mode of ['log', 'enforce']) {
+        await t(`${mode}: a granted reader gets the real count`, () => withMode(mode, async () =>
+            assert.strictEqual(await lengthFor(docsReader), 2)));
+        await t(`${mode}: an ungranted caller gets 0, not the count`, () => withMode(mode, async () =>
+            assert.strictEqual(await lengthFor(stranger), 0)));
+    }
+    // The ONE behaviour change Phase 3 introduces, pinned rather than discovered: the gate passes
+    // `${app} Admin` (the hub's bootstrap escape) and the inline rule never did. Same shape as the
+    // 55 LOOSER rows `--diff-reads` reports for the per-row path.
+    await t('log: an app admin is refused the listing — the inline rule has no admin escape',
+        () => withMode('log', async () => assert.strictEqual(await lengthFor(admin), 0)));
+    await t('enforce: the gate passes the app admin', () => withMode('enforce', async () =>
+        assert.strictEqual(await lengthFor(admin), 2)));
+    await t('byIndex is gated the same way', () => withMode('enforce', async () => {
+        const res = await as(stranger).getAsync([['dms', 'data', KEY, 'byIndex', 0, 'id']]);
+        const got = res?.jsonGraph?.dms?.data?.[KEY]?.byIndex?.[0];
+        assert.ok(got === null || got === undefined, `expected no row, got ${JSON.stringify(got)}`);
     }));
 
     console.log('\nduplicate pattern names');

@@ -250,3 +250,62 @@ look like repeated-publish artefacts in form/test environments. Patterns are the
 `column "parent_id" does not exist` on an unmigrated app. Now each pass is gated on a capability
 probe, so an **unmigrated app can be audited without being touched** — which is the normal first
 step, and was impossible before.
+
+
+## The read-path projection (2026-10-29) — found by running the real app under `enforce`
+
+Hub **Phase A2** asked for `auth` / `parent_id` to be added to the read projection. It was never
+built, and no test could have caught the consequence, because every suite builds its own rows.
+Running the actual server against the `rowauth-test` clone with all four modes on `enforce` found it
+in one request.
+
+**The symptom.** Anonymous GET of `prod|mitigateny_auth:pattern` (#1427078) came back as a
+`no-access` stub. That pattern is the **login page** — logged-out visitors could not reach the form
+they need in order to stop being logged out.
+
+**The cause.** `DATA_ATTRIBUTES` (`dms.controller.js:35`) is
+
+```js
+["id", "app", "type", "data", "created_at", "created_by", "updated_at", "updated_by"]
+```
+
+— no `auth`, no `parent_id`. On a **migrated** app that is exactly where the grants and the declared
+vocabulary now live (#1427078 has `auth.vocabulary: true` and `data.authVocabulary: false`). So the
+gate judged the leaf on a stale `data.authPermissions` and saw no vocabulary at all, which meant
+`publicReadOf` — the whole point of Phase 1 — was invisible on the one row that declares it.
+
+Note the shape of the failure: the row's **ancestors** were loaded through `authRowsByIds`, which
+*does* select the columns, so the chain was right and only the leaf was wrong. A gate reading a
+correct chain and a stale leaf is the hardest version of this to spot by eye.
+
+**The fix, and why it is not where the hub put it.** Widening `DATA_ATTRIBUTES` fixes the one read
+path that uses it. `rowAuthGate.judge()` instead re-loads any batch whose rows arrive without the
+columns, through the loader it already has:
+
+- one batched query for the whole set, not one per row;
+- in the single place that knows which columns the decision needs;
+- it covers **every** surface at once — the alternative is auditing each read path by hand and
+  getting it wrong again the next time someone adds one.
+
+It is skipped entirely when `controller.hasAuthColumns(app)` says the table is unmigrated, so an
+unmigrated app pays nothing. `hasAuthColumns` is the memoised `rowAuthCaps` probe, like every other
+capability check here.
+
+**Verified live** (server on :4444, `DMS_ROW_AUTH_MODE` / `DMS_DATA_AUTH_MODE` / `DMS_READ_AUTH_MODE`
+/ `DMS_SOURCE_AUTH_MODE=enforce`, `DMS_WRITE_GATE=row`, `DMS_UDA_GATE=row`), all anonymous:
+
+| row | before | after | why |
+|---|---|---|---|
+| `prod\|mitigateny_auth:pattern` #1427078 | refused | **served** | declares `publicRead` |
+| `prod\|admin:pattern` #2724987 | refused | **served** | declares `publicRead` |
+| `mitigateny_chenango\|page` #2546059 | served | served | its pattern grants `public: ['view-page']` |
+| `…county_template_copy\|component` #2231675 | — | `data` refused | stated chain, no public grant |
+| `…county_template_copy\|page` #2231618 | — | `data` refused | stated chain, no public grant |
+
+The refusals are per-attribute: `type` is served and `data` comes back as `no-access`. That is the
+existing refusal shape, not a new one.
+
+**This is why `--diff-reads` output predating 2026-10-29 is stale.** `diff2.txt` lists #1427078,
+#2724987 and #2546059 as TIGHTER; all three now agree. Any TIGHTER/LOOSER count quoted from before
+this fix, Phase 1's `publicRead`, and the string-encoded-grant repair must be re-measured before it
+is used as evidence for deleting the kind-auth branch.

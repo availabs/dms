@@ -21,6 +21,61 @@ registers its own **at module scope in a module that both its client entry and i
 before `DmsSite` / `createSSRHandler` build routes. dms-template does this in `src/patterns/index.js`,
 imported by `src/App.jsx` and `src/entry-ssr.jsx`.
 
+## Every pattern declares at least one format — REQUIRED
+
+**A pattern type must declare a format for every DMS row kind it stores, and therefore at least one
+— even a pattern that only saves its own configuration.** A format is how the pattern says *where in
+DMS its data lives and what shape it has*. A row kind with no format is a row nothing can describe:
+
+| without a format | consequence |
+|---|---|
+| no attribute metadata | no generic editor can render the row; every view of it must be bespoke |
+| no `permissionDomain` | **no grants editor** — the Access editor has nothing to offer, so the row can only ever be granted `*` |
+| no `dms-format` attributes | nothing declares which rows own which, so `childRefs` and the row-auth parentage walk fall back to the type path |
+
+### Where it is declared: `siteConfig`, not the registry
+
+Each `siteConfig` function returns `format` on its config object. This is already the convention —
+**five of seven pattern types do it** — and it is the single declaration site. There is deliberately
+no `format` key on the registry definition; a second place to declare the same thing is the problem,
+not the fix.
+
+```js
+// page/siteConfig.jsx
+const format = initializePatternFormat(cmsFormat, app, type);   // binds app + `{instance}|page`
+return { siteType, format, ... }
+```
+
+The base format stays a plain module (`page.format.js`, `datasets.format.js`, `admin.format.js`,
+`mapeditor.format.js`), so anything needing the UNBOUND shape — deriving a pattern's auth verbs, for
+instance — imports that module directly rather than calling a mount-time function. Binding only
+rewrites `app` and prefixes `type`; it never touches `permissionDomain`.
+
+### `siteConfig` is an ARRAY, and each entry may carry its own format
+
+A pattern type owning several row kinds says so by exporting several configs. `admin` is the worked
+example:
+
+| config | format | row kind |
+|---|---|---|
+| `adminConfig` | `cloneDeep(adminFormat)` | the **site** row (`{instance}:site`) |
+| `patternConfig` | `cloneDeep(pattern)` | the **pattern** row |
+
+So a pattern's formats are the union over every `siteConfig` entry, each entry's own format plus its
+`registerFormats` tree, keyed by row kind. **Multiple configs imply exclusive sets of pages.**
+
+**If two configs declare a `permissionDomain` for the same row kind, the LATER entry in the array
+wins.** That is a configuration error and nothing enforces it (owner, 2026-10-30) — last-wins is the
+documented resolution so the behaviour is predictable, not a licence to rely on it.
+
+### Patterns that do not satisfy this today
+
+| pattern | state |
+|---|---|
+| `qa` | `siteConfig` returns **no** `format`. Its data is declared instead as dataset sources (`QA_DATASETS`, created by `admin.afterCreate`) — a format-equivalent by another route, described by the source's attributes and governed by the datasets pattern's source `permissionDomain`. |
+| `chat` | `siteConfig` returns **no** `format`. Its tier-1 rows, `{instance}\|channel` and `{instance}\|member` (`src/patterns/chat/channels.js`), are ordinary DMS rows in the app's main table, written through plain `dms.data` calls, and described by nothing — no format, and `chat/index.js` declares no `childRefs`. Note the pattern DOES declare `MESSAGE_ATTRIBUTES` for its tier-2 `:data` rows, so the two tiers are not described consistently within one pattern. (The tier-2 split — messages in per-channel `:data` tables, read a window at a time — is a deliberate and sound design; only tier 1 is at issue.) |
+| `auth` | returns `format: {app, attributes: []}` at both of its config sites — a stub with **no attributes**, describing no row. Honest about storing nothing, but if the auth pattern keeps configuration on its own row, those fields belong here. Neither config declares a `permissionDomain`. |
+
 ## The definition
 
 ```js

@@ -41,6 +41,7 @@
 
 const { createResolver } = require('./rowAuth');
 const { can, isUnstated, VERBS } = require('./mergeAuth');
+const { publicReadOf } = require('./authVocabulary');
 
 function rowAuthMode() {
   const m = String(process.env.DMS_ROW_AUTH_MODE || 'log').toLowerCase();
@@ -112,9 +113,42 @@ function createGate({ controller, app, user, subdomain = '', mode: modeOverride 
       return out;
     }
 
-    const merged = await resolver.resolve(list);
-    for (const row of list) {
+    // THE ROWS A SURFACE HANDS US MAY BE PROJECTED WITHOUT THE COLUMNS THIS GATE READS.
+    //
+    // `dms.route.js` selects `DATA_ATTRIBUTES` — `id, app, type, data, …` — with no `auth` and no
+    // `parent_id`. On a MIGRATED app that is exactly where the grants and the declared vocabulary
+    // live, so judging the row as handed over means reading a stale `data.authPermissions` and no
+    // vocabulary at all. Measured live against the `rowauth-test` clone under `enforce`: the auth
+    // pattern's `publicRead` was invisible, so the LOGIN PAGE was refused to logged-out visitors.
+    //
+    // Re-loading here rather than widening every SELECT: one batched query for the whole set, in
+    // the one place that knows which columns matter, and it fixes every surface at once — the
+    // alternative is auditing each read path and getting it wrong again when a new one appears.
+    // (`row-auth-schema.md` / hub Phase A2 asked for the projection to be widened; this is the
+    // same fix made load-bearing where it cannot be forgotten.)
+    let list2 = list;
+    if (list.some(r => r.auth === undefined && r.parent_id === undefined)) {
+      try {
+        if (!controller.hasAuthColumns || await controller.hasAuthColumns(app)) {
+          const fresh = await controller.authRowsByIds(list.map(r => String(r.id)), app);
+          const byId = new Map((fresh || []).map(r => [String(r.id), r]));
+          list2 = list.map(r => byId.get(String(r.id)) || r);
+        }
+      } catch (e) {
+        console.warn(`[row-auth] could not re-load the judged rows for ${app}: ${e.message}`);
+      }
+    }
+
+    const merged = await resolver.resolve(list2);
+    for (const row of list2) {
       const id = String(row.id);
+      // A row that DECLARES it must be readable without a session is read-exempt — the login page
+      // has to render for someone who cannot yet be anybody (authVocabulary.js `publicReadOf`).
+      // Reads only: `publicRead` says "everyone may see this", never "everyone may change it".
+      if (verb === 'read' && publicReadOf(row)) {
+        out.set(id, { allow: true, reason: 'declares publicRead' });
+        continue;
+      }
       const v = verdict(merged.get(id), user, verb, app);
       if (!v.allow && mode === 'log') {
         logWouldDeny(app, row, user, verb, v.reason);
@@ -241,13 +275,43 @@ function planEdit(row, patch, { replace = false } = {}) {
 }
 
 /**
- * The structural verbs a legacy permission string requires — ALL of them, not any.
+ * The structural verbs a permission string requires — ALL of them, not any.
  * `edit-pattern-permissions` implies read + edit + grant, and an action behind it needs all three.
- * A string the table does not know confers nothing, so it is treated as a plain write.
+ *
+ * **Returns an EMPTY array for a permission that maps to no structural verb**, and the caller then
+ * checks that permission BY NAME. It used to return `['edit']` instead, which was a shipped defect:
+ * `download-source`, `manage-downloads` and `view-source-api` declare `implies: []` precisely
+ * because they confer no row access, and the fallback silently overrode that declaration with
+ * `edit`. Measured against the real `holdsAny` before the fix:
+ *
+ *     download-source only   may download?  false   ← the cap migrate-source-auth-to-permissions.js
+ *     update-source  only    may download?  true       applies to anonymous `public`
+ *
+ * Exactly backwards: the download route was gated by `edit`, too strict for the people meant to
+ * hold it and too loose for everyone who edits. Owner's rule (2026-10-30): *"read in the system
+ * needs to be different from download — users need to be able to access a dataset in the system but
+ * not be able to download it."*
+ *
+ * A by-name check works because `expandPerms` (authVocabulary.js) is ADDITIVE: expansion adds the
+ * structural verbs and keeps the original strings, so a merged chain still holds `download-source`
+ * itself. Nothing new has to be plumbed through.
+ *
+ * See planning/tasks/current/permission-domain-single-source.md, Phase 4(b).
  */
 function verbsFor(perms) {
-  const named = expandLegacy([].concat(perms || [])).filter(v => VERBS.includes(v));
-  return named.length ? named : ['edit'];
+  return expandLegacy([].concat(perms || [])).filter(v => VERBS.includes(v));
+}
+
+/**
+ * Does `user` hold `perm` under `merged`? The structural verbs it implies if it implies any,
+ * otherwise the permission itself, by name. The one place the `verbsFor` contract is interpreted —
+ * `holdsAny` (uda/rowSourceAuth.js) asks the same question of a merged chain.
+ */
+function holdsPermission(merged, user, app, perm) {
+  const verbs = verbsFor([perm]);
+  return verbs.length
+    ? verbs.every(v => verdict(merged, user, v, app).allow)
+    : verdict(merged, user, perm, app).allow;      // a capability: no row access, checked by name
 }
 
 /**
@@ -371,7 +435,12 @@ function createRowJudge({ app, subdomain = '', user, controller }) {
       const [fresh] = await controller.authRowsByIds([String(r.id)], app);
       if (fresh) leaf = fresh;
     }
-    for (const verb of verbsFor(perms)) {
+    // ALL of the structural verbs the permissions imply, as before — plus any permission that
+    // implies NONE, checked by name instead of falling through to `edit`. `judgeOne` takes any verb
+    // string, and an expanded chain still holds the named permissions (expandPerms is additive).
+    const asked = [].concat(perms || []);
+    const named = asked.filter(p => verbsFor([p]).length === 0);
+    for (const verb of [...verbsFor(asked), ...named]) {
       if (!(await gate.judgeOne(leaf, verb)).allow) return false;
     }
     return true;
@@ -411,6 +480,6 @@ async function assertDataWrite(router, controller, op, app, row, patch, { replac
 module.exports = {
   createGate, rowAuthMode, verdict, isAppAdmin, VERBS,
   // the write surface — dataAuth.js's API, same names, same signatures
-  assertDataWrite, dataAuthMode, createJudge, planEdit, verbsFor, writeGate, GRANT_KEYS,
+  assertDataWrite, dataAuthMode, createJudge, planEdit, verbsFor, holdsPermission, writeGate, GRANT_KEYS,
   createRowJudge,            // the row judge, reachable for tests regardless of DMS_WRITE_GATE
 };

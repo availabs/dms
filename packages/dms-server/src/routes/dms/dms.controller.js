@@ -775,6 +775,34 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return resolveAuthPermissions(parent.authPermissions, subdomain);
     },
 
+    /** Does this app's table actually have the row-auth columns? Memoised by `rowAuthCaps`. */
+    async hasAuthColumns(app) {
+      try {
+        const t = resolveTable(app, '', dbType, splitMode);
+        const caps = await require('./rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
+        return !!(caps.auth || caps.parentId);
+      } catch { return false; }
+    },
+
+    /**
+     * The CONTENT pattern a page type belongs to, as a ROW — the listing gate needs a row to judge,
+     * where `getPatternAuthPermissions` returns only its resolved grants.
+     *
+     * Same lookup and the same admin/auth skip, for the same reason: a content pattern can share an
+     * instance name with the site's `admin` or `auth` row, and neither of those has pages. Selected
+     * with the row-auth projection so the resolver gets `auth` / `parent_id` where they exist.
+     */
+    async patternRowForPages(app, patternParent) {
+      const table = await mainTable(app);
+      const cols = await authProjection(app);
+      const rows = await dms_db.promise(
+        `SELECT ${cols}, ${jsonField('data', 'pattern_type')} AS pattern_type
+           FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC`,
+        [app, patternParent]
+      );
+      return rows.find(r => r.pattern_type !== 'admin' && r.pattern_type !== 'auth') || null;
+    },
+
     // Every pattern row of the app (sites have a handful), for the write checks in dataAuth.js.
     async getPatternRows(app) {
       const table = await mainTable(app);

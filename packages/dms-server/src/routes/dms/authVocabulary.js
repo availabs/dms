@@ -131,6 +131,24 @@ function expandWithVocabulary(auth, maps) {
 }
 
 /**
+ * Does this row declare that it must be readable WITHOUT A SESSION?
+ *
+ * Task 7 Phase 1 (planning/tasks/current/row-auth-consolidate.md). It replaces a hardcoded
+ * `pattern_type === 'auth' || pattern_type === 'admin'` in `dms.route.js` — a NAME check, which
+ * `src/dms/CLAUDE.md` forbids and which no other pattern type could opt into.
+ *
+ * It rides inside the vocabulary rather than in a key of its own, so `--sync-vocabulary` already
+ * transports it, `rawAuthOf` already strips it with the rest of `vocabulary`, and `impliesMaps`
+ * ignores it (it reads only `self` / `descendants`). One declaration, no new plumbing.
+ *
+ * ⚠ A row that declares this is readable by EVERYONE, always, grants or not.
+ */
+function publicReadOf(row) {
+  const v = vocabularyOf(row);
+  return !!(v && v.publicRead === true);
+}
+
+/**
  * The `childRefs` a row declares — same chain as the vocabulary: the `auth` column, else `data`.
  * Shape `{ [ownerKind]: { [attribute]: childKind } }`; see
  * packages/dms/src/patterns/page/page.childRefs.js.
@@ -164,4 +182,5 @@ function ownerKindOf(childRefs, childKind) {
 
 module.exports = {
   SCOPES, vocabularyOf, impliesMaps, expandPerms, expandWithVocabulary, childRefsOf, ownerKindOf,
+  publicReadOf,
 };

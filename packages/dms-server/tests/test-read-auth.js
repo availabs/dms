@@ -89,6 +89,36 @@ async function run() {
     const intPrivate = await insert('env1|dams:source', { name: 'dams', auth_permissions: { users: { 1: ['*'] }, groups: { public: [] } } });
     const intStray = await insert('env9|stray:source', { name: 'stray' });
     const envRow = await insert('site|env1:dmsenv', { sources: [{ id: intOpen }, { id: intPrivate }] });
+
+    // --- fixtures for the 2026-10-30 rules (read-by-default, view:false, auth-column precedence)
+    // `ds2` grants the public NOTHING, so anything readable beneath it is readable because the
+    // SOURCE says nothing — not because the pattern allowed it.
+    const vocabSource = await insert('env2|vocab_src:source', { name: 'vocab_src' });
+    const hiddenSource = await insert('env2|hidden:source', {
+        name: 'hidden', auth_permissions: { users: { 1: ['*'] }, groups: {} },
+    });
+    const hiddenBlank = await insert('env2|hidden_blank:source', { name: 'hidden_blank' });
+    const columnSource = await insert('env2|col_src:source', {
+        name: 'col_src',
+        auth_permissions: { groups: { public: ['view-source'] }, users: {} },   // STALE on purpose
+    });
+    const env2 = await insert('site|env2:dmsenv', {
+        sources: [{ id: vocabSource }, { id: hiddenSource }, { id: hiddenBlank }, { id: columnSource }],
+    });
+    await insert('site|ds2:pattern', {
+        pattern_type: 'datasets', dmsEnvId: env2,
+        authPermissions: { groups: { public: ['view-page'], Staff: ['*'] }, users: {} },
+        authVocabulary: { descendants: [{ value: 'view-page', implies: ['read'] }] },
+    });
+    // The `auth` COLUMN is the system of record. Add it if this test db predates the migration,
+    // then write the declarations and the grants that must beat `data`.
+    try { await dms.query(`ALTER TABLE ${tbl} ADD COLUMN auth ${dms.type === 'postgres' ? 'jsonb' : 'TEXT'}`); }
+    catch { /* already migrated */ }
+    const setAuth = async (id, obj) =>
+        dms.query(`UPDATE ${tbl} SET auth = $1 WHERE id = $2`, [JSON.stringify(obj), id]);
+    await setAuth(hiddenSource, { view: false });                       // grants still come from data
+    await setAuth(hiddenBlank, { view: false });                        // nothing anywhere else
+    await setAuth(columnSource, { groups: { public: [] }, users: { 1: ['*'] } });
     await insert('site|ds:pattern', { pattern_type: 'datasets', dmsEnvId: envRow, authPermissions: { groups: { public: ['view-source'], Staff: ['*'] }, users: {} } });
     // A datasets pattern for external sources (grants Rando view-source), and a page pattern granting the same
     const extPattern = await insert('site|ext:pattern', { pattern_type: 'datasets', authPermissions: { groups: { Rando: ['view-source'] }, users: {} } });
@@ -126,9 +156,35 @@ async function run() {
             assert.strictEqual(await read(I, intPrivate, owner), true);
             assert.strictEqual(await RA.allowViewRead({ env: I, viewId: intView, user: anon }), true);
         });
-        await t('internal: ${app} Admin reads everything; a source in no pattern is refused', async () => {
+        await t('internal: ${app} Admin reads everything; a source in no pattern is now READABLE', async () => {
             assert.strictEqual(await read(I, intPrivate, appAdmin), true);
-            assert.strictEqual(await read(I, intStray, owner), false);
+            // CHANGED 2026-10-30. This asserted `false`: a source no datasets pattern listed was
+            // refused outright. Under the owner's rule a source that states nothing is readable, and
+            // being unreferenced is not a statement — it is the absence of one. Orphanhood still
+            // denies WRITES, which is where "no pattern vouches for it" belongs.
+            assert.strictEqual(await read(I, intStray, owner), true);
+        });
+        await t('NEW: a blank source under a pattern granting only view-page is READABLE', async () => {
+            // The live bug, reduced. `vocabPattern` grants public a NAMED verb; `vocabSource` states
+            // nothing. Before the owner's 2026-10-30 rule this denied anon twice over: the pattern
+            // gated the read, and `view-page` was never expanded into the structural `read`.
+            assert.strictEqual(await read(I, vocabSource, anon), true);
+        });
+        await t('NEW: `auth: { view: false }` narrows a source to its own grantees', async () => {
+            assert.strictEqual(await read(I, hiddenSource, anon), false);
+            assert.strictEqual(await read(I, hiddenSource, owner), true, 'its own user grant still reads');
+            assert.strictEqual(await read(I, hiddenSource, appAdmin), true, '${app} Admin still reads');
+        });
+        await t('NEW: view:false with NO grants of its own means no one, not everyone', async () => {
+            assert.strictEqual(await read(I, hiddenBlank, anon), false);
+            assert.strictEqual(await read(I, hiddenBlank, owner), false);
+        });
+        await t('NEW: grants in the `auth` COLUMN are honoured, and beat a stale `data`', async () => {
+            assert.strictEqual(await read(I, columnSource, anon), false, 'column says public: []');
+            assert.strictEqual(await read(I, columnSource, owner), true, 'column names user 1');
+        });
+        await t('NEW: a pattern\'s grants no longer gate source reads, but still answer holdsOnSource', async () => {
+            assert.strictEqual(await read(I, intStray, owner), true, 'a source in no pattern is readable');
         });
         await t('filterReadableSources keeps order, drops the refused', async () => {
             assert.deepStrictEqual(await RA.filterReadableSources({ env: E, sourceIds: [open, priv, pub], user: anon }), [open, pub]);
@@ -169,7 +225,10 @@ async function run() {
             assert.strictEqual(await read(E, priv, stranger), true);
             assert.strictEqual(await read(E, priv, stranger), true);
             assert.strictEqual(warned.filter(w => w.includes(`${E}/${priv}`) && w.includes('user=4')).length, 1);
-            assert.ok(/would-deny source .* reason=missing view-source/.test(warned[0]), warned[0]);
+            // KIND auth names the first permission it looked for; the ROW gate asks one structural
+            // question and answers `missing read` — Phase 4(a) of
+            // permission-domain-single-source.md. Both are refusals of the same read.
+            assert.ok(/would-deny source .* reason=missing (view-source|read)/.test(warned[0]), warned[0]);
         });
     });
     await t('tiles (logOnly) are exempt from enforce: a refused tile read goes through and logs', async () => {

@@ -27,13 +27,12 @@ const t = async (name, fn) => {
 };
 const section = (name) => console.log(`\n${name}`);
 
-// The declaration under test — `packages/dms/src/patterns/datasets/datasets.childRefs.js`.
-const DATASETS_CHILD_REFS = { pattern: { dmsEnvId: 'dmsenv' } };
 const VOCAB = {
     self: [{ value: 'edit-pattern', implies: ['read', 'edit'] }],
     descendants: [
         { value: 'view-source',   implies: ['read'] },
         { value: 'update-source', implies: ['read', 'edit'] },
+        { value: 'delete-source', implies: ['read', 'delete'] },
     ],
 };
 
@@ -60,81 +59,129 @@ async function run() {
     }
     require('../src/routes/dms/rowAuthCaps')._resetCaps();
 
-    const parentOf = async (id) =>
-        String((await db.promise(`SELECT parent_id FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.parent_id ?? '');
+    const sourceId = await create('test_env|roads:source', { name: 'roads' });
+    const srcRef = { id: +sourceId, ref: `${APP}+test_env|source` };
+    const envId = await create('prod|test_env:dmsenv', { name: 'test_env', sources: [srcRef] });
 
-    // A datasets pattern that grants `update-source` to Editors.
+    // A datasets pattern reaches its sources THROUGH its env (`dmsEnvId` → the env's `sources`).
     const pattern = await create('prod|datasets:pattern', {
-        pattern_type: 'datasets',
-        childRefs: DATASETS_CHILD_REFS,
-        authVocabulary: VOCAB,
+        pattern_type: 'datasets', dmsEnvId: envId, authVocabulary: VOCAB,
         authPermissions: { groups: { Editors: ['update-source'] } },
     });
-    // …then MIGRATED, because that is what this feature targets. Once the `auth` column exists the
-    // resolver's projection stops selecting `data` (production rows average ~10KB of jsonb), so a
-    // row whose grants and vocabulary are still in `data` reads as stating nothing. This is what
-    // `migrate-row-auth.js` pass 2 and `--sync-vocabulary` write; a half-migrated table — column
-    // added, nothing backfilled — is the one state where everything silently resolves to empty.
-    await db.promise(`UPDATE ${T.fullName} SET auth = $1 WHERE id = $2`,
-        [JSON.stringify({ vocabulary: VOCAB, childRefs: DATASETS_CHILD_REFS,
-                          groups: { Editors: ['update-source'] } }), pattern]);
-    const envId = await create('prod|test_env:dmsenv', { name: 'test_env', sources: [] });
-    const sourceId = await create('test_env|roads:source', { name: 'roads' });
 
     const ENV = `${APP}+test_env`;
-    const editor = { authed: true, id: 9, email: 'e@x', groups: ['Editors'] };
+    const editor   = { authed: true, id: 9,  email: 'e@x', groups: ['Editors'] };
+    const reviewer = { authed: true, id: 11, email: 'r@x', groups: ['Reviewers'] };
     const stranger = { authed: true, id: 10, email: 's@x', groups: [] };
-    const { decideSourceRow, udaGate } = require('../src/routes/uda/rowSourceAuth');
+    const { decideSourceRow, mergedAuthForSource, udaGate } = require('../src/routes/uda/rowSourceAuth');
+    const may = async (user, perms) =>
+        (await decideSourceRow({ env: ENV, sourceId, user, reqPermissions: [].concat(perms) })).allow;
 
-    section('1. the declaration — a datasets pattern OWNS its dmsEnv');
+    section('1. the chain: [patterns that LIST the source, the source itself]');
     await t('udaGate is `row` for this run', () => assert.strictEqual(udaGate(), 'row'));
-    await t('the env has no parent before the pattern names it', async () =>
-        assert.strictEqual(await parentOf(envId), ''));
+    await t('a pattern-level grant reaches a source its env lists', async () =>
+        assert.strictEqual(await may(editor, 'update-source'), true));
+    await t('…and does not reach someone outside the group', async () =>
+        assert.strictEqual(await may(stranger, 'update-source'), false));
+    await t('a verb the grant does not imply is refused', async () =>
+        assert.strictEqual(await may(editor, 'delete-source'), false));
+    await t('reqPermissions is ANY-of', async () =>
+        assert.strictEqual(await may(editor, ['delete-source', 'update-source']), true));
+    await t('an app admin passes regardless', async () =>
+        assert.strictEqual(await may(admin, 'delete-source'), true));
+    await t('nothing required, nothing checked', async () =>
+        assert.strictEqual(await may(stranger, []), true));
 
-    await edit(pattern, { dmsEnvId: envId }, 'prod|datasets:pattern');
-    await t('saving the pattern stamps parent_id on its dmsEnv', async () =>
-        assert.strictEqual(await parentOf(envId), pattern,
-            'childRefs { pattern: { dmsEnvId: "dmsenv" } } must reach a `{site}|{name}:dmsenv` row'));
+    section('2. AN ENV MAY HAVE SEVERAL PATTERNS — their grants UNION');
+    // Owner, 2026-10-29: "I think an env can have multiple parents." Measured on `rowauth-test`:
+    // `datasets` #1499610 and `qa` #2860547 both name env 1676363. This is why the chain is built
+    // from the owning patterns rather than walked from a `parent_id` — one column cannot hold two
+    // parents, and a single-parent walk would silently drop every grant but one.
+    const second = await create('prod|datasets2:pattern', {
+        pattern_type: 'datasets', dmsEnvId: envId,
+        authPermissions: { groups: { Reviewers: ['view-source'] } },
+    });
+    await t('a grant on the SECOND pattern also reaches the source', async () =>
+        assert.strictEqual(await may(reviewer, 'view-source'), true));
+    await t('…while the first pattern\'s grant still does', async () =>
+        assert.strictEqual(await may(editor, 'update-source'), true));
+    await t('neither pattern leaks the other\'s verbs', async () =>
+        assert.strictEqual(await may(reviewer, 'update-source'), false));
+    await t('both patterns appear in one merged object, not one winner', async () => {
+        const got = await mergedAuthForSource({ env: ENV, sourceId, subdomain: '' });
+        assert.ok(got.ok, got.reason);
+        assert.ok(got.merged.groups.Editors, 'Editors from pattern 1');
+        assert.ok(got.merged.groups.Reviewers, 'Reviewers from pattern 2');
+    });
 
-    section('2. the chain the hop unlocks');
-    await t('a pattern-level update-source grant reaches an internal SOURCE', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: editor, reqPermissions: ['update-source'] });
-        assert.strictEqual(d.allow, true, d.reason);
+    section('3. the source\'s own grants are the second level — and they may only NARROW');
+    // Merge rule 3: a child may only narrow where an ancestor has spoken for that principal. The
+    // patterns gave Reviewers `view-source` (read), so the SOURCE cannot hand them `update-source`
+    // (read+edit) — the extra verb is clamped away. Kind auth has no clamp here
+    // (`mergeAuthPermissions` is a per-principal override), so this is a real semantic difference
+    // and it is pinned in tests/fixtures/row-auth-uda-expected-diff.json, not smoothed over.
+    await edit(sourceId, { auth_permissions: { groups: { Reviewers: ['update-source'] } } }, 'test_env|source');
+    await t('a source cannot WIDEN what its patterns gave a principal', async () =>
+        assert.strictEqual(await may(reviewer, 'update-source'), false));
+    await t('…and what the patterns did give still holds', async () =>
+        assert.strictEqual(await may(reviewer, 'view-source'), true));
+    await t('a source CAN narrow — an empty entry revokes the inherited grant', async () => {
+        await edit(sourceId, { auth_permissions: { groups: { Editors: [] } } }, 'test_env|source');
+        assert.strictEqual(await may(editor, 'update-source'), false);
     });
-    await t('…and does not reach someone outside the group', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: stranger, reqPermissions: ['update-source'] });
+
+    section('4. a source no pattern lists is refused, not allowed');
+    const loose = await create('test_env|orphan:source', { name: 'orphan' });
+    await t('…and says why', async () => {
+        const d = await decideSourceRow({ env: ENV, sourceId: loose, user: admin, reqPermissions: ['update-source'] });
         assert.strictEqual(d.allow, false);
-    });
-    await t('a verb the grant does not imply is refused', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: editor, reqPermissions: ['delete-source'] });
-        assert.strictEqual(d.allow, false);
-    });
-    await t('reqPermissions is ANY-of', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: editor, reqPermissions: ['delete-source', 'update-source'] });
-        assert.strictEqual(d.allow, true, d.reason);
-    });
-    await t('an app admin passes regardless', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: admin, reqPermissions: ['delete-source'] });
-        assert.strictEqual(d.allow, true, d.reason);
+        assert.match(d.reason, /no datasets pattern/);
     });
     await t('a source that does not exist is refused, not thrown on', async () => {
         const d = await decideSourceRow({ env: ENV, sourceId: 99999999, user: admin, reqPermissions: ['update-source'] });
-        assert.strictEqual(typeof d.allow, 'boolean');
-    });
-    await t('nothing required, nothing checked', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: stranger, reqPermissions: [] });
-        assert.strictEqual(d.allow, true);
+        assert.strictEqual(d.allow, false);
     });
 
-    section('3. the hop is what does it — remove it and the grant disappears');
-    await db.promise(`UPDATE ${T.fullName} SET parent_id = NULL WHERE id = $1`, [envId]);
-    await t('with the env unparented, the pattern grant no longer reaches the source', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: editor, reqPermissions: ['update-source'] });
-        assert.strictEqual(d.allow, false, 'the type path runs source -> dmsEnv -> site, skipping the pattern');
+    section('5. a capability is checked BY NAME, not as a flavour of edit (Phase 4b)');
+    // THE SHIPPED DEFECT. `verbsFor` ended `return named.length ? named : ['edit']`, so a
+    // permission declaring `implies: []` — download-source, manage-downloads, view-source-api —
+    // was silently judged as a structural EDIT. Measured before the fix, against this same
+    // `holdsAny`:
+    //     download-source only   may download?  false
+    //     update-source  only    may download?  true
+    // Exactly backwards. Owner's rule (2026-10-30): "read in the system needs to be different from
+    // download — users need to be able to access a dataset in the system but not be able to
+    // download it." Both directions are pinned here because fixing one and breaking the other is
+    // the easy mistake. See permission-domain-single-source.md Phase 4(b).
+    const { holdsAny } = require('../src/routes/uda/rowSourceAuth');
+    const grantOf = (perm) => ({ groups: { Cap: [perm, ...(CAP_VOCAB[perm] || [])] } });
+    const CAP_VOCAB = {                       // what the vocabulary says each verb confers
+        'download-source': [],                // a capability: no row access
+        'update-source': ['read', 'edit'],
+    };
+    const capUser = { authed: true, id: 9, email: 'cap@x', groups: ['Cap'] };
+    const holding = (perm, req) => holdsAny(grantOf(perm), capUser, APP, [req]).allow;
+
+    await t('download-source alone DOWNLOADS', () => {
+        assert.strictEqual(holding('download-source', 'download-source'), true);
     });
-    await t('…which fails CLOSED', async () => {
-        const d = await decideSourceRow({ env: ENV, sourceId, user: editor, reqPermissions: ['update-source'] });
-        assert.match(d.reason, /missing/);
+    await t('download-source alone does NOT read', () => {
+        assert.strictEqual(holding('download-source', 'view-source'), false);
+    });
+    await t('update-source alone READS', () => {
+        assert.strictEqual(holding('update-source', 'view-source'), true);
+    });
+    await t('update-source alone does NOT download', () => {
+        assert.strictEqual(holding('update-source', 'download-source'), false);
+    });
+    await t('a capability is not reachable through a structural edit grant', () => {
+        const edits = { groups: { Cap: ['read', 'edit'] } };
+        assert.strictEqual(holdsAny(edits, capUser, APP, ['download-source']).allow, false);
+    });
+    await t('`*` still means everything, capabilities included', () => {
+        const all = { groups: { Cap: ['*'] } };
+        assert.strictEqual(holdsAny(all, capUser, APP, ['download-source']).allow, true);
+        assert.strictEqual(holdsAny(all, capUser, APP, ['view-source']).allow, true);
     });
 
     console.log(`\n${pass} passed, ${fail} failed\n`);

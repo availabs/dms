@@ -112,8 +112,31 @@ function rawAuthOf(row, subdomain = '') {
     // `vocabulary` shares the column with the grants (see authVocabulary.js `vocabularyOf`) and is
     // read from the raw object there. Dropped here so nothing downstream can read it as a principal.
     if (a) {
-      const { vocabulary, ...grants } = a;
-      return resolveScoped(grants, subdomain);
+      // `vocabulary` AND `childRefs` share the column with the grants (authVocabulary.js) and are
+      // not principals. Leaking `childRefs` through made an otherwise-empty column look stated.
+      // `view` joins them: a source narrowed with `auth: { view: false }` and nothing else has
+      // stated no PRINCIPAL, so it must not read as a grants statement (readAuth.decideRead).
+      const { vocabulary, childRefs, view, ...grants } = a;
+      // A column that names no principal AT ALL is not a statement — it is an absence, and the
+      // grants may still be in `data` where every client still writes them. Falling through there
+      // is what covers a row the migration could not copy: `data.authPermissions` is a JSON STRING
+      // on 8,434 rows of `rowauth-test`, and pass 2 left 68 of them with an empty column while the
+      // data held real grants. Those rows resolved to "nothing stated", i.e. publicly readable
+      // under `enforce` — found by `--diff-reads` on 2026-10-29 (`prod|bild:pattern`).
+      //
+      // An EXPLICITLY empty column (`{groups:{},users:{}}`) is a statement — someone cleared the
+      // grants — so it is honoured and does not fall through. The distinction is whether the
+      // recognised keys are present, not whether they are populated.
+      // RESOLVE FIRST, then ask whether the result states anything. Checking the raw object's
+      // keys is wrong: a subdomain-keyed column is `{"*": "<json string of the grants>"}` — the
+      // same third encoding `data.parent` had — and names none of the recognised keys until
+      // `resolveAuthPermissions` has picked the subdomain entry and parsed it. Checking before
+      // resolving made every subdomain-keyed row fall through, which is how three `mitigateny_*`
+      // pages lost their pattern's `public: view-page` grant.
+      const resolved = resolveScoped(grants, subdomain);
+      const states = resolved && ['groups', 'users', 'otherwise', 'self', 'descendants']
+        .some(k => resolved[k] !== undefined);
+      if (states) return resolved;
     }
   }
   const data = typeof row.data === 'string' ? safeJson(row.data) : row.data;

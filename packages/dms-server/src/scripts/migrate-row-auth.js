@@ -93,6 +93,7 @@
  *   node migrate-row-auth.js --db <config> --app <app> --apply --drop-data-parent
  *   node migrate-row-auth.js --db <config> --app <app> --verify-parents      # read-only, exits 1 on drift
  *   node migrate-row-auth.js --db <config> --app <app> --audit-writes        # read-only, needs no migration
+ *   node migrate-row-auth.js --db <config> --app <app> --diff-reads          # read-only, kind vs row on READS
  *   node migrate-row-auth.js --db <config> --app <app> --apply --add-uniqueness-guard [kind|all]
  *   node migrate-row-auth.js --db <config> --app <app> --sync-vocabulary <manifest.json> [--apply]
  *
@@ -110,12 +111,15 @@ const { MAX_DEPTH } = require('../routes/dms/rowAuth');
 const { isPlausibleParent, refIdsOf, mergeChildRefs, declaredChildKinds,
         planDuplication, repointRefs } = require('../routes/dms/parentId');
 const { createResolver, rawAuthOf } = require('../routes/dms/rowAuth');
+const { createGate } = require('../routes/dms/rowAuthGate');
+const { kindReadBlocked } = require('../routes/dms/kindReadAuth');
+const { resolveAuthPermissions } = require('../routes/dms/auth');
 const { isUnstated } = require('../routes/dms/mergeAuth');
 const { authColumns } = require('../routes/dms/rowAuthCaps');
 
 function parseArgs() {
   const a = process.argv.slice(2);
-  const o = { db: null, app: null, apply: false, addColumns: false, guard: null, vocabulary: null, resetParents: false, verify: false, dropDataParent: false, auditWrites: false };
+  const o = { db: null, app: null, apply: false, addColumns: false, guard: null, vocabulary: null, resetParents: false, verify: false, dropDataParent: false, auditWrites: false, diffReads: false };
   for (let i = 0; i < a.length; i++) {
     switch (a[i]) {
       case '--db': o.db = a[++i]; break;
@@ -126,6 +130,7 @@ function parseArgs() {
       case '--drop-data-parent': o.dropDataParent = true; break;
       case '--verify-parents': o.verify = true; break;
       case '--audit-writes': o.auditWrites = true; break;
+      case '--diff-reads': o.diffReads = true; break;
       case '--add-pattern-guard':    o.guard = 'pattern'; break;   // kept: the first spelling
       case '--add-uniqueness-guard': o.guard = a[i + 1] && !a[i + 1].startsWith('--') ? a[++i] : 'all'; break;
       case '--sync-vocabulary': o.vocabulary = a[++i]; break;
@@ -135,6 +140,10 @@ function parseArgs() {
   if (!o.db) { console.error('Missing --db <config>'); process.exit(1); }
   if (!o.app) { console.error('Missing --app <app>'); process.exit(1); }
   // Verification must never be the thing that changed what it is verifying.
+  if (o.diffReads && o.apply) {
+    console.error('--diff-reads is read-only and cannot be combined with --apply.');
+    process.exit(1);
+  }
   if (o.auditWrites && o.apply) {
     console.error('--audit-writes is read-only and cannot be combined with --apply.');
     process.exit(1);
@@ -312,11 +321,32 @@ async function main() {
   }
 
   // ---- pass 2: auth ← data.authPermissions
+  //
+  // THE GRANTS ARE STORED IN TWO SHAPES. Most rows hold an object; **8,434 rows of `rowauth-test`
+  // hold a JSON STRING** — the same double-encoding `data.parent` had. Until 2026-10-29 this pass
+  // tested `jsonb_typeof(...) = 'object'` and skipped every string, leaving 68 rows with an EMPTY
+  // `auth` column while `data` held real grants. `rawAuthOf` then short-circuited on the non-null
+  // column and reported "nothing stated" — i.e. publicly readable under `enforce`.
+  //
+  // Found by `--diff-reads`, which is the whole reason that harness exists: no unit test would
+  // have produced a row in that shape. `rawAuthOf` was fixed to fall through to `data` when the
+  // column names no principal; this makes the column right in the first place.
+  const AP_OBJ = `CASE WHEN jsonb_typeof(data->'authPermissions') = 'string'
+                       AND data->>'authPermissions' ~ '^\\s*\\{'
+                  THEN (data->>'authPermissions')::jsonb
+                  ELSE data->'authPermissions' END`;
+  const AP_USABLE = `data ? 'authPermissions'
+      AND (jsonb_typeof(data->'authPermissions') = 'object'
+           OR (jsonb_typeof(data->'authPermissions') = 'string' AND data->>'authPermissions' ~ '^\\s*\\{'))
+      AND ${AP_OBJ} <> '{}'::jsonb`;
   if (canBackfill || opts.addColumns) {
   const authable = (await one(
-    `SELECT count(*)::int n FROM ${T} WHERE app = $1 AND data ? 'authPermissions'
-       AND jsonb_typeof(data->'authPermissions') = 'object' AND data->'authPermissions' <> '{}'::jsonb`,
-    [opts.app])).n;
+    `SELECT count(*)::int n FROM ${T} WHERE app = $1 AND ${AP_USABLE}`, [opts.app])).n;
+  const asString = (await one(
+    `SELECT count(*)::int n FROM ${T} WHERE app = $1
+       AND jsonb_typeof(data->'authPermissions') = 'string'
+       AND data->>'authPermissions' ~ '^\\s*\\{'`, [opts.app])).n;
+  if (asString) console.log(`   (${asString} of them store the grants as a JSON string)`);
   console.log(`\n2. auth ← data.authPermissions        ${authable} row(s)`);
   if (opts.apply && authable) {
     // `vocabulary` and `childRefs` share this column with the grants
@@ -324,12 +354,10 @@ async function main() {
     // `auth = data->'authPermissions'` wipes them — which it did, silently, until a second run
     // reported `already current: 0` after writing 81 rows. Carry both across, so each pass stays
     // idempotent and the order above is a dependency rather than a requirement.
-    await q(`UPDATE ${T} SET auth = data->'authPermissions'
+    await q(`UPDATE ${T} SET auth = ${AP_OBJ}
                || CASE WHEN auth ? 'vocabulary' THEN jsonb_build_object('vocabulary', auth->'vocabulary') ELSE '{}'::jsonb END
                || CASE WHEN auth ? 'childRefs'  THEN jsonb_build_object('childRefs',  auth->'childRefs')  ELSE '{}'::jsonb END
-             WHERE app = $1 AND data ? 'authPermissions'
-               AND jsonb_typeof(data->'authPermissions') = 'object'
-               AND data->'authPermissions' <> '{}'::jsonb`, [opts.app]);
+             WHERE app = $1 AND ${AP_USABLE}`, [opts.app]);
   }
 
   // The batched writer both parent passes use. 500 pairs per statement, which is what kept the
@@ -1027,6 +1055,117 @@ async function main() {
     console.log('\n   Flipping a write gate to `enforce` makes ' + lost + ' of ' + tot + ' row(s) ('
       + pctAll + '%) writable by `' + opts.app + ' Admin` and nobody else.');
     console.log('   The fix for any row in that set is to write its chain a grant — start with C.');
+  }
+
+  // ---- --diff-reads: does the resolver decide READS the same way today's rule does?
+  //
+  // Task 7's gate (row-auth-consolidate.md, "Done when" 1). The `pattern` / `page` branch guards
+  // every pattern and page read in production, so it cannot be deleted on the strength of unit
+  // tests — only on a verdict diff over a real app's rows, for real shapes of caller.
+  //
+  // Both rules are called HERE, not reimplemented: `kindReadBlocked` is the route's own branch,
+  // extracted verbatim for exactly this purpose, and the gate is the same `createGate` the route
+  // builds. A harness that reimplemented either would be measuring itself.
+  //
+  // READ-ONLY and needs no migration — on an unmigrated app the resolver falls back to `data`.
+  if (opts.diffReads) {
+    console.log('\n7. --diff-reads — read-only\n');
+    const cols = authColumns(caps, 'postgres').join(', ');
+    const INST = `substring(type from '([^|]+):[^:]+$')`;
+
+    // The callers worth asking about. The grantee is taken from the app's own data rather than
+    // invented: whichever group states the most rows is the one whose loss would be noticed.
+    const topGroup = (await q(`
+      SELECT g.k AS principal, count(*)::int n FROM ${T},
+             LATERAL jsonb_each(COALESCE(${caps.auth ? `auth->'groups',` : ''} data->'authPermissions'->'groups', '{}'::jsonb)) g(k, v)
+       WHERE app = $1 AND g.k <> 'public' GROUP BY 1 ORDER BY 2 DESC LIMIT 1`, [opts.app]))[0];
+    const CALLERS = [
+      ['anonymous',      { authed: false, id: null, groups: [] }],
+      ['signed-in',      { authed: true, id: 'diff-reads-nobody', email: 'n@x', groups: [] }],
+      ...(topGroup ? [[`grantee (${topGroup.principal})`,
+                       { authed: true, id: 'diff-reads-grantee', email: 'g@x', groups: [topGroup.principal] }]] : []),
+      ['app admin',      { authed: true, id: 'diff-reads-admin', email: 'a@x', groups: [`${opts.app} Admin`] }],
+    ];
+    console.log(`   callers: ${CALLERS.map(c => c[0]).join(', ')}`);
+
+    // `getPatternAuthPermissions`, mirrored — including the admin/auth skip, which is load-bearing:
+    // a CONTENT pattern can share an instance name with the admin or auth row.
+    const patCache = new Map();
+    const patternAuthOf = async (app, parentKey) => {
+      const key = `${app}:${parentKey}`;
+      if (!patCache.has(key)) {
+        const rows = await q(
+          `SELECT data FROM ${T} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC`,
+          [app, parentKey]);
+        const parent = rows.map(r => (typeof r.data === 'string' ? JSON.parse(r.data) : (r.data || {})))
+          .find(d => d.pattern_type !== 'admin' && d.pattern_type !== 'auth');
+        patCache.set(key, parent ? resolveAuthPermissions(parent.authPermissions, '') : null);
+      }
+      return patCache.get(key);
+    };
+
+    const containerRows = await q(`SELECT ${cols} FROM ${T} WHERE app = $1 AND ${INST} IS NOT NULL`, [opts.app]);
+    const controllerStub = {
+      authRowsByIds: async (ids) => ids.length
+        ? q(`SELECT ${cols} FROM ${T} WHERE app = $1 AND id = ANY($2::bigint[])`, [opts.app, ids]) : [],
+      authContainers: async () => containerRows,
+    };
+
+    // `pattern` and `page` are the only kinds kind-auth decides; everything else it allowed
+    // outright, so for those the diff is "what the gate would newly refuse".
+    const tally = new Map();   // `${caller}|${kind}` -> {n, agree, tighter, looser, egT:[], egL:[]}
+    const bump = (k, f, eg) => {
+      const t = tally.get(k) || { n: 0, agree: 0, tighter: 0, looser: 0, egT: [], egL: [] };
+      t.n++; t[f]++;
+      if (eg && f !== 'agree' && t[f === 'tighter' ? 'egT' : 'egL'].length < 3) {
+        t[f === 'tighter' ? 'egT' : 'egL'].push(eg);
+      }
+      tally.set(k, t);
+    };
+
+    for (const [label, user] of CALLERS) {
+      // `mode: 'enforce'` is not optional here. The gate's default is `log`, which coerces every
+      // verdict to allow and writes a would-deny line — so a harness that did not override it would
+      // report zero divergence, loudly, forever. This asks what the rule DECIDES; nothing is
+      // enforced, because nothing is being served.
+      const gate = createGate({ controller: controllerStub, app: opts.app, user, subdomain: '', mode: 'enforce' });
+      let after = '0';
+      for (;;) {
+        const batch = await q(
+          `SELECT ${cols}, data FROM ${T} WHERE app = $1 AND id > $2::bigint ORDER BY id LIMIT 500`,
+          [opts.app, after]);
+        if (!batch.length) break;
+        after = batch[batch.length - 1].id;
+        const verdicts = await gate.judge(batch, 'read');
+        for (const row of batch) {
+          const kind = getKind(row.type);
+          const legacyBlocked = await kindReadBlocked({ row, kind, user, subdomain: '', app: opts.app, patternAuthOf });
+          const gateBlocked = !(verdicts.get(String(row.id)) || { allow: true }).allow;
+          const key = `${label}|${kind}`;
+          const eg = `${row.id} (${row.type})`;
+          if (legacyBlocked === gateBlocked) bump(key, 'agree');
+          else bump(key, gateBlocked ? 'tighter' : 'looser', eg);
+        }
+      }
+    }
+
+    console.log('\n   kind auth vs the gate, per caller and kind');
+    console.log('        caller / kind                      rows    agree   TIGHTER    LOOSER');
+    let anyLooser = 0, anyTighter = 0;
+    for (const [key, t] of [...tally.entries()].sort()) {
+      anyLooser += t.looser; anyTighter += t.tighter;
+      if (t.tighter === 0 && t.looser === 0) continue;          // print only what differs
+      console.log(`        ${key.padEnd(32)} ${String(t.n).padStart(6)} ${String(t.agree).padStart(8)}`
+        + ` ${String(t.tighter).padStart(9)} ${String(t.looser).padStart(9)}`);
+      for (const e of t.egT) console.log(`             tighter: ${e}`);
+      for (const e of t.egL) console.log(`             LOOSER : ${e}`);
+    }
+    if (!anyTighter && !anyLooser) console.log('        (no divergence on any caller or kind)');
+
+    console.log(`\n   TIGHTER ${anyTighter} — the gate refuses where today's rule allows.`);
+    console.log(`   LOOSER  ${anyLooser} — the gate ALLOWS where today's rule refuses.`);
+    console.log('   Looser is the direction that matters: every one must be explained before the');
+    console.log('   `pattern` / `page` branch is deleted (row-auth-consolidate.md, "Done when" 1).');
   }
 
   // ---- coverage, the number that gates an `enforce` flip

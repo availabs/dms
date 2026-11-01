@@ -26,6 +26,20 @@ export const STRUCTURAL_VERBS = ['read', 'create', 'edit', 'delete', 'grant']
 export const SCOPES = ['self', 'descendants']
 
 /**
+ * Top-level keys that are DECLARATIONS ABOUT the vocabulary rather than scopes of verbs.
+ *
+ * `publicRead: true` says "this pattern and its pages are readable with no session" — the data
+ * replacement for the server recognising `pattern_type === 'auth' || 'admin'` by name
+ * (planning/tasks/current/row-auth-consolidate.md, Phase 1). The server reads it from exactly here;
+ * `dms-server/src/routes/dms/authVocabulary.js` `publicReadOf()` is the authority for the key, and
+ * for `=== true` being the only accepted value.
+ *
+ * Without this list the validator read `publicRead` as a scope and threw at registration, which
+ * takes the whole app down before it mounts — found by loading the real app under `enforce`.
+ */
+export const DECLARATIONS = { publicRead: 'boolean' }
+
+/**
  * Throw unless `vocabulary` is well formed. Called from `registerPatternTypes`, so a malformed
  * vocabulary is a deploy-time error rather than a silent runtime one — a verb that confers nothing
  * because of a typo fails closed and invisibly, which is the worst way for auth to be wrong.
@@ -34,10 +48,20 @@ export function validateAuthVocabulary(vocabulary, label = 'authVocabulary') {
     if (!vocabulary || typeof vocabulary !== 'object' || Array.isArray(vocabulary)) {
         throw new Error(`${label} must be an object with "self" and/or "descendants"`)
     }
-    const scopes = Object.keys(vocabulary)
+    for (const [key, expected] of Object.entries(DECLARATIONS)) {
+        if (vocabulary[key] === undefined) continue
+        // eslint-disable-next-line valid-typeof
+        if (typeof vocabulary[key] !== expected) {
+            throw new Error(`${label}.${key} must be a ${expected} — got ${typeof vocabulary[key]}`)
+        }
+    }
+    const scopes = Object.keys(vocabulary).filter(k => !(k in DECLARATIONS))
     if (!scopes.length) throw new Error(`${label} declares no scopes`)
     const unknown = scopes.filter(s => !SCOPES.includes(s))
-    if (unknown.length) throw new Error(`${label}: unknown scope(s) ${unknown.join(', ')} — expected ${SCOPES.join(' / ')}`)
+    if (unknown.length) {
+        throw new Error(`${label}: unknown scope(s) ${unknown.join(', ')} — expected ${SCOPES.join(' / ')}`
+            + ` (declarations: ${Object.keys(DECLARATIONS).join(' / ')})`)
+    }
 
     const seen = new Map()
     for (const scope of scopes) {

@@ -130,3 +130,40 @@ t('judging many rows returns a verdict for each', () => withMode('enforce', asyn
     console.log(`\n${pass} passed, ${fail} failed\n`);
     process.exit(fail ? 1 : 0);
 })();
+
+// ---------------------------------------------------------------------------
+// publicRead — task 7 Phase 1. A pattern that must be readable WITHOUT A SESSION declares it,
+// instead of the server recognising `pattern_type === 'auth' || 'admin'` by name.
+{
+    const vocab = (publicRead) => ({ publicRead, self: [{ value: 'edit-pattern', implies: ['read', 'edit'] }] });
+    const row = (publicRead, grants) => ({
+        id: 7, type: 'prod|x:pattern',
+        auth: { vocabulary: vocab(publicRead), ...(grants ? { groups: grants } : {}) },
+    });
+    const anon = { authed: false, id: null, groups: [] };
+    const controller = {
+        authRowsByIds: async () => [],
+        authContainers: async () => [],
+    };
+    const gateFor = (user) => createGate({ controller, app: 'myapp', user, subdomain: '', mode: 'enforce' });
+
+    t('a declaring row is readable with no session, despite grants that exclude the caller', async () => {
+        const d = await gateFor(anon).judgeOne(row(true, { Admins: ['read'] }), 'read');
+        assert.strictEqual(d.allow, true);
+        assert.match(d.reason, /publicRead/);
+    });
+    t('the same row WITHOUT the declaration is refused', async () => {
+        const d = await gateFor(anon).judgeOne(row(undefined, { Admins: ['read'] }), 'read');
+        assert.strictEqual(d.allow, false);
+    });
+    t('publicRead does not confer WRITES — it says "everyone may see", not "may change"', async () => {
+        for (const verb of ['edit', 'create', 'delete', 'grant']) {
+            const d = await gateFor(anon).judgeOne(row(true, { Admins: ['read'] }), verb);
+            assert.strictEqual(d.allow, false, `${verb} must still be refused`);
+        }
+    });
+    t('only `true` counts — a truthy value is not a declaration', async () => {
+        const r = { id: 7, type: 'prod|x:pattern', auth: { vocabulary: { publicRead: 'yes' }, groups: { Admins: ['read'] } } };
+        assert.strictEqual((await gateFor(anon).judgeOne(r, 'read')).allow, false);
+    });
+}

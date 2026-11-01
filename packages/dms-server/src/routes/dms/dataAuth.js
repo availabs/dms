@@ -191,8 +191,14 @@ function createJudge(ctx) {
                 if (op === 'create') {
                     return (await siteCan('create-pattern')) ? allow('site grant') : deny(`site ${needs('create-pattern')}`);
                 }
+                // Deleting a pattern is a SITE operation, offered by the admin pattern and no
+                // other type (owner, 2026-10-30) — so it asks `siteCan`, symmetric with `create`
+                // above. `SITE_KEYS.patterns` already pairs the two on the site row's own edit.
+                if (op === 'delete') {
+                    return (await siteCan('delete-pattern')) ? allow('site grant') : deny(`site ${needs('delete-pattern')}`);
+                }
                 const pattern = parseJson(row.data) || {};
-                const groups = op === 'delete' ? [['delete-pattern']] : [
+                const groups = [
                     ...(keys.includes('authPermissions') ? [['edit-pattern-permissions']] : []),
                     ...(keys.some(k => k !== 'authPermissions') ? [['edit-pattern']] : []),
                     ...(noChange ? [['edit-pattern', 'edit-pattern-permissions']] : []),

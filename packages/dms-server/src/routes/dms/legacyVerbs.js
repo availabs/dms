@@ -33,6 +33,7 @@ const LEGACY_IMPLIES = Object.freeze({
   // reads
   'view':               ['read'],      // bare, on section rows (patterns/page/page.format.js)
   'view-page':          ['read'],
+  'view-pattern':       ['read'],   // the pattern-row read verb; `view-page` stays until grants are backfilled
   'view-pattern-list':  ['read'],
   'view-sources':       ['read'],
   'view-source':        ['read'],

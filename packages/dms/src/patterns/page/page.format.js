@@ -54,8 +54,8 @@ export const cmsSection = {
               // author could make that satisfied that gate was the blanket `*` — which also
               // hands over edit. Listed first so "let this group see the section" is the
               // obvious choice rather than `*` by default.
-              {label: 'View Section', value: 'view'},
-              {label: 'Edit Section', value: 'edit'},
+              {label: 'View Section', value: 'view', implies: ['read']},
+              {label: 'Edit Section', value: 'edit', implies: ['read', 'edit']},
               {label: '*', value: '*'},
           ],
           defaultPermission: ['*']
@@ -182,11 +182,16 @@ const cmsPageFormat = {
               // if you create, you get view and edit
               // each page created gets created with default permissions (if set in pattern), and assign full access (*) to the user who created it
               {label: '*', value: '*'},
-              {label: 'View Page', value: 'view-page'},
-              {label: 'Edit Page Content', value: 'edit-page'},
-              {label: 'Create Page', value: 'create-page'},
-              {label: 'Edit Page Permissions', value: 'edit-page-permissions'},
-              {label: 'Publish Page', value: 'publish-page'},
+              {label: 'View Page', value: 'view-page', implies: ['read']},
+              // `edit-page` confers `delete` as well: kind auth requires exactly `edit-page` to
+              // delete a page (dms-server dataAuth.js), and that is shipped behaviour.
+              {label: 'Edit Page Content', value: 'edit-page', implies: ['read', 'edit', 'delete']},
+              {label: 'Create Page', value: 'create-page', implies: ['read', 'create']},
+              {label: 'Edit Page Permissions', value: 'edit-page-permissions', implies: ['read', 'edit', 'grant']},
+              {label: 'Publish Page', value: 'publish-page', implies: ['read', 'edit']},
+              // Declared in the vocabulary and in LEGACY_IMPLIES, but it appeared in NO
+              // permissionDomain — so it has never been grantable except through a blanket `*`.
+              {label: 'Edit Page Parameters', value: 'edit-page-params', implies: ['read', 'edit']},
           ]
       },
     {

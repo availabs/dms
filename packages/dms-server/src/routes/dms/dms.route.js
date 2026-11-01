@@ -4,6 +4,7 @@ const falcorJsonGraph = require("falcor-json-graph"),
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
 const { isUserAuthed, resolveAuthPermissions } = require('./auth');
+const { kindReadBlocked, PATTERN_READ_PERMISSIONS } = require('./kindReadAuth');
 const { createGate, rowAuthMode } = require('./rowAuthGate');
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
 // KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
@@ -18,8 +19,42 @@ const { assertDataWrite, dataAuthMode } = require('./rowAuthGate');
 const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 
 
-// Any one of these lets a user read a (non-auth, non-admin) pattern row.
-const PATTERN_READ_PERMISSIONS = ['view-page', 'edit-pattern', 'edit-pattern-permissions', 'delete-pattern'];
+/**
+ * TASK 7 PHASE 3 — may this caller see the LISTING for `app+type`?
+ *
+ * Four Falcor routes answered this with five identical inline lines — `length`, `byIndex`,
+ * `options[o].length`, `opts[o].byIndex`. One decision function now, same verdict.
+ *
+ * WHAT THIS QUESTION IS NOT. It is COARSE and pattern-level on purpose, and consolidating it does
+ * not change that: it asks whether the caller may see the PATTERN, never whether they may read an
+ * individual page. A caller who passes gets the full count and every ref INCLUDING pages they
+ * cannot read — the per-row gate then refuses each and they receive `no-access` stubs. The content
+ * is protected; the COUNT is not, in either direction. A refusal answers 0 even when some pages
+ * were readable, and a pass answers the total even when most are not.
+ *
+ * Making `length` the AUTHORISED count is a behaviour change rather than a consolidation: it needs
+ * per-row resolution across a whole listing to produce one number, and it changes what clients see
+ * rather than who may see it. The hub files that under Phase B; it stays out of here so a
+ * regression in one cannot be mistaken for the other.
+ *
+ * COUPLED TO `enforce`, exactly as the per-row branch is. The inline rule had no rollout mode — it
+ * gated listings always — while the gate allows everything under `log`. Swapping unconditionally
+ * would drop the listing gate for every deployment not already on `enforce`.
+ */
+async function listingBlocked(controller, { app, type, user, subdomain }) {
+  if (getKind(type) !== 'page') return false;
+  const parentKey = getParent(type);
+  if (rowAuthMode() === 'enforce') {
+    const patternRow = await controller.patternRowForPages(app, parentKey);
+    // No content pattern → unrestricted, which is what a null from `getPatternAuthPermissions` has
+    // always meant here.
+    if (!patternRow) return false;
+    const gate = createGate({ controller, app, user, subdomain });
+    return !(await gate.judgeOne(patternRow, 'read')).allow;
+  }
+  const patternAuth = await controller.getPatternAuthPermissions(app, parentKey, subdomain);
+  return !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} });
+}
 
 /**
  * Create DMS Falcor routes with a specific controller
@@ -55,50 +90,38 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const kind = getKind(row.type);
         let blocked = false;
 
-        if (kind === 'pattern') {
-          // Auth patterns (login page) are always publicly accessible. So is the
-          // site's admin pattern row (`{instance}|admin:pattern`): it only holds
-          // routing/branding config (base_url, subdomain, theme, authPermissions)
-          // that the no-access stub below already returns, and hiding it only
-          // stubs it in anonymous boots, which stops the client caching its site
-          // snapshot (persistSiteSnapshot). Access to the admin PANEL is decided
-          // client-side by the site-level permissions, not by this read.
-          // ⚠ Never store anything secret on an auth or admin pattern row — it
-          // is readable by everyone.
-          // NB: this does NOT extend to pages — getPatternAuthPermissions
-          // (dms.controller.js) still only exempts auth.
-          const pattern_type = row.data?.pattern_type || row?.pattern_type;
-          if (pattern_type !== 'auth' && pattern_type !== 'admin') {
-            const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            // The admin panel's pattern-level permissions also load the pattern
-            // row (not its pages): a user granted only edit-pattern must be able
-            // to open it in the Pattern Editor. Page reads below stay
-            // view-page-only, so admin permissions never expose page content.
-            // (dms planning/tasks/completed/admin-granular-permissions.md)
-            blocked = !isUserAuthed({ user, reqPermissions: PATTERN_READ_PERMISSIONS, authPermissions });
-          }
-        } else if (kind === 'page') {
-          // Merge pattern-level and page-level authPermissions.
-          // Pattern sets the base; page-level entries override per group/user key.
-          // getPatternAuthPermissions returns null for auth patterns (unrestricted).
-          const appForLookup = app || row.app;
-          if (appForLookup) {
-            const parentKey = getParent(row.type);
-            const cacheKey = `${appForLookup}:${parentKey}`;
-            let patternAuth;
-            if (patternAuthCache.has(cacheKey)) {
-              patternAuth = patternAuthCache.get(cacheKey);
-            } else {
-              patternAuth = await controller.getPatternAuthPermissions(appForLookup, parentKey, subdomain);
-              patternAuthCache.set(cacheKey, patternAuth);
-            }
-            const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            const mergedAuth = {
-              groups: { ...(patternAuth?.groups || {}), ...(pageAuth?.groups || {}) },
-              users:  { ...(patternAuth?.users  || {}), ...(pageAuth?.users  || {}) },
-            };
-            blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: mergedAuth });
-          }
+        // TASK 7 PHASE 2 — the collapse, coupled to `enforce` on purpose (owner, 2026-10-29).
+        //
+        // Kind auth has NO rollout mode: it enforces pattern and page reads always. The gate is
+        // staged, and under `log` — the default, so every deployment today — it allows everything
+        // and merely reports. Deleting the kind branch outright would therefore stop enforcing
+        // page reads everywhere that is not already on `enforce`, which is a security regression
+        // and not a consolidation.
+        //
+        // So the branch is kept for exactly the deployments that still need it:
+        //
+        //   legacy / log   pattern + page → KIND auth, enforced, unchanged from today
+        //   enforce        pattern + page → the gate, i.e. ONE decision path for every kind
+        //
+        // Proved equivalent before this landed: `--diff-reads` on a 33,967-row clone of production
+        // reports, for pattern and page, **0 TIGHTER and 55 LOOSER** — the 55 being `${app} Admin`
+        // gaining reads the route's page branch never granted, which `verdict` grants by design.
+        // Nobody loses read access. The remaining divergence it prints is on `component`, a kind
+        // that already goes through the gate and is therefore not affected by this line.
+        //
+        // The branch and `./kindReadAuth.js` go when every target runs `enforce` — task 8's
+        // cutover for production. Until then this is the coupling, stated rather than hidden.
+        if ((kind === 'pattern' || kind === 'page') && rowAuthMode() !== 'enforce') {
+          blocked = await kindReadBlocked({
+            row, kind, user, subdomain, app,
+            patternAuthOf: async (a, parentKey) => {
+              const cacheKey = `${a}:${parentKey}`;
+              if (!patternAuthCache.has(cacheKey)) {
+                patternAuthCache.set(cacheKey, await controller.getPatternAuthPermissions(a, parentKey, subdomain));
+              }
+              return patternAuthCache.get(cacheKey);
+            },
+          });
         } else if (rowAuthMode() !== 'legacy') {
           // EVERY OTHER KIND. Until now nothing gated these at all — site, theme, tenant, dmsenv,
           // source, view, component, page-edit and split `:data` are guarded on WRITE (dataAuth.js)
@@ -254,12 +277,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-              response.push({ path: ["dms", "data", key, "length"], value: 0 });
-              continue;
-            }
+          if (await listingBlocked(controller, { app, type, user, subdomain })) {
+            response.push({ path: ["dms", "data", key, "length"], value: 0 });
+            continue;
           }
           response.push({
             path: ["dms", "data", key, "length"],
@@ -315,14 +335,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-              indices.forEach((i) => {
-                response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
-              });
-              continue;
-            }
+          if (await listingBlocked(controller, { app, type, user, subdomain })) {
+            indices.forEach((i) => {
+              response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
+            });
+            continue;
           }
           const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
           indices.forEach((i) => {
@@ -348,12 +365,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const rows = await controller.filteredDataLength(keys, option);
           for (const key of keys) {
             const [app, type] = key.split('+');
-            if (getKind(type) === 'page') {
-              const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-              if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
-                continue;
-              }
+            if (await listingBlocked(controller, { app, type, user, subdomain })) {
+              response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
+              continue;
             }
             const reduced = rows.reduce((a, c) => (c.key === key ? c.length : a), 0);
             response.push({
@@ -380,14 +394,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
 
             for (const key of keys) {
               const [app, type] = key.split('+');
-              if (getKind(type) === 'page') {
-                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-                if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                  indices.forEach((i) => {
-                    response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
-                  });
-                  continue;
-                }
+              if (await listingBlocked(controller, { app, type, user, subdomain })) {
+                indices.forEach((i) => {
+                  response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
+                });
+                continue;
               }
               const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
               indices.forEach((i) => {
