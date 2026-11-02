@@ -14,10 +14,10 @@
  * the rules' `noChange` set (any of the row's edit permissions).
  * */
 
-const AUTH_RULES = require('../routes/dms/authRules');
-const { judge } = require('../routes/dms/authJudge');
-const { isUserAuthedOpen: isUserAuthed } = require('../routes/dms/auth');  // the old rule: today's answers
-const { holdsExplicitly } = require('../routes/uda/sourceAuth');
+const AUTH_RULES = require('../routes/auth/kindAuth/authRules');
+const { judge } = require('../routes/auth/kindAuth/authJudge');
+const { isUserAuthedOpen: isUserAuthed } = require('../routes/auth/auth');  // the old rule: today's answers
+const { holdsExplicitly } = require('../routes/auth/kindAuth/sourceAuth');
 
 // Grants besides the `public` group: dataAuth.js hasGrants.
 const hasGrants = (ap) =>

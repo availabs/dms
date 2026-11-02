@@ -26,13 +26,13 @@
  */
 const { isEqual } = require('lodash');
 const { getKind, getParent, getInstance, isSplitType } = require('#db/type-utils.js');
-const { isUserAuthed, blankRowRefusal, resolveAuthPermissions } = require('./auth');
+const { isUserAuthed, blankRowRefusal, resolveAuthPermissions } = require('../auth');
 const {
     holdsExplicitly, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView, internalSourceGrants,
-} = require('../uda/sourceAuth');
+} = require('./sourceAuth');
 const AUTH_RULES = require('./authRules');
 const { judge: judgeRules } = require('./authJudge');
-const accessLog = require('../../access-log');
+const accessLog = require('../../../access-log');
 
 function dataAuthMode() {
     const m = String(process.env.DMS_DATA_AUTH_MODE || 'log').toLowerCase();
@@ -204,8 +204,14 @@ function createJudge(ctx) {
                 if (op === 'create') {
                     return (await siteCan('create-pattern')) ? allow('site grant') : deny(`site ${needs('create-pattern')}`);
                 }
+                // Deleting a pattern is a SITE operation, offered by the admin pattern and no
+                // other type (owner, 2026-10-30) — so it asks `siteCan`, symmetric with `create`
+                // above. `SITE_KEYS.patterns` already pairs the two on the site row's own edit.
+                if (op === 'delete') {
+                    return (await siteCan('delete-pattern')) ? allow('site grant') : deny(`site ${needs('delete-pattern')}`);
+                }
                 const pattern = parseJson(row.data) || {};
-                const groups = op === 'delete' ? [['delete-pattern']] : [
+                const groups = [
                     ...(keys.includes('authPermissions') ? [['edit-pattern-permissions']] : []),
                     ...(keys.some(k => k !== 'authPermissions') ? [['edit-pattern']] : []),
                     ...(noChange ? [['edit-pattern', 'edit-pattern-permissions']] : []),
@@ -393,7 +399,7 @@ function logWouldDeny(op, app, row, user, reason, outcome = 'would-deny') {
  * `skipNoChange`: an edit of a stored row that changes nothing returns NO_CHANGE, unjudged, and the caller
  * writes nothing (owner 2026-10-29: a save with no changes is not an update).
  */
-const NO_CHANGE = Symbol('no change');
+const { NO_CHANGE } = require('../noChange');   // shared with row auth — see that file
 
 async function assertDataWrite(router, controller, op, app, row, patch, { replace = false, skipNoChange = false } = {}) {
     const mode = dataAuthMode();

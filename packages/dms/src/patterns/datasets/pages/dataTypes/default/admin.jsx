@@ -5,7 +5,7 @@ import {useNavigate} from "react-router";
 import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
-import SourceAccessEditor from "../../../components/SourceAccessEditor";
+import SourceAccessEditorChain from "../../../components/SourceAccessEditorChain";
 import { DeleteSourceModal, DeleteDmsSourceBtn } from "../../../components/DeleteSource";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
@@ -256,7 +256,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                     <div className={t.adminMain}>
                         {/* New string-permission Access editor (pattern ⊕ source). Replaces the
                             legacy numeric statistics.auth UAC panels; gated by edit-source-permissions. */}
-                        <SourceAccessEditor source={source} setSource={setSource} format={format}
+                        <SourceAccessEditorChain source={source} setSource={setSource} format={format}
                                             apiUpdate={apiUpdate} isDms={isDms} id={id}/>
                     </div>
 

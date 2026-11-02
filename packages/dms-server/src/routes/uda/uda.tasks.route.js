@@ -18,7 +18,7 @@ const {
   hardDeleteSource,
 } = require("./uda.tasks.controller");
 const { getDb } = require("../../db");
-const { isUserAuthedForSource, parsePatternRef, assertPatternPermission, readerAllowed } = require("./sourceAuth");
+const { isUserAuthedForSource, parsePatternRef, assertPatternPermission, readerAllowed } = require("../auth/kindAuth/sourceAuth");
 
 /**
  * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and

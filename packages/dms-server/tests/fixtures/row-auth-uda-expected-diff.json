@@ -1,0 +1,22 @@
+{
+  "_README": [
+    "Every test in UDA's kind-auth contract suite (tests/test-source-auth.js) that the ROW judge is",
+    "expected to disagree with, and why. Regenerate the NAMES with:",
+    "    DMS_UDA_GATE=row node tests/test-source-auth.js",
+    "but never regenerate the REASONS mechanically — an entry without a reason someone wrote is",
+    "the whole thing this fixture exists to prevent.",
+    "",
+    "CURRENTLY EMPTY: as of 2026-10-29 the row judge agrees with kind auth on all 50 cases.",
+    "That is not the same as 'row auth equals kind auth'. Two differences exist and this suite",
+    "simply does not exercise them:",
+    "  1. THE CLAMP. mergeAuth rule 3 stops a SOURCE widening what its patterns gave a principal;",
+    "     kind auth's mergeAuthPermissions is a per-principal override with no ceiling. Pinned in",
+    "     tests/test-row-auth-uda.js section 3.",
+    "  2. STRICT DEFAULTS. An unstated chain refuses writes where kind auth's lenient rule opens",
+    "     them. The datasets side of prod is 100% unstated, so this bites at the flip, not here.",
+    "A NEW name appearing in this run is a finding: add it WITH A REASON, or fix the judge."
+  ],
+  "cascade": [],
+  "expected": {},
+  "reasons": {}
+}

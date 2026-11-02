@@ -22,8 +22,8 @@
 
 // Under `enforce` wcdb's and avail's auth rows (no grants, task 13's prod check) leave user management to
 // `${app} Admin` only: check their would-deny lines before the switch.
-const { resolveAuthPermissions, isUserAuthed, isUserAuthedOpen } = require('../../routes/dms/auth');
-const { holdsExplicitly, isAppAdmin, unionAuthPermissions } = require('../../routes/uda/sourceAuth');
+const { resolveAuthPermissions, isUserAuthed, isUserAuthedOpen } = require('../../routes/auth/auth');
+const { holdsExplicitly, isAppAdmin, unionAuthPermissions } = require('../../routes/auth/kindAuth/sourceAuth');
 const accessLog = require('../../access-log');
 const q = require('./queries');
 

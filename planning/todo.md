@@ -603,6 +603,8 @@
 
 ### patterns/registry
 
+- [ ] [One place to declare a permission: `permissionDomain`, and `authVocabulary` derived from it](./tasks/current/permission-domain-single-source.md) — filed 2026-10-30, **proposed**. Five lists declare the same verbs and no two match; `permissionOptionsFor`'s `PAGE_OPTIONS` is already a hand-copy of `page.format.js`'s domain. Derive `authVocabulary` from the `permissionDomain` of every format a pattern registers (`descendants`) plus a registry-level domain (`self`), and delete the seven `*.authVocabulary.js`. Two decisions gate it: does `view-page` leave datasets' `descendants` (it is the cause of the live public-content regression in `row-auth-uda.md`), and do `download-source` / `manage-downloads` / `view-source-api` imply `read`.
+
 - [ ] [Pluggable pattern interface + move `mapeditor` (and the page Map section) out of the library](./tasks/current/pluggable-patterns-mapeditor-extraction.md) — filed 2026-10-08; **built** 2026-10-08, awaiting commit. The pattern-type registry is `registerPatternTypes` (with `pageComponents`, `defaultTheme` mounted at `theme.<name>`, and a `registerFromTheme` hook). The page pattern is map-agnostic through the `managesOwnState`/`settingsAPI` and `derivePageVariables` section hooks. `forms` is removed. The map editor and Map section moved to dms-template `src/patterns/mapeditor/`, importing only `~/dms/packages/dms/src` and `…/src/map`, with `registerMapPlugins` replacing `damaMapPlugins` and `theme.mapeditor.{damaMap,mapPlugins}`. Left: authenticated live checks, a commit of the library and dms-template together, and the transportNY sync.
 
 ### patterns/qa

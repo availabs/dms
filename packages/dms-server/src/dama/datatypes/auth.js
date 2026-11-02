@@ -12,9 +12,9 @@
  * Each helper answers the request itself (401 / 403) and returns null when the caller is refused,
  * otherwise the user (or ANON_CALLER, an anonymous caller let through: its id is null).
  */
-const { authMode, requireUserOrOpen, requireSourcePermission, requestPatternRef } = require('../../routes/uda/sourceAuth');
+const { authMode, requireUserOrOpen, requireSourcePermission, requestPatternRef } = require('../../routes/auth/kindAuth/sourceAuth');
 const upload = require('../upload/auth');
-const { readMode, holdsOnSource } = require('../../routes/uda/readAuth');
+const { readMode, holdsOnSource } = require('../../routes/auth/kindAuth/readAuth');
 const { getSubdomain } = require('../../utils/subdomain');
 
 const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];

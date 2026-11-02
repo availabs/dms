@@ -44,17 +44,26 @@ export const source = {
       type: "json",
       required: false,
       default: {},
+      // `implies` is what each verb confers STRUCTURALLY, read by the server; `label`/`value` are
+      // what the Access editor shows. One declaration, two readers — see
+      // planning/tasks/current/permission-domain-single-source.md.
+      //
+      // THE LINE THIS LIST DRAWS. `read` governs whether you may see the row. The three verbs with
+      // `implies: []` are CAPABILITIES: they gate an action, confer no row access, and are checked
+      // BY NAME where they are used. Read and download are deliberately different things — a user
+      // may hold `view-source` and be unable to download, or `download-source` and be unable to
+      // see the source's metadata (owner, 2026-10-30).
       permissionDomain: [
-        { label: 'View source',      value: 'view-source' },       // see metadata/overview
-        { label: 'Download source',  value: 'download-source' },    // download the data (old DOWNLOAD level)
-        { label: 'Update source',    value: 'update-source' },      // edit description/categories/metadata
-        { label: 'Edit source data', value: 'edit-source-data' },   // create/edit/delete rows (editable sources)
-        { label: 'Create version',   value: 'create-view' },
-        { label: 'Manage downloads', value: 'manage-downloads' },   // create/refresh download artifacts
-        { label: 'View source API',  value: 'view-source-api' },
-        { label: 'Delete source',    value: 'delete-source' },
-        { label: 'Edit permissions', value: 'edit-source-permissions' },
-        { label: 'All (*)',          value: '*' },
+        { label: 'View source',      value: 'view-source',      implies: ['read'] },                        // THE read verb
+        { label: 'Download source',  value: 'download-source',  implies: [] },                              // capability: the signed-link route checks it by name
+        { label: 'Update source',    value: 'update-source',    implies: ['read', 'edit'] },                 // edit description/categories/metadata
+        { label: 'Edit source data', value: 'edit-source-data', implies: ['read', 'create', 'edit', 'delete'] }, // rows on editable sources
+        { label: 'Create version',   value: 'create-view',      implies: ['read', 'create'] },
+        { label: 'Manage downloads', value: 'manage-downloads', implies: [] },                              // capability: one UI control
+        { label: 'View source API',  value: 'view-source-api',  implies: [] },                              // capability; checked nowhere today
+        { label: 'Delete source',    value: 'delete-source',    implies: ['read', 'delete'] },
+        { label: 'Edit permissions', value: 'edit-source-permissions', implies: ['read', 'edit', 'grant'] },
+        { label: 'All (*)',          value: '*' },                                                          // an affordance, never a declared verb
       ],
     },
     {
@@ -82,6 +91,26 @@ const datasetsFormat = {
             type: 'dms-format',
             isArray: true,
             format: 'datasets+source',
+        },
+        // The datasets PATTERN-INSTANCE domain. `form-manager` is the row kind that IS the datasets
+        // pattern, so these join the shared `admin+pattern` domain to make this type's `self` scope
+        // — they are granted at the pattern level and nowhere else.
+        //
+        // `view-sources` must NOT be a descendants verb. It is the verb that decides whether you
+        // can see any pages at the datasets level, and it gates the pattern's whole route subtree by
+        // name (siteConfig.jsx, `reqPermissions: ['view-sources']`). In `descendants` a pattern-level
+        // `public: ['view-sources']` would open every source beneath it — the identical shape to the
+        // `view-page` regression this replaces (row-auth-uda.md). `view-source` (singular) stays the
+        // per-source read, on the source format below.
+        {
+            key: "authPermissions",
+            type: "json",
+            required: false,
+            default: [],
+            permissionDomain: [
+                { label: 'View Sources',  value: 'view-sources',  implies: ['read'] },
+                { label: 'Create Source', value: 'create-source', implies: ['read', 'create'] },
+            ],
         },
     ]
 }

@@ -365,11 +365,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                     ...(edit.value || {}),
                     trackingId,
                     group: group?.name,
-                    is_draft: true,
-                    parent: JSON.stringify({
-                        id: item.id,
-                        ref: `${item.app}+${item.type}`
-                    })
+                    is_draft: true
                 };
                 const newId = await syncAPI.localCreate(item.app, componentType, newSectionData);
                 overrides[newId] = { ...newSectionData, id: newId, ref: `${item.app}+${componentType}` };
@@ -401,11 +397,7 @@ const Edit = ({ value, onChange, attr, group, siteType }) => {
                 ...(edit.value || {}),
                 trackingId,
                 group: group?.name,
-                is_draft: true,
-                parent: JSON.stringify({
-                    id: item.id,
-                    ref: `${item.app}+${item.type}`
-                })
+                is_draft: true
             })
             action = `added section ${edit?.value?.title ? `${edit?.value?.title} ${edit.index+1}` : edit.index+1}`
         }

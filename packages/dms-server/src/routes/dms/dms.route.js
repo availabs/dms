@@ -3,9 +3,14 @@ const falcorJsonGraph = require("falcor-json-graph"),
   $ref = falcorJsonGraph.ref,
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
-const { isUserAuthed, resolveAuthPermissions } = require('./auth');
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
-const { assertDataWrite, NO_CHANGE, dataAuthMode } = require('./dataAuth');
+
+/*
+ AUTHORIZATION — every decision on this route comes from `routes/auth`, which picks the
+ implementation (`DMS_AUTH_IMPL`: `kind` by default, or `row`) and exports one contract for both.
+ This file never names a side. See routes/auth/index.js for the switch and what it does NOT do.
+*/
+const { assertDataWrite, dataAuthMode, readBlocked, listingBlocked, NO_CHANGE } = require('../auth');
 
 /*
  Controller Settings
@@ -14,8 +19,24 @@ const { assertDataWrite, NO_CHANGE, dataAuthMode } = require('./dataAuth');
 const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 
 
-// Any one of these lets a user read a (non-auth, non-admin) pattern row.
-const PATTERN_READ_PERMISSIONS = ['view-page', 'edit-pattern', 'edit-pattern-permissions', 'delete-pattern'];
+/**
+ * May this caller see the LISTING for `app+type`?
+ *
+ * Four Falcor routes answered this with five identical inline lines — `length`, `byIndex`,
+ * `options[o].length`, `opts[o].byIndex`. One call now, and the verdict comes from whichever
+ * implementation `routes/auth` selected.
+ *
+ * It stays COARSE and pattern-level: a caller who passes gets the full count and every ref,
+ * including pages they cannot read (the per-row gate then stubs each one). So `length` still lies
+ * in both directions — 0 when some pages were readable, the total when most are not. Making it the
+ * AUTHORISED count needs per-row resolution across a whole listing and changes what clients see
+ * rather than who may see it; the hub files that under Phase B, and keeping them apart means a
+ * regression in one cannot be mistaken for the other.
+ */
+async function listingBlockedFor(controller, { app, type, user, subdomain }) {
+  if (getKind(type) !== 'page') return false;
+  return listingBlocked(controller, { app, type, parentKey: getParent(type), user, subdomain });
+}
 
 /**
  * Create DMS Falcor routes with a specific controller
@@ -35,6 +56,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     const response = [];
     // Cache pattern auth results within this response to avoid repeated DB lookups
     const patternAuthCache = new Map();
+    // Scratch space the auth implementation may memoise in, for the life of this one response.
+    // Row auth keeps a gate per (app, user, subdomain) here: its resolver memoises the container
+    // map, so sharing one loads the type-path lookup once rather than per row. Kind auth ignores
+    // it. The route supplies the lifetime; what goes in it is not the route's business.
+    const authCache = new Map();
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
@@ -43,51 +69,21 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const kind = getKind(row.type);
         let blocked = false;
 
-        if (kind === 'pattern') {
-          // Auth patterns (login page) are always publicly accessible. So is the
-          // site's admin pattern row (`{instance}|admin:pattern`): it only holds
-          // routing/branding config (base_url, subdomain, theme, authPermissions)
-          // that the no-access stub below already returns, and hiding it only
-          // stubs it in anonymous boots, which stops the client caching its site
-          // snapshot (persistSiteSnapshot). Access to the admin PANEL is decided
-          // client-side by the site-level permissions, not by this read.
-          // ⚠ Never store anything secret on an auth or admin pattern row — it
-          // is readable by everyone.
-          // NB: this does NOT extend to pages — getPatternAuthPermissions
-          // (dms.controller.js) still only exempts auth.
-          const pattern_type = row.data?.pattern_type || row?.pattern_type;
-          if (pattern_type !== 'auth' && pattern_type !== 'admin') {
-            const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            // The admin panel's pattern-level permissions also load the pattern
-            // row (not its pages): a user granted only edit-pattern must be able
-            // to open it in the Pattern Editor. Page reads below stay
-            // view-page-only, so admin permissions never expose page content.
-            // (dms planning/tasks/completed/admin-granular-permissions.md)
-            blocked = !isUserAuthed({ user, reqPermissions: PATTERN_READ_PERMISSIONS, authPermissions });
-          }
-        } else if (kind === 'page') {
-          // Merge pattern-level and page-level authPermissions.
-          // Pattern sets the base; page-level entries override per group/user key.
-          // getPatternAuthPermissions returns null for auth patterns (unrestricted).
-          const appForLookup = app || row.app;
-          if (appForLookup) {
-            const parentKey = getParent(row.type);
-            const cacheKey = `${appForLookup}:${parentKey}`;
-            let patternAuth;
-            if (patternAuthCache.has(cacheKey)) {
-              patternAuth = patternAuthCache.get(cacheKey);
-            } else {
-              patternAuth = await controller.getPatternAuthPermissions(appForLookup, parentKey, subdomain);
-              patternAuthCache.set(cacheKey, patternAuth);
+        // Which implementation answers, and how strictly, is `routes/auth`'s business — not this
+        // route's. The gate caches per (app, user, subdomain) within one response because the
+        // resolver memoises its container map, so sharing it loads the type-path lookup once
+        // rather than per row.
+        blocked = await readBlocked({
+          row, kind, user, subdomain, app, controller,
+          cache: authCache,
+          patternAuthOf: async (a, parentKey) => {
+            const cacheKey = `${a}:${parentKey}`;
+            if (!patternAuthCache.has(cacheKey)) {
+              patternAuthCache.set(cacheKey, await controller.getPatternAuthPermissions(a, parentKey, subdomain));
             }
-            const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            const mergedAuth = {
-              groups: { ...(patternAuth?.groups || {}), ...(pageAuth?.groups || {}) },
-              users:  { ...(patternAuth?.users  || {}), ...(pageAuth?.users  || {}) },
-            };
-            blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: mergedAuth });
-          }
-        }
+            return patternAuthCache.get(cacheKey);
+          },
+        });
 
         if (blocked) {
           for (const att of atts) {
@@ -219,12 +215,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-              response.push({ path: ["dms", "data", key, "length"], value: 0 });
-              continue;
-            }
+          if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+            response.push({ path: ["dms", "data", key, "length"], value: 0 });
+            continue;
           }
           response.push({
             path: ["dms", "data", key, "length"],
@@ -280,14 +273,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-              indices.forEach((i) => {
-                response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
-              });
-              continue;
-            }
+          if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+            indices.forEach((i) => {
+              response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
+            });
+            continue;
           }
           const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
           indices.forEach((i) => {
@@ -313,12 +303,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const rows = await controller.filteredDataLength(keys, option);
           for (const key of keys) {
             const [app, type] = key.split('+');
-            if (getKind(type) === 'page') {
-              const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-              if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
-                continue;
-              }
+            if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+              response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
+              continue;
             }
             const reduced = rows.reduce((a, c) => (c.key === key ? c.length : a), 0);
             response.push({
@@ -345,14 +332,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
 
             for (const key of keys) {
               const [app, type] = key.split('+');
-              if (getKind(type) === 'page') {
-                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-                if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                  indices.forEach((i) => {
-                    response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
-                  });
-                  continue;
-                }
+              if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+                indices.forEach((i) => {
+                  response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
+                });
+                continue;
               }
               const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
               indices.forEach((i) => {
@@ -505,7 +489,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
           const rows = await judgedWrite(app, id, type, async (stored, expect) => {
-            // only what the guard judged is written (dataAuth.js planEdit); nothing changed → no write
+            // only what the guard judged is written (the selected implementation's planEdit); nothing changed → no write
             const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data, { skipNoChange: true });
             if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
             return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });

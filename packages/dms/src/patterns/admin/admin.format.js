@@ -2,6 +2,7 @@ import { lazyComponent } from '../../utils/lazyComponent'
 
 import TenantList from './components/tenantList'
 import { listPatternTypes } from '../registry'
+import { PATTERN_ROW_DOMAIN } from '../patternRow.domain'
 
 // Code-split: the pattern list renders only on admin pages, but this format is
 // imported eagerly (adminConfig builds every site's root dmsConfig). Same
@@ -29,6 +30,15 @@ export const themeFormat = {
       key: "theme",
       type: "json",
       default: {}
+    },
+    {
+      key: "authPermissions",
+      type: "json",
+      required: false,
+      default: [],
+      permissionDomain: [
+        { label: 'Manage Themes', value: 'manage-themes', implies: ['read', 'edit'] },
+      ],
     }
   ]
 }
@@ -58,7 +68,16 @@ export const tenant = {
   attributes: [
     { key: "name", type: "text", required: true },
     { key: "subdomain", type: "text", required: true },
-    { key: "app", type: "text", required: true }
+    { key: "app", type: "text", required: true },
+    {
+      key: "authPermissions",
+      type: "json",
+      required: false,
+      default: [],
+      permissionDomain: [
+        { label: 'Manage Tenants', value: 'manage-tenants', implies: ['read', 'edit'] },
+      ],
+    }
   ]
 }
 
@@ -135,9 +154,20 @@ export const pattern = {
       type: "json",
       required: false,
       default: [],
-      // The Access editor's options depend on the pattern's type (site-level
-      // for admin, auth routes for auth, pattern admin + content for the
-      // rest): permissionOptionsFor in utils/adminPermissions.js.
+      // THE SHARED PATTERN-ROW DOMAIN. Every pattern row of every type is an
+      // `admin+pattern` row, so this one list is the `self` scope for all seven
+      // pattern types — which is why five of the seven hand-written
+      // *.authVocabulary.js files carried an identical `self` bucket. A type
+      // adds to it only through its own pattern-instance format (datasets'
+      // `form-manager`). See deriveAuthVocabulary.js and
+      // planning/tasks/current/permission-domain-single-source.md.
+      //
+      // `view-pattern` replaces `view-page` here. One string used to mean "view
+      // a page" on page patterns and "read the pattern row" everywhere else;
+      // kindReadAuth.js accepts BOTH while stored grants are backfilled.
+      // `delete-pattern` is NOT here — deleting a pattern is a site operation
+      // and lives on the site format below (owner, 2026-10-30).
+      permissionDomain: PATTERN_ROW_DOMAIN,
     },
     { key: 'config',
       placeholder: 'please select a type',
@@ -207,6 +237,28 @@ const patternAdminFormat = {
       type: 'dms-format',
       isArray: true,
       format: 'admin+dmsenv'
+    },
+    // THE SITE-LEVEL DOMAIN. These verbs govern rows registered UNDER the site —
+    // patterns, themes, tenants, dmsEnvs — so they derive as the admin pattern's
+    // `descendants` with no special case. `manage-themes` and `manage-tenants`
+    // live on the formats they describe (themeFormat, tenant); what is left here
+    // is what governs pattern rows collectively.
+    //
+    // `delete-pattern` sits here rather than on the pattern row (owner,
+    // 2026-10-30: deleting a pattern is a site operation, offered by admin and
+    // no other type). dataAuth.js's site `SITE_KEYS.patterns` already pairs it
+    // with `create-pattern`; its pattern-row branch is corrected to match.
+    {
+      key: "authPermissions",
+      type: "json",
+      required: false,
+      default: [],
+      permissionDomain: [
+        { label: '*',                 value: '*' },
+        { label: 'View Pattern List', value: 'view-pattern-list', implies: ['read'] },
+        { label: 'Create Pattern',    value: 'create-pattern',    implies: ['read', 'create'] },
+        { label: 'Delete Pattern',    value: 'delete-pattern',    implies: ['read', 'delete'] },
+      ],
     }
   ]
 }

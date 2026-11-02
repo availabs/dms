@@ -12,7 +12,7 @@ const Busboy = require('busboy');
 const storage = require('../storage');
 const { createDamaSource, createDamaView } = require('./metadata');
 const { sharpAvailable, getSharp } = require('./sharp');
-const { requestUserIdWarnBody } = require('../../routes/uda/sourceAuth');
+const { requestUserIdWarnBody } = require('../../routes/auth/kindAuth/sourceAuth');
 const { authorizePublish } = require('./auth');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];

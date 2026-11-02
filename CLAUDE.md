@@ -43,6 +43,21 @@ Encodes the row kind, instance name, and parent relationship in a uniform format
 
 Instance names are human-readable slugs derived from user-provided names via `nameToSlug()` (lowercase, underscores, no special chars). UUIDs are no longer used in type strings.
 
+### Every pattern declares at least one format
+
+**A pattern type must declare a format for every DMS row kind it stores — at least one, even if it
+only saves configuration.** The format is where a pattern says *where its data lives and what shape
+it has*. A row kind with no format has no attribute metadata, no `permissionDomain` (so no grants
+editor — it can only ever be granted `*`), and nothing declaring which rows own which.
+
+It is declared by **`siteConfig` returning `format`**, which five of the seven pattern types already
+do; there is no `format` key on the registry definition, deliberately. `siteConfig` is an ARRAY, and
+a pattern owning several row kinds says so with several configs (`admin`: one for the site row, one
+for the pattern row). Where two configs declare a `permissionDomain` for the same row kind, the
+later entry wins — a configuration error, unenforced. Storing a row kind as a dataset source instead
+is a legitimate alternative, not an exemption from describing it. Full rule and the `qa` / `chat` /
+`auth` gaps: `documentation/pattern-registry.md`.
+
 ### Parsing
 
 Use shared utilities from `utils/type-utils.js` (client ESM) or `db/type-utils.js` (server CJS):

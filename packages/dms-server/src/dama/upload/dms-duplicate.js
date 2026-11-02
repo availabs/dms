@@ -22,44 +22,44 @@
  */
 const { buildType } = require('../../db/type-utils');
 const { registerHandler, queueTask } = require('../../dms/tasks');
-const { requestUserId } = require('../../routes/uda/sourceAuth');
+const { requestUserId } = require('../../routes/auth/kindAuth/sourceAuth');
 
 const asObj = (d) => (typeof d === 'string'
   ? (() => { try { return JSON.parse(d); } catch { return {}; } })()
   : (d ? { ...d } : {}));
 
 // Remap a page's section list (`{id, ref}[]`) to the cloned section ids + new ref string.
+//
+// The ref moves ONLY when the id did. An entry pointing at a row outside this pattern is not ours
+// to re-home: its id correctly stays put, so rewriting its ref would leave it claiming a type it
+// does not point at. Measured: duplicating `mitigat-ny-prod`'s `admin` pattern with the old
+// unconditional rewrite corrupted 1,081 of 2,248 cloned entries, and the originals were fine — so
+// every earlier use of Duplicate did the same.
 function remapSectionRefs(arr, secIdMap, newApp, newInstance) {
   if (!Array.isArray(arr)) return arr;
   const ref = `${newApp}+${newInstance}|component`;
   return arr.map((e) => {
     if (!e || typeof e !== 'object') return e;
     const newId = secIdMap[String(e.id)];
-    return { ...e, id: newId != null ? newId : e.id, ref };
+    return newId != null ? { ...e, id: newId, ref } : e;
   });
 }
 
-// Remap a section's `parent` (a stringified `{id, ref}` pointing at its page).
-function remapParentRef(parent, pageIdMap, newApp, newInstance) {
-  if (parent == null || parent === '') return parent;
-  const isString = typeof parent === 'string';
-  let obj;
-  try { obj = isString ? JSON.parse(parent) : { ...parent }; } catch { return parent; }
-  if (obj && obj.id != null) {
-    const newId = pageIdMap[String(obj.id)];
-    if (newId != null) obj.id = newId;
-    obj.ref = `${newApp}+${newInstance}|page`;
-  }
-  return isString ? JSON.stringify(obj) : obj;
-}
-
-function createDuplicateHandler(controller) {
-  // Register the worker once — controller is captured in closure.
-  // The polling loop picks this up and runs it in-process.
-  registerHandler('dms/pattern_duplicate', async (ctx) => {
-    const { app, oldInstance, newInstance, newApp, userId } = ctx.task.descriptor;
+/**
+ * The duplicate itself, independent of the task queue.
+ *
+ * Exported so it can be driven directly — by a test, a migration script, or a one-off repair —
+ * without an HTTP request, a signed-in user and a DAMA task row. The queue handler below is a thin
+ * wrapper over it.
+ *
+ * `report` receives progress in [0,1]; `log` receives human-readable lines.
+ */
+async function duplicatePatternContent(controller, descriptor, { report = async () => {}, log = console.log, tag = '[dms-duplicate]' } = {}) {
+  {
+    const { app, oldInstance, newInstance, newApp, userId } = descriptor;
     const user = { id: userId ?? null };
-    const tag = `[dms-duplicate task=${ctx.task.task_id}]`;
+    const ctx = { updateProgress: report };
+    const console = { log };
 
     // 1) clone pages (defer section-ref remap until the sections exist)
     const allPages = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'page' })]);
@@ -84,11 +84,34 @@ function createDuplicateHandler(controller) {
       await ctx.updateProgress(pageI / pages.length * 0.3);
     }
 
-    // 2) clone components in parallel batches — each component is independent
+    // 2) clone components in parallel batches — each component is independent.
+    //
+    // Only LIVE components are copied. A component is live iff a page OF THIS PATTERN lists its id
+    // in `sections` / `draft_sections` — there is no cross-pattern rendering relationship in DMS
+    // (owner, 2026-10-28), so a component no page of its own pattern lists renders nowhere.
+    //
+    // Measured on `mitigat-ny-prod`'s `admin` pattern: of 2,252 components, 1,048 were listed by no
+    // page anywhere in the app and another 34 only by a page of ANOTHER pattern through a ref that
+    // does not resolve. Copying them forward is what made duplicates grow without bound — the
+    // `undefined_copy` → `undefined_copy_copy` chain dragged ~3,700 components (~177 MB) per
+    // generation until a Falcor response passed V8's string limit (see nameToSlug's docstring and
+    // planning/tasks/current/falcor-response-string-limit-crash.md).
+    const liveCompIds = new Set();
+    for (const p of pages) {
+      const d = asObj(p.data);
+      for (const key of ['sections', 'draft_sections']) {
+        for (const e of (Array.isArray(d[key]) ? d[key] : [])) {
+          if (e && e.id != null) liveCompIds.add(String(e.id));
+        }
+      }
+    }
     const allComps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
-    const comps = allComps.filter(c => Object.keys(asObj(c.data)).length > 0);
-    const skippedComps = allComps.length - comps.length;
+    const nonEmpty = allComps.filter(c => Object.keys(asObj(c.data)).length > 0);
+    const comps = nonEmpty.filter(c => liveCompIds.has(String(c.id)));
+    const skippedComps = allComps.length - nonEmpty.length;
+    const skippedDead = nonEmpty.length - comps.length;
     if (skippedComps) console.log(`${tag} skipped ${skippedComps} empty/ghost component row(s)`);
+    if (skippedDead) console.log(`${tag} skipped ${skippedDead} component(s) no page of this pattern lists`);
     const newCompType = buildType({ parent: newInstance, kind: 'component' });
     const secIdMap = {};
     const COMP_BATCH = 50;
@@ -97,7 +120,12 @@ function createDuplicateHandler(controller) {
       await Promise.all(comps.slice(i, i + COMP_BATCH).map(async (c) => {
         const data = asObj(c.data);
         delete data.history;
-        data.parent = remapParentRef(data.parent, pageIdMap, newApp, newInstance);
+        // No `parent` to carry or rebuild: a component's containment is `parent_id`, and step 3
+        // below sets it for free — patching each cloned page's section list through `setDataById`
+        // makes `stampChildren` stamp every component that list names. Until 2026-10-29 this
+        // rebuilt `data.parent` from the page that actually listed the component, because copying
+        // the stored pointer corrupted 1,081 of 2,248 cloned components the one time it was tried.
+        delete data.parent;
         const [nc] = await controller.createData([newApp, newCompType, data], user);
         secIdMap[String(c.id)] = nc.id;
         await controller.setDataById(nc.id, { id: nc.id }, user, newApp);
@@ -121,8 +149,19 @@ function createDuplicateHandler(controller) {
     }));
 
     console.log(`${tag} done — ${pages.length} pages, ${comps.length} components`);
-    return { newInstance, pages: pages.length, components: comps.length };
-  });
+    return { newInstance, pages: pages.length, components: comps.length,
+             skippedEmpty: skippedComps, skippedUnreferenced: skippedDead };
+  }
+}
+
+function createDuplicateHandler(controller) {
+  // Register the worker once — controller is captured in closure.
+  // The polling loop picks this up and runs it in-process.
+  registerHandler('dms/pattern_duplicate', (ctx) =>
+    duplicatePatternContent(controller, ctx.task.descriptor, {
+      report: (p) => ctx.updateProgress(p),
+      tag: `[dms-duplicate task=${ctx.task.task_id}]`,
+    }));
 
   return async function duplicate(req, res) {
     const [app, oldInstance] = (req.params.appType || '').split('+');
@@ -150,4 +189,4 @@ function createDuplicateHandler(controller) {
   };
 }
 
-module.exports = { createDuplicateHandler };
+module.exports = { createDuplicateHandler, duplicatePatternContent, remapSectionRefs };

@@ -204,7 +204,7 @@ async function query(filters = {}) {
  */
 // `authDb`: the auth adapter (tests); otherwise getDb(authDbEnv).
 function registerAccessLogRoutes(app, { authDbEnv = process.env.DMS_AUTH_DB_ENV || 'auth-sqlite', authDb = null } = {}) {
-    const { isAppAdmin } = require('../routes/uda/sourceAuth');
+    const { isAppAdmin } = require('../routes/auth/kindAuth/sourceAuth');
     const { isPlatformAdmin } = require('../auth/utils/permissions');
     active = true;
     app.get('/dms-admin/:app/access-log', async (req, res) => {

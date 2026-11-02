@@ -16,7 +16,7 @@ const {
   currentTimestamp,
   QueryBuilder
 } = require('#db/query-utils.js');
-const { resolveAuthPermissions } = require('./auth');
+const { resolveAuthPermissions } = require('../auth/auth');
 const {
   isSplitType,
   changeLogData,
@@ -142,6 +142,186 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * mainTable()/ensureForWrite() BEFORE opening a transaction so its DDL never runs inside one
    * (a rolled-back CREATE would leave the cache claiming a table that doesn't exist).
    */
+  /**
+   * Column list for the row-auth loaders (routes/dms/rowAuth.js), from the memoised capability
+   * probe. On an unmigrated table this includes `data`, because the parentage and grants live
+   * inside it; once the columns exist it does not, which is what keeps bulk resolution off the heap.
+   */
+  /**
+   * The kind that owns rows of `type`, from the pattern's `childRefs` declaration — or null when
+   * the pattern declares none (then `parentId.js` falls back to its structural check).
+   *
+   * The declaration lives on the pattern row because dms-server cannot read formats
+   * (`dms.formats` holds no rows), so `type: 'dms-format'` — which is where the client declares the
+   * same thing — never reaches the server. Memoised per (app, pattern instance) for the life of the
+   * process, like the other row-auth lookups: patterns are few and this sits on the create path.
+   */
+  const _childRefsCache = new Map();
+
+  /**
+   * The whole `childRefs` map for `type`'s container, or null. Two readers want it from opposite
+   * directions — `ownerKindForType` ("which kind owns a row of this type", for validating a claim)
+   * and `stampChildren` ("which attributes of this row hold children", for writing them) — so the
+   * lookup and its cache live here once.
+   */
+  async function childRefsForType(app, type) {
+    const { getParent, getInstance, getKind } = require('#db/type-utils.js');
+    // Which pattern's declaration governs this row's children?
+    //
+    // For a CHILD of a pattern (`chenango|page`) it is the pattern its type path names, so the
+    // container segment is the answer. For the PATTERN ROW ITSELF (`prod|datasets:pattern`) the
+    // container is the SITE, and looking there finds nothing — the declaration lives on the row we
+    // are standing on. A datasets pattern owning its dmsEnv is the first case where an owner is
+    // itself a pattern, so until 2026-10-29 that lookup silently returned null and nothing stamped.
+    const container = getKind(type) === 'pattern' ? getInstance(type) : getParent(type);
+    if (!container) return null;
+    const key = `${app}|${container}`;
+    if (!_childRefsCache.has(key)) {
+      const probe = (async () => {
+        try {
+          const t = resolveTable(app, '', dbType, splitMode);
+          const caps = await require('../auth/rowAuth/rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
+          // `data` as well as `auth`: the column exists once a table is migrated, but an
+          // individual pattern row only carries the declaration there after --sync-vocabulary has
+          // run. Until then it is in `data`, where the client's create stamp put it.
+          const cols = caps.auth ? 'auth, data, type' : 'data, type';
+          const rows = await dms_db.promise(
+            `SELECT ${cols} FROM ${t.fullName} WHERE app = $1 AND type LIKE $2 LIMIT 1`,
+            [app, `%|${container}:pattern`]
+          );
+          return require('../auth/rowAuth/authVocabulary').childRefsOf(rows[0]) || null;
+        } catch (e) {
+          console.warn(`[parent-id] childRefs lookup failed for ${key}: ${e.message}`);
+          return null;
+        }
+      })();
+      _childRefsCache.set(key, probe);
+      // Do NOT keep a NULL. "No declaration found" is the one answer that can change a moment
+      // later — a pattern row's own create probes before the row exists, so caching the null
+      // poisons every subsequent save of that pattern (its children then never stamp, silently).
+      // A found declaration is stable and stays cached; absence is re-asked, which is one small
+      // indexed lookup on apps that have none. Third time a memoised absence has bitten this work
+      // — `rowAuthCaps` latching "unmigrated" is the same shape.
+      probe.then((v) => { if (!v && _childRefsCache.get(key) === probe) _childRefsCache.delete(key); })
+           .catch(() => _childRefsCache.delete(key));
+    }
+    return _childRefsCache.get(key);
+  }
+
+  async function ownerKindForType(app, type) {
+    const { getKind } = require('#db/type-utils.js');
+    return require('../auth/rowAuth/authVocabulary').ownerKindOf(await childRefsForType(app, type), getKind(type));
+  }
+
+  /**
+   * What `stampDeclaredChildren` needs, resolved BEFORE a transaction opens: the schema capability
+   * and the pattern's declaration. Returns the `childRefs` map, or null when there is nothing to do.
+   *
+   * Both are adapter queries, and an adapter query inside `withTransaction` is forbidden (see this
+   * package's CLAUDE.md): sqlite throws on the lock it would wait for, postgres silently runs it on
+   * another pooled connection. Worse, `rowAuthCaps` CACHES a failed probe as `{auth:false,
+   * parentId:false}` for the life of the process — so calling it from inside a transaction once
+   * disables parentage for that table permanently. Both lookups are memoised, so hoisting them
+   * costs nothing after the first call.
+   */
+  async function childStampPlan(app, type) {
+    if (!app || !type) return null;
+    try {
+      const t = resolveTable(app, '', dbType, splitMode);
+      if (!(await require('../auth/rowAuth/rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType)).parentId) return null;
+      return (await childRefsForType(app, type)) || null;
+    } catch (e) {
+      console.warn(`[parent-id] child-stamp plan for ${app}/${type} failed: ${e.message}`);
+      return null;
+    }
+  }
+
+  /**
+   * Stamp `parent_id` on the children this write names (routes/dms/parentId.js `stampChildren`).
+   * Runs inside the caller's transaction, on `tx`, so it commits with the row. `childRefs` comes
+   * from `childStampPlan`, called before the transaction opened. Never throws: a page save does not
+   * fail over parentage.
+   */
+  async function stampDeclaredChildren(tx, { table, app, id, type, data, childRefs }) {
+    if (!childRefs) return 0;
+    try {
+      return await require('../auth/rowAuth/parentId').stampChildren(tx, { table, app, id, type, data, childRefs });
+    } catch (e) {
+      console.warn(`[parent-id] stamping children of ${app}/${id} (${type}) failed: ${e.message}`);
+      return 0;
+    }
+  }
+
+  /**
+   * `DMS_CHILD_SWEEP_MODE`: `off` | `log` | `delete`, default **`log`**.
+   *
+   * Deleting a child is the only irreversible thing parentage does, so it ships the way row auth
+   * itself did — reporting first. `log` runs the same SELECT the DELETE would have run and prints
+   * what it would have removed; nothing else about the write changes. An unknown value reads as
+   * `log`.
+   *
+   * **`delete` is gated on `migrate-row-auth.js --verify-parents` reporting ZERO rows "named by 2+
+   * owners" for the app**, the same way `DMS_ROW_AUTH_MODE=enforce` is gated on coverage. The
+   * reason is `stampChildren`: it re-homes a child whose `parent_id` points elsewhere, on purpose,
+   * because re-asserting from the owner's own array is what repairs drift. On healthy data nothing
+   * exercises that — there is no cross-page section move, and paste/duplicate/template all mint new
+   * rows. On a component listed by TWO pages it means the last page to save owns it, and that page
+   * dropping the section would delete a row the other page still shows. The migration repairs those
+   * rows by duplicating them; verify first, then flip. (`tests/test-child-sweep.js` pins this.)
+   */
+  function childSweepMode() {
+    const m = String(process.env.DMS_CHILD_SWEEP_MODE || 'log').toLowerCase();
+    return (m === 'off' || m === 'delete') ? m : 'log';
+  }
+
+  /**
+   * Delete the children a write dropped (routes/dms/parentId.js). Runs inside the caller's
+   * transaction so it commits with the row. Never throws, for the same reason the stamp does not:
+   * a page save must not fail over parentage.
+   */
+  async function sweepDeclaredChildren(tx, { table, app, id, type, before, after, childRefs }) {
+    const mode = childSweepMode();
+    if (!childRefs || mode === 'off') return 0;
+    try {
+      const { planRemovedChildren, sweepRemovedChildren } = require('../auth/rowAuth/parentId');
+      const removed = planRemovedChildren(before, after, { type, childRefs });
+      if (!removed.length) return 0;
+      const res = await sweepRemovedChildren(tx, { table, app, id, type, removed, mode });
+      if (res.swept) {
+        console.log(`[parent-id] ${mode === 'delete' ? 'swept' : 'would sweep'} ${res.swept} `
+          + `child row(s) dropped by ${app}/${id} (${type})`);
+      }
+      return res.swept;
+    } catch (e) {
+      console.warn(`[parent-id] sweeping children of ${app}/${id} (${type}) failed: ${e.message}`);
+      return 0;
+    }
+  }
+
+  /** The same, for an owner row that is itself being deleted: everything it parents goes. */
+  async function sweepChildrenOfDeleted(tx, { table, app, id, type, childRefs }) {
+    const mode = childSweepMode();
+    if (!childRefs || mode === 'off') return 0;
+    try {
+      const res = await require('../auth/rowAuth/parentId').sweepAllChildren(tx, { table, app, id, type, childRefs, mode });
+      if (res.swept) {
+        console.log(`[parent-id] ${mode === 'delete' ? 'deleted' : 'would delete'} ${res.swept} `
+          + `child row(s) of deleted ${app}/${id} (${type})`);
+      }
+      return res.swept;
+    } catch (e) {
+      console.warn(`[parent-id] sweeping children of deleted ${app}/${id} (${type}) failed: ${e.message}`);
+      return 0;
+    }
+  }
+
+  async function authProjection(app) {
+    const { rowAuthCaps, authColumns } = require('../auth/rowAuth/rowAuthCaps');
+    const t = resolveTable(app, '', dbType, splitMode);
+    const caps = await rowAuthCaps(dms_db, t.schema, t.table, dbType);
+    return authColumns(caps, dbType).join(', ');
+  }
+
   async function mainTable(app, q = dms_db) {
     const resolved = resolveTable(app, '', dbType, splitMode);
     // In per-app mode, ensure the app's table + sequence exist.
@@ -595,11 +775,70 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return resolveAuthPermissions(parent.authPermissions, subdomain);
     },
 
+    /** Does this app's table actually have the row-auth columns? Memoised by `rowAuthCaps`. */
+    async hasAuthColumns(app) {
+      try {
+        const t = resolveTable(app, '', dbType, splitMode);
+        const caps = await require('../auth/rowAuth/rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
+        return !!(caps.auth || caps.parentId);
+      } catch { return false; }
+    },
+
+    /**
+     * The CONTENT pattern a page type belongs to, as a ROW — the listing gate needs a row to judge,
+     * where `getPatternAuthPermissions` returns only its resolved grants.
+     *
+     * Same lookup and the same admin/auth skip, for the same reason: a content pattern can share an
+     * instance name with the site's `admin` or `auth` row, and neither of those has pages. Selected
+     * with the row-auth projection so the resolver gets `auth` / `parent_id` where they exist.
+     */
+    async patternRowForPages(app, patternParent) {
+      const table = await mainTable(app);
+      const cols = await authProjection(app);
+      const rows = await dms_db.promise(
+        `SELECT ${cols}, ${jsonField('data', 'pattern_type')} AS pattern_type
+           FROM ${table} WHERE app = $1 AND type LIKE '%|' || $2 || ':pattern' ORDER BY id DESC`,
+        [app, patternParent]
+      );
+      return rows.find(r => r.pattern_type !== 'admin' && r.pattern_type !== 'auth') || null;
+    },
+
     // Every pattern row of the app (sites have a handful), for the write checks in dataAuth.js.
     async getPatternRows(app) {
       const table = await mainTable(app);
       return dms_db.promise(
         `SELECT id, type, data FROM ${table} WHERE app = $1 AND type LIKE '%:pattern'`,
+        [app]
+      );
+    },
+
+    /**
+     * Row-auth loaders (routes/dms/rowAuth.js). Both select the PROJECTION the resolver needs and
+     * nothing else — production rows average ~10KB of `data` jsonb, and selecting it exhausts the
+     * heap in bulk (see rowAuth.js, "CALLER CONTRACT"). `data` is included only while a table is
+     * unmigrated, because the parentage and grants are inside it.
+     */
+    async authRowsByIds(ids, app = null) {
+      if (!ids || !ids.length) return [];
+      const table = await mainTable(app);
+      const cols = await authProjection(app);
+      const ph = ids.map((_, i) => `$${i + 2}`).join(',');
+      return dms_db.promise(
+        `SELECT ${cols} FROM ${table} WHERE app = $1 AND id IN (${ph})`,
+        [app, ...ids]
+      );
+    },
+
+    /**
+     * The rows a type path can name as a parent — those whose type carries an instance segment
+     * (sites, patterns, sources, views). Few: the largest app has 1 site, 112 patterns, 84 sources
+     * and 127 views, so the whole set is loaded once per resolver.
+     */
+    async authContainers(app = null) {
+      const table = await mainTable(app);
+      const cols = await authProjection(app);
+      return dms_db.promise(
+        `SELECT ${cols} FROM ${table} WHERE app = $1 AND type LIKE '%:%'`,
         [app]
       );
     },
@@ -1064,10 +1303,22 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       }
       const userId = get(user, "id", null);
 
+      // The legacy 2-arg edit route passes neither app nor type, and the stamp is keyed on the
+      // row's own kind — so read them here, outside the transaction, on that path only.
+      let ownerApp = app, ownerType = type;
+      if (!ownerApp || !ownerType) {
+        const [row] = await dms_db.promise(`SELECT app, type FROM ${table} WHERE id = $1`, [id]);
+        ownerApp = ownerApp || row?.app || null;
+        ownerType = ownerType || row?.type || null;
+      }
+      const childRefs = await childStampPlan(ownerApp, ownerType);
+
       const rows = await dms_db.withTransaction(async (tx) => {
         await assertRowUnchanged(tx, table, id, expect);
-        // the row as it was, locked until the edit commits, for the history's old values
-        const [current] = history
+        // The row as it was, locked until the edit commits: the history's old values, and the
+        // BEFORE half of the child sweep — which children this write drops is a difference between
+        // two states, so it cannot be read off the patch.
+        const [current] = (history || childRefs)
           ? await tx.promise(`SELECT data FROM ${table} WHERE id = $1${dbType === 'postgres' ? ' FOR UPDATE' : ''};`, [id])
           : [];
         const sql = `
@@ -1083,6 +1334,19 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         const rows = await tx.promise(sql, [data, userId, id]);
         if (rows[0]) {
           const item = rows[0];
+          // Re-assert parentage from the arrays this write carries. A section that only MOVED is
+          // not `_dirty`, so it is never re-sent and never renews its own claim — but the page
+          // that now lists it is being saved right here.  `data` is the incoming patch, so a write
+          // that names no child attribute does nothing.
+          await stampDeclaredChildren(tx, {
+            table, app: item.app, id: item.id, type: item.type, data, childRefs,
+          });
+          // …and delete the ones it dropped. `item.data` is the MERGED row, not the patch: an edit
+          // that names no child attribute leaves those arrays untouched and removes nothing.
+          await sweepDeclaredChildren(tx, {
+            table, app: item.app, id: item.id, type: item.type,
+            before: current?.data, after: item.data, childRefs,
+          });
           await appendChangeLog(tx, item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
           if (history) {
             await writeChangeHistory(tx, {
@@ -1221,6 +1485,62 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         }
       }
 
+      // A pattern's instance name must be unique within its app: the type path resolves a parent by
+      // NAME (`{parent}|{instance}:{kind}`), so two patterns sharing one gives rows two possible
+      // parents — and the resolver has to guess which grants apply. Found in production:
+      // `prod|admin:pattern` exists TWICE in `mitigat-ny-prod` (ids 2724987 and 566466), both on the
+      // site's pattern list, with byte-identical types.
+      //
+      // Mode-gated like the rest of the row-auth programme so hits can be seen before anything is
+      // refused — `log` (the default) warns, `enforce` throws, `legacy` skips. The tenant guard
+      // above is unconditional; this one can follow once the existing duplicates are resolved.
+      // See planning/tasks/current/row-auth-schema.md.
+      if (getKind(type) === 'pattern') {
+        const { rowAuthMode } = require('../auth/rowAuth/rowAuthGate');
+        const mode = rowAuthMode();
+        if (mode !== 'legacy') {
+          const clash = await dms_db.promise(
+            `SELECT id FROM ${resolved.fullName} WHERE app = $1 AND type = $2 LIMIT 1`,
+            [app, type]
+          );
+          const existingId = clash[0] && clash[0].id;
+          if (existingId) {
+            const msg = `pattern type "${type}" already exists in ${app} (id ${existingId}) — `
+              + 'instance names must be unique within an app';
+            if (mode === 'enforce') throw new Error(msg);
+            console.warn(`[row-auth] would-deny create ${app}/new type=${type} reason=${msg}`);
+          }
+        }
+      }
+
+      // `parent_id` — the client states it, the server validates it (routes/dms/parentId.js).
+      // The type system does not model the page → component edge, so the server cannot derive it;
+      // the client is adding the child's ref to that page in the same save and already has the id.
+      // Lifted out of `data` so it lives in the column only, never as a second copy that can drift.
+      // A claim that fails validation is dropped, never thrown — parentage is not worth a 500.
+      let parentId = null;
+      let rowData = data;
+      {
+        const { takeParentId, validateParentId } = require('../auth/rowAuth/parentId');
+        const taken = takeParentId(data);
+        rowData = taken.data;
+        if (taken.claimed) {
+          const { rowAuthCaps } = require('../auth/rowAuth/rowAuthCaps');
+          const caps = await rowAuthCaps(dms_db, resolved.schema, resolved.table, dbType);
+          if (caps.parentId) {
+            // Which kind SHOULD own this row, per its pattern's declaration. Without it the check
+            // is structural only, and a component could name its pattern instead of its page —
+            // valid by the type path, but skipping a level of inheritance.
+            const ownerKind = await ownerKindForType(app, type);
+            parentId = await validateParentId(taken.claimed, {
+              app, type, ownerKind,
+              loadType: async (pid) => (await dms_db.promise(
+                `SELECT app, type FROM ${resolved.fullName} WHERE id = $1`, [pid]))[0] || null,
+            });
+          }
+        }
+      }
+
       // A tracked dataset's new row also writes its change history, as an edit does (setDataById).
       // The history table's DDL runs here, outside the transaction.
       const history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
@@ -1230,34 +1550,50 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // allocateId's ensureSequence below is a cache hit. Allocating inside the transaction
       // (rather than as its own auto-committing statement) means a failed write doesn't burn an
       // id; the SQLite lock is what makes concurrent allocations distinct.
+      // Which of this row's attributes hold children — resolved out here, never inside the block.
+      const childRefs = await childStampPlan(app, type);
+
       const rows = await dms_db.withTransaction(async (tx) => {
         let rows;
 
         // SQLite split tables need explicit ID allocation (no AUTOINCREMENT)
+        // `parent_id` is appended only when it survived validation, so an unmigrated table (no
+        // column) and a dropped claim take the exact same insert as before.
+        const parentCol = parentId ? ', parent_id' : '';
         if (dbType === 'sqlite' && resolved.table !== 'data_items') {
           const id = await allocateId(tx, app, dbType, splitMode);
           const sql = `
-            INSERT INTO ${resolved.fullName}(id, app, type, data, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $5, $5)
+            INSERT INTO ${resolved.fullName}(id, app, type, data, created_by, updated_by${parentCol})
+            VALUES ($1, $2, $3, $4, $5, $5${parentId ? ', $6' : ''})
             RETURNING id, app, type, data,
               ${typeCast('created_at', 'TEXT', dbType)}, created_by,
               ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
           `;
-          rows = await tx.promise(sql, [id, app, type, data, userId]);
+          rows = await tx.promise(sql, parentId
+            ? [id, app, type, rowData, userId, parentId]
+            : [id, app, type, rowData, userId]);
         } else {
           // PostgreSQL split tables use DEFAULT nextval() from shared sequence.
           // Default data_items uses its own AUTOINCREMENT/sequence.
           const sql = `
-            INSERT INTO ${resolved.fullName}(app, type, data, created_by, updated_by)
-            VALUES ($1, $2, $3, $4, $4)
+            INSERT INTO ${resolved.fullName}(app, type, data, created_by, updated_by${parentCol})
+            VALUES ($1, $2, $3, $4, $4${parentId ? ', $5' : ''})
             RETURNING id, app, type, data,
               ${typeCast('created_at', 'TEXT', dbType)}, created_by,
               ${typeCast('updated_at', 'TEXT', dbType)}, updated_by;
           `;
-          rows = await tx.promise(sql, [app, type, data, userId]);
+          rows = await tx.promise(sql, parentId
+            ? [app, type, rowData, userId, parentId]
+            : [app, type, rowData, userId]);
         }
 
         const item = rows[0];
+        // The children this row names now have a parent id to carry — they did not when they were
+        // written moments ago, because they are written FIRST so their ids can go into this row's
+        // arrays. `data` here is the create payload, which is the whole row.
+        await stampDeclaredChildren(tx, {
+          table: resolved.fullName, app, id: item.id, type: item.type, data: rowData, childRefs,
+        });
         await appendChangeLog(tx, item.id, item.app, item.type, 'I', item.data, userId, reqMeta);
         if (history) {
           await writeChangeHistory(tx, {
@@ -1283,6 +1619,19 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     // the deleted row as it was stored, { id, app, type }).
     assertRowUnchanged: (tx, table, id, expect) => assertRowUnchanged(tx, table, id, expect),
 
+    /**
+     * Exposed for `/sync/push`, which writes rows without going through createData/setDataById.
+     * Same contract: inside the caller's transaction, never throws.
+     */
+    // "which kind owns a row of this type" — the gate needs it to validate a parent CLAIM before
+    // judging a create against it (routes/dms/rowAuthGate.js `parentRowFor`).
+    ownerKindForType,
+    stampDeclaredChildren,
+    sweepDeclaredChildren,
+    sweepChildrenOfDeleted,
+    childSweepMode,
+    childStampPlan,
+
     cascadeDeletedRow: async (tx, row, userId, reqMeta = null) => {
       const removed = await cascadeDeletedRow(tx, row, userId, reqMeta);
       tx.afterCommit(() => { _tagsCache.clear(); if (removed) _changeHistoryCache.clear(); });
@@ -1296,9 +1645,24 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // out here so that is a cache hit.
       await mainTable(app);
 
+      // Which of the doomed rows OWN children, resolved before the transaction opens:
+      // `childStampPlan` makes adapter queries, which are forbidden inside one (see this package's
+      // CLAUDE.md, and the `rowAuthCaps` latch it describes). The real types are read here rather
+      // than taken from the `type` argument, which often names only the table.
+      const arrayResult = buildArrayComparison('id', ids, dbType);
+      const childPlans = new Map();
+      if (childSweepMode() !== 'off') {
+        try {
+          const types = await dms_db.promise(
+            `SELECT DISTINCT type FROM ${resolved.fullName} WHERE ${arrayResult.sql};`, arrayResult.values);
+          for (const { type: t } of types) childPlans.set(t, await childStampPlan(app, t));
+        } catch (e) {
+          console.warn(`[parent-id] could not plan child cleanup for the delete: ${e.message}`);
+        }
+      }
+
       let removedSourceOrView = false;
       const result = await dms_db.withTransaction(async (tx) => {
-        const arrayResult = buildArrayComparison('id', ids, dbType);
         // Snapshot the doomed rows first — cascade decisions key off each row's
         // actual type string; the `type` argument only resolves the table and
         // often doesn't match it (clients pass e.g. 'datasets_env|source').
@@ -1324,6 +1688,14 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // ghost entries in the datasets list and orphans view rows/split tables.
         for (const row of doomed) {
           if (await cascadeDeletedRow(tx, row, userId, reqMeta)) removedSourceOrView = true;
+          // A deleted owner takes its declared children with it. Before `parent_id` there was no
+          // way to express this without the library knowing what a page is; now it is the same
+          // declaration the stamp reads. Deleting a page used to leave every one of its sections
+          // behind as an unreachable row.
+          await sweepChildrenOfDeleted(tx, {
+            table: resolved.fullName, app: row.app, id: row.id, type: row.type,
+            childRefs: childPlans.get(row.type),
+          });
         }
 
         return result;

@@ -38,10 +38,14 @@
  */
 const {
     resolveAuthPermissions, isUserAuthed, isUserAuthedOpen, holdsExplicitly, blankRowRefusal,
-} = require('../dms/auth');
-const { getDb, loadConfig } = require('../../db');
-const accessLog = require('../../access-log');
-const { dmsMainTable, getSiteSources } = require('./utils');
+} = require('../auth');
+const { getDb, loadConfig } = require('../../../db');
+const accessLog = require('../../../access-log');
+const { dmsMainTable, getSiteSources } = require('../../uda/utils');
+// MOVED to ../sourceSnapshot.js (2026-11-02): a pure grant union and a pattern-row read are data
+// access, not decisions, and the shared snapshot builder needs both. Re-exported below so the ~20
+// callers of this module keep their import; there is still only one definition.
+const { unionAuthPermissions, readNamedPattern } = require('../sourceSnapshot');
 
 // merge source override onto pattern base: [] disables an inherited grant, non-empty replaces
 function mergeAuthPermissions(base = {}, override) {
@@ -60,18 +64,6 @@ function mergeAuthPermissions(base = {}, override) {
 }
 
 // Union of several resolved grants (an env shared by several patterns): a perm granted by any wins.
-function unionAuthPermissions(list) {
-    const out = { groups: {}, users: {} };
-    const asList = p => (Array.isArray(p) ? p : p ? [p] : []);
-    for (const ap of list) {
-        for (const key of ['groups', 'users']) {
-            for (const [k, perms] of Object.entries((ap && ap[key]) || {})) {
-                out[key][k] = [...new Set([...(out[key][k] || []), ...asList(perms)])];
-            }
-        }
-    }
-    return out;
-}
 
 // The rule and its helpers live in routes/dms/auth.js: `isUserAuthed` (no grants ⇒ reads open, edits need an
 // explicit grant; owner 2026-10-29), `isUserAuthedOpen` (the old "no permission set → open", for the legacy /
@@ -125,23 +117,6 @@ async function readExternalSource(db, sourceId) {
 }
 
 // A client-named pattern, accepted only if it is an existing datasets pattern of `app`.
-async function readNamedPattern({ app, patternId }, subdomain) {
-    if (!app || !patternId) return { ok: false, reason: 'no pattern named' };
-    try {
-        const { db, splitMode } = getDmsDb();
-        const tbl = await dmsMainTable(db, app, splitMode);
-        const { rows } = await db.query(
-            `SELECT data->>'authPermissions' AS ap, data->>'pattern_type' AS pattern_type
-             FROM ${tbl} WHERE id = $1 AND app = $2 AND type LIKE '%:pattern'`,
-            [+patternId, app]
-        );
-        if (!rows.length) return { ok: false, reason: `pattern ${app}/${patternId} not found` };
-        if (rows[0].pattern_type !== 'datasets') return { ok: false, reason: `pattern ${patternId} is not a datasets pattern` };
-        return { ok: true, app, ap: resolveAuthPermissions(rows[0].ap, subdomain) };
-    } catch (e) {
-        return { ok: false, reason: `pattern query failed: ${e.message}` };
-    }
-}
 
 // Internal source's own grants + the grants of the datasets pattern(s) that list it. Only the env's
 // app is used: clients name an internal source's env by its data type (`app+internal_table`) or its
@@ -290,8 +265,14 @@ const refused = (kind, target, reqPermissions, user, reason, app) =>
  * `wasOpen`: the route checked nothing before, so today's rule is "allow" (as for patterns).
  */
 async function isUserAuthedForSource(opts) {
+    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
+    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
     const mode = authMode();
-    const d = await decideSource(opts);
+    // `legacy` checks nothing, so do not pay for a lookup (or warm a capability probe) to ignore it.
+    if (mode === 'legacy') return opts.wasOpen || await legacyAllows(opts);
+    const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
+        ? await require('../rowAuth/rowSourceAuth').decideSourceRow(opts)
+        : await decideSource(opts);
     if (d.allow) return true;
     const target = `${opts.env || 'db'}/${opts.sourceId}`;
     const app = accessLog.appOf(opts.env, opts.patternRef);
@@ -310,7 +291,11 @@ async function isUserAuthedForSource(opts) {
 async function isUserAuthedForPattern(opts) {
     const mode = authMode();
     if (mode === 'legacy') return true;
-    const d = await decidePattern(opts);
+    // ROW auth (../rowAuth/rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and
+    // stays live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+    const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
+        ? await require('../rowAuth/rowSourceAuth').decidePatternRow(opts)
+        : await decidePattern(opts);
     if (d.allow) return true;
     const ref = opts.patternRef || {};
     const target = ref.app || ref.patternId ? `${ref.app}/${ref.patternId}` : '(no pattern named)';

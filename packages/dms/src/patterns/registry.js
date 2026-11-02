@@ -32,6 +32,44 @@
 //                     editorTabs   optional [{ name, path, icon, component }]:
 //                                  Pattern Editor tabs (and admin menu entries)
 //                                  this type adds after Overview
+//   (format)        REQUIRED, but NOT a key here — declared by each `siteConfig`
+//                   entry returning `format`, which five of the seven types
+//                   already do. A pattern must describe every DMS row kind it
+//                   stores, and therefore declare at least one format, even if
+//                   it only saves configuration. Without one a row kind has no
+//                   attribute metadata, no `permissionDomain` (so no grants
+//                   editor — only `*` can be granted), and nothing declaring
+//                   which rows own which. `siteConfig` is an ARRAY: a type
+//                   owning several row kinds returns several configs (admin:
+//                   site row + pattern row). Two configs declaring a
+//                   permissionDomain for the SAME row kind is a configuration
+//                   error; the later entry wins and nothing enforces it.
+//                   Not satisfied today by `qa`, `chat`, or `auth` (whose stub
+//                   has no attributes). See documentation/pattern-registry.md.
+//   formats         the descendant format trees this type declares (the base
+//                   modules, unbound). With `instanceFormat` these are the ONLY
+//                   place its permissions are authored: the `authVocabulary`
+//                   the server interprets is DERIVED from them at registration
+//                   (./deriveAuthVocabulary.js) and stamped onto the pattern
+//                   row at create, because dms-server cannot read this registry
+//                   and the row is the only channel to it. There is no
+//                   `authVocabulary` key — a verb lives in exactly one authored
+//                   list, the `permissionDomain` of the format that describes
+//                   the row it governs. See
+//                   planning/tasks/current/permission-domain-single-source.md.
+//   instanceFormat  optional: the format for the row kind that IS this pattern
+//                   (datasets' `form-manager`). Its own domain joins `self`,
+//                   because those verbs are granted at the pattern level and
+//                   nowhere else; its registerFormats tree is descendants.
+//   publicRead      optional true — this type's rows are readable with no
+//                   session. Was a key inside the vocabulary file; now declared
+//                   here. ⚠ Never store anything secret on such a row.
+//   childRefs       optional { [ownerKind]: { [attribute]: childKind } } — which
+//                   of this type's rows own other rows, and through which
+//                   attributes. Server-readable copy of what `type: 'dms-format'`
+//                   already declares per attribute; drives the parentage
+//                   migration and the parent a row may name. See
+//                   ./page/page.childRefs.js.
 //   providesDatasources  this type's rows become internal datasources
 //                   (CMSContext.datasources — the page source pickers)
 //   pageComponents  optional { elementType: definition } handed to the page
@@ -54,6 +92,9 @@
 //                   register code a site theme ships for it under the type's
 //                   theme key (e.g. plugins at `theme.<name>.plugins`) — site-wide,
 //                   whichever pattern's theme declared them.
+import { validateAuthVocabulary, validateChildRefs } from './authVocabulary'
+import { deriveAuthVocabulary } from './deriveAuthVocabulary'
+import { PATTERN_ROW_DOMAIN } from './patternRow.domain'
 import defaultTheme from '../ui/defaultTheme'
 import { mergeTheme, resetBaseThemeCache } from '../ui/useTheme'
 import { registerComponents } from './page/components/sections/componentRegistry'
@@ -67,10 +108,28 @@ export function registerPatternTypes(types = {}) {
         if (!Array.isArray(definition?.siteConfig)) {
             throw new Error(`registerPatternTypes: "${name}" needs a siteConfig array`)
         }
+        // DERIVED, never authored. The formats are the single source; this builds the vocabulary
+        // the server interprets and the editor offers. Validated at registration because
+        // deploy-time is the only safe time: a verb that confers nothing because of a typo fails
+        // closed and silently, which is the worst way for an auth rule to be wrong.
+        if (definition.authVocabulary) {
+            throw new Error(`registerPatternTypes: "${name}" sets authVocabulary — it is derived from `
+                + `formats/instanceFormat now. Declare the verbs in the format's permissionDomain.`)
+        }
+        const vocabulary = deriveAuthVocabulary({
+            self: PATTERN_ROW_DOMAIN,
+            instance: definition.instanceFormat,
+            formats: definition.formats || [],
+        })
+        if (definition.publicRead) vocabulary.publicRead = true
+        validateAuthVocabulary(vocabulary, `registerPatternTypes: "${name}" authVocabulary`)
+        if (definition.childRefs) {
+            validateChildRefs(definition.childRefs, `registerPatternTypes: "${name}" childRefs`)
+        }
         if (patternTypes[name] && isDev) {
             console.warn(`registerPatternTypes: "${name}" was already registered; replacing it`)
         }
-        patternTypes[name] = { ...definition, name }
+        patternTypes[name] = { ...definition, name, authVocabulary: vocabulary }
 
         if (definition.pageComponents) registerComponents(definition.pageComponents)
 
@@ -86,6 +145,32 @@ export function registerPatternTypes(types = {}) {
 
 export function getPatternType(name) {
     return patternTypes[name]
+}
+
+/**
+ * The Access editor's option list for a pattern of `patternType` — the composition that replaced
+ * `permissionOptionsFor`'s switch (utils/adminPermissions.js), which hand-listed the same verbs a
+ * fifth time. Pattern-level grants cover both scopes, so the list is `self` then `descendants`,
+ * `*` first, deduped by value with the first occurrence winning.
+ *
+ * `adminRowHasGrants`: while the admin row grants nothing, site access still comes from the auth
+ * pattern, so the auth pattern must also offer the site-level verbs. Which type to borrow them
+ * from is DECLARED (`siteFallback: 'admin'` on the auth entry), not hardcoded here — the type name
+ * is data, as it is everywhere else in this registry.
+ *
+ * Only changes what is OFFERED. MultiSelect keeps stored values that are not in its options, so
+ * narrowing this list never drops a saved grant.
+ */
+export function patternPermissionOptions(patternType, { adminRowHasGrants = true } = {}) {
+    const entry = patternTypes[patternType]
+    const vocabulary = entry?.authVocabulary || {}
+    const borrowed = (!adminRowHasGrants && entry?.siteFallback)
+        ? (patternTypes[entry.siteFallback]?.authVocabulary?.descendants || [])
+        : []
+    const seen = new Set()
+    return [{ label: '*', value: '*' }, ...(vocabulary.self || []), ...(vocabulary.descendants || []), ...borrowed]
+        .filter(o => o && !seen.has(o.value) && seen.add(o.value))
+        .map(({ label, value }) => ({ label: label ?? value, value }))
 }
 
 // Registered definitions in admin order (admin.order, then registration order).

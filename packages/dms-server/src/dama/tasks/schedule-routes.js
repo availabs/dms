@@ -26,7 +26,7 @@
 const schedules = require('./schedules');
 const tasks = require('./index');
 const { getSchedulables } = require('../datatypes');
-const { requireUser, requireReader, requireSourcePermission, requirePatternPermission } = require('../../routes/uda/sourceAuth');
+const { requireUser, requireReader, requireSourcePermission, requirePatternPermission } = require('../../routes/auth/kindAuth/sourceAuth');
 
 // Answers 401 / 403 and returns null when refused; otherwise the user.
 function authorizeTarget(req, res, sourceId) {

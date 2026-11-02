@@ -3,6 +3,7 @@ import {Link, useLocation} from "react-router";
 import UI from "../../ui";
 import {getPatternTheme, getAdminTheme, ThemeContext} from "../../ui/useTheme";
 import DefaultMenu from "./components/menu"
+import authFormat from "./auth.format.js";
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
 import { isUserAuthed } from "../../utils/auth";
@@ -161,7 +162,7 @@ const authConfig = ({
   return {
     app,
     baseUrl,
-    format: {app, attributes: []},
+    format: { ...authFormat, app },
     children: [
       {
         type: (props) => {
@@ -348,7 +349,7 @@ const manageAuthConfig = ({
   return {
     app,
     baseUrl: `${baseUrl}/manage`,
-    format: {app, attributes: []},
+    format: { ...authFormat, app },
     children: [
       {
         type: (props) => {

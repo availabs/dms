@@ -94,7 +94,7 @@ const withEnv = async (vars, fn) => {
     }));
 
     console.log('\nguards record (log → would-deny, enforce → refused):');
-    const { isUserAuthedForPattern, readerAllowed } = require('../src/routes/uda/sourceAuth');
+    const { isUserAuthedForPattern, readerAllowed } = require('../src/routes/auth/kindAuth/sourceAuth');
     const ref = { app: 'siteA', patternId: 99999999 };   // not found → denied
     await t('source guard, pattern check: log records would-deny and allows', async () => withEnv({ DMS_SOURCE_AUTH_MODE: 'log' }, async () => {
         accessLog._reset({ db });

@@ -5,7 +5,7 @@ import {Link} from "react-router";
 import {getSourceData} from "../../default/utils";
 import { getInstance } from "../../../../../../utils/type-utils";
 import UdaTaskList from "../../../Tasks/UdaTaskList";
-import SourceAccessEditor from "../../../../components/SourceAccessEditor";
+import SourceAccessEditorChain from "../../../../components/SourceAccessEditorChain";
 import ChangeHistoryEditor from "../../../../components/ChangeHistoryEditor";
 import { DeleteDmsSourceBtn } from "../../../../components/DeleteSource";
 import { ThemeContext } from "../../../../../../ui/useTheme";
@@ -171,7 +171,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                     <div className={t.adminMain}>
                         {/* New string-permission Access editor (pattern ⊕ source) — replaces the
                             legacy numeric statistics.auth UAC; gated by edit-source-permissions. */}
-                        <SourceAccessEditor source={source} setSource={setSource} format={format}
+                        <SourceAccessEditorChain source={source} setSource={setSource} format={format}
                                             apiUpdate={apiUpdate} isDms={true} id={id}/>
                         {/* Whether edits to this dataset's rows are recorded in a history dataset. */}
                         <ChangeHistoryEditor source={source} id={id}/>

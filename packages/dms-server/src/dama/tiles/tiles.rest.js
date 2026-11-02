@@ -17,7 +17,7 @@
  * The geometry view is PostgreSQL only — requires PostGIS.
  */
 
-const { allowViewRead } = require('../../routes/uda/readAuth');
+const { allowViewRead } = require('../../routes/auth/kindAuth/readAuth');
 const { getSubdomain } = require('../../utils/subdomain');
 const { getDb } = require('../../db');
 const { getEssentials } = require('../../routes/uda/utils');

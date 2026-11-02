@@ -1,7 +1,8 @@
 'use strict';
 
 /**
- * Who may read a source (planning/tasks/current/permissions-ds-read-visibility.md, owner 2026-10-26).
+ * Who may read a source — KIND AUTH's decision (planning/tasks/current/permissions-ds-read-visibility.md,
+ * owner 2026-10-26).
  *
  * The rule is the write path's (sourceAuth.js decideSource): pattern ⊕ source grants, the lenient rule (no
  * permission set → open), `${app} Admin` passes. Reading needs `view-source` or any source permission that
@@ -21,26 +22,34 @@
  *   - `enforce` — refused reads return nothing, catalog lists hold only readable sources, and
  *                 `auth_permissions` is trimmed to the caller's own entries for non-editors.
  *
- * Each env's grants are read once into a snapshot (every source's own grants, the owning patterns' grants
- * for internal sources, view → source) and kept for SNAPSHOT_TTL_MS, so a list or a data page costs no
- * extra queries per row. A grant change shows up after that.
+ * WHAT IS NOT HERE ANY MORE. The snapshot every decision reads from is `../sourceSnapshot.js`, shared
+ * with row auth — `decideFrom` and `allowViewRead` below hand that same object to
+ * `rowSourceAuth.decideFromRow` / `readsRow` under `DMS_UDA_GATE=row`, so it was never kind auth's to
+ * own. This file is now decisions only.
  */
-const { getDb } = require('../../db');
-const { resolveAuthPermissions } = require('../dms/auth');
 const {
-    mergeAuthPermissions, unionAuthPermissions, isUserAuthed, isUserAuthedOpen, isAppAdmin, readNamedPattern, authMode,
+    mergeAuthPermissions, isUserAuthed, isUserAuthedOpen, isAppAdmin, authMode,
 } = require('./sourceAuth');
-const { dmsMainTable, getSiteSources } = require('./utils');
-const { loadConfig } = require('../../db');
-const accessLog = require('../../access-log');
+const {
+    snapshot, namedPattern, clearReadSnapshots, parseJson,
+} = require('../sourceSnapshot');
+const accessLog = require('../../../access-log');
 
+
+// KIND AUTH ONLY. The row gate does not use this: it asks the one structural question (`read`),
+// which every verb that should confer a read already declares in its `implies`
+// (rowSourceAuth.readsRow, Phase 4(a) of permission-domain-single-source.md). This list is a
+// hand-maintained restatement of the same thing for `isUserAuthed`, which matches by NAME and
+// cannot expand anything — and it is wrong in exactly the way that motivated the change:
+// `download-source`, `manage-downloads` and `view-source-api` confer no row access, yet appear
+// here, so under kind auth a download grant still opens the source's metadata. It dies with kind
+// auth; do not add to it.
 const READ_PERMISSIONS = [
     'view-source', 'download-source', 'update-source', 'edit-source-data', 'create-view',
     'manage-downloads', 'view-source-api', 'delete-source', 'edit-source-permissions',
 ];
 const GRANT_EDITORS = ['edit-source-permissions', 'update-source'];
 const SECRET_EDITORS = ['update-source'];
-const SNAPSHOT_TTL_MS = 30 * 1000;
 const LOG_DEDUPE_MS = 10 * 60 * 1000;
 // The name a trimmed grant list carries for the entries it leaves out: a group nobody is in, so the
 // client's lenient rule doesn't read a trimmed list as "no grants set".
@@ -53,105 +62,19 @@ function readMode({ logOnly = false } = {}) {
     // `logOnly`: a read path exempt from `enforce` (tiles), which still logs would-denies.
     return logOnly && mode === 'enforce' ? 'log' : mode;
 }
-
-const isDmsEnv = (env) => typeof env === 'string' && env.includes('+');
-
-const parseJson = (v) => {
-    if (v == null) return null;
-    if (typeof v === 'string') { try { return JSON.parse(v); } catch { return null; } }
-    return v;
-};
-
-function getDmsDb() {
-    const dbEnv = process.env.DMS_DB_ENV || 'dms-sqlite';
-    let splitMode;
-    try { splitMode = loadConfig(dbEnv).splitMode; } catch { /* default below */ }
-    return { db: getDb(dbEnv), splitMode: splitMode || process.env.DMS_SPLIT_MODE || 'legacy' };
-}
-
-// ---- Snapshots ------------------------------------------------------------------------------------------
-
-const snapshots = new Map(); // `${env}|${subdomain}` → { at, promise }
-
-async function loadExternal(env) {
-    const db = getDb(env);
-    const pg = db.type === 'postgres';
-    const { rows } = await db.query(`SELECT source_id, auth_permissions AS ap FROM ${pg ? 'data_manager.sources' : 'sources'}`);
-    const { rows: views } = await db.query(`SELECT view_id, source_id FROM ${pg ? 'data_manager.views' : 'views'}`);
-    return {
-        app: null,
-        sources: new Map(rows.map(r => [+r.source_id, { ap: parseJson(r.ap) || {}, patternAP: {} }])),
-        viewSource: new Map(views.map(v => [+v.view_id, +v.source_id])),
-    };
-}
-
-async function loadInternal(env, subdomain) {
-    const [app] = env.split('+');
-    const { db, splitMode } = getDmsDb();
-    const tbl = await dmsMainTable(db, app, splitMode);
-    const { rows } = await db.query(
-        `SELECT id, data->>'auth_permissions' AS ap, data->'views' AS views FROM ${tbl} WHERE app = $1 AND type LIKE '%:source'`,
-        [app]);
-    const { rows: patterns } = await db.query(
-        `SELECT id, data->>'authPermissions' AS ap FROM ${tbl}
-         WHERE app = $1 AND type LIKE '%:pattern' AND data->>'pattern_type' = 'datasets'`,
-        [app]);
-    const owners = new Map(); // source id → resolved grants of each datasets pattern listing it
-    for (const p of patterns) {
-        const refs = await getSiteSources({ db, app, pattern_ids: [p.id], splitMode });
-        for (const r of refs) {
-            const id = +(r && r.id);
-            if (!owners.has(id)) owners.set(id, []);
-            owners.get(id).push(resolveAuthPermissions(p.ap, subdomain));
-        }
-    }
-    const sources = new Map();
-    const viewSource = new Map();
-    for (const r of rows) {
-        const owning = owners.get(+r.id);
-        sources.set(+r.id, {
-            ap: parseJson(r.ap) || {},
-            patternAP: owning ? unionAuthPermissions(owning) : {},
-            orphan: !owning,
-        });
-        for (const v of parseJson(r.views) || []) if (v && v.id != null) viewSource.set(+v.id, +r.id);
-    }
-    return { app, sources, viewSource };
-}
-
-function snapshot(env, subdomain = '', { fresh = false } = {}) {
-    const key = `${env}|${subdomain}`;
-    const hit = snapshots.get(key);
-    if (hit && !fresh && Date.now() - hit.at < SNAPSHOT_TTL_MS) return hit.promise;
-    const promise = (isDmsEnv(env) ? loadInternal(env, subdomain) : loadExternal(env))
-        .catch((e) => { snapshots.delete(key); throw e; });
-    snapshots.set(key, { at: Date.now(), promise });
-    return promise;
-}
-
-// The named datasets pattern's grants, for external sources: { app, ap } or null (unusable name). Kept as
-// long as a snapshot.
-const namedPatterns = new Map(); // `${app}/${patternId}|${subdomain}` → { at, promise }
-function namedPattern(patternRef, subdomain = '') {
-    if (!patternRef) return Promise.resolve(null);
-    const key = `${patternRef.app}/${patternRef.patternId}|${subdomain}`;
-    const hit = namedPatterns.get(key);
-    if (hit && Date.now() - hit.at < SNAPSHOT_TTL_MS) return hit.promise;
-    const promise = readNamedPattern(patternRef, subdomain).then(p => (p.ok ? { app: p.app, ap: p.ap } : null));
-    namedPatterns.set(key, { at: Date.now(), promise });
-    if (namedPatterns.size > 5000) namedPatterns.clear();
-    return promise;
-}
-
-/** Forget cached grants (tests; a grant write could call it too). */
-function clearReadSnapshots() { snapshots.clear(); namedPatterns.clear(); }
-
 // ---- Decisions ------------------------------------------------------------------------------------------
 
 // `named`: the request's datasets pattern ({ app, ap }), used for external sources only (internal sources
 // find their own patterns), as sourceAuth.js decideSource does.
 // `check`: the rule (isUserAuthed; holdsOnSource passes the old open rule outside `enforce`).
 function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, named = null, check = isUserAuthed) {
+    // ROW auth (../rowAuth/rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and
+    // stays live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+    // `check` is NOT passed on: it selects between kind auth's strict and lenient rules, and the
+    // row judge has neither — it asks the one structural `read` question (rowSourceAuth.readsRow).
+    if (require('../rowAuth/rowSourceAuth').udaGate() === 'row') {
+        return require('../rowAuth/rowSourceAuth').decideFromRow(snap, sourceId, user, reqPermissions, named);
+    }
     const s = snap.sources.get(+sourceId);
     if (!s) return { allow: false, reason: 'source not found' };
     if (s.orphan) return { allow: false, reason: `source ${sourceId} is in no datasets pattern of ${snap.app}` };
@@ -160,6 +83,56 @@ function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, nam
     const patternAP = external ? ((named && named.ap) || {}) : s.patternAP;
     if (isAppAdmin(user, app)) return { allow: true, reason: `${app} Admin` };
     const allow = check({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, s.ap) });
+    return { allow, reason: allow ? 'granted' : `missing ${reqPermissions[0]}` };
+}
+
+/**
+ * MAY `user` READ THIS SOURCE?
+ *
+ * Owner's rule (2026-10-30): **when a source states nothing at all — no `auth` column, no `data`
+ * auth attributes — read is true and edit is false.** Grants otherwise work exactly as before; this
+ * is a rule about the ABSENCE of grants, not a replacement for them. DAMA scopes an upload to its
+ * creator with real grants on the source, and those keep working: a stated source is judged as it
+ * always was, so creator-only stays creator-only and `groups: { public: [] }` still revokes.
+ *
+ * What changed is that a datasets PATTERN's grants can no longer DENY a read, only lend one. A
+ * pattern granting `public: ['view-page']` used to gate every source beneath it, and because the
+ * named verb was never expanded into the structural `read`, a grant written to open a source to the
+ * public silently closed it — while `*` holders saw nothing wrong. `view-page` was never meant to be
+ * the verb that opens a source.
+ *
+ * A source is narrowed only by something ON THE SOURCE:
+ *   `auth: { view: false }`  → its own grantees only; no pattern may lend past it
+ *   its own grants           → they decide, with the pattern still free to lend
+ *
+ * Internal and external sources alike. WRITES are untouched and still resolve the whole chain.
+ */
+function decideRead(snap, sourceId, user, named = null, reqPermissions = READ_PERMISSIONS) {
+    const s = snap.sources.get(+sourceId);
+    if (!s) return { allow: false, reason: 'source not found' };
+    const external = snap.app == null;
+    const app = external ? (named && named.app) : snap.app;
+    if (app && isAppAdmin(user, app)) return { allow: true, reason: `${app} Admin` };
+
+    const own = s.ap || {};
+    const stated = Object.keys(own.groups || {}).length > 0 || Object.keys(own.users || {}).length > 0;
+
+    if (!stated && s.view !== false) {
+        return { allow: true, reason: 'nothing stated — read is the default' };
+    }
+    // `view: false` with nothing of its own means NO ONE, not everyone: the lenient "nothing set →
+    // open" rule must not swallow an explicit narrowing.
+    if (!stated) return { allow: false, reason: 'view: false' };
+
+    // Stated: judged as always. `view: false` additionally refuses the pattern's lending.
+    const patternAP = s.view === false ? {} : (external ? ((named && named.ap) || {}) : s.patternAP);
+    // ROW gate: ONE structural question. Reading is what the verbs' `implies` already say it is,
+    // so there is no list to keep in step — see rowSourceAuth.readsRow.
+    if (require('../rowAuth/rowSourceAuth').udaGate() === 'row') {
+        const v = require('../rowAuth/rowSourceAuth').readsRow(patternAP, own, user, app);
+        return { allow: v.allow, reason: v.allow ? 'granted' : 'missing read' };
+    }
+    const allow = isUserAuthed({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, own) });
     return { allow, reason: allow ? 'granted' : `missing ${reqPermissions[0]}` };
 }
 
@@ -188,7 +161,7 @@ async function allowSourceRead({ env, sourceId, user, subdomain = '', patternRef
     const mode = readMode({ logOnly });
     if (mode === 'legacy') return true;
     let d;
-    try { d = decideFrom(await snapshot(env, subdomain), sourceId, user, READ_PERMISSIONS, await namedPattern(patternRef, subdomain)); }
+    try { d = decideRead(await snapshot(env, subdomain), sourceId, user, await namedPattern(patternRef, subdomain)); }
     catch (e) { d = { allow: false, reason: `grant lookup failed: ${e.message}` }; }
     if (d.allow) return true;
     if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef); return true; }

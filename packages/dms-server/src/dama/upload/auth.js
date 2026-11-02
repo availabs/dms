@@ -15,9 +15,10 @@
 const {
     authMode, requireUser, requireUserOrOpen, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
     sourceIdForView,
-} = require('../../routes/uda/sourceAuth');
+} = require('../../routes/auth/kindAuth/sourceAuth');
 
-const { createJudge, dataAuthMode } = require('../../routes/dms/dataAuth');
+// Authorization comes from the switch, never from a named implementation. See routes/auth/index.js.
+const { createJudge, dataAuthMode } = require('../../routes/auth');
 const accessLog = require('../../access-log');
 const { getInstance } = require('#db/type-utils.js');
 const { getSubdomain } = require('../../utils/subdomain');
@@ -105,7 +106,10 @@ async function requirePatternAction(req, res, controller, { app, id, instance, p
             && (instance ? getInstance(r.type) === instance : true)
             && !['admin', 'auth'].includes(r.data.pattern_type));
         if (!row) reason = `pattern ${app}/${id ?? instance} not found`;
-        else if (!(await judge.patternCan(row.data, perms))) reason = `missing ${[].concat(perms).join(' or ')} on pattern ${row.id}`;
+        // The ROW, not its data: row auth judges a row's own chain, and `row.data` alone has no
+        // identity to resolve from. (The admin/auth special case the kind gate applied here is gone
+        // — a pattern with no grants of its own now inherits its site's.)
+        else if (!(await judge.patternCan(row, perms))) reason = `missing ${[].concat(perms).join(' or ')} on pattern ${row.id}`;
         else if (sitePerms) {
             const siteJudge = siteApp === app ? judge : createJudge({ app: siteApp, subdomain, user, controller });
             if (!(await siteJudge.siteCan(sitePerms))) reason = `missing site ${[].concat(sitePerms).join(' or ')} on ${siteApp}`;

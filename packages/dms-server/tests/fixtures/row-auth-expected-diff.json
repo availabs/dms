@@ -1,0 +1,58 @@
+{
+  "_README": [
+    "Every test in kind auth's contract suite (tests/test-data-auth.js) that the ROW judge is",
+    "expected to disagree with, and why. Regenerate the NAMES with:",
+    "    DMS_WRITE_GATE=row node tests/test-data-auth.js",
+    "but never regenerate the REASONS mechanically — an entry without a reason someone wrote is",
+    "the whole thing this fixture exists to prevent.",
+    "Categories: default | field | create | harness | cosmetic | OPEN",
+    "SCOPE OF THIS CHECK: test-data-auth.js's fixtures declare NO authVocabulary, so every",
+    "run here exercises the LEGACY SHIM path (legacyVerbs.js). A migrated app does not use it —",
+    "all 81 pattern rows on rowauth-test declare, and a declared vocabulary wins over the shim.",
+    "The declared path is covered in tests/test-row-auth-writes.js, 'a DECLARED vocabulary'."
+  ],
+  "cascade": [
+    "an edit that changes nothing passes with any of the row's edit permissions",
+    "U on a page: stranger 403, anon 401, editor 200",
+    "U judges the stored type, not the one the client names"
+  ],
+  "_cascade_note": [
+    "Not disagreements at all. test-data-auth.js's race test restores docsPage.authPermissions",
+    "AFTER its try/finally, so when its assertion fails it leaks users:{10:['edit-page']} into every",
+    "later test. These three then fail for that reason. Moving those two lines into the finally",
+    "takes the run from 26 failures to 23. Their file, their call — raised, not patched."
+  ],
+  "expected": {
+    "a pattern with no grants stays open to signed-in users, never to anon": "default",
+    "a new pattern needs site create-pattern": "default",
+    "site row: patterns list → create-pattern; other keys → site *": "default",
+    "themes need manage-themes": "default",
+    "site editor saves the whole row with a new patterns list: create-pattern is enough": "default",
+    "site theme_refs need manage-themes": "default",
+    "data rows need edit-source-data on their source": "default",
+    "a public edit-source-data grant lets anon add rows": "default",
+    "source edits: update-source; auth_permissions need edit-source-permissions": "default",
+    "a new version needs create-view on the source; a new source needs create-source": "default",
+    "massedit needs edit-source-data and writes the token user, not the argument": "default",
+    "an unmapped kind needs a sign-in only": "default",
+    "I of a new source row needs create-source": "default",
+    "publishing (sections / published) needs publish-page": "field",
+    "page filters: edit-page-params (the Filters pane) or edit-page; nothing else": "field",
+    "sections resent as a JSON string of the same array are a change (publish-page)": "field",
+    "components: edit-page or publish-page": "create",
+    "page-edit (edit history) rows: edit-page or publish-page on the pattern": "create",
+    "race (falcor edit): a page grant revoked between the check and the write refuses the edit": "harness",
+    "race (sync I replace): a change between the check and the write is not reverted": "harness",
+    "race (sync U): a row that keeps changing gives up with 409 after 3 tries": "harness",
+    "log allows a refused write and logs one would-deny line": "cosmetic",
+    "pattern edits need edit-pattern; authPermissions need edit-pattern-permissions": "OPEN"
+  },
+  "reasons": {
+    "default": "STRICT DEFAULTS, decided (hub). Kind auth: signed-in + no grants ⇒ open. Row auth: writes need a grant. Every app with unconfigured patterns loses editing on an enforce flip — the Phase D audit script is a prerequisite.",
+    "field": "FIELD→VERB RULES, deliberately not implemented (owner, 2026-10-29): which attribute needs which verb is business logic and belongs in the pattern. Row auth is LOOSER here — publish-page, edit-page-params and edit-source-data stop being enforced server-side. May be revisited; it is an omission, not a gap.",
+    "create": "WHAT A CREATE IS JUDGED AGAINST. Without a claimed parent_id the type path routes docs|page and docs|component to the same pattern row, so one `create` verb cannot tell 'add a section' from 'add a page'. Accepted: a page created with its sections IS 'add a page to this pattern'.",
+    "harness": "NOT A DISAGREEMENT. These drive their race by hooking controller.getPatternRows — kind auth's pattern-grant lookup. The row judge never calls it, so the concurrent edit never fires. The protection they test (expect + assertRowUnchanged) is in the ROUTE, gate-independent and unchanged.",
+    "cosmetic": "Behaviour is right (allowed under log, one line written). The assertion matches '[data-auth] … missing edit-page'; the row gate writes '[row-auth] … reason=missing edit'.",
+    "OPEN": "SCOPE COLLAPSE — a real widening, nobody decided it. A FLAT grant of `edit-page` on a pattern row also confers editing the pattern ROW, because a flat grant expands against the union of self+descendants (expandWithVocabulary -> maps.flat), which is what flat has always meant. NOT a legacyVerbs problem: the declared vocabulary is ALREADY correctly scoped (edit-pattern under self, edit-page under descendants) and wins over the shim. The fix is in the GRANT, not the server: write it scoped, {descendants:{groups:{Editors:['edit-page']}}}, and the pattern row is untouched — verified in test-row-auth-writes.js. See planning/tasks/current/row-auth-scoped-grants.md. Measured exposure today: zero (no group grants on pattern rows in rowauth-test). Bound: ordinary fields only, never grants."
+  }
+}

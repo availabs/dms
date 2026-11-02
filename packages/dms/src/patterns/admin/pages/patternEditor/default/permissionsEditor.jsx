@@ -7,7 +7,8 @@ import { ThemeContext } from "../../../../../ui/useTheme";
 import { permissionsEditorTheme } from './permissionsEditor.theme';
 import { parseIfJSON } from '../../../utils';
 import { hasAuthGrants } from '../../../../../utils/auth.js';
-import { permissionOptionsFor, siteCan, isAppAdmin } from '../../../../../utils/adminPermissions';
+import { siteCan, isAppAdmin } from '../../../../../utils/adminPermissions';
+import { patternPermissionOptions } from '../../../../registry';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 
@@ -39,7 +40,7 @@ export const PatternPermissionsEditor = ({
     const inputValue = cloneDeep(parseIfJSON(value));
     // Options for this pattern's type. Saved values outside the list stay
     // (MultiSelect keeps unknown values), so nothing stored is dropped.
-    const permissionDomain = permissionOptionsFor(inputValue?.pattern_type, { adminRowHasGrants });
+    const permissionDomain = patternPermissionOptions(inputValue?.pattern_type, { adminRowHasGrants });
     const normalised = normaliseAuthPermissions(inputValue?.authPermissions);
 
     const [tmpAuthPermissions, setTmpAuthPermissions] = React.useState(normalised);

@@ -205,7 +205,7 @@ app.use('/graph', (req, res, next) => {
 });
 
 const { getSubdomain } = require('./utils/subdomain');
-const { requestPatternRef } = require('./routes/uda/sourceAuth');
+const { requestPatternRef } = require('./routes/auth/kindAuth/sourceAuth');
 
 app.use(
   '/graph',
@@ -279,7 +279,7 @@ async function setupAndListen() {
   const metadata = require('./dama/upload/metadata');
   const lineage = require('./dama/lineage');
   const damaDelete = require('./dama/delete');
-  const { requireUser, requireSourcePermission, requirePatternPermission, requestUserId } = require('./routes/uda/sourceAuth');
+  const { requireUser, requireSourcePermission, requirePatternPermission, requestUserId } = require('./routes/auth/kindAuth/sourceAuth');
   const { authorizeViewAction } = require('./dama/upload/auth');
   const { getDb, loadConfig } = require('./db');
   // Plugin writes need a signed-in user (writeGate, mounted per plugin) and then the route's own permission.
