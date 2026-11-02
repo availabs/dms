@@ -27,10 +27,13 @@
  * `rowSourceAuth.decideFromRow` / `readsRow` under `DMS_UDA_GATE=row`, so it was never kind auth's to
  * own. This file is now decisions only.
  */
-const { mergeAuthPermissions, isUserAuthed, isAppAdmin } = require('./sourceAuth');
+const {
+    mergeAuthPermissions, isUserAuthed, isUserAuthedOpen, isAppAdmin, authMode,
+} = require('./sourceAuth');
 const {
     snapshot, namedPattern, clearReadSnapshots, parseJson,
 } = require('../sourceSnapshot');
+const accessLog = require('../../../access-log');
 
 
 // KIND AUTH ONLY. The row gate does not use this: it asks the one structural question (`read`),
@@ -63,9 +66,12 @@ function readMode({ logOnly = false } = {}) {
 
 // `named`: the request's datasets pattern ({ app, ap }), used for external sources only (internal sources
 // find their own patterns), as sourceAuth.js decideSource does.
-function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, named = null) {
-    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
-    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+// `check`: the rule (isUserAuthed; holdsOnSource passes the old open rule outside `enforce`).
+function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, named = null, check = isUserAuthed) {
+    // ROW auth (../rowAuth/rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and
+    // stays live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+    // `check` is NOT passed on: it selects between kind auth's strict and lenient rules, and the
+    // row judge has neither — it asks the one structural `read` question (rowSourceAuth.readsRow).
     if (require('../rowAuth/rowSourceAuth').udaGate() === 'row') {
         return require('../rowAuth/rowSourceAuth').decideFromRow(snap, sourceId, user, reqPermissions, named);
     }
@@ -76,7 +82,7 @@ function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, nam
     const app = external ? (named && named.app) : snap.app;
     const patternAP = external ? ((named && named.ap) || {}) : s.patternAP;
     if (isAppAdmin(user, app)) return { allow: true, reason: `${app} Admin` };
-    const allow = isUserAuthed({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, s.ap) });
+    const allow = check({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, s.ap) });
     return { allow, reason: allow ? 'granted' : `missing ${reqPermissions[0]}` };
 }
 
@@ -131,7 +137,12 @@ function decideRead(snap, sourceId, user, named = null, reqPermissions = READ_PE
 }
 
 const logged = new Map();
-function logWouldDeny(kind, env, sourceId, user, reason) {
+// `outcome`: would-deny (log) / refused (enforce). Every call counts in the access log; the console line is
+// deduped (LOG_DEDUPE_MS).
+function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny', patternRef = null) {
+    accessLog.record({ app: accessLog.appOf(env, patternRef), guard: 'read', outcome, kind, target: `${env}/${sourceId}`,
+        perms: ['view-source'], user, reason });
+    if (outcome !== 'would-deny') return;
     const who = (user && (user.id ?? user.email)) ?? 'anon';
     const key = `${kind}|${env}|${sourceId}|${who}`;
     const now = Date.now();
@@ -153,7 +164,8 @@ async function allowSourceRead({ env, sourceId, user, subdomain = '', patternRef
     try { d = decideRead(await snapshot(env, subdomain), sourceId, user, await namedPattern(patternRef, subdomain)); }
     catch (e) { d = { allow: false, reason: `grant lookup failed: ${e.message}` }; }
     if (d.allow) return true;
-    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason); return true; }
+    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef); return true; }
+    logWouldDeny(kind, env, sourceId, user, d.reason, 'refused', patternRef);
     return false;
 }
 
@@ -172,7 +184,8 @@ async function allowViewRead({ env, viewId, user, subdomain = '', patternRef = n
     try { sourceId = await sourceOfView(env, viewId, subdomain); }
     catch (e) { sourceId = null; }
     if (sourceId == null) {
-        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found'); return true; }
+        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'would-deny', patternRef); return true; }
+        logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'refused', patternRef);
         return false;
     }
     return allowSourceRead({ env, sourceId, user, subdomain, patternRef, kind, logOnly });
@@ -189,9 +202,14 @@ async function filterReadableSources({ env, sourceIds, user, subdomain = '', pat
     return out;
 }
 
-/** Whether `user` holds one of `perms` on the source itself (no mode: for what a reply carries). */
+/**
+ * Whether `user` holds one of `perms` on the source itself, for what a reply carries (the full grants, the
+ * secrets). These are edit verbs, so on a source with no grants the blank-row rule refuses them; it applies
+ * only once the write guard (DMS_SOURCE_AUTH_MODE) enforces, so `log` keeps showing an editor what it did.
+ */
 async function holdsOnSource({ env, sourceId, user, subdomain = '', patternRef = null, perms }) {
-    try { return decideFrom(await snapshot(env, subdomain), sourceId, user, perms, await namedPattern(patternRef, subdomain)).allow; }
+    const check = authMode() === 'enforce' ? isUserAuthed : isUserAuthedOpen;
+    try { return decideFrom(await snapshot(env, subdomain), sourceId, user, perms, await namedPattern(patternRef, subdomain), check).allow; }
     catch { return false; }
 }
 

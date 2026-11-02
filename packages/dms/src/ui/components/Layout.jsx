@@ -71,22 +71,28 @@ const Layout = ({
             {headerChildren}
             <div className={theme?.wrapper}>
                 <div className={theme?.wrapper2}>
+                    {/* data-dms-chrome marks the site's navigation for the PDF exporter, which hides it.
+                        display: contents keeps the wrapper out of layout, so the page renders as before. */}
                     {topNav.size !== 'none' && (
-                        <TopNav
-                            activeStyle={topNavActiveStyle || topNav?.activeStyle}
-                            leftMenu={getMenu(topNav?.leftMenu, widgets)}
-                            menuItems={navs(topNav)?.[topNav?.nav] || []}
-                            rightMenu={getMenu(topNav?.rightMenu, widgets)}
-                        />
+                        <div data-dms-chrome="topnav" style={{ display: 'contents' }}>
+                            <TopNav
+                                activeStyle={topNavActiveStyle || topNav?.activeStyle}
+                                leftMenu={getMenu(topNav?.leftMenu, widgets)}
+                                menuItems={navs(topNav)?.[topNav?.nav] || []}
+                                rightMenu={getMenu(topNav?.rightMenu, widgets)}
+                            />
+                        </div>
                     )}
                     <div className={`${theme?.wrapper3}`}>
                         {sideNav.size !== 'none' && (
-                            <SideNav
-                                activeStyle={sideNavActiveStyle || sideNav?.activeStyle}
-                                topMenu={getMenu(sideNav?.topMenu, widgets)}
-                                menuItems={navs(sideNav)?.[sideNav?.nav] || []}
-                                bottomMenu={getMenu(sideNav?.bottomMenu, widgets)}
-                            />
+                            <div data-dms-chrome="sidenav" style={{ display: 'contents' }}>
+                                <SideNav
+                                    activeStyle={sideNavActiveStyle || sideNav?.activeStyle}
+                                    topMenu={getMenu(sideNav?.topMenu, widgets)}
+                                    menuItems={navs(sideNav)?.[sideNav?.nav] || []}
+                                    bottomMenu={getMenu(sideNav?.bottomMenu, widgets)}
+                                />
+                            </div>
                         )}
                         <div className={`${theme?.childWrapper}`}>
                             {children}

@@ -25,9 +25,12 @@ const holds = (a, perm) => a.user.groups.length > 0 && can(a.user, perm, a.scope
  * DMS controller, each row keeping its format; malformed ones reported in `skippedGrants`), then it is
  * unlinked from the project, and with `deleteIfLast` deleted with its memberships once no project uses
  * it. Grants first: two databases, and a retry after a partial failure finds the group still linked.
- * External-source grants (`pgEnvs`, the site's DAMA envs) are listed, not changed. `dryRun`: the plan.
+ * External-source grants (`pgEnvs`, the site's DAMA envs) are listed, not changed.
+ *
+ * Split in two (task destructive-call-plan-routes): `planGroupLeavesSite` only reads, and is all the
+ * `/plan` routes reach; `applyGroupLeavesSite` writes. A destructive route never takes a preview flag.
  */
-async function groupLeavesSite(db, ctx, { app, groupName, actor, deleteIfLast = false, dryRun = false, pgEnvs = [] }) {
+async function planGroupLeavesSite(db, ctx, { app, groupName, deleteIfLast = false, pgEnvs = [] }) {
   const projects = await groupProjects(db, groupName);
   if (!projects.includes(app)) throw new Error(`Group "${groupName}" is not in project "${app}".`);
   if (!ctx.siteGrants) throw new Error('Site grants are unavailable.');
@@ -36,15 +39,17 @@ async function groupLeavesSite(db, ctx, { app, groupName, actor, deleteIfLast = 
     'SELECT count(1) AS count FROM users_in_groups WHERE group_name = $1', [groupName]);
   const otherProjects = projects.filter(p => p !== app);
   const { grants, skipped } = await ctx.siteGrants.listSiteGrants(app, who);
-  const plan = {
+  return {
     group_name: groupName, project: app, otherProjects, members: +(members?.count || 0),
     deletes: deleteIfLast && otherProjects.length === 0,
     siteGrants: grants.map(({ id, type }) => ({ id, type })), skippedGrants: skipped,
     externalSources: await ctx.siteGrants.listExternalGrants(pgEnvs, who),
   };
-  if (dryRun) return plan;
+}
 
-  plan.skippedGrants = (await ctx.siteGrants.stripSiteGrants(app, who, actor)).skipped;
+async function applyGroupLeavesSite(db, ctx, plan, actor) {
+  const { group_name: groupName, project: app } = plan;
+  const skippedGrants = (await ctx.siteGrants.stripSiteGrants(app, { groups: groupName }, actor)).skipped;
   await db.withTransaction(async (tx) => {
     await q.removeGroupFromProject(tx, groupName, app);
     if (plan.deletes) {
@@ -53,9 +58,13 @@ async function groupLeavesSite(db, ctx, { app, groupName, actor, deleteIfLast = 
     }
   });
   return {
-    ...plan,
+    ...plan, skippedGrants,
     message: plan.deletes ? `Group ${groupName} was deleted.` : `Group "${groupName}" was removed from project "${app}".`,
   };
+}
+
+async function groupLeavesSite(db, ctx, { actor, ...opts }) {
+  return applyGroupLeavesSite(db, ctx, await planGroupLeavesSite(db, ctx, opts), actor);
 }
 
 /** POST /groups — list groups visible to authenticated user (filtered by authority) */
@@ -234,38 +243,28 @@ async function createAndAssign(db, body, ctx) {
 }
 
 /**
- * POST /group/delete — a site deletes a group (owner 2026-10-25): unlink it from the calling project,
- * and delete it once no project uses it (groupLeavesSite). `auth-groups` + the group manageable from
- * this site; or the level rule, which unlinks it from every project where the caller is ≥ 5 and ≥ its
- * level there. An error when nothing was removed (it used to report success).
+ * Who may delete group `name`, and how (reads only): `site` — `auth-groups` + the group manageable from
+ * this site; `orphan` — a group no project uses, platform only (as /group/create; it used to be
+ * deletable by anyone signed in); `level` — the level rule, which unlinks it from every project where
+ * the caller is ≥ 5 and ≥ its level there. Throws when none passes.
  */
-async function deleteGroup(db, body, ctx = {}) {
-  const { token, name, dryRun = false, pgEnvs = [] } = body;
+async function resolveDeleteGroup(db, body, ctx) {
+  const { token, name } = body;
   const userData = await verifyAndGetUserData(db, token);
   const actor = { id: userData.id, email: userData.email };
   const a = await groupsAuthority(db, userData, body, ctx, Infinity);
 
   if (a.byPermission && await canManageGroupIn(db, a.user, name, a.scope)) {
-    return groupLeavesSite(db, ctx, { app: a.project, groupName: name, actor, deleteIfLast: true, dryRun, pgEnvs });
+    return { how: 'site', actor, app: a.project };
   }
-
-  // A group no project uses belongs to no site: platform only (as /group/create). It used to be deletable
-  // by anyone signed in.
   if (!(await groupProjects(db, name)).length) {
     const { rows: [g] } = await db.query('SELECT count(1) AS count FROM groups WHERE name = $1', [name]);
     if (!+(g?.count || 0)) throw new Error(`Group "${name}" does not exist.`);
     if (!(await platformAuthority(db, userData.email, 5))) {
       throw new Error(`You do not have the authority to delete group ${name}: it is in no project (platform only).`);
     }
-    if (dryRun) return { group_name: name, projects: [], deletes: true };
-    await db.withTransaction(async (tx) => {
-      await tx.query('DELETE FROM users_in_groups WHERE group_name = $1', [name]);
-      await tx.query('DELETE FROM groups WHERE name = $1', [name]);
-    });
-    return { group_name: name, deletes: true, message: `Group ${name} was deleted.` };
+    return { how: 'orphan', actor };
   }
-
-  // Level rule: projects where the caller is ≥ 5 and ≥ the group's level
   const { rows: removable } = await db.query(
     `SELECT gip.project_name FROM groups_in_projects AS gip
      WHERE gip.group_name = $1 AND gip.auth_level <= (
@@ -276,10 +275,39 @@ async function deleteGroup(db, body, ctx = {}) {
     [name, userData.email]
   );
   if (!removable.length) throw new Error(`You do not have the authority to delete group ${name}.`);
-  if (dryRun) return { group_name: name, projects: removable.map(r => r.project_name) };
+  return { how: 'level', actor, projects: removable.map(r => r.project_name) };
+}
+
+/** POST /group/delete/plan — what /group/delete would do, for the confirm dialog. Never writes. */
+async function planDeleteGroup(db, body, ctx = {}) {
+  const { name, pgEnvs = [] } = body;
+  const r = await resolveDeleteGroup(db, body, ctx);
+  if (r.how === 'site') return planGroupLeavesSite(db, ctx, { app: r.app, groupName: name, deleteIfLast: true, pgEnvs });
+  if (r.how === 'orphan') return { group_name: name, projects: [], deletes: true };
+  return { group_name: name, projects: r.projects };
+}
+
+/**
+ * POST /group/delete — a site deletes a group (owner 2026-10-25): unlink it from the calling project,
+ * and delete it once no project uses it (groupLeavesSite); see resolveDeleteGroup for who may. An error
+ * when nothing was removed (it used to report success). Its preview is /group/delete/plan.
+ */
+async function deleteGroup(db, body, ctx = {}) {
+  const { name, pgEnvs = [] } = body;
+  const r = await resolveDeleteGroup(db, body, ctx);
+  if (r.how === 'site') {
+    return groupLeavesSite(db, ctx, { app: r.app, groupName: name, actor: r.actor, deleteIfLast: true, pgEnvs });
+  }
+  if (r.how === 'orphan') {
+    await db.withTransaction(async (tx) => {
+      await tx.query('DELETE FROM users_in_groups WHERE group_name = $1', [name]);
+      await tx.query('DELETE FROM groups WHERE name = $1', [name]);
+    });
+    return { group_name: name, deletes: true, message: `Group ${name} was deleted.` };
+  }
   let result;
-  for (const { project_name } of removable) {
-    result = await groupLeavesSite(db, ctx, { app: project_name, groupName: name, actor, deleteIfLast: true, pgEnvs });
+  for (const project_name of r.projects) {
+    result = await groupLeavesSite(db, ctx, { app: project_name, groupName: name, actor: r.actor, deleteIfLast: true, pgEnvs });
   }
   return result.deletes ? result : { ...result, message: `Group "${name}" was removed from all projects for which you have authority.` };
 }
@@ -316,32 +344,40 @@ async function assignToProject(db, body, ctx) {
   return { message: `Group "${group_name}" was assigned to project "${project_name}".` };
 }
 
-/** POST /group/project/remove — remove group from project */
-async function removeFromProject(db, body, ctx = {}) {
-  const { token, group_name, project_name, dryRun = false, pgEnvs = [] } = body;
+/**
+ * Whether the caller may remove `group_name` from `project_name` (reads only): `auth-groups` + the
+ * group manageable from this site, or the level rule (≥ 5 and ≥ the group's level there).
+ */
+async function authorizeRemoveFromProject(db, body, ctx) {
+  const { token, group_name, project_name } = body;
   const userData = await verifyAndGetUserData(db, token);
   const actor = { id: userData.id, email: userData.email };
   const a = await groupsAuthority(db, userData, { ...body, project: project_name }, ctx, 5);
+  if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) return actor;
 
-  if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) {
-    return groupLeavesSite(db, ctx, { app: project_name, groupName: group_name, actor, dryRun, pgEnvs });
-  }
-
-  const myAuthLevel = a.authLevel;
-
-  // Check group's auth level in this project
   const { rows } = await db.query(
     'SELECT auth_level FROM groups_in_projects WHERE group_name = $1 AND project_name = $2',
     [group_name, project_name]
   );
   if (!rows.length) throw new Error(`Group "${group_name}" is not in project "${project_name}".`);
-  const groupAuthLevel = rows[0].auth_level;
-
-  if (myAuthLevel < 5 || myAuthLevel < groupAuthLevel) {
+  if (a.authLevel < 5 || a.authLevel < rows[0].auth_level) {
     throw new Error(`You do not have the required authority level to remove group "${group_name}" from project "${project_name}".`);
   }
+  return actor;
+}
 
-  return groupLeavesSite(db, ctx, { app: project_name, groupName: group_name, actor, dryRun, pgEnvs });
+/** POST /group/project/remove/plan — what /group/project/remove would do. Never writes. */
+async function planRemoveFromProject(db, body, ctx = {}) {
+  const { group_name, project_name, pgEnvs = [] } = body;
+  await authorizeRemoveFromProject(db, body, ctx);
+  return planGroupLeavesSite(db, ctx, { app: project_name, groupName: group_name, pgEnvs });
+}
+
+/** POST /group/project/remove — remove group from project. Its preview is /group/project/remove/plan. */
+async function removeFromProject(db, body, ctx = {}) {
+  const { group_name, project_name, pgEnvs = [] } = body;
+  const actor = await authorizeRemoveFromProject(db, body, ctx);
+  return groupLeavesSite(db, ctx, { app: project_name, groupName: group_name, actor, pgEnvs });
 }
 
 /** POST /group/project/adjust — adjust group's auth level in project */
@@ -395,8 +431,10 @@ module.exports = {
   createGroup,
   createAndAssign,
   deleteGroup,
+  planDeleteGroup,
   assignToProject,
   removeFromProject,
+  planRemoveFromProject,
   adjustAuthLevel,
   updateGroup,
 };

@@ -32,7 +32,20 @@ Tests: `test-data-auth` 51/51 (new: no-change save writes nothing; `auth_permiss
 rules judge 50/51 (the open-pattern clause, 5): **51/51 since 10-30** (`ifOwnerBlank`). Other auth suites and sync
 pass.
 
-## ▶ Next work (2026-10-30)
+## ▶ Next work (2026-10-30; progress 2026-11-02)
+
+**2026-11-02 (uncommitted, both repos; master merged first: lib ada2c848 / root 31ae7799):**
+- Item 1: blank-row rule **built on the server** (enforce refuses edits on rows with no grants; log / legacy keep
+  the old answer, lines say `blank row`). Prod audit run on all six sites under a read-only PG session: **0 recent
+  writes refused**. Client gates deferred to the enforce switch (owner). Details:
+  [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md) Progress 2026-11-02.
+- Item 2: plan routes **built** ([destructive-call-plan-routes.md](./destructive-call-plan-routes.md));
+  access log **server built**, page mockup waiting on the owner ([permissions-access-log.md](./permissions-access-log.md)).
+- Owner 2026-11-02: **task 19 (level removal) is dropped**, levels stay. Access-log mockup **confirmed**. Auth row:
+  **no grants = only admins can edit** (open question: does the level fallback `canOrLevel` still let level
+  holders in on such a row?).
+- Item 3: blank-row part of the prod audit done (above); mitigat-ny-prod's full matrix needs `losses` streamed
+  to disk (OOM at 12 GB).
 
 State (10-30): the 10-29 changes are committed and master is merged into both repos again (unpushed). The blank-row
 audit is uncommitted. Commit/push only when the owner asks.
@@ -44,7 +57,7 @@ In order:
 2. **Access log admin page** (option 1) and the destructive-call **plan routes** (their own initiative; remove stays
    enabled while no plan exists). Unbuilt.
 3. **Prod audit baseline** (`scripts/permissions-access-diff.js`): needs VPN. Rerun after 1 lands.
-4. **Task 18** (grant migration), then **task 19** (level removal): see "Resume here" below.
+4. **Task 18** (grant migration). Task 19 (level removal) dropped by the owner 2026-11-02: levels stay.
 5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): open-pattern clause
    **done** 10-30 (trial 51/51); next storage (pattern row, not the code-only format), defaults, Advanced auth tab
    mockup.

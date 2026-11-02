@@ -226,7 +226,7 @@ const Edit = forwardRef((props, ref) => {
     const Comp = useMemo(() => component.EditComp, [component]);
 
     // ── Hooks that operate on state ──
-    const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
+    const { loading, fetching, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
         state, setState, apiLoad, component, isEditMode: true, sectionId, trackingId,
     });
 
@@ -437,7 +437,8 @@ const Edit = forwardRef((props, ref) => {
             isActive: true, activeStyle, sectionId, trackingId}}>
             <RenderFilters isEdit={true} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
-            <div className={'w-full h-full flex flex-col'}>
+            {/* data-dms-loading: the page's loading contract. The PDF exporter waits until no element carries it. */}
+            <div className={'w-full h-full flex flex-col'} data-dms-loading={fetching || undefined}>
                 <div className={'w-full flex items-center place-content-end'}>
                     {loading ? <Icon id={'loading'}
                                      icon={'LoadingHourGlass'}
@@ -509,7 +510,7 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
     }, [value]);
 
     // ── Hooks ──
-    const { loading, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
+    const { loading, fetching, currentPage, onPageChange, outputSourceInfo } = useDataLoader({
         state, setState, apiLoad, component, sectionId, trackingId,
     });
 
@@ -755,7 +756,8 @@ const View = forwardRef(({cms_context, value, onChange, component, editPageMode,
         <ComponentContext.Provider value={{state, setState, apiLoad, apiUpdate, controls: resolvedControls, activeStyle, sectionId, trackingId}}>
             <RenderFilters isEdit={false} defaultOpen={true} />
             <ExternalFilters defaultOpen={true} />
-            <div className={'w-full h-full'}>
+            {/* data-dms-loading: the page's loading contract. The PDF exporter waits until no element carries it. */}
+            <div className={'w-full h-full'} data-dms-loading={fetching || undefined}>
                 <div className={'w-full h-full flex flex-col'}>
                     <div className={'w-full flex items-center place-content-end'}>
                         {loading ?  <Icon id={'loading'}

@@ -105,9 +105,12 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
     const [resetStatus, setResetStatus] = useState('');
     // locks the reset button while the request is in flight and after it succeeds
     const [resetLocked, setResetLocked] = useState(false);
-    // Remove from site: the user whose removal is being confirmed, and the server's dry-run plan
+    // Remove from site: the user whose removal is being confirmed, and the server's plan
+    // (/user/project/remove/plan, read-only)
     const [removeUser, setRemoveUser] = useState(null);
     const [removePlan, setRemovePlan] = useState(null);
+    const [planError, setPlanError] = useState('');
+    const planFor = useRef(null);
     const [removeStatus, setRemoveStatus] = useState('');
     const { UI } = React.useContext(ThemeContext);
     const { user, AUTH_HOST, PROJECT_NAME, baseUrl, viewAsUser, setViewAsUser } = React.useContext(AuthContext);
@@ -151,20 +154,34 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
     };
 
     // Remove from site (dms-server /user/project/remove): the server decides and strips the user's grants
-    // here, then their memberships. The account stays. No plan is fetched: a `dryRun` flag on a destructive
-    // route isn't safe on a server that doesn't know it (owner 2026-10-27); task destructive-call-plan-routes.
+    // here, then their memberships. The account stays. The dialog's plan comes from the read-only
+    // /user/project/remove/plan, never from a flag on the destructive route (owner 2026-10-27). A server
+    // without it 404s: the dialog says so and keeps the generic text. Remove stays enabled either way.
     const removeRequest = (row, extra = {}) => ({
         token: user.token, user_email: row.email, project: PROJECT_NAME, pgEnvs, ...extra,
     });
-    const openRemove = (row) => {
+    const openRemove = async (row) => {
         setRemoveUser(row);
         setRemovePlan(null);
+        setPlanError('');
         setRemoveStatus('');
+        planFor.current = row.email;
+        let res;
+        try {
+            res = await callAuthServer(`${AUTH_HOST}/user/project/remove/plan`, removeRequest(row));
+        } catch {
+            // 404 (a server without the plan route) or no answer: callAuthServer throws on !ok
+            res = { error: "This server can't preview the removal." };
+        }
+        if (planFor.current !== row.email) return;
+        if (res?.error) setPlanError(res.error);
+        else setRemovePlan(res);
     };
     const confirmRemove = async () => {
         setRemoveStatus('removing');
         const res = await callAuthServer(`${AUTH_HOST}/user/project/remove`, removeRequest(removeUser));
         if (res.error) { setRemoveStatus(res.error); return; }
+        planFor.current = null;
         setRemoveUser(null);
         await loadUsers();
     };
@@ -442,6 +459,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 </div>
                 <div className={m.removeBody}>
                     <div>Remove {removeUser?.email} from {PROJECT_NAME}? Their account stays.</div>
+                    {planError && <div className={m.metaText}>{planError}</div>}
                     {!removePlan && <div>They leave this site&apos;s groups (shared groups too, so they lose that
                         access on other sites), and their own permissions on this site&apos;s patterns, pages and
                         sources are removed.</div>}

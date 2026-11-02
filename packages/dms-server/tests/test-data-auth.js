@@ -157,10 +157,28 @@ async function run() {
         await allowed(edit(editor, component, { element: { a: 1 } }));
         await allowed(create(publisher, 'docs|component', { element: {} }));
     }));
-    await t('a pattern with no grants stays open to signed-in users, never to anon', () => withMode('enforce', async () => {
-        await allowed(edit(stranger, openPage, { title: 'x' }));
-        await refused(edit(anon, openPage, { title: 'y' }));  // a real change: 'x' is now stored, a no-op
+    // owner 2026-10-29 (task permissions-blank-row-read-only): a row with no grants is read-only. It replaced
+    // 2026-10-23's "a pattern with no grants stays open to signed-in users".
+    await t('a page with no grants up the chain is read-only: signed-in and anon edits refused, `blank row` said', () => withMode('enforce', async () => {
+        const res = await outcome(edit(stranger, openPage, { title: 'x' }));
+        assert.match(String(res), /missing edit-page; blank row/);
+        await refused(edit(anon, openPage, { title: 'y' }));
+        await refused(create(stranger, 'open|page', { title: 'x' }));
         await refused(create(anon, 'open|page', { title: 'x' }));
+        assert.strictEqual((await dataOf(openPage)).data.title, 'Open page');
+    }));
+    await t('a blank row: a public grant still opens the edit, a page grant does too', () => withMode('enforce', async () => {
+        await withMode('legacy', () => edit(admin, openPage, { authPermissions: { groups: { public: ['edit-page'] } } }));
+        await allowed(edit(stranger, openPage, { title: 'public grant' }));
+        await withMode('legacy', () => edit(admin, openPage, { authPermissions: { users: { [stranger.id]: ['edit-page'] } } }));
+        await allowed(edit(stranger, openPage, { title: 'own grant' }));
+        await withMode('legacy', () => edit(admin, openPage, { authPermissions: null, title: 'Open page' }));
+    }));
+    await t('log: a blank-row edit is allowed and its would-deny line says `blank row`', () => withMode('log', async (warned) => {
+        await allowed(edit(stranger, openPage, { title: 'logged' }));
+        assert.strictEqual(warned.length, 1, warned.join('\n'));
+        assert.match(warned[0], /would-deny edit .* user=10 .*missing edit-page; blank row/);
+        await withMode('legacy', () => edit(admin, openPage, { title: 'Open page' }));
     }));
 
     await t('race (falcor edit): a page grant revoked between the check and the write refuses the edit', () => withMode('enforce', async () => {

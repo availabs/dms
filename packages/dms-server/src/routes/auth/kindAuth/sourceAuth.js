@@ -18,8 +18,10 @@
  *     pattern and otherwise trusts it (owner decision 2026-10-20) — whoever holds a grant on a
  *     datasets pattern can claim it for any external source.
  *
- * Decision (`decideSource` / `decidePattern`): the repo's rule, as the client (owner, 2026-10-23; it was
- * strict until then): no permission set → open, otherwise an explicit perm or `*` (isUserAuthed below).
+ * Decision (`decideSource` / `decidePattern`): routes/dms/auth.js isUserAuthed. On grants with nothing beyond
+ * `public`, reads stay open and edits need an explicit grant (owner 2026-10-29, task
+ * permissions-blank-row-read-only; it was "no permission set → open" from 2026-10-23, strict before that);
+ * otherwise an explicit perm or `*`. The legacy / log answers keep the old rule (`legacyAllows`).
  * `${app} Admin` passes everything, as `isAppAdmin` does in the admin UI. FAILS CLOSED on lookups: a
  * missing row, a missing column, an unnamed pattern or any query error denies.
  *
@@ -31,11 +33,14 @@
  *                 migration before anything flips.
  *   - `enforce` — the resolver's rule decides.
  *
- * Mirrors the merge + check of the client `utils/auth.js` (mirror, don't import). Same rule on both sides
- * (owner, 2026-10-23): no permission set → open (see isUserAuthed below); `${app} Admin` passes.
+ * Mirrors the merge of the client `utils/auth.js` (mirror, don't import). The client's gates keep the old open
+ * rule until enforce (owner 2026-11-02); `${app} Admin` passes on both sides.
  */
-const { resolveAuthPermissions, isUserAuthed: lenientIsUserAuthed } = require('../auth');
+const {
+    resolveAuthPermissions, isUserAuthed, isUserAuthedOpen, holdsExplicitly, blankRowRefusal,
+} = require('../auth');
 const { getDb, loadConfig } = require('../../../db');
+const accessLog = require('../../../access-log');
 const { dmsMainTable, getSiteSources } = require('../../uda/utils');
 // MOVED to ../sourceSnapshot.js (2026-11-02): a pure grant union and a pattern-row read are data
 // access, not decisions, and the shared snapshot builder needs both. Re-exported below so the ~20
@@ -60,29 +65,9 @@ function mergeAuthPermissions(base = {}, override) {
 
 // Union of several resolved grants (an env shared by several patterns): a perm granted by any wins.
 
-// The repo's rule (owner, 2026-10-23): no permission set → open. `routes/dms/auth.js` isUserAuthed, the
-// client's mirror: a signed-in user passes when nothing beyond `public` is set, anyone when nothing at all
-// is; otherwise an explicit perm or `*` (the `public` group counts for everyone).
-const isUserAuthed = lenientIsUserAuthed;
-
-// Explicit grants only (no "nothing set ⇒ open"): the dms.data guard's rule for anonymous writes.
-function holdsExplicitly({ user = {}, reqPermissions = [], authPermissions = {} }) {
-    if (!reqPermissions || !reqPermissions.length) return true;
-    const groups = authPermissions.groups || {};
-    const users = authPermissions.users || {};
-    const effectiveGroups = [...new Set([...((user && user.groups) || []), 'public'])];
-    const userPerms = [
-        ...(users[user && user.id] || []),
-        ...effectiveGroups
-            .filter(g => groups[g])
-            .reduce((acc, g) => {
-                const gp = Array.isArray(groups[g]) ? groups[g] : [groups[g]];
-                if (gp && gp.length) acc.push(...gp);
-                return acc;
-            }, []),
-    ];
-    return userPerms.some(p => p === '*' || reqPermissions.includes(p));
-}
+// The rule and its helpers live in routes/dms/auth.js: `isUserAuthed` (no grants ⇒ reads open, edits need an
+// explicit grant; owner 2026-10-29), `isUserAuthedOpen` (the old "no permission set → open", for the legacy /
+// log answers), `holdsExplicitly` (explicit grants only: the dms.data guard's anonymous writes).
 
 // Mirrors utils/adminPermissions.js isAppAdmin.
 function isAppAdmin(user, app) {
@@ -223,8 +208,9 @@ async function decideSource({ db, env, sourceId, patternRef, subdomain = '', req
 
     if (isAppAdmin(user, app)) return { allow: true, reason: `${app} Admin` };
     const check = explicitOnly ? holdsExplicitly : isUserAuthed;
-    const allow = check({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, sourceAP) });
-    return { allow, reason: allow ? 'granted' : `missing ${reqPermissions.join(' or ')}` };
+    const authPermissions = mergeAuthPermissions(patternAP, sourceAP);
+    const allow = check({ user, reqPermissions, authPermissions });
+    return { allow, reason: allow ? 'granted' : refusal({ user, reqPermissions, authPermissions }) };
 }
 
 /**
@@ -245,7 +231,13 @@ async function decidePattern({ patternRef, subdomain = '', reqPermissions, user 
     if (!p.ok) return { allow: false, reason: p.reason };
     if (isAppAdmin(user, p.app)) return { allow: true, reason: `${p.app} Admin` };
     const allow = isUserAuthed({ user, reqPermissions, authPermissions: p.ap });
-    return { allow, reason: allow ? 'granted' : `missing ${reqPermissions.join(' or ')}` };
+    return { allow, reason: allow ? 'granted' : refusal({ user, reqPermissions, authPermissions: p.ap }) };
+}
+
+// A refusal's reason: the missing permission, and "blank row" when only the 2026-10-29 rule refuses it.
+function refusal(opts) {
+    const blank = blankRowRefusal(opts);
+    return `missing ${opts.reqPermissions.join(' or ')}${blank ? `; ${blank}` : ''}`;
 }
 
 // Today's rule, kept for `legacy` / `log`: missing row, query error or DMS env ⇒ allow; a found
@@ -254,13 +246,18 @@ async function legacyAllows({ db, env, sourceId, reqPermissions, user }) {
     if (isDmsEnv(env)) return true;
     const r = await readExternalSource(db || getDb(env), sourceId);
     if (!r.ok) return true;
-    return isUserAuthed({ user, reqPermissions, authPermissions: r.ap });
+    return isUserAuthedOpen({ user, reqPermissions, authPermissions: r.ap });
 }
 
-function logWouldDeny(kind, target, reqPermissions, user, reason) {
+// `app`: whose access log counts it (accessLog.appOf for sources). `outcome`: would-deny (log) / refused (enforce).
+function logWouldDeny(kind, target, reqPermissions, user, reason, app = '', outcome = 'would-deny') {
+    accessLog.record({ app, guard: 'source', outcome, kind, target, perms: reqPermissions, user, reason });
+    if (outcome !== 'would-deny') return;
     console.warn(`[source-auth] would-deny ${kind} ${target} perms=${(reqPermissions || []).join(',')} ` +
         `user=${(user && (user.id ?? user.email)) ?? 'anon'} groups=${((user && user.groups) || []).join('|')} reason=${reason}`);
 }
+const refused = (kind, target, reqPermissions, user, reason, app) =>
+    logWouldDeny(kind, target, reqPermissions, user, reason, app, 'refused');
 
 /**
  * Authorize `user` for `reqPermissions` on a source, under DMS_SOURCE_AUTH_MODE.
@@ -276,11 +273,14 @@ async function isUserAuthedForSource(opts) {
     const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
         ? await require('../rowAuth/rowSourceAuth').decideSourceRow(opts)
         : await decideSource(opts);
-    if (mode === 'enforce' || d.allow) return d.allow;
+    if (d.allow) return true;
+    const target = `${opts.env || 'db'}/${opts.sourceId}`;
+    const app = accessLog.appOf(opts.env, opts.patternRef);
+    if (mode === 'enforce') { refused('source', target, opts.reqPermissions, opts.user, d.reason, app); return false; }
     // legacy / log: today's rule may allow what the resolver's rule denies, never the reverse. (Today's rule
     // reads only the source's own grants, so it refused `${app} Admin` and pattern grantees.)
     const legacy = opts.wasOpen || await legacyAllows(opts);
-    if (mode === 'log' && legacy) logWouldDeny('source', `${opts.env || 'db'}/${opts.sourceId}`, opts.reqPermissions, opts.user, d.reason);
+    if (mode === 'log' && legacy) logWouldDeny('source', target, opts.reqPermissions, opts.user, d.reason, app);
     return legacy;
 }
 
@@ -291,16 +291,16 @@ async function isUserAuthedForSource(opts) {
 async function isUserAuthedForPattern(opts) {
     const mode = authMode();
     if (mode === 'legacy') return true;
-    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
-    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
+    // ROW auth (../rowAuth/rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and
+    // stays live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
     const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
         ? await require('../rowAuth/rowSourceAuth').decidePatternRow(opts)
         : await decidePattern(opts);
-    if (mode === 'enforce') return d.allow;
-    if (!d.allow) {
-        const ref = opts.patternRef || {};
-        logWouldDeny('pattern', `${ref.app}/${ref.patternId}`, opts.reqPermissions, opts.user, d.reason);
-    }
+    if (d.allow) return true;
+    const ref = opts.patternRef || {};
+    const target = ref.app || ref.patternId ? `${ref.app}/${ref.patternId}` : '(no pattern named)';
+    if (mode === 'enforce') { refused('pattern', target, opts.reqPermissions, opts.user, d.reason, ref.app || ''); return false; }
+    logWouldDeny('pattern', target, opts.reqPermissions, opts.user, d.reason, ref.app || '');
     return true;
 }
 
@@ -356,6 +356,7 @@ function readerAllowed(user, what) {
     const mode = authMode();
     if (user || mode === 'legacy') return true;
     if (mode === 'log') { logWouldDeny('read', what, [], null, 'not signed in'); return true; }
+    refused('read', what, [], null, 'not signed in', '');
     return false;
 }
 
@@ -379,7 +380,10 @@ function requireUserOrOpen(req, res) {
     const user = req.availAuthContext && req.availAuthContext.user;
     if (user) return user;
     const mode = authMode();
-    if (mode === 'enforce') return requireUser(req, res);
+    if (mode === 'enforce') {
+        refused('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in', '');
+        return requireUser(req, res);
+    }
     if (mode === 'log' && !req.anonWouldDenyLogged) {
         req.anonWouldDenyLogged = true;
         logWouldDeny('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in');
@@ -464,6 +468,7 @@ module.exports = {
     mergeAuthPermissions,
     unionAuthPermissions,
     isUserAuthed,
+    isUserAuthedOpen,
     holdsExplicitly,
     isAppAdmin,
     authMode,

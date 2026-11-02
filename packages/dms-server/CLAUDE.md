@@ -106,6 +106,18 @@ SELECT app || '+' || type AS key
 - Use `$N` style parameters everywhere. The SQLite adapter converts them automatically, including handling parameter reuse (e.g., `$4, $4`).
 - The SQLite adapter auto-stringifies objects on write and auto-parses JSON strings on read, so controller code doesn't need to handle JSON serialization differences.
 
+## Destructive routes never take a preview flag
+
+A route that deletes, unlinks or strips grants (`/group/delete`, `/group/project/remove`,
+`/user/project/remove`, and any new one) **never accepts a `dryRun` / preview / mode flag**. A server
+that doesn't know the flag ignores it and performs the delete, so the client must not depend on the
+server being up to date (owner 2026-10-27). A preview is its own **read-only route** next to it
+(`…/plan`: `/group/delete/plan`, `/group/project/remove/plan`, `/user/project/remove/plan`), which runs
+the same authority check and then only the planning half of the handler (e.g. `planGroupLeavesSite`;
+the apply half, `applyGroupLeavesSite`, is unreachable from it). On an older server the plan route 404s
+and the client shows "can't preview" instead of deleting. A plan informs; it never gates the action.
+Task: `planning/tasks/current/destructive-call-plan-routes.md` (library planning).
+
 ## Transactions: `db.withTransaction(fn)` only
 
 A multi-statement write that must land whole goes through the adapter's `withTransaction`, with

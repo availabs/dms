@@ -230,7 +230,8 @@ export const MnyHeaderWrapper = ({isEdit}) => {
                    app={app}
                    type={type}
                 />
-                <div className='print-page-break'></div>
+                {/* no page break after the header: the PDF export cuts where the content allows, and an author
+                    who wants a new sheet adds a Page Break in a text section (owner 2026-11-02) */}
             </>)
 }
 

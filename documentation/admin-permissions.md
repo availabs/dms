@@ -109,6 +109,12 @@ aren't offered are kept and can still be removed.
   the Access editor adds you as a user with `*`. On the admin row you can still lock yourself out by
   downgrading your own group; that's blocked with a warning unless you're in `${app} Admin`.
 
+- **"Remove from site" previews come from read-only plan routes.** The Users and Groups remove dialogs
+  fetch `/user/project/remove/plan` / `/group/delete/plan` (dms-server auth), which compute what the
+  removal would do and never write. The destructive routes take no `dryRun` flag: a server that doesn't
+  know such a flag deletes. Against a server without the plan routes the dialog says "This server can't
+  preview the removal" and keeps a generic description; Remove stays enabled either way.
+
 ## Server reads
 
 - `dms-server/src/routes/dms/dms.route.js`: a non-auth, non-admin **pattern row** loads for users

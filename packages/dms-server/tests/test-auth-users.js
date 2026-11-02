@@ -122,11 +122,22 @@ async function main() {
     assert.ok(users.find(u => u.email === 'admin@t').manageable);
     assert.ok(users.find(u => u.email === 'victim@t').manageable);
   });
-  await t('open auth row: a project member passes, a member of another project does not', async () => {
+  const inMode = async (mode, fn) => {
+    const prev = process.env.DMS_AUTH_ROW_MODE, warn = console.warn;
+    process.env.DMS_AUTH_ROW_MODE = mode; console.warn = () => {};
+    try { await fn(); } finally {
+      console.warn = warn;
+      if (prev === undefined) delete process.env.DMS_AUTH_ROW_MODE; else process.env.DMS_AUTH_ROW_MODE = prev;
+    }
+  };
+  await t('open auth row, log: a project member passes, a member of another project does not', async () => inMode('log', async () => {
     const { users } = await userH.getUsersByProject(db, { token: tok['openuser@t'], project: 'openApp', ...OPEN }, ctx);
     assert.ok(users.length >= 1);
     await refused(userH.getUsersByProject(db, { token: tok['outsider@t'], project: 'openApp', ...OPEN }, ctx));
-  });
+  }));
+  await t('open auth row, enforce: no grants = only admins (a plain project member is refused)', async () => inMode('enforce', async () => {
+    await refused(userH.getUsersByProject(db, { token: tok['openuser@t'], project: 'openApp', ...OPEN }, ctx));
+  }));
 
   console.log('/user/group/assign, /user/group/remove:');
   await t('auth-users adds to a plain group', async () => {
@@ -169,13 +180,14 @@ async function main() {
   });
 
   console.log('/user/project/remove:');
-  await t('dry run: groups here (shared ones named with their other projects), grants, external sources', async () => {
-    const plan = await userH.removeFromProject(db, { token: tok['mgr@t'], user_email: 'leaver@t', dryRun: true, pgEnvs: ['envA'], ...A }, ctx);
+  await t('/user/project/remove/plan: groups here (shared ones named with their other projects), grants, external sources', async () => {
+    const plan = await userH.planRemoveFromProject(db, { token: tok['mgr@t'], user_email: 'leaver@t', pgEnvs: ['envA'], ...A }, ctx);
     assert.deepStrictEqual(plan.groups.sort(), ['Shared', 'Viewers']);
     assert.deepStrictEqual(plan.sharedGroups, [{ group: 'Shared', otherProjects: ['siteB'] }]);
     assert.strictEqual(plan.siteGrants.length, 1);
     assert.deepStrictEqual(plan.externalSources.map(e => e.pgEnv), ['envA']);
-    assert.strictEqual(calls.length, 0, 'a dry run writes nothing');
+    assert.strictEqual(calls.length, 0, 'the plan writes nothing');
+    assert.strictEqual(userH.removeFromProject.toString().includes('dryRun'), false, 'no preview flag on the destructive route');
     assert.deepStrictEqual((await groupsOf('leaver@t')).sort(), ['Shared', 'Viewers', 'siteB Admin']);
   });
   await t('remove: grants stripped first, then this project\'s groups (shared too); other projects\' stay; account stays', async () => {
@@ -191,6 +203,11 @@ async function main() {
     await refused(userH.removeFromProject(db, { token: tok['mgr@t'], user_email: 'outsider@t', ...A }, ctx), /not a member/);
     await refused(userH.removeFromProject(db, { token: tok['viewer@t'], user_email: 'leaver2@t', ...A }, ctx));
     await refused(userH.removeFromProject(db, { token: tok['mgr@t'], user_email: 'leaver2@t' }, ctx), /Name the site/);
+    // the plan route refuses what its destructive sibling refuses
+    await refused(userH.planRemoveFromProject(db, { token: tok['mgr@t'], user_email: 'owner@t', ...A }, ctx));
+    await refused(userH.planRemoveFromProject(db, { token: tok['mgr@t'], user_email: 'outsider@t', ...A }, ctx), /not a member/);
+    await refused(userH.planRemoveFromProject(db, { token: tok['viewer@t'], user_email: 'leaver2@t', ...A }, ctx));
+    await refused(userH.planRemoveFromProject(db, { token: tok['mgr@t'], user_email: 'leaver2@t' }, ctx), /Name the site/);
     assert.strictEqual(calls.length, 1, 'nothing stripped on a refusal');
   });
   await t('siteA Admin removes a protected member', async () => {

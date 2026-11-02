@@ -132,12 +132,20 @@ registerAuthRoutes(app, getDb(authDbEnv));
 // JWT auth middleware — validates Authorization header, attaches req.availAuthContext
 app.use(createJwtMiddleware(authDbEnv));
 
+// Access log — the guards' refusals, counted (GET /dms-admin/:app/access-log, `${app} Admin` / AVAIL only)
+const { registerAccessLogRoutes } = require('./access-log');
+registerAccessLogRoutes(app, { authDbEnv });
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 
 // Schedule routes — cron schedules for data-type loaders (after JWT; mutations require auth)
 const { registerScheduleRoutes } = require('./dama/tasks/schedule-routes');
 registerScheduleRoutes(app);
+
+// PDF export — renders site pages to one PDF as a background job (needs no permission; see src/pdf/index.js)
+const { registerPdfRoutes } = require('./pdf');
+registerPdfRoutes(app);
 
 // Page visit tracking — fire-and-forget from the client on every page navigation.
 // No auth required; user_id extracted from JWT if present.

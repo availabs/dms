@@ -176,14 +176,32 @@ async function main() {
     assert.deepStrictEqual(strips, [{ app: 'siteA', group: 'BGroup', linkedAtStrip: ['siteB', 'siteA'] }]);
     assert.deepStrictEqual(await links('BGroup'), { siteB: 0 });
   });
-  await t('delete dry run: the plan, nothing changed', async () => {
+  const snapshot = async () => (await db.query(
+    `SELECT (SELECT count(1) FROM groups) AS g, (SELECT count(1) FROM groups_in_projects) AS gip,
+            (SELECT count(1) FROM users_in_groups) AS uig`)).rows[0];
+  await t('/group/delete/plan: the plan, nothing written', async () => {
     strips.length = 0;
-    const plan = await groupH.deleteGroup(db, { token: tok['gmgr@t'], name: 'Shared', dryRun: true, pgEnvs: ['envA'], ...A }, ctx);
+    const before = await snapshot();
+    const plan = await groupH.planDeleteGroup(db, { token: tok['gmgr@t'], name: 'Shared', pgEnvs: ['envA'], ...A }, ctx);
     assert.deepStrictEqual(plan.otherProjects, ['siteB']);
     assert.strictEqual(plan.deletes, false);
     assert.strictEqual(plan.externalSources.length, 1);
     assert.strictEqual(strips.length, 0);
     assert.deepStrictEqual(await links('Shared'), { siteA: 0, siteB: 0 });
+    assert.deepStrictEqual(await snapshot(), before);
+  });
+  await t('/group/project/remove/plan: the plan, nothing written', async () => {
+    strips.length = 0;
+    const before = await snapshot();
+    const plan = await groupH.planRemoveFromProject(db, { token: tok['gmgr@t'], group_name: 'Shared', project_name: 'siteA', ...A }, ctx);
+    assert.strictEqual(plan.project, 'siteA');
+    assert.strictEqual(plan.deletes, false);
+    assert.strictEqual(strips.length, 0);
+    assert.deepStrictEqual(await snapshot(), before);
+  });
+  await t('a dryRun flag on the destructive route is no longer a preview', async () => {
+    assert.strictEqual(groupH.deleteGroup.toString().includes('dryRun'), false);
+    assert.strictEqual(groupH.removeFromProject.toString().includes('dryRun'), false);
   });
   await t('delete a shared group: unlinked from this site only, still exists', async () => {
     await groupH.deleteGroup(db, { token: tok['gmgr@t'], name: 'Shared', ...A }, ctx);
@@ -206,14 +224,30 @@ async function main() {
     await refused(groupH.deleteGroup(db, { token: tok['viewer@t'], name: 'Orphan' }, ctx));
     assert.ok(await exists('Orphan'), 'it used to be deleted by anyone');
     await refused(groupH.removeFromProject(db, { token: tok['gmgr@t'], group_name: 'siteA Admin', project_name: 'siteA', ...A }, ctx));
+    const before = await snapshot();
+    // each plan route refuses what its destructive sibling refuses
+    await refused(groupH.planDeleteGroup(db, { token: tok['gmgr@t'], name: 'siteA Admin', ...A }, ctx));
+    await refused(groupH.planDeleteGroup(db, { token: tok['gmgr@t'], name: 'Owners', ...A }, ctx));
+    await refused(groupH.planDeleteGroup(db, { token: tok['viewer@t'], name: 'Temp2', ...A }, ctx));
+    await refused(groupH.planDeleteGroup(db, { token: tok['gmgr@t'], name: 'siteB Admin', ...A }, ctx));
+    await refused(groupH.planDeleteGroup(db, { token: tok['viewer@t'], name: 'Orphan' }, ctx));
+    await refused(groupH.planRemoveFromProject(db, { token: tok['gmgr@t'], group_name: 'siteA Admin', project_name: 'siteA', ...A }, ctx));
+    assert.deepStrictEqual(await snapshot(), before);
   });
   await t('a group in no project: platform only (avail_auth ≥ 5)', async () => {
     await refused(groupH.deleteGroup(db, { token: tok['admin@t'], name: 'Orphan', ...A }, ctx), /platform only/);
+    await refused(groupH.planDeleteGroup(db, { token: tok['admin@t'], name: 'Orphan', ...A }, ctx), /platform only/);
+    assert.deepStrictEqual(await groupH.planDeleteGroup(db, { token: tok['ops@t'], name: 'Orphan' }, ctx),
+      { group_name: 'Orphan', projects: [], deletes: true });
+    assert.ok(await exists('Orphan'), 'the plan deletes nothing');
     await groupH.deleteGroup(db, { token: tok['ops@t'], name: 'Orphan' }, ctx);
     assert.ok(!(await exists('Orphan')));
   });
   await t('level rule: level 5 deletes a level-0 group, grants stripped too', async () => {
     strips.length = 0;
+    assert.deepStrictEqual(await groupH.planDeleteGroup(db, { token: tok['lvl5@t'], name: 'L0' }, ctx),
+      { group_name: 'L0', projects: ['siteA'] });
+    assert.ok(await exists('L0') && strips.length === 0, 'the level-path plan writes nothing');
     await groupH.deleteGroup(db, { token: tok['lvl5@t'], name: 'L0' }, ctx);
     assert.ok(!(await exists('L0')));
     assert.deepStrictEqual(strips.map(s => s.app), ['siteA']);

@@ -6,17 +6,48 @@
  *   when that row is an auth pattern of `app` and the request's `project` is `app` (sites don't set
  *   PROJECT_NAME, and a tenant's project is its subdomain = its app). Anything else → no scope, and the
  *   handler falls back to today's level check.
- * - The rule is the repo's lenient one (routes/dms/auth.js isUserAuthed, owner 2026-10-23/24): an auth
- *   row that sets no grant besides `public` lets any signed-in user through. `${app} Admin` passes
- *   everything (mirrors the client's utils/adminPermissions.js isAppAdmin).
+ * - The rule is the blank-row rule (routes/dms/auth.js isUserAuthed, owner 2026-11-02 "no grants = only
+ *   admins can edit"), behind `DMS_AUTH_ROW_MODE`, like the other rows' guards:
+ *     - `log` (default): the old answer (an auth row that sets no grant besides `public` lets any signed-in
+ *       user through, and the level fallback counts); what the new rule would refuse is logged
+ *       (`[auth-row] would deny`) and recorded in the access log (guard `auth`).
+ *     - `enforce`: on a row with no grants only `${app} Admin` passes (every auth-row verb is an edit), and
+ *       the level fallback doesn't count. A row with grants is judged by its grants; levels still count there.
+ *     - `legacy`: the old answer, no log.
+ *   `${app} Admin` passes everything (mirrors the client's utils/adminPermissions.js isAppAdmin).
  * - Protected groups (decision (b)): a group holding `*`, `auth-groups` or `edit-pattern-permissions` on
  *   the auth row or the site's admin row, and `${app} Admin` itself, may be changed (or have its members
  *   changed) only by `${app} Admin` members and explicit `*` holders on the auth row.
  */
 
-const { resolveAuthPermissions, isUserAuthed: lenientAuthed } = require('../../routes/auth/auth');
+// Under `enforce` wcdb's and avail's auth rows (no grants, task 13's prod check) leave user management to
+// `${app} Admin` only: check their would-deny lines before the switch.
+const { resolveAuthPermissions, isUserAuthed, isUserAuthedOpen } = require('../../routes/auth/auth');
 const { holdsExplicitly, isAppAdmin, unionAuthPermissions } = require('../../routes/auth/kindAuth/sourceAuth');
+const accessLog = require('../../access-log');
 const q = require('./queries');
+
+function authRowMode() {
+  const m = String(process.env.DMS_AUTH_ROW_MODE || 'log').toLowerCase();
+  return ['legacy', 'log', 'enforce'].includes(m) ? m : 'log';
+}
+
+const BLANK_REASON = 'blank auth row (no grants: only admins can edit)';
+
+// One would-deny line per (user, app, what) per ten minutes; every call still counts in the access log.
+const seen = new Map();
+function logWouldDeny(user, scope, what, outcome = 'would-deny') {
+  accessLog.record({
+    app: scope.app, guard: 'auth', outcome, kind: 'auth row', target: scope.app, perms: what, user,
+    reason: BLANK_REASON,
+  });
+  if (outcome !== 'would-deny') return;
+  const key = `${user && user.email}|${scope.app}|${what}`;
+  const now = Date.now();
+  if (now - (seen.get(key) || 0) < 10 * 60 * 1000) return;
+  seen.set(key, now);
+  console.warn(`[auth-row] would deny ${user && user.email} ${what} on ${scope.app}'s auth row: ${BLANK_REASON}`);
+}
 
 const AUTH_USERS = 'auth-users';
 const AUTH_GROUPS = 'auth-groups';
@@ -109,16 +140,34 @@ async function authScope(authDb, userData, { project, app, authPatternId } = {},
   };
 }
 
-/** Whether `user` holds `perm` on the scope's auth row (lenient; `${app} Admin` always). */
+/** Whether `user` holds `perm` on the scope's auth row (`${app} Admin` always), under DMS_AUTH_ROW_MODE. */
 function can(user, perm, scope) {
   if (!scope || scope.error) return false;
   if (isAppAdmin(user, scope.app)) return true;
-  return lenientAuthed({ user, reqPermissions: [perm], authPermissions: scope.grants });
+  const opts = { user, reqPermissions: [perm], authPermissions: scope.grants };
+  const mode = authRowMode();
+  if (mode === 'enforce') return isUserAuthed(opts);
+  const old = isUserAuthedOpen(opts);
+  if (mode === 'log' && old && !isUserAuthed(opts)) logWouldDeny(user, scope, perm);
+  return old;
 }
 
-/** Transition mode: the permission, or today's level threshold (until the grant migration runs). */
+/**
+ * Whether today's level threshold counts for `user` on this scope: not on an auth row with no grants under
+ * `enforce` (only admins edit such a row). `${app} Admin` passes through can() anyway.
+ */
+function levelCounts(user, perm, minLevel, scope, authLevel = 0, { quiet = false } = {}) {
+  if (!((+authLevel || 0) >= minLevel)) return false;
+  if (!scope || scope.error || !scope.open || isAppAdmin(user, scope.app)) return true;
+  const mode = authRowMode();
+  if (mode === 'enforce') return false;
+  if (mode === 'log' && !quiet) logWouldDeny(user, scope, `${[].concat(perm).join(' or ')} (by level ${authLevel})`);
+  return true;
+}
+
+/** Transition mode: the permission, or today's level threshold (not on a blank row under enforce). */
 function canOrLevel(user, perm, minLevel, scope, authLevel = 0) {
-  return can(user, perm, scope) || (+authLevel || 0) >= minLevel;
+  return can(user, perm, scope) || levelCounts(user, perm, minLevel, scope, authLevel);
 }
 
 /** Whether `groupName` is protected on this scope (decision (b)). */
@@ -151,10 +200,11 @@ async function authority(authDb, userData, { project, app, authPatternId } = {},
   // Routes that name no project (membership, delete) are governed by the named app's project.
   const proj = project || app;
   const { user, authLevel, scope } = await authScope(authDb, userData, { project: proj, app, authPatternId }, ctx);
+  const byPermission = user.groups.length > 0 && [].concat(perm).some(p => can(user, p, scope));
   return {
     user, authLevel, scope, project: proj,
-    byPermission: user.groups.length > 0 && [].concat(perm).some(p => can(user, p, scope)),
-    byLevel: authLevel >= minLevel,
+    byPermission,
+    byLevel: levelCounts(user, perm, minLevel, scope, authLevel, { quiet: byPermission }),
   };
 }
 

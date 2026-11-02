@@ -11,9 +11,11 @@
  *   - page / component        — pattern ⊕ page grants, as the read gate in dms.route.js
  *   - dmsenv / source / view / data — the datasets permissions (uda/sourceAuth.js)
  *   - anything else           — a signed-in user
- * Signed-in callers: the repo's rule, no permission set → open (owner, 2026-10-23; site and datasets checks
- * were strict until then). Anonymous callers pass only where the `public` group explicitly holds the
- * permission (owner, 2026-10-22).
+ * Signed-in callers: routes/dms/auth.js isUserAuthed. A row with no grants (nothing beyond `public`, none
+ * inherited) is read-only, so an edit on it needs an explicit grant (owner 2026-10-29; it was "no permission
+ * set → open" from 2026-10-23); the exceptions stay here: `${app} Admin`, the site `*` escapes, patternCan's
+ * `view-pattern-list` clause. Anonymous callers pass only where the `public` group explicitly holds the
+ * permission (owner, 2026-10-22). A refusal that only the blank-row rule makes says `blank row`.
  *
  * Rollout (`DMS_DATA_AUTH_MODE`):
  *   - `legacy`  — nothing checked (today's behaviour).
@@ -24,12 +26,13 @@
  */
 const { isEqual } = require('lodash');
 const { getKind, getParent, getInstance, isSplitType } = require('#db/type-utils.js');
-const { isUserAuthed: lenientAuthed, resolveAuthPermissions } = require('../auth');
+const { isUserAuthed, blankRowRefusal, resolveAuthPermissions } = require('../auth');
 const {
     holdsExplicitly, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView, internalSourceGrants,
 } = require('./sourceAuth');
 const AUTH_RULES = require('./authRules');
 const { judge: judgeRules } = require('./authJudge');
+const accessLog = require('../../../access-log');
 
 function dataAuthMode() {
     const m = String(process.env.DMS_DATA_AUTH_MODE || 'log').toLowerCase();
@@ -86,10 +89,15 @@ const allow = (reason) => ({ allow: true, reason });
 const deny = (reason) => ({ allow: false, reason });
 const needs = (perms) => `missing ${[].concat(perms).join(' or ')}`;
 
-// Signed in → the repo's rule (no permission set ⇒ open); anon → explicit grants only (`*` counts for all).
-const holds = (user, ap, perms) => (user && user.authed
-    ? lenientAuthed({ user, reqPermissions: [].concat(perms), authPermissions: ap || {} })
-    : holdsExplicitly({ user: {}, reqPermissions: [].concat(perms), authPermissions: ap || {} }));
+// Signed in → isUserAuthed (no grants ⇒ edits need an explicit grant); anon → explicit grants only (`*` counts
+// for all). `onBlank` hears of a refusal only the blank-row rule made (for the deny reason).
+const holdsFor = (user, ap, perms, onBlank) => {
+    const opts = { user, reqPermissions: [].concat(perms), authPermissions: ap || {} };
+    if (!(user && user.authed)) return holdsExplicitly({ ...opts, user: {} });
+    if (isUserAuthed(opts)) return true;
+    if (onBlank && blankRowRefusal(opts)) onBlank();
+    return false;
+};
 
 /**
  * One judge per write. `ctx`: { app, subdomain, user, controller }. Pattern rows of the app are read
@@ -97,6 +105,9 @@ const holds = (user, ap, perms) => (user && user.authed
  */
 function createJudge(ctx) {
     const { app, subdomain = '', user, controller } = ctx;
+    // set when a refusal came from the blank-row rule alone (see decide)
+    let blankRefusal = false;
+    const holds = (u, ap, perms) => holdsFor(u, ap, perms, () => { blankRefusal = true; });
     let patternRows;
     const patterns = async () => {
         if (!patternRows) {
@@ -353,8 +364,12 @@ function createJudge(ctx) {
     const decide = async (op, row, patch, keys = op === 'edit' ? planEdit(row, patch).keys : []) => {
         if (isAppAdmin(user, app)) return allow(`${app} Admin`);
         try {
-            if (process.env.DMS_DATA_AUTH_JUDGE === 'data') return await judgeAsData(op, row, patch, keys);
-            return await judge(op, row, patch, keys);
+            blankRefusal = false;
+            const d = process.env.DMS_DATA_AUTH_JUDGE === 'data'
+                ? await judgeAsData(op, row, patch, keys)
+                : await judge(op, row, patch, keys);
+            return !d.allow && blankRefusal && !/blank row/.test(d.reason)
+                ? deny(`${d.reason}; blank row (no grants: edits need an explicit grant)`) : d;
         } catch (e) {
             return deny(`lookup failed: ${e.message}`);
         }
@@ -366,7 +381,11 @@ function createJudge(ctx) {
     return decide;
 }
 
-function logWouldDeny(op, app, row, user, reason) {
+// `outcome`: would-deny (log) / refused (enforce), for the access log.
+function logWouldDeny(op, app, row, user, reason, outcome = 'would-deny') {
+    accessLog.record({ app, guard: 'data', outcome, kind: `${op} ${getKind(row.type || '') || 'row'}`,
+        target: `${row.id || 'new'} ${row.type || ''}`.trim(), perms: [], user, reason });
+    if (outcome !== 'would-deny') return;
     console.warn(`[data-auth] would-deny ${op} ${app}/${row.id || 'new'} type=${row.type} ` +
         `user=${(user && (user.id ?? user.email)) ?? 'anon'} groups=${((user && user.groups) || []).join('|')} reason=${reason}`);
 }
@@ -391,6 +410,7 @@ async function assertDataWrite(router, controller, op, app, row, patch, { replac
     const d = await createJudge({ app, subdomain: (router && router.subdomain) || '', user, controller })(op, row, patch, plan.keys);
     if (d.allow) return plan.write;
     if (mode === 'log') { logWouldDeny(op, app, row, user, d.reason); return plan.write; }
+    logWouldDeny(op, app, row, user, d.reason, 'refused');
     const e = new Error(user ? `Not authorized: ${d.reason}` : 'Sign in to do this');
     e.status = user ? 403 : 401; // for the REST callers (sync/push)
     throw e;

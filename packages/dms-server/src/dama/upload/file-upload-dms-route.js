@@ -21,6 +21,7 @@ const storage = require('../storage');
 const { sharpAvailable, getSharp } = require('./sharp');
 const { nameToSlug, getInstance } = require('../../db/type-utils');
 const { authMode, requestPatternRef, requestUserIdWarnBody } = require('../../routes/auth/kindAuth/sourceAuth');
+const accessLog = require('../../access-log');
 const { authorizePublish } = require('./auth');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];
@@ -106,7 +107,10 @@ function createFileUploadDmsHandler(controller) {
         if (!existingSourceId && !await ownerIsNamedPattern(controller, app, owner_id, requestPatternRef(req))) {
           const ref = requestPatternRef(req);
           const msg = `owner ${owner_id} is not the datasets pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'} or its dmsEnv`;
-          if (authMode() === 'enforce') { refused(); return res.status(403).json({ ok: false, error: msg }); }
+          const enforce = authMode() === 'enforce';
+          accessLog.record({ app, guard: 'file', outcome: enforce ? 'refused' : 'would-deny', kind: 'file_upload_dms',
+            target: `${app}/${owner_instance}`, perms: ['create-source'], user: req.availAuthContext && req.availAuthContext.user, reason: msg });
+          if (enforce) { refused(); return res.status(403).json({ ok: false, error: msg }); }
           console.warn(`[source-auth] would-deny file_upload_dms ${app} reason=${msg}`);
         }
 
