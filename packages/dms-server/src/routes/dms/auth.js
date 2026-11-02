@@ -36,13 +36,75 @@ function resolveAuthPermissions(rawAuth, subdomain = '') {
 }
 
 /**
- * Check whether a user has the required permissions, given a resolved
- * authPermissions object.  Mirrors isUserAuthed() on the client side.
+ * The read verbs (task permissions-blank-row-read-only, owner decision 2026-10-29: a row with no grants is
+ * read-only). A verb not on this list is an edit. A request is a read when it names ANY read verb: a
+ * permission list means "any of", and a row with no grants grants every read verb, so e.g.
+ * dms.route.js's PATTERN_READ_PERMISSIONS (`view-page` or an edit verb) stays open on such a row.
+ * Mirrored (not imported) by the client's utils/auth.js READ_PERMISSIONS once its gates follow the rule.
+ */
+const READ_PERMISSIONS = [
+  'view-page', 'view-pattern-list',
+  'view-source', 'view-sources', 'view-source-api', 'download-source',
+];
+const isReadRequest = (reqPermissions = []) => reqPermissions.some(p => READ_PERMISSIONS.includes(p));
+
+// Grants besides the `public` group (the Access editor seeds `public` into everything it saves).
+// Mirrors the client's utils/auth.js hasAuthGrants.
+const hasGrants = (ap) =>
+  Object.keys((ap && ap.groups) || {}).some(g => g !== 'public') || Object.keys((ap && ap.users) || {}).length > 0;
+
+/**
+ * Whether `user` holds one of `reqPermissions` explicitly: a user grant, or a grant to one of their groups
+ * or `public`, of the permission or `*`. No "nothing set ⇒ open".
+ */
+function holdsExplicitly({ user = {}, reqPermissions = [], authPermissions = {} } = {}) {
+  if (!reqPermissions || !reqPermissions.length) return true;
+  const groups = (authPermissions && authPermissions.groups) || {};
+  const users = (authPermissions && authPermissions.users) || {};
+  const effectiveGroups = [...new Set([...((user && user.groups) || []), 'public'])];
+  const userPerms = [
+    ...(users[user && user.id] || []),
+    ...effectiveGroups
+      .filter(g => groups[g])
+      .reduce((acc, g) => {
+        const gp = Array.isArray(groups[g]) ? groups[g] : [groups[g]];
+        if (gp && gp.length) acc.push(...gp);
+        return acc;
+      }, []),
+  ];
+  return userPerms.some(p => p === '*' || reqPermissions.includes(p));
+}
+
+/**
+ * The rule (owner 2026-10-29, replacing 2026-10-23's "no permission set → open" for edits): on grants with
+ * nothing beyond `public`, a READ passes as before (signed in, or anyone when nothing at all is set) and an
+ * EDIT needs an explicit grant (`public` grants count). Otherwise an explicit perm or `*`, as before.
+ * The exceptions live with the callers: `${app} Admin`, the site `*` escapes, patternCan's
+ * `view-pattern-list` clause for a pattern with no grants.
  *
  * @param {{ user?: Object, reqPermissions?: string[], authPermissions?: Object }} opts
  * @returns {boolean}
  */
-function isUserAuthed({ user = null, reqPermissions = [], authPermissions = {} } = {}) {
+function isUserAuthed(opts = {}) {
+  const { reqPermissions = [], authPermissions = {} } = opts;
+  if (!reqPermissions?.length) return true;
+  if (!hasGrants(authPermissions) && !isReadRequest(reqPermissions)) {
+    return holdsExplicitly({ ...opts, user: opts.user || {}, authPermissions: authPermissions || {} });
+  }
+  return isUserAuthedOpen(opts);
+}
+
+/** Why isUserAuthed refuses what isUserAuthedOpen allows: for would-deny lines and refusals. */
+function blankRowRefusal(opts = {}) {
+  return !isUserAuthed(opts) && isUserAuthedOpen(opts) ? 'blank row (no grants: edits need an explicit grant)' : null;
+}
+
+/**
+ * The OLD rule, kept for the guards' `legacy` / `log` answers (and the audit): no restrictions beyond
+ * `public` and signed in → allow; nothing at all → allow; otherwise an explicit perm or `*`. Mirrors the
+ * client's isUserAuthed (utils/auth.js), whose gates keep it until enforce (owner 2026-11-02).
+ */
+function isUserAuthedOpen({ user = null, reqPermissions = [], authPermissions = {} } = {}) {
   if (!reqPermissions?.length) return true;
 
   const u = user || {};
@@ -78,4 +140,7 @@ function isUserAuthed({ user = null, reqPermissions = [], authPermissions = {} }
   return userAuthPermissions.some(p => p === '*' || reqPermissions.includes(p));
 }
 
-module.exports = { isUserAuthed, resolveAuthPermissions };
+module.exports = {
+  isUserAuthed, isUserAuthedOpen, holdsExplicitly, blankRowRefusal, hasGrants, isReadRequest, READ_PERMISSIONS,
+  resolveAuthPermissions,
+};

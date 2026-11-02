@@ -1,6 +1,6 @@
 /**
  * Auth-handler permissions (planning/tasks/current/permissions-auth-server-permission-source.md):
- * which auth row governs a request, the lenient rule, transition mode and the protected-group rule.
+ * which auth row governs a request, the blank auth row under DMS_AUTH_ROW_MODE, transition mode and the protected-group rule.
  * No database: the DMS pattern rows and the auth DB are fakes.
  *
  * Run: node tests/test-auth-permissions.js
@@ -132,10 +132,39 @@ async function main() {
     assert.strictEqual(can(user(['siteA Admin']), 'auth-groups', A), true);
   });
 
-  await t('open row: any signed-in user passes (owner 2026-10-24)', async () => {
-    assert.strictEqual(can(user(['Viewers']), 'auth-users', OPEN), true);
-    assert.strictEqual(can(user([]), 'auth-groups', OPEN), true);
-  });
+
+  const inMode = async (mode, fn) => {
+    const prev = process.env.DMS_AUTH_ROW_MODE, warn = console.warn;
+    const lines = [];
+    process.env.DMS_AUTH_ROW_MODE = mode; console.warn = (m) => lines.push(String(m));
+    try { await fn(lines); } finally {
+      console.warn = warn;
+      if (prev === undefined) delete process.env.DMS_AUTH_ROW_MODE; else process.env.DMS_AUTH_ROW_MODE = prev;
+    }
+  };
+
+  await t('open row, log: still passes, with an `[auth-row] would deny` line (owner 2026-11-02)', async () =>
+    inMode('log', async (lines) => {
+      assert.strictEqual(can(user(['Viewers'], 41), 'auth-users', OPEN), true);
+      assert.strictEqual(can(user([]), 'auth-groups', OPEN), true);
+      assert.ok(lines.some(l => /\[auth-row\] would deny .*auth-users.*blank auth row/.test(l)), lines.join('\n'));
+    }));
+
+  await t('open row, enforce: only `${app} Admin` edits (no grants = only admins)', async () =>
+    inMode('enforce', async () => {
+      assert.strictEqual(can(user(['Viewers']), 'auth-users', OPEN), false);
+      assert.strictEqual(can(user([]), 'auth-groups', OPEN), false);
+      assert.strictEqual(can(user(['openApp Admin']), 'auth-groups', OPEN), true);
+      // a row with grants is judged by them, as before
+      assert.strictEqual(can(user(['Managers']), 'auth-users', A), true);
+      assert.strictEqual(can(user(['Viewers']), 'auth-users', A), false);
+    }));
+
+  await t('legacy: the old open answer, no line', async () =>
+    inMode('legacy', async (lines) => {
+      assert.strictEqual(can(user(['Viewers'], 42), 'auth-users', OPEN), true);
+      assert.strictEqual(lines.length, 0);
+    }));
 
   await t('no usable scope → can() is false', async () => {
     assert.strictEqual(can(user(['siteA Admin']), 'auth-users', { error: 'x' }), false);
@@ -148,6 +177,19 @@ async function main() {
     assert.strictEqual(canOrLevel(user(['Managers']), 'auth-users', 10, A, 1), true);
     assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), true);
     assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 5), false);
+  });
+
+  await t('open row: the level counts under log (with a line), not under enforce', async () => {
+    await inMode('log', async (lines) => {
+      assert.strictEqual(canOrLevel(user([], 43), 'auth-users', 10, OPEN, 10), true);
+    });
+    await inMode('enforce', async () => {
+      assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, OPEN, 10), false);
+      assert.strictEqual(canOrLevel(user(['openApp Admin']), 'auth-users', 10, OPEN, 0), true);
+      // levels still count on a row with grants
+      assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), true);
+      assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 10), true);
+    });
   });
 
   await t('no scope → today\'s level alone', async () => {

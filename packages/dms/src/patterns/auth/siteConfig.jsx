@@ -21,6 +21,7 @@ const AuthGroups = lazyComponent('auth/AuthGroups', () => import("./pages/authGr
 const AuthResetPassword = lazyComponent('auth/AuthResetPassword', () => import("./pages/authResetPassword"));
 const AuthForgotPassword = lazyComponent('auth/AuthForgotPassword', () => import("./pages/authForgotPassword"));
 const Profile = lazyComponent('auth/Profile', () => import("./pages/profile"));
+const AuthAccessLog = lazyComponent('auth/AuthAccessLog', () => import("./pages/authAccessLog"));
 import {cloneDeep, merge} from "lodash-es";
 
 
@@ -226,6 +227,7 @@ const manageAuthConfig = ({
   adminAuthPermissions = {},
   datasources = [],
   rightMenu = <DefaultMenu />,
+  API_HOST,
   ssrCollect,
 }) => {
     // The site's DAMA envs (a client build setting): Remove from site lists the user's grants there.
@@ -277,6 +279,12 @@ const manageAuthConfig = ({
                     name: 'Groups',
                     path: `${baseUrl}/manage/groups`,
                     icon: 'Group'
+                }] : []),
+                // Admins only, as its server route (`${app} Admin` / AVAIL; pages/authAccessLog.jsx)
+                ...((user?.groups || []).some(g => g === `${app} Admin` || g === 'AVAIL') ? [{
+                    name: 'Access log',
+                    path: `${baseUrl}/manage/access-log`,
+                    icon: 'Shield'
                 }] : [])
             ]
         }
@@ -374,6 +382,10 @@ const manageAuthConfig = ({
             {
                 type: props => <Profile {...props} />,
                 path: "profile",
+            },
+            {
+                type: props => <AuthAccessLog {...props} app={app} API_HOST={API_HOST} />,
+                path: "access-log",
             },
         ]
       }

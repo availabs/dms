@@ -10,9 +10,11 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
     const [addingNew, setAddingNew] = React.useState(false);
     const [status, setStatus] = React.useState('');
     const [newGroup, setNewGroup] = React.useState({name: ''});
-    // Remove from site: the group being confirmed and the server's dry-run plan (/group/delete)
+    // Remove from site: the group being confirmed and the server's plan (/group/delete/plan, read-only)
     const [removeGroup, setRemoveGroup] = React.useState(null);
     const [removePlan, setRemovePlan] = React.useState(null);
+    const [planError, setPlanError] = React.useState('');
+    const planFor = useRef(null);
     const [removeStatus, setRemoveStatus] = React.useState('');
     // Add external group: groups that exist but aren't on this site (/groups/linkable)
     const [linking, setLinking] = React.useState(false);
@@ -60,18 +62,33 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
     }, [PROJECT_NAME, canManage]);
 
     // Remove from site (owner 2026-10-25): the server strips the group's grants here, unlinks it, and
-    // deletes it once no other site uses it. No plan is fetched: a `dryRun` flag on /group/delete deletes on a
-    // server that doesn't know it (owner 2026-10-27); a read-only plan route is task destructive-call-plan-routes.
+    // deletes it once no other site uses it. The dialog's plan comes from the read-only /group/delete/plan,
+    // never from a flag on the destructive route (owner 2026-10-27: a server that doesn't know the flag
+    // deletes). A server without the plan route 404s: the dialog says so and keeps the generic text.
+    // Remove stays enabled with or without a plan; the plan informs, it never gates.
     const removeRequest = (name, extra = {}) => ({ token: user.token, name, project: PROJECT_NAME, pgEnvs, ...extra });
-    const openRemove = (row) => {
+    const openRemove = async (row) => {
         setRemoveGroup(row);
         setRemovePlan(null);
+        setPlanError('');
         setRemoveStatus('');
+        planFor.current = row.name;
+        let res;
+        try {
+            res = await callAuthServer(`${AUTH_HOST}/group/delete/plan`, removeRequest(row.name));
+        } catch {
+            // 404 (a server without the plan route) or no answer: callAuthServer throws on !ok
+            res = { error: "This server can't preview the removal." };
+        }
+        if (planFor.current !== row.name) return;
+        if (res?.error) setPlanError(res.error);
+        else setRemovePlan(res);
     };
     const confirmRemove = async () => {
         setRemoveStatus('removing');
         const res = await callAuthServer(`${AUTH_HOST}/group/delete`, removeRequest(removeGroup.name));
         if (res.error) { setRemoveStatus(res.error); return; }
+        planFor.current = null;
         setRemoveGroup(null);
         await loadGroups();
     };
@@ -207,6 +224,7 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
                 </div>
                 <div className={m.removeBody}>
                     <div>Remove {removeGroup?.name} from {PROJECT_NAME}?</div>
+                    {planError && <div className={m.metaText}>{planError}</div>}
                     {!removePlan && <div>Its members lose the access it gives here, and its permissions on this
                         site&apos;s patterns, pages and sources are removed. If no other site uses it, the group is
                         deleted.</div>}

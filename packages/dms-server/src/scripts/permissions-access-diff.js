@@ -14,6 +14,8 @@
  *        [--overlay <grants.json>]     grants to apply before deciding (the grant migration's dry run)
  *        [--out <dir>]                 default: dms-template scratchpad/permissions-access-diff/<date>/<app>
  *        [--days <n>]                  change_log window for the blank-row section (default 30)
+ *        [--blank-only]                skip the users × targets matrix (only the blank-row section): for sites
+ *                                      whose matrix doesn't fit in memory (mitigat-ny-prod, 2026-11-02)
  *
  * Users are decided one by one with every group they hold, so someone who keeps an operation through another
  * group is never listed as losing it. Writes matrix.csv, losses.csv, gains.csv, remediation.md and grants.json.
@@ -32,7 +34,7 @@ const fs = require('fs');
 const path = require('path');
 const { loadConfig } = require('../db');
 const { resolveTable } = require('../db/table-resolver');
-const { resolveAuthPermissions, isUserAuthed } = require('../routes/dms/auth');
+const { resolveAuthPermissions, isUserAuthedOpen: isUserAuthed } = require('../routes/dms/auth');  // the old rule: today's answers
 const { mergeAuthPermissions, unionAuthPermissions, holdsExplicitly, isAppAdmin } = require('../routes/uda/sourceAuth');
 const { getInstance, getKind, getParent } = require('../db/type-utils');
 const { OPS } = require('./permissions-access-diff.ops');
@@ -413,7 +415,7 @@ async function run(args) {
     const matrix = new Map();   // op|target → counts
     const losses = [], gains = [];
 
-    for (const op of OPS) {
+    for (const op of (args['blank-only'] ? [] : OPS)) {
         for (const target of targetsFor(op, data)) {
             const key = `${op.key}\t${target.label}`;
             const cell = matrix.get(key) || { op: op.key, target: target.label, users: 0, old: 0, now: 0, final: 0, lostNow: 0, lostFinal: 0, intended: 0, holes: 0, gained: 0 };
@@ -492,12 +494,14 @@ async function run(args) {
         return /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
     }).join(','))].join('\n') + '\n';
 
-    fs.writeFileSync(path.join(out, 'matrix.csv'), csv([...matrix.values()],
+    if (!args['blank-only']) fs.writeFileSync(path.join(out, 'matrix.csv'), csv([...matrix.values()],
         ['op', 'target', 'users', 'old', 'now', 'final', 'lostNow', 'lostFinal', 'intended', 'holes', 'gained']));
-    fs.writeFileSync(path.join(out, 'losses.csv'), csv(losses,
+    if (!args['blank-only']) fs.writeFileSync(path.join(out, 'losses.csv'), csv(losses,
         ['op', 'task', 'target', 'user', 'user_id', 'groups', 'level', 'lost_at', 'kind', 'why', 'last_use']));
-    fs.writeFileSync(path.join(out, 'gains.csv'), csv(gains, ['op', 'target', 'user', 'groups', 'level']));
-    fs.writeFileSync(path.join(out, 'grants.json'), JSON.stringify(grants, null, 2) + '\n');
+    if (!args['blank-only']) {
+        fs.writeFileSync(path.join(out, 'gains.csv'), csv(gains, ['op', 'target', 'user', 'groups', 'level']));
+        fs.writeFileSync(path.join(out, 'grants.json'), JSON.stringify(grants, null, 2) + '\n');
+    }
     if (blank) {
         fs.writeFileSync(path.join(out, 'blank-rows.csv'), csv(blank.rows, ['kind', 'op', 'row', 'type', 'blank', 'user',
             'user_id', 'groups', 'writes', 'last', 'outcome', 'row_gone']));
@@ -513,6 +517,7 @@ async function run(args) {
         `${dms.authRows > 1 ? ` (${dms.authRows} auth patterns: first used)` : ''}` +
         `${authGrants ? (Object.keys(authGrants.groups).filter(g => g !== 'public').length || Object.keys(authGrants.users).length ? ', grants set' : ', open (no grants)') : ''}; ` +
         `${data.datasets.length} datasets patterns; ${dms.internalSources.length} internal and ${external.length} external sources.`, '');
+    if (args['blank-only']) md.push('`--blank-only`: the users × targets matrix was skipped; only the blank-row section below is real.', '');
     md.push(`| | users × targets |`, `|---|---|`,
         `| Lost on deploy (\`now\`), unintended | ${unintended.filter(l => l.lost_at === 'now').length} refused by the server, ` +
             `${unintended.filter(l => l.lost_at === 'now (UI hides it)').length} hidden by the client |`,

@@ -18,6 +18,7 @@ const {
 } = require('../../routes/uda/sourceAuth');
 
 const { createJudge, dataAuthMode } = require('../../routes/dms/dataAuth');
+const accessLog = require('../../access-log');
 const { getInstance } = require('#db/type-utils.js');
 const { getSubdomain } = require('../../utils/subdomain');
 
@@ -113,6 +114,8 @@ async function requirePatternAction(req, res, controller, { app, id, instance, p
         reason = `lookup failed: ${e.message}`;
     }
     if (!reason) return user;
+    accessLog.record({ app, guard: 'upload', outcome: mode === 'log' ? 'would-deny' : 'refused', kind: 'route',
+        target: `${req.method} ${(req.originalUrl || req.url || '').split('?')[0]}`, perms: [].concat(perms, sitePerms || []), user, reason });
     if (mode === 'log') {
         console.warn(`[data-auth] would-deny ${req.method} ${req.originalUrl || req.url} user=${user.id ?? user.email} ` +
             `groups=${(user.groups || []).join('|')} reason=${reason}`);

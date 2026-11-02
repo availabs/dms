@@ -27,9 +27,12 @@
  */
 const { getDb } = require('../../db');
 const { resolveAuthPermissions } = require('../dms/auth');
-const { mergeAuthPermissions, unionAuthPermissions, isUserAuthed, isAppAdmin, readNamedPattern } = require('./sourceAuth');
+const {
+    mergeAuthPermissions, unionAuthPermissions, isUserAuthed, isUserAuthedOpen, isAppAdmin, readNamedPattern, authMode,
+} = require('./sourceAuth');
 const { dmsMainTable, getSiteSources } = require('./utils');
 const { loadConfig } = require('../../db');
+const accessLog = require('../../access-log');
 
 const READ_PERMISSIONS = [
     'view-source', 'download-source', 'update-source', 'edit-source-data', 'create-view',
@@ -147,7 +150,8 @@ function clearReadSnapshots() { snapshots.clear(); namedPatterns.clear(); }
 
 // `named`: the request's datasets pattern ({ app, ap }), used for external sources only (internal sources
 // find their own patterns), as sourceAuth.js decideSource does.
-function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, named = null) {
+// `check`: the rule (isUserAuthed; holdsOnSource passes the old open rule outside `enforce`).
+function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, named = null, check = isUserAuthed) {
     const s = snap.sources.get(+sourceId);
     if (!s) return { allow: false, reason: 'source not found' };
     if (s.orphan) return { allow: false, reason: `source ${sourceId} is in no datasets pattern of ${snap.app}` };
@@ -155,12 +159,17 @@ function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, nam
     const app = external ? (named && named.app) : snap.app;
     const patternAP = external ? ((named && named.ap) || {}) : s.patternAP;
     if (isAppAdmin(user, app)) return { allow: true, reason: `${app} Admin` };
-    const allow = isUserAuthed({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, s.ap) });
+    const allow = check({ user, reqPermissions, authPermissions: mergeAuthPermissions(patternAP, s.ap) });
     return { allow, reason: allow ? 'granted' : `missing ${reqPermissions[0]}` };
 }
 
 const logged = new Map();
-function logWouldDeny(kind, env, sourceId, user, reason) {
+// `outcome`: would-deny (log) / refused (enforce). Every call counts in the access log; the console line is
+// deduped (LOG_DEDUPE_MS).
+function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny', patternRef = null) {
+    accessLog.record({ app: accessLog.appOf(env, patternRef), guard: 'read', outcome, kind, target: `${env}/${sourceId}`,
+        perms: ['view-source'], user, reason });
+    if (outcome !== 'would-deny') return;
     const who = (user && (user.id ?? user.email)) ?? 'anon';
     const key = `${kind}|${env}|${sourceId}|${who}`;
     const now = Date.now();
@@ -182,7 +191,8 @@ async function allowSourceRead({ env, sourceId, user, subdomain = '', patternRef
     try { d = decideFrom(await snapshot(env, subdomain), sourceId, user, READ_PERMISSIONS, await namedPattern(patternRef, subdomain)); }
     catch (e) { d = { allow: false, reason: `grant lookup failed: ${e.message}` }; }
     if (d.allow) return true;
-    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason); return true; }
+    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef); return true; }
+    logWouldDeny(kind, env, sourceId, user, d.reason, 'refused', patternRef);
     return false;
 }
 
@@ -201,7 +211,8 @@ async function allowViewRead({ env, viewId, user, subdomain = '', patternRef = n
     try { sourceId = await sourceOfView(env, viewId, subdomain); }
     catch (e) { sourceId = null; }
     if (sourceId == null) {
-        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found'); return true; }
+        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'would-deny', patternRef); return true; }
+        logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'refused', patternRef);
         return false;
     }
     return allowSourceRead({ env, sourceId, user, subdomain, patternRef, kind, logOnly });
@@ -218,9 +229,14 @@ async function filterReadableSources({ env, sourceIds, user, subdomain = '', pat
     return out;
 }
 
-/** Whether `user` holds one of `perms` on the source itself (no mode: for what a reply carries). */
+/**
+ * Whether `user` holds one of `perms` on the source itself, for what a reply carries (the full grants, the
+ * secrets). These are edit verbs, so on a source with no grants the blank-row rule refuses them; it applies
+ * only once the write guard (DMS_SOURCE_AUTH_MODE) enforces, so `log` keeps showing an editor what it did.
+ */
 async function holdsOnSource({ env, sourceId, user, subdomain = '', patternRef = null, perms }) {
-    try { return decideFrom(await snapshot(env, subdomain), sourceId, user, perms, await namedPattern(patternRef, subdomain)).allow; }
+    const check = authMode() === 'enforce' ? isUserAuthed : isUserAuthedOpen;
+    try { return decideFrom(await snapshot(env, subdomain), sourceId, user, perms, await namedPattern(patternRef, subdomain), check).allow; }
     catch { return false; }
 }
 

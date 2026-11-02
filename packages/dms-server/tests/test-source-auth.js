@@ -11,7 +11,8 @@ const DMS_DB = process.env.DMS_TEST_DB || 'cli-test';
 const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 process.env.DMS_DB_ENV = DMS_DB; // the resolver reads pattern + internal rows from DMS_DB_ENV
 const assert = require('assert');
-const { mergeAuthPermissions, isUserAuthed } = require('../src/routes/uda/sourceAuth');
+const { mergeAuthPermissions, isUserAuthed, isUserAuthedOpen } = require('../src/routes/uda/sourceAuth');
+const { blankRowRefusal } = require('../src/routes/dms/auth');
 
 let pass = 0, fail = 0;
 const t = (name, fn) => { try { fn(); pass++; console.log(`  ✓ ${name}`); } catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.message}`); } };
@@ -37,17 +38,33 @@ t('user [] disables / non-empty sets', () => {
     assert.deepStrictEqual(mergeAuthPermissions(base, { users: { 9: ['view-source'] } }).users[9], ['view-source']);
 });
 
-console.log('isUserAuthed — no permission set → open, else explicit grants:');
+console.log('isUserAuthed — no grants: reads open, edits need an explicit grant (owner 2026-10-29); else explicit grants:');
 t('no required perms → allow', () => assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: [], authPermissions: {} }), true));
-t('nothing set → open to anyone, anon included', () => {
-    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['update-source'], authPermissions: {} }), true);
-    assert.strictEqual(isUserAuthed({ user: avail, reqPermissions: ['delete-source'], authPermissions: { groups: {}, users: {} } }), true);
+t('nothing set → reads open to anyone, anon included; edits refused', () => {
+    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['view-source'], authPermissions: {} }), true);
+    assert.strictEqual(isUserAuthed({ user: avail, reqPermissions: ['download-source'], authPermissions: { groups: {}, users: {} } }), true);
+    assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['update-source'], authPermissions: {} }), false);
+    assert.strictEqual(isUserAuthed({ user: avail, reqPermissions: ['delete-source'], authPermissions: { groups: {}, users: {} } }), false);
 });
-t('only public set → signed-in users pass, anon gets only the public perms', () => {
+t('only public set → signed-in users read; edits need the public grant itself', () => {
     const ap = { groups: { public: ['view-source'] }, users: {} };
-    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['update-source'], authPermissions: ap }), true);
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['download-source'], authPermissions: ap }), true);
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['update-source'], authPermissions: ap }), false);
     assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['view-source'], authPermissions: ap }), true);
     assert.strictEqual(isUserAuthed({ user: anon, reqPermissions: ['update-source'], authPermissions: ap }), false);
+    const pub = { groups: { public: ['update-source'] }, users: {} };
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['update-source'], authPermissions: pub }), true);
+});
+t('a mixed any-of list is a read when it names a read verb (dms.route.js PATTERN_READ_PERMISSIONS)', () => {
+    const perms = ['view-page', 'edit-pattern', 'edit-pattern-permissions', 'delete-pattern'];
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: perms, authPermissions: {} }), true);
+    assert.strictEqual(isUserAuthed({ user: editor, reqPermissions: ['edit-pattern', 'delete-pattern'], authPermissions: {} }), false);
+});
+t('isUserAuthedOpen keeps the old rule (legacy / log answers): nothing set → open', () => {
+    assert.strictEqual(isUserAuthedOpen({ user: anon, reqPermissions: ['update-source'], authPermissions: {} }), true);
+    assert.strictEqual(isUserAuthedOpen({ user: editor, reqPermissions: ['update-source'], authPermissions: { groups: { public: ['view-source'] } } }), true);
+    assert.strictEqual(blankRowRefusal({ user: editor, reqPermissions: ['update-source'], authPermissions: {} }) != null, true);
+    assert.strictEqual(blankRowRefusal({ user: editor, reqPermissions: ['view-source'], authPermissions: {} }), null);
 });
 t('any other grant set → explicit grants only', () => {
     const ap = { groups: { public: [] }, users: { 1: ['*'] } };   // a new source: creator only
@@ -187,8 +204,12 @@ async function dbTests() {
     console.log('\ndecideSource — external (pgEnv) sources:');
     await ta('source grant counts with no pattern named', async () =>
         assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extGranted, reqPermissions: ['delete-source'], user: avail }), true));
-    await ta('no grants set → open (owner 2026-10-23)', async () =>
-        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses }), true));
+    await ta('no grants set → read-only: edits refused, `blank row` said; reads open (owner 2026-10-29)', async () => {
+        const d = await decideSource({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses });
+        assert.strictEqual(d.allow, false);
+        assert.match(d.reason, /missing update-source; blank row/);
+        assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['view-source'], user: dhses }), true);
+    });
     await ta('a creator-only source denies others', async () =>
         assert.strictEqual(await allow({ db: dama, env: DAMA_DB, sourceId: extOwned, reqPermissions: ['update-source'], user: dhses }), false));
     await ta('a named datasets pattern is inherited', async () =>
@@ -230,6 +251,15 @@ async function dbTests() {
         assert.strictEqual(await isUserAuthedForSource({ env: ENV, sourceId: bareSrc, reqPermissions: ['update-source'], user: county }), true);
         assert.ok(warned.some(w => w.includes('would-deny source') && w.includes(`/${bareSrc}`)), warned.join('\n'));
     }));
+    await ta('blank external source: log allows (old rule) with a `blank row` line; enforce refuses', async () => {
+        await withMode('log', async (warned) => {
+            assert.strictEqual(await isUserAuthedForSource({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses }), true);
+            assert.strictEqual(warned.length, 1, warned.join('\n'));
+            assert.match(warned[0], /would-deny source .* reason=missing update-source; blank row/);
+        });
+        await withMode('enforce', async () =>
+            assert.strictEqual(await isUserAuthedForSource({ db: dama, env: DAMA_DB, sourceId: extEmpty, reqPermissions: ['update-source'], user: dhses }), false));
+    });
     await ta('log: missing external row allows (today) and logs', async () => withMode('log', async (warned) => {
         assert.strictEqual(await isUserAuthedForSource({ db: dama, env: DAMA_DB, sourceId: 99999999, reqPermissions: ['update-source'], user: avail }), true);
         assert.strictEqual(warned.length, 1);

@@ -16,7 +16,7 @@
 
 const AUTH_RULES = require('../routes/dms/authRules');
 const { judge } = require('../routes/dms/authJudge');
-const { isUserAuthed } = require('../routes/dms/auth');
+const { isUserAuthedOpen: isUserAuthed } = require('../routes/dms/auth');  // the old rule: today's answers
 const { holdsExplicitly } = require('../routes/uda/sourceAuth');
 
 // Grants besides the `public` group: dataAuth.js hasGrants.

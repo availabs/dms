@@ -19,6 +19,9 @@ import { PatternAuthContext } from "../../../utils/patternAuthContext";
 // placeholder `groups: ['public']` and `isAuthenticating`, and nothing is
 // judged until the real groups arrive.
 //
+// `reqPermission` null: admins only (`${app} Admin`, or the platform group AVAIL), as the
+// Access log page's server route (dms-server access-log GET /dms-admin/:app/access-log).
+//
 // Logged out → login; no permission → home. Returns whether the page may render
 // (and load its data).
 export function useManagePageGate(reqPermission, authPermissions = {}) {
@@ -28,7 +31,9 @@ export function useManagePageGate(reqPermission, authPermissions = {}) {
   const location = useLocation();
   const groups = (user?.groups || []).filter(g => g !== 'public');
   const allowed = Boolean(user?.authed) && groups.length > 0
-    && (groups.includes(`${app} Admin`) || isUserAuthed({ user, reqPermissions: [reqPermission], authPermissions }));
+    && (groups.includes(`${app} Admin`) || (reqPermission == null
+      ? groups.includes('AVAIL')
+      : isUserAuthed({ user, reqPermissions: [reqPermission], authPermissions })));
 
   React.useEffect(() => {
     if (!user?.authed) {

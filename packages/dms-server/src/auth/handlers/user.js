@@ -236,13 +236,14 @@ async function deleteUser(db, body, ctx) {
  * pages, internal sources; through the DMS controller, so they're logged and synced), then removes them
  * from every group linked to the project, shared groups included (the plan names the other projects
  * those serve, for the confirm dialog). External-source grants are listed, not changed (`pgEnvs`: the
- * site's DAMA envs, a client setting). The account stays. `dryRun` returns the plan only.
+ * site's DAMA envs, a client setting). The account stays. Its preview is /user/project/remove/plan
+ * (planRemoveFromProject, reads only); a destructive route never takes a preview flag.
  *
  * Grants first, memberships last: two databases, no shared transaction, and a retry after a partial
  * failure finds the user still a member and finishes the job.
  */
-async function removeFromProject(db, body, ctx = {}) {
-  const { token, user_email, dryRun = false, pgEnvs = [] } = body;
+async function planUserLeavesSite(db, body, ctx) {
+  const { token, user_email, pgEnvs = [] } = body;
   const userData = await verifyAndGetUserData(db, token);
   const a = await usersAuthority(db, userData, body, ctx, Infinity);
   if (!a.project) throw new Error('Name the site (app) to remove the user from.');
@@ -275,14 +276,22 @@ async function removeFromProject(db, body, ctx = {}) {
     user_email, project: a.project, groups, sharedGroups,
     siteGrants: grants.map(({ id, type }) => ({ id, type })), skippedGrants: skipped, externalSources,
   };
-  if (dryRun) return plan;
+  return { plan, actor: { id: userData.id, email: userData.email }, who };
+}
 
-  const stripped = await ctx.siteGrants.stripSiteGrants(a.project, who, { id: userData.id, email: userData.email });
+/** POST /user/project/remove/plan — what /user/project/remove would do, for the confirm dialog. Never writes. */
+async function planRemoveFromProject(db, body, ctx = {}) {
+  return (await planUserLeavesSite(db, body, ctx)).plan;
+}
+
+async function removeFromProject(db, body, ctx = {}) {
+  const { plan, actor, who } = await planUserLeavesSite(db, body, ctx);
+  const stripped = await ctx.siteGrants.stripSiteGrants(plan.project, who, actor);
   plan.skippedGrants = stripped.skipped;
   await db.withTransaction(async (tx) => {
-    for (const g of groups) await q.removeUserFromGroup(tx, user_email, g);
+    for (const g of plan.groups) await q.removeUserFromGroup(tx, plan.user_email, g);
   });
-  return { ...plan, message: `Removed ${user_email} from ${a.project}.` };
+  return { ...plan, message: `Removed ${plan.user_email} from ${plan.project}.` };
 }
 
 /** POST /user/create/fake — create test user (platform admin: AVAIL member, or avail_auth level 10) */
@@ -362,6 +371,7 @@ module.exports = {
   removeFromGroup,
   deleteUser,
   removeFromProject,
+  planRemoveFromProject,
   createFake,
   getUsersPreferences,
 };

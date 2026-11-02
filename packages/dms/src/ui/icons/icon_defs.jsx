@@ -454,6 +454,14 @@ export const Search = (props) => (
   </svg>
 )
 
+// Access log nav link (patterns/auth siteConfig.jsx; mockup admin-access-log.html)
+export const Shield = (props) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <path d="M12 3.5l7 2.6v5.2c0 4.3-2.9 7.7-7 9.2-4.1-1.5-7-4.9-7-9.2V6.1l7-2.6Z" />
+        <path d="M9.3 12l1.9 1.9 3.6-3.8" />
+    </svg>
+);
+
 // Data/Table Icons
 export const Refresh = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} fill={"none"} {...props}>

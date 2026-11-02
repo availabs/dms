@@ -132,6 +132,10 @@ registerAuthRoutes(app, getDb(authDbEnv));
 // JWT auth middleware — validates Authorization header, attaches req.availAuthContext
 app.use(createJwtMiddleware(authDbEnv));
 
+// Access log — the guards' refusals, counted (GET /dms-admin/:app/access-log, `${app} Admin` / AVAIL only)
+const { registerAccessLogRoutes } = require('./access-log');
+registerAccessLogRoutes(app, { authDbEnv });
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 
