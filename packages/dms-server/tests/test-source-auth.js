@@ -11,7 +11,7 @@ const DMS_DB = process.env.DMS_TEST_DB || 'cli-test';
 const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 process.env.DMS_DB_ENV = DMS_DB; // the resolver reads pattern + internal rows from DMS_DB_ENV
 const assert = require('assert');
-const { mergeAuthPermissions, isUserAuthed } = require('../src/routes/uda/sourceAuth');
+const { mergeAuthPermissions, isUserAuthed } = require('../src/routes/auth/kindAuth/sourceAuth');
 
 let pass = 0, fail = 0;
 const t = (name, fn) => { try { fn(); pass++; console.log(`  ✓ ${name}`); } catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.message}`); } };
@@ -103,7 +103,7 @@ t('private source (public:[]) hides from anon', () => {
 const {
     decideSource, decidePattern, isUserAuthedForSource, isUserAuthedForPattern,
     requestUserId, requestUserIdWarnBody, requestPatternRef,
-} = require('../src/routes/uda/sourceAuth');
+} = require('../src/routes/auth/kindAuth/sourceAuth');
 const { dmsMainTable } = require('../src/routes/uda/utils');
 
 const ta = async (name, fn) => { try { await fn(); pass++; console.log(`  ✓ ${name}`); } catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack}`); } };

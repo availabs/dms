@@ -40,6 +40,7 @@
  */
 
 const { createResolver } = require('./rowAuth');
+const { NO_CHANGE } = require('../noChange');   // shared with kind auth — see that file
 const { can, isUnstated, VERBS } = require('./mergeAuth');
 const { publicReadOf } = require('./authVocabulary');
 
@@ -348,7 +349,7 @@ function writeGate() {
  * takes, so a call site swaps the import and nothing else.
  */
 function createJudge(ctx) {
-  if (writeGate() === 'kind') return require('./dataAuth').createJudge(ctx);
+  if (writeGate() === 'kind') return require('../kindAuth/dataAuth').createJudge(ctx);
   return createRowJudge(ctx);
 }
 
@@ -460,13 +461,17 @@ function createRowJudge({ app, subdomain = '', user, controller }) {
  * judged. `legacy` checks and filters nothing. There is no `log` branch: the gate applies the mode
  * and writes the would-deny line, so under `log` this sees `allow` and returns the planned write.
  */
-async function assertDataWrite(router, controller, op, app, row, patch, { replace = false } = {}) {
+async function assertDataWrite(router, controller, op, app, row, patch, { replace = false, skipNoChange = false } = {}) {
   if (writeGate() === 'kind') {
-    return require('./dataAuth').assertDataWrite(router, controller, op, app, row, patch, { replace });
+    return require('../kindAuth/dataAuth')
+      .assertDataWrite(router, controller, op, app, row, patch, { replace, skipNoChange });
   }
   if (dataAuthMode() === 'legacy') return patch;
   const user = (router && router.user) || null;
   const plan = op === 'edit' ? planEdit(row, patch, { replace }) : { keys: [], write: patch };
+  // An edit that changes nothing is not an update, so it is never judged — the same rule kind auth
+  // applies, with the same shared sentinel, so the route's `=== NO_CHANGE` holds either way.
+  if (skipNoChange && op === 'edit' && row && row.data && plan.keys.length === 0) return NO_CHANGE;
   const judge = createJudge({
     app, subdomain: (router && router.subdomain) || '', user, controller,
   });
@@ -478,7 +483,7 @@ async function assertDataWrite(router, controller, op, app, row, patch, { replac
 }
 
 module.exports = {
-  createGate, rowAuthMode, verdict, isAppAdmin, VERBS,
+  createGate, rowAuthMode, verdict, isAppAdmin, VERBS, NO_CHANGE,
   // the write surface — dataAuth.js's API, same names, same signatures
   assertDataWrite, dataAuthMode, createJudge, planEdit, verbsFor, holdsPermission, writeGate, GRANT_KEYS,
   createRowJudge,            // the row judge, reachable for tests regardless of DMS_WRITE_GATE

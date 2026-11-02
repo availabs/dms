@@ -34,9 +34,13 @@
  * Mirrors the merge + check of the client `utils/auth.js` (mirror, don't import). Same rule on both sides
  * (owner, 2026-10-23): no permission set → open (see isUserAuthed below); `${app} Admin` passes.
  */
-const { resolveAuthPermissions, isUserAuthed: lenientIsUserAuthed } = require('../dms/auth');
-const { getDb, loadConfig } = require('../../db');
-const { dmsMainTable, getSiteSources } = require('./utils');
+const { resolveAuthPermissions, isUserAuthed: lenientIsUserAuthed } = require('../auth');
+const { getDb, loadConfig } = require('../../../db');
+const { dmsMainTable, getSiteSources } = require('../../uda/utils');
+// MOVED to ../sourceSnapshot.js (2026-11-02): a pure grant union and a pattern-row read are data
+// access, not decisions, and the shared snapshot builder needs both. Re-exported below so the ~20
+// callers of this module keep their import; there is still only one definition.
+const { unionAuthPermissions, readNamedPattern } = require('../sourceSnapshot');
 
 // merge source override onto pattern base: [] disables an inherited grant, non-empty replaces
 function mergeAuthPermissions(base = {}, override) {
@@ -55,18 +59,6 @@ function mergeAuthPermissions(base = {}, override) {
 }
 
 // Union of several resolved grants (an env shared by several patterns): a perm granted by any wins.
-function unionAuthPermissions(list) {
-    const out = { groups: {}, users: {} };
-    const asList = p => (Array.isArray(p) ? p : p ? [p] : []);
-    for (const ap of list) {
-        for (const key of ['groups', 'users']) {
-            for (const [k, perms] of Object.entries((ap && ap[key]) || {})) {
-                out[key][k] = [...new Set([...(out[key][k] || []), ...asList(perms)])];
-            }
-        }
-    }
-    return out;
-}
 
 // The repo's rule (owner, 2026-10-23): no permission set → open. `routes/dms/auth.js` isUserAuthed, the
 // client's mirror: a signed-in user passes when nothing beyond `public` is set, anyone when nothing at all
@@ -140,23 +132,6 @@ async function readExternalSource(db, sourceId) {
 }
 
 // A client-named pattern, accepted only if it is an existing datasets pattern of `app`.
-async function readNamedPattern({ app, patternId }, subdomain) {
-    if (!app || !patternId) return { ok: false, reason: 'no pattern named' };
-    try {
-        const { db, splitMode } = getDmsDb();
-        const tbl = await dmsMainTable(db, app, splitMode);
-        const { rows } = await db.query(
-            `SELECT data->>'authPermissions' AS ap, data->>'pattern_type' AS pattern_type
-             FROM ${tbl} WHERE id = $1 AND app = $2 AND type LIKE '%:pattern'`,
-            [+patternId, app]
-        );
-        if (!rows.length) return { ok: false, reason: `pattern ${app}/${patternId} not found` };
-        if (rows[0].pattern_type !== 'datasets') return { ok: false, reason: `pattern ${patternId} is not a datasets pattern` };
-        return { ok: true, app, ap: resolveAuthPermissions(rows[0].ap, subdomain) };
-    } catch (e) {
-        return { ok: false, reason: `pattern query failed: ${e.message}` };
-    }
-}
 
 // Internal source's own grants + the grants of the datasets pattern(s) that list it. Only the env's
 // app is used: clients name an internal source's env by its data type (`app+internal_table`) or its
@@ -252,6 +227,17 @@ async function decideSource({ db, env, sourceId, patternRef, subdomain = '', req
     return { allow, reason: allow ? 'granted' : `missing ${reqPermissions.join(' or ')}` };
 }
 
+/**
+ * An internal source's effective grants (owning datasets patterns ⊕ the source's own), as decideSource
+ * merges them, for callers that judge with their own rule (dataAuth.js). Null when the source can't be
+ * read, so the caller fails closed.
+ */
+async function internalSourceGrants(env, sourceId, subdomain = '') {
+    if (!sourceId) return null;
+    const r = await readInternalSource(env, sourceId, subdomain);
+    return r.ok ? mergeAuthPermissions(r.patternAP, r.ap) : null;
+}
+
 /** Decision for a pattern-level permission (`create-source`, `edit-pattern`). */
 async function decidePattern({ patternRef, subdomain = '', reqPermissions, user }) {
     if (!reqPermissions || !reqPermissions.length) return { allow: true, reason: 'nothing required' };
@@ -287,8 +273,8 @@ async function isUserAuthedForSource(opts) {
     const mode = authMode();
     // `legacy` checks nothing, so do not pay for a lookup (or warm a capability probe) to ignore it.
     if (mode === 'legacy') return opts.wasOpen || await legacyAllows(opts);
-    const d = require('./rowSourceAuth').udaGate() === 'row'
-        ? await require('./rowSourceAuth').decideSourceRow(opts)
+    const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
+        ? await require('../rowAuth/rowSourceAuth').decideSourceRow(opts)
         : await decideSource(opts);
     if (mode === 'enforce' || d.allow) return d.allow;
     // legacy / log: today's rule may allow what the resolver's rule denies, never the reverse. (Today's rule
@@ -307,8 +293,8 @@ async function isUserAuthedForPattern(opts) {
     if (mode === 'legacy') return true;
     // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
     // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
-    const d = require('./rowSourceAuth').udaGate() === 'row'
-        ? await require('./rowSourceAuth').decidePatternRow(opts)
+    const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
+        ? await require('../rowAuth/rowSourceAuth').decidePatternRow(opts)
         : await decidePattern(opts);
     if (mode === 'enforce') return d.allow;
     if (!d.allow) {
@@ -482,6 +468,7 @@ module.exports = {
     isAppAdmin,
     authMode,
     decideSource,
+    internalSourceGrants,
     decidePattern,
     legacyAllows,
     isUserAuthedForSource,

@@ -20,7 +20,7 @@
  * Run: node tests/test-row-auth-writes.js
  */
 const assert = require('assert');
-const { createRowJudge } = require('../src/routes/dms/rowAuthGate');
+const { createRowJudge } = require('../src/routes/auth/rowAuth/rowAuthGate');
 const { getKind } = require('../src/db/type-utils.js');
 
 let pass = 0, fail = 0;

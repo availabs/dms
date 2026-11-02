@@ -12,7 +12,7 @@ const store = require('./store');
 const { getProcessor } = require('./processors');
 const { isSplitType, parseSplitDataType } = require('#db/type-utils.js');
 const dmsTasks = require('../../dms/tasks');
-const { requestUserId, requestUserIdWarnBody } = require('../../routes/uda/sourceAuth');
+const { requestUserId, requestUserIdWarnBody } = require('../../routes/auth/kindAuth/sourceAuth');
 const { checkUploadOwner, authorizeRowWrite } = require('./auth');
 
 const UPLOAD_DIR = process.env.DAMA_ETL_DIR || path.join(__dirname, '../../../var/tmp-etl');

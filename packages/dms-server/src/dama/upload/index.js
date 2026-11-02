@@ -9,7 +9,7 @@ const { downloadGuard, createDownload, deleteDownload, signDownload, serveDownlo
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
 const { requireLogin, requirePatternAction } = require('./auth');
-const { requireReader } = require('../../routes/uda/sourceAuth');
+const { requireReader } = require('../../routes/auth/kindAuth/sourceAuth');
 const { createDuplicateHandler } = require('./dms-duplicate');
 const { createPatternFilterSyncHandler } = require('../../dms/tasks/pattern-filter-sync/pattern-filter-sync');
 const dmsTasks = require('../../dms/tasks');

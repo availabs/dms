@@ -11,8 +11,8 @@ const assert = require('assert');
 const { isPlausibleParent, takeParentId, validateParentId,
     refIdsOf, mergeChildRefs, declaredChildKinds,
     planDuplication, repointRefs, stampChildren,
-    planRemovedChildren, sweepRemovedChildren, sweepAllChildren } = require('../src/routes/dms/parentId');
-const { ownerKindOf, childRefsOf } = require('../src/routes/dms/authVocabulary');
+    planRemovedChildren, sweepRemovedChildren, sweepAllChildren } = require('../src/routes/auth/rowAuth/parentId');
+const { ownerKindOf, childRefsOf } = require('../src/routes/auth/rowAuth/authVocabulary');
 
 let pass = 0, fail = 0;
 const cases = [];

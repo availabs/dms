@@ -13,9 +13,9 @@
  * Run: node tests/test-auth-vocabulary.js
  */
 const assert = require('assert');
-const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../src/routes/dms/authVocabulary');
-const { createResolver, authOf, mapsForChain } = require('../src/routes/dms/rowAuth');
-const { can } = require('../src/routes/dms/mergeAuth');
+const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../src/routes/auth/rowAuth/authVocabulary');
+const { createResolver, authOf, mapsForChain } = require('../src/routes/auth/rowAuth/rowAuth');
+const { can } = require('../src/routes/auth/rowAuth/mergeAuth');
 
 let pass = 0, fail = 0;
 const cases = [];
@@ -58,12 +58,12 @@ t('garbage is null, never an error', () => {
 t('a vocabulary in the auth column is NOT read as a grant', () => {
     // `vocabulary` sits beside `groups`/`users`; rawAuthOf must strip it, or a chain could be
     // judged against a principal literally named "vocabulary".
-    const ra = require('../src/routes/dms/rowAuth').rawAuthOf;
+    const ra = require('../src/routes/auth/rowAuth/rowAuth').rawAuthOf;
     assert.deepStrictEqual(ra({ auth: { groups: { A: ['x'] }, vocabulary: VOCAB } }), { groups: { A: ['x'] } });
 });
 t('a row with ONLY a vocabulary is still unstated — it must not clamp its descendants', () => {
-    const { isUnstated } = require('../src/routes/dms/mergeAuth');
-    const ra = require('../src/routes/dms/rowAuth').rawAuthOf;
+    const { isUnstated } = require('../src/routes/auth/rowAuth/mergeAuth');
+    const ra = require('../src/routes/auth/rowAuth/rowAuth').rawAuthOf;
     assert.strictEqual(isUnstated(ra({ auth: { vocabulary: VOCAB } })), true);
 });
 
@@ -213,7 +213,7 @@ t('a migrated sqlite table reports its columns — and the projection carries th
     // the `data` fallback. A mocked probe cannot catch that; only a real database can.
     const os = require('os'), path = require('path'), fs = require('fs');
     const { SqliteAdapter } = require('../src/db/adapters/sqlite');
-    const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/dms/rowAuthCaps');
+    const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/auth/rowAuth/rowAuthCaps');
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'row-auth-')), 'probe.sqlite');
     const db = new SqliteAdapter({ type: 'sqlite', role: 'dms', filename: file });
     try {

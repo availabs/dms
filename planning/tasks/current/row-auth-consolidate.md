@@ -449,3 +449,213 @@ Do not start before task 3. Consolidating onto a vocabulary that cannot yet expr
 would mean the single remaining decision point is the one that denies reads wherever someone
 configured access — measured on a migrated clone: with no vocabulary mapping, reads were allowed on
 exactly the 28 of 40 sampled rows that carried **no grants at all**.
+
+## 2026-11-02 — `routes/auth/`: the two implementations, side by side, behind one switch
+
+Owner's request after pulling Shaun's kind-auth work: one flag that selects the implementation, the
+two approaches in their own folders, anything shared directly in `routes/auth/`.
+
+### Layout
+
+```
+routes/auth/
+  index.js            THE SWITCH — DMS_AUTH_IMPL: row (default) | kind
+  auth.js  authVocabulary.js  legacyVerbs.js  rowAuthCaps.js
+  noChange.js         the NO_CHANGE sentinel, one Symbol for both sides
+  sourceSnapshot.js   the datasets read snapshot — shared infrastructure
+  kindAuth/   index.js  dataAuth  kindReadAuth  authRules  authJudge  sourceAuth  readAuth
+  rowAuth/    index.js  rowAuth  rowAuthGate  rowSourceAuth  mergeAuth  parentId
+```
+
+15 modules moved with `git mv`; 41 files' imports rewritten. `authRules.js` + `authJudge.js` are
+filed under `kindAuth/` because `dataAuth.js` selects them with `DMS_DATA_AUTH_JUDGE=data` — a
+sub-mode of kind auth, not a third implementation.
+
+Both `index.js` files export the same contract — `assertDataWrite`, `dataAuthMode`, `createJudge`,
+`planEdit`, `readBlocked`, `listingBlocked`, `NO_CHANGE` — so `dms.route.js` names no side. Its
+auth surface is now one line: `require('../auth')`. `sync.js` and `dama/upload/auth.js` likewise.
+
+### The default is `row`, and it is not an enforcement decision
+
+`rowAuth/index.js` reproduces the previous dispatch exactly: pattern and page fall back to kind auth
+unless `DMS_ROW_AUTH_MODE=enforce`, writes forward to kind unless `DMS_WRITE_GATE=row`. Selecting it
+changes no verdict under default modes. What it preserves is the row gate's REPORTING for the nine
+kinds kind auth never gated on read — under `log` those are judged and a would-deny line written.
+`kind` was tried as the default first and `test-row-auth-reads.js` caught it: 4 failures.
+
+`DMS_AUTH_IMPL` chooses which MODULES answer, not how strictly. The per-surface modes are untouched.
+
+### The Phase 2 coupling moved, intact
+
+`readBlocked` in `rowAuth/index.js` carries the `enforce` coupling and its warning verbatim. The
+`no-access` stub is untouched — the seam held exactly as this file predicted.
+
+### `NO_CHANGE` — the merge conflict, and why a union was the only correct resolution
+
+The pull left `dms.route.js` conflicted: Shaun's side imported `assertDataWrite` from `dataAuth.js`
+and added a `NO_CHANGE` Symbol the merged body already used at `:560`/`:569`; ours imported from
+`rowAuthGate.js`. The symbol is IDENTITY-compared by the route (`toWrite === NO_CHANGE`), so two
+separately-minted Symbols would have silently performed writes that should have been skipped —
+whichever side the route did not import from. It now lives in `routes/auth/noChange.js` and both
+sides import it. The row gate also gained the `skipNoChange` handling it had been dropping on its
+forward to kind auth; the write differential now reports that entry as RESOLVED.
+
+### ⚠ THE MERGE HAD SILENTLY DISABLED THE WRITE DIFFERENTIAL
+
+Measured in throwaway worktrees, `tests/test-row-auth-diff.js`:
+
+| state | result |
+|---|---|
+| HEAD, before the merge | 26 pinned, **0 resolved**, no unexpected |
+| as pulled | 4 pinned, **22 resolved**, no unexpected ✓ |
+| after this refactor | pinned restored, **2 UNEXPECTED** |
+
+Shaun's import line pointed the route at `dataAuth.js` directly, which bypasses the
+`DMS_WRITE_GATE` dispatch — so `DMS_WRITE_GATE=row` no longer reached the row judge and the
+differential was comparing kind auth against kind auth. It passed green. **"22 resolved" is the
+signature of the harness being neutered**, and it is precisely what the fixture's own README warns
+about: *"a fresh suite is green by construction and can never tell you something was given up."*
+
+Routing through the facade restores it, and two genuine divergences surface — both from new kind
+rules Shaun added that row auth does not implement:
+
+- `an open pattern needs view-pattern-list at the site level` — the `ifOwnerBlank` clause (decision 5)
+- `auth_permissions with another key needs update-source too (as uda.sources.update)`
+
+**NOT pinned.** The fixture forbids an entry without a written reason, and the reason is a decision
+about whether row auth adopts those two rules — the owner's and Shaun's, not a refactor's.
+
+### `readAuth.js` split — `sourceSnapshot.js` (owner, 2026-11-02)
+
+Owner's question: why does a KIND module import `rowAuthCaps.js` and `legacyVerbs.js`? Because it
+was not purely kind. `readAuth.js` was two things: a snapshot builder and a decision. The builder
+reads the `auth` column (hence `rowAuthCaps`) and expands grants into structural verbs (hence
+`legacyVerbs`) — and `decideFrom` hands that same snapshot to `rowSourceAuth.decideFromRow`, while
+`allowViewRead` hands it to `readsRow`. `decideFromRow` is documented as needing no database access
+precisely because the snapshot already holds both levels of the chain. It was shared code sitting
+inside a kind-auth file.
+
+Split: builder → `routes/auth/sourceSnapshot.js` (266 lines), decisions → `kindAuth/readAuth.js`
+(246 lines, down from 431). `unionAuthPermissions` and `readNamedPattern` moved up from
+`sourceAuth.js` for the same reason — a pure grant union and a pattern-row read are not decisions —
+and are re-exported there so its ~20 callers keep their import against one definition.
+
+**Result: nothing in `kindAuth/` imports `rowAuthCaps`, `legacyVerbs` or `authVocabulary` any
+more.** It imports `auth.js`, `sourceSnapshot.js` and `noChange.js`, and nothing else from the
+shared layer.
+
+**The two could NOT be folded into `sourceSnapshot.js`**, which the owner asked about: `rowAuthCaps`
+has 10 consumers including `dms.controller.js` (not auth at all), `rowSourceAuth.js`, the migration
+script and 5 tests; `legacyVerbs` has 5, three of them in `rowAuth/`. Shared is where they belong —
+now for a demonstrable reason rather than an accident of where one file sat.
+
+### Tests
+
+Everything green except two knowns: the 2 UNEXPECTED above, and `test-uda-auth` 27/1, which was
+**verified pre-existing** by reproducing the as-pulled state in a worktree. `test-data-auth` 51,
+`test-source-auth` 50, `test-read-auth` 30, `test-row-auth` 30, gate 21, reads 20, writes 32, uda
+22, `test-parent-id` 85, plus full `npm test`. The UDA differential stays empty.
+
+### Still open
+
+- The 2 UNEXPECTED need a decision: adopt the rules in the row judge, or pin with a reason.
+- `rowAuthCaps.js` is badly named for a shared module — it is a schema probe ("does this table carry
+  the auth columns"), used outside auth entirely. A rename is unmade churn, not a defect.
+- `sourceAuth.js` is still mixed: express plumbing (`requireUser`, `requireReader`,
+  `requestPatternRef`, …) alongside decisions (`decideSource`, `decidePattern`, `legacyAllows`).
+  The plumbing is implementation-independent and should rise to `routes/auth/` when that file is
+  split, the way `sourceSnapshot.js` just did. Until then the uda routes import it directly.
+
+### `expandLevel.js` — the declared-vs-shim precedence, in one place (2026-11-02)
+
+The same ternary was copied into three modules, two of them character-identical:
+
+```
+rowAuth/rowAuth.js:97        return maps ? expandWithVocabulary(raw, maps) : expandAuth(raw);
+sourceSnapshot.js:91         const expandLevel = (auth, maps) => (maps ? … : expandAuth(auth));
+rowAuth/rowSourceAuth.js:84  const expandLevel = (auth, maps) => (maps ? … : expandAuth(auth));
+```
+
+So every consumer imported both `authVocabulary.js` and `legacyVerbs.js` and had to remember which
+way round the precedence ran. `routes/auth/expandLevel.js` now owns it.
+
+**It is a separate module from both things it chooses between, on purpose.** `authVocabulary.js` is
+a pure interpreter that names no verb and no pattern — the difference `src/dms/CLAUDE.md` ("DMS
+Interprets Data") requires of it — so putting the fallback inside it would make the interpreter
+import the hardcoded verb table, which is the coupling both files exist to avoid. And
+`legacyVerbs.js` is scheduled for deletion; keeping the choice here means that deletion stays a
+`git rm` plus one branch, not surgery inside a file that must survive.
+
+(The branch is not a null guard: `expandWithVocabulary` already returns `auth` untouched on a null
+`maps`. It picks the fallback.)
+
+**Result — `legacyVerbs.js` went from 5 consumers to 2**, only one of which is the precedence:
+
+| consumer | uses | why it remains |
+|---|---|---|
+| `expandLevel.js` | `expandAuth` | the precedence itself |
+| `rowAuth/rowAuthGate.js:303` | `expandLegacy` | `verbsFor` — expands ONE principal's verb list for the UDA `holdsPermission` path. A different entry point, not the ternary. |
+| `routes/auth/index.js` | — | facade re-export |
+
+Both real consumers are now in or beside `rowAuth/`, which is what would let `legacyVerbs.js` stop
+being a shared-layer resident. The one thing still holding it there is `expandLevel.js` itself,
+which `sourceSnapshot.js` needs — and `sourceSnapshot` needs the legacy fallback only until the
+datasets pattern declares its vocabulary (already a prerequisite of the grant sweep,
+row-auth-uda.md). When that lands, `expandLevel` and `legacyVerbs` move into `rowAuth/` together
+and die together.
+
+Also dropped: `rowAuth.js` no longer imports `expandWithVocabulary` (unused once `authOf` delegates).
+
+Suites unchanged — the two knowns only.
+
+### The folder root, cleaned (owner, 2026-11-02)
+
+Owner: *"can we then put authVocabulary and legacy verbs into the rowauth folder? … I want the root
+of the folder to be as clean as possible."*
+
+**Yes — and the evidence says they were never shared.** All three expansion sites in
+`sourceSnapshot.js` justify themselves by the ROW gate, in comments written when each fixed a bug:
+
+- `loadExternal` — *"or `view-source` never becomes the structural `read` the row gate asks for"*
+- `loadInternal` — *"a deliberate public grant denied the public while `*` holders sailed through"*
+- `namedPattern` — *"the row gate's `read` question never sees it"*
+
+Kind auth cannot use any of it: `isUserAuthed` matches verbs **by name and cannot expand anything**
+(`readAuth.js`'s own `READ_PERMISSIONS` comment says so — the list exists precisely because kind
+auth has no expansion). Expansion is additive and keeps the original strings, so a pre-expanded
+snapshot answers a kind-auth question exactly as a raw one would. The verb machinery is row auth's,
+computed in the shared builder because that is where the rows are — once per 30s snapshot instead
+of once per decision. A caching decision, not shared logic.
+
+`rowAuthCaps.js` likewise: it probes for the `auth` and `parent_id` columns, which are the columns
+row auth added. `dms.controller.js` already imports `rowAuth/parentId.js`, so the controller
+reaching into that folder is established, not new.
+
+Moved into `rowAuth/`: `authVocabulary.js`, `legacyVerbs.js`, `expandLevel.js`, `rowAuthCaps.js`.
+13 files' imports rewritten.
+
+**The root is now the switch plus what both sides genuinely use, and nothing else:**
+
+```
+routes/auth/
+  index.js            the switch
+  auth.js             is this caller authed; what do stored grants resolve to for a subdomain
+  noChange.js         the NO_CHANGE sentinel — one Symbol, both sides
+  sourceSnapshot.js   the datasets read snapshot both implementations decide from
+  kindAuth/   dataAuth kindReadAuth authRules authJudge sourceAuth readAuth
+  rowAuth/    rowAuth rowAuthGate rowSourceAuth mergeAuth parentId
+              authVocabulary legacyVerbs expandLevel rowAuthCaps
+```
+
+`sourceSnapshot.js` imports three modules from `rowAuth/`. That inversion is deliberate and carries
+a ⚠ note at the requires explaining why it is safe for kind auth; the facade header repeats the
+rule. It is the one place the folder boundary is crossed by shared code, and it is crossed for a
+measured reason rather than an accident of where a file sat.
+
+Everything green except the two knowns. Both `DMS_AUTH_IMPL` values load with a complete contract.
+
+**Not done, offered:** `authVocabulary.js` is itself two things — verb vocabulary (`vocabularyOf`,
+`impliesMaps`, `expandWithVocabulary`, `publicReadOf`) and childRefs declarations (`childRefsOf`,
+`ownerKindOf`, used only by `dms.controller.js` and `migrate-row-auth.js`, and about parentage
+rather than verbs). They share one 3-line `safeJson` helper and nothing else. Splitting
+`childRefs.js` out next to `parentId.js` is the same move `sourceSnapshot.js` just was.

@@ -56,7 +56,7 @@ async function run() {
         try { await db.promise(`ALTER TABLE ${T.fullName} ADD COLUMN ${col}`); }
         catch (e) { if (!/duplicate column/i.test(e.message)) console.log('[alter]', e.message); }
     }
-    require('../src/routes/dms/rowAuthCaps')._resetCaps();
+    require('../src/routes/auth/rowAuth/rowAuthCaps')._resetCaps();
 
     const parentOf = async (id) =>
         String((await db.promise(`SELECT parent_id FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.parent_id ?? '');

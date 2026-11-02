@@ -72,9 +72,9 @@
 
 const { getParent, getInstance } = require('#db/type-utils.js');
 const { mergeAuthChain, can, isUnstated, VERBS } = require('./mergeAuth');
-const { resolveAuthPermissions } = require('./auth');
-const { expandAuth } = require('./legacyVerbs');
-const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('./authVocabulary');
+const { resolveAuthPermissions } = require('../auth');
+const { expandLevel } = require('./expandLevel');
+const { vocabularyOf, impliesMaps } = require('./authVocabulary');
 
 /** Hub: cycles and pathological depth truncate, never deny. Measured max depth is 5 (~7 end to end). */
 const MAX_DEPTH = 16;
@@ -92,9 +92,8 @@ function authOf(row, subdomain = '', maps = null) {
   const raw = rawAuthOf(row, subdomain);
   if (!raw) return raw;
   // A declared vocabulary wins over the shim, so a pattern that has declared is already free of it
-  // (row-auth-vocabulary.md, "Until then it stays"). `expandAuth` is the transitional fallback for
-  // grants written before any pattern declared — see legacyVerbs.js.
-  return maps ? expandWithVocabulary(raw, maps) : expandAuth(raw);
+  // (row-auth-vocabulary.md, "Until then it stays"). The precedence lives in ../expandLevel.js.
+  return expandLevel(raw, maps);
 }
 
 /**

@@ -14,8 +14,8 @@
  *   changed) only by `${app} Admin` members and explicit `*` holders on the auth row.
  */
 
-const { resolveAuthPermissions, isUserAuthed: lenientAuthed } = require('../../routes/dms/auth');
-const { holdsExplicitly, isAppAdmin, unionAuthPermissions } = require('../../routes/uda/sourceAuth');
+const { resolveAuthPermissions, isUserAuthed: lenientAuthed } = require('../../routes/auth/auth');
+const { holdsExplicitly, isAppAdmin, unionAuthPermissions } = require('../../routes/auth/kindAuth/sourceAuth');
 const q = require('./queries');
 
 const AUTH_USERS = 'auth-users';

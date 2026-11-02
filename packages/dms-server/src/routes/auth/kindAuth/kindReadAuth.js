@@ -27,7 +27,7 @@
  *      expected to show up in `--diff-reads`, and it is the resolver being stricter.
  */
 
-const { isUserAuthed, resolveAuthPermissions } = require('./auth');
+const { isUserAuthed, resolveAuthPermissions } = require('../auth');
 const { getParent } = require('#db/type-utils.js');
 
 /**

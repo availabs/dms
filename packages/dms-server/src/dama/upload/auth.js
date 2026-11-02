@@ -15,12 +15,12 @@
 const {
     authMode, requireUser, requireUserOrOpen, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
     sourceIdForView,
-} = require('../../routes/uda/sourceAuth');
+} = require('../../routes/auth/kindAuth/sourceAuth');
 
 // KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
 // comment the next one out to move this surface back onto it.
-// const { createJudge, dataAuthMode } = require('../../routes/dms/dataAuth');
-const { createJudge, dataAuthMode } = require('../../routes/dms/rowAuthGate');
+// Authorization comes from the switch, never from a named implementation. See routes/auth/index.js.
+const { createJudge, dataAuthMode } = require('../../routes/auth');
 const { getInstance } = require('#db/type-utils.js');
 const { getSubdomain } = require('../../utils/subdomain');
 

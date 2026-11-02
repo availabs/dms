@@ -13,7 +13,7 @@ process.env.DMS_DB_ENV = DMS_DB;
 const assert = require('assert');
 const { createTestGraph } = require('./graph');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const RA = require('../src/routes/uda/readAuth');
+const RA = require('../src/routes/auth/kindAuth/readAuth');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {

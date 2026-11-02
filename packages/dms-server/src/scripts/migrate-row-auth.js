@@ -106,16 +106,16 @@ const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { resolveTable } = require('../db/table-resolver');
 const { getInstance, getParent, getKind } = require('../db/type-utils.js');
-const { childRefsOf } = require('../routes/dms/authVocabulary');
-const { MAX_DEPTH } = require('../routes/dms/rowAuth');
+const { childRefsOf } = require('../routes/auth/rowAuth/authVocabulary');
+const { MAX_DEPTH } = require('../routes/auth/rowAuth/rowAuth');
 const { isPlausibleParent, refIdsOf, mergeChildRefs, declaredChildKinds,
-        planDuplication, repointRefs } = require('../routes/dms/parentId');
-const { createResolver, rawAuthOf } = require('../routes/dms/rowAuth');
-const { createGate } = require('../routes/dms/rowAuthGate');
-const { kindReadBlocked } = require('../routes/dms/kindReadAuth');
-const { resolveAuthPermissions } = require('../routes/dms/auth');
-const { isUnstated } = require('../routes/dms/mergeAuth');
-const { authColumns } = require('../routes/dms/rowAuthCaps');
+        planDuplication, repointRefs } = require('../routes/auth/rowAuth/parentId');
+const { createResolver, rawAuthOf } = require('../routes/auth/rowAuth/rowAuth');
+const { createGate } = require('../routes/auth/rowAuth/rowAuthGate');
+const { kindReadBlocked } = require('../routes/auth/kindAuth/kindReadAuth');
+const { resolveAuthPermissions } = require('../routes/auth/auth');
+const { isUnstated } = require('../routes/auth/rowAuth/mergeAuth');
+const { authColumns } = require('../routes/auth/rowAuth/rowAuthCaps');
 
 function parseArgs() {
   const a = process.argv.slice(2);
@@ -190,7 +190,7 @@ async function main() {
 
   // Which columns exist. The backfill passes need them; the uniqueness report does not, so an
   // unmigrated app can still be AUDITED without being touched — which is the normal first step.
-  const { rowAuthCaps, _resetCaps } = require('../routes/dms/rowAuthCaps');
+  const { rowAuthCaps, _resetCaps } = require('../routes/auth/rowAuth/rowAuthCaps');
   let caps = await rowAuthCaps(db, t.schema, t.table, config.type);
   console.log(`columns: auth=${caps.auth ? 'yes' : 'NO'}  parent_id=${caps.parentId ? 'yes' : 'NO'}`);
   let canBackfill = caps.auth && caps.parentId;

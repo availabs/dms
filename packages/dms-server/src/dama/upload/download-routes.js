@@ -9,7 +9,7 @@ const { getDb } = require('../../db');
 const storage = require('../storage');
 const path = require('path');
 const { authorizeViewAction, MANAGE_DOWNLOADS_PERMS } = require('./auth');
-const { requestUserIdWarnBody, isUserAuthedForSource, requestPatternRef, sourceIdForView } = require('../../routes/uda/sourceAuth');
+const { requestUserIdWarnBody, isUserAuthedForSource, requestPatternRef, sourceIdForView } = require('../../routes/auth/kindAuth/sourceAuth');
 const { signToken, verifyToken } = require('../../auth/utils/crypto');
 
 // A signed download link is good for this long. It only has to outlive the click that asked for it.

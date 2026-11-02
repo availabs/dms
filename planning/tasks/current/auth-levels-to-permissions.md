@@ -5,6 +5,51 @@
 **Project:** DMS library (`src/dms` submodule), plus one shared task in `dms-template/planning/shared/` for
 `data-types/` · **Topics:** patterns/auth, patterns/datasets, dms-server (auth, dama, uda)
 
+## ▶ Decisions 2026-10-29 (owner), on Alex's `auth-as-data` judge and amuro's `server-side-auth-general.md`
+
+1. **A row with no grants is read-only**: read allowed, edit refused. Replaces "no permission set → open" for edits
+   (2026-10-23). Task: [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md).
+2. **Alex's judge stays a trial** behind `DMS_DATA_AUTH_JUDGE=data` (`authRules.js`, `authJudge.js`, `dataAuth.js`
+   `judgeAsData`). His files are a structure; the rules they define can change. Rules move into pattern data, edited
+   in a pattern editor **Settings → Advanced auth** tab: [pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md).
+3. **A save that changes nothing writes nothing**, so it isn't judged. Built: `assertDataWrite(…, { skipNoChange })`
+   returns `NO_CHANGE` and `dms.data.edit` returns the stored row. `/sync/push` still writes (and judges) a no-op U/I.
+4. **Site `*` may do anything in any pattern.** True today for site, theme, tenant, pattern, page, section; **not**
+   for datasets kinds (`dmsenv` / `source` / `view` / `data`) or the UDA routes. Follow-up, listed in the rules task.
+5. **A pattern with no grants needs site `view-pattern-list` to edit** (kept). The rules language needs a new clause.
+6. **Datasets Settings bypass of 5: decision 1 closes it** (owner 2026-10-30). `uda.settings.update` →
+   `decidePattern` checks lenient `edit-pattern`, so any signed-in user can save a no-grant datasets pattern's
+   settings today. No separate fix: once blank rows are read-only, that save is refused. Listed as a caller and a
+   test in [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md).
+7. **A source edit changing `auth_permissions` and other keys needs `update-source` too** (as `uda.sources.update`).
+   Built in `judge()`.
+8. **Unknown kinds:** refuse, then inherit. Not built: chat (`channel`, `member`) and the mapeditor rely on "signed
+   in" until their pattern types carry rules (the rules task).
+9. **Owner lookups:** ours now, amuro's `parent_id` resolver when it lands.
+10. **Rules live in pattern data**, not client or server code (see 2).
+
+Tests: `test-data-auth` 51/51 (new: no-change save writes nothing; `auth_permissions` + key needs both); with the
+rules judge 50/51 (the open-pattern clause, 5): **51/51 since 10-30** (`ifOwnerBlank`). Other auth suites and sync
+pass.
+
+## ▶ Next work (2026-10-30)
+
+State (10-30): the 10-29 changes are committed and master is merged into both repos again (unpushed). The blank-row
+audit is uncommitted. Commit/push only when the owner asks.
+
+In order:
+1. **[permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md)** (decisions 1 and 6). The audit
+   extension (plan step 4) is **built** 2026-10-30 (`permissions-access-diff.blank.js`, `test:blank-audit` 7/7);
+   its prod runs need VPN. Next: the read-verb list, the server split behind the modes, the client gates.
+2. **Access log admin page** (option 1) and the destructive-call **plan routes** (their own initiative; remove stays
+   enabled while no plan exists). Unbuilt.
+3. **Prod audit baseline** (`scripts/permissions-access-diff.js`): needs VPN. Rerun after 1 lands.
+4. **Task 18** (grant migration), then **task 19** (level removal): see "Resume here" below.
+5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): open-pattern clause
+   **done** 10-30 (trial 51/51); next storage (pattern row, not the code-only format), defaults, Advanced auth tab
+   mockup.
+6. Coordinate with amuro (decisions 1, 9: `parent_id` resolver, Phase D writes) and Alex (rules structure, 5's clause).
+
 ## ▶ Resume here (updated 2026-10-27, task 11 moved out)
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
@@ -158,6 +203,22 @@ save reverts), `upload.jsx` (new columns written only after a successful publish
   - `log` is not "nothing changes": anonymous UDA writes are refused in every mode, and client gates hide
     controls (Create / Upload / Settings, source Admin / Delete, version rename / Clear / Delete, Rules,
     Schedules, download links) on rows with grants set; new sources carry a creator grant, so non-grantees lose them.
+- **Merge of `origin/master` (2026-10-27; root 665277a1; the library had nothing new):** new plugin `acs5`'s
+  `/publish` checked only a login for a new source and `create-view` alone for a new year, after body
+  validation: now `authorizePublish`, checked first (root 2f7acd7a); plugin sweep 37/37 (36 write routes), acs5
+  unit 20/20. `npm run build` then failed on master too (`lexicalToHtml` in library commit b368a054, unpushed).
+- **Second merge of `origin/master` (2026-10-27, both repos; lib dd37e301):** b368a054 is pushed now; the build
+  passes. Master's server change (`dms.route.js` exports `.controller`, so `index.js` wires the sync broadcast on
+  the instance that serves Falcor) doesn't touch the guards. Server suites all pass: sync 95, data-auth 49,
+  source-auth 50, read-auth 25, uda-auth 28, upload-auth 37, schedule-auth 13, datatype-auth 9, auth-groups 21,
+  auth-users 26, auth-platform 14, auth-permissions 21, site-grants 8, jwt 8. (`test-auth.js` needs a server on
+  :3097 and wasn't run; `test-sync` must run with `DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test`.)
+  - **Overlap to settle with amuro:** master brought `server-side-auth-general.md` (an `auth` column, one resolver
+    walking `parent_id`, `read`/`edit` on the server, "empty = read allowed, edit denied"). Its Phase C covers the
+    writes `dataAuth.js` already guards, with a different rule for rows with no grants.
+  - **Master's library `CLAUDE.md` now lists `dataAuth.js` `judge()` as debt:** a per-kind `switch`, and a kind
+    with no `case` falls through to "signed in" (`:274`). Its rule: the default is inheritance through the parent,
+    never "signed in is enough", and which verb governs which field belongs in the pattern's format.
 - Next: 18 (grant migration), 19 (level removal).
 
 **Next session, in order (owner decisions 2026-10-22):** items 1–5 were built 2026-10-22; the live page-editor pass and

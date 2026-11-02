@@ -3,7 +3,7 @@
  * Fixtures only, no database. Run: node tests/test-row-auth-gate.js
  */
 const assert = require('assert');
-const { createGate, verdict, rowAuthMode } = require('../src/routes/dms/rowAuthGate');
+const { createGate, verdict, rowAuthMode } = require('../src/routes/auth/rowAuth/rowAuthGate');
 
 let pass = 0, fail = 0;
 const cases = [];

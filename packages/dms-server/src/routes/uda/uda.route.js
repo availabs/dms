@@ -29,9 +29,9 @@ const {
   updateExternalRow,
   deleteExternalRow
 } = require("./uda.controller");
-const { assertSourcePermission, sourceIdForView, parsePatternRef } = require("./sourceAuth");
+const { assertSourcePermission, sourceIdForView, parsePatternRef } = require("../auth/kindAuth/sourceAuth");
 const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
-const { readMode, allowSourceRead, allowViewRead, filterReadableSources, redactSourceRow } = require("./readAuth");
+const { readMode, allowSourceRead, allowViewRead, filterReadableSources, redactSourceRow } = require("../auth/kindAuth/readAuth");
 
 // ---- Reads (readAuth.js, DMS_READ_AUTH_MODE): a refused read answers null, never an error, so a page
 // section or list renders empty instead of failing the whole batch.

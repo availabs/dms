@@ -57,7 +57,7 @@ async function run() {
         try { await db.promise(`ALTER TABLE ${T.fullName} ADD COLUMN ${col}`); }
         catch (e) { if (!/duplicate column/i.test(e.message)) console.log('[alter]', e.message); }
     }
-    require('../src/routes/dms/rowAuthCaps')._resetCaps();
+    require('../src/routes/auth/rowAuth/rowAuthCaps')._resetCaps();
 
     const sourceId = await create('test_env|roads:source', { name: 'roads' });
     const srcRef = { id: +sourceId, ref: `${APP}+test_env|source` };
@@ -73,7 +73,7 @@ async function run() {
     const editor   = { authed: true, id: 9,  email: 'e@x', groups: ['Editors'] };
     const reviewer = { authed: true, id: 11, email: 'r@x', groups: ['Reviewers'] };
     const stranger = { authed: true, id: 10, email: 's@x', groups: [] };
-    const { decideSourceRow, mergedAuthForSource, udaGate } = require('../src/routes/uda/rowSourceAuth');
+    const { decideSourceRow, mergedAuthForSource, udaGate } = require('../src/routes/auth/rowAuth/rowSourceAuth');
     const may = async (user, perms) =>
         (await decideSourceRow({ env: ENV, sourceId, user, reqPermissions: [].concat(perms) })).allow;
 
@@ -153,7 +153,7 @@ async function run() {
     // download — users need to be able to access a dataset in the system but not be able to
     // download it." Both directions are pinned here because fixing one and breaking the other is
     // the easy mistake. See permission-domain-single-source.md Phase 4(b).
-    const { holdsAny } = require('../src/routes/uda/rowSourceAuth');
+    const { holdsAny } = require('../src/routes/auth/rowAuth/rowSourceAuth');
     const grantOf = (perm) => ({ groups: { Cap: [perm, ...(CAP_VOCAB[perm] || [])] } });
     const CAP_VOCAB = {                       // what the vocabulary says each verb confers
         'download-source': [],                // a capability: no row access

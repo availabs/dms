@@ -5,7 +5,7 @@
  * Pure: no database, no fixtures. Run: node tests/test-merge-auth.js
  */
 const assert = require('assert');
-const { mergeAuthChain, can, isUnstated } = require('../src/routes/dms/mergeAuth');
+const { mergeAuthChain, can, isUnstated } = require('../src/routes/auth/rowAuth/mergeAuth');
 
 let pass = 0, fail = 0;
 const t = (name, fn) => {

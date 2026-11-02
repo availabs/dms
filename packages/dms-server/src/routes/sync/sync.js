@@ -15,8 +15,8 @@ const { loadConfig } = require('#db/config.js');
 const { createController } = require('../dms/dms.controller.js');
 // KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
 // comment the next one out to move this surface back onto it.
-// const { assertDataWrite, dataAuthMode } = require('../dms/dataAuth');
-const { assertDataWrite, dataAuthMode } = require('../dms/rowAuthGate');
+// Authorization comes from the switch, never from a named implementation. See routes/auth/index.js.
+const { assertDataWrite, dataAuthMode } = require('../auth');
 const { getSubdomain } = require('../../utils/subdomain');
 const {
   isSplitType,

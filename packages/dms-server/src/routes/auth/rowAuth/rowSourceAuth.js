@@ -11,7 +11,7 @@
  * Why this file lives in routes/uda and not routes/dms
  *
  * It reads `data_manager.sources`, pgEnv configs and the DMS table resolver — datasets knowledge.
- * Putting it under `routes/dms/` would make the generic auth core `require('../uda/…')`, which is
+ * Putting it under `routes/dms/` would make the generic auth core `require('../../uda/…')`, which is
  * the one thing src/dms/CLAUDE.md exists to forbid, in the folder meant to embody it. `routes/uda/*`
  * already requires `../dms/*`; that is the direction, and nothing here crosses a new boundary.
  *
@@ -63,25 +63,18 @@
  * both; holding `edit-source-permissions` requires `read` and `edit` and `grant`.
  */
 
-const { getDb, loadConfig } = require('../../db');
-const { mergeAuthChain } = require('../dms/mergeAuth');
-const { verdict, verbsFor, holdsPermission } = require('../dms/rowAuthGate');
-const { resolveAuthPermissions } = require('../dms/auth');
-const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../dms/authVocabulary');
-const { expandAuth } = require('../dms/legacyVerbs');
-const { dmsMainTable, getSiteSources } = require('./utils');
-const { rowAuthCaps } = require('../dms/rowAuthCaps');
-const { resolveTable } = require('../../db/table-resolver');
+const { getDb, loadConfig } = require('../../../db');
+const { mergeAuthChain } = require('./mergeAuth');
+const { verdict, verbsFor, holdsPermission } = require('./rowAuthGate');
+const { resolveAuthPermissions } = require('../auth');
+const { vocabularyOf, impliesMaps } = require('./authVocabulary');
+const { expandLevel } = require('./expandLevel');
+const { dmsMainTable, getSiteSources } = require('../../uda/utils');
+const { rowAuthCaps } = require('./rowAuthCaps');
+const { resolveTable } = require('../../../db/table-resolver');
 
-/**
- * Expand one level's grants into structural verbs before it is merged.
- *
- * `resolve()` does this for DMS rows via `authOf`; a chain built by hand has to do it too, or a
- * grant of `update-source` never becomes `read`+`edit` and every verdict is a refusal. The
- * declared vocabulary wins where the pattern has one, exactly as `authOf` chooses; `expandAuth` is
- * the transitional shim for grants written before any pattern declared.
- */
-const expandLevel = (auth, maps) => (maps ? expandWithVocabulary(auth, maps) : expandAuth(auth));
+// A chain built by hand has to expand each level just as `resolve()` does for DMS rows via
+// `authOf` — see ../expandLevel.js for the precedence and why it lives there.
 
 /** `DMS_UDA_GATE`: `kind` (default) | `row`. Kind auth stays live until this says otherwise. */
 function udaGate() {

@@ -1,6 +1,6 @@
 const { atom: $atom } = require('falcor-json-graph');
 const { colorDomain } = require('./uda.colorDomain.controller');
-const { allowViewRead } = require('./readAuth');
+const { allowViewRead } = require('../auth/kindAuth/readAuth');
 
 module.exports = [
   {

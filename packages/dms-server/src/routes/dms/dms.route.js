@@ -3,14 +3,14 @@ const falcorJsonGraph = require("falcor-json-graph"),
   $ref = falcorJsonGraph.ref,
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
-const { isUserAuthed, resolveAuthPermissions } = require('./auth');
-const { kindReadBlocked, PATTERN_READ_PERMISSIONS } = require('./kindReadAuth');
-const { createGate, rowAuthMode } = require('./rowAuthGate');
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
-// KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
-// comment the next one out to move this surface back onto it.
-// const { assertDataWrite, dataAuthMode } = require('./dataAuth');
-const { assertDataWrite, dataAuthMode } = require('./rowAuthGate');
+
+/*
+ AUTHORIZATION — every decision on this route comes from `routes/auth`, which picks the
+ implementation (`DMS_AUTH_IMPL`: `kind` by default, or `row`) and exports one contract for both.
+ This file never names a side. See routes/auth/index.js for the switch and what it does NOT do.
+*/
+const { assertDataWrite, dataAuthMode, readBlocked, listingBlocked, NO_CHANGE } = require('../auth');
 
 /*
  Controller Settings
@@ -20,40 +20,22 @@ const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 
 
 /**
- * TASK 7 PHASE 3 — may this caller see the LISTING for `app+type`?
+ * May this caller see the LISTING for `app+type`?
  *
  * Four Falcor routes answered this with five identical inline lines — `length`, `byIndex`,
- * `options[o].length`, `opts[o].byIndex`. One decision function now, same verdict.
+ * `options[o].length`, `opts[o].byIndex`. One call now, and the verdict comes from whichever
+ * implementation `routes/auth` selected.
  *
- * WHAT THIS QUESTION IS NOT. It is COARSE and pattern-level on purpose, and consolidating it does
- * not change that: it asks whether the caller may see the PATTERN, never whether they may read an
- * individual page. A caller who passes gets the full count and every ref INCLUDING pages they
- * cannot read — the per-row gate then refuses each and they receive `no-access` stubs. The content
- * is protected; the COUNT is not, in either direction. A refusal answers 0 even when some pages
- * were readable, and a pass answers the total even when most are not.
- *
- * Making `length` the AUTHORISED count is a behaviour change rather than a consolidation: it needs
- * per-row resolution across a whole listing to produce one number, and it changes what clients see
- * rather than who may see it. The hub files that under Phase B; it stays out of here so a
+ * It stays COARSE and pattern-level: a caller who passes gets the full count and every ref,
+ * including pages they cannot read (the per-row gate then stubs each one). So `length` still lies
+ * in both directions — 0 when some pages were readable, the total when most are not. Making it the
+ * AUTHORISED count needs per-row resolution across a whole listing and changes what clients see
+ * rather than who may see it; the hub files that under Phase B, and keeping them apart means a
  * regression in one cannot be mistaken for the other.
- *
- * COUPLED TO `enforce`, exactly as the per-row branch is. The inline rule had no rollout mode — it
- * gated listings always — while the gate allows everything under `log`. Swapping unconditionally
- * would drop the listing gate for every deployment not already on `enforce`.
  */
-async function listingBlocked(controller, { app, type, user, subdomain }) {
+async function listingBlockedFor(controller, { app, type, user, subdomain }) {
   if (getKind(type) !== 'page') return false;
-  const parentKey = getParent(type);
-  if (rowAuthMode() === 'enforce') {
-    const patternRow = await controller.patternRowForPages(app, parentKey);
-    // No content pattern → unrestricted, which is what a null from `getPatternAuthPermissions` has
-    // always meant here.
-    if (!patternRow) return false;
-    const gate = createGate({ controller, app, user, subdomain });
-    return !(await gate.judgeOne(patternRow, 'read')).allow;
-  }
-  const patternAuth = await controller.getPatternAuthPermissions(app, parentKey, subdomain);
-  return !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} });
+  return listingBlocked(controller, { app, type, parentKey: getParent(type), user, subdomain });
 }
 
 /**
@@ -74,14 +56,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     const response = [];
     // Cache pattern auth results within this response to avoid repeated DB lookups
     const patternAuthCache = new Map();
-    // One row-auth gate per (app, user) within this response: the resolver memoises its container
-    // map, so sharing it means the type-path lookup is loaded once rather than per row.
-    const gateCache = new Map();
-    const rowAuthGateFor = (a, u, sub) => {
-      const k = `${a}:${(u && u.id) ?? 'anon'}:${sub}`;
-      if (!gateCache.has(k)) gateCache.set(k, createGate({ controller, app: a, user: u, subdomain: sub }));
-      return gateCache.get(k);
-    };
+    // Scratch space the auth implementation may memoise in, for the life of this one response.
+    // Row auth keeps a gate per (app, user, subdomain) here: its resolver memoises the container
+    // map, so sharing one loads the type-path lookup once rather than per row. Kind auth ignores
+    // it. The route supplies the lifetime; what goes in it is not the route's business.
+    const authCache = new Map();
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
@@ -90,62 +69,21 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const kind = getKind(row.type);
         let blocked = false;
 
-        // TASK 7 PHASE 2 — the collapse, coupled to `enforce` on purpose (owner, 2026-10-29).
-        //
-        // Kind auth has NO rollout mode: it enforces pattern and page reads always. The gate is
-        // staged, and under `log` — the default, so every deployment today — it allows everything
-        // and merely reports. Deleting the kind branch outright would therefore stop enforcing
-        // page reads everywhere that is not already on `enforce`, which is a security regression
-        // and not a consolidation.
-        //
-        // So the branch is kept for exactly the deployments that still need it:
-        //
-        //   legacy / log   pattern + page → KIND auth, enforced, unchanged from today
-        //   enforce        pattern + page → the gate, i.e. ONE decision path for every kind
-        //
-        // Proved equivalent before this landed: `--diff-reads` on a 33,967-row clone of production
-        // reports, for pattern and page, **0 TIGHTER and 55 LOOSER** — the 55 being `${app} Admin`
-        // gaining reads the route's page branch never granted, which `verdict` grants by design.
-        // Nobody loses read access. The remaining divergence it prints is on `component`, a kind
-        // that already goes through the gate and is therefore not affected by this line.
-        //
-        // The branch and `./kindReadAuth.js` go when every target runs `enforce` — task 8's
-        // cutover for production. Until then this is the coupling, stated rather than hidden.
-        if ((kind === 'pattern' || kind === 'page') && rowAuthMode() !== 'enforce') {
-          blocked = await kindReadBlocked({
-            row, kind, user, subdomain, app,
-            patternAuthOf: async (a, parentKey) => {
-              const cacheKey = `${a}:${parentKey}`;
-              if (!patternAuthCache.has(cacheKey)) {
-                patternAuthCache.set(cacheKey, await controller.getPatternAuthPermissions(a, parentKey, subdomain));
-              }
-              return patternAuthCache.get(cacheKey);
-            },
-          });
-        } else if (rowAuthMode() !== 'legacy') {
-          // EVERY OTHER KIND. Until now nothing gated these at all — site, theme, tenant, dmsenv,
-          // source, view, component, page-edit and split `:data` are guarded on WRITE (dataAuth.js)
-          // and were open on READ, because `judge()` is write-only and this gate knows two kinds.
-          //
-          // Added as a separate branch on purpose: `pattern` and `page` keep their existing logic
-          // untouched, which also preserves the exemptions above — auth and admin pattern rows stay
-          // publicly readable so a logged-out visitor can load the login page and build routes.
-          //
-          // Under DMS_ROW_AUTH_MODE=log (the default) this only writes `would-deny` lines; it
-          // decides nothing until a server is flipped to `enforce`. Errors fall back to today's
-          // behaviour: a resolver fault must not take the read path down, and in `log` the verdict
-          // was never going to be used anyway.
-          try {
-            const appForLookup = app || row.app;
-            if (appForLookup) {
-              const gate = rowAuthGateFor(appForLookup, user, subdomain);
-              const v = await gate.judgeOne(row, 'read');
-              blocked = !v.allow;
+        // Which implementation answers, and how strictly, is `routes/auth`'s business — not this
+        // route's. The gate caches per (app, user, subdomain) within one response because the
+        // resolver memoises its container map, so sharing it loads the type-path lookup once
+        // rather than per row.
+        blocked = await readBlocked({
+          row, kind, user, subdomain, app, controller,
+          cache: authCache,
+          patternAuthOf: async (a, parentKey) => {
+            const cacheKey = `${a}:${parentKey}`;
+            if (!patternAuthCache.has(cacheKey)) {
+              patternAuthCache.set(cacheKey, await controller.getPatternAuthPermissions(a, parentKey, subdomain));
             }
-          } catch (e) {
-            console.warn(`[row-auth] read gate failed for ${row.type} ${idStr}: ${e.message} — allowing`);
-          }
-        }
+            return patternAuthCache.get(cacheKey);
+          },
+        });
 
         if (blocked) {
           for (const att of atts) {
@@ -277,7 +215,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (await listingBlocked(controller, { app, type, user, subdomain })) {
+          if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
             response.push({ path: ["dms", "data", key, "length"], value: 0 });
             continue;
           }
@@ -335,7 +273,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (await listingBlocked(controller, { app, type, user, subdomain })) {
+          if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
             indices.forEach((i) => {
               response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
             });
@@ -365,7 +303,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const rows = await controller.filteredDataLength(keys, option);
           for (const key of keys) {
             const [app, type] = key.split('+');
-            if (await listingBlocked(controller, { app, type, user, subdomain })) {
+            if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
               response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
               continue;
             }
@@ -394,7 +332,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
 
             for (const key of keys) {
               const [app, type] = key.split('+');
-              if (await listingBlocked(controller, { app, type, user, subdomain })) {
+              if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
                 indices.forEach((i) => {
                   response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
                 });
@@ -551,8 +489,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
           const rows = await judgedWrite(app, id, type, async (stored, expect) => {
-            // only what the guard judged is written (dataAuth.js planEdit)
-            const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data);
+            // only what the guard judged is written (the selected implementation's planEdit); nothing changed → no write
+            const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data, { skipNoChange: true });
+            if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
             return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });
           });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
@@ -560,7 +499,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         // Legacy format: [id, data]
         const [id, data] = args;
         const rows = await judgedWrite(null, id, null, async (stored, expect) => {
-          const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data);
+          const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data, { skipNoChange: true });
+          if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);
           return controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta, { expect });
         });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);

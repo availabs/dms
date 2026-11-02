@@ -8,8 +8,8 @@
  * Run: node tests/test-row-auth.js
  */
 const assert = require('assert');
-const { createResolver, authOf, parentIdOf, identityOf } = require('../src/routes/dms/rowAuth');
-const { can } = require('../src/routes/dms/mergeAuth');
+const { createResolver, authOf, parentIdOf, identityOf } = require('../src/routes/auth/rowAuth/rowAuth');
+const { can } = require('../src/routes/auth/rowAuth/mergeAuth');
 
 let pass = 0, fail = 0;
 // Cases are COLLECTED and run in order below — `t` must not fire them as it is called, or async
@@ -130,7 +130,7 @@ t('no parent → nothing stated', async () => {
 });
 
 section('capability probes — running on unmigrated schema');
-const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/dms/rowAuthCaps');
+const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/auth/rowAuth/rowAuthCaps');
 t('postgres: both columns present', async () => {
     _resetCaps();
     const db = { promise: async () => [{ column_name: 'id' }, { column_name: 'auth' }, { column_name: 'parent_id' }] };
