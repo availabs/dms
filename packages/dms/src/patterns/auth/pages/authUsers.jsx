@@ -459,8 +459,10 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                 </div>
                 <div className={m.removeBody}>
                     <div>Remove {removeUser?.email} from {PROJECT_NAME}? Their account stays.</div>
+                    {/* the preview (…/plan) is in flight: say so, so the dialog doesn't read as final */}
+                    {!removePlan && !planError && <div className={m.metaText}>Checking what this removes…</div>}
                     {planError && <div className={m.metaText}>{planError}</div>}
-                    {!removePlan && <div>They leave this site&apos;s groups (shared groups too, so they lose that
+                    {planError && !removePlan && <div>They leave this site&apos;s groups (shared groups too, so they lose that
                         access on other sites), and their own permissions on this site&apos;s patterns, pages and
                         sources are removed.</div>}
                     {removePlan && <>
@@ -487,7 +489,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                         {removePlan.externalSources.length > 0 &&
                             <div className={m.removeWarning}>
                                 They keep their own permissions on these external sources (other sites may use them);
-                                remove them from each source's Access tab:
+                                remove them from each source&apos;s Access tab:
                                 <ul className={m.removeList}>
                                     {removePlan.externalSources.map(e =>
                                         <li key={`${e.pgEnv}-${e.source_id}`}>{e.name || e.source_id} ({e.pgEnv}{e.error ? `: ${e.error}` : ''})</li>)}
