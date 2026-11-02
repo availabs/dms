@@ -13,7 +13,7 @@ import { pdfExportTheme } from './ExportPdf.theme';
 // The PDF Generator section: pick a plan on this site, tick its pages, and export them as one PDF.
 // Mockup: design_system_v6/pages/page-pdf-export.html. Rendering is a dms-server job (src/pdf) that
 // opens each page in headless Chrome, waits for its data, and prints it; this component starts the job,
-// polls it, and downloads the zip. Task: src/dms/planning/tasks/current/pdf-exporter-rework.md.
+// polls it, and downloads the zip. Task: src/dms/planning/tasks/completed/pdf-exporter-rework.md.
 
 const POLL_MS = 1500;
 // A title cut off by `truncate` shows in full on hover; one that fits gets no tooltip.

@@ -1,5 +1,5 @@
 // PDF Generator section (ExportPdf.jsx), tessera v6, 2026-10-30, from
-// design_system_v6/pages/page-pdf-export.html (task: src/dms/planning/tasks/current/pdf-exporter-rework.md).
+// design_system_v6/pages/page-pdf-export.html (task: src/dms/planning/tasks/completed/pdf-exporter-rework.md).
 // Registered as pages.pdfExport. The live component had no theme (inline blue Tailwind), so there is no
 // pre-v6 look to freeze: every theme gets this one. Controls (buttons, inputs, select, switch, checkbox)
 // are the shared UI primitives with their named styles.

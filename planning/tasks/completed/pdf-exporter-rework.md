@@ -1,6 +1,6 @@
 # PDF exporter rework: subdomain-scoped plans, correct page URLs, a usable UX
 
-**Initiatives:** [mny_pdf_exporter_ux](../../../../../planning/initiatives/mny_pdf_exporter_ux.md) · **Status:** doing (built + verified locally 2026-10-30; not committed or deployed) · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [mny_pdf_exporter_ux](../../../../../planning/initiatives/mny_pdf_exporter_ux.md) · **Status:** done (2026-11-02, closed by the owner; committed to master: library `02ea3930`, root `6662ed52`. Not deployed: the open items in the testing checklist are left for the deploy) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 **Project:** DMS library (`src/dms` submodule), `packages/dms` (the `PDF Generator` section) and, for phase 4, `packages/dms-server` · **Topics:** patterns/page — sections
 
@@ -213,8 +213,16 @@ a Spreadsheet on dataset 6) and `county_plan` (pattern 16, subdomain `county`):
 - [x] Unit tests: `vitest` green for everything touched; server `test-schema-drift`, `test-transaction-guard`,
       `test-sites` pass. (Repo-wide vitest has 13 pre-existing failures in untouched areas; checked
       `sectionGroupCollapsible` fails on HEAD too.)
-- [ ] 404 "service missing" and failed states seen live (code paths only; needs a host without the route)
+- [ ] 404 "service missing" state seen live (code path only; needs a host without the route). The failed
+      state was seen 2026-11-02 in the layout B harness (export to an unreachable host).
 - [x] MNY and TransportNY themes: own `pages.pdfExport` blocks + segment roles + `primaryFull`, checked live 2026-10-31 (section below)
+- [x] 2026-11-02 round, local (prod data via :5173, anonymous GETs only): sync refused in export tabs (a page
+      ~36 s → ~8-20 s), parallel tabs, header page break gone, authored Page Break honoured, heading kept
+      with the next line, cuts cross the fewest panels, no sheet opens on a panel's empty bottom; Home +
+      Know the Environment export checked sheet by sheet
+- [x] Layout B (one card) in a stub-data harness: default / mnyv1 / transportnyv2 at 1180 px, MNY / TNY at a
+      680 px card (width setting 1) and 400 px; failed state
+- [ ] Layout B seen on a real site page (owner)
 - [ ] Deploy dms-server to mercury and export a real MitigateNY plan (Chromium is in the image already)
 - [ ] Merge `permissions_move`'s `pdf-export-route-missing-on-dms-server.md` into this task's close-out
 
@@ -348,7 +356,7 @@ odd places, the header alone on a sheet "just for some white space"; should page
 
 ## Findings outside this task
 
-- **Sync blanks pages on a SQLite server** → own task, [sync-sqlite-numeric-ids-blank-pages.md](./sync-sqlite-numeric-ids-blank-pages.md).
+- **Sync blanks pages on a SQLite server** → own task, [sync-sqlite-numeric-ids-blank-pages.md](../current/sync-sqlite-numeric-ids-blank-pages.md).
   First read as "CLI-seeded pages"; the cause (2026-10-31) is that SQLite returns ids as numbers and the browser
   mirror's ref lookups use strings. Postgres (production) is unaffected. The exporter prints whatever a browser
   shows, so a sync-on SQLite site would print blank too.

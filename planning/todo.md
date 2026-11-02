@@ -618,7 +618,6 @@
 
 ### patterns/page
 
-- [ ] [PDF exporter rework: subdomain-scoped plans, correct page URLs, a usable UX](./tasks/current/pdf-exporter-rework.md) — built + verified locally 2026-10-30, not committed/deployed. Plan picker limited to plans mounted on this subdomain; job-based dms-server route (`POST /pdf/export`, puppeteer-core + pdf-lib, zip kept) that waits for each page's data (network idle + no `data-dms-loading`), prints the desktop layout without nav, and exports Public (default) or As me; no permission needed, unviewable pages left out. Left: deploy + real MNY plan, MNY/TNY look check, fold in `pdf-export-route-missing-on-dms-server.md` (on `permissions_move`). Found: sync blanks CLI-seeded pages (needs a task).
 - [ ] [Route auth runs on the placeholder user while sign-in is still loading](./tasks/current/route-auth-check-judges-placeholder-user.md) — logged 2026-09-30, not scheduled. `defaultCheckAuth` has no `isAuthenticating` guard (fast-rendering group-gated routes redirect to `/` on refresh), and `EditWrapper`'s cached render keeps the placeholder user in `CMSContext`. The `qa` pattern works around both locally.
 - [x] [Card liveEdit: one shared save timer per section drops quick edits](./tasks/completed/card-liveedit-shared-debounce-drops-saves.md) — DONE 2026-10-01 (`0cdba46b`, built as the `qa` pattern's status-change writes, parts 1–3): per-row pending saves with flush on unmount, `setDateOnValue` on live pages, `save_publish` after a discrete live edit.
 
