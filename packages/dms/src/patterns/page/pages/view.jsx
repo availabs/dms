@@ -216,15 +216,18 @@ function PageView ({item, dataItems: allDataItems, attributes, apiLoad, apiUpdat
         if (!user?.authed) {
             return <Navigate to={`${authBaseUrl}/login`} state={{ from: pathname + search }} replace />;
         }
-        // v6: a titled panel inside the page's own Layout (pages.errorPage.statePanel; '' → the old line)
+        // v6: a titled panel inside the page's own Layout (pages.errorPage.statePanel; '' → the old line).
+        // data-dms-no-access tells the PDF exporter to leave this page out (display: contents: no layout change).
         if ({ ...errorPageTheme, ...getThemeKey(fullTheme, 'pages.errorPage') }.statePanel) {
-            return <PageStateScreen navItems={menuItems} resolveNav={resolveNav} secondNav={menuItemsSecondNav}
-                icon="Lock" tone="neutral" title="You do not have permission to view this page"
-                text="Ask an admin of this site for access.">
-                <Link to={baseUrl || '/'} className={{ ...errorPageTheme, ...getThemeKey(fullTheme, 'pages.errorPage') }.actionBtn}>Go to home</Link>
-            </PageStateScreen>;
+            return <div data-dms-no-access style={{ display: 'contents' }}>
+                <PageStateScreen navItems={menuItems} resolveNav={resolveNav} secondNav={menuItemsSecondNav}
+                    icon="Lock" tone="neutral" title="You do not have permission to view this page"
+                    text="Ask an admin of this site for access.">
+                    <Link to={baseUrl || '/'} className={{ ...errorPageTheme, ...getThemeKey(fullTheme, 'pages.errorPage') }.actionBtn}>Go to home</Link>
+                </PageStateScreen>
+            </div>;
         }
-        return <div>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
+        return <div data-dms-no-access>You do not have permission to view this page. <Link to={baseUrl}>Click here to visit Home</Link></div>;
     }
     // Placed after every hook, not next to the `nav_link` resolution above: an early
     // return there would skip the useMemos below, and a SPA navigation from a link

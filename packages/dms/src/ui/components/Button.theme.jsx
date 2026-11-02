@@ -201,6 +201,7 @@ export const buttonTheme = {
     { name: 'bareIcon',        button: ICON_ROW },       // iconRow
     { name: 'bareIconBox',     button: ICON_ROW },       // iconRow
     { name: 'barePrimaryFull', button: PRIMARY_BLOCK },  // primaryBlock
+    { name: 'primaryFull',     button: PRIMARY_BLOCK },  // a full-width primary outside auth (PDF export); project themes derive it from their own primary (src/themes/_legacy/ui.js APPEND_DERIVED)
     { name: 'bareActionFull',  button: ACTION_FULL },    // actionFull
     // ── admin's last raw buttons (2026-10-15, ui-raw-html-to-ui-components.md); appended so indices don't move
     { name: 'menuItem',       button: MENU_ITEM },

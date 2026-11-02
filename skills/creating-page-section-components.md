@@ -240,6 +240,27 @@ Before merging a new section component:
 - [ ] If the component has filters, `state.filters` round-trips through save/reload (the filter-tree shape is the standard one — leaves don't grow surprise fields).
 - [ ] If the component reads/writes page variables, it goes through `PageContext` (`pageState.filters` / `updatePageStateFilters` / `setActionParam`) — **no `useSearchParams`, `setSearchParams`, `navigate`, or `window.location` anywhere in the component.** Toggle it in view mode (compiler on) and confirm no reload loop.
 
+- [ ] If the component loads data after the page does, it carries `data-dms-loading` on its wrapper while the
+      request is out (see "The loading contract" below). dataWrapper sections already do.
+
+## The loading contract (PDF export)
+
+The PDF exporter (dms-server `src/pdf`) opens each page in headless Chrome and prints it once the page has
+settled: no HTTP request in flight **and no element carrying `data-dms-loading`**, both for 1 s straight, then
+again after scrolling the page through (so sections that load on view do). A section that fetches its own data
+should set `data-dms-loading` on its wrapper from the moment it decides to load until the data is drawn, so a
+debounce or a chained second request doesn't print a half-loaded section:
+
+```jsx
+<div className={t.wrapper} data-dms-loading={fetching || undefined}>…</div>
+```
+
+dataWrapper does this from `useDataLoader`'s `fetching` (its `loading`, minus the hold while a section waits for
+a `requireResolved` page param, which may never arrive in a headless export). Don't leave the attribute on for a
+state that waits on user input: the exporter would wait out its per-page budget (120 s) on every such page.
+The exporter also hides the site nav (`[data-dms-chrome]`, set by `Layout`) and swaps each `canvas` for a
+picture of itself, since headless print draws WebGL blank.
+
 ## Common pitfalls
 
 - **Anonymous default exports** kill Fast Refresh. Always `export default function Foo(...)` or `export const Foo = ...`.

@@ -25,19 +25,23 @@ WORKDIR /app
 #   gdal-bin + libgdal-dev  — ogr2ogr CLI + gdal-async Node bindings
 #   build-essential + python3 — native addon compilation (gdal-async, sharp, better-sqlite3)
 #   zip — download file creation
+#   chromium + fonts — PDF export renders site pages headless (src/pdf, puppeteer-core); same
+#                      packages and env as dms-template's deploy image
 RUN apt-get update && apt-get install -y \
       gdal-bin \
       libgdal-dev \
       build-essential \
       python3 \
       zip \
+      chromium \
+      fonts-liberation \
       --no-install-recommends && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Copy package files first for layer caching
 COPY package*.json ./
-RUN npm install --omit=dev
+RUN PUPPETEER_SKIP_DOWNLOAD=true npm install --omit=dev
 
 # Copy server source (includes db configs)
 COPY src/ ./src/
@@ -46,6 +50,9 @@ COPY src/ ./src/
 VOLUME /app/var
 
 ENV NODE_ENV=production
+# PDF export uses the image's Chromium, never a bundled download
+ENV PUPPETEER_SKIP_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 ENV PORT=5555
 
 EXPOSE 5555
