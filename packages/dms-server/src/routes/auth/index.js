@@ -27,18 +27,28 @@
  * why that is safe for kind auth.
  *
  * ---------------------------------------------------------------------------
- * `DMS_AUTH_IMPL` — `row` (default) | `kind`
+ * `DMS_AUTH_IMPL` — `kind` (default) | `row`
  *
- * ⚠ THE DEFAULT IS `row` BECAUSE THAT IS WHAT THIS BRANCH ALREADY DOES, not because row auth is
- * switched on. `rowAuth/index.js` reproduces the previous dispatch exactly — pattern and page fall
- * back to kind auth unless `DMS_ROW_AUTH_MODE=enforce`, and writes forward to kind auth unless
- * `DMS_WRITE_GATE=row` — so selecting it changes no verdict under default modes. What it preserves
- * is the row gate's REPORTING for the nine kinds kind auth never gated on read (site, theme,
- * tenant, dmsenv, source, view, component, page-edit, split `:data`): under `log` those are judged
- * and a would-deny line is written. Defaulting to `kind` would silently stop that, which is the
- * one thing a refactor of this file must not do.
+ * The default is `kind` (owner, 2026-11-02): kind auth and nothing else, on every surface. Row auth
+ * is opt-in and nothing a missing variable can switch on.
  *
- * `DMS_AUTH_IMPL=kind` is the honest opposite: kind auth and nothing else, on every surface.
+ * ⚠ UNDER `kind`, THE ROW-AUTH FLAGS ARE INERT. `DMS_WRITE_GATE=row` and `DMS_UDA_GATE=row` are
+ * read INSIDE the row modules, which this switch never loads, so setting them changes nothing.
+ * `DMS_ROW_AUTH_MODE=enforce` likewise decides nothing. Two things are lost that the `row` setting
+ * gives you even with every mode at its default:
+ *
+ *   1. the row gate's REPORTING for the nine kinds kind auth never gated on read — site, theme,
+ *      tenant, dmsenv, source, view, component, page-edit and split `:data`. Under `kind` those
+ *      reads are simply open and nothing says so.
+ *   2. `DMS_WRITE_GATE` / `DMS_UDA_GATE` as working switches at all.
+ *
+ * Because that is easy to set and not notice, `warnInertFlags()` below says so at startup rather
+ * than leaving someone to read a would-deny log that will never be written.
+ *
+ * `DMS_AUTH_IMPL=row` selects the row modules. It still changes no VERDICT on its own: pattern and
+ * page fall back to kind auth unless `DMS_ROW_AUTH_MODE=enforce`, and writes forward to kind auth
+ * unless `DMS_WRITE_GATE=row`. Choosing an implementation and turning on enforcement stay separate
+ * decisions, with separate blast radii.
  *
  * ⚠ THIS SWITCH DOES NOT, BY ITSELF, ENFORCE ANYTHING. Each implementation keeps its own rollout
  * mode, and selecting `row` while those modes sit at their defaults changes no verdict:
@@ -57,7 +67,25 @@
  * Task 7 Phase 4 deletes `kindAuth/` and this switch with it, leaving `rowAuth/` as the only
  * decision module. Until then, both are here and which one runs is stated rather than implied.
  */
-const IMPL = String(process.env.DMS_AUTH_IMPL || 'row').toLowerCase() === 'kind' ? 'kind' : 'row';
+const IMPL = String(process.env.DMS_AUTH_IMPL || 'kind').toLowerCase() === 'row' ? 'row' : 'kind';
+
+/**
+ * Say so when a row-auth flag is set but `kind` is selected, because the flag then does nothing and
+ * nothing else would ever mention it. Never throws and never changes a verdict — it only tells the
+ * truth about the configuration it was handed.
+ */
+function warnInertFlags() {
+  if (IMPL !== 'kind') return;
+  const inert = [
+    ['DMS_WRITE_GATE', 'row'], ['DMS_UDA_GATE', 'row'], ['DMS_ROW_AUTH_MODE', 'enforce'],
+  ].filter(([k, v]) => String(process.env[k] || '').toLowerCase() === v)
+   .map(([k, v]) => `${k}=${v}`);
+  if (!inert.length) return;
+  console.warn(
+    `[auth] DMS_AUTH_IMPL=kind, so ${inert.join(', ')} ${inert.length > 1 ? 'are' : 'is'} INERT — ` +
+    `read only by the row modules, which this switch does not load. Set DMS_AUTH_IMPL=row to use them.`);
+}
+warnInertFlags();
 
 const impl = IMPL === 'row' ? require('./rowAuth') : require('./kindAuth');
 

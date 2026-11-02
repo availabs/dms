@@ -7,10 +7,15 @@
  * the exemption that keeps auth and admin pattern rows publicly readable.
  *
  * Run: DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-row-auth-reads.js
+ *      (the suite sets DMS_AUTH_IMPL=row itself — see below)
  * Never without DMS_TEST_DB: the default DMS config is not a test database.
  */
 const DMS_DB = process.env.DMS_TEST_DB || 'cli-test';
 process.env.DMS_DB_ENV = DMS_DB;
+// This suite is ABOUT row auth's read path, so it selects that implementation. `DMS_AUTH_IMPL`
+// defaults to `kind` (routes/auth/index.js) and is read once at module load, so it has to be set
+// before `./graph` pulls in the route — hence here, above the requires, not in a test body.
+process.env.DMS_AUTH_IMPL = 'row';
 const assert = require('assert');
 const { createTestGraph } = require('./graph');
 
