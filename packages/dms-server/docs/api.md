@@ -23,6 +23,7 @@ Falcor JSON Graph API served at `POST /graph`. All routes use the Falcor protoco
 - [Migration](#migration)
   - [Legacy to Per-App](#legacy-to-per-app)
   - [Migration Script](#migration-script)
+- [PDF Export Routes](#pdf-export-routes)
 - [Environment Variables](#environment-variables)
 
 ---
@@ -537,6 +538,30 @@ The script is idempotent — re-running it skips already-migrated rows.
 
 ---
 
+## PDF Export Routes
+
+Renders a list of site pages to one PDF in headless Chrome, as a background job (`src/pdf/`). A job, not one
+request, because nginx in front of the server cuts proxied requests at 120 s and a large plan takes minutes.
+Client: the page pattern's PDF Generator section (`patterns/page/components/saveAsPDF/pdfExport.js`).
+
+| Route | |
+|---|---|
+| `POST /pdf/export` | Body `{ pages: [{url, title, depth}], cover_url, toc, file_name, mode }` → `202 { id, state, … }`. `mode` `public` (default) or `self`; in `self` mode the request's `Authorization` token is put in the headless page's `localStorage.userToken`, so pages render as that person. |
+| `GET /pdf/export/:id` | `{ state: queued\|running\|done\|failed\|cancelled, done, total, current, skipped, timedOut, error, fileName, queuedAhead }` |
+| `GET /pdf/export/:id/file` | `<file_name>.zip` holding `<file_name>.pdf` (+ `skipped-pages.txt` when pages were left out) |
+| `DELETE /pdf/export/:id` | Cancels (the page being printed finishes first) |
+
+- **No permission is needed.** The headless browser sees only what its viewer could open; a page that redirects
+  away (sign-in) or shows the no-access screen (`data-dms-no-access`) is left out and listed in `skipped`.
+- The job id is a random UUID and the only key to the file. Jobs and files are dropped an hour after they finish;
+  files wait in `var/pdf-exports/`.
+- Validation: 1–1000 http(s) pages on one origin, equal to the request's `Origin` when there is one, and that
+  host must resolve to a public address (the browser runs inside the server's network).
+- Readiness: a page prints when no request has been in flight and no element has carried `data-dms-loading` for
+  1 s, before and after scrolling through it. Layout 1200 CSS px wide, scaled onto US Letter; print media;
+  site nav (`[data-dms-chrome]`) hidden; canvases swapped for screenshots; margins painted with the page's
+  background; content sheets numbered from 1; contents page styled from the first page's heading and text.
+
 ## Environment Variables
 
 | Variable | Values | Default | Purpose |
@@ -557,3 +582,13 @@ Located in `src/db/configs/`:
 { "type": "postgres", "role": "dms", "host": "localhost", "port": 5432,
   "database": "dms_db", "user": "postgres", "password": "..." }
 ```
+
+### PDF export
+
+| Variable | Default | |
+|---|---|---|
+| `PUPPETEER_EXECUTABLE_PATH` / `DMS_PDF_CHROME` | `/usr/bin/chromium`, then Chrome | Chromium for the PDF exporter (both Docker images install Debian's `chromium`) |
+| `DMS_PDF_CONCURRENCY` | `1` | Exports run at the same time; the rest queue |
+| `DMS_PDF_TABS` | `3` | Pages one export prints at once, each in its own tab (most of a page's time is waiting on its data) |
+| `DMS_PDF_PAGE_TIMEOUT_MS` | `120000` | How long one page may take to load before it prints as it is |
+| `DMS_PDF_ALLOW_PRIVATE` | unset | `1` lets pages on private / loopback hosts be exported (local development only) |

@@ -139,6 +139,10 @@ registerUploadRoutes(app);
 const { registerScheduleRoutes } = require('./dama/tasks/schedule-routes');
 registerScheduleRoutes(app);
 
+// PDF export — renders site pages to one PDF as a background job (needs no permission; see src/pdf/index.js)
+const { registerPdfRoutes } = require('./pdf');
+registerPdfRoutes(app);
+
 // Page visit tracking — fire-and-forget from the client on every page navigation.
 // No auth required; user_id extracted from JWT if present.
 app.post('/track/visit', async (req, res) => {
