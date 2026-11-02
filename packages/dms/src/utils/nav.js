@@ -28,7 +28,8 @@ const toRootUrl = (slugOrPath) => {
 // (children) because the two hand-written copies had already drifted: children never
 // got the ABSOLUTE_URL or `sub://` branches, so an authored child pointing at another
 // site had `baseUrl` glued to the front and produced a dead link.
-const navPath = (d, baseUrl, edit) => {
+// Exported for code that lists pages outside the nav (the PDF exporter), so its paths match the nav's.
+export const navPath = (d, baseUrl, edit) => {
     // LINK PAGES (`nav_link`, page.format.js): the page renders no content, it exists
     // only to carry this nav entry. The value is site-absolute by definition — another
     // pattern's page on this host, a `sub://` cross-subdomain target, or a full external

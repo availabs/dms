@@ -83,7 +83,7 @@ function computeFetchKey(state) {
  * @param {boolean}  params.isEditMode - True in Edit mode: always fetch with dedup, ignoring fetchMode
  * @param {string}   [params.sectionId]  - DB row id of the hosting section (Falcor cache-key discriminator)
  * @param {string}   [params.trackingId] - Stable-across-recreate id, preferred over sectionId when present
- * @returns {{ loading: boolean, currentPage: number, onPageChange: Function }}
+ * @returns {{ loading: boolean, fetching: boolean, currentPage: number, onPageChange: Function }}
  */
 export function useDataLoader({ state, setState, apiLoad, component, isEditMode = false, sectionId, trackingId }) {
   const [loading, setLoading] = useState(false);
@@ -361,5 +361,8 @@ export function useDataLoader({ state, setState, apiLoad, component, isEditMode 
     ],
   );
 
-  return { loading, currentPage, onPageChange, outputSourceInfo: outputSourceInfoRef.current };
+  // fetching: a request is actually out. `loading` also stays on while a section is held for a
+  // requireResolved param, which may never arrive (nobody clicks in a headless export).
+  const fetching = loading && !gatedOnRequiredFilter;
+  return { loading, fetching, currentPage, onPageChange, outputSourceInfo: outputSourceInfoRef.current };
 }
