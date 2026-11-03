@@ -1,6 +1,6 @@
 # Datasets — authoritative views: record which view of a source should be bound, and why
 
-**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** deploy — dms-server FIRST, then the frontend (a new client asking an old server for `authority` gets a caught error and reads undecided, so the order only matters for the logs); transportNY vendored copy syncs after · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) (primary), [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) · **Status:** built · **Release:** deploy — dms-server FIRST, then the frontend (a new client asking an old server for `authority` gets a caught error and reads undecided, so the order only matters for the logs); transportNY vendored copy syncs after · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Project:** DMS library · **Topic:** patterns/datasets + api (dms-server) · **Started:** 2026-09-30
 

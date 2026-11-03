@@ -1,11 +1,11 @@
 # Datasets catalog — show authority on the sources list; keep archived sources out of search and pickers
 
-**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** commit — library + dms-server + `src/themes/_legacy/datasets.js` + the v6 mockup are uncommitted; then deploy dms-server (for `superseded_by`) and the MNY / TransportNY frontends, and sync `_legacy/datasets.js` with the TransportNY theme copies · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) (primary), [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) · **Status:** built · **Release:** commit — library + dms-server + `src/themes/_legacy/datasets.js` + the v6 mockup are uncommitted; then deploy dms-server (for `superseded_by`) and the MNY / TransportNY frontends, and sync `_legacy/datasets.js` with the TransportNY theme copies · **Created by:** amuro@albany.edu · **Edited by:** —
 
 **Project:** DMS library · **Topic:** patterns/datasets + page/dataWrapper · **Started:** 2026-10-21 (created 2026-10-14)
 
 > Split out of the MitigateNY close-out task
-> [`hazmit-dama-closeout.md`](../../../../../planning/mitigateny/tasks/current/hazmit-dama-closeout.md)
+> [`hazmit-dama-closeout.md`](../../../../../planning/mitigateny/tasks/completed/hazmit-dama-closeout.md)
 > (Phases 4 and 6), which drives it to done. Builds on two built tasks it must not duplicate:
 > [`datasets-authoritative-views.md`](./datasets-authoritative-views.md) (the `authority` record, the Versions
 > card badges and the picker ★) and

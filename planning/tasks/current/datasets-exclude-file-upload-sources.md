@@ -1,6 +1,6 @@
 # Datasets pattern — stop loading `file_upload` sources in the default source list
 
-**Initiatives:** [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built (was: "STATUS (2026-09-17): BUILT + VERIFIED against live envs; uncommitted, not deployed.") · **Release:** deploy — commit + dms-server deploy; transportNY vendored copy syncs after · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) (primary), [mny_dama_hygiene](../../../../../planning/initiatives/mny_dama_hygiene.md) · **Status:** built (was: "STATUS (2026-09-17): BUILT + VERIFIED against live envs; uncommitted, not deployed.") · **Release:** deploy — commit + dms-server deploy; transportNY vendored copy syncs after · **Created by:** amuro@albany.edu · **Edited by:** —
 
 > Split out of the MitigateNY DaMa audit
 > ([`planning/mitigateny/tasks/completed/hazmit-dama-source-audit.md`](../../../../../planning/mitigateny/tasks/completed/hazmit-dama-source-audit.md)),
