@@ -3,7 +3,7 @@ import {uniqBy} from "lodash-es";
 import {ThemeContext, getComponentTheme} from "../../../../ui/useTheme";
 import {ComponentContext} from "../../context";
 import {PageContext} from "../../context";
-import {attributeAccessorStr} from "./components/dataWrapper/utils/utils";
+import {attributeAccessorStr, getFormatFunction} from "./components/dataWrapper/utils/utils";
 import {
     getData,
     formattedAttributeStr,
@@ -18,15 +18,31 @@ import {complexFiltersTheme} from "./ComplexFilters.theme";
 
 const OPTIONS_LIMIT = 100;
 
-const parseDataOptions = (data, reqName) =>
+// A column's `formatFn` applies to the option LABEL here (the option VALUE stays
+// raw, so the page variable and the URL token are unchanged). A formatter that
+// returns a React element (`icon`/`color`) or throws is ignored — an element
+// cannot be an option label — so this is a no-op for those columns.
+const formatOptionLabel = (label, formatFn) => {
+    if (!formatFn || label == null || typeof label === 'object') return label;
+    const fn = getFormatFunction(formatFn);
+    if (!fn) return label;
+    try {
+        const out = fn(label);
+        return (typeof out === 'string' || typeof out === 'number') ? out : label;
+    } catch {
+        return label;
+    }
+};
+
+const parseDataOptions = (data, reqName, formatFn) =>
     data.reduce((acc, d) => {
         const responseValue = d[reqName]?.value || d[reqName];
         const metaValue = parseIfJson(responseValue?.value || responseValue);
         const originalValue = parseIfJson(responseValue?.originalValue || responseValue);
 
         const values = Array.isArray(originalValue)
-            ? originalValue.map((pv, i) => ({label: metaValue?.[i] || pv, value: pv}))
-            : [{label: metaValue || originalValue, value: originalValue}];
+            ? originalValue.map((pv, i) => ({label: formatOptionLabel(metaValue?.[i] || pv, formatFn), value: pv}))
+            : [{label: formatOptionLabel(metaValue || originalValue, formatFn), value: originalValue}];
 
         values.forEach(({label, value}) => {
             if (label && typeof label !== 'object') acc.push({label, value});
@@ -85,6 +101,12 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
     const getColumnRef = useCallback(
         (name) => columns.find(c => c.name === name) || allSourceColumns.find(c => c.name === name),
         [columns, allSourceColumns]
+    );
+
+    // The column's formatFn (if any) — applied to option labels below.
+    const columnFormatFn = useMemo(
+        () => getColumnRef(columnName)?.formatFn || null,
+        [getColumnRef, columnName]
     );
 
     // Reuse buildUdaConfig's own normalFilter/HAVING-extraction + column-mapping pipeline
@@ -164,7 +186,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                     const countMap = new Map();
                     const rawOptions = [];
                     (countData || []).forEach(row => {
-                        const parsed = parseDataOptions([row], reqName);
+                        const parsed = parseDataOptions([row], reqName, columnFormatFn);
                         const count = parseInt(row[OPTIONS_COUNT_ATTR] ?? '0', 10) || 0;
                         parsed.forEach(opt => {
                             if (opt.value != null) {
@@ -198,7 +220,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                         limit: OPTIONS_LIMIT,
                     });
                     if (cancelled) return;
-                    allOptions = uniqBy(parseDataOptions(data, reqName), d => d.value);
+                    allOptions = uniqBy(parseDataOptions(data, reqName, columnFormatFn), d => d.value);
                 }
 
                 // merge selected values so they stay visible in the list

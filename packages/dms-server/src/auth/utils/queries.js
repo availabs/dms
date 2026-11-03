@@ -39,7 +39,8 @@ const getUserGroups = (db, email, project) =>
      FROM users_in_groups AS uig
      INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
      INNER JOIN groups AS g ON g.name = gip.group_name
-     WHERE uig.user_email = $1 AND gip.project_name = $2`,
+     WHERE uig.user_email = $1 AND gip.project_name = $2
+     ORDER BY gip.auth_level DESC, uig.group_name`,
     [email.toLowerCase(), project]
   );
 

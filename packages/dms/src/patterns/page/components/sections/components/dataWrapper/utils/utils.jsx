@@ -329,3 +329,69 @@ export const formatFunctions = {
     return parts.join(sep);
   },
 };
+
+/**
+ * Display labels for the format registry, keyed by the same name. Ordered — the
+ * Format control lists them in this order.
+ *
+ * `title` is here without a matching entry in `formatFunctions` because it is a
+ * class-level transform (`Card.jsx` / `TableCell.jsx` apply `capitalize`), not a
+ * value formatter. Keeping it in the label map preserves it as a Format option.
+ */
+const formatFunctionLabels = {
+  comma: 'Comma Separated',
+  comma_dollar: 'Comma Separated ($)',
+  percent: 'Percent (append %)',
+  abbreviate: 'Abbreviated',
+  abbreviate_dollar: 'Abbreviated ($)',
+  date: 'Date',
+  time: 'Time (HH:MM am/pm)',
+  datetime: 'Date + Time',
+  title: 'Title',
+  icon: 'Icon',
+  color: 'Color',
+  combine: 'Combine columns',
+  decimal_2: 'Decimal (2 places)',
+  minutes_clock: 'Minutes (M:SS)',
+  zero_to_na: 'Zero → N/A',
+};
+
+/**
+ * Register a format function so it appears in the Format control and can be
+ * applied to a column (and, via `ConditionValueInput`'s option labels, to a
+ * `filter_control`'s options). Called by `patterns/page/siteConfig.jsx` for
+ * each entry of `theme.formatFunctions` — mirroring how `theme.columnTypes`
+ * registers column types.
+ *
+ * @param {string} name        the value stored in a column's `formatFn`
+ * @param {Function} fn        `(value, isDollar?, Icon?, attr?) => string | ReactNode`
+ * @param {object} [opts]
+ * @param {string} [opts.label]          display label for the Format control (default: name)
+ * @param {boolean} [opts.preserveSpaces] skip the generic branch's
+ *   `.replaceAll(' ', '')`. The numeric built-ins rely on that strip; a label
+ *   formatter (e.g. "Mon, Sep 14, 2026") must keep its spaces.
+ */
+export function registerFormatFunction(name, fn, { label, preserveSpaces } = {}) {
+  if (!name || typeof fn !== 'function') return;
+  if (preserveSpaces) fn.preserveSpaces = true;
+  formatFunctions[name] = fn;
+  // Appends new registrations to the end of the Format control's list; built-ins
+  // keep their authored order above.
+  formatFunctionLabels[name] = label || name;
+}
+
+export function getFormatFunction(name) {
+  return name ? formatFunctions[name] : undefined;
+}
+
+/**
+ * `{ value, label }` options for the Format control, in registry order.
+ * `exclude` lets a consumer drop formatters it cannot render — the Spreadsheet
+ * excludes the row-dependent / element-returning ones (`combine`, `icon`,
+ * `color`) that its table cell does not supply context for.
+ */
+export function getFormatFunctionOptions({ exclude = [] } = {}) {
+  return Object.keys(formatFunctionLabels)
+    .filter((name) => !exclude.includes(name))
+    .map((value) => ({ value, label: formatFunctionLabels[value] }));
+}

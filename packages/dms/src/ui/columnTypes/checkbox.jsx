@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react"
+import React, {useEffect, useRef, useState} from "react"
 import { ThemeContext, getComponentTheme } from "../useTheme"
 import { checkboxTheme } from "./checkbox.theme"
 
@@ -7,18 +7,23 @@ import { checkboxTheme } from "./checkbox.theme"
 // className={t.input} (owner 2026-10-15: themed like the other components, no className).
 // `rowLabel` (optional): text shown after the checkbox; the two then sit in one themed <label> (`row` / `label` keys),
 // so clicking the text toggles it. Named `rowLabel`, not `label`: table cells spread the whole column object in.
+// `indeterminate` (optional): the part-ticked look (e.g. a tree parent with some children ticked). It is a DOM
+// property, not an attribute, so it is set on the element.
 
 
-export const CheckboxEdit = ({value = '', onChange, placeholder, trueValue=true, activeStyle, rowLabel, ...rest}) => {
+export const CheckboxEdit = ({value = '', onChange, placeholder, trueValue=true, activeStyle, rowLabel, indeterminate = false, ...rest}) => {
     const { theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const t = { ...checkboxTheme.styles[0], ...getComponentTheme(themeFromContext, 'checkbox', activeStyle) };
     const [tmpValue, setTmpValue] = useState(value)
+    const inputRef = useRef(null);
 
 
     useEffect(() => setTmpValue(value), [value]);
+    useEffect(() => { if (inputRef.current) inputRef.current.indeterminate = !!indeterminate; }, [indeterminate]);
     const input = (
         <input
             {...rest}
+            ref={inputRef}
             type="checkbox"
             className={t.input}
             checked={tmpValue === trueValue}

@@ -205,6 +205,60 @@ const sideNavTheme = {
       // `t-metaXS text-pencil px-3 pt-5 pb-1.5 truncate` group-heading style.
       navLabel: 't-metaXS text-[var(--t-pencil)] px-3 pt-5 pb-1.5 truncate',
     },
+    // Matches the chat mockups' site rail (design_system_v6/pages/chat*.html, 2026-10-20): the
+    // site nav narrowed to icons, because a chat workspace spends its width on panes and the
+    // site's own nav is the first thing that should give up its labels. Sparse, like 'admin' —
+    // getComponentTheme fills everything else in from styles[0].
+    //
+    // Two things worth knowing before reusing it:
+    //
+    // 1. ACTIVE IS A RAISED TILE, not an accent. The rail sits on `well` (furniture), and the
+    //    active item is a `panel` tile with a border — the same figure/ground move the mockups
+    //    use. No cobalt: on a chat surface the accent means "unread", and two meanings for one
+    //    colour is how a nav stops being readable.
+    // 2. THE LABEL STILL RENDERS, invisibly. SideNavItem puts the icon and the label-link side
+    //    by side (the icon is NOT inside the link), so hiding the label outright would leave the
+    //    icon unclickable. Instead the link is stretched over the whole row and its text made
+    //    transparent: the row stays one click target, and the accessible name stays in the DOM
+    //    for screen readers. A real hover tooltip needs markup SideNav doesn't have yet (a
+    //    `title` on the link) — the mockups show one; this style does without.
+    {
+      name: 'icon rail',
+      // the rail's own width, in both the content offset and the fixed column
+      layoutContainer1: 'lg:pl-14',
+      layoutContainer2: 'fixed inset-y-0 left-0 w-14 max-lg:hidden',
+      sidenavWrapper: 'flex flex-col items-center w-14 h-full bg-[var(--t-well)] border-r border-[var(--t-rule)]',
+      // Logo renders <Link><img|mark/>{title && <div/>}</Link> — hide only the TITLE (the second
+      // div, present only when the theme sets one) and cap the mark, so a wordmark doesn't try to
+      // fit in 56px. The mockups keep the mark alone at the top of the rail.
+      logoWrapper: 'flex items-center justify-center h-14 w-full flex-none border-b border-[var(--t-rule)] [&_a>div+div]:hidden [&_img]:size-6 [&_a]:justify-center',
+      itemsWrapper: 'flex-1 w-full overflow-y-auto overflow-x-hidden py-4 flex flex-col items-center gap-1',
+      menuItemWrapper: 'flex flex-col',
+      navItemRow: 'relative size-10 flex items-center justify-center rounded-md',
+      // the stretched, transparent label — see note 2 above
+      navItemContent: 'absolute inset-0 z-10 text-transparent overflow-hidden',
+      navitemSide: `
+        group w-full flex flex-col cursor-pointer
+        [&>div>div:first-child]:border [&>div>div:first-child]:border-transparent
+        [&>div>div:first-child:hover]:bg-[var(--t-paper)]
+        transition-colors duration-150`,
+      navitemSideActive: `
+        group w-full flex flex-col cursor-pointer
+        [&>div>div:first-child]:border [&>div>div:first-child]:border-[var(--t-rule)]
+        [&>div>div:first-child]:bg-[var(--t-panel)]`,
+      menuIconSide: 'w-5 h-5 text-[var(--t-graphite)] group-hover:text-[var(--t-ink)] transition-colors duration-150',
+      menuIconSideActive: 'w-5 h-5 text-[var(--t-ink)]',
+      // an icon rail has no room for child pages, group headings or carets
+      indicatorIconWrapper: 'hidden',
+      sectionHeading: 'hidden',
+      sectionDivider: 'my-2 w-6 border-t border-[var(--t-rule)]',
+      navLabel: 'hidden',
+      subMenuWrapper_1: 'hidden',
+      subMenuWrapper_2: 'hidden',
+      subMenuWrapper_3: 'hidden',
+      // ThemeToggle / UserMenu stack at the foot of the rail
+      bottomMenuWrapper: 'mt-auto w-full border-t border-[var(--t-rule)] px-2 py-3 bg-[var(--t-well)] flex flex-col items-center gap-2',
+    },
   ]
 }
 

@@ -144,6 +144,18 @@ picker (below) so the two pickers share styling/behavior rather than drifting.
   oversight). "Curated"/"Auto-generated" filter on the `tags` column's `auto_generated` value.
 - **Every row carries a mine/auto-generated/curated badge** (`UI.Pill`, `activeStyle`
   `blue`/`zinc`/`green`) instead of the merge living only in the tag-browse tree structure.
+- **"Mine" on report pages matched almost nothing until 2026-10-23.** The rail's join snapshot
+  declares `created_by` as plain text (`data->>'created_by'`), which only old-tool imports carry;
+  routes drawn in Route Creation have just the system column. Live: Mine showed 1 route for an
+  account owning 8,737. `PickerModal/fetchCatalogRows.js` now forces `created_by` to the system
+  column for every caller, as it already forced `tags`. Verify Mine live, by count.
+- **Three entry points open this same modal (2026-10-23):** the rail's "+ Add Route" (title
+  "Add Routes", confirm "Add N Route(s)", no facet on); Route Creation's "Open a route…" (title "Open
+  a route", confirm "Open route"); the `/reports` header's "Find a route" (`ChooseRouteButton`,
+  title "Find a route", confirm "Open in route creation"). The last two open with Mine ON
+  (`initialFacets`) and use `routeCatalogSource.js`, not a rail binding. Automation: the facet chip
+  isn't found by a `button` text match; `page.locator('text=/^Mine$/').first()` hits the chip
+  (it renders before the rows' Mine badges).
 - **Single-TMC "fragment" routes collapse behind a "Show short segments too" reveal** in any
   unscoped (non-search) view — root default, a plain tag-folder browse. A real, load-bearing
   finding drove this being a SERVER-side exclusion (`routeScore.js`'s
@@ -445,6 +457,23 @@ Probe: open a row with `button[title="Edit route"]`; the note is the `div` whose
 `Same route as`; its `nextElementSibling` is the list. The select is the one next to the `Derive From:`
 `<label>`. Verified on `edit/reports/test_single_route_copy?routes=2224878` (real names) and without
 `?routes=` (placeholders plus distinct dates).
+
+#### The "When" pill's From → To time fields (2026-10-22)
+
+- The When popover (and Add Graph's When step) has two `input[type="time"]` fields under the
+  presets (`ReportRouteList/TimeWindowFields.jsx`). Playwright `fill('07:00')` works. They **commit on
+  Enter or blur, not on change.** In Chrome, Tab moves between the field's own hour/minute/AM-PM
+  segments and does NOT leave the field, so "fill + Tab" commits nothing; press Enter. Clicking Add
+  Graph straight after typing does commit, because the blur lands first.
+- A backwards window shows "The end time must be after the start time…" and writes nothing.
+- Windows are end-exclusive: 07:00 → 08:00 sends `epoch` 84–95 (12), AM Peak 72–119 (48). The epoch
+  list is inside each `seriesVariants` arm of the decoded `/graph` GET (`report_probe.mjs`
+  `graphCaptures[].decoded`), not in a POST body.
+- A card whose route carries 2+ windows shows the pill token "N windows" and a read-only list. If a
+  check finds time inputs on such a card, that's a regression.
+- Selector traps: every pill is rendered twice (an off-screen `aria-hidden="true"` copy measures
+  widths), so filter on `!b.closest('[aria-hidden="true"]')`. On a narrow card When can fold into
+  the "⋯" pill (`button[title="The rest of this card's controls"]`); that's by design.
 
 ### Dynamic Reports: the toggle, and the no-param entry gate
 
