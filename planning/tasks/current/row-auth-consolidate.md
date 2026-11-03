@@ -1,6 +1,6 @@
 # Row auth 7: retire the per-kind auth logic, leaving one decision module
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) (primary) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Part of [server-side-auth-general.md](./server-side-auth-general.md) (hub). **Depends on tasks 3, 4,
 5 and 6**, and should not start until at least one real app runs the resolver under `enforce`.
@@ -659,3 +659,37 @@ Everything green except the two knowns. Both `DMS_AUTH_IMPL` values load with a 
 `ownerKindOf`, used only by `dms.controller.js` and `migrate-row-auth.js`, and about parentage
 rather than verbs). They share one 3-line `safeJson` helper and nothing else. Splitting
 `childRefs.js` out next to `parentId.js` is the same move `sourceSnapshot.js` just was.
+
+## 2026-11-03 — note from the `permissions_move` side (ssangdod): for Alex to decide
+
+After merging `75f5473c` into `permissions_move` (lib `95716dd9`), one suite reports an
+**unexpected** disagreement:
+
+- **`test-row-auth-uda-diff.js`**: "blank external source: log allows (old rule) with a `blank row`
+  line; enforce refuses". **The decision agrees.** Under `DMS_UDA_GATE=row`, log allows the write and
+  logs a would-deny, and enforce refuses, as kind auth does. Only the **reason text** differs:
+  - kind auth: `reason=missing update-source; blank row`
+  - row auth: `reason=missing update-source`
+
+  Kind auth adds the tag by comparing the old lenient rule with the strict one
+  (`routes/auth/auth.js:99`, `kindAuth/dataAuth.js:371`, `kindAuth/sourceAuth.js:237`): "only the
+  2026-10-29 rule refuses this". Row auth starts strict, so it has nothing to compare and never
+  says why. `mergeAuth.isUnstated` already knows that the chain is blank.
+
+  **Why it matters:** the access-log page (`patterns/auth/pages/authAccessLog.jsx`) shows its
+  "blank row" chip from that text. Under `DMS_AUTH_IMPL=row`, admins couldn't tell "refused only
+  because no one ever set grants" (add grants) from "refused despite grants" (a real denial).
+
+  **Options:**
+  1. Recommended: when a write is refused on an unstated chain, add
+     `; blank row (no grants: edits need an explicit grant)` to the reason. That's a few lines in
+     `rowAuthGate.js` / `rowSourceAuth.js`, and the diff suite would pass with no fixture entry.
+  2. Record it in `fixtures/row-auth-uda-expected-diff.json`, with the reason, and accept losing
+     the chip.
+
+- **`test-uda-auth.js`, 27/28**: "legacy / log allow whatever the strict rule allows (pattern
+  grantee on a source with no own grants)". It has failed since "auth mode split" (`b3e0e0c7` /
+  `ca3f6f8a`). The cause is `isUserAuthedForSource`, which returns
+  `wasOpen || legacyAllows(opts)` under `legacy` before `decideSource` runs, so a grant on the
+  pattern no longer counts in legacy. The owner says this is your choice and has left it alone. If
+  it is intended, update that test to match.
