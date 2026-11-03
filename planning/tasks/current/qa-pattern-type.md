@@ -1,6 +1,6 @@
 # `qa` pattern type ("Tickets"): delivery QA and help desk as a library feature
 
-**Initiatives:** [dms_qa_support](../../../../../planning/initiatives/dms_qa_support.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [dms_qa_support](../../../../../planning/initiatives/dms_qa_support.md) (primary), [mny_sow_deliverables](../../../../../planning/initiatives/mny_sow_deliverables.md) · **Status:** doing · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu, rdubowsky@albany.edu
 
 The one task doc for the QA pattern: what's built, what's open, and the rules the work follows. Any site adds it
 from Add Pattern. It serves two products as switch groups over a shared tickets core: **Delivery QA** (TransportNY's
@@ -20,6 +20,9 @@ is ported later.
 
 ## ▶ Start here (2026-10-14)
 
+- **2026-11-03 (Open work §10): built and live-checked on 251, not committed.** Report an issue's wording and
+  its two questions' options as a "report form" card on Configure. MNY needs a client deploy; from then on
+  every new report files a category (bug or enhancement).
 - **2026-10-29 (Open work §9):** the sync fix for "counties show not covered", per-site Overview cards (off by
   default) and the home page choice are committed (`d1bbd618`, library `ca3896ff`). **Site groups on the Overview
   are built and live-checked on 251, awaiting the owner's look and commit** (§9). MNY needs a client deploy for
@@ -889,6 +892,147 @@ yet; the owner commits. Groups come after the commit.
   `planning/mitigateny/skills/report-an-issue-widget.md` (step 2). QA tests 242/242.
 - **On MNY's deploy:** the Overview loses its site cards until an admin switches some on (2860547's Configure,
   "overview" column). The home page stays the Overview (its page inventory is on).
+
+### 10. Report an issue: the form's wording and choices as install settings (owner, 2026-11-03; built and live-checked, awaiting the owner's look and commit)
+
+**Ask:** an admin opens the install from `/list` → Configure and changes the Report an issue form's prose and
+its two questions' options, "What is it?" and "How much does it get in the way?" (the must-haves). Choosing
+which questions the form asks, and how many, is wanted but is the scope-creep part, so it's the next pass.
+
+**Today:** every word is a literal in `reportIssue/ReportIssueForm.jsx`, and the two option lists are
+`REPORT_KINDS` / `REPORT_SEVERITIES` in `reportIssue/report.js`. A kind is never stored: "An idea" files as
+severity Feature and skips the severity question, and "Something's wrong" asks it. The severity values
+(Blocker, Major, Minor, Polish, Feature) drive the weighting (`pages/helpers.js` `W`), the pills (`SEV_PILL`)
+and the Overview's blockers figure. Custom ticket fields shown on "form" are already asked after the
+description (2a).
+
+**Step 1: a "report form" card on Configure** (after "ticket fields", saved by the tab's one Save).
+- **Wording**, each box showing today's text as its placeholder (blank keeps it): the button label (the nav
+  icon's tooltip; a theme nav entry's own `label` still wins), the title, the footnote ("Sent with your
+  report: …"), the Send button, the sent screen's title and message, and the summary's label and placeholder.
+  Cancel, Close, "Sending…" and the "on <page>" line stay in code.
+- **"What is it?":** the question's wording, then its options (drag to reorder, add, remove; at least one).
+  Each option has the reporter's wording; what it does next, either "ask how much it gets in the way" or
+  "files as severity <pick>" (today's idea: Feature); the description's label and placeholder ("What
+  happened?" / "What would help?"); and the category it files as (decision 2).
+  With one option the question is hidden and that option applies.
+- **"How much does it get in the way?":** the question's wording, then its options, each the reporter's
+  wording plus the severity it files as, picked from the fixed list (Blocker, Major, Minor, Polish). Two
+  options may file as the same severity. One is marked default (today: Minor).
+- **Stored** on the install row as `qa.report_form` (underscores: the repo's naming rule). A row without it reads as today's form, so 2860547 (MNY's
+  `QA`) and 251 (`QA move check` on `qa_test`) show no change until someone saves the card.
+- **Ungranted users** (county staff file through the no-access stub): `intake.js` `qaIntake` adds
+  `form` (the stored form), rebuilt at Save like the fields. No server change.
+- **No dataset column changes, no library change.** All in `src/patterns/qa/`:
+  - `reportIssue/report.js`: today's text and lists become the default form; `intakeForm(install)` (full
+    settings, else the stub's, else the default); the card's error check and save-bar wording; `reportRow`
+    files severity (and category) from the picked options.
+  - `reportIssue/ReportIssueForm.jsx` and `ReportIssue.jsx`: read the form setting instead of literals.
+  - `admin/configureTab.jsx` + `.theme.js`: the card, reusing the fields card's option rows. `withoutSettings`
+    must also drop `reportForm`, or a form edit reads as "dataset set-up" in the save bar.
+  - Tests: `qaReportIssue.test.js` (defaults, option → severity/category, the stub carries the form) and the
+    intake test.
+- **Checked on** 251 only (no MNY prod writes): change every box and both lists, file as an admin and as a
+  user not granted on 251, then read the ticket's severity and category.
+
+**Decisions:**
+1. **Decided (owner, 2026-11-03): reword only.** Severity values stay in code; the reporter's wording, which
+   ones show, their order and the default become settings. This reverses only the "reporter's wording" part of
+   §5's 2b reason for keeping severity in code. Admin-defined severity values (the weighting, the severity
+   pills and the blockers figure reading each install's list) are wanted eventually; see Later.
+2. **Decided (owner, 2026-11-03): the form fills Category.** Each "What is it?" option files a category, and
+   today's two start as "Something's wrong" → bug and "An idea" → enhancement. That is a change in output
+   with no setting saved: once deployed, every new report gets a category (until now nothing filled the
+   column; staff set it by hand on the Ticket page). The reasoning as scoped:
+   **a "What is it?" pick reaches staff through the ticket's existing Category** (a pill on the Ticket page, a
+   filter on Recent activity). Rejected: a new `kind` column (written onto every install's tickets source, as
+   fields are, and placed on Details and the table); and not storing it (today's way, where an added option
+   such as "A question" would leave no trace). Catch: Category's values are TransportNY's five (bug, style,
+   data, content, enhancement) until 2b makes them editable.
+
+**Next pass: which questions, and how many.** The card becomes the form's one question list: the built-in
+questions and the custom fields marked "form", in one draggable order, with the two choice questions able to
+be switched off (summary and description stay, as the ticket's title and body). A custom field gains "ask
+only when What is it? is …". Custom fields stay the way to add a question, so there's no separate form
+builder.
+
+**Later:** configurable severity values per install (owner, 2026-11-03: "eventually"); a different form per
+covered site; Page QA's New ticket form reading the same wording; signed-out wording, with §3's signed-out
+filing.
+
+- [x] §10 step 1: the "report form" card. **Built and live-checked 2026-11-03**; not committed (the owner commits).
+  - Files (all dms-template `src/patterns/qa/`): new `reportIssue/reportForm.js` (defaults, `reportForm`,
+    `settledReportForm`, the card's checks and save-bar wording); `reportIssue/report.js` (`intakeForm`;
+    `reportRow` takes the picked option; `REPORT_KINDS` / `REPORT_SEVERITIES` moved into the defaults);
+    `reportIssue/ReportIssueForm.jsx`, `reportIssue/ReportIssue.jsx`; `intake.js`;
+    `admin/configureTab.jsx` + `.theme.js`; tests `qaReportForm.test.js` (new) and `qaReportIssue.test.js`.
+    QA tests 269/269.
+  - As built: the card stores only what differs from today's form (a blank box, text typed back to the
+    default, or a list left as the default stores nothing), so the row and the stub stay small and a later
+    change to the defaults still reaches installs that didn't change that part. Rows in the card start
+    from the default lists. A first-question option can't be removed when it's the last.
+  - The widget's tooltip comes from the form unless a theme's nav entry passes `label`; MNY's doesn't.
+  - **Live check** on 251 (`QA move check`, `qa_test`), probes in `scratchpad/qa_test/report_form_2026-11-03/`
+    (`configure.mjs`, `report.mjs`; backup of the row before: `backup_install_251.json`):
+    - Configure: the card loads the default rows with today's text as placeholders. A blank added option shows
+      "Give the option its wording." and turns Save off. Changed the button ("Tell the team"), title ("Tell us
+      what's wrong"), Send ("Send it"), the first question ("What kind of thing is it?"); added "A question"
+      (file as Polish, category content, "What do you want to know?" / "Ask away"); reworded "It looks off",
+      started the second question on Major, added "It's slow" (Minor). Save bar: "3 unsaved changes · the
+      report form's wording, … "What is it?" options, … severity options", then "saved".
+    - The row: `qa.report_form` holds the four changed texts and both lists; `public.qaIntake.form` is the
+      same; nothing else on the row changed. Fetched without a token, the stub has no `qa` but carries the
+      form, which `intakeForm` reads for an ungranted user.
+    - AlphaPage's Blank page (pattern 5's nav has the widget): the icon's tooltip is "Tell the team". Filed
+      #103 (row 292) with the first option, the second question showing and starting on "Something important
+      is wrong": severity **Major**, category **bug**. Filed #104 (row 296) as "A question": no second question,
+      the description box reads "What do you want to know?" / "Ask away": severity **Polish**, category
+      **content**. No console or page errors.
+    - **Left for the owner's look:** 251 keeps the edited form, and test tickets #103–#106 stay. Delete
+      the tickets and clear the form (or restore the backup) once reviewed.
+  - **Round 2 (owner feedback, 2026-11-03), built and live-checked on 251:**
+    - **Icon:** a picker on the card (the theme's `Icons`, searchable; "back to Alert"), stored as
+      `report_form.icon`. A nav entry's own `icon` still wins.
+    - **No words beside the icon:** the box ("beside the icon") defaults to nothing, so a blank box is the
+      icon alone, with the form's title as its tooltip. This replaced the theme's `qa.reportIssue.iconOnly`
+      key (removed from `ReportIssue.theme.js` and MNY's theme). MNY already showed the icon alone, so it
+      doesn't change; `qa_test`'s pages lose their default "Report an issue" words. Coworker how-to updated.
+    - **Dropdowns start empty** ("Choose one…", a box on the card) and Send waits for them. "starts on" and
+      the stored `is_default` are gone (a Save drops an old mark).
+    - **Guidance:** the questions are numbered steps; the next one to answer is filled in the accent colour, an
+      answered one shows a tick. Until "What is it?" is answered, only it shows, with a hint ("Pick one to see
+      the rest of the form.", a box on the card). Each step draws its own `UI.FieldLabel`, hint and control:
+      `FieldSet` hands a field's `customTheme` to the input too, which React warns about.
+    - **Footnote** default: "Automatically sent with your report: …".
+    - Live: the nav shows `InfoCircle` alone, tooltip "Report an Issue"; the form opens on step 1 only, with
+      Send off; picking it opens steps 2–4 with step 2 empty; Send stays off until step 2 is answered. #105
+      and #106 filed severity Minor, category bug. No console or page errors. QA tests 271/271.
+    - Not changed: the host theme's `active` button style (`qa_test`'s Send) has no disabled look, so a
+      disabled Send looks ready. That's the site theme's `button` style, not the form.
+  - **Round 3 (owner, 2026-11-03): the card names things by their job.** Sections: nav button (icon,
+    button text), form (title, summary label and placeholder, dropdown placeholder, footnote, send button),
+    issue type (question, hint, options: severity "reporter picks" or "always <severity>", category,
+    description label and placeholder), severity (question, options), after sending (title, message). Text
+    used as placeholder text is called "placeholder"; "hint" is only the line under the issue-type question.
+    Labels and grouping only (`REPORT_TEXT` gained `group`); the stored shape is unchanged. Each issue type's
+    two description boxes have their own captions ("issue description label", "issue description
+    placeholder"). Checked read-only on 251; QA tests 271/271.
+  - **What MNY gets with nothing saved:** screenshots in `scratchpad/qa_test/report_form_2026-11-03/`
+    (`defaults_configure.png`, `defaults_report_strip.png`), taken on 251 with its saved form stripped from
+    the browser's responses (`defaults_strip.mjs`; nothing written).
+  - **Owner's scope note (2026-11-03):** the real need was mostly changing the prose while keeping the
+    form's behaviour; the issue-type and severity behaviour switches went further than needed. Finish this
+    path, then revisit with a narrow scope once the owner knows what the client must be able to set.
+- [ ] **Datasets pages (owner, 2026-11-03; not started).** Configure already lets an install cover a Datasets
+  pattern (every type but admin and qa can be covered), but Report an issue can't work there yet, from the
+  code (not live-checked):
+  - the widget finds its install through `CMSContext` (the site's patterns) and files through
+    `PageContext` (`apiUpdate`, the page's title and slug). Only the page pattern provides either, so on a
+    datasets page the widget renders nothing;
+  - a datasets page has no page row, so a ticket needs another "page": e.g. the source's name and tab, keyed
+    `<short key>:<path>`;
+  - the page inventory (track-on-publish, backfill) has nothing to track there.
+  The icon itself would sit wherever the datasets pattern's theme places the widget in its nav, as on a page.
 
 ## Decisions on record
 
