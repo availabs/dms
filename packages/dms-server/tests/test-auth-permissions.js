@@ -186,9 +186,26 @@ async function main() {
     await inMode('enforce', async () => {
       assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, OPEN, 10), false);
       assert.strictEqual(canOrLevel(user(['openApp Admin']), 'auth-users', 10, OPEN, 0), true);
-      // levels still count on a row with grants
-      assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), true);
       assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 10), true);
+    });
+  });
+
+  await t('row with grants: the level counts under log (with a line) and legacy, not under enforce (owner 2026-11-03)', async () => {
+    await inMode('log', async (lines) => {
+      assert.strictEqual(canOrLevel(user(['Viewers'], 44), 'auth-users', 10, A, 10), true);
+      assert.ok(lines.some(l => /would deny .*auth-users \(by level 10\).*allowed by auth level only/.test(l)), lines.join('\n'));
+      lines.length = 0;
+      assert.strictEqual(canOrLevel(user(['Managers'], 45), 'auth-users', 10, A, 10), true);
+      assert.strictEqual(lines.length, 0, 'a permission holder is not logged');
+    });
+    await inMode('legacy', async (lines) => {
+      assert.strictEqual(canOrLevel(user(['Viewers'], 46), 'auth-users', 10, A, 10), true);
+      assert.strictEqual(lines.length, 0);
+    });
+    await inMode('enforce', async () => {
+      assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), false);
+      assert.strictEqual(canOrLevel(user(['Managers']), 'auth-users', 10, A, 0), true);
+      assert.strictEqual(canOrLevel(user(['siteA Admin']), 'auth-users', 10, A, 0), true);
     });
   });
 

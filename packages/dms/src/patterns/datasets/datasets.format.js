@@ -1,6 +1,19 @@
 export const view = {
   app: "datasets",
   type: "view",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: {
+    view: {
+      owner: 'owning-source',
+      ops: {
+        create: { owner: 'source-by-slug', perms: ['create-view'] },
+        delete: ['delete-source'],
+        edit:   ['update-source', 'create-view'],
+      },
+    },
+  },
   attributes: [
     { key: "name",
       placeholder: 'Name',
@@ -13,6 +26,30 @@ export const view = {
 export const source = {
   app: "datasets",
   type: "source",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // `data`: a split source's rows. They have no format object of their own, so their rule rides here.
+  rules: {
+    source: {
+      owner: 'self-source',
+      ops: {
+        create: { owner: 'datasets-grants', perms: ['create-source'] },
+        delete: ['delete-source'],
+        edit: {
+          byKey:    { auth_permissions: ['edit-source-permissions'] },
+          onlyKeys: [{ keys: ['views'], perms: ['create-view', 'update-source', 'delete-source'] }],
+          default:  ['update-source'],
+        },
+      },
+      noChange: ['update-source', 'edit-source-permissions', 'create-view'],
+    },
+    data: {
+      owner: 'source-by-slug',
+      appliesWhen: 'split',                  // non-split :data rows fall through to the default
+      ops: { '*': ['edit-source-data'] },
+    },
+  },
   registerFormats: [view],
   attributes: [
     { key: "name",

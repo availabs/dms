@@ -11,7 +11,7 @@ import { parseIfJSON } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
-import { getPatternType, listPatternTypes } from '../../registry'
+import { getPatternType, listPatternTypes, stampPatternRow, stampSiteRow } from '../../registry'
 import SiteTemplatePicker from './SiteTemplatePicker'
 import { authedFetch } from '../../../utils/authedFetch'
 
@@ -403,13 +403,11 @@ function PatternList({
 			if (prepared) row = prepared;
 		}
 
-		// Stamp the type's auth vocabulary onto the row. dms-server cannot read the pattern-type
-		// registry (it has no dependency on this package), so the pattern row is how a type's verbs
-		// reach the resolver — row-auth-vocabulary.md. Read from the registry rather than left to
-		// each type's beforeCreate, so a type cannot forget.
-		const { authVocabulary, childRefs } = getPatternType(data.pattern_type) || {};
-		if (authVocabulary) row = { ...row, authVocabulary };
-		if (childRefs) row = { ...row, childRefs };
+		// Stamp the type's auth vocabulary, childRefs and auth rules onto the row. dms-server cannot
+		// read the pattern-type registry (it has no dependency on this package), so the pattern row is
+		// how a type's verbs and rules reach the server — row-auth-vocabulary.md. Read from the
+		// registry rather than left to each type's beforeCreate, so a type cannot forget.
+		row = stampPatternRow(row);
 
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
@@ -860,7 +858,7 @@ function TenantList({
 			// 4. Create tenant site row in tenant app
 			const tenantSiteRes = await falcor.call(
 				['dms', 'data', 'create'],
-				[slug, `${siteInstance}:site`, { site_name: tenantName }]
+				[slug, `${siteInstance}:site`, stampSiteRow({ site_name: tenantName })]
 			);
 			const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
 			if (!tenantSiteId) throw new Error('Failed to create tenant site');

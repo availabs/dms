@@ -260,7 +260,10 @@ describe("backfillAdminPattern", () => {
     const ref = await backfillAdminPattern(falcor, { app: APP, siteInstance: "prod", siteId: 1, adminPath: "/list" });
     expect(ref).toMatchObject({ ref: `${APP}+prod|admin:pattern` });
     expect(db[1].data.patterns).toEqual([ref, ...refs]);
-    expect(db[ref.id].data).toEqual({ pattern_type: "admin", name: "Admin", subdomain: "*", base_url: "list" });
+    // plus what stampPatternRow adds from the registry (vocabulary; admin's rules go on the site row)
+    const { authVocabulary, ...rest } = db[ref.id].data;
+    expect(rest).toEqual({ pattern_type: "admin", name: "Admin", subdomain: "*", base_url: "list" });
+    expect(authVocabulary).toBeTruthy();
   });
 
   it("does nothing when the site already has one — detected by row, not by ref string", async () => {

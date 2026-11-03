@@ -296,7 +296,7 @@ function createJudge(ctx) {
         return user ? allow('signed in') : deny('sign in required');
     }
 
-    // ---- TRIAL (DMS_DATA_AUTH_JUDGE=data): the same decision as authRules.js data + the authJudge.js
+    // ---- THE DEFAULT JUDGE (DMS_DATA_AUTH_JUDGE=code selects judge() instead): the same decision as authRules.js data + the authJudge.js
     // interpreter. The owner lookups below are the part the rules can't express (auth-as-data README).
     async function resolveOwner(name, op, row) {
         const type = row.type || '';
@@ -341,15 +341,55 @@ function createJudge(ctx) {
         return [...out].filter(Boolean);
     }
 
+    // ---- Which rule judges a kind: the one stamped on the row that carries it, else the built-in copy.
+    // The client collects each format's `rules` at registration (patterns/deriveAuthRules.js) and stamps
+    // them as `data.authRules`: site-level kinds on the site row, the others on their pattern row. Rows
+    // created before that stamp carry none and use authRules.js (see its header). Never read from the row
+    // being created: its data is the caller's.
+    const SITE_KINDS = ['site', 'theme', 'tenant', 'pattern', 'dmsenv'];
+    const PAGE_KINDS = ['page', 'component', 'page-edit'];
+    const DATASETS_KINDS = ['source', 'view', 'data'];
+    let siteRows;
+    const sites = async () => {
+        if (!siteRows) {
+            siteRows = ((controller.getSiteRows && await controller.getSiteRows(app)) || [])
+                .map(r => ({ id: r.id, type: r.type, data: parseJson(r.data) || {} }));
+        }
+        return siteRows;
+    };
+    const stampedIn = (rows, kind) => {
+        const r = rows.find(x => x && x.data && x.data.authRules && typeof x.data.authRules === 'object'
+            && x.data.authRules[kind]);
+        return r ? r.data.authRules[kind] : null;
+    };
+    async function stampedRule(kind, type) {
+        if (SITE_KINDS.includes(kind)) return stampedIn(await sites(), kind);
+        if (PAGE_KINDS.includes(kind)) return stampedIn([await contentPattern(getParent(type))], kind);
+        // every datasets pattern of a type carries the same derived rules; the first stamped one is read
+        if (DATASETS_KINDS.includes(kind)) {
+            return stampedIn((await patterns()).filter(r => r.data.pattern_type === 'datasets'), kind);
+        }
+        return null;
+    }
+    async function ruleFor(kind, type) {
+        const stamped = await stampedRule(kind, type);
+        if (!stamped) return { rule: AUTH_RULES[kind], from: 'built-in' };
+        // a stamped rule the interpreter can't use fails closed rather than falling back
+        if (typeof stamped !== 'object' || !stamped.ops || typeof stamped.ops !== 'object') {
+            throw new Error(`the stamped ${kind} rule has no ops`);
+        }
+        return { rule: stamped, from: 'stamped' };
+    }
+
     async function judgeAsData(op, row, patch, keys) {
         const type = row.type || '';
         const kind = getKind(type);
-        const rule = AUTH_RULES[kind];
+        const { rule } = await ruleFor(kind, type);
         const grants = {};
         if (rule) {
             for (const name of ownersIn(rule)) grants[name] = await resolveOwner(name, op, row);
         }
-        return judgeRules(AUTH_RULES, {
+        return judgeRules(rule ? { ...AUTH_RULES, [kind]: rule } : AUTH_RULES, {
             user,
             isAppAdmin: false,  // checked by decide()
             grants,
@@ -360,14 +400,34 @@ function createJudge(ctx) {
             row: op === 'create' ? parseJson(patch) || {} : parseJson(row.data) || {} });
     }
 
+    // Writing a row's stamped auth rules is an escalation: whoever rewrites them can grant themselves
+    // anything they govern. So it is checked here, in code, never by a rule: site `*` on the site row;
+    // on a pattern row, `edit-pattern-permissions` held on the pattern itself or site `*` (not the
+    // open-pattern clause, which would hand it to anyone who may see the pattern list).
+    async function rulesWrite(op, row, keys) {
+        if (op !== 'edit' || !keys.includes('authRules')) return null;
+        const kind = getKind(row.type || '');
+        if (await siteCan('*')) return null;
+        if (kind === 'pattern') {
+            const ap = resolveAuthPermissions((parseJson(row.data) || {}).authPermissions, subdomain);
+            return holds(user, ap, ['edit-pattern-permissions']) ? null
+                : deny(`pattern ${row.id} authRules ${needs('edit-pattern-permissions')}`);
+        }
+        return deny(`${kind} authRules ${needs('*')}`);
+    }
+
     // `keys`: the edit's changed keys (planEdit); computed here when the caller has none.
     const decide = async (op, row, patch, keys = op === 'edit' ? planEdit(row, patch).keys : []) => {
         if (isAppAdmin(user, app)) return allow(`${app} Admin`);
         try {
             blankRefusal = false;
-            const d = process.env.DMS_DATA_AUTH_JUDGE === 'data'
-                ? await judgeAsData(op, row, patch, keys)
-                : await judge(op, row, patch, keys);
+            const fixed = await rulesWrite(op, row, keys);
+            if (fixed) return fixed;
+            // the rules interpreter is the default (owner 2026-11-03); DMS_DATA_AUTH_JUDGE=code goes back
+            // to the hand-written judge(), kept as the fallback until the interpreter has run on prod
+            const d = process.env.DMS_DATA_AUTH_JUDGE === 'code'
+                ? await judge(op, row, patch, keys)
+                : await judgeAsData(op, row, patch, keys);
             return !d.allow && blankRefusal && !/blank row/.test(d.reason)
                 ? deny(`${d.reason}; blank row (no grants: edits need an explicit grant)`) : d;
         } catch (e) {

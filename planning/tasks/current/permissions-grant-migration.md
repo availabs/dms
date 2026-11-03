@@ -7,6 +7,13 @@ Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub; d
 fixes from [permissions-access-diff-audit.md](./permissions-access-diff-audit.md). **Runs before** any task flips
 from transition mode to permission-only, and before the datasets routes start enforcing.
 
+## Decided (owner, 2026-11-03)
+
+Levels keep counting under `log` (and `legacy`) only, on every auth row, with grants or without; under `enforce`
+only permissions count (`auth/utils/permissions.js` `levelCounts`). Under `log` each pass that only a level
+allowed is recorded in the access log (guard `auth`, reason `allowed by auth level only …`): that list is what
+this migration must grant before `DMS_AUTH_ROW_MODE=enforce`.
+
 ## Objective
 
 A dry-run/apply script that writes grants so that nobody loses an operation when levels stop counting and the

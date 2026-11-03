@@ -17,6 +17,10 @@ const PatternList = {
 export const themeFormat = {
   app: 'admin',
   type: 'theme',
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: { theme: { owner: 'site-grants', ops: { '*': ['manage-themes'] } } },
   attributes: [
     {
       key: "name",
@@ -46,6 +50,10 @@ export const themeFormat = {
 export const dmsEnvFormat = {
   app: 'admin',
   type: 'dmsenv',
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: { dmsenv: { owner: 'datasets-grants', ops: { '*': ['create-source', 'delete-source', 'edit-pattern'] } } },
   registerFormats: [],
   attributes: [
     {
@@ -64,6 +72,10 @@ export const dmsEnvFormat = {
 export const tenant = {
   app: "admin",
   type: "tenant",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: { tenant: { owner: 'site-grants', ops: { '*': ['manage-tenants'] } } },
   registerFormats: [],
   attributes: [
     { key: "name", type: "text", required: true },
@@ -84,6 +96,29 @@ export const tenant = {
 export const pattern = {
   app: "admin",
   type: "pattern",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: {
+    pattern: {
+      owner: 'self-pattern',
+      escape: { owner: 'site-grants', perms: ['*'] },   // site * may do anything to any pattern
+      // a pattern with no grants is open to whoever may see the pattern list, core patterns excepted
+      ifOwnerBlank: {
+        owner: 'site-grants', perms: ['view-pattern-list'],
+        unless: { field: 'pattern_type', in: ['auth', 'admin'] },
+      },
+      ops: {
+        create: { owner: 'site-grants', perms: ['create-pattern'] },
+        delete: ['delete-pattern'],
+        edit: {
+          byKey:   { authPermissions: ['edit-pattern-permissions'] },
+          default: ['edit-pattern'],
+        },
+      },
+      noChange: ['edit-pattern', 'edit-pattern-permissions'],
+    },
+  },
   registerFormats: [],
   attributes: [
       // we need a type for this?
@@ -193,6 +228,31 @@ export const pattern = {
 const patternAdminFormat = {
   app: "admin",
   type: "site",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: {
+    site: {
+      owner: 'site-grants',
+      ops: {
+        create: ['*'],
+        delete: ['*'],
+        edit: {
+          byKey: {
+            patterns:   ['create-pattern', 'delete-pattern'],
+            theme_refs: ['manage-themes'],
+            tenants:    ['manage-tenants'],
+            // the one clause that needs a different owner than the kind's
+            dms_envs:   { anyOf: [
+              { owner: 'datasets-grants', perms: ['create-source', 'edit-pattern'] },
+              { owner: 'site-grants',     perms: ['*'] },
+            ] },
+          },
+          default: ['*'],
+        },
+      },
+    },
+  },
   registerFormats: [pattern, tenant, themeFormat, dmsEnvFormat],
   attributes: [
 

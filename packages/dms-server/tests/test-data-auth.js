@@ -482,6 +482,99 @@ async function run() {
         }));
     }
 
+    // A view / split-data row with no grants anywhere: no datasets pattern grants in the app (they are
+    // unioned app-wide, so this needs its own app) and none on the source. Read-only, as a blank page is.
+    console.log('\nblank datasets rows (own app: no datasets grants anywhere):');
+    const APP2 = `${APP}_blank`;
+    const insert2 = (type, data) => withMode('legacy', async () => {
+        const res = await call(admin2, ['dms', 'data', 'create'], [APP2, type, data]);
+        return +Object.keys(res.jsonGraph.dms.data.byId)[0];
+    });
+    const admin2 = u(22, [`${APP2} Admin`]);
+    await as(admin2).ready;
+    const call2 = (user, args, op = 'create') => call(user, ['dms', 'data', op], [APP2, ...args]);
+    await insert2('site:site', { site_name: 'Blank', patterns: [] });
+    const bView = await insert2('lakes|v1:view', { name: 'v1' });
+    const bSource = await insert2('env2|lakes:source', { name: 'lakes', type: 'internal_table', views: [{ id: bView }] });
+    const bEnv = await insert2('site|env2:dmsenv', { sources: [{ id: bSource }] });
+    await insert2('site|ds2:pattern', { pattern_type: 'datasets', dmsEnvId: bEnv });
+    const B_ROWS = `lakes|${bView}:data`;
+    const bRow = await insert2(B_ROWS, { a: 1 });
+    await t('a blank view is read-only: create and rename refused, `blank row` said', () => withMode('enforce', async () => {
+        assert.match(String(await outcome(call2(stranger, ['lakes|v2:view', { name: 'v2' }]))), /blank row/);
+        await refused(call2(anon, ['lakes|v2:view', { name: 'v2' }]));
+        assert.match(String(await outcome(call2(stranger, [bView, { name: 'renamed' }], 'edit'))), /blank row/);
+        await allowed(call2(admin2, [bView, { name: 'v1 by admin' }], 'edit'));
+    }));
+    await t('a blank data row is read-only: add and edit refused, `blank row` said', () => withMode('enforce', async () => {
+        assert.match(String(await outcome(call2(stranger, [B_ROWS, { a: 2 }]))), /blank row/);
+        await refused(call2(anon, [B_ROWS, { a: 2 }]));
+        assert.match(String(await outcome(call2(stranger, [bRow, { a: 3 }, B_ROWS], 'edit'))), /blank row/);
+        await allowed(call2(admin2, [B_ROWS, { a: 4 }]));
+    }));
+    await t('log: blank view / data writes go through, each logged with `blank row`', () => withMode('log', async (warned) => {
+        await allowed(call2(stranger, ['lakes|v3:view', { name: 'v3' }]));
+        await allowed(call2(stranger, [B_ROWS, { a: 5 }]));
+        assert.strictEqual(warned.length, 2, warned.join('\n'));
+        warned.forEach(w => assert.match(w, /would-deny create .*user=10 .*blank row/));
+    }));
+    await t('a source grant opens its view and data rows again', () => withMode('enforce', async () => {
+        await withMode('legacy', () => call2(admin2, [bSource, { auth_permissions: { users: { [stranger.id]: ['create-view', 'edit-source-data'] } } }], 'edit'));
+        try {
+            await allowed(call2(stranger, ['lakes|v4:view', { name: 'v4' }]));
+            await allowed(call2(stranger, [B_ROWS, { a: 6 }]));
+        } finally {
+            await withMode('legacy', () => call2(admin2, [bSource, { auth_permissions: null }], 'edit'));
+        }
+    }));
+
+    console.log('\nstamped rules (data.authRules on the pattern / site row; built-in copy otherwise):');
+    const withJudge = async (fn, name = 'data') => {
+        const prev = process.env.DMS_DATA_AUTH_JUDGE;
+        process.env.DMS_DATA_AUTH_JUDGE = name;
+        try { return await fn(); } finally { if (prev === undefined) delete process.env.DMS_DATA_AUTH_JUDGE; else process.env.DMS_DATA_AUTH_JUDGE = prev; }
+    };
+    const grantsBoth = { groups: { Editors: ['edit-page'], Publishers: ['edit-page', 'publish-page'] } };
+    await insert('site|stamped:pattern', {
+        pattern_type: 'page', name: 'Stamped', authPermissions: grantsBoth,
+        authRules: { page: { owner: 'parent-pattern+row', ops: { '*': ['publish-page'] } } },
+    });
+    await insert('site|broken:pattern', {
+        pattern_type: 'page', name: 'Broken', authPermissions: grantsBoth,
+        authRules: { page: { owner: 'parent-pattern+row' } },
+    });
+    const stampedPage = await insert('stamped|page', { title: 'stamped' });
+    const brokenPage = await insert('broken|page', { title: 'broken' });
+    await t('a page pattern\'s stamped rule judges its pages, not the built-in one', () => withMode('enforce', () => withJudge(async () => {
+        await refused(edit(editor, stampedPage, { title: 'x' }));      // built-in would allow edit-page
+        await allowed(edit(publisher, stampedPage, { title: 'y' }));
+        await allowed(edit(editor, docsPage, { title: 'built-in still' }));  // docs has no stamp
+    })));
+    await t('a stamped rule the interpreter can\'t use fails closed', () => withMode('enforce', () => withJudge(async () => {
+        await refused(edit(publisher, brokenPage, { title: 'x' }));
+        await allowed(edit(admin, brokenPage, { title: 'app admin still' }));
+    })));
+    await t('site-level rules are read from the site row', () => withMode('enforce', () => withJudge(async () => {
+        await allowed(edit(admin, siteRow, { authRules: { theme: { owner: 'site-grants', ops: { '*': ['create-pattern'] } } } }));
+        try {
+            await refused(create(themer, 'green:theme', {}));
+            await allowed(create(creator, 'green:theme', {}));
+        } finally {
+            await allowed(edit(admin, siteRow, { authRules: null }));
+        }
+        await allowed(create(themer, 'red:theme', {}));
+    })));
+    for (const judgeName of ['hand-written', 'data']) {
+        const run = (fn) => withJudge(fn, judgeName === 'data' ? 'data' : 'code');
+        await t(`writing authRules needs edit-pattern-permissions on the pattern / site * on the site row (${judgeName} judge)`, () => withMode('enforce', () => run(async () => {
+            await refused(edit(patEditor, docs, { authRules: { page: { owner: 'parent-pattern', ops: { '*': [] } } } }));
+            await refused(edit(lister, open, { authRules: { page: { owner: 'parent-pattern', ops: { '*': [] } } } }));
+            await refused(edit(creator, siteRow, { authRules: { pattern: { owner: 'site-grants', ops: { '*': [] } } } }));
+            await allowed(edit(admin, docs, { authRules: { page: { owner: 'parent-pattern+row', ops: { '*': ['edit-page'] } } } }));
+            await allowed(edit(admin, docs, { authRules: null }));
+        })));
+    }
+
     console.log('\nmodes:');
     await t('log allows a refused write and logs one would-deny line', () => withMode('log', async (warned) => {
         await allowed(edit(stranger, docsPage, { title: 'by stranger' }));

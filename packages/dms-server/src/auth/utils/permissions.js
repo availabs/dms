@@ -33,20 +33,21 @@ function authRowMode() {
 }
 
 const BLANK_REASON = 'blank auth row (no grants: only admins can edit)';
+// owner 2026-11-03 (task 18): levels count under log (and legacy) only, on every auth row
+const LEVEL_REASON = 'allowed by auth level only (levels stop counting under enforce: grant the permission)';
 
 // One would-deny line per (user, app, what) per ten minutes; every call still counts in the access log.
 const seen = new Map();
-function logWouldDeny(user, scope, what, outcome = 'would-deny') {
+function logWouldDeny(user, scope, what, outcome = 'would-deny', reason = BLANK_REASON) {
   accessLog.record({
-    app: scope.app, guard: 'auth', outcome, kind: 'auth row', target: scope.app, perms: what, user,
-    reason: BLANK_REASON,
+    app: scope.app, guard: 'auth', outcome, kind: 'auth row', target: scope.app, perms: what, user, reason,
   });
   if (outcome !== 'would-deny') return;
   const key = `${user && user.email}|${scope.app}|${what}`;
   const now = Date.now();
   if (now - (seen.get(key) || 0) < 10 * 60 * 1000) return;
   seen.set(key, now);
-  console.warn(`[auth-row] would deny ${user && user.email} ${what} on ${scope.app}'s auth row: ${BLANK_REASON}`);
+  console.warn(`[auth-row] would deny ${user && user.email} ${what} on ${scope.app}'s auth row: ${reason}`);
 }
 
 const AUTH_USERS = 'auth-users';
@@ -156,16 +157,23 @@ function can(user, perm, scope) {
  * Whether today's level threshold counts for `user` on this scope: not on an auth row with no grants under
  * `enforce` (only admins edit such a row). `${app} Admin` passes through can() anyway.
  */
+// Whether today's level threshold still lets `user` through. Owner 2026-11-03 (task 18): levels count
+// under `log` and `legacy` only, on every auth row (blank or granted); under `enforce` only the permission
+// does. `log` records each level-only pass (`quiet`: the permission passed anyway), so grants can be added
+// before the switch. No usable scope (no DMS context) keeps the level alone: there is nothing to judge.
 function levelCounts(user, perm, minLevel, scope, authLevel = 0, { quiet = false } = {}) {
   if (!((+authLevel || 0) >= minLevel)) return false;
-  if (!scope || scope.error || !scope.open || isAppAdmin(user, scope.app)) return true;
+  if (!scope || scope.error || isAppAdmin(user, scope.app)) return true;
   const mode = authRowMode();
   if (mode === 'enforce') return false;
-  if (mode === 'log' && !quiet) logWouldDeny(user, scope, `${[].concat(perm).join(' or ')} (by level ${authLevel})`);
+  if (mode === 'log' && !quiet) {
+    logWouldDeny(user, scope, `${[].concat(perm).join(' or ')} (by level ${authLevel})`, 'would-deny',
+      scope.open ? BLANK_REASON : LEVEL_REASON);
+  }
   return true;
 }
 
-/** Transition mode: the permission, or today's level threshold (not on a blank row under enforce). */
+/** Transition mode: the permission, or today's level threshold (not under enforce). */
 function canOrLevel(user, perm, minLevel, scope, authLevel = 0) {
   return can(user, perm, scope) || levelCounts(user, perm, minLevel, scope, authLevel);
 }

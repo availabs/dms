@@ -1,5 +1,5 @@
 'use strict';
-// Trial (DMS_DATA_AUTH_JUDGE=data): judge.cjs from auth-as-data (2026-10-27). A pure interpreter over authRules.js.
+// The default write judge since 2026-11-03 (DMS_DATA_AUTH_JUDGE=code for the hand-written one): judge.cjs from auth-as-data (2026-10-27). A pure interpreter over authRules.js.
 // Ours since: `ifOwnerBlank` (2026-10-30, the open-pattern rule) and the `row` / `env.isBlank` inputs it reads.
 const allow = (reason) => ({ allow: true, reason });
 const deny  = (reason) => ({ allow: false, reason });

@@ -7,9 +7,9 @@
  *
  * Two implementations live side by side under this folder and export the SAME contract:
  *
- *   kindAuth/   decides by ROW KIND — a switch over the kinds, each with hand-written rules.
- *               `authRules.js` + `authJudge.js` are a sub-mode of it (`DMS_DATA_AUTH_JUDGE=data`),
- *               which swaps the switch for an interpreter over declared rules.
+ *   kindAuth/   decides by ROW KIND — an interpreter (`authJudge.js`) over each kind's declared rule
+ *               (stamped from the formats, else `authRules.js`). `DMS_DATA_AUTH_JUDGE=code` swaps
+ *               in the older hand-written switch (`judge()`), kept as the fallback.
  *   rowAuth/    decides by the ROW's own grants and its PARENT CHAIN — one `verdict()` reached by
  *               three adapters, gaining no branch when a pattern is added.
  *

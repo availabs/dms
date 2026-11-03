@@ -812,6 +812,15 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       );
     },
 
+    /** The app's site rows (one, normally) — for the site-level auth rules stamped on them. */
+    async getSiteRows(app) {
+      const table = await mainTable(app);
+      return dms_db.promise(
+        `SELECT id, type, data FROM ${table} WHERE app = $1 AND type LIKE '%:site'`,
+        [app]
+      );
+    },
+
     /**
      * Row-auth loaders (routes/dms/rowAuth.js). Both select the PROJECTION the resolver needs and
      * nothing else — production rows average ~10KB of `data` jsonb, and selecting it exhausts the

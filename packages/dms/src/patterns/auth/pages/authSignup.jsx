@@ -8,6 +8,7 @@ import { callAuthServer } from "../api";
 import { nameToSlug, getInstance } from "../../../utils/type-utils";
 import { provisionTemplatePatterns, createCorePatterns } from "../../../utils/tenantProvisioning";
 import SiteTemplatePicker from "../../admin/pages/SiteTemplatePicker";
+import { stampSiteRow } from "../../registry";
 
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'mail', 'smtp', 'ftp', 'dev', 'staging', 'test', 'app', 'portal'];
 const SUBDOMAIN_RE = /^[a-z0-9][a-z0-9_-]{1,61}[a-z0-9]$/;
@@ -113,7 +114,7 @@ export default function AuthSignup({ disableSignup, adminPath }) {
                 // 4. Create tenant's own site row in tenant app
                 const tenantSiteRes = await falcor.call(
                     ['dms', 'data', 'create'],
-                    [slug, `${siteInstance}:site`, { site_name: tenantName }]
+                    [slug, `${siteInstance}:site`, stampSiteRow({ site_name: tenantName })]
                 );
                 const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
                 if (!tenantSiteId) throw new Error('Failed to create tenant site');

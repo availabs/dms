@@ -9,7 +9,8 @@
 
 1. **A row with no grants is read-only**: read allowed, edit refused. Replaces "no permission set → open" for edits
    (2026-10-23). Task: [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md).
-2. **Alex's judge stays a trial** behind `DMS_DATA_AUTH_JUDGE=data` (`authRules.js`, `authJudge.js`, `dataAuth.js`
+2. ~~**Alex's judge stays a trial**~~ (2026-11-03: it is the default now; `DMS_DATA_AUTH_JUDGE=code` selects the
+   hand-written `judge()`) behind `DMS_DATA_AUTH_JUDGE=data` (`authRules.js`, `authJudge.js`, `dataAuth.js`
    `judgeAsData`). His files are a structure; the rules they define can change. Rules move into pattern data, edited
    in a pattern editor **Settings → Advanced auth** tab: [pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md).
 3. **A save that changes nothing writes nothing**, so it isn't judged. Built: `assertDataWrite(…, { skipNoChange })`
@@ -48,7 +49,10 @@ In order:
    enabled while no plan exists). **Done 2026-11-02.**
 3. **Prod audit baseline** (`scripts/permissions-access-diff.js`): needs VPN. Rerun after 1 lands.
 4. **Task 18** (grant migration). Task 19 (level removal) dropped by the owner 2026-11-02: levels stay.
-5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): open-pattern clause
+   **Owner 2026-11-03: levels count under `log` (and `legacy`) only, on every auth row, blank or granted;
+   under `enforce` only permissions count.** Built: `permissions.js` `levelCounts`; `log` records each
+   level-only pass (`allowed by auth level only`) in the access log, which is the list task 18 must grant.
+5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): **2026-11-03 rules moved into the format files, stamped on site / pattern rows, read by the data judge with the built-in copy as fallback**; open-pattern clause
    **done** 10-30 (trial 51/51); next storage (pattern row, not the code-only format), defaults, Advanced auth tab
    mockup.
 6. Coordinate with amuro (decisions 1, 9: `parent_id` resolver, Phase D writes) and Alex (rules structure, 5's clause).

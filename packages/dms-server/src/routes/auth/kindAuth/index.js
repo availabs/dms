@@ -2,12 +2,12 @@
 /**
  * KIND AUTH — the implementation that decides by ROW KIND.
  *
- * One `switch` over the row kinds, each with hand-written rules (`dataAuth.js` `judge()`), plus a
- * read gate that knows exactly two kinds (`kindReadAuth.js`) and the datasets pair
- * (`sourceAuth.js` / `readAuth.js`). `authRules.js` + `authJudge.js` are a SUB-MODE of this side,
- * not a third implementation: `dataAuth.js` selects them with `DMS_DATA_AUTH_JUDGE=data`, which
- * swaps the hand-written switch for a pure interpreter over declared rules. Both answer as kind
- * auth; only the way the rules are written differs.
+ * Writes are judged by an interpreter (`authJudge.js`) over each kind's rule: the rule stamped on
+ * the pattern / site row from the formats, else the built-in copy (`authRules.js`). That is the
+ * default since 2026-11-03; `DMS_DATA_AUTH_JUDGE=code` goes back to the hand-written switch
+ * (`dataAuth.js` `judge()`), kept as the fallback. Plus a read gate that knows exactly two kinds
+ * (`kindReadAuth.js`) and the datasets pair (`sourceAuth.js` / `readAuth.js`). Both judges answer
+ * as kind auth; only the way the rules are written differs.
  *
  * This index is the contract `../index.js` switches on. `rowAuth/index.js` exports the same names
  * with the same signatures, so a caller importing from `routes/auth` never learns which side it got.

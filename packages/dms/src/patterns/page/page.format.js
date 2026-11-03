@@ -4,6 +4,12 @@ import SectionArray from './components/sections/sectionArray'
 export const cmsSection = {
   app: "dms-site",
   type: "component",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // judged as the page is, minus the per-key split
+  rules: { component: { owner: 'parent-pattern', escape: { owner: 'site-grants', perms: ['*'] },
+                        ops: { '*': ['edit-page', 'publish-page'] } } },
   // A component declares no `parent` / `url_slug` of its own. Both used to sit here, resolving
   // through `joinKey: 'parent'` + `serverFn: 'recurse_extract_data'` — a reader wired up for a
   // field that was measured 52.6% wrong and has since been retired (see rowAuth.js's header, and
@@ -93,6 +99,12 @@ export const cmsSection = {
 const pageEdit = {
   app: "dms-site",
   type: "page-edit",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // a page's edit history, written by whoever edits the page
+  rules: { 'page-edit': { owner: 'parent-pattern', escape: { owner: 'site-grants', perms: ['*'] },
+                          ops: { '*': ['edit-page', 'publish-page'] } } },
   attributes: [
     {
       key: "entries",
@@ -106,6 +118,31 @@ const pageEdit = {
 const cmsPageFormat = {
   app: "dms-site",
   type: "page",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: {
+    page: {
+      owner:  'parent-pattern+row',          // pattern ⊕ this row's own grants
+      escape: { owner: 'site-grants', perms: ['*'] },
+      ops: {
+        create: ['create-page'],
+        delete: ['edit-page'],
+        edit: {
+          byKey: {
+            authPermissions: ['edit-page-permissions'],
+            filters:         ['edit-page', 'edit-page-params'],
+          },
+          when: [
+            { keyIn: ['sections', 'section_groups', 'dataSources'], perms: ['publish-page'] },
+            { key: 'published', valueNot: 'draft',                  perms: ['publish-page'] },
+          ],
+          default: ['edit-page'],            // every key not matched above
+        },
+      },
+      noChange: ['edit-page', 'publish-page', 'edit-page-permissions', 'edit-page-params'],
+    },
+  },
   registerFormats: [cmsSection, pageEdit],
   defaultSearch: `data ->> 'index' = '0' and (data ->> 'parent' = '' or data ->> 'parent' is null) and (data ->> 'template_id' is null)`,
   defaultSort: (d) =>  {
