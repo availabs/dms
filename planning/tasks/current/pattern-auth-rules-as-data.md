@@ -62,12 +62,12 @@ built-in copy").
     neither the rules nor the stamps). `test-data-auth` 62/62 under each, with four new blank view / data-row
     tests (their own app, since datasets grants are unioned app-wide).
   - **Stamps freeze.** A row keeps the rules it was created with; a later library change to a format's rules
-    doesn't reach it (true of `authVocabulary` too). Needs a refresh: a backfill script, or re-stamping when an
-    admin saves the row.
-  - **Create-time trust.** The server can't tell rules derived from the registry from hand-written ones on a
-    create, so a `create-pattern` holder could create a pattern whose rules are looser. The same holds for
-    `authVocabulary`. Options: refuse `authRules` on create unless the caller holds site `*`, or validate against
-    a server-held list of known rule sets.
+    doesn't reach it (true of `authVocabulary` too). **Owner, 2026-11-03: a one-off backfill, written when a
+    change happens.** Filed as [`auth-rules-stamp-backfill.md`](./auth-rules-stamp-backfill.md); a fingerprint
+    test in `authRules.sync.test.js` fails on any change and points there.
+  - ~~**Create-time trust.**~~ **Owner, 2026-11-03: not a gap.** Rules a `create-pattern` holder stamps govern
+    only their own pattern's pages and components, which they already control through its grants; edits to
+    `authRules` stay guarded (`rulesWrite`).
   - `authVocabulary` is writable with only `edit-pattern` (Alex's key; noted for him).
 
 **2026-10-30: open-pattern clause (decision 5) added.** A generic rule key, no kind name in the interpreter:

@@ -952,6 +952,7 @@
   - [ ] [Auth platform admin](./tasks/current/permissions-auth-platform-admin.md) — `avail_auth`/`AVAIL`
   - [ ] [Auth client pages](./tasks/current/permissions-auth-client-pages.md)
   - [ ] [Grant migration](./tasks/current/permissions-grant-migration.md) — dry-run/apply
+  - [ ] [Re-stamp auth rules after a rules change](./tasks/current/auth-rules-stamp-backfill.md) — waiting: a one-off backfill, written when the rules or vocabulary change (the fingerprint test in `authRules.sync.test.js` fails and points here)
   - [ ] [Remove auth levels](./tasks/current/permissions-remove-auth-levels.md) — Phase 1 dead code any time
 - [ ] [Destructive calls never carry a preview flag](./tasks/current/destructive-call-plan-routes.md) — filed 2026-10-27. The Users / Groups remove dialogs previewed by sending `dryRun` to the destructive route; master ignores it and deletes. Stopgap done (no preview fetched); plan: read-only `/…/plan` routes, destructive routes refuse `dryRun`.
 - [ ] [Who may write source rows from a page section](./tasks/current/section-row-write-auth.md) — moved out of the permissions hub 2026-10-27 (was task 11). Owner: (b) the section's own edit right + its flags, or the source grant; client names the section id, server reads the component. Open: writes naming no section.

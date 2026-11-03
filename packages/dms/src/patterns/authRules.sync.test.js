@@ -4,6 +4,7 @@
 //
 // Reads the server file as data only (test-time); the package itself never imports dms-server.
 import { createRequire } from 'module';
+import { createHash } from 'crypto';
 import { describe, expect, test } from 'vitest';
 import './index';
 import { getPatternType, stampPatternRow, stampSiteRow } from './registry';
@@ -43,6 +44,19 @@ describe('auth rules in the formats', () => {
     expect(row.authVocabulary).toEqual(getPatternType('page').authVocabulary);
     expect(row.childRefs).toEqual(getPatternType('page').childRefs);
     expect(stampPatternRow({ pattern_type: 'nope', name: 'n' })).toEqual({ pattern_type: 'nope', name: 'n' });
+  });
+
+  // Rows keep the rules and vocabulary they were stamped with. When this fails, existing rows need the
+  // one-off backfill in planning/tasks/current/auth-rules-stamp-backfill.md (owner, 2026-11-03): run it,
+  // then paste the new fingerprint here. App-registered types are not covered; see the task.
+  test('the stamped rules have not changed (else: backfill existing rows)', () => {
+    const sorted = (v) => Array.isArray(v) ? v.map(sorted)
+      : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map(k => [k, sorted(v[k])])) : v;
+    const stamped = Object.fromEntries(['admin', 'auth', 'datasets', 'page'].map(n =>
+      [n, { rules: getPatternType(n).authRules, vocabulary: getPatternType(n).authVocabulary }]));
+    const fingerprint = createHash('sha256').update(JSON.stringify(sorted(stamped))).digest('hex').slice(0, 16);
+    expect(fingerprint, 'auth rules or vocabulary changed: see planning/tasks/current/auth-rules-stamp-backfill.md')
+      .toBe('fc63204513e22747');
   });
 
   test('later formats win; a rule without ops or with an unknown owner is refused', () => {
