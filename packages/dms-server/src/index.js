@@ -205,7 +205,7 @@ app.use('/graph', (req, res, next) => {
 });
 
 const { getSubdomain } = require('./utils/subdomain');
-const { requestPatternRef } = require('./routes/auth/kindAuth/sourceAuth');
+const { requestPatternRef, requestApp } = require('./routes/auth/kindAuth/sourceAuth');
 
 app.use(
   '/graph',
@@ -220,7 +220,7 @@ app.use(
         // how the write arrived, for change history rows: the CLI sends 'cli', a browser nothing
         via: req.headers['x-dms-via'] || null,
       };
-      return falcorRoutes({ user, subdomain, reqMeta, patternRef: requestPatternRef(req) });
+      return falcorRoutes({ user, subdomain, reqMeta, patternRef: requestPatternRef(req), requestApp: requestApp(req) });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);
       throw e;

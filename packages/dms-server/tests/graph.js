@@ -57,6 +57,7 @@ function createTestGraph(dbName = 'dms-sqlite', options = {}) {
       this.user = user;
       this.subdomain = config.subdomain || '';
       this.patternRef = config.patternRef || null;
+      this.requestApp = config.requestApp || null;
       this.reqMeta = config.reqMeta || {
         ip: '127.0.0.1',
         userAgent: 'test-harness',

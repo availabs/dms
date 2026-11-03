@@ -331,6 +331,18 @@ function requestUserIdWarnBody(req) {
 // a plain query param needs no CORS preflight) or the `X-DMS-Pattern: <app>/<patternId>` header.
 // Mirrors the client's utils/authedFetch.js. Not read from the body: some bodies already carry an
 // unrelated `patternId` (sync-filters).
+// The site the request comes from: query `dms_app=<app>` (every pattern's Falcor model sends it,
+// render/dmsPageFactory.jsx) or the `X-DMS-App` header. Used only where no datasets pattern is named: to
+// file an access-log row under its site, and for the `${app} Admin` check on an EXTERNAL source read (a
+// pgEnv is added to a site only by a sysadmin's config change, so that site's admins may read its sources;
+// owner 2026-11-03). It lends no pattern's grants.
+function requestApp(req) {
+    const raw = (req && req.query && req.query.dms_app) || (req && req.headers && req.headers['x-dms-app']);
+    return typeof raw === 'string' && /^[A-Za-z0-9_.-]{1,200}$/.test(raw) ? raw : null;
+}
+// The app to file a signed-out call under: the named pattern's, else the request's.
+const requestLogApp = (req) => (requestPatternRef(req) || {}).app || requestApp(req) || '';
+
 function requestPatternRef(req) {
     const raw = (req && req.query && req.query.dms_pattern) || (req && req.headers && req.headers['x-dms-pattern']);
     if (!raw) return null;
@@ -352,18 +364,18 @@ function requireUser(req, res) {
  * user: `enforce` refuses anon, `log` lets anon through and logs it, `legacy` allows. Per-source
  * `view-source` comes with read visibility (permissions-ds-read-visibility). `what` names the read in the log.
  */
-function readerAllowed(user, what) {
+function readerAllowed(user, what, app = '') {
     const mode = authMode();
     if (user || mode === 'legacy') return true;
-    if (mode === 'log') { logWouldDeny('read', what, [], null, 'not signed in'); return true; }
-    refused('read', what, [], null, 'not signed in', '');
+    if (mode === 'log') { logWouldDeny('read', what, [], null, 'not signed in', app); return true; }
+    refused('read', what, [], null, 'not signed in', app);
     return false;
 }
 
 // Express middleware form of readerAllowed.
 function requireReader(req, res, next) {
     const user = req.availAuthContext && req.availAuthContext.user;
-    if (readerAllowed(user, `${req.method} ${req.originalUrl || req.url}`)) return next();
+    if (readerAllowed(user, `${req.method} ${req.originalUrl || req.url}`, requestLogApp(req))) return next();
     res.status(401).json({ error: 'authentication required' });
 }
 
@@ -381,12 +393,12 @@ function requireUserOrOpen(req, res) {
     if (user) return user;
     const mode = authMode();
     if (mode === 'enforce') {
-        refused('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in', '');
+        refused('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in', requestLogApp(req));
         return requireUser(req, res);
     }
     if (mode === 'log' && !req.anonWouldDenyLogged) {
         req.anonWouldDenyLogged = true;
-        logWouldDeny('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in');
+        logWouldDeny('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in', requestLogApp(req));
     }
     return ANON_CALLER;
 }
@@ -481,6 +493,7 @@ module.exports = {
     requestUserId,
     requestUserIdWarnBody,
     requestPatternRef,
+    requestApp,
     readNamedPattern,
     requireUser,
     requireUserOrOpen,

@@ -36,7 +36,7 @@ const { readMode, allowSourceRead, allowViewRead, filterReadableSources, redactS
 // ---- Reads (readAuth.js, DMS_READ_AUTH_MODE): a refused read answers null, never an error, so a page
 // section or list renders empty instead of failing the whole batch.
 // `patternRef`: the datasets pattern the request names, whose grants external sources inherit.
-const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', patternRef: router.patternRef || null });
+const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', patternRef: router.patternRef || null, requestApp: router.requestApp || null });
 const canReadSource = (router, env, sourceId, kind) => allowSourceRead({ env, sourceId, kind, ...reader(router) });
 const canReadView = (router, env, viewId, kind) => allowViewRead({ env, viewId, kind, ...reader(router) });
 

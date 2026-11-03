@@ -199,6 +199,16 @@ async function run() {
             assert.strictEqual(await named(extPattern, anon), false, 'grant is for Rando, not public');
             assert.strictEqual(await named(extPattern, appAdmin), true, '${app} Admin of the named pattern\'s app');
         });
+        await t('external, no pattern named: the requesting site (dms_app) lets its admins read, lends no grants', async () => {
+            const site = (user, requestApp) => RA.allowSourceRead({ env: E, sourceId: priv, user, requestApp });
+            assert.strictEqual(await site(appAdmin, APP), true, '${app} Admin of the requesting site');
+            assert.strictEqual(await site(appAdmin, null), false, 'no site named: no admin check');
+            assert.strictEqual(await site(appAdmin, 'other_app'), false, 'admin of another site');
+            assert.strictEqual(await site(stranger, APP), false, 'the site lends no pattern grants');
+            assert.strictEqual(await RA.filterReadableSources({ env: E, sourceIds: [priv], user: appAdmin, requestApp: APP }).then(r => r.length), 1);
+            assert.strictEqual(await RA.allowSourceRead({ env: E, sourceId: priv, user: appAdmin, requestApp: 'other_app', patternRef: { app: APP, patternId: extPattern } }), true,
+                'a named pattern wins over dms_app');
+        });
         await t('external: a source [] revokes the named pattern\'s grant', async () => {
             const revoked = await ext({ users: { 1: ['*'] }, groups: { public: [], Rando: [] } });
             RA.clearReadSnapshots();
@@ -220,6 +230,15 @@ async function run() {
     });
 
     console.log('\nmodes:');
+    await t('log: an external read naming no pattern is filed under the requesting site (dms_app)', async () => {
+        const accessLog = require('../src/access-log');
+        await withMode('log', async () => {
+            const before = new Set(accessLog._pending().keys());
+            assert.strictEqual(await RA.allowSourceRead({ env: E, sourceId: priv, user: stranger, requestApp: 'site_x', kind: 'list' }), true);
+            const added = [...accessLog._pending().entries()].filter(([k]) => !before.has(k)).map(([, r]) => r);
+            assert.ok(added.some(r => r.app === 'site_x' && r.kind === 'list' && r.guard === 'read'), JSON.stringify(added));
+        });
+    });
     await t('log: a refused read goes through and logs once per user / source / kind', async () => {
         await withMode('log', async (warned) => {
             assert.strictEqual(await read(E, priv, stranger), true);

@@ -139,8 +139,8 @@ function decideRead(snap, sourceId, user, named = null, reqPermissions = READ_PE
 const logged = new Map();
 // `outcome`: would-deny (log) / refused (enforce). Every call counts in the access log; the console line is
 // deduped (LOG_DEDUPE_MS).
-function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny', patternRef = null) {
-    accessLog.record({ app: accessLog.appOf(env, patternRef), guard: 'read', outcome, kind, target: `${env}/${sourceId}`,
+function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny', patternRef = null, requestApp = null) {
+    accessLog.record({ app: accessLog.appOf(env, patternRef) || requestApp || '', guard: 'read', outcome, kind, target: `${env}/${sourceId}`,
         perms: ['view-source'], user, reason });
     if (outcome !== 'would-deny') return;
     const who = (user && (user.id ?? user.email)) ?? 'anon';
@@ -157,15 +157,22 @@ function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny',
  * Whether `user` may read `sourceId` on `env`, under the mode: `legacy` always, `log` always (logging a
  * would-deny), `enforce` as decided. A failed grant lookup denies under `enforce` and logs under `log`.
  */
-async function allowSourceRead({ env, sourceId, user, subdomain = '', patternRef = null, kind = 'source', logOnly = false }) {
+// The named datasets pattern ({ app, ap }), else the requesting site with nothing to lend ({ app, ap: {} }):
+// an external source's `${app} Admin` check uses the site that added the pgEnv (owner 2026-11-03), and
+// no pattern's grants are lent to a request that names none.
+async function namedOrSite(patternRef, requestApp, subdomain) {
+    return (await namedPattern(patternRef, subdomain)) || (requestApp ? { app: requestApp, ap: {} } : null);
+}
+
+async function allowSourceRead({ env, sourceId, user, subdomain = '', patternRef = null, requestApp = null, kind = 'source', logOnly = false }) {
     const mode = readMode({ logOnly });
     if (mode === 'legacy') return true;
     let d;
-    try { d = decideRead(await snapshot(env, subdomain), sourceId, user, await namedPattern(patternRef, subdomain)); }
+    try { d = decideRead(await snapshot(env, subdomain), sourceId, user, await namedOrSite(patternRef, requestApp, subdomain)); }
     catch (e) { d = { allow: false, reason: `grant lookup failed: ${e.message}` }; }
     if (d.allow) return true;
-    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef); return true; }
-    logWouldDeny(kind, env, sourceId, user, d.reason, 'refused', patternRef);
+    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef, requestApp); return true; }
+    logWouldDeny(kind, env, sourceId, user, d.reason, 'refused', patternRef, requestApp);
     return false;
 }
 
@@ -177,27 +184,27 @@ async function sourceOfView(env, viewId, subdomain = '') {
 }
 
 /** allowSourceRead for the source a view belongs to. An unknown view denies under `enforce`. */
-async function allowViewRead({ env, viewId, user, subdomain = '', patternRef = null, kind = 'view', logOnly = false }) {
+async function allowViewRead({ env, viewId, user, subdomain = '', patternRef = null, requestApp = null, kind = 'view', logOnly = false }) {
     const mode = readMode({ logOnly });
     if (mode === 'legacy') return true;
     let sourceId;
     try { sourceId = await sourceOfView(env, viewId, subdomain); }
     catch (e) { sourceId = null; }
     if (sourceId == null) {
-        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'would-deny', patternRef); return true; }
-        logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'refused', patternRef);
+        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'would-deny', patternRef, requestApp); return true; }
+        logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'refused', patternRef, requestApp);
         return false;
     }
-    return allowSourceRead({ env, sourceId, user, subdomain, patternRef, kind, logOnly });
+    return allowSourceRead({ env, sourceId, user, subdomain, patternRef, requestApp, kind, logOnly });
 }
 
 /** The ids of `sourceIds` the user may read, in order (all of them unless `enforce`). */
-async function filterReadableSources({ env, sourceIds, user, subdomain = '', patternRef = null, kind = 'list' }) {
+async function filterReadableSources({ env, sourceIds, user, subdomain = '', patternRef = null, requestApp = null, kind = 'list' }) {
     const mode = readMode();
     if (mode === 'legacy') return sourceIds;
     const out = [];
     for (const id of sourceIds) {
-        if (await allowSourceRead({ env, sourceId: id, user, subdomain, patternRef, kind })) out.push(id);
+        if (await allowSourceRead({ env, sourceId: id, user, subdomain, patternRef, requestApp, kind })) out.push(id);
     }
     return out;
 }
@@ -207,9 +214,9 @@ async function filterReadableSources({ env, sourceIds, user, subdomain = '', pat
  * secrets). These are edit verbs, so on a source with no grants the blank-row rule refuses them; it applies
  * only once the write guard (DMS_SOURCE_AUTH_MODE) enforces, so `log` keeps showing an editor what it did.
  */
-async function holdsOnSource({ env, sourceId, user, subdomain = '', patternRef = null, perms }) {
+async function holdsOnSource({ env, sourceId, user, subdomain = '', patternRef = null, requestApp = null, perms }) {
     const check = authMode() === 'enforce' ? isUserAuthed : isUserAuthedOpen;
-    try { return decideFrom(await snapshot(env, subdomain), sourceId, user, perms, await namedPattern(patternRef, subdomain), check).allow; }
+    try { return decideFrom(await snapshot(env, subdomain), sourceId, user, perms, await namedOrSite(patternRef, requestApp, subdomain), check).allow; }
     catch { return false; }
 }
 
@@ -244,14 +251,14 @@ function dropSecrets(raw) {
  * A source row's attributes as this reader may see them: secrets dropped for non-updaters (`log` and
  * `enforce`), grants trimmed for non-editors (`enforce`). Mutates and returns `row`.
  */
-async function redactSourceRow({ env, sourceId, row, user, subdomain = '', patternRef = null }) {
+async function redactSourceRow({ env, sourceId, row, user, subdomain = '', patternRef = null, requestApp = null }) {
     const mode = readMode();
     if (mode === 'legacy' || !row) return row;
-    if (row.statistics != null && !(await holdsOnSource({ env, sourceId, user, subdomain, patternRef, perms: SECRET_EDITORS }))) {
+    if (row.statistics != null && !(await holdsOnSource({ env, sourceId, user, subdomain, patternRef, requestApp, perms: SECRET_EDITORS }))) {
         row.statistics = dropSecrets(row.statistics);
     }
     if (mode === 'enforce' && row.auth_permissions != null
-        && !(await holdsOnSource({ env, sourceId, user, subdomain, patternRef, perms: GRANT_EDITORS }))) {
+        && !(await holdsOnSource({ env, sourceId, user, subdomain, patternRef, requestApp, perms: GRANT_EDITORS }))) {
         row.auth_permissions = trimGrants(row.auth_permissions, user);
     }
     return row;

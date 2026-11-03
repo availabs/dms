@@ -109,6 +109,18 @@ const withEnv = async (vars, fn) => {
         assert.strictEqual(readerAllowed(null, 'GET /tasks'), false);
         assert.ok([...accessLog._pending().values()].some(p => p.kind === 'read' && p.principal === 'anon' && p.outcome === 'refused'));
     }));
+    await t('a signed-out read / route is filed under the app the request names (dms_pattern), else none', async () => withEnv({ DMS_SOURCE_AUTH_MODE: 'log' }, async () => {
+        const { requireReader, requireUserOrOpen } = require('../src/routes/auth/kindAuth/sourceAuth');
+        accessLog._reset({ db });
+        assert.strictEqual(readerAllowed(null, 'uda.tasks.length', 'siteA'), true);
+        let next = false;
+        requireReader({ method: 'GET', url: '/dama-admin/npmrds2/schedules', query: { dms_pattern: 'siteB/7' }, headers: {} }, {}, () => { next = true; });
+        assert.ok(next);
+        requireUserOrOpen({ method: 'POST', url: '/dt/x', query: {}, headers: { 'x-dms-pattern': 'siteC/8' } }, {});
+        readerAllowed(null, 'GET /tasks');
+        const apps = [...accessLog._pending().values()].map(p => `${p.kind}:${p.app}`).sort();
+        assert.deepStrictEqual(apps, ['read:', 'read:siteA', 'read:siteB', 'route:siteC']);
+    }));
     await t('a refusal is never recorded for an allowed request', async () => withEnv({ DMS_SOURCE_AUTH_MODE: 'enforce' }, async () => {
         accessLog._reset({ db });
         assert.strictEqual(readerAllowed(viewer, 'GET /tasks'), true);
