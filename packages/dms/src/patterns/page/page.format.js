@@ -4,9 +4,15 @@ import SectionArray from './components/sections/sectionArray'
 export const cmsSection = {
   app: "dms-site",
   type: "component",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // judged as the page is, minus the per-key split
+  rules: { component: { owner: 'parent-pattern', escape: { owner: 'site-grants', perms: ['*'] },
+                        ops: { '*': ['edit-page', 'publish-page'] } } },
   // A component declares no `parent` / `url_slug` of its own. Both used to sit here, resolving
   // through `joinKey: 'parent'` + `serverFn: 'recurse_extract_data'` — a reader wired up for a
-  // field that was measured 52.6% wrong and has since been retired (see rowAuth.js's header, and
+  // field that was measured 52.6% wrong and has since been retired (see routes/dms/parentId.js, and
   // planning/tasks/current/row-auth-parentage.md). A component's containment is `parent_id`.
   attributes: [
     { key: "title",
@@ -93,6 +99,12 @@ export const cmsSection = {
 const pageEdit = {
   app: "dms-site",
   type: "page-edit",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // a page's edit history, written by whoever edits the page
+  rules: { 'page-edit': { owner: 'parent-pattern', escape: { owner: 'site-grants', perms: ['*'] },
+                          ops: { '*': ['edit-page', 'publish-page'] } } },
   attributes: [
     {
       key: "entries",
@@ -106,6 +118,27 @@ const pageEdit = {
 const cmsPageFormat = {
   app: "dms-site",
   type: "page",
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
+  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
+  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  rules: {
+    page: {
+      owner:  'parent-pattern+row',          // pattern ⊕ this row's own grants
+      escape: { owner: 'site-grants', perms: ['*'] },
+      ops: {
+        create: ['create-page'],
+        delete: ['edit-page'],
+        // The field rules are DECLARED ON THE VERBS, below: `fields` / `when` on each
+        // permissionDomain entry, read through `verbsForFields` by BOTH implementations. They
+        // were `byKey` / `when` clauses here until 2026-11-03, where only kind auth's judge
+        // could reach them. `default` stays as the answer for a chain that declares nothing.
+        edit: {
+          default: ['edit-page'],
+        },
+      },
+      noChange: ['edit-page', 'publish-page', 'edit-page-permissions', 'edit-page-params'],
+    },
+  },
   registerFormats: [cmsSection, pageEdit],
   defaultSearch: `data ->> 'index' = '0' and (data ->> 'parent' = '' or data ->> 'parent' is null) and (data ->> 'template_id' is null)`,
   defaultSort: (d) =>  {

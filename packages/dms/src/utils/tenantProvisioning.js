@@ -1,4 +1,6 @@
 import { nameToSlug } from './type-utils.js';
+// every pattern row created here is stamped with its type's vocabulary, childRefs and auth rules
+import { stampPatternRow } from '../patterns/registry';
 
 const CHART_COLORS = ['#2D3E4C','#EAAD43','#AA2E26','#6D96AE','#F1CA87','#DD524C','#C5D7E0','#EA8954','#54B99B','#FCF6EC'];
 
@@ -145,18 +147,18 @@ function adminGroupKey(adminGroupName, app) {
 export async function createCorePatterns(falcor, { app, siteInstance, siteId, adminGroupName, subdomain, adminPath }) {
   const adminGroup = adminGroupKey(adminGroupName, app);
   const authType = `${siteInstance}|auth:pattern`;
-  const authRes = await falcor.call(['dms', 'data', 'create'], [app, authType, {
+  const authRes = await falcor.call(['dms', 'data', 'create'], [app, authType, stampPatternRow({
     pattern_type: 'auth',
     name: 'Auth',
     base_url: 'auth',
     ...(subdomain ? { subdomain } : {}),
     authPermissions: JSON.stringify({ groups: { [adminGroup]: ['*'], public: [] }, users: {} }),
-  }]);
+  })]);
   const authId = createdId(authRes);
   if (!authId) throw new Error('Failed to create auth pattern');
 
   const adminType = adminPatternType(siteInstance);
-  const adminRes = await falcor.call(['dms', 'data', 'create'], [app, adminType, buildAdminPatternData({ adminPath, subdomain })]);
+  const adminRes = await falcor.call(['dms', 'data', 'create'], [app, adminType, stampPatternRow(buildAdminPatternData({ adminPath, subdomain }))]);
   const adminId = createdId(adminRes);
   if (!adminId) throw new Error('Failed to create admin pattern');
 
@@ -266,7 +268,7 @@ export async function backfillAdminPattern(falcor, { app, siteInstance, siteId, 
   if ((await readSitePatterns(falcor, app, siteId)).some(isAdminEntry)) return null;
 
   const type = adminPatternType(siteInstance);
-  const res = await falcor.call(['dms', 'data', 'create'], [app, type, buildAdminPatternData({ adminPath, subdomain })]);
+  const res = await falcor.call(['dms', 'data', 'create'], [app, type, stampPatternRow(buildAdminPatternData({ adminPath, subdomain }))]);
   const id = createdId(res);
   if (!id) throw new Error('Failed to create admin pattern');
   const ref = { ref: `${app}+${type}`, id: +id };
@@ -322,13 +324,13 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
   for (const patternSpec of selectedTemplate.patterns) {
     const patternSlug = nameToSlug(patternSpec.name);
     const patternType = `${siteInstance}|${patternSlug}:pattern`;
-    const templatePatternRes = await falcor.call(['dms', 'data', 'create'], [app, patternType, {
+    const templatePatternRes = await falcor.call(['dms', 'data', 'create'], [app, patternType, stampPatternRow({
       pattern_type: patternSpec.pattern_type,
       name: patternSpec.name,
       base_url: patternSpec.base_url,
       authPermissions: JSON.stringify({ groups: { [adminGroup]: ['*'], public: [] }, users: {} }),
       ...(subdomain ? { subdomain } : {}),
-    }]);
+    })]);
     const templatePatternId = Object.keys(templatePatternRes?.json?.dms?.data?.byId || {})
       .find(k => k !== '$__path');
     if (!templatePatternId) continue;

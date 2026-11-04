@@ -67,7 +67,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.length`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.length")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.length", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -87,7 +87,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byIndex")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byIndex", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -114,7 +114,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byId")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byId", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs, taskIds, attributes } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -142,7 +142,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].length`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.forSource.length")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.forSource.length", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs, sourceIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -167,7 +167,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.forSource.byIndex")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.forSource.byIndex", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs, sourceIds, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -196,7 +196,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.length`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byId.events.length")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.length", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs, taskIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -221,7 +221,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.byIndex[{integers:indices}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byId.events.byIndex")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.byIndex", (this.patternRef || {}).app || this.requestApp || "")) return [];
         const { envs, taskIds, indices, attributes } = pathSet;
         const result = [];
         for (const env of envs) {

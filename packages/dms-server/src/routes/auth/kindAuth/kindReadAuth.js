@@ -22,9 +22,10 @@
  *      `PATTERN_READ_PERMISSIONS`, not just `view-page`, so a user granted only `edit-pattern` can
  *      open it in the Pattern Editor.
  *   3. The **page merge**: pattern ⊕ page, where a page entry REPLACES the pattern's for that
- *      principal. Note this is a two-level spread with no clamp — `mergeAuth.js` rule 3 would
- *      additionally stop a page WIDENING what the pattern gave a principal. That difference is
- *      expected to show up in `--diff-reads`, and it is the resolver being stricter.
+ *      principal. ⚠ Note this is a two-level spread with NO CLAMP: a page may WIDEN what the
+ *      pattern gave a principal. Row auth's merge refused that (its rule 3 clamped a child to what
+ *      its parent allowed) and the two were pinned as divergent on exactly this; row auth went on
+ *      2026-11-04, so the looser reading is now simply the rule.
  */
 
 const { isUserAuthed, resolveAuthPermissions } = require('../auth');

@@ -57,6 +57,12 @@
 //                   list, the `permissionDomain` of the format that describes
 //                   the row it governs. See
 //                   planning/tasks/current/permission-domain-single-source.md.
+//   rulesOn         optional 'site' — stamp this type's auth rules (each format's
+//                   `rules`, collected by ./deriveAuthRules.js) on the SITE row
+//                   rather than on its pattern row. Admin: its formats describe
+//                   the site-level kinds (site, theme, tenant, pattern, dmsenv),
+//                   which no single pattern owns. Every other type's rules are
+//                   stamped on its pattern row (`stampPatternRow`).
 //   instanceFormat  optional: the format for the row kind that IS this pattern
 //                   (datasets' `form-manager`). Its own domain joins `self`,
 //                   because those verbs are granted at the pattern level and
@@ -94,6 +100,7 @@
 //                   whichever pattern's theme declared them.
 import { validateAuthVocabulary, validateChildRefs } from './authVocabulary'
 import { deriveAuthVocabulary } from './deriveAuthVocabulary'
+import { deriveAuthRules, validateAuthRules } from './deriveAuthRules'
 import { PATTERN_ROW_DOMAIN } from './patternRow.domain'
 import defaultTheme from '../ui/defaultTheme'
 import { mergeTheme, resetBaseThemeCache } from '../ui/useTheme'
@@ -129,7 +136,10 @@ export function registerPatternTypes(types = {}) {
         if (patternTypes[name] && isDev) {
             console.warn(`registerPatternTypes: "${name}" was already registered; replacing it`)
         }
-        patternTypes[name] = { ...definition, name, authVocabulary: vocabulary }
+        const authRules = validateAuthRules(
+            deriveAuthRules({ instance: definition.instanceFormat, formats: definition.formats || [] }),
+            `registerPatternTypes: "${name}" rules`)
+        patternTypes[name] = { ...definition, name, authVocabulary: vocabulary, authRules }
 
         if (definition.pageComponents) registerComponents(definition.pageComponents)
 
@@ -145,6 +155,35 @@ export function registerPatternTypes(types = {}) {
 
 export function getPatternType(name) {
     return patternTypes[name]
+}
+
+const hasKeys = (o) => !!o && Object.keys(o).length > 0
+
+/**
+ * A new pattern row with what dms-server needs from its type's registry entry, which it cannot read
+ * itself (no dependency on this package): `authVocabulary`, `childRefs` and, unless the type's rules
+ * go on the site row (`rulesOn: 'site'`), `authRules`. Every pattern create goes through this, so a
+ * type cannot forget. Rows created before a stamp existed carry nothing; the server falls back to its
+ * built-in copies (kindAuth/authRules.js for rules).
+ */
+export function stampPatternRow(row) {
+    const entry = patternTypes[row?.pattern_type]
+    if (!entry) return row
+    const out = { ...row }
+    if (entry.authVocabulary) out.authVocabulary = entry.authVocabulary
+    if (entry.childRefs) out.childRefs = entry.childRefs
+    if (entry.rulesOn !== 'site' && hasKeys(entry.authRules)) out.authRules = entry.authRules
+    return out
+}
+
+/**
+ * A new SITE row with the site-level auth rules: those of every type registered with
+ * `rulesOn: 'site'` (admin). Every site create goes through this.
+ */
+export function stampSiteRow(row) {
+    const rules = Object.assign({}, ...Object.values(patternTypes)
+        .filter(t => t.rulesOn === 'site').map(t => t.authRules || {}))
+    return hasKeys(rules) ? { ...row, authRules: rules } : row
 }
 
 /**

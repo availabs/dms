@@ -57,6 +57,9 @@ registerPatternTypes({
     admin: { addable: false, order: 40 },
     defaultTheme: adminTheme,
     formats: [siteFormat],
+    // its formats' rules are the site-level kinds' (site, theme, tenant, pattern, dmsenv): stamped
+    // on the site row, not on the admin pattern row
+    rulesOn: 'site',
     // routing/branding config the no-access stub returns anyway; blocking it only stops the
     // client caching its site snapshot. Access to the admin PANEL is decided from site grants.
     publicRead: true,

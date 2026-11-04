@@ -232,12 +232,13 @@ Routes that queue a task **must** return `{ etl_context_id, source_id }`. `etl_c
 
 ## Reads (`DMS_AUTH_MODE`)
 
-> **2026-11-03 — eight auth flags became two.** `DMS_AUTH_IMPL` (`kind` | `row`) chooses which
-> implementation decides; `DMS_AUTH_MODE` (`log` | `enforce`) chooses what a refusal does. The
-> per-surface flags this file used to name — `DMS_READ_AUTH_MODE`, `DMS_SOURCE_AUTH_MODE`,
-> `DMS_DATA_AUTH_MODE`, `DMS_UDA_GATE`, `DMS_WRITE_GATE` — are gone, and so is the `legacy` value
-> (`log` already refuses nothing, and says what it would have refused). Enforcement is now all
-> surfaces or none. See `src/routes/auth/mode.js` and `src/routes/auth/impl.js`.
+> **2026-11-03 — nine auth flags became one.** `DMS_AUTH_MODE` (`log` | `enforce`) chooses what a
+> refusal does, and it is the only one left. The per-surface flags this file used to name —
+> `DMS_READ_AUTH_MODE`, `DMS_SOURCE_AUTH_MODE`, `DMS_DATA_AUTH_MODE`, `DMS_UDA_GATE`,
+> `DMS_WRITE_GATE` — are gone, and so is the `legacy` value (`log` already refuses nothing, and
+> says what it would have refused). Enforcement is now all surfaces or none. `DMS_AUTH_IMPL`
+> (`kind` | `row`) survived until 2026-11-04, when row auth was deleted and left nothing to choose
+> between. See `src/routes/auth/settings.js`.
 
 Reads of a source (the catalog, source and view rows, data rows, color domains, vector tiles) are judged by
 `routes/uda/readAuth.js`: `view-source`, or any source permission that implies reading it, on pattern ⊕

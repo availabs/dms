@@ -27,6 +27,49 @@ Authors edit them in the pattern editor, in a **Settings → Advanced auth** tab
 
 ## Progress
 
+**2026-11-03: the rules moved into the format files, are stamped on rows, and the server reads them** (owner,
+2026-11-02 via Alex: "the format files is where the permissions definitions should live … a `rules: {}` object
+on the correct format object"; 2026-11-03: "fallback to built-in rules, and keep a note … why we still have [a]
+built-in copy").
+- **Authored:** each format object carries `rules: { [rowKind]: rule }`, a one-to-one copy of `authRules.js`:
+  `admin.format.js` (site, pattern, tenant, theme, dmsenv), `page.format.js` (page, component, page-edit),
+  `datasets.format.js` (source, view; `data` rides on `source`, having no format of its own).
+- **Collected** at registration: `patterns/deriveAuthRules.js` (`deriveAuthRules`, `validateAuthRules`, which
+  refuses a rule without `ops` or naming an owner the server can't resolve). `registry.js` stores
+  `authRules` on each entry; a new key `rulesOn: 'site'` (admin) means "stamp on the site row".
+- **Stamped:** `stampPatternRow(row)` (vocabulary + childRefs + rules) on every pattern create: Add Pattern
+  (`patternList.jsx`, `editSite.jsx`, replacing their inline vocabulary stamp) and `tenantProvisioning.js` (core
+  auth/admin rows, template patterns, the admin backfill, which stamped nothing before). `stampSiteRow(row)` on
+  every site create: Create Site, Add Tenant, tenant signup. Site rows get admin's rules; the admin pattern row
+  gets none.
+- **Read** (`kindAuth/dataAuth.js` `ruleFor`, data judge only): site-level kinds from the app's site row
+  (`controller.getSiteRows`, new), page kinds from their pattern row, datasets kinds from the first stamped
+  datasets pattern. No stamp → the built-in rule. A stamped rule without `ops` fails closed. Never read from the
+  row being created.
+- **Built-in copy kept:** `kindAuth/authRules.js`'s header says why (unstamped rows, the server can't read the
+  registry, `DEFAULT`) and when it can go (after a backfill). `patterns/authRules.sync.test.js` fails if it and
+  the formats differ (5/5 now).
+- **Escalation guard, in code:** writing `authRules` needs site `*` on the site row, and `edit-pattern-permissions`
+  held on the pattern itself (or site `*`) on a pattern row; the open-pattern clause does not count. Both judges.
+- **Tests:** `test-data-auth` 58/58 under both judges (+5: stamped rule wins, broken stamp fails closed,
+  site-row rules, `authRules` writes under each judge). Every other auth suite and sync / graph / workflow /
+  schema-drift pass; the only failures are Alex's two known ones (`uda-auth` 27/28, `row-auth-uda-diff`).
+  Client: sync test 5/5, `adminPatternRow` updated for the stamp; the six other failing client test files fail
+  at HEAD too. `npm run build` ✓.
+- **Open:**
+  - ~~Only the data judge reads stamps.~~ **Done (owner, 2026-11-03): the rules interpreter is the default
+    judge.** `DMS_DATA_AUTH_JUDGE=code` goes back to the hand-written `judge()` (kept as the fallback; it reads
+    neither the rules nor the stamps). `test-data-auth` 62/62 under each, with four new blank view / data-row
+    tests (their own app, since datasets grants are unioned app-wide).
+  - **Stamps freeze.** A row keeps the rules it was created with; a later library change to a format's rules
+    doesn't reach it (true of `authVocabulary` too). **Owner, 2026-11-03: a one-off backfill, written when a
+    change happens.** Filed as [`auth-rules-stamp-backfill.md`](./auth-rules-stamp-backfill.md); a fingerprint
+    test in `authRules.sync.test.js` fails on any change and points there.
+  - ~~**Create-time trust.**~~ **Owner, 2026-11-03: not a gap.** Rules a `create-pattern` holder stamps govern
+    only their own pattern's pages and components, which they already control through its grants; edits to
+    `authRules` stay guarded (`rulesWrite`).
+  - `authVocabulary` is writable with only `edit-pattern` (Alex's key; noted for him).
+
 **2026-10-30: open-pattern clause (decision 5) added.** A generic rule key, no kind name in the interpreter:
 `ifOwnerBlank: { owner, perms, unless: { field, in } }`. When the kind's own owner grants nothing (besides
 `public`), a signed-in user's requirements on that owner are checked as the clause instead, unless the stored

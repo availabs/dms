@@ -4,9 +4,7 @@
  *
  * This is the layer around a decision, not the decision. It lived in `kindAuth/readAuth.js` until
  * 2026-11-03 because that is where it was written, and every UDA and DAMA read route therefore
- * imported KIND AUTH by name to reach it — while the decision inside had been dispatching to
- * whichever implementation `DMS_AUTH_IMPL` selects for weeks. The imports said one thing and the
- * behaviour did another.
+ * imported the implementation BY NAME to reach it — which is how a route ends up coupled to one.
  *
  * What is here decides nothing:
  *
@@ -15,39 +13,37 @@
  *   - the would-deny / refused LOG line, deduped, and the access-log record
  *   - REDACTION: dropping `*_secret` keys and trimming `auth_permissions` to the caller's own
  *
- * What each implementation supplies is one narrow object, `sourceDecision`:
+ * What the implementation supplies is one narrow object, `kindAuth/readAuth.js`'s `sourceDecision`:
  *
  *     reads(s, user, app, reqPermissions)                 → { allow, reason }
  *     holds(s, user, app, reqPermissions, check)          → { allow, reason }
  *
- * `s` is the snapshot entry (`{ ap, view, maps }`), so an implementation gets the source's own
- * grants already expanded and the vocabulary they were expanded with, and needs no database access.
- * `check` selects between kind auth's strict and lenient rules; the row judge has neither and
- * ignores it, asking the one structural `read` question instead.
+ * `s` is the snapshot entry (`{ ap, view, maps }`), so the decision gets the source's own grants
+ * already expanded and the vocabulary they were expanded with, and needs no database access.
+ * `check` selects between the strict and lenient rules.
  *
- * ROUTES IMPORT THIS, never `kindAuth/` or `rowAuth/`. That is criterion 5 of
- * planning/tasks/current/row-auth-uda-unify-api.md.
+ * ROUTES IMPORT THIS, never `kindAuth/`. That is criterion 5 of
+ * planning/tasks/current/row-auth-uda-unify-api.md. The indirection outlived the second
+ * implementation it was built for (2026-11-04) because the separation it draws — rollout and
+ * logging out here, the rule in there — is worth keeping on its own.
  */
 const { isUserAuthed, isUserAuthedOpen } = require('./auth');
 const { isAppAdmin } = require('./kindAuth/sourceAuth');
 const { snapshot, clearReadSnapshots, parseJson } = require('./sourceSnapshot');
 const { authMode: readMode } = require('./settings');
 const { authMode } = require('./settings');
-const { isRow } = require('./settings');
 const accessLog = require('../../access-log');
 
-/** The implementation `DMS_AUTH_IMPL` selects, resolved per call — see ./impl.js. */
-const decision = () => (isRow()
-    ? require('./rowAuth/rowSourceAuth').sourceDecision
-    : require('./kindAuth/readAuth').sourceDecision);
+/** Resolved per call, to keep this module loadable from inside the implementation. */
+const decision = () => require('./kindAuth/readAuth').sourceDecision;
 
-// KIND AUTH ONLY, and the default for a caller that names no permission. The row gate does not use
-// it: it asks the one structural question (`read`), which every verb that should confer a read
-// already declares in its `implies`. This list is a hand-maintained restatement of the same thing
-// for `isUserAuthed`, which matches by NAME and cannot expand anything — and it is wrong in exactly
-// the way that motivated the change: `download-source`, `manage-downloads` and `view-source-api`
-// confer no row access, yet appear here, so under kind auth a download grant still opens the
-// source's metadata. Do not add to it.
+// The default for a caller that names no permission.
+//
+// ⚠ IT IS A HAND-MAINTAINED RESTATEMENT of what each verb's `implies` already declares, needed
+// because `isUserAuthed` matches by NAME and cannot expand anything — and it is wrong in a known
+// way: `download-source`, `manage-downloads` and `view-source-api` confer no row access
+// (`implies: []` in dmsEnv.format.js), yet appear here, so a download grant still opens the
+// source's metadata. Do not add to it; the fix is to ask the vocabulary, not to extend the list.
 const READ_PERMISSIONS = [
     'view-source', 'download-source', 'update-source', 'edit-source-data', 'create-view',
     'manage-downloads', 'view-source-api', 'delete-source', 'edit-source-permissions',
@@ -60,13 +56,18 @@ const LOG_DEDUPE_MS = 10 * 60 * 1000;
  * An EXTERNAL env's sources expand their grants against the vocabulary its `:dmsenv` row declares
  * (`sourceSnapshot.loadExternal`), and per-app split mode puts that row in an app-scoped table — so
  * finding it needs an app name. It selects a table and confers nothing; the grants still come from
- * the source alone. See `rowAuth/sourceAncestry.js`.
+ * the source alone. See `./sourceAncestry.js`.
  *
  * A caller with NEITHER an app nor a named pattern resolves no vocabulary, so named verbs are
  * checked by name and nothing widens. Today that is only the tile routes, which are `logOnly` and
  * never enforce (`dama/tiles/tiles.rest.js`). Give them an app when they gain identity.
+ *
+ * It is also the app an EXTERNAL source's `${app} Admin` check runs against: a pgEnv is added to a
+ * site only by a sysadmin's config change, so that site's admins may read its sources (owner
+ * 2026-11-03). `app` here is the requesting site (`dms_app`, requestUser.js `requestApp`); a NAMED
+ * pattern wins over it, because it is the more specific thing the caller pointed at.
  */
-const appFor = (app, patternRef) => app || (patternRef && patternRef.app) || null;
+const appFor = (app, patternRef) => (patternRef && patternRef.app) || app || null;
 
 /**
  * MAY `user` READ THIS SOURCE? The part both implementations share, then the one they do not.
@@ -116,8 +117,9 @@ function decideFrom(snap, sourceId, user, reqPermissions = READ_PERMISSIONS, nam
 const logged = new Map();
 // `outcome`: would-deny (log) / refused (enforce). Every call counts in the access log; the console line is
 // deduped (LOG_DEDUPE_MS).
-function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny', patternRef = null) {
-    accessLog.record({ app: accessLog.appOf(env, patternRef), guard: 'read', outcome, kind, target: `${env}/${sourceId}`,
+function logWouldDeny(kind, env, sourceId, user, reason, outcome = 'would-deny', patternRef = null, app = null) {
+    // An EXTERNAL env belongs to no app, so the row is filed under the site that asked (`dms_app`).
+    accessLog.record({ app: accessLog.appOf(env, patternRef) || app || '', guard: 'read', outcome, kind, target: `${env}/${sourceId}`,
         perms: ['view-source'], user, reason });
     if (outcome !== 'would-deny') return;
     const who = (user && (user.id ?? user.email)) ?? 'anon';
@@ -143,8 +145,8 @@ async function allowSourceRead({ env, sourceId, user, subdomain = '', patternRef
     }
     catch (e) { d = { allow: false, reason: `grant lookup failed: ${e.message}` }; }
     if (d.allow) return true;
-    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef); return true; }
-    logWouldDeny(kind, env, sourceId, user, d.reason, 'refused', patternRef);
+    if (mode === 'log') { logWouldDeny(kind, env, sourceId, user, d.reason, 'would-deny', patternRef, app); return true; }
+    logWouldDeny(kind, env, sourceId, user, d.reason, 'refused', patternRef, app);
     return false;
 }
 
@@ -162,8 +164,8 @@ async function allowViewRead({ env, viewId, user, subdomain = '', patternRef = n
     try { sourceId = await sourceOfView(env, viewId, subdomain, appFor(app, patternRef)); }
     catch (e) { sourceId = null; }
     if (sourceId == null) {
-        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'would-deny', patternRef); return true; }
-        logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'refused', patternRef);
+        if (mode === 'log') { logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'would-deny', patternRef, app); return true; }
+        logWouldDeny(kind, env, `view:${viewId}`, user, 'view not found', 'refused', patternRef, app);
         return false;
     }
     return allowSourceRead({ env, sourceId, user, subdomain, patternRef, kind, logOnly, app });

@@ -99,15 +99,14 @@ async function assertCan(router, { env, source, pattern, perms, wasOpen = false 
 // THE AUTHORIZE FUNCTIONS, and the view lookup they need.
 //
 // Moved here from `kindAuth/sourceAuth.js` on 2026-11-03 (criterion 5 of
-// row-auth-uda-unify-api.md): every UDA and DAMA route that wanted them was importing KIND AUTH by
-// name to get them, while the decision inside had been dispatching on `DMS_AUTH_IMPL` for weeks.
+// row-auth-uda-unify-api.md): every UDA and DAMA route that wanted them was importing the
+// implementation BY NAME to get them, which is how a route ends up coupled to one.
 //
 // NEITHER OF THEM DECIDES. They apply the MODE — refuse under `enforce`, allow and write a
-// would-deny under `log` — around whichever `decideSource` / `decidePattern` the switch selects.
-// That wrapper is identical for both implementations, which is why it does not belong to either.
+// would-deny under `log` — around `decideSource` / `decidePattern`. That wrapper is about the
+// rollout, not about the rules, which is why it sits outside the implementation.
 // ================================================================================================
 const { authMode } = require('./settings');
-const { isRow } = require('./settings');
 const accessLog = require('../../access-log');
 
 function logWouldDeny(kind, target, reqPermissions, user, reason, app = '', outcome = 'would-deny') {
@@ -125,13 +124,8 @@ const refused = (kind, target, reqPermissions, user, reason, app) =>
  * `wasOpen`: the route checked nothing before, so today's rule is "allow" (as for patterns).
  */
 async function isUserAuthedForSource(opts) {
-    // WHICH IMPLEMENTATION DECIDES is `DMS_AUTH_IMPL` and nothing else (../impl.js). It was
-    // `DMS_UDA_GATE` until 2026-11-03 — a second switch that let the datasets surfaces run a
-    // different judge from the rest of the server.
     const mode = authMode();
-    const d = isRow()
-        ? await require('./rowAuth/rowSourceAuth').decideSourceRow(opts)
-        : await decide().decideSource(opts);
+    const d = await decide().decideSource(opts);
     if (d.allow) return true;
     const target = `${opts.env || 'db'}/${opts.sourceId}`;
     const app = accessLog.appOf(opts.env, opts.patternRef);
@@ -149,9 +143,7 @@ async function isUserAuthedForSource(opts) {
  */
 async function isUserAuthedForPattern(opts) {
     const mode = authMode();
-    const d = isRow()
-        ? await require('./rowAuth/rowSourceAuth').decidePatternRow(opts)
-        : await decide().decidePattern(opts);
+    const d = await decide().decidePattern(opts);
     if (d.allow) return true;
     const ref = opts.patternRef || {};
     const target = ref.app || ref.patternId ? `${ref.app}/${ref.patternId}` : '(no pattern named)';

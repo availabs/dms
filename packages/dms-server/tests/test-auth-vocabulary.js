@@ -1,22 +1,24 @@
 /**
- * A pattern's declared vocabulary, interpreted by the server — routes/dms/authVocabulary.js and the
- * resolver path, which since 2026-11-03 is the ONLY answer to what a verb confers — the
- * transitional `legacyVerbs.js` shim that used to answer for undeclared rows is deleted.
+ * A pattern's declared vocabulary, interpreted by the server — routes/auth/authVocabulary.js. Since
+ * 2026-11-03 the declaration is the ONLY answer to what a verb confers: the transitional
+ * `legacyVerbs.js` shim that used to answer for undeclared rows is deleted.
  *
  * Task: planning/tasks/current/row-auth-vocabulary.md.
  *
- * The three rules under test are the hub's:
- *   1. a declared vocabulary WINS over the shim, so a pattern that has declared is already free of it
- *   2. the map applied to an inherited grant belongs to the pattern in the chain of the row being
- *      JUDGED, not the row the grant sits on
+ * The rules under test:
+ *   1. a declared vocabulary is read off the row, from `auth` or from `data`
+ *   2. `implies` expansion keeps `self` and `descendants` apart, and `flat` is their union
  *   3. an undeclared verb confers nothing — same as a missing map, and it fails closed
+ *
+ * ⚠ THE CHAIN-RESOLUTION HALF OF THIS SUITE WENT WITH ROW AUTH (2026-11-04): `mapsForChain`,
+ * `resolve`, `authOf` and `rawAuthOf` were `rowAuth/rowAuth.js`, which only the row gate read.
+ * What is left is the vocabulary itself, which kind auth's field rules read through
+ * `verbsForFields`, and the column probe both it and the controller need.
  *
  * Run: node tests/test-auth-vocabulary.js
  */
 const assert = require('assert');
-const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../src/routes/auth/rowAuth/authVocabulary');
-const { createResolver, authOf, mapsForChain } = require('../src/routes/auth/rowAuth/rowAuth');
-const { can } = require('../src/routes/auth/rowAuth/mergeAuth');
+const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../src/routes/auth/authVocabulary');
 
 let pass = 0, fail = 0;
 const cases = [];
@@ -56,17 +58,8 @@ t('garbage is null, never an error', () => {
     assert.strictEqual(vocabularyOf({ auth: { vocabulary: [1, 2] } }), null);
     assert.strictEqual(vocabularyOf(null), null);
 });
-t('a vocabulary in the auth column is NOT read as a grant', () => {
-    // `vocabulary` sits beside `groups`/`users`; rawAuthOf must strip it, or a chain could be
-    // judged against a principal literally named "vocabulary".
-    const ra = require('../src/routes/auth/rowAuth/rowAuth').rawAuthOf;
-    assert.deepStrictEqual(ra({ auth: { groups: { A: ['x'] }, vocabulary: VOCAB } }), { groups: { A: ['x'] } });
-});
-t('a row with ONLY a vocabulary is still unstated — it must not clamp its descendants', () => {
-    const { isUnstated } = require('../src/routes/auth/rowAuth/mergeAuth');
-    const ra = require('../src/routes/auth/rowAuth/rowAuth').rawAuthOf;
-    assert.strictEqual(isUnstated(ra({ auth: { vocabulary: VOCAB } })), true);
-});
+// `rawAuthOf` stripping `vocabulary` out of the `auth` column, and a vocabulary-only row still
+// counting as unstated, were tested here. Both lived in the deleted `rowAuth/` tree (2026-11-04).
 
 section('impliesMaps — three maps, and the flat one is the union');
 t('self and descendants stay separate', () => {
@@ -120,95 +113,6 @@ t('`otherwise` expands too', () => {
 t('no maps → untouched, never an error', () =>
     assert.deepStrictEqual(expandWithVocabulary({ groups: { A: ['peek-gizmo'] } }, null).groups.A, ['peek-gizmo']));
 
-// --- the resolver path -----------------------------------------------------
-//   1 site → 2 pattern (declares VOCAB) → 3 page → 4 component
-//   5 pattern (declares NOTHING) → 6 page
-const ROWS = {
-    1: { id: 1, type: 'prod:site', data: {} },
-    2: { id: 2, type: 'prod|widgets:pattern', parent_id: 1,
-         data: { authVocabulary: VOCAB, authPermissions: { groups: { Crew: ['peek-gizmo'] } } } },
-    3: { id: 3, type: 'widgets|page', parent_id: 2, data: {} },
-    4: { id: 4, type: 'widgets|component', parent_id: 3, data: {} },
-    5: { id: 5, type: 'prod|legacy:pattern', parent_id: 1,
-         data: { authPermissions: { groups: { Crew: ['view-page'] } } } },
-    6: { id: 6, type: 'legacy|page', parent_id: 5, data: {} },
-};
-const loadByIds = async (ids) => ids.map(i => ROWS[i]).filter(Boolean);
-const loadContainers = async () => [ROWS[1], ROWS[2], ROWS[5]];
-const mk = () => createResolver({ loadByIds, loadContainers });
-const crew = { id: 'u1', authed: true, groups: ['Crew'] };
-
-section('mapsForChain — the NEAREST declaring ancestor wins (rule 2)');
-t('a chain with one declaring pattern', () => {
-    const maps = mapsForChain([ROWS[4], ROWS[3], ROWS[2], ROWS[1]]);
-    assert.ok(maps && maps.flat['peek-gizmo']);
-});
-t('nearest beats higher', () => {
-    const near = { id: 9, type: 'x|page', data: { authVocabulary: {
-        descendants: [{ value: 'peek-gizmo', implies: ['read', 'edit'] }] } } };
-    const maps = mapsForChain([near, ROWS[2], ROWS[1]]);
-    assert.deepStrictEqual(maps.flat['peek-gizmo'], ['read', 'edit']);   // the near one, not VOCAB's
-});
-t('nothing declared → null, and the caller uses the shim', () =>
-    assert.strictEqual(mapsForChain([ROWS[6], ROWS[5], ROWS[1]]), null));
-
-section('resolve — the declaration beats the shim (rule 1)');
-t('an inherited grant is read in the JUDGED row\'s vocabulary', async () => {
-    const merged = await mk().resolve([ROWS[4]]);
-    // `peek-gizmo` is a word no other pattern uses; the component can read only
-    // because the pattern in ITS chain declared what the word confers.
-    assert.strictEqual(can(merged.get('4'), crew, 'read'), true);
-});
-t('…and confers nothing it did not declare', async () => {
-    const merged = await mk().resolve([ROWS[4]]);
-    assert.strictEqual(can(merged.get('4'), crew, 'edit'), false);
-    assert.strictEqual(can(merged.get('4'), crew, 'delete'), false);
-});
-t('an undeclared pattern confers NOTHING — there is no shim left to fall back to', async () => {
-    // Was `true` until 2026-11-03, rescued by `legacyVerbs.js`'s hardcoded table. With that table
-    // deleted a grant of `view-page` under a pattern that declares no vocabulary is just a string:
-    // it never becomes the structural `read` the gate asks for. Declare, or confer nothing.
-    const merged = await mk().resolve([ROWS[6]]);
-    assert.strictEqual(can(merged.get('6'), crew, 'read'), false);
-});
-t('a declared chain is unaffected by its neighbours', async () => {
-    // `view-page` means nothing in VOCAB, so a grant using it confers nothing under this pattern —
-    // which is the point: the pattern's own declaration is the whole vocabulary, not an addition.
-    const rows = { ...ROWS, 2: { ...ROWS[2], data: { authVocabulary: VOCAB,
-        authPermissions: { groups: { Crew: ['view-page'] } } } } };
-    const r = createResolver({
-        loadByIds: async (ids) => ids.map(i => rows[i]).filter(Boolean),
-        loadContainers: async () => [rows[1], rows[2], rows[5]],
-    });
-    const merged = await r.resolve([rows[4]]);
-    assert.strictEqual(can(merged.get('4'), crew, 'read'), false);
-});
-t('removing authVocabulary leaves no structural access, not an error (done-when 2)', async () => {
-    const rows = { ...ROWS, 2: { ...ROWS[2], data: { authPermissions: { groups: { Crew: ['peek-gizmo'] } } } } };
-    const r = createResolver({
-        loadByIds: async (ids) => ids.map(i => rows[i]).filter(Boolean),
-        loadContainers: async () => [rows[1], rows[2], rows[5]],
-    });
-    const merged = await r.resolve([rows[4]]);
-    assert.strictEqual(can(merged.get('4'), crew, 'read'), false);       // refused, not thrown
-});
-t('resolveForCreate uses the chain\'s vocabulary too', async () => {
-    const forged = { id: 2, type: 'prod|widgets:pattern', parent_id: 1,
-        data: { authVocabulary: VOCAB, authPermissions: { groups: { Crew: ['forge-gizmo'] } } } };
-    const r = createResolver({
-        loadByIds: async (ids) => ids.map(i => ({ ...ROWS, 2: forged })[i]).filter(Boolean),
-        loadContainers: async () => [ROWS[1], forged],
-    });
-    const merged = await r.resolveForCreate(forged);
-    assert.strictEqual(can(merged, crew, 'create'), true);
-});
-
-section('authOf — no declaration means no expansion at all');
-t('no maps given → the verbs stay the strings they are', () =>
-    assert.deepStrictEqual(authOf(ROWS[5]).groups.Crew, ['view-page']));
-t('maps given → the declaration, and undeclared words mean nothing', () =>
-    assert.deepStrictEqual(authOf(ROWS[5], '', impliesMaps(VOCAB)).groups.Crew, ['view-page']));
-
 section('the capability probe, against a REAL sqlite database');
 t('a migrated sqlite table reports its columns — and the projection carries the vocabulary in `auth`', async () => {
     // Regression. The probe used to issue a bare `PRAGMA table_info(...)`, which the sqlite adapter
@@ -217,7 +121,7 @@ t('a migrated sqlite table reports its columns — and the projection carries th
     // the `data` fallback. A mocked probe cannot catch that; only a real database can.
     const os = require('os'), path = require('path'), fs = require('fs');
     const { SqliteAdapter } = require('../src/db/adapters/sqlite');
-    const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/auth/rowAuth/rowAuthCaps');
+    const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/dms/rowAuthCaps');
     const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'row-auth-')), 'probe.sqlite');
     const db = new SqliteAdapter({ type: 'sqlite', role: 'dms', filename: file });
     try {

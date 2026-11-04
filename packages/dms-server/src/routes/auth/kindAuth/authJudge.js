@@ -1,7 +1,8 @@
 'use strict';
-const { verbsForFields } = require('../rowAuth/authVocabulary');
-// KIND AUTH'S JUDGE — judge.cjs from auth-as-data (2026-10-27). A pure interpreter over authRules.js,
-// and since 2026-11-03 the only one: the hand-written `switch` it was trialled against is gone.
+const { verbsForFields } = require('../authVocabulary');
+// KIND AUTH'S JUDGE — judge.cjs from auth-as-data (2026-10-27). A pure interpreter over a kind's
+// rule, and since 2026-11-03 the only one: the hand-written `switch` it was trialled against is
+// gone. The rule it is handed is the one stamped on the row from the formats, else authRules.js.
 // Ours since: `ifOwnerBlank` (2026-10-30, the open-pattern rule) and the `row` / `env.isBlank` inputs it reads.
 const allow = (reason) => ({ allow: true, reason });
 const deny  = (reason) => ({ allow: false, reason });

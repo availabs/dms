@@ -14,8 +14,11 @@
  * The writes are plain SQL on the DMS adapter: they never pass the dms.data guards, never land in change_log
  * and are never broadcast over sync.
  *
- * Read: `GET /dms-admin/:app/access-log`, for `${app} Admin` and the platform group (`AVAIL`) only. Rows with no
- * app (an external source with no datasets pattern named, an anonymous route gate) are under app `_none`,
+ * Read: `GET /dms-admin/:app/access-log`, for `${app} Admin` and the platform group (`AVAIL`) only; a site's page
+ * lists only rows of its own app. A row's app is the row's own (data / auth guards), the source's
+ * (`app+instance` envs), else the datasets pattern the request names (`dms_pattern` / `X-DMS-Pattern`), for
+ * signed-out reads and route calls too. A request that names none (an external pgEnv read or a signed-out call
+ * from a client that sends no pattern) can't be attributed: it is stored with app '' and listed under `_none`,
  * for `AVAIL` only.
  *
  * Retention: rows not seen for DMS_ACCESS_LOG_DAYS (default 90) are deleted, at most once a day, on a flush.

@@ -1,9 +1,22 @@
 'use strict';
-// KIND AUTH'S RULES, AS DATA — the only form they take since 2026-11-03.
-// Alex's rules.cjs structure (auth-as-data, 2026-10-27), with the rules as agreed
-// 2026-10-29 (hub auth-levels-to-permissions.md, "Decisions 2026-10-29"). To move into pattern data:
-// planning/tasks/current/pattern-auth-rules-as-data.md. `ifOwnerBlank` (2026-10-30) is ours, not Alex's: the
-// open-pattern rule (decision 5) needed a clause.
+// THE BUILT-IN COPY of the auth rules. The rules are authored in the client's format files: each format
+// object's `rules` (patterns/admin/admin.format.js, page/page.format.js, datasets/datasets.format.js),
+// collected at registration (patterns/deriveAuthRules.js) and stamped as `data.authRules` on the row that
+// carries them: the site row for site / theme / tenant / pattern / dmsenv, the pattern row for the rest.
+// dataAuth.js `ruleFor` reads the stamped rule first and this file only when there is none.
+//
+// Why a copy still exists (owner, 2026-11-03: "fallback to built-in rules"):
+//   1. Rows created before the stamp (2026-11-03) carry no rules, and nothing backfills them yet. Every
+//      existing site and pattern is one of these, so without this file they would have no rules at all.
+//   2. dms-server cannot read the client's registry (it has no dependency on the dms package), so it
+//      cannot derive the rules itself.
+//   3. `DEFAULT` (a kind no format declares) has no format to live on.
+// Keep it identical to the formats: packages/dms/src/patterns/authRules.sync.test.js fails when they
+// differ. Delete it once every row is stamped (a backfill) and an unstamped row may be refused.
+//
+// History: Alex's rules.cjs structure (auth-as-data, 2026-10-27), with the rules agreed 2026-10-29 (hub
+// auth-levels-to-permissions.md, "Decisions 2026-10-29"). `ifOwnerBlank` (2026-10-30) is ours: the
+// open-pattern rule (decision 5) needed a clause. Task: planning/tasks/current/pattern-auth-rules-as-data.md.
 module.exports = {
   site: {
     owner: 'site-grants',

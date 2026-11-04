@@ -1,7 +1,7 @@
 /**
  * Platform-admin operations by `AVAIL` membership (planning/tasks/current/permissions-auth-platform-admin.md):
  * projects, /password/force, /create/user, fake users, groups in no project, message-all go by membership in
- * `AVAIL` (by name, no level), or by today's `avail_auth` level (transition). Messages to a group or a project
+ * `AVAIL` (by name, no level; owner 2026-11-03: the `avail_auth` level no longer counts). Messages to a group or a project
  * go by `auth-users` / `auth-groups` on the project's auth row, or by level.
  * Real SQLite auth database (temp file); the DMS pattern rows are injected.
  *
@@ -89,21 +89,23 @@ async function main() {
   });
 
   console.log('projects:');
-  await t('/projects: an AVAIL member sees every project; avail_auth 10 too; a site admin is refused', async () => {
+  await t('/projects: an AVAIL member sees every project; anyone else (avail_auth 10 too) only their own', async () => {
     const names = (await projectH.getProjects(db, { token: tok['plat@t'] })).map(p => p.name);
     for (const p of ['avail_auth', 'siteA', 'siteB', 'siteC']) assert.ok(names.includes(p), p);
-    assert.ok((await projectH.getProjects(db, { token: tok['old10@t'] })).length >= 4);
-    await refused(projectH.getProjects(db, { token: tok['siteadmin@t'] }));
+    assert.deepStrictEqual((await projectH.getProjects(db, { token: tok['old10@t'] })).map(p => p.name), ['avail_auth']);
+    assert.deepStrictEqual((await projectH.getProjects(db, { token: tok['siteadmin@t'] })).map(p => p.name), ['siteA']);
   });
-  await t('/project/create and /project/delete: AVAIL member or avail_auth 10; not 5, not a site admin', async () => {
+  await t('/project/create and /project/delete: AVAIL member only; not avail_auth 10 or 5, not a site admin', async () => {
     await projectH.createProject(db, { token: tok['plat@t'], name: 'newA' });
     assert.deepStrictEqual(await groupLinks('AVAIL'), ['newA'], 'AVAIL linked to the new project');
-    await projectH.createProject(db, { token: tok['old10@t'], name: 'newB' });
+    await refused(projectH.createProject(db, { token: tok['old10@t'], name: 'newB' }));
+    await projectH.createProject(db, { token: tok['plat@t'], name: 'newB' });
     await refused(projectH.createProject(db, { token: tok['ops5@t'], name: 'newC' }));
     await refused(projectH.createProject(db, { token: tok['siteadmin@t'], name: 'newC' }));
     await refused(projectH.deleteProject(db, { token: tok['siteadmin@t'], name: 'newA' }));
     await projectH.deleteProject(db, { token: tok['plat@t'], name: 'newA' });
-    await projectH.deleteProject(db, { token: tok['old10@t'], name: 'newB' });
+    await refused(projectH.deleteProject(db, { token: tok['old10@t'], name: 'newB' }));
+    await projectH.deleteProject(db, { token: tok['plat@t'], name: 'newB' });
   });
 
   console.log('users:');
@@ -127,9 +129,9 @@ async function main() {
   });
 
   console.log('groups in no project:');
-  await t('/group/create: AVAIL member or avail_auth 5; a site admin no', async () => {
+  await t('/group/create: AVAIL member only; not avail_auth 5, not a site admin', async () => {
     await groupH.createGroup(db, { token: tok['plat@t'], name: 'G1' });
-    await groupH.createGroup(db, { token: tok['ops5@t'], name: 'G2' });
+    await refused(groupH.createGroup(db, { token: tok['ops5@t'], name: 'G2' }));
     await refused(groupH.createGroup(db, { token: tok['siteadmin@t'], name: 'G3' }));
   });
   await t('/group/meta/update: AVAIL member for any group; auth-groups only for its site\'s groups', async () => {

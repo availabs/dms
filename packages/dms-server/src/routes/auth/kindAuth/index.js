@@ -2,21 +2,24 @@
 /**
  * KIND AUTH — the implementation that decides by ROW KIND.
  *
- * Per-kind rules, held as DATA in `authRules.js` and applied by `authJudge.js`, a pure interpreter
- * (`dataAuth.js` wires the two together and resolves which grants govern each kind). Plus a read
- * gate that knows exactly two kinds (`kindReadAuth.js`) and the datasets pair (`sourceAuth.js` /
+ * Writes are judged by an interpreter (`authJudge.js`) over each kind's rule, held as DATA: the
+ * rule stamped on the pattern / site row from the formats (patterns/deriveAuthRules.js), else the
+ * built-in copy (`authRules.js`). That is the only judge — the hand-written `switch` it was
+ * trialled against was deleted on 2026-11-03 ("we don't want hand written rules"). Plus a read gate
+ * that knows exactly two kinds (`kindReadAuth.js`) and the datasets pair (`sourceAuth.js` /
  * `readAuth.js`).
  *
  * The hand-written `switch` over the eleven row kinds that used to live in `dataAuth.js` was
  * removed on 2026-11-03 (owner: "we don't want hand written rules"), after the two were measured
  * identical on 167 cases. Nothing selects between them any more; there is one judge.
  *
- * NOT A TRANSITIONAL SIDE. Kind auth is a permanent provider (owner, 2026-11-03: "kind auth is
- * never going to be deleted — we are planning on keeping both for this phase of work"), so this
- * index is a standing contract rather than a staging post.
+ * THE ONLY IMPLEMENTATION, since 2026-11-04 (owner: "kind auth is actually the better solution at
+ * this point"). It shared `../index.js` with `rowAuth/` for the preceding weeks, both exporting
+ * these same names so that a caller importing from `routes/auth` never learned which side it got.
  *
- * It is the contract `../index.js` switches on. `rowAuth/index.js` exports the same names with the
- * same signatures, so a caller importing from `routes/auth` never learns which side it got.
+ * That indirection is KEPT now that only one side remains: it is what stops a route reaching into
+ * an implementation by name, which is how every datasets route ended up coupled to this folder in
+ * the first place (criterion 5 of row-auth-uda-unify-api.md).
  */
 const dataAuth = require('./dataAuth');
 const { kindReadBlocked, PATTERN_READ_PERMISSIONS, KIND_READ_KINDS } = require('./kindReadAuth');
@@ -27,9 +30,11 @@ const { isUserAuthed } = require('../auth');
 /**
  * May this caller read `row`?
  *
- * Kind auth gates `pattern` and `page` and nothing else — every other kind is open on read, which
- * is the hole row auth exists to close. Returning `false` for them is the honest statement of that,
- * not an oversight.
+ * ⚠ `pattern` AND `page` AND NOTHING ELSE — site, theme, tenant, dmsenv, source, view, component,
+ * page-edit and split `:data` are guarded on WRITE and OPEN ON READ. Returning `false` for them is
+ * the honest statement of a real hole, not an oversight. Row auth's gate closed it by judging
+ * every kind the same way; that went on 2026-11-04, so closing it now means giving those kinds a
+ * read rule here.
  */
 const readBlocked = (ctx) => kindReadBlocked(ctx);
 

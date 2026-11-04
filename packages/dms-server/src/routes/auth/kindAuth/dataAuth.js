@@ -17,7 +17,7 @@
  * `view-pattern-list` clause. Anonymous callers pass only where the `public` group explicitly holds the
  * permission (owner, 2026-10-22). A refusal that only the blank-row rule makes says `blank row`.
  *
- * Rollout (`DMS_DATA_AUTH_MODE`):
+ * Rollout (`DMS_AUTH_MODE`):
  *   - `log`     — (default) allowed; every write the rule would refuse is logged
  *                 (`[data-auth] would-deny …`) so grants can be fixed before anything flips.
  *   - `enforce` — the rule decides; a refused write throws.
@@ -29,13 +29,13 @@ const { isUserAuthed, blankRowRefusal, resolveAuthPermissions } = require('../au
 const {
     holdsExplicitly, isAppAdmin, unionAuthPermissions, internalSourceGrants,
 } = require('./sourceAuth');
-// A lookup, not a decision — it lives beside the switch, not inside this arm of it.
+// A lookup, not a decision — the rules name an owner, they don't resolve one.
 const { sourceIdForView } = require('../sourceGuards');
 const AUTH_RULES = require('./authRules');
 const { judge: judgeRules } = require('./authJudge');
 const accessLog = require('../../../access-log');
 
-// `DMS_AUTH_MODE` — the one mode, shared with every other surface and with row auth (../mode.js).
+// `DMS_AUTH_MODE` — the one mode, shared with every other surface and with row auth (../settings.js).
 // It was `DMS_DATA_AUTH_MODE` until 2026-11-03.
 const { authMode: dataAuthMode } = require('../settings');
 
@@ -206,9 +206,10 @@ function createJudge(ctx) {
 
     const internalEnv = (slug) => `${app}+${slug || 'internal'}`;
 
-    // ---- THE JUDGE. Kind auth's rules live in `authRules.js` as DATA and are applied by
-    // `authJudge.js`, a pure interpreter. The owner lookups below are the part the rules cannot
-    // express — which grants govern a row of this kind (auth-as-data README).
+    // ---- THE JUDGE. Kind auth's rules are DATA, applied by `authJudge.js`, a pure interpreter.
+    // Which rules: the ones stamped on the row from the formats, else the built-in copy
+    // (`ruleFor` below). The owner lookups are the part the rules cannot express — which grants
+    // govern a row of this kind (auth-as-data README).
     //
     // Until 2026-11-03 this sat behind `DMS_DATA_AUTH_JUDGE=data` beside a hand-written `switch`
     // over the eleven row kinds. The switch is gone (owner: "we don't want hand written rules").
@@ -258,24 +259,83 @@ function createJudge(ctx) {
         return [...out].filter(Boolean);
     }
 
+    // ---- Which rule judges a kind: the one stamped on the row that carries it, else the built-in copy.
+    // The client collects each format's `rules` at registration (patterns/deriveAuthRules.js) and stamps
+    // them as `data.authRules`: site-level kinds on the site row, the others on their pattern row. Rows
+    // created before that stamp carry none and use authRules.js (see its header). Never read from the row
+    // being created: its data is the caller's.
+    const SITE_KINDS = ['site', 'theme', 'tenant', 'pattern', 'dmsenv'];
+    const PAGE_KINDS = ['page', 'component', 'page-edit'];
+    const DATASETS_KINDS = ['source', 'view', 'data'];
+    let siteRows;
+    const sites = async () => {
+        if (!siteRows) {
+            siteRows = ((controller.getSiteRows && await controller.getSiteRows(app)) || [])
+                .map(r => ({ id: r.id, type: r.type, data: parseJson(r.data) || {} }));
+        }
+        return siteRows;
+    };
+    const stampedIn = (rows, kind) => {
+        const r = rows.find(x => x && x.data && x.data.authRules && typeof x.data.authRules === 'object'
+            && x.data.authRules[kind]);
+        return r ? r.data.authRules[kind] : null;
+    };
+    async function stampedRule(kind, type) {
+        if (SITE_KINDS.includes(kind)) return stampedIn(await sites(), kind);
+        if (PAGE_KINDS.includes(kind)) return stampedIn([await contentPattern(getParent(type))], kind);
+        // sources and views hang off the ENV, not the datasets pattern (row-auth-uda-unify-api.md
+        // Phase 1), so the site row carries their rules too; a datasets pattern row still has them
+        // and is read first, for a site stamped before the env owned them.
+        if (DATASETS_KINDS.includes(kind)) {
+            return stampedIn((await patterns()).filter(r => r.data.pattern_type === 'datasets'), kind)
+                || stampedIn(await sites(), kind);
+        }
+        return null;
+    }
+    async function ruleFor(kind, type) {
+        const stamped = await stampedRule(kind, type);
+        if (!stamped) return { rule: AUTH_RULES[kind], from: 'built-in' };
+        // a stamped rule the interpreter can't use fails closed rather than falling back
+        if (typeof stamped !== 'object' || !stamped.ops || typeof stamped.ops !== 'object') {
+            throw new Error(`the stamped ${kind} rule has no ops`);
+        }
+        return { rule: stamped, from: 'stamped' };
+    }
+
     async function judge(op, row, patch, keys) {
         const type = row.type || '';
         const kind = getKind(type);
-        const rule = AUTH_RULES[kind];
+        const { rule } = await ruleFor(kind, type);
         const grants = {};
         if (rule) {
             for (const name of ownersIn(rule)) grants[name] = await resolveOwner(name, op, row);
         }
         const { maps, scope } = await mapsFor(kind, row);
-        return judgeRules(AUTH_RULES, {
+        return judgeRules(rule ? { ...AUTH_RULES, [kind]: rule } : AUTH_RULES, {
             user,
             isAppAdmin: false,  // checked by decide()
             grants,
-            // an owner that couldn't be found holds nothing (fail closed, as onSource's 'source not found')
+            // an owner that couldn't be found holds nothing (fail closed, as a missing source does)
             holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)),
             isBlank: (ap) => ap != null && !hasGrants(ap),
         }, { kind, op, keys, patch: parseJson(patch) || {}, split: isSplitType(type), maps, scope,
             row: op === 'create' ? parseJson(patch) || {} : parseJson(row.data) || {} });
+    }
+
+    // Writing a row's stamped auth rules is an escalation: whoever rewrites them can grant themselves
+    // anything they govern. So it is checked here, in code, never by a rule: site `*` on the site row;
+    // on a pattern row, `edit-pattern-permissions` held on the pattern itself or site `*` (not the
+    // open-pattern clause, which would hand it to anyone who may see the pattern list).
+    async function rulesWrite(op, row, keys) {
+        if (op !== 'edit' || !keys.includes('authRules')) return null;
+        const kind = getKind(row.type || '');
+        if (await siteCan('*')) return null;
+        if (kind === 'pattern') {
+            const ap = resolveAuthPermissions((parseJson(row.data) || {}).authPermissions, subdomain);
+            return holds(user, ap, ['edit-pattern-permissions']) ? null
+                : deny(`pattern ${row.id} authRules ${needs('edit-pattern-permissions')}`);
+        }
+        return deny(`${kind} authRules ${needs('*')}`);
     }
 
     // `keys`: the edit's changed keys (planEdit); computed here when the caller has none.
@@ -283,6 +343,8 @@ function createJudge(ctx) {
         if (isAppAdmin(user, app)) return allow(`${app} Admin`);
         try {
             blankRefusal = false;
+            const fixed = await rulesWrite(op, row, keys);
+            if (fixed) return fixed;
             const d = await judge(op, row, patch, keys);
             return !d.allow && blankRefusal && !/blank row/.test(d.reason)
                 ? deny(`${d.reason}; blank row (no grants: edits need an explicit grant)`) : d;
@@ -316,7 +378,7 @@ function logWouldDeny(op, app, row, user, reason, outcome = 'would-deny') {
  * writes nothing (owner 2026-10-29: a save with no changes is not an update).
  */
 const { NO_CHANGE } = require('../settings');
-const { vocabularyOf, impliesMaps } = require('../rowAuth/authVocabulary');   // shared with row auth — see that file
+const { vocabularyOf, impliesMaps } = require('../authVocabulary');   // shared with row auth — see that file
 
 async function assertDataWrite(router, controller, op, app, row, patch, { replace = false, skipNoChange = false } = {}) {
     const mode = dataAuthMode();

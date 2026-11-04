@@ -81,6 +81,30 @@ client, and need its grants locked down per site).
 - [ ] Later (offered 10-27, not asked for): `dms auth would-deny` CLI command; the audit reading this table for
       real external-source usage; auth-server refusals (its checks only throw today).
 
+**2026-11-03: unattributed rows.** Owner found rows with a blank `app` (they are stored as `''` and listed only
+under `_none`, for AVAIL; a site's page filters `app = <its app>`, so it never shows them). Signed-out reads and
+route calls (`readerAllowed`, `requireReader`, `requireUserOrOpen`, the `uda.tasks.*` routes) recorded no app
+even when the request named a pattern; they now use the `dms_pattern` / `X-DMS-Pattern` app. Still blank, by
+design: a request naming no pattern (an external pgEnv source read or a signed-out call from a client that
+sends none); nothing on such a request says which site it came from. +1 test (`test-access-log` 14/14). Not
+yet checked against the live table (VPN was off): which guards / kinds the blank rows actually are.
+
+**2026-11-03: every pattern names its site (`dms_app`).** The owner's export showed the blank rows were all
+external `hazmit_dama` reads (`list` / `source`), from pages outside the datasets pattern, including the
+site's own admin as "missing view-source": with no app on the request, `${app} Admin` couldn't be checked.
+An external source belongs to no site (`data_manager.sources` has no app / pattern column; one pgEnv serves
+many sites), so no pattern can be named for it. **Owner decision:** a pgEnv is added to a site only by a
+sysadmin's config change, so the site's admins may read its sources. Built:
+- client: `tagFalcorRequests(falcor, pattern, app)` adds `dms_app=<app>` to every pattern's Falcor model
+  (`render/dmsPageFactory.jsx`); the datasets pattern still adds `dms_pattern` too.
+- server: `sourceAuth.requestApp(req)` (query `dms_app` / `X-DMS-App`) → `router.requestApp`. Reads
+  (`readAuth.js` `namedOrSite`): when no datasets pattern is named, the requesting site is `{ app, ap: {} }`
+  — its admins read, no grants lent. Access-log rows of reads and signed-out calls fall back to it. Writes
+  unchanged (they still need a named pattern).
+- Limit: the server can't check that the site really lists that pgEnv (pgEnvs are site build config, not
+  server data), the same trust `dms_pattern` already has.
+- Tests: read-auth 32/32 (also `DMS_UDA_GATE=row`), access-log 14/14, client `authedFetch.test.js` 4/4.
+
 ## Files
 
 - `packages/dms-server/src/access-log/index.js` (new), `src/index.js` (route registration)
@@ -98,3 +122,4 @@ client, and need its grants locked down per site).
 - [x] Postgres (2026-11-02): upsert, count accumulation, reason update and the `user` / `since` filters on the
       disposable PG 17 container (`tests/postgres-docker.js run`, one-off check script, not kept).
 - [x] Live: log-mode refusal appears after a flush; enforce records `refused`; a non-admin gets 403 (2026-11-02).
+

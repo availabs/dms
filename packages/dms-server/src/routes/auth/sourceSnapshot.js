@@ -10,39 +10,45 @@
  * ---------------------------------------------------------------------------
  * WHY THIS IS SHARED, AND WHY IT USED TO LIVE IN `kindAuth/readAuth.js`
  *
- * It builds the snapshot BOTH implementations then decide from. `sourceReads.js` hands this exact
- * object to whichever `sourceDecision` is selected, and each is documented as needing no database access
- * precisely because the snapshot already holds both levels of the chain. So the builder was never
- * kind auth's — it was shared code sitting inside a kind-auth file, which is why that file imported
- * `rowAuthCaps.js` and the verb machinery, and made both look like kind-auth dependencies.
+ * It builds the snapshot the decision then reads. `sourceReads.js` hands this exact object to
+ * `kindAuth/readAuth.js`'s `sourceDecision`, which is documented as needing no database access
+ * precisely because the snapshot already holds everything. So the builder was never the
+ * implementation's — it was shared code sitting inside a kind-auth file, which is why that file
+ * imported the column probe and the verb machinery and made both look like kind-auth dependencies.
  *
- * Split out 2026-11-02 so the folders mean what they say: `kindAuth/` holds decisions, and what
- * both sides need sits in `routes/auth/`. Nothing here judges anything — every function returns
- * data. `unionAuthPermissions` and `readNamedPattern` moved up from `kindAuth/sourceAuth.js` for
- * the same reason: a pure grant union and a pattern row read are not decisions either.
- *
- * It does, however, import three modules from `rowAuth/` — see the note at those requires.
+ * Split out 2026-11-02 so the folders mean what they say: `kindAuth/` holds decisions, and what the
+ * surface around them needs sits in `routes/auth/`. Nothing here judges anything — every function
+ * returns data. `unionAuthPermissions` and `readNamedPattern` moved up from `kindAuth/sourceAuth.js`
+ * for the same reason: a pure grant union and a pattern row read are not decisions either.
  *
  * ---------------------------------------------------------------------------
- * THE `auth` COLUMN IS THE SYSTEM OF RECORD, `data` ONLY THE FALLBACK — the same precedence
- * `rowAuth.rawAuthOf` applies everywhere else, and the reason `ownAuthOf` exists here rather than
- * each caller reading `data` for itself.
+ * WHAT ROW AUTH TOOK WITH IT (2026-11-04)
+ *
+ * Each entry used to carry TWO resolved grant objects: `ap` for kind auth and `merged` — the whole
+ * `parent_id` chain, resolved by `createResolver` and clamped by `mergeAuthChain` — for the row
+ * gate. They could not be one object, because merging expands `'*'` into the five structural verbs
+ * at resolve time (rule 3 has to clamp a child's `['*']` down to what its parent allowed), and kind
+ * auth matches permission strings BY NAME, so handed that object it saw no `'*'` and no
+ * `view-source` and refused everyone. With one implementation there is one representation, and the
+ * resolver, the merge and the external env's synthetic chain row all went with the second one.
+ *
+ * ---------------------------------------------------------------------------
+ * THE `auth` COLUMN IS THE SYSTEM OF RECORD, `data` ONLY THE FALLBACK, which is why `ownAuthOf`
+ * exists here rather than each caller reading `data` for itself.
  */
 const { getDb, loadConfig } = require('../../db');
 const { resolveAuthPermissions } = require('./auth');
-// ⚠ A SHARED MODULE REACHING INTO `rowAuth/`, deliberately. The expansion below is row auth's
-// work, done here because here is where the rows are read — once per snapshot rather than once per
-// decision. Kind auth is unaffected by it: `isUserAuthed` matches verbs BY NAME and cannot expand
-// anything, and expansion is additive (the original strings survive), so a pre-expanded snapshot
-// answers a kind-auth question exactly as a raw one would. Each expansion site below says which
-// row-gate bug it fixes; none of them is for kind auth's benefit.
-const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('./rowAuth/authVocabulary');
-const { createResolver } = require('./rowAuth/rowAuth');
-const { rowAuthCaps } = require('./rowAuth/rowAuthCaps');
+// EXPANSION IS STILL NEEDED, and not for the reason it was added. It is additive — the original
+// permission strings survive — so it never changed a name match. What it also does is FLATTEN
+// SCOPED grants: a vocabulary may declare `self:` / `descendants:` levels, and a grant written
+// under one of those is invisible to `isUserAuthed`, which looks at `groups` / `users` and nothing
+// else. Done here, once per snapshot, rather than once per decision.
+const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('./authVocabulary');
+const { rowAuthCaps } = require('../dms/rowAuthCaps');
 const { resolveTable } = require('../../db/table-resolver');
 const { dmsMainTable } = require('../uda/utils');
 const { getInstance, getParent } = require('#db/type-utils.js');
-const { envRowForPgEnv } = require('./rowAuth/sourceAncestry');
+const { envRowForPgEnv } = require('./sourceAncestry');
 
 const SNAPSHOT_TTL_MS = 30 * 1000;
 
@@ -149,26 +155,6 @@ function ownAuthOf(row, dataKey, subdomain = '') {
 
 const snapshots = new Map(); // `${env}|${subdomain}` → { at, promise }
 
-/**
- * A resolver over an app's `data_items` — the chain ABOVE a source, whichever table the source
- * itself came from.
- *
- * `createResolver` takes its loaders as arguments precisely so the rows can come from anywhere,
- * which is what lets an EXTERNAL source be resolved by the same walk as an internal one: its
- * parent, the `:dmsenv` row, is an ordinary DMS row either way.
- */
-function dmsResolver({ db, tbl, app, subdomain, cols }) {
-    return createResolver({
-        loadByIds: async (ids) => (ids.length
-            ? (await db.query(`SELECT ${cols} FROM ${tbl} WHERE app = $1 AND id = ANY($2::bigint[])`,
-                              [app, ids.map(Number)])).rows
-            : []),
-        loadContainers: async () =>
-            (await db.query(`SELECT ${cols} FROM ${tbl} WHERE app = $1 AND type LIKE '%:%'`, [app])).rows,
-        subdomain,
-    });
-}
-
 const DMS_ROW_COLS = (authCol, parentCol) => `id, type, ${parentCol} AS parent_id, ${authCol} AS auth, data`;
 
 async function loadExternal(env, app, subdomain = '') {
@@ -176,66 +162,25 @@ async function loadExternal(env, app, subdomain = '') {
     const pg = db.type === 'postgres';
     const { rows } = await db.query(`SELECT source_id, auth_permissions AS ap FROM ${pg ? 'data_manager.sources' : 'sources'}`);
     const { rows: views } = await db.query(`SELECT view_id, source_id FROM ${pg ? 'data_manager.views' : 'views'}`);
-    // A source's own grants must be EXPANDED, or `view-source` never becomes the structural `read`
-    // the row gate asks for. The vocabulary is its ENV's — the `:dmsenv` row that declares for this
-    // pgEnv (`scripts/ensure-pgenv-rows.js`), which is the same declaration an INTERNAL source uses
+    // A source's own grants must be EXPANDED, or a grant written under a `self:` / `descendants:`
+    // scope is invisible to `isUserAuthed`, which reads `groups` / `users` and nothing else. The
+    // vocabulary is its ENV's — the `:dmsenv` row that declares for this pgEnv
+    // (`scripts/ensure-pgenv-rows.js`), which is the same declaration an INTERNAL source uses
     // (admin.format.js `dmsEnvFormat`). One vocabulary, both populations.
     //
     // `app` is a LOCATOR here and nothing else: per-app split mode puts env rows in an app-scoped
     // table, so finding one needs an app name. It selects a table and confers no grant — the
-    // distinction `rowAuth/sourceAncestry.js` exists to hold. A null vocabulary (no env row yet)
-    // expands nothing, so named verbs are checked by name and nothing silently widens.
-    // ============================================================================================
-    // AN EXTERNAL SOURCE IS A ROW, AND IT IS RESOLVED LIKE ONE.
-    //
-    // Owner, 2026-11-03: *"external sources aren't rows in data items but they are rows in the
-    // sources table and the auth behaves exactly the same way for them data wise."* Correct, and
-    // this used to pretend otherwise: it expanded a source's own grants by hand and stopped there,
-    // so an external source could never inherit anything, while an internal one walked its chain.
-    //
-    // What actually differs is WHICH TABLE THE ROW IS READ FROM. The chain above it does not
-    // differ at all: a pgEnv's `:dmsenv` row is an ordinary `data_items` row, carrying the same
-    // declaration an internal source's env carries. So the row is handed to the same resolver with
-    // its `parent_id` pointing at that env, and everything after that is the ordinary walk —
-    // including inheritance, if an env is ever given grants.
-    //
-    // THE IDS ARE PREFIXED because the two tables number independently: `data_manager.sources` #5
-    // and `data_items` #5 are different rows, and the resolver caches by id. Without this an env
-    // row could be served from cache as a source, silently. They are mapped back on the way out.
-    // ============================================================================================
+    // distinction `./sourceAncestry.js` exists to hold. A null vocabulary (no env row yet) expands
+    // nothing, so named verbs are checked by name and nothing silently widens.
     const envRow = app ? await envRowForPgEnv(env, app) : null;
     const maps = envRow ? envRow.maps : null;
     const grantsOf = (r) => { const { view, ...ap } = parseJson(r.ap) || {}; return { view, ap }; };
-
-    let merged = new Map();
-    if (envRow) {
-        const { db: dmsDb, splitMode } = getDmsDb();
-        const tbl = await dmsMainTable(dmsDb, envRow.app, splitMode);
-        const cols = DMS_ROW_COLS(await authColExpr(dmsDb, envRow.app, splitMode),
-                                  await parentColExpr(dmsDb, envRow.app, splitMode));
-        const asRows = rows.map(r => ({
-            id: `x${r.source_id}`, type: null, parent_id: envRow.id, auth: grantsOf(r).ap,
-        }));
-        try {
-            merged = await dmsResolver({ db: dmsDb, tbl, app: envRow.app, subdomain, cols }).resolve(asRows);
-        } catch (e) {
-            // A chain that cannot be walked must not take the env's reads down: fall back to the
-            // source's own grants, which is what this did for every source before today.
-            console.warn(`[source-auth] external chain for ${env} failed: ${e.message} — own grants only`);
-            merged = new Map();
-        }
-    }
 
     return {
         app: null,
         sources: new Map(rows.map(r => {
             const { view, ap } = grantsOf(r);
-            return [+r.source_id, {
-                // kind auth reads names; row auth reads the merged chain. See `loadInternal`.
-                ap: expandWithVocabulary(ap, maps),
-                merged: merged.get(`x${r.source_id}`) || undefined,
-                patternAP: {}, view, maps,
-            }];
+            return [+r.source_id, { ap: expandWithVocabulary(ap, maps), patternAP: {}, view, maps }];
         })),
         viewSource: new Map(views.map(v => [+v.view_id, +v.source_id])),
     };
@@ -245,8 +190,7 @@ async function loadInternal(env, subdomain) {
     const [app] = env.split('+');
     const { db, splitMode } = getDmsDb();
     const tbl = await dmsMainTable(db, app, splitMode);
-    // THE `auth` COLUMN IS THE SYSTEM OF RECORD, `data` ONLY THE FALLBACK — the same precedence
-    // `rowAuth.rawAuthOf` applies everywhere else. This path used to read `data` alone, so a grant
+    // THE `auth` COLUMN IS THE SYSTEM OF RECORD, `data` ONLY THE FALLBACK. This path used to read `data` alone, so a grant
     // written to the column and not mirrored into `data` was invisible here: no error, and callers
     // holding `*` unaffected, which is the shape that hides itself.
     const authCol = await authColExpr(db, app, splitMode);
@@ -256,7 +200,7 @@ async function loadInternal(env, subdomain) {
         `SELECT ${cols} FROM ${tbl} WHERE app = $1 AND type LIKE '%:source'`, [app]);
 
     // ============================================================================================
-    // A SOURCE IS RESOLVED BY THE ORDINARY RESOLVER, exactly as a page or a theme is.
+    // A SOURCE'S GRANTS ARE ITS OWN, AND THAT IS THE WHOLE RULE.
     //
     // Until 2026-11-03 this function built a source's grants by hand: it unioned the grants of
     // every datasets PATTERN that listed the source, unioned their vocabularies, and expanded the
@@ -268,37 +212,21 @@ async function loadInternal(env, subdomain) {
     // `rowauth-test`: 71 sources × 4 principals, **284/284 identical**. The special path was no
     // longer deciding anything different — it was just deciding it separately.
     //
-    // ⚠ AND IT WOULD HAVE DIVERGED THE MOMENT ANYTHING ABOVE A SOURCE GRANTED. Reading only the
-    // source's own `auth` means an env that granted something would be silently ignored here while
-    // every other row kind inherited it. The env grants nothing TODAY, by declaration
-    // (`admin.format.js`, `permissionDomain.self: []`), so nothing was wrong — but that is a
-    // property of the data, not of the code, and it is exactly the kind of thing a second
-    // implementation gets wrong later. `createResolver` is the same walk every row gets.
+    // ⚠ NOTHING ABOVE A SOURCE GRANTS TODAY, BY DECLARATION (`admin.format.js`,
+    // `permissionDomain.self: []`), which is why reading a source's own `auth` is the whole answer.
+    // That is a property of the data, not of the code: give an env grants and this stops inheriting
+    // them, silently. Until 2026-11-04 the row gate's `createResolver` walked the chain here and
+    // would have picked them up; it went with row auth, because only row auth read what it
+    // produced. Restoring inheritance means resolving the env row's grants here, not reviving a
+    // second judge.
     //
-    // WHAT STAYS IS THE CACHE, which is what this file is actually for: an env's grants are
-    // resolved once per 30s rather than once per decision, because a catalog listing covers
-    // thousands of sources. Caching a resolution is not the same as re-implementing one.
-    //
-    // ⚠ AND WHY THE ENTRY CARRIES TWO OBJECTS, WHICH IS NOT DUPLICATION.
-    //
-    // `merged` is the resolver's output and it is ROW AUTH'S REPRESENTATION: `mergeAuthChain`
-    // expands `'*'` into the five structural verbs at resolve time, because that is how rule 3
-    // clamps — a child's `['*']` under a parent that allowed only `['read']` has to come back as
-    // `['read']`, which is impossible if `'*'` survives as a wildcard. Kind auth matches permission
-    // strings BY NAME, so handed that object it sees no `'*'` and no `view-source`, and refuses
-    // everyone. Four of `test-read-auth.js`'s cases said so immediately.
-    //
-    // The two providers do not share a grant vocabulary, so they cannot share a resolved chain.
-    // That is a fact about having two providers, not a second implementation of inheritance:
-    // `ap` is the source's own grants, expanded additively (names preserved) for kind auth and for
-    // the `stated` / `view: false` pre-check both sides share; `merged` is the chain, for row auth.
+    // WHAT STAYS IS THE CACHE, which is what this file is actually for: an env's grants are read
+    // once per 30s rather than once per decision, because a catalog listing covers thousands of
+    // sources.
     // ============================================================================================
-    const merged = await dmsResolver({ db, tbl, app, subdomain, cols }).resolve(rows);
 
-    // The vocabulary a source's verbs are read in — its ENV's. The resolver already applies this
-    // rule to the GRANTS (`mapsForChain`, nearest declaring ancestor); it is recomputed here
-    // because the REQUEST side needs it too (`rowAuthGate.verbsFor`), and `resolve` returns the
-    // merged chain rather than the maps it used.
+    // The vocabulary a source's verbs are read in — its ENV's, found by `parent_id` where the
+    // column exists and by the type path otherwise.
     const { rows: envs } = await db.query(
         `SELECT id, type, ${authCol} AS auth, data FROM ${tbl} WHERE app = $1 AND type LIKE '%:dmsenv'`, [app]);
     const envMaps = new Map(), envByName = new Map();
@@ -327,7 +255,6 @@ async function loadInternal(env, subdomain) {
         const maps = mapsForSource(r);
         sources.set(+r.id, {
             ap: expandWithVocabulary(ap, maps),
-            merged: merged.get(String(r.id)) || {},
             view,
             maps,
             // NO PATTERN LEVEL. Kept as an empty object so the decision functions keep one shape

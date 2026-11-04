@@ -30,6 +30,8 @@ class falcorRoutes extends BaseRouter {
     this.subdomain = config.subdomain || '';
     // The datasets pattern the request names (`dms_pattern`): reads of external sources inherit its grants.
     this.patternRef = config.patternRef || null;
+    // The site the request comes from (`dms_app`, requestUser.js requestApp): logs, and external reads' admin check.
+    this.requestApp = config.requestApp || null;
     this.reqMeta = config.reqMeta || null;
   }
 }

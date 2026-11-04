@@ -31,10 +31,10 @@
  *
  * See planning/tasks/current/row-auth-uda-unify-api.md, Phase 2.
  */
-const { dmsMainTable } = require('../../uda/utils');
+const { dmsMainTable } = require('../uda/utils');
 const { vocabularyOf, impliesMaps } = require('./authVocabulary');
-const { getDb, loadConfig } = require('../../../db');
-const { resolveAuthPermissions } = require('../auth');
+const { getDb, loadConfig } = require('../../db');
+const { resolveAuthPermissions } = require('./auth');
 
 const TTL_MS = 30 * 1000;
 const cache = new Map();   // `${app}|${pgEnv}` → { at, promise }
@@ -83,10 +83,9 @@ function clearEnvRowCache() { cache.clear(); }
  * The INTERNAL twin: a source row's own grants, plus the vocabulary its ancestors declare.
  *
  * This is the ordinary parent walk and nothing more — `parent_id` to the env, and the first row up
- * the chain that declares wins (`mapsForChain`'s rule, leaf → root). It replaces
- * `rowSourceAuth.internalSourceChain`, which reverse-looked-up every datasets pattern listing the
- * source and unioned their grants, because until the envs were stamped the pattern was the only
- * row carrying a vocabulary at all.
+ * the chain that declares wins, leaf → root. It replaced a reverse lookup over every datasets
+ * pattern that listed the source, which unioned their grants because until the envs were stamped
+ * the pattern was the only row carrying a vocabulary at all.
  *
  * NO LEVEL ABOVE THE SOURCE CONTRIBUTES GRANTS. The env declares and grants nothing — its
  * `permissionDomain.self` is empty by design — so the chain is one level deep and the source's own

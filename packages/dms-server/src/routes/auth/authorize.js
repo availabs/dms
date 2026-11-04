@@ -14,13 +14,13 @@
  * Resolving an address to a row is this layer's job, so it happens here and nowhere else — a route
  * never learns whether a source lives in `data_items` or in a pgEnv's `data_manager.sources`.
  *
- * Everything below the two entry points is already shared: one walk (`createResolver`), one merge
- * (`mergeAuthChain`), one judgment (`can`), one mode (`settings.authMode`), and per-kind rules that
- * come from the rows themselves (`permissionDomain` → `authVocabulary` → `verbsForFields`).
+ * Everything below the two entry points is already shared: one judge (`kindAuth/authJudge.js`),
+ * one mode (`settings.authMode`), and rules that come from the rows themselves — the kind's rule
+ * stamped from its format, and `permissionDomain` → `authVocabulary` → `verbsForFields` for which
+ * verb governs which field.
  *
  * See planning/tasks/current/unified-auth-api.md and research/unified-auth-api.md.
  */
-const { isRow } = require('./settings');
 
 /**
  * `fields` — the attributes an edit touches (`planEdit(row, patch).keys`). The vocabulary decides
@@ -43,17 +43,17 @@ async function authorizeView({ env, viewId, verb = 'read', user, app, subdomain 
     return ok ? { allow: true, reason: 'granted' } : { allow: false, reason: 'read refused' };
 }
 
-/** A DMS row: the resolver walks its `parent_id` chain, as it does for every kind. */
+/** A DMS row: judged by its kind's rule, against the grants its declared owners carry. */
 async function authorizeRow({ row, verb = 'read', fields, user, app, subdomain = '', controller, cache }) {
-    const impl = isRow() ? require('./rowAuth') : require('./kindAuth');
+    const kindAuth = require('./kindAuth');
     if (verb === 'read') {
-        const blocked = await impl.readBlocked({
+        const blocked = await kindAuth.readBlocked({
             row, kind: require('#db/type-utils.js').getKind(row.type || ''),
             user, subdomain, app: app || row.app, controller, cache,
         });
         return blocked ? { allow: false, reason: 'read refused' } : { allow: true, reason: 'granted' };
     }
-    const judge = impl.createJudge({ app: app || row.app, subdomain, user, controller });
+    const judge = kindAuth.createJudge({ app: app || row.app, subdomain, user, controller });
     return judge(verb === 'create' ? 'create' : verb, row, undefined, fields);
 }
 

@@ -151,6 +151,12 @@ const rows = await dms_db.withTransaction(async (tx) => {
 - Background: `planning/tasks/current/dms-server-real-transactions.md`, Bug 14. Reproduced on the
   Docker harness: 156 of 160 acknowledged concurrent writes lost before the fix.
 
+## Environment variables
+
+Every variable the server reads, with its default, is in `../../documentation/dms-server-env.md`. Add a row
+there (and to dms-template's `.env.example` if an operator would set it) in the same commit as a new
+`process.env.X`.
+
 ## Database Configs
 
 Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are required** — there is no inference, no legacy fallback, no default. A missing or invalid field throws at config load time. This is intentional: an omitted `type` used to silently route a config into the wrong role (or no role), leaving the caller staring at "relation X does not exist" errors.

@@ -9,7 +9,7 @@ and on the vocabulary decisions in
 [permissions-auth-server-permission-source.md](./permissions-auth-server-permission-source.md). It produces the
 loss list that [permissions-grant-migration.md](./permissions-grant-migration.md) must close, and has to come back
 clean before any area flips to permission-only and before
-[permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md) Phase 2.
+[permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md) Phase 2.
 
 ## Progress 2026-10-27
 

@@ -180,7 +180,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const probe = (async () => {
         try {
           const t = resolveTable(app, '', dbType, splitMode);
-          const caps = await require('../auth/rowAuth/rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
+          const caps = await require('./rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
           // `data` as well as `auth`: the column exists once a table is migrated, but an
           // individual pattern row only carries the declaration there after --sync-vocabulary has
           // run. Until then it is in `data`, where the client's create stamp put it.
@@ -189,7 +189,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
             `SELECT ${cols} FROM ${t.fullName} WHERE app = $1 AND type LIKE $2 LIMIT 1`,
             [app, `%|${container}:pattern`]
           );
-          return require('../auth/rowAuth/authVocabulary').childRefsOf(rows[0]) || null;
+          return require('../auth/authVocabulary').childRefsOf(rows[0]) || null;
         } catch (e) {
           console.warn(`[parent-id] childRefs lookup failed for ${key}: ${e.message}`);
           return null;
@@ -210,7 +210,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   async function ownerKindForType(app, type) {
     const { getKind } = require('#db/type-utils.js');
-    return require('../auth/rowAuth/authVocabulary').ownerKindOf(await childRefsForType(app, type), getKind(type));
+    return require('../auth/authVocabulary').ownerKindOf(await childRefsForType(app, type), getKind(type));
   }
 
   /**
@@ -228,7 +228,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     if (!app || !type) return null;
     try {
       const t = resolveTable(app, '', dbType, splitMode);
-      if (!(await require('../auth/rowAuth/rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType)).parentId) return null;
+      if (!(await require('./rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType)).parentId) return null;
       return (await childRefsForType(app, type)) || null;
     } catch (e) {
       console.warn(`[parent-id] child-stamp plan for ${app}/${type} failed: ${e.message}`);
@@ -245,7 +245,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   async function stampDeclaredChildren(tx, { table, app, id, type, data, childRefs }) {
     if (!childRefs) return 0;
     try {
-      return await require('../auth/rowAuth/parentId').stampChildren(tx, { table, app, id, type, data, childRefs });
+      return await require('./parentId').stampChildren(tx, { table, app, id, type, data, childRefs });
     } catch (e) {
       console.warn(`[parent-id] stamping children of ${app}/${id} (${type}) failed: ${e.message}`);
       return 0;
@@ -283,7 +283,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     const mode = childSweepMode();
     if (!childRefs || mode === 'off') return 0;
     try {
-      const { planRemovedChildren, sweepRemovedChildren } = require('../auth/rowAuth/parentId');
+      const { planRemovedChildren, sweepRemovedChildren } = require('./parentId');
       const removed = planRemovedChildren(before, after, { type, childRefs });
       if (!removed.length) return 0;
       const res = await sweepRemovedChildren(tx, { table, app, id, type, removed, mode });
@@ -303,7 +303,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     const mode = childSweepMode();
     if (!childRefs || mode === 'off') return 0;
     try {
-      const res = await require('../auth/rowAuth/parentId').sweepAllChildren(tx, { table, app, id, type, childRefs, mode });
+      const res = await require('./parentId').sweepAllChildren(tx, { table, app, id, type, childRefs, mode });
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'deleted' : 'would delete'} ${res.swept} `
           + `child row(s) of deleted ${app}/${id} (${type})`);
@@ -316,7 +316,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   }
 
   async function authProjection(app) {
-    const { rowAuthCaps, authColumns } = require('../auth/rowAuth/rowAuthCaps');
+    const { rowAuthCaps, authColumns } = require('./rowAuthCaps');
     const t = resolveTable(app, '', dbType, splitMode);
     const caps = await rowAuthCaps(dms_db, t.schema, t.table, dbType);
     return authColumns(caps, dbType).join(', ');
@@ -779,7 +779,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     async hasAuthColumns(app) {
       try {
         const t = resolveTable(app, '', dbType, splitMode);
-        const caps = await require('../auth/rowAuth/rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
+        const caps = await require('./rowAuthCaps').rowAuthCaps(dms_db, t.schema, t.table, dbType);
         return !!(caps.auth || caps.parentId);
       } catch { return false; }
     },
@@ -808,6 +808,15 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const table = await mainTable(app);
       return dms_db.promise(
         `SELECT id, type, data FROM ${table} WHERE app = $1 AND type LIKE '%:pattern'`,
+        [app]
+      );
+    },
+
+    /** The app's site rows (one, normally) — for the site-level auth rules stamped on them. */
+    async getSiteRows(app) {
+      const table = await mainTable(app);
+      return dms_db.promise(
+        `SELECT id, type, data FROM ${table} WHERE app = $1 AND type LIKE '%:site'`,
         [app]
       );
     },
@@ -1525,11 +1534,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       let parentId = null;
       let rowData = data;
       {
-        const { takeParentId, validateParentId } = require('../auth/rowAuth/parentId');
+        const { takeParentId, validateParentId } = require('./parentId');
         const taken = takeParentId(data);
         rowData = taken.data;
         if (taken.claimed) {
-          const { rowAuthCaps } = require('../auth/rowAuth/rowAuthCaps');
+          const { rowAuthCaps } = require('./rowAuthCaps');
           const caps = await rowAuthCaps(dms_db, resolved.schema, resolved.table, dbType);
           if (caps.parentId) {
             // Which kind SHOULD own this row, per its pattern's declaration. Without it the check
@@ -1627,8 +1636,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
      * Exposed for `/sync/push`, which writes rows without going through createData/setDataById.
      * Same contract: inside the caller's transaction, never throws.
      */
-    // "which kind owns a row of this type" — the gate needs it to validate a parent CLAIM before
-    // judging a create against it (routes/dms/rowAuthGate.js `parentRowFor`).
+    // "which kind owns a row of this type" — used to validate a parent CLAIM on a create before
+    // the row is written (`validateParentId`, routes/dms/parentId.js).
     ownerKindForType,
     stampDeclaredChildren,
     sweepDeclaredChildren,

@@ -7,7 +7,7 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
-import { getPatternType } from '../../registry'
+import { getPatternType, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
 
 const parseIfJSON = strValue => {
@@ -257,13 +257,11 @@ function PatternEdit({
 			if (prepared) row = prepared;
 		}
 
-		// Stamp the type's auth vocabulary onto the row. dms-server cannot read the pattern-type
-		// registry (it has no dependency on this package), so the pattern row is how a type's verbs
-		// reach the resolver — row-auth-vocabulary.md. Read from the registry rather than left to
-		// each type's beforeCreate, so a type cannot forget.
-		const { authVocabulary, childRefs } = getPatternType(data.pattern_type) || {};
-		if (authVocabulary) row = { ...row, authVocabulary };
-		if (childRefs) row = { ...row, childRefs };
+		// Stamp the type's auth vocabulary, childRefs and auth rules onto the row. dms-server cannot
+		// read the pattern-type registry (it has no dependency on this package), so the pattern row is
+		// how a type's verbs and rules reach the server — row-auth-vocabulary.md. Read from the
+		// registry rather than left to each type's beforeCreate, so a type cannot forget.
+		row = stampPatternRow(row);
 
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(

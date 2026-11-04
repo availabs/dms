@@ -9,7 +9,8 @@
 
 1. **A row with no grants is read-only**: read allowed, edit refused. Replaces "no permission set → open" for edits
    (2026-10-23). Task: [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md).
-2. **Alex's judge stays a trial** behind `DMS_DATA_AUTH_JUDGE=data` (`authRules.js`, `authJudge.js`, `dataAuth.js`
+2. ~~**Alex's judge stays a trial**~~ (2026-11-03: it is the default now; `DMS_DATA_AUTH_JUDGE=code` selects the
+   hand-written `judge()`) behind `DMS_DATA_AUTH_JUDGE=data` (`authRules.js`, `authJudge.js`, `dataAuth.js`
    `judgeAsData`). His files are a structure; the rules they define can change. Rules move into pattern data, edited
    in a pattern editor **Settings → Advanced auth** tab: [pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md).
 3. **A save that changes nothing writes nothing**, so it isn't judged. Built: `assertDataWrite(…, { skipNoChange })`
@@ -34,36 +35,46 @@ pass.
 
 ## ▶ Next work (2026-10-30; progress 2026-11-02)
 
-**2026-11-02 (uncommitted, both repos; master merged first: lib ada2c848 / root 31ae7799):**
-- Item 1: blank-row rule **built on the server** (enforce refuses edits on rows with no grants; log / legacy keep
-  the old answer, lines say `blank row`). Prod audit run on all six sites under a read-only PG session: **0 recent
-  writes refused**. Client gates deferred to the enforce switch (owner). Details:
-  [permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md) Progress 2026-11-02.
-- Item 2: plan routes **built** ([destructive-call-plan-routes.md](./destructive-call-plan-routes.md));
-  access log **server built**, page mockup waiting on the owner ([permissions-access-log.md](./permissions-access-log.md)).
-- Owner 2026-11-02: **task 19 (level removal) is dropped**, levels stay. Access-log mockup **confirmed**. Auth row:
-  **no grants = only admins can edit** (open question: does the level fallback `canOrLevel` still let level
-  holders in on such a row?).
-- Item 3: blank-row part of the prod audit done (above); mitigat-ny-prod's full matrix needs `losses` streamed
-  to disk (OOM at 12 GB).
-
-State (10-30): the 10-29 changes are committed and master is merged into both repos again (unpushed). The blank-row
-audit is uncommitted. Commit/push only when the owner asks.
+**2026-11-02 (committed + pushed: lib bad98b70, root 38a0bf2e):** items 1 and 2 done on the server (blank-row rule,
+auth row behind `DMS_AUTH_ROW_MODE`, plan routes, access log + its page, live-checked). Task 19 dropped (levels
+stay). Client gates for blank rows wait for the enforce switch (owner). Prod dms3 already has `dms.access_log`
+(the owner's local server created it). Open: mitigat-ny-prod's full audit (OOM); live check of the plan-route
+dialogs and of the blank-row rule on pattern / view / data rows.
 
 In order:
 1. **[permissions-blank-row-read-only.md](./permissions-blank-row-read-only.md)** (decisions 1 and 6). The audit
    extension (plan step 4) is **built** 2026-10-30 (`permissions-access-diff.blank.js`, `test:blank-audit` 7/7);
-   its prod runs need VPN. Next: the read-verb list, the server split behind the modes, the client gates.
+   its prod runs need VPN. **Server side done 2026-11-02**; client gates at the enforce switch.
 2. **Access log admin page** (option 1) and the destructive-call **plan routes** (their own initiative; remove stays
-   enabled while no plan exists). Unbuilt.
+   enabled while no plan exists). **Done 2026-11-02.**
 3. **Prod audit baseline** (`scripts/permissions-access-diff.js`): needs VPN. Rerun after 1 lands.
 4. **Task 18** (grant migration). Task 19 (level removal) dropped by the owner 2026-11-02: levels stay.
-5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): open-pattern clause
+   **Owner 2026-11-03: levels count under `log` (and `legacy`) only, on every auth row, blank or granted;
+   under `enforce` only permissions count.** Built: `permissions.js` `levelCounts`; `log` records each
+   level-only pass (`allowed by auth level only`) in the access log, which is the list task 18 must grant.
+5. **[pattern-auth-rules-as-data.md](./pattern-auth-rules-as-data.md)** (decisions 2, 4, 8, 10): **2026-11-03 rules moved into the format files, stamped on site / pattern rows, read by the data judge with the built-in copy as fallback**; open-pattern clause
    **done** 10-30 (trial 51/51); next storage (pattern row, not the code-only format), defaults, Advanced auth tab
    mockup.
 6. Coordinate with amuro (decisions 1, 9: `parent_id` resolver, Phase D writes) and Alex (rules structure, 5's clause).
 
-## ▶ Resume here (updated 2026-10-27, task 11 moved out)
+## ▶ Resume here (updated 2026-11-04)
+
+**Current state (2026-11-04).** Task 19 (level removal) dropped 2026-11-02 (moved to `completed/`): levels stay as
+data and count only under `log` / `legacy`. Committed 2026-11-04: every auth handler that read a level directly now
+goes through `permissions.js` `levelRule` (refused under `enforce`, logged under `log`); platform = `AVAIL` only.
+**Next, in order:**
+1. Owner signs off the 5 auth-row grants in
+   [permissions-grant-migration-auth-rows.md](./permissions-grant-migration-auth-rows.md), then `--apply` for
+   `migrate-auth-grants.js`.
+2. Datasets half of task 18: 14 npmrds2 sources with old levels and no grants
+   (`migrate-source-auth-to-permissions.js`, dry run first); hazmit_dama's 716 checked against their grants;
+   other pgEnvs.
+3. County HMP groups: dry run confirming their grants on their own county patterns.
+4. Before enforce / merge: the deploy-order breaks (below, 10-27), chat source in no datasets pattern, client gates
+   (deferred to the enforce switch), mitigat-ny-prod access-diff audit (OOM, batching) when that site nears the
+   switch.
+
+The notes below are history (10-21 → 10-27).
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -647,7 +658,7 @@ levels); the first survey was 2026-09-30.
 **5. Migration and removal**
 18. [permissions-grant-migration.md](./permissions-grant-migration.md): dry-run/apply script granting today's
     access as permissions. Runs before anything flips to permission-only.
-19. [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md): Phase 1 dead code (any time);
+19. [permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md): Phase 1 dead code (any time);
     Phase 2 level checks out; Phase 3 `authLevel` off the user object and schema once external consumers are gone.
 
 Tracks 1–3 (datasets) and track 4 (auth) are independent and can run in parallel. Within datasets, 4–9 can run in

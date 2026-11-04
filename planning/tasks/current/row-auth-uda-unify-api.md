@@ -1428,3 +1428,72 @@ owner described.
 
 **State.** All 20 suites 0 failed; differentials at their pinned 4 and 1; `--audit-writes` 35 of
 10933, cross-check 300/300.
+
+---
+
+## 2026-11-04 — ROW AUTH DELETED. This task's premise is retired.
+
+Owner: *"I think we want to completely abandon row auth at this point, I think kind auth is actually
+the better solution at this point and its just making the shared code more complicated."*
+
+Everything below this line in the task is history. What follows is what was removed, what survived,
+and the two things that were load-bearing and now are not.
+
+### Removed (1,489 lines of implementation, 9 suites, 2 fixtures, 1 flag, 1 script)
+
+| | |
+|---|---|
+| `routes/auth/rowAuth/rowAuthGate.js` (531) | the judge: `verdict`, `createGate`, `createRowJudge`, `assertDataWrite`, `planEdit`, `verbsFor`, `holdsPermission`, the `AUTH_FIELDS` escalation floor |
+| `routes/auth/rowAuth/rowSourceAuth.js` (281) | the datasets half: `decideSourceRow`, `decidePatternRow`, `readsRow`, `holdsAny`, `mergedAuthForSource` |
+| `routes/auth/rowAuth/rowAuth.js` (363) | `createResolver` — the `parent_id` walk, `rawAuthOf`, `authOf`, `mapsForChain` |
+| `routes/auth/rowAuth/mergeAuth.js` (209) | `mergeAuthChain`, `can`, `isUnstated` — rules 1–5, including the clamp |
+| `routes/auth/rowAuth/index.js` (105) | the parallel contract `../index.js` switched on |
+| `DMS_AUTH_IMPL` | the ninth and last of the flags. **`DMS_AUTH_MODE` is now the only auth variable.** |
+| `src/scripts/sweep-source-grants.js` | its window closed when pattern-lending was cut on 2026-11-03 |
+| `migrate-row-auth.js --audit-writes` / `--diff-reads` | both measured the gate; the column work in that script is untouched and still required |
+| tests | `test-row-auth{,-gate,-writes,-reads,-uda,-diff,-uda-diff}.js`, `test-merge-auth.js`, `test-external-source-auth.js`, and the two `fixtures/row-auth*-expected-diff.json` |
+
+### Survived, and moved out of the folder — none of it was row auth
+
+| now at | why it stays |
+|---|---|
+| `routes/auth/authVocabulary.js` | `permissionDomain` → verbs → `implies`. `verbsForFields` is how kind auth knows which verb governs which field; `childRefsOf` / `ownerKindOf` are the controller's. |
+| `routes/auth/sourceAncestry.js` | a pgEnv's `:dmsenv` row — where an external source's vocabulary is declared |
+| `routes/dms/parentId.js` | stamping `parent_id`, and the cascade delete that rides on it. Containment, never auth. |
+| `routes/dms/rowAuthCaps.js` | the probe for the `auth` and `parent_id` columns, which are still where grants and containment are stored |
+
+`sourceSnapshot.js` lost the second of its two resolved grant objects. It carried both because the
+providers could not share a representation — merging expands `'*'` into the five structural verbs at
+resolve time so rule 3 can clamp, and kind auth matches names, so handed that object it saw no `'*'`
+and refused everyone. One implementation, one representation.
+
+### Two things row auth was carrying, now uncovered
+
+1. **Reads are guarded for `pattern` and `page` only.** Every other kind — site, theme, tenant,
+   dmsenv, source, view, component, page-edit, split `:data` — is guarded on write and open on read.
+   The gate closed that by judging every kind the same way. Closing it now means a read rule in
+   `kindAuth/kindReadAuth.js`.
+2. **Nothing above a source is inherited.** Nothing above one grants today, by declaration
+   (`admin.format.js`, `permissionDomain.self: []`), so no verdict changes — but that is a property
+   of the data. Give an env grants and they are silently ignored. The comment at
+   `sourceSnapshot.js` `loadInternal` says so at the point it would have to be fixed.
+
+Also uncovered, and smaller: the page⊕pattern merge in `kindReadAuth.js` has **no clamp**, so a page
+may widen what its pattern gave a principal. The two implementations were pinned as divergent on
+exactly this and row auth was the stricter one.
+
+### Verification
+
+`npm test` 0 failed; `test-data-auth` 66, `test-source-auth` 52, `test-read-auth` 31,
+`test-auth-permissions` 24, `test-auth-level-rules` 13, `test-access-log` 14,
+`test-auth-vocabulary` 20, `test-uda` 144, `test-sync` 95 — all 0 failed. Client vitest 855 passed,
+12 failed, the same 12 (radio/avlGraph/sectionGroup/syncDelta/userMenus themes) that fail at HEAD.
+`test-table-splitting` fails one assertion, confirmed identical at HEAD in a worktree.
+
+### Still open
+
+The other `row-auth-*.md` tasks in `tasks/current/` describe work that no longer exists
+(`row-auth-chain-spike`, `-consolidate`, `-dms-writes`, `-resolver`, `-schema`, `-scoped-grants`,
+`-uda`, `-production-cutover`). They have not been moved to `completed/` — that is a bookkeeping
+decision for the owner, since several also record findings about the surviving column work.
+`row-auth-parentage.md` and `row-auth-vocabulary.md` describe the parts that survived and stay.

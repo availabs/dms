@@ -14,7 +14,7 @@ module.exports = [
           for (const optionsKey of optionsKeys) {
             try {
               // view-source on the view's source (readAuth.js); a refused read gets an empty domain
-              const readable = (await authorize({ env, viewId, verb: 'read', user: this.user, subdomain: this.subdomain || '', patternRef: this.patternRef || null, kind: 'data' })).allow;
+              const readable = (await authorize({ env, viewId, verb: 'read', user: this.user, subdomain: this.subdomain || '', patternRef: this.patternRef || null, app: this.requestApp || null, kind: 'data' })).allow;
               const domain = readable ? await colorDomain(env, viewId, optionsKey) : { breaks: [], min: 0, max: 0, count: 0 };
               result.push({
                 path: ['uda', env, 'viewsById', viewId, 'colorDomain', optionsKey],

@@ -6,14 +6,15 @@
 const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const {
-  AUTH_GROUPS, AUTH_USERS, authority, can, canManageGroup, canManageGroupIn, groupProjects,
-  platformAuthority,
+  AUTH_GROUPS, AUTH_USERS, authority, can, canManageGroup, canManageGroupIn,
+  groupProjects, levelCoversGroup, platformAuthority, levelsCount, noteLevelPass,
 } = require('../utils/permissions');
 
 // Task permissions-auth-groups: each check in transition form, `auth-groups` on the auth row the
 // request names (permissions.js authority) or today's level rule. While the level fallback exists a
 // group's level still grants access, so the permission path never sets one (new and linked groups get
-// level 0, and /group/project/adjust is level-only).
+// level 0, and /group/project/adjust takes `*` on the auth row or the level rule). Every level rule follows
+// DMS_AUTH_MODE (permissions.js levelsCount / levelRule): logged under log, never passes under enforce.
 const groupsAuthority = (db, userData, body, ctx, minLevel, perm = AUTH_GROUPS) =>
   authority(db, userData, body, ctx, { perm, minLevel });
 
@@ -94,6 +95,8 @@ async function getGroups(db, body, ctx) {
      ORDER BY g.name`
   );
 
+  const levels = levelsCount(a);
+  let levelOnly = false;
   const visible = [];
   for (const group of allGroups) {
     // Get group's project assignments
@@ -102,12 +105,14 @@ async function getGroups(db, body, ctx) {
       [group.name]
     );
 
-    // Filter: exclude groups that have an auth_level > user's level in any project
-    const canSee = gipRows.every(({ project_name, auth_level }) => {
+    // Filter: exclude groups that have an auth_level > user's level in any project (where levels count)
+    const byPerm = a.byPermission && gipRows.some(({ project_name }) => project_name === a.project);
+    const byLevel = levels && gipRows.every(({ project_name, auth_level }) => {
       const myLevel = projectAuth[project_name];
       return myLevel !== undefined && myLevel >= auth_level;
-    }) || (a.byPermission && gipRows.some(({ project_name }) => project_name === a.project));
-    if (!canSee) continue;
+    });
+    if (!byPerm && !byLevel) continue;
+    if (!byPerm) levelOnly = true;
 
     // Get member count
     const { rows: memberRows } = await db.query(
@@ -121,6 +126,7 @@ async function getGroups(db, body, ctx) {
       projects: gipRows,
     });
   }
+  if (levelOnly) noteLevelPass(a, `${AUTH_GROUPS}: list groups`);
 
   return visible;
 }
@@ -149,10 +155,12 @@ async function groupsForProject(db, body, ctx) {
   );
 
   // Filter by authority and add member counts + project assignments
+  const levels = levelsCount(a);
+  let levelOnly = false;
   const visible = [];
   for (const group of groups) {
-    // Auth levels are deprecated (2026-11-03): a grant on the DMS auth object is the only authority.
-    if (!a.byPermission) continue;
+    if (!a.byPermission && (!levels || group.auth_level > myAuthLevel)) continue;
+    if (!a.byPermission) levelOnly = true;
 
     const { rows: memberRows } = await db.query(
       'SELECT count(1) AS count FROM users_in_groups WHERE group_name = $1',
@@ -170,12 +178,15 @@ async function groupsForProject(db, body, ctx) {
       created_by: group.created_by,
       num_members: +(memberRows[0]?.count || 0),
       projects: projRows,
-      manageable: managesGroups && await canManageGroupIn(db, a.user, group.name, a.scope),
+      manageable: (managesGroups && await canManageGroupIn(db, a.user, group.name, a.scope))
+        || (levels && myAuthLevel >= 5 && await levelCoversGroup(db, userData.email, group.name)),
       // whether the caller may add members to it or remove them (user handlers' checkGroupAuthority, the
       // rule of /user/group/assign and /remove): the Users page's group picker
-      assignable: managesUsers && await canManageGroupIn(db, a.user, group.name, a.scope),
+      assignable: (managesUsers && await canManageGroupIn(db, a.user, group.name, a.scope))
+        || (levels && await levelCoversGroup(db, userData.email, group.name)),
     });
   }
+  if (levelOnly) noteLevelPass(a, `${AUTH_GROUPS}: list groups of ${project}`);
 
   return { groups: [{ name: 'public' }, ...visible] };
 }
@@ -200,7 +211,7 @@ async function linkableGroups(db, body, ctx) {
   return { groups: rows.map(r => ({ name: r.name, num_members: +r.num_members })) };
 }
 
-/** POST /group/create — create a group in no project (platform admin: AVAIL member, or avail_auth level 5) */
+/** POST /group/create — create a group in no project (platform admin: AVAIL member) */
 async function createGroup(db, { token, name, meta }) {
   const userData = await verifyAndGetUserData(db, token);
 
@@ -226,7 +237,7 @@ async function createAndAssign(db, body, ctx) {
   }
 
   const myAuthLevel = a.authLevel;
-  if (myAuthLevel < 5) {
+  if (!a.byLevel) {
     throw new Error('You do not have the required authority level to create groups.');
   }
   if (myAuthLevel < auth_level) {
@@ -264,6 +275,7 @@ async function resolveDeleteGroup(db, body, ctx) {
     }
     return { how: 'orphan', actor };
   }
+  if (!levelsCount(a)) throw new Error(`You do not have the authority to delete group ${name}.`);
   const { rows: removable } = await db.query(
     `SELECT gip.project_name FROM groups_in_projects AS gip
      WHERE gip.group_name = $1 AND gip.auth_level <= (
@@ -274,6 +286,7 @@ async function resolveDeleteGroup(db, body, ctx) {
     [name, userData.email]
   );
   if (!removable.length) throw new Error(`You do not have the authority to delete group ${name}.`);
+  noteLevelPass(a, `${AUTH_GROUPS}: delete group ${name}`);
   return { how: 'level', actor, projects: removable.map(r => r.project_name) };
 }
 
@@ -335,7 +348,7 @@ async function assignToProject(db, body, ctx) {
   if (auth_level < 0 || auth_level > 10) {
     throw new Error('Authority Level must be in the range 0 to 10 inclusive.');
   }
-  if (myAuthLevel < 5 || myAuthLevel < auth_level) {
+  if (!a.byLevel || myAuthLevel < auth_level) {
     throw new Error(`You do not have the required authority level to assign group "${group_name}" to project "${project_name}" at authority level "${auth_level}".`);
   }
 
@@ -359,8 +372,10 @@ async function authorizeRemoveFromProject(db, body, ctx) {
     [group_name, project_name]
   );
   if (!rows.length) throw new Error(`Group "${group_name}" is not in project "${project_name}".`);
-  // Auth levels are deprecated (2026-11-03): a grant on the DMS auth object is the only authority.
-  throw new Error(`You do not have the authority to remove group "${group_name}" from project "${project_name}".`);
+  if (!a.byLevel || a.authLevel < rows[0].auth_level) {
+    throw new Error(`You do not have the required authority level to remove group "${group_name}" from project "${project_name}".`);
+  }
+  return actor;
 }
 
 /** POST /group/project/remove/plan — what /group/project/remove would do. Never writes. */
@@ -378,21 +393,26 @@ async function removeFromProject(db, body, ctx = {}) {
 }
 
 /** POST /group/project/adjust — adjust group's auth level in project */
-async function adjustAuthLevel(db, { token, group_name, project_name, auth_level }) {
+async function adjustAuthLevel(db, body, ctx) {
+  const { token, group_name, project_name, auth_level } = body;
   const userData = await verifyAndGetUserData(db, token);
-  const myAuthLevel = await q.getUserAuthLevel(db, userData.email, project_name);
 
   if (auth_level < 0 || auth_level > 10) {
     throw new Error('Authority Level must be in the range 0 to 10 inclusive.');
   }
-  // Level-only (task permissions-auth-groups): a level grants access while the fallback exists. The
-  // caller must also outrank the group's CURRENT level, or a level-5 user could demote an Admin group.
+  // `*` on the site's auth row (or `${app} Admin`), or the level rule: level ≥ 5 there (not under
+  // enforce, owner 2026-11-03), and the caller must also outrank the group's CURRENT level, or a level-5
+  // user could demote an Admin group. Levels stay in the auth DB (older servers read them), so they
+  // remain settable.
+  const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: '*', minLevel: 5 });
   const { rows: current } = await db.query(
     'SELECT auth_level FROM groups_in_projects WHERE group_name = $1 AND project_name = $2',
     [group_name, project_name]
   );
   if (!current.length) throw new Error(`Group "${group_name}" is not in project "${project_name}".`);
-  if (myAuthLevel < 5 || myAuthLevel < auth_level || myAuthLevel < +current[0].auth_level) {
+  const myAuthLevel = a.authLevel;
+  if (!a.byPermission
+    && (!a.byLevel || myAuthLevel < auth_level || myAuthLevel < +current[0].auth_level)) {
     throw new Error('You do not have the required authority level.');
   }
 
@@ -405,7 +425,7 @@ async function updateGroup(db, body, ctx) {
   const { token, group_name, meta } = body;
   const userData = await verifyAndGetUserData(db, token);
   // auth-groups on the calling site, for a group of that site (only its grants count, owner); or a
-  // platform admin (AVAIL member, or avail_auth level 5)
+  // platform admin (AVAIL member)
   const a = await groupsAuthority(db, userData, body, ctx, Infinity);
   const bySite = a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope);
 

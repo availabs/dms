@@ -41,7 +41,7 @@ const { loadConfig } = require('../db/config');
 const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { resolveTable } = require('../db/table-resolver');
-const { vocabularyOf, impliesMaps } = require('../routes/auth/rowAuth/authVocabulary');
+const { vocabularyOf, impliesMaps } = require('../routes/auth/authVocabulary');
 const { resolveAuthPermissions } = require('../routes/auth/auth');
 
 const STRUCTURAL = ['read', 'create', 'edit', 'delete', 'grant'];

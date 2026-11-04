@@ -25,16 +25,26 @@ export function withPatternParam(url, pattern) {
     return `${url}${sep}dms_pattern=${encodeURIComponent(`${pattern.app}/${pattern.id}`)}`;
 }
 
-// Tags every request of one Falcor model (the datasets pattern's, render/dmsPageFactory.jsx) with
-// `dms_pattern`, so its reads of external sources inherit the pattern's grants (dms-server
-// routes/uda/readAuth.js). Wraps the model's data source hook; the token header it sets still goes on.
-export function tagFalcorRequests(falcor, pattern) {
+// `dms_app=<app>`: the site a request comes from (dms-server requestUser.js requestApp). The server files
+// access-log rows under it and uses it for an external source's `${app} Admin` check when no datasets
+// pattern is named; it lends no grants.
+export function withAppParam(url, app) {
+    if (!app) return url;
+    const sep = url.includes('?') ? '&' : '?';
+    return `${url}${sep}dms_app=${encodeURIComponent(app)}`;
+}
+
+// Tags every request of one pattern's Falcor model (render/dmsPageFactory.jsx) with `dms_app` (every
+// pattern) and `dms_pattern` (a pattern that names itself: the datasets pattern), so its reads of external
+// sources inherit that pattern's grants (dms-server routes/auth/kindAuth/readAuth.js). Wraps the model's
+// data source hook; the token header it sets still goes on.
+export function tagFalcorRequests(falcor, pattern, app = pattern?.app) {
     const source = falcor?._source;
-    if (!source || !pattern?.app || !pattern?.id) return falcor;
+    if (!source || (!app && !(pattern?.app && pattern?.id))) return falcor;
     const before = source.onBeforeRequest?.bind(source);
     source.onBeforeRequest = (config) => {
         before?.(config);
-        if (config?.url) config.url = withPatternParam(config.url, pattern);
+        if (config?.url) config.url = withAppParam(withPatternParam(config.url, pattern), app);
     };
     return falcor;
 }

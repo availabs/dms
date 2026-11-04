@@ -59,7 +59,7 @@ async function run() {
         try { await db.promise(`ALTER TABLE ${T.fullName} ADD COLUMN ${col}`); }
         catch (e) { if (!/duplicate column/i.test(e.message)) console.log('[alter]', e.message); }
     }
-    require('../src/routes/auth/rowAuth/rowAuthCaps')._resetCaps();
+    require('../src/routes/dms/rowAuthCaps')._resetCaps();
 
     const alive = async (id) =>
         (await db.promise(`SELECT id FROM ${T.fullName} WHERE id = $1`, [id])).length === 1;

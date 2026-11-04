@@ -18,7 +18,7 @@ export const handlePaste = async (e, setKey, setState, value, onChange) => {
         // `trackingId` is the `$self` stable id — copying it makes two live sections collide (the
         // create path mints a fresh one, so this only bites when pasting over an existing section).
         // `draft_id`/`is_draft` describe the target's own draft state. `parent` is the retired
-        // containment field (dms-server routes/dms/rowAuth.js's header) and must not come back from
+        // containment field (dms-server routes/dms/parentId.js) and must not come back from
         // a clipboard payload copied before it was removed.
         const identityKeys = ['id', 'ref', 'trackingId', 'draft_id', 'is_draft', 'parent'];
 

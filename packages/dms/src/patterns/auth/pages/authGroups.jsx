@@ -224,8 +224,10 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
                 </div>
                 <div className={m.removeBody}>
                     <div>Remove {removeGroup?.name} from {PROJECT_NAME}?</div>
+                    {/* the preview (…/plan) is in flight: say so, so the dialog doesn't read as final */}
+                    {!removePlan && !planError && <div className={m.metaText}>Checking what this removes…</div>}
                     {planError && <div className={m.metaText}>{planError}</div>}
-                    {!removePlan && <div>Its members lose the access it gives here, and its permissions on this
+                    {planError && !removePlan && <div>Its members lose the access it gives here, and its permissions on this
                         site&apos;s patterns, pages and sources are removed. If no other site uses it, the group is
                         deleted.</div>}
                     {removePlan && <>

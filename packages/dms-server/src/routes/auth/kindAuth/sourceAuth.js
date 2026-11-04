@@ -25,7 +25,7 @@
  * `${app} Admin` passes everything, as `isAppAdmin` does in the admin UI. FAILS CLOSED on lookups: a
  * missing row, a missing column, an unnamed pattern or any query error denies.
  *
- * Mode (`DMS_AUTH_MODE`, ../mode.js — one flag for every surface and both implementations):
+ * Mode (`DMS_AUTH_MODE`, ../settings.js — one flag for every surface):
  *   - `log`     — (default) the OLD rule still answers (`legacyAllows`: missing row / query error /
  *                 DMS env ⇒ allow), so whatever it allowed is never refused; every request the
  *                 resolver's rule would deny is logged (`[source-auth] would-deny …`), to feed the
@@ -76,11 +76,10 @@ function isAppAdmin(user, app) {
     return !!app && ((user && user.groups) || []).some(g => g === `${app} Admin`);
 }
 
-// `DMS_AUTH_MODE` — the one mode, shared with every other surface and with row auth (../mode.js).
-// It was `DMS_SOURCE_AUTH_MODE` until 2026-11-03, and `legacy` went with the rename: `log` already
+// `DMS_AUTH_MODE` — the one mode, shared with every other surface (../settings.js). It was
+// `DMS_SOURCE_AUTH_MODE` until 2026-11-03, and `legacy` went with the rename: `log` already
 // refuses nothing, and it says what it would have refused.
 const { authMode } = require('../settings');
-const { isRow } = require('../settings');
 
 const isDmsEnv = (env) => typeof env === 'string' && env.includes('+');
 

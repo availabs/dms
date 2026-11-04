@@ -43,7 +43,7 @@ const { redactSourceRow } = require('./sourceRedaction');
 // ---- Reads (readAuth.js, DMS_AUTH_MODE): a refused read answers null, never an error, so a page
 // section or list renders empty instead of failing the whole batch.
 // `patternRef`: the datasets pattern the request names, whose grants external sources inherit.
-const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', patternRef: router.patternRef || null });
+const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', patternRef: router.patternRef || null, app: router.requestApp || null });
 // ONE QUESTION, the same name DMS asks (`routes/auth` `authorize`). A source is named by its env
 // and id here because this route gates BEFORE fetching; resolving that address to a row is the
 // auth layer's job, not this file's. See research/unified-auth-api.md.

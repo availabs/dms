@@ -6,9 +6,10 @@ const falcorJsonGraph = require("falcor-json-graph"),
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
 
 /*
- AUTHORIZATION — every decision on this route comes from `routes/auth`, which picks the
- implementation (`DMS_AUTH_IMPL`: `kind` by default, or `row`) and exports one contract for both.
- This file never names a side. See routes/auth/index.js for the switch and what it does NOT do.
+ AUTHORIZATION — every decision on this route comes from `routes/auth`, and this file never
+ reaches past it into `kindAuth/`. Until 2026-11-04 that indirection also chose between two
+ implementations (`DMS_AUTH_IMPL`); row auth is gone and the indirection is kept, because a route
+ asking "may this caller do this?" should not know how the answer is reached.
 */
 const { assertDataWrite, dataAuthMode, readBlocked, listingBlocked, NO_CHANGE, authorize } = require('../auth');
 // `authorize({ row, verb })` is the same question UDA asks of a source (`routes/auth/authorize.js`).

@@ -25,8 +25,9 @@ export default function dmsPageFactory({
   const dmsPath = `${baseUrl}${baseUrl === "/" ? "" : "/"}`;
   // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST);
-  // A pattern that names itself on its requests (the datasets pattern: `requestPattern`).
-  if (dmsConfig.requestPattern) tagFalcorRequests(falcor, dmsConfig.requestPattern);
+  // Every request names its site (`dms_app`, for the access log and external sources' admin check);
+  // a pattern that names itself adds `dms_pattern` (the datasets pattern: `requestPattern`).
+  tagFalcorRequests(falcor, dmsConfig.requestPattern || null, dmsConfig.app || dmsConfig.format?.app || dmsConfig.requestPattern?.app);
   // Tracks the login token across loader calls so the no-access retry below
   // can tell "user just logged in, cache is stale" apart from "this visitor
   // genuinely can't see this content" — see that check for why the distinction

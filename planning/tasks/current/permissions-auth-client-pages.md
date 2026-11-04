@@ -40,7 +40,7 @@ user sees empty lists. Once the server moves, the pages need small changes and s
   and meta edit if wanted (server routes exist, nothing calls them).
 - [x] `profile.jsx`: use self-scoped data (the user's own groups from `/auth`), not the admin listing endpoints.
 - [x] `useManagePageGate.js`: strict check, same rule as the server (decided in the source-permission task).
-- [ ] `context.js:6`: drop `authLevel` (in [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md)).
+- [ ] `context.js:6`: drop `authLevel` (in [permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md)).
 
 ## Owner decisions (2026-10-26)
 

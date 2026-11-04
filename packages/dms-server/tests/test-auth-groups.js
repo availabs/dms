@@ -63,7 +63,7 @@ const GROUPS = {
 };
 const USERS = {
   'gmgr@t': ['GroupMgrs'], 'umgr@t': ['UserMgrs'], 'admin@t': ['siteA Admin'], 'viewer@t': ['Viewers'],
-  'lvl5@t': ['Editors'], 'temp@t': ['Temp'], 'outsider@t': ['siteB Admin'], 'ops@t': ['Platform Ops'],
+  'lvl5@t': ['Editors'], 'temp@t': ['Temp'], 'outsider@t': ['siteB Admin'], 'ops@t': ['Platform Ops'], 'plat@t': ['AVAIL'],
 };
 const tok = {};
 
@@ -234,13 +234,14 @@ async function main() {
     await refused(groupH.planRemoveFromProject(db, { token: tok['gmgr@t'], group_name: 'siteA Admin', project_name: 'siteA', ...A }, ctx));
     assert.deepStrictEqual(await snapshot(), before);
   });
-  await t('a group in no project: platform only (avail_auth ≥ 5)', async () => {
+  await t('a group in no project: platform only (AVAIL member; avail_auth 5 no longer counts)', async () => {
     await refused(groupH.deleteGroup(db, { token: tok['admin@t'], name: 'Orphan', ...A }, ctx), /platform only/);
     await refused(groupH.planDeleteGroup(db, { token: tok['admin@t'], name: 'Orphan', ...A }, ctx), /platform only/);
-    assert.deepStrictEqual(await groupH.planDeleteGroup(db, { token: tok['ops@t'], name: 'Orphan' }, ctx),
+    await refused(groupH.planDeleteGroup(db, { token: tok['ops@t'], name: 'Orphan' }, ctx), /platform only/);
+    assert.deepStrictEqual(await groupH.planDeleteGroup(db, { token: tok['plat@t'], name: 'Orphan' }, ctx),
       { group_name: 'Orphan', projects: [], deletes: true });
     assert.ok(await exists('Orphan'), 'the plan deletes nothing');
-    await groupH.deleteGroup(db, { token: tok['ops@t'], name: 'Orphan' }, ctx);
+    await groupH.deleteGroup(db, { token: tok['plat@t'], name: 'Orphan' }, ctx);
     assert.ok(!(await exists('Orphan')));
   });
   await t('level rule: level 5 deletes a level-0 group, grants stripped too', async () => {

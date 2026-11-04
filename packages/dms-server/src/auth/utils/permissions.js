@@ -32,20 +32,21 @@ const q = require('./queries');
 const { authMode: authRowMode } = require('../../routes/auth/settings');
 
 const BLANK_REASON = 'blank auth row (no grants: only admins can edit)';
+// owner 2026-11-03 (task 18): levels count under log (and legacy) only, on every auth row
+const LEVEL_REASON = 'allowed by auth level only (levels stop counting under enforce: grant the permission)';
 
 // One would-deny line per (user, app, what) per ten minutes; every call still counts in the access log.
 const seen = new Map();
-function logWouldDeny(user, scope, what, outcome = 'would-deny') {
+function logWouldDeny(user, scope, what, outcome = 'would-deny', reason = BLANK_REASON) {
   accessLog.record({
-    app: scope.app, guard: 'auth', outcome, kind: 'auth row', target: scope.app, perms: what, user,
-    reason: BLANK_REASON,
+    app: scope.app, guard: 'auth', outcome, kind: 'auth row', target: scope.app, perms: what, user, reason,
   });
   if (outcome !== 'would-deny') return;
   const key = `${user && user.email}|${scope.app}|${what}`;
   const now = Date.now();
   if (now - (seen.get(key) || 0) < 10 * 60 * 1000) return;
   seen.set(key, now);
-  console.warn(`[auth-row] would deny ${user && user.email} ${what} on ${scope.app}'s auth row: ${BLANK_REASON}`);
+  console.warn(`[auth-row] would deny ${user && user.email} ${what} on ${scope.app}'s auth row: ${reason}`);
 }
 
 const AUTH_USERS = 'auth-users';
@@ -120,7 +121,7 @@ function createAuthGrants({ loadPatternRows, ttlMs = 30000 } = {}) {
 const authUser = (userData, groups = []) => ({ id: userData.id, email: userData.email, groups, authed: true });
 
 /**
- * Everything a handler's check needs, for a verified user: `{ user, scope }`.
+ * Everything a handler's check needs, for a verified user: `{ user, authLevel, scope }`.
  * `scope` is `{ error }` when the request names no usable auth row (then only the level decides).
  * @param {Object} authDb
  * @param {{ id, email }} userData - verifyAndGetUserData's result
@@ -132,9 +133,14 @@ async function authScope(authDb, userData, { project, app, authPatternId } = {},
   const scope = ctx.authGrants
     ? await ctx.authGrants.loadAuthGrants({ app, authPatternId, project, subdomain: ctx.subdomain || '' })
     : { error: 'no auth grants loader' };
-  // No `authLevel`: it is deprecated and nothing reads it. The groups still come from the auth DB —
-  // WHO someone is — and what they may do comes from the DMS auth object `scope` carries.
-  return { user: authUser(userData, rows.map(r => r.name)), scope };
+  // `authLevel` is DEPRECATED and on its way out: nothing decides by it under `enforce`
+  // (`levelsCount`). It is still read here so the level rules can run under `log` and report what
+  // they let through. What someone may do comes from the DMS auth object `scope` carries.
+  return {
+    user: authUser(userData, rows.map(r => r.name)),
+    authLevel: rows.reduce((max, r) => Math.max(max, +r.auth_level || 0), 0),
+    scope,
+  };
 }
 
 /** Whether `user` holds `perm` on the scope's auth row (`${app} Admin` always), under `DMS_AUTH_MODE`. */
@@ -149,10 +155,59 @@ function can(user, perm, scope) {
   return old;
 }
 
+/**
+ * Whether today's level threshold counts for `user` on this scope: not on an auth row with no grants under
+ * `enforce` (only admins edit such a row). `${app} Admin` passes through can() anyway.
+ */
+// Whether today's level threshold still lets `user` through. Owner 2026-11-03 (task 18): levels count
+// under `log` and `legacy` only, on every auth row (blank or granted); under `enforce` only the permission
+// does. `log` records each level-only pass (`quiet`: the permission passed anyway), so grants can be added
+// before the switch. No usable scope (no DMS context) keeps the level alone: there is nothing to judge.
+function levelCounts(user, perm, minLevel, scope, authLevel = 0, { quiet = false } = {}) {
+  if (!((+authLevel || 0) >= minLevel)) return false;
+  if (!scope || scope.error || isAppAdmin(user, scope.app)) return true;
+  const mode = authRowMode();
+  if (mode === 'enforce') return false;
+  if (mode === 'log' && !quiet) {
+    logWouldDeny(user, scope, `${[].concat(perm).join(' or ')} (by level ${authLevel})`, 'would-deny',
+      scope.open ? BLANK_REASON : LEVEL_REASON);
+  }
+  return true;
+}
 
-// `canOrLevel` DELETED 2026-11-03 (unified-auth-api.md Phase 3). It was the transition helper —
-// "the permission, OR today's level threshold" — and no route ever called it; only its own tests
-// did. The level fallback it stood beside is gone too — see the note further down.
+/**
+ * The same switch as levelCounts, for the handlers' other level rules (levelCoversGroup, levelOutranks, "my
+ * level ≥ the group's", the level SQL in signup requests and messages). Owner 2026-11-03: under `enforce`
+ * no level rule lets anyone through; only grants decide. `a` is an authority() result.
+ * - `levelsCount(a)`: whether level rules may count at all for this request (no log).
+ * - `noteLevelPass(a, what)`: under `log`, record that a level rule let `a.user` through (`what` names it).
+ * - `levelRule(a, what, check)`: both: runs `check()` only when levels count, records a pass.
+ * No usable scope (no DMS context) keeps the level alone, as in levelCounts: there is nothing to judge.
+ */
+function levelsCount(a) {
+  const scope = a && a.scope;
+  if (!scope || scope.error || isAppAdmin(a.user, scope.app)) return true;
+  return authRowMode() !== 'enforce';
+}
+
+function noteLevelPass(a, what) {
+  const scope = a && a.scope;
+  if (!scope || scope.error || isAppAdmin(a.user, scope.app) || authRowMode() !== 'log') return;
+  logWouldDeny(a.user, scope, `${what} (by level ${a.authLevel || 0})`, 'would-deny',
+    scope.open ? BLANK_REASON : LEVEL_REASON);
+}
+
+async function levelRule(a, what, check) {
+  if (!levelsCount(a)) return false;
+  const ok = !!(await check());
+  if (ok) noteLevelPass(a, what);
+  return ok;
+}
+
+/** Transition mode: the permission, or today's level threshold (not under enforce). */
+function canOrLevel(user, perm, minLevel, scope, authLevel = 0) {
+  return can(user, perm, scope) || levelCounts(user, perm, minLevel, scope, authLevel);
+}
 
 /** Whether `groupName` is protected on this scope (decision (b)). */
 function isProtectedGroup(groupName, scope) {
@@ -180,14 +235,19 @@ function canManageGroup(user, groupName, scope) {
  * path first and fall back to the level path with today's level checks.
  * @returns {{ user, scope, project, byPermission: boolean }}
  */
-async function authority(authDb, userData, { project, app, authPatternId } = {}, ctx = {}, { perm } = {}) {
+async function authority(authDb, userData, { project, app, authPatternId } = {}, ctx = {}, { perm, minLevel } = {}) {
   // Routes that name no project (membership, delete) are governed by the named app's project.
   const proj = project || app;
-  const { user, scope } = await authScope(authDb, userData, { project: proj, app, authPatternId }, ctx);
-  // ONE authority: does a grant on the scope's auth object say yes? `byLevel` was the other, and it
-  // is gone with the levels (2026-11-03).
+  const { user, authLevel, scope } = await authScope(authDb, userData, { project: proj, app, authPatternId }, ctx);
+  // THE authority: does a grant on the scope's auth object say yes? `byLevel` is the deprecated
+  // second answer — `levelCounts` returns false for it under `enforce`, so only the grant decides
+  // there, and under `log` each level-only pass is recorded so the grant can be added.
   const byPermission = user.groups.length > 0 && [].concat(perm).some(p => can(user, p, scope));
-  return { user, scope, project: proj, byPermission };
+  return {
+    user, authLevel, scope, project: proj,
+    byPermission,
+    byLevel: levelCounts(user, perm, minLevel, scope, authLevel, { quiet: byPermission }),
+  };
 }
 
 /** The projects a group is linked to. */
@@ -220,21 +280,27 @@ async function isPlatformAdmin(authDb, email) {
   return +(rows[0]?.count || 0) > 0;
 }
 
-/** Operations on the auth DB as a whole: `AVAIL` membership. */
-async function platformAuthority(authDb, email) {
+/**
+ * Operations on the auth DB as a whole: `AVAIL` membership only (owner 2026-11-03; the `avail_auth` project
+ * level no longer counts). `minLevel` is kept for the callers' signatures and ignored.
+ */
+// eslint-disable-next-line no-unused-vars
+async function platformAuthority(authDb, email, minLevel) {
   return isPlatformAdmin(authDb, email);
 }
+
 /**
- * Does the caller hold `perm` in EVERY project named — the grant-based replacement for the
- * `levelOutranks` / `levelCoversGroup` rules.
+ * Does the caller hold `perm` in EVERY project named — the GRANT-BASED form of the `levelOutranks` /
+ * `levelCoversGroup` rules, and the only form that survives `enforce`.
  *
- * Those compared integers, but the protection they carried is not about integers: you may not act
- * on a user or a group that also belongs to projects you do not administer. Dropping them for a
- * plain `byPermission` lost that, and `test-auth-users.js` caught it — "deletes a plain member; not
- * one also in another project's group" started passing when it should refuse.
+ * Those compared integers, but the protection they carried is not about integers: you may not act on a
+ * user or a group that also belongs to projects you do not administer. Dropping them for a plain
+ * `byPermission` lost that, and `test-auth-users.js` caught it — "deletes a plain member; not one also in
+ * another project's group" started passing when it should refuse. The handlers now ask this FIRST and fall
+ * back to the level rule, which `levelsCount` switches off under `enforce`.
  *
- * One `authority()` per project, which is a query each. The sets are small (a user's projects, a
- * group's projects) and these are administrative routes, not read paths.
+ * One `authority()` per project, which is a query each. The sets are small (a user's projects, a group's
+ * projects) and these are administrative routes, not read paths.
  */
 async function coversProjects(authDb, userData, ctx, projects, perm) {
   const names = [...new Set((projects || []).filter(Boolean))];
@@ -246,22 +312,57 @@ async function coversProjects(authDb, userData, ctx, projects, perm) {
   return true;
 }
 
-// AUTH LEVELS ARE DEPRECATED (owner, 2026-11-03: "the new code should never reference them").
-// `levelCounts`, `levelCoversGroup`, `levelOutranks` and `levelsByProject` lived here and are gone.
-// Authority comes from a DMS auth object — the grants on the row the question is about — and from
-// nothing else. `scripts/audit-auth-levels.js` is the pre-flight that converts an app's levels to
-// grants before this code reaches it; `rowauth-test` was converted on 2026-11-03.
+// AUTH LEVELS ARE ON THEIR WAY OUT (owner, 2026-11-03: "the new code should never reference them").
+// They no longer decide anything under `enforce` — `levelsCount` returns false there, so only grants
+// count — and the rules above (`coversProjects`, `can`) are what replaces them. Under `log` the old
+// level rules still pass, and each pass is recorded, so an app's grants can be filled in before the
+// switch. `scripts/audit-auth-levels.js` is that pre-flight: it converts an app's levels to grants.
+// `rowauth-test` was converted on 2026-11-03.
 
-/** Operations on the auth DB as a whole: `AVAIL` membership. */
-async function platformAuthority(authDb, email) {
-  return isPlatformAdmin(authDb, email);
+/** Level rule: the caller's level ≥ the group's in every project the group belongs to. */
+async function levelCoversGroup(db, requestingEmail, group_name) {
+  const { rows: links } = await db.query(
+    'SELECT project_name, auth_level FROM groups_in_projects WHERE group_name = $1',
+    [group_name]
+  );
+  const myAuth = await levelsByProject(db, requestingEmail);
+  return links.every(({ project_name, auth_level }) =>
+    myAuth[project_name] && myAuth[project_name] >= auth_level);
 }
-// ---- Today's level rules, for the transition fallback (removed with levels, task permissions-remove-auth-levels)
 
+/** Level rule: the caller's level ≥ the target's in every project the target belongs to. */
+async function levelOutranks(db, requestingEmail, targetEmail) {
+  const { rows: targetProjects } = await db.query(
+    `SELECT project_name, auth_level
+     FROM users_in_groups AS uig
+     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+     WHERE uig.user_email = $1`,
+    [targetEmail]
+  );
+  const myAuth = await levelsByProject(db, requestingEmail);
+  return targetProjects.every(({ project_name, auth_level }) =>
+    myAuth[project_name] && myAuth[project_name] >= auth_level);
+}
+
+async function levelsByProject(db, email) {
+  const { rows } = await db.query(
+    `SELECT project_name, auth_level
+     FROM users_in_groups AS uig
+     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+     WHERE uig.user_email = $1`,
+    [email]
+  );
+  const myAuth = {};
+  for (const { project_name, auth_level } of rows) {
+    myAuth[project_name] = Math.max(myAuth[project_name] || 0, auth_level);
+  }
+  return myAuth;
+}
 
 module.exports = {
   AUTH_USERS, AUTH_GROUPS, VIEW_AS, PROTECTED_PERMISSIONS,
-  createAuthGrants, authScope, authUser, can, canManageGroup, isProtectedGroup, hasGrants,
-  authority, groupProjects, canManageGroupIn, coversProjects,
+  createAuthGrants, authScope, authUser, can, canOrLevel, levelsCount, noteLevelPass, levelRule,
+  canManageGroup, isProtectedGroup, hasGrants,
+  authority, groupProjects, canManageGroupIn, coversProjects, levelCoversGroup, levelOutranks,
   PLATFORM_GROUP, isPlatformAdmin, platformAuthority,
 };

@@ -1,10 +1,13 @@
 # Permissions move, last step: remove `authLevel` / `auth_level` from client and server
 
-**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) (primary), [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** dropped · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
-Part of [auth-levels-to-permissions.md](./auth-levels-to-permissions.md) (hub). Phase 2 depends on every auth task
-being in transition mode and [permissions-grant-migration.md](./permissions-grant-migration.md) having run on every
-site, and on a clean last run of [permissions-access-diff-audit.md](./permissions-access-diff-audit.md). **Phase 1 is dead code and can land any time.**
+> **Dropped 2026-11-02 (owner): levels stay.** The `auth_level` data stays in the auth DB and on pattern rows, so older code that reads it (avail-falcor, avail_auth_2) keeps working. Instead, levels count only under `log` / `legacy`; under `enforce` only permissions decide (`auth/utils/permissions.js` `levelCounts`, and since 2026-11-03 every handler that read a level directly goes through `levelRule`). Phase 1's dead-code items below were never done; pick them up separately if wanted.
+
+
+Part of [auth-levels-to-permissions.md](../current/auth-levels-to-permissions.md) (hub). Phase 2 depends on every auth task
+being in transition mode and [permissions-grant-migration.md](../current/permissions-grant-migration.md) having run on every
+site, and on a clean last run of [permissions-access-diff-audit.md](../current/permissions-access-diff-audit.md). **Phase 1 is dead code and can land any time.**
 
 ## Phase 1 — dead code (no dependency)
 
@@ -24,7 +27,7 @@ site, and on a clean last run of [permissions-access-diff-audit.md](./permission
 - [ ] `/init/setup` stops writing levels (`auth.js:493-494`); `${project} Admin` stays `*` by name and by grant.
 - [ ] Rewrite the level tests (`tests/test-auth.js:142,169,217,326-398,452-500`, `tests/test-jwt-failures.js:55`).
 - [ ] Client: `patterns/auth/context.js:6` `authLevel`; `authGroups.jsx:107` `auth_level: 0`.
-- [ ] Remove body `user_id` from the dama-admin calls ([permissions-dama-admin-client-auth-headers.md](./permissions-dama-admin-client-auth-headers.md)).
+- [ ] Remove body `user_id` from the dama-admin calls ([permissions-dama-admin-client-auth-headers.md](../current/permissions-dama-admin-client-auth-headers.md)).
 
 ## Phase 3 — the user object and schema (needs external consumers gone)
 

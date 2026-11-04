@@ -118,7 +118,7 @@ Use `DatasetsContext.isUserAuthed` (pattern) on list/create/settings pages and t
 
 **mapeditor** (app, `src/patterns/mapeditor/SourceLayout.jsx:54-84`): `DataManagerHeader` checks
 `user?.authLevel >= 5` on a hard-coded `{}` user and is exported but never used. Delete it (in
-[permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md)).
+[permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md)).
 
 ## Notes
 

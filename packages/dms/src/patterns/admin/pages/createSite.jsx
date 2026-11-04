@@ -8,6 +8,7 @@ import { getInstance } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns } from '../../../utils/tenantProvisioning';
 import { createSiteTheme } from './createSite.theme'
 import SiteTemplatePicker from './SiteTemplatePicker'
+import { stampSiteRow } from '../../registry'
 
 
 export default function NewSite ({ apiUpdate, dataItems }) {
@@ -75,7 +76,8 @@ export default function NewSite ({ apiUpdate, dataItems }) {
 
 				// 1. Create the site
 				setStep(1);
-				const siteResult = await apiUpdate({data: newSite, skipNavigate: true});
+				// stamped with the site-level auth rules (registry.js stampSiteRow), which dms-server reads from here
+				const siteResult = await apiUpdate({data: stampSiteRow(newSite), skipNavigate: true});
 				if (!siteResult?.id) throw new Error('Site row was not created.');
 
 				// 2. Create the auth + admin patterns and register them on the site right away
