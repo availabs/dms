@@ -71,7 +71,7 @@ here is moot until that write path checks `edit-pattern-permissions`. Ship toget
 
 - [x] `/group/project/adjust`: also needs the caller ≥ the group's **current** level; level-only (no permission path).
 - [x] Each row in transition form (permission path first, today's level rule after); level half removed in
-  [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md).
+  [permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md).
 - [x] Tests: `tests/test-auth-groups.js` (19); `test-site-grants.js` extended (8); `test-auth.js` 104.
 
 ## Progress 2026-10-25 (built, uncommitted)

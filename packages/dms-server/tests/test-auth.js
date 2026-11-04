@@ -444,9 +444,10 @@ async function run() {
   // -------------------------------------------------------------------------
   section('9. Project CRUD');
 
-  // Admin doesn't have avail_auth access, so project CRUD should fail
+  // Admin isn't in AVAIL: /projects lists only their own projects (owner 2026-11-03), project CRUD fails
   const projList = await post('/projects', { token: adminToken });
-  ok('list projects requires avail_auth', projList.error?.includes('authority'));
+  ok('list projects: a non-platform user sees only their own',
+    Array.isArray(projList) && projList.length > 0 && !projList.some(p => p.name === 'avail_auth'));
 
   const projCreate = await post('/project/create', { token: adminToken, name: 'newproj' });
   ok('create project requires avail_auth', projCreate.error?.includes('authority'));

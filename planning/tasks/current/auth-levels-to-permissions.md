@@ -57,7 +57,24 @@ In order:
    mockup.
 6. Coordinate with amuro (decisions 1, 9: `parent_id` resolver, Phase D writes) and Alex (rules structure, 5's clause).
 
-## ▶ Resume here (updated 2026-10-27, task 11 moved out)
+## ▶ Resume here (updated 2026-11-04)
+
+**Current state (2026-11-04).** Task 19 (level removal) dropped 2026-11-02 (moved to `completed/`): levels stay as
+data and count only under `log` / `legacy`. Committed 2026-11-04: every auth handler that read a level directly now
+goes through `permissions.js` `levelRule` (refused under `enforce`, logged under `log`); platform = `AVAIL` only.
+**Next, in order:**
+1. Owner signs off the 5 auth-row grants in
+   [permissions-grant-migration-auth-rows.md](./permissions-grant-migration-auth-rows.md), then `--apply` for
+   `migrate-auth-grants.js`.
+2. Datasets half of task 18: 14 npmrds2 sources with old levels and no grants
+   (`migrate-source-auth-to-permissions.js`, dry run first); hazmit_dama's 716 checked against their grants;
+   other pgEnvs.
+3. County HMP groups: dry run confirming their grants on their own county patterns.
+4. Before enforce / merge: the deploy-order breaks (below, 10-27), chat source in no datasets pattern, client gates
+   (deferred to the enforce switch), mitigat-ny-prod access-diff audit (OOM, batching) when that site nears the
+   switch.
+
+The notes below are history (10-21 → 10-27).
 
 **Where it stands.** Stage 1 of the e2e plan ran 2026-10-21: rows A–L under enforce, log and legacy, plus the
 Postgres pass (results: the **Results** table at the end of the test plan). Every server permission decision matched
@@ -641,7 +658,7 @@ levels); the first survey was 2026-09-30.
 **5. Migration and removal**
 18. [permissions-grant-migration.md](./permissions-grant-migration.md): dry-run/apply script granting today's
     access as permissions. Runs before anything flips to permission-only.
-19. [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md): Phase 1 dead code (any time);
+19. [permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md): Phase 1 dead code (any time);
     Phase 2 level checks out; Phase 3 `authLevel` off the user object and schema once external consumers are gone.
 
 Tracks 1–3 (datasets) and track 4 (auth) are independent and can run in parallel. Within datasets, 4–9 can run in

@@ -15,7 +15,7 @@ const {
 } = require('../utils/crypto');
 const q = require('../utils/queries');
 const { sendEmail, buildEmailHtml } = require('../utils/email');
-const { AUTH_USERS, authority, canManageGroupIn, platformAuthority, groupProjects } = require('../utils/permissions');
+const { AUTH_USERS, authority, canManageGroupIn, platformAuthority, groupProjects, levelsCount, noteLevelPass } = require('../utils/permissions');
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -375,7 +375,7 @@ async function passwordSet(db, { token, password }) {
   return { token: newToken, message: 'Your password has been set.' };
 }
 
-/** POST /password/force — a platform admin (AVAIL member, or avail_auth level 10) sets a user's password */
+/** POST /password/force — a platform admin (AVAIL member) sets a user's password */
 async function passwordForce(db, { token, userEmail, password }) {
   const userData = await verifyAndGetUserData(db, token);
 
@@ -445,7 +445,7 @@ async function passwordReset(db, { email, project_name, url, emailTheme = {} }) 
 }
 
 /**
- * POST /create/user — a platform admin (AVAIL member, or avail_auth level 10) creates a user in a group. The
+ * POST /create/user — a platform admin (AVAIL member) creates a user in a group. The
  * group must exist, and belong to `project` when one is named (it used to take any name, existing or not).
  */
 async function createUser(db, { token, email, password, project, group }) {
@@ -527,6 +527,12 @@ async function getRequests(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, body.token);
   // auth-users on the named auth row: that project's requests, besides the level-based ones.
   const a = await authority(db, userData, body, ctx, { perm: AUTH_USERS, minLevel: 5 });
+  // The level-based projects count only where levels do (not under enforce, owner 2026-11-03).
+  const levels = levelsCount(a);
+  if (a.byPermission && !levels) {
+    const { rows } = await db.query('SELECT * FROM signup_requests WHERE project_name = $1', [a.project]);
+    return { requests: rows };
+  }
   if (a.byPermission) {
     const { rows } = await db.query(
       `SELECT * FROM signup_requests
@@ -537,8 +543,10 @@ async function getRequests(db, body, ctx) {
        )`,
       [userData.email, a.project]
     );
+    if (rows.some(r => r.project_name !== a.project)) noteLevelPass(a, `${AUTH_USERS}: other projects' signup requests`);
     return { requests: rows };
   }
+  if (!levels) return { requests: [] };
   const { rows } = await db.query(
     `SELECT * FROM signup_requests
      WHERE project_name IN (
@@ -548,6 +556,7 @@ async function getRequests(db, body, ctx) {
      )`,
     [userData.email]
   );
+  if (rows.length) noteLevelPass(a, `${AUTH_USERS}: signup requests`);
   return { requests: rows };
 }
 
@@ -563,6 +572,7 @@ async function getRequestsForProject(db, body, ctx) {
     );
     return { requests: rows };
   }
+  if (!levelsCount(a)) return { requests: [] };
   const { rows } = await db.query(
     `SELECT * FROM signup_requests
      WHERE project_name IN (
@@ -573,6 +583,7 @@ async function getRequestsForProject(db, body, ctx) {
      AND state != 'accepted'`,
     [userData.email, project_name]
   );
+  if (rows.length) noteLevelPass(a, `${AUTH_USERS}: signup requests of ${project_name}`);
   return { requests: rows };
 }
 

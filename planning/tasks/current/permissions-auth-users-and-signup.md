@@ -66,7 +66,7 @@ The responses also return `projects[].auth_level` (`user.js:55-64`); stop once t
 ## Proposed changes
 
 - [x] Each row through the transition form (permission path first, then today's level rule), level half removed later in
-  [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md).
+  [permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md).
 - [x] `isPublicGroup` replaced by "only `${project} Public`" (query removed from `queries.js`).
 - [x] Tests: `tests/test-auth-users.js` (21, real SQLite auth DB, injected pattern rows).
 

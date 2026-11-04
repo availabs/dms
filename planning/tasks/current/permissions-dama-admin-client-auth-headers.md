@@ -87,7 +87,7 @@ and pass-through of other statuses. `test-source-auth` still passes (48; `reques
   `Authorization: user.token` and parses the JSON `{error}` shape. Use it at every call above.
 - [x] Keep sending body `user_id` for now (the server ignores it once
   [permissions-server-source-auth-core.md](./permissions-server-source-auth-core.md) lands); remove it in
-  [permissions-remove-auth-levels.md](./permissions-remove-auth-levels.md)' cleanup.
+  [permissions-remove-auth-levels.md](../completed/permissions-remove-auth-levels.md)' cleanup.
 - [x] Show a 401/403 from these routes as a message ("You don't have permission to …"), not a silent failure.
 
 ## Testing checklist

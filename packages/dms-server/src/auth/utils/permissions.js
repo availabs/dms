@@ -173,6 +173,35 @@ function levelCounts(user, perm, minLevel, scope, authLevel = 0, { quiet = false
   return true;
 }
 
+/**
+ * The same switch as levelCounts, for the handlers' other level rules (levelCoversGroup, levelOutranks, "my
+ * level ≥ the group's", the level SQL in signup requests and messages). Owner 2026-11-03: under `enforce`
+ * no level rule lets anyone through; only grants decide. `a` is an authority() result.
+ * - `levelsCount(a)`: whether level rules may count at all for this request (no log).
+ * - `noteLevelPass(a, what)`: under `log`, record that a level rule let `a.user` through (`what` names it).
+ * - `levelRule(a, what, check)`: both: runs `check()` only when levels count, records a pass.
+ * No usable scope (no DMS context) keeps the level alone, as in levelCounts: there is nothing to judge.
+ */
+function levelsCount(a) {
+  const scope = a && a.scope;
+  if (!scope || scope.error || isAppAdmin(a.user, scope.app)) return true;
+  return authRowMode() !== 'enforce';
+}
+
+function noteLevelPass(a, what) {
+  const scope = a && a.scope;
+  if (!scope || scope.error || isAppAdmin(a.user, scope.app) || authRowMode() !== 'log') return;
+  logWouldDeny(a.user, scope, `${what} (by level ${a.authLevel || 0})`, 'would-deny',
+    scope.open ? BLANK_REASON : LEVEL_REASON);
+}
+
+async function levelRule(a, what, check) {
+  if (!levelsCount(a)) return false;
+  const ok = !!(await check());
+  if (ok) noteLevelPass(a, what);
+  return ok;
+}
+
 /** Transition mode: the permission, or today's level threshold (not under enforce). */
 function canOrLevel(user, perm, minLevel, scope, authLevel = 0) {
   return can(user, perm, scope) || levelCounts(user, perm, minLevel, scope, authLevel);
@@ -247,12 +276,12 @@ async function isPlatformAdmin(authDb, email) {
 }
 
 /**
- * Transition mode for operations on the auth DB as a whole: `AVAIL` membership, or today's level in the
- * global `avail_auth` project (until levels are removed, task permissions-remove-auth-levels).
+ * Operations on the auth DB as a whole: `AVAIL` membership only (owner 2026-11-03; the `avail_auth` project
+ * level no longer counts). `minLevel` is kept for the callers' signatures and ignored.
  */
+// eslint-disable-next-line no-unused-vars
 async function platformAuthority(authDb, email, minLevel) {
-  if (await isPlatformAdmin(authDb, email)) return true;
-  return (await q.getUserAuthLevel(authDb, email, 'avail_auth')) >= minLevel;
+  return isPlatformAdmin(authDb, email);
 }
 
 // ---- Today's level rules, for the transition fallback (removed with levels, task permissions-remove-auth-levels)
@@ -299,7 +328,7 @@ async function levelsByProject(db, email) {
 
 module.exports = {
   AUTH_USERS, AUTH_GROUPS, VIEW_AS, PROTECTED_PERMISSIONS,
-  createAuthGrants, authScope, authUser, can, canOrLevel, canManageGroup, isProtectedGroup, hasGrants,
+  createAuthGrants, authScope, authUser, can, canOrLevel, levelsCount, noteLevelPass, levelRule, canManageGroup, isProtectedGroup, hasGrants,
   authority, groupProjects, canManageGroupIn, levelCoversGroup, levelOutranks,
   PLATFORM_GROUP, isPlatformAdmin, platformAuthority,
 };

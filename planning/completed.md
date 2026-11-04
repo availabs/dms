@@ -324,6 +324,7 @@
 
 - [auth-pages-themeable-chrome.md](./tasks/completed/auth-pages-themeable-chrome.md) - Manage pages' header row, login error strip, signup notices, user menu and the `/auth/*` placeholder now read theme keys (`auth.authPages.manage.*`, `sectionGroup.default.{error,disabledNotice,status}`, `authPages.landing`, `auth.userMenu.*`); defaults equal the old literals, verified byte-identical on wcdb login (2026-09-12)
 - [permissions-inventory.md](./tasks/completed/permissions-inventory.md) - Permissions move step 0, read-only: level-≥5 groups per project, AVAIL platform superusers, auth servers per site, `authLevel` consumers, pattern `authPermissions` shapes, source grants and active writers on hazmit_dms / npmrds2 / internal sources, page sections that write rows; findings feed the grant migration and resolver tasks (2026-10-20)
+- [permissions-remove-auth-levels.md](./tasks/completed/permissions-remove-auth-levels.md) - **Dropped** (owner 2026-11-02): auth levels are not removed. The `auth_level` data stays for older code (avail-falcor, avail_auth_2); levels count only under `log` / `legacy`, and under `enforce` only permissions decide (2026-11-04)
 
 ## Swept 2026-09-25 · Flight Levels adoption
 
