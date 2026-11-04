@@ -22,7 +22,7 @@ export const SHIPPED_AUTH_VOCABULARIES = {
         { value: 'view-page',              label: 'View Page',              implies: ['read'] },
     // `edit-page` confers `delete` as well: kind auth requires exactly `edit-page` to delete a page
     // (dms-server routes/dms/dataAuth.js:220, `op === 'delete'`), and that is shipped behaviour —
-    // `LEGACY_IMPLIES` has encoded it since 2026-10-29. This list omitted `delete`, so on an app
+    // encoded here since 2026-10-29. This list omitted `delete`, so on an app
     // whose vocabulary had been synced a grantee was refused a delete that kind auth allowed.
     // Found by the permissionDomain/vocabulary agreement test, 2026-10-30.
         { value: 'edit-page',              label: 'Edit Page Content',     implies: ['read', 'edit', 'delete'] },

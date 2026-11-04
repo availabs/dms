@@ -234,7 +234,9 @@ async function main() {
   // reconciled before, after, or without the backfill.
   if (opts.vocabulary) {
     const manifest = JSON.parse(require('fs').readFileSync(opts.vocabulary, 'utf8'));
-    const types = Object.keys(manifest);
+    // Keys starting with `:` are ROW KINDS, not pattern types — pass 1b claims them. A
+    // `pattern_type` is never empty and never starts with `:`, so the two cannot collide.
+    const types = Object.keys(manifest).filter(k => !k.startsWith(':'));
     console.log(`\n1. pattern vocabulary + childRefs ← ${opts.vocabulary}`);
     console.log(`     manifest declares: ${types.join(', ') || '(nothing)'}`);
 
@@ -312,11 +314,63 @@ async function main() {
     const pct = rows.length ? (100 * covered / rows.length).toFixed(1) : '100.0';
     console.log(`\n   vocabulary coverage  ${covered}/${rows.length}  (${pct}%)`);
     if (covered === rows.length && rows.length) {
-      console.log('   100% — this app no longer needs legacyVerbs.js. It can be DELETED once every');
-      console.log('   app being enforced reports the same.');
+      console.log('   100% — every pattern row here says what its verbs confer, which is what this');
+      console.log('   server requires: there is no fallback table any more (legacyVerbs.js, deleted');
+      console.log('   2026-11-03). Run scripts/convert-grant-vocabulary.js for who loses what below 100%.');
     } else {
-      console.log('   Below 100%: rows without a vocabulary still fall back to legacyVerbs.js, so the');
-      console.log('   shim cannot be deleted yet.');
+      console.log('   Below 100%: the rows listed above declare NOTHING, so their verbs confer nothing');
+      console.log('   structural — grants under them are matched by name only. Fix before enforcing.');
+    }
+  }
+
+  // ---- pass 1b: ROW-KIND declarations — the dmsEnv's vocabulary  (--sync-vocabulary)
+  //
+  // A dmsEnv is NOT a pattern, so pass 1 never reaches it, but it IS the row a source descends
+  // from (`{env}|{name}:source`) and therefore the row that must carry the vocabulary a source is
+  // judged against. Measured on `rowauth-test` 2026-11-02 before this existed: 71 of 71 sources
+  // already had `parent_id` pointing at their env, and 0 of 4 envs carried a vocabulary — so a
+  // source walking its real parents found nothing, which is the entire reason `rowSourceAuth`
+  // manufactures a chain that reaches sideways to a datasets pattern.
+  //
+  // Stamping it here is what lets that chain be deleted.
+  // See planning/tasks/current/row-auth-uda-unify-api.md.
+  if (opts.vocabulary) {
+    const manifest = JSON.parse(require('fs').readFileSync(opts.vocabulary, 'utf8'));
+    const kinds = Object.keys(manifest).filter(k => k.startsWith(':'));
+    console.log(`\n1b. row-kind vocabulary ← ${opts.vocabulary}`);
+    if (!kinds.length) {
+      console.log('     manifest declares no row kinds — re-emit with a newer emit-auth-vocabulary.mjs');
+    }
+    const intoAuth = caps.auth;
+    for (const kind of kinds) {
+      const want = manifest[kind].vocabulary;
+      const pick = intoAuth
+        ? (config.type === 'sqlite' ? `json_extract(auth, '$.vocabulary')` : `auth->'vocabulary'`)
+        : (config.type === 'sqlite' ? `json_extract(data, '$.authVocabulary')` : `data->'authVocabulary'`);
+      const rows = await q(
+        `SELECT id, type, ${pick} AS cur FROM ${T} WHERE app = $1 AND type LIKE $2`,
+        [opts.app, `%${kind}`]);
+      const writes = [];
+      let same = 0;
+      for (const r of rows) {
+        const cur = typeof r.cur === 'string' ? safeJson(r.cur) : r.cur;
+        if (cur && canonical(cur) === canonical(want)) { same++; continue; }
+        writes.push(r.id);
+      }
+      const verbs = (want.descendants || []).length;
+      const selfVerbs = (want.self || []).length;
+      console.log(`     ${kind}  rows ${rows.length}   current ${same}   to write ${writes.length}`);
+      console.log(`        declares ${verbs} descendant verb(s), ${selfVerbs} self verb(s)`
+        + (selfVerbs === 0 ? '  ← grants nothing about itself, by declaration' : ''));
+      if (opts.apply && writes.length) {
+        const col = intoAuth ? 'auth' : 'data';
+        const vKey = intoAuth ? 'vocabulary' : 'authVocabulary';
+        const set = config.type === 'sqlite'
+          ? `${col} = json_set(COALESCE(${col}, '{}'), '$.${vKey}', json($2))`
+          : `${col} = jsonb_set(COALESCE(${col}, '{}'::jsonb), '{${vKey}}', $2::jsonb)`;
+        for (const id of writes) await q(`UPDATE ${T} SET ${set} WHERE id = $1`, [id, JSON.stringify(want)]);
+        console.log(`        wrote ${writes.length} row(s) into ${col}.${vKey}`);
+      }
     }
   }
 
@@ -764,7 +818,7 @@ async function main() {
   // The backfill is a one-time event; the client is what has to KEEP `parent_id` true, across three
   // write paths and a sync. This asks the question the backfill cannot: not "what would I write",
   // but "does what is stored still agree with what the data says, and does every chain still reach
-  // a root". It writes nothing and exits 1 on any drift, so it can gate a DMS_ROW_AUTH_MODE flip
+  // a root". It writes nothing and exits 1 on any drift, so it can gate a DMS_AUTH_MODE flip
   // from CI rather than from someone remembering to look.
   //
   // Everything above has already run read-only (--verify-parents refuses --apply), so section A is
@@ -1183,7 +1237,7 @@ async function main() {
     console.log(`  parent_id set        ${set}/${total}  (${(100 * set / total).toFixed(1)}%)`);
     console.log(`  …resolves to a row   ${res}/${total}  (${(100 * res / total).toFixed(1)}%)`);
     console.log(`  site rows (roots)    ${roots}`);
-    console.log(`\nParent-resolution coverage gates any DMS_ROW_AUTH_MODE=enforce flip for this app:`);
+    console.log(`\nParent-resolution coverage gates any DMS_AUTH_MODE=enforce flip for this app:`);
     console.log(`a row private only by inheritance opens up when its parent cannot be resolved.`);
   } else if (!opts.apply && !opts.verify) {
     console.log('\nDRY RUN — nothing was written. Re-run with --apply.');

@@ -128,7 +128,8 @@ async function sendToProject(db, senderData, heading, message, project, site = {
   if (+(maxRows[0]?.max_level ?? -1) === -1) throw new Error(`Project ${project} was not found.`);
   // auth-users on the project's auth row; or the level rule: the sender's level ≥ the highest in the project
   const a = await authority(db, senderData, { ...site.body, project }, site.ctx, { perm: AUTH_USERS, minLevel: Infinity });
-  if (!a.byPermission && myAuthLevel < maxRows[0].max_level) {
+  // Auth levels are deprecated (2026-11-03): a grant on the DMS auth object is the only authority.
+  if (!a.byPermission) {
     throw new Error(`You do not have the authority to message project ${project}.`);
   }
 

@@ -563,7 +563,7 @@ function createSyncRoutes(dbName) {
 
         // The write checks, in its transaction, that the row is still what was judged (or still absent)
         // (controller.assertRowUnchanged); when it changed in between, read and judge again.
-        const expect = item.id == null || dataAuthMode() === 'legacy' ? null
+        const expect = item.id == null ? null
           : stored ? { type: stored.type, dataText: stored.data_text } : { missing: true };
 
         // Resolved before the transaction: both lookups are adapter queries, which must not run

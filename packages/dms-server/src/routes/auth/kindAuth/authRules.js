@@ -1,5 +1,6 @@
 'use strict';
-// Trial (DMS_DATA_AUTH_JUDGE=data): Alex's rules.cjs structure (auth-as-data, 2026-10-27), with the rules as agreed
+// KIND AUTH'S RULES, AS DATA — the only form they take since 2026-11-03.
+// Alex's rules.cjs structure (auth-as-data, 2026-10-27), with the rules as agreed
 // 2026-10-29 (hub auth-levels-to-permissions.md, "Decisions 2026-10-29"). To move into pattern data:
 // planning/tasks/current/pattern-auth-rules-as-data.md. `ifOwnerBlank` (2026-10-30) is ours, not Alex's: the
 // open-pattern rule (decision 5) needed a clause.
@@ -11,10 +12,10 @@ module.exports = {
       delete: ['*'],
       edit: {
         byKey: {
-          patterns:   ['create-pattern', 'delete-pattern'],
-          theme_refs: ['manage-themes'],
-          tenants:    ['manage-tenants'],
-          // the one clause that needs a different owner than the kind's
+          // `patterns`, `theme_refs` and `tenants` MOVED to the formats on 2026-11-03 — they are
+          // declared as `fields` on the verbs that govern them (admin.format.js), read through
+          // `verbsForFields`. What is left is the one clause a vocabulary cannot express: a field
+          // judged against a DIFFERENT owner's grants.
           dms_envs:   { anyOf: [
             { owner: 'datasets-grants', perms: ['create-source', 'edit-pattern'] },
             { owner: 'site-grants',     perms: ['*'] },
@@ -40,7 +41,7 @@ module.exports = {
       create: { owner: 'site-grants', perms: ['create-pattern'] },
       delete: ['delete-pattern'],
       edit: {
-        byKey:   { authPermissions: ['edit-pattern-permissions'] },
+        // MOVED to patternRow.domain.js on 2026-11-03 — see page's note.
         default: ['edit-pattern'],
       },
     },
@@ -54,15 +55,10 @@ module.exports = {
       create: ['create-page'],
       delete: ['edit-page'],
       edit: {
-        byKey: {
-          authPermissions: ['edit-page-permissions'],
-          filters:         ['edit-page', 'edit-page-params'],
-        },
-        when: [
-          { keyIn: ['sections', 'section_groups', 'dataSources'], perms: ['publish-page'] },
-          { key: 'published', valueNot: 'draft',                  perms: ['publish-page'] },
-        ],
-        default: ['edit-page'],            // every key not matched above
+        // The field rules MOVED to page.format.js on 2026-11-03 (`fields` / `when` on each verb);
+        // `verbsForFields` reads them for both implementations. `default` stays as the answer for a
+        // chain that declares nothing at all.
+        default: ['edit-page'],
       },
     },
     noChange: ['edit-page', 'publish-page', 'edit-page-permissions', 'edit-page-params'],
@@ -82,8 +78,7 @@ module.exports = {
       create: { owner: 'datasets-grants', perms: ['create-source'] },
       delete: ['delete-source'],
       edit: {
-        byKey:    { auth_permissions: ['edit-source-permissions'] },
-        onlyKeys: [{ keys: ['views'], perms: ['create-view', 'update-source', 'delete-source'] }],
+        // MOVED to dmsEnv.format.js on 2026-11-03 — see page's note.
         default:  ['update-source'],
       },
     },

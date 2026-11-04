@@ -3,6 +3,8 @@ import { lazyComponent } from '../../utils/lazyComponent'
 import TenantList from './components/tenantList'
 import { listPatternTypes } from '../registry'
 import { PATTERN_ROW_DOMAIN } from '../patternRow.domain'
+// The env owns sources and views — see ../dmsEnv.format.js for why they live there.
+import { source } from '../dmsEnv.format'
 
 // Code-split: the pattern list renders only on admin pages, but this format is
 // imported eagerly (adminConfig builds every site's root dmsConfig). Same
@@ -43,10 +45,31 @@ export const themeFormat = {
   ]
 }
 
+/**
+ * The dmsEnv — the row a SOURCE actually descends from (`{env}|{name}:source`), and therefore the
+ * row kind that declares what may be done to sources and views.
+ *
+ * ⚠ `permissionDomain.self` IS EMPTY ON PURPOSE, AND THAT IS THE DECLARATION. An env grants nothing
+ * about itself; it exists to name a place sources live and to carry the vocabulary they are judged
+ * against. Nothing in the server knows an env is special — it resolves this level like any other,
+ * finds no `self` verbs and no grants, and contributes nothing. Change that decision here, in data,
+ * not with a branch in the decider.
+ *
+ * `create-source` is NOT an exception to that: a verb governing what may be made UNDER the env is a
+ * descendants verb by definition, so it sits in the list below and `self` stays empty.
+ *
+ * `pgEnv` names an EXTERNAL env (`hazmit_dama`, `npmrds2`) when this row represents one. External
+ * sources have no DMS row of their own and never will — but their env does, which is what lets both
+ * populations share one vocabulary reached the same way.
+ *
+ * See planning/tasks/current/row-auth-uda-unify-api.md, Phase 1 and Phase 2.
+ */
 export const dmsEnvFormat = {
   app: 'admin',
   type: 'dmsenv',
-  registerFormats: [],
+  // Sources (and through them, views) are this env's children — a real child declaration, not the
+  // json blob this used to be. `deriveDmsEnvVocabulary` walks this tree for the descendants scope.
+  registerFormats: [source],
   attributes: [
     {
       key: "name",
@@ -54,9 +77,23 @@ export const dmsEnvFormat = {
       required: true
     },
     {
+      key: "pgEnv",
+      type: "text",
+      required: false
+    },
+    {
       key: "sources",
+      type: 'dms-format',
+      isArray: true,
+      format: 'datasets+source',
+    },
+    // The env's OWN grants. The domain is empty: see the note above.
+    {
+      key: "authPermissions",
       type: "json",
-      default: []
+      required: false,
+      default: {},
+      permissionDomain: [],
     }
   ]
 }
@@ -254,10 +291,16 @@ const patternAdminFormat = {
       required: false,
       default: [],
       permissionDomain: [
+        // `fields`: which attributes each verb governs — see page.format.js for the full note.
+        // `manage-themes` and `manage-tenants` are declared on the theme and tenant formats too,
+        // where they govern those ROWS. Here they claim the SITE's own attributes: the list of
+        // themes a site uses and the list of tenants it has. Same verb, two scopes, one meaning.
         { label: '*',                 value: '*' },
         { label: 'View Pattern List', value: 'view-pattern-list', implies: ['read'] },
-        { label: 'Create Pattern',    value: 'create-pattern',    implies: ['read', 'create'] },
-        { label: 'Delete Pattern',    value: 'delete-pattern',    implies: ['read', 'delete'] },
+        { label: 'Create Pattern',    value: 'create-pattern',    implies: ['read', 'create'], fields: ['patterns'] },
+        { label: 'Delete Pattern',    value: 'delete-pattern',    implies: ['read', 'delete'], fields: ['patterns'] },
+        { label: 'Manage Themes',     value: 'manage-themes',     implies: ['read', 'edit'], fields: ['theme_refs'] },
+        { label: 'Manage Tenants',    value: 'manage-tenants',    implies: ['read', 'edit'], fields: ['tenants'] },
       ],
     }
   ]

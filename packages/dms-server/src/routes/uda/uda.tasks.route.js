@@ -18,12 +18,16 @@ const {
   hardDeleteSource,
 } = require("./uda.tasks.controller");
 const { getDb } = require("../../db");
-const { isUserAuthedForSource, parsePatternRef, assertPatternPermission, readerAllowed } = require("../auth/kindAuth/sourceAuth");
+// Request plumbing is implementation-independent and lives in the shared layer.
+const { parsePatternRef, readerAllowed } = require("../auth/requestUser");
+const { assertCan } = require("../auth/sourceGuards");
+// The one genuine DECISION this route asks for; it moves behind the switch at Phase 3.
+const { isUserAuthedForSource } = require('../auth/sourceGuards');
 
 /**
  * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and
  * `delete-source` on every source the delete touches (a cascade reaches the sources of a run's
- * outputs). The decision follows DMS_SOURCE_AUTH_MODE (see sourceAuth.js): in `legacy` / `log`, DMS
+ * outputs). The decision follows DMS_AUTH_MODE (see sourceAuth.js): under `log`, DMS
  * internal sources (env `app+instance`) and sources the check can't read get the sign-in check only;
  * `enforce` checks them too. `pattern` (opts.pattern, { app, id }) brings the datasets pattern's grants.
  */
@@ -45,7 +49,7 @@ function deleteAuthorizer(env, router, pattern) {
 // A refused or failed delete comes back as an error atom; DeleteRefused also carries its reason.
 const deleteError = (err) => ({ error: err.message, ...(err.details ? { reason: err.details.reason, details: err.details } : {}) });
 
-// Task and event reads need a signed-in user (readerAllowed, under DMS_SOURCE_AUTH_MODE); refused reads
+// Task and event reads need a signed-in user (readerAllowed, under DMS_AUTH_MODE); refused reads
 // return nothing. Per-source view-source comes with read visibility (permissions-ds-read-visibility).
 const TASK_ATTRS = [
   "task_id", "host_id", "source_id", "worker_path", "status", "progress",
@@ -267,7 +271,7 @@ module.exports = [
       const result = [];
       const envs = Object.keys(jsonGraph.uda || {});
       for (const env of envs) {
-        await assertPatternPermission(this, env, "edit-pattern", null);
+        await assertCan(this, { env, perms: 'edit-pattern', pattern: null });
         const value = jsonGraph.uda[env].settings;
         await setSettings(env, value);
         result.push({ path: ["uda", env, "settings"], value });
@@ -283,7 +287,7 @@ module.exports = [
     route: `uda.settings.update`,
     call: async function (callPath, args) {
       const [env, value, pattern] = args;
-      await assertPatternPermission(this, env, "edit-pattern", parsePatternRef(pattern));
+      await assertCan(this, { env, perms: 'edit-pattern', pattern: parsePatternRef(pattern) });
       await setSettings(env, value);
       return [{ path: ["uda", env, "settings"], value }];
     },

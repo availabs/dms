@@ -32,12 +32,12 @@ const anon = { id: null, authed: false, groups: [] };
 const appAdmin = { id: 'u9', authed: true, groups: ['prod Admin'] };
 
 const withMode = async (mode, fn) => {
-    const prev = process.env.DMS_ROW_AUTH_MODE;
+    const prev = process.env.DMS_AUTH_MODE;
     const warn = console.warn; const lines = [];
-    process.env.DMS_ROW_AUTH_MODE = mode;
+    process.env.DMS_AUTH_MODE = mode;
     console.warn = (m) => lines.push(String(m));
     try { return await fn(lines); }
-    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_ROW_AUTH_MODE; else process.env.DMS_ROW_AUTH_MODE = prev; }
+    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
 };
 
 section('rule 5 — an unstated chain is read-allowed, write-denied');
@@ -76,10 +76,6 @@ t('anonymous gets only what public holds', () => withMode('enforce', async () =>
 }));
 
 section('rollout modes');
-t('legacy checks nothing', () => withMode('legacy', async (lines) => {
-    assert.strictEqual((await gate(ROWS, nobody).judgeOne(ROWS[4], 'edit')).allow, true);
-    assert.strictEqual(lines.length, 0, 'and logs nothing');
-}));
 t('log allows but writes a would-deny line', () => withMode('log', async (lines) => {
     const v = await gate(ROWS, nobody).judgeOne(ROWS[4], 'edit');
     assert.strictEqual(v.allow, true);
@@ -91,9 +87,9 @@ t('enforce refuses', () => withMode('enforce', async (lines) => {
     assert.strictEqual(lines.length, 0, 'enforce does not also log');
 }));
 t('default mode is log', () => {
-    const prev = process.env.DMS_ROW_AUTH_MODE; delete process.env.DMS_ROW_AUTH_MODE;
+    const prev = process.env.DMS_AUTH_MODE; delete process.env.DMS_AUTH_MODE;
     try { assert.strictEqual(rowAuthMode(), 'log'); }
-    finally { if (prev !== undefined) process.env.DMS_ROW_AUTH_MODE = prev; }
+    finally { if (prev !== undefined) process.env.DMS_AUTH_MODE = prev; }
 });
 t('an unknown mode falls back to log', () => withMode('banana', () => {
     assert.strictEqual(rowAuthMode(), 'log');
@@ -145,25 +141,29 @@ t('judging many rows returns a verdict for each', () => withMode('enforce', asyn
         authRowsByIds: async () => [],
         authContainers: async () => [],
     };
-    const gateFor = (user) => createGate({ controller, app: 'myapp', user, subdomain: '', mode: 'enforce' });
+    // `createGate` lost its per-call `mode` override with the flag collapse (2026-11-03) — there is
+    // one mode now and it is read from the environment, so these cases set it the way every other
+    // suite does.
+    const gateFor = (user) => createGate({ controller, app: 'myapp', user, subdomain: '' });
+    const enforced = (fn) => withMode('enforce', fn);
 
-    t('a declaring row is readable with no session, despite grants that exclude the caller', async () => {
+    t('a declaring row is readable with no session, despite grants that exclude the caller', () => enforced(async () => {
         const d = await gateFor(anon).judgeOne(row(true, { Admins: ['read'] }), 'read');
         assert.strictEqual(d.allow, true);
         assert.match(d.reason, /publicRead/);
-    });
-    t('the same row WITHOUT the declaration is refused', async () => {
+    }));
+    t('the same row WITHOUT the declaration is refused', () => enforced(async () => {
         const d = await gateFor(anon).judgeOne(row(undefined, { Admins: ['read'] }), 'read');
         assert.strictEqual(d.allow, false);
-    });
-    t('publicRead does not confer WRITES — it says "everyone may see", not "may change"', async () => {
+    }));
+    t('publicRead does not confer WRITES — it says "everyone may see", not "may change"', () => enforced(async () => {
         for (const verb of ['edit', 'create', 'delete', 'grant']) {
             const d = await gateFor(anon).judgeOne(row(true, { Admins: ['read'] }), verb);
             assert.strictEqual(d.allow, false, `${verb} must still be refused`);
         }
-    });
-    t('only `true` counts — a truthy value is not a declaration', async () => {
+    }));
+    t('only `true` counts — a truthy value is not a declaration', () => enforced(async () => {
         const r = { id: 7, type: 'prod|x:pattern', auth: { vocabulary: { publicRead: 'yes' }, groups: { Admins: ['read'] } } };
         assert.strictEqual((await gateFor(anon).judgeOne(r, 'read')).allow, false);
-    });
+    }));
 }

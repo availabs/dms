@@ -75,6 +75,25 @@ export function validateAuthVocabulary(vocabulary, label = 'authVocabulary') {
             if (!Array.isArray(entry.implies)) throw new Error(`${at}.implies must be an array (use [] for a verb with no structural effect)`)
             const bad = entry.implies.filter(v => !STRUCTURAL_VERBS.includes(v))
             if (bad.length) throw new Error(`${at}.implies has non-structural verb(s) ${bad.join(', ')} — expected ${STRUCTURAL_VERBS.join(' / ')}`)
+            // WHICH FIELDS THIS VERB GOVERNS. A write that touches one of them requires this verb;
+            // `'*'` claims every field no other verb named, which is the kind's default edit verb.
+            // Without this, "changing `authPermissions` needs `edit-page-permissions`" has to live
+            // in server code — which is the hardcoding `src/dms/CLAUDE.md` names as the live case.
+            if (entry.fields !== undefined) {
+                if (!Array.isArray(entry.fields)) throw new Error(`${at}.fields must be an array of field names`)
+                const badF = entry.fields.filter(f => typeof f !== 'string' || !f)
+                if (badF.length) throw new Error(`${at}.fields must hold non-empty strings`)
+            }
+            // A CONDITIONAL field claim: `published` is a publish only when its new value is not
+            // `draft`. The one value-predicate the vocabulary carries — see the task's Phase 1.
+            if (entry.when !== undefined) {
+                if (!Array.isArray(entry.when)) throw new Error(`${at}.when must be an array of conditions`)
+                entry.when.forEach((c, ci) => {
+                    if (!c || typeof c !== 'object') throw new Error(`${at}.when[${ci}] must be an object`)
+                    if (typeof c.field !== 'string' || !c.field) throw new Error(`${at}.when[${ci}].field must be a non-empty string`)
+                    if (!('notValue' in c)) throw new Error(`${at}.when[${ci}] needs a notValue — the only predicate form`)
+                })
+            }
             // A verb may appear in both buckets, but it must mean the same thing in each: one
             // string in a grant cannot confer `edit` on the row and `read` on its children.
             const prior = seen.get(entry.value)

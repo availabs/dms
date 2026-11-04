@@ -247,7 +247,6 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
               name: newName,
               pattern_type: value.pattern_type,
               authPermissions: value.authPermissions,
-              auth_level: value.auth_level,
               filters: value.filters,
               theme: value.theme,
               additionalSectionAttributes: value.additionalSectionAttributes

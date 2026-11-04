@@ -20,7 +20,8 @@ const Busboy = require('busboy');
 const storage = require('../storage');
 const { sharpAvailable, getSharp } = require('./sharp');
 const { nameToSlug, getInstance } = require('../../db/type-utils');
-const { authMode, requestPatternRef, requestUserIdWarnBody } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requestPatternRef, requestUserIdWarnBody } = require('../../routes/auth/requestUser');
+const { authMode } = require('../../routes/auth/settings');
 const accessLog = require('../../access-log');
 const { authorizePublish } = require('./auth');
 

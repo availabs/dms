@@ -117,17 +117,18 @@ async function main() {
   await t('auth-users without naming the auth row → level decides → refused', async () => {
     await refused(userH.getUsersByProject(db, { token: tok['mgr@t'], project: 'siteA' }, ctx));
   });
-  await t('level 10 alone (transition) passes; everything manageable', async () => {
-    const { users } = await userH.getUsersByProject(db, { token: tok['admin@t'], project: 'siteA' }, ctx);
-    assert.ok(users.find(u => u.email === 'admin@t').manageable);
-    assert.ok(users.find(u => u.email === 'victim@t').manageable);
+  // AUTH LEVELS ARE DEPRECATED (owner, 2026-11-03). A level alone used to pass this route —
+  // `authority()` reported `byLevel` and the handler accepted it. Nothing reads a level now, so the
+  // same caller is refused unless a GRANT on the project's auth object says otherwise.
+  await t('a level alone no longer passes — the grant decides', async () => {
+    await refused(userH.getUsersByProject(db, { token: tok['admin@t'], project: 'siteA' }, ctx));
   });
   const inMode = async (mode, fn) => {
-    const prev = process.env.DMS_AUTH_ROW_MODE, warn = console.warn;
-    process.env.DMS_AUTH_ROW_MODE = mode; console.warn = () => {};
+    const prev = process.env.DMS_AUTH_MODE, warn = console.warn;
+    process.env.DMS_AUTH_MODE = mode; console.warn = () => {};
     try { await fn(); } finally {
       console.warn = warn;
-      if (prev === undefined) delete process.env.DMS_AUTH_ROW_MODE; else process.env.DMS_AUTH_ROW_MODE = prev;
+      if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev;
     }
   };
   await t('open auth row, log: a project member passes, a member of another project does not', async () => inMode('log', async () => {
@@ -152,10 +153,11 @@ async function main() {
     }
     await refused(userH.removeFromGroup(db, { token: tok['mgr@t'], user_email: 'admin@t', group_name: 'siteA Admin', ...A }, ctx));
   });
-  await t('no permission, level 0 → refused; level 5 (transition) → plain group ok, Admin refused', async () => {
+  await t('no grant → refused, whatever the level says', async () => {
     await refused(userH.assignToGroup(db, { token: tok['viewer@t'], user_email: 'victim@t', group_name: 'Viewers', ...A }, ctx));
-    await userH.assignToGroup(db, { token: tok['lvl5@t'], user_email: 'victim@t', group_name: 'Managers', ...A }, ctx);
-    await userH.removeFromGroup(db, { token: tok['lvl5@t'], user_email: 'victim@t', group_name: 'Managers', ...A }, ctx);
+    // `lvl5@t` holds level 5 and no grant. That used to carry group management (the `byLevel`
+    // branch of checkGroupAuthority); it carries nothing now.
+    await refused(userH.assignToGroup(db, { token: tok['lvl5@t'], user_email: 'victim@t', group_name: 'Managers', ...A }, ctx));
     await refused(userH.assignToGroup(db, { token: tok['lvl5@t'], user_email: 'victim@t', group_name: 'siteA Admin', ...A }, ctx));
   });
   await t('a group shared with siteB: siteA\'s grants alone decide', async () => {

@@ -205,7 +205,7 @@ app.use('/graph', (req, res, next) => {
 });
 
 const { getSubdomain } = require('./utils/subdomain');
-const { requestPatternRef } = require('./routes/auth/kindAuth/sourceAuth');
+const { requestPatternRef } = require('./routes/auth/requestUser');
 
 app.use(
   '/graph',
@@ -279,18 +279,19 @@ async function setupAndListen() {
   const metadata = require('./dama/upload/metadata');
   const lineage = require('./dama/lineage');
   const damaDelete = require('./dama/delete');
-  const { requireUser, requireSourcePermission, requirePatternPermission, requestUserId } = require('./routes/auth/kindAuth/sourceAuth');
+  const { requireUser, requestUserId } = require('./routes/auth/requestUser');
+  const { requireCan } = require('./routes/auth/sourceGuards');
   const { authorizeViewAction } = require('./dama/upload/auth');
   const { getDb, loadConfig } = require('./db');
   // Plugin writes need a signed-in user (writeGate, mounted per plugin) and then the route's own permission.
   // Each helper answers the request itself (401 / 403) and returns null when the caller is refused.
   // For routes that used to answer anyone: authorizePublish(req, res, sourceId) (new source: create-source
   // on the named pattern; new version: create-view / update-source) and authorizeSourceWrite(req, res,
-  // { sourceId, viewId }, perms) — both follow DMS_SOURCE_AUTH_MODE (dama/datatypes/auth.js).
-  // Strict ones (login always): requireSourcePermission(req, res, sourceId, perms) reads the pgEnv from
+  // { sourceId, viewId }, perms) — both follow DMS_AUTH_MODE (dama/datatypes/auth.js).
+  // Strict ones (login always): requireCan(req, res, { source: sourceId, perms: perms }) reads the pgEnv from
   // req.params.pgEnv; authorizeViewAction(req, res, viewId, perms, bodySourceId) checks the view's own source.
   // holdsSourcePermission(req, sourceId, perms) answers nothing: for what a reply carries (a secret only an
-  // editor sees), judged as reads are (DMS_READ_AUTH_MODE).
+  // editor sees), judged as reads are (DMS_AUTH_MODE).
   mountDatatypeRoutes(app, {
     queueTask: tasks.queueTask,
     getTaskStatus: tasks.getTaskStatus,
@@ -303,8 +304,9 @@ async function setupAndListen() {
     getViewLineage: lineage.getViewLineage,
     getSourceLineage: lineage.getSourceLineage,
     requireUser,
-    requireSourcePermission,
-    requirePatternPermission,
+    // ONE guard per transport since 2026-11-03: name the subject with `source` or `pattern`.
+    // `requireSourcePermission` / `requirePatternPermission` were the same question twice.
+    requireCan,
     authorizeViewAction,
     ...require('./dama/datatypes/auth').pluginHelpers,
     requestUserId,

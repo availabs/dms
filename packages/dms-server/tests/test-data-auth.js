@@ -19,14 +19,14 @@ const t = async (name, fn) => {
     catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack}`); }
 };
 
-// Runs fn under DMS_DATA_AUTH_MODE=mode, collecting `[data-auth] would-deny` lines.
+// Runs fn under DMS_AUTH_MODE=mode, collecting `[data-auth] would-deny` lines.
 async function withMode(mode, fn) {
-    const prev = process.env.DMS_DATA_AUTH_MODE;
+    const prev = process.env.DMS_AUTH_MODE;
     const warn = console.warn; const warned = [];
-    process.env.DMS_DATA_AUTH_MODE = mode;
+    process.env.DMS_AUTH_MODE = mode;
     console.warn = (...a) => { const s = a.join(' '); if (s.includes('would-deny')) warned.push(s); else warn(...a); };
     try { return await fn(warned); }
-    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_DATA_AUTH_MODE; else process.env.DMS_DATA_AUTH_MODE = prev; }
+    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
 }
 
 async function outcome(promise) {
@@ -84,26 +84,111 @@ async function run() {
     const paramsUser = u(19, ['Params']);
     const srcPerms = u(20, ['SrcPerms']);
     const lister = u(21, ['Listers']);
+    const tenanter = u(22, ['Tenanters']);
     const graphs = {};
     const as = (user) => graphs[user ? user.id : 'anon'] || (graphs[user ? user.id : 'anon'] = createTestGraph(DMS_DB, { user }));
     const call = (user, path, args) => as(user).callAsync(path, args);
     const edit = (user, id, data, type) => call(user, ['dms', 'data', 'edit'], type ? [APP, id, data, type] : [APP, id, data]);
     const create = (user, type, data = {}) => call(user, ['dms', 'data', 'create'], [APP, type, data]);
 
+    // ---- what each pattern's verbs CONFER, declared as a real app declares it.
+    //
+    // Kind auth never reads these keys — it matches permission strings by name — so they change
+    // nothing about this suite, which stays KIND auth's contract. They are here for the
+    // DIFFERENTIAL (test-row-auth-diff.js), which runs this same file against the ROW judge: that
+    // judge asks structural questions (`read`, `edit`, `create`, `delete`, `grant`) and a verb
+    // confers one only where a pattern says so. Until 2026-11-03 a hardcoded table (`legacyVerbs.js`)
+    // answered for every undeclared row; with it deleted, fixtures that declare nothing would make
+    // the row judge refuse everything and the differential would measure the fixtures, not the judge.
+    //
+    // These mirror what `scripts/emit-auth-vocabulary.mjs` derives from the real formats.
+    const PATTERN_SELF = [
+        { value: 'view-pattern',             implies: ['read'] },
+        { value: 'edit-pattern',             implies: ['read', 'edit'], fields: ['*'] },
+        { value: 'edit-pattern-permissions', implies: ['read', 'edit', 'grant'], fields: ['authPermissions'] },
+    ];
+    // `fields` says WHICH ATTRIBUTES each verb governs — the same claims
+    // `scripts/emit-auth-vocabulary.mjs` derives from page.format.js. `'*'` is every field no other
+    // verb named. Before 2026-11-03 these lived in dms-server as `byKey` / `when` / `onlyKeys`.
+    const PAGE_VOCAB = {
+        self: PATTERN_SELF,
+        descendants: [
+            { value: 'view-page',             implies: ['read'] },
+            { value: 'edit-page',             implies: ['read', 'edit', 'delete'], fields: ['*', 'filters'] },
+            { value: 'publish-page',          implies: ['read', 'edit'],
+              fields: ['sections', 'section_groups', 'dataSources'],
+              when:   [{ field: 'published', notValue: 'draft' }] },
+            { value: 'create-page',           implies: ['read', 'create'] },
+            { value: 'edit-page-permissions', implies: ['read', 'edit', 'grant'], fields: ['authPermissions'] },
+            { value: 'edit-page-params',      implies: ['read', 'edit'], fields: ['filters'] },
+        ],
+    };
+    const ADMIN_VOCAB = {
+        self: PATTERN_SELF,
+        descendants: [
+            { value: 'manage-themes',   implies: ['read', 'edit'] },
+            { value: 'manage-tenants',  implies: ['read', 'edit'] },
+            { value: 'create-pattern',  implies: ['read', 'create'] },
+            { value: 'delete-pattern',  implies: ['read', 'delete'] },
+            { value: 'view-pattern-list', implies: ['read'] },
+        ],
+    };
+    // The SITE row's own verbs, as `emit-auth-vocabulary.mjs` derives them for `:site`. The fields
+    // they claim are the site row's: its pattern list, its theme refs, its tenants.
+    const SITE_SELF = [
+        { value: 'view-pattern-list', implies: ['read'] },
+        { value: 'create-pattern',  implies: ['read', 'create'], fields: ['patterns'] },
+        { value: 'delete-pattern',  implies: ['read', 'delete'], fields: ['patterns'] },
+        { value: 'manage-themes',   implies: ['read', 'edit'], fields: ['theme_refs'] },
+        { value: 'manage-tenants',  implies: ['read', 'edit'], fields: ['tenants'] },
+    ];
+    const DATASETS_DESCENDANTS = [
+        { value: 'view-source',             implies: ['read'] },
+        { value: 'view-sources',            implies: ['read'] },
+        { value: 'update-source',           implies: ['read', 'edit'], fields: ['*', 'views'] },
+        { value: 'edit-source-data',        implies: ['read', 'create', 'edit', 'delete'] },
+        { value: 'edit-source-permissions', implies: ['read', 'edit', 'grant'], fields: ['auth_permissions'] },
+        { value: 'create-source',           implies: ['read', 'create'] },
+        { value: 'create-view',             implies: ['read', 'create'], fields: ['views'] },
+        { value: 'delete-source',           implies: ['read', 'delete'], fields: ['views'] },
+        { value: 'download-source',         implies: [] },
+    ];
+    const DATASETS_VOCAB = { self: PATTERN_SELF, descendants: DATASETS_DESCENDANTS };
+
     // ---- fixtures
-    const siteRow = await insert('site:site', { site_name: 'Site', patterns: [] });
+    // SITE-LEVEL GRANTS LIVE ON THE SITE ROW (unified-auth-api.md Phase 4). Kind auth reads them
+    // off the ADMIN PATTERN row, which is a sibling of a tenant or dmsenv row rather than an
+    // ancestor — so row auth, which walks parentage, could never reach them and refused what kind
+    // auth allowed. Writing them here changes nothing for kind auth (it still reads the pattern)
+    // and gives row auth a chain that contains them.
+    const SITE_GRANTS = { groups: {
+        Themers: ['manage-themes'], Creators: ['create-pattern'],
+        Listers: ['view-pattern-list'], Tenanters: ['manage-tenants'],
+    } };
+    const siteRow = await insert('site:site', {
+        site_name: 'Site', patterns: [], authPermissions: SITE_GRANTS,
+        // The site row is the ROOT of the chain, so the verbs that govern it are its OWN — `self`.
+        // They are the admin format's site-level verbs, which `--sync-vocabulary` stamps onto
+        // `:site` rows the same way it stamps `:dmsenv`.
+        authVocabulary: { self: SITE_SELF, descendants: ADMIN_VOCAB.descendants },
+    });
     await insert('site|admin:pattern', {
-        pattern_type: 'admin',
-        authPermissions: { groups: { Themers: ['manage-themes'], Creators: ['create-pattern'], Listers: ['view-pattern-list'] } },
+        pattern_type: 'admin', authVocabulary: ADMIN_VOCAB,
+        authPermissions: { groups: {
+            Themers: ['manage-themes'], Creators: ['create-pattern'], Listers: ['view-pattern-list'],
+            // `manage-tenants` is the one site verb no other group here holds, so without this the
+            // `tenants` key and the `tenant` kind could only ever be tested as refusals.
+            Tenanters: ['manage-tenants'],
+        } },
     });
     const docs = await insert('site|docs:pattern', {
-        pattern_type: 'page', name: 'Docs',
+        pattern_type: 'page', name: 'Docs', authVocabulary: PAGE_VOCAB,
         authPermissions: { groups: {
             public: ['view-page'], Editors: ['edit-page'], Publishers: ['edit-page', 'publish-page'],
             PageAdmins: ['edit-page-permissions', 'create-page'], PatEditors: ['edit-pattern'], Params: ['edit-page-params'],
         } },
     });
-    const open = await insert('site|open:pattern', { pattern_type: 'page', name: 'Open' });
+    const open = await insert('site|open:pattern', { pattern_type: 'page', name: 'Open', authVocabulary: PAGE_VOCAB });
     const docsPage = await insert('docs|page', { title: 'A page' });
     const docsPage2 = await insert('docs|page', { title: 'Doomed' });
     const openPage = await insert('open|page', { title: 'Open page' });
@@ -114,9 +199,13 @@ async function run() {
         name: 'tickets', type: 'internal_table', views: [],
         auth_permissions: { groups: { public: ['edit-source-data'] } },
     });
-    const envRow = await insert('site|env1:dmsenv', { sources: [{ id: roads }, { id: tickets }] });
+    // The env declares for the sources beneath it and grants nothing — admin.format.js dmsEnvFormat.
+    const envRow = await insert('site|env1:dmsenv', {
+        sources: [{ id: roads }, { id: tickets }],
+        authVocabulary: { descendants: DATASETS_DESCENDANTS },
+    });
     await insert('site|ds:pattern', {
-        pattern_type: 'datasets', dmsEnvId: envRow,
+        pattern_type: 'datasets', dmsEnvId: envRow, authVocabulary: DATASETS_VOCAB,
         authPermissions: { groups: {
             DsEditors: ['update-source', 'edit-source-data', 'create-view', 'create-source'],
             SrcPerms: ['edit-source-permissions'],
@@ -124,7 +213,7 @@ async function run() {
     });
     const ROAD_ROWS = `roads|${viewId}:data`;
     const TICKET_ROWS = `tickets|1:data`;
-    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser, srcPerms, lister]) await as(user).ready;
+    for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser, srcPerms, lister, tenanter]) await as(user).ready;
 
     console.log('\npages and components (enforce):');
     await t('a page edit needs edit-page; signed-out and no-grant users are refused', () => withMode('enforce', async () => {
@@ -238,6 +327,53 @@ async function run() {
         await allowed(edit(themer, siteRow, { theme_refs: [{ id: 1 }] }));
         await refused(edit(creator, siteRow, { theme_refs: [{ id: 2 }] }));
     }));
+    // ---- KEY-LEVEL (attribute) RULES, pinned one clause at a time.
+    //
+    // Kind auth's rules are DATA (authRules.js) applied by an interpreter (authJudge.js). Before
+    // 2026-11-03 the same rules were also written out as a hand-written `switch` in dataAuth.js,
+    // and the two were selected between by `DMS_DATA_AUTH_JUDGE`. The switch is gone — so every
+    // clause that says "this KEY needs that permission" now has exactly one implementation, and
+    // the cases below are what holds it to the behaviour the switch had. Each was verified to pass
+    // against BOTH judges before the switch was removed.
+    //
+    // The clauses already covered elsewhere in this file: page authPermissions / filters / sections
+    // / published-not-draft, pattern authPermissions, site patterns + theme_refs, source
+    // auth_permissions. These are the remainder.
+    await t('page section_groups and dataSources are publishes too, not ordinary edits', () => withMode('enforce', async () => {
+        // `sections` is covered above; these are the other two keys in the same `keyIn` clause, and
+        // nothing pinned them individually.
+        await refused(edit(editor, docsPage, { section_groups: [{ name: 'g1' }] }));
+        await allowed(edit(publisher, docsPage, { section_groups: [{ name: 'g1' }] }));
+        await refused(edit(editor, docsPage, { dataSources: [{ id: 1 }] }));
+        await allowed(edit(publisher, docsPage, { dataSources: [{ id: 1 }] }));
+    }));
+    await t('site tenants need manage-tenants', () => withMode('enforce', async () => {
+        await refused(edit(themer, siteRow, { tenants: [{ name: 'acme' }] }));
+        await allowed(edit(tenanter, siteRow, { tenants: [{ name: 'acme' }] }));
+    }));
+    await t('site dms_envs take DATASETS grants, not site `*` — the one cross-owner key', () => withMode('enforce', async () => {
+        // The only clause in the rules that reads a different owner for one key: registering a
+        // dmsEnv on the site row is a datasets action (create-source / edit-pattern), with site `*`
+        // as the alternative. A site editor without either is refused.
+        await refused(edit(themer, siteRow, { dms_envs: [{ id: 1 }] }));
+        await allowed(edit(dsEditor, siteRow, { dms_envs: [{ id: 1 }] }));
+    }));
+    await t('a tenant row needs manage-tenants', () => withMode('enforce', async () => {
+        await refused(create(themer, 'site|acme:tenant', { name: 'acme' }));
+        await allowed(create(tenanter, 'site|acme:tenant', { name: 'acme' }));
+    }));
+    await t('a dmsenv row needs create-source, delete-source or edit-pattern on the datasets pattern', () => withMode('enforce', async () => {
+        await refused(create(srcPerms, 'site|env2:dmsenv', { sources: [] }));
+        await allowed(create(dsEditor, 'site|env2:dmsenv', { sources: [] }));
+    }));
+    await t('a source edit touching ONLY `views` widens to create-view / delete-source', () => withMode('enforce', async () => {
+        // `onlyKeys`: adding or removing a version through the source's `views` list is not an
+        // ordinary source edit, so create-view alone is enough — but only when nothing else changed.
+        const { data } = await dataOf(roads);
+        await refused(edit(srcPerms, roads, { views: [...(data.views || []), { id: 999 }] }));
+        await allowed(edit(dsEditor, roads, { views: [...(data.views || []), { id: 999 }] }));
+    }));
+
     await t('pattern editor saves the row with its unchanged authPermissions: edit-pattern is enough', () => withMode('enforce', async () => {
         const { data } = await dataOf(docs);
         await allowed(edit(patEditor, docs, { ...data, name: 'Docs 3' }));
@@ -491,10 +627,6 @@ async function run() {
     await t('log is silent for a granted write', () => withMode('log', async (warned) => {
         await allowed(edit(editor, docsPage, { title: 'ok' }));
         assert.strictEqual(warned.length, 0, warned.join('\n'));
-    }));
-    await t('legacy checks nothing', () => withMode('legacy', async (warned) => {
-        await allowed(create(anon, 'docs|page', { title: 'anon page' }));
-        assert.strictEqual(warned.length, 0);
     }));
 }
 

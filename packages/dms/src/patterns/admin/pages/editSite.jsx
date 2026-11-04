@@ -331,7 +331,6 @@ function PatternList({
                     config: d.row.config,
                     name: newName,
                     pattern_type: d.row.pattern_type,
-                    auth_level: d.row.auth_level,
                     filters: d.row.filters,
                     theme: d.row.theme,
                   };
@@ -671,7 +670,6 @@ function PatternList({
 										config: editingItem?.config,
 										name: newName,
 										pattern_type: editingItem?.pattern_type,
-										auth_level: editingItem?.auth_level,
 										filters: editingItem?.filters,
 										theme: editingItem?.theme,
 									};

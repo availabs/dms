@@ -117,10 +117,12 @@ t('private source (public:[]) hides from anon', () => {
 // ------------------------------------------------------------------------------------------------
 // Part 2: resolver against real sqlite DBs
 // ------------------------------------------------------------------------------------------------
-const {
-    decideSource, decidePattern, isUserAuthedForSource, isUserAuthedForPattern,
-    requestUserId, requestUserIdWarnBody, requestPatternRef,
-} = require('../src/routes/auth/kindAuth/sourceAuth');
+const { decideSource, decidePattern } = require('../src/routes/auth/kindAuth/sourceAuth');
+// The mode wrapper and the guards are shared — they apply the same rule around whichever
+// implementation decides, so they live beside the switch rather than inside one of its arms.
+const { isUserAuthedForSource, isUserAuthedForPattern } = require('../src/routes/auth/sourceGuards');
+// Who is asking is a different question from what they may do (2026-11-03).
+const { requestUserId, requestUserIdWarnBody, requestPatternRef } = require('../src/routes/auth/requestUser');
 const { dmsMainTable } = require('../src/routes/uda/utils');
 
 const ta = async (name, fn) => { try { await fn(); pass++; console.log(`  ✓ ${name}`); } catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack}`); } };
@@ -235,18 +237,14 @@ async function dbTests() {
     await ta('no pattern named → deny', async () =>
         assert.strictEqual((await decidePattern({ patternRef: null, reqPermissions: ['create-source'], user: dhses })).allow, false));
 
-    console.log('\nDMS_SOURCE_AUTH_MODE:');
+    console.log('\nDMS_AUTH_MODE (log | enforce — ../src/routes/auth/mode.js):');
     const withMode = async (mode, fn) => {
-        const prev = process.env.DMS_SOURCE_AUTH_MODE;
-        process.env.DMS_SOURCE_AUTH_MODE = mode;
+        const prev = process.env.DMS_AUTH_MODE;
+        process.env.DMS_AUTH_MODE = mode;
         const warn = console.warn; const warned = [];
         console.warn = (...a) => warned.push(a.join(' '));
-        try { return await fn(warned); } finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_SOURCE_AUTH_MODE; else process.env.DMS_SOURCE_AUTH_MODE = prev; }
+        try { return await fn(warned); } finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
     };
-    await ta('legacy: DMS env allows, nothing logged', async () => withMode('legacy', async (warned) => {
-        assert.strictEqual(await isUserAuthedForSource({ env: ENV, sourceId: bareSrc, reqPermissions: ['update-source'], user: county }), true);
-        assert.strictEqual(warned.length, 0);
-    }));
     await ta('log (default): DMS env allows, and logs the would-deny', async () => withMode('', async (warned) => {
         assert.strictEqual(await isUserAuthedForSource({ env: ENV, sourceId: bareSrc, reqPermissions: ['update-source'], user: county }), true);
         assert.ok(warned.some(w => w.includes('would-deny source') && w.includes(`/${bareSrc}`)), warned.join('\n'));

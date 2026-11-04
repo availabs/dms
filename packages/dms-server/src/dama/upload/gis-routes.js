@@ -10,7 +10,7 @@ const { gdalAvailable } = require('./gdal');
 const { analyzeLayer, generateTableDescriptor } = require('./analysis');
 const { createDamaSource, createDamaView, ensureSchema, DEFAULT_SCHEMA } = require('./metadata');
 const { queueTask, getTaskEvents, dispatchEvent, completeTask, failTask } = require('../tasks');
-const { requestUserIdWarnBody } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requestUserIdWarnBody } = require('../../routes/auth/requestUser');
 const { checkUploadOwner, authorizePublish } = require('./auth');
 
 function gisGuard(req, res, next) {

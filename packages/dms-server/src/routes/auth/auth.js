@@ -100,7 +100,7 @@ function blankRowRefusal(opts = {}) {
 }
 
 /**
- * The OLD rule, kept for the guards' `legacy` / `log` answers (and the audit): no restrictions beyond
+ * The OLD rule, kept for the guards' `log` answers (and the audit): no restrictions beyond
  * `public` and signed in → allow; nothing at all → allow; otherwise an explicit perm or `*`. Mirrors the
  * client's isUserAuthed (utils/auth.js), whose gates keep it until enforce (owner 2026-11-02).
  */

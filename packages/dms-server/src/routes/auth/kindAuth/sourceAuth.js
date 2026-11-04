@@ -21,17 +21,19 @@
  * Decision (`decideSource` / `decidePattern`): routes/dms/auth.js isUserAuthed. On grants with nothing beyond
  * `public`, reads stay open and edits need an explicit grant (owner 2026-10-29, task
  * permissions-blank-row-read-only; it was "no permission set → open" from 2026-10-23, strict before that);
- * otherwise an explicit perm or `*`. The legacy / log answers keep the old rule (`legacyAllows`).
+ * otherwise an explicit perm or `*`. The `log` answer keeps the old rule (`legacyAllows`).
  * `${app} Admin` passes everything, as `isAppAdmin` does in the admin UI. FAILS CLOSED on lookups: a
  * missing row, a missing column, an unnamed pattern or any query error denies.
  *
- * Rollout (`DMS_SOURCE_AUTH_MODE`):
- *   - `legacy`  — today's rule (`legacyAllows`: missing row / query error / DMS env ⇒ allow) OR the
- *                 resolver's rule: whatever `enforce` would allow is never refused.
- *   - `log`     — (default) as `legacy`; every request the resolver's rule would deny is logged
- *                 (`[source-auth] would-deny …`), to feed the access-diff audit and the grant
- *                 migration before anything flips.
+ * Mode (`DMS_AUTH_MODE`, ../mode.js — one flag for every surface and both implementations):
+ *   - `log`     — (default) the OLD rule still answers (`legacyAllows`: missing row / query error /
+ *                 DMS env ⇒ allow), so whatever it allowed is never refused; every request the
+ *                 resolver's rule would deny is logged (`[source-auth] would-deny …`), to feed the
+ *                 access-diff audit and the grant migration before anything flips.
  *   - `enforce` — the resolver's rule decides.
+ *
+ * `legacyAllows` therefore outlives the `legacy` MODE it was named for: the name now refers to the
+ * old rule it implements, which `log` still needs, not to a setting.
  *
  * Mirrors the merge of the client `utils/auth.js` (mirror, don't import). The client's gates keep the old open
  * rule until enforce (owner 2026-11-02); `${app} Admin` passes on both sides.
@@ -74,10 +76,11 @@ function isAppAdmin(user, app) {
     return !!app && ((user && user.groups) || []).some(g => g === `${app} Admin`);
 }
 
-function authMode() {
-    const m = String(process.env.DMS_SOURCE_AUTH_MODE || 'log').toLowerCase();
-    return ['legacy', 'log', 'enforce'].includes(m) ? m : 'log';
-}
+// `DMS_AUTH_MODE` — the one mode, shared with every other surface and with row auth (../mode.js).
+// It was `DMS_SOURCE_AUTH_MODE` until 2026-11-03, and `legacy` went with the rename: `log` already
+// refuses nothing, and it says what it would have refused.
+const { authMode } = require('../settings');
+const { isRow } = require('../settings');
 
 const isDmsEnv = (env) => typeof env === 'string' && env.includes('+');
 
@@ -151,33 +154,6 @@ async function readInternalSource(env, sourceId, subdomain) {
     }
 }
 
-// The source a view belongs to: `views.source_id` on a pgEnv; on a DMS env, the source row whose
-// `data.views` refs list the view. Null when nothing is found (the decision then denies).
-async function sourceIdForView(env, viewId) {
-    try {
-        if (!isDmsEnv(env)) {
-            const db = getDb(env);
-            const { rows } = await db.query(
-                `SELECT source_id FROM ${db.type === 'postgres' ? 'data_manager.views' : 'views'} WHERE view_id = $1`,
-                [+viewId]
-            );
-            return rows.length ? +rows[0].source_id : null;
-        }
-        const [app] = env.split('+');
-        const { db, splitMode } = getDmsDb();
-        const tbl = await dmsMainTable(db, app, splitMode);
-        const { rows } = await db.query(
-            `SELECT id, data->'views' AS views FROM ${tbl} WHERE app = $1 AND type LIKE '%:source'`,
-            [app]
-        );
-        const row = rows.find(r => (parseJson(r.views) || []).some(v => +(v && v.id) === +viewId));
-        return row ? +row.id : null;
-    } catch (e) {
-        console.warn(`[source-auth] view ${env}/${viewId} lookup failed: ${e.message}`);
-        return null;
-    }
-}
-
 // ------------------------------------------------------------------------------------------------
 // Decisions
 // ------------------------------------------------------------------------------------------------
@@ -240,7 +216,7 @@ function refusal(opts) {
     return `missing ${opts.reqPermissions.join(' or ')}${blank ? `; ${blank}` : ''}`;
 }
 
-// Today's rule, kept for `legacy` / `log`: missing row, query error or DMS env ⇒ allow; a found
+// Today's rule, kept for `log`: missing row, query error or DMS env ⇒ allow; a found
 // external source is checked against its own grants (patternId was never passed).
 async function legacyAllows({ db, env, sourceId, reqPermissions, user }) {
     if (isDmsEnv(env)) return true;
@@ -259,210 +235,12 @@ function logWouldDeny(kind, target, reqPermissions, user, reason, app = '', outc
 const refused = (kind, target, reqPermissions, user, reason, app) =>
     logWouldDeny(kind, target, reqPermissions, user, reason, app, 'refused');
 
-/**
- * Authorize `user` for `reqPermissions` on a source, under DMS_SOURCE_AUTH_MODE.
- * `env` (pgEnv or `app+instance`) is preferred; `db` alone means an external source on that db.
- * `wasOpen`: the route checked nothing before, so today's rule is "allow" (as for patterns).
- */
-async function isUserAuthedForSource(opts) {
-    // ROW auth (./rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and stays
-    // live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
-    const mode = authMode();
-    // `legacy` checks nothing, so do not pay for a lookup (or warm a capability probe) to ignore it.
-    if (mode === 'legacy') return opts.wasOpen || await legacyAllows(opts);
-    const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
-        ? await require('../rowAuth/rowSourceAuth').decideSourceRow(opts)
-        : await decideSource(opts);
-    if (d.allow) return true;
-    const target = `${opts.env || 'db'}/${opts.sourceId}`;
-    const app = accessLog.appOf(opts.env, opts.patternRef);
-    if (mode === 'enforce') { refused('source', target, opts.reqPermissions, opts.user, d.reason, app); return false; }
-    // legacy / log: today's rule may allow what the resolver's rule denies, never the reverse. (Today's rule
-    // reads only the source's own grants, so it refused `${app} Admin` and pattern grantees.)
-    const legacy = opts.wasOpen || await legacyAllows(opts);
-    if (mode === 'log' && legacy) logWouldDeny('source', target, opts.reqPermissions, opts.user, d.reason, app);
-    return legacy;
-}
-
-/**
- * Authorize `user` for a pattern-level permission. Nothing checked these before, so `legacy` and
- * `log` allow (log reports would-denies); `enforce` decides.
- */
-async function isUserAuthedForPattern(opts) {
-    const mode = authMode();
-    if (mode === 'legacy') return true;
-    // ROW auth (../rowAuth/rowSourceAuth), behind DMS_UDA_GATE. Kind auth below is untouched and
-    // stays live by default; task 7 is what deletes it. See planning/tasks/current/row-auth-uda.md.
-    const d = require('../rowAuth/rowSourceAuth').udaGate() === 'row'
-        ? await require('../rowAuth/rowSourceAuth').decidePatternRow(opts)
-        : await decidePattern(opts);
-    if (d.allow) return true;
-    const ref = opts.patternRef || {};
-    const target = ref.app || ref.patternId ? `${ref.app}/${ref.patternId}` : '(no pattern named)';
-    if (mode === 'enforce') { refused('pattern', target, opts.reqPermissions, opts.user, d.reason, ref.app || ''); return false; }
-    logWouldDeny('pattern', target, opts.reqPermissions, opts.user, d.reason, ref.app || '');
-    return true;
-}
-
-// ------------------------------------------------------------------------------------------------
-// Request identity + Express helpers
-// ------------------------------------------------------------------------------------------------
-
-/** The caller's user id, from the verified token only. Never from the body. */
-function requestUserId(req) {
-    const user = req && req.availAuthContext && req.availAuthContext.user;
-    return user ? (user.id ?? null) : null;
-}
-
-/**
- * Same as requestUserId, but logs when the body names a different `user_id` (transition aid: those
- * callers used to trust the body).
- */
-function requestUserIdWarnBody(req) {
-    const id = requestUserId(req);
-    const bodyId = req && req.body && req.body.user_id;
-    if (bodyId != null && String(bodyId) !== String(id)) {
-        console.warn(`[source-auth] body user_id=${bodyId} ignored; token user=${id ?? 'anon'} (${req.method} ${req.originalUrl || req.url})`);
-    }
-    return id;
-}
-
-// The datasets pattern a request names: query `dms_pattern=<app>/<patternId>` (what the client sends:
-// a plain query param needs no CORS preflight) or the `X-DMS-Pattern: <app>/<patternId>` header.
-// Mirrors the client's utils/authedFetch.js. Not read from the body: some bodies already carry an
-// unrelated `patternId` (sync-filters).
-function requestPatternRef(req) {
-    const raw = (req && req.query && req.query.dms_pattern) || (req && req.headers && req.headers['x-dms-pattern']);
-    if (!raw) return null;
-    const i = String(raw).lastIndexOf('/');
-    const patternId = i > 0 ? +String(raw).slice(i + 1) : NaN;
-    return Number.isFinite(patternId) && patternId > 0 ? { app: String(raw).slice(0, i), patternId } : null;
-}
-
-// Express helpers. Each answers the request itself (401 / 403, JSON) and returns null when the
-// caller is refused; otherwise returns the user.
-function requireUser(req, res) {
-    const user = req.availAuthContext && req.availAuthContext.user;
-    if (!user) { res.status(401).json({ error: 'authentication required' }); return null; }
-    return user;
-}
-
-/**
- * Reads that were open to anyone (task and schedule status: lists, runs, events). They now need a signed-in
- * user: `enforce` refuses anon, `log` lets anon through and logs it, `legacy` allows. Per-source
- * `view-source` comes with read visibility (permissions-ds-read-visibility). `what` names the read in the log.
- */
-function readerAllowed(user, what) {
-    const mode = authMode();
-    if (user || mode === 'legacy') return true;
-    if (mode === 'log') { logWouldDeny('read', what, [], null, 'not signed in'); return true; }
-    refused('read', what, [], null, 'not signed in', '');
-    return false;
-}
-
-// Express middleware form of readerAllowed.
-function requireReader(req, res, next) {
-    const user = req.availAuthContext && req.availAuthContext.user;
-    if (readerAllowed(user, `${req.method} ${req.originalUrl || req.url}`)) return next();
-    res.status(401).json({ error: 'authentication required' });
-}
-
-// The caller let through by requireUserOrOpen when nobody is signed in: truthy, so route code reads it as
-// "allowed", with no id (an owner taken from it is null).
-const ANON_CALLER = Object.freeze({ id: null, groups: [], anonymous: true });
-
-/**
- * A write route anyone could call before (the data-type plugin routes): `enforce` refuses an anonymous
- * caller (401), `log` lets it through and logs once per request, `legacy` lets it through. Returns the
- * user, ANON_CALLER, or null (refused, answered).
- */
-function requireUserOrOpen(req, res) {
-    const user = req.availAuthContext && req.availAuthContext.user;
-    if (user) return user;
-    const mode = authMode();
-    if (mode === 'enforce') {
-        refused('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in', '');
-        return requireUser(req, res);
-    }
-    if (mode === 'log' && !req.anonWouldDenyLogged) {
-        req.anonWouldDenyLogged = true;
-        logWouldDeny('route', `${req.method} ${req.originalUrl || req.url}`, [], null, 'not signed in');
-    }
-    return ANON_CALLER;
-}
-
-// `env` defaults to the route's :pgEnv; `wasOpen` as for isUserAuthedForSource. `anonWasOpen`: anyone
-// could call the route before, so an anonymous caller is judged by requireUserOrOpen, not refused outright.
-async function requireSourcePermission(req, res, sourceId, perms, { env, wasOpen = false, anonWasOpen = false } = {}) {
-    const user = anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
-    if (!user || user === ANON_CALLER) return user;
-    const pgEnv = env || req.params.pgEnv || req.params.env;
-    const reqPermissions = [].concat(perms);
-    const ok = await isUserAuthedForSource({
-        env: pgEnv, db: isDmsEnv(pgEnv) ? undefined : getDb(pgEnv), sourceId: +sourceId, reqPermissions, user,
-        patternRef: requestPatternRef(req), wasOpen,
-    });
-    if (!ok) { res.status(403).json({ error: `requires ${reqPermissions.join(' or ')} on source ${sourceId}` }); return null; }
-    return user;
-}
-
-// `app`: the route acts on that DMS app, so a pattern of another app is dropped (and so denies).
-async function requirePatternPermission(req, res, perms, { patternRef, app, anonWasOpen = false } = {}) {
-    const user = anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
-    if (!user || user === ANON_CALLER) return user;
-    const named = patternRef || requestPatternRef(req);
-    const ref = named && (!app || named.app === app) ? named : null;
-    const reqPermissions = [].concat(perms);
-    const ok = await isUserAuthedForPattern({ patternRef: ref, reqPermissions, user });
-    if (!ok) { res.status(403).json({ error: `requires ${reqPermissions.join(' or ')} on pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'}` }); return null; }
-    return user;
-}
-
-// ------------------------------------------------------------------------------------------------
-// Falcor helpers. A Falcor route has no response to answer, so these THROW (the client's call / set
-// rejects) and return the user otherwise. `router` is the route's `this` (user, subdomain).
-// ------------------------------------------------------------------------------------------------
-
-// The datasets pattern a Falcor call names in its last argument: `{ app, patternId }`, `{ app, id }`
-// (the client's `{ app, id: parent.id }`) or `'app/id'`. Calls can't carry `?dms_pattern=`: the
-// falcor client is shared by every pattern and batches requests.
-function parsePatternRef(v) {
-    if (!v) return null;
-    if (typeof v === 'string') return requestPatternRef({ query: { dms_pattern: v } });
-    const patternId = +(v.patternId ?? v.id);
-    return v.app && Number.isFinite(patternId) && patternId > 0 ? { app: String(v.app), patternId } : null;
-}
-
-function requireFalcorUser(router) {
-    const user = router && router.user;
-    if (!user) throw new Error('Sign in to do this');
-    return user;
-}
-
-/** Throw unless the router's user holds one of `perms` on the source. Options as isUserAuthedForSource. */
-async function assertSourcePermission(router, env, sourceId, perms, { patternRef = null, wasOpen = false } = {}) {
-    const user = requireFalcorUser(router);
-    const reqPermissions = [].concat(perms);
-    const ok = await isUserAuthedForSource({
-        env, db: isDmsEnv(env) ? undefined : getDb(env), sourceId: +sourceId, reqPermissions, user,
-        patternRef, wasOpen, subdomain: (router && router.subdomain) || '',
-    });
-    if (!ok) throw new Error(`Not authorized: needs ${reqPermissions.join(' or ')} on source ${sourceId}`);
-    return user;
-}
-
-/**
- * Throw unless the router's user holds one of `perms` on the named datasets pattern. On a DMS env the
- * pattern must belong to the env's app (a ref to another app's pattern is dropped, and so denies).
- */
-async function assertPatternPermission(router, env, perms, patternRef) {
-    const user = requireFalcorUser(router);
-    const reqPermissions = [].concat(perms);
-    const ref = patternRef && (!isDmsEnv(env) || patternRef.app === env.split('+')[0]) ? patternRef : null;
-    const ok = await isUserAuthedForPattern({ patternRef: ref, reqPermissions, user, subdomain: (router && router.subdomain) || '' });
-    if (!ok) throw new Error(`Not authorized: needs ${reqPermissions.join(' or ')} on pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'}`);
-    return user;
-}
+// NOTHING IS RE-EXPORTED FROM HERE ANY MORE (2026-11-03). The request plumbing went to
+// `../requestUser.js` and the authorize-plus-guard layer to `../sourceGuards.js`, and for a while
+// both were re-exported through this file so existing imports kept working. That is what made a
+// named implementation look like the place to get them: every UDA and DAMA route reached into
+// `kindAuth/` for functions that had nothing to do with kind auth. Callers now import from the
+// module that defines what they want. What is left below is kind auth's own decisions.
 
 module.exports = {
     mergeAuthPermissions,
@@ -476,21 +254,9 @@ module.exports = {
     internalSourceGrants,
     decidePattern,
     legacyAllows,
-    isUserAuthedForSource,
-    isUserAuthedForPattern,
-    requestUserId,
-    requestUserIdWarnBody,
-    requestPatternRef,
     readNamedPattern,
-    requireUser,
-    requireUserOrOpen,
-    ANON_CALLER,
-    readerAllowed,
-    requireReader,
-    requireSourcePermission,
-    requirePatternPermission,
-    sourceIdForView,
-    parsePatternRef,
-    assertSourcePermission,
-    assertPatternPermission,
+    // ../sourceGuards.js needs these to do the lookups its authorize functions depend on
+    isDmsEnv, getDmsDb,
+    // reporting helpers — ../sourceGuards.js refuses with them
+    refusal, logWouldDeny, refused,
 };

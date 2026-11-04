@@ -185,13 +185,25 @@ const cmsPageFormat = {
               {label: 'View Page', value: 'view-page', implies: ['read']},
               // `edit-page` confers `delete` as well: kind auth requires exactly `edit-page` to
               // delete a page (dms-server dataAuth.js), and that is shipped behaviour.
-              {label: 'Edit Page Content', value: 'edit-page', implies: ['read', 'edit', 'delete']},
+              // ── WHICH FIELDS EACH VERB GOVERNS ──────────────────────────────────────────
+              // `fields` moves "changing X needs verb Y" out of the server and into the row kind
+              // that owns X. `'*'` claims every field no other verb named — the ordinary edit.
+              // Before 2026-11-03 these lived twice in dms-server: as `byKey` / `when` / `onlyKeys`
+              // clauses in kind auth's authRules.js, and as a hardcoded `GRANT_KEYS` in the row
+              // gate. See planning/tasks/current/unified-auth-api.md, Phase 1.
+              // `filters` is claimed by BOTH this and `edit-page-params`: either opens the Filters
+              // pane. Two verbs on one field mean "any of"; two fields in one write mean "all of".
+              {label: 'Edit Page Content', value: 'edit-page', implies: ['read', 'edit', 'delete'], fields: ['*', 'filters']},
               {label: 'Create Page', value: 'create-page', implies: ['read', 'create']},
-              {label: 'Edit Page Permissions', value: 'edit-page-permissions', implies: ['read', 'edit', 'grant']},
-              {label: 'Publish Page', value: 'publish-page', implies: ['read', 'edit']},
-              // Declared in the vocabulary and in LEGACY_IMPLIES, but it appeared in NO
-              // permissionDomain — so it has never been grantable except through a blanket `*`.
-              {label: 'Edit Page Parameters', value: 'edit-page-params', implies: ['read', 'edit']},
+              {label: 'Edit Page Permissions', value: 'edit-page-permissions', implies: ['read', 'edit', 'grant'], fields: ['authPermissions']},
+              // `publish()` copies the drafts into these. `published: 'draft'` is what a new or
+              // unpublished page carries, so it is NOT a publish — the one value predicate.
+              {label: 'Publish Page', value: 'publish-page', implies: ['read', 'edit'],
+               fields: ['sections', 'section_groups', 'dataSources'],
+               when: [{ field: 'published', notValue: 'draft' }]},
+              // Declared in the vocabulary, but it appeared in NO permissionDomain — so it has
+              // never been grantable except through a blanket `*`.
+              {label: 'Edit Page Parameters', value: 'edit-page-params', implies: ['read', 'edit'], fields: ['filters']},
           ]
       },
     {

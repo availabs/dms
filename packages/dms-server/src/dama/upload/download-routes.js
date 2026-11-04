@@ -9,7 +9,8 @@ const { getDb } = require('../../db');
 const storage = require('../storage');
 const path = require('path');
 const { authorizeViewAction, MANAGE_DOWNLOADS_PERMS } = require('./auth');
-const { requestUserIdWarnBody, isUserAuthedForSource, requestPatternRef, sourceIdForView } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requestUserIdWarnBody, requestPatternRef } = require('../../routes/auth/requestUser');
+const { isUserAuthedForSource, sourceIdForView } = require('../../routes/auth/sourceGuards');
 const { signToken, verifyToken } = require('../../auth/utils/crypto');
 
 // A signed download link is good for this long. It only has to outlive the click that asked for it.
@@ -154,7 +155,7 @@ function storageKeyFor(url) {
  * Needs `download-source` on the view's source (anonymous callers count as `public`). Returns
  * `{ url }`: a link to GET /dama-admin/:pgEnv/downloads/file that works for DOWNLOAD_LINK_TTL, for
  * this one file. A plain link can't carry an Authorization header, so the check happens here and
- * the link carries the outcome. Downloads were public before: `legacy` / `log` allow and log.
+ * the link carries the outcome. Downloads were public before: `log` allows and logs.
  */
 async function signDownload(req, res) {
   const { pgEnv } = req.params;

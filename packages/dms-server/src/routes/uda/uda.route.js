@@ -29,22 +29,33 @@ const {
   updateExternalRow,
   deleteExternalRow
 } = require("./uda.controller");
-const { assertSourcePermission, sourceIdForView, parsePatternRef } = require("../auth/kindAuth/sourceAuth");
+// Request plumbing is implementation-independent and lives in the shared layer.
+const { parsePatternRef } = require("../auth/requestUser");
+const { assertCan } = require("../auth/sourceGuards");
+// A reader, not a decision — it moves with the datasets decisions when they are twinned.
+const { sourceIdForView } = require('../auth/sourceGuards');
 const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
-const { readMode, allowSourceRead, allowViewRead, filterReadableSources, redactSourceRow } = require("../auth/kindAuth/readAuth");
+const { authMode: readMode } = require('../auth/settings');
+const { authorize } = require('../auth');
+const { allowViewRead, filterReadableSources } = require('../auth/sourceReads');
+const { redactSourceRow } = require('./sourceRedaction');
 
-// ---- Reads (readAuth.js, DMS_READ_AUTH_MODE): a refused read answers null, never an error, so a page
+// ---- Reads (readAuth.js, DMS_AUTH_MODE): a refused read answers null, never an error, so a page
 // section or list renders empty instead of failing the whole batch.
 // `patternRef`: the datasets pattern the request names, whose grants external sources inherit.
 const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', patternRef: router.patternRef || null });
-const canReadSource = (router, env, sourceId, kind) => allowSourceRead({ env, sourceId, kind, ...reader(router) });
-const canReadView = (router, env, viewId, kind) => allowViewRead({ env, viewId, kind, ...reader(router) });
+// ONE QUESTION, the same name DMS asks (`routes/auth` `authorize`). A source is named by its env
+// and id here because this route gates BEFORE fetching; resolving that address to a row is the
+// auth layer's job, not this file's. See research/unified-auth-api.md.
+const canReadSource = async (router, env, sourceId, kind) =>
+  (await authorize({ env, sourceId, verb: 'read', kind, ...reader(router) })).allow;
+const canReadView = async (router, env, viewId, kind) =>
+  (await authorize({ env, viewId, verb: 'read', kind, ...reader(router) })).allow;
 
 // The env's catalog as this reader sees it, in order: under `enforce` only readable sources (so length and
 // byIndex agree); otherwise null (the routes keep their own queries). Under `log` it still runs, to log.
 async function readableCatalog(router, env, opts = {}) {
   const mode = readMode();
-  if (mode === 'legacy') return null;
   const len = +(await getSourcesLength(env, opts)) || 0;
   const all = len ? await getSourceIdsByIndex(env, { from: 0, to: len - 1 }, opts) : [];
   const readable = await filterReadableSources({ env, sourceIds: all.filter(id => id != null), kind: 'list', ...reader(router) });
@@ -56,23 +67,23 @@ async function readableCatalog(router, env, opts = {}) {
 async function assertSourceWrite(router, env, sourceId, updates, patternRef) {
   const keys = Object.keys(updates || {}).map(k => k.trim());
   if (keys.some(k => k !== 'auth_permissions')) {
-    await assertSourcePermission(router, env, sourceId, 'update-source', { patternRef });
+    await assertCan(router, { env, source: sourceId, perms: 'update-source', pattern: patternRef });
   }
   if (keys.includes('auth_permissions')) {
-    await assertSourcePermission(router, env, sourceId, 'edit-source-permissions', { patternRef });
+    await assertCan(router, { env, source: sourceId, perms: 'edit-source-permissions', pattern: patternRef });
   }
 }
 
 // A view write needs `update-source` on the view's source. Nothing checked it before (`wasOpen`).
 async function assertViewWrite(router, env, viewId, patternRef) {
   const sourceId = await sourceIdForView(env, viewId);
-  await assertSourcePermission(router, env, sourceId ?? 0, 'update-source', { patternRef, wasOpen: true });
+  await assertCan(router, { env, source: sourceId ?? 0, perms: 'update-source', pattern: patternRef, wasOpen: true });
 }
 
 // A source rule change needs `update-source`. The Rules page shows the refusal as is, so it reads as a sentence.
 async function assertRuleWrite(router, env, sourceId, pattern) {
   try {
-    await assertSourcePermission(router, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+    await assertCan(router, { env, source: sourceId, perms: 'update-source', pattern: parsePatternRef(pattern) });
   } catch (err) {
     if (/^Not authorized/.test(err.message)) {
       throw new Error(`You don't have permission to change this source (update-source on source ${sourceId}).`);
@@ -686,7 +697,7 @@ module.exports = [
     call: async function(callPath, args) {
       try {
         const [env, sourceId, columnName, enable = true, pattern] = args;
-        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern), wasOpen: true });
+        await assertCan(this, { env, source: sourceId, perms: 'update-source', pattern: parsePatternRef(pattern), wasOpen: true });
         await setIndexColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
@@ -710,7 +721,7 @@ module.exports = [
     call: async function(callPath, args) {
       try {
         const [env, sourceId, columnName, enable = true, pattern] = args;
-        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern), wasOpen: true });
+        await assertCan(this, { env, source: sourceId, perms: 'update-source', pattern: parsePatternRef(pattern), wasOpen: true });
         await setPrimaryKeyColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
@@ -792,7 +803,7 @@ module.exports = [
     call: async function(callPath, args) {
       try {
         const [env, sourceId, entry = {}, pattern] = args;
-        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+        await assertCan(this, { env, source: sourceId, perms: 'update-source', pattern: parsePatternRef(pattern) });
         const authority = await setAuthoritativeView(env, +sourceId, entry, this.user);
         return [
           { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
@@ -813,7 +824,7 @@ module.exports = [
     call: async function(callPath, args) {
       try {
         const [env, sourceId, opts = {}, pattern] = args;
-        await assertSourcePermission(this, env, sourceId, 'update-source', { patternRef: parsePatternRef(pattern) });
+        await assertCan(this, { env, source: sourceId, perms: 'update-source', pattern: parsePatternRef(pattern) });
         const authority = await clearAuthoritativeView(env, +sourceId, opts);
         return [
           { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
@@ -841,7 +852,7 @@ module.exports = [
     call: async function(callPath, args) {
       try {
         const [env, source_id, version, copy_from_view_id, pattern] = args;
-        await assertSourcePermission(this, env, source_id, ['create-view', 'update-source'], { patternRef: parsePatternRef(pattern) });
+        await assertCan(this, { env, source: source_id, perms: ['create-view', 'update-source'], pattern: parsePatternRef(pattern) });
 
         const view = await createSourceView(env, {
           source_id: +source_id,
@@ -876,8 +887,7 @@ module.exports = [
       try {
         const [env, view_id, pattern] = args;
         const sourceId = await sourceIdForView(env, view_id);
-        await assertSourcePermission(this, env, sourceId ?? 0, ['edit-source-data', 'delete-source'],
-          { patternRef: parsePatternRef(pattern), wasOpen: true });
+        await assertCan(this, { env, source: sourceId ?? 0, perms: ['edit-source-data', 'delete-source'], pattern: parsePatternRef(pattern), wasOpen: true });
         await clearViewData(env, +view_id);
         return [
           { path: ['uda', env, 'viewsById', +view_id], invalidated: true },

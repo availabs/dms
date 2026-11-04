@@ -2,15 +2,21 @@
 /**
  * KIND AUTH — the implementation that decides by ROW KIND.
  *
- * One `switch` over the row kinds, each with hand-written rules (`dataAuth.js` `judge()`), plus a
- * read gate that knows exactly two kinds (`kindReadAuth.js`) and the datasets pair
- * (`sourceAuth.js` / `readAuth.js`). `authRules.js` + `authJudge.js` are a SUB-MODE of this side,
- * not a third implementation: `dataAuth.js` selects them with `DMS_DATA_AUTH_JUDGE=data`, which
- * swaps the hand-written switch for a pure interpreter over declared rules. Both answer as kind
- * auth; only the way the rules are written differs.
+ * Per-kind rules, held as DATA in `authRules.js` and applied by `authJudge.js`, a pure interpreter
+ * (`dataAuth.js` wires the two together and resolves which grants govern each kind). Plus a read
+ * gate that knows exactly two kinds (`kindReadAuth.js`) and the datasets pair (`sourceAuth.js` /
+ * `readAuth.js`).
  *
- * This index is the contract `../index.js` switches on. `rowAuth/index.js` exports the same names
- * with the same signatures, so a caller importing from `routes/auth` never learns which side it got.
+ * The hand-written `switch` over the eleven row kinds that used to live in `dataAuth.js` was
+ * removed on 2026-11-03 (owner: "we don't want hand written rules"), after the two were measured
+ * identical on 167 cases. Nothing selects between them any more; there is one judge.
+ *
+ * NOT A TRANSITIONAL SIDE. Kind auth is a permanent provider (owner, 2026-11-03: "kind auth is
+ * never going to be deleted — we are planning on keeping both for this phase of work"), so this
+ * index is a standing contract rather than a staging post.
+ *
+ * It is the contract `../index.js` switches on. `rowAuth/index.js` exports the same names with the
+ * same signatures, so a caller importing from `routes/auth` never learns which side it got.
  */
 const dataAuth = require('./dataAuth');
 const { kindReadBlocked, PATTERN_READ_PERMISSIONS, KIND_READ_KINDS } = require('./kindReadAuth');

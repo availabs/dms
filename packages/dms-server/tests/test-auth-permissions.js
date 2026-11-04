@@ -1,13 +1,13 @@
 /**
  * Auth-handler permissions (planning/tasks/current/permissions-auth-server-permission-source.md):
- * which auth row governs a request, the blank auth row under DMS_AUTH_ROW_MODE, transition mode and the protected-group rule.
+ * which auth row governs a request, the blank auth row under DMS_AUTH_MODE, transition mode and the protected-group rule.
  * No database: the DMS pattern rows and the auth DB are fakes.
  *
  * Run: node tests/test-auth-permissions.js
  */
 const assert = require('assert');
 const {
-  createAuthGrants, authScope, can, canOrLevel, canManageGroup, isProtectedGroup,
+  createAuthGrants, authScope, can, canManageGroup, isProtectedGroup,
 } = require('../src/auth/utils/permissions');
 
 let pass = 0, fail = 0;
@@ -134,12 +134,12 @@ async function main() {
 
 
   const inMode = async (mode, fn) => {
-    const prev = process.env.DMS_AUTH_ROW_MODE, warn = console.warn;
+    const prev = process.env.DMS_AUTH_MODE, warn = console.warn;
     const lines = [];
-    process.env.DMS_AUTH_ROW_MODE = mode; console.warn = (m) => lines.push(String(m));
+    process.env.DMS_AUTH_MODE = mode; console.warn = (m) => lines.push(String(m));
     try { await fn(lines); } finally {
       console.warn = warn;
-      if (prev === undefined) delete process.env.DMS_AUTH_ROW_MODE; else process.env.DMS_AUTH_ROW_MODE = prev;
+      if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev;
     }
   };
 
@@ -160,41 +160,9 @@ async function main() {
       assert.strictEqual(can(user(['Viewers']), 'auth-users', A), false);
     }));
 
-  await t('legacy: the old open answer, no line', async () =>
-    inMode('legacy', async (lines) => {
-      assert.strictEqual(can(user(['Viewers'], 42), 'auth-users', OPEN), true);
-      assert.strictEqual(lines.length, 0);
-    }));
-
   await t('no usable scope → can() is false', async () => {
     assert.strictEqual(can(user(['siteA Admin']), 'auth-users', { error: 'x' }), false);
     assert.strictEqual(can(user([]), 'auth-users', null), false);
-  });
-
-  console.log('canOrLevel (transition mode):');
-
-  await t('permission or level', async () => {
-    assert.strictEqual(canOrLevel(user(['Managers']), 'auth-users', 10, A, 1), true);
-    assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), true);
-    assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 5), false);
-  });
-
-  await t('open row: the level counts under log (with a line), not under enforce', async () => {
-    await inMode('log', async (lines) => {
-      assert.strictEqual(canOrLevel(user([], 43), 'auth-users', 10, OPEN, 10), true);
-    });
-    await inMode('enforce', async () => {
-      assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, OPEN, 10), false);
-      assert.strictEqual(canOrLevel(user(['openApp Admin']), 'auth-users', 10, OPEN, 0), true);
-      // levels still count on a row with grants
-      assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), true);
-      assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 10), true);
-    });
-  });
-
-  await t('no scope → today\'s level alone', async () => {
-    assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 10), true);
-    assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 9), false);
   });
 
   console.log('protected groups (decision (b)):');
@@ -230,7 +198,7 @@ async function main() {
 
   console.log('authScope:');
 
-  await t('groups and level from the auth DB, scope from the named row', async () => {
+  await t('groups from the auth DB, scope from the named row — no level', async () => {
     const authDb = { query: async (sql, params) => {
       assert.ok(/FROM users_in_groups/.test(sql));
       assert.deepStrictEqual(params, ['u3@test', 'siteA']);
@@ -239,15 +207,21 @@ async function main() {
     const r = await authScope(authDb, { id: 3, email: 'u3@test' },
       { project: 'siteA', app: 'siteA', authPatternId: 10 }, { authGrants: grants, subdomain: '' });
     assert.deepStrictEqual(r.user.groups, ['Managers', 'Viewers']);
-    assert.strictEqual(r.authLevel, 5);
+    // The auth DB still says WHO someone is. What they may do comes from the DMS auth object the
+    // scope carries, and `auth_level` is not read at all (deprecated 2026-11-03).
+    assert.strictEqual(r.authLevel, undefined);
     assert.strictEqual(can(r.user, 'auth-users', r.scope), true);
   });
 
-  await t('no ctx → scope error, level still known', async () => {
+  await t('no ctx → scope error, and no level to fall back on', async () => {
     const authDb = { query: async () => ({ rows: [{ name: 'X', auth_level: 10 }] }) };
     const r = await authScope(authDb, { id: 3, email: 'u3@test' }, { project: 'siteA' });
     assert.ok(r.scope.error);
-    assert.strictEqual(canOrLevel(r.user, 'auth-users', 10, r.scope, r.authLevel), true);
+    // No `authLevel` on the result at all since 2026-11-03 — levels are deprecated and `authScope`
+    // does not read them. `can` is false on an unusable scope, as it always was; what used to keep
+    // such a caller working was the level fallback, and that is gone with it.
+    assert.strictEqual(r.authLevel, undefined);
+    assert.strictEqual(can(r.user, 'auth-users', r.scope), false);
   });
 
   console.log(`\n${pass} passed, ${fail} failed`);

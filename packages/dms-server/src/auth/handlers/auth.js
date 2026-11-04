@@ -70,7 +70,8 @@ async function groupLevel(db, group_name, project_name) {
 async function mayAddToGroup(db, userData, body, ctx, group_name, project_name) {
   const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
   if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) return true;
-  return a.byLevel && a.authLevel >= await groupLevel(db, group_name, project_name);
+  // Auth levels are deprecated (2026-11-03): a grant on the DMS auth object is the only authority.
+  return false;
 }
 
 // ---------------------------------------------------------------------------
@@ -280,7 +281,7 @@ async function signupReject(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, token);
   const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
 
-  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the required authority to reject invites to ${project_name}.`);
+  if (!a.byPermission) throw new Error(`You do not have the required authority to reject invites to ${project_name}.`);
 
   await q.updateSignupRequest(db, user_email, project_name, 'rejected', userData.email);
   // Email notification would go here (Phase 5)
@@ -294,7 +295,7 @@ async function deleteSignup(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, token);
   const a = await authority(db, userData, { ...body, project: project_name }, ctx, { perm: AUTH_USERS, minLevel: 5 });
 
-  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the authority to delete requests for project ${project_name}.`);
+  if (!a.byPermission) throw new Error(`You do not have the authority to delete requests for project ${project_name}.`);
 
   const { rows } = await db.query(
     "SELECT count(1) AS count FROM signup_requests WHERE user_email = $1 AND project_name = $2 AND state = 'rejected'",

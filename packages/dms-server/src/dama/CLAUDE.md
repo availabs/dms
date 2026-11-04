@@ -179,8 +179,7 @@ A definition can also carry `schedulables` (cron-scheduled runs, see `data-types
 
 Every plugin router gets `writeGate` (`datatypes/auth.js`) in front of it: a write (anything but GET / HEAD /
 OPTIONS) needs a signed-in user unless the plugin lists the route in `openRoutes: ['POST /path/:id']`.
-`enforce` refuses an anonymous write (401), `log` lets it through with one `would-deny route` line, `legacy`
-lets it through. The route then checks its own permission with the helpers below.
+`enforce` refuses an anonymous write (401); `log` lets it through with one `would-deny route` line. The route then checks its own permission with the helpers below.
 
 ### Worker `ctx`
 
@@ -209,14 +208,14 @@ Passed to every `routes` registration:
 | `ensureSchema(db, schemaName)` | `→ Promise` | `CREATE SCHEMA IF NOT EXISTS` on Postgres; no-op on SQLite. |
 | `deleteDamaView(pgEnv, viewIds, {cascade, db, authorize})` | `→ Promise<result>` | Delete views and drop their tables; see "Deleting" below. |
 | `getViewLineage(pgEnv, viewIds)` / `getSourceLineage(pgEnv, sourceIds)` | `→ Promise<Map>` | Derived lineage reads (`lineage.js`). |
-| `authorizePublish(req, res, sourceId)` | `→ Promise<caller \| null>` | For a route that creates a source or adds a version: no `sourceId` → `create-source` on the named datasets pattern; a `sourceId` → `create-view` or `update-source` on it. `caller.id` is the owner (null for an anonymous call `log` let through). Follows `DMS_SOURCE_AUTH_MODE` as for a route that was open. |
+| `authorizePublish(req, res, sourceId)` | `→ Promise<caller \| null>` | For a route that creates a source or adds a version: no `sourceId` → `create-source` on the named datasets pattern; a `sourceId` → `create-view` or `update-source` on it. `caller.id` is the owner (null for an anonymous call `log` let through). Follows `DMS_AUTH_MODE` as for a route that was open. |
 | `authorizeSourceWrite(req, res, {sourceId, viewId}, perms)` | `→ Promise<caller \| null>` | `perms` on an existing source, or on the view's own source when `viewId` is given. With neither, only `enforce` refuses. Same mode rules. |
 | `requireUser(req, res)` | `→ user \| null` | Answers 401 and returns null when nobody is signed in. |
-| `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict, under `DMS_SOURCE_AUTH_MODE`; see `routes/uda/sourceAuth.js`). The pattern is the one the request names (`?dms_pattern=app/id`, or the `X-DMS-Pattern` header). |
+| `requireSourcePermission(req, res, sourceId, perms)` | `→ Promise<user \| null>` | Answers 401/403 unless the user holds one of `perms` on the source (pattern ⊕ source, strict, under `DMS_AUTH_MODE`; see `routes/auth/kindAuth/sourceAuth.js`). The pattern is the one the request names (`?dms_pattern=app/id`, or the `X-DMS-Pattern` header). |
 | `requirePatternPermission(req, res, perms)` | `→ Promise<user \| null>` | Same, for a pattern-level permission such as `create-source`. |
-| `authorizeViewAction(req, res, viewId, perms, bodySourceId)` | `→ Promise<{user, sourceId} \| null>` | Same, judged on the source the **view** belongs to (not the body's `source_id`); for routes that act on a view's files (downloads, PM tiles). `legacy` / `log` allow, as for a route that checked nothing before. |
+| `authorizeViewAction(req, res, viewId, perms, bodySourceId)` | `→ Promise<{user, sourceId} \| null>` | Same, judged on the source the **view** belongs to (not the body's `source_id`); for routes that act on a view's files (downloads, PM tiles). `log` allows, as for a route that checked nothing before. |
 | `requestUserId(req)` | `→ id \| null` | The caller's id, from the token. Use it instead of a body `user_id`. |
-| `holdsSourcePermission(req, sourceId, perms)` | `→ Promise<boolean>` | Whether the caller holds one of `perms` on the source, **without answering the request**: for what a reply carries (a secret only an editor sees). Judged as reads are (`DMS_READ_AUTH_MODE`; `legacy` says yes). |
+| `holdsSourcePermission(req, sourceId, perms)` | `→ Promise<boolean>` | Whether the caller holds one of `perms` on the source, **without answering the request**: for what a reply carries (a secret only an editor sees). Judged as reads are (`DMS_AUTH_MODE`). |
 | `getDb(pgEnv)` | `→ adapter` | Direct DB handle. |
 | `loadConfig(pgEnv)` | `→ config` | The raw db config JSON. |
 | `storage` | `{ write, read, getUrl }` | Local FS or S3 abstraction. |
@@ -231,7 +230,14 @@ Routes that queue a task **must** return `{ etl_context_id, source_id }`. `etl_c
 
 ---
 
-## Reads (`DMS_READ_AUTH_MODE`)
+## Reads (`DMS_AUTH_MODE`)
+
+> **2026-11-03 — eight auth flags became two.** `DMS_AUTH_IMPL` (`kind` | `row`) chooses which
+> implementation decides; `DMS_AUTH_MODE` (`log` | `enforce`) chooses what a refusal does. The
+> per-surface flags this file used to name — `DMS_READ_AUTH_MODE`, `DMS_SOURCE_AUTH_MODE`,
+> `DMS_DATA_AUTH_MODE`, `DMS_UDA_GATE`, `DMS_WRITE_GATE` — are gone, and so is the `legacy` value
+> (`log` already refuses nothing, and says what it would have refused). Enforcement is now all
+> surfaces or none. See `src/routes/auth/mode.js` and `src/routes/auth/impl.js`.
 
 Reads of a source (the catalog, source and view rows, data rows, color domains, vector tiles) are judged by
 `routes/uda/readAuth.js`: `view-source`, or any source permission that implies reading it, on pattern ⊕
@@ -243,7 +249,6 @@ grants only. **This is a placeholder, not a boundary:** the client picks the pat
 granting different permissions a caller can name the looser one (writes have the same gap). Open in
 `planning/tasks/current/permissions-ds-read-visibility.md`.
 
-- `legacy`: nothing checked.
 - `log` (default): nothing refused; each read `enforce` would refuse is logged once per user / source / kind
   per ten minutes as `[read-auth] would-deny …`. Secret keys in `statistics` (`*_secret`, `*_token`) are
   already left out for readers without `update-source`.

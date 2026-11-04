@@ -4,7 +4,7 @@
  * UDA on row auth — the datasets half of task 6 (planning/tasks/current/row-auth-uda.md).
  *
  * `sourceAuth.js` / `readAuth.js` are KIND auth for datasets and stay exactly as they are; this is
- * their row-based twin, reached only when `DMS_UDA_GATE=row`. Same `{ allow, reason }` shape, so
+ * their row-based twin, reached when `DMS_AUTH_IMPL=row` (../impl.js). Same `{ allow, reason }` shape, so
  * each delegation at the top of a decider is a swap and not a rewrite.
  *
  * ---------------------------------------------------------------------------
@@ -67,19 +67,14 @@ const { getDb, loadConfig } = require('../../../db');
 const { mergeAuthChain } = require('./mergeAuth');
 const { verdict, verbsFor, holdsPermission } = require('./rowAuthGate');
 const { resolveAuthPermissions } = require('../auth');
-const { vocabularyOf, impliesMaps } = require('./authVocabulary');
-const { expandLevel } = require('./expandLevel');
+const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('./authVocabulary');
 const { dmsMainTable, getSiteSources } = require('../../uda/utils');
 const { rowAuthCaps } = require('./rowAuthCaps');
+const { envRowForPgEnv, sourceChainFor } = require('./sourceAncestry');
 const { resolveTable } = require('../../../db/table-resolver');
 
 // A chain built by hand has to expand each level just as `resolve()` does for DMS rows via
-// `authOf` — see ../expandLevel.js for the precedence and why it lives there.
-
-/** `DMS_UDA_GATE`: `kind` (default) | `row`. Kind auth stays live until this says otherwise. */
-function udaGate() {
-  return String(process.env.DMS_UDA_GATE || 'kind').toLowerCase() === 'row' ? 'row' : 'kind';
-}
+// `authOf` — grants expand against the vocabulary their chain declares, and against nothing else.
 
 const isDmsEnv = (env) => typeof env === 'string' && env.includes('+');
 const parseJson = (v) => {
@@ -144,65 +139,43 @@ async function namedPatternAuth({ app, patternId } = {}, subdomain = '') {
  *
  * THE ONLY `isDms` BRANCH IN UDA AUTH. Returns `{ ok, merged, app }` or `{ ok: false, reason }`.
  */
-async function mergedAuthForSource({ db, env, sourceId, patternRef, subdomain = '' }) {
+async function mergedAuthForSource(opts = {}) {
+  const { db, env, sourceId, patternRef, subdomain = '' } = opts;
   if (sourceId === undefined || sourceId === null) return { ok: false, reason: 'no source named' };
 
+  // INTERNAL. The ordinary parent walk: the source's own grants, expanded against the vocabulary
+  // its env declares. No level above it contributes grants, so the chain is one deep — see
+  // ./sourceAncestry.js. This replaced `internalSourceChain`, which reverse-looked-up every
+  // datasets pattern listing the source and unioned their grants, because until the envs were
+  // stamped (migrate-row-auth.js pass 1b) the pattern was the only row carrying a vocabulary.
   if (isDmsEnv(env)) {
     const [app] = String(env).split('+');
-    const r = await internalSourceChain(app, sourceId, subdomain);
+    const r = await sourceChainFor(app, sourceId, subdomain);
     if (!r.ok) return r;
-    return { ok: true, merged: mergeAuthChain(r.chain), app };   // levels already expanded
+    return { ok: true, merged: mergeAuthChain([expandWithVocabulary(r.auth, r.maps)]), maps: r.maps, app };
   }
 
+  // EXTERNAL. One level — the source's own grants — expanded against the vocabulary its ENV
+  // declares, which is the same vocabulary an internal source uses (admin.format.js dmsEnvFormat).
+  //
+  // The datasets pattern is NOT in this chain any more. It never was an ancestor: a source's type
+  // is `{env}|{name}:source` and the pattern is nowhere in it. Letting the pattern the REQUEST
+  // named lend its grants is the hole `readAuth.js` records as "a placeholder, not a boundary" —
+  // the client picks it, so a caller could name whichever pattern granted the most. Gone.
+  //
+  // `patternRef.app` survives only as a LOCATOR: per-app split mode puts env rows in an app-scoped
+  // table, so finding one needs an app name. Addressing, not authorization — it selects a table
+  // and confers nothing. See ./sourceAncestry.js.
   const src = await externalSourceAuth(db || getDb(env), sourceId);
   if (!src.ok) return src;
-  const pat = await namedPatternAuth(patternRef, subdomain);
-  // An unusable pattern name only loses the pattern's grants; the source's own still count — same
-  // rule kind auth applies, and the accepted risk recorded on this task is unchanged by it.
-  const maps = pat.ok ? pat.maps : null;
-  const chain = pat.ok
-    ? [expandLevel(pat.auth, maps), expandLevel(src.auth, maps)]
-    : [expandLevel(src.auth, null)];
-  return { ok: true, merged: mergeAuthChain(chain), app: pat.ok ? pat.app : null };
+  const app = opts.app || (patternRef && patternRef.app) || null;
+  const envRow = await envRowForPgEnv(env, app);
+  const maps = envRow ? envRow.maps : null;
+  return { ok: true, merged: mergeAuthChain([expandWithVocabulary(src.auth, maps)]), maps, app };
 }
 
-/**
- * The two-level chain for an INTERNAL source: [patterns that list it (unioned), its own grants].
- *
- * Which patterns list it is a reference-list question — a datasets pattern reaches its sources
- * through its dmsEnv (`data.dmsEnvId` → the env's `data.sources`) or, on an older pattern, through
- * its own `data.sources`. Mirrors `sourceAuth.readInternalSource` exactly, including the union: a
- * source may belong to SEVERAL patterns, and every one of their grants counts.
- */
-async function internalSourceChain(app, sourceId, subdomain) {
-  const { db, splitMode } = getDmsDb();
-  const tbl = await dmsMainTable(db, app, splitMode);
-  const { rows: srcRows } = await db.query(
-    `SELECT data->>'auth_permissions' AS ap FROM ${tbl} WHERE id = $1 AND app = $2 AND type LIKE '%:source'`,
-    [+sourceId, app]);
-  if (!srcRows.length) return { ok: false, reason: 'source not found' };
-
-  const authCol = await authColExpr(db, app, splitMode);
-  const { rows: pats } = await db.query(
-    `SELECT id, data->>'authPermissions' AS ap, ${authCol} AS authcol, data->'authVocabulary' AS av
-       FROM ${tbl}
-      WHERE app = $1 AND type LIKE '%:pattern' AND data->>'pattern_type' = 'datasets'`, [app]);
-  const owning = [];
-  for (const p of pats) {
-    const refs = await getSiteSources({ db, app, pattern_ids: [p.id], splitMode });
-    if (refs.some(r => +(r && r.id) === +sourceId)) owning.push(p);
-  }
-  if (!owning.length) return { ok: false, reason: `source ${sourceId} is in no datasets pattern of ${app}` };
-
-  // Expand EACH pattern against ITS OWN vocabulary before unioning: two patterns may declare the
-  // same verb with different implications, and unioning the raw strings first would lose that.
-  const patternLevel = unionAuthPermissions(owning.map((p) => expandLevel(
-    resolveAuthPermissions(p.ap, subdomain) || {},
-    impliesMaps(vocabularyOf({ auth: p.authcol, data: { authVocabulary: p.av } })))));
-  const maps = owning.map((p) => impliesMaps(vocabularyOf({ auth: p.authcol, data: { authVocabulary: p.av } })))
-    .find(Boolean) || null;
-  return { ok: true, chain: [patternLevel, expandLevel(parseJson(srcRows[0].ap) || {}, maps)] };
-}
+// `internalSourceChain` DELETED 2026-11-02 — replaced by the parent walk in
+// ./sourceAncestry.js `sourceChainFor`. See row-auth-uda-unify-api.md, Slice D.
 
 /** Union per principal — several patterns may list one source, and every grant counts. */
 function unionAuthPermissions(list) {
@@ -222,10 +195,14 @@ function unionAuthPermissions(list) {
  * Does `user` hold ANY of `reqPermissions` under `merged`? All structural verbs within one — or,
  * for a permission that implies none, the permission itself by name (`holdsPermission`). That is
  * what keeps `download-source` a capability rather than a flavour of `edit`.
+ *
+ * `maps` is the vocabulary that governs the chain `merged` came from — the SAME declaration its
+ * grants were expanded with. Without it nothing translates and every permission is checked by
+ * name, which is the correct answer for a chain that declares nothing.
  */
-function holdsAny(merged, user, app, reqPermissions) {
+function holdsAny(merged, user, app, reqPermissions, maps = null) {
   for (const perm of [].concat(reqPermissions || [])) {
-    if (holdsPermission(merged, user, app, perm)) return { allow: true, reason: 'granted' };
+    if (holdsPermission(merged, user, app, perm, maps)) return { allow: true, reason: 'granted' };
   }
   return { allow: false, reason: `missing ${[].concat(reqPermissions || []).join(' or ')}` };
 }
@@ -237,7 +214,7 @@ async function decideSourceRow(opts = {}) {
   try {
     const got = await mergedAuthForSource(opts);
     if (!got.ok) return { allow: false, reason: got.reason };
-    return holdsAny(got.merged, user, got.app, reqPermissions);
+    return holdsAny(got.merged, user, got.app, reqPermissions, got.maps);
   } catch (e) {
     return { allow: false, reason: `lookup failed: ${e.message}` };   // fail closed
   }
@@ -249,30 +226,37 @@ async function decidePatternRow({ patternRef, subdomain = '', reqPermissions, us
   try {
     const pat = await namedPatternAuth(patternRef, subdomain);
     if (!pat.ok) return { allow: false, reason: pat.reason };
-    return holdsAny(pat.auth, user, pat.app, reqPermissions);
+    return holdsAny(pat.auth, user, pat.app, reqPermissions, pat.maps);
   } catch (e) {
     return { allow: false, reason: `lookup failed: ${e.message}` };
   }
 }
 
 /**
- * Row-auth twin of `readAuth.decideFrom` — SYNCHRONOUS, and deliberately so.
+ * ROW AUTH'S DATASETS READ DECISION — the contract `../sourceReads.js` calls, and the twin of
+ * `kindAuth/readAuth.js`'s `sourceDecision`.
  *
- * The read path pre-loads a snapshot of an env's sources precisely so a catalog listing costs no
- * per-source queries (`filterReadableSources`). That snapshot ALREADY holds both levels of the
- * chain — `s.patternAP` and `s.ap` — for internal and external alike, which it normalised when it
- * was built. So reads need no database access here and, notably, **no `isDms` branch at all**: the
- * only branch is which object supplies the pattern level, which the snapshot decided already.
+ * SYNCHRONOUS, and deliberately so. The read path pre-loads a snapshot of an env's sources
+ * precisely so a catalog listing costs no per-source queries (`filterReadableSources`), and `s`
+ * carries everything needed: the source's own grants, already expanded, and the vocabulary they
+ * were expanded with. Since 2026-11-03 nothing lends to a source, so the chain is one level deep
+ * and there is no `isDms` branch here at all.
+ *
+ * `check` is accepted and ignored: it selects between kind auth's strict and lenient rules, and
+ * this judge has neither — it asks the one structural question instead.
  */
-function decideFromRow(snap, sourceId, user, reqPermissions, named = null) {
-  const s = snap.sources.get(+sourceId);
-  if (!s) return { allow: false, reason: 'source not found' };
-  if (s.orphan) return { allow: false, reason: `source ${sourceId} is in no datasets pattern of ${snap.app}` };
-  const external = snap.app == null;
-  const app = external ? (named && named.app) : snap.app;
-  const patternAP = external ? ((named && named.ap) || {}) : s.patternAP;
-  return holdsAny(mergeAuthChain([patternAP || {}, s.ap || {}]), user, app, reqPermissions);
-}
+const sourceDecision = {
+  // `s.merged` is the CHAIN, resolved by the ordinary resolver (`sourceSnapshot.loadInternal`) —
+  // the same walk a page or a theme gets, so anything an ancestor grants is inherited here too.
+  // `s.ap` is the source's own grants, kept for kind auth, which cannot read a merged chain.
+  reads(s, user, app) {
+    const v = verdict(s.merged || mergeAuthChain([s.ap || {}]), user, 'read', app);
+    return { allow: v.allow, reason: v.allow ? 'granted' : 'missing read' };
+  },
+  holds(s, user, app, reqPermissions) {
+    return holdsAny(s.merged || mergeAuthChain([s.ap || {}]), user, app, reqPermissions, s.maps || null);
+  },
+};
 
 /**
  * THE ONE QUESTION THE READ GATE ASKS: does this chain grant structural `read`?
@@ -292,6 +276,6 @@ function readsRow(patternAP, ownAP, user, app) {
 }
 
 module.exports = {
-  udaGate, mergedAuthForSource, decideSourceRow, decidePatternRow, decideFromRow,
+  mergedAuthForSource, decideSourceRow, decidePatternRow, sourceDecision,
   holdsAny, readsRow, isDmsEnv,
 };

@@ -7,14 +7,17 @@
  *     (a webhook with its own secret, a read served over POST);
  *   - the plugin helpers below, which each write route calls for its source / pattern permission.
  *
- * Both follow DMS_SOURCE_AUTH_MODE as for any route that was open (routes/uda/sourceAuth.js): `enforce`
+ * Both follow DMS_AUTH_MODE as for any route that was open (routes/uda/sourceAuth.js): `enforce`
  * refuses, `log` lets the call through and logs a would-deny line, `legacy` lets it through.
  * Each helper answers the request itself (401 / 403) and returns null when the caller is refused,
  * otherwise the user (or ANON_CALLER, an anonymous caller let through: its id is null).
  */
-const { authMode, requireUserOrOpen, requireSourcePermission, requestPatternRef } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requireUserOrOpen, requestPatternRef } = require('../../routes/auth/requestUser');
+const { requireCan } = require('../../routes/auth/sourceGuards');
+const { authMode } = require('../../routes/auth/settings');
 const upload = require('../upload/auth');
-const { readMode, holdsOnSource } = require('../../routes/auth/kindAuth/readAuth');
+const { authMode: readMode } = require('../../routes/auth/settings');
+const { authorize } = require('../../routes/auth');
 const { getSubdomain } = require('../../utils/subdomain');
 
 const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
@@ -50,7 +53,7 @@ async function authorizeSourceWrite(req, res, { sourceId, viewId } = {}, perms) 
         const r = await upload.authorizeViewAction(req, res, viewId, perms, sourceId, { anonWasOpen: true });
         return r ? r.user : null;
     }
-    if (sourceId != null) return requireSourcePermission(req, res, sourceId, perms, { wasOpen: true, anonWasOpen: true });
+    if (sourceId != null) return requireCan(req, res, { source: sourceId, perms: perms, wasOpen: true, anonWasOpen: true });
     const user = requireUserOrOpen(req, res);
     if (user && authMode() === 'enforce') {
         res.status(403).json({ error: 'no source named for this write' });
@@ -62,13 +65,16 @@ async function authorizeSourceWrite(req, res, { sourceId, viewId } = {}, perms) 
 /**
  * Whether the caller holds one of `perms` on the source, without answering the request: for what a reply
  * carries, e.g. a secret only an editor may see (now_playing's webhook URL). Judged as reads are
- * (routes/uda/readAuth.js): `legacy` (DMS_READ_AUTH_MODE) says yes, as before; `log` and `enforce` decide.
+ * (routes/auth/sourceReads.js), under `DMS_AUTH_MODE`.
  */
 async function holdsSourcePermission(req, sourceId, perms) {
-    if (readMode() === 'legacy') return true;
     const user = (req.availAuthContext && req.availAuthContext.user) || null;
-    return holdsOnSource({ env: req.params.pgEnv, sourceId, user, subdomain: req.headers ? getSubdomain(req) : '',
-        patternRef: requestPatternRef(req), perms: [].concat(perms) });
+    // `quiet`: the answer shapes the reply (a secret an editor may see) rather than refusing it,
+    // so a `no` is not a refusal and is not logged as one.
+    return (await authorize({
+        env: req.params.pgEnv, sourceId, verb: [].concat(perms), quiet: true,
+        user, subdomain: req.headers ? getSubdomain(req) : '', patternRef: requestPatternRef(req),
+    })).allow;
 }
 
 module.exports = { writeGate, compileOpenRoute, pluginHelpers: { authorizePublish, authorizeSourceWrite, holdsSourcePermission } };

@@ -18,7 +18,6 @@
  * permission (owner, 2026-10-22). A refusal that only the blank-row rule makes says `blank row`.
  *
  * Rollout (`DMS_DATA_AUTH_MODE`):
- *   - `legacy`  — nothing checked (today's behaviour).
  *   - `log`     — (default) allowed; every write the rule would refuse is logged
  *                 (`[data-auth] would-deny …`) so grants can be fixed before anything flips.
  *   - `enforce` — the rule decides; a refused write throws.
@@ -28,16 +27,17 @@ const { isEqual } = require('lodash');
 const { getKind, getParent, getInstance, isSplitType } = require('#db/type-utils.js');
 const { isUserAuthed, blankRowRefusal, resolveAuthPermissions } = require('../auth');
 const {
-    holdsExplicitly, isAppAdmin, unionAuthPermissions, decideSource, sourceIdForView, internalSourceGrants,
+    holdsExplicitly, isAppAdmin, unionAuthPermissions, internalSourceGrants,
 } = require('./sourceAuth');
+// A lookup, not a decision — it lives beside the switch, not inside this arm of it.
+const { sourceIdForView } = require('../sourceGuards');
 const AUTH_RULES = require('./authRules');
 const { judge: judgeRules } = require('./authJudge');
 const accessLog = require('../../../access-log');
 
-function dataAuthMode() {
-    const m = String(process.env.DMS_DATA_AUTH_MODE || 'log').toLowerCase();
-    return ['legacy', 'log', 'enforce'].includes(m) ? m : 'log';
-}
+// `DMS_AUTH_MODE` — the one mode, shared with every other surface and with row auth (../mode.js).
+// It was `DMS_DATA_AUTH_MODE` until 2026-11-03.
+const { authMode: dataAuthMode } = require('../settings');
 
 const parseJson = (v) => {
     if (v == null) return null;
@@ -87,7 +87,6 @@ function planEdit(row, patch, { replace = false } = {}) {
 
 const allow = (reason) => ({ allow: true, reason });
 const deny = (reason) => ({ allow: false, reason });
-const needs = (perms) => `missing ${[].concat(perms).join(' or ')}`;
 
 // Signed in → isUserAuthed (no grants ⇒ edits need an explicit grant); anon → explicit grants only (`*` counts
 // for all). `onBlank` hears of a refusal only the blank-row rule made (for the deny reason).
@@ -143,6 +142,56 @@ function createJudge(ctx) {
         return holds(user, ap, perms);
     }
 
+    // THE VOCABULARY THAT GOVERNS A KIND, read from the row that declares it.
+    //
+    // Which attribute needs which verb is declared in the format that owns the attribute and
+    // transported on a pattern row (`auth.vocabulary`). `getPatternRows` projects `id, type, data`
+    // and not the auth COLUMN, which is where the migration puts it — so the rows are re-read here
+    // through the auth projection, once per judge. Before 2026-11-03 these rules were a second copy
+    // in `authRules.js` as `byKey` / `when` / `onlyKeys`; see unified-auth-api.md Phase 1.
+    let containersP;
+    const authContainers = () => (containersP || (containersP =
+        (controller.authContainers ? controller.authContainers(app) : Promise.resolve([])).catch(() => [])));
+
+    /**
+     * The row whose declaration governs `kind`, and the SCOPE to read it in.
+     *
+     * A row that declares its own vocabulary is governed by `self`; one that inherited a
+     * declaration from above is governed by `descendants`. Both halves matter: a pattern row's
+     * vocabulary carries `edit-pattern` under `self` and `edit-page` under `descendants`, and
+     * reading the wrong one offers a page editor the pattern's verb.
+     *
+     * `authContainers` is the auth-projected read of every row a type path can name as a parent —
+     * the site, the patterns, the sources — which is where declarations live. `getPatternRows`
+     * projects `id, type, data` and not the auth COLUMN, which is where the migration puts them.
+     */
+    async function vocabFor(kind, row) {
+        const rows = await authContainers();
+        const byId = new Map(rows.map(r => [String(r.id), r]));
+        const siteRow = () => rows.find(r => getKind(r.type || '') === 'site') || null;
+        const typed = (pt) => rows.find(r => getKind(r.type || '') === 'pattern'
+            && (parseJson(r.data) || {}).pattern_type === pt) || null;
+        switch (kind) {
+            // declares its own
+            case 'pattern': return { row: byId.get(String(row && row.id)) || null, scope: 'self' };
+            case 'site':    return { row: byId.get(String(row && row.id)) || siteRow(), scope: 'self' };
+            // inherits one
+            case 'page': case 'component': case 'page-edit': {
+                const p = await contentPattern(getParent(row.type || ''));
+                return { row: p ? byId.get(String(p.id)) || null : null, scope: 'descendants' };
+            }
+            case 'source': case 'view': case 'data': case 'dmsenv':
+                return { row: typed('datasets'), scope: 'descendants' };
+            default: return { row: siteRow(), scope: 'descendants' };   // theme, tenant
+        }
+    }
+    const mapsFor = async (kind, row) => {
+        try {
+            const { row: vrow, scope } = await vocabFor(kind, row);
+            return { maps: impliesMaps(vocabularyOf(vrow || {})), scope };
+        } catch { return { maps: null, scope: 'flat' }; }
+    };
+
     // The content pattern with this instance name (skips admin/auth rows sharing it, as
     // getPatternAuthPermissions does).
     async function contentPattern(instance) {
@@ -157,147 +206,15 @@ function createJudge(ctx) {
 
     const internalEnv = (slug) => `${app}+${slug || 'internal'}`;
 
-    async function onSource(sourceId, perms, slug) {
-        if (!sourceId) return deny('source not found');
-        return decideSource({ env: internalEnv(slug), sourceId, subdomain, reqPermissions: [].concat(perms), user,
-            explicitOnly: !(user && user.authed) });
-    }
-
-    // ---- per kind. `op`: create | edit | delete. `row`: { id, type, data } (data = stored row for
-    // edits/deletes, the new data for creates). `patch`: the edit's data.
-    async function judge(op, row, patch, keys) {
-        const type = row.type || '';
-        const kind = getKind(type);
-        // An edit that changes nothing writes only updated_at / updated_by: any of the row's edit
-        // permissions passes it (a permissions-only user re-saving unchanged grants, say).
-        const noChange = op === 'edit' && keys.length === 0;
-        const only = (allowed) => keys.length > 0 && keys.every(k => allowed.includes(k));
-
-        switch (kind) {
-            case 'site': {
-                if (op !== 'edit') return (await siteCan('*')) ? allow('site grant') : deny(`site ${needs('*')}`);
-                // each changed key needs its own grant; anything not listed needs site `*`
-                const SITE_KEYS = {
-                    patterns: ['create-pattern', 'delete-pattern'],
-                    theme_refs: ['manage-themes'],
-                    tenants: ['manage-tenants'],
-                };
-                for (const k of keys.length ? keys : ['*']) {
-                    if (k === 'dms_envs') {
-                        // a new dmsEnv registered on the site (datasets settings)
-                        if (!holds(user, await datasetsGrants(), ['create-source', 'edit-pattern']) && !(await siteCan('*'))) {
-                            return deny(`site dms_envs ${needs(['create-source', 'edit-pattern'])}`);
-                        }
-                        continue;
-                    }
-                    const perms = SITE_KEYS[k] || ['*'];
-                    if (!(await siteCan(perms))) return deny(`site ${k} ${needs(perms)}`);
-                }
-                return allow('site grant');
-            }
-            case 'theme':
-                return (await siteCan('manage-themes')) ? allow('site grant') : deny(`site ${needs('manage-themes')}`);
-            case 'tenant':
-                return (await siteCan('manage-tenants')) ? allow('site grant') : deny(`site ${needs('manage-tenants')}`);
-
-            case 'pattern': {
-                if (op === 'create') {
-                    return (await siteCan('create-pattern')) ? allow('site grant') : deny(`site ${needs('create-pattern')}`);
-                }
-                // Deleting a pattern is a SITE operation, offered by the admin pattern and no
-                // other type (owner, 2026-10-30) — so it asks `siteCan`, symmetric with `create`
-                // above. `SITE_KEYS.patterns` already pairs the two on the site row's own edit.
-                if (op === 'delete') {
-                    return (await siteCan('delete-pattern')) ? allow('site grant') : deny(`site ${needs('delete-pattern')}`);
-                }
-                const pattern = parseJson(row.data) || {};
-                const groups = [
-                    ...(keys.includes('authPermissions') ? [['edit-pattern-permissions']] : []),
-                    ...(keys.some(k => k !== 'authPermissions') ? [['edit-pattern']] : []),
-                    ...(noChange ? [['edit-pattern', 'edit-pattern-permissions']] : []),
-                ];
-                for (const perms of groups) {
-                    if (!(await patternCan(pattern, perms))) return deny(`pattern ${row.id} ${needs(perms)}`);
-                }
-                return allow('pattern grant');
-            }
-
-            case 'page':
-            case 'component':
-            case 'page-edit': {  // page-edit: a page's edit history, written by whoever edits it
-                const pattern = await contentPattern(getParent(type));
-                const patternAP = resolveAuthPermissions(pattern && pattern.data.authPermissions, subdomain);
-                const pageAP = kind === 'page' && op !== 'create'
-                    ? resolveAuthPermissions((parseJson(row.data) || {}).authPermissions, subdomain) : {};
-                const ap = {
-                    groups: { ...(patternAP.groups || {}), ...(pageAP.groups || {}) },
-                    users: { ...(patternAP.users || {}), ...(pageAP.users || {}) },
-                };
-                let groups;
-                if (kind !== 'page') groups = [['edit-page', 'publish-page']];
-                else if (op === 'create') groups = [['create-page']];
-                else if (op === 'delete') groups = [['edit-page']];
-                else {
-                    // publish() copies the drafts into these. `published: 'draft'` is what a new or
-                    // unpublished page carries, not a publish.
-                    const patchData = parseJson(patch) || {};
-                    const isPublish = (k) => ['sections', 'section_groups', 'dataSources'].includes(k)
-                        || (k === 'published' && patchData.published !== 'draft');
-                    // `filters` is the editor's Filters pane, which edit-page-params opens
-                    const isOther = (k) => k !== 'authPermissions' && k !== 'filters' && !isPublish(k);
-                    groups = [
-                        ...(keys.includes('authPermissions') ? [['edit-page-permissions']] : []),
-                        ...(keys.some(isPublish) ? [['publish-page']] : []),
-                        ...(keys.includes('filters') ? [['edit-page', 'edit-page-params']] : []),
-                        ...(keys.some(isOther) ? [['edit-page']] : []),
-                        ...(noChange ? [['edit-page', 'publish-page', 'edit-page-permissions', 'edit-page-params']] : []),
-                    ];
-                }
-                if (await siteCan('*')) return allow('site *');
-                for (const perms of groups) {
-                    if (!holds(user, ap, perms)) return deny(`${kind} ${row.id || 'new'} of ${getParent(type)} ${needs(perms)}`);
-                }
-                return allow('page grant');
-            }
-
-            case 'dmsenv': {
-                const perms = ['create-source', 'delete-source', 'edit-pattern'];
-                return holds(user, await datasetsGrants(), perms) ? allow('datasets grant') : deny(`dmsenv ${needs(perms)}`);
-            }
-            case 'source': {
-                if (op === 'create') {
-                    return holds(user, await datasetsGrants(), 'create-source') ? allow('datasets grant') : deny(`source ${needs('create-source')}`);
-                }
-                let perms = ['update-source'];
-                if (op === 'delete') perms = ['delete-source'];
-                else if (keys.includes('auth_permissions')) {
-                    // and update-source for any other key, as uda.sources.update (owner 2026-10-29)
-                    const d = await onSource(row.id, ['edit-source-permissions'], getInstance(type));
-                    if (!d.allow || keys.every(k => k === 'auth_permissions')) return d;
-                }
-                else if (only(['views'])) perms = ['create-view', 'update-source', 'delete-source'];
-                else if (noChange) perms = ['update-source', 'edit-source-permissions', 'create-view'];
-                return onSource(row.id, perms, getInstance(type));
-            }
-            case 'view': {
-                const slug = getParent(type);
-                const sourceId = op === 'create'
-                    ? await controller.getSourceIdBySlug(app, slug)
-                    : await sourceIdForView(internalEnv(slug), row.id);
-                const perms = op === 'create' ? ['create-view'] : op === 'delete' ? ['delete-source'] : ['update-source', 'create-view'];
-                return onSource(sourceId, perms, slug);
-            }
-            case 'data': {
-                if (!isSplitType(type)) break;
-                const slug = getParent(type);
-                return onSource(await controller.getSourceIdBySlug(app, slug), ['edit-source-data'], slug);
-            }
-        }
-        return user ? allow('signed in') : deny('sign in required');
-    }
-
-    // ---- TRIAL (DMS_DATA_AUTH_JUDGE=data): the same decision as authRules.js data + the authJudge.js
-    // interpreter. The owner lookups below are the part the rules can't express (auth-as-data README).
+    // ---- THE JUDGE. Kind auth's rules live in `authRules.js` as DATA and are applied by
+    // `authJudge.js`, a pure interpreter. The owner lookups below are the part the rules cannot
+    // express — which grants govern a row of this kind (auth-as-data README).
+    //
+    // Until 2026-11-03 this sat behind `DMS_DATA_AUTH_JUDGE=data` beside a hand-written `switch`
+    // over the eleven row kinds. The switch is gone (owner: "we don't want hand written rules").
+    // The two were measured identical first — 53/53 on this side's contract suite plus 114 more
+    // cases across upload, uda, source, reads, child-sweep and parent-stamp, with the same kinds
+    // covered and the same `DEFAULT: signedIn` fallthrough.
     async function resolveOwner(name, op, row) {
         const type = row.type || '';
         const ownGrants = () => resolveAuthPermissions((parseJson(row.data) || {}).authPermissions, subdomain);
@@ -341,7 +258,7 @@ function createJudge(ctx) {
         return [...out].filter(Boolean);
     }
 
-    async function judgeAsData(op, row, patch, keys) {
+    async function judge(op, row, patch, keys) {
         const type = row.type || '';
         const kind = getKind(type);
         const rule = AUTH_RULES[kind];
@@ -349,6 +266,7 @@ function createJudge(ctx) {
         if (rule) {
             for (const name of ownersIn(rule)) grants[name] = await resolveOwner(name, op, row);
         }
+        const { maps, scope } = await mapsFor(kind, row);
         return judgeRules(AUTH_RULES, {
             user,
             isAppAdmin: false,  // checked by decide()
@@ -356,7 +274,7 @@ function createJudge(ctx) {
             // an owner that couldn't be found holds nothing (fail closed, as onSource's 'source not found')
             holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)),
             isBlank: (ap) => ap != null && !hasGrants(ap),
-        }, { kind, op, keys, patch: parseJson(patch) || {}, split: isSplitType(type),
+        }, { kind, op, keys, patch: parseJson(patch) || {}, split: isSplitType(type), maps, scope,
             row: op === 'create' ? parseJson(patch) || {} : parseJson(row.data) || {} });
     }
 
@@ -365,9 +283,7 @@ function createJudge(ctx) {
         if (isAppAdmin(user, app)) return allow(`${app} Admin`);
         try {
             blankRefusal = false;
-            const d = process.env.DMS_DATA_AUTH_JUDGE === 'data'
-                ? await judgeAsData(op, row, patch, keys)
-                : await judge(op, row, patch, keys);
+            const d = await judge(op, row, patch, keys);
             return !d.allow && blankRefusal && !/blank row/.test(d.reason)
                 ? deny(`${d.reason}; blank row (no grants: edits need an explicit grant)`) : d;
         } catch (e) {
@@ -391,19 +307,19 @@ function logWouldDeny(op, app, row, user, reason, outcome = 'would-deny') {
 }
 
 /**
- * Throw unless `router.user` may do `op` on `row` (under DMS_DATA_AUTH_MODE). `row` must be the stored
+ * Throw unless `router.user` may do `op` on `row` (under `DMS_AUTH_MODE`). `row` must be the stored
  * row ({ id, app, type, data }) for edits / deletes (see the routes). `patch`: an edit's data;
  * `replace`: the write replaces the whole data (sync/push I onto an existing id).
  * Returns the data to write: for an edit judged against its stored row, only what planEdit judged
- * (see there); otherwise `patch` as given. `legacy` checks and filters nothing.
+ * (see there); otherwise `patch` as given.
  * `skipNoChange`: an edit of a stored row that changes nothing returns NO_CHANGE, unjudged, and the caller
  * writes nothing (owner 2026-10-29: a save with no changes is not an update).
  */
-const { NO_CHANGE } = require('../noChange');   // shared with row auth — see that file
+const { NO_CHANGE } = require('../settings');
+const { vocabularyOf, impliesMaps } = require('../rowAuth/authVocabulary');   // shared with row auth — see that file
 
 async function assertDataWrite(router, controller, op, app, row, patch, { replace = false, skipNoChange = false } = {}) {
     const mode = dataAuthMode();
-    if (mode === 'legacy') return patch;
     const user = (router && router.user) || null;
     const plan = op === 'edit' ? planEdit(row, patch, { replace }) : { keys: [], write: patch };
     if (skipNoChange && op === 'edit' && parseJson(row && row.data) && plan.keys.length === 0) return NO_CHANGE;

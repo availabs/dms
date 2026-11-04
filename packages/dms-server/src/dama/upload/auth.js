@@ -9,13 +9,13 @@
  *   - rows into an internal source (DMS publish / validate): `edit-source-data` or `update-source`;
  *   - a view's downloads and PM tiles (create / delete download, cache-pmtiles): `manage-downloads` on the
  *     view's source.
- * These routes checked nothing before, so `legacy` / `log` allow and log would-denies; `enforce`
- * decides (DMS_SOURCE_AUTH_MODE, see routes/uda/sourceAuth.js).
+ * These routes checked nothing before, so `log` allows and logs would-denies; `enforce`
+ * decides (DMS_AUTH_MODE, see routes/uda/sourceAuth.js).
  */
-const {
-    authMode, requireUser, requireUserOrOpen, requestUserId, requestPatternRef, requireSourcePermission, requirePatternPermission,
-    sourceIdForView,
-} = require('../../routes/auth/kindAuth/sourceAuth');
+const { requireUser, requireUserOrOpen, requestUserId, requestPatternRef } = require('../../routes/auth/requestUser');
+const { requireCan } = require('../../routes/auth/sourceGuards');
+const { authMode } = require('../../routes/auth/settings');
+const { sourceIdForView } = require('../../routes/auth/sourceGuards');
 
 // Authorization comes from the switch, never from a named implementation. See routes/auth/index.js.
 const { createJudge, dataAuthMode } = require('../../routes/auth');
@@ -47,9 +47,9 @@ function checkUploadOwner(req, res, entry) {
  * which name no datasets pattern; owner decision 2026-10-21).
  */
 async function authorizePublish(req, res, sourceId, { env, app, allowUnnamed = false, anonWasOpen = false } = {}) {
-    if (sourceId) return requireSourcePermission(req, res, sourceId, ADD_VIEW_PERMS, { env, wasOpen: true, anonWasOpen });
+    if (sourceId) return requireCan(req, res, { source: sourceId, perms: ADD_VIEW_PERMS, env, wasOpen: true, anonWasOpen });
     if (allowUnnamed && !requestPatternRef(req)) return anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
-    return requirePatternPermission(req, res, 'create-source', { app, anonWasOpen });
+    return requireCan(req, res, { perms: 'create-source', app, anonWasOpen });
 }
 
 /** Gate a write of rows into each of `sourceIds` (internal sources of `env`); all must pass. */
@@ -57,7 +57,7 @@ async function authorizeRowWrite(req, res, sourceIds, env) {
     let user = requireUser(req, res);
     for (const id of [...new Set(sourceIds.filter(id => id != null).map(Number))]) {
         if (!user) return null;
-        user = await requireSourcePermission(req, res, id, WRITE_ROWS_PERMS, { env, wasOpen: true });
+        user = await requireCan(req, res, { source: id, perms: WRITE_ROWS_PERMS, env, wasOpen: true });
     }
     // Nothing resolved: the strict rule has no source to check, so only `enforce` refuses.
     if (user && !sourceIds.some(id => id != null) && authMode() === 'enforce') {
@@ -71,7 +71,7 @@ async function authorizeRowWrite(req, res, sourceIds, env) {
  * Gate an action on a view's downloads / tiles (create-download, delete-download, cache-pmtiles): `perms` on
  * the source the view belongs to, found from the view (`views.source_id`), not from the body's `source_id`.
  * Returns `{ user, sourceId }` (the view's own source, or the body's when the view has none, which the strict
- * rule then denies), or null when refused. These routes checked nothing before: `legacy` / `log` allow.
+ * rule then denies), or null when refused. These routes checked nothing before: `log` allows.
  */
 async function authorizeViewAction(req, res, viewId, perms, bodySourceId, { anonWasOpen = false } = {}) {
     const caller = anonWasOpen ? requireUserOrOpen(req, res) : requireUser(req, res);
@@ -82,21 +82,20 @@ async function authorizeViewAction(req, res, viewId, perms, bodySourceId, { anon
         console.warn(`[source-auth] view ${env}/${viewId} belongs to source ${sourceId}, body named ${bodySourceId}; using ${sourceId}`);
     }
     const id = sourceId ?? bodySourceId;
-    const user = await requireSourcePermission(req, res, id ?? 0, perms, { wasOpen: true, anonWasOpen });
+    const user = await requireCan(req, res, { source: id ?? 0, perms: perms, wasOpen: true, anonWasOpen });
     return user ? { user, sourceId: id } : null;
 }
 
 /**
  * Gate a pattern action (duplicate, sync-filters) the way the admin UI gates its button: `perms` on the
  * pattern `app` + (`id` or `instance`), plus optional site-level `sitePerms` on `siteApp`. Judged by
- * routes/dms/dataAuth.js under DMS_DATA_AUTH_MODE (these routes checked nothing before: `log` allows
+ * routes/dms/dataAuth.js under DMS_AUTH_MODE (these routes checked nothing before: `log` allows
  * and logs). A signed-in user is always required. Returns the user, or null when refused.
  */
 async function requirePatternAction(req, res, controller, { app, id, instance, perms, siteApp = app, sitePerms }) {
     const user = requireUser(req, res);
     if (!user) return null;
     const mode = dataAuthMode();
-    if (mode === 'legacy') return user;
     const subdomain = req.headers ? getSubdomain(req) : '';
     const judge = createJudge({ app, subdomain, user, controller });
     let reason = null;

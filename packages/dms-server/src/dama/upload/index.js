@@ -9,7 +9,7 @@ const { downloadGuard, createDownload, deleteDownload, signDownload, serveDownlo
 const { fileUpload } = require('./file-upload-route');
 const { createFileUploadDmsHandler } = require('./file-upload-dms-route');
 const { requireLogin, requirePatternAction } = require('./auth');
-const { requireReader } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requireReader } = require('../../routes/auth/requestUser');
 const { createDuplicateHandler } = require('./dms-duplicate');
 const { createPatternFilterSyncHandler } = require('../../dms/tasks/pattern-filter-sync/pattern-filter-sync');
 const dmsTasks = require('../../dms/tasks');
@@ -61,7 +61,7 @@ function registerUploadRoutes(app) {
   }, createPatternFilterSyncHandler(controller));
 
   // Task status — used by the client to poll for duplicate (and future long-running) tasks.
-  // Task and event reads need a signed-in user (requireReader, under DMS_SOURCE_AUTH_MODE).
+  // Task and event reads need a signed-in user (requireReader, under DMS_AUTH_MODE).
   app.get('/dama-admin/dms/tasks/:taskId', requireReader, async (req, res) => {
     try {
       const task = await dmsTasks.getTaskStatus(Number(req.params.taskId));

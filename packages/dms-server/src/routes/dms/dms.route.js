@@ -10,7 +10,11 @@ const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
  implementation (`DMS_AUTH_IMPL`: `kind` by default, or `row`) and exports one contract for both.
  This file never names a side. See routes/auth/index.js for the switch and what it does NOT do.
 */
-const { assertDataWrite, dataAuthMode, readBlocked, listingBlocked, NO_CHANGE } = require('../auth');
+const { assertDataWrite, dataAuthMode, readBlocked, listingBlocked, NO_CHANGE, authorize } = require('../auth');
+// `authorize({ row, verb })` is the same question UDA asks of a source (`routes/auth/authorize.js`).
+// `readBlocked` is its read half by another name and stays while this route's call sites are
+// phrased as "is this blocked?"; `assertDataWrite` is the write half plus the throw a Falcor route
+// needs. See research/unified-auth-api.md.
 
 /*
  Controller Settings
@@ -170,7 +174,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   const judgedWrite = async (app, id, type, write) => {
     for (let attempt = 0; ; attempt++) {
       const [stored] = await storedRows(app, [id], type);
-      const expect = dataAuthMode() === 'legacy' || (type && isSplitType(type)) ? null
+      const expect = (type && isSplitType(type)) ? null
         : stored.missing ? { missing: true } : { type: stored.type, dataText: stored.data_text };
       try {
         return await write(stored, expect);

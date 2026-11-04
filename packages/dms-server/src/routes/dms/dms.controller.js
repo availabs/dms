@@ -261,7 +261,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * `log`.
    *
    * **`delete` is gated on `migrate-row-auth.js --verify-parents` reporting ZERO rows "named by 2+
-   * owners" for the app**, the same way `DMS_ROW_AUTH_MODE=enforce` is gated on coverage. The
+   * owners" for the app**, the same way `DMS_AUTH_MODE=enforce` is gated on coverage. The
    * reason is `stampChildren`: it re-homes a child whose `parent_id` points elsewhere, on purpose,
    * because re-asserting from the owner's own array is what repairs drift. On healthy data nothing
    * exercises that — there is no cross-page section move, and paste/duplicate/template all mint new
@@ -1492,13 +1492,17 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // site's pattern list, with byte-identical types.
       //
       // Mode-gated like the rest of the row-auth programme so hits can be seen before anything is
-      // refused — `log` (the default) warns, `enforce` throws, `legacy` skips. The tenant guard
-      // above is unconditional; this one can follow once the existing duplicates are resolved.
+      // refused — `log` (the default) warns, `enforce` throws. The tenant guard above is
+      // unconditional; this one can follow once the existing duplicates are resolved.
+      //
+      // The `legacy` skip went with the mode itself on 2026-11-03 (`routes/auth/settings.js`): the
+      // check was `mode !== 'legacy'`, which no value can fail any more, so it was a condition that
+      // always passed and read as though it sometimes would not.
       // See planning/tasks/current/row-auth-schema.md.
       if (getKind(type) === 'pattern') {
-        const { rowAuthMode } = require('../auth/rowAuth/rowAuthGate');
-        const mode = rowAuthMode();
-        if (mode !== 'legacy') {
+        const { authMode } = require('../auth/settings');
+        const mode = authMode();
+        {
           const clash = await dms_db.promise(
             `SELECT id FROM ${resolved.fullName} WHERE app = $1 AND type = $2 LIMIT 1`,
             [app, type]

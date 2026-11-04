@@ -94,7 +94,7 @@ for (let i = 0; i < args.length; i++) {
     else { console.error(`Unknown argument: ${args[i]}`); process.exit(1) }
 }
 
-const { deriveAuthVocabulary } = await loadModule(resolve(here, '..', 'src/patterns/deriveAuthVocabulary.js'))
+const { deriveAuthVocabulary, deriveDmsEnvVocabulary } = await loadModule(resolve(here, '..', 'src/patterns/deriveAuthVocabulary.js'))
 const { PATTERN_ROW_DOMAIN } = await loadModule(resolve(here, '..', 'src/patterns/patternRow.domain.js'))
 
 const derive = async ({ formats = [], instance, publicRead }) => {
@@ -113,6 +113,29 @@ for (const [type, def] of Object.entries(BUILT_INS)) {
 for (const [type, rel] of Object.entries(CHILD_REFS)) {
     out[type] = { ...(out[type] || {}), childRefs: pick(await loadModule(resolve(here, '..', rel))) }
 }
+// ---- ROW-KIND declarations, keyed `:<kind>` ----------------------------------------------------
+//
+// A dmsEnv is NOT a pattern type. It is a child of the site that happens to be the ancestor of
+// every source (`{env}|{name}:source`), so its vocabulary cannot come from the pattern registry —
+// it is derived from the one format that describes it and stamped onto the env ROWS.
+//
+// The `:` prefix is what keeps this out of the pattern map: a `pattern_type` is never empty and
+// never starts with `:`, so `migrate-row-auth.js` pass 1 skips these and pass 1b claims them. It
+// also reads like the type suffix it stamps.
+const adminMod = await loadModule(resolve(here, '..', 'src/patterns/admin/admin.format.js'))
+if (adminMod.dmsEnvFormat) {
+    out[':dmsenv'] = { vocabulary: deriveDmsEnvVocabulary(adminMod.dmsEnvFormat) }
+}
+// The SITE row, for the same reason and in the same shape. It is the ROOT of every chain, so the
+// verbs that govern it are its OWN (`self`) and the verbs of the rows beneath it — patterns,
+// themes, tenants, envs — are its `descendants`. Without this the site row carries no declaration
+// at all, its grants expand to nothing structural, and the field rules that say "`tenants` needs
+// manage-tenants" have nowhere to be read from. Kind auth reads those verbs off the ADMIN PATTERN
+// row instead, which is a sibling of what it is judging; see unified-auth-api.md Phase 4.
+if (adminMod.default) {
+    out[':site'] = { vocabulary: deriveDmsEnvVocabulary(adminMod.default) }
+}
+
 // A host app's own types: `--extra <file>`, a FORMAT module now, named by the file's basename
 // before the first dot, so `qa.format.js` registers under `qa`.
 for (const rel of extras) {

@@ -2,7 +2,7 @@
  * DIFFERENTIAL: the row judge against kind auth's own contract suite.
  *
  * `tests/test-data-auth.js` encodes KIND auth's contract (dataAuth.js) and stays that way — green
- * at 49/49 on the default flag, not ours to edit. Running it with `DMS_WRITE_GATE=row` points it at
+ * green on the default implementation, not ours to edit. Running it with `DMS_AUTH_IMPL=row` points it at
  * the row judge instead, where it is NOT a pass/fail gate: row auth deliberately differs, and
  * expecting identical results is a category error.
  *
@@ -26,7 +26,12 @@ const { runDifferential } = require('./lib/differential');
 runDifferential({
   suite: path.join(__dirname, 'test-data-auth.js'),
   fixturePath: path.join(__dirname, 'fixtures', 'row-auth-expected-diff.json'),
-  env: { DMS_WRITE_GATE: 'row' },
+  // `DMS_AUTH_IMPL=row` is the WHOLE experiment. It used to take two variables — this one to load
+  // the row modules and `DMS_WRITE_GATE` to make the write surface use them — and setting one
+  // without the other produced a harness that compared kind auth with itself and passed green
+  // having measured nothing. That reached the tree once (0 pinned, 26 resolved). The second flag
+  // was removed on 2026-11-03; there is now no way to half-set it.
+  env: { DMS_AUTH_IMPL: 'row' },
   doneRe: /data-auth tests: \d+ passed/,
   title: "kind auth's contract suite, judged by ROW auth",
 });

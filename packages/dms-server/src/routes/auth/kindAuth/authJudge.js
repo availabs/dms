@@ -1,5 +1,7 @@
 'use strict';
-// Trial (DMS_DATA_AUTH_JUDGE=data): judge.cjs from auth-as-data (2026-10-27). A pure interpreter over authRules.js.
+const { verbsForFields } = require('../rowAuth/authVocabulary');
+// KIND AUTH'S JUDGE — judge.cjs from auth-as-data (2026-10-27). A pure interpreter over authRules.js,
+// and since 2026-11-03 the only one: the hand-written `switch` it was trialled against is gone.
 // Ours since: `ifOwnerBlank` (2026-10-30, the open-pattern rule) and the `row` / `env.isBlank` inputs it reads.
 const allow = (reason) => ({ allow: true, reason });
 const deny  = (reason) => ({ allow: false, reason });
@@ -32,31 +34,47 @@ function blankSwap(rule, env, row) {
 }
 
 // Which requirements an edit's changed keys produce.
-function editRequirements(spec, defaultOwner, { keys, patch }) {
+//
+// THE DECLARATION WINS. When the row's chain declares which fields each verb governs
+// (`permissionDomain` entries carry `fields`), that answers the whole question and the spec's own
+// `byKey` / `when` / `onlyKeys` are not consulted. They remain for the one clause a vocabulary
+// cannot express — a field judged against a DIFFERENT owner's grants (the site row's `dms_envs`,
+// which datasets grants govern) — and for a chain that declares nothing.
+function editRequirements(spec, defaultOwner, { keys, patch, maps, scope }) {
   if (Array.isArray(spec)) return req(spec, defaultOwner);
   const out = [];
-  const matched = new Set();
+  let rest = keys;
+  if (maps) {
+    const { groups, covered } = verbsForFields(keys, maps, patch, scope);
+    out.push(...groups.map(perms => ({ owner: defaultOwner, perms })));
+    // PER KEY, not all-or-nothing: a key the declaration did not answer still gets the spec's
+    // treatment. The site row's `dms_envs` is judged against a DIFFERENT owner's grants, which no
+    // vocabulary can say, and dropping it silently opened the one clause that needed care.
+    rest = keys.filter(k => !covered.includes(k));
+    if (!keys.length && groups.length) return out;
+  }
 
-  for (const k of keys) {
+  const matched = new Set();
+  for (const k of rest) {
     if (spec.byKey && spec.byKey[k]) { out.push(...req(spec.byKey[k], defaultOwner)); matched.add(k); }
   }
   for (const w of spec.when || []) {
-    const hit = keys.some(k =>
+    const hit = rest.some(k =>
       (w.keyIn ? w.keyIn.includes(k) : w.key === k) &&
       (w.valueNot === undefined || patch[k] !== w.valueNot));
     if (hit) {
       out.push(...req(w.perms, defaultOwner));
-      keys.filter(k => (w.keyIn ? w.keyIn.includes(k) : w.key === k)).forEach(k => matched.add(k));
+      rest.filter(k => (w.keyIn ? w.keyIn.includes(k) : w.key === k)).forEach(k => matched.add(k));
     }
   }
   for (const o of spec.onlyKeys || []) {
-    if (keys.length > 0 && keys.every(k => o.keys.includes(k))) return req(o.perms, defaultOwner);
+    if (rest.length > 0 && rest.every(k => o.keys.includes(k))) return req(o.perms, defaultOwner);
   }
-  if (spec.default && keys.some(k => !matched.has(k))) out.push(...req(spec.default, defaultOwner));
+  if (spec.default && rest.some(k => !matched.has(k))) out.push(...req(spec.default, defaultOwner));
   return out;
 }
 
-function judge(rules, env, { kind, op, keys = [], patch = {}, split = false, row = {} }) {
+function judge(rules, env, { kind, op, keys = [], patch = {}, split = false, row = {}, maps = null, scope = 'flat' }) {
   if (env.isAppAdmin) return allow('app admin');
 
   const rule = rules[kind];
@@ -81,7 +99,7 @@ function judge(rules, env, { kind, op, keys = [], patch = {}, split = false, row
   if (spec === undefined) return deny(`no rule for ${kind}/${op}`);
 
   const requirements = op === 'edit'
-    ? editRequirements(spec, rule.owner, { keys, patch })
+    ? editRequirements(spec, rule.owner, { keys, patch, maps, scope })
     : req(spec, rule.owner);
 
   for (const r of requirements) {

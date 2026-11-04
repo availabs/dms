@@ -10,7 +10,8 @@
  * pattern type DECLARES its vocabulary in the registry, the pattern ROW transports it
  * (`data.authVocabulary`, projected as `auth_vocabulary`), and this module INTERPRETS it. Nothing
  * here knows a pattern, a verb or a type name — which is the whole difference between this and the
- * transitional `legacyVerbs.js` it is built to replace.
+ * transitional `legacyVerbs.js` it replaced — deleted 2026-11-03, leaving this the only answer
+ * to what a permission string confers.
  *
  * ---------------------------------------------------------------------------
  * Declared shape (packages/dms/src/patterns/authVocabulary.js)
@@ -74,7 +75,10 @@ const safeJson = (v) => { try { return JSON.parse(v); } catch { return null; } }
  */
 function impliesMaps(vocabulary) {
   if (!vocabulary || typeof vocabulary !== 'object') return null;
-  const maps = { self: {}, descendants: {}, flat: {} };
+  const maps = { self: {}, descendants: {}, flat: {},
+                 fields: { self: {}, descendants: {}, flat: {} },
+                 when:   { self: {}, descendants: {}, flat: {} },
+                 fieldVerbs: { self: [], descendants: [], flat: [] } };
   let any = false;
   for (const scope of SCOPES) {
     const entries = vocabulary[scope];
@@ -84,10 +88,94 @@ function impliesMaps(vocabulary) {
       const implies = Array.isArray(entry.implies) ? entry.implies.filter(s => typeof s === 'string') : [];
       maps[scope][entry.value] = implies;
       maps.flat[entry.value] = [...new Set([...(maps.flat[entry.value] || []), ...implies])];
+      // FIELD CLAIMS, PER SCOPE — and the scope is not decorative. A pattern row's vocabulary
+      // carries both: `edit-pattern` claims `*` under `self`, `edit-page` claims `*` under
+      // `descendants`. Flattening them makes an ordinary page edit ask for "edit-pattern or
+      // edit-page", which is wrong in both directions — it offers a page editor the pattern's verb
+      // and a pattern editor the page's. A row is governed by `self` when it declares its own
+      // vocabulary and by `descendants` when it inherited one.
+      const claims = Array.isArray(entry.fields) ? entry.fields.filter(f => typeof f === 'string' && f) : [];
+      const when = Array.isArray(entry.when) ? entry.when.filter(c => c && typeof c.field === 'string') : [];
+      if (claims.length || when.length) {
+        for (const bucket of [scope, 'flat']) {
+          for (const f of claims) {
+            const at = maps.fields[bucket][f] || (maps.fields[bucket][f] = []);
+            if (!at.includes(entry.value)) at.push(entry.value);
+          }
+          if (when.length) maps.when[bucket][entry.value] = when.map(c => ({ field: c.field, notValue: c.notValue }));
+          if (!maps.fieldVerbs[bucket].includes(entry.value)) maps.fieldVerbs[bucket].push(entry.value);
+        }
+      }
       any = true;
     }
   }
   return any ? maps : null;
+}
+
+/**
+ * WHICH VERBS AN EDIT NEEDS, read from the vocabulary rather than from a `switch`.
+ *
+ * Returns **a list of ANY-OF GROUPS**, and the shape is the whole point: two fields in one write
+ * mean the caller needs a verb for EACH of them, while two verbs claiming ONE field mean either
+ * will do. A flat list cannot say both, and getting that wrong silently widens
+ * `filters` — which `authRules.js` grants to `edit-page` OR `edit-page-params`.
+ *
+ *     ['title']               → [['edit-page']]
+ *     ['title','sections']    → [['edit-page'], ['publish-page']]        both required
+ *     ['filters']             → [['edit-page-params','edit-page']]       either will do
+ *
+ * Returns `{ groups, covered }`: `covered` lists the keys the declaration actually answered, so a
+ * caller can fall back PER KEY for the rest. All-or-nothing silently dropped a key nobody claimed —
+ * the site row's `dms_envs`, which is judged against a different owner's grants entirely.
+ *
+ * `scope` is `self` for a row that declares its own vocabulary and `descendants` for one that
+ * inherited it; see `impliesMaps`.
+ *
+ * `changed` is `planEdit`'s changed-key list; `patch` is the write, read only for a `when`
+ * condition's value test. The verbs are VALUES — the names a grant is written in. Both
+ * implementations read this: row auth expands them to structural verbs, kind auth checks them by
+ * name, and neither contains the rule.
+ *
+ * Three cases, in the order they are asked:
+ *   - a field a verb CLAIMS                           → that verb
+ *   - a field a verb claims WHEN its value is not X   → that verb, only when the write says so
+ *   - any other field                                 → the verbs that claimed `'*'`
+ *
+ * NOTHING CHANGED (`changed` empty) is an edit that writes only timestamps, and any of the row's
+ * edit verbs passes it — one group holding every verb that governs any field. Derived here rather
+ * than declared, so it cannot drift from the claims above it.
+ */
+function verbsForFields(changed, maps, patch = {}, scope = 'flat') {
+  const empty = { groups: [], covered: [] };
+  if (!maps || !maps.fields || !maps.fields[scope]) return empty;
+  const fields = maps.fields[scope];
+  const when = maps.when[scope] || {};
+  const keys = [...new Set([].concat(changed || []))];
+  if (!keys.length) {
+    const all = maps.fieldVerbs[scope] || [];
+    return all.length ? { groups: [[...all]], covered: [] } : empty;
+  }
+  const wildcard = fields['*'] || [];
+  const groups = [];
+  const covered = [];
+  const seen = new Set();
+  for (const key of keys) {
+    const claimed = [];
+    for (const verb of (fields[key] || [])) if (!claimed.includes(verb)) claimed.push(verb);
+    // Conditional claims live in `when` and nowhere else, so a field named only there is found here.
+    for (const [verb, conds] of Object.entries(when)) {
+      const mine = conds.filter(c => c.field === key);
+      if (mine.length && mine.every(c => patch[key] !== c.notValue) && !claimed.includes(verb)) claimed.push(verb);
+    }
+    const group = claimed.length ? claimed : wildcard;
+    if (!group.length) continue;              // nothing declared for this key — the caller decides
+    covered.push(key);
+    const sig = [...group].sort().join('|');
+    if (seen.has(sig)) continue;
+    seen.add(sig);
+    groups.push(group);
+  }
+  return { groups, covered };
 }
 
 /**
@@ -181,6 +269,6 @@ function ownerKindOf(childRefs, childKind) {
 }
 
 module.exports = {
-  SCOPES, vocabularyOf, impliesMaps, expandPerms, expandWithVocabulary, childRefsOf, ownerKindOf,
+  SCOPES, vocabularyOf, impliesMaps, verbsForFields, expandPerms, expandWithVocabulary, childRefsOf, ownerKindOf,
   publicReadOf,
 };

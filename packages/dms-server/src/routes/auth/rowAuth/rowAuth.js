@@ -73,8 +73,7 @@
 const { getParent, getInstance } = require('#db/type-utils.js');
 const { mergeAuthChain, can, isUnstated, VERBS } = require('./mergeAuth');
 const { resolveAuthPermissions } = require('../auth');
-const { expandLevel } = require('./expandLevel');
-const { vocabularyOf, impliesMaps } = require('./authVocabulary');
+const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('./authVocabulary');
 
 /** Hub: cycles and pathological depth truncate, never deny. Measured max depth is 5 (~7 end to end). */
 const MAX_DEPTH = 16;
@@ -91,9 +90,11 @@ const MAX_DEPTH = 16;
 function authOf(row, subdomain = '', maps = null) {
   const raw = rawAuthOf(row, subdomain);
   if (!raw) return raw;
-  // A declared vocabulary wins over the shim, so a pattern that has declared is already free of it
-  // (row-auth-vocabulary.md, "Until then it stays"). The precedence lives in ../expandLevel.js.
-  return expandLevel(raw, maps);
+  // `maps` null — nothing in the chain declares a vocabulary — means NO expansion: the grant's
+  // verbs stay the strings they are and confer no structural verb. There is no fallback table any
+  // more (`legacyVerbs.js`, deleted 2026-11-03), and that is the point: a verb means what the
+  // pattern says it means, or it means nothing.
+  return expandWithVocabulary(raw, maps);
 }
 
 /**
@@ -114,7 +115,7 @@ function rawAuthOf(row, subdomain = '') {
       // `vocabulary` AND `childRefs` share the column with the grants (authVocabulary.js) and are
       // not principals. Leaking `childRefs` through made an otherwise-empty column look stated.
       // `view` joins them: a source narrowed with `auth: { view: false }` and nothing else has
-      // stated no PRINCIPAL, so it must not read as a grants statement (readAuth.decideRead).
+      // stated no PRINCIPAL, so it must not read as a grants statement (sourceReads.decideRead).
       const { vocabulary, childRefs, view, ...grants } = a;
       // A column that names no principal AT ALL is not a statement — it is an absence, and the
       // grants may still be in `data` where every client still writes them. Falling through there
@@ -238,6 +239,13 @@ function createResolver({ loadByIds, loadContainers, subdomain = '' }) {
    * ancestor reached before the repeat.
    */
   async function chainFor(row, cache) {
+    const rows = await rowsFor(row, cache);
+    const maps = mapsForChain(rows);              // leaf → root: the nearest declaring ancestor
+    return rows.map(r => authOf(r, subdomain, maps) || {}).reverse();   // root → leaf
+  }
+
+  /** The chain as ROWS, leaf → root. `chainFor` expands them; `mapsFor` reads their declarations. */
+  async function rowsFor(row, cache = new Map()) {
     const rows = [];
     const visited = new Set();
     let cur = row;
@@ -252,8 +260,21 @@ function createResolver({ loadByIds, loadContainers, subdomain = '' }) {
       cur = await parentOf(cur, cache);
     }
     if (cur) console.warn(`[row-auth] depth cap ${MAX_DEPTH} reached from id=${row && row.id} — truncating`);
-    const maps = mapsForChain(rows);              // leaf → root: the nearest declaring ancestor
-    return rows.map(r => authOf(r, subdomain, maps) || {}).reverse();   // root → leaf
+    return rows;
+  }
+
+  /**
+   * The implies-maps that govern a row — the REQUEST side's half of the vocabulary.
+   *
+   * The grants are expanded with the same maps when the chain is resolved (`chainFor`). A request
+   * asks in the same words a grant is written in (`edit-pattern`, `view-page`), so it has to be
+   * read against the same declaration, or a grant of `edit-page` would never satisfy a request for
+   * `view-page` even though both say `read`. `null` — nothing in the chain declares — means no
+   * translation at all, and the caller checks the permission by NAME.
+   */
+  async function mapsFor(row, cache = new Map()) {
+    if (!row) return null;
+    return mapsForChain(await rowsFor(row, cache));
   }
 
   /**
@@ -333,7 +354,7 @@ function createResolver({ loadByIds, loadContainers, subdomain = '' }) {
     return mergeAuthChain([...chain, {}]);
   }
 
-  return { resolve, resolveForCreate, chainFor, containers };
+  return { resolve, resolveForCreate, chainFor, rowsFor, mapsFor, containers };
 }
 
 module.exports = {

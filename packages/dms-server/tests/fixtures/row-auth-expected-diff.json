@@ -9,10 +9,13 @@
     "SCOPE OF THIS CHECK: test-data-auth.js's fixtures declare NO authVocabulary, so every",
     "run here exercises the LEGACY SHIM path (legacyVerbs.js). A migrated app does not use it —",
     "all 81 pattern rows on rowauth-test declare, and a declared vocabulary wins over the shim.",
-    "The declared path is covered in tests/test-row-auth-writes.js, 'a DECLARED vocabulary'."
+    "The declared path is covered in tests/test-row-auth-writes.js, 'a DECLARED vocabulary'.",
+    "2026-11-03: six attribute-clause cases were added to test-data-auth.js (page section_groups / dataSources, site tenants / dms_envs, the tenant and dmsenv kinds, source views-only) when kind auth's hand-written switch was replaced by the authRules.js + authJudge.js interpreter — they pin clauses nothing had pinned before, verified identical on BOTH judges before the switch went. All six disagree with row auth: one for the known `field` reason, five because site-level grants live on a sibling pattern row. Both were already understood; they had simply never been measured.",
+    "2026-11-03 (unified-auth-api.md Phase 1): the `field` reason and all four of its entries are GONE. Which attribute needs which verb is declared in the format that owns the attribute (`permissionDomain` entries carry `fields`), read by both implementations through `verbsForFields`. Row auth asks for the named verb rather than what it implies — `publish-page` and `edit-page` imply the same structural verbs, so asking for implications let any page editor publish, which is what that reason recorded. `noChange` resolved with it: the any-of group for an empty change set is derived from the claims instead of listed.",
+    "2026-11-03 (unified-auth-api.md Phase 4): site-level grants now live on the `:site` ROW, which parentage can reach, instead of only on the admin pattern row beside it. Six more entries resolved with that plus Phase 1's scoped field maps — including the OPEN `scope collapse` widening, where a FLAT `edit-page` grant on a pattern row also conferred editing the pattern row itself: the field map is per scope now, so `edit-page` claims fields only under `descendants`.",
+    "2026-11-03 (unified-auth-api.md): the four entries left under `sibling-grants` were re-pinned — that reason described none of them any more. Phase 4 put site grants on the site row, which resolved the sibling case itself; what remained were three different causes wearing its label: `cross-owner` (a field judged against another row's grants), `named-create` (a create asks for the structural verb) and `no-pattern-lending` (the source states nothing and the pattern no longer lends). A wrong reason is worse than no reason: it makes a live gap look settled."
   ],
   "cascade": [
-    "an edit that changes nothing passes with any of the row's edit permissions",
     "U on a page: stranger 403, anon 401, editor 200",
     "U judges the stored type, not the one the client names"
   ],
@@ -23,36 +26,31 @@
     "takes the run from 26 failures to 23. Their file, their call — raised, not patched."
   ],
   "expected": {
-    "a pattern with no grants stays open to signed-in users, never to anon": "default",
-    "a new pattern needs site create-pattern": "default",
-    "site row: patterns list → create-pattern; other keys → site *": "default",
     "themes need manage-themes": "default",
-    "site editor saves the whole row with a new patterns list: create-pattern is enough": "default",
-    "site theme_refs need manage-themes": "default",
     "data rows need edit-source-data on their source": "default",
-    "a public edit-source-data grant lets anon add rows": "default",
     "source edits: update-source; auth_permissions need edit-source-permissions": "default",
     "a new version needs create-view on the source; a new source needs create-source": "default",
     "massedit needs edit-source-data and writes the token user, not the argument": "default",
     "an unmapped kind needs a sign-in only": "default",
     "I of a new source row needs create-source": "default",
-    "publishing (sections / published) needs publish-page": "field",
-    "page filters: edit-page-params (the Filters pane) or edit-page; nothing else": "field",
-    "sections resent as a JSON string of the same array are a change (publish-page)": "field",
     "components: edit-page or publish-page": "create",
     "page-edit (edit history) rows: edit-page or publish-page on the pattern": "create",
     "race (falcor edit): a page grant revoked between the check and the write refuses the edit": "harness",
     "race (sync I replace): a change between the check and the write is not reverted": "harness",
     "race (sync U): a row that keeps changing gives up with 409 after 3 tries": "harness",
     "log allows a refused write and logs one would-deny line": "cosmetic",
-    "pattern edits need edit-pattern; authPermissions need edit-pattern-permissions": "OPEN"
+    "site dms_envs take DATASETS grants, not site `*` — the one cross-owner key": "cross-owner",
+    "a tenant row needs manage-tenants": "named-create",
+    "a dmsenv row needs create-source, delete-source or edit-pattern on the datasets pattern": "named-create",
+    "a source edit touching ONLY `views` widens to create-view / delete-source": "no-pattern-lending"
   },
   "reasons": {
     "default": "STRICT DEFAULTS, decided (hub). Kind auth: signed-in + no grants ⇒ open. Row auth: writes need a grant. Every app with unconfigured patterns loses editing on an enforce flip — the Phase D audit script is a prerequisite.",
-    "field": "FIELD→VERB RULES, deliberately not implemented (owner, 2026-10-29): which attribute needs which verb is business logic and belongs in the pattern. Row auth is LOOSER here — publish-page, edit-page-params and edit-source-data stop being enforced server-side. May be revisited; it is an omission, not a gap.",
     "create": "WHAT A CREATE IS JUDGED AGAINST. Without a claimed parent_id the type path routes docs|page and docs|component to the same pattern row, so one `create` verb cannot tell 'add a section' from 'add a page'. Accepted: a page created with its sections IS 'add a page to this pattern'.",
     "harness": "NOT A DISAGREEMENT. These drive their race by hooking controller.getPatternRows — kind auth's pattern-grant lookup. The row judge never calls it, so the concurrent edit never fires. The protection they test (expect + assertRowUnchanged) is in the ROUTE, gate-independent and unchanged.",
     "cosmetic": "Behaviour is right (allowed under log, one line written). The assertion matches '[data-auth] … missing edit-page'; the row gate writes '[row-auth] … reason=missing edit'.",
-    "OPEN": "SCOPE COLLAPSE — a real widening, nobody decided it. A FLAT grant of `edit-page` on a pattern row also confers editing the pattern ROW, because a flat grant expands against the union of self+descendants (expandWithVocabulary -> maps.flat), which is what flat has always meant. NOT a legacyVerbs problem: the declared vocabulary is ALREADY correctly scoped (edit-pattern under self, edit-page under descendants) and wins over the shim. The fix is in the GRANT, not the server: write it scoped, {descendants:{groups:{Editors:['edit-page']}}}, and the pattern row is untouched — verified in test-row-auth-writes.js. See planning/tasks/current/row-auth-scoped-grants.md. Measured exposure today: zero (no group grants on pattern rows in rowauth-test). Bound: ordinary fields only, never grants."
+    "cross-owner": "A FIELD JUDGED AGAINST ANOTHER ROW'S GRANTS, which a vocabulary cannot express. The site row's `dms_envs` is governed by the DATASETS pattern's grants, not the site's — kind auth says so with `byKey: { dms_envs: { anyOf: [{ owner: 'datasets-grants', ... }] } }`, the one clause left in authRules.js after Phase 1 moved the rest into the formats. A `fields` claim names a verb, and a verb is held on the row being judged; there is no way to say \"this field is judged somewhere else\". So the site's vocabulary claims nothing for `dms_envs`, row auth falls through to a plain structural `edit`, and ROW AUTH IS LOOSER HERE — a site editor holding `manage-themes` can register a dmsEnv. Bound: one field on one row kind. Fixing it needs an owner concept in the vocabulary, which is a design decision, not an omission.",
+    "named-create": "A CREATE ASKS FOR THE STRUCTURAL VERB, a named one is not consulted. Row auth judges a create as `create` on the parent's chain; kind auth asks for the kind's named verb (`manage-tenants` for a tenant, `create-source`/`edit-pattern` for a dmsEnv). A holder of `manage-tenants` has `read` and `edit` and not `create`, so row auth refuses what kind auth allows — it fails closed. Phase 1 gave EDITS their named verbs through `fields`; a create has no changed fields to claim, so the same mechanism does not reach it. Fixing it means letting a kind declare which verb governs creating it, which is a vocabulary addition nobody has asked for yet.",
+    "no-pattern-lending": "DECIDED, not discovered (owner, 2026-11-02). A datasets PATTERN is not a source's ancestor — a source's type is `{env}|{name}:source` and the pattern is nowhere in the path — so its grants no longer reach sources (row-auth-uda-unify-api.md Slice K). Kind auth still lends them. Here the editor's `create-view` / `update-source` sit on the ds pattern and the source itself states nothing, so the field claim fires correctly and finds no holder. The grant sweep (`scripts/sweep-source-grants.js`) is what closes this per app; on `rowauth-test` it reports zero remaining."
   }
 }

@@ -6,7 +6,7 @@
 const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const {
-  AUTH_GROUPS, AUTH_USERS, authority, can, canManageGroup, canManageGroupIn, groupProjects, levelCoversGroup,
+  AUTH_GROUPS, AUTH_USERS, authority, can, canManageGroup, canManageGroupIn, groupProjects,
   platformAuthority,
 } = require('../utils/permissions');
 
@@ -151,7 +151,8 @@ async function groupsForProject(db, body, ctx) {
   // Filter by authority and add member counts + project assignments
   const visible = [];
   for (const group of groups) {
-    if (!a.byPermission && group.auth_level > myAuthLevel) continue;
+    // Auth levels are deprecated (2026-11-03): a grant on the DMS auth object is the only authority.
+    if (!a.byPermission) continue;
 
     const { rows: memberRows } = await db.query(
       'SELECT count(1) AS count FROM users_in_groups WHERE group_name = $1',
@@ -169,12 +170,10 @@ async function groupsForProject(db, body, ctx) {
       created_by: group.created_by,
       num_members: +(memberRows[0]?.count || 0),
       projects: projRows,
-      manageable: (managesGroups && await canManageGroupIn(db, a.user, group.name, a.scope))
-        || (myAuthLevel >= 5 && await levelCoversGroup(db, userData.email, group.name)),
+      manageable: managesGroups && await canManageGroupIn(db, a.user, group.name, a.scope),
       // whether the caller may add members to it or remove them (user handlers' checkGroupAuthority, the
       // rule of /user/group/assign and /remove): the Users page's group picker
-      assignable: (managesUsers && await canManageGroupIn(db, a.user, group.name, a.scope))
-        || await levelCoversGroup(db, userData.email, group.name),
+      assignable: managesUsers && await canManageGroupIn(db, a.user, group.name, a.scope),
     });
   }
 
@@ -190,7 +189,7 @@ async function groupsForProject(db, body, ctx) {
 async function linkableGroups(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, body.token);
   const a = await groupsAuthority(db, userData, body, ctx, 5);
-  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the authority to add groups to ${a.project}.`);
+  if (!a.byPermission) throw new Error(`You do not have the authority to add groups to ${a.project}.`);
   const { rows } = await db.query(
     `SELECT g.name, (SELECT count(1) FROM users_in_groups AS uig WHERE uig.group_name = g.name) AS num_members
      FROM groups AS g
@@ -356,14 +355,12 @@ async function authorizeRemoveFromProject(db, body, ctx) {
   if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) return actor;
 
   const { rows } = await db.query(
-    'SELECT auth_level FROM groups_in_projects WHERE group_name = $1 AND project_name = $2',
+    'SELECT 1 FROM groups_in_projects WHERE group_name = $1 AND project_name = $2',
     [group_name, project_name]
   );
   if (!rows.length) throw new Error(`Group "${group_name}" is not in project "${project_name}".`);
-  if (a.authLevel < 5 || a.authLevel < rows[0].auth_level) {
-    throw new Error(`You do not have the required authority level to remove group "${group_name}" from project "${project_name}".`);
-  }
-  return actor;
+  // Auth levels are deprecated (2026-11-03): a grant on the DMS auth object is the only authority.
+  throw new Error(`You do not have the authority to remove group "${group_name}" from project "${project_name}".`);
 }
 
 /** POST /group/project/remove/plan — what /group/project/remove would do. Never writes. */

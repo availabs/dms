@@ -45,7 +45,7 @@ const crypto = require('crypto');
 const { registerHandler, queueTask } = require('../index');
 const { patchSectionElementData } = require('./filter-leaf-walk');
 const { getData } = require('../../mirrors/getData');
-const { requestUserId } = require('../../../routes/auth/kindAuth/sourceAuth');
+const { requestUserId } = require('../../../routes/auth/requestUser');
 
 function parseIfJSON(raw, fallback) {
   if (raw == null) return fallback;

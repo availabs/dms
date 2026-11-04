@@ -7,7 +7,7 @@ const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const { hashPassword } = require('../utils/crypto');
 const {
-  AUTH_USERS, authority, canManageGroupIn, groupProjects, levelCoversGroup, levelOutranks, platformAuthority,
+  AUTH_USERS, authority, canManageGroupIn, coversProjects, groupProjects, platformAuthority,
 } = require('../utils/permissions');
 
 // Task permissions-auth-users-and-signup: each check runs in transition form, `auth-users` on the
@@ -16,6 +16,15 @@ const usersAuthority = (db, userData, body, ctx, minLevel) =>
   authority(db, userData, body, ctx, { perm: AUTH_USERS, minLevel });
 
 /** Whether `email` belongs to a group of `project`. */
+/** Every project a user belongs to, through any group. */
+async function userProjectNames(db, email) {
+  const { rows } = await db.query(
+    `SELECT DISTINCT gip.project_name FROM users_in_groups AS uig
+     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+     WHERE uig.user_email = $1`, [email]);
+  return rows.map(r => r.project_name);
+}
+
 async function inProject(db, email, project) {
   const { rows } = await db.query(
     `SELECT count(1) AS count FROM users_in_groups AS uig
@@ -139,7 +148,7 @@ async function getUsersByProject(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, token);
   const a = await usersAuthority(db, userData, body, ctx, 10);
 
-  if (!a.byPermission && !a.byLevel) throw new Error(`You do not have the authority to list users for project ${project}.`);
+  if (!a.byPermission) throw new Error(`You do not have the authority to list users for project ${project}.`);
 
   const { rows } = await db.query(
     `SELECT u.id, uig.user_email AS email, uig.group_name, u.created_at,
@@ -165,7 +174,7 @@ async function getUsersByProject(db, body, ctx) {
   const groupOk = {};
   for (const g of new Set(rows.map(r => r.group_name))) {
     groupOk[g] = (a.byPermission && await canManageGroupIn(db, a.user, g, a.scope))
-      || (a.byLevel && await levelCoversGroup(db, userData.email, g));
+      || await coversProjects(db, userData, ctx, await groupProjects(db, g), AUTH_USERS);
   }
   const users = Object.values(userMap).map(u => ({ ...u, manageable: u.groups.every(g => groupOk[g]) }));
   return { users };
@@ -222,7 +231,13 @@ async function deleteUser(db, body, ctx) {
      WHERE uig.user_email = $1`,
     [user_email]
   );
-  if (!+(targetHasProject?.count || 0) || !await levelOutranks(db, userData.email, user_email)) {
+  // `auth-users` in EVERY project the target belongs to — the grant-based form of the rule that
+  // used to compare auth levels. Deleting a user reaches into all of them.
+  const targetProjects = (await db.query(
+    `SELECT DISTINCT gip.project_name FROM users_in_groups AS uig
+     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
+     WHERE uig.user_email = $1`, [user_email])).rows.map(r => r.project_name);
+  if (!+(targetHasProject?.count || 0) || !await coversProjects(db, userData, ctx, targetProjects, AUTH_USERS)) {
     throw new Error(`You do not have the authority to delete user ${user_email}.`);
   }
 
@@ -258,7 +273,7 @@ async function planUserLeavesSite(db, body, ctx) {
   const groups = groupRows.map(r => r.group_name);
   for (const g of groups) {
     const ok = (a.byPermission && await canManageGroupIn(db, a.user, g, a.scope))
-      || await levelCoversGroup(db, userData.email, g);
+      || await coversProjects(db, userData, ctx, await groupProjects(db, g), AUTH_USERS);
     if (!ok) throw new Error(`You do not have the authority to remove ${user_email} from ${a.project}.`);
   }
 
@@ -331,7 +346,7 @@ async function getUsersPreferences(db, body, ctx) {
   for (const email of (userEmails || [])) {
     const visible = email === userData.email
       || (a.byPermission && await inProject(db, email, a.project))
-      || await levelOutranks(db, userData.email, email);
+      || await coversProjects(db, userData, ctx, await userProjectNames(db, email), AUTH_USERS);
     if (!visible) continue;
     const { rows } = await db.query(
       'SELECT user_email, preferences FROM user_preferences WHERE user_email = $1',
@@ -359,7 +374,9 @@ async function getUsersPreferences(db, body, ctx) {
 async function checkGroupAuthority(db, userData, group_name, body, ctx) {
   const a = await usersAuthority(db, userData, body, ctx, Infinity);
   if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) return;
-  if (await levelCoversGroup(db, userData.email, group_name)) return;
+  // `auth-groups`/`auth-users` in every project the group belongs to — the grant-based form of the
+  // level rule this replaced.
+  if (await coversProjects(db, userData, ctx, await groupProjects(db, group_name), AUTH_USERS)) return;
   throw new Error(`You do not have the authority to manage group ${group_name}.`);
 }
 

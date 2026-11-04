@@ -3,7 +3,7 @@
     "Every test in UDA's kind-auth contract suite (tests/test-source-auth.js) that the ROW judge is",
     "expected to disagree with, and why. Regenerate the NAMES with:",
     "    DMS_UDA_GATE=row node tests/test-source-auth.js",
-    "but never regenerate the REASONS mechanically — an entry without a reason someone wrote is",
+    "but never regenerate the REASONS mechanically \u2014 an entry without a reason someone wrote is",
     "the whole thing this fixture exists to prevent.",
     "",
     "CURRENTLY EMPTY: as of 2026-10-29 the row judge agrees with kind auth on all 50 cases.",
@@ -14,9 +14,15 @@
     "     tests/test-row-auth-uda.js section 3.",
     "  2. STRICT DEFAULTS. An unstated chain refuses writes where kind auth's lenient rule opens",
     "     them. The datasets side of prod is 100% unstated, so this bites at the flip, not here.",
-    "A NEW name appearing in this run is a finding: add it WITH A REASON, or fix the judge."
+    "A NEW name appearing in this run is a finding: add it WITH A REASON, or fix the judge.",
+    "",
+    "2026-11-02: `no-pattern-lending` is the first entry here that is OUR decision rather than a divergence to investigate. It is pinned because the reason is written down and measured, not because it is harmless."
   ],
   "cascade": [],
-  "expected": {},
-  "reasons": {}
+  "expected": {
+    "log: a granted request logs nothing": "no-pattern-lending"
+  },
+  "reasons": {
+    "no-pattern-lending": "DECIDED, not discovered (owner, 2026-11-02; planning/tasks/current/row-auth-uda-unify-api.md Phase 2). A datasets PATTERN is not a source's ancestor \u2014 a source's type is `{env}|{name}:source` and the pattern is nowhere in the path \u2014 so its grants no longer reach sources. Kind auth still lends them, via `getSiteSources` reverse-looking-up `pattern.dmsEnvId`, so a request kind auth considers granted is refused by the row judge and `log` writes the would-deny line this case asserts does not appear. The verdict difference is the intended one; the log line is how it shows up here. Measured consequence on prod: 76 internal `:source` rows, 100% unstated, lose the only grants they had \u2014 which is why the grant sweep in row-auth-uda.md is a prerequisite of enforcing, not a follow-up. On `rowauth-test` the delta is ZERO: `--audit-writes` reports 163 of 10933 rows admin-only both before and after the change, because nothing there was inheriting anything."
+  }
 }

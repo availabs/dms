@@ -39,7 +39,7 @@ async function run() {
     const APP = `parentstamp_${Date.now()}`;
     const admin = { authed: true, id: 1, email: 'a@x', groups: [`${APP} Admin`] };
     const graph = createTestGraph(DMS_DB, { user: admin });
-    process.env.DMS_ROW_AUTH_MODE = 'legacy';
+    process.env.DMS_AUTH_MODE = 'legacy';
 
     const create = async (type, data) => {
         const res = await graph.callAsync(['dms', 'data', 'create'], [APP, type, data]);

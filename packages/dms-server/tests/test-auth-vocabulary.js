@@ -1,6 +1,7 @@
 /**
  * A pattern's declared vocabulary, interpreted by the server — routes/dms/authVocabulary.js and the
- * resolver path that prefers it over the transitional `legacyVerbs.js` shim.
+ * resolver path, which since 2026-11-03 is the ONLY answer to what a verb confers — the
+ * transitional `legacyVerbs.js` shim that used to answer for undeclared rows is deleted.
  *
  * Task: planning/tasks/current/row-auth-vocabulary.md.
  *
@@ -22,7 +23,7 @@ const cases = [];
 const t = (name, fn) => cases.push([name, fn]);
 const section = (name) => cases.push([name, null]);
 
-// A pattern type that shares NO verb with legacyVerbs.js, so every assertion below distinguishes
+// A pattern type whose verbs are its own invention, so every assertion below distinguishes
 // "the declaration was read" from "the shim happened to know this word".
 const VOCAB = {
     self: [
@@ -154,7 +155,7 @@ t('nothing declared → null, and the caller uses the shim', () =>
 section('resolve — the declaration beats the shim (rule 1)');
 t('an inherited grant is read in the JUDGED row\'s vocabulary', async () => {
     const merged = await mk().resolve([ROWS[4]]);
-    // `peek-gizmo` is a word legacyVerbs.js has never heard of; the component can read only
+    // `peek-gizmo` is a word no other pattern uses; the component can read only
     // because the pattern in ITS chain declared what the word confers.
     assert.strictEqual(can(merged.get('4'), crew, 'read'), true);
 });
@@ -163,11 +164,14 @@ t('…and confers nothing it did not declare', async () => {
     assert.strictEqual(can(merged.get('4'), crew, 'edit'), false);
     assert.strictEqual(can(merged.get('4'), crew, 'delete'), false);
 });
-t('an undeclared pattern still falls back to the shim', async () => {
+t('an undeclared pattern confers NOTHING — there is no shim left to fall back to', async () => {
+    // Was `true` until 2026-11-03, rescued by `legacyVerbs.js`'s hardcoded table. With that table
+    // deleted a grant of `view-page` under a pattern that declares no vocabulary is just a string:
+    // it never becomes the structural `read` the gate asks for. Declare, or confer nothing.
     const merged = await mk().resolve([ROWS[6]]);
-    assert.strictEqual(can(merged.get('6'), crew, 'read'), true);        // view-page, via legacyVerbs
+    assert.strictEqual(can(merged.get('6'), crew, 'read'), false);
 });
-t('the shim does NOT leak into a chain that declared', async () => {
+t('a declared chain is unaffected by its neighbours', async () => {
     // `view-page` means nothing in VOCAB, so a grant using it confers nothing under this pattern —
     // which is the point: the pattern's own declaration is the whole vocabulary, not an addition.
     const rows = { ...ROWS, 2: { ...ROWS[2], data: { authVocabulary: VOCAB,
@@ -199,10 +203,10 @@ t('resolveForCreate uses the chain\'s vocabulary too', async () => {
     assert.strictEqual(can(merged, crew, 'create'), true);
 });
 
-section('authOf — the shim is still the default for an undeclared row');
-t('no maps given → legacy expansion', () =>
-    assert.deepStrictEqual(authOf(ROWS[5]).groups.Crew, ['view-page', 'read']));
-t('maps given → the declaration, and legacy words mean nothing', () =>
+section('authOf — no declaration means no expansion at all');
+t('no maps given → the verbs stay the strings they are', () =>
+    assert.deepStrictEqual(authOf(ROWS[5]).groups.Crew, ['view-page']));
+t('maps given → the declaration, and undeclared words mean nothing', () =>
     assert.deepStrictEqual(authOf(ROWS[5], '', impliesMaps(VOCAB)).groups.Crew, ['view-page']));
 
 section('the capability probe, against a REAL sqlite database');

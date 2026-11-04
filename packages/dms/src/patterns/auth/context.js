@@ -3,7 +3,7 @@ import React from 'react'
 export const defaultUserState = () => ({
   token: null,
   groups: ['public'],
-  authLevel: -1,
+  // `authLevel` removed 2026-11-03 — auth levels are deprecated and nothing reads them.
   authed: false,
   attempts: 0,
   meta: [],

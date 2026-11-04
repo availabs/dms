@@ -22,7 +22,7 @@
  */
 const { buildType } = require('../../db/type-utils');
 const { registerHandler, queueTask } = require('../../dms/tasks');
-const { requestUserId } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requestUserId } = require('../../routes/auth/requestUser');
 
 const asObj = (d) => (typeof d === 'string'
   ? (() => { try { return JSON.parse(d); } catch { return {}; } })()

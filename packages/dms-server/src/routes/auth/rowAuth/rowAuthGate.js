@@ -23,16 +23,16 @@
  * ---------------------------------------------------------------------------
  * Rollout
  *
- * `DMS_ROW_AUTH_MODE`: `legacy` | `log` | `enforce`, default **`log`**.
+ * `DMS_AUTH_MODE` (../mode.js): `log` (default) | `enforce`, shared with every other surface and
+ * with kind auth.
  *
- *   legacy   nothing is checked — today's behaviour exactly.
- *   log      today's behaviour, and every request the new rule WOULD refuse is written out as
+ *   log      nothing is refused, and every request the rule WOULD refuse is written out as
  *            `[row-auth] would-deny …` so grants can be fixed before anything flips.
  *   enforce  the rule decides.
  *
- * Its own flag rather than reusing `DMS_READ_AUTH_MODE` (datasets reads) or `DMS_DATA_AUTH_MODE`
- * (dms writes): those gate existing, separately-owned checks, and flipping one must not silently
- * flip this.
+ * It had its own flag until 2026-11-03 (`DMS_ROW_AUTH_MODE`), on the reasoning that separately-owned
+ * checks should flip separately. Five flags later that reasoning had produced a server whose
+ * enforcement state took five variables to describe. One flag now, both implementations.
  *
  * **Before flipping any app to `enforce`, check parent-resolution coverage for it** (hub). A row
  * that is private only by inheritance opens up when its parent cannot be resolved — measured at
@@ -40,14 +40,10 @@
  */
 
 const { createResolver } = require('./rowAuth');
-const { NO_CHANGE } = require('../noChange');   // shared with kind auth — see that file
+const { NO_CHANGE } = require('../settings');   // shared with kind auth — see that file
 const { can, isUnstated, VERBS } = require('./mergeAuth');
 const { publicReadOf } = require('./authVocabulary');
-
-function rowAuthMode() {
-  const m = String(process.env.DMS_ROW_AUTH_MODE || 'log').toLowerCase();
-  return ['legacy', 'log', 'enforce'].includes(m) ? m : 'log';
-}
+const { authMode } = require('../settings');
 
 /** `${app} Admin` — the same group check the rest of DMS uses. */
 const isAppAdmin = (user, app) => !!(user && (user.groups || []).some(g => g === `${app} Admin`));
@@ -85,11 +81,8 @@ function logWouldDeny(app, row, user, verb, reason) {
  * a database keeps this module free of the table resolver, and lets sync hand in rows it has
  * already fetched.
  */
-function createGate({ controller, app, user, subdomain = '', mode: modeOverride = null }) {
-  // `modeOverride` lets a surface run under its OWN rollout flag while sharing this gate. The write
-  // surface below uses it to stay on `DMS_DATA_AUTH_MODE`, so moving writes here does not drag them
-  // under the read flag — and so the existing write-path suite still drives them.
-  const modeNow = () => modeOverride || rowAuthMode();
+function createGate({ controller, app, user, subdomain = '' }) {
+  const modeNow = () => authMode();
   const resolver = createResolver({
     loadByIds: (ids) => controller.authRowsByIds(ids, app),
     loadContainers: () => controller.authContainers(app),
@@ -100,19 +93,22 @@ function createGate({ controller, app, user, subdomain = '', mode: modeOverride 
    * Judge many rows at once — the shape every surface wants, and the one that scales: ancestry is
    * resolved breadth-first in ~depth queries regardless of how many rows are asked about.
    *
-   * Returns `Map(id → { allow, reason })`. In `legacy` and `log` the verdict is always allow; `log`
-   * additionally writes a would-deny line for each row the rule would refuse.
+   * Returns `Map(id → { allow, reason })`. Under `log` the verdict is always allow, and a
+   * would-deny line is written for each row the rule would refuse.
    */
-  async function judge(rows, verb = 'read') {
-    const mode = modeNow();
+  /**
+   * `raw`: return the rule's own verdict, with the MODE NOT APPLIED and nothing logged.
+   *
+   * For a caller that must weigh several verbs before deciding — an any-of field group, where the
+   * first alternative failing is not a refusal and must not be reported as one. Logging each
+   * attempt wrote a would-deny for every granted publish, which `test-data-auth.js`'s "log is
+   * silent for a granted write" caught immediately. The caller applies the mode once, at the end.
+   */
+  async function judge(rows, verb = 'read', { raw = false } = {}) {
+    const mode = raw ? 'enforce' : modeNow();
     const out = new Map();
     const list = (rows || []).filter(r => r && r.id != null);
     if (!list.length) return out;
-
-    if (mode === 'legacy') {
-      for (const r of list) out.set(String(r.id), { allow: true, reason: 'legacy' });
-      return out;
-    }
 
     // THE ROWS A SURFACE HANDS US MAY BE PROJECTED WITHOUT THE COLUMNS THIS GATE READS.
     //
@@ -162,15 +158,14 @@ function createGate({ controller, app, user, subdomain = '', mode: modeOverride 
   }
 
   /** One row. A create judges its PARENT, since the row does not exist yet — use `judgeCreate`. */
-  async function judgeOne(row, verb = 'read') {
-    const m = await judge([row], verb);
+  async function judgeOne(row, verb = 'read', opts = {}) {
+    const m = await judge([row], verb, opts);
     return m.get(String(row && row.id)) || { allow: true, reason: 'no row' };
   }
 
   /** A create resolves against the parent's chain: the new row has no auth of its own yet. */
   async function judgeCreate(parentRow) {
     const mode = modeNow();
-    if (mode === 'legacy') return { allow: true, reason: 'legacy' };
     const merged = await resolver.resolveForCreate(parentRow);
     const v = verdict(merged, user, 'create', app);
     if (!v.allow && mode === 'log') {
@@ -188,8 +183,9 @@ function createGate({ controller, app, user, subdomain = '', mode: modeOverride 
 //
 // `routes/dms/dataAuth.js` is KIND auth: a `switch` over eleven row kinds, each with hand-written
 // rules. It stays exactly as it is — untouched, still the live gate for any surface whose `require`
-// still points at it — and will be deleted when the owner says so (2026-10-29: "keep the rowAuth and
-// kindAuth separate. I will remove kind auth when the time is right").
+// still points at it. BOTH SIDES ARE PERMANENT (owner, 2026-11-03: "kind auth is never going to be
+// deleted — we are planning on keeping both"), so this is not a migration staging post: it is one of
+// two supported providers, and the differentials are the standing contract between them.
 //
 // This section is its row-based twin, with the SAME exports and the SAME signatures, so a surface
 // moves by changing one import line and moves back the same way.
@@ -203,9 +199,10 @@ function createGate({ controller, app, user, subdomain = '', mode: modeOverride 
 //   - **No `getKind` switch.** A write is judged against the row's own merged chain, so a kind
 //     nobody wrote a case for INHERITS rather than falling through to a default. That is the whole
 //     point of the exercise (hub: "The default must be inheritance, never permission").
-//   - **Five structural verbs** replace the per-kind permission names. What a legacy permission
-//     string confers is `LEGACY_IMPLIES` in legacyVerbs.js — one table, in one place, meant to be
-//     deleted once every pattern declares its own vocabulary.
+//   - **Five structural verbs** replace the per-kind permission names. What a permission string
+//     confers is whatever the row's chain DECLARES (`authVocabulary.js`); an undeclared verb
+//     confers nothing and is checked by name. The hardcoded table that used to answer this
+//     (`legacyVerbs.js`) was deleted on 2026-11-03.
 //   - **A create is judged against its PARENT's chain**, since the row does not exist yet.
 //   - **The mode flag is `DMS_ROW_AUTH_MODE`**, not `DMS_DATA_AUTH_MODE`. Swapping the import swaps
 //     which flag governs that surface; both default to `log`, so the swap by itself refuses nothing
@@ -218,7 +215,7 @@ function createGate({ controller, app, user, subdomain = '', mode: modeOverride 
 const { isEqual } = require('lodash');
 const { getParent } = require('#db/type-utils.js');
 const { parentIdOf } = require('./rowAuth');
-const { expandLegacy } = require('./legacyVerbs');
+const { expandPerms, verbsForFields, vocabularyOf } = require('./authVocabulary');
 const { takeParentId, isPlausibleParent } = require('./parentId');
 
 const parseJson = (v) => {
@@ -234,15 +231,25 @@ const ECHO_ONLY = ['created_at', 'updated_at', 'created_by', 'updated_by'];
 const ROW_KEYS = ['id', 'app', 'type'];
 
 // Changing these IS changing the grant, whatever kind the row is — so it needs `grant`, not just
-// `edit`. The ONLY key-sensitive rule here, and deliberately so (owner, 2026-10-29: row auth stays
-// five structural verbs on a row; which attribute needs which verb is business logic and belongs in
-// the pattern, not the server). This one survives that line because the auth object is not business
-// data — it is the permission system's own state, `grant` is already a structural verb, and without
-// it anyone holding `edit` can grant themselves anything.
+// `edit`. WHICH ATTRIBUTE NEEDS WHICH VERB IS NOW DECLARED, in the format that owns the attribute
+// (`permissionDomain` entries carry `fields`), and read here through `verbsForFields`. It used to
+// be one hardcoded list — `GRANT_KEYS = ['authPermissions','auth','auth_permissions']` — which was
+// the only key-sensitive rule the row gate had, with publish-page, edit-page-params and
+// edit-source-data simply not enforced. The escalation guard is now a claim like any other:
+// whichever verb declares `fields: ['authPermissions']` implies `grant`, so granting still cannot
+// be reached with `edit` alone.
 //
-// See planning/tasks/current/row-auth-dms-writes.md, "Field-level rules are out of scope", for what
-// is given up: publish-page, edit-page-params and edit-source-data stop being enforced server-side.
-const GRANT_KEYS = ['authPermissions', 'auth', 'auth_permissions'];
+// A chain that declares NOTHING has no field rules at all, which is the same answer it gives to
+// every other question: an undeclared verb confers nothing. See
+// planning/tasks/current/unified-auth-api.md, Phase 1.
+//
+// ONE FLOOR SURVIVES, below the declarations: the attributes the permission system stores ITSELF in
+// always need `grant`. That is not a pattern's business logic and not type knowledge — these are
+// the auth layer's own storage keys, the same ones `rawAuthOf` reads a row's grants out of. Without
+// the floor, an app that has declared nothing lets anyone holding `edit` grant themselves anything,
+// which is the one thing no amount of "it was not declared" should excuse. A vocabulary that claims
+// these keys (`fields: ['authPermissions']` on a verb implying `grant`) agrees with it exactly.
+const AUTH_FIELDS = ['authPermissions', 'auth', 'auth_permissions'];
 
 /**
  * How an edit is judged and what it writes — carried over verbatim from dataAuth.js, because it is
@@ -279,6 +286,12 @@ function planEdit(row, patch, { replace = false } = {}) {
  * The structural verbs a permission string requires — ALL of them, not any.
  * `edit-pattern-permissions` implies read + edit + grant, and an action behind it needs all three.
  *
+ * `maps` IS THE VOCABULARY THE ROW'S CHAIN DECLARES (`resolver.mapsFor`), and it is required:
+ * there is no hardcoded table any more. A request names verbs in the same words a grant does, so
+ * both halves have to be read against the same declaration — a grant of `edit-page` satisfies a
+ * request for `view-page` only because the pattern says both imply `read`. With no `maps` (nothing
+ * in the chain declares) nothing translates, and every asked permission is checked BY NAME.
+ *
  * **Returns an EMPTY array for a permission that maps to no structural verb**, and the caller then
  * checks that permission BY NAME. It used to return `['edit']` instead, which was a shipped defect:
  * `download-source`, `manage-downloads` and `view-source-api` declare `implies: []` precisely
@@ -299,8 +312,24 @@ function planEdit(row, patch, { replace = false } = {}) {
  *
  * See planning/tasks/current/permission-domain-single-source.md, Phase 4(b).
  */
-function verbsFor(perms) {
-  return expandLegacy([].concat(perms || [])).filter(v => VERBS.includes(v));
+function verbsFor(perms, maps = null) {
+  if (!maps) return [];
+  return expandPerms([].concat(perms || []), maps.flat || {}).filter(v => VERBS.includes(v));
+}
+
+/**
+ * Does the caller hold a named verb on this row — BY NAME, not by what it implies.
+ *
+ * The distinction decides whether field rules mean anything. `publish-page` implies `read` + `edit`,
+ * and so does `edit-page`; asking for the implications would let any page editor publish, which is
+ * exactly the gap the `field` divergence recorded. Asking for the NAME works because expansion is
+ * additive — a merged chain holds `publish-page` itself alongside the structural verbs it conferred
+ * — and `'*'` still passes everything, since `can` tests for it directly.
+ *
+ * `judgeOne` applies the mode and writes the would-deny line, so that happens once, here.
+ */
+async function holdsNamed(gate, row, name) {
+  return gate.judgeOne(row, name, { raw: true });
 }
 
 /**
@@ -308,53 +337,35 @@ function verbsFor(perms) {
  * otherwise the permission itself, by name. The one place the `verbsFor` contract is interpreted —
  * `holdsAny` (uda/rowSourceAuth.js) asks the same question of a merged chain.
  */
-function holdsPermission(merged, user, app, perm) {
-  const verbs = verbsFor([perm]);
+function holdsPermission(merged, user, app, perm, maps = null) {
+  const verbs = verbsFor([perm], maps);
   return verbs.length
     ? verbs.every(v => verdict(merged, user, v, app).allow)
     : verdict(merged, user, perm, app).allow;      // a capability: no row access, checked by name
 }
 
 /**
- * The WRITE surface's rollout flag — still `DMS_DATA_AUTH_MODE`, deliberately.
+ * The write surface's mode — the SAME `DMS_AUTH_MODE` every other surface reads (../mode.js).
  *
- * Moving dms writes onto this gate must not also put them under the READ flag: the two surfaces are
- * separately shippable (hub, task 2), and the existing write-path suite drives `DMS_DATA_AUTH_MODE`.
- * Same three values, same default (`log`), so swapping the import refuses nothing by itself.
+ * It was `DMS_DATA_AUTH_MODE` until 2026-11-03, kept apart so that moving dms writes onto this gate
+ * would not also put them under the read flag. With one flag there is nothing to keep apart, and
+ * `createGate`'s `modeOverride` went with it.
  */
-function dataAuthMode() {
-  const m = String(process.env.DMS_DATA_AUTH_MODE || 'log').toLowerCase();
-  return ['legacy', 'log', 'enforce'].includes(m) ? m : 'log';
-}
-
-/**
- * WHICH judge the write surface uses: `DMS_WRITE_GATE` = `kind` (default) | `row`.
- *
- * All three write call sites now import from this file, but the default behaviour is still KIND
- * auth — this delegates to dataAuth.js untouched. That is what keeps the other author's suite
- * (`tests/test-data-auth.js`, 49 cases) meaningful and green while the row judge is built out, and
- * it makes the switch a one-variable experiment instead of a one-way edit.
- *
- * `DMS_WRITE_GATE=row` runs the judge below. The gap between the two is not a bug list — three of
- * its four causes are decisions the hub already made (strict defaults; which verb governs which
- * FIELD belongs in the pattern's format, not in a per-kind `switch`). See
- * planning/tasks/current/row-auth-dms-writes.md.
- */
-function writeGate() {
-  return String(process.env.DMS_WRITE_GATE || 'kind').toLowerCase() === 'row' ? 'row' : 'kind';
-}
+const dataAuthMode = authMode;
 
 /**
  * One judge per write. `ctx`: `{ app, subdomain, user, controller }` — the same shape dataAuth.js
  * takes, so a call site swaps the import and nothing else.
+ *
+ * THIS IS THE ROW JUDGE, FULL STOP. It used to check `DMS_WRITE_GATE` and hand the write to kind
+ * auth when that said `kind`, which meant the write surface could be running a different
+ * implementation from the rest of the server. Choosing between implementations is `../index.js`'s
+ * job and only its job (2026-11-03): a caller that reached this file has already been routed here.
  */
-function createJudge(ctx) {
-  if (writeGate() === 'kind') return require('../kindAuth/dataAuth').createJudge(ctx);
-  return createRowJudge(ctx);
-}
+const createJudge = (ctx) => createRowJudge(ctx);
 
 function createRowJudge({ app, subdomain = '', user, controller }) {
-  const gate = createGate({ controller, app, user, subdomain, mode: dataAuthMode() });
+  const gate = createGate({ controller, app, user, subdomain });
 
   let patternRows;
   const patterns = async () => {
@@ -406,10 +417,38 @@ function createRowJudge({ app, subdomain = '', user, controller }) {
   const decide = async (op, row, patch, keys = op === 'edit' ? planEdit(row, patch).keys : []) => {
     try {
       if (op === 'create') return await gate.judgeCreate(await parentRowFor(row));
-      // The escalation guard, and the only key-sensitive rule here.
-      if (op === 'edit' && keys.some(k => GRANT_KEYS.includes(k))) {
-        const g = await gate.judgeOne(row, 'grant');
-        if (!g.allow) return g;
+      if (op === 'edit') {
+        if (keys.some(k => AUTH_FIELDS.includes(k))) {
+          const g = await gate.judgeOne(row, 'grant');
+          if (!g.allow) return g;
+        }
+        // WHAT THIS EDIT NEEDS, from the row's own vocabulary. Groups are ANY-OF within and ALL-OF
+        // across: two verbs claiming one field mean either will do, two fields mean both verbs.
+        const maps = await gate.resolver.mapsFor(row);
+        // A row that declares its own vocabulary is governed by `self`; one that inherited it by
+        // `descendants`. A pattern row carries both, and flattening them asks a page editor for the
+        // pattern's verb.
+        const scope = vocabularyOf(row) ? 'self' : 'descendants';
+        const { groups, covered } = verbsForFields(keys, maps, parseJson(patch) || {}, scope);
+        // A key the declaration did not answer is an ordinary edit, judged structurally below.
+        const uncovered = keys.filter(k => !covered.includes(k));
+        for (const group of groups) {
+          // ANY-OF, judged raw: a failing alternative is not a refusal, so none of them logs.
+          let best = null;
+          for (const name of group) {
+            const d = await holdsNamed(gate, row, name);
+            if (d.allow) { best = d; break; }
+            best = best || { allow: false, reason: `missing ${group.join(' or ')}` };
+          }
+          if (!best || !best.allow) {
+            const reason = (best && best.reason) || `missing ${group.join(' or ')}`;
+            // The mode, applied ONCE, for the whole group.
+            if (dataAuthMode() === 'enforce') return { allow: false, reason };
+            logWouldDeny(app, row, user, group.join(' or '), reason);
+            return { allow: true, reason: `would-deny (${reason})` };
+          }
+        }
+        if (groups.length && !uncovered.length) return { allow: true, reason: 'granted' };
       }
       return await gate.judgeOne(row, op === 'delete' ? 'delete' : 'edit');
     } catch (e) {
@@ -440,8 +479,9 @@ function createRowJudge({ app, subdomain = '', user, controller }) {
     // implies NONE, checked by name instead of falling through to `edit`. `judgeOne` takes any verb
     // string, and an expanded chain still holds the named permissions (expandPerms is additive).
     const asked = [].concat(perms || []);
-    const named = asked.filter(p => verbsFor([p]).length === 0);
-    for (const verb of [...verbsFor(asked), ...named]) {
+    const maps = await gate.resolver.mapsFor(leaf);
+    const named = asked.filter(p => verbsFor([p], maps).length === 0);
+    for (const verb of [...verbsFor(asked, maps), ...named]) {
       if (!(await gate.judgeOne(leaf, verb)).allow) return false;
     }
     return true;
@@ -458,15 +498,10 @@ function createRowJudge({ app, subdomain = '', user, controller }) {
  * means the write replaces the whole data (sync/push `I` onto an existing id).
  *
  * Returns the data to WRITE — for an edit judged against its stored row, only what `planEdit`
- * judged. `legacy` checks and filters nothing. There is no `log` branch: the gate applies the mode
- * and writes the would-deny line, so under `log` this sees `allow` and returns the planned write.
+ * judged. There is no `log` branch here: the gate applies the mode and writes the would-deny line,
+ * so under `log` this sees `allow` and returns the planned write.
  */
 async function assertDataWrite(router, controller, op, app, row, patch, { replace = false, skipNoChange = false } = {}) {
-  if (writeGate() === 'kind') {
-    return require('../kindAuth/dataAuth')
-      .assertDataWrite(router, controller, op, app, row, patch, { replace, skipNoChange });
-  }
-  if (dataAuthMode() === 'legacy') return patch;
   const user = (router && router.user) || null;
   const plan = op === 'edit' ? planEdit(row, patch, { replace }) : { keys: [], write: patch };
   // An edit that changes nothing is not an update, so it is never judged — the same rule kind auth
@@ -483,8 +518,8 @@ async function assertDataWrite(router, controller, op, app, row, patch, { replac
 }
 
 module.exports = {
-  createGate, rowAuthMode, verdict, isAppAdmin, VERBS, NO_CHANGE,
+  createGate, rowAuthMode: authMode, verdict, isAppAdmin, VERBS, NO_CHANGE,
   // the write surface — dataAuth.js's API, same names, same signatures
-  assertDataWrite, dataAuthMode, createJudge, planEdit, verbsFor, holdsPermission, writeGate, GRANT_KEYS,
+  assertDataWrite, dataAuthMode, createJudge, planEdit, verbsFor, holdsPermission,
   createRowJudge,            // the row judge, reachable for tests regardless of DMS_WRITE_GATE
 };

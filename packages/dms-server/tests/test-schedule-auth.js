@@ -22,14 +22,14 @@ const t = async (name, fn) => {
     catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack}`); }
 };
 
-// Runs fn under DMS_SOURCE_AUTH_MODE=mode, collecting `would-deny` lines.
+// Runs fn under DMS_AUTH_MODE=mode, collecting `would-deny` lines.
 async function withMode(mode, fn) {
-    const prev = process.env.DMS_SOURCE_AUTH_MODE;
+    const prev = process.env.DMS_AUTH_MODE;
     const warn = console.warn; const warned = [];
-    process.env.DMS_SOURCE_AUTH_MODE = mode;
+    process.env.DMS_AUTH_MODE = mode;
     console.warn = (...a) => { const s = a.join(' '); if (s.includes('would-deny')) warned.push(s); else warn(...a); };
     try { return await fn(warned); }
-    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_SOURCE_AUTH_MODE; else process.env.DMS_SOURCE_AUTH_MODE = prev; }
+    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
 }
 
 // Every handler of every route, off a fake express app.
@@ -241,10 +241,6 @@ async function run() {
     });
 
     await withMode('legacy', async (warned) => {
-        await t('legacy: anon reads answered, nothing logged', async () => {
-            assert.strictEqual((await hit('GET /dama-admin/:pgEnv/schedules', { query: { source_id: srcA } })).statusCode, 200);
-            assert.strictEqual(warned.length, 0);
-        });
     });
 
     // ---- cleanup

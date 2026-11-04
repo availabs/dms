@@ -463,7 +463,6 @@ function PatternEdit({
 										config: editingItem.config,
 										name: newName,
 										pattern_type: editingItem.pattern_type,
-										auth_level: editingItem.auth_level,
 										filters: editingItem.filters,
 										theme: editingItem.theme,
 									};

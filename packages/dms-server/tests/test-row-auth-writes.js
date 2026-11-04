@@ -62,7 +62,7 @@ const create = (claim, { user = editor, type = 'docs|component' } = {}) => {
   return judge('create', { app: APP, type, data }, data);
 };
 
-process.env.DMS_DATA_AUTH_MODE = 'enforce';
+process.env.DMS_AUTH_MODE = 'enforce';
 
 section('a create is judged against the claimed parent — when the claim is plausible');
 t('claiming its real page uses the PAGE chain, which grants create', async () =>
@@ -176,17 +176,27 @@ t('`edit` does not imply `delete` structurally', async () => {
   const onlyEdit = { ...GRANTS, 3: { ...GRANTS[3], auth: { groups: { Editors: ['read', 'edit'] } } } };
   assert.strictEqual((await judgeOf(editor, onlyEdit)('delete', onlyEdit[3], {})).allow, false);
 });
-t('the legacy verb `edit-page` does, via LEGACY_IMPLIES', async () => {
-  const legacy = { ...GRANTS, 3: { ...GRANTS[3], auth: { groups: { Editors: ['edit-page'] } } } };
-  assert.strictEqual((await judgeOf(editor, legacy)('delete', legacy[3], {})).allow, true);
+t('a verb confers `delete` only where a vocabulary DECLARES that it does', async () => {
+  // `edit-page` used to confer read+edit+delete through `legacyVerbs.js`'s hardcoded table, on any
+  // row, declared or not. That table was deleted on 2026-11-03: with nothing in the chain declaring,
+  // `edit-page` is a string that confers nothing. The declared path is pinned in the next section.
+  const bare = { ...GRANTS, 3: { ...GRANTS[3], auth: { groups: { Editors: ['edit-page'] } } } };
+  assert.strictEqual((await judgeOf(editor, bare)('delete', bare[3], {})).allow, false);
+
+  const VOCAB_DELETE = { descendants: [{ value: 'edit-page', implies: ['read', 'edit', 'delete'] }] };
+  const declared = {
+    ...bare,
+    2: { ...bare[2], auth: { ...(bare[2] && bare[2].auth), vocabulary: VOCAB_DELETE } },
+  };
+  assert.strictEqual((await judgeOf(editor, declared)('delete', declared[3], {})).allow, true);
 });
 
 section('a DECLARED vocabulary — the path a migrated app actually takes');
-// `authOf` is `maps ? expandWithVocabulary(raw, maps) : expandAuth(raw)`: a declared vocabulary
-// WINS and legacyVerbs is never consulted. Every one of the 81 pattern rows on `rowauth-test`
-// declares, so this — not the shim — is what production runs. `test-data-auth.js`'s fixtures
-// declare nothing, so the differential (test-row-auth-diff.js) only ever exercises the shim path;
-// this section is the declared-path coverage it cannot give.
+// `authOf` is `expandWithVocabulary(raw, maps)` and nothing else: the declaration is the ONLY
+// thing that says what a verb confers (`legacyVerbs.js` deleted 2026-11-03). Every one of the 81
+// pattern rows on `rowauth-test` declares, so this is the path production runs. `test-data-auth.js`'s
+// fixtures declare nothing, so the differential (test-row-auth-diff.js) exercises the undeclared
+// path; this section is the declared-path coverage it cannot give.
 const VOCAB = {
   self: [
     { value: 'edit-pattern',             implies: ['read', 'edit'] },
@@ -224,19 +234,23 @@ t('scope is enforced, not decorative: a self verb inside a descendants grant con
   const rows = declaring({ descendants: { groups: { Editors: ['edit-pattern'] } } });
   assert.strictEqual(await canEdit(rows, rows[3]), false, 'edit-pattern is declared under self only');
 });
-t('an UNDECLARED verb confers nothing, even one the shim knows', async () => {
-  // `publish-page` is in LEGACY_IMPLIES but not in this vocabulary. The declaration wins, so it
-  // expands to nothing — the shim is not consulted at all once a row in the chain declares.
+t('a verb this vocabulary omits confers nothing', async () => {
+  // `publish-page` is a real verb elsewhere — it just is not in THIS pattern's vocabulary, so under
+  // this pattern it means nothing. A pattern's declaration is the whole vocabulary, not an addition
+  // to some shared list.
   const rows = declaring({ descendants: { groups: { Editors: ['publish-page'] } } });
   assert.strictEqual(await canEdit(rows, rows[3]), false);
 });
-t('…while the shim WOULD have honoured it, which is what makes that assertion meaningful', async () => {
+t('…and a chain that declares NOTHING confers nothing either — there is no shared list left', async () => {
+  // The contrast that used to make the assertion above meaningful ran the other way: `publish-page`
+  // was honoured here by `legacyVerbs.js` and refused above by the declaration. Now both refuse,
+  // and the difference is gone on purpose — a verb means what the pattern says it means, or nothing.
   const noVocab = {
     1: { id: 1, type: 'prod:site' },
     2: { id: 2, type: 'prod|docs:pattern', parent_id: 1, auth: { groups: { Editors: ['publish-page'] } } },
     3: { id: 3, type: 'docs|page',         parent_id: 2 },
   };
-  assert.strictEqual(await canEdit(noVocab, noVocab[3]), true);
+  assert.strictEqual(await canEdit(noVocab, noVocab[3]), false);
 });
 
 section('app admin still passes everything');

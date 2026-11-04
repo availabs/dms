@@ -19,19 +19,20 @@
  * `update-source` on the source the schedule or task belongs to — read from the stored row, never
  * only from the body (a PATCH that moves a schedule needs it on both sources). A schedule or task with
  * no source needs `edit-pattern` on the datasets pattern the request names. These routes needed only a
- * login before, so `legacy` / `log` allow and log would-denies (DMS_SOURCE_AUTH_MODE).
+ * login before, so `log` allows and logs would-denies (DMS_AUTH_MODE).
  * Reads (schedules, runs) need a signed-in user (`requireReader`); /schedulables is the registry, open.
  */
 
 const schedules = require('./schedules');
 const tasks = require('./index');
 const { getSchedulables } = require('../datatypes');
-const { requireUser, requireReader, requireSourcePermission, requirePatternPermission } = require('../../routes/auth/kindAuth/sourceAuth');
+const { requireUser, requireReader } = require('../../routes/auth/requestUser');
+const { requireCan } = require('../../routes/auth/sourceGuards');
 
 // Answers 401 / 403 and returns null when refused; otherwise the user.
 function authorizeTarget(req, res, sourceId) {
-  if (sourceId != null) return requireSourcePermission(req, res, sourceId, 'update-source', { wasOpen: true });
-  return requirePatternPermission(req, res, 'edit-pattern');
+  if (sourceId != null) return requireCan(req, res, { source: sourceId, perms: 'update-source', wasOpen: true });
+  return requireCan(req, res, { perms: 'edit-pattern' });
 }
 
 function registerScheduleRoutes(app) {

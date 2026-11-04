@@ -2,7 +2,7 @@
  * Permission checks on data-type plugin routes (dms-template planning/shared datatype-plugin-route-permissions):
  * mountDatatypeRoutes puts writeGate in front of every plugin router (a write needs a signed-in user unless
  * the plugin lists it in `openRoutes`), and the plugin helpers authorizePublish / authorizeSourceWrite judge
- * each route's own permission, owner from the token. Both follow DMS_SOURCE_AUTH_MODE as for a route that
+ * each route's own permission, owner from the token. Both follow DMS_AUTH_MODE as for a route that
  * was open: `enforce` refuses, `log` lets the call through and logs once, `legacy` lets it through.
  *
  * Runs a real express app (the gate matches paths inside the mounted router) on a random port.
@@ -23,14 +23,14 @@ const t = async (name, fn) => {
     catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack}`); }
 };
 
-// Runs fn under DMS_SOURCE_AUTH_MODE=mode, collecting `would-deny` lines.
+// Runs fn under DMS_AUTH_MODE=mode, collecting `would-deny` lines.
 async function withMode(mode, fn) {
-    const prev = process.env.DMS_SOURCE_AUTH_MODE;
+    const prev = process.env.DMS_AUTH_MODE;
     const warn = console.warn; const warned = [];
-    process.env.DMS_SOURCE_AUTH_MODE = mode;
+    process.env.DMS_AUTH_MODE = mode;
     console.warn = (...a) => { const s = a.join(' '); if (s.includes('would-deny')) warned.push(s); else warn(...a); };
     try { return await fn(warned); }
-    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_SOURCE_AUTH_MODE; else process.env.DMS_SOURCE_AUTH_MODE = prev; }
+    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
 }
 
 async function run() {
@@ -167,11 +167,6 @@ async function run() {
     });
 
     await withMode('legacy', async (warned) => {
-        await t('legacy: anon write goes through, nothing logged', async () => {
-            assert.strictEqual((await call('POST', '/nocheck')).status, 200);
-            assert.strictEqual((await call('POST', '/publish', { body: {} })).status, 200);
-            assert.strictEqual(warned.length, 0);
-        });
     });
 
     // ---- cleanup

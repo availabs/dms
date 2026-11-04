@@ -39,7 +39,7 @@ function domainEntriesOf(format, out = []) {
 
 /**
  * Collapse entries to one per verb, LAST WINS, dropping the wildcard.
- * Returns `{ value, label, implies }` in first-seen order so a derived vocabulary reads like the
+ * Returns `{ value, label, implies, fields?, when? }` in first-seen order so a derived vocabulary reads like the
  * list it came from rather than in some incidental order.
  */
 function collapse(entries) {
@@ -54,6 +54,10 @@ function collapse(entries) {
         const e = byVerb.get(v);
         const out = { value: e.value, implies: [...(e.implies || [])] };
         if (e.label !== undefined) out.label = e.label;
+        // `fields` / `when` ride through untouched: they say which ATTRIBUTES this verb governs,
+        // which the server reads the same way it reads `implies`. See the row kind's format.
+        if (Array.isArray(e.fields)) out.fields = [...e.fields];
+        if (Array.isArray(e.when)) out.when = e.when.map(c => ({ ...c }));
         return out;
     });
 }
@@ -82,6 +86,27 @@ export function deriveAuthVocabulary({ self = [], instance = null, formats = [] 
     if (selfVerbs.length) out.self = selfVerbs;
     if (descendantVerbs.length) out.descendants = descendantVerbs;
     return out;
+}
+
+
+/**
+ * The vocabulary a dmsEnv ROW carries.
+ *
+ * Pattern rows get theirs from `registerPatternTypes`, which derives per pattern TYPE. An env is
+ * not a pattern — it is a child of the site that happens to be the ancestor of every source — so
+ * it needs its own derivation, from the one format that describes it.
+ *
+ * `instance: dmsEnvFormat` puts the env's OWN domain in `self` and its `registerFormats` tree
+ * (source → view) in `descendants`. The env's own domain is empty by design, and this function
+ * omits empty scopes, so the result is `{ descendants: [ …source and view verbs… ] }` — the env
+ * declares what may be done to what it contains, and claims nothing for itself.
+ *
+ * This is what lets a source resolve its vocabulary by the ordinary leaf → root walk
+ * (`mapsForChain`) instead of through a manufactured chain that reaches sideways to a datasets
+ * pattern. See planning/tasks/current/row-auth-uda-unify-api.md.
+ */
+export function deriveDmsEnvVocabulary(dmsEnvFormat) {
+    return deriveAuthVocabulary({ self: [], instance: dmsEnvFormat, formats: [] });
 }
 
 export default deriveAuthVocabulary;

@@ -17,8 +17,9 @@
 export const PATTERN_ROW_DOMAIN = [
   { label: '*',                        value: '*' },
   { label: 'View Pattern',             value: 'view-pattern',             implies: ['read'] },
-  { label: 'Edit Pattern',             value: 'edit-pattern',             implies: ['read', 'edit'] },
-  { label: 'Edit Pattern Permissions', value: 'edit-pattern-permissions', implies: ['read', 'edit', 'grant'] },
+  // `fields`: which attributes each verb governs — see page.format.js for the full note.
+  { label: 'Edit Pattern',             value: 'edit-pattern',             implies: ['read', 'edit'], fields: ['*'] },
+  { label: 'Edit Pattern Permissions', value: 'edit-pattern-permissions', implies: ['read', 'edit', 'grant'], fields: ['authPermissions'] },
 ]
 
 export default PATTERN_ROW_DOMAIN

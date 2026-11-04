@@ -25,14 +25,14 @@ const t = async (name, fn) => {
     catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack.split('\n').slice(0, 3).join('\n')}`); }
 };
 
-/** Run fn under a DMS_ROW_AUTH_MODE, collecting `[row-auth] would-deny` lines. */
+/** Run fn under a DMS_AUTH_MODE, collecting `[row-auth] would-deny` lines. */
 async function withMode(mode, fn) {
-    const prev = process.env.DMS_ROW_AUTH_MODE;
+    const prev = process.env.DMS_AUTH_MODE;
     const warn = console.warn; const lines = [];
-    process.env.DMS_ROW_AUTH_MODE = mode;
+    process.env.DMS_AUTH_MODE = mode;
     console.warn = (...a) => { const s = a.join(' '); if (s.includes('[row-auth]')) lines.push(s); else warn(...a); };
     try { return await fn(lines); }
-    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_ROW_AUTH_MODE; else process.env.DMS_ROW_AUTH_MODE = prev; }
+    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
 }
 
 async function run() {
@@ -87,10 +87,6 @@ async function run() {
     }));
 
     console.log('\nrollout modes');
-    await t('legacy leaves it open', () => withMode('legacy', async (lines) => {
-        assert.ok(!refused(await readData(stranger, themeId)));
-        assert.strictEqual(lines.length, 0);
-    }));
     await t('log allows and writes a would-deny line', () => withMode('log', async (lines) => {
         assert.ok(!refused(await readData(stranger, themeId)), 'log must not block');
         assert.ok(lines.some(l => l.includes('would-deny read')), `expected a would-deny, got ${lines.length} lines`);
@@ -139,6 +135,10 @@ async function run() {
     const docsPattern = await insert('site|docs:pattern', {
         pattern_type: 'page', name: 'docs',
         authPermissions: { groups: { Docs: ['view-page'] } },
+        // A pattern DECLARES what its verbs confer, exactly as `--sync-vocabulary` stamps onto every
+        // pattern row of a real app. Without this the grant below is just a string: `view-page`
+        // became the structural `read` through `legacyVerbs.js` until that was deleted (2026-11-03).
+        authVocabulary: { descendants: [{ value: 'view-page', implies: ['read'] }] },
     });
     await insert('docs|page', { title: 'one' });
     await insert('docs|page', { title: 'two' });

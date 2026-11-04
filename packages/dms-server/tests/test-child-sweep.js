@@ -44,7 +44,7 @@ async function run() {
     const APP = `childsweep_${Date.now()}`;
     const admin = { authed: true, id: 1, email: 'a@x', groups: [`${APP} Admin`] };
     const graph = createTestGraph(DMS_DB, { user: admin });
-    process.env.DMS_ROW_AUTH_MODE = 'legacy';
+    process.env.DMS_AUTH_MODE = 'legacy';
     process.env.DMS_CHILD_SWEEP_MODE = 'delete';
 
     const create = async (type, data) => {
@@ -132,7 +132,7 @@ async function run() {
         // dropping the section deletes a row the other page still lists.
         //
         // So `DMS_CHILD_SWEEP_MODE=delete` is gated on `--verify-parents` reporting zero
-        // multi-owner rows for the app, the same way `DMS_ROW_AUTH_MODE=enforce` is gated on
+        // multi-owner rows for the app, the same way `DMS_AUTH_MODE=enforce` is gated on
         // coverage. `log` does not have this exposure, which is why it is the default.
         await edit(pageA, { draft_sections: [ref(mine), ref(theirs), ref(unstamped)] }, 'widgets|page');
         await t('a page that lists another page\'s row TAKES it — drift repair, by design', async () =>

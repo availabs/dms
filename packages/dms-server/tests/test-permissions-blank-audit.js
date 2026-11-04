@@ -3,7 +3,8 @@
  * step 4): change_log writes to rows with no grants up the chain are listed, decided under today's rule and the
  * read-only rule, with the grant that keeps the access.
  *
- * Decided with routes/dms/authRules.js through authJudge.js, as DMS_DATA_AUTH_JUDGE=data does.
+ * Decided with routes/auth/kindAuth/authRules.js through authJudge.js — which is how kind auth itself
+ * decides, since the hand-written switch was removed on 2026-11-03.
  * Fixture rows are written with SQL (the script reads tables, not routes), into a fresh app and auth project.
  *
  * Run: DMS_TEST_DB=cli-test node tests/test-permissions-blank-audit.js

@@ -94,22 +94,23 @@ const withEnv = async (vars, fn) => {
     }));
 
     console.log('\nguards record (log → would-deny, enforce → refused):');
-    const { isUserAuthedForPattern, readerAllowed } = require('../src/routes/auth/kindAuth/sourceAuth');
+    const { isUserAuthedForPattern } = require('../src/routes/auth/sourceGuards');
+    const { readerAllowed } = require('../src/routes/auth/requestUser');
     const ref = { app: 'siteA', patternId: 99999999 };   // not found → denied
-    await t('source guard, pattern check: log records would-deny and allows', async () => withEnv({ DMS_SOURCE_AUTH_MODE: 'log' }, async () => {
+    await t('source guard, pattern check: log records would-deny and allows', async () => withEnv({ DMS_AUTH_MODE: 'log' }, async () => {
         accessLog._reset({ db });
         assert.strictEqual(await isUserAuthedForPattern({ patternRef: ref, reqPermissions: ['create-source'], user: viewer }), true);
         const [p] = [...accessLog._pending().values()];
         assert.deepStrictEqual([p.app, p.guard, p.outcome, p.kind, p.target, p.perms], ['siteA', 'source', 'would-deny', 'pattern', 'siteA/99999999', 'create-source']);
     }));
-    await t('source guard, pattern check: enforce records refused and refuses', async () => withEnv({ DMS_SOURCE_AUTH_MODE: 'enforce' }, async () => {
+    await t('source guard, pattern check: enforce records refused and refuses', async () => withEnv({ DMS_AUTH_MODE: 'enforce' }, async () => {
         accessLog._reset({ db });
         assert.strictEqual(await isUserAuthedForPattern({ patternRef: ref, reqPermissions: ['create-source'], user: viewer }), false);
         assert.strictEqual([...accessLog._pending().values()][0].outcome, 'refused');
         assert.strictEqual(readerAllowed(null, 'GET /tasks'), false);
         assert.ok([...accessLog._pending().values()].some(p => p.kind === 'read' && p.principal === 'anon' && p.outcome === 'refused'));
     }));
-    await t('a refusal is never recorded for an allowed request', async () => withEnv({ DMS_SOURCE_AUTH_MODE: 'enforce' }, async () => {
+    await t('a refusal is never recorded for an allowed request', async () => withEnv({ DMS_AUTH_MODE: 'enforce' }, async () => {
         accessLog._reset({ db });
         assert.strictEqual(readerAllowed(viewer, 'GET /tasks'), true);
         assert.strictEqual(accessLog._pending().size, 0);
