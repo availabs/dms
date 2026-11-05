@@ -1,6 +1,6 @@
 # Read-only DAMA configs: a server that reads a shared DAMA database and never changes it
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** commit — then a server deploy; nothing changes until a config sets `readOnly` · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** deploy — committed as `f8979f3f`, not on GitHub yet; a server deploy follows, and nothing changes until a config sets `readOnly` · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Topic:** dms-server · **Started:** 2026-11-05 · Site half (why it exists):
 [preview-stacks.md](../../../../../planning/shared/tasks/current/preview-stacks.md), step 2
@@ -64,6 +64,8 @@ run on its own databases, which is wanted. That task stays the fix for `deploy.s
 - `packages/dms-server/tests/test-dama-readonly.js`: new. `npm run test:pg:dama-readonly`.
 - `packages/dms-server/package.json`: that script.
 - `packages/dms-server/CLAUDE.md`, `tests/CLAUDE.md`: the field and the test.
+- `packages/dms-server/tests/postgres-docker.js` (2026-11-05, after the commit): `stop()` removes the container with
+  `-v`, so a `test:pg` run doesn't leave the image's anonymous data volume behind.
 
 ## Testing
 
