@@ -16,6 +16,7 @@ process.env.DMS_DB_ENV = DMS_DB; // the resolver reads the datasets pattern from
 const assert = require('assert');
 const express = require('express');
 const { dmsMainTable } = require('../src/routes/uda/utils');
+const syncMirror = require('./mirror-sync');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -44,18 +45,18 @@ async function run() {
     const viewTbl = pg ? 'data_manager.views' : 'views';
 
     // ---- users
-    const creator = { authed: true, id: 31, email: 'c@x', groups: ['Creators'] };   // create-source on the pattern
+    const creator = { authed: true, id: 31, email: 'c@x', groups: ['Creators'] };   // create-source on the env row
     const loader = { authed: true, id: 32, email: 'l@x', groups: ['Loaders'] };     // update-source on srcA
     const stranger = { authed: true, id: 33, email: 's@x', groups: ['Rando'] };
 
-    // ---- DMS: a datasets pattern granting Creators create-source
+    // ---- DMS: the pgEnv's env row of this site grants Creators create-source
     const APP = `dtauth_${Date.now()}`;
     await dmsMainTable(dms, APP, 'per-app');
     const controller = require('../src/routes/dms/dms.controller').createController(DMS_DB);
-    const dsPattern = +(await controller.createData([APP, 'site|ds:pattern', {
-        pattern_type: 'datasets', authPermissions: { '*': { groups: { Creators: ['create-source'] }, users: {} } },
-    }], null))[0].id;
-    const named = `?dms_pattern=${encodeURIComponent(`${APP}/${dsPattern}`)}`;
+    await controller.createData([APP, 'site|extenv:dmsenv', {
+        name: 'extenv', pgEnv: DAMA_DB, authPermissions: { '*': { groups: { Creators: ['create-source'] }, users: {} } },
+    }], null);
+    const named = `?dms_app=${encodeURIComponent(APP)}`;
 
     // ---- DaMa: srcA grants Loaders update-source, srcB grants nobody; viewA belongs to srcA
     const mkSource = async (ap) => (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
@@ -63,6 +64,7 @@ async function run() {
     const srcA = await mkSource({ groups: { Loaders: ['update-source'] }, users: {} });
     const srcB = await mkSource({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
     const viewA = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [srcA])).rows[0].view_id;
+    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
 
     // ---- a plugin with each kind of route
     const { registerDatatype, mountDatatypeRoutes } = require('../src/dama/datatypes');
@@ -95,8 +97,9 @@ async function run() {
     mountDatatypeRoutes(app, { ...require('../src/dama/datatypes/auth').pluginHelpers });
     const server = app.listen(0);
     const base = `http://127.0.0.1:${server.address().port}/dama-admin/${DAMA_DB}/dtauth`;
-    const call = async (method, path, { user, body } = {}) => {
-        const r = await fetch(`${base}${path}`, {
+    const call = async (method, path, { user, body, site = APP } = {}) => {
+        const url = site && !path.includes('dms_app=') ? `${path}${path.includes('?') ? '&' : '?'}dms_app=${encodeURIComponent(site)}` : path;
+        const r = await fetch(`${base}${url}`, {
             method,
             headers: { 'Content-Type': 'application/json', ...(user ? { 'x-test-user': JSON.stringify(user) } : {}) },
             body: body ? JSON.stringify(body) : undefined,
@@ -122,12 +125,12 @@ async function run() {
         });
 
         console.log('enforce: plugin helpers');
-        await t('publish, new source: create-source on the named pattern; owner = token user, not body user_id', async () => {
+        await t('publish, new source: create-source on the named site\'s env row; owner = token user, not body user_id', async () => {
             const ok = await call('POST', `/publish${named}`, { user: creator, body: { user_id: 99 } });
             assert.strictEqual(ok.status, 200, JSON.stringify(ok.body));
             assert.strictEqual(ok.body.owner, creator.id);
             assert.strictEqual((await call('POST', `/publish${named}`, { user: stranger, body: {} })).status, 403);
-            assert.strictEqual((await call('POST', '/publish', { user: creator, body: {} })).status, 403, 'no pattern named');
+            assert.strictEqual((await call('POST', '/publish', { user: creator, body: {}, site: null })).status, 403, 'no site named');
         });
         await t('publish, existing source: create-view / update-source on it', async () => {
             assert.strictEqual((await call('POST', '/publish', { user: loader, body: { source_id: srcA } })).status, 200);

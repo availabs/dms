@@ -4,11 +4,15 @@ import SectionArray from './components/sections/sectionArray'
 export const cmsSection = {
   app: "dms-site",
   type: "component",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   // judged as the page is, minus the per-key split
-  rules: { component: { owner: 'parent-pattern', escape: { owner: 'site-grants', perms: ['*'] },
+  rules: { component: { owner: 'ancestor:pattern', escape: { owner: 'site', perms: ['*'] },
                         ops: { '*': ['edit-page', 'publish-page'] } } },
   // A component declares no `parent` / `url_slug` of its own. Both used to sit here, resolving
   // through `joinKey: 'parent'` + `serverFn: 'recurse_extract_data'` — a reader wired up for a
@@ -99,11 +103,15 @@ export const cmsSection = {
 const pageEdit = {
   app: "dms-site",
   type: "page-edit",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   // a page's edit history, written by whoever edits the page
-  rules: { 'page-edit': { owner: 'parent-pattern', escape: { owner: 'site-grants', perms: ['*'] },
+  rules: { 'page-edit': { owner: 'ancestor:pattern', escape: { owner: 'site', perms: ['*'] },
                           ops: { '*': ['edit-page', 'publish-page'] } } },
   attributes: [
     {
@@ -118,14 +126,20 @@ const pageEdit = {
 const cmsPageFormat = {
   app: "dms-site",
   type: "page",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   rules: {
     page: {
-      owner:  'parent-pattern+row',          // pattern ⊕ this row's own grants
-      escape: { owner: 'site-grants', perms: ['*'] },
+      owner:  ['ancestor:pattern', 'self'],   // the pattern's grants, this row's own spread over them
+      escape: { owner: 'site', perms: ['*'] },
       ops: {
+        // readable when nothing is granted at all, else with view-page
+        read: { anyOf: [{ blank: true }, { perms: ['view-page'] }] },
         create: ['create-page'],
         delete: ['edit-page'],
         // The field rules are DECLARED ON THE VERBS, below: `fields` / `when` on each

@@ -12,7 +12,7 @@ const { join } = require('path');
 const { readFileSync, mkdtempSync, rmSync } = require('fs');
 const os = require('os');
 const { SqliteAdapter } = require('../src/db/adapters/sqlite');
-const { createAuthGrants } = require('../src/auth/utils/permissions');
+const { createSiteAuth } = require('../src/auth/utils/permissions');
 const { hashPassword, createUserToken } = require('../src/auth/utils/crypto');
 const q = require('../src/auth/utils/queries');
 const groupH = require('../src/auth/handlers/group');
@@ -30,28 +30,24 @@ const refused = async (p, re = /authority|not in project|does not exist/) => {
 };
 
 const ap = (groups = {}, users = {}) => ({ groups, users });
-const ROWS = {
-  siteA: [
-    { id: 10, data: { pattern_type: 'auth', authPermissions: ap({
-      GroupMgrs: ['auth-groups'], UserMgrs: ['auth-users'], Owners: ['*'], Ghost: ['*'], public: [] }) } },
-    { id: 11, data: { pattern_type: 'admin', authPermissions: ap({ Keepers: ['edit-pattern-permissions'] }) } },
-  ],
+// app → the SITE ROW's grants (what createSiteAuth's loader returns): the auth verbs live there (rule 3)
+const GRANTS = {
+  siteA: ap({ GroupMgrs: ['auth-groups'], UserMgrs: ['auth-users'], Owners: ['*'], Ghost: ['*'], Keepers: ['edit-pattern-permissions'], public: [] }),
 };
-const A = { app: 'siteA', authPatternId: 10 };
+const A = { app: 'siteA' };
 
 // Site grants faked: records each strip with the group's projects at that moment (grants go first).
 let db, tmp;
 const strips = [];
 const siteGrants = {
   listSiteGrants: async (app, who) => ({ grants: [{ id: 100, type: 'docs|page' }], skipped: [] }),
-  listExternalGrants: async (pgEnvs) => (pgEnvs || []).map(pgEnv => ({ pgEnv, source_id: 5, name: 'ext' })),
   stripSiteGrants: async (app, who) => {
     const { rows } = await db.query('SELECT project_name FROM groups_in_projects WHERE group_name = $1', [who.groups]);
     strips.push({ app, group: who.groups, linkedAtStrip: rows.map(r => r.project_name) });
     return { written: [{ id: 100 }], skipped: [] };
   },
 };
-const ctx = { subdomain: '', authGrants: createAuthGrants({ loadPatternRows: async (app) => ROWS[app] || [] }), siteGrants };
+const ctx = { subdomain: '', siteAuth: createSiteAuth({ loadSiteGrants: async (app) => GRANTS[app] || null }), siteGrants };
 
 // group → [project, level][]
 const GROUPS = {
@@ -119,10 +115,9 @@ async function main() {
     const { groups } = await groupH.groupsForProject(db, { token: tok['gmgr@t'], project: 'siteA', ...A }, ctx);
     assert.strictEqual(groups.find(g => g.name === 'Viewers').assignable, false);
   });
-  await t('no permission: the level rule hides groups above the caller; nothing manageable below 5', async () => {
+  await t('no permission: nothing but public (levels decide nothing)', async () => {
     const { groups } = await groupH.groupsForProject(db, { token: tok['viewer@t'], project: 'siteA', ...A }, ctx);
-    assert.ok(!groups.some(g => g.name === 'siteA Admin' || g.name === 'Editors'));
-    assert.ok(groups.filter(g => g.name !== 'public').every(g => g.manageable === false));
+    assert.deepStrictEqual(groups.map(g => g.name), ['public']);
   });
   await t('/groups: auth-groups sees the project\'s groups (Admin included)', async () => {
     const all = await groupH.getGroups(db, { token: tok['gmgr@t'], ...A }, ctx);
@@ -135,15 +130,14 @@ async function main() {
     await groupH.createAndAssign(db, { token: tok['gmgr@t'], group_name: 'NewG', project_name: 'siteA', auth_level: 10, ...A }, ctx);
     assert.deepStrictEqual(await links('NewG'), { siteA: 0 });
   });
-  await t('level rule unchanged: level 5 up to 5, not 10; level 1 refused', async () => {
-    await groupH.createAndAssign(db, { token: tok['lvl5@t'], group_name: 'NewL', project_name: 'siteA', auth_level: 5 }, ctx);
-    assert.deepStrictEqual(await links('NewL'), { siteA: 5 });
+  await t('a level alone creates nothing: level 5 and level 1 refused', async () => {
+    await refused(groupH.createAndAssign(db, { token: tok['lvl5@t'], group_name: 'NewL', project_name: 'siteA', auth_level: 5 }, ctx));
     await refused(groupH.createAndAssign(db, { token: tok['lvl5@t'], group_name: 'NewL2', project_name: 'siteA', auth_level: 10 }, ctx));
     await refused(groupH.createAndAssign(db, { token: tok['viewer@t'], group_name: 'NewV', project_name: 'siteA', auth_level: 0, ...A }, ctx));
   });
 
   console.log('/groups/linkable, /group/project/assign (link an existing group):');
-  await t('/groups/linkable: every group not on the site, with member counts, for auth-groups or level 5', async () => {
+  await t('/groups/linkable: every group not on the site, with member counts, for auth-groups', async () => {
     const { groups } = await groupH.linkableGroups(db, { token: tok['gmgr@t'], project: 'siteA', ...A }, ctx);
     const names = groups.map(g => g.name);
     for (const g of ['BGroup', 'Ghost', 'Orphan', 'siteB Admin']) assert.ok(names.includes(g), g);
@@ -151,7 +145,7 @@ async function main() {
     assert.deepStrictEqual(names, [...names].sort(), 'by name');
     assert.strictEqual(groups.find(g => g.name === 'siteB Admin').num_members, 1);
     assert.ok(!('projects' in groups[0]), 'which projects use a group is not shown');
-    await groupH.linkableGroups(db, { token: tok['lvl5@t'], project: 'siteA' }, ctx);
+    await refused(groupH.linkableGroups(db, { token: tok['lvl5@t'], project: 'siteA' }, ctx));
     await refused(groupH.linkableGroups(db, { token: tok['viewer@t'], project: 'siteA', ...A }, ctx));
     await refused(groupH.linkableGroups(db, { token: tok['umgr@t'], project: 'siteA', ...A }, ctx));
   });
@@ -182,10 +176,9 @@ async function main() {
   await t('/group/delete/plan: the plan, nothing written', async () => {
     strips.length = 0;
     const before = await snapshot();
-    const plan = await groupH.planDeleteGroup(db, { token: tok['gmgr@t'], name: 'Shared', pgEnvs: ['envA'], ...A }, ctx);
+    const plan = await groupH.planDeleteGroup(db, { token: tok['gmgr@t'], name: 'Shared', ...A }, ctx);
     assert.deepStrictEqual(plan.otherProjects, ['siteB']);
     assert.strictEqual(plan.deletes, false);
-    assert.strictEqual(plan.externalSources.length, 1);
     assert.strictEqual(strips.length, 0);
     assert.deepStrictEqual(await links('Shared'), { siteA: 0, siteB: 0 });
     assert.deepStrictEqual(await snapshot(), before);
@@ -244,25 +237,20 @@ async function main() {
     await groupH.deleteGroup(db, { token: tok['plat@t'], name: 'Orphan' }, ctx);
     assert.ok(!(await exists('Orphan')));
   });
-  await t('level rule: level 5 deletes a level-0 group, grants stripped too', async () => {
-    strips.length = 0;
-    assert.deepStrictEqual(await groupH.planDeleteGroup(db, { token: tok['lvl5@t'], name: 'L0' }, ctx),
-      { group_name: 'L0', projects: ['siteA'] });
-    assert.ok(await exists('L0') && strips.length === 0, 'the level-path plan writes nothing');
-    await groupH.deleteGroup(db, { token: tok['lvl5@t'], name: 'L0' }, ctx);
-    assert.ok(!(await exists('L0')));
-    assert.deepStrictEqual(strips.map(s => s.app), ['siteA']);
+  await t('a level alone deletes nothing', async () => {
+    await refused(groupH.planDeleteGroup(db, { token: tok['lvl5@t'], name: 'L0' }, ctx));
+    await refused(groupH.deleteGroup(db, { token: tok['lvl5@t'], name: 'L0' }, ctx));
+    assert.ok(await exists('L0'));
   });
 
-  console.log('/group/project/adjust (level-only), /group/meta/update:');
-  await t('adjust: a level-5 user can\'t demote a level-10 group (the hole); can move a lower one', async () => {
-    await refused(groupH.adjustAuthLevel(db, { token: tok['lvl5@t'], group_name: 'siteA Admin', project_name: 'siteA', auth_level: 5 }, ctx), /authority level/);
+  console.log('/group/project/adjust (* on the auth row), /group/meta/update:');
+  await t('adjust: a level-5 user moves nothing; auth-groups is not *; siteA Admin moves a level', async () => {
+    await refused(groupH.adjustAuthLevel(db, { token: tok['lvl5@t'], group_name: 'siteA Admin', project_name: 'siteA', auth_level: 5 }, ctx), /authority/);
+    await refused(groupH.adjustAuthLevel(db, { token: tok['lvl5@t'], group_name: 'Viewers', project_name: 'siteA', auth_level: 3 }, ctx), /authority/);
     assert.deepStrictEqual(await links('siteA Admin'), { siteA: 10 });
-    await groupH.adjustAuthLevel(db, { token: tok['lvl5@t'], group_name: 'Viewers', project_name: 'siteA', auth_level: 3 }, ctx);
+    await refused(groupH.adjustAuthLevel(db, { token: tok['gmgr@t'], group_name: 'Viewers', project_name: 'siteA', auth_level: 0, ...A }, ctx), /authority/);
+    await groupH.adjustAuthLevel(db, { token: tok['admin@t'], group_name: 'Viewers', project_name: 'siteA', auth_level: 3, ...A }, ctx);
     assert.deepStrictEqual(await links('Viewers'), { siteA: 3 });
-  });
-  await t('adjust has no permission path: auth-groups (level 0) refused', async () => {
-    await refused(groupH.adjustAuthLevel(db, { token: tok['gmgr@t'], group_name: 'Viewers', project_name: 'siteA', auth_level: 0, ...A }, ctx), /authority level/);
   });
   await t('meta: auth-groups edits a manageable group of the site; not a protected one', async () => {
     const meta = await groupH.updateGroup(db, { token: tok['gmgr@t'], group_name: 'Viewers', meta: { description: 'v' }, ...A }, ctx);

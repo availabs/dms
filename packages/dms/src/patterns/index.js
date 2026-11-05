@@ -43,12 +43,8 @@ registerPatternTypes({
     admin: { addable: true, order: 30, defaultName: 'Auth' },
     defaultTheme: authTheme,
     formats: [authFormat],
-    // a logged-out visitor needs this row to build the route that renders the login page
-    publicRead: true,
-    // While the admin row grants nothing, site access falls back to this pattern
-    // (utils/adminPermissions.js `adminRowHasGrants`), so its Access editor offers the site-level
-    // verbs too — borrowed from the type named here rather than hardcoded in the registry.
-    siteFallback: 'admin',
+    // A logged-out visitor reads this row to build the login route: its site-level grants live on the
+    // site row (rule 3), so the row itself is blank and the pattern rule's `read` lets it through.
   },
   // routed from the synthetic AdminPattern pattern2routes builds; never created by hand
   admin: {
@@ -60,9 +56,8 @@ registerPatternTypes({
     // its formats' rules are the site-level kinds' (site, theme, tenant, pattern, dmsenv): stamped
     // on the site row, not on the admin pattern row
     rulesOn: 'site',
-    // routing/branding config the no-access stub returns anyway; blocking it only stops the
-    // client caching its site snapshot. Access to the admin PANEL is decided from site grants.
-    publicRead: true,
+    // Access to the admin PANEL is decided from the site row's grants; the admin row itself is blank
+    // and readable like any other grantless pattern row.
   },
 })
 

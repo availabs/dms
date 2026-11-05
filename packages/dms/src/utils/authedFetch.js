@@ -5,9 +5,11 @@
 //   falling back to the signed-in token in localStorage (`userToken`, what the falcor client sends)
 //   for callers with no user in reach — e.g. Lexical image uploads, whose upload settings are
 //   serialized into page content and so must never carry the token.
-// - `pattern` ({ app, id } — a datasets pattern row) appends `?dms_pattern=<app>/<id>`: external
-//   sources inherit that pattern's grants (dms-server routes/uda/sourceAuth.js requestPatternRef,
-//   mirror of this). A query param, not a header, so it needs no CORS preflight.
+// - `app` (or `pattern.app`, for callers that hand over a datasets pattern row) appends `?dms_app=<app>`:
+//   the site the request comes from, which is what locates the site's `:dmsenv` row above a pgEnv's
+//   sources (dms-server routes/auth/requestUser.js requestApp). A query param, not a header, so it needs
+//   no CORS preflight. A pattern lends no grants of its own (rule 2: a rule's owners are the row's
+//   ancestors; the env row above a source is one, the pattern pointing at the env is not).
 // - A 401 / 403 throws a PermissionError with a readable message instead of handing the caller a
 //   response it would parse as data. Every other response comes back untouched.
 
@@ -19,32 +21,29 @@ export class PermissionError extends Error {
     }
 }
 
-export function withPatternParam(url, pattern) {
-    if (!pattern?.app || !pattern?.id) return url;
-    const sep = url.includes('?') ? '&' : '?';
-    return `${url}${sep}dms_pattern=${encodeURIComponent(`${pattern.app}/${pattern.id}`)}`;
-}
-
 // `dms_app=<app>`: the site a request comes from (dms-server requestUser.js requestApp). The server files
-// access-log rows under it and uses it for an external source's `${app} Admin` check when no datasets
-// pattern is named; it lends no grants.
+// access-log rows under it, and reads a pgEnv's sources under that site's `:dmsenv` row for the pgEnv.
 export function withAppParam(url, app) {
     if (!app) return url;
     const sep = url.includes('?') ? '&' : '?';
     return `${url}${sep}dms_app=${encodeURIComponent(app)}`;
 }
 
-// Tags every request of one pattern's Falcor model (render/dmsPageFactory.jsx) with `dms_app` (every
-// pattern) and `dms_pattern` (a pattern that names itself: the datasets pattern), so its reads of external
-// sources inherit that pattern's grants (dms-server routes/auth/kindAuth/readAuth.js). Wraps the model's
-// data source hook; the token header it sets still goes on.
+// Kept for callers that hand over a pattern row: only its `app` is sent (`dms_pattern` is no longer read).
+export function withPatternParam(url, pattern) {
+    return withAppParam(url, pattern?.app);
+}
+
+// Tags every request of one pattern's Falcor model (render/dmsPageFactory.jsx) with `dms_app`, so the
+// server knows which site's env rows sit above the external sources it reads. Wraps the model's data
+// source hook; the token header it sets still goes on.
 export function tagFalcorRequests(falcor, pattern, app = pattern?.app) {
     const source = falcor?._source;
-    if (!source || (!app && !(pattern?.app && pattern?.id))) return falcor;
+    if (!source || !app) return falcor;
     const before = source.onBeforeRequest?.bind(source);
     source.onBeforeRequest = (config) => {
         before?.(config);
-        if (config?.url) config.url = withAppParam(withPatternParam(config.url, pattern), app);
+        if (config?.url) config.url = withAppParam(config.url, app);
     };
     return falcor;
 }
@@ -59,8 +58,8 @@ export function authHeaders(user) {
     return token ? { Authorization: token } : {};
 }
 
-export async function authedFetch(url, { user, pattern, headers, ...opts } = {}) {
-    const res = await fetch(withPatternParam(url, pattern), {
+export async function authedFetch(url, { user, pattern, app, headers, ...opts } = {}) {
+    const res = await fetch(withAppParam(url, app || pattern?.app), {
         ...opts,
         headers: { ...authHeaders(user), ...headers },
     });

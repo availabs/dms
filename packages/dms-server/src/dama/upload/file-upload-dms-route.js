@@ -20,10 +20,11 @@ const Busboy = require('busboy');
 const storage = require('../storage');
 const { sharpAvailable, getSharp } = require('./sharp');
 const { nameToSlug, getInstance } = require('../../db/type-utils');
-const { requestPatternRef, requestUserIdWarnBody } = require('../../routes/auth/requestUser');
+const { requestUserIdWarnBody } = require('../../routes/auth/requestUser');
 const { authMode } = require('../../routes/auth/settings');
 const accessLog = require('../../access-log');
 const { authorizePublish } = require('./auth');
+const { envRowFor } = require('../../routes/auth');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];
 const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
@@ -34,15 +35,15 @@ function firstId(rows) {
   return rows?.[0]?.id != null ? +rows[0].id : null;
 }
 
-// A new source is listed on `owner_id`, so the owner must be the datasets pattern the request names
-// or the dmsEnv that pattern links: otherwise a create-source grant on one pattern would let the
-// caller rewrite `sources` on any row of the app.
-async function ownerIsNamedPattern(controller, app, ownerId, ref) {
-  if (!ref || ref.app !== app) return false;
-  if (+ownerId === +ref.patternId) return true;
-  const [row] = await controller.getDataById([ref.patternId], ['data'], app);
+// A new source is listed on `owner_id`, so the owner must be the env the publish was judged on (or
+// the datasets pattern that links it, for a pattern still listing sources itself): otherwise a
+// create-source grant on one env would let the caller rewrite `sources` on any row of the app.
+async function ownerIsEnv(controller, app, ownerId, envRow) {
+  if (!envRow) return false;
+  if (+ownerId === +envRow.id) return true;
+  const [row] = await controller.getDataById([ownerId], ['data'], app);
   const data = typeof row?.data === 'string' ? JSON.parse(row.data) : (row?.data || {});
-  return data.dmsEnvId != null && +data.dmsEnvId === +ownerId;
+  return data.dmsEnvId != null && +data.dmsEnvId === +envRow.id;
 }
 
 function createFileUploadDmsHandler(controller) {
@@ -105,9 +106,8 @@ function createFileUploadDmsHandler(controller) {
         const user_id = requestUserIdWarnBody(req);
         const refused = () => { try { fs.unlinkSync(savedFilePath); } catch (e) {} };
         if (!await authorizePublish(req, res, existingSourceId, { env: `${app}+${owner_instance}`, app })) return refused();
-        if (!existingSourceId && !await ownerIsNamedPattern(controller, app, owner_id, requestPatternRef(req))) {
-          const ref = requestPatternRef(req);
-          const msg = `owner ${owner_id} is not the datasets pattern ${ref ? `${ref.app}/${ref.patternId}` : '(none named)'} or its dmsEnv`;
+        if (!existingSourceId && !await ownerIsEnv(controller, app, owner_id, await envRowFor(`${app}+${owner_instance}`, app))) {
+          const msg = `owner ${owner_id} is not the env ${app}+${owner_instance} or the pattern that links it`;
           const enforce = authMode() === 'enforce';
           accessLog.record({ app, guard: 'file', outcome: enforce ? 'refused' : 'would-deny', kind: 'file_upload_dms',
             target: `${app}/${owner_instance}`, perms: ['create-source'], user: req.availAuthContext && req.availAuthContext.user, reason: msg });

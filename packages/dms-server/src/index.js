@@ -58,7 +58,7 @@ app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Credentials', true);
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-DMS-Pattern'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-DMS-App'
   );
 
   res.header(
@@ -205,7 +205,7 @@ app.use('/graph', (req, res, next) => {
 });
 
 const { getSubdomain } = require('./utils/subdomain');
-const { requestPatternRef, requestApp } = require('./routes/auth/requestUser');
+const { requestApp } = require('./routes/auth/requestUser');
 
 app.use(
   '/graph',
@@ -220,7 +220,7 @@ app.use(
         // how the write arrived, for change history rows: the CLI sends 'cli', a browser nothing
         via: req.headers['x-dms-via'] || null,
       };
-      return falcorRoutes({ user, subdomain, reqMeta, patternRef: requestPatternRef(req), requestApp: requestApp(req) });
+      return falcorRoutes({ user, subdomain, reqMeta, requestApp: requestApp(req) });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);
       throw e;
@@ -280,7 +280,7 @@ async function setupAndListen() {
   const lineage = require('./dama/lineage');
   const damaDelete = require('./dama/delete');
   const { requireUser, requestUserId } = require('./routes/auth/requestUser');
-  const { requireCan } = require('./routes/auth/sourceGuards');
+  const { requireCan } = require('./routes/auth');
   const { authorizeViewAction } = require('./dama/upload/auth');
   const { getDb, loadConfig } = require('./db');
   // Plugin writes need a signed-in user (writeGate, mounted per plugin) and then the route's own permission.

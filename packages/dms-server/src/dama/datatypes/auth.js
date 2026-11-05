@@ -1,23 +1,18 @@
 /**
- * Permission checks for data-type plugin routes (dms-template planning/shared datatype-plugin-route-permissions).
+ * Permission checks for data-type plugin routes.
  *
- * Plugin routes used to answer anyone, so two layers now sit on them:
- *   - writeGate, put in front of every plugin router by mountDatatypeRoutes: a write (anything but GET /
- *     HEAD / OPTIONS) needs a signed-in user, unless the plugin lists the route in `openRoutes`
- *     (a webhook with its own secret, a read served over POST);
+ * Plugin routes used to answer anyone, so two layers sit on them:
+ *   - writeGate, in front of every plugin router: a write (anything but GET / HEAD / OPTIONS) needs a
+ *     signed-in user, unless the plugin lists the route in `openRoutes` (a webhook with its own secret);
  *   - the plugin helpers below, which each write route calls for its source / pattern permission.
  *
- * Both follow DMS_AUTH_MODE as for any route that was open (routes/uda/sourceAuth.js): `enforce`
- * refuses, `log` lets the call through and logs a would-deny line, `legacy` lets it through.
- * Each helper answers the request itself (401 / 403) and returns null when the caller is refused,
- * otherwise the user (or ANON_CALLER, an anonymous caller let through: its id is null).
+ * Both follow `DMS_AUTH_MODE` as any route that was open does: `enforce` refuses, `log` lets the call
+ * through and logs a would-deny. Each helper answers the request itself (401 / 403) and returns null
+ * when refused, otherwise the user (or ANON_CALLER, an anonymous caller let through).
  */
-const { requireUserOrOpen, requestPatternRef } = require('../../routes/auth/requestUser');
-const { requireCan } = require('../../routes/auth/sourceGuards');
-const { authMode } = require('../../routes/auth/settings');
+const { requireUserOrOpen, requestApp } = require('../../routes/auth/requestUser');
+const { requireCan, authorize, authMode } = require('../../routes/auth');
 const upload = require('../upload/auth');
-const { authMode: readMode } = require('../../routes/auth/settings');
-const { authorize } = require('../../routes/auth');
 const { getSubdomain } = require('../../utils/subdomain');
 
 const READ_METHODS = ['GET', 'HEAD', 'OPTIONS'];
@@ -38,10 +33,9 @@ function writeGate(openRoutes = []) {
     };
 }
 
-/** A publish that creates a source (no `sourceId`: `create-source` on the named pattern) or adds a version
- *  to one (`create-view` or `update-source` on it). */
+/** A publish that creates a source (`create-source` on the named pattern) or adds a version (`create-view` / `update-source`). */
 function authorizePublish(req, res, sourceId) {
-    return upload.authorizePublish(req, res, sourceId, { anonWasOpen: true });
+    return upload.authorizePublish(req, res, sourceId, { open: true });
 }
 
 /**
@@ -50,10 +44,10 @@ function authorizePublish(req, res, sourceId) {
  */
 async function authorizeSourceWrite(req, res, { sourceId, viewId } = {}, perms) {
     if (viewId != null) {
-        const r = await upload.authorizeViewAction(req, res, viewId, perms, sourceId, { anonWasOpen: true });
+        const r = await upload.authorizeViewAction(req, res, viewId, perms, sourceId, { open: true });
         return r ? r.user : null;
     }
-    if (sourceId != null) return requireCan(req, res, { source: sourceId, perms: perms, wasOpen: true, anonWasOpen: true });
+    if (sourceId != null) return requireCan(req, res, { source: sourceId, verb: perms, open: true });
     const user = requireUserOrOpen(req, res);
     if (user && authMode() === 'enforce') {
         res.status(403).json({ error: 'no source named for this write' });
@@ -62,18 +56,12 @@ async function authorizeSourceWrite(req, res, { sourceId, viewId } = {}, perms) 
     return user;
 }
 
-/**
- * Whether the caller holds one of `perms` on the source, without answering the request: for what a reply
- * carries, e.g. a secret only an editor may see (now_playing's webhook URL). Judged as reads are
- * (routes/auth/sourceReads.js), under `DMS_AUTH_MODE`.
- */
+/** Whether the caller holds one of `perms` on the source, without answering or logging: for what a reply carries. */
 async function holdsSourcePermission(req, sourceId, perms) {
     const user = (req.availAuthContext && req.availAuthContext.user) || null;
-    // `quiet`: the answer shapes the reply (a secret an editor may see) rather than refusing it,
-    // so a `no` is not a refusal and is not logged as one.
     return (await authorize({
-        env: req.params.pgEnv, sourceId, verb: [].concat(perms), quiet: true,
-        user, subdomain: req.headers ? getSubdomain(req) : '', patternRef: requestPatternRef(req),
+        env: req.params.pgEnv, sourceId, verb: [].concat(perms), user,
+        subdomain: req.headers ? getSubdomain(req) : '', app: requestApp(req) || null,
     })).allow;
 }
 

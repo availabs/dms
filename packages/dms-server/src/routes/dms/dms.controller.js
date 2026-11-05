@@ -16,7 +16,7 @@ const {
   currentTimestamp,
   QueryBuilder
 } = require('#db/query-utils.js');
-const { resolveAuthPermissions } = require('../auth/auth');
+const { resolveAuthPermissions } = require('../auth/grants');
 const {
   isSplitType,
   changeLogData,
@@ -189,7 +189,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
             `SELECT ${cols} FROM ${t.fullName} WHERE app = $1 AND type LIKE $2 LIMIT 1`,
             [app, `%|${container}:pattern`]
           );
-          return require('../auth/authVocabulary').childRefsOf(rows[0]) || null;
+          return require('../auth/vocabulary').childRefsOf(rows[0]) || null;
         } catch (e) {
           console.warn(`[parent-id] childRefs lookup failed for ${key}: ${e.message}`);
           return null;
@@ -210,7 +210,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   async function ownerKindForType(app, type) {
     const { getKind } = require('#db/type-utils.js');
-    return require('../auth/authVocabulary').ownerKindOf(await childRefsForType(app, type), getKind(type));
+    return require('../auth/vocabulary').ownerKindOf(await childRefsForType(app, type), getKind(type));
   }
 
   /**

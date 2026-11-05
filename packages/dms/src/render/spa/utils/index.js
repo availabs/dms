@@ -246,9 +246,10 @@ export function pattern2routes (siteData, props) {
     if (savedAdminPattern?.base_url) {
         adminPath = `/${`${savedAdminPattern.base_url}`.replace(/^\/+|\/+$/g, '')}`;
     }
-    // Until the admin row grants something, site-level access (and the auth
-    // pattern's Access-tab options) come from the auth pattern.
-    const adminRowHasGrants = hasAuthGrants(savedAdminPattern?.authPermissions, SUBDOMAIN || '');
+    // Site-level access is the SITE ROW's grants (rule 3: a verb is granted on the row that owns its
+    // subject). The admin pattern's Access tab edits them (patternEditor/default/permissionsEditor.jsx);
+    // nothing falls back to a pattern row any more.
+    const siteRow = siteData?.[0] || {};
 
     let AdminPattern = {
       app: dmsConfigUpdated?.format?.app || dmsConfigUpdated.app,
@@ -260,9 +261,7 @@ export function pattern2routes (siteData, props) {
       pattern: {},
       pattern_type: 'admin',
       subdomain: savedAdminPattern?.subdomain || "*",
-      authPermissions: adminRowHasGrants
-        ? savedAdminPattern.authPermissions
-        : (authPattern?.authPermissions || "{}"),
+      authPermissions: siteRow.authPermissions || "{}",
       theme: themes['default'],
       themes,
       // Only an explicit html_title — not `name` — so admin pages keep no tab
@@ -272,12 +271,9 @@ export function pattern2routes (siteData, props) {
     // Admin chrome (logo, admin.* overrides) — the admin row's theme once it
     // selects one, the auth pattern's until then (getAdminTheme).
     const adminThemeSource = hasThemeSelection(savedAdminPattern) ? savedAdminPattern : authPattern;
-    // Resolved site-level grants for the admin chrome of OTHER patterns' pages
-    // (the auth manage pages' Sites/Themes links), and the auth pattern's own
-    // grants for the admin sidenav's Users/Groups links. See
-    // utils/adminPermissions.js.
+    // Resolved site-level grants for the admin chrome of OTHER patterns' pages (the auth manage
+    // pages' Sites/Themes/Users/Groups links). See utils/adminPermissions.js.
     const adminAuthPermissions = resolveSubdomainAuthPermissions(AdminPattern.authPermissions, SUBDOMAIN || '');
-    const authPatternPermissions = resolveSubdomainAuthPermissions(authPattern?.authPermissions, SUBDOMAIN || '');
   const patterns = [
     AdminPattern,
     // saved admin rows are folded into AdminPattern above, never routed themselves
@@ -446,8 +442,6 @@ export function pattern2routes (siteData, props) {
                     // …unless the saved admin row selects a theme of its own
                     adminThemeSource,
                     adminAuthPermissions,
-                    authPatternPermissions,
-                    adminRowHasGrants,
                     // the saved admin row itself: the Pattern Editor's User Menu tab
                     // is gated on edit access to it (utils/userMenus.js)
                     adminPatternRow: savedAdminPattern,

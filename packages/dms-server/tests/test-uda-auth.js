@@ -14,6 +14,7 @@ process.env.DMS_DB_ENV = DMS_DB; // the resolver and UDA routes read DMS rows fr
 const assert = require('assert');
 const { createTestGraph } = require('./graph');
 const { dmsMainTable } = require('../src/routes/uda/utils');
+const syncMirror = require('./mirror-sync');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -21,7 +22,7 @@ const t = async (name, fn) => {
     catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack}`); }
 };
 
-// Runs fn under DMS_AUTH_MODE=mode, collecting `[source-auth] would-deny` lines.
+// Runs fn under DMS_AUTH_MODE=mode, collecting `[auth] would-deny` lines.
 async function withMode(mode, fn) {
     const prev = process.env.DMS_AUTH_MODE;
     const warn = console.warn; const warned = [];
@@ -75,8 +76,12 @@ async function run() {
     const dsEditor = { authed: true, id: 9, email: 'd@x', groups: ['DsEditors'] };   // the datasets pattern's grants
     const versioner = { authed: true, id: 11, email: 'v@x', groups: ['Versioners'] }; // create-view only on extA
     const stranger = { authed: true, id: 10, email: 's@x', groups: ['Rando'] };
+    // Every request of a site's Falcor model names the site (`dms_app`, tagFalcorRequests): the pgEnv's
+    // env row of that site is what lends grants to its external sources.
+    const APP = `udaauth_${Date.now()}`;
     const graphs = {};
-    const as = (user) => graphs[user ? user.id : 'anon'] || (graphs[user ? user.id : 'anon'] = createTestGraph(DMS_DB, { user }));
+    const as = (user, requestApp = APP) => graphs[`${user ? user.id : 'anon'}|${requestApp}`]
+        || (graphs[`${user ? user.id : 'anon'}|${requestApp}`] = createTestGraph(DMS_DB, { user, requestApp }));
     for (const u of [anon, editor, owner, dsEditor, versioner, stranger]) await as(u).ready;
     const call = (user, path, args) => as(user).callAsync(path, args);
     const set = (user, path, value) => {
@@ -86,21 +91,23 @@ async function run() {
     };
 
     // ---- DMS side: a datasets pattern linked to a dmsEnv holding one internal source with one view
-    const APP = `udaauth_${Date.now()}`;
     const OTHER_APP = `${APP}_other`;
     const tbl = await dmsMainTable(dms, APP, 'per-app');
     const otherTbl = await dmsMainTable(dms, OTHER_APP, 'per-app');
-    const insert = async (table, app, type, data) =>
-        (await dms.query(`INSERT INTO ${table} (app, type, data) VALUES ($1, $2, $3) RETURNING id`, [app, type, data])).rows[0].id;
+    // Through the controller: its id allocator must know the fixture rows, or the mirror's own creates collide.
+    const controller = require('../src/routes/dms/dms.controller').createController(DMS_DB);
+    const insert = async (table, app, type, data) => +(await controller.createData([app, type, data], null))[0].id;
     const viewId = await insert(tbl, APP, 'roads|v1:view', { name: 'v1' });
     const intSrc = await insert(tbl, APP, 'env1|roads:source', { name: 'roads', type: 'internal_table', views: [{ id: viewId }] });
     const intSrc2 = await insert(tbl, APP, 'env1|bridges:source', { name: 'bridges', type: 'internal_table', views: [] });
-    const envRow = await insert(tbl, APP, 'site|env1:dmsenv', { sources: [{ id: intSrc }, { id: intSrc2 }] });
-    const dsPattern = await insert(tbl, APP, 'site|ds:pattern', {
-        pattern_type: 'datasets', dmsEnvId: envRow,
-        authPermissions: { '*': { groups: { DsEditors: ['update-source', 'edit-source-data', 'edit-pattern'] }, users: {} } },
-    });
+    // The env holds the grants over its sources (rule 3): DsEditors manage it and write its sources.
+    const ENV_GRANTS = { '*': { groups: { DsEditors: ['update-source', 'edit-source-data', 'create-source'] }, users: {} } };
+    const envRow = await insert(tbl, APP, 'site|env1:dmsenv', { sources: [{ id: intSrc }, { id: intSrc2 }], authPermissions: ENV_GRANTS });
+    const dsPattern = await insert(tbl, APP, 'site|ds:pattern', { pattern_type: 'datasets', dmsEnvId: envRow });
+    // The pgEnv's env row of this site: its grants reach the external sources for a request naming the site.
+    await insert(tbl, APP, 'site|extenv:dmsenv', { name: 'extenv', pgEnv: DAMA_DB, authPermissions: ENV_GRANTS });
     const otherPattern = await insert(otherTbl, OTHER_APP, 'site|ds:pattern', { pattern_type: 'datasets', authPermissions: { groups: { Rando: ['*'] } } });
+    const INT_ENV_NAMED = `${APP}+env1`;        // the env by its own instance (settings)
     const INT_ENV = `${APP}+internal_table`; // what updateSourceData sends for an internal source
     const SLUG_ENV = `${APP}+roads`;          // what clearData sends
     const pattern = { app: APP, id: dsPattern };
@@ -114,6 +121,7 @@ async function run() {
         [sourceId, pg ? 'public' : 'main', `udaauth_missing_${sourceId}`])).rows[0].view_id;
     const viewA = await view(extA);
     const viewB = await view(extB);
+    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
     const dsPatternRef = { app: APP, id: dsPattern }; // a datasets pattern the client names for extB
 
     // The settings tests write env settings other suites read (hidden_source_types): put them back.
@@ -125,10 +133,14 @@ async function run() {
         await refused(set(anon, ['uda', DAMA_DB, 'sources', 'byId', extA, 'description'], 'x'), /Sign in/);
         await refused(call(anon, ['uda', 'sources', 'update'], [DAMA_DB, extA, { description: 'x' }]), /Sign in/);
     });
-    await t('stranger is refused (log and enforce: the source is checked against its own grants today)', async () => {
-        for (const mode of ['log', 'enforce']) await withMode(mode, async () => {
+    await t('stranger: refused under enforce; let through and logged under log (no surface keeps an older rule)', async () => {
+        await withMode('enforce', async () => {
             await refused(set(stranger, ['uda', DAMA_DB, 'sources', 'byId', extA, 'description'], 'x'));
             await refused(call(stranger, ['uda', 'sources', 'update'], [DAMA_DB, extA, { description: 'x' }]));
+        });
+        await withMode('log', async (warned) => {
+            await allowed(call(stranger, ['uda', 'sources', 'update'], [DAMA_DB, extA, { description: 'x' }]));
+            assert.strictEqual(warned.length, 1, warned.join('\n'));
         });
     });
     await t('update-source grantee writes metadata on both paths; the call echoes the row', async () => {
@@ -136,7 +148,7 @@ async function run() {
         const res = await call(editor, ['uda', 'sources', 'update'], [DAMA_DB, extA, { description: 'by call' }]);
         assert.strictEqual(res.jsonGraph.uda[DAMA_DB].sources.byId[extA].description, 'by call');
     });
-    await t('auth_permissions needs edit-source-permissions: update-source alone is refused on both paths', async () => {
+    await t('auth_permissions needs edit-source-permissions: update-source alone is refused on both paths (enforce)', async () => withMode('enforce', async () => {
         const ap = JSON.stringify({ groups: { Editors: ['*'] } });
         await refused(set(editor, ['uda', DAMA_DB, 'sources', 'byId', extA, 'auth_permissions'], ap));
         await refused(call(editor, ['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: ap }]));
@@ -144,10 +156,32 @@ async function run() {
         const { rows } = await dama.query(`SELECT auth_permissions FROM ${srcTbl} WHERE source_id = $1`, [extA]);
         const stored = typeof rows[0].auth_permissions === 'string' ? JSON.parse(rows[0].auth_permissions) : rows[0].auth_permissions;
         assert.deepStrictEqual(stored.groups.Editors, ['update-source']);
-    });
+    }));
     await t('a * grantee can edit auth_permissions', async () => {
         const ap = JSON.stringify({ groups: { Editors: ['update-source'], Owners: ['*'], Versioners: ['create-view'] }, users: {} });
         await allowed(call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: ap }]));
+    });
+    await t('auth_permissions are the SITE\'s: written to the mirror row, read back from it, the pgEnv\'s column untouched', async () => {
+        const before = (await dama.query(`SELECT auth_permissions FROM ${srcTbl} WHERE source_id = $1`, [extA])).rows[0].auth_permissions;
+        const ap = { groups: { Editors: ['update-source'], Owners: ['*'], Versioners: ['create-view'], Auditors: ['view-source'] }, users: {} };
+        const res = await call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: JSON.stringify(ap) }]);
+        const echoed = res.jsonGraph.uda[DAMA_DB].sources.byId[extA].auth_permissions;
+        assert.deepStrictEqual((echoed && echoed.value) || echoed, ap, 'the call echoes the site\'s grants');
+        const after = (await dama.query(`SELECT auth_permissions FROM ${srcTbl} WHERE source_id = $1`, [extA])).rows[0].auth_permissions;
+        assert.deepStrictEqual(after, before, 'the pgEnv column is not written');
+        const mirror = require('../src/dama/mirror');
+        assert.deepStrictEqual(await mirror.grantsIn(APP, DAMA_DB, extA), ap, 'the mirror row holds them');
+        const g = (await as(owner).getAsync([['uda', DAMA_DB, 'sources', 'byId', extA, 'auth_permissions']])).jsonGraph.uda[DAMA_DB].sources.byId[extA].auth_permissions;
+        assert.deepStrictEqual((g && g.value) || g, ap, 'the get answers the site\'s grants');
+        // the new Auditors grant decides the next read: per site, on the mirror
+        const auditor = { authed: true, id: 77, email: 'au@x', groups: ['Auditors'] };
+        const { clearSnapshots } = require('../src/routes/auth');
+        clearSnapshots();
+        await withMode('enforce', async () => {
+            const r = (await as(auditor).getAsync([['uda', DAMA_DB, 'sources', 'byId', extA, 'source_id']])).jsonGraph.uda[DAMA_DB].sources.byId[extA].source_id;
+            assert.strictEqual(+((r && r.value) || r), +extA);
+        });
+        await refused(as(owner, null).callAsync(['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: JSON.stringify(ap) }]), /no site named/);
     });
     await t('column whitelist: unknown / server-owned / injected keys are refused on both paths', async () => {
         await refused(call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { source_id: 1 }]), /Not writable/);
@@ -155,21 +189,22 @@ async function run() {
         await refused(call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { "description = 'x', name": 'y' }]), /Not writable/);
         await refused(set(owner, ['uda', DAMA_DB, 'sources', 'byId', extA, 'user_id'], 1), /Not writable/);
     });
-    await t('pattern grants reach an external source only through the call that names the pattern (enforce)', async () => withMode('enforce', async () => {
-        await allowed(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'via pattern' }, dsPatternRef]));
-        await refused(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'no pattern' }]));
-        await refused(set(dsEditor, ['uda', DAMA_DB, 'sources', 'byId', extB, 'description'], 'set'));
-        await allowed(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'string ref' }, `${APP}/${dsPattern}`]));
+    const bare = (user) => as(user, null);           // a request naming no site
+    await t('the named site\'s env row lends its grants to an external source; naming no site is refused (enforce)', async () => withMode('enforce', async () => {
+        await allowed(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'via env row' }]));
+        await allowed(set(dsEditor, ['uda', DAMA_DB, 'sources', 'byId', extB, 'description'], 'set'));
+        await refused(bare(dsEditor).callAsync(['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'no site' }]), /no site named/);
+        // a pattern argument is still accepted (old clients send one) and changes nothing
+        await allowed(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'pattern arg' }, dsPatternRef]));
     }));
-    await t('legacy / log allow whatever the strict rule allows (pattern grantee on a source with no own grants)', async () => {
+    await t('legacy / log allow whatever the strict rule allows (env grantee on a source with no own grants)', async () => {
         for (const mode of ['legacy', 'log']) await withMode(mode, async (warned) => {
-            await allowed(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: `via pattern, ${mode}` }, dsPatternRef]));
-            await refused(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'no pattern' }]));
+            await allowed(call(dsEditor, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: `via env, ${mode}` }]));
             assert.strictEqual(warned.length, 0, `nothing to log: ${warned}`);
         });
     });
-    await t('a non-datasets or foreign-app pattern brings no grants (enforce)', async () => withMode('enforce', async () =>
-        refused(call(stranger, ['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'x' }, { app: OTHER_APP, id: dsPattern }]))));
+    await t('a site with no env row for the pgEnv brings no grants (enforce)', async () => withMode('enforce', async () =>
+        refused(as(dsEditor, OTHER_APP).callAsync(['uda', 'sources', 'update'], [DAMA_DB, extB, { description: 'x' }]))));
 
     console.log('\ninternal sources, addressed the way the client does:');
     await t('pattern grantee writes an internal source through `app+internal_table` (enforce)', async () => withMode('enforce', async () => {
@@ -238,23 +273,23 @@ async function run() {
     };
     const ruleArgs = { setRule: [{ id: 'nope', params: {} }, true], backfillRule: ['nope'] };
     for (const name of ['setRule', 'backfillRule']) {
-        await t(`${name}: anon refused, stranger refused (enforce), update-source passes; pattern arg last`, async () => {
+        await t(`${name}: anon refused, stranger refused (enforce), update-source passes; a pattern arg is ignored`, async () => {
             await ruleRefused(anon, name, DAMA_DB, extA, ruleArgs[name]);
             await withMode('enforce', async () => {
                 await ruleRefused(stranger, name, DAMA_DB, extA, ruleArgs[name]);
                 await rulePassesGate(editor, name, DAMA_DB, extA, ruleArgs[name]);
-                await ruleRefused(dsEditor, name, DAMA_DB, extB, ruleArgs[name]);
+                await rulePassesGate(dsEditor, name, DAMA_DB, extB, ruleArgs[name]);
                 await rulePassesGate(dsEditor, name, DAMA_DB, extB, [...ruleArgs[name], dsPatternRef]);
             });
         });
-        await t(`${name} on an internal source is checked against the env's pattern, not as an external source (enforce)`, async () => withMode('enforce', async () => {
+        await t(`${name} on an internal source is checked against its env, not as an external source (enforce)`, async () => withMode('enforce', async () => {
             await rulePassesGate(dsEditor, name, INT_ENV, intSrc, [...ruleArgs[name], pattern]);
             await ruleRefused(stranger, name, INT_ENV, intSrc, [...ruleArgs[name], pattern]);
         }));
     }
-    await t('views.create: create-view or update-source passes; stranger refused', async () => {
+    await t('views.create: create-view or update-source passes; stranger refused (enforce)', async () => {
         await refused(call(anon, ['uda', 'views', 'create'], [DAMA_DB, extA, 'v9', null]), /Sign in/);
-        await refused(call(stranger, ['uda', 'views', 'create'], [DAMA_DB, extA, 'v9', null]));
+        await withMode('enforce', () => refused(call(stranger, ['uda', 'views', 'create'], [DAMA_DB, extA, 'v9', null])));
         await passesGate(call(versioner, ['uda', 'views', 'create'], [DAMA_DB, extA, 'v9', viewA]));
         await passesGate(call(editor, ['uda', 'views', 'create'], [DAMA_DB, extA, 'v9', viewA]));
     });
@@ -266,17 +301,20 @@ async function run() {
         });
     });
     await t('clearData never empties the app\'s main table (per-app SQLite named it data_items__<app>)', async () => {
-        const { rows } = await dms.query(`SELECT COUNT(*) AS n FROM ${tbl}`);
-        assert.strictEqual(+rows[0].n, 5, `main table rows after clearData: ${rows[0].n}`);
+        const { rows } = await dms.query(`SELECT data FROM ${tbl}`);
+        const own = rows.filter(r => { const d = typeof r.data === 'string' ? JSON.parse(r.data) : r.data; return !(d.pgEnv && (d.source_id != null || d.view_id != null)); });   // the fixture's rows, not the pgEnv's mirrors
+        assert.strictEqual(own.length, 6, `main table rows after clearData: ${own.length}`);
     });
 
     console.log('\nsettings:');
-    await t('settings.update needs edit-pattern on the named pattern (enforce)', async () => withMode('enforce', async () => {
-        await allowed(call(dsEditor, ['uda', 'settings', 'update'], [DAMA_DB, '{"hidden_source_types":[]}', pattern]));
-        await allowed(call(dsEditor, ['uda', 'settings', 'update'], [INT_ENV, '{}', pattern]));
-        await refused(call(stranger, ['uda', 'settings', 'update'], [DAMA_DB, '{}', pattern]));
-        await refused(call(dsEditor, ['uda', 'settings', 'update'], [DAMA_DB, '{}']));
-        await refused(call(stranger, ['uda', 'settings', 'update'], [INT_ENV, '{}', { app: OTHER_APP, id: otherPattern }]));
+    await t('settings.update is an edit of the env: its managers (create-source / delete-source on the env row) pass (enforce)', async () => withMode('enforce', async () => {
+        await allowed(call(dsEditor, ['uda', 'settings', 'update'], [DAMA_DB, '{"hidden_source_types":[]}']));
+        await allowed(call(dsEditor, ['uda', 'settings', 'update'], [INT_ENV_NAMED, '{}']));
+        await refused(call(stranger, ['uda', 'settings', 'update'], [DAMA_DB, '{}']));
+        await refused(bare(dsEditor).callAsync(['uda', 'settings', 'update'], [DAMA_DB, '{}']), /no app|not found|has no/);
+        // `app+<format type>` names no env row: the site row decides, and it grants nothing
+        await refused(call(dsEditor, ['uda', 'settings', 'update'], [INT_ENV, '{}']));
+        await refused(call(stranger, ['uda', 'settings', 'update'], [INT_ENV_NAMED, '{}', { app: OTHER_APP, id: otherPattern }]));
         await refused(set(dsEditor, ['uda', DAMA_DB, 'settings'], '{}'));
     }));
     await t('settings: anon refused; log lets a stranger through and logs', async () => {
@@ -296,8 +334,8 @@ async function run() {
             const out = res.jsonGraph.uda[INT_ENV].sources.delete;
             return (out && out.value && out.value.error) || null;
         };
-        assert.match(await deleteError(stranger, {}) || '', /needs delete-source/);
-        assert.match(await deleteError(dsEditor, { pattern }) || '', /needs delete-source/);
+        assert.match(await deleteError(stranger, {}) || '', /delete-source on source/);
+        assert.match(await deleteError(dsEditor, { pattern }) || '', /delete-source on source/);
         const { rows } = await dms.query(`SELECT id FROM ${tbl} WHERE id = $1`, [intSrc2]);
         assert.strictEqual(rows.length, 1, 'refused delete left the source in place');
     }));

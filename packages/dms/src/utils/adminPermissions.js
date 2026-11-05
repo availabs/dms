@@ -1,20 +1,23 @@
-// Admin panel permissions (shared by the admin and auth patterns, so it lives
-// in utils/ — patterns never import from each other): what a user may do at the SITE level (the admin
-// row's `authPermissions`, falling back to the auth pattern's — resolved by
-// pattern2routes into AdminContext.authPermissions) and what they may do TO
-// ONE PATTERN (that pattern's own `authPermissions`).
+// Admin panel permissions (shared by the admin and auth patterns, so it lives in utils/ — patterns
+// never import from each other): what a user may do at the SITE level (the admin row's
+// `authPermissions`, falling back to the auth pattern's — resolved by pattern2routes into
+// AdminContext.authPermissions) and what they may do TO ONE PATTERN (that pattern's own
+// `authPermissions`).
 //
-// See planning/tasks/completed/admin-granular-permissions.md for the access
-// matrix these functions implement.
+// THE SAME JUDGE AS THE SERVER. `patternCan` runs dms-server's rule interpreter
+// (utils/authJudge.js, a verified copy of routes/auth/judge.js) over the `pattern` rule the admin
+// format declares (admin.format.js `rules.pattern`, read from the registry) and the grants the
+// client already holds — so the site `*` escape, the open-pattern clause (a pattern granting nothing
+// is open to whoever may see the pattern list, core patterns excepted) and the name-match are the
+// server's, not a hand copy of them. The access matrix:
+// planning/tasks/completed/admin-granular-permissions.md.
 //
-// Every check here is UI-only: `dms.data.edit` has no server-side
-// authorization, so a user denied here can still write through Falcor or the
-// CLI (defect B in auth-permission-chain-and-unguarded-writes.md).
-//
-// Unlike utils/auth.js's isUserAuthed, nothing here has an "unconfigured →
-// allow" rule: a site with no admin grants lets in only `${app} Admin`.
+// Unlike utils/auth.js's isUserAuthed, nothing here has an "unconfigured → allow" rule: a site with
+// no admin grants lets in only `${app} Admin`.
 
-import { resolveSubdomainAuthPermissions, hasAuthGrants } from './auth.js';
+import { resolveSubdomainAuthPermissions } from './auth.js';
+import { holds, judge, judgeEnv } from './authJudge.js';
+import { getPatternType } from '../patterns/registry.js';
 
 // Site level — the admin row (falling back to the auth pattern).
 export const VIEW_PATTERN_LIST = 'view-pattern-list';
@@ -40,14 +43,6 @@ export const PATTERN_EDITOR_PERMISSIONS = [EDIT_PATTERN, EDIT_PATTERN_PERMISSION
 // is not one of the pattern-row verbs that decide whether a row is shown locked.
 export const PATTERN_ADMIN_PERMISSIONS = [EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS];
 
-// Access editor dropdown options used to live here, as a `permissionOptionsFor` switch over
-// pattern_type plus five hand-written option lists (SITE/AUTH/PATTERN_ADMIN/PAGE/DATASETS). They
-// were a fifth copy of verbs already declared in the formats' `permissionDomain`s, and they drifted
-// — PAGE_OPTIONS was an item-for-item hand-copy of page.format.js's domain, missing
-// `edit-page-params`. The list is now composed from the derived vocabulary by
-// `patternPermissionOptions` in patterns/registry.js, which is where the registry entries live.
-// See planning/tasks/current/permission-domain-single-source.md.
-
 // ---------------------------------------------------------------------------
 // Checks
 // ---------------------------------------------------------------------------
@@ -56,18 +51,11 @@ export function isAppAdmin(user, app) {
     return (user?.groups || []).some(g => g === `${app} Admin`);
 }
 
-// Every permission `user` holds in a resolved {groups, users} object.
-function userPermissions(user, resolved) {
-    const groups = resolved?.groups || {};
-    const users = resolved?.users || {};
-    const asList = p => (Array.isArray(p) ? p : p ? [p] : []);
-    return [
-        ...asList(users[user?.id]),
-        ...(user?.groups || []).filter(g => groups[g]).flatMap(g => asList(groups[g])),
-    ];
-}
-
-const holds = (perms, perm) => perms.some(p => p === '*' || p === perm);
+// The `pattern` rule, as the admin format declares it and the server reads it. Without a registry
+// (a test that never registered the built-ins) the site `*` escape alone applies.
+const patternRule = () =>
+    getPatternType('admin')?.authRules?.pattern
+    || { owner: 'self', escape: { owner: 'site', perms: ['*'] }, ops: {} };
 
 // Whether `user` holds site-level `perm` (or `*`). `siteAuthPermissions` is
 // AdminContext.authPermissions — flat or subdomain-keyed, string or object.
@@ -75,29 +63,23 @@ const holds = (perms, perm) => perms.some(p => p === '*' || p === perm);
 export function siteCan(user, app, siteAuthPermissions, perm) {
     if (!user?.authed) return false;
     if (isAppAdmin(user, app)) return true;
-    const resolved = resolveSubdomainAuthPermissions(siteAuthPermissions, '');
-    const perms = userPermissions(user, resolved);
-    return perm === '*' ? perms.includes('*') : holds(perms, perm);
+    return holds(user, resolveSubdomainAuthPermissions(siteAuthPermissions, ''), [perm]);
 }
 
-// Whether `user` holds pattern-level `perm` on `pattern`.
-// - site `*` (or `${app} Admin`) → everything on every pattern
-// - a pattern with no grants (ignoring the `public` group, which the Access
-//   editor seeds into everything it saves) is open: anyone who can reach the
-//   list page has full control of it
-// - …except the auth and admin rows, which are never open: their Access tab
-//   holds the site's own grants, so an open one would let a
-//   `view-pattern-list` user grant themselves `*`
+// Whether `user` holds pattern-level `perm` on `pattern`, judged by the pattern rule:
+// - site `*` (or `${app} Admin`) → everything on every pattern (the rule's `escape`)
+// - a pattern with no grants (ignoring the `public` group, which the Access editor seeds into
+//   everything it saves) is open to whoever may see the pattern list (`ifOwnerBlank`) — except the
+//   auth and admin rows, which hold the site's own grants (`unless`)
 // - otherwise the pattern's own grants decide; `*` covers every perm
 export function patternCan(user, app, siteAuthPermissions, pattern, perm) {
     if (!user?.authed) return false;
-    if (siteCan(user, app, siteAuthPermissions, '*')) return true;
-    const raw = pattern?.authPermissions;
-    const subdomain = pattern?.subdomain || '';
-    const isCore = ['auth', 'admin'].includes(pattern?.pattern_type);
-    if (!isCore && !hasAuthGrants(raw, subdomain)) return siteCan(user, app, siteAuthPermissions, VIEW_PATTERN_LIST);
-    const perms = userPermissions(user, resolveSubdomainAuthPermissions(raw, subdomain));
-    return holds(perms, perm);
+    if (isAppAdmin(user, app)) return true;
+    const grants = {
+        self: resolveSubdomainAuthPermissions(pattern?.authPermissions, pattern?.subdomain || ''),
+        site: resolveSubdomainAuthPermissions(siteAuthPermissions, ''),
+    };
+    return judge(patternRule(), judgeEnv(user, grants), { op: perm, row: pattern || {} }).allow;
 }
 
 // The row actions on the admin list (and the Overview's danger zone) for one
@@ -115,7 +97,7 @@ export function patternActions(user, app, siteAuthPermissions, pattern, typeAdmi
         open: edit || editPermissions,
         edit,
         editPermissions,
-        // a site grant, symmetric with `duplicate` below and with dms-server's dataAuth.js
+        // a site grant, symmetric with `duplicate` below and with the server's site rule
         delete: !isCore && siteCan(user, app, siteAuthPermissions, DELETE_PATTERN),
         duplicate: !isCore && duplicable && edit && siteCan(user, app, siteAuthPermissions, CREATE_PATTERN),
         // nothing at all: shown locked and counted in the no-access banner

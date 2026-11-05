@@ -15,6 +15,7 @@ const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 process.env.DMS_DB_ENV = DMS_DB; // the resolver reads the datasets pattern from DMS_DB_ENV
 const assert = require('assert');
 const { dmsMainTable } = require('../src/routes/uda/utils');
+const syncMirror = require('./mirror-sync');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -55,7 +56,8 @@ function fakeRes() {
 
 let routes;
 // Run a route's handler chain the way express would; resolves with the response once one is sent.
-async function hit(key, { user = null, params = {}, query = {}, body = {} } = {}) {
+let SITE_Q = {};   // the fixture's site (`dms_app`), on every request like the client sends it
+async function hit(key, { user = null, params = {}, query = SITE_Q, body = {} } = {}) {
     const handlers = routes[key];
     assert(handlers, `no route ${key}`);
     const req = { headers: {}, params: { pgEnv: DAMA_DB, ...params }, query, body, method: key.split(' ')[0], originalUrl: key, availAuthContext: { user } };
@@ -89,23 +91,26 @@ async function run() {
 
     // ---- users
     const scheduler = { authed: true, id: 21, email: 'sch@x', groups: ['Schedulers'] };  // update-source on srcA
-    const patterner = { authed: true, id: 22, email: 'pat@x', groups: ['Patterners'] };  // edit-pattern on the pattern
+    const patterner = { authed: true, id: 22, email: 'pat@x', groups: ['Patterners'] };  // create-source on the env row (an env manager)
     const stranger = { authed: true, id: 23, email: 'str@x', groups: ['Rando'] };
 
-    // ---- DMS: a datasets pattern granting Patterners edit-pattern
+    // ---- DMS: the pgEnv's env row of this site grants Patterners create-source (a source-less schedule
+    // is an edit of the env, which its managers may do)
     const APP = `schedauth_${Date.now()}`;
     await dmsMainTable(dms, APP, 'per-app');
     const controller = require('../src/routes/dms/dms.controller').createController(DMS_DB);
-    const dsPattern = +(await controller.createData([APP, 'site|ds:pattern', {
-        pattern_type: 'datasets', authPermissions: { '*': { groups: { Patterners: ['edit-pattern'] }, users: {} } },
-    }], null))[0].id;
-    const Q = { dms_pattern: `${APP}/${dsPattern}` };
+    await controller.createData([APP, 'site|extenv:dmsenv', {
+        name: 'extenv', pgEnv: DAMA_DB, authPermissions: { '*': { groups: { Patterners: ['create-source'] }, users: {} } },
+    }], null);
+    const Q = { dms_app: APP };
+    SITE_Q = Q;
 
     // ---- DaMa: srcA grants Schedulers update-source, srcB grants nobody
     const mkSource = async (ap) => (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
         [`schedauth_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, JSON.stringify(ap)])).rows[0].source_id;
     const srcA = await mkSource({ groups: { Schedulers: ['update-source'] }, users: {} });
     const srcB = await mkSource({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
+    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
     const made = [];
     const mkSchedule = async (source_id) => {
         const row = await schedules.createSchedule({ source_id, worker_path: 'schedauth_dt/run', cron: '0 2 * * *', timezone: 'America/New_York', descriptor: {}, enabled: false, max_in_flight: 1, created_by: 1 }, DAMA_DB);
@@ -171,7 +176,7 @@ async function run() {
         console.log('enforce: no source → edit-pattern on the named pattern:');
         await t('create / fire / delete a source-less schedule and rerun a source-less task', async () => {
             assert.strictEqual((await hit('POST /dama-admin/:pgEnv/schedules', { user: scheduler, query: Q, body: newBody(null) })).statusCode, 403);
-            assert.strictEqual((await hit('POST /dama-admin/:pgEnv/schedules', { user: patterner, body: newBody(null) })).statusCode, 403, 'no pattern named');
+            assert.strictEqual((await hit('POST /dama-admin/:pgEnv/schedules', { user: patterner, query: {}, body: newBody(null) })).statusCode, 403, 'no site named');
             const ok = await hit('POST /dama-admin/:pgEnv/schedules', { user: patterner, query: Q, body: newBody(null) });
             assert.strictEqual(ok.statusCode, 200, JSON.stringify(ok.body));
             made.push(ok.body.schedule_id);

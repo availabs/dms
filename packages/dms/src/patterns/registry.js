@@ -191,23 +191,12 @@ export function stampSiteRow(row) {
  * `permissionOptionsFor`'s switch (utils/adminPermissions.js), which hand-listed the same verbs a
  * fifth time. Pattern-level grants cover both scopes, so the list is `self` then `descendants`,
  * `*` first, deduped by value with the first occurrence winning.
- *
- * `adminRowHasGrants`: while the admin row grants nothing, site access still comes from the auth
- * pattern, so the auth pattern must also offer the site-level verbs. Which type to borrow them
- * from is DECLARED (`siteFallback: 'admin'` on the auth entry), not hardcoded here — the type name
- * is data, as it is everywhere else in this registry.
- *
- * Only changes what is OFFERED. MultiSelect keeps stored values that are not in its options, so
- * narrowing this list never drops a saved grant.
  */
-export function patternPermissionOptions(patternType, { adminRowHasGrants = true } = {}) {
+export function patternPermissionOptions(patternType) {
     const entry = patternTypes[patternType]
     const vocabulary = entry?.authVocabulary || {}
-    const borrowed = (!adminRowHasGrants && entry?.siteFallback)
-        ? (patternTypes[entry.siteFallback]?.authVocabulary?.descendants || [])
-        : []
     const seen = new Set()
-    return [{ label: '*', value: '*' }, ...(vocabulary.self || []), ...(vocabulary.descendants || []), ...borrowed]
+    return [{ label: '*', value: '*' }, ...(vocabulary.self || []), ...(vocabulary.descendants || [])]
         .filter(o => o && !seen.has(o.value) && seen.add(o.value))
         .map(({ label, value }) => ({ label: label ?? value, value }))
 }

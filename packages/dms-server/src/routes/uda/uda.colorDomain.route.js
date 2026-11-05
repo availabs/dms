@@ -1,6 +1,6 @@
 const { atom: $atom } = require('falcor-json-graph');
 const { colorDomain } = require('./uda.colorDomain.controller');
-const { authorize } = require('../auth');
+const { canRead } = require('../auth');
 
 module.exports = [
   {
@@ -14,7 +14,7 @@ module.exports = [
           for (const optionsKey of optionsKeys) {
             try {
               // view-source on the view's source (readAuth.js); a refused read gets an empty domain
-              const readable = (await authorize({ env, viewId, verb: 'read', user: this.user, subdomain: this.subdomain || '', patternRef: this.patternRef || null, app: this.requestApp || null, kind: 'data' })).allow;
+              const readable = await canRead({ env, viewId, user: this.user, subdomain: this.subdomain || '', app: this.requestApp || null, kind: 'data' });
               const domain = readable ? await colorDomain(env, viewId, optionsKey) : { breaks: [], min: 0, max: 0, count: 0 };
               result.push({
                 path: ['uda', env, 'viewsById', viewId, 'colorDomain', optionsKey],

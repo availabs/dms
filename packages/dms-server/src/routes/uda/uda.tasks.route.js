@@ -18,31 +18,20 @@ const {
   hardDeleteSource,
 } = require("./uda.tasks.controller");
 const { getDb } = require("../../db");
-// Request plumbing is implementation-independent and lives in the shared layer.
-const { parsePatternRef, readerAllowed } = require("../auth/requestUser");
-const { assertCan } = require("../auth/sourceGuards");
-// The one genuine DECISION this route asks for; it moves behind the switch at Phase 3.
-const { isUserAuthedForSource } = require('../auth/sourceGuards');
+const { readerAllowed } = require("../auth/requestUser");
+const { assertCan } = require("../auth");
 
 /**
  * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and
  * `delete-source` on every source the delete touches (a cascade reaches the sources of a run's
  * outputs). The decision follows DMS_AUTH_MODE (see sourceAuth.js): under `log`, DMS
  * internal sources (env `app+instance`) and sources the check can't read get the sign-in check only;
- * `enforce` checks them too. `pattern` (opts.pattern, { app, id }) brings the datasets pattern's grants.
+ * `enforce` checks them too.
  */
-function deleteAuthorizer(env, router, pattern) {
-  const user = router.user;
-  if (!user) throw new Error("Sign in to delete");
-  const db = String(env).includes("+") ? undefined : getDb(env);
-  const patternRef = parsePatternRef(pattern);
+function deleteAuthorizer(env, router) {
+  if (!router.user) throw new Error("Sign in to delete");
   return async (sourceIds) => {
-    for (const sourceId of sourceIds) {
-      const ok = await isUserAuthedForSource({
-        db, env, sourceId, reqPermissions: ["delete-source"], user, patternRef, subdomain: router.subdomain || "",
-      });
-      if (!ok) throw new Error(`Not authorized to delete source ${sourceId} (needs delete-source)`);
-    }
+    for (const sourceId of sourceIds) await assertCan(router, { env, source: sourceId, verb: 'delete-source' });
   };
 }
 
@@ -67,7 +56,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.length`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.length", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.length", this.requestApp || "")) return [];
         const { envs } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -87,7 +76,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byIndex", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byIndex", this.requestApp || "")) return [];
         const { envs, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -114,7 +103,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byId", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byId", this.requestApp || "")) return [];
         const { envs, taskIds, attributes } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -142,7 +131,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].length`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.forSource.length", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.forSource.length", this.requestApp || "")) return [];
         const { envs, sourceIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -167,7 +156,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.forSource.byIndex", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.forSource.byIndex", this.requestApp || "")) return [];
         const { envs, sourceIds, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -196,7 +185,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.length`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byId.events.length", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.length", this.requestApp || "")) return [];
         const { envs, taskIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -221,7 +210,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.byIndex[{integers:indices}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
-      if (!readerAllowed(this.user, "uda.tasks.byId.events.byIndex", (this.patternRef || {}).app || this.requestApp || "")) return [];
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.byIndex", this.requestApp || "")) return [];
         const { envs, taskIds, indices, attributes } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -271,7 +260,7 @@ module.exports = [
       const result = [];
       const envs = Object.keys(jsonGraph.uda || {});
       for (const env of envs) {
-        await assertCan(this, { env, perms: 'edit-pattern', pattern: null });
+        await assertCan(this, { env, verb: 'edit-pattern', pattern: null });
         const value = jsonGraph.uda[env].settings;
         await setSettings(env, value);
         result.push({ path: ["uda", env, "settings"], value });
@@ -281,13 +270,13 @@ module.exports = [
   },
 
   // --------------------------------- settings.update (call) ---------------------------------
-  // Args: [env, value, pattern]. The settings set as a call, naming the datasets pattern
-  // ({ app, id }) whose `edit-pattern` it needs. On a DMS env the pattern must be of the env's app.
+  // Args: [env, value]. The settings set as a call: an edit of the env (`settings`), which the env
+  // rule gives to its managers (`create-source` / `delete-source` on the env row or the site).
   {
     route: `uda.settings.update`,
     call: async function (callPath, args) {
-      const [env, value, pattern] = args;
-      await assertCan(this, { env, perms: 'edit-pattern', pattern: parsePatternRef(pattern) });
+      const [env, value] = args;
+      await assertCan(this, { env, verb: 'edit', fields: ['settings'] });
       await setSettings(env, value);
       return [{ path: ["uda", env, "settings"], value }];
     },
@@ -301,7 +290,7 @@ module.exports = [
     call: async function (callPath, args) {
       const [env, sourceId, opts = {}] = args;
       try {
-        const authorize = deleteAuthorizer(env, this, opts?.pattern);
+        const authorize = deleteAuthorizer(env, this);
         const result = await softDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -321,7 +310,7 @@ module.exports = [
     call: async function (callPath, args) {
       const [env, sourceId, opts = {}] = args;
       try {
-        const authorize = deleteAuthorizer(env, this, opts?.pattern);
+        const authorize = deleteAuthorizer(env, this);
         const result = await hardDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -344,7 +333,7 @@ module.exports = [
       const [env, viewId, opts = {}] = args;
       try {
         if (String(env).includes("+")) throw new Error("views.delete is for DaMa views; internal views are removed from the source");
-        const authorize = deleteAuthorizer(env, this, opts?.pattern);
+        const authorize = deleteAuthorizer(env, this);
         const { deleteDamaView } = require("../../dama/delete");
         const result = await deleteDamaView(env, +viewId, { cascade: !!opts?.cascade, authorize });
         return [

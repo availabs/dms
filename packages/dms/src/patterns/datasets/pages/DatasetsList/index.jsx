@@ -89,22 +89,27 @@ const getSources = async ({envs, falcor, parent, user, collection = 'sources'}) 
 
             const valueGetter = (i, attr) => get(r, ['json', 'uda', e, collection, 'byIndex', i, attr])
             return range(0, len-1).map(i => {
-                const env = e;
+                const attrs = envs[e].srcAttributes.reduce((acc, attr) => {
+                    let value = valueGetter(i, attr);
+                    if (attr === 'categories') {
+                        value = typeof value === 'string' ? JSON.parse(value || '[]') : (value || []);
+                    }
+                    return ({...acc, [attr]: value});
+                }, {});
+                // A row of a DMS env that carries `pgEnv` is the site's MIRROR of a pgEnv source
+                // (dms-server dama/mirror.js): it lists here, but it IS the external source — addressed
+                // by the pgEnv and the pgEnv's own id, on the external source page.
+                const mirrorOf = envs[e].isDms && attrs.pgEnv ? attrs.pgEnv : null;
+                const env = mirrorOf || e;
                 return {
-                    ...envs[e].srcAttributes.reduce((acc, attr) => {
-                        let value = valueGetter(i, attr);
-                        if (attr === 'categories') {
-                            value = typeof value === 'string' ? JSON.parse(value || '[]') : (value || []);
-                        }
-                        return ({...acc, [attr]: value});
-                    }, {}),
+                    ...attrs,
                     // `$__path` is the RESOLVED path — always ['uda', env,
                     // 'sources', 'byId', id] — so index 4 is the id whichever
                     // collection was requested.
-                    source_id: get(r, ['json', 'uda', e, collection, 'byIndex', i, '$__path', 4]),
+                    source_id: mirrorOf ? +attrs.source_id : get(r, ['json', 'uda', e, collection, 'byIndex', i, '$__path', 4]),
                     env, // to fetch data
-                    srcEnv: e, // to refer back
-                    isDms: envs[e].isDms // mostly to apply data->>
+                    srcEnv: env, // to refer back
+                    isDms: envs[e].isDms && !mirrorOf // mostly to apply data->>
                 }
             });
         }));
@@ -226,7 +231,7 @@ const HiddenMatches = ({ matches, t, Icon, hiddenSet, chips, successors, keyOf }
 );
 
 export default function DatasetsList ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI, parent, isUserAuthed} = useContext(DatasetsContext);
+    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, dmsEnvs, UI, parent, isUserAuthed} = useContext(DatasetsContext);
     // Toolbar controls, shown to the users the server lets use them.
     const canCreate = isUserAuthed ? isUserAuthed(['create-source']) : false;
     const canEditPattern = isUserAuthed ? isUserAuthed(['edit-pattern']) : false;
@@ -262,7 +267,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     });
     const setViewPersist = (v) => { setView(v); try { localStorage.setItem(`${cacheKey}-view`, v); } catch {} };
     const cat1 = searchParams.get('cat');
-    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
+    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv, dmsEnvs), [datasources, format, dmsEnv, dmsEnvs]);
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
     const [isListAll, setIsListAll] = useState(false);

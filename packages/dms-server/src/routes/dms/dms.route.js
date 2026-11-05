@@ -5,17 +5,8 @@ const falcorJsonGraph = require("falcor-json-graph"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
 const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
 
-/*
- AUTHORIZATION — every decision on this route comes from `routes/auth`, and this file never
- reaches past it into `kindAuth/`. Until 2026-11-04 that indirection also chose between two
- implementations (`DMS_AUTH_IMPL`); row auth is gone and the indirection is kept, because a route
- asking "may this caller do this?" should not know how the answer is reached.
-*/
-const { assertDataWrite, dataAuthMode, readBlocked, listingBlocked, NO_CHANGE, authorize } = require('../auth');
-// `authorize({ row, verb })` is the same question UDA asks of a source (`routes/auth/authorize.js`).
-// `readBlocked` is its read half by another name and stays while this route's call sites are
-// phrased as "is this blocked?"; `assertDataWrite` is the write half plus the throw a Falcor route
-// needs. See research/unified-auth-api.md.
+// Every decision on this route comes from `routes/auth`: `authorize` for reads, `assertDataWrite` for writes.
+const { assertDataWrite, authorize, applyMode, NO_CHANGE } = require('../auth');
 
 /*
  Controller Settings
@@ -40,7 +31,10 @@ const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
  */
 async function listingBlockedFor(controller, { app, type, user, subdomain }) {
   if (getKind(type) !== 'page') return false;
-  return listingBlocked(controller, { app, type, parentKey: getParent(type), user, subdomain });
+  // a page of this type with no grants of its own: readable when the pattern's grants allow it
+  const d = await authorize({ row: { id: null, app, type, data: {} }, verb: 'read', user, subdomain, app });
+  // DMS reads were enforced before the mode existed, and stay so
+  return !applyMode(d, { guard: 'read', kind: 'read listing', target: type, user, app, mode: 'enforce' });
 }
 
 /**
@@ -59,36 +53,15 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // user={...}    → authenticated GET request
   const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined, subdomain = '') => {
     const response = [];
-    // Cache pattern auth results within this response to avoid repeated DB lookups
-    const patternAuthCache = new Map();
-    // Scratch space the auth implementation may memoise in, for the life of this one response.
-    // Row auth keeps a gate per (app, user, subdomain) here: its resolver memoises the container
-    // map, so sharing one loads the type-path lookup once rather than per row. Kind auth ignores
-    // it. The route supplies the lifetime; what goes in it is not the route's business.
-    const authCache = new Map();
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
 
       if (user !== undefined && row.type) {
         const kind = getKind(row.type);
-        let blocked = false;
-
-        // Which implementation answers, and how strictly, is `routes/auth`'s business — not this
-        // route's. The gate caches per (app, user, subdomain) within one response because the
-        // resolver memoises its container map, so sharing it loads the type-path lookup once
-        // rather than per row.
-        blocked = await readBlocked({
-          row, kind, user, subdomain, app, controller,
-          cache: authCache,
-          patternAuthOf: async (a, parentKey) => {
-            const cacheKey = `${a}:${parentKey}`;
-            if (!patternAuthCache.has(cacheKey)) {
-              patternAuthCache.set(cacheKey, await controller.getPatternAuthPermissions(a, parentKey, subdomain));
-            }
-            return patternAuthCache.get(cacheKey);
-          },
-        });
+        const d = await authorize({ row, verb: 'read', user, subdomain, app: app || row.app });
+        // DMS reads were enforced before the mode existed, and stay so
+        const blocked = !applyMode(d, { guard: 'read', kind: `read ${kind}`, target: `${idStr} ${row.type}`, user, app: app || row.app || '', mode: 'enforce' });
 
         if (blocked) {
           for (const att of atts) {
@@ -495,7 +468,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const [app, id, data, type] = args;
           const rows = await judgedWrite(app, id, type, async (stored, expect) => {
             // only what the guard judged is written (the selected implementation's planEdit); nothing changed → no write
-            const toWrite = await assertDataWrite(this, controller, 'edit', app, stored, data, { skipNoChange: true });
+            const toWrite = await assertDataWrite(this, 'edit', app, stored, data, { skipNoChange: true });
             if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
             return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });
           });
@@ -504,7 +477,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         // Legacy format: [id, data]
         const [id, data] = args;
         const rows = await judgedWrite(null, id, null, async (stored, expect) => {
-          const toWrite = await assertDataWrite(this, controller, 'edit', stored.app, stored, data, { skipNoChange: true });
+          const toWrite = await assertDataWrite(this, 'edit', stored.app, stored, data, { skipNoChange: true });
           if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);
           return controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta, { expect });
         });
@@ -518,7 +491,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [app, type, column, maps] = args;
         console.log('massedit', app, type, column, JSON.stringify(maps, null, 3))
         // every row of `type`: judged as one edit of that type
-        await assertDataWrite(this, controller, 'edit', app, { id: null, type, data: null }, { [column]: null });
+        await assertDataWrite(this, 'edit', app, { id: null, type, data: null }, { [column]: null });
         return controller.setMassData(app, type, column, maps, this.user?.id ?? null).then((rows) => {
           return [{
             path: ['dms', 'data', 'massedit'],
@@ -535,8 +508,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const [app, id, type] = args;
           const rows = await judgedWrite(app, id, null, async (stored, expect) => {
             // a move: out of the old type (as a delete), into the new one (as a create)
-            await assertDataWrite(this, controller, 'delete', app, stored, null);
-            await assertDataWrite(this, controller, 'create', app, { id, type, data: stored.data }, null);
+            await assertDataWrite(this, 'delete', app, stored, null);
+            await assertDataWrite(this, 'create', app, { id, type, data: stored.data }, null);
             return controller.setTypeById(id, type, this.user, app, this.reqMeta, { expect });
           });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
@@ -545,8 +518,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [id, type] = args;
         const rows = await judgedWrite(null, id, null, async (stored, expect) => {
           // a move: out of the old type (as a delete), into the new one (as a create)
-          await assertDataWrite(this, controller, 'delete', stored.app, stored, null);
-          await assertDataWrite(this, controller, 'create', stored.app, { id, type, data: stored.data }, null);
+          await assertDataWrite(this, 'delete', stored.app, stored, null);
+          await assertDataWrite(this, 'create', stored.app, { id, type, data: stored.data }, null);
           return controller.setTypeById(id, type, this.user, null, this.reqMeta, { expect });
         });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
@@ -556,7 +529,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
       route: "dms.data.create",
       call: async function(callPath, args) {
         const [app, type, data] = args;
-        await assertDataWrite(this, controller, 'create', app, { id: null, type, data: data || {} }, null);
+        await assertDataWrite(this, 'create', app, { id: null, type, data: data || {} }, null);
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         try {
@@ -583,7 +556,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         }
         const [app, type, ...ids] = args;
         for (const row of await storedRows(app, ids, type)) {
-          await assertDataWrite(this, controller, 'delete', app, row, null);
+          await assertDataWrite(this, 'delete', app, row, null);
         }
         return controller.deleteData(app, type, ids, this.user, this.reqMeta).then((rows) => [
           // Invalidate both old and new paths

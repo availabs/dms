@@ -1,13 +1,13 @@
 /**
- * Auth-handler permissions (planning/tasks/current/permissions-auth-server-permission-source.md):
- * which auth row governs a request, the blank auth row under DMS_AUTH_MODE, transition mode and the protected-group rule.
- * No database: the DMS pattern rows and the auth DB are fakes.
+ * Auth-handler permissions (planning/tasks/current/auth-grants-on-the-owner-row.md, rule 3): the SITE ROW
+ * governs a request — `auth-users`, `auth-groups` and `view-as` are site verbs — the blank site row under
+ * DMS_AUTH_MODE, and the protected-group rule. No database: the site grants and the auth DB are fakes.
  *
  * Run: node tests/test-auth-permissions.js
  */
 const assert = require('assert');
 const {
-  createAuthGrants, authScope, can, canOrLevel, canManageGroup, isProtectedGroup,
+  createSiteAuth, authScope, can, canManageGroup, isProtectedGroup,
 } = require('../src/auth/utils/permissions');
 
 let pass = 0, fail = 0;
@@ -16,105 +16,70 @@ const t = async (name, fn) => {
   catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack.split('\n').slice(0, 3).join('\n      ')}`); }
 };
 
-const ap = (groups = {}, users = {}) => JSON.stringify({ groups, users });
+const ap = (groups = {}, users = {}) => ({ groups, users });
 
-// app → pattern rows (as controller.getPatternRows returns them)
-const ROWS = {
-  siteA: [
-    { id: 10, type: 'prod|auth:pattern', data: { pattern_type: 'auth', authPermissions: ap({ Managers: ['auth-users'], Leads: ['auth-groups'], Owners: ['*'], public: [] }, { 7: ['*'] }) } },
-    { id: 11, type: 'prod|admin:pattern', data: JSON.stringify({ pattern_type: 'admin', authPermissions: ap({ Keepers: ['edit-pattern-permissions'] }) }) },
-    { id: 12, type: 'prod|docs:pattern', data: { pattern_type: 'page', authPermissions: ap({ Writers: ['*'] }) } },
-  ],
-  openApp: [
-    { id: 20, type: 'site|auth:pattern', data: { pattern_type: 'auth' } },
-  ],
-  // the malformed shape old create-site code wrote (wcdb): no groups/users wrapper → sets nothing
-  oldApp: [
-    { id: 30, type: 'prod|auth:pattern', data: { pattern_type: 'auth', authPermissions: JSON.stringify({ 'undefined Admin': ['*'] }) } },
-  ],
-  subApp: [
-    { id: 40, type: 'prod|auth:pattern', data: { pattern_type: 'auth', authPermissions: JSON.stringify({
-      '*': ap({ Main: ['auth-users'] }),
-      songs: ap({ SongStaff: ['auth-users'] }),
-    }) } },
-  ],
+// app → what the site-row loader returns (owners.js `grantsAt(snap, snap.site, 'site')`, already resolved
+// for the subdomain). `null` is an app with no site row.
+const GRANTS = {
+  siteA: ap({ Managers: ['auth-users'], Leads: ['auth-groups'], Owners: ['*'], Keepers: ['edit-pattern-permissions'], public: [] }, { 7: ['*'] }),
+  openApp: ap(),
+  noSite: null,
+  subApp: { songs: ap({ SongStaff: ['auth-users'] }), '': ap({ Main: ['auth-users'] }) },
 };
-
-const makeGrants = (opts = {}) => {
+const makeAuth = () => {
   const calls = [];
-  const grants = createAuthGrants({
-    loadPatternRows: async (app) => { calls.push(app); return ROWS[app] || []; },
-    ...opts,
+  const auth = createSiteAuth({
+    loadSiteGrants: async (app, subdomain) => {
+      calls.push([app, subdomain]);
+      const g = GRANTS[app];
+      return g && g.songs ? (g[subdomain] || g['']) : g;
+    },
   });
-  return { grants, calls };
+  return { auth, calls };
 };
-
 const user = (groups = [], id = 1) => ({ id, email: `u${id}@test`, groups, authed: true });
 
 async function main() {
-  console.log('auth row resolution:');
+  console.log('site scope:');
 
-  await t('names a row of the app → its grants, not open', async () => {
-    const { grants } = makeGrants();
-    const s = await grants.loadAuthGrants({ app: 'siteA', authPatternId: '10', project: 'siteA' });
+  await t('names a site → its grants, not open', async () => {
+    const { auth } = makeAuth();
+    const s = await auth.siteScope({ app: 'siteA', project: 'siteA' });
     assert.ok(!s.error, s.error);
     assert.deepStrictEqual(s.grants.groups.Managers, ['auth-users']);
     assert.strictEqual(s.open, false);
   });
 
-  await t('no auth pattern named → error (level decides)', async () => {
-    const { grants } = makeGrants();
-    assert.ok((await grants.loadAuthGrants({ app: 'siteA', project: 'siteA' })).error);
-    assert.ok((await grants.loadAuthGrants({ authPatternId: 10, project: 'siteA' })).error);
+  await t('no site named → error (nothing passes)', async () => {
+    const { auth } = makeAuth();
+    assert.ok((await auth.siteScope({ project: 'siteA' })).error);
   });
 
-  await t('tampered id: another app\'s auth row → error', async () => {
-    const { grants } = makeGrants();
-    const s = await grants.loadAuthGrants({ app: 'siteA', authPatternId: 20, project: 'siteA' });
-    assert.ok(/not an auth pattern of siteA/.test(s.error), s.error);
-  });
-
-  await t('a non-auth pattern of the app → error', async () => {
-    const { grants } = makeGrants();
-    assert.ok((await grants.loadAuthGrants({ app: 'siteA', authPatternId: 12, project: 'siteA' })).error);
-    assert.ok((await grants.loadAuthGrants({ app: 'siteA', authPatternId: 11, project: 'siteA' })).error);
-  });
-
-  await t('project other than the app → error (another project\'s row can\'t govern it)', async () => {
-    const { grants } = makeGrants();
-    const s = await grants.loadAuthGrants({ app: 'siteA', authPatternId: 10, project: 'otherProject' });
+  await t('project other than the app → error (another site cannot govern it)', async () => {
+    const { auth } = makeAuth();
+    const s = await auth.siteScope({ app: 'siteA', project: 'otherProject' });
     assert.ok(/does not govern project otherProject/.test(s.error), s.error);
   });
 
-  await t('subdomain format: tenant entry, else `*`', async () => {
-    const { grants } = makeGrants();
-    const songs = await grants.loadAuthGrants({ app: 'subApp', authPatternId: 40, project: 'subApp', subdomain: 'songs' });
+  await t('the loader is asked for the subdomain', async () => {
+    const { auth, calls } = makeAuth();
+    const songs = await auth.siteScope({ app: 'subApp', project: 'subApp', subdomain: 'songs' });
     assert.deepStrictEqual(Object.keys(songs.grants.groups), ['SongStaff']);
-    const other = await grants.loadAuthGrants({ app: 'subApp', authPatternId: 40, project: 'subApp', subdomain: 'x' });
+    const other = await auth.siteScope({ app: 'subApp', project: 'subApp', subdomain: 'x' });
     assert.deepStrictEqual(Object.keys(other.grants.groups), ['Main']);
+    assert.deepStrictEqual(calls, [['subApp', 'songs'], ['subApp', 'x']]);
   });
 
-  await t('no grants / the old `undefined Admin` shape → open', async () => {
-    const { grants } = makeGrants();
-    assert.strictEqual((await grants.loadAuthGrants({ app: 'openApp', authPatternId: 20, project: 'openApp' })).open, true);
-    assert.strictEqual((await grants.loadAuthGrants({ app: 'oldApp', authPatternId: 30, project: 'oldApp' })).open, true);
+  await t('no grants, or no site row at all → open', async () => {
+    const { auth } = makeAuth();
+    assert.strictEqual((await auth.siteScope({ app: 'openApp', project: 'openApp' })).open, true);
+    assert.strictEqual((await auth.siteScope({ app: 'noSite', project: 'noSite' })).open, true);
   });
 
-  await t('cached per app/id/subdomain within the TTL; reloaded after', async () => {
-    const { grants, calls } = makeGrants();
-    await grants.loadAuthGrants({ app: 'siteA', authPatternId: 10, project: 'siteA' });
-    await grants.loadAuthGrants({ app: 'siteA', authPatternId: 10, project: 'siteA' });
-    assert.strictEqual(calls.length, 1);
-    const fresh = makeGrants({ ttlMs: 0 });
-    await fresh.grants.loadAuthGrants({ app: 'siteA', authPatternId: 10, project: 'siteA' });
-    await fresh.grants.loadAuthGrants({ app: 'siteA', authPatternId: 10, project: 'siteA' });
-    assert.strictEqual(fresh.calls.length, 2);
-  });
-
-  console.log('can (lenient rule):');
-  const { grants } = makeGrants();
-  const A = await grants.loadAuthGrants({ app: 'siteA', authPatternId: 10, project: 'siteA' });
-  const OPEN = await grants.loadAuthGrants({ app: 'openApp', authPatternId: 20, project: 'openApp' });
+  console.log('can:');
+  const { auth } = makeAuth();
+  const A = await auth.siteScope({ app: 'siteA', project: 'siteA' });
+  const OPEN = await auth.siteScope({ app: 'openApp', project: 'openApp' });
 
   await t('restricted row: holder passes, others don\'t', async () => {
     assert.strictEqual(can(user(['Managers']), 'auth-users', A), true);
@@ -132,7 +97,6 @@ async function main() {
     assert.strictEqual(can(user(['siteA Admin']), 'auth-groups', A), true);
   });
 
-
   const inMode = async (mode, fn) => {
     const prev = process.env.DMS_AUTH_MODE, warn = console.warn;
     const lines = [];
@@ -143,11 +107,11 @@ async function main() {
     }
   };
 
-  await t('open row, log: still passes, with an `[auth-row] would deny` line (owner 2026-11-02)', async () =>
+  await t('open row, log: still passes, with an `[auth-row] would deny` line', async () =>
     inMode('log', async (lines) => {
       assert.strictEqual(can(user(['Viewers'], 41), 'auth-users', OPEN), true);
       assert.strictEqual(can(user([]), 'auth-groups', OPEN), true);
-      assert.ok(lines.some(l => /\[auth-row\] would deny .*auth-users.*blank auth row/.test(l)), lines.join('\n'));
+      assert.ok(lines.some(l => /\[auth-row\] would deny .*auth-users.*blank site row/.test(l)), lines.join('\n'));
     }));
 
   await t('open row, enforce: only `${app} Admin` edits (no grants = only admins)', async () =>
@@ -165,56 +129,15 @@ async function main() {
     assert.strictEqual(can(user([]), 'auth-users', null), false);
   });
 
-  console.log('canOrLevel (transition mode):');
-
-  await t('permission or level', async () => {
-    assert.strictEqual(canOrLevel(user(['Managers']), 'auth-users', 10, A, 1), true);
-    assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), true);
-    assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 5), false);
-  });
-
-  await t('open row: the level counts under log (with a line), not under enforce', async () => {
-    await inMode('log', async (lines) => {
-      assert.strictEqual(canOrLevel(user([], 43), 'auth-users', 10, OPEN, 10), true);
-    });
-    await inMode('enforce', async () => {
-      assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, OPEN, 10), false);
-      assert.strictEqual(canOrLevel(user(['openApp Admin']), 'auth-users', 10, OPEN, 0), true);
-      assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 10), true);
-    });
-  });
-
-  // `legacy` ("the old answer, no log") went with the flag consolidation on 2026-11-03: there are two
-  // modes now, and `log` gives the same answer as legacy did, with a line saying what it would refuse.
-  await t('row with grants: the level counts under log (with a line), not under enforce (owner 2026-11-03)', async () => {
-    await inMode('log', async (lines) => {
-      assert.strictEqual(canOrLevel(user(['Viewers'], 44), 'auth-users', 10, A, 10), true);
-      assert.ok(lines.some(l => /would deny .*auth-users \(by level 10\).*allowed by auth level only/.test(l)), lines.join('\n'));
-      lines.length = 0;
-      assert.strictEqual(canOrLevel(user(['Managers'], 45), 'auth-users', 10, A, 10), true);
-      assert.strictEqual(lines.length, 0, 'a permission holder is not logged');
-    });
-    await inMode('enforce', async () => {
-      assert.strictEqual(canOrLevel(user(['Viewers']), 'auth-users', 10, A, 10), false);
-      assert.strictEqual(canOrLevel(user(['Managers']), 'auth-users', 10, A, 0), true);
-      assert.strictEqual(canOrLevel(user(['siteA Admin']), 'auth-users', 10, A, 0), true);
-    });
-  });
-
-  await t('no scope \u2192 today\'s level alone', async () => {
-    assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 10), true);
-    assert.strictEqual(canOrLevel(user([]), 'auth-users', 10, { error: 'x' }, 9), false);
-  });
-
   console.log('protected groups (decision (b)):');
 
-  await t('protected: holds `*` / auth-groups on the auth row, edit-pattern-permissions on the admin row, or is `${app} Admin`', async () => {
+  await t('protected: holds `*`, auth-groups or edit-pattern-permissions on the site row, or is `${app} Admin`', async () => {
     assert.strictEqual(isProtectedGroup('Owners', A), true);
     assert.strictEqual(isProtectedGroup('Leads', A), true);
     assert.strictEqual(isProtectedGroup('Keepers', A), true);
     assert.strictEqual(isProtectedGroup('siteA Admin', A), true);
     assert.strictEqual(isProtectedGroup('Managers', A), false);
-    // a page pattern's `*` doesn't make Writers protected (auth and admin rows only)
+    // a group granted on some pattern row is not protected: only the site row counts
     assert.strictEqual(isProtectedGroup('Writers', A), false);
   });
 
@@ -239,29 +162,23 @@ async function main() {
 
   console.log('authScope:');
 
-  await t('groups from the auth DB, scope from the named row, and the deprecated level', async () => {
+  await t('groups from the auth DB, scope from the site; no level; authPatternId ignored', async () => {
     const authDb = { query: async (sql, params) => {
       assert.ok(/FROM users_in_groups/.test(sql));
       assert.deepStrictEqual(params, ['u3@test', 'siteA']);
       return { rows: [{ name: 'Managers', auth_level: 5 }, { name: 'Viewers', auth_level: 1 }] };
     } };
     const r = await authScope(authDb, { id: 3, email: 'u3@test' },
-      { project: 'siteA', app: 'siteA', authPatternId: 10 }, { authGrants: grants, subdomain: '' });
+      { project: 'siteA', app: 'siteA', authPatternId: 999 }, { siteAuth: auth, subdomain: '' });
     assert.deepStrictEqual(r.user.groups, ['Managers', 'Viewers']);
-    // The auth DB still says WHO someone is. What they may do comes from the DMS auth object the
-    // scope carries. `authLevel` is DEPRECATED: it is still read so the level rules can run under
-    // `log` and report what they let through, and `levelsCount` drops it under `enforce`.
-    assert.strictEqual(r.authLevel, 5);
+    assert.strictEqual(r.authLevel, undefined, 'levels are not read');
     assert.strictEqual(can(r.user, 'auth-users', r.scope), true);
   });
 
-  await t('no ctx → scope error; only the deprecated level is left to fall back on', async () => {
+  await t('no ctx → scope error; nothing passes', async () => {
     const authDb = { query: async () => ({ rows: [{ name: 'X', auth_level: 10 }] }) };
-    const r = await authScope(authDb, { id: 3, email: 'u3@test' }, { project: 'siteA' });
+    const r = await authScope(authDb, { id: 3, email: 'u3@test' }, { project: 'siteA', app: 'siteA' });
     assert.ok(r.scope.error);
-    // `can` is false on an unusable scope, as it always was. What keeps such a caller working is
-    // the level fallback — deprecated, and gone the moment `DMS_AUTH_MODE=enforce`.
-    assert.strictEqual(r.authLevel, 10);
     assert.strictEqual(can(r.user, 'auth-users', r.scope), false);
   });
 

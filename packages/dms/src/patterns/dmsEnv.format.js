@@ -16,14 +16,20 @@
 export const view = {
   app: "datasets",
   type: "view",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   rules: {
     view: {
-      owner: 'owning-source',
+      // judged on its source's effective grants: the env, then the source
+      owner: ['ancestor:dmsenv', 'ancestor:source'],
       ops: {
-        create: { owner: 'source-by-slug', perms: ['create-view'] },
+        read: { anyOf: [{ blank: 'ancestor:source' }, { perms: ['view-source', 'update-source', 'edit-source-data', 'create-view', 'delete-source', 'edit-source-permissions'] }] },
+        create: ['create-view'],
         delete: ['delete-source'],
         edit:   ['update-source', 'create-view'],
       },
@@ -41,15 +47,23 @@ export const view = {
 export const source = {
   app: "datasets",
   type: "source",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   // `data`: a split source's rows. They have no format object of their own, so their rule rides here.
   rules: {
+    // A source's grants are its own, spread over its env's. The datasets pattern is not the source's
+    // ancestor (the env is), so its grants were swept onto the env row (scripts/sweep-datasets-grants.js).
     source: {
-      owner: 'self-source',
+      owner: ['ancestor:dmsenv', 'self'],
       ops: {
-        create: { owner: 'datasets-grants', perms: ['create-source'] },
+        // a source is narrowed only by something ON the source: blank own grants → readable
+        read: { anyOf: [{ blank: 'self' }, { perms: ['view-source', 'update-source', 'edit-source-data', 'create-view', 'delete-source', 'edit-source-permissions'] }] },
+        create: ['create-source'],
         delete: ['delete-source'],
         // `auth_permissions` and `views` are DECLARED ON THE VERBS below (`fields` on the
         // permissionDomain entries), read through `verbsForFields` by both implementations.
@@ -60,7 +74,7 @@ export const source = {
       noChange: ['update-source', 'edit-source-permissions', 'create-view'],
     },
     data: {
-      owner: 'source-by-slug',
+      owner: ['ancestor:dmsenv', 'ancestor:source'],
       appliesWhen: 'split',                  // non-split :data rows fall through to the default
       ops: { '*': ['edit-source-data'] },
     },

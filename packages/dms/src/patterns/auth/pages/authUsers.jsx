@@ -91,7 +91,7 @@ function AddUserModal({ open, setOpen, onAdd, loading, status }) {
     );
 }
 
-export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme: authEmailTheme = {}, pgEnvs = [] }) {
+export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme: authEmailTheme = {} }) {
     const [groups, setGroups] = useState([]);
     const [users, setUsers] = useState([]);
     const [requests, setRequests] = useState([]);
@@ -158,7 +158,7 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
     // /user/project/remove/plan, never from a flag on the destructive route (owner 2026-10-27). A server
     // without it 404s: the dialog says so and keeps the generic text. Remove stays enabled either way.
     const removeRequest = (row, extra = {}) => ({
-        token: user.token, user_email: row.email, project: PROJECT_NAME, pgEnvs, ...extra,
+        token: user.token, user_email: row.email, project: PROJECT_NAME, ...extra,
     });
     const openRemove = async (row) => {
         setRemoveUser(row);
@@ -484,15 +484,6 @@ export default function UsersAdmin({ app = '', authPermissions = {}, emailTheme:
                                 <ul className={m.removeList}>
                                     {removePlan.skippedGrants.map(s =>
                                         <li key={s.id}>{s.type} #{s.id}: {s.reason}</li>)}
-                                </ul>
-                            </div>}
-                        {removePlan.externalSources.length > 0 &&
-                            <div className={m.removeWarning}>
-                                They keep their own permissions on these external sources (other sites may use them);
-                                remove them from each source&apos;s Access tab:
-                                <ul className={m.removeList}>
-                                    {removePlan.externalSources.map(e =>
-                                        <li key={`${e.pgEnv}-${e.source_id}`}>{e.name || e.source_id} ({e.pgEnv}{e.error ? `: ${e.error}` : ''})</li>)}
                                 </ul>
                             </div>}
                     </>}

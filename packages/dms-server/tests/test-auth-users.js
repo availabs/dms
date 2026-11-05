@@ -12,7 +12,7 @@ const { join } = require('path');
 const { readFileSync, mkdtempSync, rmSync } = require('fs');
 const os = require('os');
 const { SqliteAdapter } = require('../src/db/adapters/sqlite');
-const { createAuthGrants } = require('../src/auth/utils/permissions');
+const { createSiteAuth } = require('../src/auth/utils/permissions');
 const { hashPassword, createUserToken } = require('../src/auth/utils/crypto');
 const q = require('../src/auth/utils/queries');
 const authH = require('../src/auth/handlers/auth');
@@ -31,19 +31,16 @@ const refused = async (p, re = /authority|cannot|can only|Self-signup|does not/)
 };
 
 const ap = (groups = {}, users = {}) => ({ groups, users });
-const ROWS = {
-  siteA: [
-    { id: 10, data: { pattern_type: 'auth', authPermissions: ap({ Managers: ['auth-users'], Owners: ['*'], public: [] }) } },
-    { id: 11, data: { pattern_type: 'admin', authPermissions: ap({ Keepers: ['edit-pattern-permissions'] }) } },
-  ],
-  openApp: [{ id: 20, data: { pattern_type: 'auth' } }],
+// app → the SITE ROW's grants (what createSiteAuth's loader returns): the auth verbs live there (rule 3)
+const GRANTS = {
+  siteA: ap({ Managers: ['auth-users'], Owners: ['*'], Keepers: ['edit-pattern-permissions'], public: [] }),
+  openApp: null,
 };
 // Site grants (siteGrants.js) faked: records strip calls with what the auth DB held at that moment.
 const calls = [];
 let db;
 const siteGrants = {
   listSiteGrants: async (app, who) => ({ grants: [{ id: 100, type: 'docs|page', app, who }], skipped: [] }),
-  listExternalGrants: async (pgEnvs, who) => (pgEnvs || []).map(pgEnv => ({ pgEnv, source_id: 5, name: 'ext', who })),
   stripSiteGrants: async (app, who) => {
     const { rows } = who.users != null
       ? await db.query('SELECT group_name FROM users_in_groups uig INNER JOIN users u ON u.email = uig.user_email WHERE u.id = $1', [who.users])
@@ -52,9 +49,9 @@ const siteGrants = {
     return { written: [{ id: 100 }], skipped: [] };
   },
 };
-const ctx = { subdomain: '', authGrants: createAuthGrants({ loadPatternRows: async (app) => ROWS[app] || [] }), siteGrants };
-const A = { app: 'siteA', authPatternId: 10 };
-const OPEN = { app: 'openApp', authPatternId: 20 };
+const ctx = { subdomain: '', siteAuth: createSiteAuth({ loadSiteGrants: async (app) => GRANTS[app] || null }), siteGrants };
+const A = { app: 'siteA' };
+const OPEN = { app: 'openApp' };
 
 // group → [project, level][]
 const GROUPS = {
@@ -182,12 +179,11 @@ async function main() {
   });
 
   console.log('/user/project/remove:');
-  await t('/user/project/remove/plan: groups here (shared ones named with their other projects), grants, external sources', async () => {
-    const plan = await userH.planRemoveFromProject(db, { token: tok['mgr@t'], user_email: 'leaver@t', pgEnvs: ['envA'], ...A }, ctx);
+  await t('/user/project/remove/plan: groups here (shared ones named with their other projects), grants', async () => {
+    const plan = await userH.planRemoveFromProject(db, { token: tok['mgr@t'], user_email: 'leaver@t', ...A }, ctx);
     assert.deepStrictEqual(plan.groups.sort(), ['Shared', 'Viewers']);
     assert.deepStrictEqual(plan.sharedGroups, [{ group: 'Shared', otherProjects: ['siteB'] }]);
     assert.strictEqual(plan.siteGrants.length, 1);
-    assert.deepStrictEqual(plan.externalSources.map(e => e.pgEnv), ['envA']);
     assert.strictEqual(calls.length, 0, 'the plan writes nothing');
     assert.strictEqual(userH.removeFromProject.toString().includes('dryRun'), false, 'no preview flag on the destructive route');
     assert.deepStrictEqual((await groupsOf('leaver@t')).sort(), ['Shared', 'Viewers', 'siteB Admin']);
@@ -272,16 +268,16 @@ async function main() {
   });
 
   console.log('/users, /users/preferences:');
-  await t('/users: auth-users sees the project\'s users; level-0 viewer only ranks below', async () => {
+  await t('/users: auth-users sees the project\'s users; a viewer sees none', async () => {
     const m = await userH.getUsers(db, { token: tok['mgr@t'], ...A }, ctx);
     assert.ok(m.some(u => u.email === 'admin@t'));
     const v = await userH.getUsers(db, { token: tok['viewer@t'], ...A }, ctx);
-    assert.ok(!v.some(u => u.email === 'admin@t'));
+    assert.strictEqual(v.length, 0);
   });
-  await t('preferences: own always; others need auth-users or rank', async () => {
+  await t('preferences: own always; others need auth-users', async () => {
     await db.query("INSERT INTO user_preferences (user_email, preferences) VALUES ('victim@t', '{\"a\":1}'), ('viewer@t', '{\"b\":2}')");
     const v = await userH.getUsersPreferences(db, { token: tok['viewer@t'], userEmails: ['viewer@t', 'victim@t'], ...A }, ctx);
-    assert.deepStrictEqual(v.map(r => r.user_email), ['viewer@t'], 'level 0 outranks no one: own only');
+    assert.deepStrictEqual(v.map(r => r.user_email), ['viewer@t'], 'own only');
     const o = await userH.getUsersPreferences(db, { token: tok['outsider@t'], userEmails: ['victim@t'], ...A }, ctx);
     assert.strictEqual(o.length, 0, 'another project\'s user sees nothing');
     const m = await userH.getUsersPreferences(db, { token: tok['mgr@t'], userEmails: ['victim@t'], ...A }, ctx);

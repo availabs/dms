@@ -9,6 +9,7 @@ import { parseIfJSON } from '../../../utils';
 import { hasAuthGrants } from '../../../../../utils/auth.js';
 import { siteCan, isAppAdmin } from '../../../../../utils/adminPermissions';
 import { patternPermissionOptions } from '../../../../registry';
+import { loadSiteData } from './settings';
 
 const DEFAULT_PERMISSIONS = { groups: { public: ['view-page'] }, users: {} };
 
@@ -29,21 +30,33 @@ export const PatternPermissionsEditor = ({
     value = "{}",
     onChange,
     attributes,
-    defaultPermission = []
+    defaultPermission = [],
+    apiLoad,
 }) => {
     const { AuthAPI } = React.useContext(AuthContext) || {};
     const { UI, theme } = React.useContext(ThemeContext);
     const t = { ...permissionsEditorTheme, ...(theme?.admin?.permissionsEditor || {}) }
-    const { user, apiUpdate, app, adminRowHasGrants } = React.useContext(AdminContext) || {};
+    const { user, apiUpdate, app, siteType } = React.useContext(AdminContext) || {};
     const { Permissions } = UI;
 
     const inputValue = cloneDeep(parseIfJSON(value));
+    // The admin pattern's Access tab is the SITE's: site-level verbs (who may manage the site, its
+    // themes, tenants, users and groups) live on the site row (rule 3), and that is what it edits.
+    const isAdminPattern = inputValue?.pattern_type === 'admin';
+    const [siteRow, setSiteRow] = React.useState(null);
+    React.useEffect(() => {
+        if (!isAdminPattern || !apiLoad) return;
+        let live = true;
+        loadSiteData(apiLoad, app, siteType).then(row => { if (live) setSiteRow(row); });
+        return () => { live = false; };
+    }, [isAdminPattern, apiLoad, app, siteType]);
     // Options for this pattern's type. Saved values outside the list stay
     // (MultiSelect keeps unknown values), so nothing stored is dropped.
-    const permissionDomain = patternPermissionOptions(inputValue?.pattern_type, { adminRowHasGrants });
-    const normalised = normaliseAuthPermissions(inputValue?.authPermissions);
+    const permissionDomain = patternPermissionOptions(inputValue?.pattern_type);
+    const normalised = normaliseAuthPermissions(isAdminPattern ? siteRow?.authPermissions : inputValue?.authPermissions);
 
     const [tmpAuthPermissions, setTmpAuthPermissions] = React.useState(normalised);
+    React.useEffect(() => { if (isAdminPattern) setTmpAuthPermissions(normalised); }, [siteRow]); // eslint-disable-line react-hooks/exhaustive-deps
     const [newSubdomain, setNewSubdomain] = React.useState('');
     // UI.Permissions keeps its own copy of `value` and never re-reads the prop,
     // so "reset" cleared the pending save but left the edited grants on screen;
@@ -72,12 +85,8 @@ export const PatternPermissionsEditor = ({
 
     const isDirty = !isEqual(tmpAuthPermissions, normalised);
 
-    // The site's admin pattern row: until it grants something itself, site
-    // access comes from the auth pattern (render/spa/utils/index.js
-    // pattern2routes / hasAuthGrants). Once it does, a save that doesn't
-    // leave the saving user with `*` would lock them out of the admin panel —
-    // blocked, unless they're in the `${app} Admin` group (always let in).
-    const isAdminPattern = inputValue?.pattern_type === 'admin';
+    // A save of the site row that doesn't leave the saving user with `*` would lock them out of the
+    // admin panel — blocked, unless they're in the `${app} Admin` group (always let in).
     const adminGrantsSaved = isAdminPattern && hasAuthGrants(normalised);
     const adminGrantsPending = isAdminPattern && hasAuthGrants(tmpAuthPermissions);
     const wouldLockOut = adminGrantsPending && !isAppAdmin(user, app)
@@ -92,8 +101,8 @@ export const PatternPermissionsEditor = ({
                 {isAdminPattern && (
                     <span className={t.headerHint}>
                         {adminGrantsSaved
-                            ? 'admin panel access'
-                            : 'admin access comes from the auth pattern until a user or group is granted here'}
+                            ? 'site access: who may manage this site, its themes, tenants, users and groups'
+                            : 'the site grants nothing yet: only the site admins group can manage it'}
                     </span>
                 )}
             </div>
@@ -125,8 +134,8 @@ export const PatternPermissionsEditor = ({
                             onChange={(v) => updateSubdomainPermissions(subdomain, v)}
                             permissionDomain={permissionDomain}
                             defaultPermission={defaultPermission}
-                            heading='on this pattern'
-                            inheritedFrom='the site'
+                            heading={isAdminPattern ? 'on this site' : 'on this pattern'}
+                            inheritedFrom={isAdminPattern ? undefined : 'the site'}
                         />
                     </div>
                 </div>
@@ -163,8 +172,10 @@ export const PatternPermissionsEditor = ({
                 </UI.Button>
                 <UI.Button
                     activeStyle='primary'
-                    disabled={!isDirty || wouldLockOut}
-                    onClick={() => apiUpdate({ data: { id: value.id, authPermissions: tmpAuthPermissions } })}
+                    disabled={!isDirty || wouldLockOut || (isAdminPattern && !siteRow)}
+                    onClick={() => (isAdminPattern
+                        ? apiUpdate({ data: { id: siteRow.id, authPermissions: tmpAuthPermissions }, config: { format: { app, type: siteType, attributes: [] } }, skipNavigate: true })
+                        : apiUpdate({ data: { id: value.id, authPermissions: tmpAuthPermissions } }))}
                 >
                     save changes
                 </UI.Button>

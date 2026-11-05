@@ -6,8 +6,7 @@ import DefaultMenu from "./components/menu"
 import authFormat from "./auth.format.js";
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
-import { isUserAuthed } from "../../utils/auth";
-import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES } from "../../utils/adminPermissions";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 import { setAuthRequestScope } from "./api";
 import OpenAuthWarning from "./components/OpenAuthWarning";
@@ -150,8 +149,8 @@ const authConfig = ({
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
-    // Every auth call from now on names this auth row, so the server reads its grants (api.js)
-    setAuthRequestScope({ app, authPatternId: pattern?.id });
+    // Every auth call from now on names this site, so the server judges the auth verbs on its site row (api.js)
+    setAuthRequestScope({ app });
     // hard coding mny_admin for dev, needs to come from pattern
     const theme = getPatternTheme(themes, pattern, ssrCollect); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
@@ -223,6 +222,7 @@ const manageAuthConfig = ({
   adminPath='/',
   themes = {},
   pattern,
+  adminPatternRow,
   adminThemeSource,
   authPermissions = {},
   adminAuthPermissions = {},
@@ -231,17 +231,14 @@ const manageAuthConfig = ({
   API_HOST,
   ssrCollect,
 }) => {
-    // The site's DAMA envs (a client build setting): Remove from site lists the user's grants there.
-    const pgEnvs = datasources.filter(d => d.type === 'external').map(d => d.env);
 
     // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — a
     // theme's own icon set merges with, rather than replaces, this base set
     // (see Icon.jsx / theme.Icons), so these render everywhere without
     // needing per-theme icon work.
     // Only the links `user` can use — same rules as the admin pattern's own
-    // sidenav (patterns/admin/siteConfig.jsx getMenuItems): Sites/Themes read
-    // the site-level admin grants, Users/Groups this auth pattern's grants
-    // with the rule their routes' reqPermissions declare.
+    // sidenav (patterns/admin/siteConfig.jsx getMenuItems): every entry reads the
+    // site row's grants; auth-users / auth-groups are site verbs (rule 3).
     const buildMenuItems = (user) => [
         ...(siteCan(user, app, adminAuthPermissions, VIEW_PATTERN_LIST) ? [{
             name: 'Sites',
@@ -271,12 +268,12 @@ const manageAuthConfig = ({
                     path: `${baseUrl}/manage/profile`,
                     icon: 'UserCircle'
                 },
-                ...(isUserAuthed({ user, reqPermissions: ['auth-users'], authPermissions }) ? [{
+                ...(siteCan(user, app, adminAuthPermissions, AUTH_USERS) ? [{
                     name: 'Users',
                     path: `${baseUrl}/manage/users`,
                     icon: 'User'
                 }] : []),
-                ...(isUserAuthed({ user, reqPermissions: ['auth-groups'], authPermissions }) ? [{
+                ...(siteCan(user, app, adminAuthPermissions, AUTH_GROUPS) ? [{
                     name: 'Groups',
                     path: `${baseUrl}/manage/groups`,
                     icon: 'Group'
@@ -294,10 +291,11 @@ const manageAuthConfig = ({
 
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
-    setAuthRequestScope({ app, authPatternId: pattern?.id });
-    // The auth pattern's Access tab, for the open-auth warning
-    const authAccessUrl = pattern?.id
-        ? `${adminPath.replace(/\/+$/, '')}/manage_pattern/${pattern.id}/permissions`
+    setAuthRequestScope({ app });
+    // The site's Access tab (the Admin pattern's, which edits the site row), for the open-auth warning
+    const accessPatternId = adminPatternRow?.id || pattern?.id;
+    const authAccessUrl = accessPatternId
+        ? `${adminPath.replace(/\/+$/, '')}/manage_pattern/${accessPatternId}/permissions`
         : null;
 
     // Same theme as the admin pattern's pages (Sites/Themes/Pattern Editor):
@@ -366,16 +364,16 @@ const manageAuthConfig = ({
         children: [
           {
             type: props => <>
-                <OpenAuthWarning app={app} authPermissions={authPermissions} editUrl={authAccessUrl} />
-                <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} pgEnvs={pgEnvs} />
+                <OpenAuthWarning app={app} authPermissions={adminAuthPermissions} editUrl={authAccessUrl} />
+                <AuthUsers {...props} app={app} authPermissions={adminAuthPermissions} emailTheme={emailTheme} />
             </>,
             reqPermissions: ['auth-users'],
             path: "users",
           },
           {
             type: props => <>
-                <OpenAuthWarning app={app} authPermissions={authPermissions} editUrl={authAccessUrl} />
-                <AuthGroups {...props} authPermissions={authPermissions} pgEnvs={pgEnvs} />
+                <OpenAuthWarning app={app} authPermissions={adminAuthPermissions} editUrl={authAccessUrl} />
+                <AuthGroups {...props} authPermissions={adminAuthPermissions} />
             </>,
             reqPermissions: ['auth-groups'],
             path: "groups",

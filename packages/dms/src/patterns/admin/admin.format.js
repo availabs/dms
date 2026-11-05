@@ -19,10 +19,14 @@ const PatternList = {
 export const themeFormat = {
   app: 'admin',
   type: 'theme',
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
-  rules: { theme: { owner: 'site-grants', ops: { '*': ['manage-themes'] } } },
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
+  rules: { theme: { owner: 'site', ops: { '*': ['manage-themes'] } } },
   attributes: [
     {
       key: "name",
@@ -71,10 +75,26 @@ export const themeFormat = {
 export const dmsEnvFormat = {
   app: 'admin',
   type: 'dmsenv',
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
-  rules: { dmsenv: { owner: 'datasets-grants', ops: { '*': ['create-source', 'delete-source', 'edit-pattern'] } } },
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
+  // The env holds the grants over its sources (rule 3: a verb is granted on the row that owns its
+  // subject). Its managers are whoever may make or remove a source in it; its grants are edited by
+  // `edit-source-permissions` held on the env, or site `*`.
+  rules: {
+    dmsenv: {
+      owner: ['site', 'self'],
+      ops: {
+        create: { owner: 'site', perms: ['create-pattern'] },
+        delete: { owner: 'site', perms: ['*'] },
+        edit: { byKey: { authPermissions: ['edit-source-permissions'] }, default: ['create-source', 'delete-source'] },
+      },
+    },
+  },
   // Sources (and through them, views) are this env's children — a real child declaration, not the
   // json blob this used to be. `deriveDmsEnvVocabulary` walks this tree for the descendants scope.
   // It also carries their `rules` up to the SITE row, which is where a source's ancestor walk ends
@@ -111,10 +131,14 @@ export const dmsEnvFormat = {
 export const tenant = {
   app: "admin",
   type: "tenant",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
-  rules: { tenant: { owner: 'site-grants', ops: { '*': ['manage-tenants'] } } },
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
+  rules: { tenant: { owner: 'site', ops: { '*': ['manage-tenants'] } } },
   registerFormats: [],
   attributes: [
     { key: "name", type: "text", required: true },
@@ -135,20 +159,25 @@ export const tenant = {
 export const pattern = {
   app: "admin",
   type: "pattern",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   rules: {
     pattern: {
-      owner: 'self-pattern',
-      escape: { owner: 'site-grants', perms: ['*'] },   // site * may do anything to any pattern
-      // a pattern with no grants is open to whoever may see the pattern list, core patterns excepted
-      ifOwnerBlank: {
-        owner: 'site-grants', perms: ['view-pattern-list'],
-        unless: { field: 'pattern_type', in: ['auth', 'admin'] },
-      },
+      owner: 'self',
+      escape: { owner: 'site', perms: ['*'] },   // site * may do anything to any pattern
+      // a pattern with no grants is open to whoever may see the pattern list (the site's own admin and
+      // auth rows included: their site-level grants live on the site row, so they are blank)
+      ifOwnerBlank: { owner: 'site', perms: ['view-pattern-list'] },
       ops: {
-        create: { owner: 'site-grants', perms: ['create-pattern'] },
+        // `view-page` is accepted beside `view-pattern` while stored grants are backfilled: flat
+        // grants on page patterns hold `view-page`, and that is what earns the pattern-row read today.
+        read: { anyOf: [{ blank: true }, { perms: ['view-pattern', 'view-page', 'edit-pattern', 'edit-pattern-permissions'] }] },
+        create: { owner: 'site', perms: ['create-pattern'] },
         delete: ['delete-pattern'],
         // `authPermissions` is declared on `edit-pattern-permissions` itself
         // (patternRow.domain.js `fields`) — see the site row's note above.
@@ -268,12 +297,16 @@ export const pattern = {
 const patternAdminFormat = {
   app: "admin",
   type: "site",
-  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs.
-  // Collected at registration (deriveAuthRules.js) and stamped onto the pattern / site row; read by
-  // dms-server's kindAuth/dataAuth.js. Built-in copy for unstamped rows: kindAuth/authRules.js.
+  // Auth rules for this row kind (`rules`, keyed by row kind): which permission each write needs,
+  // and what earns a read. Collected at registration (deriveAuthRules.js) and stamped onto the
+  // pattern / site row; read by dms-server's routes/auth (owners.js, judge.js). Built-in copy for
+  // unstamped rows: dms-server/src/routes/auth/rules.js — kept identical by authRules.sync.test.js.
+  // Owners are positions on the row's ancestry: `self`, `parent`, `ancestor:<kind>`, `site`, or a
+  // list spread in order (rule 2: a rule never names a pattern type). `{ blank: owner }` in a `read`
+  // clause says the row is readable when that owner grants nothing.
   rules: {
     site: {
-      owner: 'site-grants',
+      owner: 'site',
       ops: {
         create: ['*'],
         delete: ['*'],
@@ -281,12 +314,9 @@ const patternAdminFormat = {
           byKey: {
             // `patterns`, `theme_refs` and `tenants` are DECLARED ON THE VERBS (the `fields` on
             // this format's permissionDomain entries), read through `verbsForFields` by both
-            // implementations. What is left is the one clause a vocabulary cannot express: a
-            // field judged against a DIFFERENT owner's grants.
-            dms_envs:   { anyOf: [
-              { owner: 'datasets-grants', perms: ['create-source', 'edit-pattern'] },
-              { owner: 'site-grants',     perms: ['*'] },
-            ] },
+            // implementations. An env is made where a pattern is made: whoever may create a
+            // pattern may add one to the site's list.
+            dms_envs: ['create-pattern'],
           },
           default: ['*'],
         },
@@ -364,6 +394,12 @@ const patternAdminFormat = {
         { label: 'Delete Pattern',    value: 'delete-pattern',    implies: ['read', 'delete'], fields: ['patterns'] },
         { label: 'Manage Themes',     value: 'manage-themes',     implies: ['read', 'edit'], fields: ['theme_refs'] },
         { label: 'Manage Tenants',    value: 'manage-tenants',    implies: ['read', 'edit'], fields: ['tenants'] },
+        // The auth verbs. Users and groups are not DMS rows, so the verbs over them are SITE verbs
+        // (rule 3), judged on the site row by dms-server's auth handlers (auth/utils/permissions.js).
+        // They were on the auth pattern row until 2026-11-05 (scripts/sweep-site-grants.js moves them).
+        { label: 'Manage Users',      value: 'auth-users',        implies: [] },
+        { label: 'Manage Groups',     value: 'auth-groups',       implies: [] },
+        { label: 'View As User',      value: 'view-as',           implies: [] },
       ],
     }
   ]

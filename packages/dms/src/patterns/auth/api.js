@@ -22,12 +22,12 @@ export const getUser = ({AUTH_HOST, PROJECT_NAME}) => {
 }
 
 // The auth row that governs this site's auth calls: the server reads its grants (auth-users,
-// auth-groups, view-as) when a call names `app` + `authPatternId` (dms-server auth/utils/permissions.js).
+// auth-groups, view-as) on the SITE ROW of the `app` a call names (dms-server auth/utils/permissions.js).
 // Set by the auth pattern's route config once the site's patterns are known (auth/siteConfig.jsx);
 // one site per page load, so module state is enough. A body that names its own keeps them.
 let authRequestScope = {};
-export const setAuthRequestScope = ({ app, authPatternId } = {}) => {
-    authRequestScope = authPatternId != null ? { app, authPatternId } : {};
+export const setAuthRequestScope = ({ app } = {}) => {
+    authRequestScope = app ? { app } : {};
 };
 const withAuthScope = (body) => ({ ...authRequestScope, ...body });
 

@@ -28,8 +28,6 @@ class falcorRoutes extends BaseRouter {
     super({ maxPaths: 10_000_000 });
     this.user = config.user;
     this.subdomain = config.subdomain || '';
-    // The datasets pattern the request names (`dms_pattern`): reads of external sources inherit its grants.
-    this.patternRef = config.patternRef || null;
     // The site the request comes from (`dms_app`, requestUser.js requestApp): logs, and external reads' admin check.
     this.requestApp = config.requestApp || null;
     this.reqMeta = config.reqMeta || null;

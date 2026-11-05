@@ -1,8 +1,10 @@
 # Unified auth API: verbs in the rows, one merge function
 
-**Initiatives:** [dms_data_safety](../../../../planning/initiatives/dms_data_safety.md) (primary) · **Status:** in progress · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../planning/initiatives/dms_data_safety.md) (primary) · **Status:** done · **Created by:** amuro@albany.edu · **Edited by:** —
 
-Design: [research/unified-auth-api.md](../../research/unified-auth-api.md) ·
+Superseded 2026-11-04 by [auth-layer-simplification.md](./auth-layer-simplification.md), which took the
+remaining items (Phase 2's `sourceReads.js`, Phase 3's level deletion) and replaced the design's
+structural-verb merge with the owner walk. Design: [research/unified-auth-api.md](../../research/unified-auth-api.md) ·
 Artifact: https://claude.ai/artifact/QKmF4GyzboVHSAVRwJvaCv
 Follows [row-auth-uda-unify-api.md](./row-auth-uda-unify-api.md) (Slices A–P), which left the walk,
 the merge and the judgment unified and named what had not moved.

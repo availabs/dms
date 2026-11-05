@@ -154,6 +154,24 @@ documented resolution so the behaviour is predictable, not a licence to rely on 
   everyone, signed out included. dms-server has no type-specific code. The type writes `public` from
   its own settings whenever they change.
 
+## Ownership and grants: the three rules
+
+The auth layer (`dms-server/src/routes/auth`) is one walk over a row's parents and one judge over its
+kind's rule. A pattern type keeps it that way by following three rules (owner, 2026-11-05; the full
+statement is in `CLAUDE.md`, "Ownership and grants"):
+
+1. **A row's parent is its type path's container, or a row inside that container that lists it.** A
+   `dms-format` attribute on the parent (`sections`, `sources`, `views`, `patterns`) is the reference;
+   saving the parent stamps `parent_id` on the children it names. Declare one for every child kind your
+   pattern stores, and never point a reference outside the container.
+2. **A rule's owners are ancestors.** `owner`, `escape`, `ifOwnerBlank` and every requirement name
+   `self`, `parent`, `ancestor:<kind>` or `site`. Registration refuses anything else
+   (`deriveAuthRules.js validateAuthRules`). If your pattern wants to lend grants to rows it does not
+   own, put the grants on the row that does own them (the way the datasets pattern's live on its env).
+3. **A verb is granted where its subject lives.** Verbs over your pattern's own rows go in those rows'
+   `permissionDomain`; verbs over the pattern row itself in the `instanceFormat`; verbs over things
+   that are not rows of your pattern (users, groups, the site) belong to the site format's domain.
+
 ## Section-component registry hooks (generic, any section type)
 
 A section's registry entry (`registerComponents`) may set:

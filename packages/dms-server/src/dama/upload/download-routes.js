@@ -9,8 +9,8 @@ const { getDb } = require('../../db');
 const storage = require('../storage');
 const path = require('path');
 const { authorizeViewAction, MANAGE_DOWNLOADS_PERMS } = require('./auth');
-const { requestUserIdWarnBody, requestPatternRef } = require('../../routes/auth/requestUser');
-const { isUserAuthedForSource, sourceIdForView } = require('../../routes/auth/sourceGuards');
+const { requestUserIdWarnBody, requestApp } = require('../../routes/auth/requestUser');
+const { authorize, applyMode } = require('../../routes/auth');
 const { signToken, verifyToken } = require('../../auth/utils/crypto');
 
 // A signed download link is good for this long. It only has to outlive the click that asked for it.
@@ -168,12 +168,12 @@ async function signDownload(req, res) {
     if (!downloads || !downloads[file_type]) return res.status(404).json({ error: `view ${view_id} has no ${file_type} download` });
 
     const user = (req.availAuthContext && req.availAuthContext.user) || {};
-    const sourceId = await sourceIdForView(pgEnv, view_id);
-    const ok = await isUserAuthedForSource({
-      env: pgEnv, db: getDb(pgEnv), sourceId: sourceId ?? 0, reqPermissions: ['download-source'], user,
-      patternRef: requestPatternRef(req), wasOpen: true,
-    });
-    if (!ok) return res.status(user.id != null ? 403 : 401).json({ error: `requires download-source on source ${sourceId}` });
+    // `download-source` is a capability on the view's source, checked by name
+    const site = requestApp(req) || null;
+    const d = await authorize({ env: pgEnv, viewId: +view_id, verb: 'download-source', user, app: site });
+    if (!applyMode(d, { guard: 'data', kind: 'download-source view', target: `${pgEnv}/${view_id}`, perms: ['download-source'], user, app: site || '' })) {
+      return res.status(user.id != null ? 403 : 401).json({ error: `requires download-source on view ${view_id}: ${d.reason}` });
+    }
 
     const token = await signToken({ purpose: 'download', pgEnv, view_id: +view_id, file_type }, DOWNLOAD_LINK_TTL);
     res.json({ url: `/dama-admin/${encodeURIComponent(pgEnv)}/downloads/file?token=${encodeURIComponent(token)}` });

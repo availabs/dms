@@ -1,5 +1,5 @@
 // The auth rules live in the format files (each format's `rules`); dms-server keeps a built-in copy for
-// rows stamped before they existed (dms-server/src/routes/auth/kindAuth/authRules.js, see its header).
+// rows stamped before they existed (dms-server/src/routes/auth/rules.js, see its header).
 // This keeps the two identical, and checks what a pattern / site row gets stamped with.
 //
 // Reads the server file as data only (test-time); the package itself never imports dms-server.
@@ -11,24 +11,21 @@ import { getPatternType, stampPatternRow, stampSiteRow } from './registry';
 import { deriveAuthRules, validateAuthRules } from './deriveAuthRules';
 
 const require = createRequire(import.meta.url);
-const BUILT_IN = require('../../../dms-server/src/routes/auth/kindAuth/authRules.js');
+const BUILT_IN = require('../../../dms-server/src/routes/auth/rules.js');
 
 const derived = (name) => getPatternType(name).authRules;
 
 describe('auth rules in the formats', () => {
   test('every built-in kind is declared by exactly the formats of the built-in types, and identically', () => {
     const fromFormats = { ...derived('admin'), ...derived('page'), ...derived('datasets') };
-    const { DEFAULT, ...kinds } = BUILT_IN;
-    expect(DEFAULT).toEqual({ signedIn: true });
-    expect(fromFormats).toEqual(kinds);
+    expect(fromFormats).toEqual(BUILT_IN);
   });
 
   test('each type carries its own kinds', () => {
     // `admin` also carries the datasets kinds, because a source hangs off the ENV and the env's
     // format is registered here (admin.format.js `dmsEnvFormat.registerFormats: [source]`, see
-    // dmsEnv.format.js). That is deliberate: the datasets pattern is no longer a source's ancestor,
-    // so the SITE row is where a source's walk finds its rules. `datasets` still carries them too —
-    // the same objects — and dataAuth.js `stampedRule` reads the pattern row first.
+    // dmsEnv.format.js): the SITE row is where a source's walk finds its rules. `datasets` still
+    // carries them too — the same objects — for a datasets pattern stamped before the site row was.
     expect(Object.keys(derived('admin')).sort())
       .toEqual(['data', 'dmsenv', 'pattern', 'site', 'source', 'tenant', 'theme', 'view']);
     expect(Object.keys(derived('page')).sort()).toEqual(['component', 'page', 'page-edit']);
@@ -62,7 +59,7 @@ describe('auth rules in the formats', () => {
       [n, { rules: getPatternType(n).authRules, vocabulary: getPatternType(n).authVocabulary }]));
     const fingerprint = createHash('sha256').update(JSON.stringify(sorted(stamped))).digest('hex').slice(0, 16);
     expect(fingerprint, 'auth rules or vocabulary changed: see planning/tasks/current/auth-rules-stamp-backfill.md')
-      .toBe('95fdefded8a8d918');
+      .toBe('bce6ede7c2b64026');
   });
 
   test('later formats win; a rule without ops or with an unknown owner is refused', () => {
@@ -73,5 +70,7 @@ describe('auth rules in the formats', () => {
     expect(() => validateAuthRules({ x: { owner: 'my-parent', ops: {} } })).toThrow(/my-parent/);
     expect(() => validateAuthRules({ x: { owner: 'self-pattern', ops: { edit: { anyOf: [{ owner: 'typo' }] } } } }))
       .toThrow(/typo/);
+    expect(() => validateAuthRules({ x: { owner: ['ancestor:pattern', 'self'], ops: { read: { anyOf: [{ blank: true }, { perms: ['v'] }] } } } })).not.toThrow();
+    expect(() => validateAuthRules({ x: { owner: 'self', ops: { read: { anyOf: [{ blank: 'nowhere' }] } } } })).toThrow(/nowhere/);
   });
 });

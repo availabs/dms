@@ -24,7 +24,7 @@
 const path = require('path');
 const fs = require('fs');
 const { Client } = require('pg');
-const { resolveAuthPermissions } = require('../routes/auth/auth');
+const { resolveAuthPermissions } = require('../routes/auth/grants');
 
 const arg = (name) => {
   const a = process.argv.find(x => x.startsWith(`--${name}=`));

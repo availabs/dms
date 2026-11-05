@@ -1,30 +1,35 @@
 #!/usr/bin/env node
 'use strict';
 /**
- * THE SITE SWEEP — put the site's grants on the site ROW, where parentage can reach them.
+ * THE SITE SWEEP — put the site's grants on the site ROW, where the walk reads them.
  *
  *     node sweep-site-grants.js --db <config> --app <app> [--apply] [--verify]
  *
  * ---------------------------------------------------------------------------
  * Why
  *
- * Kind auth's "site grants" are the ADMIN PATTERN row's `authPermissions`, falling back to the auth
- * pattern's while admin grants nothing (`dataAuth.siteGrants`). That row is a SIBLING of what those
- * grants govern — the site row, a tenant, a dmsEnv — not an ancestor of it. Row auth walks
- * `parent_id`, reaches the site row, finds it states nothing, and refuses what kind auth allows.
+ * Rule 3 (planning/tasks/current/auth-grants-on-the-owner-row.md): a verb is granted on the row that
+ * owns its subject, and site-level verbs — `view-pattern-list`, `create-pattern`, `delete-pattern`,
+ * `manage-themes`, `manage-tenants`, and the auth verbs `auth-users`, `auth-groups`, `view-as` (users and
+ * groups are not rows, so the site is their subject) — live on the SITE row.
  *
- * It fails closed, so nothing is exposed; it just means an app cannot be switched to row auth
- * without losing site-level editing. The fix is in the DATA, not the judge: the site row carries
- * the grants, and both implementations then find them the way each already looks.
+ * Until 2026-11-05 they lived on the site's ADMIN pattern row (falling back to the AUTH pattern's) and
+ * the auth verbs on the AUTH pattern row: children of the site, which the walk reached by looking DOWN
+ * (`owners.js siteGrants`) and the auth handlers by a client-named `authPatternId`. Both reach-arounds
+ * are deleted; the server reads the site row and nothing else. A site that has not been swept keeps
+ * working under `DMS_AUTH_MODE=log` (a blank site row lets signed-in users through with a would-deny
+ * line), and loses site-level editing under `enforce`.
  *
- * ADDITIVE AND IDEMPOTENT. Merges into the site row's existing grants, never removes, and a second
- * run reports nothing to do. `--verify` exits non-zero while any principal would still lose.
+ * ADDITIVE AND IDEMPOTENT. The union of the admin and auth pattern rows' grants is merged into the site
+ * row's `data.authPermissions` (where every client write lands and `grantsOf` reads first); nothing is
+ * removed from any row. A second run reports nothing to do. `--verify` exits non-zero while any
+ * principal would still lose a verb.
  */
 const { loadConfig } = require('../db/config');
 const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { resolveTable } = require('../db/table-resolver');
-const { resolveAuthPermissions } = require('../routes/auth/auth');
+const { resolveAuthPermissions } = require('../routes/auth/grants');
 
 function parseArgs() {
   const a = process.argv.slice(2); const o = { apply: false, verify: false };
@@ -52,6 +57,15 @@ function union(list) {
   return out;
 }
 
+/** The site row's own grants as `grantsOf` reads them: `data` first, the `auth` column when data names no one. */
+function siteOwn(site) {
+  const data = parse(site.data) || {};
+  const fromData = resolveAuthPermissions(data.authPermissions, '') || {};
+  if (Object.keys(fromData.groups || {}).length || Object.keys(fromData.users || {}).length) return fromData;
+  const { vocabulary, childRefs, view, ...col } = parse(site.auth) || {};
+  return resolveAuthPermissions(col, '') || {};
+}
+
 async function main() {
   const o = parseArgs();
   const config = loadConfig(o.db);
@@ -63,23 +77,16 @@ async function main() {
   console.log(`\nsite sweep — ${o.verify ? 'VERIFY' : o.apply ? 'APPLY' : 'DRY RUN'}`);
   console.log(`  db=${o.db}  app=${o.app}\n`);
 
-  const patterns = await q(`SELECT id, type, auth, data FROM ${T} WHERE app = $1 AND type LIKE '%:pattern'`, [o.app]);
+  // `auth` is a migrated column some tables lack: select everything and read it when present.
+  const patterns = await q(`SELECT * FROM ${T} WHERE app = $1 AND type LIKE '%:pattern'`, [o.app]);
   const ptOf = (r) => (parse(r.data) || {}).pattern_type;
   const grantsOfPattern = (r) => resolveAuthPermissions((parse(r.data) || {}).authPermissions, '') || {};
-  const named = (pt) => patterns.filter(r => ptOf(r) === pt).map(grantsOfPattern);
-  const hasAny = (ap) => Object.keys(ap.groups || {}).length || Object.keys(ap.users || {}).length;
+  const rowsOf = (pt) => patterns.filter(r => ptOf(r) === pt);
+  const want = union([...rowsOf('admin'), ...rowsOf('auth')].map(grantsOfPattern));
 
-  // `siteGrants()`: the admin rows' union, falling back to the auth pattern's while admin is blank.
-  const admin = union(named('admin'));
-  const want = hasAny(admin) ? admin : union(named('auth'));
-
-  const [site] = await q(`SELECT id, type, auth, data FROM ${T} WHERE app = $1 AND type LIKE '%:site'`, [o.app]);
+  const [site] = await q(`SELECT * FROM ${T} WHERE app = $1 AND type LIKE '%:site'`, [o.app]);
   if (!site) { console.log('  no :site row for this app — nothing to do.'); await db.end(); return; }
-
-  const col = parse(site.auth) || {};
-  const { vocabulary, childRefs, view, ...rest } = col;
-  const have = resolveAuthPermissions(rest, '') || {};
-  const branch = rest['*'] !== undefined ? '*' : null;
+  const have = siteOwn(site);
 
   const adds = [];
   for (const k of ['groups', 'users']) {
@@ -91,28 +98,35 @@ async function main() {
   }
 
   console.log(`  site row                     #${site.id} ${site.type}`);
-  console.log(`  site-level grants, today on  ${hasAny(admin) ? 'the admin pattern' : 'the auth pattern'}`);
+  console.log(`  from                         admin rows: ${rowsOf('admin').map(r => `#${r.id}`).join(', ') || 'none'}; auth rows: ${rowsOf('auth').map(r => `#${r.id}`).join(', ') || 'none'}`);
   console.log(`  principals to carry over     ${adds.length}\n`);
   for (const a of adds) console.log(`   + ${a.bucket}.${a.who} = [${a.perms.join(', ')}]   (adds: ${a.missing.join(', ')})`);
 
   if (o.verify) {
     const ok = adds.length === 0;
     console.log(ok
-      ? '\n  ✓ THE SITE ROW CARRIES EVERY SITE-LEVEL GRANT. Parentage can reach them.'
-      : `\n  ✗ ${adds.length} principal(s) still reachable only through the pattern row.`);
+      ? '\n  ✓ THE SITE ROW CARRIES EVERY SITE-LEVEL GRANT.'
+      : `\n  ✗ ${adds.length} principal(s) still reachable only through a pattern row.`);
     await db.end();
     process.exit(ok ? 0 : 1);
   }
   if (!adds.length) { console.log('\n  Nothing to do.'); await db.end(); return; }
   if (!o.apply) { console.log('\nDRY RUN — nothing was written. Re-run with --apply, then --verify.'); await db.end(); return; }
 
+  // Written as a flat grant into `data.authPermissions`. A site row whose data holds a per-subdomain
+  // grant (`'*'` key) is left for the operator: the per-subdomain shape is not merged blind.
+  const data = parse(site.data) || {};
+  const stored = parse(data.authPermissions);
+  if (stored && stored['*'] !== undefined) {
+    console.log('\n  ✗ the site row holds per-subdomain grants in data.authPermissions; merge by hand.');
+    await db.end(); process.exit(1);
+  }
   const merged = { groups: { ...(have.groups || {}) }, users: { ...(have.users || {}) } };
   for (const a of adds) merged[a.bucket][a.who] = a.perms;
-  for (const bucket of ['groups', 'users']) {
-    const path = branch ? `{${branch},${bucket}}` : `{${bucket}}`;
-    await q(`UPDATE ${T} SET auth = jsonb_set(COALESCE(auth,'{}'::jsonb), $2::text[], $3::jsonb) WHERE id = $1`,
-      [site.id, path, JSON.stringify(merged[bucket])]);
-  }
+  const set = config.type === 'postgres'
+    ? `data = jsonb_set(COALESCE(data, '{}'::jsonb), '{authPermissions}', $2::jsonb)`
+    : `data = json_set(COALESCE(data, '{}'), '$.authPermissions', json($2))`;
+  await q(`UPDATE ${T} SET ${set} WHERE id = $1`, [site.id, JSON.stringify(merged)]);
   console.log(`\n  wrote ${adds.length} principal(s) onto the site row. Re-run with --verify.`);
   await db.end();
 }

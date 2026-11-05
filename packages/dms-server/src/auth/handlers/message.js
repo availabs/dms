@@ -6,7 +6,7 @@
 
 const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
-const { AUTH_GROUPS, AUTH_USERS, authority, canManageGroup, isPlatformAdmin, levelRule } = require('../utils/permissions');
+const { AUTH_GROUPS, AUTH_USERS, authority, canManageGroup, isPlatformAdmin } = require('../utils/permissions');
 
 /** POST /messages — get messages for authenticated user */
 async function getMessages(db, { token, project }) {
@@ -19,7 +19,7 @@ async function getMessages(db, { token, project }) {
 async function postMessage(db, body, ctx) {
   const { token, heading, message, type, target, project } = body;
   const userData = await verifyAndGetUserData(db, token);
-  // the auth row the client names (app + authPatternId), for the group / project permission paths
+  // the site the client names (app), whose site row the group / project permission paths are judged on
   const site = { body, ctx };
 
   switch (type) {
@@ -100,12 +100,9 @@ async function sendToGroup(db, senderData, heading, message, groupName, project,
   );
   if (!gipRows.length) throw new Error(`Group ${groupName} was not found.`);
 
-  // auth-users or auth-groups on the project's auth row, for a group the sender may manage there; or the
-  // level rule: the sender's level ≥ the group's in the project
-  const a = await authority(db, senderData, { ...site.body, project }, site.ctx, { perm: [AUTH_USERS, AUTH_GROUPS], minLevel: Infinity });
-  const bySite = a.byPermission && canManageGroup(a.user, groupName, a.scope);
-  if (!bySite && !(await levelRule(a, `${AUTH_USERS}: message ${groupName}`,
-    async () => (await q.getUserAuthLevel(db, senderData.email, project)) >= gipRows[0].auth_level))) {
+  // auth-users or auth-groups on the project's auth row, for a group the sender may manage there
+  const a = await authority(db, senderData, { ...site.body, project }, site.ctx, { perm: [AUTH_USERS, AUTH_GROUPS] });
+  if (!(a.byPermission && canManageGroup(a.user, groupName, a.scope))) {
     throw new Error(`You do not have the authority to message group ${groupName}.`);
   }
 
@@ -120,19 +117,14 @@ async function sendToGroup(db, senderData, heading, message, groupName, project,
 }
 
 async function sendToProject(db, senderData, heading, message, project, site = {}) {
-  const myAuthLevel = await q.getUserAuthLevel(db, senderData.email, project);
-
   const { rows: maxRows } = await db.query(
     'SELECT COALESCE(MAX(auth_level), -1) AS max_level FROM groups_in_projects WHERE project_name = $1',
     [project]
   );
   if (+(maxRows[0]?.max_level ?? -1) === -1) throw new Error(`Project ${project} was not found.`);
-  // auth-users on the project's auth row; or the level rule: the sender's level ≥ the highest in the project
-  const a = await authority(db, senderData, { ...site.body, project }, site.ctx, { perm: AUTH_USERS, minLevel: Infinity });
-  if (!a.byPermission && !(await levelRule(a, `${AUTH_USERS}: message ${project}`,
-    () => myAuthLevel >= maxRows[0].max_level))) {
-    throw new Error(`You do not have the authority to message project ${project}.`);
-  }
+  // auth-users on the project's auth row
+  const a = await authority(db, senderData, { ...site.body, project }, site.ctx, { perm: AUTH_USERS });
+  if (!a.byPermission) throw new Error(`You do not have the authority to message project ${project}.`);
 
   const { rows: members } = await db.query(
     `SELECT DISTINCT user_email FROM users_in_groups

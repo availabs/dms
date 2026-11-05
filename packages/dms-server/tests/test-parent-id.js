@@ -12,7 +12,7 @@ const { isPlausibleParent, takeParentId, validateParentId,
     refIdsOf, mergeChildRefs, declaredChildKinds,
     planDuplication, repointRefs, stampChildren,
     planRemovedChildren, sweepRemovedChildren, sweepAllChildren } = require('../src/routes/dms/parentId');
-const { ownerKindOf, childRefsOf } = require('../src/routes/auth/authVocabulary');
+const { ownerKindOf, childRefsOf } = require('../src/routes/auth/vocabulary');
 
 let pass = 0, fail = 0;
 const cases = [];

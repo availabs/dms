@@ -16,9 +16,9 @@
  *
  * Read: `GET /dms-admin/:app/access-log`, for `${app} Admin` and the platform group (`AVAIL`) only; a site's page
  * lists only rows of its own app. A row's app is the row's own (data / auth guards), the source's
- * (`app+instance` envs), else the datasets pattern the request names (`dms_pattern` / `X-DMS-Pattern`), for
- * signed-out reads and route calls too. A request that names none (an external pgEnv read or a signed-out call
- * from a client that sends no pattern) can't be attributed: it is stored with app '' and listed under `_none`,
+ * (`app+instance` envs), else the site the request names (`dms_app` / `X-DMS-App`), for signed-out reads and
+ * route calls too. A request that names none (an external pgEnv read or a signed-out call from a client that
+ * sends no site) can't be attributed: it is stored with app '' and listed under `_none`,
  * for `AVAIL` only.
  *
  * Retention: rows not seen for DMS_ACCESS_LOG_DAYS (default 90) are deleted, at most once a day, on a flush.
@@ -52,10 +52,10 @@ function getDmsDb() {
 
 const tableOf = (db) => (db.type === 'postgres' ? 'dms.access_log' : 'access_log');
 
-/** The app a source env belongs to: `app+instance` (internal), else the client-named pattern's app. */
-function appOf(env, patternRef) {
+/** The app a source env belongs to: `app+instance` (internal), else the site the request named. */
+function appOf(env, app) {
     if (typeof env === 'string' && env.includes('+')) return env.split('+')[0];
-    return (patternRef && patternRef.app) || '';
+    return app || '';
 }
 
 const asText = (v) => (v == null ? '' : String(v));
@@ -207,7 +207,7 @@ async function query(filters = {}) {
  */
 // `authDb`: the auth adapter (tests); otherwise getDb(authDbEnv).
 function registerAccessLogRoutes(app, { authDbEnv = process.env.DMS_AUTH_DB_ENV || 'auth-sqlite', authDb = null } = {}) {
-    const { isAppAdmin } = require('../routes/auth/kindAuth/sourceAuth');
+    const { isAppAdmin } = require('../routes/auth/grants');
     const { isPlatformAdmin } = require('../auth/utils/permissions');
     active = true;
     app.get('/dms-admin/:app/access-log', async (req, res) => {

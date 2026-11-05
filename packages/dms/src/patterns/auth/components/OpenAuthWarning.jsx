@@ -5,9 +5,10 @@ import { ThemeContext } from '../../../ui/themeContext';
 import { isUserAuthed } from '../../../utils/auth';
 import { openAuthWarningTheme } from './OpenAuthWarning.theme';
 
-// Shown on the Users and Groups pages to `${app} Admin` members and explicit `*` holders when the auth
-// pattern grants nothing: under the lenient rule (owner 2026-10-24) any signed-in user can then manage
-// this project's users and groups, on the server as well (dms-server auth/utils/permissions.js).
+// Shown on the Users and Groups pages to `${app} Admin` members and explicit `*` holders when the SITE
+// ROW grants nothing: under the lenient rule (owner 2026-10-24) any signed-in user can then manage this
+// project's users and groups, on the server as well (dms-server auth/utils/permissions.js). The auth
+// verbs are site verbs (rule 3), so `authPermissions` here is the site row's.
 // "Grants nothing" is judged the way the gate judges it: no group but `public`, no user.
 export default function OpenAuthWarning({ app, authPermissions = {}, editUrl }) {
   const { user } = React.useContext(AuthContext) || {};
@@ -24,9 +25,9 @@ export default function OpenAuthWarning({ app, authPermissions = {}, editUrl }) 
 
   return (
     <div role="alert" className={m.openAuthWarning}>
-      Any signed-in user can manage this site's users and groups: the Auth pattern grants no permissions yet.
+      Any signed-in user can manage this site's users and groups: the site grants no permissions yet.
       {' '}Grant <code>auth-users</code> / <code>auth-groups</code> to a group
-      {editUrl ? <> on the <Link className={m.openAuthWarningLink} to={editUrl}>Auth pattern's Access tab</Link></> : ' on the Auth pattern\'s Access tab'}.
+      {editUrl ? <> on the <Link className={m.openAuthWarningLink} to={editUrl}>site's Access tab</Link></> : ' on the site\'s Access tab (the Admin pattern)'}.
     </div>
   );
 }

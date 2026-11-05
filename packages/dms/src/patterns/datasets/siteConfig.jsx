@@ -4,7 +4,7 @@ import datasetsFormat from "./datasets.format";
 import { DatasetsContext } from "./context";
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
-import { isUserAuthed, mergeAuthPermissions } from "../../utils/auth";
+import { isUserAuthed, mergeAuthPermissions, resolveSubdomainAuthPermissions } from "../../utils/auth";
 import { isAppAdmin } from "../../utils/adminPermissions";
 import UI from "../../ui"
 
@@ -29,6 +29,15 @@ import internal_table from "./pages/dataTypes/internal_table";
 import file_upload from "./pages/dataTypes/file_upload"
 import { expandDamaDataTypes } from "./pages/dataTypes/defaultPages"
 
+// Two grant lists side by side, neither revoking the other (a per-source override does that, below).
+const unionGrants = (a = {}, b = {}) => {
+    const out = { groups: { ...(a.groups || {}) }, users: { ...(a.users || {}) } };
+    for (const k of ['groups', 'users']) for (const [who, perms] of Object.entries(b[k] || {})) {
+        out[k][who] = [...new Set([...(out[k][who] || []), ...(perms || [])])];
+    }
+    return out;
+};
+
 const datasetsConfig = ({
     app,
     type,
@@ -50,6 +59,9 @@ const datasetsConfig = ({
 }) => {
     const theme = getPatternTheme(themes, pattern, ssrCollect)
     const patternFormat = initializePatternFormat(datasetsFormat, app, type);
+    // The env this pattern points at holds the grants over its sources (swept there from the pattern).
+    const envAuthPermissions = resolveSubdomainAuthPermissions(
+        (pattern?.dmsEnvId ? dmsEnvById[pattern.dmsEnvId] : null)?.authPermissions, '');
     baseUrl = baseUrl === '/' ? '' : baseUrl;
 
 // console.log("siteConfig::props", props)
@@ -101,12 +113,12 @@ const datasetsConfig = ({
                             file_upload,
                             ...damaDataTypes
                           }),
-                          // Pattern-level check, with optional per-SOURCE override merged on top
-                          // (pattern ⊕ source). Same merge and rule as the server (routes/uda/sourceAuth.js):
-                          // no permission set → open, `${app} Admin` passes.
+                          // The env's grants (what every source beneath it is judged against, rule 3)
+                          // joined with the pattern's own, with an optional per-SOURCE override merged on
+                          // top. Same rule as the server: no permission set → open, `${app} Admin` passes.
                           isUserAuthed: (reqPermissions, customAuthPermissions) =>
                             isAppAdmin(user, app) ||
-                            isUserAuthed({ user, authPermissions: mergeAuthPermissions(authPermissions, customAuthPermissions), reqPermissions }),
+                            isUserAuthed({ user, authPermissions: mergeAuthPermissions(unionGrants(authPermissions, envAuthPermissions), customAuthPermissions), reqPermissions }),
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>
                               {props.children}

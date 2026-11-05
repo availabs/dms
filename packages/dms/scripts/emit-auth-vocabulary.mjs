@@ -13,7 +13,12 @@
  *
  *     emit-auth-vocabulary.mjs  →  vocab.json  →  migrate-row-auth.js --sync-vocabulary
  *
- * Output: { "<pattern_type>": { vocabulary: { self, descendants }, childRefs?: {…} }, … }
+ * Output: { "<pattern_type>": { vocabulary: { self, descendants }, childRefs?: {…}, rules?: {…} },
+ *           ":site": { vocabulary, rules }, ":dmsenv": { vocabulary }, … }
+ *
+ * `rules` is what `stampPatternRow` / `stampSiteRow` put on a new row (patterns/registry.js): each
+ * format's `rules`, collected by deriveAuthRules.js. A type registered with `rulesOn: 'site'`
+ * (admin) carries its kinds under `:site`; dms-server's `stamp-auth-rules.js` consumes both.
  *
  * HOW IT LOADS THEM. Vocabularies are no longer authored — they are DERIVED from the formats'
  * `permissionDomain`s (patterns/deriveAuthVocabulary.js), so this script loads FORMAT modules.
@@ -39,7 +44,7 @@ const BUILT_INS = {
     page:     { formats: ['src/patterns/page/page.format.js'] },
     datasets: { instance: 'src/patterns/datasets/datasets.format.js' },
     auth:     { formats: ['src/patterns/auth/auth.format.js'], publicRead: true },
-    admin:    { formats: ['src/patterns/admin/admin.format.js'], publicRead: true },
+    admin:    { formats: ['src/patterns/admin/admin.format.js'], publicRead: true, rulesOn: 'site' },
 }
 
 // Which of a type's rows own other rows. Only declared where a type actually owns something.
@@ -56,7 +61,7 @@ const CHILD_REFS = {
  * esbuild resolves `import { lazyComponent } from '…'` by name, so a Proxy cannot stand in. Instead
  * each stubbed path is given a module that exports `default` plus every name any format asks of it.
  */
-const KEEP = /\.(format|domain|childRefs)(\.js)?$|deriveAuthVocabulary\.js$/
+const KEEP = /\.(format|domain|childRefs)(\.js)?$|deriveAuth(Vocabulary|Rules)\.js$/
 const STUB_NAMES = ['lazyComponent', 'listPatternTypes', 'registerFormats']
 
 const stubPlugin = {
@@ -95,6 +100,7 @@ for (let i = 0; i < args.length; i++) {
 }
 
 const { deriveAuthVocabulary, deriveDmsEnvVocabulary } = await loadModule(resolve(here, '..', 'src/patterns/deriveAuthVocabulary.js'))
+const { deriveAuthRules } = await loadModule(resolve(here, '..', 'src/patterns/deriveAuthRules.js'))
 const { PATTERN_ROW_DOMAIN } = await loadModule(resolve(here, '..', 'src/patterns/patternRow.domain.js'))
 
 const derive = async ({ formats = [], instance, publicRead }) => {
@@ -103,12 +109,18 @@ const derive = async ({ formats = [], instance, publicRead }) => {
     const inst = instance ? pick(await loadModule(resolve(here, '..', instance))) : undefined
     const vocabulary = deriveAuthVocabulary({ self: PATTERN_ROW_DOMAIN, instance: inst, formats: loaded })
     if (publicRead) vocabulary.publicRead = true
-    return vocabulary
+    const rules = deriveAuthRules({ instance: inst, formats: loaded })
+    return { vocabulary, rules: Object.keys(rules).length ? rules : undefined }
 }
 
 const out = {}
+const siteRules = {}
 for (const [type, def] of Object.entries(BUILT_INS)) {
-    out[type] = { vocabulary: await derive(def) }
+    const { vocabulary, rules } = await derive(def)
+    out[type] = { vocabulary }
+    if (!rules) continue
+    if (def.rulesOn === 'site') Object.assign(siteRules, rules)   // stamped on the site row, as stampSiteRow does
+    else out[type].rules = rules
 }
 for (const [type, rel] of Object.entries(CHILD_REFS)) {
     out[type] = { ...(out[type] || {}), childRefs: pick(await loadModule(resolve(here, '..', rel))) }
@@ -133,7 +145,7 @@ if (adminMod.dmsEnvFormat) {
 // manage-tenants" have nowhere to be read from. Kind auth reads those verbs off the ADMIN PATTERN
 // row instead, which is a sibling of what it is judging; see unified-auth-api.md Phase 4.
 if (adminMod.default) {
-    out[':site'] = { vocabulary: deriveDmsEnvVocabulary(adminMod.default) }
+    out[':site'] = { vocabulary: deriveDmsEnvVocabulary(adminMod.default), ...(Object.keys(siteRules).length ? { rules: siteRules } : {}) }
 }
 
 // A host app's own types: `--extra <file>`, a FORMAT module now, named by the file's basename
@@ -145,8 +157,10 @@ for (const rel of extras) {
     if (/\.childRefs\.js$/.test(file)) {
         out[type] = { ...(out[type] || {}), childRefs: pick(mod) }
     } else {
+        const rules = deriveAuthRules({ formats: [pick(mod)] })
         out[type] = { ...(out[type] || {}),
-            vocabulary: deriveAuthVocabulary({ self: PATTERN_ROW_DOMAIN, formats: [pick(mod)] }) }
+            vocabulary: deriveAuthVocabulary({ self: PATTERN_ROW_DOMAIN, formats: [pick(mod)] }),
+            ...(Object.keys(rules).length ? { rules } : {}) }
     }
 }
 

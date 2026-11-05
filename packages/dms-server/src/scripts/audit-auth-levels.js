@@ -27,7 +27,7 @@ const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { resolveTable } = require('../db/table-resolver');
 const { authUser, can, AUTH_USERS, AUTH_GROUPS } = require('../auth/utils/permissions');
-const { resolveAuthPermissions } = require('../routes/auth/auth');
+const { resolveAuthPermissions } = require('../routes/auth/grants');
 
 /**
  * THE SITES WHERE A LEVEL ALONE AUTHORISES — read off the handlers, route by route.

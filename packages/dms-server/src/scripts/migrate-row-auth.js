@@ -104,13 +104,12 @@ const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { resolveTable } = require('../db/table-resolver');
 const { getInstance, getParent, getKind } = require('../db/type-utils.js');
-const { childRefsOf } = require('../routes/auth/authVocabulary');
+const { childRefsOf } = require('../routes/auth/vocabulary');
 // The depth cap the chain walk used, kept for the recursive `parent_id` census below.
 const MAX_DEPTH = 16;
 const { isPlausibleParent, refIdsOf, mergeChildRefs, declaredChildKinds,
         planDuplication, repointRefs } = require('../routes/dms/parentId');
-const { kindReadBlocked } = require('../routes/auth/kindAuth/kindReadAuth');
-const { resolveAuthPermissions } = require('../routes/auth/auth');
+const { resolveAuthPermissions } = require('../routes/auth/grants');
 const { authColumns } = require('../routes/dms/rowAuthCaps');
 
 function parseArgs() {

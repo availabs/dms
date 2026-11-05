@@ -27,11 +27,9 @@ export const userFormat = {
       type: 'json',
       required: false,
       default: [],
-      permissionDomain: [
-        { label: '*',            value: '*' },
-        { label: 'Manage Users', value: 'auth-users', implies: [] },
-        { label: 'View As User', value: 'view-as',    implies: [] },
-      ],
+      // `auth-users` and `view-as` are SITE verbs (admin.format.js, the site's domain): users are not
+      // rows of this pattern, so nothing here governs them. Empty on purpose.
+      permissionDomain: [],
     },
   ],
 }
@@ -47,9 +45,8 @@ export const groupFormat = {
       type: 'json',
       required: false,
       default: [],
-      permissionDomain: [
-        { label: 'Manage Groups', value: 'auth-groups', implies: [] },
-      ],
+      // `auth-groups` is a SITE verb (admin.format.js). Empty on purpose.
+      permissionDomain: [],
     },
   ],
 }

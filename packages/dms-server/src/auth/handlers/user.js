@@ -7,8 +7,7 @@ const { verifyAndGetUserData } = require('./auth');
 const q = require('../utils/queries');
 const { hashPassword } = require('../utils/crypto');
 const {
-  AUTH_USERS, authority, canManageGroupIn, coversProjects, groupProjects, levelCoversGroup,
-  levelOutranks, platformAuthority, levelsCount, noteLevelPass, levelRule,
+  AUTH_USERS, authority, canManageGroupIn, coversProjects, groupProjects, platformAuthority,
 } = require('../utils/permissions');
 
 // Task permissions-auth-users-and-signup: each check runs in transition form, `auth-users` on the
@@ -41,30 +40,12 @@ async function getUsers(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, body.token);
   const a = await usersAuthority(db, userData, body, ctx, 5);
 
-  // Get the requesting user's max auth level per project
-  const { rows: userProjects } = await db.query(
-    `SELECT project_name, MAX(auth_level) AS auth_level
-     FROM users_in_groups AS uig
-     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
-     WHERE user_email = $1
-     GROUP BY 1`,
-    [userData.email]
-  );
-  const projectAuth = {};
-  for (const { project_name, auth_level } of userProjects) {
-    projectAuth[project_name] = auth_level;
-  }
-
   // Get all users with their groups
   const { rows: allUsers } = await db.query(
     'SELECT email, id, created_at FROM users ORDER BY email'
   );
 
-  // Filter: exclude users who belong to a group in a project where
-  // that group's auth_level exceeds the requesting user's auth level
-  // Level visibility counts only where levels do (levelsCount: not under enforce).
-  const levels = levelsCount(a);
-  let levelOnly = false;
+  // auth-users on the named auth row: the users of that project
   const visible = [];
   for (const user of allUsers) {
     const { rows: userGroupProjects } = await db.query(
@@ -74,13 +55,7 @@ async function getUsers(db, body, ctx) {
        WHERE uig.user_email = $1`,
       [user.email]
     );
-    const byPerm = a.byPermission && userGroupProjects.some(({ project_name }) => project_name === a.project);
-    const byLevel = levels && userGroupProjects.every(({ project_name, auth_level }) => {
-      const myLevel = projectAuth[project_name];
-      return myLevel !== undefined && myLevel >= auth_level;
-    });
-    if (byLevel && !byPerm) levelOnly = true;
-    if (byPerm || byLevel) {
+    if (a.byPermission && userGroupProjects.some(({ project_name }) => project_name === a.project)) {
       // Get groups and projects for this user
       const { rows: groups } = await db.query(
         'SELECT DISTINCT group_name FROM users_in_groups WHERE user_email = $1',
@@ -100,8 +75,6 @@ async function getUsers(db, body, ctx) {
       });
     }
   }
-  if (levelOnly) noteLevelPass(a, `${AUTH_USERS}: list users`);
-
   return visible;
 }
 
@@ -111,42 +84,17 @@ async function getUsersByGroup(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, token);
   const a = await usersAuthority(db, userData, body, ctx, 5);
 
-  // Get requesting user's auth levels
-  const { rows: userProjects } = await db.query(
-    `SELECT project_name, MAX(auth_level) AS auth_level
-     FROM users_in_groups AS uig
-     INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
-     WHERE user_email = $1
-     GROUP BY 1`,
-    [userData.email]
-  );
-  const projectAuth = {};
-  for (const { project_name, auth_level } of userProjects) {
-    projectAuth[project_name] = auth_level;
-  }
-
   // Get users in specified groups
   const result = await q.getUsersByGroup(db, groups);
 
-  // Filter by authority: only show users in groups whose auth_level <=  user's level
-  const levels = levelsCount(a);
-  let levelOnly = false;
   const filtered = [];
   for (const row of result.rows) {
     const { rows: gipRows } = await db.query(
       'SELECT project_name, auth_level FROM groups_in_projects WHERE group_name = $1',
       [row.group_name]
     );
-    const byPerm = a.byPermission && gipRows.some(({ project_name }) => project_name === a.project);
-    const byLevel = levels && gipRows.every(({ project_name, auth_level }) => {
-      const myLevel = projectAuth[project_name];
-      return myLevel !== undefined && myLevel >= auth_level;
-    });
-    if (byLevel && !byPerm) levelOnly = true;
-    if (byPerm || byLevel) filtered.push(row);
+    if (a.byPermission && gipRows.some(({ project_name }) => project_name === a.project)) filtered.push(row);
   }
-  if (levelOnly) noteLevelPass(a, `${AUTH_USERS}: list users by group`);
-
   return filtered;
 }
 
@@ -243,17 +191,13 @@ async function deleteUser(db, body, ctx) {
      WHERE uig.user_email = $1`,
     [user_email]
   );
-  // `auth-users` in EVERY project the target belongs to — the grant-based form of the rule that
-  // compares auth levels, and the only one that survives `enforce`. Deleting a user reaches into
-  // all of them. The level rule below is the deprecated fallback (`levelsCount` drops it under
-  // `enforce`), kept so grants can be filled in under `log` first.
+  // `auth-users` in EVERY project the target belongs to: deleting a user reaches into all of them.
   const targetProjects = (await db.query(
     `SELECT DISTINCT gip.project_name FROM users_in_groups AS uig
      INNER JOIN groups_in_projects AS gip ON uig.group_name = gip.group_name
      WHERE uig.user_email = $1`, [user_email])).rows.map(r => r.project_name);
   if (!+(targetHasProject?.count || 0)
-    || !(await coversProjects(db, userData, ctx, targetProjects, AUTH_USERS)
-      || await levelRule(a, `${AUTH_USERS}: delete ${user_email}`, () => levelOutranks(db, userData.email, user_email)))) {
+    || !(await coversProjects(db, userData, ctx, targetProjects, AUTH_USERS))) {
     throw new Error(`You do not have the authority to delete user ${user_email}.`);
   }
 
@@ -266,15 +210,15 @@ async function deleteUser(db, body, ctx) {
  * an account other sites may use. Strips the user's own grants from every row of the site (patterns,
  * pages, internal sources; through the DMS controller, so they're logged and synced), then removes them
  * from every group linked to the project, shared groups included (the plan names the other projects
- * those serve, for the confirm dialog). External-source grants are listed, not changed (`pgEnvs`: the
- * site's DAMA envs, a client setting). The account stays. Its preview is /user/project/remove/plan
+ * those serve, for the confirm dialog). A pgEnv's sources are rows of the site too (their mirrors), so
+ * the site's grants over them are stripped with the rest. The account stays. Its preview is /user/project/remove/plan
  * (planRemoveFromProject, reads only); a destructive route never takes a preview flag.
  *
  * Grants first, memberships last: two databases, no shared transaction, and a retry after a partial
  * failure finds the user still a member and finishes the job.
  */
 async function planUserLeavesSite(db, body, ctx) {
-  const { token, user_email, pgEnvs = [] } = body;
+  const { token, user_email } = body;
   const userData = await verifyAndGetUserData(db, token);
   const a = await usersAuthority(db, userData, body, ctx, Infinity);
   if (!a.project) throw new Error('Name the site (app) to remove the user from.');
@@ -289,8 +233,7 @@ async function planUserLeavesSite(db, body, ctx) {
   const groups = groupRows.map(r => r.group_name);
   for (const g of groups) {
     const ok = (a.byPermission && await canManageGroupIn(db, a.user, g, a.scope))
-      || await coversProjects(db, userData, ctx, await groupProjects(db, g), AUTH_USERS)
-      || await levelRule(a, `${AUTH_USERS}: remove ${user_email} from ${g}`, () => levelCoversGroup(db, userData.email, g));
+      || await coversProjects(db, userData, ctx, await groupProjects(db, g), AUTH_USERS);
     if (!ok) throw new Error(`You do not have the authority to remove ${user_email} from ${a.project}.`);
   }
 
@@ -303,10 +246,9 @@ async function planUserLeavesSite(db, body, ctx) {
   if (!ctx.siteGrants) throw new Error('Site grants are unavailable.');
   const who = { users: target.id };
   const { grants, skipped } = await ctx.siteGrants.listSiteGrants(a.project, who);
-  const externalSources = await ctx.siteGrants.listExternalGrants(pgEnvs, who);
   const plan = {
     user_email, project: a.project, groups, sharedGroups,
-    siteGrants: grants.map(({ id, type }) => ({ id, type })), skippedGrants: skipped, externalSources,
+    siteGrants: grants.map(({ id, type }) => ({ id, type })), skippedGrants: skipped,
   };
   return { plan, actor: { id: userData.id, email: userData.email }, who };
 }
@@ -357,14 +299,12 @@ async function getUsersPreferences(db, body, ctx) {
   const userData = await verifyAndGetUserData(db, token);
   const a = await usersAuthority(db, userData, body, ctx, Infinity);
 
-  // Own preferences always; another user's with auth-users (they're in the project) or today's rank
-  // rule (the caller's level ≥ theirs in every project they're in).
+  // Own preferences always; another user's with auth-users (they're in the project, or in every project they belong to).
   const results = [];
   for (const email of (userEmails || [])) {
     const visible = email === userData.email
       || (a.byPermission && await inProject(db, email, a.project))
-      || await coversProjects(db, userData, ctx, await userProjectNames(db, email), AUTH_USERS)
-      || await levelRule(a, `${AUTH_USERS}: read preferences of ${email}`, () => levelOutranks(db, userData.email, email));
+      || await coversProjects(db, userData, ctx, await userProjectNames(db, email), AUTH_USERS);
     if (!visible) continue;
     const { rows } = await db.query(
       'SELECT user_email, preferences FROM user_preferences WHERE user_email = $1',
@@ -387,15 +327,13 @@ async function getUsersPreferences(db, body, ctx) {
 
 /**
  * Membership changes (owner 2026-10-25: `auth-users` only): `auth-users` on the named auth row + the
- * group manageable from it, or the level rule. Throws when neither passes.
+ * group manageable from it. Throws when it does not pass.
  */
 async function checkGroupAuthority(db, userData, group_name, body, ctx) {
   const a = await usersAuthority(db, userData, body, ctx, Infinity);
   if (a.byPermission && await canManageGroupIn(db, a.user, group_name, a.scope)) return;
-  // `auth-groups`/`auth-users` in every project the group belongs to — the grant-based form of the
-  // level rule below, and the only one `enforce` keeps.
+  // or `auth-users` in every project the group belongs to
   if (await coversProjects(db, userData, ctx, await groupProjects(db, group_name), AUTH_USERS)) return;
-  if (await levelRule(a, `${AUTH_USERS}: members of ${group_name}`, () => levelCoversGroup(db, userData.email, group_name))) return;
   throw new Error(`You do not have the authority to manage group ${group_name}.`);
 }
 

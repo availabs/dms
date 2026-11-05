@@ -17,7 +17,7 @@
  * The geometry view is PostgreSQL only — requires PostGIS.
  */
 
-const { authorize } = require('../../routes/auth');
+const { canRead } = require('../../routes/auth');
 const { getSubdomain } = require('../../utils/subdomain');
 const { getDb } = require('../../db');
 const { getEssentials } = require('../../routes/uda/utils');
@@ -304,7 +304,7 @@ async function allowJoinRead(joinRaw, pgEnv, user, subdomain) {
   let join;
   try { join = JSON.parse(joinRaw); } catch { return true; } // the route answers 400 for bad JSON
   if (!join || join.viewId == null) return true;
-  return (await authorize({ env: pgEnv, viewId: join.viewId, verb: 'read', user, subdomain, kind: 'tiles', logOnly: true })).allow;
+  return await canRead({ env: pgEnv, viewId: join.viewId, user, subdomain, kind: 'tiles', mode: 'log' });
 }
 
 async function serveTile(req, res) {
@@ -324,10 +324,10 @@ async function serveTile(req, res) {
   // exempt from `enforce`. MapLibre fetches tiles without the token, so every tile request reads as
   // anonymous and enforcing would blank editors' maps of private sources. Would-denies still log
   // (kind `tiles`). To enforce later, send identity with tile requests (e.g. a short-lived token added
-  // in AvlMap's transformRequest) and drop `logOnly` here: read-visibility task, "Tiles".
+  // in AvlMap's transformRequest) and drop `mode: 'log'` here: read-visibility task, "Tiles".
   const user = (req.availAuthContext && req.availAuthContext.user) || null;
   const subdomain = req.headers ? getSubdomain(req) : '';
-  const readable = (await authorize({ env: pgEnv, viewId: view_id, verb: 'read', user, subdomain, kind: 'tiles', logOnly: true })).allow
+  const readable = await canRead({ env: pgEnv, viewId: view_id, user, subdomain, kind: 'tiles', mode: 'log' })
     && (!joinRaw || await allowJoinRead(joinRaw, pgEnv, user, subdomain));
   if (!readable) return res.status(204).send();
 

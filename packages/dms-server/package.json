@@ -25,7 +25,6 @@
     "test:auth": "node tests/test-auth.js",
     "test:source-auth": "node tests/test-source-auth.js",
     "test:data-auth": "node tests/test-data-auth.js",
-    "test:blank-audit": "node tests/test-permissions-blank-audit.js",
     "test:access-log": "node tests/test-access-log.js",
     "test:pg:start": "node tests/postgres-docker.js start",
     "test:pg:stop": "node tests/postgres-docker.js stop",

@@ -13,9 +13,8 @@
  *   only that entry changes. Grants that aren't a well-formed `{ groups, users }` of arrays are never
  *   rewritten: a row naming the user / group in such grants, or under a key its kind doesn't read, is
  *   returned in `skipped` with the reason.
- * - External sources (DAMA pgEnvs) are only listed, never written (owner): nothing in the db links a
- *   site to its pgEnvs (a client build setting), so the client names them, and other sites may use
- *   the same sources.
+ * - A pgEnv's sources are rows of the site too (their MIRRORS, dama/mirror.js), holding the site's own
+ *   grants over them: stripped like any other row. Nothing is listed or written in the pgEnv.
  */
 
 const { getKind } = require('../../db/type-utils');
@@ -140,10 +139,8 @@ function planRow(row, data, who, opts) {
 /**
  * @param {object} opts
  * @param {() => object} opts.getController - the DMS controller (dms.controller createController)
- * @param {(pgEnv: string) => object} [opts.getDamaDb] - a DAMA pgEnv's db adapter; throws for an unknown
- *   or non-dama env
  */
-function createSiteGrants({ getController, getDamaDb }) {
+function createSiteGrants({ getController }) {
   /**
    * Rows of `app` that grant `who` something: `{ grants: [{ id, type, patch, expect }], skipped:
    * [{ id, type, reason }] }`.
@@ -190,31 +187,7 @@ function createSiteGrants({ getController, getDamaDb }) {
     return { written, skipped };
   }
 
-  /** External sources in `pgEnvs` that grant `who` something: `[{ pgEnv, source_id, name }]`. */
-  async function listExternalGrants(pgEnvs, who) {
-    const out = [];
-    if (!getDamaDb) return out;
-    const [map, key] = whoEntry(who);
-    for (const pgEnv of [...new Set(pgEnvs || [])]) {
-      let db;
-      try { db = getDamaDb(pgEnv); } catch { out.push({ pgEnv, error: 'unknown pgEnv' }); continue; }
-      const table = db.type === 'postgres' ? 'data_manager.sources' : 'sources';
-      const { rows } = await db.query(
-        `SELECT source_id, name, auth_permissions FROM ${table} WHERE auth_permissions IS NOT NULL`);
-      for (const r of rows) {
-        const g = readGrants(r.auth_permissions);
-        if (g.malformed) {
-          if (mentions(r.auth_permissions, who)) out.push({ pgEnv, source_id: r.source_id, name: r.name, malformed: g.malformed });
-          continue;
-        }
-        if (g.empty) continue;
-        if (Object.values(g.entries).some(e => e[map] && key in e[map])) out.push({ pgEnv, source_id: r.source_id, name: r.name });
-      }
-    }
-    return out;
-  }
-
-  return { listSiteGrants, stripSiteGrants, listExternalGrants };
+  return { listSiteGrants, stripSiteGrants };
 }
 
 module.exports = { createSiteGrants, stripEntry, readGrants, isWellFormedGrant, planRow };

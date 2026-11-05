@@ -35,14 +35,14 @@ point at before starting a server or a script with defaults; on some machines th
 
 ## Permissions rollout
 
-**Two flags, and no more.** There used to be eight — one mode per guard and one implementation
-switch per surface — which meant no single setting said what the server would do. They were
-consolidated on 2026-11-03, and the `legacy` value went with them: `log` already gives the old
-answer, and additionally says what it would have refused. `DMS_AUTH_IMPL` (`kind` | `row`) was the
-last of the pair and went on 2026-11-04 with row auth itself — there is one set of rules now, so
-there is nothing to select between. **`DMS_AUTH_MODE` is the only auth variable.** Background:
-`planning/tasks/current/auth-levels-to-permissions.md` and
-`planning/tasks/current/unified-auth-api.md`. The settings themselves: `routes/auth/settings.js`.
+**One flag.** `DMS_AUTH_MODE` is the only auth variable (`routes/auth/settings.js`). Every decision is
+made by `routes/auth` `authorize` (pure) and turned into an allow or a refusal by `applyMode`
+(`report.js`), the one place a refusal is logged. Two things a call site may say about itself, because
+the history is real: DMS reads were enforced before the mode existed and stay so (`mode: 'enforce'`);
+vector tiles never enforce (`mode: 'log'`); and the surfaces that enforced a source's own grants before
+the mode existed — the external-source UDA writes, the auth-row handlers — are `strict`: under `log`
+they refuse everything but what the blank-row rule alone refuses. Background:
+`planning/tasks/current/auth-layer-simplification.md`.
 
 | Variable | Default | What it does |
 |---|---|---|
@@ -50,23 +50,23 @@ there is nothing to select between. **`DMS_AUTH_MODE` is the only auth variable.
 | `DMS_SYNC_AUTH` | unset | `1` requires a signed-in user on the sync endpoints (`/sync/*`). |
 | `DMS_CHILD_SWEEP_MODE` | `log` | Deleting child rows a page / pattern no longer lists: `off`, `log` (report only), `delete`. Flip to `delete` only after `migrate-row-auth.js --verify-parents` reports zero shared children. |
 
-### Auth levels under `DMS_AUTH_MODE`
+### Auth levels
 
-The auth handlers' **level** rules (a group's `auth_level` 0–10 standing in for a grant) are
-deprecated and follow the same flag: under `log` they still pass, and every level-only pass is
-recorded so the grant can be added first; under `enforce` no level rule lets anyone through and only
-a grant on the DMS auth object decides (`auth/utils/permissions.js` `levelsCount` / `levelRule`).
-`src/scripts/audit-auth-levels.js` and `src/scripts/migrate-auth-grants.js` are the pre-flight that
-converts an app's levels to grants.
+A group's `auth_level` (0–10) decides nothing (owner 2026-11-03; the level rules were deleted on
+2026-11-04). Only a grant on the site's auth pattern row (`auth-users`, `auth-groups`, `view-as`, `*`)
+or `${app} Admin` membership passes an auth handler. Levels stay in the auth DB and stay settable
+(`/group/project/adjust`, `*` on the auth row) because older servers read them;
+`src/scripts/audit-auth-levels.js` converts an app's levels to grants.
 
 ### Which rules the judge reads
 
 Each row kind's rule is authored in the client's format files (`rules` on a format object),
 collected at registration (`patterns/deriveAuthRules.js`) and stamped onto the row that carries it:
-the site row for the site-level kinds, the pattern row for the rest. `kindAuth/dataAuth.js`
-`ruleFor` reads the stamped rule first and falls back to the built-in copy
-(`kindAuth/authRules.js`) for rows stamped before it existed. There is no flag: the rules
-interpreter is the only judge, and the hand-written `switch` it replaced was deleted on 2026-11-03.
+the site row for the site-level kinds, the pattern row for the rest. `routes/auth/owners.js`
+`ruleFor` reads the stamped rule off the nearest ancestor that carries one and falls back to the
+built-in copy (`routes/auth/rules.js`) for rows stamped before it existed; `stamp-auth-rules.js`
+re-stamps every row after a change. There is no flag: the rules interpreter (`judge.js`) is the only
+judge.
 
 ## Access log
 

@@ -1,14 +1,13 @@
 /**
- * A pattern's declared vocabulary, interpreted by the server — routes/auth/authVocabulary.js. Since
- * 2026-11-03 the declaration is the ONLY answer to what a verb confers: the transitional
- * `legacyVerbs.js` shim that used to answer for undeclared rows is deleted.
+ * A pattern's declared vocabulary, interpreted by the server — routes/auth/vocabulary.js. The
+ * declaration is the only answer to which verb governs which field.
  *
  * Task: planning/tasks/current/row-auth-vocabulary.md.
  *
  * The rules under test:
  *   1. a declared vocabulary is read off the row, from `auth` or from `data`
- *   2. `implies` expansion keeps `self` and `descendants` apart, and `flat` is their union
- *   3. an undeclared verb confers nothing — same as a missing map, and it fails closed
+ *   2. the field claims keep `self` and `descendants` apart
+ *   3. a field nobody claims is reported, never silently granted
  *
  * ⚠ THE CHAIN-RESOLUTION HALF OF THIS SUITE WENT WITH ROW AUTH (2026-11-04): `mapsForChain`,
  * `resolve`, `authOf` and `rawAuthOf` were `rowAuth/rowAuth.js`, which only the row gate read.
@@ -18,7 +17,7 @@
  * Run: node tests/test-auth-vocabulary.js
  */
 const assert = require('assert');
-const { vocabularyOf, impliesMaps, expandWithVocabulary } = require('../src/routes/auth/authVocabulary');
+const { vocabularyOf, fieldMaps, verbsForFields, publicReadOf } = require('../src/routes/auth/vocabulary');
 
 let pass = 0, fail = 0;
 const cases = [];
@@ -61,57 +60,50 @@ t('garbage is null, never an error', () => {
 // `rawAuthOf` stripping `vocabulary` out of the `auth` column, and a vocabulary-only row still
 // counting as unstated, were tested here. Both lived in the deleted `rowAuth/` tree (2026-11-04).
 
-section('impliesMaps — three maps, and the flat one is the union');
-t('self and descendants stay separate', () => {
-    const m = impliesMaps(VOCAB);
-    assert.deepStrictEqual(m.self['tune-widget'], ['read', 'edit']);
-    assert.strictEqual(m.self['peek-gizmo'], undefined);
-    assert.deepStrictEqual(m.descendants['peek-gizmo'], ['read']);
-    assert.strictEqual(m.descendants['tune-widget'], undefined);
+section('fieldMaps / verbsForFields — which verbs an edit needs, read from the declaration');
+const FIELDS = {
+    self: [
+        { value: 'edit-pattern', implies: ['read', 'edit'], fields: ['*'] },
+        { value: 'edit-pattern-permissions', implies: ['read', 'edit', 'grant'], fields: ['authPermissions'] },
+    ],
+    descendants: [
+        { value: 'edit-page', implies: ['read', 'edit', 'delete'], fields: ['*', 'filters'] },
+        { value: 'edit-page-params', implies: ['read', 'edit'], fields: ['filters'] },
+        { value: 'publish-page', implies: ['read', 'edit'], fields: ['sections'], when: [{ field: 'published', notValue: 'draft' }] },
+        { value: 'view-page', implies: ['read'] },
+    ],
+};
+t('scopes stay apart: a page edit reads descendants, a pattern edit reads self', () => {
+    const m = fieldMaps(FIELDS);
+    assert.deepStrictEqual(verbsForFields(['title'], m, {}, 'descendants').groups, [['edit-page']]);
+    assert.deepStrictEqual(verbsForFields(['title'], m, {}, 'self').groups, [['edit-pattern']]);
 });
-t('flat is both, because a flat grant has always meant both', () => {
-    const m = impliesMaps(VOCAB);
-    assert.deepStrictEqual(m.flat['tune-widget'], ['read', 'edit']);
-    assert.deepStrictEqual(m.flat['peek-gizmo'], ['read']);
+t('two fields need a verb EACH; two verbs on one field mean EITHER', () => {
+    const m = fieldMaps(FIELDS);
+    assert.deepStrictEqual(verbsForFields(['title', 'sections'], m, {}, 'descendants').groups, [['edit-page'], ['publish-page']]);
+    assert.deepStrictEqual(verbsForFields(['filters'], m, {}, 'descendants').groups, [['edit-page', 'edit-page-params']]);
+});
+t('a `when` claim applies only when the write says so (published ≠ draft)', () => {
+    const m = fieldMaps(FIELDS);
+    assert.deepStrictEqual(verbsForFields(['published'], m, { published: 'live' }, 'descendants').groups, [['publish-page']]);
+    assert.deepStrictEqual(verbsForFields(['published'], m, { published: 'draft' }, 'descendants').groups, [['edit-page']]);
+});
+t('a key nobody claims is reported uncovered; no keys at all means any field verb', () => {
+    const m = fieldMaps({ descendants: [{ value: 'tune', implies: [], fields: ['knob'] }] });
+    assert.deepStrictEqual(verbsForFields(['other'], m, {}, 'descendants'), { groups: [], covered: [] });
+    assert.deepStrictEqual(verbsForFields([], fieldMaps(FIELDS), {}, 'descendants').groups, [['edit-page', 'edit-page-params', 'publish-page']]);
 });
 t('a vocabulary declaring nothing usable is null, so the caller falls back', () => {
-    assert.strictEqual(impliesMaps({}), null);
-    assert.strictEqual(impliesMaps({ self: 'nope' }), null);
-    assert.strictEqual(impliesMaps(null), null);
+    assert.strictEqual(fieldMaps({}), null);
+    assert.strictEqual(fieldMaps({ self: 'nope' }), null);
+    assert.strictEqual(fieldMaps(null), null);
+    assert.deepStrictEqual(verbsForFields(['x'], null), { groups: [], covered: [] });
 });
-
-section('expandWithVocabulary — scope is enforced, not decorative');
-t('a flat grant expands against the union', () => {
-    const out = expandWithVocabulary({ groups: { A: ['peek-gizmo'], B: ['tune-widget'] } }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.groups.A, ['peek-gizmo', 'read']);
-    assert.deepStrictEqual(out.groups.B, ['tune-widget', 'read', 'edit']);
+t('publicReadOf reads the declaration off the row', () => {
+    assert.strictEqual(publicReadOf({ data: { authVocabulary: { ...VOCAB, publicRead: true } } }), true);
+    assert.strictEqual(publicReadOf({ data: { authVocabulary: VOCAB } }), false);
+    assert.strictEqual(publicReadOf({ data: { authVocabulary: { ...VOCAB, publicRead: 'yes' } } }), false);
 });
-t('a descendants-only verb confers NOTHING inside a self grant', () => {
-    const out = expandWithVocabulary({ self: { groups: { A: ['peek-gizmo'] } } }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.self.groups.A, ['peek-gizmo']);          // no `read` added
-});
-t('…and the same verb under descendants does confer', () => {
-    const out = expandWithVocabulary({ descendants: { groups: { A: ['peek-gizmo'] } } }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.descendants.groups.A, ['peek-gizmo', 'read']);
-});
-t('an UNDECLARED verb confers nothing (rule 3)', () => {
-    const out = expandWithVocabulary({ groups: { A: ['invent-a-verb'] } }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.groups.A, ['invent-a-verb']);
-});
-t('a declared verb with implies: [] confers nothing, and that is a DECISION not a gap', () => {
-    const out = expandWithVocabulary({ groups: { A: ['ponder-gizmo'] } }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.groups.A, ['ponder-gizmo']);
-});
-t('`*` is left alone — expanding it would freeze today\'s verb list into the data', () => {
-    const out = expandWithVocabulary({ groups: { A: ['*'] } }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.groups.A, ['*']);
-});
-t('`otherwise` expands too', () => {
-    const out = expandWithVocabulary({ groups: {}, otherwise: ['peek-gizmo'] }, impliesMaps(VOCAB));
-    assert.deepStrictEqual(out.otherwise, ['peek-gizmo', 'read']);
-});
-t('no maps → untouched, never an error', () =>
-    assert.deepStrictEqual(expandWithVocabulary({ groups: { A: ['peek-gizmo'] } }, null).groups.A, ['peek-gizmo']));
 
 section('the capability probe, against a REAL sqlite database');
 t('a migrated sqlite table reports its columns — and the projection carries the vocabulary in `auth`', async () => {

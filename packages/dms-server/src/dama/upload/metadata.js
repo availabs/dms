@@ -6,6 +6,9 @@
 const { getDb } = require('../../db');
 const { nameToSlug } = require('../../db/type-utils');
 const { normalizeProducedBy, assertViewsExist, parseDependencies } = require('../lineage');
+// Every source and view is mirrored as a DMS row of each site that uses the pgEnv (dama/mirror.js):
+// the hooks below run after the insert (after the caller's transaction commits, when there is one).
+const mirror = require('../mirror');
 
 const DEFAULT_SCHEMA = 'gis_datasets';
 
@@ -141,6 +144,7 @@ async function createDamaSource(values, pgEnv) {
           statisticsJson, metadataJson, categoriesJson, authPermissionsJson]);
       if (savepoint) await db.query('RELEASE SAVEPOINT dama_create_source');
 
+      await mirror.afterWrite(db, () => mirror.mirrorSource(pgEnv, rows[0]));
       return rows[0];
     } catch (err) {
       if (savepoint) await db.query('ROLLBACK TO SAVEPOINT dama_create_source');
@@ -254,6 +258,7 @@ async function createDamaView(values, pgEnv) {
   view.table_name = tableName;
   view.data_table = `${DEFAULT_SCHEMA}.${tableName}`;
 
+  await mirror.afterWrite(db, () => mirror.mirrorView(pgEnv, view));
   return view;
 }
 

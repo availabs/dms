@@ -1,6 +1,9 @@
 # A unified auth API: verbs in the rows, one merge function
 
-**Status:** proposal · **Written by:** amuro@albany.edu (with Claude) · **Date:** 2026-11-03
+**Status:** superseded on 2026-11-04 by the build in
+[auth-layer-simplification.md](../planning/tasks/current/auth-layer-simplification.md) — the judge
+stayed kind auth's interpreter and the "one walk" became its owner lookup (`routes/auth/owners.js`);
+the structural-verb merge described below was not built · **Written by:** amuro@albany.edu (with Claude) · **Date:** 2026-11-03
 **Context:** [row-auth-uda-unify-api.md](../planning/tasks/current/row-auth-uda-unify-api.md) (Slices A–P),
 [server-side-auth-general.md](../planning/tasks/current/server-side-auth-general.md) (hub)
 

@@ -11,7 +11,7 @@ const projectRoutes = require('./routes/project.routes');
 const messageRoutes = require('./routes/message.routes');
 const preferencesRoutes = require('./routes/preferences.routes');
 const { tokenCache } = require('./jwt');
-const { createAuthGrants } = require('./utils/permissions');
+const { createSiteAuth } = require('./utils/permissions');
 const { createSiteGrants } = require('./utils/siteGrants');
 const { getSubdomain } = require('../utils/subdomain');
 
@@ -51,30 +51,30 @@ const getDmsController = () => {
   }
   return dmsController;
 };
-const loadPatternRows = (dmsApp) => getDmsController().getPatternRows(dmsApp);
+// The site row's own grants, for the auth handlers' verbs (auth-users, auth-groups, view-as): one walk,
+// the same `site` position every rule reads (routes/auth/owners.js).
+const loadSiteGrants = async (dmsApp, subdomain) => {
+  const { appSnapshot, grantsAt } = require('../routes/auth/owners');
+  const snap = await appSnapshot(dmsApp);
+  return snap.site ? grantsAt(snap, snap.site, 'site', { subdomain }) : null;
+};
 
 // A DAMA pgEnv's db, for listing external-source grants; only configs with the dama role.
-const getDamaDb = (pgEnv) => {
-  const { getDb, loadConfig } = require('../db');
-  const role = loadConfig(pgEnv).role;
-  if (!(Array.isArray(role) ? role : [role]).includes('dama')) throw new Error(`${pgEnv} is not a DAMA env`);
-  return getDb(pgEnv);
-};
 
 /**
  * Register all auth routes with the Express app.
- * Handlers are called as handler(authDb, body, ctx); ctx = { subdomain, authGrants, siteGrants }
+ * Handlers are called as handler(authDb, body, ctx); ctx = { subdomain, siteAuth, siteGrants }
  * (auth/utils/permissions.js, auth/utils/siteGrants.js).
  * @param {Object} app - Express app instance
  * @param {Object} db - Database adapter for auth database
  * @param {string} [basePath=''] - URL prefix for all auth routes (e.g. '/auth')
  * @param {Object} [options]
- * @param {Function} [options.loadPatternRows] - (app) => the app's DMS pattern rows; tests pass their own
+ * @param {Function} [options.loadSiteGrants] - (app, subdomain) => the site row's grants; tests pass their own
  * @param {Object} [options.siteGrants] - createSiteGrants() result; tests pass their own
  */
 function registerAuthRoutes(app, db, basePath = '', options = {}) {
-  const authGrants = createAuthGrants({ loadPatternRows: options.loadPatternRows || loadPatternRows });
-  const siteGrants = options.siteGrants || createSiteGrants({ getController: getDmsController, getDamaDb });
+  const siteAuth = createSiteAuth({ loadSiteGrants: options.loadSiteGrants || loadSiteGrants });
+  const siteGrants = options.siteGrants || createSiteGrants({ getController: getDmsController });
   for (const { route, method, handler } of allRoutes) {
     const fullRoute = basePath + route;
 
@@ -83,7 +83,7 @@ function registerAuthRoutes(app, db, basePath = '', options = {}) {
 // console.log("dms-server/auth::req.clientIp", req.clientIp);
 
       try {
-        const result = await handler(db, { ...req.body, clientIp: req.clientIp }, { subdomain: getSubdomain(req), authGrants, siteGrants });
+        const result = await handler(db, { ...req.body, clientIp: req.clientIp }, { subdomain: getSubdomain(req), siteAuth, siteGrants });
         afterAuthCall(route, result);
         res.json(typeof result === 'string' ? { message: result } : result);
       } catch (e) {

@@ -12,7 +12,7 @@ const { join } = require('path');
 const { readFileSync, mkdtempSync, rmSync } = require('fs');
 const os = require('os');
 const { SqliteAdapter } = require('../src/db/adapters/sqlite');
-const { createAuthGrants, isPlatformAdmin } = require('../src/auth/utils/permissions');
+const { createSiteAuth, isPlatformAdmin } = require('../src/auth/utils/permissions');
 const { hashPassword, createUserToken } = require('../src/auth/utils/crypto');
 const q = require('../src/auth/utils/queries');
 const projectH = require('../src/auth/handlers/project');
@@ -33,11 +33,11 @@ const refused = async (p, re = /authority/) => {
   assert.ok(re.test(err.message), err.message);
 };
 
-const ROWS = {
-  siteA: [{ id: 10, data: { pattern_type: 'auth', authPermissions: { groups: { UserMgrs: ['auth-users'], GroupMgrs: ['auth-groups'], public: [] }, users: {} } } }],
+const GRANTS = {
+  siteA: { groups: { UserMgrs: ['auth-users'], GroupMgrs: ['auth-groups'], public: [] }, users: {} },
 };
-const A = { app: 'siteA', authPatternId: 10 };
-const ctx = { subdomain: '', authGrants: createAuthGrants({ loadPatternRows: async (app) => ROWS[app] || [] }) };
+const A = { app: 'siteA' };
+const ctx = { subdomain: '', siteAuth: createSiteAuth({ loadSiteGrants: async (app) => GRANTS[app] || null }) };
 
 // group → [project, level][]. AVAIL is seeded by the schema (avail_auth, level 10); setup unlinks it so
 // membership is tested on its own, and `Old Platform` keeps the level path.
@@ -154,18 +154,18 @@ async function main() {
     await refused(post('umgr@t', { type: 'group', target: 'siteA Admin', project: 'siteA', heading: 'g2', ...A }));
     await refused(post('umgr@t', { type: 'group', target: 'Viewers', project: 'siteA', heading: 'g3' }), /authority/); // no auth row named
   });
-  await t('to a group: the level rule still applies (transition)', async () => {
-    await post('viewer@t', { type: 'group', target: 'Viewers', project: 'siteA', heading: 'g4' });
+  await t('to a group: a level alone sends nothing', async () => {
+    await refused(post('viewer@t', { type: 'group', target: 'Viewers', project: 'siteA', heading: 'g4' }));
     await refused(post('viewer@t', { type: 'group', target: 'Editors', project: 'siteA', heading: 'g5' }));
   });
-  await t('to a project: auth-users on its auth row, or the highest level in it', async () => {
+  await t('to a project: auth-users on its auth row', async () => {
     await post('umgr@t', { type: 'project', project: 'siteA', heading: 'p1', ...A });
     assert.ok((await inbox('target@t')).includes('p1'));
     await refused(post('gmgr@t', { type: 'project', project: 'siteA', heading: 'p2', ...A }));
     await refused(post('viewer@t', { type: 'project', project: 'siteA', heading: 'p3' }));
   });
-  await t('to a project whose groups are all level 0: found (was "not found")', async () => {
-    await post('c0@t', { type: 'project', project: 'siteC', heading: 'p4' });
+  await t('to a project with no auth row named: refused', async () => {
+    await refused(post('c0@t', { type: 'project', project: 'siteC', heading: 'p4' }));
   });
   await t('to all: AVAIL members only', async () => {
     await refused(post('old10@t', { type: 'all', heading: 'a1' }));

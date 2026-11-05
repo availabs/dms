@@ -193,17 +193,39 @@ Current debt, so this reads as a standard and not an aspiration:
 | Location | Violation |
 |---|---|
 | `render/spa/utils/index.js` | seven `pattern_type === 'admin' / 'auth' / 'datasets'` checks in the router |
-| `utils/adminPermissions.js` | `permissionOptionsFor` switches on pattern type to pick a vocabulary |
-| `dms-server/routes/dms/dataAuth.js` | `judge()` — a `switch` over eleven row kinds, each with hand-written rules |
-| `dms-server/auth/utils/permissions.js` | auth-row rules keyed by type name |
+| `dms-server/routes/auth/owners.js` | `parentOf` prefers, among same-named patterns, the one that is not `admin` / `auth` (a tie-break by name until every page carries `parent_id`); `patternRow` / `requirePatternAction` skip the `admin` / `auth` rows by name |
+| `dms-server/routes/auth/rules.js` | the built-in copy of the formats' rules, for rows stamped before the formats carried them — deleted once `stamp-auth-rules.js` has run everywhere |
+| `dms-server/auth/utils/permissions.js` | the auth-row handlers judge with their own `can()` over the named auth row rather than through `authorize` |
 
 ### Auth is the live case
 
-Authorization is where this matters most right now, because getting it wrong is silent. A hardcoded
-`judge()` means a pattern with new auth rules cannot be deployed without a library release, and — far
-worse — a kind nobody added a `case` for falls through to a default. **The default must be
-inheritance, never permission.** An unrecognised row resolves through its parent; it is never "signed
-in is enough", which silently opens every pattern the library has not been taught about.
+Authorization is where this matters most, because getting it wrong is silent. The server's judge
+(`dms-server/src/routes/auth/judge.js`) is an interpreter over each row kind's rule, authored in the
+formats (`rules`) beside the `permissionDomain` and stamped on the pattern / site row; which rows'
+grants govern a row is a position on its ancestry (`owners.js`: `self`, `parent`, `ancestor:<kind>`,
+`site`), walked over `parent_id` and the type path. A pattern type with new verbs or new rules deploys
+with no server change. **The default must be inheritance, never permission.** A kind with no rule is
+refused on write unless signed in, and a kind with no `read` op is open on read — both written in
+`rules.js`, never a `case` in code.
+
+#### Ownership and grants: the three rules
+
+How patterns, formats and rows fit together so that the auth layer stays one walk and one judge
+(owner, 2026-11-05; `planning/tasks/current/auth-grants-on-the-owner-row.md`):
+
+1. **A row's parent is named by its type path, or by a reference from a parent inside that path's
+   container.** `chenango|page` belongs to the pattern `chenango` by path. A component belongs to the
+   page whose `sections` lists it, by reference: a `dms-format` attribute on the parent, stamped as
+   `parent_id` when the parent is saved. Two ways to say "belongs to", both first-class. When both
+   apply, the reference is the nearer and wins; a reference to a row outside the container is refused
+   (`routes/dms/parentId.js`).
+2. **A rule's owner positions are resolved by walking those parents.** `self`, `parent`,
+   `ancestor:<kind>`, `site`, or a list spread in order. The judge never names a kind or a pattern
+   type. (`patterns:<type>` was such a position and is gone; a datasets pattern's grants live on the
+   env row it points at, which IS the sources' parent.)
+3. **A verb is granted on the row that owns its subject.** Site-level verbs — the pattern list, themes,
+   tenants, and the auth verbs over users and groups, which are not rows — go on the site row. A pattern
+   row holds the verbs over itself and its own rows, nothing else.
 
 Two kinds of knowledge get hardcoded in auth, and each already has a data home:
 

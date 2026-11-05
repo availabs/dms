@@ -1,6 +1,6 @@
 # Re-stamp auth rules on existing rows after a rules change
 
-**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** waiting (triggered by any change to the auth rules or vocabulary) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next (triggered 2026-11-04: the rules changed) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
@@ -45,3 +45,17 @@ the same backfill, by hand.
 ## Progress
 
 - 2026-11-03: task filed; fingerprint test added to `authRules.sync.test.js`. Nothing to backfill yet.
+- 2026-11-04: **triggered.** The rules gained `read` ops and the owner positions
+  ([auth-layer-simplification.md](./auth-layer-simplification.md)); fingerprint now `af9a55587bf44903`.
+  The backfill is written: `packages/dms/scripts/emit-auth-vocabulary.mjs` emits rules beside the
+  vocabulary (`rules` per type, `:site.rules` for the site-level kinds), and
+  `dms-server/src/scripts/stamp-auth-rules.js --db <config> --app <app> --manifest <file> [--apply]`
+  stamps `data.authRules`, the vocabulary and `childRefs` on the site, pattern and env rows (dry run
+  by default, idempotent). **To run on every site, by the owner.** Until then the server reads rows
+  stamped with the old owner names (they still resolve), takes the built-in `read` op for a stamped
+  rule without one, and reads an unstamped `auth` / `admin` pattern as public by its type name
+  (`owners.js` `undeclaredPublicRead`, with a warning). After the run: delete `routes/auth/rules.js`,
+  the fallback in `ruleFor`, and `undeclaredPublicRead`.
+- 2026-11-05: **superseded in direction.** The owner chose to store the declarations server-side instead of
+  re-stamping rows: [format-declarations-server-side.md](./format-declarations-server-side.md). The manifest and
+  stamp script stay usable until that lands; this task closes when it does.

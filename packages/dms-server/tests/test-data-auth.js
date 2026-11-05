@@ -12,6 +12,19 @@ const assert = require('assert');
 const { createTestGraph } = require('./graph');
 const { dmsMainTable } = require('../src/routes/uda/utils');
 const { resolveTable } = require('../src/db/table-resolver');
+const owners = require('../src/routes/auth/owners');
+
+// Run `race()` once (or every time, `every`) right after the auth layer has read the rows it judges by —
+// a concurrent edit landing between the check and the write.
+async function duringJudge(race, body, { every = false } = {}) {
+    const orig = owners.snapshotFor; let fired = false, inRace = false;
+    owners.snapshotFor = async (...a) => {
+        const r = await orig(...a);
+        if (!inRace && (every || !fired)) { fired = true; inRace = true; try { await race(); } finally { inRace = false; } }
+        return r;
+    };
+    try { return await body(); } finally { owners.snapshotFor = orig; }
+}
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -59,7 +72,7 @@ async function run() {
     const tbl = await dmsMainTable(dms, APP, 'per-app');
     // fixtures go through the create route (as the app admin, under legacy): it allocates ids the way
     // the server does
-    const insert = (type, data) => withMode('legacy', async () => {
+    const insert = (type, data) => withMode('log', async () => {
         const res = await call(admin, ['dms', 'data', 'create'], [APP, type, data]);
         return +Object.keys(res.jsonGraph.dms.data.byId)[0];
     });
@@ -200,17 +213,16 @@ async function run() {
         auth_permissions: { groups: { public: ['edit-source-data'] } },
     });
     // The env declares for the sources beneath it and grants nothing — admin.format.js dmsEnvFormat.
+    // The env holds the grants over its sources (rule 3: the datasets pattern is not their ancestor).
     const envRow = await insert('site|env1:dmsenv', {
         sources: [{ id: roads }, { id: tickets }],
         authVocabulary: { descendants: DATASETS_DESCENDANTS },
-    });
-    await insert('site|ds:pattern', {
-        pattern_type: 'datasets', dmsEnvId: envRow, authVocabulary: DATASETS_VOCAB,
         authPermissions: { groups: {
             DsEditors: ['update-source', 'edit-source-data', 'create-view', 'create-source'],
             SrcPerms: ['edit-source-permissions'],
         } },
     });
+    await insert('site|ds:pattern', { pattern_type: 'datasets', dmsEnvId: envRow, authVocabulary: DATASETS_VOCAB });
     const ROAD_ROWS = `roads|${viewId}:data`;
     const TICKET_ROWS = `tickets|1:data`;
     for (const user of [anon, stranger, editor, publisher, pageAdmin, patEditor, themer, creator, dsEditor, admin, paramsUser, srcPerms, lister, tenanter]) await as(user).ready;
@@ -257,35 +269,29 @@ async function run() {
         assert.strictEqual((await dataOf(openPage)).data.title, 'Open page');
     }));
     await t('a blank row: a public grant still opens the edit, a page grant does too', () => withMode('enforce', async () => {
-        await withMode('legacy', () => edit(admin, openPage, { authPermissions: { groups: { public: ['edit-page'] } } }));
+        await withMode('log', () => edit(admin, openPage, { authPermissions: { groups: { public: ['edit-page'] } } }));
         await allowed(edit(stranger, openPage, { title: 'public grant' }));
-        await withMode('legacy', () => edit(admin, openPage, { authPermissions: { users: { [stranger.id]: ['edit-page'] } } }));
+        await withMode('log', () => edit(admin, openPage, { authPermissions: { users: { [stranger.id]: ['edit-page'] } } }));
         await allowed(edit(stranger, openPage, { title: 'own grant' }));
-        await withMode('legacy', () => edit(admin, openPage, { authPermissions: null, title: 'Open page' }));
+        await withMode('log', () => edit(admin, openPage, { authPermissions: null, title: 'Open page' }));
     }));
     await t('log: a blank-row edit is allowed and its would-deny line says `blank row`', () => withMode('log', async (warned) => {
         await allowed(edit(stranger, openPage, { title: 'logged' }));
         assert.strictEqual(warned.length, 1, warned.join('\n'));
         assert.match(warned[0], /would-deny edit .* user=10 .*missing edit-page; blank row/);
-        await withMode('legacy', () => edit(admin, openPage, { title: 'Open page' }));
+        await withMode('log', () => edit(admin, openPage, { title: 'Open page' }));
     }));
 
     await t('race (falcor edit): a page grant revoked between the check and the write refuses the edit', () => withMode('enforce', async () => {
         // the stranger can edit this page only through a page-level grant
-        await withMode('legacy', () => edit(admin, openPage, { authPermissions: { groups: { Editors: ['edit-page'] } } }));
-        await withMode('legacy', () => edit(admin, docsPage, { authPermissions: { users: { [stranger.id]: ['edit-page'] } } }));
-        const ctl = as(stranger).controller; const orig = ctl.getPatternRows; let fired = false;
-        ctl.getPatternRows = async (...a) => {
-            if (!fired) { fired = true; await withMode('legacy', () => edit(admin, docsPage, { authPermissions: { users: { [stranger.id]: [] } } })); }
-            return orig(...a);
-        };
-        try {
-            // read under the grant; the write's transaction sees the row changed, so it is judged again
-            await refused(edit(stranger, docsPage, { title: 'after revoke' }));
-        } finally { ctl.getPatternRows = orig; }
+        await withMode('log', () => edit(admin, openPage, { authPermissions: { groups: { Editors: ['edit-page'] } } }));
+        await withMode('log', () => edit(admin, docsPage, { authPermissions: { users: { [stranger.id]: ['edit-page'] } } }));
+        // read under the grant; the write's transaction sees the row changed, so it is judged again
+        await duringJudge(() => withMode('log', () => edit(admin, docsPage, { authPermissions: { users: { [stranger.id]: [] } } })),
+            () => refused(edit(stranger, docsPage, { title: 'after revoke' })));
         assert.notStrictEqual((await dataOf(docsPage)).data.title, 'after revoke');
-        await withMode('legacy', () => edit(admin, docsPage, { authPermissions: null }));
-        await withMode('legacy', () => edit(admin, openPage, { authPermissions: null }));
+        await withMode('log', () => edit(admin, docsPage, { authPermissions: null }));
+        await withMode('log', () => edit(admin, openPage, { authPermissions: null }));
     }));
     await t('a judged edit of a row that does not exist still writes nothing (no retry loop)', () => withMode('enforce', async () => {
         const res = await outcome(edit(admin, 99999999, { title: 'ghost' }));
@@ -351,20 +357,25 @@ async function run() {
         await refused(edit(themer, siteRow, { tenants: [{ name: 'acme' }] }));
         await allowed(edit(tenanter, siteRow, { tenants: [{ name: 'acme' }] }));
     }));
-    await t('site dms_envs take DATASETS grants, not site `*` — the one cross-owner key', () => withMode('enforce', async () => {
-        // The only clause in the rules that reads a different owner for one key: registering a
-        // dmsEnv on the site row is a datasets action (create-source / edit-pattern), with site `*`
-        // as the alternative. A site editor without either is refused.
+    await t('site dms_envs need create-pattern: an env is made where a pattern is made', () => withMode('enforce', async () => {
         await refused(edit(themer, siteRow, { dms_envs: [{ id: 1 }] }));
-        await allowed(edit(dsEditor, siteRow, { dms_envs: [{ id: 1 }] }));
+        await refused(edit(dsEditor, siteRow, { dms_envs: [{ id: 1 }] }));
+        await allowed(edit(creator, siteRow, { dms_envs: [{ id: 1 }] }));
     }));
     await t('a tenant row needs manage-tenants', () => withMode('enforce', async () => {
         await refused(create(themer, 'site|acme:tenant', { name: 'acme' }));
         await allowed(create(tenanter, 'site|acme:tenant', { name: 'acme' }));
     }));
-    await t('a dmsenv row needs create-source, delete-source or edit-pattern on the datasets pattern', () => withMode('enforce', async () => {
+    await t('a dmsenv row is created by whoever may create a pattern; edited by its managers (create-source / delete-source on it)', () => withMode('enforce', async () => {
         await refused(create(srcPerms, 'site|env2:dmsenv', { sources: [] }));
-        await allowed(create(dsEditor, 'site|env2:dmsenv', { sources: [] }));
+        await refused(create(dsEditor, 'site|env2:dmsenv', { sources: [] }));
+        await allowed(create(creator, 'site|env2:dmsenv', { sources: [] }));
+        await refused(edit(srcPerms, envRow, { name: 'renamed' }));
+        await allowed(edit(dsEditor, envRow, { name: 'renamed' }));
+        // its grants: edit-source-permissions on the env itself
+        await refused(edit(dsEditor, envRow, { authPermissions: { groups: { DsEditors: ['*'] } } }));
+        const { data } = await dataOf(envRow);
+        await allowed(edit(srcPerms, envRow, { authPermissions: data.authPermissions }));
     }));
     await t('a source edit touching ONLY `views` widens to create-view / delete-source', () => withMode('enforce', async () => {
         // `onlyKeys`: adding or removing a version through the source's `views` list is not an
@@ -437,7 +448,7 @@ async function run() {
     }));
     await t('Delete Version (internal): needs delete-source; the cascade drops the view from the source', () => withMode('enforce', async () => {
         const doomed = await insert('roads|v9:view', { name: 'v9' });
-        await withMode('legacy', () => edit(admin, roads, { views: [{ id: viewId }, { id: doomed }] }));
+        await withMode('log', () => edit(admin, roads, { views: [{ id: viewId }, { id: doomed }] }));
         await refused(call(dsEditor, ['dms', 'data', 'delete'], [APP, 'roads|v9:view', doomed]));
         await allowed(call(admin, ['dms', 'data', 'delete'], [APP, 'roads|v9:view', doomed]));
         const views = (await dataOf(roads)).data.views.map(v => +v.id);
@@ -532,7 +543,7 @@ async function run() {
             assert.strictEqual(r.status, 403, r.body);
         }));
         await t('I onto an existing row replaces it: keys it leaves out are judged as removed', () => withMode('enforce', async () => {
-            await withMode('legacy', () => edit(admin, docsPage, { sections: [{ id: 1 }], authPermissions: { groups: { Editors: ['edit-page'] } } }));
+            await withMode('log', () => edit(admin, docsPage, { sections: [{ id: 1 }], authPermissions: { groups: { Editors: ['edit-page'] } } }));
             const r = await push(editor, { action: 'I', item: { app: APP, type: 'docs|page', id: docsPage, data: { title: 'wiped' } } });
             assert.strictEqual(r.status, 403, `dropping sections + authPermissions needs publish-page / edit-page-permissions: ${r.body}`);
             const { data } = await dataOf(docsPage);
@@ -554,36 +565,30 @@ async function run() {
             assert.strictEqual(data.updated_by, undefined);
         }));
         await t('race (sync I replace): a change between the check and the write is not reverted', () => withMode('enforce', async () => {
-            await withMode('legacy', () => edit(admin, docsPage, { sections: [{ id: 1 }] }));
+            await withMode('log', () => edit(admin, docsPage, { sections: [{ id: 1 }] }));
             const { data } = await dataOf(docsPage);
             // someone publishes new sections while the editor's save is being judged
-            const ctl = syncRouter.controller; const orig = ctl.getPatternRows; let fired = false;
-            ctl.getPatternRows = async (...a) => {
-                if (!fired) { fired = true; await withMode('legacy', () => edit(admin, docsPage, { sections: [{ id: 2 }] })); }
-                return orig(...a);
-            };
-            try {
-                // whole row as the editor last saw it (old sections) + a new title: a plain replace
-                // would put sections [1] back; judged again on the changed row, it removes [2] → publish-page
+            // whole row as the editor last saw it (old sections) + a new title: a plain replace
+            // would put sections [1] back; judged again on the changed row, it removes [2] → publish-page
+            await duringJudge(() => withMode('log', () => edit(admin, docsPage, { sections: [{ id: 2 }] })), async () => {
                 const r = await push(editor, { action: 'I', item: { app: APP, type: 'docs|page', id: docsPage, data: { ...data, title: 'race' } } });
                 assert.strictEqual(r.status, 403, r.body);
-            } finally { ctl.getPatternRows = orig; }
+            });
             assert.deepStrictEqual((await dataOf(docsPage)).data.sections, [{ id: 2 }]);
         }));
         await t('race (sync U): a row that keeps changing gives up with 409 after 3 tries', () => withMode('enforce', async () => {
-            const ctl = syncRouter.controller; const orig = ctl.getPatternRows; let n = 0;
-            ctl.getPatternRows = async (...a) => { await withMode('legacy', () => edit(admin, docsPage, { title: `moving ${++n}` })); return orig(...a); };
-            try {
+            let n = 0;
+            await duringJudge(() => withMode('log', () => edit(admin, docsPage, { title: `moving ${++n}` })), async () => {
                 const r = await push(editor, { action: 'U', item: { app: APP, type: 'docs|page', id: docsPage, data: { description: 'x' } } });
                 assert.strictEqual(r.status, 409, r.body);
                 assert.strictEqual(n, 3);
-            } finally { ctl.getPatternRows = orig; }
+            }, { every: true });
             assert.strictEqual((await dataOf(docsPage)).data.description, undefined, 'nothing written');
         }));
         await t('D of a view through sync cascades like dms.data.delete (the ref leaves the source)', () => withMode('enforce', async () => {
             const doomed = await insert('roads|v8:view', { name: 'v8' });
             const before = (await dataOf(roads)).data.views;
-            await withMode('legacy', () => edit(admin, roads, { views: [...before, { id: doomed }] }));
+            await withMode('log', () => edit(admin, roads, { views: [...before, { id: doomed }] }));
             assert.strictEqual((await push(dsEditor, { action: 'D', item: { app: APP, type: '', id: doomed } })).status, 403);
             assert.strictEqual((await push(admin, { action: 'D', item: { app: APP, type: '', id: doomed } })).status, 200);
             assert.deepStrictEqual((await dataOf(roads)).data.views.map(v => +v.id), before.map(v => +v.id));
@@ -622,7 +627,7 @@ async function run() {
     // unioned app-wide, so this needs its own app) and none on the source. Read-only, as a blank page is.
     console.log('\nblank datasets rows (own app: no datasets grants anywhere):');
     const APP2 = `${APP}_blank`;
-    const insert2 = (type, data) => withMode('legacy', async () => {
+    const insert2 = (type, data) => withMode('log', async () => {
         const res = await call(admin2, ['dms', 'data', 'create'], [APP2, type, data]);
         return +Object.keys(res.jsonGraph.dms.data.byId)[0];
     });
@@ -656,12 +661,12 @@ async function run() {
         warned.forEach(w => assert.match(w, /would-deny create .*user=10 .*blank row/));
     }));
     await t('a source grant opens its view and data rows again', () => withMode('enforce', async () => {
-        await withMode('legacy', () => call2(admin2, [bSource, { auth_permissions: { users: { [stranger.id]: ['create-view', 'edit-source-data'] } } }], 'edit'));
+        await withMode('log', () => call2(admin2, [bSource, { auth_permissions: { users: { [stranger.id]: ['create-view', 'edit-source-data'] } } }], 'edit'));
         try {
             await allowed(call2(stranger, ['lakes|v4:view', { name: 'v4' }]));
             await allowed(call2(stranger, [B_ROWS, { a: 6 }]));
         } finally {
-            await withMode('legacy', () => call2(admin2, [bSource, { auth_permissions: null }], 'edit'));
+            await withMode('log', () => call2(admin2, [bSource, { auth_permissions: null }], 'edit'));
         }
     }));
 
@@ -713,7 +718,7 @@ async function run() {
     await t('log allows a refused write and logs one would-deny line', () => withMode('log', async (warned) => {
         await allowed(edit(stranger, docsPage, { title: 'by stranger' }));
         assert.strictEqual(warned.length, 1, warned.join('\n'));
-        assert.match(warned[0], /\[data-auth\] would-deny edit .* user=10 .*missing edit-page/);
+        assert.match(warned[0], /\[auth\] would-deny edit page .* user=10 .*missing edit-page/);
     }));
     await t('log is silent for a granted write', () => withMode('log', async (warned) => {
         await allowed(edit(editor, docsPage, { title: 'ok' }));

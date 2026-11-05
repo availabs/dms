@@ -11,9 +11,8 @@
  * It still ASKS auth a question (`holdsOnSource`), which is the right direction: a route asks
  * whether the caller holds a permission, then shapes what it sends back.
  */
-const { authorize } = require('../auth');
-const { authMode } = require('../auth/settings');
-const { parseJson } = require('../auth/sourceSnapshot');
+const { authorize, authMode } = require('../auth');
+const { parseJson } = require('../auth/grants');
 
 /** Who may see the full grant list, and who may see secrets in `statistics`. */
 const GRANT_EDITORS = ['edit-source-permissions', 'update-source'];
@@ -52,14 +51,15 @@ function dropSecrets(raw) {
  * A source row's attributes as this reader may see them: secrets dropped for non-updaters (`log` and
  * `enforce`), grants trimmed for non-editors (`enforce`). Mutates and returns `row`.
  */
-async function redactSourceRow({ env, sourceId, row, user, subdomain = '', patternRef = null }) {
+async function redactSourceRow({ env, sourceId, row, user, subdomain = '', app = null }) {
     const mode = authMode();
+    const site = app || null;
     if (!row) return row;
-    if (row.statistics != null && !(await authorize({ env, sourceId, verb: SECRET_EDITORS, user, subdomain, patternRef, quiet: true })).allow) {
+    if (row.statistics != null && !(await authorize({ env, sourceId, verb: SECRET_EDITORS, user, subdomain, app: site })).allow) {
         row.statistics = dropSecrets(row.statistics);
     }
     if (mode === 'enforce' && row.auth_permissions != null
-        && !(await authorize({ env, sourceId, verb: GRANT_EDITORS, user, subdomain, patternRef, quiet: true })).allow) {
+        && !(await authorize({ env, sourceId, verb: GRANT_EDITORS, user, subdomain, app: site })).allow) {
         row.auth_permissions = trimGrants(row.auth_permissions, user);
     }
     return row;

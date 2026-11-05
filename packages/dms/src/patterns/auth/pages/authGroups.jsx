@@ -4,7 +4,7 @@ import {AuthContext} from "../context";
 import {callAuthServer} from "../api";
 import { useManagePageGate } from "./useManagePageGate";
 
-export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
+export default function AuthGroups ({ authPermissions = {} }) {
     const [groups, setGroups] = React.useState([]);
     const [searchGroup, setSearchGroup] = React.useState('');
     const [addingNew, setAddingNew] = React.useState(false);
@@ -66,7 +66,7 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
     // never from a flag on the destructive route (owner 2026-10-27: a server that doesn't know the flag
     // deletes). A server without the plan route 404s: the dialog says so and keeps the generic text.
     // Remove stays enabled with or without a plan; the plan informs, it never gates.
-    const removeRequest = (name, extra = {}) => ({ token: user.token, name, project: PROJECT_NAME, pgEnvs, ...extra });
+    const removeRequest = (name, extra = {}) => ({ token: user.token, name, project: PROJECT_NAME, ...extra });
     const openRemove = async (row) => {
         setRemoveGroup(row);
         setRemovePlan(null);
@@ -247,15 +247,6 @@ export default function AuthGroups ({ authPermissions = {}, pgEnvs = [] }) {
                                 <ul className={m.removeList}>
                                     {removePlan.skippedGrants.map(s =>
                                         <li key={s.id}>{s.type} #{s.id}: {s.reason}</li>)}
-                                </ul>
-                            </div>}
-                        {removePlan.externalSources?.length > 0 &&
-                            <div className={m.removeWarning}>
-                                It keeps its permissions on these external sources (other sites may use them); remove them
-                                from each source&apos;s Access tab:
-                                <ul className={m.removeList}>
-                                    {removePlan.externalSources.map(e =>
-                                        <li key={`${e.pgEnv}-${e.source_id}`}>{e.name || e.source_id} ({e.pgEnv}{e.error ? `: ${e.error}` : ''})</li>)}
                                 </ul>
                             </div>}
                     </>}
