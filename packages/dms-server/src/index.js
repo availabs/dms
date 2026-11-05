@@ -325,7 +325,7 @@ async function setupAndListen() {
   });
 
   // Task system — recover stalled tasks and start polling for all dama-role databases.
-  const { findConfigsByRole } = require('./db/config');
+  const { findConfigsByRole, isReadOnly } = require('./db/config');
   const damaEnvs = new Set(findConfigsByRole('dama'));
   if (process.env.DAMA_DB_ENV) damaEnvs.add(process.env.DAMA_DB_ENV);
 
@@ -340,8 +340,13 @@ async function setupAndListen() {
     }
     await awaitReady(); // wait for all inits to complete
 
+    // A read-only database never gets this server's jobs: recovering, claiming or firing them would write it.
+    const readOnlyEnvs = [...damaEnvs].filter(env => isReadOnly(env));
+    if (readOnlyEnvs.length) console.log(`[tasks] No task recovery, polling or schedules for read-only: ${readOnlyEnvs.join(', ')}`);
+
     const schedules = require('./dama/tasks/schedules');
     for (const env of damaEnvs) {
+      if (readOnlyEnvs.includes(env)) continue;
       try {
         await tasks.recoverStalledTasks(env);
         tasks.startPolling(env);

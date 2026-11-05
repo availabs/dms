@@ -108,6 +108,7 @@ DMS_TEST_DB=dms-postgres-test node tests/test-graph.js
 | test-sites.js | n/a | n/a | No DB: site hosting by `Host` (`src/sites/`) over HTTP, against a temp sites folder |
 | test-change-history.js | Yes | Yes | A dataset's `change_history` writes (`routes/dms/changeHistory.js`); via `DMS_TEST_DB` |
 | test-source-rules.js | No | Yes (PostGIS) | DAMA source rules (`dama/rules`): generated SQL, routes, triggers, publish re-apply. Needs PostGIS: `npm run test:pg:source-rules` sets `DMS_TEST_PG_IMAGE=postgis/postgis:16-3.4` |
+| test-dama-readonly.js | No | Yes | `"readOnly"` DAMA configs: config rules, no init, writes refused (pool, transactions, a worker's own client). Makes its own database and temp configs: `npm run test:pg:dama-readonly` |
 
 ## Test Graph Harness
 

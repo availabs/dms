@@ -344,6 +344,11 @@ function getDb(pgEnv) {
   // Initialize based on database role(s), tracking promises for awaitReady().
   // Run sequentially — SQLite can't handle concurrent transactions on the same connection.
   const initSequence = async () => {
+    if (config.readOnly) {
+      // loadConfig allows readOnly only on dama-only configs, so nothing below applies.
+      console.log(`dama init skipped for ${pgEnv}: read-only config`);
+      return;
+    }
     if (roles.includes("dama")) {
       try {
         await initDama(databases[pgEnv]);

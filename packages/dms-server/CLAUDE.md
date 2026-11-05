@@ -162,6 +162,7 @@ Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are requir
 | `filename` | sqlite only | path | Resolved relative to `src/db/configs/` if not absolute. |
 | `splitMode` | optional | `"legacy"` \| `"per-app"` | Per-config override of the global `DMS_SPLIT_MODE`. Only meaningful for `role: "dms"`. |
 | `clickhouse` | optional, dama | `{ host, port, user, password, database }` | Auxiliary read storage for large views. See "ClickHouse auxiliary storage" below. |
+| `readOnly` | optional, postgres dama-only | `true` \| `false` | The server reads this DAMA database but never changes it: no init or migrations, no task recovery, polling or schedule sweep, and every connection made from the config (pool, `getClient`, a worker's `getPostgresCredentials` client) starts read-only (`default_transaction_read_only=on`). For a second server, such as a preview stack, reading a shared DAMA database. A read-only database user is still the real guard. Test: `npm run test:pg:dama-readonly`. |
 
 If you see "relation `data_manager.sources` does not exist" against a brand-new pgEnv, check that the config has both `"type": "postgres"` and `"role": "dama"` set — `initDama` only runs when `role` resolves to (or contains) `"dama"`.
 
