@@ -63,9 +63,10 @@ In order:
 data and count only under `log` / `legacy`. Committed 2026-11-04: every auth handler that read a level directly now
 goes through `permissions.js` `levelRule` (refused under `enforce`, logged under `log`); platform = `AVAIL` only.
 **Next, in order:**
-1. Owner signs off the 5 auth-row grants in
-   [permissions-grant-migration-auth-rows.md](./permissions-grant-migration-auth-rows.md), then `--apply` for
-   `migrate-auth-grants.js`.
+1. **Release order (owner 2026-11-04): grants first, then client + server deployed together.** The 5 auth-row
+   grants are approved and `migrate-auth-grants.js --plan / --apply` is built and rig-tested (uncommitted):
+   next a read-only `--plan` on prod, then the owner's go-ahead to `--apply`
+   ([rows file](./permissions-grant-migration-auth-rows.md), "Applying").
 2. Datasets half of task 18: 14 npmrds2 sources with old levels and no grants
    (`migrate-source-auth-to-permissions.js`, dry run first); hazmit_dama's 716 checked against their grants;
    other pgEnvs.

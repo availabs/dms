@@ -40,6 +40,11 @@ this migration must grant before `DMS_AUTH_ROW_MODE=enforce`.
     have it), `DHSES` (mitigat-ny-prod, already) and `NYSDOT Admin` (npmrdsv5), which settles 4. **Next:** owner
     signs off the 5 grants in the rows file, then build `--apply`; then the datasets half (14 npmrds2 sources with
     old levels and no grants; hazmit_dama's 716 unchecked against their grants; other pgEnvs not checked).
+  - **2026-11-04: release order decided (owner): grants first, then client + server deployed together.** Owner
+    approved the 5 grants. `--plan` / `--apply` built in `migrate-auth-grants.js` (details in the rows file,
+    "Applying"). Tested on a Postgres rig (Docker :5499 + scratch server :3459, `scratchpad/srv3459/`): string
+    format kept, stray key refused, re-run a no-op, backups written; unit tests `test-migrate-auth-grants.js` 15.
+    **Not run on prod.** Next: read-only `--plan` on prod, then the owner's go-ahead for `--apply`.
   - ~~Open, for the owner before any apply~~ (kept for the record):
     1. Granting `auth-groups` makes a group *protected* (`isProtectedGroup`), so only `*` holders could change it.
        On mitigat-ny-prod all 65 county groups would become protected and no county admin could manage any of

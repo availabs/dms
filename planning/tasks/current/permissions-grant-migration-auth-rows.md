@@ -1,6 +1,6 @@
 # Grant migration: every auth row, every group, and the decision for each
 
-**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** review (owner verifies before any change) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** doing (owner approved the 5 grants 2026-11-04; prod write needs its own go-ahead) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 Companion to [permissions-grant-migration.md](./permissions-grant-migration.md). Read-only dry run of
 2026-11-03 (`dms-server/src/scripts/migrate-auth-grants.js --dms-db=dms-sqlite --auth-db=auth-sqlite`, dms3 +
@@ -26,6 +26,30 @@ decision.
 
 So the whole auth-row change is **5 grants**: `AVAIL` `*` on asm, avail, dms-site and wcdb, and `NYSDOT Admin`
 `*` on npmrdsv5.
+
+## Applying (2026-11-04)
+
+**Order (owner 2026-11-04): grants first, then client and server deploy together.** While master is still live,
+master's server ignores auth-row grants (level-only), and master's client Users/Groups page gate
+(`useManagePageGate` → `isUserAuthed`) admits only grant holders once a row has a grant, with **no
+`${app} Admin` pass by name**. So until the deploy, the `wcdb Admin` members who aren't in `AVAIL` lose the
+Users / Groups pages on wcdb (their server calls still pass by level). The admin pages are unaffected: master's
+`adminPermissions.js` passes `${app} Admin` by name. Doing it the other way round (deploy first) would leave the
+4 blank rows open to any project member under `log` (`permissions.js` `can()` → `isUserAuthedOpen`).
+
+```
+# read-only, prints before → after for each approved grant
+node src/scripts/migrate-auth-grants.js --dms-db=<config> --auth-db=<config> --plan
+# writes through the server (dms CLI raw update), one row at a time, stops at the first problem
+DMS_HOST=<server serving that DB> DMS_AUTH_TOKEN=<token> \
+  node src/scripts/migrate-auth-grants.js --dms-db=<config> --auth-db=<config> --apply --backup-dir=<dir>
+```
+
+The approved list is fixed in the script (`APPROVED`), each with the grants the row must hold today. A row that
+differs is refused (e.g. a stray `undefined Admin` key; 10-24 notes say wcdb had one, the 11-03 dry run saw
+none: `--plan` settles it). The row's format is kept, the result validated, the row saved to `<dir>` before the
+write, and read back from the DB after. To undo a row: `dms raw update <id> --app <app> --data
+'{"authPermissions": <the backup's db.ap>}'` (`null` for a row that had none).
 
 ## Where else auth levels still decide something
 
