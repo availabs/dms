@@ -1,9 +1,16 @@
 # Sites middleware: serve a preview slot's build at the slot's hosts
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** deploy — committed locally 2026-10-30; reaches mercury with a server deploy · **Created by:** rdubowsky@albany.edu · **Edited by:** rdubowsky@albany.edu
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** dropped · **Created by:** rdubowsky@albany.edu · **Edited by:** rdubowsky@albany.edu
+
+> **Removed 2026-11-06.** This was built 2026-10-30 and reached mercury with the 2026-11-02 server deploy. dms-template
+> then replaced preview slots with preview stacks: each preview is its own dms-server, serving its own `site.json`. So
+> the sites middleware's `previews.json` support, and its 11 tests, were taken out again: `src/sites/index.js` is
+> back to sites only, and `npm run test:sites` passes 30/30.
+> - It takes effect on mercury with the next server deploy. After that, delete mercury's `devtny/previews.json`.
+> - The record is in [preview-stacks.md](../../../../../planning/shared/tasks/current/preview-stacks.md), step 7.
 
 Library half of dms-template's
-[preview-slots.md](../../../../../planning/shared/tasks/current/preview-slots.md), which holds the design, the scope
+[preview-slots.md](../../../../../planning/shared/tasks/completed/preview-slots.md), which holds the design, the scope
 and why. Builds on [serve-sites-by-host.md](../completed/serve-sites-by-host.md).
 
 ## Objective

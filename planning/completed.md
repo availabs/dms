@@ -77,6 +77,7 @@
 
 ## dms-server
 
+- [sites-preview-slots.md](./tasks/completed/sites-preview-slots.md) - Sites middleware served preview slots from `<site>/previews.json` (built 2026-10-30, deployed 2026-11-02); **dropped and removed 2026-11-06** when dms-template replaced slots with preview stacks: `src/sites/index.js` serves sites only again, and its 11 slot tests went with it (`test:sites` 30/30) (2026-11-06)
 - [serve-sites-by-host.md](./tasks/completed/serve-sites-by-host.md) - dms-server serves each site's built client files by request `Host`, from the `<checkout>-sites` folder next to the checkout (files, `index.html` fallback, `_redirects`, security headers, `X-Site-Build`), replacing Netlify. Merged in `cee73df2` (#6); serving weatherenterprise.com, devtny.org and transportny.org on mercury (2026-10-30)
 - [uda-filter-expr-alias-where.md](./tasks/completed/uda-filter-expr-alias-where.md) - UDA: filtering on an `expr as alias` column no longer errors ("syntax error at or near as"); sibling filters' option lists and the reacting sections strip the alias in WHERE. Committed and deployed by the owner (2026-10-13)
 - [uda-feature-id-vs-row-key.md](./tasks/completed/uda-feature-id-vs-row-key.md) - UDA: map popups look rows up by the tile feature id (`ogc_fid`), not the table's primary key, and the PK cache no longer poisons `id`. Production `dataById` confirmed returning the row after the owner's dms-server deploy (2026-10-13)

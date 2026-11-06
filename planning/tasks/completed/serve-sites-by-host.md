@@ -65,7 +65,7 @@ site request never reaches the API routes, the CORS/no-store middleware or the J
 
 Merged to library `master` on 2026-10-21 (`cee73df2`, "Deploy script changes (#6)"). On mercury it serves
 weatherenterprise.com, devtny.org (since 2026-10-26) and transportny.org (since 2026-10-27); the rollout is in
-dms-template's plan. Preview slots build on it: [sites-preview-slots.md](../current/sites-preview-slots.md).
+dms-template's plan. Preview slots build on it: [sites-preview-slots.md](./sites-preview-slots.md).
 
 
 - [x] `packages/dms-server/src/sites/index.js`: `createSitesMiddleware`, `parseRedirects`, `normalizeHost`.

@@ -47,14 +47,6 @@ function writeSite(name, config) {
   fs.renameSync(`${file}.tmp`, file);
 }
 
-function writePreviews(name, slots) {
-  const file = path.join(root, name, 'previews.json');
-  fs.writeFileSync(`${file}.tmp`, typeof slots === 'string' ? slots : JSON.stringify(slots));
-  fs.renameSync(`${file}.tmp`, file);
-}
-
-const inMs = ms => new Date(Date.now() + ms).toISOString();
-const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 function writeBuild(site, id, label, { redirects } = {}) {
   const dir = `${site}/builds/${id}/client`;
@@ -236,83 +228,6 @@ async function run() {
     writeBuild('delta', 'b1', 'delta b1');
     writeSite('delta', { hosts: ['www.delta.test'], live: 'b1' });
     assert((await request('www.delta.test')).body.includes('delta b1'), 'delta not served');
-  });
-
-  console.log('\nPreview slots');
-  // alpha's own "*.alpha.test" also matches every slot host below, so each test shows the slot winning.
-  writeBuild('alpha', 'pr1', 'alpha preview 1');
-  writeBuild('alpha', 'pr2', 'alpha preview 2');
-  const slots = () => ({
-    p1: { hosts: ['*.p1.alpha.test'], build: 'pr1', expiresAt: inMs(3600e3), owner: 'someone', label: 'my-branch' },
-    p2: { hosts: ['p2.alpha.test', '*.p2.alpha.test'], build: null, expiresAt: null,
-          redirects: ['https://p2.alpha.test/*  https://www.p2.alpha.test/:splat  301!'] },
-    p3: { hosts: ['*.p3.alpha.test'], build: 'pr1', expiresAt: '2026-10-29T12:00:00.000Z' },
-  });
-  writePreviews('alpha', slots());
-  await test("a slot host serves the slot's build, and the site's own hosts still serve live", async () => {
-    const r = await request('www.p1.alpha.test');
-    assert(r.status === 200 && r.body.includes('alpha preview 1'), `got ${r.status} ${r.body}`);
-    assert(r.headers['x-site-build'] === 'pr1', `x-site-build ${r.headers['x-site-build']}`);
-    assert((await request('npmrds.p1.alpha.test')).body.includes('alpha preview 1'), 'any subdomain of the slot');
-    const live = await request('www.alpha.test');
-    assert(live.body.includes('alpha b1') && live.headers['x-site-build'] === 'b1', `live got ${live.body}`);
-  });
-  await test('a slot serves files and the index.html fallback like a live build', async () => {
-    const asset = await request('www.p1.alpha.test', '/assets/app-abc123.js');
-    assert(asset.status === 200 && asset.body.includes('alpha preview 1'), `asset got ${asset.status}`);
-    const deep = await request('www.p1.alpha.test', '/some/route');
-    assert(deep.status === 200 && deep.body.includes('alpha preview 1'), `deep got ${deep.status}`);
-    assert(deep.headers['x-frame-options'] === 'SAMEORIGIN', 'security headers');
-  });
-  await test('an empty slot answers 404, never the live build', async () => {
-    const r = await request('www.p2.alpha.test');
-    assert(r.status === 404 && r.body === 'This preview slot is empty.', `got ${r.status} ${r.body}`);
-    assert(!r.headers['x-site-build'], `x-site-build ${r.headers['x-site-build']}`);
-  });
-  await test('an expired slot answers 404 with its date, never the old build', async () => {
-    const r = await request('www.p3.alpha.test');
-    assert(r.status === 404 && r.body === 'This preview expired on 2026-10-29 12:00 UTC.', `got ${r.status} ${r.body}`);
-  });
-  await test('a slot stops serving when it expires, with no change to the file', async () => {
-    writePreviews('alpha', { ...slots(), p1: { ...slots().p1, expiresAt: inMs(300) } });
-    assert((await request('www.p1.alpha.test')).status === 200, 'not served before expiry');
-    await sleep(400);
-    const r = await request('www.p1.alpha.test');
-    assert(r.status === 404 && r.body.startsWith('This preview expired on'), `got ${r.status} ${r.body}`);
-  });
-  await test("a slot's redirects apply even while it's empty", async () => {
-    writePreviews('alpha', slots());
-    const r = await request('p2.alpha.test', '/a?x=1');
-    assert(r.status === 301 && r.headers.location === 'https://www.p2.alpha.test/a?x=1', `got ${r.status} ${r.headers.location}`);
-  });
-  await test('a new build in a slot is picked up without a restart', async () => {
-    writePreviews('alpha', { ...slots(), p1: { ...slots().p1, build: 'pr2' } });
-    const r = await request('www.p1.alpha.test');
-    assert(r.body.includes('alpha preview 2') && r.headers['x-site-build'] === 'pr2', `got ${r.body}`);
-  });
-  await test('an unreadable previews.json keeps the previous slots', async () => {
-    writePreviews('alpha', '{ not json');
-    assert((await request('www.p1.alpha.test')).body.includes('alpha preview 2'), 'slot dropped');
-  });
-  await test("a slot whose build is gone, or isn't a plain folder name, answers 404", async () => {
-    writePreviews('alpha', { ...slots(), p1: { ...slots().p1, build: 'pruned' }, p3: { ...slots().p3, build: '../../beta/builds/b1', expiresAt: null } });
-    const gone = await request('www.p1.alpha.test');
-    assert(gone.status === 404 && gone.body === "This preview's build is no longer on the server.", `got ${gone.status} ${gone.body}`);
-    const bad = await request('www.p3.alpha.test');
-    assert(bad.status === 404 && !bad.body.includes('beta'), `got ${bad.status} ${bad.body}`);
-  });
-  await test("an unreadable expiresAt serves the slot as empty", async () => {
-    writePreviews('alpha', { ...slots(), p1: { ...slots().p1, expiresAt: 'tomorrow' } });
-    const r = await request('www.p1.alpha.test');
-    assert(r.status === 404 && r.body === 'This preview slot is empty.', `got ${r.status} ${r.body}`);
-  });
-  await test("a slot host claimed twice is served by neither and doesn't fall through to the live build", async () => {
-    writePreviews('alpha', slots());
-    writeSite('beta', { hosts: ['www.beta.test', '*.p1.alpha.test'], live: 'b1' });
-    const r = await request('www.p1.alpha.test');
-    assert(r.status === 404 && !r.body.includes('alpha b1') && !r.body.includes('beta b1'), `got ${r.status} ${r.body}`);
-    writeSite('beta', { hosts: ['www.beta.test'], live: 'b1' });
-    assert((await request('www.p1.alpha.test')).body.includes('alpha preview 1'), 'slot back after the conflict is gone');
   });
 
   console.log('\nNo sites folder');

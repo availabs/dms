@@ -3,7 +3,7 @@
 **Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 Found 2026-10-29 while scoping dms-template's
-[preview-slots.md](../../../../../planning/shared/tasks/current/preview-slots.md).
+[preview-slots.md](../../../../../planning/shared/tasks/completed/preview-slots.md).
 
 ## Objective
 
