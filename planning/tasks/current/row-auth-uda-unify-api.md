@@ -1497,3 +1497,9 @@ The other `row-auth-*.md` tasks in `tasks/current/` describe work that no longer
 `-uda`, `-production-cutover`). They have not been moved to `completed/` — that is a bookkeeping
 decision for the owner, since several also record findings about the surviving column work.
 `row-auth-parentage.md` and `row-auth-vocabulary.md` describe the parts that survived and stay.
+- 2026-11-07: `convert-grant-vocabulary.js` runs on a database without the `parent_id` / `auth` columns
+  (production has neither): the columns are selected only where they exist, the parent is the type path's
+  container otherwise (`owners.js parentOf`), the vocabulary is read from the `formats` table first
+  (`vocabularyAt`) and the stamp second, and only the four `data` keys the report reads are selected (the
+  whole `data` of 337k rows exhausted the heap). Found running it on `mitigat-ny-prod` for
+  dms-template's `planning/shared/tasks/current/auth-data-migration-dms-mercury-3.md`.

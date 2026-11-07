@@ -40,7 +40,8 @@
 const { loadConfig } = require('../db/config');
 const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
-const { resolveTable } = require('../db/table-resolver');
+const { resolveTable, resolveFormatsTable } = require('../db/table-resolver');
+const { getKind, getParent, getInstance } = require('../db/type-utils');
 const { vocabularyOf } = require('../routes/auth/vocabulary');
 
 /**
@@ -184,14 +185,58 @@ async function main() {
   console.log(`\nconvert grant vocabulary — ${o.apply ? 'APPLY (strips INERT verbs)' : 'DRY RUN'}`);
   console.log(`  db=${o.db}  app=${o.app}\n`);
 
-  const rows = await q(`SELECT id, type, parent_id, auth, data FROM ${T} WHERE app = $1`, [o.app]);
+  // The legacy `parent_id` / `auth` columns exist on databases that ran migrate-row-auth.js
+  // (`rowauth-test`), not on production (dms3, 2026-11-07): read them only where they are.
+  const cols = new Set((config.type === 'postgres'
+    ? await q(`SELECT column_name AS name FROM information_schema.columns WHERE table_schema = $1 AND table_name = $2`, [t.schema, t.table])
+    : await q(`PRAGMA table_info(${t.table})`)).map(c => c.name));
+  const optional = ['parent_id', 'auth'].filter(c => cols.has(c));
+  // Only the keys this report reads: the whole `data` of a 337k-row site (pages, sections) does not fit in
+  // the heap (2026-11-07, mitigat-ny-prod).
+  const DATA_KEYS = ['authPermissions', 'auth_permissions', 'pattern_type', 'authVocabulary'];
+  const dataExpr = config.type === 'postgres'
+    ? `jsonb_strip_nulls(jsonb_build_object(${DATA_KEYS.map(k => `'${k}', data->'${k}'`).join(', ')}))`
+    : `json_object(${DATA_KEYS.map(k => `'${k}', json_extract(data, '$.${k}')`).join(', ')})`;
+  const rows = await q(`SELECT id, type${optional.map(c => `, ${c}`).join('')}, ${dataExpr} AS data FROM ${T} WHERE app = $1`, [o.app]);
+  for (const r of rows) if (typeof r.data === 'string') { try { r.data = JSON.parse(r.data); } catch { r.data = {}; } }
   const byId = new Map(rows.map(r => [String(r.id), r]));
+  // The declared vocabularies, as the server reads them (routes/auth/formats.js index): by format key
+  // for a pattern row (`<pattern_type>+pattern`), by row kind otherwise; the stamp on the row answers
+  // for a kind the table says nothing about.
+  const fByKey = new Map(), fByKind = new Map();
+  try {
+    const f = resolveFormatsTable(o.app, config.type, config.splitMode);
+    const F = config.type === 'postgres' ? `"${f.schema}"."${f.table}"` : f.table;
+    for (const r of await q(`SELECT type, auth_vocabulary FROM ${F} WHERE app = $1`, [o.app])) {
+      const v = typeof r.auth_vocabulary === 'string' ? JSON.parse(r.auth_vocabulary) : r.auth_vocabulary;
+      if (!v) continue;
+      fByKey.set(r.type, v);
+      const kind = r.type.slice(r.type.indexOf('+') + 1);
+      if (kind !== 'pattern' && !fByKind.has(kind)) fByKind.set(kind, v);
+    }
+  } catch (e) { if (!/no such table|does not exist/i.test(e.message)) throw e; }
+  console.log(`  declared formats: ${fByKey.size} key(s) in the formats table${fByKey.size ? '' : ' (none registered: only stamped rows declare a vocabulary)'}`);
+  const vocabAt = (r) => {
+    const kind = getKind(r.type);
+    const f = kind === 'pattern' ? fByKey.get(`${(r.data || {}).pattern_type}+pattern`) : fByKind.get(kind);
+    return f || vocabularyOf({ auth: r.auth, data: r.data });
+  };
+  // The parent: `parent_id` where stamped, else the container the type path names (owners.js parentOf).
+  const byInstance = new Map();
+  for (const r of rows) { const i = getInstance(r.type); if (i) byInstance.set(i, [...(byInstance.get(i) || []), r]); }
+  const siteRow = rows.find(r => getKind(r.type) === 'site') || null;
+  const parentOf = (r) => {
+    if (r.parent_id != null && byId.has(String(r.parent_id))) return byId.get(String(r.parent_id));
+    const pk = getParent(r.type);
+    if (!pk) return getKind(r.type) === 'site' ? null : siteRow;
+    return (byInstance.get(pk) || []).find(x => x !== r && getKind(x.type) !== getKind(r.type)) || null;
+  };
   const mapsFor = (r) => {
     let cur = r;
     for (let d = 0; cur && d < 8; d++) {
-      const v = vocabularyOf({ auth: cur.auth, data: cur.data });
+      const v = vocabAt(cur);
       if (v) return impliesMaps(v);
-      cur = cur.parent_id != null ? byId.get(String(cur.parent_id)) : null;
+      cur = parentOf(cur);
     }
     return null;
   };
