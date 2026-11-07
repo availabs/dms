@@ -212,10 +212,10 @@ async function main() {
   // idempotent run that can report coverage, and it puts no write in a render path
   // (planning/tasks/current/row-auth-vocabulary.md).
   //
-  // The manifest comes from the CLIENT, because that is where the declaration lives and dms-server
-  // cannot read the pattern-type registry:
-  //
-  //     node packages/dms/scripts/emit-auth-vocabulary.mjs > vocab.json
+  // The manifest came from the CLIENT's `emit-auth-vocabulary.mjs` (`{ <type>: { vocabulary, childRefs } }`),
+  // which is gone: since 2026-11-06 the declarations live in the `formats` table (routes/auth/formats.js,
+  // written by scripts/register-formats.js) and the server reads them there before any stamp, so this
+  // pass is only for a manifest already on disk.
   //
   // Independent of the `auth`/`parent_id` columns — it writes `data`, so an unmigrated app can be
   // reconciled before, after, or without the backfill.
@@ -326,7 +326,7 @@ async function main() {
     const kinds = Object.keys(manifest).filter(k => k.startsWith(':'));
     console.log(`\n1b. row-kind vocabulary ← ${opts.vocabulary}`);
     if (!kinds.length) {
-      console.log('     manifest declares no row kinds — re-emit with a newer emit-auth-vocabulary.mjs');
+      console.log('     manifest declares no row kinds — register the declarations instead (scripts/register-formats.js)');
     }
     const intoAuth = caps.auth;
     for (const kind of kinds) {

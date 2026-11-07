@@ -1,9 +1,10 @@
 // Which of this pattern's rows OWN other rows, and through which attributes.
 //
 // The client already declares this per attribute — `type: 'dms-format'` in the format, which is
-// what `api/index.js` filters on to create child rows. But `dms-server` cannot read formats
-// (`dms.formats` holds no rows), so the pattern row carries a server-readable copy, exactly as it
-// does for `authVocabulary`.
+// what `api/index.js` filters on to create child rows. `dms-server` cannot read this registry, so it
+// is registered in the server's `formats` table (`page+pattern`.child_refs, see ../declarations.js
+// and dms-server's `scripts/register-formats.js`) and, for one more release, stamped on the pattern
+// row, exactly as `authVocabulary` is.
 //
 // Shape:  { [ownerKind]: { [attribute]: childKind } }
 //
@@ -19,7 +20,7 @@
 // is permissive in the wrong direction. Nothing in a type string says pages sit between patterns
 // and components; this declaration is how the server learns it without being taught any kind.
 //
-// PURE DATA — no imports (scripts/emit-auth-vocabulary.mjs loads it as a `data:` URL).
+// PURE DATA — no imports (scripts/emit-formats.mjs loads it as a `data:` URL).
 
 export const pageChildRefs = {
     page: {

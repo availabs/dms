@@ -136,6 +136,9 @@ app.use(createJwtMiddleware(authDbEnv));
 const { registerAccessLogRoutes } = require('./access-log');
 registerAccessLogRoutes(app, { authDbEnv });
 
+// Format declarations — what scripts/register-formats.js registered for a site, read-only (routes/auth/formats.js)
+require('./routes/auth/formats').registerFormatRoutes(app);
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 

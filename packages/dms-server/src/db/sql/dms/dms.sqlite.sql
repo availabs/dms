@@ -32,12 +32,16 @@ CREATE INDEX IF NOT EXISTS idx_data_items_tags
 CREATE INDEX IF NOT EXISTS idx_data_items_id
     ON data_items (id);
 
--- Formats table for storing format definitions
+-- Formats: one site's declarations of its row kinds, pushed from the client's pattern registry
+-- (POST /dms/formats, routes/auth/formats.js). See dms.sql for the key.
 CREATE TABLE IF NOT EXISTS formats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     app TEXT NOT NULL,
     type TEXT NOT NULL,
     attributes TEXT,
+    auth_vocabulary TEXT,
+    auth_rules TEXT,
+    child_refs TEXT,
     created_at TEXT DEFAULT (datetime('now')),
     updated_at TEXT DEFAULT (datetime('now')),
     UNIQUE(app, type)

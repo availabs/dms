@@ -95,13 +95,21 @@ CREATE INDEX IF NOT EXISTS idx_title
     ((data ->> 'title'::text) COLLATE pg_catalog."default" ASC NULLS LAST)
     TABLESPACE pg_default;
 
--- Formats table for storing format definitions
+-- Formats: one site's declarations of its row kinds, registered by scripts/register-formats.js
+-- (routes/auth/formats.js). This shared table serves LEGACY split mode; under per-app mode each
+-- site has its own `dms_<app>.formats` with this DDL, created on first use by
+-- db/table-resolver.js ensureFormatsTable. `app` is the SITE; `type` is the format's own key
+-- (`datasets+source`, `dms-site+page`) or `<pattern type>+pattern` for a pattern type's own
+-- declarations (vocabulary, childRefs). The auth layer reads rules and vocabulary from here.
 CREATE TABLE IF NOT EXISTS dms.formats
 (
     id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     app text NOT NULL,
     type text NOT NULL,
     attributes jsonb,
+    auth_vocabulary jsonb,
+    auth_rules jsonb,
+    child_refs jsonb,
     created_at timestamp with time zone DEFAULT now(),
     updated_at timestamp with time zone DEFAULT now(),
     UNIQUE(app, type)

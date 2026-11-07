@@ -10,8 +10,14 @@
  *
  *     snapshotFor(address)       → { snap, row }       the subject, with the rows above it loaded
  *     grantsAt(snap, row, pos)   → grants | null        pos: self | parent | ancestor:<kind> | site
- *     ruleFor(snap, row)         → the kind's rule      stamped on the nearest ancestor, else built in
+ *     ruleFor(snap, row)         → the kind's rule      declared in `formats` (formats.js), else the
+ *                                                       stamp on the nearest ancestor, else built in
  *     mapsFor(snap, row)         → { maps, scope, publicRead }
+ *
+ * A row kind's rule and vocabulary are what the site's client DECLARED for it: the `formats` table
+ * (formats.js, registered by scripts/register-formats.js), loaded with the snapshot as `snap.formats`.
+ * A row created before the registration carries a copy of the same declaration (`data.authRules`,
+ * `data.authVocabulary`), read only when the table says nothing about its kind.
  *
  * An EXTERNAL source (a pgEnv's `data_manager.sources` row) lives in another database, so it is
  * MIRRORED as a DMS row of each site that uses the pgEnv, parented to that site's `:dmsenv` row for it
@@ -27,6 +33,7 @@ const { dmsMainTable } = require('../uda/utils');
 const { getKind, getParent, getInstance } = require('#db/type-utils.js');
 const { parseJson, resolveAuthPermissions, scopeOf, hasGrants, mergeAuthPermissions } = require('./grants');
 const { vocabularyOf, fieldMaps } = require('./vocabulary');
+const { formatsFor } = require('./formats');
 const RULES = require('./rules');
 
 const TTL_MS = 30 * 1000;
@@ -83,8 +90,8 @@ function cached(key, load, fresh) {
   return promise;
 }
 
-function index(app, rows) {
-  const snap = { app, rows, byId: new Map(), byInstance: new Map(), external: new Map(), site: null };
+function index(app, rows, formats = null) {
+  const snap = { app, rows, formats, byId: new Map(), byInstance: new Map(), external: new Map(), site: null };
   for (const r of rows) {
     snap.byId.set(String(r.id), r);
     // a mirror of a pgEnv's source / view, addressable by the pgEnv's own ids
@@ -100,18 +107,19 @@ function index(app, rows) {
   return snap;
 }
 
-/** Every container row of `app`: the rows a type path can name as a parent, plus sources and views. */
-async function loadApp(app) {
+/** Every container row of `app`: the rows a type path can name as a parent, plus sources and views; and the site's declarations. */
+async function loadApp(app, fresh = false) {
   const { db, splitMode } = dmsDb();
+  const formats = await formatsFor(app, { fresh });
   const tbl = await dmsMainTable(db, app, splitMode);
   let caps = {};
   try { const t = resolveTable(app, '', db.type, splitMode); caps = await rowAuthCaps(db, t.schema, t.table, db.type); } catch { /* no columns */ }
   const cols = ['id', 'type', caps.parentId ? 'parent_id' : 'NULL AS parent_id', caps.auth ? 'auth' : 'NULL AS auth', 'data'].join(', ');
   const { rows } = await db.query(`SELECT ${cols} FROM ${tbl} WHERE app = $1 AND type LIKE '%:%'`, [app]);
-  return index(app, rows.map(r => wrap(r, app)));
+  return index(app, rows.map(r => wrap(r, app)), formats);
 }
 
-const appSnapshot = (app, { fresh = false } = {}) => cached(`app|${app}`, () => loadApp(app), fresh);
+const appSnapshot = (app, { fresh = false } = {}) => cached(`app|${app}`, () => loadApp(app, fresh), fresh);
 
 /** Forget every cached snapshot (tests; a grant write may call it too). */
 function clearSnapshots() { cache.clear(); }
@@ -246,11 +254,14 @@ function grantsAt(snap, row, position, { op = 'edit', subdomain = '' } = {}) {
 }
 
 /**
- * The rule for `row`'s kind: stamped on the nearest ancestor that carries one (`data.authRules`),
- * else the built-in copy. Never read from the row itself: its data is the caller's.
+ * The rule for `row`'s kind: the site's declaration (`formats`), else the stamp on the nearest
+ * ancestor that carries one (`data.authRules`), else the built-in copy. Never read from the row
+ * itself: its data is the caller's.
  */
 function ruleFor(snap, row) {
   const kind = row.kind;
+  const declared = snap.formats && snap.formats.rules[kind];
+  if (declared) return { rule: declared, from: 'formats' };
   const stampedOn = (r) => (r && r.data.authRules && typeof r.data.authRules === 'object' && r.data.authRules[kind]) || null;
   let stamped = null;
   for (const a of ancestors(snap, row)) if ((stamped = stampedOn(a))) break;
@@ -259,6 +270,17 @@ function ruleFor(snap, row) {
   // a rule stamped before the formats carried `read` reads as the built-in does; `read: []` says open
   const read = stamped.ops.read === undefined && RULES[kind] ? RULES[kind].ops.read : stamped.ops.read;
   return { rule: read === undefined ? stamped : { ...stamped, ops: { ...stamped.ops, read } }, from: 'stamped' };
+}
+
+/**
+ * What `r` declares for itself and the rows beneath it: a pattern row declares its type's
+ * vocabulary (`<pattern_type>+pattern` in `formats`); a site-level container (site, env) its own
+ * format's. The stamp on the row answers when the table does not.
+ */
+function vocabularyAt(snap, r) {
+  const f = snap.formats;
+  const d = f && (r.kind === 'pattern' ? f.byKey.get(`${r.data.pattern_type}+pattern`) : f.byKind.get(r.kind));
+  return (d && d.vocabulary) || vocabularyOf(r);
 }
 
 /**
@@ -271,10 +293,10 @@ function ruleFor(snap, row) {
  * and so is everything it declares for.
  */
 function mapsFor(snap, row) {
-  const own = vocabularyOf(row);
+  const own = vocabularyAt(snap, row);
   if (own) return { maps: fieldMaps(own), scope: 'self', publicRead: own.publicRead === true };
   for (const a of ancestors(snap, row)) {
-    const v = vocabularyOf(a);
+    const v = vocabularyAt(snap, a);
     if (v) return { maps: fieldMaps(v), scope: 'descendants', publicRead: v.publicRead === true };
   }
   return { maps: null, scope: 'flat', publicRead: false };

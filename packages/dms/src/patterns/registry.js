@@ -50,19 +50,27 @@
 //                   modules, unbound). With `instanceFormat` these are the ONLY
 //                   place its permissions are authored: the `authVocabulary`
 //                   the server interprets is DERIVED from them at registration
-//                   (./deriveAuthVocabulary.js) and stamped onto the pattern
-//                   row at create, because dms-server cannot read this registry
-//                   and the row is the only channel to it. There is no
-//                   `authVocabulary` key — a verb lives in exactly one authored
-//                   list, the `permissionDomain` of the format that describes
-//                   the row it governs. See
+//                   (./deriveAuthVocabulary.js). There is no `authVocabulary`
+//                   key — a verb lives in exactly one authored list, the
+//                   `permissionDomain` of the format that describes the row it
+//                   governs. See
 //                   planning/tasks/current/permission-domain-single-source.md.
-//   rulesOn         optional 'site' — stamp this type's auth rules (each format's
-//                   `rules`, collected by ./deriveAuthRules.js) on the SITE row
-//                   rather than on its pattern row. Admin: its formats describe
-//                   the site-level kinds (site, theme, tenant, pattern, dmsenv),
-//                   which no single pattern owns. Every other type's rules are
-//                   stamped on its pattern row (`stampPatternRow`).
+//                   How it reaches dms-server, which cannot read this registry:
+//                   `scripts/emit-formats.mjs` turns every type's formats,
+//                   vocabulary and childRefs into rows of the server's `formats`
+//                   table (./declarations.js, the same derivation as here) and
+//                   `dms-server/src/scripts/register-formats.js` writes them —
+//                   a server-side step of a deploy; no client can write that
+//                   table. New rows are ALSO stamped with a copy for one release
+//                   (`stampPatternRow` / `stampSiteRow`), for a server that has
+//                   not read the table yet.
+//   rulesOn         optional 'site' — this type's formats describe the
+//                   SITE-LEVEL kinds (admin: site, theme, tenant, pattern,
+//                   dmsenv), rows with no pattern above them. Its container
+//                   formats (those registering children) declare their own
+//                   vocabulary, since no pattern row declares for their rows,
+//                   and its rules are stamped on the site row rather than on
+//                   its pattern row.
 //   instanceFormat  optional: the format for the row kind that IS this pattern
 //                   (datasets' `form-manager`). Its own domain joins `self`,
 //                   because those verbs are granted at the pattern level and
@@ -102,6 +110,7 @@ import { validateAuthVocabulary, validateChildRefs } from './authVocabulary'
 import { deriveAuthVocabulary } from './deriveAuthVocabulary'
 import { deriveAuthRules, validateAuthRules } from './deriveAuthRules'
 import { PATTERN_ROW_DOMAIN } from './patternRow.domain'
+import { declarationsOf } from './declarations'
 import defaultTheme from '../ui/defaultTheme'
 import { mergeTheme, resetBaseThemeCache } from '../ui/useTheme'
 import { registerComponents } from './page/components/sections/componentRegistry'
@@ -184,6 +193,15 @@ export function stampSiteRow(row) {
     const rules = Object.assign({}, ...Object.values(patternTypes)
         .filter(t => t.rulesOn === 'site').map(t => t.authRules || {}))
     return hasKeys(rules) ? { ...row, authRules: rules } : row
+}
+
+/**
+ * Every registered type's declarations as rows of dms-server's `formats` table (./declarations.js):
+ * what `scripts/emit-formats.mjs` prints for `dms-server/src/scripts/register-formats.js`. The browser
+ * never writes that table (owner, 2026-11-06); this is here so a test can compare the two.
+ */
+export function declarations() {
+    return declarationsOf(Object.values(patternTypes))
 }
 
 /**

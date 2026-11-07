@@ -65,7 +65,7 @@ Config files live in `src/db/configs/`. The SQLite adapter automatically convert
 The `splitMode` setting controls how DMS tables are organized:
 
 - **`legacy`** — All apps share a single `data_items` table (default if unset)
-- **`per-app`** — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL)
+- **`per-app`** — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL), and its own `formats` table beside it (`formats__${app}` / `dms_${app}.formats`, created on first use by `db/table-resolver.js ensureFormatsTable`)
 
 Split mode is resolved per-database via the priority chain:
 

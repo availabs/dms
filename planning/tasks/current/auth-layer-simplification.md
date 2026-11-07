@@ -172,8 +172,10 @@ expansion, no `*` clamp, rules stay keyed by kind.
 
 ### Phase 4 — backfill and delete the built-in rules — BUILT 2026-11-04 (the run waits on the owner)
 
-- [ ] Write and run the backfill in [auth-rules-stamp-backfill.md](./auth-rules-stamp-backfill.md)
-      (stamp `authRules` and `authVocabulary` on every site/pattern/dmsenv row of every site).
+- [x] ~~Write and run the backfill in auth-rules-stamp-backfill.md~~ — superseded 2026-11-06: the declarations
+      are registered in the server's `formats` table by `scripts/register-formats.js`
+      ([format-declarations-server-side.md](./format-declarations-server-side.md)), once per site, which is
+      the backfill.
 - [ ] Delete `kindAuth/authRules.js`, `authRules.sync.test.js`'s "identical to the server copy" half
       (keep the fingerprint that triggers the backfill task), and `ruleFor`'s built-in fallback:
       an unstamped row fails closed with a reason naming the backfill script.
@@ -272,8 +274,10 @@ expansion, no `*` clamp, rules stay keyed by kind.
       Until it has run everywhere the server keeps three transitional pieces, all named in the code:
       `rules.js` (the built-in copy), `ruleFor`'s fill of a missing `read` op from it, and
       `owners.js undeclaredPublicRead` (an `auth` / `admin` pattern whose vocabulary carries no
-      `publicRead` key is read by its type name, with a warning). Delete all three after the run —
-      [auth-rules-stamp-backfill.md](./auth-rules-stamp-backfill.md) says how.
+      `publicRead` key is read by its type name, with a warning). Delete all three after the run.
+      **2026-11-06:** `stamp-auth-rules.js` is deleted and `register-formats.js` replaces the run
+      ([format-declarations-server-side.md](./format-declarations-server-side.md)); `rules.js` and
+      `ruleFor`'s fill go in its Phase 4.
 - [x] **Phase 5.** `packages/dms/src/utils/authJudge.js` is a verified copy of the server's `holds`,
       `fieldMaps` / `verbsForFields` and `judge` (`authJudge.sync.test.js` compares every function body
       with its server original and fails on a difference). `adminPermissions.patternCan` runs that judge

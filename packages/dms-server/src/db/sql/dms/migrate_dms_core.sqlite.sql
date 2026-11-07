@@ -69,3 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_data_items_tags
     ON data_items (app, type, json_extract(data, '$.tags'))
     WHERE json_extract(data, '$.tags') IS NOT NULL
     AND json_extract(data, '$.tags') != '';
+
+-- Format declarations (routes/auth/formats.js), added 2026-11-06.
+ALTER TABLE formats ADD COLUMN auth_vocabulary TEXT;
+ALTER TABLE formats ADD COLUMN auth_rules TEXT;
+ALTER TABLE formats ADD COLUMN child_refs TEXT;

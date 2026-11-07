@@ -1,13 +1,15 @@
 'use strict';
 /**
- * THE BUILT-IN COPY of the auth rules, for rows stamped before the formats carried their own.
+ * THE BUILT-IN COPY of the auth rules, for a kind the site's `formats` rows and the row's stamp both
+ * say nothing about.
  *
  * The rules are authored in the client's format files (`rules: { [rowKind]: rule }` beside each
- * `permissionDomain`), collected at registration (patterns/deriveAuthRules.js) and stamped as
- * `data.authRules` on the site row (site-level kinds) or the pattern row. `owners.js ruleFor` reads
- * the stamped rule first and this file only when there is none. Keep it identical to the formats:
- * packages/dms/src/patterns/authRules.sync.test.js fails when they differ. Delete it once every row
- * is stamped (planning/tasks/current/auth-rules-stamp-backfill.md).
+ * `permissionDomain`), collected at registration (patterns/deriveAuthRules.js), registered in the site's
+ * `formats` rows (./formats.js, scripts/register-formats.js) and, for one more release, stamped as `data.authRules` on the site
+ * row (site-level kinds) or the pattern row. `owners.js ruleFor` reads the table, then the stamp,
+ * then this file. Keep it identical to the formats: packages/dms/src/patterns/declarations.test.js
+ * fails when they differ. Delete it once every site's declarations are registered
+ * (planning/tasks/current/format-declarations-server-side.md, Phase 4).
  *
  * Owners are positions on the row's ancestry (owners.js): `self`, `parent`, `ancestor:<kind>`,
  * `site`, or a list spread in order. The older names (`parent-pattern+row`, `site-grants`, …) still

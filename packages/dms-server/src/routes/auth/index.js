@@ -24,7 +24,8 @@
  *   3. A verb is granted on the row that owns its subject. Site-level verbs live on the site row.
  *
  *   owners.js      which rows govern this one: one snapshot, one walk over parentage
- *   rules.js       the built-in rules, for rows stamped before the formats carried their own
+ *   formats.js     the site's declarations (rules, vocabulary, childRefs), registered by scripts/register-formats.js
+ *   rules.js       the built-in rules, for a kind neither the table nor a stamp declares
  *   judge.js       the interpreter over a rule
  *   vocabulary.js  which verb governs which field, from the declared `permissionDomain`
  *   grants.js      the stored grant shape and the name-match

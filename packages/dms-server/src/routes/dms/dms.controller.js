@@ -26,7 +26,8 @@ const {
   ensureSequence,
   ensureTable,
   allocateId,
-  forgetTable
+  forgetTable,
+  ensureFormatsTable
 } = require('#db/table-resolver.js');
 const { parseSplitDataType, getKind, getInstance, getParent } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
@@ -151,10 +152,10 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * The kind that owns rows of `type`, from the pattern's `childRefs` declaration — or null when
    * the pattern declares none (then `parentId.js` falls back to its structural check).
    *
-   * The declaration lives on the pattern row because dms-server cannot read formats
-   * (`dms.formats` holds no rows), so `type: 'dms-format'` — which is where the client declares the
-   * same thing — never reaches the server. Memoised per (app, pattern instance) for the life of the
-   * process, like the other row-auth lookups: patterns are few and this sits on the create path.
+   * The declaration is the pattern TYPE's, read from the site's `formats` row for it
+   * (`<pattern_type>+pattern`, routes/auth/formats.js), else from the stamp on the pattern row. The
+   * pattern row's type is memoised per (app, pattern instance) for the life of the process, like
+   * the other row-auth lookups: patterns are few and this sits on the create path.
    */
   const _childRefsCache = new Map();
 
@@ -189,7 +190,9 @@ function createController(dbName = 'dms-sqlite', options = {}) {
             `SELECT ${cols} FROM ${t.fullName} WHERE app = $1 AND type LIKE $2 LIMIT 1`,
             [app, `%|${container}:pattern`]
           );
-          return require('../auth/vocabulary').childRefsOf(rows[0]) || null;
+          if (!rows[0]) return null;
+          const data = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+          return { patternType: (data && data.pattern_type) || null, stamped: require('../auth/vocabulary').childRefsOf(rows[0]) || null };
         } catch (e) {
           console.warn(`[parent-id] childRefs lookup failed for ${key}: ${e.message}`);
           return null;
@@ -205,7 +208,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       probe.then((v) => { if (!v && _childRefsCache.get(key) === probe) _childRefsCache.delete(key); })
            .catch(() => _childRefsCache.delete(key));
     }
-    return _childRefsCache.get(key);
+    const found = await _childRefsCache.get(key);
+    if (!found) return null;
+    // the site's declaration for the type (registered, cached 30s) over the stamp the row was created with
+    const declared = found.patternType ? (await require('../auth/formats').formatsFor(app)).byKey.get(`${found.patternType}+pattern`) : null;
+    return (declared && declared.childRefs) || found.stamped || null;
   }
 
   async function ownerKindForType(app, type) {
@@ -865,14 +872,22 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       );
     },
 
-    getFormat: appKeys => {
-      const arrayResult = buildArrayComparison("app || '+' || type", appKeys, dbType);
-      const sql = `
-        SELECT *
-        FROM ${tableName('formats')}
-        WHERE ${arrayResult.sql};
-      `
-      return dms_db.promise(sql, arrayResult.values)
+    // A key is `<site>+<format key>` (dms.route.js splits on the first `+`); each site's rows live in
+    // its own formats table (db/table-resolver.js resolveFormatsTable), so the keys are grouped by site.
+    getFormat: async appKeys => {
+      const bySite = new Map();
+      for (const key of appKeys) {
+        const site = String(key).split('+')[0];
+        if (!bySite.has(site)) bySite.set(site, []);
+        bySite.get(site).push(key);
+      }
+      const out = [];
+      for (const [site, keys] of bySite) {
+        const { fullName } = await ensureFormatsTable(dms_db, site, dbType, splitMode);
+        const arrayResult = buildArrayComparison("app || '+' || type", keys, dbType);
+        out.push(...await dms_db.promise(`SELECT * FROM ${fullName} WHERE ${arrayResult.sql}`, arrayResult.values));
+      }
+      return out;
     },
 
     dataLength: appKeys => {

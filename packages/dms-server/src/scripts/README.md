@@ -60,7 +60,7 @@ node src/scripts/copy-db.js --source dms-postgres --target dms-sqlite --skip-orp
 
 | Table | Contents |
 |-------|----------|
-| `formats` | Format/schema definitions (app, type, attributes) |
+| `formats` | A site's format declarations (app, type, attributes, auth_vocabulary, auth_rules, child_refs) — the shared legacy-mode table; a per-app database's `dms_<app>.formats` / `formats__<app>` is not discovered by this script yet |
 | `data_items` | All DMS content — sites, patterns, pages, sections, sources, views |
 | `data_items__*` | Split tables containing dataset row data |
 

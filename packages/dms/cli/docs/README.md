@@ -241,6 +241,29 @@ dms raw update <id> --data -                 # read from stdin
 dms raw delete <app> <type> <id>
 ```
 
+### Formats
+
+What the client's pattern registry declares about the site's row kinds — auth rules, permission
+vocabulary, `childRefs`, attributes — lives per site in dms-server's `formats` table, where its auth
+layer reads it (`dms-server/src/routes/auth/formats.js`). **Only the server's own script writes it**
+(`dms-server/src/scripts/register-formats.js`, run where the server runs, dry run by default); no
+client can, this CLI included. These commands read it, to check what a site holds.
+
+```bash
+# The rows a build declares (from the library checkout; --extra for a host app's own types)
+node packages/dms/scripts/emit-formats.mjs > formats.json
+node packages/dms/scripts/emit-formats.mjs --extra src/patterns/qa/qa.format.js > formats.json
+
+# Register them, on the server (dry run; --apply writes; keys the file leaves out are removed)
+node packages/dms-server/src/scripts/register-formats.js --db <config> --app <app> --file formats.json [--apply]
+
+# Read-only check from anywhere: stored rows vs the file (exit code 1 when they differ)
+dms formats diff formats.json
+
+# The stored rows
+dms formats list [--format summary]
+```
+
 ## Output Formats
 
 ### JSON (default)

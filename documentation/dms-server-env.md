@@ -61,12 +61,12 @@ or `${app} Admin` membership passes an auth handler. Levels stay in the auth DB 
 ### Which rules the judge reads
 
 Each row kind's rule is authored in the client's format files (`rules` on a format object),
-collected at registration (`patterns/deriveAuthRules.js`) and stamped onto the row that carries it:
-the site row for the site-level kinds, the pattern row for the rest. `routes/auth/owners.js`
-`ruleFor` reads the stamped rule off the nearest ancestor that carries one and falls back to the
-built-in copy (`routes/auth/rules.js`) for rows stamped before it existed; `stamp-auth-rules.js`
-re-stamps every row after a change. There is no flag: the rules interpreter (`judge.js`) is the only
-judge.
+collected at registration (`patterns/deriveAuthRules.js`) and registered in the site's own
+`formats` table (`dms_<app>.formats` under per-app split mode) by `scripts/register-formats.js` (server-side, dry run by default; the only writer —
+no client can write the table, see `routes/auth/formats.js`). `routes/auth/owners.js` `ruleFor`
+reads the table first, then the stamp on the nearest ancestor that carries one (`data.authRules`,
+written at create for one more release), then the built-in copy (`routes/auth/rules.js`). There is
+no flag: the rules interpreter (`judge.js`) is the only judge.
 
 ## Access log
 

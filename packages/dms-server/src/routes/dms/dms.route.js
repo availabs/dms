@@ -166,7 +166,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         return controller.getFormat(keys).then((rows) => {
           const response = [];
           keys.forEach((key) => {
-            const [app, type] = key.split("+"),
+            // `<site>+<format app>+<format type>`: the site, then the format's own key (routes/auth/formats.js)
+            const app = key.slice(0, key.indexOf('+')), type = key.slice(key.indexOf('+') + 1),
               row = rows.reduce(
                 (a, c) => (c.app == app && c.type === type ? c : a),
                 {}

@@ -154,6 +154,18 @@ documented resolution so the behaviour is predictable, not a licence to rely on 
   everyone, signed out included. dms-server has no type-specific code. The type writes `public` from
   its own settings whenever they change.
 
+## What the server learns, and how
+
+dms-server never imports this package. Everything a type declares that the server must read — each
+format's `rules`, the type's derived permission vocabulary, its `childRefs`, the formats' attributes —
+reaches it as rows of the site's `formats` table, REGISTERED on the server as a step of a deploy:
+`packages/dms/scripts/emit-formats.mjs` derives them from the format modules (one per format key,
+`datasets+source`, plus `<type>+pattern` for the type's own; `--extra <file>` for a host app's own
+types), and `dms-server/src/scripts/register-formats.js --db <config> --app <app> [--file …] [--apply]`
+writes them, dry run by default. No client writes that table — not a browser, not the dms CLI
+(`dms formats diff` only reads, to check a site). An app-registered type needs its format module
+passed as `--extra`, since the emitter cannot see the host app's registrations.
+
 ## Ownership and grants: the three rules
 
 The auth layer (`dms-server/src/routes/auth`) is one walk over a row's parents and one judge over its

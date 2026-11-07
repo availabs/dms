@@ -4,9 +4,11 @@
  * governs), `publicRead`, and `childRefs`.
  *
  * The server cannot read the client's registry, so a pattern type declares these in its formats
- * (`permissionDomain`, `childRefs`, `publicRead`), registration derives them, and the row carries
- * them: the `auth` column (`auth.vocabulary`, `auth.childRefs`) when the table has one, else
- * `data.authVocabulary` / `data.childRefs`. Nothing here knows a verb, a kind or a pattern by name.
+ * (`permissionDomain`, `childRefs`, `publicRead`), registration derives them, and they reach the
+ * server as the site's `formats` rows (./formats.js, read first by owners.js and dms.controller.js)
+ * or, for rows created before the registration, as the STAMP this file reads: the `auth` column
+ * (`auth.vocabulary`, `auth.childRefs`) when the table has one, else `data.authVocabulary` /
+ * `data.childRefs`. Nothing here knows a verb, a kind or a pattern by name.
  *
  * Declared shape (packages/dms/src/patterns/authVocabulary.js):
  *

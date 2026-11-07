@@ -121,3 +121,10 @@ BEGIN
         END LOOP;
     END IF;
 END $$;
+
+-- Format declarations (routes/auth/formats.js), added 2026-11-06: the auth rules, permission
+-- vocabulary and childRefs a site's client pushes per format key.
+ALTER TABLE dms.formats
+    ADD COLUMN IF NOT EXISTS auth_vocabulary jsonb,
+    ADD COLUMN IF NOT EXISTS auth_rules      jsonb,
+    ADD COLUMN IF NOT EXISTS child_refs      jsonb;

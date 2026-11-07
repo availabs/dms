@@ -5,12 +5,14 @@
 // rule for its own `type`; a kind with no format object of its own (split `data` rows) rides on the
 // format that owns it (`source`).
 //
-// Like the auth vocabulary (deriveAuthVocabulary.js), the rules are DERIVED here at registration and
-// stamped onto a row, because dms-server cannot read this registry: pattern rows carry their type's
-// rules as `data.authRules`; a type registered with `rulesOn: 'site'` (admin: the site-level kinds)
-// has them stamped on the SITE row instead. Rows stamped before a library change keep the rules they
-// were stamped with; rows with none use the server's built-in copy (routes/auth/rules.js), which
-// `authRules.sync.test.js` keeps identical to these.
+// Like the auth vocabulary (deriveAuthVocabulary.js), the rules are DERIVED here at registration,
+// because dms-server cannot read this registry. They reach it as rows of its `formats` table, each
+// format's `rules` on the format's own row (./declarations.js; written by dms-server's
+// `scripts/register-formats.js` from `scripts/emit-formats.mjs`), and, for one more release, as a
+// stamp on new rows: pattern rows carry their
+// type's rules as `data.authRules`; a type registered with `rulesOn: 'site'` (admin: the site-level
+// kinds) has them stamped on the SITE row instead. The server reads the table, then the stamp, then
+// its built-in copy (routes/auth/rules.js), which `declarations.test.js` keeps identical to these.
 //
 // Conflicts (two formats declaring the same kind): the later one wins, as for permissionDomains.
 

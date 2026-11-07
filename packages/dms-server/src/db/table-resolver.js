@@ -4,8 +4,8 @@
  * Split modes:
  *   'legacy'  — single data_items table; only dataset row types get split tables
  *   'per-app' — each app gets its own isolated storage:
- *               PostgreSQL: per-app schema (dms_{app}.data_items, dms_{app}.data_items__split)
- *               SQLite:     per-app table prefix (data_items__{app}, data_items__{app}__split)
+ *               PostgreSQL: per-app schema (dms_{app}.data_items, dms_{app}.data_items__split, dms_{app}.formats)
+ *               SQLite:     per-app table prefix (data_items__{app}, data_items__{app}__split, formats__{app})
  *
  * Split type detection:
  *   Dataset row data has type ending in ':data' (e.g., 'adamtest1|v1:data').
@@ -284,6 +284,92 @@ function buildCreateTableSQL(schema, table, dbType, seqName) {
 }
 
 /**
+ * Where a site's `formats` rows live (routes/auth/formats.js). Per site is per schema under per-app
+ * mode, like data_items: PostgreSQL `dms_{app}.formats`, SQLite `formats__{app}`; legacy mode keeps
+ * the shared `dms.formats` / `formats` the create scripts make. No fallback between the two: a site's
+ * declarations are in its own table or nowhere (format-declarations-server-side.md, Phase 5).
+ *
+ * @returns {{ schema: string, table: string, fullName: string }}
+ */
+function resolveFormatsTable(app, dbType, splitMode = 'legacy') {
+  const isPg = dbType === 'postgres';
+  if (splitMode === 'legacy') {
+    return isPg ? { schema: 'dms', table: 'formats', fullName: 'dms.formats' } : { schema: 'main', table: 'formats', fullName: 'formats' };
+  }
+  if (isPg) {
+    const schema = resolveSchema(app, dbType, splitMode);
+    return { schema, table: 'formats', fullName: `${schema}.formats` };
+  }
+  const table = `formats__${sanitize(app)}`;
+  return { schema: 'main', table, fullName: table };
+}
+
+/**
+ * The per-app formats table: the shared table's DDL (sql/dms/dms.sql, dms.sqlite.sql), `app`
+ * column and all, as data_items keeps its `app` column per schema. Its id is its own (identity /
+ * AUTOINCREMENT): formats never draw on the app's data_items sequence, and nothing joins on one.
+ */
+function buildFormatsTableSQL(schema, table, dbType) {
+  if (dbType === 'postgres') {
+    const tbl = pgIdent(table);
+    const fqn = `${schema}.${tbl}`;
+    return `
+      CREATE TABLE IF NOT EXISTS ${fqn} (
+        id bigint GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+        app text NOT NULL,
+        type text NOT NULL,
+        attributes jsonb,
+        auth_vocabulary jsonb,
+        auth_rules jsonb,
+        child_refs jsonb,
+        created_at timestamp with time zone DEFAULT now(),
+        updated_at timestamp with time zone DEFAULT now(),
+        UNIQUE(app, type)
+      );
+      CREATE INDEX IF NOT EXISTS ${pgIdent(`ix_${table}_app_type`)}
+        ON ${fqn} (app, type);
+    `;
+  }
+  return `
+    CREATE TABLE IF NOT EXISTS ${table} (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      app TEXT NOT NULL,
+      type TEXT NOT NULL,
+      attributes TEXT,
+      auth_vocabulary TEXT,
+      auth_rules TEXT,
+      child_refs TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      updated_at TEXT DEFAULT (datetime('now')),
+      UNIQUE(app, type)
+    );
+    CREATE INDEX IF NOT EXISTS idx_${table}_app_type
+      ON ${table} (app, type);
+  `;
+}
+
+/**
+ * Ensure the site's formats table exists and return its resolved name. The shared legacy table is
+ * init's job (the create scripts); the per-app one is created on first use, cached like the
+ * data_items tables.
+ */
+async function ensureFormatsTable(db, app, dbType, splitMode = 'legacy') {
+  const resolved = resolveFormatsTable(app, dbType, splitMode);
+  if (splitMode === 'legacy') return resolved;
+  const cacheKey = `${resolved.schema}.${resolved.table}`;
+  if (_tableCache.has(cacheKey)) return resolved;
+  await ensureSchema(db, app, dbType, splitMode);
+  const ddl = buildFormatsTableSQL(resolved.schema, resolved.table, dbType);
+  if (dbType === 'sqlite') {
+    for (const stmt of ddl.split(';').filter(s => s.trim())) await db.query(stmt + ';');
+  } else {
+    await db.query(ddl);
+  }
+  _tableCache.add(cacheKey);
+  return resolved;
+}
+
+/**
  * Get the sequence name for an app (or the global sequence for legacy mode).
  *
  * @param {string} app
@@ -424,6 +510,9 @@ module.exports = {
   sanitize,
   resolveSchema,
   resolveTable,
+  resolveFormatsTable,
+  buildFormatsTableSQL,
+  ensureFormatsTable,
   getSequenceName,
   ensureSchema,
   ensureSequence,

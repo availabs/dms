@@ -1,6 +1,6 @@
 # Re-stamp auth rules on existing rows after a rules change
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next (triggered 2026-11-04: the rules changed) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** dropped — superseded 2026-11-06 by [format-declarations-server-side.md](./format-declarations-server-side.md): the declarations are registered in the server's `formats` table by `scripts/register-formats.js`, which the auth layer reads before any stamp, so a rules change needs a registration, not a re-stamp (`stamp-auth-rules.js` and the fingerprint test are deleted) · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 

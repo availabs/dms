@@ -48,8 +48,7 @@ keeps its signature and no caller changes.
   scope here.
 
 So: hooks on create / grant-write / delete, plus an idempotent **reconcile script** that creates missing mirror
-rows, updates grants, removes orphans, and is also the initial backfill. Run it dry by default, like
-`stamp-auth-rules.js`.
+rows, updates grants, removes orphans, and is also the initial backfill. Run it dry by default.
 
 ## The site question
 
