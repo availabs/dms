@@ -31,6 +31,7 @@
     "test:pg:stop": "node tests/postgres-docker.js stop",
     "test:pg": "node tests/postgres-docker.js run",
     "test:pg:auth": "node tests/postgres-docker.js run tests/test-auth.js",
+    "test:pg:dama-readonly": "node tests/postgres-docker.js run tests/test-dama-readonly.js",
     "test:db-copy": "node tests/test-db-copy.js",
     "test:sqlite-compat": "node tests/test-sqlite-compat.js",
     "test:sync": "node tests/test-sync.js",

@@ -8,26 +8,14 @@
  * Layout, written by the deploy tooling and only read here:
  *
  *   <sitesDir>/<site>/site.json                   {"hosts": [...], "live": "<build id>"}
- *   <sitesDir>/<site>/previews.json               optional, see below
  *   <sitesDir>/<site>/builds/<build id>/client/   index.html, assets/, public files, _redirects
  *
  * Hosts match exactly, or through a "*.example.org" wildcard (any subdomain,
  * not the bare domain). The longest matching wildcard wins. A trailing
  * ".localhost" is ignored, so a laptop can open "www.example.org.localhost" and
- * reach the site serving "www.example.org" with no DNS changes. site.json and
- * previews.json are re-read when they change (checked at most once per
- * reloadIntervalMs), so switching a build needs no restart.
- *
- * previews.json names preview slots: hosts that serve a build other than the
- * live one, until it expires.
- *
- *   {"<slot>": {"hosts": [...], "build": "<build id>" | null, "expiresAt": "<ISO>" | null,
- *               "redirects": ["<_redirects line>", ...]}}
- *
- * A slot's hosts are claimed even while it's empty or expired, and then answer
- * a 404 line, so a slot host never falls through to the site's own wildcard
- * and its live build. A slot's redirects apply before its build, even when it
- * has none. Other fields (who holds the slot, why) are the deploy tool's.
+ * reach the site serving "www.example.org" with no DNS changes. site.json is
+ * re-read when it changes (checked at most once per reloadIntervalMs), so
+ * switching a build needs no restart. Other fields in it are the deploy tool's.
  */
 const fs = require('fs');
 const path = require('path');
@@ -130,18 +118,14 @@ function fileStamp(file) {
   }
 }
 
-function formatDate(ms) {
-  return `${new Date(ms).toISOString().slice(0, 16).replace('T', ' ')} UTC`;
-}
-
 function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
   if (!sitesDir) throw new Error('createSitesMiddleware: sitesDir is required');
   sitesDir = path.resolve(sitesDir);
 
   let lastCheck = -Infinity;
-  let sites = new Map();       // site name -> { stamp, hosts, live, previewsStamp, slots: Map(slot -> { hosts, build, expiresAt, redirects }) }
-  let exactHosts = new Map();  // host -> { id, name, slot? }
-  let wildcards = [];          // [{ suffix: '.example.org', target }], longest suffix first
+  let sites = new Map();       // site name -> { stamp, hosts, live }
+  let exactHosts = new Map();  // host -> site name
+  let wildcards = [];          // [{ suffix: '.example.org', name }], longest suffix first
   const builds = new Map();    // client dir -> { serveStatic, forced/soft redirects, indexPath } (builds never change)
   let unreadableLogged = false;
 
@@ -160,83 +144,34 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
     }
   }
 
-  function readPreviews(name, file, prev) {
-    let config;
-    try {
-      config = JSON.parse(fs.readFileSync(file, 'utf8'));
-      if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('not an object');
-    } catch (err) {
-      if (err.code === 'ENOENT') return new Map();
-      console.warn(`[sites] ${name}: can't read previews.json (${err.message})${prev ? '; keeping the previous version' : ''}`);
-      return prev ? prev.slots : new Map();
-    }
-    const slots = new Map();
-    for (const [slot, entry] of Object.entries(config)) {
-      if (!NAME_RE.test(slot) || !entry || typeof entry !== 'object') {
-        console.warn(`[sites] ${name}: ignoring preview slot "${slot}"`);
-        continue;
-      }
-      const hosts = (Array.isArray(entry.hosts) ? entry.hosts : [])
-        .filter(h => typeof h === 'string' && h.trim())
-        .map(h => normalizeHost(h.trim()));
-      let build = typeof entry.build === 'string' && NAME_RE.test(entry.build) ? entry.build : null;
-      if (entry.build && !build) console.warn(`[sites] ${name}/${slot}: ignoring build "${entry.build}" (not a plain folder name)`);
-      let expiresAt = null;
-      if (entry.expiresAt != null) {
-        expiresAt = Date.parse(entry.expiresAt);
-        // A slot that can't say when it expires is served as empty, never indefinitely.
-        if (Number.isNaN(expiresAt)) {
-          console.warn(`[sites] ${name}/${slot}: can't read expiresAt "${entry.expiresAt}"; serving the slot as empty`);
-          build = null;
-          expiresAt = null;
-        }
-      }
-      const redirects = parseRedirects((Array.isArray(entry.redirects) ? entry.redirects : []).join('\n'));
-      slots.set(slot, { hosts, build, expiresAt, redirects });
-    }
-    return slots;
-  }
-
   function rebuildHostIndex() {
     const exact = new Map();
     const wild = new Map();
-    const conflicts = new Map(); // host -> whether a preview slot claims it
-    const claim = (host, target) => {
-      const isWild = host.startsWith('*.');
-      const key = isWild ? host.slice(1) : host;
-      const index = isWild ? wild : exact;
-      const held = index.get(key);
-      if (!held) index.set(key, target);
-      else if (held.id !== target.id) conflicts.set(host, conflicts.get(host) || !!held.slot || !!target.slot);
-    };
+    const conflicts = new Set(); // hosts more than one site claims
     for (const [name, site] of sites) {
-      for (const host of site.hosts) claim(host, { id: name, name });
-      for (const [slot, { hosts }] of site.slots) {
-        for (const host of hosts) claim(host, { id: `${name}/${slot}`, name, slot });
+      for (const host of site.hosts) {
+        const isWild = host.startsWith('*.');
+        const key = isWild ? host.slice(1) : host;
+        const index = isWild ? wild : exact;
+        const held = index.get(key);
+        if (!held) index.set(key, name);
+        else if (held !== name) conflicts.add(host);
       }
     }
-    for (const [host, slotClaimed] of conflicts) {
+    // A host two sites claim is served by neither: it falls through.
+    for (const host of conflicts) {
       const isWild = host.startsWith('*.');
-      const index = isWild ? wild : exact;
-      const key = isWild ? host.slice(1) : host;
-      // A site host claimed twice falls through. A slot host can't: a shorter wildcard would serve a live build.
-      if (slotClaimed) index.set(key, { id: 'conflict', conflict: true });
-      else index.delete(key);
+      (isWild ? wild : exact).delete(isWild ? host.slice(1) : host);
       console.warn(`[sites] ${host} is claimed more than once; serving it from none`);
     }
     exactHosts = exact;
-    wildcards = [...wild].map(([suffix, target]) => ({ suffix, target }))
+    wildcards = [...wild].map(([suffix, name]) => ({ suffix, name }))
       .sort((a, b) => b.suffix.length - a.suffix.length);
 
     const servedDirs = new Set();
     for (const [name, site] of sites) {
       if (site.live) servedDirs.add(clientDir(name, site.live));
       console.log(`[sites] ${name}: ${site.hosts.join(', ') || '(no hosts)'} -> build ${site.live || '(none)'}`);
-      for (const [slot, { hosts, build, expiresAt }] of site.slots) {
-        if (build) servedDirs.add(clientDir(name, build));
-        const until = build && expiresAt !== null ? ` until ${formatDate(expiresAt)}` : '';
-        console.log(`[sites] ${name}/${slot}: ${hosts.join(', ') || '(no hosts)'} -> build ${build || '(empty)'}${until}`);
-      }
     }
     for (const dir of builds.keys()) if (!servedDirs.has(dir)) builds.delete(dir);
   }
@@ -261,20 +196,16 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
     for (const name of names) {
       if (!NAME_RE.test(name)) continue;
       const file = path.join(sitesDir, name, 'site.json');
-      const previewsFile = path.join(sitesDir, name, 'previews.json');
       const stamp = fileStamp(file);
       if (!stamp) continue;
-      const previewsStamp = fileStamp(previewsFile);
       const prev = sites.get(name);
-      if (prev && prev.stamp === stamp && prev.previewsStamp === previewsStamp) {
+      if (prev && prev.stamp === stamp) {
         next.set(name, prev);
         continue;
       }
       changed = true;
-      const site = prev && prev.stamp === stamp ? prev : readSite(name, file, stamp, prev);
-      if (!site) continue;
-      const slots = prev && prev.previewsStamp === previewsStamp ? prev.slots : readPreviews(name, previewsFile, prev);
-      next.set(name, { ...site, previewsStamp, slots });
+      const site = readSite(name, file, stamp, prev);
+      if (site) next.set(name, site);
     }
     for (const name of sites.keys()) if (!next.has(name)) changed = true;
     sites = next;
@@ -286,11 +217,9 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
   }
 
   function resolveSite(host) {
-    const target = exactHosts.get(host)
-      || wildcards.find(w => host.endsWith(w.suffix))?.target;
-    if (!target || target.conflict) return target || null;
-    const site = sites.get(target.name);
-    return { name: target.name, site, slot: target.slot && site.slots.get(target.slot) };
+    const name = exactHosts.get(host)
+      || wildcards.find(w => host.endsWith(w.suffix))?.name;
+    return name ? { name, site: sites.get(name) } : null;
   }
 
   function loadBuild(dir) {
@@ -328,33 +257,16 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
     if (!match) return next();
 
     res.set(SECURITY_HEADERS);
-    if (match.conflict) {
-      return res.status(404).type('text/plain').send('This preview address is claimed twice. See the server log.');
-    }
-
     const pathname = req.path;
     const q = req.originalUrl.indexOf('?');
     const search = q === -1 ? '' : req.originalUrl.slice(q);
 
-    const { slot } = match;
-    if (slot) {
-      const redirect = findRedirect(slot.redirects, host, pathname);
-      if (redirect) return res.redirect(redirect.rule.status, redirectTarget(redirect, search));
-      if (!slot.build) return res.status(404).type('text/plain').send('This preview slot is empty.');
-      if (slot.expiresAt !== null && Date.now() >= slot.expiresAt) {
-        return res.status(404).type('text/plain').send(`This preview expired on ${formatDate(slot.expiresAt)}.`);
-      }
-    }
-
-    const buildId = slot ? slot.build : match.site.live;
+    const buildId = match.site.live;
     const build = buildId ? loadBuild(clientDir(match.name, buildId)) : null;
     // Which build answered: the deploy tooling checks it after publishing, and it tells anyone debugging
     // what they're looking at. Builds of the same commits have identical files, so the files can't say.
     if (build) res.set('X-Site-Build', buildId);
-    if (!build) {
-      if (slot) return res.status(404).type('text/plain').send("This preview's build is no longer on the server.");
-      return res.status(503).type('text/plain').send('This site has no live build.');
-    }
+    if (!build) return res.status(503).type('text/plain').send('This site has no live build.');
 
     const forced = findRedirect(build.forcedRedirects, host, pathname);
     if (forced) return res.redirect(forced.rule.status, redirectTarget(forced, search));

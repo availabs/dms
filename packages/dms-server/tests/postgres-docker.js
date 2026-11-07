@@ -100,8 +100,8 @@ function stop() {
   if (containerExists()) {
     console.log(`Stopping container ${CONTAINER}...`);
     try { exec(`docker stop ${CONTAINER}`); } catch (_) {}
-    // --rm flag not used in start(), so remove explicitly
-    try { exec(`docker rm -f ${CONTAINER}`); } catch (_) {}
+    // --rm flag not used in start(), so remove explicitly; -v takes the image's anonymous data volume with it
+    try { exec(`docker rm -f -v ${CONTAINER}`); } catch (_) {}
     console.log('Container stopped and removed');
   } else {
     console.log('No container to stop');

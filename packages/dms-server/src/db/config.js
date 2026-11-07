@@ -26,6 +26,10 @@ const configDir = join(__dirname, "./configs");
  *   "filename": "./data/mydb.sqlite"
  * }
  *
+ * Optional `"readOnly": true` (postgres, role "dama" only): the server reads the
+ * database but never changes it. No schema init or migrations run on it, no task
+ * polling or schedule sweep starts for it, and its connections refuse writes.
+ *
  * `type` and `role` are both REQUIRED. There is no inference, no legacy
  * fallback, no default — a missing or invalid field throws at load time.
  * This is intentional: an omitted `type` used to silently route the
@@ -49,6 +53,23 @@ function loadConfig(envName) {
       throw new Error(
         `Config "${envName}" is missing "role" — set "role": "dms" | "auth" | "dama" (or an array of those)`
       );
+    }
+
+    if (config.readOnly !== undefined && typeof config.readOnly !== "boolean") {
+      throw new Error(`Config "${envName}": "readOnly" must be true or false`);
+    }
+    if (config.readOnly) {
+      // A read-only DAMA config lets a server read a shared DAMA database it must never change, such as a
+      // second server's view of production's. Its DMS and auth databases have to be writable, so only a
+      // dama-only Postgres config can be read-only.
+      const roles = Array.isArray(config.role) ? config.role : [config.role];
+      if (config.type !== "postgres" || roles.some(r => r !== "dama")) {
+        throw new Error(`Config "${envName}": "readOnly" is only for postgres configs whose role is "dama"`);
+      }
+      // Every connection made from this config (the adapter's pool, getClient, a worker's own pg.Client)
+      // starts its transactions read-only, so Postgres refuses writes. A read-only database user is the
+      // stronger guard: a session can turn this setting off.
+      config.options = [config.options, "-c default_transaction_read_only=on"].filter(Boolean).join(" ");
     }
 
     if (config.type === "postgres") {
@@ -101,8 +122,23 @@ function findConfigsByRole(role) {
   return matches;
 }
 
+/**
+ * Whether a config is "readOnly". A config that can't be loaded counts as not read-only, so callers keep
+ * their usual handling (and error) for it.
+ * @param {string} envName
+ * @returns {boolean}
+ */
+function isReadOnly(envName) {
+  try {
+    return loadConfig(envName).readOnly === true;
+  } catch (e) {
+    return false;
+  }
+}
+
 module.exports = {
   loadConfig,
   configDir,
-  findConfigsByRole
+  findConfigsByRole,
+  isReadOnly
 };
