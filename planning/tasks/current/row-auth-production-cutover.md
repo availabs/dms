@@ -7,6 +7,13 @@ after **task 7**, [row-auth-consolidate.md](./row-auth-consolidate.md) (one deci
 every server auth call), and after [row-auth-parentage.md](./row-auth-parentage.md), which is task
 5's prerequisite rather than a numbered stage.
 
+> **2026-11-07 — the data half of this doc is superseded** by
+> [auth-data-migration-dms-mercury-3.md](../../../../planning/shared/tasks/current/auth-data-migration-dms-mercury-3.md).
+> The current auth layer (one walk over the type path, one judge, declarations in `formats`) does not read the
+> `parent_id` / `auth` columns, so the cutover's parentage steps (`--add-columns`, the backfill,
+> `--verify-parents`, `--drop-data-parent`) are not prerequisites for it. What carries over: back up first,
+> the grant work is the real prerequisite, `log` before `enforce`.
+
 ## The decision (owner, 2026-10-29)
 
 > "we want to get a fully completed task working only on auth rows db before we migrate any

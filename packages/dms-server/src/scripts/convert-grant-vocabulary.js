@@ -41,7 +41,26 @@ const { loadConfig } = require('../db/config');
 const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
 const { resolveTable } = require('../db/table-resolver');
-const { vocabularyOf, impliesMaps } = require('../routes/auth/vocabulary');
+const { vocabularyOf } = require('../routes/auth/vocabulary');
+
+/**
+ * `{ self, descendants, flat }` → `{ [verb]: implies[] }` from a declared vocabulary. The server no
+ * longer reads `implies` (the judge matches verbs by name since 2026-11-04, so vocabulary.js dropped
+ * this map); it lives on here because this report still asks the historical question — which
+ * STRUCTURAL verb a grant used to confer — beside the one that matters now: is the verb declared.
+ */
+function impliesMaps(vocabulary) {
+  const maps = { self: {}, descendants: {}, flat: {} };
+  for (const scope of ['self', 'descendants']) {
+    for (const e of (Array.isArray(vocabulary[scope]) ? vocabulary[scope] : [])) {
+      if (!e || typeof e.value !== 'string') continue;
+      const implies = [...new Set([].concat(e.implies || []))];
+      maps[scope][e.value] = implies;
+      maps.flat[e.value] = [...new Set([...(maps.flat[e.value] || []), ...implies])];
+    }
+  }
+  return maps;
+}
 const { resolveAuthPermissions } = require('../routes/auth/grants');
 
 const STRUCTURAL = ['read', 'create', 'edit', 'delete', 'grant'];
