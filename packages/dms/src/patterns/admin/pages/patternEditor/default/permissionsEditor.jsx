@@ -56,13 +56,16 @@ export const PatternPermissionsEditor = ({
     const normalised = normaliseAuthPermissions(isAdminPattern ? siteRow?.authPermissions : inputValue?.authPermissions);
 
     const [tmpAuthPermissions, setTmpAuthPermissions] = React.useState(normalised);
-    React.useEffect(() => { if (isAdminPattern) setTmpAuthPermissions(normalised); }, [siteRow]); // eslint-disable-line react-hooks/exhaustive-deps
     const [newSubdomain, setNewSubdomain] = React.useState('');
     // UI.Permissions keeps its own copy of `value` and never re-reads the prop,
     // so "reset" cleared the pending save but left the edited grants on screen;
     // the next edit then re-applied them (found 2026-09-30). Bumping this key on
     // reset remounts it from the restored value.
     const [resetKey, setResetKey] = React.useState(0);
+    // The site row arrives after the first render; UI.Permissions keeps its own copy of `value` (see resetKey
+    // below), so the editor is remounted when it lands, or it keeps showing the blank it mounted with
+    // (found 2026-11-07 on mitigat-ny-prod after sweep-site-grants.js: the swept grants never appeared).
+    React.useEffect(() => { if (isAdminPattern) { setTmpAuthPermissions(normalised); setResetKey(k => k + 1); } }, [siteRow]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const updateSubdomainPermissions = (subdomain, perms) => {
         setTmpAuthPermissions(prev => ({ ...prev, [subdomain]: perms }));

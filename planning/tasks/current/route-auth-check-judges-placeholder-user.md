@@ -1,6 +1,6 @@
 # Route auth runs on the placeholder user while sign-in is still loading
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** rdubowsky@albany.edu · **Edited by:** amuro@albany.edu
 
 Logged 2026-09-30, found live while building phase 2 of [`qa-pattern-type.md`](./qa-pattern-type.md). The `qa`
 pattern works around both defects in its own code; nothing here is fixed in the library.
@@ -63,3 +63,14 @@ A signed-in user who hard-loads a page they're allowed to see should see it, how
 - [ ] A groups-only pattern at a non-root URL, hard-loaded while signed in, renders instead of redirecting to `/`.
 - [ ] Signed out, the same URL still goes to login; a signed-in user without access still goes home.
 - [ ] BetaPage-style user-id grants and public patterns behave as before.
+
+## 2026-11-07 — reproduced on mitigat-ny-prod by auth-ui-check (dms-template `planning/shared/skills/auth-ui-check`)
+
+A signed-in site admin (`AVAIL`, site `*`) who cold-loads these URLs — a fresh tab, or a reload — gets the
+placeholder judgement and the page never re-judges: `/list/manage_pattern/<id>/permissions` renders only the
+admin shell (sidenav "Auth › Profile", no breadcrumb, no editor; every Falcor call answered in < 200 ms, nothing
+pending), `/cenrep` renders the 163 datasets but neither Add nor Settings (`DatasetsList canCreate` /
+`canEditPattern` false), `/auth/manage/users` stays blank. The same URLs reached in-app — a cold load of `/`,
+wait for the `/auth` session check, then `history.pushState` + `popstate` — render in 2 s (probe
+`scratchpad/.../probe9.mjs`; static `vite build` and the dev server alike). The suite navigates in-app for
+that reason (`lib/ui.mjs go()`); it should go back to cold deep links when this is fixed.

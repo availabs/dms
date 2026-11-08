@@ -135,6 +135,8 @@
 
 ## dms-server
 
+
+- [ ] [`prune-unlisted-views.js` and `retype-views-to-source.js` read the pgEnv mirror's view rows as residue](./tasks/current/prune-unlisted-views-deletes-mirror-rows.md) — filed 2026-11-07 on mitigat-ny-prod: the prune dry run counts 12,919 UNLISTED views, ~12,900 of them the mirror's; `--apply` would delete the mirror. Skip rows with `data.pgEnv`.
 - [ ] [Auth layer simplification: one judge, one walk, one mode handler](./tasks/current/auth-layer-simplification.md) — filed 2026-11-04, **built 2026-11-04** (server, client, tests, backfill script; the backfill run and the deletion of the built-in rules copy wait on the owner). Seven phases: one mode handler (delete the old-rule answers and the five rollout flags), `read` as an op in the rules (delete kindReadAuth/readAuth/both READ_PERMISSIONS), one owner loader over `parent_id` replacing the three kind switches (judge kept as is), backfill then delete the built-in rules copy, client gates read the stamped `fields`/rules, auth-handler perms through `authorize` and the level functions actually deleted, housekeeping. Target ~6 files, a third of today's 2,739 lines.
 - [ ] [Grants on the owner row: retire `patterns:datasets`, site verbs on the site row](./tasks/current/auth-grants-on-the-owner-row.md) — filed and **built 2026-11-05** (the two sweep runs wait on the owner). Two sweeps (site row, env rows) then delete `patternsOver`, the `siteGrants` fallback, the auth handlers' own loader and the `?dms_pattern` locator; the three ownership rules written into CLAUDE.md.
 - [ ] [Mirror every pgEnv into DMS: an env row per pgEnv, a row per source and view](./tasks/current/pgenv-mirror-into-dms.md) — filed and **built 2026-11-05** (Phases 1–2: mirror, hooks, reconcile, auth reads the mirror; the reconcile run per site waits on the owner; Phase 3 built the same day: the catalog lists the mirrors, grants are edited on the mirror per site, a request naming no site is refused). Hooks in dama (`createDamaSource`/`createDamaView`/`updateSource`/`deleteDama*`) plus a reconcile script keep a DMS row per external source and view, dual-maintained; then the auth layer's external-source branch (`loadExternal`, `?dms_pattern`, `strict`, two grant keys) is deleted.
@@ -915,6 +917,7 @@
 
 ### patterns/admin
 
+
 - [ ] [Admin: Tenants as its own tab, with the root site as a row](./tasks/current/tenants-admin-tab.md) — 2026-11-06, `plat_tenant_hub`. Move TenantList off `/list` into `/list/tenants` (sidenav entry, mockup first); the root site lists itself with a blank subdomain, linking to `/list`.
 - [x] Tenant table on the platform admin list page doesn't scroll: rows past the viewport are cut off behind the page. Reported 2026-09-29, **fixed 2026-09-29, uncommitted**.
   - **Cause:** both lists' `wrapper` was `flex flex-1 flex-col overflow-auto`, so on the platform root the two lists split the page height equally. `tableCard` (`overflow-hidden`) is a flex child and was squeezed below its table's height, clipping the bottom rows out of reach of the table's own scroll. With few patterns there was also a large empty gap above Tenants.
@@ -942,6 +945,10 @@
 
 ### patterns/auth
 
+
+
+- [ ] [Client: a page-level or source-level grant alone does not reach the page editor or the source page](./tasks/current/client-gates-ignore-row-level-grants.md) — found 2026-11-07 by auth-ui-check on mitigat-ny-prod: a page granted `edit-page` to a user the pattern does not name falls back to the home page at `/edit/<slug>`; a source granted `view-source` shows "No source" in the catalog. The server allows both.
+- [ ] [Client: a row that grants only `public` is "open", so every signed-in member sees every editor on it](./tasks/current/client-open-row-rule-shows-every-editor.md) — filed 2026-11-07 by the auth-ui-check suite on mitigat-ny-prod. `utils/auth.js isUserAuthed` lets any signed-in user pass every check on a row whose grants name nobody beyond `public`; the server has no such rule, so under `log` the UI shows editors whose saves would be refused. Fix: delete the branch, inherit instead.
 - [ ] [Auth and datasets: replace auth levels with named permissions (hub)](./tasks/current/auth-levels-to-permissions.md) — filed 2026-09-30, **split into 19 tasks 2026-10-19** after a re-survey (only 7 server dataset routes check a source permission; `isUserAuthedForSource` fails open; ~30 auth-server level checks). The hub lists the order and the open design questions. Subtasks:
   - [ ] [Access diff audit](./tasks/current/permissions-access-diff-audit.md) — auth level × source × operation, old vs new; losses → groups/users → remediation; reruns before each switch-over
   - [ ] [Datasets permissions core](./tasks/current/permissions-server-source-auth-core.md) — vocabulary (`create-source`), fail-closed source/pattern check, middleware, user id from token
