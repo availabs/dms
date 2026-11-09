@@ -1,8 +1,11 @@
 # Admin: Tenants as its own tab, with the root site as a row
 
-**Initiatives:** [plat_tenant_hub](../../../../../planning/initiatives/plat_tenant_hub.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [plat_tenant_hub](../../../../../planning/initiatives/plat_tenant_hub.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 **Topic:** patterns/admin · **Started:** 2026-11-06
+
+> **Done 2026-11-09:** shipped in dms `966457da`; live in the tenant hub at availabs.com. Open items stay as
+> noted below (single-tenant check not run live; new row's blank name until reload).
 
 ## Objective
 
@@ -18,7 +21,7 @@ subdomain, with its link going to `/list` (the root's own site admin).
 - `TenantList` (editSite.jsx ~733–990) holds the table, search, the add-tenant modal (full
   provisioning: auth project, tenant row, tenant site, core and template patterns) and the remove modal.
 - `patterns/admin/components/tenantList.jsx` is an unused placeholder from Phase 1 of
-  [multi-tenant.md](./multi-tenant.md), exported as an object literal (not Fast-Refresh clean).
+  [multi-tenant.md](../current/multi-tenant.md), exported as an object literal (not Fast-Refresh clean).
 - The admin sidenav (`siteConfig.jsx` `getMenuItems`) has Sites and Themes, plus the Auth group.
 - The v6 mockup `src/themes/tessera/design_system_v6/pages/admin-site.html` already shows a
   **tenants** sidenav item (icon Globe) under "site". There is no tenants page mockup yet.
