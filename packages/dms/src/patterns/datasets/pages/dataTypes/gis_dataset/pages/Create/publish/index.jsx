@@ -3,6 +3,7 @@ import { get } from 'lodash-es'
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
 import GisErrorTable from '../ErrorTable'
+import { authedFetch } from '../../../../../../../../utils/authedFetch'
 
 // the button's text and UI.Button role per publish state (2026-10-15: was a raw <button> + publishBtn* colour keys)
 const buttonStates = {
@@ -80,13 +81,14 @@ export default function PublishButton({ state, dispatch }) {
 
         const sourceTypeURL = sourceType === "csv_dataset" ? "csv-dataset" : "gis-dataset";
 
-        const res = await fetch(`${state.damaServerPath}/${ sourceTypeURL }/publish`,
+        const res = await authedFetch(`${state.damaServerPath}/${ sourceTypeURL }/publish`,
         {
           method: "POST",
           body: JSON.stringify(publishData),
           headers: {
             "Content-Type": "application/json",
           },
+          user: state.authUser, pattern: state.pattern,
         });
 
         const publishFinalEvent = await res.json();

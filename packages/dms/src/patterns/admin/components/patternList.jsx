@@ -7,7 +7,8 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
-import { getPatternType } from '../../registry'
+import { getPatternType, stampPatternRow } from '../../registry'
+import { authedFetch } from '../../../utils/authedFetch'
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -180,7 +181,7 @@ function PatternEdit({
 	 format,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant} = useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user} = useContext(AdminContext);
 	const {UI, theme} = useContext(ThemeContext)
 	const t = { ...patternListTheme, ...(theme?.admin?.patternList || {}) }
 	const { falcor } = useFalcor();
@@ -256,6 +257,12 @@ function PatternEdit({
 			if (prepared) row = prepared;
 		}
 
+		// Stamp the type's auth vocabulary, childRefs and auth rules onto the row. dms-server cannot
+		// read the pattern-type registry (it has no dependency on this package), so the pattern row is
+		// how a type's verbs and rules reach the server — row-auth-vocabulary.md. Read from the
+		// registry rather than left to each type's beforeCreate, so a type cannot forget.
+		row = stampPatternRow(row);
+
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
 			['dms', 'data', 'create'],
@@ -290,10 +297,11 @@ function PatternEdit({
 		setDuplicateProgress(0);
 		try {
 			// Queue the duplicate task — returns immediately with { task_id }.
-			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+			const res = await authedFetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
 				method: "POST",
 				body: JSON.stringify({newApp: app, newType: newInstance}),
 				headers: { "Content-Type": "application/json" },
+				user,
 			});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.err) {
@@ -306,7 +314,7 @@ function PatternEdit({
 			const { task_id } = body;
 			for (;;) {
 				await new Promise(r => setTimeout(r, 3000));
-				const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+				const statusRes = await authedFetch(`${dmsServerPath}/dms/tasks/${task_id}`, { user });
 				const task = await statusRes.json().catch(() => ({}));
 				if (task.progress != null) setDuplicateProgress(task.progress);
 				if (task.status === 'done') break;
@@ -453,7 +461,6 @@ function PatternEdit({
 										config: editingItem.config,
 										name: newName,
 										pattern_type: editingItem.pattern_type,
-										auth_level: editingItem.auth_level,
 										filters: editingItem.filters,
 										theme: editingItem.theme,
 									};

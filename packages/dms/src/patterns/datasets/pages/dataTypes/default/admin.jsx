@@ -5,7 +5,7 @@ import {useNavigate} from "react-router";
 import { getExternalEnv } from "../../../utils/datasources";
 import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import UdaTaskList from "../../Tasks/UdaTaskList";
-import SourceAccessEditor from "../../../components/SourceAccessEditor";
+import SourceAccessEditorChain from "../../../components/SourceAccessEditorChain";
 import { DeleteSourceModal, DeleteDmsSourceBtn } from "../../../components/DeleteSource";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { adminTheme } from "./admin.theme";
@@ -79,7 +79,7 @@ const AddViewBtn = ({source, format, apiLoad, apiUpdate}) => {
 const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, falcor, pageBaseUrl} = useContext(DatasetsContext);
+    const {UI, falcor, pageBaseUrl, datasetsPattern, isUserAuthed} = useContext(DatasetsContext);
     const {Icon, Button} = UI;
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -92,7 +92,7 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
         if (!sourceId) { setRefusal({error: 'No source_id on this source'}); return; }
         setBusy(true); setRefusal(null);
         try {
-            const result = await udaDeleteSource(falcor, {env: pgEnv, source_id: sourceId, cascade});
+            const result = await udaDeleteSource(falcor, {env: pgEnv, source_id: sourceId, cascade, pattern: datasetsPattern});
             if (!result || result.error) {
                 setRefusal(result || {error: 'The server did not answer the delete.'});
                 setBusy(false);
@@ -108,6 +108,9 @@ const DeleteDamaSourceBtn = ({source, baseUrl, pgEnv}) => {
             setBusy(false);
         }
     };
+
+    // Hidden without delete-source (the server refuses it anyway).
+    if (!isUserAuthed || !isUserAuthed(['delete-source'])) return null;
 
     return (
         <>
@@ -159,7 +162,7 @@ const AddExternalVersionBtn = ({source}) => {
 const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {UI, falcor} = useContext(DatasetsContext);
+    const {UI, falcor, datasetsPattern} = useContext(DatasetsContext);
     const {Switch, Icon, FieldLabel} = UI;
     const [pkeyInfo, setPkeyInfo] = useState(null);
     const [saving, setSaving] = useState(false);
@@ -186,7 +189,7 @@ const EditableToggle = ({source, setSource, format, pgEnv, id}) => {
         setSaving(true);
         try {
             const data = {...(source?.metadata || {}), isEditable: e};
-            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id});
+            const confirmed = await updateSourceData({data, attrKey: 'metadata', isDms: false, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
             if (!!confirmed?.isEditable !== e) {
                 setError('The change did not save — please try again.');
             }
@@ -234,12 +237,16 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
     const {id} = params;
     const { theme } = React.useContext(ThemeContext) || {};
     const t = { ...adminTheme, ...(theme?.datasets?.admin || {}) };
-    const {baseUrl, pageBaseUrl, user, parent, UI, datasources} = React.useContext(DatasetsContext) || {};
+    const {baseUrl, pageBaseUrl, parent, UI, datasources, isUserAuthed} = React.useContext(DatasetsContext) || {};
     const pgEnv = getExternalEnv(datasources);
     const {Button, Icon} = UI;
+    // Each control shows to the users the server lets use it (SourcePage gates the tab on any of these).
+    const can = (perms) => (isUserAuthed ? isUserAuthed(perms) : false);
+    const canUpdate = can(['update-source']);
+    const canAddVersion = can(isDms ? ['create-view'] : ['create-view', 'update-source']);
     const navigate = useNavigate();
 
-    if(!user || !user.token) return <></>
+    if (!can(['update-source', 'edit-source-permissions', 'delete-source', 'create-view'])) return <></>
 
     // todo add setAuth feature for internal and external sources.
     // use statistics column. make a route to update sources.
@@ -249,26 +256,26 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                     <div className={t.adminMain}>
                         {/* New string-permission Access editor (pattern ⊕ source). Replaces the
                             legacy numeric statistics.auth UAC panels; gated by edit-source-permissions. */}
-                        <SourceAccessEditor source={source} setSource={setSource} format={format}
+                        <SourceAccessEditorChain source={source} setSource={setSource} format={format}
                                             apiUpdate={apiUpdate} isDms={isDms} id={id}/>
                     </div>
 
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
                             {/* navigate from the button: a <Link> inside a native <button> only takes clicks on its text */}
-                            <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/metadata`)}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}Advanced Metadata</Button>
+                            {canUpdate && <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/metadata`)}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}Advanced Metadata</Button>}
                             {
                                 isDms ? (
                                     <>
-                                        <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>
+                                        {canAddVersion && <AddViewBtn source={source} format={format} apiLoad={apiLoad} apiUpdate={apiUpdate}/>}
                                         {/*<ClearDataBtn app={app} type={source.doc_type} apiLoad={apiLoad} apiUpdate={apiUpdate}/>*/}
                                         <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                                     </>
                                 ) : (
                                     <>
-                                        <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/rules`)}>{t.actionIconRules && <Icon icon={t.actionIconRules} className={t.actionIcon}/>}Rules</Button>
-                                        <AddExternalVersionBtn source={source} />
-                                        <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />
+                                        {canUpdate && <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/rules`)}>{t.actionIconRules && <Icon icon={t.actionIconRules} className={t.actionIcon}/>}Rules</Button>}
+                                        {canAddVersion && <AddExternalVersionBtn source={source} />}
+                                        {canUpdate && <EditableToggle source={source} setSource={setSource} format={format} pgEnv={pgEnv} id={id} />}
                                         <DeleteDamaSourceBtn source={source} baseUrl={baseUrl} pgEnv={pgEnv} />
                                     </>
                                 )
@@ -278,7 +285,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                     </div>
                 </div>
                 {
-                    isDms ? null : (
+                    isDms || !canUpdate ? null : (
                         <div className={t.tasksWrapper}>
                             <div className={t.tasksLabel}>Tasks</div>
                             <UdaTaskList sourceId={source.source_id} />

@@ -3,10 +3,9 @@
 import { describe, expect, test } from 'vitest';
 import { rankUserGroups, resolveSubdomainAuthPermissions } from './auth';
 
-const user = (groups, levels = {}) => ({
-  groups,
-  meta: groups.map(g => ({ group: g, authLevel: levels[g] ?? 0 })),
-});
+// `meta` carried an `authLevel` per group until 2026-11-03, and `rankUserGroups` used it as a
+// tiebreak. Auth levels are deprecated and nothing reads them, so the ordering falls back to name.
+const user = (groups) => ({ groups, meta: groups.map(g => ({ group: g })) });
 
 describe('rankUserGroups', () => {
   test('a group granted only on one subdomain leads there, not on the root', () => {
@@ -24,20 +23,23 @@ describe('rankUserGroups', () => {
     expect(rankUserGroups({ user: user(['D', 'C', 'A', 'B']), authPermissions })).toEqual(['B', 'A', 'C', 'D']);
   });
 
-  test('${app} Admin, then level, break a tie in grants', () => {
+  test('${app} Admin, then name, break a tie in grants', () => {
     const authPermissions = { groups: { 'site Admin': ['*'], Z: ['*'], Y: ['*'] } };
     expect(rankUserGroups({ user: user(['Z', 'site Admin']), authPermissions, app: 'site' })[0]).toBe('site Admin');
-    expect(rankUserGroups({ user: user(['Y', 'Z'], { Z: 5 }), authPermissions })[0]).toBe('Z');
+    // Equal grants and no app admin: the name decides. This was the project auth LEVEL until
+    // 2026-11-03 — `Z` won on level 5 — and levels are deprecated, so `Y` wins alphabetically.
+    expect(rankUserGroups({ user: user(['Y', 'Z']), authPermissions })[0]).toBe('Y');
   });
 
-  test('public is never shown; groups with no grant here follow, by level then name', () => {
+  test('public is never shown; groups with no grant here follow, by name', () => {
     const authPermissions = { groups: { public: ['view-page'], Viewers: ['view-page'] } };
-    expect(rankUserGroups({ user: user(['public', 'Big', 'Viewers', 'Alpha'], { Big: 10 }), authPermissions }))
-      .toEqual(['Viewers', 'Big', 'Alpha']);
+    // `Big` led the ungranted pair on level 10 until 2026-11-03; by name it follows `Alpha`.
+    expect(rankUserGroups({ user: user(['public', 'Big', 'Viewers', 'Alpha']), authPermissions }))
+      .toEqual(['Viewers', 'Alpha', 'Big']);
   });
 
-  test('access through a direct user grant, or an open pattern: the highest-level group', () => {
-    const u = { id: 7, ...user(['Low', 'High'], { High: 5 }) };
+  test('access through a direct user grant, or an open pattern: the first group by name', () => {
+    const u = { id: 7, ...user(['Low', 'High']) };
     expect(rankUserGroups({ user: u, authPermissions: { users: { 7: ['*'] } } })[0]).toBe('High');
     expect(rankUserGroups({ user: u })[0]).toBe('High');
   });

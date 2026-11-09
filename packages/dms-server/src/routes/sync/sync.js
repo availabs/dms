@@ -12,6 +12,12 @@
 const { Router } = require('express');
 const { getDb } = require('#db/index.js');
 const { loadConfig } = require('#db/config.js');
+const { createController } = require('../dms/dms.controller.js');
+// KIND auth (routes/dms/dataAuth.js) — left in place, not deleted. Put this line back and
+// comment the next one out to move this surface back onto it.
+// Authorization comes from the switch, never from a named implementation. See routes/auth/index.js.
+const { assertDataWrite } = require('../auth');
+const { getSubdomain } = require('../../utils/subdomain');
 const {
   isSplitType,
   changeLogData,
@@ -173,6 +179,10 @@ function createSyncRoutes(dbName) {
   const config = loadConfig(dbName);
   const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
   const requireAuth = process.env.DMS_SYNC_AUTH === '1';
+  // the pattern / source lookups of assertDataWrite, and the delete cascade. Its change_log writes
+  // (refs vacated by a cascade) broadcast like the push itself.
+  const controller = createController(dbName);
+  controller.setNotifyChange((app, msg) => createSyncRoutes._notifyChange && createSyncRoutes._notifyChange(app, msg));
 
   function tbl(name) {
     return dbType === 'postgres' ? `dms.${name}` : name;
@@ -528,81 +538,155 @@ function createSyncRoutes(dbName) {
       const pushTable = await mainTable(item.app);
       const changeLogReady = await hasChangeLog();
 
-      const outcome = await dms_db.withTransaction(async (tx) => {
-        let resultItem;
-
-        if (action === 'I') {
-          // Create — use ON CONFLICT for idempotent retries
-          const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
-
-          if (item.id) {
-            // Client-provided ID (e.g., from pending queue retry)
-            await tx.promise(
-              `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
-               VALUES ($1, $2, $3, $4, $5, $5)
-               ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = ${now()}, updated_by = excluded.updated_by`,
-              [item.id, item.app, item.type, dataStr, userId]
-            );
-            const rows = await tx.promise(
-              `SELECT * FROM ${pushTable} WHERE id = $1`, [item.id]
-            );
-            resultItem = rows[0];
-          } else {
-            // Allocate ID from the correct sequence (per-app or global); mainTable() above
-            // already ensured the sequence, so this is a cache hit, not DDL.
-            const newId = await allocateId(tx, item.app, dbType, splitMode);
-            await tx.promise(
-              `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
-               VALUES ($1, $2, $3, $4, $5, $5)`,
-              [newId, item.app, item.type, dataStr, userId]
-            );
-            const rows = await tx.promise(
-              `SELECT * FROM ${pushTable} WHERE id = $1`, [newId]
-            );
-            resultItem = rows[0];
-          }
-
-        } else if (action === 'U') {
-          const dataStr = typeof item.data === 'string' ? item.data : JSON.stringify(item.data || {});
-          const rows = await tx.promise(
-            `UPDATE ${pushTable}
-             SET data = ${jsonMerge('data', '$1', dbType)},
-               updated_at = ${now()},
-               updated_by = $2
-             WHERE id = $3
-             RETURNING *;`,
-            [dataStr, userId, item.id]
-          );
-          resultItem = rows[0];
-          // The UPDATE matched nothing, so there is nothing to roll back.
-          if (!resultItem) return { notFound: true };
-
-        } else {
-          await tx.promise(
-            `DELETE FROM ${pushTable} WHERE id = $1`,
-            [item.id]
-          );
-          resultItem = { id: item.id, app: item.app, type: item.type };
+      let outcome;
+      for (let attempt = 0; ; attempt++) {
+        // The same permission check as the dms.data.* Falcor writes (routes/dms/dataAuth.js). U and D
+        // are judged on the stored row; an I with an id that already exists updates it (ON CONFLICT
+        // below), so it is judged as an edit of that row.
+        const [stored] = item.id != null
+          ? await dms_db.promise(`SELECT id, app, type, data, CAST(data AS TEXT) AS data_text FROM ${pushTable} WHERE id = $1`, [item.id])
+          : [];
+        const op = action === 'D' ? 'delete' : (action === 'U' || stored) ? 'edit' : 'create';
+        // What gets written: for an edit, only the keys the guard judged (dataAuth.js planEdit). An I
+        // onto an existing row replaces its whole data, so keys it leaves out are judged as removed.
+        let writeData = item.data;
+        try {
+          const judged = await assertDataWrite({ user, subdomain: getSubdomain(req) }, op, item.app,
+            stored || { id: item.id ?? null, type: item.type, data: item.data || {} },
+            op === 'edit' ? (typeof item.data === 'string' ? JSON.parse(item.data) : (item.data || {})) : null,
+            { replace: action === 'I' });
+          if (op === 'edit') writeData = judged;
+        } catch (e) {
+          if (!e.status) throw e;
+          return res.status(e.status).json({ error: e.message });
         }
 
-        // Write change_log (skip if table doesn't exist — sync not fully set up)
-        let revision = null;
-        if (changeLogReady) {
-          const revRows = await tx.promise(
-            `INSERT INTO ${tbl('change_log')} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-             RETURNING revision;`,
-            [resultItem.id, resultItem.app, resultItem.type, action,
-             changeLogData(resultItem.type, action, resultItem.data), userId,
-             req.clientIp || null,
-             req.headers['user-agent'] || null,
-             userId ? 'authenticated' : 'sync']
-          );
-          revision = revRows[0]?.revision;
-        }
+        // The write checks, in its transaction, that the row is still what was judged (or still absent)
+        // (controller.assertRowUnchanged); when it changed in between, read and judge again.
+        const expect = item.id == null ? null
+          : stored ? { type: stored.type, dataText: stored.data_text } : { missing: true };
 
-        return { resultItem, revision };
-      });
+        // Resolved before the transaction: both lookups are adapter queries, which must not run
+        // inside one (dms-server/CLAUDE.md), and a failed capability probe is cached as "unmigrated"
+        // for the life of the process.
+        // Resolved for a delete too: a deleted owner's children are swept the same way
+        // dms.data.delete sweeps them.
+        const childRefs = await controller.childStampPlan(item.app, stored?.type || item.type);
+
+        try {
+          outcome = await dms_db.withTransaction(async (tx) => {
+            await controller.assertRowUnchanged(tx, pushTable, item.id, expect);
+            let resultItem;
+
+            if (action === 'I') {
+              // Create — use ON CONFLICT for idempotent retries
+              const dataStr = typeof writeData === 'string' ? writeData : JSON.stringify(writeData || {});
+
+              if (item.id) {
+                // Client-provided ID (e.g., from pending queue retry)
+                await tx.promise(
+                  `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
+                   VALUES ($1, $2, $3, $4, $5, $5)
+                   ON CONFLICT(id) DO UPDATE SET data = excluded.data, updated_at = ${now()}, updated_by = excluded.updated_by`,
+                  [item.id, item.app, item.type, dataStr, userId]
+                );
+                const rows = await tx.promise(
+                  `SELECT * FROM ${pushTable} WHERE id = $1`, [item.id]
+                );
+                resultItem = rows[0];
+              } else {
+                // Allocate ID from the correct sequence (per-app or global); mainTable() above
+                // already ensured the sequence, so this is a cache hit, not DDL.
+                const newId = await allocateId(tx, item.app, dbType, splitMode);
+                await tx.promise(
+                  `INSERT INTO ${pushTable} (id, app, type, data, created_by, updated_by)
+                   VALUES ($1, $2, $3, $4, $5, $5)`,
+                  [newId, item.app, item.type, dataStr, userId]
+                );
+                const rows = await tx.promise(
+                  `SELECT * FROM ${pushTable} WHERE id = $1`, [newId]
+                );
+                resultItem = rows[0];
+              }
+
+            } else if (action === 'U') {
+              const dataStr = typeof writeData === 'string' ? writeData : JSON.stringify(writeData || {});
+              // The BEFORE half of the child sweep, read inside the transaction rather than taken
+              // from `stored` (which was read outside it): which children an update drops is a
+              // difference between two states, so a stale "before" would sweep the wrong rows.
+              const [pre] = childRefs
+                ? await tx.promise(`SELECT data FROM ${pushTable} WHERE id = $1`, [item.id])
+                : [];
+              const rows = await tx.promise(
+                `UPDATE ${pushTable}
+                 SET data = ${jsonMerge('data', '$1', dbType)},
+                   updated_at = ${now()},
+                   updated_by = $2
+                 WHERE id = $3
+                 RETURNING *;`,
+                [dataStr, userId, item.id]
+              );
+              resultItem = rows[0];
+              // The UPDATE matched nothing, so there is nothing to roll back.
+              if (!resultItem) return { notFound: true };
+              await controller.sweepDeclaredChildren(tx, {
+                table: pushTable, app: resultItem.app, id: resultItem.id, type: resultItem.type,
+                before: pre?.data, after: resultItem.data, childRefs,
+              });
+
+            } else {
+              await tx.promise(
+                `DELETE FROM ${pushTable} WHERE id = $1`,
+                [item.id]
+              );
+              // the stored type: clients send none (the local store's delete)
+              resultItem = { id: item.id, app: item.app, type: stored?.type || item.type };
+              // what dms.data.delete cascades (a view's table and its ref on the source, a source's
+              // views, the page delete hook): without it a delete through sync left them behind
+              if (stored) await controller.cascadeDeletedRow(tx, stored, userId, { ip: req.clientIp || null, userAgent: req.headers['user-agent'] || null, authState: userId ? 'authenticated' : 'sync' });
+              // …and the children the deleted owner parented, which the cascade above cannot know
+              // about without the library knowing what a page is. Same declaration the stamp reads.
+              await controller.sweepChildrenOfDeleted(tx, {
+                table: pushTable, app: resultItem.app, id: resultItem.id,
+                type: resultItem.type, childRefs,
+              });
+            }
+
+            // Parentage: the row just written names its children in its declared arrays, and this
+            // is the only moment they can be stamped — sync pushes a page's children before the
+            // page, so the children had no parent id to claim. Same helper as the Falcor writes,
+            // inside this transaction, and it never throws (routes/dms/parentId.js).
+            if (action !== 'D' && resultItem) {
+              await controller.stampDeclaredChildren(tx, {
+                table: pushTable, app: resultItem.app, id: resultItem.id,
+                type: resultItem.type, data: writeData, childRefs,
+              });
+            }
+
+            // Write change_log (skip if table doesn't exist — sync not fully set up)
+            let revision = null;
+            if (changeLogReady) {
+              const revRows = await tx.promise(
+                `INSERT INTO ${tbl('change_log')} (item_id, app, type, action, data, created_by, ip, user_agent, auth_state)
+                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                 RETURNING revision;`,
+                [resultItem.id, resultItem.app, resultItem.type, action,
+                 changeLogData(resultItem.type, action, resultItem.data), userId,
+                 req.clientIp || null,
+                 req.headers['user-agent'] || null,
+                 userId ? 'authenticated' : 'sync']
+              );
+              revision = revRows[0]?.revision;
+            }
+
+            return { resultItem, revision };
+          });
+          break;
+        } catch (e) {
+          if (e.code !== 'DMS_STALE_ROW') throw e;
+          if (attempt >= 2) return res.status(409).json({ error: e.message });
+        }
+      }
 
       if (outcome.notFound) {
         return res.status(404).json({ error: 'Item not found' });
@@ -633,6 +717,7 @@ function createSyncRoutes(dbName) {
     }
   });
 
+  router.controller = controller; // tests reach the push route's lookups through it
   return router;
 }
 

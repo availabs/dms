@@ -110,6 +110,7 @@ const iconList = [
 
   // Data/Table Icons
   { icon: "Refresh" },
+  { icon: "Shield" },
   { icon: "TallyMark" },
   { icon: "LeftToRightListBullet" },
   { icon: "Sum" },

@@ -18,6 +18,7 @@ import {validateCompTheme} from "./validateComp.theme";
 // '' → no wrapper (pre-v6 markup); v6 puts the update button in a right-aligned footer row
 const ModalFooter = ({className, children}) => className ? <div className={className}>{children}</div> : children;
 import { nameToSlug } from "../../../utils/type-utils";
+import { authedFetch } from "../../../utils/authedFetch";
 
 const FilterRemoveIcon = (props) => (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width={24} height={24} color={"#000000"} fill={"none"} {...props}>
@@ -77,20 +78,21 @@ const isCalculatedCol = ({display, type, origin}) => {
 };
 const filterValueDelimiter = '|||';
 
-const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError, falcor}) => {
+const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, setValidating, setError, falcor, user}) => {
     try {
         setValidating(true)
         const body = {
             parentId, // optional. if passed, used to pull metadata
             parentDocType // to fetch metadata on server, using app, and this doc_type. so we don't rely on client
         }
-        const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/validate`,
+        const res = await authedFetch(`${dmsServerPath}/dms/${app}+${type}/validate`,
             {
                 method: "POST",
                 body: JSON.stringify(body),
                 headers: {
                     "Content-Type": "application/json",
                 },
+                user,
             });
         await falcor.invalidate(['uda', `${app}+${type}`]);
         await falcor.invalidate(['uda']);
@@ -100,7 +102,8 @@ const reValidate = async ({app, type, parentId, parentDocType, dmsServerPath, se
         // window.location = window.location;
     }catch (e){
         setValidating(false);
-        setError(e)
+        // an Error stringifies to {} in the banner below
+        setError(e?.message || e)
     }
 }
 const getFilterFromSearchParams = searchParams => Array.from(searchParams.keys()).reduce((acc, column) => ({
@@ -612,7 +615,7 @@ export default function Validate ({
                             onClick={() =>
                                 reValidate({
                                     app, type: `${sourceSlug}|${view_id}:data`, parentId: source_id,
-                                    parentDocType: sourceSlug, dmsServerPath, setValidating, setError, falcor
+                                    parentDocType: sourceSlug, dmsServerPath, setValidating, setError, falcor, user
                                 })}
                         >
                             {validating ? 'Validating' : 'Re - Validate'}

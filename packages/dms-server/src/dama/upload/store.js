@@ -30,8 +30,9 @@ function generateUploadId() {
   return `dms_${uuid}`;
 }
 
-function create(id) {
-  const entry = { id, status: 'processing', layers: [], error: null, createdAt: Date.now() };
+// `userId`: the token user who sent the upload; only they may analyse or publish it (auth.js).
+function create(id, { userId = null } = {}) {
+  const entry = { id, status: 'processing', layers: [], error: null, createdAt: Date.now(), userId };
   uploads.set(id, entry);
   return entry;
 }

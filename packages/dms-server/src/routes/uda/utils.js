@@ -274,7 +274,7 @@ async function getSitePatterns({ db, app, env, splitMode }) {
  * needed here — and `data.doc_type` has been removed from all new pattern
  * rows by the type-system refactor.
  */
-async function getSiteSources({ db, app, pattern_ids, splitMode }) {
+async function getSiteSources({ db, app, pattern_ids, splitMode, hiddenFor = null }) {
   if (!pattern_ids.length) return [];
 
   const tbl = await dmsMainTable(db, app, splitMode);
@@ -315,10 +315,34 @@ async function getSiteSources({ db, app, pattern_ids, splitMode }) {
   // the env/pattern arrays; counting or rendering them produces ghost entries
   // in the datasets list, so length/byIndex/byId must all agree on live rows.
   const refIds = allSources.map(s => Number(s?.id)).filter(Number.isFinite);
-  if (!refIds.length) return [];
-  const { rows: alive } = await db.query(`SELECT id FROM ${tbl} WHERE id = ANY($1)`, [refIds]);
-  const aliveIds = new Set(alive.map(r => Number(r.id)));
-  return allSources.filter(s => aliveIds.has(Number(s?.id)));
+  const aliveIds = new Set();
+  if (refIds.length) {
+    const { rows: alive } = await db.query(`SELECT id FROM ${tbl} WHERE id = ANY($1)`, [refIds]);
+    for (const r of alive) aliveIds.add(Number(r.id));
+  }
+  const listed = allSources.filter(s => aliveIds.has(Number(s?.id)));
+
+  // The site's MIRRORS of its pgEnvs' sources (dama/mirror.js) list beside the internal ones: one
+  // catalog. They are found by query, not by refs on the env row (a pgEnv has thousands). The pgEnv's
+  // hidden types / categories apply to them as they do on the pgEnv's own listing (`hiddenFor`).
+  const { jsonExtract } = require('#db/query-utils.js');
+  const { rows: mirrors } = await db.query(
+    `SELECT id, ${jsonExtract('data', 'pgEnv', db.type)} AS pgenv, ${jsonExtract('data', 'type', db.type)} AS stype,
+            ${jsonExtract('data', 'categories', db.type)} AS cats
+       FROM ${tbl} WHERE app = $1 AND type LIKE '%:source' AND ${jsonExtract('data', 'pgEnv', db.type)} IS NOT NULL`, [app]);
+  const hidden = new Map();
+  for (const m of mirrors) {
+    if (aliveIds.has(Number(m.id))) continue;
+    if (hiddenFor) {
+      if (!hidden.has(m.pgenv)) hidden.set(m.pgenv, await hiddenFor(m.pgenv));
+      const h = hidden.get(m.pgenv) || { types: [], cats: [] };
+      if (m.stype && h.types.includes(m.stype)) continue;
+      let cats = m.cats; if (typeof cats === 'string') { try { cats = JSON.parse(cats); } catch { cats = []; } }
+      if (h.cats.length && Array.isArray(cats) && cats.some(c => h.cats.includes(Array.isArray(c) ? c[0] : c))) continue;
+    }
+    listed.push({ id: Number(m.id) });
+  }
+  return listed;
 }
 
 // ================================================= Filter Builders ================================================

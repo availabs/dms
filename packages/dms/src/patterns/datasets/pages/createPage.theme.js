@@ -12,6 +12,7 @@ export const createPageTheme = {
     headingText: 'New source',
     intro: 't-proseSM text-[var(--t-graphite)] mt-1',               // '' → no intro line
     form: 'flex flex-col gap-6 mt-6',
+    noAccess: 't-proseSM text-[var(--t-graphite)] mt-6',          // shown instead of the form without create-source
     field: 'flex flex-col gap-1.5',
     nameField: 'flex flex-col gap-1.5 max-w-md',
 

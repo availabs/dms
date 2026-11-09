@@ -91,7 +91,7 @@ const StatusBadge = ({status}) => {
 const UdaTaskPage = ({params, pageSize = 20}) => {
     const taskId = params?.task_id || params?.etl_context_id;
     const ref = React.useRef();
-    const { app, type, datasources, falcor, UI, baseUrl, parent } = React.useContext(DatasetsContext);
+    const { app, type, datasources, falcor, UI, baseUrl, parent, user } = React.useContext(DatasetsContext);
     // Tasks live in either DMS (`dms.tasks`) or DAMA (`data_manager.tasks`).
     // The server dispatches by env.includes('+'), and task_id sequences are
     // independent across backends — so task 6771 in DAMA is *not* the same
@@ -234,7 +234,10 @@ const UdaTaskPage = ({params, pageSize = 20}) => {
                             <span className={t.eventsCount}>{data.length}</span>
                         </div>
                     ) : null}
-                    {pgEnv === null ? (
+                    {!user?.authed ? (
+                        // task reads need a signed-in user (permissions-ds-schedules-and-tasks)
+                        <div className={t.notFoundMsg}>Sign in to see this task.</div>
+                    ) : pgEnv === null ? (
                         <div className={t.lookupMsg}>Looking up task…</div>
                     ) : pgEnv === '' ? (
                         <div className={t.notFoundMsg}>Task {taskId} was not found in any configured environment ({envCandidates.join(', ')}).</div>

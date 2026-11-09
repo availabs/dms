@@ -94,9 +94,10 @@ async function testBasicCopy() {
     `INSERT INTO formats (id, app, type, attributes) VALUES ($1, $2, $3, $4)`,
     [1, TEST_APP, 'site', JSON.stringify({ title: 'Test' })]
   );
+  // the declaration columns travel too (format-declarations-server-side.md, Phase 5)
   await src.query(
-    `INSERT INTO formats (id, app, type, attributes) VALUES ($1, $2, $3, $4)`,
-    [2, TEST_APP, 'pattern', JSON.stringify({ name: 'page' })]
+    `INSERT INTO formats (id, app, type, attributes, auth_vocabulary, auth_rules, child_refs) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [2, TEST_APP, 'pattern', JSON.stringify({ name: 'page' }), JSON.stringify({ self: [] }), JSON.stringify({ page: { ops: { edit: ['edit-page'] } } }), JSON.stringify({ page: { sections: 'component' } })]
   );
   for (let i = 1; i <= 5; i++) {
     await src.query(
@@ -117,6 +118,11 @@ async function testBasicCopy() {
   assert(fmtRows[0].id === 1, 'formats: ID 1 preserved');
   assert(fmtRows[1].id === 2, 'formats: ID 2 preserved');
   assert(fmtRows[0].app === TEST_APP, 'formats: app preserved');
+  const declared = typeof fmtRows[1].auth_rules === 'string' ? JSON.parse(fmtRows[1].auth_rules) : fmtRows[1].auth_rules;
+  assert(declared && declared.page && declared.page.ops.edit[0] === 'edit-page', 'formats: auth_rules copied');
+  const refs = typeof fmtRows[1].child_refs === 'string' ? JSON.parse(fmtRows[1].child_refs) : fmtRows[1].child_refs;
+  assert(refs && refs.page && refs.page.sections === 'component', 'formats: child_refs copied');
+  assert(fmtRows[1].auth_vocabulary != null, 'formats: auth_vocabulary copied');
 
   const { rows: dataRows } = await tgt.query('SELECT * FROM data_items ORDER BY id');
   assert(dataRows.length === 5, `data_items: 5 rows copied (got ${dataRows.length})`);

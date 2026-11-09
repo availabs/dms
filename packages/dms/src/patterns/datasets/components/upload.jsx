@@ -3,24 +3,25 @@ import {InfoCircle} from "../../admin/ui/icons";
 import { getExternalEnv } from "../utils/datasources";
 import { ThemeContext } from "../../../ui/useTheme";
 import { uploadTheme } from "./upload.theme";
+import { authedFetch, PermissionError } from "../../../utils/authedFetch";
 
 // UI.Select reads '' as "no value": the "None (always insert)" primary-column choice
 const NO_PRIMARY = '__none__';
 function delay(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
-const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName}) => {
+const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName, setPublishStatus}) => {
     try {
         setLoading(true)
         const formData = new FormData();
-        formData.append("user_id", user.userId);
+        formData.append("user_id", user.id);
         formData.append("email", user.email);
         formData.append("fileSizeBytes", file.size);
         formData.append("file", file);
 
-        const res = await fetch(
+        const res = await authedFetch(
             `${damaServerPath}/gis-dataset/upload`,
-            { method: "POST", body: formData }
+            { method: "POST", body: formData, user }
         );
 
         const resValue = await res.json();
@@ -34,7 +35,7 @@ const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, set
                         const url = `${damaServerPath}/gis-dataset/${gisUploadId}/layers`;
 
                         const pollForLayers = async () => {
-                            const res = await fetch(url);
+                            const res = await authedFetch(url, { user });
                             const layers = await res.json();
                             if (!Array.isArray(layers) || layers.length === 0) {
                                 await delay(2000);
@@ -62,15 +63,16 @@ const uploadGisDataset = async ({file, user, damaServerPath, setGisUploadId, set
         }
     } catch (err) {
         setLoading(false)
+        if (err instanceof PermissionError) setPublishStatus(err.message)
         console.error(err?.message)
     }
 }
 
-const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
+const publish = async ({user, gisUploadId, layerName, app, type, dmsServerPath, setPublishing, setPublishStatus,
                            updateMetaData, existingAttributes = [], columns = [], sourceId, primaryColName}) => {
     const publishData = {
-        user_id: userId,
-        email: email,
+        user_id: user?.id,
+        email: user?.email,
         gisUploadId,
         layerName,
         columns,
@@ -80,22 +82,22 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
 
     setPublishing(true);
 
-    // add columns not present in metadata currently
-    const newColumns = columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name));
-    if(newColumns.length){
-        updateMetaData(JSON.stringify({
-            attributes: [...existingAttributes, ...newColumns]
-        }), 'config');
+    let res;
+    try {
+        res = await authedFetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
+            {
+                method: "POST",
+                body: JSON.stringify(publishData),
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                user,
+            });
+    } catch (err) {
+        setPublishing(false);
+        setPublishStatus(err instanceof PermissionError ? err.message : 'Error! There was a problem uploading the file.');
+        return;
     }
-
-    const res = await fetch(`${dmsServerPath}/dms/${app}+${type}/publish`,
-        {
-            method: "POST",
-            body: JSON.stringify(publishData),
-            headers: {
-                "Content-Type": "application/json",
-            },
-        });
 
     const publishFinalEvent = await res.json();
 
@@ -103,6 +105,15 @@ const publish = async ({userId, email, gisUploadId, layerName, app, type, dmsSer
         setPublishStatus('Error! There was a problem uploading the file.')
         throw new Error(`Error while publishing: ${publishFinalEvent.err}`)
     }else{
+        // add columns not present in metadata currently. Only after the server accepted the publish
+        // (it adds them to the source's config itself, under its permission check): written before,
+        // a refused publish still changed the source's columns.
+        const newColumns = columns.filter(c => !existingAttributes.find(ea => ea.display_name === c.display_name || ea.name === c.name));
+        if(newColumns.length){
+            updateMetaData(JSON.stringify({
+                attributes: [...existingAttributes, ...newColumns]
+            }), 'config');
+        }
         setPublishing(false);
         setPublishStatus('The Sheet has been Processed. Please validate your records.')
     }
@@ -143,11 +154,14 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
     // pivot columns convert column headers into their values if source column has any data in them.
     // {Flooding: {pivotColumn: 'associated_hazards'}
     // pivotColumns: {finalCOlName: [srcCol1, srcCol2, srcCol3, ...]}
+    // An internal source arrives as its DMS row (`id`); one loaded through getSourceData carries `source_id`.
+    // Without an id, apiUpdate creates a new row instead of updating the source.
+    const parentId = parent?.source_id ?? parent?.id;
     const updateMetaData = (data, attrKey) => {
       if (!updateMeta) return;
         const editFormat = parentFormat || format;
-        console.log('updateMetadata', {data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
-        apiUpdate({data: {id: parent.source_id, [attrKey]: data}, config: {format: editFormat}})
+        console.log('updateMetadata', {data: {id: parentId, [attrKey]: data}, config: {format: editFormat}})
+        apiUpdate({data: {id: parentId, [attrKey]: data}, config: {format: editFormat}})
     }
     // ================================================= get layers begin ==============================================
 
@@ -187,7 +201,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
             <div className={t.uploaderDropzone}>
                 <FileInput dropzone hint={'a zipped CSV or Excel'} loading={loading}
                            onChange={files => files[0] && uploadGisDataset({
-                               file: files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName
+                               file: files[0], user, damaServerPath, setGisUploadId, setLoading, setLayers, setLayerName, setPublishStatus
                            })} />
             </div>
 
@@ -306,7 +320,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                 <Button activeStyle={'primary'}
                                         disabled={publishing}
                                         onClick={() => publish({
-                                            ...user,
+                                            user,
                                             gisUploadId,
                                             layerName,
                                             app: format.app,
@@ -319,7 +333,7 @@ const Edit = ({value, onChange, size, format, view_id, apiLoad, apiUpdate,
                                             setPublishing,
                                             existingAttributes,
                                             updateMetaData,
-                                            sourceId: parent?.source_id
+                                            sourceId: parentId
                                         })}>
                                     {publishing ? 'publishing...' : 'publish'}
                                 </Button>

@@ -3,11 +3,13 @@ import {Link, useLocation} from "react-router";
 import UI from "../../ui";
 import {getPatternTheme, getAdminTheme, ThemeContext} from "../../ui/useTheme";
 import DefaultMenu from "./components/menu"
+import authFormat from "./auth.format.js";
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
-import { isUserAuthed } from "../../utils/auth";
-import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS } from "../../utils/adminPermissions";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
+import { setAuthRequestScope } from "./api";
+import OpenAuthWarning from "./components/OpenAuthWarning";
 
 // Code-split: auth pages load only when an auth route renders. See
 // planning/tasks/completed/bundle-split-initial-graph.md.
@@ -19,6 +21,7 @@ const AuthGroups = lazyComponent('auth/AuthGroups', () => import("./pages/authGr
 const AuthResetPassword = lazyComponent('auth/AuthResetPassword', () => import("./pages/authResetPassword"));
 const AuthForgotPassword = lazyComponent('auth/AuthForgotPassword', () => import("./pages/authForgotPassword"));
 const Profile = lazyComponent('auth/Profile', () => import("./pages/profile"));
+const AuthAccessLog = lazyComponent('auth/AuthAccessLog', () => import("./pages/authAccessLog"));
 import {cloneDeep, merge} from "lodash-es";
 
 
@@ -146,6 +149,8 @@ const authConfig = ({
 }) => {
 
   baseUrl = baseUrl === '/' ? '' : baseUrl;
+    // Every auth call from now on names this site, so the server judges the auth verbs on its site row (api.js)
+    setAuthRequestScope({ app });
     // hard coding mny_admin for dev, needs to come from pattern
     const theme = getPatternTheme(themes, pattern, ssrCollect); //getPatternTheme(themes, {...pattern, theme: {selectedTheme: ''}});
     if (authImgI === null) {
@@ -156,7 +161,7 @@ const authConfig = ({
   return {
     app,
     baseUrl,
-    format: {app, attributes: []},
+    format: { ...authFormat, app },
     children: [
       {
         type: (props) => {
@@ -217,10 +222,13 @@ const manageAuthConfig = ({
   adminPath='/',
   themes = {},
   pattern,
+  adminPatternRow,
   adminThemeSource,
   authPermissions = {},
   adminAuthPermissions = {},
+  datasources = [],
   rightMenu = <DefaultMenu />,
+  API_HOST,
   isMultiTenant = false,
   // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
   subdomain = '',
@@ -232,9 +240,8 @@ const manageAuthConfig = ({
     // (see Icon.jsx / theme.Icons), so these render everywhere without
     // needing per-theme icon work.
     // Only the links `user` can use — same rules as the admin pattern's own
-    // sidenav (patterns/admin/siteConfig.jsx getMenuItems): Sites/Themes read
-    // the site-level admin grants, Users/Groups this auth pattern's grants
-    // with the rule their routes' reqPermissions declare.
+    // sidenav (patterns/admin/siteConfig.jsx getMenuItems): every entry reads the
+    // site row's grants; auth-users / auth-groups are site verbs (rule 3).
     const buildMenuItems = (user) => [
         ...(siteCan(user, app, adminAuthPermissions, VIEW_PATTERN_LIST) ? [{
             name: 'Sites',
@@ -270,15 +277,21 @@ const manageAuthConfig = ({
                     path: `${baseUrl}/manage/profile`,
                     icon: 'UserCircle'
                 },
-                ...(isUserAuthed({ user, reqPermissions: ['auth-users'], authPermissions }) ? [{
+                ...(siteCan(user, app, adminAuthPermissions, AUTH_USERS) ? [{
                     name: 'Users',
                     path: `${baseUrl}/manage/users`,
                     icon: 'User'
                 }] : []),
-                ...(isUserAuthed({ user, reqPermissions: ['auth-groups'], authPermissions }) ? [{
+                ...(siteCan(user, app, adminAuthPermissions, AUTH_GROUPS) ? [{
                     name: 'Groups',
                     path: `${baseUrl}/manage/groups`,
                     icon: 'Group'
+                }] : []),
+                // Admins only, as its server route (`${app} Admin` / AVAIL; pages/authAccessLog.jsx)
+                ...((user?.groups || []).some(g => g === `${app} Admin` || g === 'AVAIL') ? [{
+                    name: 'Access log',
+                    path: `${baseUrl}/manage/access-log`,
+                    icon: 'Shield'
                 }] : [])
             ]
         }
@@ -287,6 +300,12 @@ const manageAuthConfig = ({
 
 
     baseUrl = baseUrl === '/' ? '' : baseUrl;
+    setAuthRequestScope({ app });
+    // The site's Access tab (the Admin pattern's, which edits the site row), for the open-auth warning
+    const accessPatternId = adminPatternRow?.id || pattern?.id;
+    const authAccessUrl = accessPatternId
+        ? `${adminPath.replace(/\/+$/, '')}/manage_pattern/${accessPatternId}/permissions`
+        : null;
 
     // Same theme as the admin pattern's pages (Sites/Themes/Pattern Editor):
     // the library default plus this auth pattern's theme's `admin` key (its
@@ -337,7 +356,7 @@ const manageAuthConfig = ({
   return {
     app,
     baseUrl: `${baseUrl}/manage`,
-    format: {app, attributes: []},
+    format: { ...authFormat, app },
     children: [
       {
         type: (props) => {
@@ -353,18 +372,28 @@ const manageAuthConfig = ({
         path: `/*`,
         children: [
           {
-            type: props => <AuthUsers {...props} app={app} authPermissions={authPermissions} emailTheme={emailTheme} />,
+            type: props => <>
+                <OpenAuthWarning app={app} authPermissions={adminAuthPermissions} editUrl={authAccessUrl} />
+                <AuthUsers {...props} app={app} authPermissions={adminAuthPermissions} emailTheme={emailTheme} />
+            </>,
             reqPermissions: ['auth-users'],
             path: "users",
           },
           {
-            type: props => <AuthGroups {...props} authPermissions={authPermissions} />,
+            type: props => <>
+                <OpenAuthWarning app={app} authPermissions={adminAuthPermissions} editUrl={authAccessUrl} />
+                <AuthGroups {...props} authPermissions={adminAuthPermissions} />
+            </>,
             reqPermissions: ['auth-groups'],
             path: "groups",
           },
             {
                 type: props => <Profile {...props} />,
                 path: "profile",
+            },
+            {
+                type: props => <AuthAccessLog {...props} app={app} API_HOST={API_HOST} />,
+                path: "access-log",
             },
         ]
       }

@@ -43,6 +43,21 @@ Encodes the row kind, instance name, and parent relationship in a uniform format
 
 Instance names are human-readable slugs derived from user-provided names via `nameToSlug()` (lowercase, underscores, no special chars). UUIDs are no longer used in type strings.
 
+### Every pattern declares at least one format
+
+**A pattern type must declare a format for every DMS row kind it stores — at least one, even if it
+only saves configuration.** The format is where a pattern says *where its data lives and what shape
+it has*. A row kind with no format has no attribute metadata, no `permissionDomain` (so no grants
+editor — it can only ever be granted `*`), and nothing declaring which rows own which.
+
+It is declared by **`siteConfig` returning `format`**, which five of the seven pattern types already
+do; there is no `format` key on the registry definition, deliberately. `siteConfig` is an ARRAY, and
+a pattern owning several row kinds says so with several configs (`admin`: one for the site row, one
+for the pattern row). Where two configs declare a `permissionDomain` for the same row kind, the
+later entry wins — a configuration error, unenforced. Storing a row kind as a dataset source instead
+is a legitimate alternative, not an exemption from describing it. Full rule and the `qa` / `chat` /
+`auth` gaps: `documentation/pattern-registry.md`.
+
 ### Parsing
 
 Use shared utilities from `utils/type-utils.js` (client ESM) or `db/type-utils.js` (server CJS):
@@ -178,17 +193,39 @@ Current debt, so this reads as a standard and not an aspiration:
 | Location | Violation |
 |---|---|
 | `render/spa/utils/index.js` | seven `pattern_type === 'admin' / 'auth' / 'datasets'` checks in the router |
-| `utils/adminPermissions.js` | `permissionOptionsFor` switches on pattern type to pick a vocabulary |
-| `dms-server/routes/dms/dataAuth.js` | `judge()` — a `switch` over eleven row kinds, each with hand-written rules |
-| `dms-server/auth/utils/permissions.js` | auth-row rules keyed by type name |
+| `dms-server/routes/auth/owners.js` | `parentOf` prefers, among same-named patterns, the one that is not `admin` / `auth` (a tie-break by name until every page carries `parent_id`); `patternRow` / `requirePatternAction` skip the `admin` / `auth` rows by name |
+| `dms-server/routes/auth/rules.js` | the built-in copy of the formats' rules, read for a kind the site's `formats` rows and the row's stamp both say nothing about — deleted once every site's declarations are registered (`format-declarations-server-side.md`, Phase 4) |
+| `dms-server/auth/utils/permissions.js` | the auth-row handlers judge with their own `can()` over the named auth row rather than through `authorize` |
 
 ### Auth is the live case
 
-Authorization is where this matters most right now, because getting it wrong is silent. A hardcoded
-`judge()` means a pattern with new auth rules cannot be deployed without a library release, and — far
-worse — a kind nobody added a `case` for falls through to a default. **The default must be
-inheritance, never permission.** An unrecognised row resolves through its parent; it is never "signed
-in is enough", which silently opens every pattern the library has not been taught about.
+Authorization is where this matters most, because getting it wrong is silent. The server's judge
+(`dms-server/src/routes/auth/judge.js`) is an interpreter over each row kind's rule, authored in the
+formats (`rules`) beside the `permissionDomain` and stamped on the pattern / site row; which rows'
+grants govern a row is a position on its ancestry (`owners.js`: `self`, `parent`, `ancestor:<kind>`,
+`site`), walked over `parent_id` and the type path. A pattern type with new verbs or new rules deploys
+with no server change. **The default must be inheritance, never permission.** A kind with no rule is
+refused on write unless signed in, and a kind with no `read` op is open on read — both written in
+`rules.js`, never a `case` in code.
+
+#### Ownership and grants: the three rules
+
+How patterns, formats and rows fit together so that the auth layer stays one walk and one judge
+(owner, 2026-11-05; `planning/tasks/current/auth-grants-on-the-owner-row.md`):
+
+1. **A row's parent is named by its type path, or by a reference from a parent inside that path's
+   container.** `chenango|page` belongs to the pattern `chenango` by path. A component belongs to the
+   page whose `sections` lists it, by reference: a `dms-format` attribute on the parent, stamped as
+   `parent_id` when the parent is saved. Two ways to say "belongs to", both first-class. When both
+   apply, the reference is the nearer and wins; a reference to a row outside the container is refused
+   (`routes/dms/parentId.js`).
+2. **A rule's owner positions are resolved by walking those parents.** `self`, `parent`,
+   `ancestor:<kind>`, `site`, or a list spread in order. The judge never names a kind or a pattern
+   type. (`patterns:<type>` was such a position and is gone; a datasets pattern's grants live on the
+   env row it points at, which IS the sources' parent.)
+3. **A verb is granted on the row that owns its subject.** Site-level verbs — the pattern list, themes,
+   tenants, and the auth verbs over users and groups, which are not rows — go on the site row. A pattern
+   row holds the verbs over itself and its own rows, nothing else.
 
 Two kinds of knowledge get hardcoded in auth, and each already has a data home:
 
@@ -197,10 +234,19 @@ Two kinds of knowledge get hardcoded in auth, and each already has a data home:
 | *"a page's grants merge with its pattern's"* — relationships between rows | the row's **parentage** (`parent_id`, falling back to the type path), reconstructed by walking it |
 | *"changing `authPermissions` needs `edit-page-permissions`"* — which verb governs which field | the pattern's **format**, beside the `permissionDomain` that already declares its vocabulary |
 
-Formats are rows in the `formats` table keyed by `app+type`, which the server already reads
-(`dms.controller.js` `getFormat`). So patterns can declare their own auth rules and the server can
-aggregate them across every registered pattern, with no new storage and no new transport. A judging
-function is then an **interpreter over that aggregate** — it gains no branch when a pattern is added.
+Formats are rows in the server's `formats` table, one per site and format key (`app` = the site,
+`type` = `datasets+source`, `dms-site+page`, or `<pattern type>+pattern` for a type's own vocabulary
+and childRefs), in the site's own table under per-app split mode (`dms_<app>.formats`, beside its
+`data_items`; `db/table-resolver.js resolveFormatsTable`). They are REGISTERED server-side, as a step of a deploy: the client package's
+`scripts/emit-formats.mjs` derives them from the format modules (the same derivation as the
+browser's registry) and `dms-server/src/scripts/register-formats.js` writes them, dry run by default.
+**No client writes that table** — not a browser, not the dms CLI (owner, 2026-11-06); the one HTTP
+route is a read, for `dms formats diff`. The auth layer reads the rows with the owners snapshot
+(`dms-server/routes/auth/formats.js`). So patterns declare their own auth rules and the server
+aggregates them across every registered pattern, with no new transport per pattern. A judging
+function is then an **interpreter over that aggregate** — it gains no branch when a pattern is
+added. The stamp a new row still carries (`stampPatternRow` / `stampSiteRow`) is read only for a
+kind the table says nothing about, for one release.
 
 **Prefer rules that reconstruct over rules that enumerate.** Parent/child relationships plus per-row
 grants reproduce most of what per-kind cases spell out by hand, with one rule instead of eleven. A

@@ -21,6 +21,61 @@ registers its own **at module scope in a module that both its client entry and i
 before `DmsSite` / `createSSRHandler` build routes. dms-template does this in `src/patterns/index.js`,
 imported by `src/App.jsx` and `src/entry-ssr.jsx`.
 
+## Every pattern declares at least one format — REQUIRED
+
+**A pattern type must declare a format for every DMS row kind it stores, and therefore at least one
+— even a pattern that only saves its own configuration.** A format is how the pattern says *where in
+DMS its data lives and what shape it has*. A row kind with no format is a row nothing can describe:
+
+| without a format | consequence |
+|---|---|
+| no attribute metadata | no generic editor can render the row; every view of it must be bespoke |
+| no `permissionDomain` | **no grants editor** — the Access editor has nothing to offer, so the row can only ever be granted `*` |
+| no `dms-format` attributes | nothing declares which rows own which, so `childRefs` and the row-auth parentage walk fall back to the type path |
+
+### Where it is declared: `siteConfig`, not the registry
+
+Each `siteConfig` function returns `format` on its config object. This is already the convention —
+**five of seven pattern types do it** — and it is the single declaration site. There is deliberately
+no `format` key on the registry definition; a second place to declare the same thing is the problem,
+not the fix.
+
+```js
+// page/siteConfig.jsx
+const format = initializePatternFormat(cmsFormat, app, type);   // binds app + `{instance}|page`
+return { siteType, format, ... }
+```
+
+The base format stays a plain module (`page.format.js`, `datasets.format.js`, `admin.format.js`,
+`mapeditor.format.js`), so anything needing the UNBOUND shape — deriving a pattern's auth verbs, for
+instance — imports that module directly rather than calling a mount-time function. Binding only
+rewrites `app` and prefixes `type`; it never touches `permissionDomain`.
+
+### `siteConfig` is an ARRAY, and each entry may carry its own format
+
+A pattern type owning several row kinds says so by exporting several configs. `admin` is the worked
+example:
+
+| config | format | row kind |
+|---|---|---|
+| `adminConfig` | `cloneDeep(adminFormat)` | the **site** row (`{instance}:site`) |
+| `patternConfig` | `cloneDeep(pattern)` | the **pattern** row |
+
+So a pattern's formats are the union over every `siteConfig` entry, each entry's own format plus its
+`registerFormats` tree, keyed by row kind. **Multiple configs imply exclusive sets of pages.**
+
+**If two configs declare a `permissionDomain` for the same row kind, the LATER entry in the array
+wins.** That is a configuration error and nothing enforces it (owner, 2026-10-30) — last-wins is the
+documented resolution so the behaviour is predictable, not a licence to rely on it.
+
+### Patterns that do not satisfy this today
+
+| pattern | state |
+|---|---|
+| `qa` | `siteConfig` returns **no** `format`. Its data is declared instead as dataset sources (`QA_DATASETS`, created by `admin.afterCreate`) — a format-equivalent by another route, described by the source's attributes and governed by the datasets pattern's source `permissionDomain`. |
+| `chat` | `siteConfig` returns **no** `format`. Its tier-1 rows, `{instance}\|channel` and `{instance}\|member` (`src/patterns/chat/channels.js`), are ordinary DMS rows in the app's main table, written through plain `dms.data` calls, and described by nothing — no format, and `chat/index.js` declares no `childRefs`. Note the pattern DOES declare `MESSAGE_ATTRIBUTES` for its tier-2 `:data` rows, so the two tiers are not described consistently within one pattern. (The tier-2 split — messages in per-channel `:data` tables, read a window at a time — is a deliberate and sound design; only tier 1 is at issue.) |
+| `auth` | returns `format: {app, attributes: []}` at both of its config sites — a stub with **no attributes**, describing no row. Honest about storing nothing, but if the auth pattern keeps configuration on its own row, those fields belong here. Neither config declares a `permissionDomain`. |
+
 ## The definition
 
 ```js
@@ -98,6 +153,36 @@ imported by `src/App.jsx` and `src/entry-ssr.jsx`.
   also carries the row's **`public`** settings, whatever the type: what the type chooses to show
   everyone, signed out included. dms-server has no type-specific code. The type writes `public` from
   its own settings whenever they change.
+
+## What the server learns, and how
+
+dms-server never imports this package. Everything a type declares that the server must read — each
+format's `rules`, the type's derived permission vocabulary, its `childRefs`, the formats' attributes —
+reaches it as rows of the site's `formats` table, REGISTERED on the server as a step of a deploy:
+`packages/dms/scripts/emit-formats.mjs` derives them from the format modules (one per format key,
+`datasets+source`, plus `<type>+pattern` for the type's own; `--extra <file>` for a host app's own
+types), and `dms-server/src/scripts/register-formats.js --db <config> --app <app> [--file …] [--apply]`
+writes them, dry run by default. No client writes that table — not a browser, not the dms CLI
+(`dms formats diff` only reads, to check a site). An app-registered type needs its format module
+passed as `--extra`, since the emitter cannot see the host app's registrations.
+
+## Ownership and grants: the three rules
+
+The auth layer (`dms-server/src/routes/auth`) is one walk over a row's parents and one judge over its
+kind's rule. A pattern type keeps it that way by following three rules (owner, 2026-11-05; the full
+statement is in `CLAUDE.md`, "Ownership and grants"):
+
+1. **A row's parent is its type path's container, or a row inside that container that lists it.** A
+   `dms-format` attribute on the parent (`sections`, `sources`, `views`, `patterns`) is the reference;
+   saving the parent stamps `parent_id` on the children it names. Declare one for every child kind your
+   pattern stores, and never point a reference outside the container.
+2. **A rule's owners are ancestors.** `owner`, `escape`, `ifOwnerBlank` and every requirement name
+   `self`, `parent`, `ancestor:<kind>` or `site`. Registration refuses anything else
+   (`deriveAuthRules.js validateAuthRules`). If your pattern wants to lend grants to rows it does not
+   own, put the grants on the row that does own them (the way the datasets pattern's live on its env).
+3. **A verb is granted where its subject lives.** Verbs over your pattern's own rows go in those rows'
+   `permissionDomain`; verbs over the pattern row itself in the `instanceFormat`; verbs over things
+   that are not rows of your pattern (users, groups, the site) belong to the site format's domain.
 
 ## Section-component registry hooks (generic, any section type)
 

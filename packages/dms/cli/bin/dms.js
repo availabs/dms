@@ -12,6 +12,7 @@ import * as pattern from '../src/commands/pattern.js';
 import * as page from '../src/commands/page.js';
 import * as section from '../src/commands/section.js';
 import * as dataset from '../src/commands/dataset.js';
+import * as formats from '../src/commands/formats.js';
 
 const program = new Command();
 
@@ -148,6 +149,32 @@ siteCmd
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
     await site.tree(config, getOutputOptions(cmd));
+  });
+
+// ============================================================================
+// FORMAT DECLARATIONS
+// ============================================================================
+
+const formatsCmd = program
+  .command('formats')
+  .description("The site's format declarations on the server, read-only (auth rules, vocabulary, childRefs); see docs/README.md \"Formats\"");
+
+formatsCmd
+  .command('list')
+  .description("List the site's stored declarations")
+  .action(async (options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app']);
+    await formats.list(config, getOutputOptions(cmd));
+  });
+
+formatsCmd
+  .command('diff <file>')
+  .description("Read-only: how the site's stored declarations differ from a file's (exit 1 when they do)")
+  .action(async (file, options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app']);
+    await formats.diff(file, config, getOutputOptions(cmd));
   });
 
 // ============================================================================

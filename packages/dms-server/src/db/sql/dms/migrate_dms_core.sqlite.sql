@@ -33,6 +33,29 @@ CREATE INDEX IF NOT EXISTS idx_page_visits_page_id ON page_visits (page_id);
 -- `action` postdates the original page_visits table.
 ALTER TABLE page_visits ADD COLUMN action TEXT;
 
+-- Access log (src/access-log/index.js), added 2026-11-02. Also declared in change_log*.sql for fresh
+-- databases; repeated here so existing databases pick it up.
+CREATE TABLE IF NOT EXISTS access_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    app         TEXT    NOT NULL DEFAULT '',
+    guard       TEXT    NOT NULL,
+    outcome     TEXT    NOT NULL,
+    kind        TEXT    NOT NULL,
+    target      TEXT    NOT NULL,
+    perms       TEXT    NOT NULL DEFAULT '',
+    principal   TEXT    NOT NULL,
+    user_id     INTEGER,
+    user_email  TEXT,
+    groups      TEXT,
+    reason      TEXT,
+    count       INTEGER NOT NULL DEFAULT 0,
+    first_seen  TEXT    NOT NULL DEFAULT (datetime('now')),
+    last_seen   TEXT    NOT NULL DEFAULT (datetime('now')),
+    UNIQUE (app, guard, outcome, kind, target, perms, principal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_access_log_app_last_seen ON access_log (app, last_seen);
+
 -- ── SQLite-only additions to dms.sqlite.sql ─────────────────────────────────
 -- These two postdate the original dms.sqlite.sql and have no Postgres
 -- counterpart (dms.sql has never changed since it was created), which is why
@@ -46,3 +69,8 @@ CREATE INDEX IF NOT EXISTS idx_data_items_tags
     ON data_items (app, type, json_extract(data, '$.tags'))
     WHERE json_extract(data, '$.tags') IS NOT NULL
     AND json_extract(data, '$.tags') != '';
+
+-- Format declarations (routes/auth/formats.js), added 2026-11-06.
+ALTER TABLE formats ADD COLUMN auth_vocabulary TEXT;
+ALTER TABLE formats ADD COLUMN auth_rules TEXT;
+ALTER TABLE formats ADD COLUMN child_refs TEXT;

@@ -17,6 +17,7 @@
 
 const { registerHandler } = require('../tasks');
 const { registerRule } = require('../rules/registry');
+const { writeGate } = require('./auth');
 
 const datatypes = {};
 
@@ -30,6 +31,9 @@ const schedulables = {};
  * @param {Object} definition
  * @param {Object} [definition.workers] - Map of workerPath → async handler function
  * @param {Function} [definition.routes] - fn(router, helpers) to define Express routes
+ * @param {string[]} [definition.openRoutes] - writes that need no signed-in user, as 'METHOD /path'
+ *   (`:param` segments allowed): a webhook with its own secret, a read served over POST. Every other
+ *   non-GET route goes through writeGate (dama/datatypes/auth.js) before the plugin sees it.
  * @param {Object} [definition.schedulables] - Map of workerPath → schedulable spec:
  *   { label, defaultCron, params, buildDescriptor({schedule, db, pgEnv}),
  *     preflight({schedule, descriptor, db, pgEnv}) } — opts the worker into
@@ -84,6 +88,7 @@ function mountDatatypeRoutes(app, helpers) {
     if (def.routes) {
       const express = require('express');
       const router = express.Router({ mergeParams: true });
+      router.use(writeGate(def.openRoutes));
       def.routes(router, helpers);
       app.use(`/dama-admin/:pgEnv/${name}`, router);
       count++;

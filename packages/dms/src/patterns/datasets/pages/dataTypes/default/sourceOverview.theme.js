@@ -83,6 +83,7 @@ export const sourceOverviewTheme = {
     verHeaderCount:        't-metaXS text-[var(--t-pencil)]',
     verList:               'divide-y divide-[var(--t-rule)]',
     verEmpty:              'px-4 py-4 t-proseSM text-[var(--t-pencil)]',
+    verDownloadError:      'px-4 py-2 t-proseSM text-[var(--t-brick)]',
     verRow:                'px-4 py-3',
     verRowTop:             'flex items-start gap-3',
     verRowMain:            'flex-1 min-w-0',

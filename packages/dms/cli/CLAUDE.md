@@ -25,7 +25,8 @@ cli/
 │   │   ├── pattern.js      # Pattern list/show/dump
 │   │   ├── page.js         # Page list/show/dump/create/update/publish/unpublish/delete
 │   │   ├── section.js      # Section list/show/dump/create/update/delete
-│   │   └── dataset.js      # Dataset list/show/views/dump/query
+│   │   ├── dataset.js      # Dataset list/show/views/dump/query
+│   │   └── formats.js      # Format declarations on the server, read-only: list/diff (docs/README.md "Formats")
 │   ├── formatters/
 │   │   ├── json.js         # JSON output (pretty/compact)
 │   │   ├── summary.js      # Human-readable summary lines
@@ -125,6 +126,7 @@ Pages resolve by `url_slug`, datasets resolve by `name`. Numeric strings are tre
 | `section` | `list`, `show`, `dump`, `create`, `update`, `delete` |
 | `dataset` | `list`, `show`, `views`, `dump`, `query` |
 | `raw` | `get`, `list`, `create`, `update`, `delete` |
+| `formats` | `list`, `diff` — the site's format declarations on dms-server (auth rules, vocabulary, childRefs), read-only; `dms-server/src/scripts/register-formats.js` is the writer |
 
 ## Dependencies
 

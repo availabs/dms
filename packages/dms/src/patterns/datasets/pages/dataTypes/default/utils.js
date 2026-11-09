@@ -145,33 +145,24 @@ export async function getSourceData ({pgEnv, falcor, source_id, setSource, isDms
 // update below so `source[attrKey]` matches what a GET response would parse it into.
 const toWireValue = (data) => (data !== null && typeof data === 'object') ? JSON.stringify(data) : data;
 
-export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id}) => {
+// Writes go through the sources.update / views.update calls rather than a falcor.set: a call can
+// carry `pattern` (DatasetsContext.datasetsPattern), whose grants an external source inherits on
+// the server. The response echoes the written row at the same sources.byId / views.byId paths.
+export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern}) => {
         if(isDms && (!format?.app || !source?.type)) {
             throw new Error("Update Error. Source invalid.")
         }
 
         const envKey = isDms ? `${format.app}+${source.type}` : pgEnv;
 
-        return falcor.set({
-            paths: [
-                ['uda', envKey, 'sources', 'byId', id, attrKey]
-            ],
-            jsonGraph: {
-                uda: {
-                    [envKey]: {
-                        sources: {
-                            byId: {
-                                [id]: {[attrKey]: toWireValue(data)}
-                            }
-                        }
-                    }
-                }
-            }
-        }).then(d => {
+        return falcor.call(
+            ['uda', 'sources', 'update'],
+            [envKey, id, {[attrKey]: toWireValue(data)}, pattern]
+        ).then(d => {
             // The server is authoritative — use whatever it actually confirms for this
-            // attrKey when the response includes it (the sources.byId set route echoes
-            // back every column of the updated row, so for external sources — where
-            // attrKey is a real column like `metadata` — this is always present).
+            // attrKey when the response includes it (sources.update echoes back every column
+            // of the updated row, so for external sources — where attrKey is a real column
+            // like `metadata` — this is always present).
             // Fall back to the locally-known `data` only if it genuinely isn't there
             // (e.g. an isDms attrKey nested inside `data` rather than a literal column).
             // Resolving to this confirmed value (not just "the promise didn't reject")
@@ -184,29 +175,17 @@ export const updateSourceData = ({data, attrKey, isDms, apiUpdate, setSource, fo
         })
 }
 
-export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, format, source, view, pgEnv, falcor, id}) => {
+export const updateVersionData = ({data, attrKey, isDms, apiUpdate, setView, format, source, view, pgEnv, falcor, id, pattern}) => {
         if(isDms && (!format?.app || !source?.type)) {
             throw new Error("Update Error. Source invalid.")
         }
 
         const envKey = isDms ? `${format.app}+${source.type}` : pgEnv;
 
-        return falcor.set({
-            paths: [
-                ['uda', envKey, 'views', 'byId', id, attrKey]
-            ],
-            jsonGraph: {
-                uda: {
-                    [envKey]: {
-                        views: {
-                            byId: {
-                                [id]: {[attrKey]: toWireValue(data)}
-                            }
-                        }
-                    }
-                }
-            }
-        }).then(d => {
+        return falcor.call(
+            ['uda', 'views', 'update'],
+            [envKey, id, {[attrKey]: toWireValue(data)}, pattern]
+        ).then(d => {
             // See updateSourceData's identical comment — verify against the server's own
             // echoed value rather than trusting the locally-known one.
             const confirmed = d?.json?.uda?.[envKey]?.views?.byId?.[id]?.[attrKey];

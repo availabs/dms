@@ -2,6 +2,7 @@ import {useContext, useEffect, useState} from 'react'
 import {Link} from 'react-router'
 import {udaGetViewsLineage, udaDeleteView} from '../../../api'
 import {ThemeContext} from '../../../ui/useTheme'
+import {DatasetsContext} from '../context'
 
 // View lineage on the datasets pages (dama-parent-child-etl-support.md G1/G3/G5). Lineage lives on
 // VIEWS: each version records what it was built from and which run produced it, and two versions of
@@ -107,6 +108,7 @@ export function DeleteVersionButton({t, envKey, viewId, label, canDelete, falcor
     // Buttons are UI.Button roles (2026-10-14, owner): the trigger matches the internal Delete Version and
     // Delete Download (dangerFull + trash icon); Cancel = action, confirm = dangerSolid.
     const {UI} = useContext(ThemeContext) || {};
+    const {datasetsPattern} = useContext(DatasetsContext) || {};
     const {Button, Icon} = UI || {};
     const [open, setOpen] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -117,7 +119,7 @@ export function DeleteVersionButton({t, envKey, viewId, label, canDelete, falcor
     const run = async (cascade) => {
         setBusy(true); setRefusal(null);
         try {
-            const result = await udaDeleteView(falcor, {env: envKey, view_id: viewId, cascade});
+            const result = await udaDeleteView(falcor, {env: envKey, view_id: viewId, cascade, pattern: datasetsPattern});
             if (!result || result.error) {
                 setRefusal(result || {error: 'The server did not answer the delete.'});
                 setBusy(false);

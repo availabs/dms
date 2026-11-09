@@ -15,22 +15,26 @@
  *   POST   /dama-admin/:pgEnv/tasks/:taskId/rerun re-run a task with the exact descriptor it ran
  *                                                 with → { queued:true, task_id, rerun_of }
  *
- * Auth: mutating routes require an authenticated user (req.availAuthContext.user,
- * set by the server's JWT middleware) — same convention as the other mutating
- * dama-admin routes. Reads are open like /events/query.
+ * Auth (permissions-ds-schedules-and-tasks): every mutating route needs a signed-in user, plus
+ * `update-source` on the source the schedule or task belongs to — read from the stored row, never
+ * only from the body (a PATCH that moves a schedule needs it on both sources). A schedule or task with
+ * no source is an edit of the env itself (`settings`), which the env rule gives to its managers:
+ * `create-source` / `delete-source` on the env's `:dmsenv` row of the site the request names
+ * (`dms_app`), or site `*`. These routes needed only a login before, so `log` allows and logs
+ * would-denies (DMS_AUTH_MODE).
+ * Reads (schedules, runs) need a signed-in user (`requireReader`); /schedulables is the registry, open.
  */
 
 const schedules = require('./schedules');
 const tasks = require('./index');
 const { getSchedulables } = require('../datatypes');
+const { requireUser, requireReader } = require('../../routes/auth/requestUser');
+const { requireCan } = require('../../routes/auth');
 
-function requireAuth(req, res) {
-  const user = req.availAuthContext && req.availAuthContext.user;
-  if (!user) {
-    res.status(401).json({ error: 'Authentication required' });
-    return null;
-  }
-  return user;
+// Answers 401 / 403 and returns null when refused; otherwise the user.
+function authorizeTarget(req, res, sourceId) {
+  if (sourceId != null) return requireCan(req, res, { source: sourceId, verb: 'update-source' });
+  return requireCan(req, res, { verb: 'edit', fields: ['settings'], env: true });
 }
 
 function registerScheduleRoutes(app) {
@@ -45,7 +49,7 @@ function registerScheduleRoutes(app) {
     })));
   });
 
-  app.get('/dama-admin/:pgEnv/schedules', async (req, res) => {
+  app.get('/dama-admin/:pgEnv/schedules', requireReader, async (req, res) => {
     try {
       const { pgEnv } = req.params;
       const source_id = req.query && req.query.source_id != null ? Number(req.query.source_id) : undefined;
@@ -58,10 +62,11 @@ function registerScheduleRoutes(app) {
 
   app.post('/dama-admin/:pgEnv/schedules', async (req, res) => {
     try {
-      const user = requireAuth(req, res);
-      if (!user) return;
+      if (!requireUser(req, res)) return;
       const { pgEnv } = req.params;
       const b = req.body || {};
+      const user = await authorizeTarget(req, res, b.source_id ?? null);
+      if (!user) return;
 
       if (!b.worker_path) return res.status(400).json({ error: 'worker_path is required' });
       if (!b.cron) return res.status(400).json({ error: 'cron is required' });
@@ -95,13 +100,16 @@ function registerScheduleRoutes(app) {
 
   app.patch('/dama-admin/:pgEnv/schedules/:id', async (req, res) => {
     try {
-      if (!requireAuth(req, res)) return;
+      if (!requireUser(req, res)) return;
       const { pgEnv, id } = req.params;
       const b = req.body || {};
+      const current = await schedules.getSchedule(id, pgEnv);
+      if (!current) return res.status(404).json({ error: 'Schedule not found' });
+      if (!await authorizeTarget(req, res, current.source_id ?? null)) return;
+      if (b.source_id !== undefined && String(b.source_id ?? '') !== String(current.source_id ?? '')
+        && !await authorizeTarget(req, res, b.source_id ?? null)) return;
 
       if (b.cron !== undefined || b.timezone !== undefined) {
-        const current = await schedules.getSchedule(id, pgEnv);
-        if (!current) return res.status(404).json({ error: 'Schedule not found' });
         try {
           schedules.computeNextFireAt(b.cron ?? current.cron, b.timezone ?? current.timezone);
         } catch (err) {
@@ -120,8 +128,11 @@ function registerScheduleRoutes(app) {
 
   app.delete('/dama-admin/:pgEnv/schedules/:id', async (req, res) => {
     try {
-      if (!requireAuth(req, res)) return;
+      if (!requireUser(req, res)) return;
       const { pgEnv, id } = req.params;
+      const current = await schedules.getSchedule(id, pgEnv);
+      if (!current) return res.status(404).json({ error: 'Schedule not found' });
+      if (!await authorizeTarget(req, res, current.source_id ?? null)) return;
       const deleted = await schedules.deleteSchedule(id, pgEnv);
       if (!deleted) return res.status(404).json({ error: 'Schedule not found' });
       res.json({ deleted: true, schedule_id: Number(id) });
@@ -131,7 +142,7 @@ function registerScheduleRoutes(app) {
     }
   });
 
-  app.get('/dama-admin/:pgEnv/schedules/:id/runs', async (req, res) => {
+  app.get('/dama-admin/:pgEnv/schedules/:id/runs', requireReader, async (req, res) => {
     try {
       const { pgEnv, id } = req.params;
       const schedule = await schedules.getSchedule(id, pgEnv);
@@ -148,10 +159,11 @@ function registerScheduleRoutes(app) {
   // next_fire_at.
   app.post('/dama-admin/:pgEnv/schedules/:id/fire', async (req, res) => {
     try {
-      if (!requireAuth(req, res)) return;
+      if (!requireUser(req, res)) return;
       const { pgEnv, id } = req.params;
       const schedule = await schedules.getSchedule(id, pgEnv);
       if (!schedule) return res.status(404).json({ error: 'Schedule not found' });
+      if (!await authorizeTarget(req, res, schedule.source_id ?? null)) return;
       res.json(await schedules.fireSchedule(schedule, pgEnv, { manual: true }));
     } catch (err) {
       console.error('[schedules] fire failed:', err);
@@ -164,13 +176,16 @@ function registerScheduleRoutes(app) {
   // events timeline) tagged with `rerun_of` for provenance. max_attempts is
   // forced to 1 — a human triggered this and is watching; retries are theirs
   // to decide. Schedule guards/preflights are NOT consulted: the descriptor
-  // is already concrete and the operator explicitly asked for the run.
+  // is already concrete and the operator explicitly asked for the run. `rerun_by` records who asked
+  // (the descriptor's own user fields stay those of the original run).
   app.post('/dama-admin/:pgEnv/tasks/:taskId/rerun', async (req, res) => {
     try {
-      if (!requireAuth(req, res)) return;
+      if (!requireUser(req, res)) return;
       const { pgEnv, taskId } = req.params;
       const task = await tasks.getTaskStatus(taskId, pgEnv);
       if (!task) return res.status(404).json({ error: 'Task not found' });
+      const user = await authorizeTarget(req, res, task.source_id ?? null);
+      if (!user) return;
 
       const descriptor = typeof task.descriptor === 'string'
         ? JSON.parse(task.descriptor || '{}') : (task.descriptor || {});
@@ -182,6 +197,7 @@ function registerScheduleRoutes(app) {
         schedule_id: task.schedule_id ?? null,
         max_attempts: 1,
         rerun_of: Number(taskId),
+        rerun_by: user.id ?? null,
       }, pgEnv);
 
       res.json({ queued: true, task_id: newTaskId, rerun_of: Number(taskId) });

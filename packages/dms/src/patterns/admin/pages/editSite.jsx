@@ -10,7 +10,8 @@ import { parseIfJSON, saveSiteRefList } from '../utils';
 import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
-import { getPatternType, listPatternTypes } from '../../registry'
+import { getPatternType, listPatternTypes, stampPatternRow } from '../../registry'
+import { authedFetch } from '../../../utils/authedFetch'
 
 function getSubdomainFromHost(host) {
   const hostname = (host || window.location.host).split(':')[0];
@@ -291,7 +292,6 @@ function PatternList({
                     config: d.row.config,
                     name: newName,
                     pattern_type: d.row.pattern_type,
-                    auth_level: d.row.auth_level,
                     filters: d.row.filters,
                     theme: d.row.theme,
                   };
@@ -363,6 +363,12 @@ function PatternList({
 			if (prepared) row = prepared;
 		}
 
+		// Stamp the type's auth vocabulary, childRefs and auth rules onto the row. dms-server cannot
+		// read the pattern-type registry (it has no dependency on this package), so the pattern row is
+		// how a type's verbs and rules reach the server — row-auth-vocabulary.md. Read from the
+		// registry rather than left to each type's beforeCreate, so a type cannot forget.
+		row = stampPatternRow(row);
+
 		const patternType = `${siteInstance}|${slug}:pattern`;
 		const res = await falcor.call(
 			['dms', 'data', 'create'],
@@ -409,13 +415,14 @@ function PatternList({
 		setIsDuplicating(true);
 		try {
 			// call server to copy over pages and sections
-			const res = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
+			const res = await authedFetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`,
 				{
 					method: "POST",
 					body: JSON.stringify({newApp: app, newType: newInstance}),
 					headers: {
 						"Content-Type": "application/json",
 					},
+					user,
 				});
 			const body = await res.json().catch(() => ({}));
 			if (!res.ok || body?.err) {
@@ -622,7 +629,6 @@ function PatternList({
 										config: editingItem?.config,
 										name: newName,
 										pattern_type: editingItem?.pattern_type,
-										auth_level: editingItem?.auth_level,
 										filters: editingItem?.filters,
 										theme: editingItem?.theme,
 									};

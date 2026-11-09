@@ -58,7 +58,7 @@ app.use(function (req, res, next) {
   res.header('Access-Control-Allow-Credentials', true);
   res.header(
     'Access-Control-Allow-Headers',
-    'Origin, X-Requested-With, Content-Type, Accept, Authorization'
+    'Origin, X-Requested-With, Content-Type, Accept, Authorization, X-DMS-App'
   );
 
   res.header(
@@ -132,6 +132,13 @@ registerAuthRoutes(app, getDb(authDbEnv));
 // JWT auth middleware — validates Authorization header, attaches req.availAuthContext
 app.use(createJwtMiddleware(authDbEnv));
 
+// Access log — the guards' refusals, counted (GET /dms-admin/:app/access-log, `${app} Admin` / AVAIL only)
+const { registerAccessLogRoutes } = require('./access-log');
+registerAccessLogRoutes(app, { authDbEnv });
+
+// Format declarations — what scripts/register-formats.js registered for a site, read-only (routes/auth/formats.js)
+require('./routes/auth/formats').registerFormatRoutes(app);
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 
@@ -200,21 +207,8 @@ app.use('/graph', (req, res, next) => {
   next();
 });
 
-// Extract subdomain from the request. Mirrors getSubdomain() in render/spa/utils/index.js.
-// Reads Origin (the frontend's host on cross-origin requests) rather than Host
-// (which is the API server's own hostname and carries no subdomain info).
-function getSubdomain(req) {
-  const origin = req.headers.origin || '';
-  const raw = origin ? origin.replace(/^https?:\/\//, '') : (req.headers.host || '');
-  const hostname = raw.split(':')[0];
-  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-  const minParts = isLocalhost || process.env.NODE_ENV === 'development' ? 2 : 3;
-  const parts = hostname.split('.');
-  // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
-  // a subdomain; real TLDs are never all-digits.
-  if (/^\d+$/.test(parts[parts.length - 1])) return '';
-  return parts.length >= minParts ? parts[0].toLowerCase() : '';
-}
+const { getSubdomain } = require('./utils/subdomain');
+const { requestApp } = require('./routes/auth/requestUser');
 
 app.use(
   '/graph',
@@ -229,7 +223,7 @@ app.use(
         // how the write arrived, for change history rows: the CLI sends 'cli', a browser nothing
         via: req.headers['x-dms-via'] || null,
       };
-      return falcorRoutes({ user, subdomain, reqMeta });
+      return falcorRoutes({ user, subdomain, reqMeta, requestApp: requestApp(req) });
     } catch (e) {
       console.error('[graph] Error creating data source:', e);
       throw e;
@@ -288,24 +282,19 @@ async function setupAndListen() {
   const metadata = require('./dama/upload/metadata');
   const lineage = require('./dama/lineage');
   const damaDelete = require('./dama/delete');
-  const { isUserAuthedForSource } = require('./routes/uda/sourceAuth');
+  const { requireUser, requestUserId } = require('./routes/auth/requestUser');
+  const { requireCan } = require('./routes/auth');
+  const { authorizeViewAction } = require('./dama/upload/auth');
   const { getDb, loadConfig } = require('./db');
-  // Plugin routes are open unless they check, so a route that writes calls one of these first.
-  // Both answer the request themselves (401 / 403) and return null when the caller is refused.
-  const requireUser = (req, res) => {
-    const user = req.availAuthContext?.user;
-    if (!user) { res.status(401).json({ error: 'authentication required' }); return null; }
-    return user;
-  };
-  const requireSourcePermission = async (req, res, sourceId, perms) => {
-    const user = requireUser(req, res);
-    if (!user) return null;
-    const ok = await isUserAuthedForSource({
-      db: getDb(req.params.pgEnv), sourceId: +sourceId, reqPermissions: [].concat(perms), user,
-    });
-    if (!ok) { res.status(403).json({ error: `requires ${[].concat(perms).join(' or ')} on source ${sourceId}` }); return null; }
-    return user;
-  };
+  // Plugin writes need a signed-in user (writeGate, mounted per plugin) and then the route's own permission.
+  // Each helper answers the request itself (401 / 403) and returns null when the caller is refused.
+  // For routes that used to answer anyone: authorizePublish(req, res, sourceId) (new source: create-source
+  // on the named pattern; new version: create-view / update-source) and authorizeSourceWrite(req, res,
+  // { sourceId, viewId }, perms) — both follow DMS_AUTH_MODE (dama/datatypes/auth.js).
+  // Strict ones (login always): requireCan(req, res, { source: sourceId, perms: perms }) reads the pgEnv from
+  // req.params.pgEnv; authorizeViewAction(req, res, viewId, perms, bodySourceId) checks the view's own source.
+  // holdsSourcePermission(req, sourceId, perms) answers nothing: for what a reply carries (a secret only an
+  // editor sees), judged as reads are (DMS_AUTH_MODE).
   mountDatatypeRoutes(app, {
     queueTask: tasks.queueTask,
     getTaskStatus: tasks.getTaskStatus,
@@ -318,7 +307,12 @@ async function setupAndListen() {
     getViewLineage: lineage.getViewLineage,
     getSourceLineage: lineage.getSourceLineage,
     requireUser,
-    requireSourcePermission,
+    // ONE guard per transport since 2026-11-03: name the subject with `source` or `pattern`.
+    // `requireSourcePermission` / `requirePatternPermission` were the same question twice.
+    requireCan,
+    authorizeViewAction,
+    ...require('./dama/datatypes/auth').pluginHelpers,
+    requestUserId,
     getDb,
     loadConfig,
     storage: require('./dama/storage'),

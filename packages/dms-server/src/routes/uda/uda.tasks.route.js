@@ -14,34 +14,32 @@ const {
   getTaskEventsByIndex,
   getSettings,
   setSettings,
-  updateSourceMetadata,
   softDeleteSource,
   hardDeleteSource,
 } = require("./uda.tasks.controller");
 const { getDb } = require("../../db");
-const { isUserAuthedForSource } = require("./sourceAuth");
+const { readerAllowed } = require("../auth/requestUser");
+const { assertCan } = require("../auth");
 
 /**
- * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and on DaMa
+ * Deletes drop tables (owner decision 2026-10-02), so they need a signed-in user, and
  * `delete-source` on every source the delete touches (a cascade reaches the sources of a run's
- * outputs). Un-migrated envs (no auth_permissions column) fall back to the sign-in check, as
- * isUserAuthedForSource does. DMS internal sources (env `app+instance`) get the sign-in check only.
+ * outputs). The decision follows DMS_AUTH_MODE (see sourceAuth.js): under `log`, DMS
+ * internal sources (env `app+instance`) and sources the check can't read get the sign-in check only;
+ * `enforce` checks them too.
  */
-function deleteAuthorizer(env, user) {
-  if (!user) throw new Error("Sign in to delete");
-  if (String(env).includes("+")) return async () => {};
+function deleteAuthorizer(env, router) {
+  if (!router.user) throw new Error("Sign in to delete");
   return async (sourceIds) => {
-    const db = getDb(env);
-    for (const sourceId of sourceIds) {
-      const ok = await isUserAuthedForSource({ db, sourceId, reqPermissions: ["delete-source"], user });
-      if (!ok) throw new Error(`Not authorized to delete source ${sourceId} (needs delete-source)`);
-    }
+    for (const sourceId of sourceIds) await assertCan(router, { env, source: sourceId, verb: 'delete-source' });
   };
 }
 
 // A refused or failed delete comes back as an error atom; DeleteRefused also carries its reason.
 const deleteError = (err) => ({ error: err.message, ...(err.details ? { reason: err.details.reason, details: err.details } : {}) });
 
+// Task and event reads need a signed-in user (readerAllowed, under DMS_AUTH_MODE); refused reads
+// return nothing. Per-source view-source comes with read visibility (permissions-ds-read-visibility).
 const TASK_ATTRS = [
   "task_id", "host_id", "source_id", "worker_path", "status", "progress",
   "result", "error", "descriptor", "queued_at", "started_at", "completed_at", "worker_pid"
@@ -58,6 +56,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.length`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.length", this.requestApp || "")) return [];
         const { envs } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -77,6 +76,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byIndex", this.requestApp || "")) return [];
         const { envs, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -103,6 +103,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byId", this.requestApp || "")) return [];
         const { envs, taskIds, attributes } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -130,6 +131,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].length`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.forSource.length", this.requestApp || "")) return [];
         const { envs, sourceIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -154,6 +156,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.forSource[{integers:sourceIds}].byIndex[{integers:indices}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.forSource.byIndex", this.requestApp || "")) return [];
         const { envs, sourceIds, indices } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -182,6 +185,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.length`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.length", this.requestApp || "")) return [];
         const { envs, taskIds } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -206,6 +210,7 @@ module.exports = [
     route: `uda[{keys:envs}].tasks.byId[{integers:taskIds}].events.byIndex[{integers:indices}][{keys:attributes}]`,
     get: async function (pathSet) {
       try {
+      if (!readerAllowed(this.user, "uda.tasks.byId.events.byIndex", this.requestApp || "")) return [];
         const { envs, taskIds, indices, attributes } = pathSet;
         const result = [];
         for (const env of envs) {
@@ -249,57 +254,43 @@ module.exports = [
         return [];
       }
     },
+    // Needs `edit-pattern` on the datasets pattern that owns the env. A set can't name it, so this
+    // logs a would-deny on every save (and denies under `enforce`); the client uses settings.update.
     set: async function (jsonGraph) {
-      try {
-        const result = [];
-        const envs = Object.keys(jsonGraph.uda || {});
-        for (const env of envs) {
-          const value = jsonGraph.uda[env].settings;
-          await setSettings(env, value);
-          result.push({ path: ["uda", env, "settings"], value });
-        }
-        return result;
-      } catch (err) {
-        console.error("[uda.tasks] settings set error:", err.message);
-        return [];
+      const result = [];
+      const envs = Object.keys(jsonGraph.uda || {});
+      for (const env of envs) {
+        await assertCan(this, { env, verb: 'edit-pattern', pattern: null });
+        const value = jsonGraph.uda[env].settings;
+        await setSettings(env, value);
+        result.push({ path: ["uda", env, "settings"], value });
       }
+      return result;
     },
   },
 
-  // --------------------------------- sources.update (call) ---------------------------------
+  // --------------------------------- settings.update (call) ---------------------------------
+  // Args: [env, value]. The settings set as a call: an edit of the env (`settings`), which the env
+  // rule gives to its managers (`create-source` / `delete-source` on the env row or the site).
   {
-    route: `uda.sources.update`,
+    route: `uda.settings.update`,
     call: async function (callPath, args) {
-      try {
-        const [env, sourceId, updates] = args;
-        const row = await updateSourceMetadata(env, sourceId, updates);
-        if (!row) return [];
-
-        const result = [];
-        for (const attr of Object.keys(row)) {
-          const val = row[attr];
-          result.push({
-            path: ["uda", env, "sources", "byId", row.source_id, attr],
-            value: val !== undefined && val !== null && typeof val === 'object' ? $atom(val) : (val ?? null),
-          });
-        }
-        return result;
-      } catch (err) {
-        console.error("[uda.tasks] sources.update error:", err.message);
-        return [];
-      }
+      const [env, value] = args;
+      await assertCan(this, { env, verb: 'edit', fields: ['settings'] });
+      await setSettings(env, value);
+      return [{ path: ["uda", env, "settings"], value }];
     },
   },
 
   // --------------------------------- sources.delete (call) ---------------------------------
   // Deletes the source, every view and its table, its files and tasks (see dama/delete.js).
-  // Args: [env, sourceId, {cascade}?]. Returns a result atom on the sources.delete path.
+  // Args: [env, sourceId, {cascade, pattern}?]. Returns a result atom on the sources.delete path.
   {
     route: `uda.sources.delete`,
     call: async function (callPath, args) {
       const [env, sourceId, opts = {}] = args;
       try {
-        const authorize = deleteAuthorizer(env, this.user);
+        const authorize = deleteAuthorizer(env, this);
         const result = await softDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -319,7 +310,7 @@ module.exports = [
     call: async function (callPath, args) {
       const [env, sourceId, opts = {}] = args;
       try {
-        const authorize = deleteAuthorizer(env, this.user);
+        const authorize = deleteAuthorizer(env, this);
         const result = await hardDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
@@ -335,14 +326,14 @@ module.exports = [
   // --------------------------------- views.delete (call) ---------------------------------
   // Delete one DaMa view and drop its table. Refused while another view was built from it, while
   // it is authoritative, or while it is a run view with outputs (unless {cascade: true}).
-  // Args: [env, viewId, {cascade}?]. Returns a result atom on the views.delete path.
+  // Args: [env, viewId, {cascade, pattern}?]. Returns a result atom on the views.delete path.
   {
     route: `uda.views.delete`,
     call: async function (callPath, args) {
       const [env, viewId, opts = {}] = args;
       try {
         if (String(env).includes("+")) throw new Error("views.delete is for DaMa views; internal views are removed from the source");
-        const authorize = deleteAuthorizer(env, this.user);
+        const authorize = deleteAuthorizer(env, this);
         const { deleteDamaView } = require("../../dama/delete");
         const result = await deleteDamaView(env, +viewId, { cascade: !!opts?.cascade, authorize });
         return [

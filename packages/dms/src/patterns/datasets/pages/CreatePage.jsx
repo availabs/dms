@@ -43,7 +43,9 @@ const getSources = async ({envs, falcor}) => {
 
 export default function CreatePage({apiUpdate, format}) {
     const ctx = useContext(DatasetsContext);
-    const {baseUrl, user, falcor, type, app, parent, damaDataTypes, datasources, dmsEnv, UI} = ctx;
+    const {baseUrl, user, falcor, type, app, parent, damaDataTypes, datasources, dmsEnv, UI, isUserAuthed} = ctx;
+    // New sources need create-source on this pattern (the server's rule, routes/uda/sourceAuth.js).
+    const canCreate = isUserAuthed ? isUserAuthed(['create-source']) : false;
     const {theme: fullTheme} = useContext(ThemeContext) || {};
     const theme = { ...createPageTheme, ...(fullTheme?.datasets?.createPage || {}) };
     const {Layout, LayoutGroup, MultiSelect, Input, Button, Icon, FieldLabel} = UI;
@@ -164,6 +166,7 @@ export default function CreatePage({apiUpdate, format}) {
                     </div>
                     {theme.intro ?
                         <p className={theme.intro}>Pick what you’re bringing in. New sources start private to you — share them from the Admin tab.</p> : null}
+                    {canCreate ? (
                     <div className={theme.form}>
                         <div className={theme.field}>
                             <FieldLabel text={'Type'} />
@@ -227,6 +230,9 @@ export default function CreatePage({apiUpdate, format}) {
                             </div>
                         )}
                     </div>
+                    ) : (
+                        <p className={theme.noAccess}>You don&apos;t have permission to create sources here (needs Create Source on this datasets pattern).</p>
+                    )}
                 </Body>
             </div>
         </Layout>

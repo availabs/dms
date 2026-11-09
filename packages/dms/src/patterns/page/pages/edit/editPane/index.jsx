@@ -10,12 +10,18 @@ import PermissionsPane from "./permissionsPane";
 import FiltersPane from "./filtersPane";
 import {getPageAuthPermissions} from "../../../pages/_utils";
 
+import { fieldMaps, verbsForFields } from '../../../../../utils/authJudge';
+import { getPatternType } from '../../../../registry';
+
+// Each pane names the page FIELD it edits; which verb that field needs comes from the page format's
+// `permissionDomain` (`fields` on each verb), the same declaration dms-server judges the save by —
+// so a pane and the write behind it cannot drift. A pane with no field names its verb directly.
 const panes = [
       {
         icon: 'Settings',
           title: 'Settings',
         Component: SettingsPane,
-          reqPermissions: ['edit-page']
+          field: 'title'
       },
       // Page filters — own pane since 2026-10-08 (were the bottom of Settings). The Data Sources
       // pane was removed the same day (owner: unused; datasets-page-pattern-v6-port.md Decision 16).
@@ -23,13 +29,13 @@ const panes = [
         icon: 'Filter',
           title: 'Filters',
         Component: FiltersPane,
-          reqPermissions: ['edit-page-params']
+          field: 'filters'
       },
       {
         icon: 'Sections',
           title: 'Section Groups',
         Component: SectionGroupsPane,
-          reqPermissions: ['edit-page']
+          field: 'section_groups'
       },
       {
         icon: 'Pages',
@@ -46,9 +52,17 @@ const panes = [
         icon: 'AccessControl',
           title: 'Permissions',
         Component: PermissionsPane,
-          reqPermissions: ['edit-page-permissions']
+          field: 'authPermissions'
       }
     ]
+
+// The verbs a pane needs: the ones its field's declaration names (any of), else the pane's own list.
+function paneVerbs(pane, patternType) {
+    if (!pane.field) return pane.reqPermissions;
+    const maps = fieldMaps(getPatternType(patternType || 'page')?.authVocabulary);
+    const { groups } = verbsForFields([pane.field], maps, {}, 'descendants');
+    return groups[0] || pane.reqPermissions || ['edit-page'];
+}
 
 export function EditPane () {
   const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
@@ -58,7 +72,7 @@ export function EditPane () {
   const {item, pageState, editPane, setEditPane } =  React.useContext(PageContext) || {}
     const hasChanges = item.published === 'draft' || item.has_changes
 
-    const { isUserAuthed } = React.useContext(CMSContext) || {};
+    const { isUserAuthed, pattern } = React.useContext(CMSContext) || {};
     const reqPermissions = ['edit-page', 'edit-page-permissions']
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
     const userHasEditPageAccess = isUserAuthed(reqPermissions, pageAuthPermissions)
@@ -69,7 +83,7 @@ export function EditPane () {
       <div className={t.bar}>
         {userHasEditPageAccess ?
             panes
-                .filter(pane => !pane.reqPermissions || isUserAuthed(pane.reqPermissions, pageAuthPermissions))
+                .filter(pane => { const verbs = paneVerbs(pane, pattern?.pattern_type); return !verbs || isUserAuthed(verbs, pageAuthPermissions); })
                 .map((pane,i) => (
                 <div
                     key={pane?.icon || i}
@@ -122,7 +136,7 @@ export function EditDrawer() {
     const { UI, theme: themeFromContext = {} } = React.useContext(ThemeContext) || {};
     const {Icon, Tabs, Drawer} = UI;
     const t = { ...editPaneTheme, ...getComponentTheme(themeFromContext, 'pages.editPane') };
-    const { isUserAuthed } = React.useContext(CMSContext) || {};
+    const { isUserAuthed, pattern } = React.useContext(CMSContext) || {};
     const { pageState, item={}, dataItems=[], apiUpdate,  editPane, setEditPane } =  React.useContext(PageContext) || {}
     const pageAuthPermissions = getPageAuthPermissions(pageState?.authPermissions);
 
@@ -141,7 +155,7 @@ export function EditDrawer() {
         setSelectedIndex = {v => setEditPane({...editPane, index: v})}
         tabs={
           panes
-              .filter(pane => !pane.reqPermissions || isUserAuthed(pane.reqPermissions, pageAuthPermissions))
+              .filter(pane => { const verbs = paneVerbs(pane, pattern?.pattern_type); return !verbs || isUserAuthed(verbs, pageAuthPermissions); })
               .map(pane => {
             return {
               name: <Icon

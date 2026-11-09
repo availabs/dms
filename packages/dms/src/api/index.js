@@ -538,6 +538,16 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
 							delete d[key];
 						}
+						// The row being saved OWNS these children — that is what `dms-format` declares.
+						// Say so on the way in: the server cannot derive it, because the type system
+						// does not model the page → component edge (pages carry no instance name, so
+						// nothing can name one as a parent). We have the id right here; it is only
+						// ever rediscovered later at greater cost. Generic — no pattern or kind
+						// appears in this loop, so every type that declares a dms-format attribute
+						// gets correct parentage for free. Dropped by the server if it fails
+						// validation, so an absent `id` (a brand-new parent, back-filled below) is
+						// harmless rather than an error.
+						if (id) d.parent_id = id;
 						if (childId) {
 							if (dirty) {
 								await sync.localUpdate(childId, d);
@@ -570,7 +580,7 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 		// --- End sync intercept ---
 
 		// console.log('gonna updateDMSAttrs', dmsAttrsData, dmsAttrsConfigs, falcor)
-		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor)
+		let updates = await updateDMSAttrs(dmsAttrsData, dmsAttrsConfigs, falcor, id)
 		row = {...row, ...updates}
 
 
@@ -725,7 +735,7 @@ export async function udaCreateView(falcor, { env, source_id, version, copy_from
  * @param {Function} mutate - (metadata) => metadata, applied to a fresh read
  * @returns {Object} the metadata that was written
  */
-export async function udaUpdateSourceMetadata(falcor, { env, source_id, mutate }) {
+export async function udaUpdateSourceMetadata(falcor, { env, source_id, mutate, pattern }) {
 	if (!falcor) throw new Error("No falcor client");
 	if (!env || !source_id) throw new Error("A source env and source_id are required");
 	if (typeof mutate !== "function") throw new Error("mutate must be a function");
@@ -736,9 +746,7 @@ export async function udaUpdateSourceMetadata(falcor, { env, source_id, mutate }
 	const current = typeof raw === "string" ? JSON.parse(raw || "{}") : (raw || {});
 
 	const next = mutate({ ...current }) || current;
-	await falcor.set({ json: { uda: { [env]: { sources: { byId: { [+source_id]: {
-		metadata: JSON.stringify(next),
-	} } } } } } });
+	await falcor.call(["uda", "sources", "update"], [env, +source_id, { metadata: JSON.stringify(next) }, pattern]);
 	await falcor.invalidate(path);
 	return next;
 }
@@ -751,21 +759,21 @@ export async function udaUpdateSourceMetadata(falcor, { env, source_id, mutate }
  * `update-source`. Returns the new authority record `{views}`.
  * See patterns/datasets/utils/authority.js for the shape.
  */
-export async function udaSetAuthoritativeView(falcor, { env, source_id, view_id, key, note }) {
+export async function udaSetAuthoritativeView(falcor, { env, source_id, view_id, key, note, pattern }) {
 	if (!falcor) throw new Error("No falcor client");
 	if (!env || !source_id || view_id == null) throw new Error("env, source_id and view_id are required");
 	const entry = { view_id: +view_id, note, ...(key && Object.keys(key).length ? { key } : {}) };
-	const res = await falcor.call(["uda", "sources", "setAuthoritativeView"], [env, +source_id, entry]);
+	const res = await falcor.call(["uda", "sources", "setAuthoritativeView"], [env, +source_id, entry, pattern]);
 	await falcor.invalidate(["uda", env, "sources", "byId", +source_id, "metadata"]);
 	return get(res, ["json", "uda", env, "sources", "byId", +source_id, "authority"]) ?? null;
 }
 
 /** Clear a source's authoritative view for `key` (no key = the single one). Returns the new record or null. */
-export async function udaClearAuthoritativeView(falcor, { env, source_id, key }) {
+export async function udaClearAuthoritativeView(falcor, { env, source_id, key, pattern }) {
 	if (!falcor) throw new Error("No falcor client");
 	if (!env || !source_id) throw new Error("env and source_id are required");
 	const res = await falcor.call(["uda", "sources", "clearAuthoritativeView"],
-		[env, +source_id, key && Object.keys(key).length ? { key } : {}]);
+		[env, +source_id, key && Object.keys(key).length ? { key } : {}, pattern]);
 	await falcor.invalidate(["uda", env, "sources", "byId", +source_id, "metadata"]);
 	return get(res, ["json", "uda", env, "sources", "byId", +source_id, "authority"]) ?? null;
 }
@@ -858,10 +866,10 @@ export async function udaGetViewLabels(falcor, { env, view_ids, isDms = false })
  * is a run view whose outputs would be orphaned (`has_outputs`, unless `cascade`). Needs a signed-in
  * user with `delete-source`. Returns the server's result atom.
  */
-export async function udaDeleteView(falcor, { env, view_id, cascade = false }) {
+export async function udaDeleteView(falcor, { env, view_id, cascade = false, pattern }) {
 	if (!falcor) throw new Error("No falcor client");
 	if (!env || view_id == null) throw new Error("env and view_id are required");
-	const res = await falcor.call(["uda", "views", "delete"], [env, +view_id, { cascade: !!cascade }]);
+	const res = await falcor.call(["uda", "views", "delete"], [env, +view_id, { cascade: !!cascade, pattern }]);
 	return get(res, ["json", "uda", env, "views", "delete"]) ?? null;
 }
 
@@ -870,10 +878,10 @@ export async function udaDeleteView(falcor, { env, view_id, cascade = false }) {
  * 2026-10-02; Archive is the recoverable path). Same refusals as udaDeleteView, for views outside the
  * source. Returns the server's result atom.
  */
-export async function udaDeleteSource(falcor, { env, source_id, cascade = false }) {
+export async function udaDeleteSource(falcor, { env, source_id, cascade = false, pattern }) {
 	if (!falcor) throw new Error("No falcor client");
 	if (!env || !source_id) throw new Error("env and source_id are required");
-	const res = await falcor.call(["uda", "sources", "delete"], [env, +source_id, { cascade: !!cascade }]);
+	const res = await falcor.call(["uda", "sources", "delete"], [env, +source_id, { cascade: !!cascade, pattern }]);
 	return get(res, ["json", "uda", env, "sources", "delete"]) ?? null;
 }
 

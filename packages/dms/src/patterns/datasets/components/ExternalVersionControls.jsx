@@ -4,6 +4,7 @@ import {get} from "lodash-es";
 import { getExternalEnv } from "../utils/datasources";
 import { ThemeContext } from "../../../ui/useTheme";
 import { externalVersionControlsTheme } from "./ExternalVersionControls.theme";
+import { authedFetch, PermissionError } from "../../../utils/authedFetch";
 
 const isCalculatedCol = (attr={}) => {
     return attr.display === 'calculated' || attr.type === 'calculated' || attr.origin === 'calculated-column';
@@ -23,11 +24,13 @@ const INITIAL_MODAL_STATE = {
     fileTypes: [],
     columns: [],
     enableGroupedBy: false,
-    groupedByColumn: ""
+    groupedByColumn: "",
+    error: null
 }
 const INITIAL_DELETE_MODAL_STATE = {
     open: false,
     loading: false,
+    error: null,
 }
 
 const DownloadModalCheckbox = ({ inputName, checked, onChange, disabled=false }) => {
@@ -149,7 +152,9 @@ const DownloadModalCheckboxGroup = ({
 };
 
 export default function ExternalVersionControls({isDms, source, view, sourceId, viewId}) {
-    const { datasources, baseUrl, user, isUserAuthed, falcor, falcorCache, UI, API_HOST } = useContext(DatasetsContext);
+    const { datasources, baseUrl, user, isUserAuthed, falcor, falcorCache, UI, API_HOST, app, parent } = useContext(DatasetsContext);
+    // the datasets pattern these external sources are managed from (their grants are inherited)
+    const pattern = { app, id: parent?.id };
     const { theme } = useContext(ThemeContext) || {};
     const t = { ...externalVersionControlsTheme, ...(theme?.datasets?.externalVersionControls || {}) };
     const pgEnv = getExternalEnv(datasources);
@@ -228,14 +233,15 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     email: user.email,
                 };
 
-                setDeleteModalState({...deleteModalState, loading: true});
-                const res = await fetch(`${apiBase}/dama-admin/${pgEnv}/gis-dataset/delete-download`,
+                setDeleteModalState({...deleteModalState, loading: true, error: null});
+                const res = await authedFetch(`${apiBase}/dama-admin/${pgEnv}/gis-dataset/delete-download`,
                     {
                         method: "DELETE",
                         body: JSON.stringify(deleteData),
                         headers: {
                             "Content-Type": "application/json",
                         },
+                        user, pattern,
                     });
 
                 await res.json();
@@ -246,7 +252,8 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 setDeleteModalState(INITIAL_DELETE_MODAL_STATE);
             } catch (err) {
                 console.log(err)
-                setDeleteModalState({...deleteModalState, loading: false, open: true});
+                setDeleteModalState({...deleteModalState, loading: false, open: true,
+                    error: err instanceof PermissionError ? err.message : null});
             }
         }
         runDelete();
@@ -274,21 +281,23 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                     groupedByColumn: modalState.groupedByColumn
                 };
 
-                setModalState({...modalState, loading: true});
-                const res = await fetch(`${apiBase}/dama-admin/${pgEnv}/gis-dataset/create-download`,
+                setModalState({...modalState, loading: true, error: null});
+                const res = await authedFetch(`${apiBase}/dama-admin/${pgEnv}/gis-dataset/create-download`,
                     {
                         method: "POST",
                         body: JSON.stringify(createData),
                         headers: {
                             "Content-Type": "application/json",
                         },
+                        user, pattern,
                     });
 
                 const createFinalEvent = await res.json();
                 setModalState(defaultModalState);
             } catch (err) {
                 console.log(err)
-                setModalState({...modalState, loading: false, open: true});
+                setModalState({...modalState, loading: false, open: true,
+                    error: err instanceof PermissionError ? err.message : null});
             }
         }
         runCreate();
@@ -334,7 +343,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
         // (see `src/dama/datatypes/index.js` which mounts datatype routers
         // under `/dama-admin/:pgEnv/${name}`). The old URL at
         // `/dama-admin/:pgEnv/cache-pmtiles` doesn't exist anymore.
-        fetch(
+        authedFetch(
             `${ apiBase }/dama-admin/${ pgEnv }/pmtiles/cache-pmtiles`,
             { method: "POST",
                 body: JSON.stringify({
@@ -344,18 +353,24 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 }),
                 headers: {
                     "Content-Type": "application/json",
-                }
+                },
+                user, pattern,
             }
         ).then(res => res.json())
             .then(json => {
                 //console.log("RES:", json);
                 setPmTilesModalState(prev => ({ ...prev,
                         etl_context_id: json.etl_context_id,
-                        progress: "started"
+                        progress: "started",
+                        error: null
                     })
                 );
             })
-    }, [pmTilesModalState, sourceId, viewId, pgEnv, falcor]);
+            .catch(err => {
+                if (err instanceof PermissionError) setPmTilesModalState(prev => ({ ...prev, error: err.message }));
+                else console.error(err);
+            })
+    }, [pmTilesModalState, sourceId, viewId, pgEnv, falcor, user, app, parent?.id]);
 
     const updateProgress = React.useCallback(progress => {
         setPmTilesModalState(prev => ({ ...prev, progress }));
@@ -449,6 +464,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                         )}
                     </DownloadModalGroupedBy>
                 </div>
+                {modalState.error ? <div className={t.modalError}>{modalState.error}</div> : null}
                 <div className={t.createModalFooter}>
                     <Button
                         type="button"
@@ -494,6 +510,7 @@ export default function ExternalVersionControls({isDms, source, view, sourceId, 
                 <div className={t.deleteModalMessage}>
                     Are you sure you want to delete the downloadable file for this view? The underlying source and view will NOT be affected.
                 </div>
+                {deleteModalState.error ? <div className={t.modalError}>{deleteModalState.error}</div> : null}
                 <div className={t.deleteModalFooter}>
                     <Button
                         type="button"
@@ -530,6 +547,7 @@ const PmTilesModal = props => {
         etl_context_id,
         progress,
         updateProgress,
+        error,
         ...modalState
     } = props;
     const {UI} = useContext(DatasetsContext);
@@ -545,6 +563,7 @@ const PmTilesModal = props => {
                         <div className={t.createModalTitleWrapper}><div className={t.createModalTitle}>{t.pmTilesModalTitle}</div></div>
                     </div> : null}
 
+                {error ? <div className={t.modalError}>{error}</div> : null}
                 <div className={t.pmTilesModalContent}>
                     <div className={t.pmTilesModalGrid}>
                         <DownloadModalCheckboxGroup

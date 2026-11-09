@@ -65,7 +65,7 @@ Config files live in `src/db/configs/`. The SQLite adapter automatically convert
 The `splitMode` setting controls how DMS tables are organized:
 
 - **`legacy`** — All apps share a single `data_items` table (default if unset)
-- **`per-app`** — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL)
+- **`per-app`** — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL), and its own `formats` table beside it (`formats__${app}` / `dms_${app}.formats`, created on first use by `db/table-resolver.js ensureFormatsTable`)
 
 Split mode is resolved per-database via the priority chain:
 
@@ -106,6 +106,18 @@ SELECT app || '+' || type AS key
 - Use `$N` style parameters everywhere. The SQLite adapter converts them automatically, including handling parameter reuse (e.g., `$4, $4`).
 - The SQLite adapter auto-stringifies objects on write and auto-parses JSON strings on read, so controller code doesn't need to handle JSON serialization differences.
 
+## Destructive routes never take a preview flag
+
+A route that deletes, unlinks or strips grants (`/group/delete`, `/group/project/remove`,
+`/user/project/remove`, and any new one) **never accepts a `dryRun` / preview / mode flag**. A server
+that doesn't know the flag ignores it and performs the delete, so the client must not depend on the
+server being up to date (owner 2026-10-27). A preview is its own **read-only route** next to it
+(`…/plan`: `/group/delete/plan`, `/group/project/remove/plan`, `/user/project/remove/plan`), which runs
+the same authority check and then only the planning half of the handler (e.g. `planGroupLeavesSite`;
+the apply half, `applyGroupLeavesSite`, is unreachable from it). On an older server the plan route 404s
+and the client shows "can't preview" instead of deleting. A plan informs; it never gates the action.
+Task: `planning/tasks/current/destructive-call-plan-routes.md` (library planning).
+
 ## Transactions: `db.withTransaction(fn)` only
 
 A multi-statement write that must land whole goes through the adapter's `withTransaction`, with
@@ -138,6 +150,12 @@ const rows = await dms_db.withTransaction(async (tx) => {
   the build if either pattern appears outside `src/db/adapters/` and `src/scripts/`.
 - Background: `planning/tasks/current/dms-server-real-transactions.md`, Bug 14. Reproduced on the
   Docker harness: 156 of 160 acknowledged concurrent writes lost before the fix.
+
+## Environment variables
+
+Every variable the server reads, with its default, is in `../../documentation/dms-server-env.md`. Add a row
+there (and to dms-template's `.env.example` if an operator would set it) in the same commit as a new
+`process.env.X`.
 
 ## Database Configs
 

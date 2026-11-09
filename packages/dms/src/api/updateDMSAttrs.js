@@ -1,6 +1,6 @@
 import { get, isEqual, cloneDeep } from "lodash-es";
 
-export 	async function updateDMSAttrs(data, configs, falcor) {
+export 	async function updateDMSAttrs(data, configs, falcor, parentId = null) {
     let updates = {}
     //console.log('updateDMSAttrs', data, configs)
     for( const attr of Object.keys(data) ) {
@@ -21,6 +21,14 @@ export 	async function updateDMSAttrs(data, configs, falcor) {
             for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
                 delete d[key];
             }
+            // The row being saved OWNS these children — that is what `dms-format` declares. Say so
+            // on the way in, exactly as the sync path does (api/index.js): the server cannot derive
+            // the page -> component edge, because pages carry no instance name, so nothing in a
+            // child's type can name one. It also decides what a CREATE is judged against — without
+            // the claim the check falls back to the pattern, which cannot tell "add a section to
+            // this page" from "add a page to this pattern". Dropped by the server if it fails
+            // validation, so a brand-new parent (no id yet) is harmless rather than an error.
+            if (parentId) d.parent_id = parentId;
 
             if(id) {
                 // skip saving unchanged sections (no _dirty flag)

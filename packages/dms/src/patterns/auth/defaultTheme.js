@@ -191,11 +191,44 @@ const theme = {
             modalTitle: "t-displaySM text-[var(--t-ink)]",
             modalBody: "flex flex-row gap-3",
             notice: "p-4 text-sm text-[var(--t-graphite)]",
+            // Users: the Remove from site dialog (plan, shared-group and external-source notes)
+            removeBody: "flex flex-col gap-3 text-sm text-left text-[var(--t-graphite)]",
+            removeList: "list-disc pl-5 mt-1",
+            removeWarning: "rounded-md px-3 py-2 bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
+            // Groups: the header's two buttons (Add external group, Add new) and the external-group picker
+            headerActions: "flex items-center gap-2",
+            linkList: "flex flex-col max-h-80 overflow-y-auto divide-y divide-[var(--t-rule)]",
+            linkRow: "flex items-center justify-between gap-3 py-1.5",
+            linkName: "text-sm text-[var(--t-ink)]",
+            // Profile: a labelled line in the account card (groups)
+            profileField: "flex items-baseline gap-3 mb-3",
+            profileFieldLabel: "t-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em] w-16 flex-none",
+            profileFieldValue: "text-sm text-[var(--t-ink)]",
+            // Users / Groups: warning to admins while the auth pattern grants nothing (OpenAuthWarning.jsx)
+            openAuthWarning: "mb-3 rounded-md px-4 py-3 text-sm bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
+            openAuthWarningLink: "underline font-medium",
             profileLink: "inline-flex items-center gap-1.5 text-sm font-medium text-[var(--t-ink)] border border-[var(--t-rule-strong)] hover:border-[var(--t-ink)] rounded-md px-3.5 py-1.5 w-fit",
             // The table-header search inputs (Input's className is also a full
             // replacement, same as Button) — compact, since they sit inside a
             // table header cell rather than a form.
             // 2026-10-14: now UI.Input's own 'headerFilter' style (Input is locked — no className); same classes.
+            // Access log (pages/authAccessLog.jsx, mockup admin-access-log.html): title subtitle, the
+            // filter row, the table's stacked cells, the pager and the footnote. Counts reuse headerStats*.
+            headerSubtitle: "t-metaSM text-[var(--t-pencil)] mt-1",
+            accessLogFilters: "flex flex-wrap items-end gap-3 mb-3",
+            accessLogFilter: "flex flex-col gap-1 min-w-[9rem]",
+            accessLogFilterLabel: "t-metaXS text-[var(--t-pencil)] uppercase tracking-[0.06em]",
+            accessLogCellStack: "flex flex-col min-w-0 py-1",
+            accessLogPrimary: "t-proseSM text-[var(--t-ink)] truncate",
+            accessLogLabel: "t-metaXS text-[var(--t-pencil)] mt-0.5",
+            accessLogTarget: "font-mono text-[12px] text-[var(--t-ink)] truncate",
+            accessLogGroups: "flex flex-wrap gap-1 mt-0.5",
+            accessLogReason: "t-proseSM text-[var(--t-graphite)] flex flex-wrap items-center gap-1.5 whitespace-normal break-words min-w-0",
+            accessLogTimes: "text-sm tabular-nums text-right text-[var(--t-ink)]",
+            accessLogPager: "flex items-center gap-2 px-3 py-2 border-t border-[var(--t-rule)]",
+            accessLogNote: "t-metaXS text-[var(--t-pencil)] mt-2",
+            accessLogEmpty: "p-6 text-center text-sm text-[var(--t-graphite)]",
+            accessLogError: "rounded-md px-3 py-2 text-sm bg-[var(--t-amber-soft)] text-[var(--t-amber)]",
             // Unset = the manager's Sites / Themes / Auth menu. A client site
             // sets `[{name, path}]` — typically just Profile / Users / Groups.
             menuItems: undefined,

@@ -89,22 +89,27 @@ const getSources = async ({envs, falcor, parent, user, collection = 'sources'}) 
 
             const valueGetter = (i, attr) => get(r, ['json', 'uda', e, collection, 'byIndex', i, attr])
             return range(0, len-1).map(i => {
-                const env = e;
+                const attrs = envs[e].srcAttributes.reduce((acc, attr) => {
+                    let value = valueGetter(i, attr);
+                    if (attr === 'categories') {
+                        value = typeof value === 'string' ? JSON.parse(value || '[]') : (value || []);
+                    }
+                    return ({...acc, [attr]: value});
+                }, {});
+                // A row of a DMS env that carries `pgEnv` is the site's MIRROR of a pgEnv source
+                // (dms-server dama/mirror.js): it lists here, but it IS the external source — addressed
+                // by the pgEnv and the pgEnv's own id, on the external source page.
+                const mirrorOf = envs[e].isDms && attrs.pgEnv ? attrs.pgEnv : null;
+                const env = mirrorOf || e;
                 return {
-                    ...envs[e].srcAttributes.reduce((acc, attr) => {
-                        let value = valueGetter(i, attr);
-                        if (attr === 'categories') {
-                            value = typeof value === 'string' ? JSON.parse(value || '[]') : (value || []);
-                        }
-                        return ({...acc, [attr]: value});
-                    }, {}),
+                    ...attrs,
                     // `$__path` is the RESOLVED path — always ['uda', env,
                     // 'sources', 'byId', id] — so index 4 is the id whichever
                     // collection was requested.
-                    source_id: get(r, ['json', 'uda', e, collection, 'byIndex', i, '$__path', 4]),
+                    source_id: mirrorOf ? +attrs.source_id : get(r, ['json', 'uda', e, collection, 'byIndex', i, '$__path', 4]),
                     env, // to fetch data
-                    srcEnv: e, // to refer back
-                    isDms: envs[e].isDms // mostly to apply data->>
+                    srcEnv: env, // to refer back
+                    isDms: envs[e].isDms && !mirrorOf // mostly to apply data->>
                 }
             });
         }));
@@ -226,7 +231,10 @@ const HiddenMatches = ({ matches, t, Icon, hiddenSet, chips, successors, keyOf }
 );
 
 export default function DatasetsList ({attributes, item, dataItems, apiLoad, apiUpdate, updateAttribute, format, submit, ...r}) {
-    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, UI, parent} = useContext(DatasetsContext);
+    const {baseUrl, user, falcor, siteType, type, datasources, dmsEnv, dmsEnvs, UI, parent, isUserAuthed} = useContext(DatasetsContext);
+    // Toolbar controls, shown to the users the server lets use them.
+    const canCreate = isUserAuthed ? isUserAuthed(['create-source']) : false;
+    const canEditPattern = isUserAuthed ? isUserAuthed(['edit-pattern']) : false;
     const {theme} = useContext(ThemeContext) || {};
     const t = {...datasetsListTheme, ...getComponentTheme(theme, 'datasets.datasetsList')};
     // Secondary nav shared across the subdomain's patterns — items are authored
@@ -259,7 +267,7 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     });
     const setViewPersist = (v) => { setView(v); try { localStorage.setItem(`${cacheKey}-view`, v); } catch {} };
     const cat1 = searchParams.get('cat');
-    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv), [datasources, format, dmsEnv]);
+    const envs = useMemo(() => buildEnvsForListing(datasources, format, dmsEnv, dmsEnvs), [datasources, format, dmsEnv, dmsEnvs]);
     const pgEnv = getExternalEnv(datasources);
     const [filteredCategories, setFilteredCategories] = useState([]);
     const [isListAll, setIsListAll] = useState(false);
@@ -546,9 +554,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         </Button>
                     }
 
-                    {user?.authed && t.toolbarDivider && <span className={t.toolbarDivider} aria-hidden="true"/>}
+                    {(canCreate || canEditPattern) && t.toolbarDivider && <span className={t.toolbarDivider} aria-hidden="true"/>}
 
-                    {user?.authed &&
+                    {canCreate &&
                         <Button activeStyle={showUploads ? 'iconToolOn' : 'iconTool'}
                                 title={showUploads ? 'Hide uploaded files' : 'Show uploaded files'}
                                 onClick={() => setShowUploads(!showUploads)}>
@@ -556,10 +564,10 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                         </Button>
                     }
 
-                    {user?.authed &&
+                    {canEditPattern &&
                         <Link to={`${baseUrl}/settings`} title={'Settings'} className={t.settingsLink}><Icon icon="Settings" className={t.iconMd}/></Link>}
 
-                    {user?.authed &&
+                    {canCreate &&
                         <Link to={`${baseUrl}/create`} title={'Add'} className={t.newBtn}><Icon icon={t.newBtnIcon} className={t.iconMd}/>{t.newBtnText}</Link>}
                 </div>
             </div>
@@ -614,9 +622,9 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
                     }
                     {/* Hidden lifecycle buckets — at the END of the rail (owner 2026-10-06):
                         a back door, not part of the catalog's browse structure. Shown to
-                        authed users without needing "Show all": a dataset you just uploaded
-                        should not require a mode switch to find. */}
-                    {user?.authed && Object.keys(hiddenBuckets).length > 0 &&
+                        whoever can see the list (view-sources, owner 2026-10-23) without needing
+                        "Show all": a dataset you just uploaded should not require a mode switch to find. */}
+                    {Object.keys(hiddenBuckets).length > 0 &&
                         <div className={t.sidebarHiddenGroup}>
                             <div className={t.sidebarHiddenLabel}>Hidden</div>
                             {Object.keys(hiddenBuckets).sort().map(cat => (

@@ -10,6 +10,7 @@ import {VirtualList} from "./components/Virtual";
 import {useCopy, usePaste, getLocation} from "./utils/hooks";
 import {isEqualColumns, parseIfJson} from "./utils";
 import {handleKeyDown} from "./utils/keyboard";
+import {cellEditable} from "./utils/canEdit";
 import {cloneDeep} from "lodash-es";
 import {tableTheme} from "./table.theme";
 
@@ -46,7 +47,7 @@ export const TableCellContext = createContext({});
 export const TableStructureContext = createContext({});
 
 
-const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttributes, updateItem, allowEdit, selection}) => {
+const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttributes, updateItem, allowEdit, selection, canEdit}) => {
     const paste = pastedContent?.split('\n').filter(row => row.length).map(row => row.split('\t'));
     if(!paste) return;
 
@@ -71,10 +72,13 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
         .filter(i => i);
     const itemsToUpdate = rowsToPaste.map((row, rowI) => {
         let rowData = {...data[row]};
+        let changed = false;
 
         for(let colI = 0; colI < columnsToPaste.length; colI++){
             const col = columnsToPaste[colI];
             const attr = visibleAttributes[attrI + colI];
+            if (!cellEditable(canEdit, data[row], attr)) continue;
+            changed = true;
             const val = paste[rowI][colI];
             let finalValue = val;
 
@@ -94,10 +98,10 @@ const updateItemsOnPaste = ({pastedContent, index, attrI, data, visibleAttribute
 
             rowData[col] = finalValue
         }
-        return rowData;
-    });
+        return changed ? rowData : null;
+    }).filter(Boolean);
 
-    updateItem(undefined, undefined, itemsToUpdate);
+    if (itemsToUpdate.length) updateItem(undefined, undefined, itemsToUpdate);
 }
 
 const AddNew = ({allowAdddNew,
@@ -322,7 +326,7 @@ const InlineAddRow = ({ rowRef, containerRef, numColSize, defaultColumnSize, vis
 };
 export default function Table ({
     paginationActive, gridRef,
-    allowEdit,
+    allowEdit, canEdit,
     updateItem, removeItem, isEdit,
     numColSize=defaultNumColSize, frozenColClass, frozenCols=[],
     columns=[], data: unFilteredData=[], localFilteredData, fullData, display={}, controls={}, setState, isActive,
@@ -453,7 +457,7 @@ export default function Table ({
         if(!selection.length) return;
         // first cell of selection
         let {index, attrI} = typeof selection[0] === 'number' ? {index: selection[0], attrI: undefined} : selection[0];
-        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, allowEdit, selection, updateItem})
+        updateItemsOnPaste({pastedContent, e, index, attrI, data, visibleAttributes, allowEdit, selection, updateItem, canEdit})
     }, windowFake, isActive);
 
     useCopy(() => {
@@ -575,8 +579,12 @@ export default function Table ({
                         .map(c => c.name)
 
                 if (selectionCols.length) {
-                    // partial selection
-                    updateItem(undefined, undefined, selectionRows.map(row => ({...row, ...selectionCols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})})))
+                    // partial selection; cells canEdit refuses keep their values
+                    const cleared = selectionRows.map(row => {
+                        const cols = selectionCols.filter(name => cellEditable(canEdit, row, visibleAttributes.find(c => c.name === name)));
+                        return cols.length ? {...row, ...cols.reduce((acc, curr) => ({...acc, [curr]: ''}), {})} : null;
+                    }).filter(Boolean);
+                    if (cleared.length) updateItem(undefined, undefined, cleared)
                 } else{
                     // full row selection
                     // this script can be reached by selecting only non deletable columns and pressing delete
@@ -594,7 +602,7 @@ export default function Table ({
         }
 
         deleteFn()
-    }, [triggerSelectionDelete, allowEdit])
+    }, [triggerSelectionDelete, allowEdit, canEdit])
     // ============================================ Trigger delete end =================================================
 
     const onClickRowNum = useCallback(
@@ -786,7 +794,7 @@ export default function Table ({
         >
                 <TableStructureContext.Provider value={{...structureValues, highlightedRow: resolvedHighlightedRow, conditionalRowStyle: resolvedConditionalRowStyle, onRowMouseClick, onRowMouseEnter, onRowMouseLeave, onRowDragStart, onRowDragOver, onRowDrop, onRowDragEnd}}>
                     <TableCellContext.Provider value={{
-                        frozenCols, allowEdit, editing, setEditing, isDragging, isSelecting,
+                        frozenCols, allowEdit, canEdit, editing, setEditing, isDragging, isSelecting,
                         // withheld when selection is off — TableCell's handlers already no-op
                         // without them, so nothing can enter a selected state
                         setSelection: cellSelectionEnabled ? setSelection : undefined,

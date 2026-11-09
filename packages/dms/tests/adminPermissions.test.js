@@ -6,12 +6,13 @@
  * Run: npx vitest run packages/dms/tests/adminPermissions.test.js
  */
 import { describe, it, expect } from "vitest";
+import "../src/patterns/index.js";   // registerPatternTypes: the composer reads the registry
+import { patternPermissionOptions } from "../src/patterns/registry.js";
 
 import {
   siteCan,
   patternCan,
   patternActions,
-  permissionOptionsFor,
   tabPermission,
   VIEW_PATTERN_LIST,
   CREATE_PATTERN,
@@ -152,10 +153,13 @@ describe("patternCan", () => {
 describe("patternActions — access matrix rows", () => {
   const listOnly = site([VIEW_PATTERN_LIST]);
   const listCreate = site([VIEW_PATTERN_LIST, CREATE_PATTERN]);
+  // Deleting a pattern is a SITE operation (owner, 2026-10-30) — it is granted on the site row,
+  // beside create-pattern, not on the pattern row being deleted.
+  const listDelete = site([VIEW_PATTERN_LIST, DELETE_PATTERN]);
   const act = (s, p, u = user()) => patternActions(u, APP, s, p);
 
-  it("open pattern: link + edit + delete, no duplicate without create-pattern", () => {
-    expect(act(listOnly, pat(undefined))).toMatchObject({ open: true, edit: true, editPermissions: true, delete: true, duplicate: false, locked: false });
+  it("open pattern: link + edit, no delete without the SITE grant", () => {
+    expect(act(listOnly, pat(undefined))).toMatchObject({ open: true, edit: true, editPermissions: true, delete: false, duplicate: false, locked: false });
   });
   it("grants, none for this user: locked", () => {
     expect(act(listOnly, lockedPat)).toMatchObject({ open: false, edit: false, delete: false, duplicate: false, locked: true });
@@ -169,11 +173,17 @@ describe("patternActions — access matrix rows", () => {
   it("edit-pattern-permissions only: link (Access tab), no Edit action", () => {
     expect(act(listOnly, pat([EDIT_PATTERN_PERMISSIONS]))).toMatchObject({ open: true, edit: false, editPermissions: true, delete: false, locked: false });
   });
-  it("delete-pattern only: Delete, no link", () => {
-    expect(act(listOnly, pat([DELETE_PATTERN]))).toMatchObject({ open: false, edit: false, delete: true, duplicate: false, locked: false });
+  it("delete-pattern on the PATTERN row confers nothing — it is a site verb now", () => {
+    expect(act(listOnly, pat([DELETE_PATTERN]))).toMatchObject({ open: false, edit: false, delete: false, duplicate: false, locked: true });
   });
-  it("pattern `*`: everything except Duplicate", () => {
-    expect(act(listOnly, pat(["*"]))).toMatchObject({ open: true, edit: true, editPermissions: true, delete: true, duplicate: false });
+  it("delete-pattern on the SITE row: Delete, whatever the pattern grants", () => {
+    expect(act(listDelete, pat([DELETE_PATTERN])).delete).toBe(true);
+    expect(act(listDelete, pat([EDIT_PATTERN]))).toMatchObject({ open: true, edit: true, delete: true });
+    expect(act(listDelete, pat(undefined)).delete).toBe(true);
+  });
+  it("pattern `*`: everything except Duplicate and Delete, both site grants", () => {
+    expect(act(listOnly, pat(["*"]))).toMatchObject({ open: true, edit: true, editPermissions: true, delete: false, duplicate: false });
+    expect(act(listDelete, pat(["*"])).delete).toBe(true);
   });
   it("create-pattern + edit-pattern (or `*`): + Duplicate", () => {
     expect(act(listCreate, pat([EDIT_PATTERN])).duplicate).toBe(true);
@@ -210,25 +220,55 @@ describe("tabPermission", () => {
   });
 });
 
-describe("permissionOptionsFor", () => {
-  const values = (type, opts) => permissionOptionsFor(type, opts).map(o => o.value);
+// The Access editor's option list moved out of this module in Phase 3: it is composed from the
+// DERIVED vocabulary by `patternPermissionOptions` (patterns/registry.js), so these cases register
+// the real built-ins and read what the editor would actually offer.
+describe("patternPermissionOptions — composed from the derived vocabularies", () => {
+  const values = (type, opts) => patternPermissionOptions(type, opts).map(o => o.value);
 
-  it("admin: site-level list", () => {
-    expect(values("admin")).toEqual(["*", VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_THEMES, MANAGE_TENANTS]);
+  it("admin: pattern-row verbs plus everything under the site", () => {
+    const v = values("admin");
+    expect(v.slice(0, 1)).toEqual(["*"]);
+    expect(v).toEqual(expect.arrayContaining([
+      VIEW_PATTERN_LIST, CREATE_PATTERN, DELETE_PATTERN, MANAGE_THEMES, MANAGE_TENANTS,
+      EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS,
+    ]));
   });
-  it("auth: auth list, plus the site list only while the admin row grants nothing", () => {
-    expect(values("auth", { adminRowHasGrants: true })).toEqual(["*", "auth-users", "auth-groups", "view-as"]);
-    expect(values("auth", { adminRowHasGrants: false })).toEqual(expect.arrayContaining([VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_THEMES, MANAGE_TENANTS, "auth-users"]));
+
+  it("auth: its own route verbs, plus the site list only while the admin row grants nothing", () => {
+    expect(values("auth", { adminRowHasGrants: true }))
+      .toEqual(expect.arrayContaining(["auth-users", "auth-groups", "view-as"]));
+    expect(values("auth", { adminRowHasGrants: true })).not.toContain(MANAGE_THEMES);
+    // the fallback borrows from the type named by `siteFallback` on the auth registry entry
+    expect(values("auth", { adminRowHasGrants: false }))
+      .toEqual(expect.arrayContaining([VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_THEMES, MANAGE_TENANTS, "auth-users"]));
   });
-  it("page: pattern admin + page list", () => {
-    expect(values("page")).toEqual(expect.arrayContaining([EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS, DELETE_PATTERN, "view-page", "edit-page", "publish-page"]));
+
+  it("page: pattern-row verbs + the page and section domains", () => {
+    const v = values("page");
+    expect(v).toEqual(expect.arrayContaining([
+      EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS, "view-pattern",
+      "view-page", "edit-page", "publish-page",
+      "edit-page-params",     // was ungrantable: PAGE_OPTIONS hand-copied the domain and missed it
+    ]));
+    expect(v, "delete-pattern is a site verb now").not.toContain(DELETE_PATTERN);
   });
-  it("datasets: keeps view-page (the server needs it), plus sources", () => {
+
+  it("datasets: pattern-level verbs + the source domain, and no stray view-page", () => {
     const v = values("datasets");
-    expect(v).toEqual(expect.arrayContaining(["view-page", "view-sources", "update-source", "edit-source-permissions", EDIT_PATTERN]));
+    expect(v).toEqual(expect.arrayContaining([
+      "view-pattern", "view-sources", "view-source", "update-source", "edit-source-permissions", EDIT_PATTERN,
+    ]));
     expect(v).not.toContain("edit-page");
+    expect(v, "the duplicate that opened every source beneath a pattern").not.toContain("view-page");
   });
-  it("other types: pattern admin + `*`", () => {
-    expect(values("some_app_pattern")).toEqual(["*", EDIT_PATTERN, EDIT_PATTERN_PERMISSIONS, DELETE_PATTERN]);
+
+  it("an unregistered type: just `*` — it has no formats, so it declares nothing", () => {
+    expect(values("some_app_pattern")).toEqual(["*"]);
+  });
+
+  it("deduplicates: a verb offered by two formats appears once", () => {
+    const v = values("admin");
+    expect(new Set(v).size).toBe(v.length);
   });
 });

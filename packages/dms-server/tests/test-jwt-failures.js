@@ -96,6 +96,36 @@ async function main() {
     assert(warns[0].includes('ECONNREFUSED'), `warn should carry the cause: ${warns[0]}`);
   });
 
+  console.log('\ntoken cache (auth-levels-to-permissions, Resume step 3):');
+  const { tokenCache } = require('../src/auth/jwt');
+  const { afterAuthCall } = require('../src/auth');
+
+  await t('the cache TTL does not slide: a token in steady use is re-verified after TOKEN_TTL', async () => {
+    tokenCache.clear();
+    const token = await createUserToken('slide@test.com', 'HASH', 'proj');
+    const users = [{ id: 3, email: 'slide@test.com', password: 'HASH' }];
+    const db = makeDb({ users, groups: [{ name: 'Editors', auth_level: 1, meta: null }] });
+    assert.deepStrictEqual((await runMiddleware(db, token)).user.groups, ['Editors']);
+    // verified 6 minutes ago, used a moment ago: before, each use reset the clock
+    tokenCache.get(token).time = Date.now() - 6 * 60 * 1000;
+    const after = makeDb({ users, groups: [] });
+    assert.deepStrictEqual((await runMiddleware(after, token)).user.groups, [], 'expired entry re-verified');
+  });
+
+  await t('a successful group / password change empties the cache; a failed one or a read does not', async () => {
+    tokenCache.clear();
+    const token = await createUserToken('revoke@test.com', 'HASH', 'proj');
+    const users = [{ id: 4, email: 'revoke@test.com', password: 'HASH' }];
+    await runMiddleware(makeDb({ users, groups: [{ name: 'Editors', auth_level: 1, meta: null }] }), token);
+    afterAuthCall('/users', { users: [] });
+    afterAuthCall('/user/group/remove', { error: 'no such group' });
+    assert.strictEqual(tokenCache.size, 1, 'reads and failures keep the cache');
+    afterAuthCall('/user/group/remove', { message: 'removed' });
+    assert.strictEqual(tokenCache.size, 0);
+    const { user } = await runMiddleware(makeDb({ users, groups: [] }), token);
+    assert.deepStrictEqual(user.groups, [], 'the removed group is gone on the next request');
+  });
+
   console.log(`\njwt-failure tests: ${pass} passed, ${fail} failed`);
   process.exit(fail ? 1 : 0);
 }

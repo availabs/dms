@@ -7,6 +7,7 @@ import {
 } from "./components";
 import { ThemeContext } from '../../../../../../../../ui/useTheme'
 import { gisCreateTheme } from '../gisCreate.theme'
+import { authedFetch } from '../../../../../../../../utils/authedFetch'
 
 
 export default function UploadGisDataset({ state, dispatch }) {
@@ -44,9 +45,9 @@ export default function UploadGisDataset({ state, dispatch }) {
       dispatch({type: 'update', payload: { polling:true, uploadedFile: file}})
       
       console.log('sending upload')
-      const res = await fetch(
+      const res = await authedFetch(
         `${damaServerPath}/gis-dataset/upload`,
-        { method: "POST", body: formData }
+        { method: "POST", body: formData, user: state.authUser, pattern: state.pattern }
       );
       console.log('sending upload finished ')
 
@@ -72,7 +73,7 @@ export default function UploadGisDataset({ state, dispatch }) {
     const doPolling = async () => {
       // could add check for maxId
       const url = `${damaServerPath}/events/query?etl_context_id=${etlContextId}&event_id=-1`
-      const res = await fetch(url);
+      const res = await authedFetch(url, { user: state.authUser, pattern: state.pattern });
       const pollingData = await res.json()
       dispatch({type: 'update', payload: {fileUploadStatus: pollingData[pollingData.length -1] }})
     }

@@ -12,6 +12,7 @@ import { SANDBOX_CATEGORY, resolveHiddenForPattern, promotionBlockers } from "..
 import { isAuthoritative, authorityState } from "../../../utils/authority";
 import AuthorityControl, { AuthorityBadge } from "../../../components/AuthorityControl";
 import { InputsChangedChip } from "../../../components/LineageControls";
+import { authedFetch, PermissionError } from "../../../../../utils/authedFetch";
 import { udaGetSourceLineage } from "../../../../../api";
 
 // Every place a view can carry a downloadable artifact, in one list so the Versions card is the
@@ -21,6 +22,8 @@ import { udaGetSourceLineage } from "../../../../../api";
 //   · uploads — `metadata.file` (external, dama/upload/file-upload-route.js) or `data.file`
 //     (DMS, dama/upload/file-upload-dms-route.js). One `{file_name, file_type, dl_url}` object.
 // `$HOST` in a stored url is resolved against DAMA_HOST, as the version menu has always done.
+// An external export carries `signed`: it is fetched through dms-server's signed download route
+// (POST downloads/sign checks download-source, the link it returns streams the file), not its url.
 const downloadItemsForView = (view, damaHost) => {
     const rawMeta = typeof view?.metadata === 'string' ? parseIfJson(view.metadata, {}) : (view?.metadata || {});
     const meta = rawMeta && typeof rawMeta === 'object' && !Array.isArray(rawMeta) ? rawMeta : {};
@@ -32,9 +35,14 @@ const downloadItemsForView = (view, damaHost) => {
         return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
     };
     const map = asObject(view?.download) || asObject(meta.download) || {};
+    const signedViewId = !asObject(view?.download) && view?.view_id != null ? view.view_id : null;
     const items = Object.keys(map)
         .filter(fileType => OUTPUT_FILE_TYPES.includes(fileType))
-        .map(fileType => ({ label: fileType, url: String(map[fileType]).replace('$HOST', damaHost || '') }));
+        .map(fileType => ({
+            label: fileType,
+            url: String(map[fileType]).replace('$HOST', damaHost || ''),
+            signed: signedViewId != null ? { viewId: signedViewId, fileType } : null,
+        }));
 
     const file = asObject(view?.file) || asObject(meta.file);
     if (file?.dl_url) {
@@ -66,7 +74,7 @@ export default function Overview ({
   isDms,
   dataType
 }) {
-    const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST, parent} = useContext(DatasetsContext);
+    const {pageBaseUrl, isUserAuthed, UI, falcor, datasources, DAMA_HOST, API_HOST, user, parent, datasetsPattern} = useContext(DatasetsContext);
     const { theme: fullTheme } = useContext(ThemeContext) || {};
     const t = {...sourceOverviewTheme, ...getComponentTheme(fullTheme, 'datasets.sourceOverview')};
     const pgEnv = getExternalEnv(datasources);
@@ -74,10 +82,36 @@ export default function Overview ({
 
     const {id} = params;
     const isAdmin = isUserAuthed(['update-source']);
+    // Exports go through the signed route, which checks download-source; file_upload files stay public (task 6).
+    const canDownload = isUserAuthed(['download-source']);
 
     const [editing, setEditing] = useState();
     const [showAllColumns, setShowAllColumns] = useState(false);
     const [openDownload, setOpenDownload] = useState(null);
+    const [downloadError, setDownloadError] = useState(null);
+    // An external export: ask dms-server for a short-lived link (it checks download-source), then
+    // follow it. The link answers with an attachment, so the page stays where it is.
+    const startDownload = async (e, item) => {
+        if (!item.signed) return;
+        e.preventDefault();
+        setDownloadError(null);
+        try {
+            const res = await authedFetch(`${API_HOST}/dama-admin/${pgEnv}/downloads/sign`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ view_id: item.signed.viewId, file_type: item.signed.fileType }),
+                user, pattern: datasetsPattern,
+            });
+            const json = await res.json();
+            if (!res.ok || !json.url) throw new Error(json.error || `download failed (${res.status})`);
+            const a = document.createElement('a');
+            a.href = `${API_HOST}${json.url}`;
+            a.download = '';
+            a.click();
+        } catch (err) {
+            setDownloadError(err instanceof PermissionError ? err.message : `Download failed: ${err.message}`);
+        }
+    };
     const views = parseIfJson(source?.views) || [];
 
     let columns = useMemo(() => {
@@ -168,11 +202,11 @@ export default function Overview ({
         // (not yet reviewed) and `Data Processing` (an ETL intermediate), and
         // promoting it out of the sandbox must not un-mark it as pipeline.
         const next = categoriesValue.filter(c => (Array.isArray(c) ? c[0] : c) !== SANDBOX_CATEGORY);
-        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id});
+        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
     };
     const returnToSandbox = () => {
         const next = [...categoriesValue.filter(c => (Array.isArray(c) ? c[0] : c) !== SANDBOX_CATEGORY), [SANDBOX_CATEGORY]];
-        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id});
+        updateSourceData({data: next, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern});
     };
 
     return (
@@ -190,7 +224,7 @@ export default function Overview ({
                                 hideControls={true}
                                 value={source?.description || 'No description'}
                                 onChange={(data) => {
-                                    updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                    updateSourceData({data, attrKey: 'description', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})
                                 }}
                             />
                         </div>
@@ -261,7 +295,7 @@ export default function Overview ({
                                     {editing === 'update_interval'
                                         ? <span className={t.glanceInputWrap}>
                                             <Input activeStyle='compact' autoFocus value={source?.update_interval || ''}
-                                                   onChange={e => updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})}/>
+                                                   onChange={e => updateSourceData({data: e.target.value, attrKey: 'update_interval', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})}/>
                                           </span>
                                         : <span className={t.glanceValue}>{source?.update_interval || '—'}</span>}
                                     {isAdmin && (
@@ -287,7 +321,7 @@ export default function Overview ({
                             <SourceCategories
                                 value={categoriesValue}
                                 onChange={(data) => {
-                                    updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id})
+                                    updateSourceData({data, attrKey: 'categories', isDms, apiUpdate, setSource, format, source, pgEnv, falcor, id, pattern: datasetsPattern})
                                 }}
                                 editingCategories={true}
                                 stopEditingCategories={() => setEditing(null)}
@@ -353,9 +387,10 @@ export default function Overview ({
                         </div>
                         <div className={t.verList}>
                             {!views.length && <div className={t.verEmpty}>No versions yet</div>}
+                            {downloadError && <div role="alert" className={t.verDownloadError}>{downloadError}</div>}
                             {orderedViews.map((view, i) => {
                                 const viewId = isDms ? view?.id : view?.view_id;
-                                const available = downloadItemsForView(view, DAMA_HOST);
+                                const available = downloadItemsForView(view, DAMA_HOST).filter(item => !item.signed || canDownload);
                                 const isCurrent = viewId != null && viewId === latestId;
                                 const authEntry = isAuthoritative(source, viewId);
                                 const isPrimary = authState === 'undecided' ? isCurrent : !!authEntry;
@@ -379,7 +414,8 @@ export default function Overview ({
                                                 // A single artifact (the file_upload case) needs no menu —
                                                 // the button IS the download link.
                                                 <div className={t.verDownloadWrap}>
-                                                    <a href={available[0].url} download
+                                                    <a href={available[0].signed ? '#' : available[0].url} download
+                                                       onClick={e => startDownload(e, available[0])}
                                                        title={available[0].label}
                                                        className={isPrimary ? t.verDownloadBtnPrimary : t.verDownloadBtn}>
                                                         <Icon icon="Download" className={t.verDownloadIcon}/>Download
@@ -397,7 +433,8 @@ export default function Overview ({
                                                     {open && (
                                                         <div className={t.verMenu}>
                                                             {available.map(item => (
-                                                                <a key={item.label} href={item.url} download className={t.verMenuItem}>
+                                                                <a key={item.label} href={item.signed ? '#' : item.url} download
+                                                                   onClick={e => startDownload(e, item)} className={t.verMenuItem}>
                                                                     <Icon icon="Download" className={t.verMenuIcon}/><span className={t.verMenuLabel}>{item.label}</span>
                                                                 </a>
                                                             ))}

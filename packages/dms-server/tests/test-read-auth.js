@@ -1,0 +1,409 @@
+/**
+ * Who may read a source (planning/tasks/current/permissions-ds-read-visibility.md): routes/uda/readAuth.js
+ * and the UDA read routes under DMS_AUTH_MODE. Part 1: grant trimming and secret dropping. Part 2:
+ * decisions on real sqlite DBs (external and internal sources, views, the lenient rule, ${app} Admin,
+ * modes). Part 3: the Falcor read routes (catalog filtered only under enforce, a refused read answers
+ * null, redaction, log mode lets everything through and logs once).
+ *
+ * Run: DMS_TEST_DB=cli-test node tests/test-read-auth.js   (DAMA_TEST_DB picks the pgEnv; local sqlite by default)
+ */
+const DMS_DB = process.env.DMS_TEST_DB || 'cli-test';
+const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
+process.env.DMS_DB_ENV = DMS_DB;
+const assert = require('assert');
+const { createTestGraph } = require('./graph');
+const { dmsMainTable } = require('../src/routes/uda/utils');
+const syncMirror = require('./mirror-sync');
+const AUTH = require('../src/routes/auth');
+// Reply shaping is UDA's: it decides no access, only which columns an already-allowed reply carries.
+const RED = require('../src/routes/uda/sourceRedaction');
+// The read surface: `canRead` applies the mode around `authorize({ verb: 'read' })`; `readableSources`
+// judges a listing. `patternId` names the datasets pattern the caller pointed at (with its `app`).
+// Every read names the site (`dms_app`): `SITE` is the fixture's app; a test passes `app: null` to name none.
+let SITE = null;
+const RA = {
+    allowSourceRead: ({ env, sourceId, user, app = SITE, kind, logOnly }) =>
+        AUTH.canRead({ env, sourceId, user, app, kind, mode: logOnly ? 'log' : undefined }),
+    allowViewRead: ({ env, viewId, user, app = SITE, kind, logOnly }) =>
+        AUTH.canRead({ env, viewId, user, app, kind, mode: logOnly ? 'log' : undefined }),
+    filterReadableSources: ({ env, sourceIds, user, app = SITE }) => AUTH.readableSources({ env, sourceIds, user, app }),
+    clearReadSnapshots: AUTH.clearSnapshots,
+};
+
+let pass = 0, fail = 0;
+const t = async (name, fn) => {
+    try { await fn(); pass++; console.log(`  ✓ ${name}`); }
+    catch (e) { fail++; console.log(`  ✗ ${name}\n      ${e.stack.split('\n').slice(0, 3).join('\n      ')}`); }
+};
+
+// Runs fn under DMS_AUTH_MODE=mode, collecting `[read-auth] would-deny` lines.
+async function withMode(mode, fn) {
+    const prev = process.env.DMS_AUTH_MODE;
+    const warn = console.warn; const warned = [];
+    process.env.DMS_AUTH_MODE = mode;
+    console.warn = (...a) => { const s = a.join(' '); if (s.includes('[auth]')) warned.push(s); else warn(...a); };
+    try { return await fn(warned); }
+    finally { console.warn = warn; if (prev === undefined) delete process.env.DMS_AUTH_MODE; else process.env.DMS_AUTH_MODE = prev; }
+}
+
+async function run() {
+    console.log('trimGrants / dropSecrets:');
+    await t('trimGrants keeps the caller\'s own entries and public, marks the rest hidden', async () => {
+        const ap = { groups: { Editors: ['update-source'], Viewers: ['view-source'], public: [] }, users: { 7: ['*'], 8: ['view-source'] } };
+        const out = RED.trimGrants(ap, { id: 8, groups: ['Viewers'] });
+        assert.deepStrictEqual(out, { groups: { Viewers: ['view-source'], public: [], [RED.HIDDEN_ENTRY]: [] }, users: { 8: ['view-source'] } });
+        assert.strictEqual(typeof RED.trimGrants(JSON.stringify(ap), {}), 'string', 'a string stays a string');
+        const all = RED.trimGrants({ groups: { public: ['view-source'] } }, null);
+        assert.deepStrictEqual(all, { groups: { public: ['view-source'] }, users: {} }, 'nothing hidden → no marker');
+    });
+    await t('dropSecrets drops *_secret / *_token keys at any depth, keeps the rest', async () => {
+        const stats = { webhook_secret: 's', station_name: 'WCDB', backfill: { acr_token: 'x', rows: 5 }, auth: { users: {} } };
+        assert.deepStrictEqual(RED.dropSecrets(stats), { station_name: 'WCDB', backfill: { rows: 5 }, auth: { users: {} } });
+        assert.strictEqual(JSON.parse(RED.dropSecrets(JSON.stringify(stats))).webhook_secret, undefined);
+    });
+
+    const { getDb, awaitReady } = require('../src/db');
+    getDb(DMS_DB); getDb(DAMA_DB);
+    await awaitReady();
+    const dms = getDb(DMS_DB);
+    const dama = getDb(DAMA_DB);
+    const pg = dama.type === 'postgres';
+    const srcTbl = pg ? 'data_manager.sources' : 'sources';
+    const viewTbl = pg ? 'data_manager.views' : 'views';
+
+    // ---- users
+    const anon = null;
+    const owner = { authed: true, id: 1, email: 'o@x', groups: ['Staff'] };
+    const viewer = { authed: true, id: 2, email: 'v@x', groups: ['Viewers'] };
+    const editor = { authed: true, id: 3, email: 'e@x', groups: ['Editors'] };
+    const stranger = { authed: true, id: 4, email: 's@x', groups: ['Rando'] };
+    const envReader = { authed: true, id: 12, email: 'er@x', groups: ['EnvReaders'] };   // view-source on the site's env row for the pgEnv
+
+    // ---- DaMa: open (no grants), private (creator only, the createDamaSource default), public view-source,
+    // granted to Viewers / Editors, with a secret in statistics
+    const ext = async (ap, statistics = null) => (await dama.query(
+        `INSERT INTO ${srcTbl} (name, auth_permissions, statistics) VALUES ($1, $2, $3) RETURNING source_id`,
+        [`readauth_${Date.now()}_${Math.random()}`, ap == null ? null : JSON.stringify(ap), statistics && JSON.stringify(statistics)])).rows[0].source_id;
+    const view = async (sourceId) => (await dama.query(
+        `INSERT INTO ${viewTbl} (source_id, table_schema, table_name) VALUES ($1, 'gis_datasets', 'none') RETURNING view_id`, [sourceId])).rows[0].view_id;
+    const open = await ext(null);
+    const priv = await ext({ users: { 1: ['*'] }, groups: { public: [] } });
+    const pub = await ext({ users: { 1: ['*'] }, groups: { public: ['view-source'] } });
+    const granted = await ext({ users: { 1: ['*'] }, groups: { public: [], Viewers: ['view-source'], Editors: ['update-source', 'edit-source-permissions'] } },
+        { webhook_secret: 'shh', station_name: 'WCDB' });
+    const privView = await view(priv);
+    const pubView = await view(pub);
+    const E = DAMA_DB;
+
+    // ---- DMS: a datasets pattern (public view-source baseline) linked to an env listing two internal
+    // sources; a stray internal source no pattern lists
+    const APP = `readauth_${Date.now()}`;
+    SITE = APP;
+    const tbl = await dmsMainTable(dms, APP, 'per-app');
+    for (const col of [`auth ${dms.type === 'postgres' ? 'jsonb' : 'TEXT'}`, 'parent_id INTEGER']) {
+        try { await dms.query(`ALTER TABLE ${tbl} ADD COLUMN ${col}`); } catch { /* already migrated */ }
+    }
+    // Through the controller: its id allocator must know the fixture rows, or the mirror's own creates collide.
+    const controller = require('../src/routes/dms/dms.controller').createController(DMS_DB);
+    const insert = async (type, data) => +(await controller.createData([APP, type, data], null))[0].id;
+    const intView = await insert('roads|v1:view', { name: 'v1' });
+    const intOpen = await insert('env1|roads:source', { name: 'roads', views: [{ id: intView }] });
+    const intPrivate = await insert('env1|dams:source', { name: 'dams', auth_permissions: { users: { 1: ['*'] }, groups: { public: [] } } });
+    const intStray = await insert('env9|stray:source', { name: 'stray' });
+    // The env holds the grants over its sources (rule 3): a public view-source baseline, Staff everything.
+    const envRow = await insert('site|env1:dmsenv', { sources: [{ id: intOpen }, { id: intPrivate }],
+        authPermissions: { groups: { public: ['view-source'], Staff: ['*'] }, users: {} } });
+
+    // --- fixtures for the 2026-10-30 rules (read-by-default, view:false, auth-column precedence)
+    // `ds2` grants the public NOTHING, so anything readable beneath it is readable because the
+    // SOURCE says nothing — not because the pattern allowed it.
+    const vocabSource = await insert('env2|vocab_src:source', { name: 'vocab_src' });
+    const hiddenSource = await insert('env2|hidden:source', {
+        name: 'hidden', auth_permissions: { users: { 1: ['*'] }, groups: {} },
+    });
+    const hiddenBlank = await insert('env2|hidden_blank:source', { name: 'hidden_blank' });
+    const columnSource = await insert('env2|col_src:source', {
+        name: 'col_src',
+        auth_permissions: { groups: { public: ['view-source'] }, users: {} },   // STALE on purpose
+    });
+    const env2 = await insert('site|env2:dmsenv', {
+        sources: [{ id: vocabSource }, { id: hiddenSource }, { id: hiddenBlank }, { id: columnSource }],
+        authPermissions: { groups: { public: ['view-page'], Staff: ['*'] }, users: {} },
+        authVocabulary: { descendants: [{ value: 'view-page', implies: ['read'] }] },
+    });
+    await insert('site|ds2:pattern', { pattern_type: 'datasets', dmsEnvId: env2 });
+    // The `auth` COLUMN is the system of record. Added (with `parent_id`) before the first write, since the
+    // controller probes the columns once per table; then the grants that must beat `data` are written below.
+    const setAuth = async (id, obj) =>
+        dms.query(`UPDATE ${tbl} SET auth = $1 WHERE id = $2`, [JSON.stringify(obj), id]);
+    await setAuth(hiddenSource, { view: false });                       // grants still come from data
+    await setAuth(hiddenBlank, { view: false });                        // nothing anywhere else
+    await setAuth(columnSource, { groups: { public: [] }, users: { 1: ['*'] } });
+    await insert('site|ds:pattern', { pattern_type: 'datasets', dmsEnvId: envRow });
+    // A page pattern granting Rando view-source: a pattern's grants reach nothing but its own rows
+    await insert('site|docs:pattern', { pattern_type: 'page', authPermissions: { groups: { Rando: ['view-source'] }, users: {} } });
+    const I = `${APP}+internal_table`;
+    const appAdmin = { authed: true, id: 9, email: 'a@x', groups: [`${APP} Admin`] };
+
+    // THE EXTERNAL ENV'S DECLARATION. A pgEnv's sources expand their grants against the vocabulary
+    // its `:dmsenv` row declares — the same one internal sources use (admin.format.js dmsEnvFormat),
+    // created in a real deployment by `scripts/reconcile-pgenv-mirror.js`. Without it `view-source` is
+    // just a string and confers no structural `read`: the legacy table that used to rescue it
+    // (`legacyVerbs.js`) was deleted on 2026-11-03.
+    // Its grants (EnvReaders view-source) reach every source of the pgEnv, for a request that names this site.
+    await insert('site|extenv:dmsenv', {
+        name: 'extenv', pgEnv: DAMA_DB,
+        authPermissions: { groups: { EnvReaders: ['view-source'] }, users: {} },
+        authVocabulary: { descendants: [
+            { value: 'view-source', implies: ['read'] },
+            { value: 'view-sources', implies: ['read'] },
+            { value: 'update-source', implies: ['read', 'edit'] },
+            { value: 'edit-source-data', implies: ['read', 'edit'] },
+            { value: 'edit-source-permissions', implies: ['read', 'edit', 'grant'] },
+            { value: 'create-view', implies: ['read', 'create'] },
+            { value: 'delete-source', implies: ['read', 'delete'] },
+            { value: 'download-source', implies: [] },
+            { value: 'view-source-api', implies: [] },
+        ] },
+    });
+
+    // The pgEnv's sources and views as rows of this site (dama/mirror.js): what the walk judges.
+    await syncMirror(APP, DAMA_DB);
+    // `app` is the LOCATOR for that row: it says which site's env row sits above the pgEnv's sources
+    // (and so whose grants and vocabulary apply), and confers nothing itself.
+    const read = (env, sourceId, user) => RA.allowSourceRead({ env, sourceId, user, app: APP });
+
+    console.log('\ndecisions (enforce):');
+    await withMode('enforce', async () => {
+        RA.clearReadSnapshots();
+        await t('external: no grants → open to anyone (lenient rule)', async () => {
+            assert.strictEqual(await read(E, open, anon), true);
+        });
+        await t('external: creator-only (the new-source default) → anon and strangers refused, creator reads', async () => {
+            assert.strictEqual(await read(E, priv, anon), false);
+            assert.strictEqual(await read(E, priv, stranger), false);
+            assert.strictEqual(await read(E, priv, owner), true);
+        });
+        await t('external: public view-source → anon reads', async () => assert.strictEqual(await read(E, pub, anon), true));
+        await t('a permission that implies reading counts (Editors: update-source)', async () => {
+            assert.strictEqual(await read(E, granted, editor), true);
+            assert.strictEqual(await read(E, granted, viewer), true);
+            assert.strictEqual(await read(E, granted, stranger), false);
+        });
+        await t('views judge their source; an unknown view is refused', async () => {
+            assert.strictEqual(await RA.allowViewRead({ env: E, viewId: privView, user: anon }), false);
+            assert.strictEqual(await RA.allowViewRead({ env: E, viewId: pubView, user: anon }), true);
+            assert.strictEqual(await RA.allowViewRead({ env: E, viewId: 999999999, user: owner }), false);
+        });
+        await t('internal: the pattern\'s public view-source is inherited; a source [] revokes it; Staff (*) reads', async () => {
+            assert.strictEqual(await read(I, intOpen, anon), true);
+            assert.strictEqual(await read(I, intPrivate, anon), false);
+            assert.strictEqual(await read(I, intPrivate, owner), true);
+            assert.strictEqual(await RA.allowViewRead({ env: I, viewId: intView, user: anon }), true);
+        });
+        await t('internal: ${app} Admin reads everything; a source in no pattern is now READABLE', async () => {
+            assert.strictEqual(await read(I, intPrivate, appAdmin), true);
+            // CHANGED 2026-10-30. This asserted `false`: a source no datasets pattern listed was
+            // refused outright. Under the owner's rule a source that states nothing is readable, and
+            // being unreferenced is not a statement — it is the absence of one. Orphanhood still
+            // denies WRITES, which is where "no pattern vouches for it" belongs.
+            assert.strictEqual(await read(I, intStray, owner), true);
+        });
+        await t('NEW: a blank source under a pattern granting only view-page is READABLE', async () => {
+            // The live bug, reduced. `vocabPattern` grants public a NAMED verb; `vocabSource` states
+            // nothing. Before the owner's 2026-10-30 rule this denied anon twice over: the pattern
+            // gated the read, and `view-page` was never expanded into the structural `read`.
+            assert.strictEqual(await read(I, vocabSource, anon), true);
+        });
+        await t('NEW: `auth: { view: false }` narrows a source to its own grantees', async () => {
+            assert.strictEqual(await read(I, hiddenSource, anon), false);
+            assert.strictEqual(await read(I, hiddenSource, owner), true, 'its own user grant still reads');
+            assert.strictEqual(await read(I, hiddenSource, appAdmin), true, '${app} Admin still reads');
+        });
+        await t('NEW: view:false with NO grants of its own means no one, not everyone', async () => {
+            assert.strictEqual(await read(I, hiddenBlank, anon), false);
+            assert.strictEqual(await read(I, hiddenBlank, owner), false);
+        });
+        await t('grants in `data` win (every client writes there); the `auth` column answers when data names no one', async () => {
+            assert.strictEqual(await read(I, columnSource, anon), true, 'data says public: view-source');
+            assert.strictEqual(await read(I, columnSource, owner), true);
+        });
+        await t('NEW: a pattern\'s grants no longer gate source reads, but still answer holdsOnSource', async () => {
+            assert.strictEqual(await read(I, intStray, owner), true, 'a source in no pattern is readable');
+        });
+        await t('filterReadableSources keeps order, drops the refused', async () => {
+            assert.deepStrictEqual(await RA.filterReadableSources({ env: E, sourceIds: [open, priv, pub], user: anon }), [open, pub]);
+        });
+        // The env row of the site the request names (`dms_app`) is the one row whose grants reach an
+        // external source, for reads as for writes; naming no site lends nothing.
+        await t('external: the named site\'s env row lends its grants; naming none is refused', async () => {
+            const named = (app, user = envReader, sourceId = priv) => RA.allowSourceRead({ env: E, sourceId, user, app });
+            assert.strictEqual(await named(APP), true, 'EnvReaders: view-source on the env row');
+            assert.strictEqual(await RA.allowViewRead({ env: E, viewId: privView, user: envReader, app: APP }), true);
+            assert.strictEqual(await named(null), false, 'naming no site: refused (grants are per site)');
+            assert.strictEqual(await named('other_app'), false, 'a site with no env row for the pgEnv');
+            assert.strictEqual(await named(APP, anon), false, 'anonymous holds nothing on it');
+            assert.strictEqual(await named(APP, stranger), false, 'Rando: view-source on a page pattern only');
+            assert.strictEqual(await named(APP, appAdmin), true, '${app} Admin of the locator app passes');
+            assert.strictEqual(await named(APP, stranger, pub), true, 'a source granting the public reads, site or no site');
+            assert.strictEqual(await named(null, appAdmin), false, 'no site named: not even an admin');
+            assert.strictEqual(await RA.filterReadableSources({ env: E, sourceIds: [priv], user: appAdmin, app: APP }).then(r => r.length), 1);
+        });
+        await t('external: a source [] refuses, as it always did', async () => {
+            const revoked = await ext({ users: { 1: ['*'] }, groups: { public: [], Rando: [], EnvReaders: [] } });
+            await syncMirror(APP, DAMA_DB);
+            assert.strictEqual(await RA.allowSourceRead({ env: E, sourceId: revoked, user: envReader, app: APP }), false);
+        });
+        await t('internal: the named site changes nothing (internal sources find their own env)', async () => {
+            assert.strictEqual(await RA.allowSourceRead({ env: I, sourceId: intPrivate, user: stranger, app: APP }), false);
+        });
+        await t('a grant change (on the site\'s mirror row) shows once the snapshot is refreshed', async () => {
+            const mirror = require('../src/dama/mirror');
+            await mirror.setGrantsIn(APP, E, priv, { users: { 1: ['*'] }, groups: { public: ['view-source'] } });
+            assert.strictEqual(await read(E, priv, anon), false, 'cached');
+            RA.clearReadSnapshots();
+            assert.strictEqual(await read(E, priv, anon), true);
+            await mirror.setGrantsIn(APP, E, priv, { users: { 1: ['*'] }, groups: { public: [] } });
+            RA.clearReadSnapshots();
+        });
+    });
+
+    console.log('\nmodes:');
+    await t('log: an external read naming no pattern is filed under the requesting site (dms_app)', async () => {
+        const accessLog = require('../src/access-log');
+        await withMode('log', async () => {
+            const before = new Set(accessLog._pending().keys());
+            assert.strictEqual(await RA.allowSourceRead({ env: E, sourceId: priv, user: stranger, app: 'site_x', kind: 'list' }), true);
+            const added = [...accessLog._pending().entries()].filter(([k]) => !before.has(k)).map(([, r]) => r);
+            assert.ok(added.some(r => r.app === 'site_x' && r.kind === 'read list' && r.guard === 'read'), JSON.stringify(added));
+        });
+    });
+    await t('log: a refused read goes through and logs once per user / source / kind', async () => {
+        await withMode('log', async (warned) => {
+            assert.strictEqual(await read(E, priv, stranger), true);
+            assert.strictEqual(await read(E, priv, stranger), true);
+            assert.strictEqual(warned.filter(w => w.includes(`${E}/${priv}`) && w.includes('user=4')).length, 1);
+            // KIND auth names the first permission it looked for; the ROW gate asks one structural
+            // question and answers `missing read` — Phase 4(a) of
+            // permission-domain-single-source.md. Both are refusals of the same read.
+            assert.ok(/would-deny read source .* reason=missing view-source/.test(warned[0]), warned[0]);
+        });
+    });
+    await t('tiles (logOnly) are exempt from enforce: a refused tile read goes through and logs', async () => {
+        await withMode('enforce', async (warned) => {
+            assert.strictEqual(await RA.allowViewRead({ env: E, viewId: privView, user: anon }), false);
+            assert.strictEqual(await RA.allowViewRead({ env: E, viewId: privView, user: anon, kind: 'tiles', logOnly: true }), true);
+            assert.ok(warned.some(w => w.includes('would-deny read tiles')), warned.join('\n'));
+        });
+    });
+
+    console.log('\nredactSourceRow:');
+    const row = () => ({ statistics: { webhook_secret: 'shh', station_name: 'WCDB' },
+        auth_permissions: { users: { 1: ['*'] }, groups: { public: [], Viewers: ['view-source'], Editors: ['update-source', 'edit-source-permissions'] } } });
+    await t('log: secrets dropped for a non-updater, grants left whole; an updater sees the secret', async () => {
+        await withMode('log', async () => {
+            const r = await RED.redactSourceRow({ env: E, sourceId: granted, row: row(), user: viewer, app: APP });
+            assert.strictEqual(r.statistics.webhook_secret, undefined);
+            assert.strictEqual(r.statistics.station_name, 'WCDB');
+            assert.ok(r.auth_permissions.groups.Editors, 'grants whole under log');
+            const e = await RED.redactSourceRow({ env: E, sourceId: granted, row: row(), user: editor, app: APP });
+            assert.strictEqual(e.statistics.webhook_secret, 'shh');
+        });
+    });
+    await t('enforce: a non-editor gets their own entries + the hidden marker; an editor the full list', async () => {
+        await withMode('enforce', async () => {
+            const r = await RED.redactSourceRow({ env: E, sourceId: granted, row: row(), user: viewer, app: APP });
+            assert.deepStrictEqual(Object.keys(r.auth_permissions.groups).sort(), [RED.HIDDEN_ENTRY, 'Viewers', 'public'].sort());
+            assert.deepStrictEqual(r.auth_permissions.users, {});
+            const e = await RED.redactSourceRow({ env: E, sourceId: granted, row: row(), user: editor, app: APP });
+            assert.ok(e.auth_permissions.groups.Editors && e.auth_permissions.users[1]);
+        });
+    });
+
+    console.log('\nFalcor read routes:');
+    await t('enforce: the site named on the request (dms_app) lends its env row\'s grants through the real route', async () => {
+        const unwrapAtom = (v) => (v && v.$type === 'atom' ? v.value : v) ?? null;
+        await withMode('enforce', async () => {
+            // `dms_app` reaches the route on every request of a site's Falcor model (`tagFalcorRequests`).
+            const named = createTestGraph(DMS_DB, { user: envReader, requestApp: APP });
+            await named.ready;
+            const g = (await named.getAsync([['uda', E, 'sources', 'byId', priv, 'source_id']])).jsonGraph;
+            assert.strictEqual(+unwrapAtom(g.uda[E].sources.byId[priv].source_id), +priv, 'named: EnvReaders read through the env row');
+            const bare = createTestGraph(DMS_DB, { user: envReader });
+            await bare.ready;
+            const b = (await bare.getAsync([['uda', E, 'sources', 'byId', priv, 'source_id']])).jsonGraph;
+            assert.strictEqual(unwrapAtom(b.uda[E].sources.byId[priv].source_id), null, 'bare: no site named, refused');
+            const rando = createTestGraph(DMS_DB, { user: stranger, requestApp: APP });
+            await rando.ready;
+            const r = (await rando.getAsync([['uda', E, 'sources', 'byId', priv, 'source_id']])).jsonGraph;
+            assert.strictEqual(unwrapAtom(r.uda[E].sources.byId[priv].source_id), null, 'no grant anywhere: refused');
+            // The route still WORKS with a site named — it is a locator, not a gate.
+            const p = (await named.getAsync([['uda', E, 'sources', 'byId', pub, 'source_id']])).jsonGraph;
+            assert.strictEqual(+unwrapAtom(p.uda[E].sources.byId[pub].source_id), +pub, 'a readable source still reads');
+        });
+    });
+    const graphs = {};
+    const as = (user) => graphs[user ? user.id : 'anon'] || (graphs[user ? user.id : 'anon'] = createTestGraph(DMS_DB, { user, requestApp: APP }));
+    for (const u of [anon, owner, viewer, stranger]) await as(u).ready;
+    const get = async (user, paths) => (await as(user).getAsync(paths)).jsonGraph;
+    const unwrap = (v) => (v && v.$type === 'atom' ? v.value : v) ?? null;
+    const catalog = async (user) => {
+        const len = (await get(user, [['uda', E, 'sources', 'length']])).uda[E].sources.length;
+        if (!len) return [];
+        const g = await get(user, [['uda', E, 'sources', 'byIndex', { from: 0, to: len - 1 }, 'source_id']]);
+        return Object.values(g.uda[E].sources.byIndex).map(r => r && r.value && +r.value[r.value.length - 1]);
+    };
+    await t('enforce: the catalog lists only readable sources, length and byIndex agree', async () => {
+        await withMode('enforce', async () => {
+            RA.clearReadSnapshots();
+            const anonList = await catalog(anon);
+            assert.ok(anonList.includes(open) && anonList.includes(pub), 'readable listed');
+            assert.ok(!anonList.includes(priv) && !anonList.includes(granted), 'refused not listed');
+            const ownerList = await catalog(owner);
+            assert.ok(ownerList.includes(priv) && ownerList.includes(granted));
+        });
+    });
+    await t('log: the catalog is unchanged (refused sources listed, would-deny logged)', async () => {
+        await withMode('log', async (warned) => {
+            const anonList = await catalog(anon);
+            assert.ok(anonList.includes(priv));
+            assert.ok(warned.some(w => w.includes('would-deny read list') && w.includes(`/${priv} `)), warned.slice(0, 3).join('\n'));
+        });
+    });
+    await t('enforce: sources.byId answers null attributes for a refused source, values for a readable one', async () => {
+        await withMode('enforce', async () => {
+            const g = await get(anon, [['uda', E, 'sources', 'byId', [priv, pub], ['name', 'source_id']]]);
+            const byId = g.uda[E].sources.byId;
+            assert.strictEqual(unwrap(byId[priv].name), null);
+            assert.ok(unwrap(byId[pub].name), 'readable source has its name');
+        });
+    });
+    await t('enforce: sources.byId trims grants and drops the secret for a viewer; the owner gets all', async () => {
+        await withMode('enforce', async () => {
+            const val = (g, attr) => { const v = g.uda[E].sources.byId[granted][attr]; return v && v.$type === 'atom' ? v.value : v; };
+            const parse = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
+            const gv = await get(viewer, [['uda', E, 'sources', 'byId', granted, ['auth_permissions', 'statistics']]]);
+            assert.ok(parse(val(gv, 'auth_permissions')).groups[RED.HIDDEN_ENTRY], 'trimmed');
+            assert.strictEqual(parse(val(gv, 'statistics')).webhook_secret, undefined);
+            const go = await get(owner, [['uda', E, 'sources', 'byId', granted, ['auth_permissions', 'statistics']]]);
+            assert.ok(parse(val(go, 'auth_permissions')).groups.Editors);
+            assert.strictEqual(parse(val(go, 'statistics')).webhook_secret, 'shh');
+        });
+    });
+    await t('enforce: data reads of a refused view answer 0 / nothing; views.byId nulls', async () => {
+        await withMode('enforce', async () => {
+            const g = await get(anon, [['uda', E, 'viewsById', privView, 'options', '{}', 'length']]);
+            assert.strictEqual(g.uda[E].viewsById[privView].options['{}'].length, 0);
+            const v = await get(anon, [['uda', E, 'views', 'byId', privView, ['source_id']]]);
+            assert.strictEqual(unwrap(v.uda[E].views.byId[privView].source_id), null);
+        });
+    });
+
+    // cleanup
+    await dama.query(`DELETE FROM ${viewTbl} WHERE view_id IN (${[privView, pubView].join(',')})`);
+    await dama.query(`DELETE FROM ${srcTbl} WHERE source_id IN (${[open, priv, pub, granted].join(',')})`);
+    console.log(`\n${pass} passed, ${fail} failed`);
+    process.exit(fail ? 1 : 0);
+}
+
+run().catch(e => { console.error(e); process.exit(1); });

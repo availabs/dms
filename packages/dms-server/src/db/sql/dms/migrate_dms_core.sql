@@ -41,6 +41,30 @@ CREATE INDEX IF NOT EXISTS idx_page_visits_page_id
 ALTER TABLE dms.page_visits
     ADD COLUMN IF NOT EXISTS action TEXT;
 
+-- Access log (src/access-log/index.js), added 2026-11-02. Also declared in change_log*.sql for fresh
+-- databases; repeated here so existing databases pick it up.
+CREATE TABLE IF NOT EXISTS dms.access_log (
+    id          BIGSERIAL PRIMARY KEY,
+    app         TEXT        NOT NULL DEFAULT '',
+    guard       TEXT        NOT NULL,
+    outcome     TEXT        NOT NULL,
+    kind        TEXT        NOT NULL,
+    target      TEXT        NOT NULL,
+    perms       TEXT        NOT NULL DEFAULT '',
+    principal   TEXT        NOT NULL,
+    user_id     INTEGER,
+    user_email  TEXT,
+    groups      TEXT,
+    reason      TEXT,
+    count       BIGINT      NOT NULL DEFAULT 0,
+    first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (app, guard, outcome, kind, target, perms, principal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_access_log_app_last_seen
+    ON dms.access_log (app, last_seen DESC);
+
 -- ── trigram index on data_items.type ────────────────────────────────────────
 -- Several hot lookups match `type` with a LEADING wildcard, because the type
 -- string encodes hierarchy right-to-left (`{site}|{instance}:{kind}`) and the
@@ -97,3 +121,10 @@ BEGIN
         END LOOP;
     END IF;
 END $$;
+
+-- Format declarations (routes/auth/formats.js), added 2026-11-06: the auth rules, permission
+-- vocabulary and childRefs a site's client pushes per format key.
+ALTER TABLE dms.formats
+    ADD COLUMN IF NOT EXISTS auth_vocabulary jsonb,
+    ADD COLUMN IF NOT EXISTS auth_rules      jsonb,
+    ADD COLUMN IF NOT EXISTS child_refs      jsonb;

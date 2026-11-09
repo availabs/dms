@@ -20,6 +20,11 @@ const Busboy = require('busboy');
 const storage = require('../storage');
 const { sharpAvailable, getSharp } = require('./sharp');
 const { nameToSlug, getInstance } = require('../../db/type-utils');
+const { requestUserIdWarnBody } = require('../../routes/auth/requestUser');
+const { authMode } = require('../../routes/auth/settings');
+const accessLog = require('../../access-log');
+const { authorizePublish } = require('./auth');
+const { envRowFor } = require('../../routes/auth');
 
 const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.avif', '.heif', '.heic', '.tiff', '.svg'];
 const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
@@ -28,6 +33,17 @@ const MIN_SOURCE_NAME_LENGTH = 4;
 
 function firstId(rows) {
   return rows?.[0]?.id != null ? +rows[0].id : null;
+}
+
+// A new source is listed on `owner_id`, so the owner must be the env the publish was judged on (or
+// the datasets pattern that links it, for a pattern still listing sources itself): otherwise a
+// create-source grant on one env would let the caller rewrite `sources` on any row of the app.
+async function ownerIsEnv(controller, app, ownerId, envRow) {
+  if (!envRow) return false;
+  if (+ownerId === +envRow.id) return true;
+  const [row] = await controller.getDataById([ownerId], ['data'], app);
+  const data = typeof row?.data === 'string' ? JSON.parse(row.data) : (row?.data || {});
+  return data.dmsEnvId != null && +data.dmsEnvId === +envRow.id;
 }
 
 function createFileUploadDmsHandler(controller) {
@@ -76,13 +92,27 @@ function createFileUploadDmsHandler(controller) {
           owner_id, owner_ref, owner_instance,
           source_id: existingSourceIdRaw,
           source_name,
-          file_name, file_type, directory, description, categories, user_id,
+          file_name, file_type, directory, description, categories,
         } = fields;
 
         const existingSourceId = existingSourceIdRaw ? +existingSourceIdRaw : null;
 
         if (!owner_id || !owner_instance) {
           return res.status(400).json({ ok: false, error: 'owner_id and owner_instance are required' });
+        }
+
+        // The owner is the token user. A multipart body isn't parsed into req.body: hand it the fields.
+        req.body = fields;
+        const user_id = requestUserIdWarnBody(req);
+        const refused = () => { try { fs.unlinkSync(savedFilePath); } catch (e) {} };
+        if (!await authorizePublish(req, res, existingSourceId, { env: `${app}+${owner_instance}`, app })) return refused();
+        if (!existingSourceId && !await ownerIsEnv(controller, app, owner_id, await envRowFor(`${app}+${owner_instance}`, app))) {
+          const msg = `owner ${owner_id} is not the env ${app}+${owner_instance} or the pattern that links it`;
+          const enforce = authMode() === 'enforce';
+          accessLog.record({ app, guard: 'file', outcome: enforce ? 'refused' : 'would-deny', kind: 'file_upload_dms',
+            target: `${app}/${owner_instance}`, perms: ['create-source'], user: req.availAuthContext && req.availAuthContext.user, reason: msg });
+          if (enforce) { refused(); return res.status(403).json({ ok: false, error: msg }); }
+          console.warn(`[source-auth] would-deny file_upload_dms ${app} reason=${msg}`);
         }
 
         if (!existingSourceId && (!source_name || source_name.length < MIN_SOURCE_NAME_LENGTH)) {

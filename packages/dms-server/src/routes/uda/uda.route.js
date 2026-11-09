@@ -29,9 +29,76 @@ const {
   updateExternalRow,
   deleteExternalRow
 } = require("./uda.controller");
-const { getEssentials } = require("./utils");
-const { isUserAuthedForSource } = require("./sourceAuth");
 const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
+const { assertCan, canRead, readableSources, sourceOfView, authMode } = require('../auth');
+const { redactSourceRow } = require('./sourceRedaction');
+const mirror = require('../../dama/mirror');
+const { isDmsEnv } = require('../auth/owners');
+
+// ---- Reads (DMS_AUTH_MODE): a refused read answers null, never an error, so a page section or list
+// renders empty instead of failing the whole batch. `app`: the site the request comes from (a named
+// datasets pattern's, else `dms_app`), which locates an external env's row; it lends no grants.
+const reader = (router) => ({ user: router.user, subdomain: router.subdomain || '', app: router.requestApp || null });
+const canReadSource = (router, env, sourceId, kind) => canRead({ env, sourceId, kind, ...reader(router) });
+const canReadView = (router, env, viewId, kind) => canRead({ env, viewId, kind, ...reader(router) });
+
+// The env's catalog as this reader sees it, in order: under `enforce` only readable sources (so length and
+// byIndex agree); otherwise null (the routes keep their own queries). Under `log` it still runs, to log.
+async function readableCatalog(router, env, opts = {}) {
+  const mode = authMode();
+  const len = +(await getSourcesLength(env, opts)) || 0;
+  const all = len ? await getSourceIdsByIndex(env, { from: 0, to: len - 1 }, opts) : [];
+  const readable = await readableSources({ env, sourceIds: all.filter(id => id != null), kind: 'list', ...reader(router) });
+  return mode === 'enforce' ? readable : null;
+}
+
+// A source write needs `update-source`, plus `edit-source-permissions` when it carries
+// auth_permissions (decided per key; DMS keys are trimmed before they're written, so compare trimmed).
+async function assertSourceWrite(router, env, sourceId, updates) {
+  const keys = Object.keys(updates || {}).map(k => k.trim());
+  if (keys.some(k => k !== 'auth_permissions')) {
+    await assertCan(router, { env, source: sourceId, verb: 'update-source' });
+  }
+  if (keys.includes('auth_permissions')) {
+    await assertCan(router, { env, source: sourceId, verb: 'edit-source-permissions' });
+  }
+}
+
+// A source write. On a pgEnv source, `auth_permissions` is the requesting site's grants and goes to its
+// MIRROR row (dama/mirror.js), never to the pgEnv's column; every other key is the origin's. The echoed row
+// carries the site's grants.
+async function writeSource(router, env, sourceId, updates) {
+  if (isDmsEnv(env) || !Object.prototype.hasOwnProperty.call(updates || {}, 'auth_permissions')) return updateSource(env, sourceId, updates);
+  const { auth_permissions, ...rest } = updates;
+  const app = router.requestApp;
+  if (!app) throw new Error('Not authorized: no site named for the grants of an external source');
+  const grants = await mirror.setGrantsIn(app, env, sourceId, auth_permissions);
+  const rows = Object.keys(rest).length ? await updateSource(env, sourceId, rest) : [{ source_id: +sourceId }];
+  return rows.map(r => (+r.source_id === +sourceId ? { ...r, auth_permissions: grants } : r));
+}
+
+// A view write needs `update-source` on the view's source.
+async function assertViewWrite(router, env, viewId) {
+  await assertCan(router, { env, view: viewId, verb: 'update-source' });
+}
+
+// A source rule change needs `update-source`. The Rules page shows the refusal as is, so it reads as a sentence.
+async function assertRuleWrite(router, env, sourceId) {
+  try {
+    await assertCan(router, { env, source: sourceId, verb: 'update-source' });
+  } catch (err) {
+    if (/^Not authorized/.test(err.message)) {
+      throw new Error(`You don't have permission to change this source (update-source on source ${sourceId}).`);
+    }
+    throw err;
+  }
+}
+
+// Echo every column of a written row at `basePath`.
+const rowPathValues = (basePath, row) => Object.keys(row).map(key => ({
+  path: [...basePath, key],
+  value: row[key] !== null && typeof row[key] === "object" ? $atom(row[key]) : row[key],
+}));
 
 // ================================================= UDA Source Routes =================================================
 
@@ -46,7 +113,8 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const numRows = await getSourcesLength(env);
+          const catalog = await readableCatalog(this, env);
+          const numRows = catalog ? catalog.length : await getSourcesLength(env);
           result.push({
             path: ["uda", env, "sources", "length"],
             value: +numRows,
@@ -69,7 +137,10 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const idsByIdx = await getSourceIdsByIndex(env, { from: indices[0], to: indices[indices.length - 1] });
+          const catalog = authMode() === 'enforce' ? await readableCatalog(this, env) : null;
+          const idsByIdx = catalog
+            ? indices.map(i => catalog[i])
+            : await getSourceIdsByIndex(env, { from: indices[0], to: indices[indices.length - 1] });
 
           indices.forEach((srcIdx, ii) => {
             const id = idsByIdx[ii];
@@ -102,7 +173,8 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const numRows = await getSourcesLength(env, { includeHidden: true });
+          const catalog = await readableCatalog(this, env, { includeHidden: true });
+          const numRows = catalog ? catalog.length : await getSourcesLength(env, { includeHidden: true });
           result.push({
             path: ["uda", env, "sourcesAll", "length"],
             value: +numRows,
@@ -125,11 +197,14 @@ module.exports = [
         const result = [];
 
         for (const env of envs) {
-          const idsByIdx = await getSourceIdsByIndex(
-            env,
-            { from: indices[0], to: indices[indices.length - 1] },
-            { includeHidden: true }
-          );
+          const catalog = authMode() === 'enforce' ? await readableCatalog(this, env, { includeHidden: true }) : null;
+          const idsByIdx = catalog
+            ? indices.map(i => catalog[i])
+            : await getSourceIdsByIndex(
+              env,
+              { from: indices[0], to: indices[indices.length - 1] },
+              { includeHidden: true }
+            );
 
           indices.forEach((srcIdx, ii) => {
             const id = idsByIdx[ii];
@@ -157,12 +232,22 @@ module.exports = [
 
         for (const env of envs) {
           const rows = await getSourceById(env, ids, attributes);
+          // a pgEnv source's grants are the requesting site's (its mirror row), not the pgEnv's column
+          if (!isDmsEnv(env) && attributes.includes('auth_permissions') && this.requestApp) {
+            for (const r of rows) {
+              const g = await mirror.grantsIn(this.requestApp, env, r.id);
+              if (g !== undefined) r.auth_permissions = g;
+            }
+          }
 
           for (const id of ids) {
-            const source = rows.find(r => +r.id === +id) || {};
+            const readable = await canReadSource(this, env, id, 'source');
+            const source = readable
+              ? await redactSourceRow({ env, sourceId: id, row: { ...(rows.find(r => +r.id === +id) || {}) }, ...reader(this) })
+              : {};
 
             for (const attribute of attributes) {
-              const value = source[attribute];
+              const value = readable ? source[attribute] : null;
               result.push({
                 path: ["uda", env, "sources", "byId", id, attribute],
                 value: typeof value === 'object' ? $atom(value) : value,
@@ -184,21 +269,13 @@ module.exports = [
         for (const pgEnv of pgEnvs) {
           const sourcesById = jsonGraph.uda[pgEnv].sources.byId;
           const ids = Object.keys(sourcesById);
-          const { db } = await getEssentials({ env: pgEnv });
 
           for (const sourceId of ids) {
-            // Per-source enforcement (pattern ⊕ source). Editing authPermissions itself needs
-            // `edit-source-permissions`; other writes need `update-source`. Un-migrated envs (no
-            // authPermissions column) are allowed (no prior enforcement to regress).
-            const requiresPermEdit = JSON.stringify(sourcesById[sourceId] || {}).includes('auth_permissions');
-            const reqPermissions = requiresPermEdit ? ['edit-source-permissions'] : ['update-source'];
-            const authed = await isUserAuthedForSource({ db, sourceId: +sourceId, reqPermissions, user: this.user });
-            if (!authed) {
-              console.log("uda: UNAUTHORIZED source modify", sourceId, this.user && this.user.email);
-              throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
-            }
+            // A set can't name a datasets pattern, so an external source's pattern grants don't
+            // count here; the client writes through the sources.update call, which can.
+            await assertSourceWrite(this, pgEnv, sourceId, sourcesById[sourceId]);
 
-            const rows = await updateSource(pgEnv, sourceId, sourcesById[sourceId]);
+            const rows = await writeSource(this, pgEnv, sourceId, sourcesById[sourceId]);
             const row = rows.find(r => +r.source_id === +sourceId || +r.id === +sourceId);
 
             if (!row) {
@@ -235,7 +312,7 @@ module.exports = [
 
         for (const env of envs) {
           for (const id of ids) {
-            const info = await getSourcePrimaryKeyInfo(env, id);
+            const info = await canReadSource(this, env, id, 'source') ? await getSourcePrimaryKeyInfo(env, id) : null;
             result.push({
               path: ["uda", env, "sources", "byId", id, "pkeyInfo"],
               value: $atom(info),
@@ -263,7 +340,7 @@ module.exports = [
         const result = [];
         for (const env of envs) {
           for (const id of ids) {
-            const info = await listSourceRules(env, id);
+            const info = await canReadSource(this, env, id, 'source') ? await listSourceRules(env, id) : null;
             result.push({ path: ["uda", env, "sources", "byId", id, "rulesInfo"], value: $atom(info) });
           }
         }
@@ -288,7 +365,8 @@ module.exports = [
         for (const env of envs) {
           const lineage = await getSourceLineageById(env, ids);
           for (const id of ids) {
-            result.push({ path: ["uda", env, "sources", "byId", id, "lineage"], value: $atom(lineage.get(+id) ?? null) });
+            const readable = await canReadSource(this, env, id, 'source');
+            result.push({ path: ["uda", env, "sources", "byId", id, "lineage"], value: $atom(readable ? lineage.get(+id) ?? null : null) });
           }
         }
         return result;
@@ -311,7 +389,7 @@ module.exports = [
           const rows = await getViewLengthBySourceId(env, ids);
 
           for (const id of ids) {
-            const length = rows.find(r => +r.id === +id)?.num_views || 0;
+            const length = await canReadSource(this, env, id, 'source') ? rows.find(r => +r.id === +id)?.num_views || 0 : 0;
             result.push({
               path: ["uda", env, "sources", "byId", id, "views", "length"],
               value: length,
@@ -338,7 +416,7 @@ module.exports = [
           const rows = await getViewsByIndexBySourceId(env, ids, { from: indices[0], to: indices[indices.length - 1] });
 
           for (const id of ids) {
-            const views = rows.find(r => +r.id === +id)?.views || [];
+            const views = await canReadSource(this, env, id, 'source') ? rows.find(r => +r.id === +id)?.views || [] : [];
             indices.forEach((idx, ii) => {
               result.push({
                 path: ["uda", env, "sources", "byId", id, "views", "byIndex", idx],
@@ -369,10 +447,11 @@ module.exports = [
           const rows = await getViewById(env, ids, attributes);
 
           for (const id of ids) {
-            const view = rows.find(r => +r.id === +id) || {};
+            const readable = await canReadView(this, env, id, 'view');
+            const view = readable ? rows.find(r => +r.id === +id) || {} : {};
 
             for (const attribute of attributes) {
-              const value = view[attribute];
+              const value = readable ? view[attribute] : null;
               result.push({
                 path: ["uda", env, "views", "byId", id, attribute],
                 value: typeof value === 'object' ? $atom(value) : value,
@@ -396,6 +475,7 @@ module.exports = [
           const ids = Object.keys(viewsById);
 
           for (const viewId of ids) {
+            await assertViewWrite(this, pgEnv, viewId);
             const rows = await updateView(pgEnv, viewId, viewsById[viewId]);
             const row = rows.find(r => +r.view_id === +viewId || +r.id === +viewId);
 
@@ -434,7 +514,8 @@ module.exports = [
         for (const env of envs) {
           const lineage = await getViewLineageById(env, ids);
           for (const id of ids) {
-            result.push({ path: ["uda", env, "views", "byId", id, "lineage"], value: $atom(lineage.get(+id) ?? null) });
+            const readable = await canReadView(this, env, id, 'view');
+            result.push({ path: ["uda", env, "views", "byId", id, "lineage"], value: $atom(readable ? lineage.get(+id) ?? null : null) });
           }
         }
         return result;
@@ -455,7 +536,11 @@ module.exports = [
 
         for (const pgEnv of pgEnvs) {
           for (const category of categories) {
-            const rows = await getViewBySrcCategories(pgEnv, category);
+            const all = await getViewBySrcCategories(pgEnv, category);
+            const rows = [];
+            for (const r of all || []) {
+              if (r.source_id == null || await canReadSource(this, pgEnv, r.source_id, 'list')) rows.push(r);
+            }
             result.push({
               path: ["uda", pgEnv, "views", "bySourceCategory", category],
               value: $atom(rows),
@@ -483,7 +568,7 @@ module.exports = [
         for (const env of envs) {
           for (const viewId of viewIds) {
             for (const option of options) {
-              const numRows = await simpleFilterLength(env, viewId, option);
+              const numRows = await canReadView(this, env, viewId, 'data') ? await simpleFilterLength(env, viewId, option) : 0;
 
               result.push({
                 path: ["uda", env, "viewsById", viewId, "options", option, "length"],
@@ -511,7 +596,9 @@ module.exports = [
         for (const env of envs) {
           for (const viewId of viewIds) {
             for (const option of options) {
-              const rows = await simpleFilter(env, viewId, option, attributes, { from: indices[0], to: indices[indices.length - 1] });
+              const rows = await canReadView(this, env, viewId, 'data')
+                ? await simpleFilter(env, viewId, option, attributes, { from: indices[0], to: indices[indices.length - 1] })
+                : [];
 
               indices.forEach((i, ii) => {
                 attributes.forEach(attribute => {
@@ -546,7 +633,9 @@ module.exports = [
         for (const env of envs) {
           for (const viewId of viewIds) {
             for (const option of options) {
-              const rows = await simpleFilter(env, viewId, option, ['id'], { from: indices[0], to: indices[indices.length - 1] });
+              const rows = await canReadView(this, env, viewId, 'data')
+                ? await simpleFilter(env, viewId, option, ['id'], { from: indices[0], to: indices[indices.length - 1] })
+                : [];
 
               indices.forEach((i, ii) => {
                 const id = rows?.[ii]?.id;
@@ -568,14 +657,56 @@ module.exports = [
     },
   },
 
+  // --------------------------------- sources.update (call) ---------------------------------
+  // Args: [env, sourceId, updates, pattern?]
+  // The sources.byId set as a call, so it can name the datasets pattern (`pattern`, { app, id }) whose
+  // grants an external source inherits. Same write (updateSource: column whitelist, authority kept)
+  // and same gate. Echoes the row's columns at sources.byId, like the set.
+  {
+    route: `uda.sources.update`,
+    call: async function(callPath, args) {
+      try {
+        const [env, sourceId, updates = {}, pattern] = args;
+        await assertSourceWrite(this, env, sourceId, updates);
+        const rows = await writeSource(this, env, sourceId, updates);
+        const row = rows.find(r => +r.source_id === +sourceId || +r.id === +sourceId);
+        return row ? rowPathValues(["uda", env, "sources", "byId", sourceId], row) : [];
+      } catch (err) {
+        console.error('[uda] sources.update error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- views.update (call) ---------------------------------
+  // Args: [env, viewId, updates, pattern?]. The views.byId set as a call; see sources.update.
+  {
+    route: `uda.views.update`,
+    call: async function(callPath, args) {
+      try {
+        const [env, viewId, updates = {}, pattern] = args;
+        await assertViewWrite(this, env, viewId);
+        const rows = await updateView(env, viewId, updates);
+        const row = rows.find(r => +r.view_id === +viewId || +r.id === +viewId);
+        return row ? rowPathValues(["uda", env, "views", "byId", viewId], row) : [];
+      } catch (err) {
+        console.error('[uda] views.update error:', err.message);
+        throw err;
+      }
+    },
+  },
+
   // --------------------------------- sources.setIndex (call) ---------------------------------
-  // Args: [env, sourceId, columnName, enable]
+  // Args: [env, sourceId, columnName, enable, pattern?]
   // Toggles isIndex on the named column. enable=true creates the DB index, enable=false drops it.
+  // Needs `update-source`. A trailing `pattern` argument is still accepted (old clients send one) and
+  // ignored: the env row of the site the request names (`dms_app`) lends to an external source.
   {
     route: `uda.sources.setIndex`,
     call: async function(callPath, args) {
       try {
-        const [env, sourceId, columnName, enable = true] = args;
+        const [env, sourceId, columnName, enable = true, pattern] = args;
+        await assertCan(this, { env, source: sourceId, verb: 'update-source' });
         await setIndexColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
@@ -588,7 +719,7 @@ module.exports = [
   },
 
   // --------------------------------- sources.setPrimaryKey (call) ---------------------------------
-  // Args: [env, sourceId, columnName, enable]
+  // Args: [env, sourceId, columnName, enable, pattern?]  (gate as setIndex)
   // External (DAMA) sources only. enable=true (default) validates the column (no NULLs, no
   // duplicates) across every physical table backing the source, then runs
   // ALTER TABLE ... ADD CONSTRAINT ... PRIMARY KEY. Throws (no partial DDL) if any table fails
@@ -598,7 +729,8 @@ module.exports = [
     route: `uda.sources.setPrimaryKey`,
     call: async function(callPath, args) {
       try {
-        const [env, sourceId, columnName, enable = true] = args;
+        const [env, sourceId, columnName, enable = true, pattern] = args;
+        await assertCan(this, { env, source: sourceId, verb: 'update-source' });
         await setPrimaryKeyColumn(env, sourceId, columnName, enable);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId], invalidated: true },
@@ -612,7 +744,7 @@ module.exports = [
   },
 
   // --------------------------------- sources.setRule (call) ---------------------------------
-  // Args: [env, sourceId, { id, params, replaceKey? } | { id, key }, enable = true]
+  // Args: [env, sourceId, { id, params, replaceKey? } | { id, key }, enable = true, pattern?]
   // Attach / edit (enable) or remove a source rule. Runs DDL on every table behind the source, so
   // it is gated on `update-source`, like any other modification of the source. Returns the fresh
   // rulesInfo, so the page needs no refetch.
@@ -625,18 +757,11 @@ module.exports = [
   {
     route: `uda.sources.setRule`,
     call: async function(callPath, args) {
-      const [env, sourceId, ruleArgs = {}, enable = true] = args;
+      const [env, sourceId, ruleArgs = {}, enable = true, pattern] = args;
       const resultPath = ["uda", env, "sources", "byId", +sourceId, "rulesCall"];
       try {
         if (!this.user) throw new Error('Sign in to change source rules');
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED source rule change', sourceId, this.user && this.user.email);
-          throw new Error(`You don't have permission to change this source (update-source on source ${sourceId}).`);
-        }
+        await assertRuleWrite(this, env, sourceId);
         const info = await setSourceRule(env, +sourceId, ruleArgs, enable !== false, this.user);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId, "rulesInfo"], value: $atom(info) },
@@ -651,25 +776,18 @@ module.exports = [
   },
 
   // --------------------------------- sources.backfillRule (call) ---------------------------------
-  // Args: [env, sourceId, key]
+  // Args: [env, sourceId, key, pattern?]
   // Brings existing rows into line with an attached rule ("Apply to existing rows"). Returns the
   // per-table counts at sources.byId[id].rulesBackfill[key], and the outcome at rulesCall (see
   // setRule for why errors come back as a value). Same gate as setRule.
   {
     route: `uda.sources.backfillRule`,
     call: async function(callPath, args) {
-      const [env, sourceId, key] = args;
+      const [env, sourceId, key, pattern] = args;
       const resultPath = ["uda", env, "sources", "byId", +sourceId, "rulesCall"];
       try {
         if (!this.user) throw new Error('Sign in to apply a source rule');
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED source rule backfill', sourceId, this.user && this.user.email);
-          throw new Error(`You don't have permission to change this source (update-source on source ${sourceId}).`);
-        }
+        await assertRuleWrite(this, env, sourceId);
         const counts = await backfillSourceRule(env, +sourceId, key);
         return [
           { path: ["uda", env, "sources", "byId", +sourceId, "rulesBackfill", key], value: $atom(counts) },
@@ -683,7 +801,7 @@ module.exports = [
   },
 
   // --------------------------------- sources.setAuthoritativeView (call) ---------------------------------
-  // Args: [env, sourceId, { view_id, key?, note }]
+  // Args: [env, sourceId, { view_id, key?, note }, pattern?]
   // Marks the view pages should bind (see ./authority.js). Without `key` it is the source's single
   // authoritative view; with `key` (e.g. { year: '2024' }) it is the authoritative view for that
   // key value. Replaces the entry with the same key; `note` (why this view) is required.
@@ -693,16 +811,8 @@ module.exports = [
     route: `uda.sources.setAuthoritativeView`,
     call: async function(callPath, args) {
       try {
-        if (!this.user) throw new Error('Authentication required to mark an authoritative view');
-        const [env, sourceId, entry = {}] = args;
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED authoritative view set', sourceId, this.user && this.user.email);
-          throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
-        }
+        const [env, sourceId, entry = {}, pattern] = args;
+        await assertCan(this, { env, source: sourceId, verb: 'update-source' });
         const authority = await setAuthoritativeView(env, +sourceId, entry, this.user);
         return [
           { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
@@ -716,22 +826,14 @@ module.exports = [
   },
 
   // --------------------------------- sources.clearAuthoritativeView (call) ---------------------------------
-  // Args: [env, sourceId, { key? }]
+  // Args: [env, sourceId, { key? }, pattern?]
   // Removes the authoritative view for `key` (no key = the single entry). Same gate as set.
   {
     route: `uda.sources.clearAuthoritativeView`,
     call: async function(callPath, args) {
       try {
-        if (!this.user) throw new Error('Authentication required to clear an authoritative view');
-        const [env, sourceId, opts = {}] = args;
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, sourceId: +sourceId, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED authoritative view clear', sourceId, this.user && this.user.email);
-          throw new Error(`User not authorized to modify source id(s): ${sourceId}`);
-        }
+        const [env, sourceId, opts = {}, pattern] = args;
+        await assertCan(this, { env, source: sourceId, verb: 'update-source' });
         const authority = await clearAuthoritativeView(env, +sourceId, opts);
         return [
           { path: ['uda', env, 'sources', 'byId', +sourceId, 'authority'], value: $atom(authority) },
@@ -745,29 +847,21 @@ module.exports = [
   },
 
   // --------------------------------- views.create (call) ---------------------------------
-  // Args: [env, source_id, version, copy_from_view_id]
+  // Args: [env, source_id, version, copy_from_view_id, pattern?]
   //
   // Creates a new VERSION of an external source: a data_manager.views row plus its own
   // physical table, cloned (structure only, or structure + rows) from an existing version.
   // `copy_from_view_id` null/absent → a blank version whose schema comes from the source's
   // newest view; set → a duplicate of that view, rows included.
   //
-  // Gated on `update-source` for the source, the same permission an attribute write needs:
-  // adding a version is a modification of the dataset, not a read of it.
+  // Gated on `create-view` (the grant named for this) or `update-source` (the gate it had before
+  // create-view existed, kept so no grantee loses it).
   {
     route: `uda.views.create`,
     call: async function(callPath, args) {
       try {
-        if (!this.user) throw new Error('Authentication required to create a version');
-        const [env, source_id, version, copy_from_view_id] = args;
-        const { db } = await getEssentials({ env });
-        const authed = await isUserAuthedForSource({
-          db, sourceId: +source_id, reqPermissions: ['update-source'], user: this.user,
-        });
-        if (!authed) {
-          console.log('uda: UNAUTHORIZED version create', source_id, this.user && this.user.email);
-          throw new Error(`User not authorized to modify source id(s): ${source_id}`);
-        }
+        const [env, source_id, version, copy_from_view_id, pattern] = args;
+        await assertCan(this, { env, source: source_id, verb: ['create-view', 'update-source'] });
 
         const view = await createSourceView(env, {
           source_id: +source_id,
@@ -793,13 +887,15 @@ module.exports = [
   },
 
   // --------------------------------- viewsById.clearData (call) ---------------------------------
-  // Args: [env, view_id]
-  // Truncates / deletes all rows in the split table for the given view.
+  // Args: [env, view_id, pattern?]
+  // Truncates / deletes all rows in the split table for the given view. Needs `edit-source-data` or
+  // `delete-source` on the view's source.
   {
     route: 'uda.viewsById.clearData',
     call: async function(callPath, args) {
       try {
-        const [env, view_id] = args;
+        const [env, view_id, pattern] = args;
+        await assertCan(this, { env, view: view_id, verb: ['edit-source-data', 'delete-source'] });
         await clearViewData(env, +view_id);
         return [
           { path: ['uda', env, 'viewsById', +view_id], invalidated: true },
@@ -885,7 +981,7 @@ module.exports = [
 
         for (const env of envs) {
           for (const viewId of viewIds) {
-            const rows = await dataById(env, viewId, ids, attributes);
+            const rows = await canReadView(this, env, viewId, 'data') ? await dataById(env, viewId, ids, attributes) : [];
 
             ids.forEach((id) => {
               const row = rows.find(r => +r.id === +id);

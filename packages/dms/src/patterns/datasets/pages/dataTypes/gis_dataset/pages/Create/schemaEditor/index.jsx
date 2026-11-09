@@ -1,6 +1,7 @@
 import React, { useEffect } from "react";
 
 import { GisDatasetLayerDatabaseDbSchemaForm } from "./components";
+import { authedFetch } from '../../../../../../../../utils/authedFetch'
 
 export default function UpdateGisDatasetLayerDatabaseDbSchema({
   state,
@@ -31,8 +32,9 @@ export default function UpdateGisDatasetLayerDatabaseDbSchema({
         return;
       }
 
-      const tblDscRes = await fetch(
-        `${damaServerPath}/staged-geospatial-dataset/${gisUploadId}/${layerName}/tableDescriptor`
+      const tblDscRes = await authedFetch(
+        `${damaServerPath}/staged-geospatial-dataset/${gisUploadId}/${layerName}/tableDescriptor`,
+        { user: state.authUser, pattern: state.pattern }
       );
 
       const tblDsc = await tblDscRes.json();

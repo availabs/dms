@@ -175,7 +175,7 @@ const RuleForm = ({ t, info, editing, onApply, onCancel, busy, error }) => {
 
 export default function RulesPage({ params, isDms }) {
     const { id } = params;
-    const { falcor, datasources, isUserAuthed } = useContext(DatasetsContext) || {};
+    const { falcor, datasources, isUserAuthed, datasetsPattern } = useContext(DatasetsContext) || {};
     const { theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const t = { ...rulesPageTheme, ...getComponentTheme(themeFromContext, 'datasets.rulesPage') };
     const pgEnv = getExternalEnv(datasources);
@@ -215,7 +215,7 @@ export default function RulesPage({ params, isDms }) {
 
     // Writes are not optimistic: the call returns the fresh rulesInfo, which replaces local state.
     const setRule = async (args, enable) => {
-        const res = await falcor.call(['uda', 'sources', 'setRule'], [pgEnv, +id, args, enable]);
+        const res = await falcor.call(['uda', 'sources', 'setRule'], [pgEnv, +id, args, enable, datasetsPattern]);
         const outcome = res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.rulesCall;
         if (outcome && !outcome.ok) throw new Error(outcome.error);
         const next = res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.rulesInfo;
@@ -254,7 +254,7 @@ export default function RulesPage({ params, isDms }) {
         setConfirmRemove(null);
     }, 'The rule could not be removed.');
     const backfill = (rule) => runForRule(rule, async () => {
-        const res = await falcor.call(['uda', 'sources', 'backfillRule'], [pgEnv, +id, rule.key]);
+        const res = await falcor.call(['uda', 'sources', 'backfillRule'], [pgEnv, +id, rule.key, datasetsPattern]);
         const outcome = res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.rulesCall;
         if (outcome && !outcome.ok) throw new Error(outcome.error);
         const result = res?.json?.uda?.[pgEnv]?.sources?.byId?.[id]?.rulesBackfill?.[rule.key];

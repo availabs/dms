@@ -60,7 +60,13 @@ function createDb(configName) {
   throw new Error(`Unknown database type: ${config.type}`);
 }
 
-/** Fully-qualified table name for the given adapter. */
+/**
+ * Fully-qualified table name for the given adapter — the shared `dms` schema. This script copies a
+ * LEGACY split-mode database (one data_items, one formats, split tables in `dms`); a per-app database
+ * (`dms_<app>.data_items`, `dms_<app>.formats`, SQLite `data_items__<app>` / `formats__<app>`) is not
+ * discovered here yet. The formats copy carries all four declaration columns (attributes,
+ * auth_vocabulary, auth_rules, child_refs).
+ */
 function fqn(db, table) {
   return db.type === 'postgres' ? `dms.${table}` : table;
 }
@@ -171,7 +177,7 @@ function selectColumns(table) {
   // Cast JSON columns to TEXT to avoid the pg driver parsing jsonb into JS objects
   // (which would then be re-stringified on write). SQLite adapter strips ::TEXT casts.
   if (table === 'formats') {
-    return 'id, app, type, attributes::TEXT AS attributes, created_at::TEXT AS created_at, updated_at::TEXT AS updated_at';
+    return 'id, app, type, attributes::TEXT AS attributes, auth_vocabulary::TEXT AS auth_vocabulary, auth_rules::TEXT AS auth_rules, child_refs::TEXT AS child_refs, created_at::TEXT AS created_at, updated_at::TEXT AS updated_at';
   }
   return 'id, app, type, data::TEXT AS data, created_at::TEXT AS created_at, created_by, updated_at::TEXT AS updated_at, updated_by';
 }
@@ -198,8 +204,8 @@ function buildInsert(db, table, row) {
   if (table === 'formats') {
     const override = db.type === 'postgres' ? ' OVERRIDING SYSTEM VALUE' : '';
     return {
-      text: `INSERT INTO ${name} (id, app, type, attributes, created_at, updated_at)${override} VALUES ($1, $2, $3, $4, $5, $6)`,
-      values: [row.id, row.app, row.type, row.attributes, row.created_at, row.updated_at]
+      text: `INSERT INTO ${name} (id, app, type, attributes, auth_vocabulary, auth_rules, child_refs, created_at, updated_at)${override} VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      values: [row.id, row.app, row.type, row.attributes, row.auth_vocabulary, row.auth_rules, row.child_refs, row.created_at, row.updated_at]
     };
   }
 
@@ -238,13 +244,13 @@ function createWriter(targetDb, tgtTable, isFormats) {
   if (targetDb.type === 'sqlite') {
     const rawDb = targetDb.getPool();
     const stmt = isFormats
-      ? rawDb.prepare(`INSERT INTO ${tgtTable} (id, app, type, attributes, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`)
+      ? rawDb.prepare(`INSERT INTO ${tgtTable} (id, app, type, attributes, auth_vocabulary, auth_rules, child_refs, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       : rawDb.prepare(`INSERT INTO ${tgtTable} (id, app, type, data, created_at, created_by, updated_at, updated_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
 
     return rawDb.transaction((rows) => {
       for (const row of rows) {
         if (isFormats) {
-          stmt.run(row.id, row.app, row.type, sqliteVal(row.attributes), row.created_at, row.updated_at);
+          stmt.run(row.id, row.app, row.type, sqliteVal(row.attributes), sqliteVal(row.auth_vocabulary), sqliteVal(row.auth_rules), sqliteVal(row.child_refs), row.created_at, row.updated_at);
         } else {
           stmt.run(row.id, row.app, row.type, sqliteVal(row.data), row.created_at, row.created_by ?? null, row.updated_at, row.updated_by ?? null);
         }
@@ -259,16 +265,19 @@ function createWriter(targetDb, tgtTable, isFormats) {
     return async (rows) => {
       if (rows.length === 0) return;
       await targetDb.query(`
-        INSERT INTO ${name} (id, app, type, attributes, created_at, updated_at)
+        INSERT INTO ${name} (id, app, type, attributes, auth_vocabulary, auth_rules, child_refs, created_at, updated_at)
         OVERRIDING SYSTEM VALUE
-        SELECT u.id, u.app, u.type, u.attrs::jsonb, u.created_at::timestamptz, u.updated_at::timestamptz
-        FROM unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[])
-        AS u(id, app, type, attrs, created_at, updated_at)
+        SELECT u.id, u.app, u.type, u.attrs::jsonb, u.vocab::jsonb, u.rules::jsonb, u.refs::jsonb, u.created_at::timestamptz, u.updated_at::timestamptz
+        FROM unnest($1::int[], $2::text[], $3::text[], $4::text[], $5::text[], $6::text[], $7::text[], $8::text[], $9::text[])
+        AS u(id, app, type, attrs, vocab, rules, refs, created_at, updated_at)
       `, [
         rows.map(r => r.id),
         rows.map(r => r.app),
         rows.map(r => r.type),
         rows.map(r => toJsonStr(r.attributes)),
+        rows.map(r => toJsonStr(r.auth_vocabulary)),
+        rows.map(r => toJsonStr(r.auth_rules)),
+        rows.map(r => toJsonStr(r.child_refs)),
         rows.map(r => r.created_at),
         rows.map(r => r.updated_at),
       ]);

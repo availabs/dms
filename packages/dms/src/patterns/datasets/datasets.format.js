@@ -1,69 +1,8 @@
-export const view = {
-  app: "datasets",
-  type: "view",
-  attributes: [
-    { key: "name",
-      placeholder: 'Name',
-      type: "text",
-      required: false
-    }
-  ] 
-}
-
-export const source = {
-  app: "datasets",
-  type: "source",
-  registerFormats: [view],
-  attributes: [
-    { key: "name",
-      placeholder: 'Name',
-      type: "text",
-      required: false
-    },
-    { key: 'config',
-      placeholder: 'please select a type',
-      type: 'config'
-    },
-    { key: "description",
-      placeholder: 'Description',
-      type: "lexical",
-      required: true
-    },
-    { key: "categories",
-      placeholder: 'Categories',
-      type: "text",
-      required: true
-    },
-    // Per-source access control (mirrors the page pattern's page-level authPermissions).
-    // Shape: { groups: { [name]: [perm…] }, users: { [id]: [perm…] } }. Effective perms are
-    // pattern ⊕ source, evaluated by DatasetsContext.isUserAuthed (SourcePage merges this in).
-    // `permissionDomain` is the vocabulary shown in the Access editor (UI.Permissions).
-    // (server-side indexing fields — serverFn/joinWithChar — are wired in P4 enforcement.)
-    { key: "auth_permissions",
-      placeholder: 'Access',
-      type: "json",
-      required: false,
-      default: {},
-      permissionDomain: [
-        { label: 'View source',      value: 'view-source' },       // see metadata/overview
-        { label: 'Download source',  value: 'download-source' },    // download the data (old DOWNLOAD level)
-        { label: 'Update source',    value: 'update-source' },      // edit description/categories/metadata
-        { label: 'Create version',   value: 'create-view' },
-        { label: 'Manage downloads', value: 'manage-downloads' },   // create/refresh download artifacts
-        { label: 'View source API',  value: 'view-source-api' },
-        { label: 'Delete source',    value: 'delete-source' },
-        { label: 'Edit permissions', value: 'edit-source-permissions' },
-        { label: 'All (*)',          value: '*' },
-      ],
-    },
-    {
-      key: 'views',
-      type: 'dms-format',
-      isArray: true,
-      format: 'datasets+view',
-    },
-  ]
-}
+// `view` and `source` MOVED to ../dmsEnv.format.js (2026-11-02): the env owns them, not this
+// pattern. Re-exported here because the datasets UI still imports them from this module.
+// See planning/tasks/current/row-auth-uda-unify-api.md.
+export { view, source } from '../dmsEnv.format'
+import { source } from '../dmsEnv.format'
 
 const datasetsFormat = {
     app: "datasets",
@@ -81,6 +20,26 @@ const datasetsFormat = {
             type: 'dms-format',
             isArray: true,
             format: 'datasets+source',
+        },
+        // The datasets PATTERN-INSTANCE domain. `form-manager` is the row kind that IS the datasets
+        // pattern, so these join the shared `admin+pattern` domain to make this type's `self` scope
+        // — they are granted at the pattern level and nowhere else.
+        //
+        // `view-sources` must NOT be a descendants verb. It is the verb that decides whether you
+        // can see any pages at the datasets level, and it gates the pattern's whole route subtree by
+        // name (siteConfig.jsx, `reqPermissions: ['view-sources']`). In `descendants` a pattern-level
+        // `public: ['view-sources']` would open every source beneath it — the identical shape to the
+        // `view-page` regression this replaces (row-auth-uda.md). `view-source` (singular) stays the
+        // per-source read, on the source format below.
+        {
+            key: "authPermissions",
+            type: "json",
+            required: false,
+            default: [],
+            permissionDomain: [
+                { label: 'View Sources',  value: 'view-sources',  implies: ['read'] },
+                { label: 'Create Source', value: 'create-source', implies: ['read', 'create'] },
+            ],
         },
     ]
 }

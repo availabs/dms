@@ -13,7 +13,6 @@ import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
 import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
-import { isUserAuthed } from "../../utils/auth";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
@@ -89,7 +88,6 @@ const adminConfig = ({
   authPattern,
   adminThemeSource,
   authPermissions = {},
-  authPatternPermissions = {},
   isMultiTenant = false,
   // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
   subdomain = '',
@@ -137,7 +135,7 @@ const adminConfig = ({
         type: (props) => {
           const { user, apiUpdate } = props;
           const { Layout, LayoutGroup } = UI;
-          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, authPatternPermissions, isMultiTenant, subdomain });
+          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, subdomain });
           return (
             <AdminContext.Provider
               value={{
@@ -265,8 +263,6 @@ const patternConfig = ({
   dmsEnvs = [],
   dmsEnvById = {},
   authPermissions = {},
-  authPatternPermissions = {},
-  adminRowHasGrants = false,
   adminPatternRow,
   userMenuUsage = { total: 0, own: [] },
   isMultiTenant = false,
@@ -314,7 +310,7 @@ const patternConfig = ({
         type: (props) => {
           const { Layout } = UI;
           const { user, apiUpdate, dataItems = [], params = {} } = props;
-          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, authPatternPermissions, isMultiTenant, subdomain });
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, subdomain });
           // `props` here comes from the SAME EditWrapper every route node goes
           // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
           // unfiltered loader result for this format (every sibling pattern),
@@ -350,7 +346,6 @@ const patternConfig = ({
                 dmsEnvs,
                 dmsEnvById,
                 authPermissions,
-                adminRowHasGrants,
                 adminPatternRow,
                 userMenuUsage,
                 isMultiTenant,
@@ -396,7 +391,7 @@ export default [adminConfig, patternConfig];
 // user while the auth pattern grants nothing beyond public). NB: those route
 // checks don't actually block today — dms-manager/_auth.js getReqAuth drops
 // the pattern's authPermissions — so hiding the link is the only gate.
-const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, authPatternPermissions, isMultiTenant = false, subdomain = '' } = {}) => {
+const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, subdomain = '' } = {}) => {
   // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
   // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
   // menu when reached via the auth pattern, kept in sync here so the sidenav
@@ -425,7 +420,8 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, authPatte
   ];
 
   if (user?.authed) {
-    const canAuth = perm => isUserAuthed({ user, reqPermissions: [perm], authPermissions: authPatternPermissions || {} });
+    // auth-users / auth-groups are site verbs (rule 3): the site row's grants decide
+    const canAuth = perm => siteCan(user, app, authPermissions, perm);
     menuItems.push({
       name: "Auth",
       icon: 'AccessControl',

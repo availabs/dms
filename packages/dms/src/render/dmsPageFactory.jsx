@@ -9,6 +9,7 @@ import { useAuth } from "../patterns/auth/context";
 // import defaultTheme from './theme/default-theme'
 
 import { falcorGraph, FalcorProvider } from "@availabs/avl-falcor";
+import { tagFalcorRequests } from "../utils/authedFetch";
 //const noAuth = Component => Component
 
 export default function dmsPageFactory({
@@ -24,6 +25,9 @@ export default function dmsPageFactory({
   const dmsPath = `${baseUrl}${baseUrl === "/" ? "" : "/"}`;
   // console.log('dmspageFactory', API_HOST)
   const falcor = falcorGraph(API_HOST);
+  // Every request names its site (`dms_app`): the access log files under it, and a pgEnv's sources are
+  // read under that site's `:dmsenv` row for the pgEnv (its grants and vocabulary).
+  tagFalcorRequests(falcor, dmsConfig.requestPattern || null, dmsConfig.app || dmsConfig.format?.app || dmsConfig.requestPattern?.app);
   // Tracks the login token across loader calls so the no-access retry below
   // can tell "user just logged in, cache is stale" apart from "this visitor
   // genuinely can't see this content" — see that check for why the distinction

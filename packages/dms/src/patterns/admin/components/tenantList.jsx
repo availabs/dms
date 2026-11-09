@@ -8,6 +8,7 @@ import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns } from '../../../utils/tenantProvisioning';
 import { editSiteTheme } from '../pages/editSite.theme'
 import SiteTemplatePicker from '../pages/SiteTemplatePicker'
+import { stampSiteRow } from '../../registry'
 
 const TENANT_SEARCH_INPUT_ID = 'site-tenant-search';
 const EMPTY_TENANT = { name: '', subdomain: '', email: '', password: '' };
@@ -150,7 +151,7 @@ export function TenantList({
 			// 4. Create tenant site row in tenant app
 			const tenantSiteRes = await falcor.call(
 				['dms', 'data', 'create'],
-				[slug, `${siteInstance}:site`, { site_name: tenantName }]
+				[slug, `${siteInstance}:site`, stampSiteRow({ site_name: tenantName })]
 			);
 			const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
 			if (!tenantSiteId) throw new Error('Failed to create tenant site');

@@ -225,15 +225,19 @@ async function generatePmtiles(ctx) {
 /**
  * PMTiles route: POST /cache-pmtiles
  * (Mounted at /dama-admin/:pgEnv/pmtiles/cache-pmtiles by the plugin system)
+ * Needs `manage-downloads` on the view's source.
  */
 function routes(router, helpers) {
   router.post('/cache-pmtiles', async (req, res) => {
     const { pgEnv } = req.params;
-    const { source_id, view_id, columns } = req.body;
+    const { view_id, columns } = req.body;
 
     if (!view_id) {
       return res.status(400).json({ error: 'view_id is required' });
     }
+    const auth = await helpers.authorizeViewAction(req, res, view_id, ['manage-downloads'], req.body.source_id);
+    if (!auth) return;
+    const source_id = auth.sourceId;
 
     try {
       const taskId = await helpers.queueTask({

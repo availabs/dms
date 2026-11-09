@@ -3,8 +3,10 @@ const falcorJsonGraph = require("falcor-json-graph"),
   $ref = falcorJsonGraph.ref,
   { createController, DATA_ATTRIBUTES } = require("./dms.controller.js"),
   FORMAT_ATTRIUBTES = ["app", "type", "attributes"];
-const { isUserAuthed, resolveAuthPermissions } = require('./auth');
-const { getKind, getParent } = require('#db/type-utils.js');
+const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
+
+// Every decision on this route comes from `routes/auth`: `authorize` for reads, `assertDataWrite` for writes.
+const { assertDataWrite, authorize, applyMode, NO_CHANGE } = require('../auth');
 
 /*
  Controller Settings
@@ -13,8 +15,27 @@ const { getKind, getParent } = require('#db/type-utils.js');
 const controller = createController(process.env.DMS_DB_ENV || 'dms-sqlite')
 
 
-// Any one of these lets a user read a (non-auth, non-admin) pattern row.
-const PATTERN_READ_PERMISSIONS = ['view-page', 'edit-pattern', 'edit-pattern-permissions', 'delete-pattern'];
+/**
+ * May this caller see the LISTING for `app+type`?
+ *
+ * Four Falcor routes answered this with five identical inline lines — `length`, `byIndex`,
+ * `options[o].length`, `opts[o].byIndex`. One call now, and the verdict comes from whichever
+ * implementation `routes/auth` selected.
+ *
+ * It stays COARSE and pattern-level: a caller who passes gets the full count and every ref,
+ * including pages they cannot read (the per-row gate then stubs each one). So `length` still lies
+ * in both directions — 0 when some pages were readable, the total when most are not. Making it the
+ * AUTHORISED count needs per-row resolution across a whole listing and changes what clients see
+ * rather than who may see it; the hub files that under Phase B, and keeping them apart means a
+ * regression in one cannot be mistaken for the other.
+ */
+async function listingBlockedFor(controller, { app, type, user, subdomain }) {
+  if (getKind(type) !== 'page') return false;
+  // a page of this type with no grants of its own: readable when the pattern's grants allow it
+  const d = await authorize({ row: { id: null, app, type, data: {} }, verb: 'read', user, subdomain, app });
+  // DMS reads were enforced before the mode existed, and stay so
+  return !applyMode(d, { guard: 'read', kind: 'read listing', target: type, user, app, mode: 'enforce' });
+}
 
 /**
  * Create DMS Falcor routes with a specific controller
@@ -32,61 +53,15 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // user={...}    → authenticated GET request
   const dataByIdResponse = async (rows, ids, atts, app = null, user = undefined, subdomain = '') => {
     const response = [];
-    // Cache pattern auth results within this response to avoid repeated DB lookups
-    const patternAuthCache = new Map();
     for (const id of ids) {
       const row = rows.reduce((a, c) => (c.id == id ? c : a), {});
       const idStr = String(id);
 
       if (user !== undefined && row.type) {
         const kind = getKind(row.type);
-        let blocked = false;
-
-        if (kind === 'pattern') {
-          // Auth patterns (login page) are always publicly accessible. So is the
-          // site's admin pattern row (`{instance}|admin:pattern`): it only holds
-          // routing/branding config (base_url, subdomain, theme, authPermissions)
-          // that the no-access stub below already returns, and hiding it only
-          // stubs it in anonymous boots, which stops the client caching its site
-          // snapshot (persistSiteSnapshot). Access to the admin PANEL is decided
-          // client-side by the site-level permissions, not by this read.
-          // ⚠ Never store anything secret on an auth or admin pattern row — it
-          // is readable by everyone.
-          // NB: this does NOT extend to pages — getPatternAuthPermissions
-          // (dms.controller.js) still only exempts auth.
-          const pattern_type = row.data?.pattern_type || row?.pattern_type;
-          if (pattern_type !== 'auth' && pattern_type !== 'admin') {
-            const authPermissions = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            // The admin panel's pattern-level permissions also load the pattern
-            // row (not its pages): a user granted only edit-pattern must be able
-            // to open it in the Pattern Editor. Page reads below stay
-            // view-page-only, so admin permissions never expose page content.
-            // (dms planning/tasks/completed/admin-granular-permissions.md)
-            blocked = !isUserAuthed({ user, reqPermissions: PATTERN_READ_PERMISSIONS, authPermissions });
-          }
-        } else if (kind === 'page') {
-          // Merge pattern-level and page-level authPermissions.
-          // Pattern sets the base; page-level entries override per group/user key.
-          // getPatternAuthPermissions returns null for auth patterns (unrestricted).
-          const appForLookup = app || row.app;
-          if (appForLookup) {
-            const parentKey = getParent(row.type);
-            const cacheKey = `${appForLookup}:${parentKey}`;
-            let patternAuth;
-            if (patternAuthCache.has(cacheKey)) {
-              patternAuth = patternAuthCache.get(cacheKey);
-            } else {
-              patternAuth = await controller.getPatternAuthPermissions(appForLookup, parentKey, subdomain);
-              patternAuthCache.set(cacheKey, patternAuth);
-            }
-            const pageAuth = resolveAuthPermissions(row.data?.authPermissions || row?.authPermissions, subdomain);
-            const mergedAuth = {
-              groups: { ...(patternAuth?.groups || {}), ...(pageAuth?.groups || {}) },
-              users:  { ...(patternAuth?.users  || {}), ...(pageAuth?.users  || {}) },
-            };
-            blocked = !isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: mergedAuth });
-          }
-        }
+        const d = await authorize({ row, verb: 'read', user, subdomain, app: app || row.app });
+        // DMS reads were enforced before the mode existed, and stay so
+        const blocked = !applyMode(d, { guard: 'read', kind: `read ${kind}`, target: `${idStr} ${row.type}`, user, app: app || row.app || '', mode: 'enforce' });
 
         if (blocked) {
           for (const att of atts) {
@@ -157,6 +132,32 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     return response;
   };
 
+  // The rows a write touches, as stored, for assertDataWrite: a split type resolves its own table
+  // (every row in it is that type); anything else is read from the app's main table, never trusting
+  // the type the client names.
+  const storedRows = async (app, ids, type) => {
+    if (type && isSplitType(type)) return ids.map(id => ({ id, type, data: null }));
+    const rows = await controller.getRowsForWrite(ids, app);
+    return ids.map(id => rows.find(r => String(r.id) === String(id)) || { id, type: '', data: null, missing: true });
+  };
+
+  // Read → judge → write, with the write checking (in its transaction) that the row is still what was
+  // judged; when it changed in between, read and judge again (3 tries). `write(stored, expect)`.
+  // Split rows are never compared (their edit doesn't depend on the stored data). `legacy` checks
+  // nothing, as before.
+  const judgedWrite = async (app, id, type, write) => {
+    for (let attempt = 0; ; attempt++) {
+      const [stored] = await storedRows(app, [id], type);
+      const expect = (type && isSplitType(type)) ? null
+        : stored.missing ? { missing: true } : { type: stored.type, dataText: stored.data_text };
+      try {
+        return await write(stored, expect);
+      } catch (e) {
+        if (e.code !== 'DMS_STALE_ROW' || attempt >= 2) throw e;
+      }
+    }
+  };
+
   return [
     {
       route: "dms.format[{keys:appKeys}]['app','type','attributes']",
@@ -165,7 +166,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         return controller.getFormat(keys).then((rows) => {
           const response = [];
           keys.forEach((key) => {
-            const [app, type] = key.split("+"),
+            // `<site>+<format app>+<format type>`: the site, then the format's own key (routes/auth/formats.js)
+            const app = key.slice(0, key.indexOf('+')), type = key.slice(key.indexOf('+') + 1),
               row = rows.reduce(
                 (a, c) => (c.app == app && c.type === type ? c : a),
                 {}
@@ -192,12 +194,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-              response.push({ path: ["dms", "data", key, "length"], value: 0 });
-              continue;
-            }
+          if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+            response.push({ path: ["dms", "data", key, "length"], value: 0 });
+            continue;
           }
           response.push({
             path: ["dms", "data", key, "length"],
@@ -253,14 +252,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const response = [];
         for (const key of keys) {
           const [app, type] = key.split('+');
-          if (getKind(type) === 'page') {
-            const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-            if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-              indices.forEach((i) => {
-                response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
-              });
-              continue;
-            }
+          if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+            indices.forEach((i) => {
+              response.push({ path: ["dms", "data", key, "byIndex", i], value: null });
+            });
+            continue;
           }
           const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
           indices.forEach((i) => {
@@ -286,12 +282,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           const rows = await controller.filteredDataLength(keys, option);
           for (const key of keys) {
             const [app, type] = key.split('+');
-            if (getKind(type) === 'page') {
-              const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-              if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
-                continue;
-              }
+            if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+              response.push({ path: ["dms", "data", key, "options", option, "length"], value: 0 });
+              continue;
             }
             const reduced = rows.reduce((a, c) => (c.key === key ? c.length : a), 0);
             response.push({
@@ -318,14 +311,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
 
             for (const key of keys) {
               const [app, type] = key.split('+');
-              if (getKind(type) === 'page') {
-                const patternAuth = await controller.getPatternAuthPermissions(app, getParent(type), subdomain);
-                if (!isUserAuthed({ user, reqPermissions: ['view-page'], authPermissions: patternAuth || {} })) {
-                  indices.forEach((i) => {
-                    response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
-                  });
-                  continue;
-                }
+              if (await listingBlockedFor(controller, { app, type, user, subdomain })) {
+                indices.forEach((i) => {
+                  response.push({ path: ["dms", "data", key, 'opts', option, "byIndex", i], value: null });
+                });
+                continue;
               }
               const reduced = rows.reduce((a, c) => (c.key == key ? c.rows : a), []);
               indices.forEach((i) => {
@@ -477,21 +467,33 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
           const [app, id, data, type] = args;
-          const rows = await controller.setDataById(id, data, this.user, app, type || null, this.reqMeta, { changeHistory: true });
+          const rows = await judgedWrite(app, id, type, async (stored, expect) => {
+            // only what the guard judged is written (the selected implementation's planEdit); nothing changed → no write
+            const toWrite = await assertDataWrite(this, 'edit', app, stored, data, { skipNoChange: true });
+            if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES, app);
+            return controller.setDataById(id, toWrite, this.user, app, type || null, this.reqMeta, { changeHistory: true, expect });
+          });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
         const [id, data] = args;
-        const rows = await controller.setDataById(id, data, this.user, null, null, this.reqMeta);
+        const rows = await judgedWrite(null, id, null, async (stored, expect) => {
+          const toWrite = await assertDataWrite(this, 'edit', stored.app, stored, data, { skipNoChange: true });
+          if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);
+          return controller.setDataById(id, toWrite, this.user, null, null, this.reqMeta, { expect });
+        });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
     {
       route: "dms.data.massedit",
-      call: function(callPath, args) {
-        const [app, type, column, maps, user] = args;
+      call: async function(callPath, args) {
+        // the 5th argument (a user id) is ignored: updated_by is the token's user
+        const [app, type, column, maps] = args;
         console.log('massedit', app, type, column, JSON.stringify(maps, null, 3))
-        return controller.setMassData(app, type, column, maps, user).then((rows) => {
+        // every row of `type`: judged as one edit of that type
+        await assertDataWrite(this, 'edit', app, { id: null, type, data: null }, { [column]: null });
+        return controller.setMassData(app, type, column, maps, this.user?.id ?? null).then((rows) => {
           return [{
             path: ['dms', 'data', 'massedit'],
             value: $atom(rows)
@@ -505,19 +507,30 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         if (args.length >= 3) {
           // New format: [app, id, type]
           const [app, id, type] = args;
-          const rows = await controller.setTypeById(id, type, this.user, app, this.reqMeta);
+          const rows = await judgedWrite(app, id, null, async (stored, expect) => {
+            // a move: out of the old type (as a delete), into the new one (as a create)
+            await assertDataWrite(this, 'delete', app, stored, null);
+            await assertDataWrite(this, 'create', app, { id, type, data: stored.data }, null);
+            return controller.setTypeById(id, type, this.user, app, this.reqMeta, { expect });
+          });
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, type]
         const [id, type] = args;
-        const rows = await controller.setTypeById(id, type, this.user, null, this.reqMeta);
+        const rows = await judgedWrite(null, id, null, async (stored, expect) => {
+          // a move: out of the old type (as a delete), into the new one (as a create)
+          await assertDataWrite(this, 'delete', stored.app, stored, null);
+          await assertDataWrite(this, 'create', stored.app, { id, type, data: stored.data }, null);
+          return controller.setTypeById(id, type, this.user, null, this.reqMeta, { expect });
+        });
         return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES);
       },
     },
     {
       route: "dms.data.create",
       call: async function(callPath, args) {
-        const [app, type] = args;
+        const [app, type, data] = args;
+        await assertDataWrite(this, 'create', app, { id: null, type, data: data || {} }, null);
         const t0 = Date.now();
         console.log('[dms.data.create] START app=%s type=%s user=%s t=%d', app, type, this.user?.id || 'anon', t0);
         try {
@@ -538,11 +551,14 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
     },
     {
       route: "dms.data.delete",
-      call: function(callPath, args) {
+      call: async function(callPath, args) {
         if (!this.user) {
           throw new Error('Authentication required to delete items');
         }
         const [app, type, ...ids] = args;
+        for (const row of await storedRows(app, ids, type)) {
+          await assertDataWrite(this, 'delete', app, row, null);
+        }
         return controller.deleteData(app, type, ids, this.user, this.reqMeta).then((rows) => [
           // Invalidate both old and new paths
           ...ids.flatMap((id) => ([

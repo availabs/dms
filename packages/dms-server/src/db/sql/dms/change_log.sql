@@ -43,3 +43,27 @@ CREATE TABLE IF NOT EXISTS dms.yjs_states (
     state BYTEA NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Access log: distinct permission refusals the guards made, counted (src/access-log/index.js).
+-- `outcome` is would-deny (log mode) or refused (enforce). Written by plain upserts, never through dms.data.
+CREATE TABLE IF NOT EXISTS dms.access_log (
+    id          BIGSERIAL PRIMARY KEY,
+    app         TEXT        NOT NULL DEFAULT '',
+    guard       TEXT        NOT NULL,
+    outcome     TEXT        NOT NULL,
+    kind        TEXT        NOT NULL,
+    target      TEXT        NOT NULL,
+    perms       TEXT        NOT NULL DEFAULT '',
+    principal   TEXT        NOT NULL,
+    user_id     INTEGER,
+    user_email  TEXT,
+    groups      TEXT,
+    reason      TEXT,
+    count       BIGINT      NOT NULL DEFAULT 0,
+    first_seen  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    last_seen   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE (app, guard, outcome, kind, target, perms, principal)
+);
+
+CREATE INDEX IF NOT EXISTS idx_access_log_app_last_seen
+    ON dms.access_log (app, last_seen DESC);

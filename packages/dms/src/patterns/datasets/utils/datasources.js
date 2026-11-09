@@ -25,14 +25,17 @@ export const hasExternalDatasources = (datasources) =>
  * Combines external datasources with internal format-based env.
  * When no external datasources exist, only internal sources are listed.
  */
-export const buildEnvsForListing = (datasources, format, dmsEnv) => {
+export const buildEnvsForListing = (datasources, format, dmsEnv, dmsEnvs = []) => {
   const envs = {};
 
-  // Add external datasources (if any exist).
+  // Add external datasources (if any exist) — unless the site MIRRORS the pgEnv (a `:dmsenv` row naming
+  // it, dms-server dama/mirror.js): its sources then list through the internal env below, as rows of
+  // this site, and listing the pgEnv too would show each one twice.
   // Listing-only attributes: don't pull `metadata` (full column-definition
   // blob) — the list UI only renders name/type/categories/description, and
   // `metadata` is tens of KB per source on DAMA tables.
-  datasources?.filter(ds => ds.type === 'external').forEach(ds => {
+  const mirrored = new Set((dmsEnvs || []).map(e => e?.pgEnv).filter(Boolean));
+  datasources?.filter(ds => ds.type === 'external' && !mirrored.has(ds.env)).forEach(ds => {
     envs[ds.env] = {
       label: ds.label,
       srcAttributes: ['name', 'type', 'categories', 'description'],
@@ -55,7 +58,9 @@ export const buildEnvsForListing = (datasources, format, dmsEnv) => {
     envs[`${format.app}+${patternInstance}`] = {
       label: 'managed',
       isDms: true,
-      srcAttributes: ['app', 'name', 'type', 'categories', 'description'],
+      // `pgEnv` + `source_id` mark a MIRROR of a pgEnv source: the list links it to the external
+      // source page by the pgEnv's own id (DatasetsList getSources)
+      srcAttributes: ['app', 'name', 'type', 'categories', 'description', 'pgEnv', 'source_id'],
       viewAttributes: ['name', 'updated_at'],
     };
   }

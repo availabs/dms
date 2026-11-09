@@ -10,6 +10,7 @@ import { clearDatasetsListCache } from "../../../utils/datasetsListCache";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { createPageTheme } from "./CreatePage.theme";
 import CreateStep from "../../../components/CreateStep";
+import { authedFetch } from "../../../../../utils/authedFetch";
 
 const MIN_SOURCE_NAME_LENGTH = 4;
 const intFormat = d3format(",d");
@@ -148,9 +149,9 @@ const File = ({ file, sourceId, sourceName, okToUpload }) => {
     }
     formData.append("file", file);
 
-    fetch(
+    authedFetch(
       `${ API_HOST }/dms-admin/${ app }/file_upload`,
-      { method: "POST", body: formData }
+      { method: "POST", body: formData, user, pattern: { app, id: parent?.id } }
     ).then(res => res.json())
       .then(json => {
 
@@ -177,7 +178,7 @@ console.log("uploadFile::response", json);
       .finally(e => setUploading(false));
 
   }, [API_HOST, app, owner, ownerInstance, baseUrl, file, sourceName,
-  		description, user, navigate, sourceId, directory, falcor
+  		description, user, navigate, sourceId, directory, falcor, parent?.id
   	]);
 
 	return (

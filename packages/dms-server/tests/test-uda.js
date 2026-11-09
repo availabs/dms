@@ -2079,8 +2079,10 @@ async function testDamaModeAuthoritativeViews() {
     `INSERT INTO ${srcTbl} (name, type, metadata, auth_permissions) VALUES ($1, $2, $3, $4) RETURNING source_id AS id`,
     ['Authority Test Source', 'csv', JSON.stringify(metadata), grant]
   );
+  // grants set, none to the test user: with no grants a source is open (lenient rule, owner 2026-10-23)
   const { rows: [other] } = await db.query(
-    `INSERT INTO ${srcTbl} (name, type) VALUES ($1, $2) RETURNING source_id AS id`, ['Authority Other', 'csv']);
+    `INSERT INTO ${srcTbl} (name, type, auth_permissions) VALUES ($1, $2, $3) RETURNING source_id AS id`,
+    ['Authority Other', 'csv', JSON.stringify({ groups: {}, users: { 999999: ['*'] } })]);
   const mkView = async (sid, name) => (await db.query(
     `INSERT INTO ${viewTbl} (source_id, table_schema, table_name, version) VALUES ($1, 'public', $2, $2) RETURNING view_id AS id`,
     [sid, name])).rows[0].id;
@@ -2180,13 +2182,13 @@ async function testDamaModeAuthoritativeViews() {
   pass('keyed authority over one key name; refuses an unkeyed mark on a keyed source');
 
   await expectRefused(graph.callAsync(['uda', 'sources', 'setAuthoritativeView'],
-    [DAMA_DB, other.id, { view_id: vOther, note: 'x' }]), /not authorized/, 'source without an update-source grant');
+    [DAMA_DB, other.id, { view_id: vOther, note: 'x' }]), /not authorized/i, 'source without an update-source grant');
   pass('a source that does not grant update-source refuses the mark');
 
   const anon = createTestGraph(DMS_DB, { user: null });
   await anon.ready;
   await expectRefused(anon.callAsync(['uda', 'sources', 'setAuthoritativeView'],
-    [DAMA_DB, src.id, { view_id: v1, note: 'x' }]), /Authentication required/, 'unauthenticated');
+    [DAMA_DB, src.id, { view_id: v1, note: 'x' }]), /Sign in/, 'unauthenticated');
   pass('unauthenticated set is refused');
 
   await db.query(`DELETE FROM ${srcTbl} WHERE source_id = ANY($1)`, [[src.id, other.id]]);

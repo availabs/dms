@@ -10,6 +10,10 @@ import { nameToSlug, getInstance, nextAvailableCopyName } from "../../../../../u
 import { settingsEditorTheme } from './settings.theme'
 import { patternActions } from '../../../../../utils/adminPermissions'
 import { getPatternType } from '../../../../registry'
+import { AuthContext } from '../../../../auth/context'
+import { source as sourceFormat } from '../../../../dmsEnv.format'
+import { resolveSubdomainAuthPermissions } from '../../../../../utils/auth'
+import { authedFetch } from '../../../../../utils/authedFetch'
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
@@ -91,7 +95,7 @@ function RetiredSubdomainsEditor({ value, onChange }) {
  * Load the site record via apiLoad.
  * Returns the first site item (with flattened data) or null.
  */
-async function loadSiteData(apiLoad, app, siteType) {
+export async function loadSiteData(apiLoad, app, siteType) {
     const siteConfig = {
         format: { app, type: siteType, attributes: [] },
         children: [{ action: 'list', path: '/*' }]
@@ -209,10 +213,11 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
 
           // 1. Queue the duplicate task — returns { task_id } immediately.
           const dmsServerPath = `${API_HOST}/dama-admin`;
-          const dupRes = await fetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
+          const dupRes = await authedFetch(`${dmsServerPath}/dms/${app}+${oldInstance}/duplicate`, {
               method: "POST",
               body: JSON.stringify({ newApp: app, newType: newSlug }),
               headers: { "Content-Type": "application/json" },
+              user,
           });
           const dupBody = await dupRes.json().catch(() => ({}));
           if (!dupRes.ok || dupBody?.err) {
@@ -225,7 +230,7 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           const { task_id } = dupBody;
           for (;;) {
               await new Promise(r => setTimeout(r, 3000));
-              const statusRes = await fetch(`${dmsServerPath}/dms/tasks/${task_id}`);
+              const statusRes = await authedFetch(`${dmsServerPath}/dms/tasks/${task_id}`, { user });
               const task = await statusRes.json().catch(() => ({}));
               if (task.progress != null) setDuplicateProgress(task.progress);
               if (task.status === 'done') break;
@@ -245,7 +250,6 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
               name: newName,
               pattern_type: value.pattern_type,
               authPermissions: value.authPermissions,
-              auth_level: value.auth_level,
               filters: value.filters,
               theme: value.theme,
               additionalSectionAttributes: value.additionalSectionAttributes
@@ -274,6 +278,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
           }
 
           navigate(parentBaseUrl || '/');
+      } catch (err) {
+          console.error('[duplicate]', err);
+          window.alert(`Pattern duplicate failed: ${err.message}. Pattern not created.`);
       } finally {
           setIsDuplicating(false);
       }
@@ -473,13 +480,32 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
     )
 }
 
+// The verbs an env's grants may hold: everything a source takes (the env lends to every source beneath
+// it) plus making one. Rule 3: the env owns its sources, so this is where their verbs are granted.
+const ENV_PERMISSION_DOMAIN = [
+  { label: 'Create Source', value: 'create-source' },
+  ...((sourceFormat.attributes.find(a => a.key === 'auth_permissions') || {}).permissionDomain || []),
+];
+
 function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, type, siteType, apiUpdate, isPage }) {
   const [newEnvName, setNewEnvName] = useState('');
   const [creating, setCreating] = useState(false);
   const [localEnvs, setLocalEnvs] = useState(initialDmsEnvs);
   const { UI, theme } = useContext(ThemeContext);
+  const { AuthAPI } = useContext(AuthContext) || {};
+  const { user } = useContext(AdminContext) || {};
+  const { falcor } = useFalcor();
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const { MultiSelect, Input, Button, Switch, FieldLabel } = UI;
+  const { MultiSelect, Input, Button, Switch, FieldLabel, Permissions } = UI;
+  const selectedEnv = value.dmsEnvId ? localEnvs.find(e => +e.id === +value.dmsEnvId) : null;
+  // The env row's grants: what every source beneath it is judged against, swept here from the pattern
+  // (dms-server scripts/sweep-datasets-grants.js). Written by id, like a new source's ref (CreatePage.jsx).
+  const saveEnvGrants = async (authPermissions) => {
+    if (!selectedEnv) return;
+    await falcor.call(["dms", "data", "edit"], [app, selectedEnv.id, { authPermissions }]);
+    await falcor.invalidate(['dms', 'data', app, 'byId', selectedEnv.id]);
+    setLocalEnvs(prev => prev.map(e => (+e.id === +selectedEnv.id ? { ...e, authPermissions } : e)));
+  };
 
   const envOptions = [
     { label: 'None (legacy)', value: '' },
@@ -562,6 +588,25 @@ function DmsEnvConfig({ value, onChange, dmsEnvs: initialDmsEnvs, apiLoad, app, 
           </div>
         </div>
       </div>
+      {selectedEnv && Permissions && (
+        <div className={t.envGrid}>
+          <div className={t.envColWide}>
+            <FieldLabel text={`access on ${selectedEnv.name || `env #${selectedEnv.id}`}`} />
+            <Permissions
+              key={selectedEnv.id}
+              value={resolveSubdomainAuthPermissions(selectedEnv.authPermissions, '')}
+              user={user}
+              getUsers={AuthAPI?.getUsers}
+              getGroups={AuthAPI?.getGroups}
+              permissionDomain={ENV_PERMISSION_DOMAIN}
+              defaultPermission={[]}
+              heading='on this environment (every source in it)'
+              inheritedFrom='the site'
+              onChange={saveEnvGrants}
+            />
+          </div>
+        </div>
+      )}
       {isPage && (
         <div className={t.envSwitchRow}>
           <span className={t.envSwitchLabel}>preload data</span>
