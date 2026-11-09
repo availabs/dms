@@ -6,7 +6,7 @@ import DefaultMenu from "./components/menu"
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
 import { isUserAuthed } from "../../utils/auth";
-import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES } from "../../utils/adminPermissions";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 
 // Code-split: auth pages load only when an auth route renders. See
@@ -221,6 +221,9 @@ const manageAuthConfig = ({
   authPermissions = {},
   adminAuthPermissions = {},
   rightMenu = <DefaultMenu />,
+  isMultiTenant = false,
+  // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
+  subdomain = '',
   ssrCollect,
 }) => {
 
@@ -246,6 +249,12 @@ const manageAuthConfig = ({
             name: 'Themes',
             path: `${adminPath}/themes`,
             icon: 'Fill'
+        }] : []),
+        // Only on the root domain of a multi-tenant site (admin pages/tenants.jsx).
+        ...(isMultiTenant && !subdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
+            name: 'Tenants',
+            path: `${adminPath}/tenants`,
+            icon: 'Globe'
         }] : []),
         // {
         //     name: 'Team',

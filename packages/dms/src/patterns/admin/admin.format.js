@@ -1,6 +1,6 @@
 import { lazyComponent } from '../../utils/lazyComponent'
 
-import TenantList from './components/tenantList'
+import { TenantList } from './components/tenantList'
 import { listPatternTypes } from '../registry'
 
 // Code-split: the pattern list renders only on admin pages, but this format is

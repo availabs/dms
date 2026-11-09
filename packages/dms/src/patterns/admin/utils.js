@@ -1,3 +1,5 @@
+import { readSitePatternRefs, mergeSitePatternRefs } from '../../utils/tenantProvisioning'
+
 export function parseIfJSON(text, fallback = {}) {
   try {
     if (text && typeof text === 'object') return text;
@@ -27,3 +29,22 @@ export function timeAgo(input) {
 }
 
 // Admin access checks (site level and per pattern) live in utils/adminPermissions.js.
+
+// Save a list attribute of the site row (`patterns`, `tenants`). The page's copy
+// can be stale: with sync on it's the local store's, which never sees refs
+// written straight to the server (createSite's auth/admin/template refs, the
+// admin backfill, tenant signup appending to `tenants`). Writing it as-is
+// dropped them, so merge against the server's list first: keep what the server
+// has that this page never loaded, but not what the user just removed.
+// Returns apiUpdate's promise, so a caller can wait for the save itself.
+export async function saveSiteRefList({ falcor, apiUpdate, format, app, item, attrKey, data }) {
+	if (Array.isArray(data)) {
+		try {
+			const server = await readSitePatternRefs(falcor, app, item?.id, attrKey)
+			data = mergeSitePatternRefs({ edited: data, baseline: item?.[attrKey] || [], server })
+		} catch (err) {
+			console.error(`Could not re-read the site's ${attrKey} before saving; saving the list as shown:`, err)
+		}
+	}
+	return apiUpdate({ data: { ...item, [attrKey]: data }, config: { format } })
+}

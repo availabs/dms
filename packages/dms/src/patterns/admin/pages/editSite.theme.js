@@ -4,18 +4,13 @@
 // project's admin a user is looking at. Using the tokens (rather than plain Tailwind
 // grays) is what makes this page dark-mode aware, matching the Table right below it.
 export const editSiteTheme = {
-    // PatternList / TenantList shared. Content-height, NOT `flex-1 overflow-auto`:
-    // on the platform root both lists render one after the other, and as
-    // flex-1 scroll boxes they split the page height equally. With few patterns
-    // that gave a big empty gap above Tenants, and the tenant box was shorter
-    // than its own table, so the card below clipped the last rows out of reach
-    // (reproduced 2026-09-29: 40 tenants, 3 patterns, 768px tall → tenants
-    // 36-40 unreachable). The page scrolls instead; each table still scrolls
-    // inside its own max-height (table.theme's `tableContainer`).
+    // PatternList. Content-height, NOT `flex-1 overflow-auto`: the page scrolls,
+    // and the table scrolls inside its own max-height (table.theme's
+    // `tableContainer`). (A flex-1 box once clipped the last rows out of reach
+    // when Tenants shared this page, 2026-09-29.)
     wrapper: 'flex flex-col w-full',
-    // TenantList's wrapper — the same, plus the space that flex-1 used to leave
-    // between it and the patterns table above.
-    tenantWrapper: 'flex flex-col w-full mt-12',
+    // TenantList (components/tenantList.jsx), on its own page (/list/tenants) since 2026-11-09.
+    tenantPageWrapper: 'flex flex-col w-full',
     header: 'w-full flex items-center justify-between border-b-2 border-[var(--t-cobalt)] pb-2',
     headerTitle: 'text-2xl font-semibold text-[var(--t-ink)]',
     searchBar: 'w-full flex',
@@ -88,8 +83,19 @@ export const editSiteTheme = {
     deleteModalHighlight: 'font-medium text-[var(--t-ink)]',
     deleteModalFooter: 'flex items-center justify-end gap-2',
 
-    // TenantList
-    tenantLink: 'flex items-center p-2 w-full h-full py-1 font-[400] text-[14px] leading-[18px] text-[var(--t-cobalt)] hover:underline',
+    // TenantList (design_system_v6/pages/admin-tenants.html)
+    identityText: 'min-w-0',
+    identitySpacer: 'flex-1',
+    tenantNameCell: 'flex flex-col justify-center px-2 py-1',
+    tenantName: 't-proseSM font-medium text-[var(--t-ink)]',
+    rootPill: 't-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full px-2 py-0.5 ml-1.5',
+    tenantSubline: 't-metaXS text-[var(--t-pencil)] mt-0.5',
+    tenantSubdomain: 'flex items-center px-2 t-metaSM text-[var(--t-graphite)]',
+    tenantSubdomainEmpty: 'flex items-center px-2 t-metaSM text-[var(--t-pencil)]',
+    tenantHostLink: 'inline-flex items-center gap-1 px-2 t-metaSM text-[var(--t-graphite)] hover:text-[var(--t-cobalt)]',
+    rootLink: 'inline-flex items-center px-2 t-metaSM text-[var(--t-graphite)] hover:text-[var(--t-cobalt)]',
+    iconXs: 'size-3.5',
+    tenantNote: 't-metaXS text-[var(--t-pencil)] mt-2.5 px-1',
     tenantModalForm: 'flex flex-col gap-3 p-1',
     tenantModalTitle: 'text-lg font-semibold text-[var(--t-ink)]',
     fieldGroup: 'flex flex-col gap-1',
