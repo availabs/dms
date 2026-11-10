@@ -263,6 +263,26 @@ const buildInHeader = (fontStyleOptions, imageSizeOptions) => [
         displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
     { type: 'input', inputType: 'text', label: 'Control Icon', key: 'controlIcon',
         displayCdn: ({ attribute }) => attribute.type === 'filter_control' },
+    { type: 'select', label: 'Option Order', key: 'optionSort',
+        options: [
+            { label: 'By label (A–Z)', value: 'label' },
+            { label: 'By value, ascending', value: 'value-asc' },
+            { label: 'By value, descending', value: 'value-desc' },
+        ],
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' && (attribute.controlOp || 'filter') === 'filter' },
+    { type: 'select', label: 'Default When Empty', key: 'defaultOption',
+        options: [
+            { label: 'None (show all)', value: '' },
+            { label: 'Highest value', value: 'max' },
+            { label: 'Lowest value', value: 'min' },
+        ],
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' && (attribute.controlOp || 'filter') === 'filter' && !attribute.isMulti },
+    { type: 'toggle', label: 'Step Buttons ‹ ›', key: 'stepButtons',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' && (attribute.controlOp || 'filter') === 'filter' && !attribute.isMulti },
+    { type: 'toggle', label: 'Option Counts', key: 'optionCounts',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' && (attribute.controlOp || 'filter') === 'filter' },
+    { type: 'input', inputType: 'text', label: 'Count Format ({label} {n})', key: 'optionCountFormat',
+        displayCdn: ({ attribute }) => attribute.type === 'filter_control' && attribute.optionCounts },
 
     { type: 'separator', key: 'toolbar-sep', label: 'toolbar-sep', hideFromSectionMenu: true },
     // layout — all per-cell controls always visible (no mode gating)
@@ -590,6 +610,10 @@ const buildControls = (theme) => ({
             { label: 'Cards Grid', items: [
                     { type: 'input', inputType: 'number', label: 'Cards Across', key: 'cardsGridSize' },
                     { type: 'input', inputType: 'number', label: 'Gap', key: 'cardsGridGap' },
+                    // Responsive: Cards Across becomes a MAXIMUM — the grid drops to fewer
+                    // columns when a card would get narrower than this (px). Blank = fixed.
+                    { type: 'input', inputType: 'number', label: 'Min Card Width', key: 'cardsMinWidth' },
+                    { type: 'toggle', label: 'Stretch To Fill Row', key: 'cardsAutoFit', displayCdn: ({ display }) => +display.cardsMinWidth > 0 },
                     { type: 'input', inputType: 'number', label: 'Card Padding', key: 'cardsPadding' },
                     // Padding on the whole cards grid (vs Card Padding = inside each
                     // card). Number or CSS shorthand, e.g. '0 0 16px' for bottom-only.

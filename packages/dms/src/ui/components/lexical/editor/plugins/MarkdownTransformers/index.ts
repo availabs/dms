@@ -309,7 +309,8 @@ export const PLAYGROUND_TRANSFORMERS: Array<Transformer> = [
   HR,
   IMAGE,
   // EMOJI,
-  TWEET,
+  // TWEET — its transformer is commented out above; listing it here threw `TWEET is not defined` the
+  // first time anything imported this module (the chat Slack importer, 2026-11-09)
   CHECK_LIST,
   ...ELEMENT_TRANSFORMERS,
   ...TEXT_FORMAT_TRANSFORMERS,

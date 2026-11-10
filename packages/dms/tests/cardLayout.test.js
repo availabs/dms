@@ -18,6 +18,7 @@ import {
     isLayoutModelV2,
     resolveCardsPackMode,
     resolveCardsGridStyle,
+    resolveCardsGridTracks,
     resolveCellTracks,
     resolveCellsGridStyle,
     resolveCellStyle,
@@ -118,6 +119,27 @@ describe("cards grid pack mode (vertical rhythm)", () => {
         const style = resolveCardsGridStyle({ display: {}, layoutModelV2: false });
         expect(style.gridAutoRows).toBe("minmax(max-content, 1fr)");
         expect("alignContent" in style).toBe(false);
+    });
+
+    it("cardsMinWidth unset keeps the fixed N-column template (BC)", () => {
+        expect(resolveCardsGridStyle({ display: { cardsGridSize: 4 } }).gridTemplateColumns)
+            .toBe("repeat(4, minmax(0, 1fr))");
+        expect(resolveCardsGridTracks({ cardsGridSize: 3, cardsMinWidth: '' })).toBe("repeat(3, minmax(0, 1fr))");
+    });
+
+    it("cardsMinWidth caps auto-fill at cardsGridSize columns", () => {
+        expect(resolveCardsGridTracks({ cardsGridSize: 4, cardsGridGap: 16, cardsMinWidth: 240 }))
+            .toBe("repeat(auto-fill, minmax(min(100%, max(240px, calc((100% - 48px) / 4))), 1fr))");
+        expect(resolveCardsGridTracks({ cardsMinWidth: 200 }))
+            .toBe("repeat(auto-fill, minmax(min(100%, max(200px, calc((100% - 0px) / 1))), 1fr))");
+    });
+
+    it("cardsAutoFit switches to auto-fit (fewer records stretch); ignored without cardsMinWidth", () => {
+        expect(resolveCardsGridTracks({ cardsGridSize: 3, cardsGridGap: 12, cardsMinWidth: 280, cardsAutoFit: true }))
+            .toBe("repeat(auto-fit, minmax(min(100%, max(280px, calc((100% - 24px) / 3))), 1fr))");
+        expect(resolveCardsGridTracks({ cardsGridSize: 3, cardsAutoFit: true })).toBe("repeat(3, minmax(0, 1fr))");
+        expect(resolveCardsGridStyle({ display: { cardsGridSize: 2, cardsMinWidth: 300, cardsAutoFit: true } }).gridTemplateColumns)
+            .toContain("repeat(auto-fit,");
     });
 
     it("cardsGridPadding: 0 is emitted; unset emits nothing", () => {

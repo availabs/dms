@@ -116,6 +116,21 @@ only the column gap; each wins over `cellsGridGap` for its axis (BC: unset → f
 Note this is *gap*, not padding — `cellsPadding: 0` removes inner cell padding but leaves the inter-row gap
 untouched, so "vertical padding 0" alone won't close the space between rows; lower `cellsRowGap` for that.
 
+**Responsive cards grid — `cardsMinWidth`.** `cardsGridSize` alone is an inline template, so a 4-up tile row is
+4-up on a phone too. Set **`cardsMinWidth`** (px; toolbar **Cards Grid → Min Card Width**) and `cardsGridSize`
+becomes a *maximum*: the template is a capped auto-fill,
+`repeat(auto-fill, minmax(min(100%, max(<min>px, (100% − (N−1)·gap)/N)), 1fr))`, so the row drops to 3, 2, 1
+across as the CARD (not the viewport) narrows. Unset = the fixed template, byte-identical to before
+(`resolveCardsGridTracks` in `Card.layout.js`, unit-tested). Worked example: the NYDOS Gateway home's task (3-up,
+280), category / program / story (4-up, 240) and help (3-up, 280) tiles — 1-up at 390, full width at 1440, with
+no compact layout. (Added 2026-11-08.)
+
+**`cardsAutoFit: true`** (toolbar **Stretch To Fill Row**, shown once Min Card Width is set) swaps `auto-fill` for
+`auto-fit`. The empty tracks collapse, so a row with FEWER records than `cardsGridSize` stretches to fill the card:
+one upcoming event spans the whole card instead of sitting in a third of it, and two split it. Leave it off for
+galleries, where a short last row should keep its column widths. Worked example: the WCDB home "Events" tiles
+(3-up, 280, auto-fit). (Added 2026-11-09.)
+
 Two things to internalize from those lines:
 
 1. **`cardsPadding` and `cardsBgColor` are applied to the *inner* (cells) wrapper**, not the outer. That's because each *record-card* needs the surface; the *cards grid* itself is just spacing between records.
@@ -1722,6 +1737,23 @@ written values stay raw). Card display also gained **`cardsRadius`** and **`card
 bordered panel needs no theme change. Group DIVIDERS remain inexpressible (`cellBorderColor` is a
 4px accent); separate groups with a fixed spacer track (e.g. `'… 40px …'` in
 `cellsTracksTemplate`).
+
+**filter_control options added 2026-11-08 (round 3, a picker over dated values):**
+- **`optionSort: 'value-asc' | 'value-desc'`**: sort by the raw value, not the label. The default
+  sorts by the *shown* label, so a `formatFn` that turns `183:2026-09-14` into "Mon, Sep 14, 2026"
+  ordered airings alphabetically by weekday. Sort by value whenever the label is a formatted form
+  of something sortable.
+- **`defaultOption: 'max' | 'min'`**: when the page variable is empty, write the highest or lowest
+  value once options load, so the page opens on the newest item rather than "all". Deselect is off
+  while it is set.
+- **`stepButtons: true`**: ‹ › either side of the pill. ‹ steps to the next lower value and › to
+  the next higher one, whatever the display order. Theme keys: `stepRow`, `stepButton`,
+  `stepButtonDisabled`, `stepIcon`, `stepPrevIcon`, `stepNextIcon`.
+- **`optionCounts: true` + `optionCountFormat: '{label} · {n} spins'`**: per-option row counts
+  from one grouped query. The format reaches `useColumnOptions`' new `countFormat` argument.
+
+Worked example: the WCDB show page's airing picker (`scripts/wcdb-public/seed-wcdb-public-pages.mjs`,
+show page).
 
 ## Recipe: a stat-card strip (label · big number · "N% of actions" subline, per-card chrome)
 

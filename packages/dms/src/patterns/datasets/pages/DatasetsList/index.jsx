@@ -259,8 +259,10 @@ export default function DatasetsList ({attributes, item, dataItems, apiLoad, api
     // true once this collection has been fetched (or restored from cache) — gates the empty state
     // so it never flashes while sources are still loading.
     const [loaded, setLoaded] = useState(() => hasCachedSources(sourcesCacheKey));
-    const [layerSearch, setLayerSearch] = useState("");
     const [searchParams] = useSearchParams();
+    // `?search=` seeds the search box, so another page can link straight to catalog results
+    // (e.g. a home-page search field navigating to /datasets?search=wetlands).
+    const [layerSearch, setLayerSearch] = useState(() => searchParams.get('search') || "");
     const [sort, setSort] = useState('asc');
     const [view, setView] = useState(() => {
         try { return localStorage.getItem(`${cacheKey}-view`) || 'grid'; } catch { return 'grid'; }

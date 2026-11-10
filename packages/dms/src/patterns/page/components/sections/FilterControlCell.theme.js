@@ -13,4 +13,11 @@ export const filterControlCellTheme = {
     // one (src/themes/_legacy/ui.js liftPatternRoles).
     toggleCheckboxStyle: 'filterToggle',
     loading: 'text-xs text-gray-400',
+    // stepButtons: the row holding ‹ pill ›, and the two buttons
+    stepRow: 'w-full flex items-center gap-2',
+    stepButton: 'size-8 shrink-0 grid place-items-center rounded-full text-gray-600 hover:bg-gray-100 cursor-pointer',
+    stepButtonDisabled: 'size-8 shrink-0 grid place-items-center rounded-full text-gray-300 cursor-default',
+    stepIcon: 'size-4',
+    stepPrevIcon: 'ChevronLeft',
+    stepNextIcon: 'ChevronRight',
 };

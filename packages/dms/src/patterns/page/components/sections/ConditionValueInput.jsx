@@ -71,7 +71,9 @@ const OPTIONS_COUNT_ATTR = 'count(1) as _count';
 // buildUdaConfig.js). Passing a real tree (instead of a hand-flattened list) means this
 // hook can reuse buildUdaConfig's own leaf-shape handling below instead of a second,
 // independently-drifting reducer.
-export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingFilterTree = null, col_source_id = null, withCounts = false, metaOptions = []) => {
+// `countFormat` (withCounts only): how a count joins its label, `{label}` and `{n}` placeholders.
+// Default `'{label} ({n})'`. A filter_control's `optionCountFormat` passes e.g. `'{label} · {n} spins'`.
+export const useColumnOptions = (columnName, columns, operation, search, selectedValues, siblingFilterTree = null, col_source_id = null, withCounts = false, metaOptions = [], countFormat = null) => {
     const {apiLoad, state} = useContext(ComponentContext) || {};
     const [options, setOptions] = useState([]);
     const [loading, setLoading] = useState(false);
@@ -197,16 +199,18 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
                     });
 
                     const fetched = uniqBy(rawOptions, d => d.value);
+                    const fmtCount = (label, n) => (countFormat || '{label} ({n})')
+                        .replace('{label}', label).replace('{n}', n);
                     const withCountLabels = fetched.map(opt => ({
                         ...opt,
                         label: countMap.has(String(opt.value))
-                            ? `${opt.label} (${countMap.get(String(opt.value))})`
+                            ? fmtCount(opt.label, countMap.get(String(opt.value)))
                             : opt.label,
                     }));
                     const fetchedValueSet = new Set(fetched.map(o => String(o.value)));
                     const missingMeta = (metaOptions || [])
                         .filter(o => o.value != null && !fetchedValueSet.has(String(o.value)))
-                        .map(o => ({ ...o, label: `${o.label} (0)` }));
+                        .map(o => ({ ...o, label: fmtCount(o.label, 0) }));
                     allOptions = [...withCountLabels, ...missingMeta];
                 } else {
                     const data = await getData({
@@ -243,7 +247,7 @@ export const useColumnOptions = (columnName, columns, operation, search, selecte
         load();
         prevSearchRef.current = search;
         return () => { cancelled = true; };
-    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, filterGroupsKey, withCounts, metaOptionsKey]);
+    }, [columnName, operation, search, apiLoad, sourceInfo, isDms, columns, filterGroupsKey, withCounts, metaOptionsKey, countFormat]);
 
     return {options, loading};
 };

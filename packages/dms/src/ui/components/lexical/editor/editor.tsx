@@ -92,6 +92,7 @@ export default function Editor(props): JSX.Element {
         /*showComments,*/
         showActionBar,
         placeholderText = '',
+        ariaLabel = '',          // the accessible name of the editable region (a screen reader otherwise reads an unnamed text box)
         editable = true,
         hideControls,
         bgColor,
@@ -180,7 +181,7 @@ export default function Editor(props): JSX.Element {
                             contentEditable={
                                 <div className={editable ? `${theme.editorScroller}` || "editor-scroller" : `${theme.viewScroller}` || "view-scroller"}>
                                     <div className={theme.editor.base || "editor"} ref={onRef}>
-                                        <ContentEditable className={theme.contentEditable}/>
+                                        <ContentEditable className={theme.contentEditable} ariaLabel={ariaLabel}/>
                                     </div>
                                 </div>
                             }
@@ -227,7 +228,7 @@ export default function Editor(props): JSX.Element {
                 ) : (
                     <>
                         <PlainTextPlugin
-                            contentEditable={<ContentEditable/>}
+                            contentEditable={<ContentEditable ariaLabel={ariaLabel}/>}
                             placeholder={placeholder}
                             ErrorBoundary={LexicalErrorBoundary}
                         />
