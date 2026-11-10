@@ -1,6 +1,6 @@
 # Read-only DAMA configs: a server that reads a shared DAMA database and never changes it
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** deploy — committed as `f8979f3f`, not on GitHub yet; a server deploy follows, and nothing changes until a config sets `readOnly` · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) · **Status:** built · **Release:** deploy — `f8979f3f` is on GitHub (dms master); preview stacks and the tenant hub (dms `966457da`, live 2026-11-09) run it. Waits only on a production server deploy (not checked whether one has run since 2026-11-05), and nothing changes there until a config sets `readOnly` · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Topic:** dms-server · **Started:** 2026-11-05 · Site half (why it exists):
 [preview-stacks.md](../../../../../planning/shared/tasks/current/preview-stacks.md), step 2
