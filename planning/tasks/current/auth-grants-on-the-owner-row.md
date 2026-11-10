@@ -1,6 +1,6 @@
 # Grants on the owner row: retire `patterns:datasets` and put site verbs on the site row
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — the two sweeps run on every site before `enforce` · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — the two sweeps run on every site before `enforce` · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## The rules (owner, 2026-11-05)
 
@@ -159,6 +159,18 @@ not opened in a browser.
 - A datasets pattern with a legacy `data.sources` list and no env lends nothing now: `migrate-to-dmsenv.js`
   first, then the sweep (the sweep reports them).
 - Old clients still send `dms_pattern`, `X-DMS-Pattern` and `authPatternId`; all ignored.
+- **New sites still get their grants on the auth row, not the site row** (flagged 2026-11-09, ssangdod,
+  while merging the tenant-hub work). `utils/tenantProvisioning.js` `createCorePatterns` writes the new auth
+  row with `authPermissions: { groups: { <admin group>: ['*'], public: [] } }` (`:155`), and
+  `provisionTemplatePatterns` the same on each template pattern (`:331`, a pattern row, fine); the new site
+  row gets `stampSiteRow` (rules) but no `authPermissions`. Callers: `pages/createSite.jsx`, the Tenants tab
+  (`components/tenantList.jsx`), tenant signup (`auth/pages/authSignup.jsx`). Access works today only because
+  `${app} Admin` always passes (`isAppAdmin`), but by rule 3 that grant belongs on the site row, nothing reads
+  it on the auth row any more, and every new site needs the sweep to tidy it. A site that should also grant
+  another group (a staff group) has no supported place to put it at creation: the tenant hub's copy script
+  (`dms-template/deploy/tenant_hub_copy.mjs`) hit exactly this for its root and now writes the root's grants
+  on the site row itself. Fix: `createCorePatterns` (or the site create in its callers) writes the grant on the
+  site row's `authPermissions`, and the auth row is created blank.
 
 ## Progress
 

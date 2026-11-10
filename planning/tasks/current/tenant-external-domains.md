@@ -9,7 +9,7 @@
 Let a tenant register an external domain (e.g. `mitigateny.org`). The tenant is then served at that
 domain, and its patterns that live on their own subdomains are served at `<sub>.<external domain>`, as
 they were before the site became a tenant. Starts after the hub is running
-([tenant-hub-server.md](../../../../../planning/shared/tasks/current/tenant-hub-server.md)).
+([tenant-hub-server.md](../../../../../planning/shared/tasks/completed/tenant-hub-server.md)).
 
 ## Current state
 
@@ -19,7 +19,7 @@ they were before the site became a tenant. Starts after the hub is running
   pattern on its own subdomain can't be reached (`transit.mny.<domain>` is two labels deep, and the
   parser reads one).
 - The hub copy works around both with data:
-  [tenant-hub-copy-script.md](../../../../../planning/shared/tasks/current/tenant-hub-copy-script.md)
+  [tenant-hub-copy-script.md](../../../../../planning/shared/tasks/completed/tenant-hub-copy-script.md)
   rewrites `''` to the tenant subdomain and adds root `locations` for subdomain patterns.
 - Host parsing is repeated in `getSubdomain` (`render/spa/utils`), `getSubdomainFromHost` (editSite),
   inline in `authSignup.jsx` and `patternList.jsx`, and `getBaseHost` (`utils/subdomainPath.js`, used by
@@ -36,7 +36,7 @@ they were before the site became a tenant. Starts after the hub is running
    `pattern2routes`, `sub://` links, retired-subdomain redirects and the tenant/platform-admin checks
    all use it. **This makes the copy script's `''` rewrite and its root `locations` unnecessary**:
    patterns keep their original subdomains. Remove both from
-   [tenant-hub-copy-script.md](../../../../../planning/shared/tasks/current/tenant-hub-copy-script.md)
+   [tenant-hub-copy-script.md](../../../../../planning/shared/tasks/completed/tenant-hub-copy-script.md)
    (or default its flag off) once this ships.
 3. **Login project from the tenant row** (`tenant.app`) rather than the subdomain, so an external
    domain logs into the right project.

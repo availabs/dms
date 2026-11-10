@@ -1,6 +1,6 @@
 import { lazyComponent } from '../../utils/lazyComponent'
 
-import TenantList from './components/tenantList'
+import { TenantList } from './components/tenantList'
 import { listPatternTypes } from '../registry'
 import { PATTERN_ROW_DOMAIN } from '../patternRow.domain'
 // The env owns sources and views — see ../dmsEnv.format.js for why they live there.

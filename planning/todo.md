@@ -921,7 +921,6 @@
 ### patterns/admin
 
 
-- [ ] [Admin: Tenants as its own tab, with the root site as a row](./tasks/current/tenants-admin-tab.md) — 2026-11-06, `plat_tenant_hub`. Move TenantList off `/list` into `/list/tenants` (sidenav entry, mockup first); the root site lists itself with a blank subdomain, linking to `/list`.
 - [x] Tenant table on the platform admin list page doesn't scroll: rows past the viewport are cut off behind the page. Reported 2026-09-29, **fixed 2026-09-29, uncommitted**.
   - **Cause:** both lists' `wrapper` was `flex flex-1 flex-col overflow-auto`, so on the platform root the two lists split the page height equally. `tableCard` (`overflow-hidden`) is a flex child and was squeezed below its table's height, clipping the bottom rows out of reach of the table's own scroll. With few patterns there was also a large empty gap above Tenants.
   - **Reproduced locally** in Playwright against a sqlite scratch server: 40 tenants and 3 patterns at 768px tall left the tenant card 397px over a 589px table, so tenants 36-40 were unreachable. The patterns card was also clipped by 15px with 32 patterns at 900px.

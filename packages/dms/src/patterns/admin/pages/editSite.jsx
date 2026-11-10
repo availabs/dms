@@ -2,17 +2,15 @@ import React from 'react'
 import {v4 as uuidv4} from "uuid";
 import { useFalcor } from "@availabs/avl-falcor";
 import {AdminContext} from "../context";
-import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'react-router'
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
-import { provisionTemplatePatterns, createCorePatterns, backfillAdminPattern, readSitePatternRefs, mergeSitePatternRefs } from '../../../utils/tenantProvisioning';
-import { parseIfJSON } from '../utils';
-import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_TENANTS } from '../../../utils/adminPermissions';
+import { backfillAdminPattern } from '../../../utils/tenantProvisioning';
+import { parseIfJSON, saveSiteRefList } from '../utils';
+import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
-import { getPatternType, listPatternTypes, stampPatternRow, stampSiteRow } from '../../registry'
-import SiteTemplatePicker from './SiteTemplatePicker'
+import { getPatternType, listPatternTypes, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
 
 function getSubdomainFromHost(host) {
@@ -110,22 +108,10 @@ function SiteEdit ({
 	}, [isLoading, resolvedId, user?.authed, user?.isAuthenticating, hasAccess, siteHasAdminPattern])
 
 	const updateData = async (data, attrKey) => {
-		// `item.patterns` can be stale — with sync on it's the local store's copy,
-		// which never sees refs written straight to the server (createSite's
-		// auth/admin/template refs, the admin backfill). Writing it as-is dropped
-		// them. Merge against the server's list first: keep what the server has
-		// that this page never loaded, but not what the user just removed.
-		// Same for `tenants`: tenant signup appends to it straight on the server.
-		if (['patterns', 'tenants'].includes(attrKey) && Array.isArray(data)) {
-			try {
-				const server = await readSitePatternRefs(falcor, app, resolvedId, attrKey)
-				data = mergeSitePatternRefs({ edited: data, baseline: item?.[attrKey] || [], server })
-			} catch (err) {
-				console.error('Could not re-read site patterns before saving; saving the list as shown:', err)
-			}
-		}
-		// Returned so a caller can wait for the save itself, not just the re-read above:
-		// a type's admin.afterCreate may write the site row after it (addNewValue).
+		// Ref lists are merged with the server's copy before saving (see saveSiteRefList).
+		// Returned so a caller can wait for the save itself: a type's admin.afterCreate
+		// may write the site row after it (addNewValue).
+		if (attrKey === 'patterns') return saveSiteRefList({ falcor, apiUpdate, format, app, item, attrKey, data })
 		return apiUpdate({data: {...item, ...{[attrKey]: data}}, config: {format}})
 	}
 
@@ -133,32 +119,7 @@ function SiteEdit ({
 		return null
 	}
 
-	const isPlatformAdmin = isMultiTenant && !getSubdomainFromHost();
-
-	if (isPlatformAdmin && siteCan(user, app, authPermissions, MANAGE_TENANTS)) {
-		return (
-			<>
-				<PatternList
-					value={item?.['patterns']}
-					siteId={item?.id}
-					format={format}
-					apiLoad={apiLoad}
-					attributes={attributes['patterns'].attributes}
-					onChange={(v) => updateAttribute('patterns', v)}
-					onSubmit={data => updateData(data, 'patterns')}
-					siteName={item?.site_name || item?.name}
-				/>
-				<TenantList
-					value={item?.['tenants'] || []}
-					format={format}
-					attributes={attributes['tenants']?.attributes || {}}
-					onChange={(v) => updateAttribute('tenants', v)}
-					onSubmit={data => updateData(data, 'tenants')}
-				/>
-			</>
-		)
-	}
-
+	// On a multi-tenant root, tenants have their own page (pages/tenants.jsx, /list/tenants).
 	return (
 	  <PatternList
       value={item?.['patterns']}
@@ -734,297 +695,6 @@ function PatternList({
 				</Modal>
 			</div>
 	)
-}
-
-function TenantList({
-	value = [],
-	format,
-	attributes = {},
-	onSubmit,
-	onChange,
-}) {
-	const { app, type: siteType, baseUrl } = React.useContext(AdminContext);
-	const { AuthAPI } = React.useContext(AuthContext);
-	const { UI, theme } = React.useContext(ThemeContext);
-	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
-	const { falcor } = useFalcor();
-	const { Table, Input, Button, Modal, Icon, FieldLabel } = UI;
-	const siteInstance = getInstance(siteType) || siteType;
-	const siteTemplates = theme?.site_templates ?? [];
-	const pageTemplates = theme?.page_templates ?? [];
-
-	const [addingNew, setAddingNew] = React.useState(false);
-	const [newItem, setNewItem] = React.useState({ name: '', subdomain: '', email: '', password: '' });
-	const [selectedTemplateId, setSelectedTemplateId] = React.useState('simple_site');
-	const [submitting, setSubmitting] = React.useState(false);
-	const [deletingItem, setDeletingItem] = React.useState(undefined);
-	const [error, setError] = React.useState('');
-	const [search, setSearch] = React.useState('');
-
-	const TENANT_SEARCH_INPUT_ID = 'site-tenant-search';
-	React.useEffect(() => {
-		const onKeyDown = (e) => {
-			if (e.key !== '/') return;
-			const active = document.activeElement;
-			const isTyping = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable);
-			if (isTyping) return;
-			e.preventDefault();
-			document.getElementById(TENANT_SEARCH_INPUT_ID)?.focus();
-		};
-		document.addEventListener('keydown', onKeyDown);
-		return () => document.removeEventListener('keydown', onKeyDown);
-	}, []);
-
-	// Build base domain from current host (we are on the root domain here)
-	const host = window.location.host;
-	const protocol = host.includes('localhost') ? 'http' : 'https';
-	const baseDomain = host; // no subdomain on platform admin
-
-	const columns = [
-		{ name: 'name', display_name: 'Name', show: true, type: 'text' },
-		{ name: 'subdomain', display_name: 'Subdomain', show: true, type: 'text' },
-		{
-			name: 'link', display_name: 'Site', show: true, type: 'ui',
-			Comp: (d) => {
-				const url = `${protocol}://${d.row.subdomain}.${baseDomain}${baseUrl}`;
-				return (
-					<a
-						href={url}
-						className={t.tenantLink}
-					>
-						{d.row.subdomain}.{baseDomain}
-					</a>
-				);
-			}
-		},
-		{
-			name: 'actions', display_name: '', show: true, type: 'ui',
-			Comp: (d) => (
-				<div className={t.cellActions}>
-					<Button
-						activeStyle='iconRowDanger'
-						title='Remove tenant'
-						onClick={() => setDeletingItem(d.row)}
-					>
-						<Icon icon='TrashCan' className={t.iconSm} />
-					</Button>
-				</div>
-			)
-		}
-	];
-
-	const addTenant = async () => {
-		setError('');
-		const slug = nameToSlug(newItem.subdomain || newItem.name);
-		if (!slug) { setError('Subdomain is required'); return; }
-		if (!newItem.email) { setError('Admin email is required'); return; }
-
-		const existingSlugs = value.map(v => v.subdomain).filter(Boolean);
-		if (existingSlugs.includes(slug)) {
-			setError(`A tenant with subdomain "${slug}" already exists`);
-			return;
-		}
-
-		setSubmitting(true);
-		try {
-			const tenantName = newItem.name || slug;
-
-			// 1. Create auth project + admin/public groups + first user for tenant
-			const setupRes = await AuthAPI.callAuthServer('/init/setup', {
-				email: newItem.email,
-				password: newItem.password || undefined,
-				project: slug,
-			});
-			if (setupRes.error && setupRes.error !== 'duplicate key value violates unique constraint "groups_pkey"') {
-				throw new Error(setupRes.error);
-			}
-
-			// 2. Create tenant row in master app
-			const tenantType = `${siteInstance}|${slug}:tenant`;
-			const res = await falcor.call(
-				['dms', 'data', 'create'],
-				[app, tenantType, { name: tenantName, subdomain: slug, app: slug }]
-			);
-			const newId = Object.keys(res?.json?.dms?.data?.byId || {}).filter(d => d !== '$__path')?.[0];
-			if (!newId) throw new Error('Failed to create tenant row');
-
-			// 3. Append tenant ref to master site
-			const newData = [...value, { ref: `${app}+${tenantType}`, id: +newId }];
-			onChange(newData);
-			onSubmit(newData);
-
-			// 4. Create tenant site row in tenant app
-			const tenantSiteRes = await falcor.call(
-				['dms', 'data', 'create'],
-				[slug, `${siteInstance}:site`, stampSiteRow({ site_name: tenantName })]
-			);
-			const tenantSiteId = Object.keys(tenantSiteRes?.json?.dms?.data?.byId || {}).find(k => k !== '$__path');
-			if (!tenantSiteId) throw new Error('Failed to create tenant site');
-
-			// 5. Create the tenant's auth + admin patterns and register them on its site
-			const corePatternRefs = await createCorePatterns(falcor, {
-				app: slug,
-				siteInstance,
-				siteId: tenantSiteId,
-				adminGroupName: slug,
-				subdomain: slug,
-				adminPath: baseUrl || '/',
-			});
-
-			// 6. Create template patterns then update tenant site with all refs
-			const { allPatternRefs: templateRefs, allEnvRefs } = await provisionTemplatePatterns(falcor, {
-				app: slug,
-				siteInstance,
-				selectedTemplateId,
-				siteTemplates,
-				pageTemplates,
-				adminGroupName: slug,
-				subdomain: slug,
-			});
-			const allPatternRefs = [...corePatternRefs, ...templateRefs];
-			const siteUpdate = { patterns: allPatternRefs };
-			if (allEnvRefs.length) siteUpdate.dms_envs = allEnvRefs;
-			await falcor.call(['dms', 'data', 'edit'], [slug, +tenantSiteId, siteUpdate]);
-
-			setNewItem({ name: '', subdomain: '', email: '', password: '' });
-			setSelectedTemplateId('simple_site');
-			setAddingNew(false);
-		} catch (err) {
-			setError(err.message || 'Something went wrong. Please try again.');
-		} finally {
-			setSubmitting(false);
-		}
-	};
-
-	const q = search.trim().toLowerCase();
-	const tenantData = !q ? value : value.filter(v =>
-		(v.name || '').toLowerCase().includes(q) ||
-		(v.subdomain || '').toLowerCase().includes(q)
-	);
-
-	return (
-		<div className={t.tenantWrapper}>
-			<div className={t.identityWrapper}>
-				<div className={t.identityTitle}>Tenants</div>
-				<span className='flex-1' />
-				<div className={t.statsStrip}>
-					<div className={t.statItem}>
-						<p className={t.statValue}>{value.length}</p>
-						<p className={t.statLabel}>tenants</p>
-					</div>
-				</div>
-			</div>
-
-			<div className={t.toolbarRow}>
-				<div className={t.searchWrapper}>
-					<Icon icon='Search' className={t.searchIcon} />
-					<Input
-						id={TENANT_SEARCH_INPUT_ID}
-						type='text'
-						activeStyle='bare'
-						value={search}
-						onChange={e => setSearch(e.target.value)}
-						placeholder={`filter ${value.length} tenant${value.length === 1 ? '' : 's'} by name or subdomain`}
-					/>
-					<span className={t.searchKbdHint}>/</span>
-				</div>
-				<Button activeStyle='primary' onClick={() => { setAddingNew(true); setError(''); setNewItem({ name: '', subdomain: '', email: '', password: '' }); setSelectedTemplateId('simple_site'); }}>
-					<Icon icon='Plus' className={t.iconSm} />
-					Add tenant
-				</Button>
-			</div>
-
-			<div className={t.tableCard}>
-				<Table columns={columns} data={tenantData} isEdit={false} activeStyle='list' />
-			</div>
-
-			<Modal open={addingNew} setOpen={setAddingNew}>
-				<div className={t.tenantModalForm}>
-					<div className={t.tenantModalTitle}>New Tenant</div>
-					<div className={t.fieldGroup}>
-						<FieldLabel activeStyle="inline" htmlFor="tenant-name" text="Organization Name" />
-						<Input
-							id="tenant-name"
-							value={newItem.name}
-							onChange={e => setNewItem({ ...newItem, name: e.target.value })}
-							placeholder='Acme Corp'
-						/>
-					</div>
-					<div className={t.fieldGroup}>
-						<FieldLabel activeStyle="inline" htmlFor="tenant-subdomain" text="Subdomain" />
-						<Input
-							id="tenant-subdomain"
-							value={newItem.subdomain}
-							onChange={e => setNewItem({ ...newItem, subdomain: e.target.value })}
-							placeholder='acme'
-						/>
-					</div>
-					<div className={t.fieldGroup}>
-						<FieldLabel activeStyle="inline" htmlFor="tenant-email" text="Admin Email" />
-						<Input
-							id="tenant-email"
-							value={newItem.email}
-							onChange={e => setNewItem({ ...newItem, email: e.target.value })}
-							placeholder='admin@acme.com'
-						/>
-					</div>
-					<div className={t.fieldGroup}>
-						<FieldLabel activeStyle="inline" htmlFor="tenant-password" text="Admin Password" />
-						<Input
-							id="tenant-password"
-							type='password'
-							value={newItem.password}
-							onChange={e => setNewItem({ ...newItem, password: e.target.value })}
-							placeholder='password'
-						/>
-					</div>
-					<SiteTemplatePicker
-						siteTemplates={siteTemplates}
-						selectedTemplateId={selectedTemplateId}
-						onSelect={setSelectedTemplateId}
-					/>
-					{error && <div className={t.errorText}>{error}</div>}
-					<div className={t.tenantModalActions}>
-						<Button type='plain' disabled={submitting} onClick={addTenant}>
-							{submitting ? 'Creating…' : 'Add'}
-						</Button>
-						<Button type='button' activeStyle='action' onClick={() => { setAddingNew(false); setError(''); }}>Cancel</Button>
-					</div>
-				</div>
-			</Modal>
-
-			<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
-				<div className={t.deleteModal}>
-					<div className={t.deleteModalTitle}>Remove Tenant</div>
-					<div className={t.deleteModalDesc}>
-						Remove <span className={t.deleteModalHighlight}>{deletingItem?.name}</span> from this
-						site? The tenant's data is not deleted.
-					</div>
-					<div className={t.deleteModalFooter}>
-						<Button
-							type='plain'
-							activeStyle='action'
-							onClick={() => setDeletingItem(undefined)}
-						>
-							Cancel
-						</Button>
-						<Button
-							type='plain'
-							activeStyle='dangerSolid'
-							onClick={() => {
-								const newData = value.filter(v => v.id !== deletingItem.id);
-								onChange(newData);
-								onSubmit(newData);
-								setDeletingItem(undefined);
-							}}
-						>
-							Remove
-						</Button>
-					</div>
-				</div>
-			</Modal>
-		</div>
-	);
 }
 
 const RenderFilters = ({value=[], onChange, ...rest}) => {

@@ -12,7 +12,7 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
-import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
@@ -24,6 +24,7 @@ import { getPatternType } from "../registry";
 const SiteEdit = lazyComponent('admin/SiteEdit', () => import("./pages/editSite"));
 const NewSite = lazyComponent('admin/NewSite', () => import("./pages/createSite"));
 const ThemeList = lazyComponent('admin/ThemeList', () => import("./pages/themes/list"));
+const TenantsPage = lazyComponent('admin/TenantsPage', () => import("./pages/tenants"));
 const ThemeEdit = lazyComponent('admin/ThemeEdit', () => import("./pages/themes/editTheme"));
 const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages/patternEditor"));
 //import ThemeManager from './pages/themeManager/index.jsx'
@@ -32,7 +33,7 @@ const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages
 // header band. Not the shared Layout's own TopNav — that's gated by a single
 // GLOBAL layout.options.topNav.size, so enabling it here would turn it on
 // for every page in the app, not just the admin pattern's own pages.
-const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme' };
+const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants' };
 const AdminBreadcrumb = ({ theme, baseUrl }) => {
   const location = useLocation();
   const { UI: contextUI } = React.useContext(ThemeContext) || {};
@@ -88,6 +89,8 @@ const adminConfig = ({
   adminThemeSource,
   authPermissions = {},
   isMultiTenant = false,
+  // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
+  subdomain = '',
   pgEnv = '',
   ssrCollect,
 }) => {
@@ -132,7 +135,7 @@ const adminConfig = ({
         type: (props) => {
           const { user, apiUpdate } = props;
           const { Layout, LayoutGroup } = UI;
-          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions });
+          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, subdomain });
           return (
             <AdminContext.Provider
               value={{
@@ -149,6 +152,7 @@ const adminConfig = ({
                 dmsEnvById,
                 authPermissions,
                 isMultiTenant,
+                subdomain,
                 pgEnv,
               }}
             >
@@ -212,6 +216,19 @@ const adminConfig = ({
           },
           {
             type: (props) => (
+              // Tenants (design_system_v6/pages/admin-tenants.html): own page since 2026-11-09,
+              // same flush header + table card layout as Sites / Themes. Loads the site row
+              // ("edit", like SiteEdit) for its `tenants` list; pages/tenants.jsx gates it to
+              // the multi-tenant root and manage-tenants.
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
+                <TenantsPage {...props} />
+              </SectionGroup>
+            ),
+            path: "tenants",
+            action: "edit",
+          },
+          {
+            type: (props) => (
               <SectionGroup maxWidth="w-full" padding="p-0">
                 <ThemeEdit {...props} />
               </SectionGroup>
@@ -249,6 +266,7 @@ const patternConfig = ({
   adminPatternRow,
   userMenuUsage = { total: 0, own: [] },
   isMultiTenant = false,
+  subdomain = '',
   pgEnv = '',
   datasources = [],
   authPattern,
@@ -292,7 +310,7 @@ const patternConfig = ({
         type: (props) => {
           const { Layout } = UI;
           const { user, apiUpdate, dataItems = [], params = {} } = props;
-          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions });
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, subdomain });
           // `props` here comes from the SAME EditWrapper every route node goes
           // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
           // unfiltered loader result for this format (every sibling pattern),
@@ -331,6 +349,7 @@ const patternConfig = ({
                 adminPatternRow,
                 userMenuUsage,
                 isMultiTenant,
+                subdomain,
                 pgEnv,
                 datasources,
               }}
@@ -372,7 +391,7 @@ export default [adminConfig, patternConfig];
 // user while the auth pattern grants nothing beyond public). NB: those route
 // checks don't actually block today — dms-manager/_auth.js getReqAuth drops
 // the pattern's authPermissions — so hiding the link is the only gate.
-const getMenuItems = (baseUrl, authPath, user, { app, authPermissions } = {}) => {
+const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, subdomain = '' } = {}) => {
   // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
   // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
   // menu when reached via the auth pattern, kept in sync here so the sidenav
@@ -391,6 +410,12 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions } = {}) =>
       name: "Themes",
       path: `${baseUrl}/themes`,
       icon: 'Fill',
+    }] : []),
+    // Only on the root domain of a multi-tenant site (pages/tenants.jsx).
+    ...(isMultiTenant && !subdomain && siteCan(user, app, authPermissions, MANAGE_TENANTS) ? [{
+      name: "Tenants",
+      path: `${baseUrl}/tenants`,
+      icon: 'Globe',
     }] : []),
   ];
 

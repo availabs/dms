@@ -6,7 +6,7 @@ import DefaultMenu from "./components/menu"
 import authFormat from "./auth.format.js";
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
-import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 import { setAuthRequestScope } from "./api";
 import OpenAuthWarning from "./components/OpenAuthWarning";
@@ -229,6 +229,9 @@ const manageAuthConfig = ({
   datasources = [],
   rightMenu = <DefaultMenu />,
   API_HOST,
+  isMultiTenant = false,
+  // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
+  subdomain = '',
   ssrCollect,
 }) => {
 
@@ -253,6 +256,12 @@ const manageAuthConfig = ({
             name: 'Themes',
             path: `${adminPath}/themes`,
             icon: 'Fill'
+        }] : []),
+        // Only on the root domain of a multi-tenant site (admin pages/tenants.jsx).
+        ...(isMultiTenant && !subdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
+            name: 'Tenants',
+            path: `${adminPath}/tenants`,
+            icon: 'Globe'
         }] : []),
         // {
         //     name: 'Team',
