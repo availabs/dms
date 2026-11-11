@@ -9,6 +9,7 @@ import { nameToSlug, getInstance } from "../../../utils/type-utils";
 import { provisionTemplatePatterns, createCorePatterns } from "../../../utils/tenantProvisioning";
 import SiteTemplatePicker from "../../admin/pages/SiteTemplatePicker";
 import { stampSiteRow } from "../../registry";
+import { hostTenant, getRootDomain } from '../../../utils/hostResolver';
 
 const RESERVED_SUBDOMAINS = ['www', 'api', 'admin', 'mail', 'smtp', 'ftp', 'dev', 'staging', 'test', 'app', 'portal'];
 const SUBDOMAIN_RE = /^[a-z0-9][a-z0-9_-]{1,61}[a-z0-9]$/;
@@ -42,13 +43,8 @@ export default function AuthSignup({ disableSignup, adminPath }) {
     );
 
     // Detect whether we are on root domain in multi-tenant mode
-    const hostname = typeof window !== 'undefined' ? window.location.hostname : '';
-    const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-    const hostnameParts = hostname.split('.');
-    // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
-    // a subdomain; real TLDs are never all-digits.
-    const isIPv4Host = /^\d+$/.test(hostnameParts[hostnameParts.length - 1]);
-    const currentSubdomain = !isIPv4Host && hostnameParts.length >= (isLocalhost ? 2 : 3) ? hostnameParts[0] : '';
+    // The tenant this host belongs to ('' on the platform root; utils/hostResolver.js).
+    const currentSubdomain = typeof window !== 'undefined' ? hostTenant(window.location.host) : '';
     const isTenantSignup = isMultiTenant && !currentSubdomain;
 
     if (disableSignup) {
@@ -125,7 +121,9 @@ export default function AuthSignup({ disableSignup, adminPath }) {
                     siteInstance,
                     siteId: tenantSiteId,
                     adminGroupName: slug,
-                    subdomain: slug,
+                    // With a root domain (nested <sub>.<tenant>.<root> hosts) a tenant's auth and admin answer on
+                    // every host of the tenant, as the copied tenants' do; legacy multi-tenant: the tenant's label.
+                    subdomain: getRootDomain() ? '*' : slug,
                     adminPath,
                 });
 
@@ -139,7 +137,8 @@ export default function AuthSignup({ disableSignup, adminPath }) {
                     siteTemplates,
                     pageTemplates,
                     adminGroupName: slug,
-                    subdomain: slug,
+                    // With a root domain the tenant's root is '' (no key), like any site's; legacy: the tenant's label.
+                    subdomain: getRootDomain() ? undefined : slug,
                     siteId: tenantSiteId,
                     initialPatternRefs: corePatternRefs,
                 });

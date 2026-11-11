@@ -7,7 +7,7 @@ import { saveSiteRefList } from '../utils';
 import { TenantList } from '../components/tenantList';
 
 // /list/tenants: the platform root's tenants. Only on the root domain of a
-// multi-tenant site (`subdomain` is the host's normalized subdomain, '' on the
+// multi-tenant site (`tenantSubdomain` is the host's tenant, '' on the
 // root) and only for a user with manage-tenants; anyone else is sent to the
 // admin's start page, as SiteEdit sends a user without list access away.
 export default function TenantsPage({
@@ -17,7 +17,7 @@ export default function TenantsPage({
 	apiUpdate,
 	format,
 }) {
-	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, subdomain } = React.useContext(AdminContext) || {}
+	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, subdomain, tenantSubdomain = subdomain } = React.useContext(AdminContext) || {}
 	const navigate = useNavigate()
 	const { state: navState } = useNavigation()
 	const { falcor } = useFalcor()
@@ -28,7 +28,7 @@ export default function TenantsPage({
 
 	// While a loader is in flight dataItems is [] (wrapper.jsx), so don't judge on it.
 	const isLoading = navState === 'loading'
-	const isPlatformRoot = Boolean(isMultiTenant) && !subdomain
+	const isPlatformRoot = Boolean(isMultiTenant) && !tenantSubdomain
 	const hasAccess = isPlatformRoot && siteCan(user, app, authPermissions, MANAGE_TENANTS)
 
 	React.useEffect(() => {

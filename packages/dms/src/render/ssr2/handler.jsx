@@ -9,6 +9,7 @@ import { falcorGraph } from '@availabs/avl-falcor'
 
 import dmsSiteFactory from '../spa/dmsSiteFactory.jsx'
 import { preloadAllLazyComponents, collectRenderedLazyComponents } from '../../utils/lazyComponent.js'
+import { setRootDomain } from '../../utils/hostResolver'
 
 // Stub `window` and `document` for SSR — many components access window.location,
 // window.localStorage, document.createElement, etc. during render.
@@ -54,6 +55,7 @@ if (typeof globalThis.window === 'undefined') {
  * @param {object} config.siteConfig - { app, type, baseUrl, authPath, pgEnvs, ... }
  * @param {string[]} [config.pgEnvs] - PostgreSQL environments
  * @param {boolean} [config.isMultiTenant] - resolve the request host to a tenant's own site (see dmsSiteFactory)
+ * @param {string} [config.rootDomain] - the tenant hub's root domain (DMS_ROOT_DOMAIN; utils/hostResolver.js)
  */
 export function createSSRHandler({
   adminConfigFn,
@@ -62,7 +64,9 @@ export function createSSRHandler({
   siteConfig,
   pgEnvs = [],
   isMultiTenant = false,
+  rootDomain = '',
 }) {
+  setRootDomain(isMultiTenant ? rootDomain : '')
   // Cache per-host — different subdomains produce different route sets
   // (pattern2routes filters by subdomain).
   const routeCache = new Map()
@@ -100,6 +104,7 @@ export function createSSRHandler({
       host,
       adminPath: siteConfig.baseUrl || '/list',
       isMultiTenant,
+      rootDomain,
       onResolvedSiteData: (app, type, data) => { siteData = data },
       ssrCollect,
     })

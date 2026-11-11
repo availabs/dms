@@ -232,6 +232,8 @@ const manageAuthConfig = ({
   isMultiTenant = false,
   // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
   subdomain = '',
+  // the tenant this host belongs to ('' on the platform root; utils/hostResolver.js)
+  tenantSubdomain = subdomain,
   ssrCollect,
 }) => {
 
@@ -258,7 +260,7 @@ const manageAuthConfig = ({
             icon: 'Fill'
         }] : []),
         // Only on the root domain of a multi-tenant site (admin pages/tenants.jsx).
-        ...(isMultiTenant && !subdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
+        ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
             name: 'Tenants',
             path: `${adminPath}/tenants`,
             icon: 'Globe'

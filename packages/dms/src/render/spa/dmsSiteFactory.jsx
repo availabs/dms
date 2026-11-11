@@ -6,7 +6,8 @@ import { dmsDataLoader, withAuth, authProvider, dmsPageFactory, _setSyncAPI } fr
 import { parseIfJSON } from '../../patterns/page/pages/_utils';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
-import { pattern2routes, getSubdomain, resolveThemes } from './utils'
+import { pattern2routes, getTenantSubdomain, resolveThemes } from './utils'
+import { setRootDomain } from '../../utils/hostResolver'
 import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 import { applySavedColorScheme } from '../../ui/components/ThemeToggle';
@@ -45,12 +46,16 @@ export function DmsSite (config) {
         routes = EMPTY_ROUTES,
         damaDataTypes = {},
         isMultiTenant = false,
+        // the tenant hub's root domain (VITE_DMS_ROOT_DOMAIN): hosts under it read as
+        // <pattern subdomain>.<tenant>.<root> (utils/hostResolver.js). Unset everywhere else.
+        rootDomain = '',
         host = typeof window !== 'undefined' ? window.location.host : 'localhost'
     } = config
+    setRootDomain(isMultiTenant ? rootDomain : '')
     // On a tenant subdomain the auth project is the subdomain (= tenant.app by convention).
     // Without this, authProvider would use the master app as PROJECT_NAME and all
     // login/token-check calls on tenant subdomains would hit the wrong auth project.
-    const tenantSubdomain = isMultiTenant ? getSubdomain(host) : false;
+    const tenantSubdomain = isMultiTenant ? getTenantSubdomain(host) : false;
     let CurrentProjectName = tenantSubdomain || (PROJECT_NAME ? PROJECT_NAME : dmsConfig.app)
 
     const routeProps = {
@@ -60,7 +65,7 @@ export function DmsSite (config) {
     }
     // In multi-tenant+subdomain mode the master-app cache belongs to a different
     // site; skip it to avoid briefly rendering the platform admin routes.
-    const isTenantSubdomain = isMultiTenant && Boolean(getSubdomain(host));
+    const isTenantSubdomain = isMultiTenant && Boolean(getTenantSubdomain(host));
     const localStorePatterns = isTenantSubdomain
         ? null
         : parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
@@ -362,6 +367,7 @@ export default async function dmsSiteFactory(config) {
     // `__dmsSSRData` from this same call instead of a redundant, always-master
     // standalone fetch. Same additive pattern as onResolvedSyncApp.
     let { dmsConfig, falcor, API_HOST, isMultiTenant, host, onResolvedSyncApp, onResolvedSiteData } = config
+    if (config.rootDomain !== undefined) setRootDomain(isMultiTenant ? config.rootDomain : '')
 
     // Step 1 — always load the master site
     let dmsConfigUpdated = cloneDeep(dmsConfig);
@@ -407,7 +413,7 @@ export default async function dmsSiteFactory(config) {
 
     // Step 2 — multi-tenant: detect subdomain and route accordingly
     const currentHost = host || (typeof window !== 'undefined' ? window.location.host : '');
-    const subdomain = getSubdomain(currentHost);
+    const subdomain = getTenantSubdomain(currentHost);
 
     if (!subdomain) {
         // Platform admin (root domain) — serve master site routes.

@@ -9,6 +9,7 @@ import { patternListTheme } from './patternList.theme'
 import { AddPatternPicker } from './AddPatternPicker'
 import { getPatternType, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
+import { newPatternSubdomain } from '../../../utils/hostResolver';
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -193,17 +194,10 @@ function PatternEdit({
 	const [isDuplicating, setIsDuplicating] = useState(false);
 	const [duplicateProgress, setDuplicateProgress] = useState(0);
 	const siteInstance = getInstance(siteType) || siteType;
-	const tenantSub = (() => {
-		if (!isMultiTenant) return '';
-		const hostname = window.location.hostname;
-		const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-		const minParts = isLocalhost ? 2 : 3;
-		const parts = hostname.split('.');
-		// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
-		// as a subdomain; real TLDs are never all-digits.
-		if (/^\d+$/.test(parts[parts.length - 1])) return '';
-		return parts.length >= minParts ? parts[0] : '';
-	})();
+	// The subdomain new patterns on this host get: the tenant's label on a legacy
+	// multi-tenant host, '' on the tenant hub (utils/hostResolver.js), where authors
+	// pick a pattern's subdomain like on any site.
+	const tenantSub = isMultiTenant ? newPatternSubdomain(window.location.host) : '';
 	const attrToAddNew = ['pattern_type', 'name', ...(tenantSub ? [] : ['subdomain']), 'base_url', ...(tenantSub ? [] : ['locations']), 'filters', 'authPermissions'];
 	const columns = [
 		{name: 'name', display_name: 'Name', show: true, type: 'text'},
@@ -234,13 +228,7 @@ function PatternEdit({
 		}
 
 		if (isMultiTenant) {
-			const hostname = window.location.hostname;
-			const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-			const minParts = isLocalhost ? 2 : 3;
-			const parts = hostname.split('.');
-			// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
-			// as a subdomain; real TLDs are never all-digits.
-			const tenantSub = /^\d+$/.test(parts[parts.length - 1]) ? '' : (parts.length >= minParts ? parts[0] : '');
+			const tenantSub = newPatternSubdomain(window.location.host);
 			if (tenantSub && !data.subdomain) data.subdomain = tenantSub;
 		}
 		// The type may refuse the new pattern or set its initial settings, as on the site page

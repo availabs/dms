@@ -1,3 +1,5 @@
+import { resolveHost } from './hostResolver';
+
 // Cross-subdomain link scheme: `sub://<subdomain>/<path>` resolves against the
 // CURRENT host's base domain at click/render time, so one authored value works in
 // every environment (dev `sub://npmrds/x` → npmrds.localhost:5173/x, prod →
@@ -18,6 +20,10 @@
 // Second consumer since 2026-08-27: the retired-subdomain redirect
 // (utils/retiredSubdomain.js) needs the same base to build its target host.
 export function getBaseHost(host) {
+  // On the tenant hub (a root domain set) the base is the tenant's host, so
+  // `sub://albany` on mny.<root> goes to albany.mny.<root> (utils/hostResolver.js).
+  const resolved = resolveHost(host);
+  if (resolved) return resolved.tenantHost;
   const hostname = `${host || ''}`.split(':')[0];
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost ? 2 : 3;

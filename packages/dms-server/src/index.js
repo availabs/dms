@@ -383,6 +383,7 @@ async function setupAndListen() {
         },
         pgEnvs,
         isMultiTenant: (process.env.DMS_MULTI_TENANT || process.env.VITE_DMS_MULTI_TENANT) === '1',
+        rootDomain: process.env.DMS_ROOT_DOMAIN || process.env.VITE_DMS_ROOT_DOMAIN || '',
       },
     });
   }

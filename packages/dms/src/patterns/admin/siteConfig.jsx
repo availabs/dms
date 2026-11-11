@@ -91,6 +91,9 @@ const adminConfig = ({
   isMultiTenant = false,
   // the host's normalized subdomain ('' on the root domain; render/spa/utils pattern2routes)
   subdomain = '',
+  // the tenant this host belongs to ('' on the platform root); equals `subdomain`
+  // unless the tenant hub's root domain is set (utils/hostResolver.js)
+  tenantSubdomain = subdomain,
   pgEnv = '',
   ssrCollect,
 }) => {
@@ -135,7 +138,7 @@ const adminConfig = ({
         type: (props) => {
           const { user, apiUpdate } = props;
           const { Layout, LayoutGroup } = UI;
-          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, subdomain });
+          const menuItems = getMenuItems(baseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain });
           return (
             <AdminContext.Provider
               value={{
@@ -153,6 +156,7 @@ const adminConfig = ({
                 authPermissions,
                 isMultiTenant,
                 subdomain,
+                tenantSubdomain,
                 pgEnv,
               }}
             >
@@ -267,6 +271,7 @@ const patternConfig = ({
   userMenuUsage = { total: 0, own: [] },
   isMultiTenant = false,
   subdomain = '',
+  tenantSubdomain = subdomain,
   pgEnv = '',
   datasources = [],
   authPattern,
@@ -310,7 +315,7 @@ const patternConfig = ({
         type: (props) => {
           const { Layout } = UI;
           const { user, apiUpdate, dataItems = [], params = {} } = props;
-          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, subdomain });
+          const menuItems = getMenuItems(parentBaseUrl, authPath, props.user, { app, authPermissions, isMultiTenant, tenantSubdomain });
           // `props` here comes from the SAME EditWrapper every route node goes
           // through (dms-manager/wrapper.jsx) — `dataItems` is always the full,
           // unfiltered loader result for this format (every sibling pattern),
@@ -350,6 +355,7 @@ const patternConfig = ({
                 userMenuUsage,
                 isMultiTenant,
                 subdomain,
+                tenantSubdomain,
                 pgEnv,
                 datasources,
               }}
@@ -391,7 +397,7 @@ export default [adminConfig, patternConfig];
 // user while the auth pattern grants nothing beyond public). NB: those route
 // checks don't actually block today — dms-manager/_auth.js getReqAuth drops
 // the pattern's authPermissions — so hiding the link is the only gate.
-const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, subdomain = '' } = {}) => {
+const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTenant = false, tenantSubdomain = '' } = {}) => {
   // Icon names are keys in the base registry (ui/icons/icon_defs.jsx) — same
   // set patterns/auth/siteConfig.jsx's manageAuthConfig uses for this same
   // menu when reached via the auth pattern, kept in sync here so the sidenav
@@ -412,7 +418,7 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
       icon: 'Fill',
     }] : []),
     // Only on the root domain of a multi-tenant site (pages/tenants.jsx).
-    ...(isMultiTenant && !subdomain && siteCan(user, app, authPermissions, MANAGE_TENANTS) ? [{
+    ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, authPermissions, MANAGE_TENANTS) ? [{
       name: "Tenants",
       path: `${baseUrl}/tenants`,
       icon: 'Globe',

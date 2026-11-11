@@ -14,6 +14,7 @@ import { AuthContext } from '../../../../auth/context'
 import { source as sourceFormat } from '../../../../dmsEnv.format'
 import { resolveSubdomainAuthPermissions } from '../../../../../utils/auth'
 import { authedFetch } from '../../../../../utils/authedFetch'
+import { newPatternSubdomain } from '../../../../../utils/hostResolver';
 
 // Additional {subdomain, base_url} mounts — the same pattern served at more
 // locations than its primary subdomain + base URL (e.g. freightatlas2:/ AND
@@ -129,17 +130,9 @@ export const PatternSettingsEditor = ({ value = {}, onChange, apiLoad, ...rest})
   const { apiUpdate, app, type, siteType, API_HOST, parentBaseUrl, dmsEnvs = [], dmsEnvById = {}, isMultiTenant, user, authPermissions } = useContext(AdminContext);
   const { UI, theme } = useContext(ThemeContext)
   const t = { ...settingsEditorTheme, ...(theme?.admin?.settingsEditor || {}) }
-  const tenantSub = (() => {
-    if (!isMultiTenant) return '';
-    const hostname = window.location.hostname;
-    const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-    const minParts = isLocalhost ? 2 : 3;
-    const parts = hostname.split('.');
-    // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
-    // a subdomain; real TLDs are never all-digits.
-    if (/^\d+$/.test(parts[parts.length - 1])) return '';
-    return parts.length >= minParts ? parts[0] : '';
-  })();
+  // Legacy multi-tenant hosts pin a pattern's subdomain to the tenant's label;
+  // on the tenant hub (utils/hostResolver.js) it's editable like on any site.
+  const tenantSub = isMultiTenant ? newPatternSubdomain(window.location.host) : '';
   const { FieldSet, Button, Icon } = UI;
   const navigate = useNavigate();
   const [tmpValue, setTmpValue] = useImmer(value);

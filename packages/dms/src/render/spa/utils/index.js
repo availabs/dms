@@ -11,6 +11,7 @@ import { collectSiteRootPaths } from '../../../utils/mountPath';
 import { getPatternMounts, mountsForSubdomain } from '../../../utils/patternMounts';
 import { getDefaultUserMenuItems, withUserMenuThemes, withPatternMenuPrecedence, patternOwnMenuItems } from '../../../utils/userMenus';
 import { buildRetiredSubdomainMap, applyRetiredSubdomainRedirect } from '../../../utils/retiredSubdomain';
+import { resolveHost } from '../../../utils/hostResolver';
 import '../../../patterns'
 import { getPatternType, listPatternTypes } from '../../../patterns/registry'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
@@ -37,6 +38,18 @@ export const getSubdomain = (host) => {
     // otherwise be misread as subdomain "74". Bail out before that happens.
     if (/^\d+$/.test(parts[parts.length - 1])) return false
     return parts.length >= minParts ? parts[0].toLowerCase() : false
+}
+
+// With a root domain set (utils/hostResolver.js; only the tenant hub sets one) a host
+// reads as a tenant plus a pattern subdomain (`albany.mny.<root>` → 'mny' / 'albany').
+// Without one both are getSubdomain(host), as before.
+export const getTenantSubdomain = (host) => {
+    const r = resolveHost(host)
+    return r ? (r.tenant || false) : getSubdomain(host)
+}
+export const getPatternSubdomain = (host) => {
+    const r = resolveHost(host)
+    return r ? (r.patternSubdomain || false) : getSubdomain(host)
 }
 
 function resolveSubdomainFilters(rawFilters, subdomain) {
@@ -184,9 +197,13 @@ export function pattern2routes (siteData, props) {
     } = props
 
 
-    let SUBDOMAIN = getSubdomain(host)
+    let SUBDOMAIN = getPatternSubdomain(host)
     // for weird double subdomain tld
     SUBDOMAIN = ['www', 'hazardmitigation'].includes(SUBDOMAIN) ? '' : SUBDOMAIN;
+    // The tenant this host belongs to ('' on the platform root). The same value as
+    // SUBDOMAIN unless a root domain is set (utils/hostResolver.js).
+    let TENANT_SUBDOMAIN = getTenantSubdomain(host)
+    TENANT_SUBDOMAIN = ['www', 'hazardmitigation'].includes(TENANT_SUBDOMAIN) ? '' : TENANT_SUBDOMAIN;
 
     // Fully-expanded theme refs only. The site load now asks for `theme_refs`
     // with a name-only projection and resolveThemes() fetches the selected
@@ -313,7 +330,7 @@ export function pattern2routes (siteData, props) {
         (sub) => livePatternSubdomains.has(sub)
     );
     if (applyRetiredSubdomainRedirect({
-        retiredMap: retiredSubdomainMap, siteRootPaths, subdomain: getSubdomain(host),
+        retiredMap: retiredSubdomainMap, siteRootPaths, subdomain: getPatternSubdomain(host),
     })) return [];
 
     const app = dmsConfigUpdated?.format?.app || dmsConfigUpdated.app;
@@ -453,6 +470,9 @@ export function pattern2routes (siteData, props) {
                     // the host's normalized subdomain ('' on the root domain), so a section
                     // can tell which of those patterns this site serves (mountsForSubdomain)
                     subdomain: SUBDOMAIN || '',
+                    // the tenant this host belongs to ('' on the platform root): the
+                    // platform-only screens (Tenants) gate on this, not on `subdomain`
+                    tenantSubdomain: TENANT_SUBDOMAIN || '',
                     dmsEnvs,
                     dmsEnvById,
                     // KEEP: Old variables for other patterns (admin, auth, datasets)

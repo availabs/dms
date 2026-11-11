@@ -96,6 +96,7 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | `DMS_AUTH_PATH` | `VITE_DMS_AUTH_PATH`, then `/auth` | Auth base path. |
 | `DMS_PG_ENVS` | `VITE_DMS_PG_ENVS` | Comma-separated pgEnvs the site reads. |
 | `DMS_MULTI_TENANT` | `VITE_DMS_MULTI_TENANT` | `1` serves tenants on subdomains. |
+| `DMS_ROOT_DOMAIN` | `VITE_DMS_ROOT_DOMAIN` | The tenant hub's root domain (e.g. `availabs.com`). Hosts under it read as `<pattern subdomain>.<tenant>.<root>`: SSR resolves the tenant from the second label, and per-subdomain grants use the pattern subdomain (`utils/subdomain.js`). Unset: the old single-label reading. Only with `DMS_MULTI_TENANT`. |
 
 ## Datasets (DAMA), uploads and tasks
 

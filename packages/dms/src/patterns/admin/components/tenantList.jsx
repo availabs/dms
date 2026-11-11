@@ -6,6 +6,7 @@ import { AuthContext } from '../../auth/context';
 import { ThemeContext } from '../../../ui/useTheme';
 import { nameToSlug, getInstance } from '../../../utils/type-utils';
 import { provisionTemplatePatterns, createCorePatterns } from '../../../utils/tenantProvisioning';
+import { getRootDomain } from '../../../utils/hostResolver';
 import { editSiteTheme } from '../pages/editSite.theme'
 import SiteTemplatePicker from '../pages/SiteTemplatePicker'
 import { stampSiteRow } from '../../registry'
@@ -143,8 +144,11 @@ export function TenantList({
 			const newId = Object.keys(res?.json?.dms?.data?.byId || {}).filter(d => d !== '$__path')?.[0];
 			if (!newId) throw new Error('Failed to create tenant row');
 
-			// 3. Append tenant ref to master site
-			const newData = [...value, { ref: `${app}+${tenantType}`, id: +newId }];
+			// 3. Append tenant ref to master site. Carry the row's fields with the ref:
+			// this page keeps its own edited copy of the list, and the tenant row was
+			// written straight to the server, so a bare {ref, id} stays a blank row
+			// until a reload. The save still writes {ref, id} only (no _dirty).
+			const newData = [...value, { ref: `${app}+${tenantType}`, id: +newId, name: tenantName, subdomain: slug, app: slug }];
 			onChange(newData);
 			onSubmit(newData);
 
@@ -162,7 +166,9 @@ export function TenantList({
 				siteInstance,
 				siteId: tenantSiteId,
 				adminGroupName: slug,
-				subdomain: slug,
+				// With a root domain (nested <sub>.<tenant>.<root> hosts) a tenant's auth and admin answer on
+				// every host of the tenant, as the copied tenants' do; legacy multi-tenant: the tenant's label.
+				subdomain: getRootDomain() ? '*' : slug,
 				adminPath: baseUrl || '/',
 			});
 
@@ -174,7 +180,8 @@ export function TenantList({
 				siteTemplates,
 				pageTemplates,
 				adminGroupName: slug,
-				subdomain: slug,
+				// With a root domain the tenant's root is '' (no key), like any site's; legacy: the tenant's label.
+				subdomain: getRootDomain() ? undefined : slug,
 			});
 			const allPatternRefs = [...corePatternRefs, ...templateRefs];
 			const siteUpdate = { patterns: allPatternRefs };

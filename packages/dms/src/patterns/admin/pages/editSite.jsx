@@ -12,16 +12,12 @@ import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
 import { getPatternType, listPatternTypes, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
+import { newPatternSubdomain, resolveHost } from '../../../utils/hostResolver';
 
+// The subdomain new rows on this host are stamped with: the tenant's label on a
+// legacy multi-tenant host, '' on the tenant hub (utils/hostResolver.js).
 function getSubdomainFromHost(host) {
-  const hostname = (host || window.location.host).split(':')[0];
-  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-  const minParts = isLocalhost ? 2 : 3;
-  const parts = hostname.split('.');
-  // Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet as
-  // a subdomain; real TLDs are never all-digits.
-  if (/^\d+$/.test(parts[parts.length - 1])) return '';
-  return parts.length >= minParts ? parts[0] : '';
+  return newPatternSubdomain(host || window.location.host);
 }
 
 
@@ -242,8 +238,10 @@ function PatternList({
 				// as a subdomain; real TLDs are never all-digits.
 				const isIPv4Host = /^\d+$/.test(parts[parts.length - 1]);
 				const hasSubdomain = !isIPv4Host && (isLocalhost ? parts.length >= 2 : parts.length > 2);
-				const baseDomain = hasSubdomain ? parts.slice(1).join('.') : host;
-				const targetHost = needsSub ? `${sub}.${baseDomain}` : host;
+				// On the tenant hub a pattern subdomain sits under the tenant's host.
+				const resolved = resolveHost(host);
+				const baseDomain = resolved ? resolved.tenantHost : (hasSubdomain ? parts.slice(1).join('.') : host);
+				const targetHost = needsSub ? `${sub}.${baseDomain}` : (resolved ? resolved.tenantHost : host);
 				const rawUrl = d.row.base_url;
 				if (!rawUrl) return <span className={t.emptyValue}>—</span>;
 				const normalizedUrl = rawUrl.startsWith('/') ? rawUrl : `/${rawUrl}`;
