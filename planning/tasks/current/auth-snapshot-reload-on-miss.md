@@ -79,7 +79,7 @@ Writes keep `fresh` (`op !== 'read'`): they are judged on what is stored now, an
   stored before that load started is found. Writes still load every time. A failed load only drops
   its own cache entry. `snapshotLoads()` exported for tests. No negative cache needed.
 - [x] **3:** covered by 1–2 (a listing of N unknown ids costs ≤ 1 load); `readableSources` unchanged.
-- [ ] **4 (hub data, owner):** `reconcile-pgenv-mirror.js` for the hub tenants. Still worth it: with
+- [ ] **4 (hub data, owner):** `reconcile-pgenv-mirror.js` for the hub tenants. **Owner 2026-11-11:** part of the next re-copy on mercury; runbook step 6c in `planning/shared/tasks/completed/tenant-hub-server.md`, with the new `--no-register` (skips the one write to the pgEnv, `settings.mirror_apps`, so production's DAMA and DMS are untouched). Rig dry run: ~29,300 rows per tenant; apply time and snapshot size not yet measured. Still worth it: with
   no mirror rows every external source is a miss, so the snapshot still reloads up to once per 3 s
   per app while a page lists sources, and the reads are judged as misses (denied under `enforce`).
 - [x] Test `tests/test-auth-snapshot-reload.js` (`npm run test:auth-snapshot-reload`, local sqlite

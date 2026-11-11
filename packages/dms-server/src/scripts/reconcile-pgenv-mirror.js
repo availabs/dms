@@ -3,7 +3,7 @@
 /**
  * THE PGENV MIRROR RECONCILE — make a site's mirror of a pgEnv equal to the pgEnv (dama/mirror.js).
  *
- *     node reconcile-pgenv-mirror.js --db <dms config> --app <app> [--pg-env <name>] [--apply] [--verify]
+ *     node reconcile-pgenv-mirror.js --db <dms config> --app <app> [--pg-env <name>] [--apply] [--verify] [--no-register]
  *
  * For each pgEnv (the one named, else every pgEnv the app has a `:dmsenv` row for):
  *   1. the env row: `{site}|{pgEnv}:dmsenv` with `data.pgEnv`, created under the site row (or adopted from
@@ -14,6 +14,11 @@
  *      `createDamaView`, `updateSource`, `updateView`, `deleteDamaSource` and `deleteDamaView` keep it
  *      current from here on.
  *
+ * `--no-register` skips step 3, the one write to the pgEnv: for a server whose pgEnvs belong to another
+ * server (the tenant hub reads production's, read-only). Listed in `mirror_apps`, the app would be mirrored
+ * by the OWNING server's hooks into that server's own DMS database. Without step 3 nothing keeps the mirror
+ * current between runs: re-run the reconcile to catch up.
+ *
  * Dry run by default; `--apply` writes (through the DMS controller, so change_log and sync see it);
  * `--verify` exits non-zero while anything differs. Idempotent. Run it again whenever a plugin wrote
  * `data_manager` by direct SQL (the hooks cannot see that), or after the three grant scripts.
@@ -21,13 +26,14 @@
  * Planning: planning/tasks/current/pgenv-mirror-into-dms.md.
  */
 function parseArgs() {
-  const a = process.argv.slice(2); const o = { apply: false, verify: false, pgEnvs: [] };
+  const a = process.argv.slice(2); const o = { apply: false, verify: false, register: true, pgEnvs: [] };
   for (let i = 0; i < a.length; i++) {
     if (a[i] === '--db') o.db = a[++i];
     else if (a[i] === '--app') o.app = a[++i];
     else if (a[i] === '--pg-env') o.pgEnvs.push(a[++i]);
     else if (a[i] === '--apply') o.apply = true;
     else if (a[i] === '--verify') o.verify = true;
+    else if (a[i] === '--no-register') o.register = false;
     else { console.error(`Unknown argument: ${a[i]}`); process.exit(1); }
   }
   if (!o.db || !o.app) { console.error('--db and --app are required'); process.exit(1); }
@@ -52,12 +58,12 @@ async function main() {
   }
 
   console.log(`\npgEnv mirror — ${o.verify ? 'VERIFY' : o.apply ? 'APPLY' : 'DRY RUN'}`);
-  console.log(`  db=${o.db}  app=${o.app}  pgEnvs=${pgEnvs.join(', ')}`);
+  console.log(`  db=${o.db}  app=${o.app}  pgEnvs=${pgEnvs.join(', ')}${o.register ? '' : '  (--no-register: the pgEnvs are not written)'}`);
   let clean = true;
   for (const pgEnv of pgEnvs) {
     console.log(`\n== ${pgEnv}`);
     getDb(pgEnv); await awaitReady();
-    const r = await mirror.reconcile({ app: o.app, pgEnv, apply: o.apply && !o.verify, log: (l) => console.log(l) });
+    const r = await mirror.reconcile({ app: o.app, pgEnv, apply: o.apply && !o.verify, register: o.register, log: (l) => console.log(l) });
     const sum = (k) => `${r[k].create} to create, ${r[k].update} to update, ${r[k].delete} to delete, ${r[k].same} same`;
     console.log(`  env row: ${r.env.id ? `#${r.env.id}` : r.env.create ? 'to create' : `adopt #${r.env.adopt}`}`);
     console.log(`  sources: ${sum('sources')}`);

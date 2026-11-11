@@ -1,6 +1,6 @@
 # Mirror every pgEnv into DMS: an env row per pgEnv, a row per source and view
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — the reconcile run on every site (one per site per pgEnv) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — the reconcile run on every site (one per site per pgEnv) · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 
@@ -194,3 +194,11 @@ column definitions, statistics, table locations and data rows keep coming from t
 - 2026-11-05: filed from the analysis in the auth-simplification session; Phases 1 and 2 built the same day.
   Phase 3 decided and built the same evening (stub per site over a canonical origin; the catalog lists the
   mirrors; grants edited on the mirror per site; a request naming no site is refused).
+
+## Note (2026-11-11, ssangdod@albany.edu): `--no-register`
+
+`reconcile-pgenv-mirror.js --no-register` (`reconcile({ register: false })`) skips registering the app in the
+pgEnv's `settings.mirror_apps`, the one write the reconcile makes to the pgEnv. For a server reading another
+server's pgEnvs (the tenant hub reads production's, read-only): registered there, the owning server's hooks would
+mirror the app into the owning server's own DMS database. Such a mirror is kept current only by re-running the
+reconcile. Used by the hub runbook (`planning/shared/tasks/completed/tenant-hub-server.md`, step 6c).

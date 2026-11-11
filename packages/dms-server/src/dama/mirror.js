@@ -229,9 +229,10 @@ const viewsTable = (db) => (db.type === 'postgres' ? 'data_manager.views' : 'vie
 /**
  * Make `app`'s mirror of `pgEnv` equal to the pgEnv: the env row (created under the site row, or adopted
  * from a row of the same name), then every source and view (created, updated, deleted), then the app
- * registered in the pgEnv's `mirror_apps`. Dry run unless `apply`. Returns the plan and counts.
+ * registered in the pgEnv's `mirror_apps` (unless `register: false`). Dry run unless `apply`. Returns the plan
+ * and counts.
  */
-async function reconcile({ app, pgEnv, apply = false, log = () => {} }) {
+async function reconcile({ app, pgEnv, apply = false, register = true, log = () => {} }) {
   const dama = getDb(pgEnv);
   const tbl = table(app);
   const ctl = dmsController();
@@ -309,8 +310,10 @@ async function reconcile({ app, pgEnv, apply = false, log = () => {} }) {
     if (apply) await ctl.deleteData(app, r.type, [r.id], null);
   }
 
-  // 5. the app is a mirror of this pgEnv from now on (the hooks read this)
-  if (apply) { if (await registerMirrorApp(pgEnv, app)) say(`  registered ${app} in ${pgEnv}'s settings.mirror_apps`); }
+  // 5. the app is a mirror of this pgEnv from now on (the hooks read this). The one write to the pgEnv;
+  // `register: false` skips it, for a copy (the tenant hub) whose pgEnvs belong to another server: listed
+  // there, that server's hooks would write the app's rows into its OWN DMS database.
+  if (apply && register) { if (await registerMirrorApp(pgEnv, app)) say(`  registered ${app} in ${pgEnv}'s settings.mirror_apps`); }
   out.clean = !out.env?.create && !out.env?.adopt && !out.sources.create && !out.sources.update && !out.sources.delete && !out.views.create && !out.views.update && !out.views.delete;
   return out;
 }
