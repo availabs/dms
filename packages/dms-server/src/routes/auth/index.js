@@ -101,10 +101,12 @@ function rulesWrite(snap, row, op, keys, user, subdomain) {
  */
 async function authorize({ row, env, sourceId, viewId, patternId, verb = 'read', fields, patch, replace = false, user = null, app, subdomain = '', fresh = false }) {
   const op = Array.isArray(verb) ? verb : String(verb);
-  // a write is judged on what is stored now; a read may use the snapshot, refreshed once on a miss
+  // A write is judged on what is stored now. A read may use the snapshot; on a miss it retries on a
+  // recent one (one reload per app per few seconds, shared by every miss in that window), so a
+  // listing of unmirrored sources can't reload the snapshot once per source.
   fresh = fresh || op !== 'read';
   let subject = await owners.snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh }).catch(e => ({ error: `lookup failed: ${e.message}` }));
-  if (subject.error && !fresh) subject = await owners.snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh: true }).catch(e => ({ error: `lookup failed: ${e.message}` }));
+  if (subject.error && !fresh) subject = await owners.snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh: 'recent' }).catch(e => ({ error: `lookup failed: ${e.message}` }));
   if (subject.error) return deny(subject.error);
   const { snap } = subject;
   const r = subject.row;

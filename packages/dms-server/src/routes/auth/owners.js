@@ -24,7 +24,8 @@
  * (dama/mirror.js; `scripts/reconcile-pgenv-mirror.js`). The snapshot indexes the mirrors by
  * `(pgEnv, source_id)` / `(pgEnv, view_id)`, so an address naming a pgEnv finds a row like any other.
  *
- * Snapshots are cached for `TTL_MS` per app / env; a write path asks for `fresh`.
+ * Snapshots are cached for `TTL_MS` per app; a write path asks for `fresh`, a read that missed for
+ * `'recent'` (see appSnapshot).
  */
 const { getDb, loadConfig } = require('../../db');
 const { resolveTable } = require('../../db/table-resolver');
@@ -37,6 +38,7 @@ const { formatsFor } = require('./formats');
 const RULES = require('./rules');
 
 const TTL_MS = 30 * 1000;
+const MISS_REFRESH_MS = 3 * 1000;
 const isDmsEnv = (env) => typeof env === 'string' && env.includes('+');
 
 function dmsDb() {
@@ -80,12 +82,18 @@ function grantsOf(row, scope, subdomain = '') {
 
 // ---- snapshots ----------------------------------------------------------------------------------
 
-const cache = new Map();   // key → { at, promise }
+const cache = new Map();   // key → { at, promise }   (`at`: when the load started)
+let loads = 0;              // snapshot loads since start (tests count them)
 
-function cached(key, load, fresh) {
+/**
+ * The cached load for `key` if it started less than `maxAge` ms ago (finished or still running),
+ * else a new one. `maxAge` 0 always loads.
+ */
+function cached(key, load, maxAge) {
   const hit = cache.get(key);
-  if (hit && !fresh && Date.now() - hit.at < TTL_MS) return hit.promise;
-  const promise = load().catch((e) => { cache.delete(key); throw e; });
+  if (hit && Date.now() - hit.at < maxAge) return hit.promise;
+  loads++;
+  const promise = load().catch((e) => { if (cache.get(key) && cache.get(key).promise === promise) cache.delete(key); throw e; });
   cache.set(key, { at: Date.now(), promise });
   return promise;
 }
@@ -119,7 +127,16 @@ async function loadApp(app, fresh = false) {
   return index(app, rows.map(r => wrap(r, app)), formats);
 }
 
-const appSnapshot = (app, { fresh = false } = {}) => cached(`app|${app}`, () => loadApp(app, fresh), fresh);
+/**
+ * `fresh`: `true` loads now (a write is judged on what is stored now); `'recent'` accepts a load
+ * started in the last MISS_REFRESH_MS (a read that missed: whatever was stored by then is found, and
+ * a listing of N unknown sources, or N concurrent misses, costs one load, not N —
+ * auth-snapshot-reload-on-miss.md); `false` accepts one up to TTL_MS old.
+ */
+function appSnapshot(app, { fresh = false } = {}) {
+  const maxAge = fresh === true ? 0 : fresh === 'recent' ? MISS_REFRESH_MS : TTL_MS;
+  return cached(`app|${app}`, () => loadApp(app, !!fresh), maxAge);
+}
 
 /** Forget every cached snapshot (tests; a grant write may call it too). */
 function clearSnapshots() { cache.clear(); }
@@ -311,6 +328,6 @@ async function sourceOfView(env, viewId, app = null) {
 }
 
 module.exports = {
-  snapshotFor, appSnapshot, clearSnapshots, grantsAt, grantsOf, ruleFor, mapsFor,
+  snapshotFor, appSnapshot, clearSnapshots, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
   parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS,
 };

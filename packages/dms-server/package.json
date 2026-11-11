@@ -45,6 +45,7 @@
     "test:storage": "node tests/test-storage.js",
     "test:sites": "node tests/test-sites.js",
     "test:tenant-domains": "node tests/test-tenant-domains.js",
+    "test:auth-snapshot-reload": "DMS_TEST_DB=cli-test node tests/test-auth-snapshot-reload.js",
     "test:datatypes": "node tests/test-datatypes.js",
     "test:migrate-dama": "node tests/test-migrate-dama.js",
     "db:migrate-dama": "node src/scripts/migrate-dama-tasks.js",

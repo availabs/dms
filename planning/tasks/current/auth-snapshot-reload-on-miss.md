@@ -1,6 +1,6 @@
 # Auth: a read whose subject misses reloads the whole app snapshot, every time
 
-**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** todo · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_page_load_performance](../../../../../planning/initiatives/dms_page_load_performance.md) (primary), [dms_permissions_move](../../../../../planning/initiatives/dms_permissions_move.md) · **Status:** built · **Release:** commit — code + test on branch `tenant-domains`, uncommitted; step 4 (hub mirror reconcile) is the owner's · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 **Topic:** dms-server / auth · **Filed:** 2026-11-10 (found on the tenant hub rig, during
 [tenant-external-domains.md](./tenant-external-domains.md) Phase A)
@@ -69,6 +69,39 @@ if (subject.error && !fresh) subject = await owners.snapshotFor({ …, fresh: tr
 
 Writes keep `fresh` (`op !== 'read'`): they are judged on what is stored now, and they're rare.
 
+## Progress (2026-11-11, branch `tenant-domains`, uncommitted)
+
+- [x] **1 + 2, one rule:** `owners.js` `cached(key, load, maxAge)` returns the cached load (finished
+  or still running) if it STARTED less than `maxAge` ago. `appSnapshot`'s `fresh` is now `true` (load
+  now: writes), `'recent'` (accept a load started in the last `MISS_REFRESH_MS` = 3 s) or `false`
+  (`TTL_MS`). `authorize` retries a read miss with `'recent'`, so every miss in a 3 s window, and every
+  concurrent miss, shares one load; a miss on a load that recent is final (deny, as before). A row
+  stored before that load started is found. Writes still load every time. A failed load only drops
+  its own cache entry. `snapshotLoads()` exported for tests. No negative cache needed.
+- [x] **3:** covered by 1–2 (a listing of N unknown ids costs ≤ 1 load); `readableSources` unchanged.
+- [ ] **4 (hub data, owner):** `reconcile-pgenv-mirror.js` for the hub tenants. Still worth it: with
+  no mirror rows every external source is a miss, so the snapshot still reloads up to once per 3 s
+  per app while a page lists sources, and the reads are judged as misses (denied under `enforce`).
+- [x] Test `tests/test-auth-snapshot-reload.js` (`npm run test:auth-snapshot-reload`, local sqlite
+  `cli-test`): 6/6. Against the old retry it fails: 38 reloads for 38 misses, 31 loads for 30
+  concurrent misses, 51 for a listing of 50. Existing suites on `cli-test`: read-auth 30, source-auth
+  27, uda-auth 29, data-auth 66, datatype-auth 8, all pass.
+- [x] **Rig** (`scratchpad/tenant-hub/pagerun.mjs`: 10 anonymous pages across mny / tny hosts and
+  pattern subdomains; `sample.sh` counts the snapshot statement in `pg_stat_activity` each second):
+
+  | | old code | fixed |
+  |---|---|---|
+  | 10 pages | 627 s, 5 at the 90 s cap | 153 s, none over 33 s |
+  | snapshot statement seen | 987 in 579 samples | 4 in 142 |
+  | Postgres CPU | 39–105% | 4–10% |
+
+  A temporary trace (removed) showed the remaining loads: about one per 3 s per app from UDA reads of
+  unmirrored sources, plus the 30 s TTL. What still takes time on tny / mny pages is the UDA
+  source listings themselves (`uda.hazmit_dama|npmrds2.sources.byIndex/byId`, 3–10 s each): the
+  rig reads the production DAMA databases over the network, so that is remote query time, not
+  auth. `allegany…/2024` → login for an anonymous user on old and new code alike (the pattern has
+  no home page).
+
 ## Files
 
 - `packages/dms-server/src/routes/auth/index.js`: `authorize` (retry rule), `readableSources`
@@ -77,14 +110,14 @@ Writes keep `fresh` (`op !== 'read'`): they are judged on what is stored now, an
 
 ## Testing checklist
 
-- [ ] Regression: N reads of unknown sources (and a `readableSources` over N unknown ids) cause ≤ 1
+- [x] Regression: N reads of unknown sources (and a `readableSources` over N unknown ids) cause ≤ 1
       snapshot load per app per window, counted with an exported load counter or a spy on `loadApp`
-- [ ] A source created after the snapshot was built is still found by the next read (the one refresh
+- [x] A source created after the snapshot was built is still found by the next read (the one refresh
       still happens)
-- [ ] Concurrent misses share one load
-- [ ] Denials unchanged: an unknown subject is still refused after the refresh
-- [ ] Writes still judge on a fresh snapshot
-- [ ] Rig: the ~16-page run across `mny`/`tny` hosts stays under a few seconds per page; Postgres idle
+- [x] Concurrent misses share one load
+- [x] Denials unchanged: an unknown subject is still refused after the refresh
+- [x] Writes still judge on a fresh snapshot
+- [x] Rig: the ~16-page run across `mny`/`tny` hosts stays under a few seconds per page; Postgres idle
       between pages
-- [ ] Tests run against a test config only (never plain `npm test` in dms-server: test-sqlite.js
+- [x] Tests run against a test config only (never plain `npm test` in dms-server: test-sqlite.js
       reaches production)
