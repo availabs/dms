@@ -7,7 +7,8 @@ import { parseIfJSON } from '../../patterns/page/pages/_utils';
 import { getInstance } from '../../utils/type-utils';
 import { updateAttributes, updateRegisteredFormats } from "../../dms-manager/_utils";
 import { pattern2routes, getTenantSubdomain, resolveThemes } from './utils'
-import { setRootDomain } from '../../utils/hostResolver'
+import { setRootDomain, getRootDomain, setDomainAliases, isAliasCandidate, resolveHost } from '../../utils/hostResolver'
+import { applyPrimaryDomainRedirect } from '../../utils/primaryDomain'
 import { persistSiteSnapshot } from './utils/snapshot.js'
 import RootErrorBoundary from './utils/RootErrorBoundary.jsx';
 import { applySavedColorScheme } from '../../ui/components/ThemeToggle';
@@ -55,8 +56,14 @@ export function DmsSite (config) {
     // On a tenant subdomain the auth project is the subdomain (= tenant.app by convention).
     // Without this, authProvider would use the master app as PROJECT_NAME and all
     // login/token-check calls on tenant subdomains would hit the wrong auth project.
-    const tenantSubdomain = isMultiTenant ? getTenantSubdomain(host) : false;
-    let CurrentProjectName = tenantSubdomain || (PROJECT_NAME ? PROJECT_NAME : dmsConfig.app)
+    // On a domain alias (devmny.org) the host says nothing until the root site's tenant rows are
+    // read, so the project there is the resolved tenant's app (aliasProject, set when
+    // dmsSiteFactory resolves it); nothing auth-bound renders before (no routes yet).
+    const onAliasHost = isMultiTenant && isAliasCandidate(host);
+    const [aliasProject, setAliasProject] = useState(null);
+    const tenantSubdomain = isMultiTenant && !onAliasHost ? getTenantSubdomain(host) : false;
+    let CurrentProjectName = onAliasHost ? (aliasProject || dmsConfig.app)
+        : tenantSubdomain || (PROJECT_NAME ? PROJECT_NAME : dmsConfig.app)
 
     const routeProps = {
         dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
@@ -65,7 +72,7 @@ export function DmsSite (config) {
     }
     // In multi-tenant+subdomain mode the master-app cache belongs to a different
     // site; skip it to avoid briefly rendering the platform admin routes.
-    const isTenantSubdomain = isMultiTenant && Boolean(getTenantSubdomain(host));
+    const isTenantSubdomain = isMultiTenant && (onAliasHost || Boolean(getTenantSubdomain(host)));
     const localStorePatterns = isTenantSubdomain
         ? null
         : parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
@@ -155,7 +162,10 @@ export function DmsSite (config) {
                 // Single-tenant: fires with the same value resolvedSyncApp already
                 // had (no-op re-render). Multi-tenant: this is the first time the
                 // correct (tenant) app is known — see resolvedSyncApp's init below.
-                onResolvedSyncApp: setResolvedSyncApp,
+                onResolvedSyncApp: (resolvedApp) => {
+                    if (onAliasHost) setAliasProject(resolvedApp || null);
+                    setResolvedSyncApp(resolvedApp);
+                },
             });
             if (!isStale) {
                 routesFinalizedRef.current = true;
@@ -413,6 +423,22 @@ export default async function dmsSiteFactory(config) {
 
     // Step 2 — multi-tenant: detect subdomain and route accordingly
     const currentHost = host || (typeof window !== 'undefined' ? window.location.host : '');
+    // Domain aliases (Phase B): the root site's tenant rows name each tenant's verified domains;
+    // register them before the host is read (utils/hostResolver.js). Only with a root domain.
+    if (getRootDomain()) setDomainAliases(data[0]?.tenants || []);
+    if (isAliasCandidate(currentHost) && !resolveHost(currentHost)) {
+        // a host that is none of the hub's and no tenant's verified domain
+        onResolvedSyncApp?.(null);
+        onResolvedSiteData?.(null, null, null);
+        return [{
+            path: '/*',
+            Component: () => React.createElement(
+                'div',
+                { className: 'w-screen h-screen flex items-center justify-center' },
+                `Domain "${currentHost.split(':')[0]}" is not set up on this hub`
+            )
+        }];
+    }
     const subdomain = getTenantSubdomain(currentHost);
 
     if (!subdomain) {
@@ -441,6 +467,10 @@ export default async function dmsSiteFactory(config) {
             )
         }];
     }
+
+    // A tenant with a primary domain is served there (utils/primaryDomain.js). The server
+    // redirects first; this covers SPA-only builds. The document is leaving: build nothing.
+    if (applyPrimaryDomainRedirect({ adminPath: config.adminPath })) return [];
 
     // Step 3 — build a tenant-scoped config: swap every app reference to tenant.app
     const tenantApp = matchedTenant.app;
@@ -477,5 +507,7 @@ export default async function dmsSiteFactory(config) {
     const tenantResolvedThemes = await resolveThemes(config.themes, tenantData, { falcor, app: tenantDmsConfigUpdated.app });
     onResolvedSyncApp?.(tenantApp);
     onResolvedSiteData?.(tenantApp, siteType, tenantData);
-    return pattern2routes(tenantData, { ...resolvedConfig, dmsConfig: tenantDmsConfig, themes: tenantResolvedThemes })
+    // On a domain alias the login project is the tenant's app; the host label means nothing there.
+    const PROJECT_NAME = resolveHost(currentHost)?.alias ? tenantApp : resolvedConfig.PROJECT_NAME;
+    return pattern2routes(tenantData, { ...resolvedConfig, PROJECT_NAME, dmsConfig: tenantDmsConfig, themes: tenantResolvedThemes })
 }

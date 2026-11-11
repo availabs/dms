@@ -144,6 +144,12 @@ export const tenant = {
     { key: "name", type: "text", required: true },
     { key: "subdomain", type: "text", required: true },
     { key: "app", type: "text", required: true },
+    // Domain aliases (tenant-external-domains.md, Phase B): [{ domain, status, added_at, checked_at,
+    // verified_at, problem }] and the primary domain ('' = the default <subdomain>.<root>). Written
+    // only by dms-server's /domains routes (verification is the server's), read by every host
+    // lookup (utils/hostResolver.js setDomainAliases).
+    { key: "aliases", type: "json", required: false, default: [] },
+    { key: "primary", type: "text", required: false },
     {
       key: "authPermissions",
       type: "json",
@@ -394,6 +400,10 @@ const patternAdminFormat = {
         { label: 'Delete Pattern',    value: 'delete-pattern',    implies: ['read', 'delete'], fields: ['patterns'] },
         { label: 'Manage Themes',     value: 'manage-themes',     implies: ['read', 'edit'], fields: ['theme_refs'] },
         { label: 'Manage Tenants',    value: 'manage-tenants',    implies: ['read', 'edit'], fields: ['tenants'] },
+        // A tenant's domain aliases (tenant hub). They live on the hub's tenant row, which a tenant
+        // admin can't write, so dms-server's /domains routes check this verb on the TENANT's site
+        // row and write the hub row themselves. No fields: nothing on this site row changes.
+        { label: 'Manage Domains',    value: 'manage-domains',    implies: [] },
         // The auth verbs. Users and groups are not DMS rows, so the verbs over them are SITE verbs
         // (rule 3), judged on the site row by dms-server's auth handlers (auth/utils/permissions.js).
         // They were on the auth pattern row until 2026-11-05 (scripts/sweep-site-grants.js moves them).

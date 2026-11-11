@@ -88,6 +88,7 @@ export const editSiteTheme = {
     identitySpacer: 'flex-1',
     tenantNameCell: 'flex flex-col justify-center px-2 py-1',
     tenantName: 't-proseSM font-medium text-[var(--t-ink)]',
+    tenantNameLink: 't-proseSM font-medium text-[var(--t-ink)] hover:text-[var(--t-cobalt)] hover:underline',
     rootPill: 't-metaXS text-[var(--t-graphite)] border border-[var(--t-rule)] rounded-full px-2 py-0.5 ml-1.5',
     tenantSubline: 't-metaXS text-[var(--t-pencil)] mt-0.5',
     tenantSubdomain: 'flex items-center px-2 t-metaSM text-[var(--t-graphite)]',

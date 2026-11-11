@@ -41,8 +41,18 @@ app.use(compression())
 // and never reaches the API routes, CORS or auth middleware below. Sites live in
 // the "<checkout>-sites" folder next to the app checkout (the same root the SSR
 // mount uses); without that folder no request matches. See sites/index.js.
+// Tenant hub (DMS_ROOT_DOMAIN): a tenant with a primary domain is served there; a page request on
+// its other hosts is redirected first (utils/primaryRedirect.js). A no-op on every other server.
+app.set('trust proxy', true); // req.protocol from nginx's X-Forwarded-Proto (also set below, for req.ip)
+app.use(require('./utils/primaryRedirect').createPrimaryRedirect());
+
+// A verified domain alias of a hub tenant is served by the site that serves the root domain.
+const { resolveHost: resolveTenantHost, rootDomain: hubRootDomain } = require('./utils/subdomain');
 const { createSitesMiddleware } = require('./sites');
-app.use(createSitesMiddleware({ sitesDir: `${require('path').resolve(__dirname, '../../../../..')}-sites` }));
+app.use(createSitesMiddleware({
+  sitesDir: `${require('path').resolve(__dirname, '../../../../..')}-sites`,
+  aliasOf: (host) => (resolveTenantHost(host, hubRootDomain())?.alias ? hubRootDomain() : null),
+}));
 
 const PORT = process.env.PORT || 3001;
 
@@ -138,6 +148,9 @@ registerAccessLogRoutes(app, { authDbEnv });
 
 // Format declarations — what scripts/register-formats.js registered for a site, read-only (routes/auth/formats.js)
 require('./routes/auth/formats').registerFormatRoutes(app);
+
+// Tenant domain aliases — the hub only (routes/domains; tenant-external-domains.md, Phase B)
+require('./routes/domains').registerDomainRoutes(app);
 
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);

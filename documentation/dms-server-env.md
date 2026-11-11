@@ -97,6 +97,9 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | `DMS_PG_ENVS` | `VITE_DMS_PG_ENVS` | Comma-separated pgEnvs the site reads. |
 | `DMS_MULTI_TENANT` | `VITE_DMS_MULTI_TENANT` | `1` serves tenants on subdomains. |
 | `DMS_ROOT_DOMAIN` | `VITE_DMS_ROOT_DOMAIN` | The tenant hub's root domain (e.g. `availabs.com`). Hosts under it read as `<pattern subdomain>.<tenant>.<root>`: SSR resolves the tenant from the second label, and per-subdomain grants use the pattern subdomain (`utils/subdomain.js`). Unset: the old single-label reading. Only with `DMS_MULTI_TENANT`. |
+| `DMS_DOMAIN_TOKEN_SECRET` | `JWT_SECRET` | Tenant hub: the secret each tenant's domain-verification token is derived from (HMAC of the hub app and tenant row id; `routes/domains/verify.js`). Changing it changes every token, so unverified aliases need their TXT record redone (verified ones stay verified). |
+| `DMS_DOMAIN_TARGET_IPS` | — | Tenant hub: comma list of the IPs a domain alias must point at (its A record, and `*.<alias>`). Unset: the root domain's own A records. |
+| `DMS_DOMAIN_DNS_SERVERS` | — | Tenant hub: comma list of DNS servers (`ip` or `ip:port`) the alias checks query instead of the system resolvers. For a test DNS server on a rig; leave unset in production. |
 
 ## Datasets (DAMA), uploads and tasks
 

@@ -12,11 +12,12 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
-import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
 import { getPatternType } from "../registry";
+import { getRootDomain } from "../../utils/hostResolver";
 
 // Code-split: the admin pattern is mounted on every site (pattern2routes
 // always adds it), so its pages must not ride in the eager bundle. See
@@ -25,6 +26,8 @@ const SiteEdit = lazyComponent('admin/SiteEdit', () => import("./pages/editSite"
 const NewSite = lazyComponent('admin/NewSite', () => import("./pages/createSite"));
 const ThemeList = lazyComponent('admin/ThemeList', () => import("./pages/themes/list"));
 const TenantsPage = lazyComponent('admin/TenantsPage', () => import("./pages/tenants"));
+const TenantOverviewPage = lazyComponent('admin/TenantOverviewPage', () => import("./pages/tenantOverview"));
+const SiteDomainsPage = lazyComponent('admin/SiteDomainsPage', () => import("./pages/siteDomains"));
 const ThemeEdit = lazyComponent('admin/ThemeEdit', () => import("./pages/themes/editTheme"));
 const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages/patternEditor"));
 //import ThemeManager from './pages/themeManager/index.jsx'
@@ -33,7 +36,7 @@ const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages
 // header band. Not the shared Layout's own TopNav — that's gated by a single
 // GLOBAL layout.options.topNav.size, so enabling it here would turn it on
 // for every page in the app, not just the admin pattern's own pages.
-const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants' };
+const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants', domains: 'domains' };
 const AdminBreadcrumb = ({ theme, baseUrl }) => {
   const location = useLocation();
   const { UI: contextUI } = React.useContext(ThemeContext) || {};
@@ -233,6 +236,27 @@ const adminConfig = ({
           },
           {
             type: (props) => (
+              // One tenant (design_system_v6/pages/admin-tenant-overview.html): opened from its name on
+              // Tenants; the domains card. Same gate as Tenants (pages/tenantOverview.jsx).
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
+                <TenantOverviewPage {...props} />
+              </SectionGroup>
+            ),
+            path: "tenants/:tenantId",
+            action: "edit",
+          },
+          {
+            type: (props) => (
+              // A tenant's own domains, on its host (design_system_v6/pages/admin-site-domains.html);
+              // manage-domains (pages/siteDomains.jsx). Reads and writes go to dms-server's /domains.
+              <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
+                <SiteDomainsPage {...props} />
+              </SectionGroup>
+            ),
+            path: "domains",
+          },
+          {
+            type: (props) => (
               <SectionGroup maxWidth="w-full" padding="p-0">
                 <ThemeEdit {...props} />
               </SectionGroup>
@@ -421,6 +445,12 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
     ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, authPermissions, MANAGE_TENANTS) ? [{
       name: "Tenants",
       path: `${baseUrl}/tenants`,
+      icon: 'Globe',
+    }] : []),
+    // A tenant's own domains: on a tenant host of the hub (a root domain set), pages/siteDomains.jsx.
+    ...(isMultiTenant && tenantSubdomain && getRootDomain() && siteCan(user, app, authPermissions, MANAGE_DOMAINS) ? [{
+      name: "Domains",
+      path: `${baseUrl}/domains`,
       icon: 'Globe',
     }] : []),
   ];

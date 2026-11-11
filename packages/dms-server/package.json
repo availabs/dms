@@ -44,6 +44,7 @@
     "test:migrate-dama-symbologies": "node tests/test-migrate-dama-symbologies.js",
     "test:storage": "node tests/test-storage.js",
     "test:sites": "node tests/test-sites.js",
+    "test:tenant-domains": "node tests/test-tenant-domains.js",
     "test:datatypes": "node tests/test-datatypes.js",
     "test:migrate-dama": "node tests/test-migrate-dama.js",
     "db:migrate-dama": "node src/scripts/migrate-dama-tasks.js",

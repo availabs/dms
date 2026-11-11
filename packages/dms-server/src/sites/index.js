@@ -118,7 +118,7 @@ function fileStamp(file) {
   }
 }
 
-function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
+function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000, aliasOf = null } = {}) {
   if (!sitesDir) throw new Error('createSitesMiddleware: sitesDir is required');
   sitesDir = path.resolve(sitesDir);
 
@@ -253,7 +253,10 @@ function createSitesMiddleware({ sitesDir, reloadIntervalMs = 1000 } = {}) {
   return function sitesMiddleware(req, res, next) {
     refresh();
     const host = normalizeHost(req.headers.host);
-    const match = resolveSite(host);
+    // `aliasOf` (index.js, the tenant hub): a host served as if it were another — a tenant's
+    // verified domain alias is served by the site that serves the hub's root domain.
+    const stand = aliasOf ? aliasOf(host) : null;
+    const match = resolveSite(host) || (stand ? resolveSite(normalizeHost(stand)) : null);
     if (!match) return next();
 
     res.set(SECURITY_HEADERS);

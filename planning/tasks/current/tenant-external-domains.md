@@ -90,7 +90,7 @@ sites use (`www.`, `hazardmitigation.`, `npmrds.devtny.org`, `*.localhost`, bare
 7. **Expect:** the login token is per host (`localStorage`), so signing in on `mny.availabs.com` doesn't
    carry to `albany.mny.availabs.com` — as on the original sites across their subdomains.
 
-### Phase B: domain aliases — DESIGN (mockup 2026-11-10)
+### Phase B: domain aliases — IN PROGRESS (design 2026-11-10, build started 2026-11-11)
 
 Netlify model (owner, 2026-11-10): every tenant gets a **default domain** from the hub
 (`<tenant>.availabs.com`), every subdomain pattern a default host under it (`<sub>.<tenant>.availabs.com`,
@@ -214,6 +214,92 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
     --add-host mercury.availabs.org:169.226.252.84 --add-host neptune.availabs.org:169.226.134.164
     --user $(id -u):$(id -g) --env-file $S/server.env -w $SRV -v $R:/repo:ro -v $S/configs:$SRV/src/db/configs:ro
     -v $S/server-var:$SRV/var -v $S/server-logs:$SRV/logs node:24-trixie-slim node --max-http-header-size=1048576 src/index.js`
+
+### Phase B progress (2026-11-11, branch `tenant-domains`, uncommitted)
+
+- [x] **Resolver (B2):** `utils/hostResolver.js` — `setDomainAliases(tenants)` (verified aliases only;
+  a domain two tenants claim goes to the first), `primaryDomainOf`, `isAliasCandidate`,
+  `resolveHost(host, root, aliases)` (alias step after the root-domain step; longest alias wins;
+  returns `alias`), `normalizeAliasDomain` / `aliasDomainProblem`. Tests: `hostResolver.test.js` 13.
+- [x] **Primary redirect, client fallback (B7):** `utils/primaryDomain.js` (`resolvePrimaryRedirect`,
+  `applyPrimaryDomainRedirect`); tests `primaryDomain.test.js` 4.
+- [x] **dmsSiteFactory:** registers the aliases from the root site's tenant rows before reading the
+  host; an alias candidate that matches no verified alias → "Domain … is not set up on this hub";
+  applies the primary redirect before building tenant routes; on an alias host the login project is
+  the tenant's app (`aliasProject` state in `DmsSite`; `PROJECT_NAME` passed to `pattern2routes`)
+  and the master-app cache is skipped.
+- [x] **Formats:** tenant format gets `aliases` (json) and `primary` (text); site `permissionDomain`
+  gets `manage-domains` (no fields). Not yet registered on the rig (`register-formats.js`).
+- [x] **Server (B4, B6, B7):**
+  - `utils/subdomain.js`: alias map (`setDomainAliasMap`), `primaryDomainOf`, `rootDomain()`;
+    `getSubdomain` reads the pattern subdomain on an alias origin.
+  - `routes/domains/store.js`: the hub site's linked tenant rows (cached 30 s, reloaded every 30 s,
+    pushes the map to `subdomain.js`); `writeTenant` goes through the Falcor controller
+    (`setDataById`: change_log + broadcast).
+  - `routes/domains/verify.js`: token = HMAC(`DMS_DOMAIN_TOKEN_SECRET` || `JWT_SECRET`, hub app +
+    tenant row id) — nothing stored; checks TXT `_dms-verify.<d>`, A `<d>`, A probe
+    `dms-wildcard-check.<d>` against `DMS_DOMAIN_TARGET_IPS` (else the root domain's A records);
+    `DMS_DOMAIN_DNS_SERVERS` for a test resolver. Verified once TXT + A pass, and stays verified.
+  - `routes/domains/index.js`: `GET /domains/:tenant`, `POST …/add|remove|primary|check`; hub
+    `manage-tenants` or the tenant's `manage-domains`; another tenant's domain → 409 "in use on this
+    hub"; writes serialized per tenant; hourly sweep re-checks pending aliases, drops them after 7 days.
+  - `utils/primaryRedirect.js` (mirror of the client's) mounted first in `index.js`: 301 for GET/HEAD
+    asking for HTML only.
+  - `sites/index.js` `aliasOf`: a verified alias host is served by the site serving the root domain.
+  - Test: `tests/test-tenant-domains.js` (no DB, fake DNS) 11/11; `npm run test:tenant-domains`.
+- [x] **UI:** `components/domainsCard.jsx` (+ `.theme.js`, registered as `admin.domainsCard`): default
+  domain row, alias rows (DNS pill, primary tag, make primary, remove), records panel while unverified
+  or failing (TXT `_dms-verify`, A `@`, CNAME `*` → default domain), check now, add field; all calls
+  to `/domains/:tenant`. Pages: `pages/tenantOverview.jsx` (`/list/tenants/:tenantId`, root,
+  manage-tenants; header + domains card) and `pages/siteDomains.jsx` (`/list/domains`, tenant host,
+  manage-domains; header + stats + card). Sidenav "Domains" (admin and auth menus) on a tenant host
+  with a root domain. Tenant names on Tenants link to the overview. `MANAGE_DOMAINS` in
+  `utils/adminPermissions.js`. Not ported yet from the overview mockup: name editing, the
+  pattern-subdomains card, the danger zone; the tenants table's `domains` column.
+- [x] **Fix, pre-existing (found here):** `dms-manager/wrapper.jsx` memoized the page on `[data, item]`,
+  so a user who arrived after the route's data never reached it: on a tenant host (routes built once)
+  every admin page kept the localStorage seed user (`groups: ['public']`) for good — no Domains entry,
+  no Sites for an admin. Now `[data, item, user]`. Root hosts hid it by rebuilding routes after login.
+- [x] **Rig live check (2026-11-11):**
+  - Test DNS server: `scratchpad/tenant-hub/dns/dns.mjs` in container `dms-hub-local-dns` (network
+    `dms-hub-local`, `172.18.0.4:5353`, answers from `dns/records.json`). `server.env` +=
+    `DMS_DOMAIN_DNS_SERVERS=172.18.0.4:5353`, `DMS_DOMAIN_TARGET_IPS=127.0.0.1`. Vite :5562 config
+    (`vite.hub.config.mjs`) now `allowedHosts: true`, bound to 127.0.0.1; browser maps `*.test` with
+    `--host-resolver-rules`. Scripts: `dns/api.sh`, `phaseb.mjs`, `probe2.mjs`, `probe3.mjs`.
+  - Rig data/users added for the check: user `mny-domains@local.test` (password as the other rig users)
+    in new group `mny Domain Admins` (project mny); mny's site row (566430) got
+    `authPermissions = {"*": {groups: {"mny Domain Admins": ["manage-domains"]}}}` (it had none — this
+    also changes what other users see on mny's admin; revert by removing the key). Tenant row 2903392
+    now carries aliases `devmny.test` (verified, primary) and `mitigateny.test` (pending).
+  - API: add → pending with the problem text and the records; another tenant adding it → 409 "in use
+    on this hub"; invalid / www / under-root / duplicate → 400; primary before verified → 400; TXT
+    right + A elsewhere → pending "points at 192.0.2.9, not the hub"; all records → verified; primary
+    set; change_log rows written. hub-member → 403; `mny-domains` → 200 on mny, 403 on tny; add +
+    remove as tenant admin.
+  - Server redirect (Host headers, Accept html): `mny.localhost` → 301 `devmny.test`;
+    `albany.mny.localhost/plan?x=1` → `albany.devmny.test/plan?x=1`; `/list/domains` on the default
+    domain, `devmny.test`, `tny`, root, and API calls not redirected.
+  - Browser: `mny.localhost` → `devmny.test` (client fallback), mny home renders there;
+    `albany.mny.localhost` → `albany.devmny.test`; `mny.localhost/list` stays; `nope.test` → "Domain
+    "nope.test" is not set up on this hub". Login on `devmny.test` posts `project: "mny"`.
+    `/list/domains` renders for `mny-domains` (after the wrapper fix).
+  - **Slow pages on the rig** (17–45 s) are the snapshot flood
+    ([auth-snapshot-reload-on-miss.md](./auth-snapshot-reload-on-miss.md)): Postgres at 100% on the
+    snapshot query during every mny/tny load. It now reproduces on every cold load.
+- [x] **Root tenant overview checked in the browser (staff):** `localhost:5562/list/tenants/2903392`
+  shows MitigateNY, primary devmny.test, the three domain rows and the pending alias's records; the
+  tenant side `devmny.test:5562/list/domains` (as `mny-domains`) the same card with the Domains
+  sidenav entry. Fixes found on the way: the overview read `useParams()` (empty inside DMS routes: the
+  manager matches its own paths) → the `params` prop; the records grid used `t-meta*`, which
+  uppercases, and the TXT token is case-sensitive → mono, unchanged case. Screenshots
+  `scratchpad/tenant-hub/shots/phaseb-tenant-overview.png`, `phaseb-tenant-domains.png`.
+  Add / remove / make primary / check now were exercised through the API, not by clicking.
+- [x] Docs: `dms-server-env.md` + `.env.example` rows for `DMS_DOMAIN_TOKEN_SECRET`,
+  `DMS_DOMAIN_TARGET_IPS`, `DMS_DOMAIN_DNS_SERVERS`.
+- [ ] Mockups: mirror what was built (records name/value layout, the tenant overview's partial port).
+- [ ] Not built yet: SSR handler cache vs alias changes (per-host cache keeps an old map until it
+  expires); `www.<alias>` is served as the alias root, not redirected; a verified alias whose DNS later
+  moves away stays verified (only shown); formats not re-registered on the rig.
 
 ## Testing checklist
 

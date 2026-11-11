@@ -6,7 +6,8 @@ import DefaultMenu from "./components/menu"
 import authFormat from "./auth.format.js";
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
-import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
+import { getRootDomain } from "../../utils/hostResolver";
 import { adminNavOptions } from "../../utils/userMenus";
 import { setAuthRequestScope } from "./api";
 import OpenAuthWarning from "./components/OpenAuthWarning";
@@ -263,6 +264,12 @@ const manageAuthConfig = ({
         ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
             name: 'Tenants',
             path: `${adminPath}/tenants`,
+            icon: 'Globe'
+        }] : []),
+        // A tenant's own domains, on a tenant host of the hub (admin pages/siteDomains.jsx).
+        ...(isMultiTenant && tenantSubdomain && getRootDomain() && siteCan(user, app, adminAuthPermissions, MANAGE_DOMAINS) ? [{
+            name: 'Domains',
+            path: `${adminPath}/domains`,
             icon: 'Globe'
         }] : []),
         // {

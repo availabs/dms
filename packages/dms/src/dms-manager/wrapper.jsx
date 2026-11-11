@@ -176,7 +176,10 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		  // --status={status}
 
 		/>
-	),[data,item])
+	// `user` too: on a cold load the route's data can land before AuthProvider has the real user
+	// (the localStorage seed has only `public`), and without it the page kept the seed for good —
+	// found on tenant hosts of the hub, where routes are built once (tenant-external-domains.md).
+	),[data,item,user])
 
 	if (!loaderResult) return null;
 	return rendered;

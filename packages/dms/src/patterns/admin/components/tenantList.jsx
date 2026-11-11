@@ -68,7 +68,10 @@ export function TenantList({
 			Comp: (d) => (
 				<div className={t.tenantNameCell}>
 					<div>
-						<span className={t.tenantName}>{d.row.name || d.row.subdomain}</span>
+						{d.row.isRoot
+							? <span className={t.tenantName}>{d.row.name || d.row.subdomain}</span>
+							// the tenant's overview (pages/tenantOverview.jsx): its domains
+							: <Link to={`${baseUrl}/tenants/${d.row.id}`} className={t.tenantNameLink}>{d.row.name || d.row.subdomain}</Link>}
 						{d.row.isRoot && <span className={t.rootPill}>root</span>}
 					</div>
 					<p className={t.tenantSubline}>app {d.row.app || '—'} · id {d.row.id}</p>

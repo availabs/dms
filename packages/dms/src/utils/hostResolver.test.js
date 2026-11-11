@@ -68,3 +68,63 @@ describe('legacy reading and helpers', () => {
         expect(newPatternSubdomain('npmrds.devtny.org')).toBe('npmrds');
     });
 });
+
+import { setDomainAliases, primaryDomainOf, isAliasCandidate, aliasDomainProblem, normalizeAliasDomain } from './hostResolver';
+
+describe('domain aliases', () => {
+    afterEach(() => setDomainAliases([]));
+    const tenants = [
+        { subdomain: 'mny', primary: 'devmny.org', aliases: [{ domain: 'devmny.org', status: 'verified' }, { domain: 'mitigateny.org', status: 'pending' }] },
+        { subdomain: 'tny', aliases: [{ domain: 'transportny.org', status: 'verified' }, { domain: 'npmrds.transportny.org', status: 'verified' }] },
+        { subdomain: 'zz', aliases: [{ domain: 'devmny.org', status: 'verified' }] }, // a second claim never wins
+    ];
+
+    it('reads a verified alias and its subdomains as the tenant', () => {
+        setDomainAliases(tenants);
+        const r = 'availabs.com';
+        expect(resolveHost('devmny.org', r)).toEqual({ tenant: 'mny', patternSubdomain: '', tenantHost: 'devmny.org', alias: 'devmny.org' });
+        expect(resolveHost('Albany.DevMNY.org:8080', r)).toEqual({ tenant: 'mny', patternSubdomain: 'albany', tenantHost: 'devmny.org:8080', alias: 'devmny.org' });
+        expect(resolveHost('www.devmny.org', r)).toMatchObject({ tenant: 'mny', patternSubdomain: '' });
+        // the longest alias wins
+        expect(resolveHost('npmrds.transportny.org', r)).toMatchObject({ tenant: 'tny', patternSubdomain: '', alias: 'npmrds.transportny.org' });
+        expect(resolveHost('x.transportny.org', r)).toMatchObject({ tenant: 'tny', patternSubdomain: 'x', alias: 'transportny.org' });
+    });
+
+    it('never serves an unverified alias, a lookalike, or without a root domain', () => {
+        setDomainAliases(tenants);
+        expect(resolveHost('mitigateny.org', 'availabs.com')).toBe(null);
+        expect(resolveHost('notdevmny.org', 'availabs.com')).toBe(null);
+        expect(resolveHost('devmny.org', '')).toBe(null);
+        // root-domain hosts are unchanged
+        expect(resolveHost('albany.mny.availabs.com', 'availabs.com')).toEqual({ tenant: 'mny', patternSubdomain: 'albany', tenantHost: 'mny.availabs.com' });
+    });
+
+    it('primary is a verified alias of that tenant, or nothing', () => {
+        setDomainAliases([...tenants, { subdomain: 'q', primary: 'mitigateny.org' }]);
+        expect(primaryDomainOf('mny')).toBe('devmny.org');
+        expect(primaryDomainOf('tny')).toBe('');
+        expect(primaryDomainOf('q')).toBe('');
+    });
+
+    it('alias candidates', () => {
+        setRootDomain('availabs.com');
+        expect(isAliasCandidate('devmny.org')).toBe(true);
+        expect(isAliasCandidate('a.devmny.org:443')).toBe(true);
+        for (const h of ['availabs.com', 'mny.availabs.com', 'mny.localhost:5562', 'localhost', '127.0.0.1:5562']) expect(isAliasCandidate(h)).toBe(false);
+        setRootDomain('');
+        expect(isAliasCandidate('devmny.org')).toBe(false);
+    });
+
+    it('validates a domain to add', () => {
+        expect(normalizeAliasDomain(' https://DevMNY.org/x ')).toBe('devmny.org');
+        expect(aliasDomainProblem('devmny.org', 'availabs.com')).toBe('');
+        expect(aliasDomainProblem('sub.devmny.org', 'availabs.com')).toBe('');
+        expect(aliasDomainProblem('', 'availabs.com')).toMatch(/Enter/);
+        expect(aliasDomainProblem('nodot', 'availabs.com')).toMatch(/valid/);
+        expect(aliasDomainProblem('-bad.org', 'availabs.com')).toMatch(/valid/);
+        expect(aliasDomainProblem('1.2.3.4', 'availabs.com')).toMatch(/IP/);
+        expect(aliasDomainProblem('www.devmny.org', 'availabs.com')).toMatch(/www/);
+        expect(aliasDomainProblem('x.availabs.com', 'availabs.com')).toMatch(/hub/);
+        expect(aliasDomainProblem('a.localhost', 'availabs.com')).toMatch(/public/);
+    });
+});
