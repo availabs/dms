@@ -202,3 +202,47 @@ pgEnv's `settings.mirror_apps`, the one write the reconcile makes to the pgEnv. 
 server's pgEnvs (the tenant hub reads production's, read-only): registered there, the owning server's hooks would
 mirror the app into the owning server's own DMS database. Such a mirror is kept current only by re-running the
 reconcile. Used by the hub runbook (`planning/shared/tasks/completed/tenant-hub-server.md`, step 6c).
+
+## Bug found 2026-11-11 (ssangdod@albany.edu): mirror views resolved to the wrong source where there is no `parent_id` column
+
+- **Where:** any table without the `parent_id` column, which is production today (no `mitigat-ny-prod` /
+  `npmrdsv5` schema has it; `row-auth-production-cutover.md` hasn't run). The controller drops the `parent_id`
+  the reconcile sends, so the auth walk (`owners.parentOf`) falls back to the type path, and a view's type
+  names its source by SLUG (`{source slug}|v{view_id}:view`). Source names repeat: `hazmit_dama` has 13,552
+  sources and 834 distinct slugs, so the walk took the newest source of that name.
+- **Measured on the 2026-11-11 garage backup** (production's own `mitigat-ny-prod` mirror, copied as the hub's
+  `mny`): of 14,038 mirror views, **13,175 resolved to another source, 4,060 of them to one with different
+  grants**. A view read was judged under the wrong source's grants (no effect while `DMS_AUTH_MODE=log`).
+- **Fix (dms `routes/auth/owners.js` `parentOf`):** when no `parent_id` is stamped, a mirror view
+  (`data.pgEnv` + `data.view_id` + `data.source_id`) goes to its source by the mirror's identity through the
+  snapshot's existing `external` index. A stamped `parent_id` still wins. After it: 14,038 / 14,038 (and
+  15,284 / 15,284 per hub tenant with npmrds2 added). Test: `test-pgenv-mirror.js`, "two sources with the
+  same name …" (a table without the column; fails without the fix).
+- **Not a fix:** running `migrate-row-auth.js --add-columns` later. Its type-path pass skips ambiguous names, so
+  these rows stay without `parent_id`, and with the fix they don't need it.
+- **Concrete case** (2026-11-11 backup; same rows on production since the 11-07 reconcile). Two `hazmit_dama`
+  sources are both named "SHMP to LHMP Launch Map", so both mirrors are typed
+  `hazmit_dama|shmp_to_lhmp_launch_map:source`:
+  - row 2902677, `source_id` 12891: `{"users":{"656":["*"]},"groups":{"AVAIL":["*"],"public":[]}}` (not public)
+  - row 2908021, `source_id` 2000: `{"groups":{"AVAIL":["*"],"public":["view-source"]}}` (public)
+
+  View row 2929709 is `shmp_to_lhmp_launch_map|v13633:view` with `data.source_id` 12891, but the type path picks
+  the newest row of that slug, 2908021 (source 2000). So under `enforce` an anonymous user could read view 13633
+  of the non-public source 12891. Read-only check on production:
+
+  ```sql
+  SELECT id, type, data->>'source_id' AS source_id, data->'auth_permissions' AS grants
+  FROM dms_mitigat_ny_prod.data_items
+  WHERE type = 'shmp_to_lhmp_launch_map|v13633:view' OR type LIKE '%|shmp_to_lhmp_launch_map:source'
+  ORDER BY id;
+  ```
+- **Ids are sound.** Production's mirror against production's `data_manager` (2026-11-11): 13,552 / 13,552
+  sources and 14,038 / 14,038 views present, names equal, every view's `source_id` equal to the pgEnv's, no
+  duplicates, nothing unmirrored. The stored `(pgEnv, source_id)` / `(pgEnv, view_id)` can be trusted; only
+  the type path is wrong.
+- **Each external source is listed twice on the list page, and that is kept on purpose (owner, 2026-11-11).**
+  `getSiteSources` (uda/utils.js) lists the site's mirrors in its catalog (`app+…` env) beside the internal
+  sources, and the client still lists each pgEnv's own sources (`uda[hazmit_dama].sources`) too. Not a bug.
+- **The fix, measured on the 2026-11-11 backup of production:** with `parentOf` reading `(pgEnv, source_id)`,
+  all 14,038 views resolve to their own source (before: 13,175 wrong, 4,060 with different grants), and all
+  13,552 sources to their own pgEnv row.

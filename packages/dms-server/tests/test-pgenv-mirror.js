@@ -159,6 +159,34 @@ async function run() {
     mirror.forgetMirrorApps();
   });
 
+  console.log('a table without parent_id (production today; the tenant hub):');
+  await t('two sources with the same name: each view resolves to its OWN source; register: false writes nothing to the pgEnv', async () => {
+    const owners = require('../src/routes/auth/owners');
+    const APP2 = `mirror_nocol_${Date.now()}`;
+    await dmsMainTable(dms, APP2, 'per-app');   // no parent_id column added: the controller drops the stamp
+    const ins2 = async (type, data) => +(await ctl.createData([APP2, type, data], null))[0].id;
+    const s = await ins2('site:site', { site_name: 'S2' });
+    await ins2('site|extenv:dmsenv', { name: 'extenv', pgEnv: DAMA_DB, sources: [], parent_id: s });
+    const twinA = await raw('twin', { groups: { A: ['view-source'] }, users: {} });
+    const twinB = await raw('twin', { groups: { B: ['view-source'] }, users: {} });
+    const va = await rawView(twinA, 'a'); const vb = await rawView(twinB, 'b');
+    cleanup.sources.push(twinA, twinB);
+    const before = await mirror.mirrorAppsOf(DAMA_DB);
+    mirror.forgetMirrorApps();
+    await mirror.reconcile({ app: APP2, pgEnv: DAMA_DB, apply: true, register: false });
+    mirror.forgetMirrorApps();
+    assert.deepStrictEqual(await mirror.mirrorAppsOf(DAMA_DB), before, 'mirror_apps unchanged');
+    owners.clearSnapshots();
+    const snap = await owners.appSnapshot(APP2, { fresh: true });
+    for (const [viewId, sourceId] of [[va, twinA], [vb, twinB]]) {
+      const view = snap.external.get(`v:${DAMA_DB}:${viewId}`);
+      assert.ok(view, `view ${viewId} mirrored`);
+      assert.strictEqual(view.parent_id, null, 'no column: no stamp');
+      const p = owners.parentOf(snap, view);
+      assert.ok(p && +p.data.source_id === +sourceId, `view ${viewId} → source ${p && p.data.source_id}, expected ${sourceId}`);
+    }
+  });
+
   // cleanup
   for (const id of cleanup.sources) { await dama.query(`DELETE FROM ${viewTbl} WHERE source_id = $1`, [id]); await dama.query(`DELETE FROM ${srcTbl} WHERE source_id = $1`, [id]); }
   console.warn = warn;

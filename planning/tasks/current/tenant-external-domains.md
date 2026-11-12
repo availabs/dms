@@ -296,6 +296,10 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
   Add / remove / make primary / check now were exercised through the API, not by clicking.
 - [x] Docs: `dms-server-env.md` + `.env.example` rows for `DMS_DOMAIN_TOKEN_SECRET`,
   `DMS_DOMAIN_TARGET_IPS`, `DMS_DOMAIN_DNS_SERVERS`.
+- **Rig rebuilt 2026-11-11** from the 2026-11-11 garage backups (copy script `--no-root-subdomain-rewrite`, so
+  no un-rewrite step; template `hub_copied_1111`), plus the pgEnv mirror (hub runbook step 6c). The Phase B rig
+  data above is GONE: mny's aliases, the `mny-domains@local.test` user, the `mny Domain Admins` group and the
+  site-row grant. Re-create them before the next Phase B browser check. Tenant row ids changed.
 - [ ] Mockups: mirror what was built (records name/value layout, the tenant overview's partial port).
 - [ ] Not built yet: SSR handler cache vs alias changes (per-host cache keeps an old map until it
   expires); `www.<alias>` is served as the alias root, not redirected; a verified alias whose DNS later

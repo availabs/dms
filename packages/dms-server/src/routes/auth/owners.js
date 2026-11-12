@@ -220,6 +220,13 @@ function parentOf(snap, row) {
   if (!row) return null;
   if (row.parent) return row.parent;
   if (row.parent_id != null && snap.byId.has(String(row.parent_id))) return snap.byId.get(String(row.parent_id));
+  // A pgEnv mirror's view names its source by SLUG in its type, and source names repeat (hazmit_dama:
+  // 13,552 sources, 834 slugs), so the type path picks the wrong source for most views. The mirror's own
+  // identity, `(pgEnv, source_id)`, names it exactly; used until `parent_id` is stamped on the row.
+  if (row.data.pgEnv && row.data.view_id != null && row.data.source_id != null) {
+    const src = snap.external.get(`s:${row.data.pgEnv}:${row.data.source_id}`);
+    if (src) return src;
+  }
   if (!row.parentKey) return row.kind === 'site' ? null : snap.site;
   return (snap.byInstance.get(row.parentKey) || []).find(r => r !== row && r.kind !== row.kind) || null;
 }
