@@ -667,7 +667,15 @@ const CardColumnField = ({
                                                  componentWrapperClassName={theme.componentWrapper}
                                     />
                                 </a> :
-                                <Link className={linkClass} style={linkStyle} to={url}>
+                                <Link className={linkClass} style={linkStyle} to={url}
+                                      // An in-page anchor (`location: '#playlists'`) scrolls to the
+                                      // element with that id (a section's `anchorId`) instead of
+                                      // navigating: the router would rewrite the URL and could drop
+                                      // the page's search params on the way.
+                                      onClick={typeof location === 'string' && location.startsWith('#') ? (e) => {
+                                          e.preventDefault();
+                                          document.getElementById(location.slice(1))?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                                      } : undefined}>
                                     <CompWrapper attribute={attr}
                                                  value={linkText || valueFormattedForDisplay}
                                                  rawValue={valueFormattedForEdit}
@@ -1001,7 +1009,7 @@ export default function Card ({
 
     const {
         cardsGridSize, cardsGridGap, cardsGridPadding, cardsPadding, cardsBgColor, cardsVerticalAlign,
-        cardsRadius, cardsBorderColor,
+        cardsRadius, cardsBorderColor, cardsMinWidth, cardsAutoFit,
         cellsGridSize, cellsGridGap, cellsRowGap, cellsColumnGap, cellsRowHeight, cellsPadding,
         cellsVerticalAlign, cellsTracksTemplate, cellsRowsTemplate,
         cardBorder, cellBorder,
@@ -1036,10 +1044,10 @@ export default function Card ({
     const packMode = resolveCardsPackMode({ cardsVerticalAlign, layoutModelV2 });
     const mainWrapperStyle = useMemo(
         () => resolveCardsGridStyle({
-            display: { cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign },
+            display: { cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign, cardsMinWidth, cardsAutoFit },
             imageTopMargin, layoutModelV2,
         }),
-        [cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign, imageTopMargin, layoutModelV2]);
+        [cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign, cardsMinWidth, cardsAutoFit, imageTopMargin, layoutModelV2]);
 
     // Cells grid (inner, per-record): cells laid out across the card.
     // Default falls back to one cell per visible column. `display: grid` is

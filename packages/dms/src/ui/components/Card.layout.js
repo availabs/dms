@@ -40,12 +40,33 @@ export const resolveCardsPackMode = ({ cardsVerticalAlign, layoutModelV2 }) =>
         : (cardsVerticalAlign === 'top' ? 'top' : 'stretch');
 
 // Outer cards grid (records spread across the section).
+// Cards-grid tracks. Default: exactly `cardsGridSize` equal columns at every width (an inline
+// style, so NOT responsive). `cardsMinWidth` (px) opts into the responsive form: AT MOST
+// `cardsGridSize` columns, each never narrower than cardsMinWidth, so a 4-up tile row becomes 2-up
+// on a tablet and 1-up on a phone with no breakpoint (the Card's own width decides). It is the
+// classic capped auto-fill: a track's minimum is the larger of cardsMinWidth and the width N
+// columns would get, so auto-fill can never fit more than N. `min(100%, …)` keeps one card from
+// overflowing a box narrower than cardsMinWidth.
+//
+// `cardsAutoFit` (with cardsMinWidth) switches auto-fill to auto-fit: the empty tracks
+// collapse, so FEWER records than columns grow to fill the row (one event spans the
+// whole card instead of sitting in a third of it). Off, a short row keeps its column
+// widths, which is what a gallery wants.
+export function resolveCardsGridTracks({ cardsGridSize, cardsGridGap, cardsMinWidth, cardsAutoFit } = {}) {
+    const n = Math.max(1, +cardsGridSize || 1);
+    const min = +cardsMinWidth;
+    if (!(min > 0)) return `repeat(${n}, minmax(0, 1fr))`;
+    const gap = +cardsGridGap || 0;
+    const perCol = `calc((100% - ${(n - 1) * gap}px) / ${n})`;
+    return `repeat(${cardsAutoFit ? 'auto-fit' : 'auto-fill'}, minmax(min(100%, max(${min}px, ${perCol})), 1fr))`;
+}
+
 export function resolveCardsGridStyle({ display = {}, imageTopMargin, layoutModelV2 }) {
-    const { cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign } = display;
+    const { cardsGridSize, cardsGridGap, cardsGridPadding, cardsVerticalAlign, cardsMinWidth, cardsAutoFit } = display;
     const packCardsTop = resolveCardsPackMode({ cardsVerticalAlign, layoutModelV2 }) === 'top';
     return {
         display: 'grid',
-        gridTemplateColumns: `repeat(${cardsGridSize || 1}, minmax(0, 1fr))`,
+        gridTemplateColumns: resolveCardsGridTracks({ cardsGridSize, cardsGridGap, cardsMinWidth, cardsAutoFit }),
         gap: cardsGridGap,
         // Padding on the OUTER cards grid — the whole list's inset from its
         // box (vs `cardsPadding`, which pads inside EACH per-card surface).

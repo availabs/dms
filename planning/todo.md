@@ -10,6 +10,7 @@
 
 ## themes
 
+- [ ] [Card `cardsMinWidth` + datasets list reads `?search=`](./tasks/current/card-cards-min-width-and-datasets-search-param.md) — built 2026-11-08 for the NYDOS Gateway home page: optional auto-fit card grids (4-up → 1-up on phones; unset = unchanged) and a `?search=` prefill on the datasets list. Tests green; awaiting commit + deploy.
 - [x] [Query builder drops blank `gt/gte/lt/lte` leaves](./tasks/completed/blank-comparison-leaf-guard.md) — DONE 2026-09-13. A page-variable range leaf fed "" before its control wrote the variable compiled to `col >= ''`, a Postgres type error swallowed as "Error getting length". Same blank-value guard the filter/like ops already had.
 - [x] [Card `allowDelete` + themeable form action row](./tasks/completed/card-allow-delete-and-form-action-row.md) — DONE 2026-09-12. The dataWrapper/API/server already deleted rows; the Card had no button. Now `display.allowDelete` renders a two-step Delete on each record (with `closeModalOnDelete` + a `delete_publish` provider), and save/cancel/add/delete take theme classes; the action-row wrappers span the card so right-aligned means the card's edge.
 - [ ] [Card `closeModalOnSave` + `save_publish`](./tasks/current/card-close-modal-on-save.md): form-save twins of the delete hooks, so an edit modal saves, closes, and refreshes its list. First consumer is wcdb Edit role.
@@ -272,6 +273,8 @@
 
 ## ui
 
+- [x] [The Lexical editor's text box has no accessible name](./tasks/current/lexical-editor-aria-label.md): BUILT 2026-11-09, an `ariaLabel` prop on `Editor` → `aria-label` on the content-editable; the chat composer passes its placeholder.
+- [x] [`PLAYGROUND_TRANSFORMERS` throws on import: `TWEET` listed but not defined](./tasks/current/markdown-transformers-tweet-reference.md): BUILT 2026-11-09, one commented line; found by the chat Slack importer, the module's first importer.
 - [x] [BarGraph Scale Filter: log-spaced stops, value labels, design pass](./tasks/completed/bargraph-scale-filter-log-stops.md): DONE 2026-10-06. Max plus three log-spaced stops (1/2/5 × 10ⁿ) between the tallest and the smallest positive bar, each labelled with the value it crops to. On the county template that gives Max $332M · $20M · $2M · $100K, where it used to be 75/50/5%. Charts under a 10× spread get no control. Bars over a Domain Max are clipped with a torn edge. Styled by new optional `scaleFilter*` avlGraph tokens; untokened themes keep the old grey control, and the legacy `scaleWrapper`/`scaleItem` copies stay unread. The `mny` theme uses mockup direction A (`src/themes/mny/design/pages/lhmp/scale-filter.html`). 35 new tests.
 
 ### ui/theming

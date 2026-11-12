@@ -10,7 +10,7 @@ import {ContentEditable} from '@lexical/react/LexicalContentEditable';
 import * as React from 'react';
 
 export default function LexicalContentEditable(props) {
-  const { className,editor } = props
+  const { className, editor, ariaLabel } = props
   const theme = editor?._config?.theme || {}
-  return <ContentEditable className={className || theme?.contentEditable} />;
+  return <ContentEditable className={className || theme?.contentEditable} aria-label={ariaLabel || undefined} />;
 }
