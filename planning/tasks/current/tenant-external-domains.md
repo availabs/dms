@@ -354,7 +354,13 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
   - Mirror rows with the parentage fix (dms `8e764fd1`): mny and tny, 15,284 / 15,284 views and 14,013 /
     14,013 sources resolve to their own row. `authorize` read of hazmit_dama view 13633 (source 12891, not
     public) for anonymous and a `mny Public` member: deny; with the pre-fix `owners.js`: ALLOW for both.
-- [ ] Mockups: mirror what was built (records name/value layout, the tenant overview's partial port).
+- [x] **Mockups synced (2026-11-11)** (`src/themes/tessera/design_system_v6/pages/`):
+  `admin-tenant-overview.html` and `admin-site-domains.html`: records grid as built (mono, case kept,
+  `minmax(0,1fr)`), the check's problem line (amber), "removed after 7 days" note, the default domain's "the admin
+  at /list stays here"; overview: identity, pattern-subdomains and danger zone marked NOT BUILT, danger zone
+  reworded to DELETE (backup first, subdomain freed). `admin-tenants.html`: Remove → Delete dialog as built
+  (plan list, typed confirm, Delete disabled until it matches), note under the table. Checked rendered
+  (`scratchpad/tenant-hub/shots/mock-*.png`).
 - [x] **SSR route cache vs domain changes (2026-11-11).** The production SSR handler (`render/ssr2/handler.jsx`)
   cached each host's routes until a restart (its `invalidateRoutes` had no caller), so on the live hub an alias
   host first hit before verification kept "not set up", and a removed alias kept serving. Now
