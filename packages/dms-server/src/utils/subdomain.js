@@ -33,6 +33,8 @@ function resolveHost(host, rootDomain, aliases = ALIASES) {
   if (!root || !host) return null;
   const hostname = `${host}`.toLowerCase().split(':')[0];
   const blankWww = (l) => (l === 'www' ? '' : l);
+  // a pattern subdomain drops a leading `www` label: `www.albany` → `albany` (mirror of the client's patternSub)
+  const patternSub = (sub) => sub.replace(/^www(\.|$)/, '');
   let labels;
   if (hostname === root) labels = [];
   else if (hostname.endsWith(`.${root}`)) labels = hostname.slice(0, -(root.length + 1)).split('.');
@@ -43,10 +45,10 @@ function resolveHost(host, rootDomain, aliases = ALIASES) {
       if ((hostname === d || hostname.endsWith(`.${d}`)) && d.length > alias.length) alias = d;
     }
     if (!alias) return null;
-    return { tenant: aliases.get(alias), patternSubdomain: blankWww(hostname === alias ? '' : hostname.slice(0, -(alias.length + 1))), alias };
+    return { tenant: aliases.get(alias), patternSubdomain: patternSub(hostname === alias ? '' : hostname.slice(0, -(alias.length + 1))), alias };
   }
   const tenant = blankWww(labels.length ? labels[labels.length - 1] : '');
-  const patternSubdomain = tenant ? blankWww(labels.slice(0, -1).join('.')) : '';
+  const patternSubdomain = tenant ? patternSub(labels.slice(0, -1).join('.')) : '';
   return { tenant, patternSubdomain };
 }
 
@@ -57,6 +59,8 @@ function getSubdomain(req) {
   const raw = hostOf(req);
   const resolved = resolveHost(raw, rootDomain());
   if (resolved) return resolved.patternSubdomain;
+  // the legacy single-label reading: hand mirror of the client's utils/hostResolver.js legacySplit (with
+  // its development reading, as the client router's getSubdomain); keep the two in step
   const hostname = raw.split(':')[0];
   const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
   const minParts = isLocalhost || process.env.NODE_ENV === 'development' ? 2 : 3;

@@ -39,7 +39,7 @@ describe('resolveHost', () => {
     });
 });
 
-import { legacyFirstLabel, hostTenant, newPatternSubdomain } from './hostResolver';
+import { legacyFirstLabel, legacyBaseHost, legacySplit, hostTenant, newPatternSubdomain } from './hostResolver';
 
 describe('legacy reading and helpers', () => {
     it('legacyFirstLabel matches the old inline copies', () => {
@@ -50,6 +50,22 @@ describe('legacy reading and helpers', () => {
         expect(legacyFirstLabel('albany.mny.availabs.com')).toBe('albany');
         expect(legacyFirstLabel('74.50.76.166')).toBe('');
         expect(legacyFirstLabel('')).toBe('');
+    });
+
+    it('legacyBaseHost: the host minus its label, port kept; unchanged with none or on a bare IP', () => {
+        expect(legacyBaseHost('tsmo2.devtny.org')).toBe('devtny.org');
+        expect(legacyBaseHost('npmrds.localhost:5173')).toBe('localhost:5173');
+        expect(legacyBaseHost('devtny.org')).toBe('devtny.org');
+        expect(legacyBaseHost('localhost:5173')).toBe('localhost:5173');
+        expect(legacyBaseHost('74.50.76.166')).toBe('74.50.76.166');
+        expect(legacyBaseHost('74.50.76.166:8080')).toBe('74.50.76.166:8080');
+        expect(legacyBaseHost('')).toBe('');
+    });
+
+    it('legacySplit anyHostTwoLabels: the router\'s development reading', () => {
+        expect(legacySplit('devtny.org').label).toBe('');
+        expect(legacySplit('devtny.org', { anyHostTwoLabels: true })).toEqual({ label: 'devtny', base: 'org' });
+        expect(legacySplit('74.50.76.166', { anyHostTwoLabels: true }).label).toBe('');
     });
 
     it('hostTenant / newPatternSubdomain: legacy without a root domain', () => {

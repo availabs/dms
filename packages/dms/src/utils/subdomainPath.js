@@ -1,4 +1,4 @@
-import { resolveHost } from './hostResolver';
+import { resolveHost, legacyBaseHost } from './hostResolver';
 
 // Cross-subdomain link scheme: `sub://<subdomain>/<path>` resolves against the
 // CURRENT host's base domain at click/render time, so one authored value works in
@@ -16,19 +16,14 @@ import { resolveHost } from './hostResolver';
 // second consumer arrived.
 // The host minus its subdomain label — `tsmo2.devtny.org` → `devtny.org`,
 // `npmrds.localhost:5173` → `localhost:5173`, `devtny.org` → `devtny.org`
-// (nothing to strip). Single-depth, mirroring getSubdomain; the port rides along.
+// (nothing to strip), a bare IPv4 host unchanged. Single-depth (hostResolver.js legacySplit); the port rides along.
 // Second consumer since 2026-08-27: the retired-subdomain redirect
 // (utils/retiredSubdomain.js) needs the same base to build its target host.
 export function getBaseHost(host) {
   // On the tenant hub (a root domain set) the base is the tenant's host, so
   // `sub://albany` on mny.<root> goes to albany.mny.<root> (utils/hostResolver.js).
   const resolved = resolveHost(host);
-  if (resolved) return resolved.tenantHost;
-  const hostname = `${host || ''}`.split(':')[0];
-  const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-  const minParts = isLocalhost ? 2 : 3;
-  const parts = hostname.split('.');
-  return parts.length >= minParts ? host.slice(host.indexOf('.') + 1) : host;
+  return resolved ? resolved.tenantHost : legacyBaseHost(host);
 }
 
 export function resolveSubdomainPath(path) {

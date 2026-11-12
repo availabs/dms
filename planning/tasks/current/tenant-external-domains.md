@@ -300,9 +300,63 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
   no un-rewrite step; template `hub_copied_1111`), plus the pgEnv mirror (hub runbook step 6c). The Phase B rig
   data above is GONE: mny's aliases, the `mny-domains@local.test` user, the `mny Domain Admins` group and the
   site-row grant. Re-create them before the next Phase B browser check. Tenant row ids changed.
+- [x] **Rig data re-created and checked again (2026-11-11, after the rebuild):**
+  - `hub_auth_work`: users `hub-staff@local.test` (`AVAIL`), `hub-member@local.test` (`mny Public`,
+    `tny Public`), `mny-domains@local.test` (new group `mny Domain Admins`, project mny), password `hubtest123`.
+    mny's site row 566430 now HAS grants from the backup; `"mny Domain Admins": ["manage-domains"]` was added
+    to its `groups` (remove that key to revert). mny's tenant row is now 2968313 (tny 2968314); the
+    `/domains/:tenant` API takes the SUBDOMAIN (`mny`), not the row id. New token
+    `0211f8517530727b3d3bdf6ccba43d4c` in `dns/records.json`. Aliases: `devmny.test` verified + primary,
+    `mitigateny.test` pending.
+  - Browser (anonymous): `mny.localhost` → `devmny.test`, `albany.mny.localhost` → `albany.devmny.test`,
+    `www.mny.localhost` → `devmny.test`, `nope.test` and `mitigateny.test` (pending) → "not set up on this
+    hub", `tny.localhost` unchanged. Pages settle in ~6 s (17–45 s before the snapshot fix).
+  - **Card click-test** (`scratchpad/tenant-hub/phaseb-click.mjs staff|tenant`): as staff on
+    `/list/tenants/2968313` and as `mny-domains` on `devmny.test/list/domains`, by clicking: add alias →
+    pending with records + problem → DNS records set → check now → verified → make primary → remove (confirm
+    names the fallback primary) → make primary on devmny.test. Every POST 200; final state as before.
+    Screenshot `shots/phaseb-click-staff.png`.
+  - **`www.devmny.test`** served the mny home and stayed on `www`; fixed the same day, below.
+- [x] **`www.` redirect (2026-11-11):** `resolvePrimaryRedirect` (server `utils/primaryRedirect.js` and its
+  client mirror `utils/primaryDomain.js`) now compares the request host with the canonical one,
+  `<pattern sub>.<primary || the alias asked on || <tenant>.<root>>`, instead of `alias === primary`, so a
+  `www.` host goes to the same host without it: `www.devmny.org` → the primary, `www.<alias>` → `<alias>`
+  with no primary, `www.tny.<root>` → `tny.<root>`. The admin exemption now applies only when the move would
+  leave the default domain (`www.tny.<root>/list` → `tny.<root>/list`; `www.mny.<root>/list` with a primary
+  stays). The root's own `www` is still nginx's. Tests: vitest `primaryDomain.test.js` + `hostResolver.test.js`
+  18/18, `test:tenant-domains` 11/11. Rig: `www.devmny.test/plan?x=1` → 301 `devmny.test:5562/plan?x=1`,
+  `www.tny.localhost/npmrds` → 301 `tny.localhost:5562/npmrds`; browser `www.devmny.test` → `devmny.test`.
+  Then `www.<pattern sub>.<domain>` too: `resolveHost` (client `hostResolver.js` `patternSub`, server
+  `subdomain.js`, hand mirror) drops a leading `www` label from the pattern subdomain (`www.albany` →
+  `albany`; only a whole label: `wwwx` untouched), so the redirect sends it on. Before, `www.albany.devmny.test`
+  served the tenant's home. Tests: vitest `src/utils` 55/55, `src/render` 5/5; `test:tenant-domains` 11/11.
+  Rig: `www.albany.devmny.test/plan` → 301 `albany.devmny.test:5562/plan`; `www.albany.mny.localhost` →
+  `albany.devmny.test`; browser lands on the Albany plan page. Over HTTPS this needs a certificate that
+  covers `www.<sub>.<domain>` (a `*.<domain>` wildcard does not), so the redirect only helps plain HTTP or
+  a tenant with a broader certificate.
+- [x] **Host parsing centralised on the client (2026-11-11).** The legacy single-label reading (2 labels on
+  *.localhost, 3 elsewhere, none on a bare IPv4 host) now has ONE client copy, `utils/hostResolver.js`
+  `legacySplit` → `{ label, base }` (+ `legacyFirstLabel`, `legacyBaseHost`), next to `resolveHost`. Moved
+  onto it: the router's `getSubdomain` (`render/spa/utils/index.js`, its development reading as
+  `anyHostTwoLabels`), `subdomainPath.js` `getBaseHost`, editSite's Base URL column (now `getBaseHost`), and
+  TransportNY's `LogoNav` current subdomain (`resolveHost` → pattern subdomain, else `legacyFirstLabel`). The
+  server keeps its hand mirror (`utils/subdomain.js`, cross-referenced). Proof of no change: a temporary vitest
+  kept the old copies verbatim and compared them with the new code over 30 hosts × {no root, root + aliases,
+  root localhost} × {development, not}: identical (a forced rule change made it fail, so it bites). Two
+  deliberate differences: (1) a bare IPv4 host's base is the host itself (getBaseHost stripped an octet,
+  editSite did with a port; both made broken addresses, and every copy's comment meant "an IP has no
+  subdomain"); (2) LogoNav on a tenant-hub host reads the pattern subdomain (`tny.<root>` → '', was `tny`);
+  outside the hub it only ever compares with configured site subdomains, where old and new agree. Tests:
+  vitest `src/utils` + `src/render` + `retiredSubdomain` 75/75 (new `legacyBaseHost` / `legacySplit` cases);
+  the full client suite's 16 failures are the same 16 on the committed code (unrelated: themes, auth
+  vocabulary, sync). Rig: tny `/freightatlas` titled Freight Atlas; `devmny.test/list` Sites table Base URLs
+  `allegany.devmny.test:5562/2024`, …
+  - Mirror rows with the parentage fix (dms `8e764fd1`): mny and tny, 15,284 / 15,284 views and 14,013 /
+    14,013 sources resolve to their own row. `authorize` read of hazmit_dama view 13633 (source 12891, not
+    public) for anonymous and a `mny Public` member: deny; with the pre-fix `owners.js`: ALLOW for both.
 - [ ] Mockups: mirror what was built (records name/value layout, the tenant overview's partial port).
 - [ ] Not built yet: SSR handler cache vs alias changes (per-host cache keeps an old map until it
-  expires); `www.<alias>` is served as the alias root, not redirected; a verified alias whose DNS later
+  expires); a verified alias whose DNS later
   moves away stays verified (only shown); formats not re-registered on the rig.
 
 ## Testing checklist

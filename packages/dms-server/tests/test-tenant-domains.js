@@ -66,6 +66,14 @@ const TENANTS = [
     assert.strictEqual(go('mny.availabs.com', '/.well-known/x'), null);
     assert.strictEqual(go('tny.availabs.com'), null);
     assert.strictEqual(go('availabs.com'), null);
+    // www dropped: to the primary, else the same alias or default domain; the root's www is nginx's
+    assert.strictEqual(go('www.devmny.org', '/x'), 'https://devmny.org/x?q=1');
+    assert.strictEqual(go('www.mny.availabs.com', '/list'), null);
+    assert.strictEqual(go('www.tny.availabs.com', '/list'), 'https://tny.availabs.com/list?q=1');
+    assert.strictEqual(go('www.availabs.com'), null);
+    assert.strictEqual(go('www.albany.devmny.org', '/p'), 'https://albany.devmny.org/p?q=1');
+    assert.strictEqual(go('www.npmrds.tny.availabs.com'), 'https://npmrds.tny.availabs.com/?q=1');
+    assert.strictEqual(resolveHost('www.albany.mny.availabs.com', 'availabs.com').patternSubdomain, 'albany');
   });
 
   await test('domain validation (mirror of the client)', () => {

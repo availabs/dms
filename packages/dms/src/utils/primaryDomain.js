@@ -1,9 +1,11 @@
-import { resolveHost, primaryDomainOf } from './hostResolver';
+import { resolveHost, primaryDomainOf, getRootDomain } from './hostResolver';
 
 // Primary domain redirect (tenant hub, Phase B). A tenant with a primary domain is served
 // there: a page request on any of its other hosts (the default <tenant>.<root>, or a
 // non-primary alias) goes to the same pattern subdomain and path on the primary:
 //   albany.mny.availabs.com/x → albany.devmny.org/x
+// and a `www.` host goes to the same host without it (`www.devmny.org` → the primary; with no
+// primary, `www.<alias>` → `<alias>`, `www.mny.<root>` → `mny.<root>`).
 // Never redirected: the tenant admin (`adminPath`, /list) on the DEFAULT domain (the way back
 // if an alias breaks), and /.well-known/. The server does this first (dms-server
 // utils/primaryRedirect.js, in front of the SSR handler, hand mirror); this is the fallback
@@ -16,15 +18,19 @@ export function resolvePrimaryRedirect({
 }) {
     const r = resolveHost(host);
     if (!r || !r.tenant) return null;
-    const primary = primaryDomainOf(r.tenant);
-    if (!primary || r.alias === primary) return null;
+    // where this tenant is served: its primary, else the alias or default domain it was asked on
+    const defaultDomain = `${r.tenant}.${`${getRootDomain()}`.toLowerCase().split(':')[0]}`;
+    const domain = primaryDomainOf(r.tenant) || r.alias || defaultDomain;
+    const canonical = `${r.patternSubdomain ? `${r.patternSubdomain}.` : ''}${domain}`;
+    // same host (www dropped included: `www.devmny.org` → `devmny.org`) → serve it
+    if (`${host}`.toLowerCase().split(':')[0].replace(/\.$/, '') === canonical) return null;
     const path = pathname || '/';
     if (path === '/.well-known' || path.startsWith('/.well-known/')) return null;
     const admin = `/${`${adminPath || ''}`.replace(/^\/+|\/+$/g, '')}`;
-    if (!r.alias && admin !== '/' && (path === admin || path.startsWith(`${admin}/`))) return null;
+    if (!r.alias && domain !== defaultDomain && admin !== '/' && (path === admin || path.startsWith(`${admin}/`))) return null;
     const colon = `${host}`.indexOf(':');
     const port = colon === -1 ? '' : `${host}`.slice(colon);
-    return `${protocol}//${r.patternSubdomain ? `${r.patternSubdomain}.` : ''}${primary}${port}${path}${search}${hash}`;
+    return `${protocol}//${canonical}${port}${path}${search}${hash}`;
 }
 
 // Client side: true when a redirect was issued (the caller should stop). A cross-origin move,

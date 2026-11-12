@@ -37,6 +37,20 @@ describe('resolvePrimaryRedirect', () => {
         expect(go('mny.availabs.com', '/.well-known/acme-challenge/t')).toBe(null);
     });
 
+    it('drops www: to the primary, else to the same alias or default domain', () => {
+        expect(go('www.devmny.org', '/x')).toBe('https://devmny.org/x?a=1#h');
+        expect(go('www.mitigateny.org')).toBe('https://devmny.org/?a=1#h');
+        expect(go('www.mny.availabs.com', '/list')).toBe(null); // the admin on the default domain stays
+        expect(go('www.transportny.org', '/x')).toBe('https://transportny.org/x?a=1#h');
+        expect(go('www.tny.availabs.com', '/list')).toBe('https://tny.availabs.com/list?a=1#h');
+        expect(go('www.availabs.com')).toBe(null); // the platform root: nginx's job
+        expect(go('DevMNY.org.')).toBe(null);
+        expect(go('www.albany.devmny.org', '/plan')).toBe('https://albany.devmny.org/plan?a=1#h');
+        expect(go('www.albany.mny.availabs.com', '/plan')).toBe('https://albany.devmny.org/plan?a=1#h');
+        expect(go('www.npmrds.tny.availabs.com')).toBe('https://npmrds.tny.availabs.com/?a=1#h');
+        expect(go('wwwx.tny.availabs.com')).toBe(null); // only a whole www label
+    });
+
     it('keeps the port (local rigs)', () => {
         setRootDomain('localhost');
         expect(go('albany.mny.localhost:5562', '/', { protocol: 'http:' })).toBe('http://albany.devmny.org:5562/?a=1#h');

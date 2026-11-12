@@ -35,5 +35,6 @@ describe('getBaseHost', () => {
     expect(getBaseHost('tsmo2.devtny.org')).toBe('devtny.org');
     expect(getBaseHost('npmrds.localhost:5173')).toBe('localhost:5173');
     expect(getBaseHost('devtny.org')).toBe('devtny.org');
+    expect(getBaseHost('74.50.76.166:8080')).toBe('74.50.76.166:8080'); // a bare IP has no label to strip
   });
 });

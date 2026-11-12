@@ -11,7 +11,7 @@ import { collectSiteRootPaths } from '../../../utils/mountPath';
 import { getPatternMounts, mountsForSubdomain } from '../../../utils/patternMounts';
 import { getDefaultUserMenuItems, withUserMenuThemes, withPatternMenuPrecedence, patternOwnMenuItems } from '../../../utils/userMenus';
 import { buildRetiredSubdomainMap, applyRetiredSubdomainRedirect } from '../../../utils/retiredSubdomain';
-import { resolveHost } from '../../../utils/hostResolver';
+import { resolveHost, legacySplit } from '../../../utils/hostResolver';
 import '../../../patterns'
 import { getPatternType, listPatternTypes } from '../../../patterns/registry'
 import { updateAttributes, updateRegisteredFormats } from "../../../dms-manager/_utils";
@@ -20,25 +20,10 @@ import PatternTitle from './PatternTitle'
 import PatternColorScheme, { getPatternColorScheme } from './PatternColorScheme'
 
 
-export const getSubdomain = (host) => {
-    // ---
-    // takes host string and returns subdomain
-    // only works with single depth subdomains
-    // ---
-    // Strip port (e.g., "songs.localhost:3001" → "songs.localhost")
-    const hostname = host.split(':')[0]
-    // localhost is a single-part TLD, so "sub.localhost" has 2 parts.
-    // Real domains like "example.com" have 2 parts, "sub.example.com" has 3.
-    const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost')
-    const minParts = isLocalhost || process.env.NODE_ENV === "development" ? 2 : 3
-    const parts = hostname.split('.')
-    // A real domain's rightmost label (TLD) can never be all-digits (ICANN
-    // disallows fully-numeric TLDs for exactly this reason), but a bare
-    // IPv4 host's last octet always is — e.g. "74.50.76.166" would
-    // otherwise be misread as subdomain "74". Bail out before that happens.
-    if (/^\d+$/.test(parts[parts.length - 1])) return false
-    return parts.length >= minParts ? parts[0].toLowerCase() : false
-}
+// The host's subdomain label, lowercased, or false: single depth, 2 labels on *.localhost and in
+// development, 3 elsewhere, none on a bare IPv4 host (utils/hostResolver.js legacySplit, the one copy).
+export const getSubdomain = (host) =>
+    legacySplit(host, { anyHostTwoLabels: process.env.NODE_ENV === "development" }).label.toLowerCase() || false
 
 // With a root domain set (utils/hostResolver.js; only the tenant hub sets one) a host
 // reads as a tenant plus a pattern subdomain (`albany.mny.<root>` → 'mny' / 'albany').

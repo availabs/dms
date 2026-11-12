@@ -43,6 +43,8 @@ export function getRootDomain() {
 }
 
 const blankWww = (label) => (label === 'www' ? '' : label);
+// A pattern subdomain drops a leading `www` label: `www` → '', `www.albany` → `albany` (www names no pattern).
+const patternSub = (sub) => sub.replace(/^www(\.|$)/, '');
 
 // The alias status that serves. Anything else (pending, failed) is shown to the tenant, never served.
 export const ALIAS_VERIFIED = 'verified';
@@ -101,11 +103,11 @@ export function resolveHost(host, rootDomain = ROOT_DOMAIN, aliases = ALIASES) {
     else {
         const alias = aliases && aliases.size ? matchAlias(hostname, aliases) : '';
         if (!alias) return null;
-        const patternSubdomain = blankWww(hostname === alias ? '' : hostname.slice(0, -(alias.length + 1)));
+        const patternSubdomain = patternSub(hostname === alias ? '' : hostname.slice(0, -(alias.length + 1)));
         return { tenant: aliases.get(alias), patternSubdomain, tenantHost: `${alias}${port}`, alias };
     }
     const tenant = blankWww(labels.length ? labels[labels.length - 1] : '');
-    const patternSubdomain = tenant ? blankWww(labels.slice(0, -1).join('.')) : '';
+    const patternSubdomain = tenant ? patternSub(labels.slice(0, -1).join('.')) : '';
     return { tenant, patternSubdomain, tenantHost: `${tenant ? `${tenant}.` : ''}${root}${port}` };
 }
 
@@ -141,17 +143,31 @@ export function aliasDomainProblem(domain, rootDomain = ROOT_DOMAIN) {
     return '';
 }
 
-// The legacy reading the admin and auth patterns used inline (copies in editSite,
-// patternList, the pattern settings editor, authSignup): the first label when the
-// host has a subdomain (2 labels on *.localhost, 3 elsewhere), '' otherwise and
-// for bare IPv4 hosts. Kept byte-for-byte in behaviour for sites without a root domain.
-export function legacyFirstLabel(host) {
-    const hostname = `${host || ''}`.split(':')[0];
+// The legacy single-label reading, for hosts with no root domain (every site but the tenant hub): a host
+// has a subdomain when it has 2 labels on *.localhost (on any host with `anyHostTwoLabels`: the router's
+// development reading) or 3 elsewhere, and never on a bare IPv4 host. `label` is that first label as
+// written ('' for none), `base` the host without it, port kept ('' / the host itself for none).
+// THE one copy on the client: the router's getSubdomain, getBaseHost (sub:// links, the retired-subdomain
+// redirect, editSite's Base URL, TransportNY's LogoNav) and the admin/auth patterns all read it.
+// The server's mirror: dms-server utils/subdomain.js getSubdomain.
+export function legacySplit(host, { anyHostTwoLabels = false } = {}) {
+    const raw = `${host || ''}`;
+    const hostname = raw.split(':')[0];
     const isLocalhost = hostname === 'localhost' || hostname.endsWith('.localhost');
-    const minParts = isLocalhost ? 2 : 3;
+    const minParts = isLocalhost || anyHostTwoLabels ? 2 : 3;
     const parts = hostname.split('.');
-    if (/^\d+$/.test(parts[parts.length - 1])) return '';
-    return parts.length >= minParts ? parts[0] : '';
+    if (/^\d+$/.test(parts[parts.length - 1]) || parts.length < minParts) return { label: '', base: raw };
+    return { label: parts[0], base: raw.slice(raw.indexOf('.') + 1) };
+}
+
+// The first label when the host has a subdomain, '' otherwise (see legacySplit).
+export function legacyFirstLabel(host) {
+    return legacySplit(host).label;
+}
+
+// The host minus its subdomain label, port kept; the host itself when there is none (see legacySplit).
+export function legacyBaseHost(host) {
+    return legacySplit(host).base;
 }
 
 // The tenant this host belongs to ('' on the platform root).

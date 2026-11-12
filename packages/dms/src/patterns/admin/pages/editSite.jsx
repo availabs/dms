@@ -13,6 +13,7 @@ import { AddPatternPicker } from '../components/AddPatternPicker'
 import { getPatternType, listPatternTypes, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
 import { newPatternSubdomain, resolveHost } from '../../../utils/hostResolver';
+import { getBaseHost } from '../../../utils/subdomainPath';
 
 // The subdomain new rows on this host are stamped with: the tenant's label on a
 // legacy multi-tenant host, '' on the tenant hub (utils/hostResolver.js).
@@ -230,17 +231,10 @@ function PatternList({
 				const protocol = host.includes('localhost') ? 'http' : 'https';
 				const sub = d.row.subdomain;
 				const needsSub = sub && sub !== '*';
-				// Strip existing subdomain (first segment) to get the base domain,
-				// but only if the current host actually has a subdomain.
-				const parts = host.split('.');
-				const isLocalhost = host.includes('localhost');
-				// Bare IPv4 host (e.g. 1.2.3.4) would otherwise misread its last octet
-				// as a subdomain; real TLDs are never all-digits.
-				const isIPv4Host = /^\d+$/.test(parts[parts.length - 1]);
-				const hasSubdomain = !isIPv4Host && (isLocalhost ? parts.length >= 2 : parts.length > 2);
-				// On the tenant hub a pattern subdomain sits under the tenant's host.
+				// The base domain: the tenant's host on the tenant hub, else the host minus its
+				// subdomain label when it has one (utils/subdomainPath.js getBaseHost).
 				const resolved = resolveHost(host);
-				const baseDomain = resolved ? resolved.tenantHost : (hasSubdomain ? parts.slice(1).join('.') : host);
+				const baseDomain = getBaseHost(host);
 				const targetHost = needsSub ? `${sub}.${baseDomain}` : (resolved ? resolved.tenantHost : host);
 				const rawUrl = d.row.base_url;
 				if (!rawUrl) return <span className={t.emptyValue}>—</span>;
