@@ -1,6 +1,6 @@
 # Tenant Subdomain Uniqueness
 
-**Initiatives:** [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** blocked:decision (was: "Phase 1 — Server-side guard (validation + uniqueness) — COMPLETE … Open Issue: Error Display … This …") · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu
+**Initiatives:** [tes_self_service_signup](../../../../../planning/initiatives/tes_self_service_signup.md) · **Status:** built (tenant delete, 2026-11-11, branch `tenant-domains`, uncommitted); Error Display issue still open · **Created by:** ssangdod@albany.edu · **Edited by:** amuro@albany.edu, ssangdod@albany.edu
 
 ## Objective
 
@@ -178,6 +178,67 @@ Consequences:
 
 Decision needed: "remove" = **suspend** (relabel + add restore) vs **delete** (new server endpoint to drop
 tenant row + auth project/group links, optional tenant-data purge). Traced from code, not live-reproduced.
+
+### Decision (owner, 2026-11-11): DELETE, data erased, backup first — BUILT
+
+- **Server** `dms-server/src/routes/tenants/` (mounted in multi-tenant mode, `index.js`):
+  - `POST /tenants/:tenant/delete/plan` — read-only: what goes (schema + table count, tenant rows, linked or
+    not, the groups deleted / kept, membership count).
+  - `POST /tenants/:tenant/delete { confirm }` — `confirm` must be the subdomain; no preview flag (the
+    package rule for destructive routes). Hub staff only: `manage-tenants` on the hub site row, judged in the
+    route whatever DMS_AUTH_MODE says. One delete at a time.
+  - `delete.js`, in order, each step idempotent (a failed run is repeated and finishes):
+    1. **backup** to `DMS_TENANT_BACKUP_DIR` (default `dms-server/var/tenant-backups`) `/<app>-<ts>/`: every
+       table of `dms_<app>` and the app's rows in `dms.change_log`, `dms.page_visits`, `dms.formats`,
+       `dms.data_items`, as gzipped `COPY` text (pg-copy-streams; no pg_dump in the image), plus `manifest.json`
+       (columns, row counts, the hub rows, all auth rows). Nothing is deleted if it fails.
+    2. **auth db** (one transaction): `user_preferences`, `messages_new` (plain FKs to `projects`, they block
+       its delete), `signup_requests`, `groups_in_projects` of the project; every group linked to the project
+       and to NO other project, plus `<app> Admin` / `<app> Public` by name (initSetup re-uses an existing
+       group, so a stale one would hand the old members to a new tenant), with their memberships; the
+       project. Kept: user accounts, `logins`, groups shared with other projects (mny: AVAIL, the county
+       groups).
+    3. **dms db** (one `withTransaction`): the shared rows above, then `DROP SCHEMA dms_<app> CASCADE`.
+    4. **hub** (last, so the tenant stays listed and deletable until the rest is gone): the ref leaves the site's
+       `tenants` and the `:tenant` row(s) are deleted, through the controller (change_log + broadcast).
+    Then: table-resolver, owners-snapshot and formats caches cleared; the domains store reloads (and with it the
+    SSR route cache).
+  - Refuses: not per-app Postgres; a subdomain that is no slug; no tenant row (linked OR unlinked: a tenant
+    removed the old way can be deleted); rows naming several apps; the hub's own app/schema; another tenant
+    on the same schema.
+  - **Not touched: `dms.yjs_states`.** It is keyed by item id alone and per-app sequences give every app the
+    same small ids, so a tenant's ids also name other apps' items. The first rig run deleted 2 such rows
+    (items 4 and 5, last written 11-08, before the test tenant existed); restored from that run's backup, and
+    the delete no longer touches the table. **Open bug, separate:** the same collision makes two apps with
+    the same item id share a sync room and its stored Yjs state (`routes/sync/ws.js` rooms / `yjs_states` by
+    `itemId`). Filed: [sync-rooms-cross-app-item-id-collision.md](./sync-rooms-cross-app-item-id-collision.md); its
+    last step puts this delete's `yjs_states` cleanup back, keyed by `(app, item_id)`.
+- **Backup folder always set:** the default is `dms-server/var/tenant-backups` (on the live hub that is the
+  `dms-hub-var` volume); the hub runbook (`planning/shared/tasks/completed/tenant-hub-server.md` steps 8 and 10)
+  now sets `DMS_TENANT_BACKUP_DIR=/tenant-backups` with `-v $H/tenant-backups:/tenant-backups`. The server logs
+  the folder at start (`[tenants] delete backups → …`) and warns when it can't write there; a delete then
+  refuses, since the backup step fails first.
+- **Client** `patterns/admin/components/tenantList.jsx`: the row's trash button opens `DeleteTenantModal`
+  (the plan as a list, "Type <sub> to confirm", Delete disabled until it matches, the server's error shown);
+  on success the page's list drops the tenant (the server already saved the site row). Note under the table
+  reworded. Theme keys `deletePlanList` / `deletePlanItem` (`editSite.theme.js`). The overview's "danger zone"
+  (mockup) is not built; the delete lives on the Tenants table.
+- **Env:** `DMS_TENANT_BACKUP_DIR` in `documentation/dms-server-env.md` and `.env.example`.
+- **Rig check (2026-11-11, `scratchpad/tenant-hub/tenant-delete.mjs`, `dbcheck.sh`):**
+  - Added `acmedel` by clicking; deleted by clicking: plan listed (schema `dms_acmedel`, 2 tables; groups
+    `acmedel Admin`, `acmedel Public`, 1 membership); Delete disabled on wrong text, enabled on `acmedel`;
+    plan 200, delete 200; gone after reload. After: no schema, 0 change_log rows, no tenant row or ref, no
+    project / links / groups / members. mny and tny: unchanged (only the site's ref list lost acmedel).
+  - Backup folder: 6 `.copy.gz` files + manifest (5 data_items rows, 7 change_log rows, the auth rows).
+  - **The subdomain is reusable:** `acmedel` added again by clicking, clean (7 change_log rows, its own).
+  - Refusals: member 403, the mny domain admin 403, anonymous 401, no / wrong confirm 400, unknown 404,
+    bad subdomain 400; plan for mny read-only (would keep AVAIL and the county groups).
+  - An unlinked tenant (the old Remove, simulated) deleted through the API: same result.
+  - `test-transaction-guard.js` clean. No automated test: the delete needs per-app Postgres, and the
+    package's tests run on SQLite (where it refuses); a Postgres test belongs with the docker harness.
+- **Seen on the way (not changed):** the add-tenant save rewrote every ref in the hub's `tenants` list to the
+  generic `hub+tenant` (mny's and tny's were `hub+test|<sub>:tenant`). Everything reads the ids, so nothing
+  broke; worth a look in `saveSiteRefList` / the tenant format.
 
 ## Testing Checklist
 

@@ -100,6 +100,7 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | `DMS_DOMAIN_TOKEN_SECRET` | `JWT_SECRET` | Tenant hub: the secret each tenant's domain-verification token is derived from (HMAC of the hub app and tenant row id; `routes/domains/verify.js`). Changing it changes every token, so unverified aliases need their TXT record redone (verified ones stay verified). |
 | `DMS_DOMAIN_TARGET_IPS` | — | Tenant hub: comma list of the IPs a domain alias must point at (its A record, and `*.<alias>`). Unset: the root domain's own A records. |
 | `DMS_DOMAIN_DNS_SERVERS` | — | Tenant hub: comma list of DNS servers (`ip` or `ip:port`) the alias checks query instead of the system resolvers. For a test DNS server on a rig; leave unset in production. |
+| `DMS_TENANT_BACKUP_DIR` | `<dms-server>/var/tenant-backups` | Tenant hub: where `POST /tenants/:tenant/delete` writes the deleted tenant's backup (one folder per delete: gzipped COPY files + `manifest.json`). On a server in a container, point it at a mounted volume. |
 
 ## Datasets (DAMA), uploads and tasks
 

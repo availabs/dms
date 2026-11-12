@@ -10,6 +10,7 @@ import { getRootDomain } from '../../../utils/hostResolver';
 import { editSiteTheme } from '../pages/editSite.theme'
 import SiteTemplatePicker from '../pages/SiteTemplatePicker'
 import { stampSiteRow } from '../../registry'
+import { authedFetch } from '../../../utils/authedFetch'
 
 const TENANT_SEARCH_INPUT_ID = 'site-tenant-search';
 const EMPTY_TENANT = { name: '', subdomain: '', email: '', password: '' };
@@ -102,7 +103,7 @@ export function TenantList({
 				<div className={t.cellActions}>
 					<Button
 						activeStyle='iconRowDanger'
-						title='Remove tenant'
+						title='Delete tenant'
 						onClick={() => setDeletingItem(d.row)}
 					>
 						<Icon icon='TrashCan' className={t.iconSm} />
@@ -248,7 +249,7 @@ export function TenantList({
 			<div className={t.tableCard}>
 				<Table columns={columns} data={rows} isEdit={false} gridRef={gridRef} activeStyle='list' />
 			</div>
-			<p className={t.tenantNote}>Removing a tenant unlinks it from this site; its data is not deleted.</p>
+			<p className={t.tenantNote}>Deleting a tenant erases its site, its data and its login project, after saving a backup on the server.</p>
 
 			<Modal open={addingNew} setOpen={setAddingNew}>
 				<div className={t.tenantModalForm}>
@@ -305,36 +306,96 @@ export function TenantList({
 				</div>
 			</Modal>
 
-			<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
-				<div className={t.deleteModal}>
-					<div className={t.deleteModalTitle}>Remove Tenant</div>
-					<div className={t.deleteModalDesc}>
-						Remove <span className={t.deleteModalHighlight}>{deletingItem?.name}</span> from this
-						site? The tenant's data is not deleted.
-					</div>
-					<div className={t.deleteModalFooter}>
-						<Button
-							type='plain'
-							activeStyle='action'
-							onClick={() => setDeletingItem(undefined)}
-						>
-							Cancel
-						</Button>
-						<Button
-							type='plain'
-							activeStyle='dangerSolid'
-							onClick={() => {
-								const newData = value.filter(v => v.id !== deletingItem.id);
-								onChange(newData);
-								onSubmit(newData);
-								setDeletingItem(undefined);
-							}}
-						>
-							Remove
-						</Button>
-					</div>
-				</div>
-			</Modal>
+			<DeleteTenantModal
+				tenant={deletingItem}
+				onClose={() => setDeletingItem(undefined)}
+				onDeleted={(tenant) => {
+					// the server already took the ref off the site row: only the page's copy changes
+					onChange(value.filter(v => v.id !== tenant.id));
+					setDeletingItem(undefined);
+				}}
+			/>
 		</div>
+	);
+}
+
+// Delete a tenant for good (dms-server routes/tenants): what goes comes from the read-only
+// `…/delete/plan` route; the delete itself needs the subdomain typed back. The server backs the tenant
+// up first and refuses to delete when the backup fails.
+export function DeleteTenantModal({ tenant, onClose, onDeleted }) {
+	const { API_HOST, user } = React.useContext(AdminContext) || {};
+	const { UI, theme } = React.useContext(ThemeContext);
+	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
+	const { Button, Modal, Input, FieldLabel } = UI;
+	const sub = tenant?.subdomain || '';
+	const [plan, setPlan] = React.useState(null);
+	const [confirm, setConfirm] = React.useState('');
+	const [busy, setBusy] = React.useState(false);
+	const [error, setError] = React.useState('');
+
+	React.useEffect(() => {
+		setPlan(null); setConfirm(''); setError('');
+		if (!sub) return;
+		let live = true;
+		authedFetch(`${API_HOST}/tenants/${encodeURIComponent(sub)}/delete/plan`, { user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+			.then(async (res) => {
+				const body = await res.json().catch(() => ({}));
+				if (!live) return;
+				if (res.ok) setPlan(body);
+				else setError(body.error || `Can't preview this delete (${res.status})`);
+			})
+			.catch((e) => { if (live) setError(`Can't preview this delete: ${e.message}`); });
+		return () => { live = false; };
+	}, [API_HOST, sub, user?.token]);
+
+	const remove = async () => {
+		setBusy(true); setError('');
+		try {
+			const res = await authedFetch(`${API_HOST}/tenants/${encodeURIComponent(sub)}/delete`,
+				{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ confirm }) });
+			const body = await res.json().catch(() => ({}));
+			if (!res.ok) { setError(body.error || `Delete failed (${res.status})`); return; }
+			onDeleted(tenant, body);
+		} catch (e) {
+			setError(`Delete failed: ${e.message}`);
+		} finally {
+			setBusy(false);
+		}
+	};
+
+	return (
+		<Modal open={Boolean(tenant)} setOpen={(open) => { if (!open && !busy) onClose(); }}>
+			<div className={t.deleteModal}>
+				<div className={t.deleteModalTitle}>Delete Tenant</div>
+				<div className={t.deleteModalDesc}>
+					Delete <span className={t.deleteModalHighlight}>{tenant?.name}</span> ({sub}) for good? A backup is
+					saved on the server first; nothing here can undo it.
+				</div>
+				{plan && (
+					<ul className={t.deletePlanList}>
+						<li className={t.deletePlanItem}>its site and data{plan.schema ? `: schema ${plan.schema}, ${plan.tables} tables` : ' (no schema found)'}</li>
+						<li className={t.deletePlanItem}>its domain aliases and its row on this hub</li>
+						<li className={t.deletePlanItem}>
+							login project {plan.tenant.app}{plan.auth.groups.length ? `, groups ${plan.auth.groups.join(', ')}` : ''}
+							{plan.auth.memberships ? ` (${plan.auth.memberships} memberships; the user accounts stay)` : ''}
+						</li>
+						{plan.auth.keptGroups.length > 0 && (
+							<li className={t.deletePlanItem}>kept, used by other sites: {plan.auth.keptGroups.join(', ')}</li>
+						)}
+					</ul>
+				)}
+				<div className={t.fieldGroup}>
+					<FieldLabel activeStyle="inline" htmlFor="tenant-delete-confirm" text={`Type ${sub} to confirm`} />
+					<Input id="tenant-delete-confirm" value={confirm} onChange={e => setConfirm(e.target.value)} placeholder={sub} />
+				</div>
+				{error && <div className={t.errorText}>{error}</div>}
+				<div className={t.deleteModalFooter}>
+					<Button type='plain' activeStyle='action' disabled={busy} onClick={onClose}>Cancel</Button>
+					<Button type='plain' activeStyle='dangerSolid' disabled={busy || confirm.trim().toLowerCase() !== sub} onClick={remove}>
+						{busy ? 'Deleting…' : 'Delete'}
+					</Button>
+				</div>
+			</div>
+		</Modal>
 	);
 }

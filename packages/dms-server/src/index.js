@@ -152,6 +152,9 @@ require('./routes/auth/formats').registerFormatRoutes(app);
 // Tenant domain aliases — the hub only (routes/domains; tenant-external-domains.md, Phase B)
 require('./routes/domains').registerDomainRoutes(app);
 
+// Deleting a tenant of the hub, with a backup first (routes/tenants; tenant-subdomain-uniqueness.md)
+require('./routes/tenants').registerTenantRoutes(app);
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 

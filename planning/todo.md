@@ -61,6 +61,7 @@
 
 ## local-first
 
+- [ ] [Sync rooms and Yjs state keyed by item id alone: apps share them](./tasks/current/sync-rooms-cross-app-item-id-collision.md) — filed 2026-11-11. Per-app sequences start every app at id 1, and `ws.js` rooms / `yjs_states` key on `itemId` only, so two apps' items with the same id share a live-editing room and stored Yjs state. Found when tenant delete removed 2 other apps' `yjs_states` rows by id (restored). Fix: key by `(app, itemId)`, `app` column on `yjs_states`.
 - [x] Toy sync engine — standalone notes app proving SQLite WASM (wa-sqlite + OPFS), Yjs conflict resolution, revision-based sync protocol, passthrough pattern, and multi-tab reactivity
 - [x] Toy sync Lexical integration — replace textarea with DMS Lexical editor, Lexical JSON flowing through existing Yjs sync pipeline (LWW per field, not character-level collab)
 - [x] Toy sync collaborative editing — character-level Yjs ↔ Lexical binding via `CollaborationPlugin`, custom Yjs provider over existing WebSocket, room-based routing, cursor awareness, server-side Yjs state persistence

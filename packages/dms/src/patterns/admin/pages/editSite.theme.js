@@ -82,6 +82,8 @@ export const editSiteTheme = {
     deleteModalDesc: 'text-sm text-[var(--t-graphite)]',
     deleteModalHighlight: 'font-medium text-[var(--t-ink)]',
     deleteModalFooter: 'flex items-center justify-end gap-2',
+    deletePlanList: 'list-disc pl-5 flex flex-col gap-1',
+    deletePlanItem: 'text-sm text-[var(--t-graphite)]',
 
     // TenantList (design_system_v6/pages/admin-tenants.html)
     identityText: 'min-w-0',
