@@ -182,11 +182,24 @@ async function loadDmsFormats (item,dmsAttrsConfigs, format, falcor, isDataByApp
         ? attr.split('->>')[1].trim().replace(/[']/g, '')
         : attr
 
+    // Falcor hands back an atom's value BY REFERENCE: `data` here is the object in
+    // the model's cache. Nothing below may write into it, so each row gets one
+    // private copy before the recursion (which fills that copy's own dms-format
+    // keys) and the assignments below. On the server the routes, and so this
+    // falcor's cache, are reused by every request for a host, and EditWrapper's
+    // useImmer deep-freezes the item it is given; writing into the cache froze
+    // it, and the host's next render threw "Cannot assign to read only property
+    // '0'" (500, the client then reloaded and rendered fine).
+    const ownCopies = new Map();
+    const valueOf = (byIdAddress, id) => {
+        const k = `${byIdAddress.join('/')}/${id}`;
+        if (!ownCopies.has(k)) ownCopies.set(k, cloneDeep(get(newData, ['json',...byIdAddress, id, 'data'])));
+        return ownCopies.get(k);
+    }
     // One combined get materializes each row once, so a row id referenced more
     // than once (e.g. under two keys) would share one `value` object — separate
     // gets used to hand each reference its own copy. Clone on repeat to keep that.
     const seen = new Set();
-    const valueOf = (byIdAddress, id) => get(newData, ['json',...byIdAddress, id, 'data'])
     const takeValue = (byIdAddress, id) => {
         const k = `${byIdAddress.join('/')}/${id}`;
         const v = valueOf(byIdAddress, id);

@@ -105,6 +105,38 @@ describe("processNewData — batched dms-format expansion", () => {
     expect(page.sections[0].element).not.toBe(page.draft_sections[0].element);
   });
 
+  // Real falcor returns an atom's value BY REFERENCE (the object in its cache). The SSR handler reuses
+  // one falcor per host across requests, and EditWrapper's useImmer deep-freezes the loaded item, so a
+  // write into the cache froze it and the host's next render threw "Cannot assign to read only
+  // property '0'" (mny.availabs.com/list: 200, then 500 on every request).
+  it("never writes into the objects falcor returns, so a frozen first result can't break the next load", async () => {
+    const rows = {
+      10: { data: { name: "p10", pages: [{ id: 30 }] } },
+      30: { data: { title: "page30" } },
+    };
+    const falcor = mockFalcor(rows);
+    const get = falcor.get;
+    falcor.get = async (...paths) => {                  // hand out the "cache" objects themselves
+      const res = await get(...paths);
+      for (const id of Object.keys(res.json.dms.data[APP].byId)) {
+        if (res.json.dms.data[APP].byId[id].data) res.json.dms.data[APP].byId[id].data = rows[id].data;
+      }
+      return res;
+    };
+    const deepFreeze = (o) => { if (o && typeof o === "object" && !Object.isFrozen(o)) { Object.freeze(o); Object.values(o).forEach(deepFreeze); } return o; };
+    const load = () => processNewData(
+      cacheWith(1, { title: "s", patterns: [{ id: 10 }] }),
+      [1], false, 0, APP, "site", dmsAttrs(siteFormat), siteFormat, falcor,
+    );
+
+    const [first] = await load();
+    expect(rows[10].data.pages).toEqual([{ id: 30 }]);  // the cache row is untouched
+    deepFreeze(first);                                  // what useImmer does to it
+
+    const [second] = await load();
+    expect(second.patterns[0].pages[0]).toMatchObject({ id: 30, title: "page30" });
+  });
+
   it("makes no request for a row with no refs", async () => {
     const falcor = mockFalcor({});
     const [site] = await processNewData(
