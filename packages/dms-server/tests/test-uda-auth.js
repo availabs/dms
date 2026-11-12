@@ -14,7 +14,7 @@ process.env.DMS_DB_ENV = DMS_DB; // the resolver and UDA routes read DMS rows fr
 const assert = require('assert');
 const { createTestGraph } = require('./graph');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const syncMirror = require('./mirror-sync');
+const attachPgEnv = require('./attach-pgenv');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -59,6 +59,7 @@ const passesGate = async (promise) => {
     assert(!(msg && AUTH_RE.test(msg)), `expected to pass the permission gate, got: ${msg && msg.slice(0, 200)}`);
 };
 
+const asObj = (v) => (typeof v === 'string' ? JSON.parse(v) : v);
 async function run() {
     const { getDb, awaitReady } = require('../src/db');
     getDb(DMS_DB); getDb(DAMA_DB);
@@ -94,7 +95,7 @@ async function run() {
     const OTHER_APP = `${APP}_other`;
     const tbl = await dmsMainTable(dms, APP, 'per-app');
     const otherTbl = await dmsMainTable(dms, OTHER_APP, 'per-app');
-    // Through the controller: its id allocator must know the fixture rows, or the mirror's own creates collide.
+    // Through the controller: its id allocator must know the fixture rows, or its own creates collide.
     const controller = require('../src/routes/dms/dms.controller').createController(DMS_DB);
     const insert = async (table, app, type, data) => +(await controller.createData([app, type, data], null))[0].id;
     const viewId = await insert(tbl, APP, 'roads|v1:view', { name: 'v1' });
@@ -121,7 +122,7 @@ async function run() {
         [sourceId, pg ? 'public' : 'main', `udaauth_missing_${sourceId}`])).rows[0].view_id;
     const viewA = await view(extA);
     const viewB = await view(extB);
-    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
+    await attachPgEnv(APP, DAMA_DB);   // the site's env row for the pgEnv (dama/pgEnv.js)
     const dsPatternRef = { app: APP, id: dsPattern }; // a datasets pattern the client names for extB
 
     // The settings tests write env settings other suites read (hidden_source_types): put them back.
@@ -161,27 +162,23 @@ async function run() {
         const ap = JSON.stringify({ groups: { Editors: ['update-source'], Owners: ['*'], Versioners: ['create-view'] }, users: {} });
         await allowed(call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: ap }]));
     });
-    await t('auth_permissions are the SITE\'s: written to the mirror row, read back from it, the pgEnv\'s column untouched', async () => {
-        const before = (await dama.query(`SELECT auth_permissions FROM ${srcTbl} WHERE source_id = $1`, [extA])).rows[0].auth_permissions;
+    await t('auth_permissions are the PGENV\'s: written to its column, read back from it, and read by auth at once', async () => {
         const ap = { groups: { Editors: ['update-source'], Owners: ['*'], Versioners: ['create-view'], Auditors: ['view-source'] }, users: {} };
         const res = await call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: JSON.stringify(ap) }]);
         const echoed = res.jsonGraph.uda[DAMA_DB].sources.byId[extA].auth_permissions;
-        assert.deepStrictEqual((echoed && echoed.value) || echoed, ap, 'the call echoes the site\'s grants');
+        assert.deepStrictEqual(asObj((echoed && echoed.value) || echoed), ap, 'the call echoes the grants');
         const after = (await dama.query(`SELECT auth_permissions FROM ${srcTbl} WHERE source_id = $1`, [extA])).rows[0].auth_permissions;
-        assert.deepStrictEqual(after, before, 'the pgEnv column is not written');
-        const mirror = require('../src/dama/mirror');
-        assert.deepStrictEqual(await mirror.grantsIn(APP, DAMA_DB, extA), ap, 'the mirror row holds them');
+        assert.deepStrictEqual(asObj(after), ap, 'the pgEnv column holds them');
         const g = (await as(owner).getAsync([['uda', DAMA_DB, 'sources', 'byId', extA, 'auth_permissions']])).jsonGraph.uda[DAMA_DB].sources.byId[extA].auth_permissions;
-        assert.deepStrictEqual((g && g.value) || g, ap, 'the get answers the site\'s grants');
-        // the new Auditors grant decides the next read: per site, on the mirror
+        assert.deepStrictEqual(asObj((g && g.value) || g), ap, 'the get answers the column');
+        // the new Auditors grant decides the next read, with no snapshot cleared: the write did that
         const auditor = { authed: true, id: 77, email: 'au@x', groups: ['Auditors'] };
-        const { clearSnapshots } = require('../src/routes/auth');
-        clearSnapshots();
         await withMode('enforce', async () => {
             const r = (await as(auditor).getAsync([['uda', DAMA_DB, 'sources', 'byId', extA, 'source_id']])).jsonGraph.uda[DAMA_DB].sources.byId[extA].source_id;
             assert.strictEqual(+((r && r.value) || r), +extA);
         });
-        await refused(as(owner, null).callAsync(['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: JSON.stringify(ap) }]), /no site named/);
+        // the env-level grants above a pgEnv's source are a site's: a write naming no site has nothing to be judged in
+        await withMode('enforce', async () => refused(as(owner, null).callAsync(['uda', 'sources', 'update'], [DAMA_DB, extA, { auth_permissions: JSON.stringify(ap) }]), /no site named/));
     });
     await t('column whitelist: unknown / server-owned / injected keys are refused on both paths', async () => {
         await refused(call(owner, ['uda', 'sources', 'update'], [DAMA_DB, extA, { source_id: 1 }]), /Not writable/);

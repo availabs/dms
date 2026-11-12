@@ -79,15 +79,13 @@ async function main() {
   console.log(`  auth-db=${o.authDb}  db=${o.db}  app=${o.app}  project=${o.project}\n`);
 
   // The app's auth pattern row IS the scope `can()` judges against.
-  const rows = await q(dmsDb, `SELECT id, type, auth, data FROM ${T} WHERE app = $1 AND type LIKE '%:pattern'`, [o.app]);
+  const rows = await q(dmsDb, `SELECT id, type, data FROM ${T} WHERE app = $1 AND type LIKE '%:pattern'`, [o.app]);
   const authRow = rows.find(r => (parse(r.data) || {}).pattern_type === 'auth');
   if (!authRow) { console.log('  this app has no auth pattern row — the ladder is the only authority here.'); await dmsDb.end(); await authDb.end(); return; }
-  const col = parse(authRow.auth) || {};
-  const { vocabulary, childRefs, view, ...rest } = col;
-  let grants = resolveAuthPermissions(rest, '') || {};
-  if (!Object.keys(grants.groups || {}).length && !Object.keys(grants.users || {}).length) {
-    grants = resolveAuthPermissions((parse(authRow.data) || {}).authPermissions, '') || {};
-  }
+  // the row's grants live in `data.authPermissions` (there is no `auth` column)
+  const rawAp = (parse(authRow.data) || {}).authPermissions;
+  const rest = parse(rawAp) || {};
+  const grants = resolveAuthPermissions(rawAp, '') || {};
   const scope = { app: o.app, grants, id: authRow.id };
   console.log(`  auth pattern row             #${authRow.id}`);
   console.log(`  principals it grants         ${Object.keys(grants.groups || {}).length} group(s), ${Object.keys(grants.users || {}).length} user(s)\n`);
@@ -165,22 +163,22 @@ async function main() {
   for (const n of needed) merged.groups[n.group] = [...new Set([...n.have, ...n.missing])];
   // ⚠ SUBDOMAIN-KEYED, AND THE BRANCH MAY BE A JSON STRING. `resolveAuthPermissions` parses it
   // transparently, so the read is fine — but `jsonb_set` into a path UNDER a string value writes
-  // nothing and reports success. This script did exactly that on its first run: 32 groups
+  // nothing and reports success. This script did exactly that on its first run (against the
+  // retired `auth` column): 32 groups
   // "written", and the re-run reported the same 32 still needed. Preserve the encoding the row
   // already uses; other readers expect what is there. Same scar as convert-grant-vocabulary.js.
   const branch = rest['*'] !== undefined ? '*' : null;
-  const encoded = branch !== null && typeof rest[branch] === 'string';
-  if (encoded) {
-    const whole = { ...(typeof rest[branch] === 'string' ? JSON.parse(rest[branch]) : rest[branch]), ...merged };
-    await q(dmsDb, `UPDATE ${T} SET auth = jsonb_set(COALESCE(auth,'{}'::jsonb), $2::text[], to_jsonb($3::text)) WHERE id = $1`,
-      [authRow.id, `{${branch}}`, JSON.stringify(whole)]);
+  let next;
+  if (branch !== null) {
+    const was = rest[branch];
+    const whole = { ...(typeof was === 'string' ? JSON.parse(was) : was), ...merged };
+    next = { ...rest, [branch]: typeof was === 'string' ? JSON.stringify(whole) : whole };
   } else {
-    for (const bucket of ['groups', 'users']) {
-      const path = branch ? `{${branch},${bucket}}` : `{${bucket}}`;
-      await q(dmsDb, `UPDATE ${T} SET auth = jsonb_set(COALESCE(auth,'{}'::jsonb), $2::text[], $3::jsonb) WHERE id = $1`,
-        [authRow.id, path, JSON.stringify(merged[bucket])]);
-    }
+    next = { ...rest, ...merged };
   }
+  // the whole value, in the encoding it had: a stored JSON string stays a string
+  await q(dmsDb, `UPDATE ${T} SET data = jsonb_set(data, '{authPermissions}', $2::jsonb) WHERE id = $1`,
+    [authRow.id, JSON.stringify(typeof rawAp === 'string' ? JSON.stringify(next) : next)]);
   console.log(`\n  wrote ${needed.length} group grant(s) onto auth pattern row #${authRow.id}. Re-run to verify.`);
   await dmsDb.end(); await authDb.end();
 }

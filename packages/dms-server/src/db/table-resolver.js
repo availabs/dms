@@ -15,6 +15,32 @@
 const { typeCast, currentTimestamp } = require('./query-utils.js');
 const { isSplitType: _isSplitType, parseSplitDataType } = require('./type-utils.js');
 
+// The two layouts, and the one a config gets when it says nothing. Per-app is the default: every
+// database made since the layout exists is per-app (every example and test config, mercury's, the
+// hub's). A database still keeping every app in the shared data_items table has to say
+// "splitMode": "legacy" in its config (or DMS_SPLIT_MODE=legacy when the config is silent); the
+// wrong guess here reads an empty table and shows every site as brand new, with no error.
+// db/config.js loadConfig stamps the resolved mode on every config it returns, so callers read
+// config.splitMode and never re-derive it.
+const SPLIT_MODES = ['legacy', 'per-app'];
+const DEFAULT_SPLIT_MODE = 'per-app';
+
+/**
+ * Resolve a config's split mode: config.splitMode > DMS_SPLIT_MODE > per-app. Throws on any other value.
+ * @param {{ splitMode?: string }} [config]
+ * @param {string} [name] - config name, for the error
+ */
+function resolveSplitMode(config = {}, name = 'config') {
+  const mode = config.splitMode || process.env.DMS_SPLIT_MODE || DEFAULT_SPLIT_MODE;
+  if (!SPLIT_MODES.includes(mode)) {
+    throw new Error(
+      `Config "${name}": "splitMode" must be "legacy" or "per-app" (got ${JSON.stringify(mode)}; ` +
+      `config.splitMode=${JSON.stringify(config.splitMode)}, DMS_SPLIT_MODE=${JSON.stringify(process.env.DMS_SPLIT_MODE)})`
+    );
+  }
+  return mode;
+}
+
 // Legacy regex patterns — kept for backward compatibility during migration.
 // New code should use isSplitType() which checks for ':data' suffix.
 const UUID_SPLIT_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}-\d+(-invalid-entry)?$/;
@@ -162,7 +188,7 @@ function resolveSchema(app, dbType, splitMode) {
  * @param {number|string|null} sourceId - optional source record ID for new naming
  * @returns {{ schema: string, table: string, fullName: string }}
  */
-function resolveTable(app, type, dbType, splitMode = 'legacy', sourceId = null) {
+function resolveTable(app, type, dbType, splitMode = DEFAULT_SPLIT_MODE, sourceId = null) {
   const isPg = dbType === 'postgres';
 
   if (splitMode === 'legacy') {
@@ -291,7 +317,7 @@ function buildCreateTableSQL(schema, table, dbType, seqName) {
  *
  * @returns {{ schema: string, table: string, fullName: string }}
  */
-function resolveFormatsTable(app, dbType, splitMode = 'legacy') {
+function resolveFormatsTable(app, dbType, splitMode = DEFAULT_SPLIT_MODE) {
   const isPg = dbType === 'postgres';
   if (splitMode === 'legacy') {
     return isPg ? { schema: 'dms', table: 'formats', fullName: 'dms.formats' } : { schema: 'main', table: 'formats', fullName: 'formats' };
@@ -353,7 +379,7 @@ function buildFormatsTableSQL(schema, table, dbType) {
  * init's job (the create scripts); the per-app one is created on first use, cached like the
  * data_items tables.
  */
-async function ensureFormatsTable(db, app, dbType, splitMode = 'legacy') {
+async function ensureFormatsTable(db, app, dbType, splitMode = DEFAULT_SPLIT_MODE) {
   const resolved = resolveFormatsTable(app, dbType, splitMode);
   if (splitMode === 'legacy') return resolved;
   const cacheKey = `${resolved.schema}.${resolved.table}`;
@@ -504,6 +530,9 @@ function forgetTable(schema, table) {
 }
 
 module.exports = {
+  SPLIT_MODES,
+  DEFAULT_SPLIT_MODE,
+  resolveSplitMode,
   isSplitType,
   changeLogData,
   parseType,

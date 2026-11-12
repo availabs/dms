@@ -13,7 +13,7 @@ process.env.DMS_DB_ENV = DMS_DB;
 const assert = require('assert');
 const { createTestGraph } = require('./graph');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const syncMirror = require('./mirror-sync');
+const attachPgEnv = require('./attach-pgenv');
 const AUTH = require('../src/routes/auth');
 // Reply shaping is UDA's: it decides no access, only which columns an already-allowed reply carries.
 const RED = require('../src/routes/uda/sourceRedaction');
@@ -100,10 +100,7 @@ async function run() {
     const APP = `readauth_${Date.now()}`;
     SITE = APP;
     const tbl = await dmsMainTable(dms, APP, 'per-app');
-    for (const col of [`auth ${dms.type === 'postgres' ? 'jsonb' : 'TEXT'}`, 'parent_id INTEGER']) {
-        try { await dms.query(`ALTER TABLE ${tbl} ADD COLUMN ${col}`); } catch { /* already migrated */ }
-    }
-    // Through the controller: its id allocator must know the fixture rows, or the mirror's own creates collide.
+    // Through the controller: its id allocator must know the fixture rows, or its own creates collide.
     const controller = require('../src/routes/dms/dms.controller').createController(DMS_DB);
     const insert = async (type, data) => +(await controller.createData([APP, type, data], null))[0].id;
     const intView = await insert('roads|v1:view', { name: 'v1' });
@@ -114,17 +111,18 @@ async function run() {
     const envRow = await insert('site|env1:dmsenv', { sources: [{ id: intOpen }, { id: intPrivate }],
         authPermissions: { groups: { public: ['view-source'], Staff: ['*'] }, users: {} } });
 
-    // --- fixtures for the 2026-10-30 rules (read-by-default, view:false, auth-column precedence)
+    // --- fixtures for the 2026-10-30 rules (read-by-default, view:false). Grants and `view` live in
+    // `data` only: the table has no `auth` column (new-app-auth-setup-and-db-constraints.md, A1b).
     // `ds2` grants the public NOTHING, so anything readable beneath it is readable because the
     // SOURCE says nothing — not because the pattern allowed it.
     const vocabSource = await insert('env2|vocab_src:source', { name: 'vocab_src' });
     const hiddenSource = await insert('env2|hidden:source', {
-        name: 'hidden', auth_permissions: { users: { 1: ['*'] }, groups: {} },
+        name: 'hidden', auth_permissions: { users: { 1: ['*'] }, groups: {}, view: false },
     });
-    const hiddenBlank = await insert('env2|hidden_blank:source', { name: 'hidden_blank' });
+    const hiddenBlank = await insert('env2|hidden_blank:source', { name: 'hidden_blank', auth_permissions: { view: false } });
     const columnSource = await insert('env2|col_src:source', {
         name: 'col_src',
-        auth_permissions: { groups: { public: ['view-source'] }, users: {} },   // STALE on purpose
+        auth_permissions: { groups: { public: ['view-source'] }, users: {} },
     });
     const env2 = await insert('site|env2:dmsenv', {
         sources: [{ id: vocabSource }, { id: hiddenSource }, { id: hiddenBlank }, { id: columnSource }],
@@ -132,13 +130,6 @@ async function run() {
         authVocabulary: { descendants: [{ value: 'view-page', implies: ['read'] }] },
     });
     await insert('site|ds2:pattern', { pattern_type: 'datasets', dmsEnvId: env2 });
-    // The `auth` COLUMN is the system of record. Added (with `parent_id`) before the first write, since the
-    // controller probes the columns once per table; then the grants that must beat `data` are written below.
-    const setAuth = async (id, obj) =>
-        dms.query(`UPDATE ${tbl} SET auth = $1 WHERE id = $2`, [JSON.stringify(obj), id]);
-    await setAuth(hiddenSource, { view: false });                       // grants still come from data
-    await setAuth(hiddenBlank, { view: false });                        // nothing anywhere else
-    await setAuth(columnSource, { groups: { public: [] }, users: { 1: ['*'] } });
     await insert('site|ds:pattern', { pattern_type: 'datasets', dmsEnvId: envRow });
     // A page pattern granting Rando view-source: a pattern's grants reach nothing but its own rows
     await insert('site|docs:pattern', { pattern_type: 'page', authPermissions: { groups: { Rando: ['view-source'] }, users: {} } });
@@ -147,7 +138,7 @@ async function run() {
 
     // THE EXTERNAL ENV'S DECLARATION. A pgEnv's sources expand their grants against the vocabulary
     // its `:dmsenv` row declares — the same one internal sources use (admin.format.js dmsEnvFormat),
-    // created in a real deployment by `scripts/reconcile-pgenv-mirror.js`. Without it `view-source` is
+    // created in a real deployment by `scripts/attach-pgenv.js`. Without it `view-source` is
     // just a string and confers no structural `read`: the legacy table that used to rescue it
     // (`legacyVerbs.js`) was deleted on 2026-11-03.
     // Its grants (EnvReaders view-source) reach every source of the pgEnv, for a request that names this site.
@@ -167,8 +158,8 @@ async function run() {
         ] },
     });
 
-    // The pgEnv's sources and views as rows of this site (dama/mirror.js): what the walk judges.
-    await syncMirror(APP, DAMA_DB);
+    // The pgEnv's sources and views are read from the pgEnv; the env row above is all the site holds.
+    await attachPgEnv(APP, DAMA_DB);
     // `app` is the LOCATOR for that row: it says which site's env row sits above the pgEnv's sources
     // (and so whose grants and vocabulary apply), and confers nothing itself.
     const read = (env, sourceId, user) => RA.allowSourceRead({ env, sourceId, user, app: APP });
@@ -215,7 +206,7 @@ async function run() {
             // gated the read, and `view-page` was never expanded into the structural `read`.
             assert.strictEqual(await read(I, vocabSource, anon), true);
         });
-        await t('NEW: `auth: { view: false }` narrows a source to its own grantees', async () => {
+        await t('NEW: `view: false` in a source\'s grants narrows it to its own grantees', async () => {
             assert.strictEqual(await read(I, hiddenSource, anon), false);
             assert.strictEqual(await read(I, hiddenSource, owner), true, 'its own user grant still reads');
             assert.strictEqual(await read(I, hiddenSource, appAdmin), true, '${app} Admin still reads');
@@ -224,7 +215,7 @@ async function run() {
             assert.strictEqual(await read(I, hiddenBlank, anon), false);
             assert.strictEqual(await read(I, hiddenBlank, owner), false);
         });
-        await t('grants in `data` win (every client writes there); the `auth` column answers when data names no one', async () => {
+        await t('a source\'s grants are read from `data` (there is no `auth` column)', async () => {
             assert.strictEqual(await read(I, columnSource, anon), true, 'data says public: view-source');
             assert.strictEqual(await read(I, columnSource, owner), true);
         });
@@ -251,19 +242,19 @@ async function run() {
         });
         await t('external: a source [] refuses, as it always did', async () => {
             const revoked = await ext({ users: { 1: ['*'] }, groups: { public: [], Rando: [], EnvReaders: [] } });
-            await syncMirror(APP, DAMA_DB);
+            await attachPgEnv(APP, DAMA_DB);
             assert.strictEqual(await RA.allowSourceRead({ env: E, sourceId: revoked, user: envReader, app: APP }), false);
         });
         await t('internal: the named site changes nothing (internal sources find their own env)', async () => {
             assert.strictEqual(await RA.allowSourceRead({ env: I, sourceId: intPrivate, user: stranger, app: APP }), false);
         });
-        await t('a grant change (on the site\'s mirror row) shows once the snapshot is refreshed', async () => {
-            const mirror = require('../src/dama/mirror');
-            await mirror.setGrantsIn(APP, E, priv, { users: { 1: ['*'] }, groups: { public: ['view-source'] } });
+        await t('a grant change written straight to the pgEnv shows once the snapshot is refreshed', async () => {
+            const setGrants = (g) => dama.query(`UPDATE ${srcTbl} SET auth_permissions = $1 WHERE source_id = $2`, [JSON.stringify(g), priv]);
+            await setGrants({ users: { 1: ['*'] }, groups: { public: ['view-source'] } });
             assert.strictEqual(await read(E, priv, anon), false, 'cached');
             RA.clearReadSnapshots();
             assert.strictEqual(await read(E, priv, anon), true);
-            await mirror.setGrantsIn(APP, E, priv, { users: { 1: ['*'] }, groups: { public: [] } });
+            await setGrants({ users: { 1: ['*'] }, groups: { public: [] } });
             RA.clearReadSnapshots();
         });
     });

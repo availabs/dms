@@ -356,6 +356,9 @@ export default {
     "type": 'table',
     useDataSource: true,
     useDataWrapper: true,
+    // The page loader preloads this section's rows before first render (api/preloadSectionData.js reads
+    // this flag with fullDataLoad / keepOriginalValues; opt-in, so not every dataWrapper component fetches at load).
+    preloadData: true,
     useGetDataOnPageChange: true,
     useInfiniteScroll: true,
     showPagination: true,

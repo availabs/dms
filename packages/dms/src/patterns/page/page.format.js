@@ -17,7 +17,8 @@ export const cmsSection = {
   // A component declares no `parent` / `url_slug` of its own. Both used to sit here, resolving
   // through `joinKey: 'parent'` + `serverFn: 'recurse_extract_data'` — a reader wired up for a
   // field that was measured 52.6% wrong and has since been retired (see routes/dms/parentId.js, and
-  // planning/tasks/current/row-auth-parentage.md). A component's containment is `parent_id`.
+  // planning/tasks/current/row-auth-parentage.md). A component's containment is `data.parent_id`,
+  // which the server writes (a create's checked claim, and the page's own save); it is not an attribute here.
   attributes: [
     { key: "title",
       type: "text",

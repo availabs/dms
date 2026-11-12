@@ -15,7 +15,7 @@ const DAMA_DB = process.env.DAMA_TEST_DB || 'dama-sqlite-test';
 process.env.DMS_DB_ENV = DMS_DB; // the resolver reads the datasets pattern from DMS_DB_ENV
 const assert = require('assert');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const syncMirror = require('./mirror-sync');
+const attachPgEnv = require('./attach-pgenv');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -110,7 +110,7 @@ async function run() {
         [`schedauth_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`, JSON.stringify(ap)])).rows[0].source_id;
     const srcA = await mkSource({ groups: { Schedulers: ['update-source'] }, users: {} });
     const srcB = await mkSource({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
-    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
+    await attachPgEnv(APP, DAMA_DB);   // the site's env row for the pgEnv (dama/pgEnv.js)
     const made = [];
     const mkSchedule = async (source_id) => {
         const row = await schedules.createSchedule({ source_id, worker_path: 'schedauth_dt/run', cron: '0 2 * * *', timezone: 'America/New_York', descriptor: {}, enabled: false, max_in_flight: 1, created_by: 1 }, DAMA_DB);

@@ -66,7 +66,7 @@ t('holds: own entry, a group, public, or *; never "nothing set ⇒ open"', () =>
 const { authorize, assertCan, clearSnapshots } = require('../src/routes/auth');
 const { requestUserId, requestUserIdWarnBody } = require('../src/routes/auth/requestUser');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const syncMirror = require('./mirror-sync');
+const attachPgEnv = require('./attach-pgenv');
 
 async function dbTests() {
     const { getDb, awaitReady } = require('../src/db');
@@ -110,7 +110,7 @@ async function dbTests() {
     const extGranted = await ext({ groups: { AVAIL: ['*'], public: [] }, users: {} });
     const extEmpty = await ext({});
     const extOwned = await ext({ groups: { public: [] }, users: { 1: ['*'] } }); // a new source: creator only
-    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
+    await attachPgEnv(APP, DAMA_DB);   // the site's env row for the pgEnv (dama/pgEnv.js)
 
     const ENV = `${APP}+ds`;
     const dhses = { authed: true, id: 7, groups: ['DHSES'] };

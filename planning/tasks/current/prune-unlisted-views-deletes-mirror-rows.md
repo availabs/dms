@@ -1,6 +1,6 @@
 # `prune-unlisted-views.js` and `retype-views-to-source.js` read the pgEnv mirror's view rows as residue
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** dropped — superseded by [pgenv-auth-without-mirror-rows.md](./pgenv-auth-without-mirror-rows.md): the mirror rows it protects are being deleted; not moved: until `retire-pgenv-mirror.js` has run on `mitigat-ny-prod` · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Objective
 

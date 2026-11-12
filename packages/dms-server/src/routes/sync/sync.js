@@ -547,6 +547,19 @@ function createSyncRoutes(dbName) {
           ? await dms_db.promise(`SELECT id, app, type, data, CAST(data AS TEXT) AS data_text FROM ${pushTable} WHERE id = $1`, [item.id])
           : [];
         const op = action === 'D' ? 'delete' : (action === 'U' || stored) ? 'edit' : 'create';
+        // `parent_id` is a protected key of `data` (routes/dms/parentId.js), exactly as on the Falcor
+        // writes: an edit never carries it, and a create's claim is checked before it is stored. Both
+        // happen here, before the guard, so the guard judges what will be written and the claim's
+        // lookup stays outside the transaction.
+        if (op === 'edit') {
+          item.data = controller.withoutParentId(item.data);
+          // an I onto an existing row REPLACES its data (ON CONFLICT below), so the stored value is carried over
+          if (action === 'I') {
+            const kept = (typeof stored.data === 'string' ? JSON.parse(stored.data || '{}') : (stored.data || {})).parent_id;
+            item.data = require('../dms/parentId').withParentId(item.data, kept);
+          }
+        }
+        else if (op === 'create') item.data = await controller.claimParentId(item.app, item.type, item.data, pushTable);
         // What gets written: for an edit, only the keys the guard judged (dataAuth.js planEdit). An I
         // onto an existing row replaces its whole data, so keys it leaves out are judged as removed.
         let writeData = item.data;

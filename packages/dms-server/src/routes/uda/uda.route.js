@@ -32,8 +32,6 @@ const {
 const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
 const { assertCan, canRead, readableSources, sourceOfView, authMode } = require('../auth');
 const { redactSourceRow } = require('./sourceRedaction');
-const mirror = require('../../dama/mirror');
-const { isDmsEnv } = require('../auth/owners');
 
 // ---- Reads (DMS_AUTH_MODE): a refused read answers null, never an error, so a page section or list
 // renders empty instead of failing the whole batch. `app`: the site the request comes from (a named
@@ -64,18 +62,9 @@ async function assertSourceWrite(router, env, sourceId, updates) {
   }
 }
 
-// A source write. On a pgEnv source, `auth_permissions` is the requesting site's grants and goes to its
-// MIRROR row (dama/mirror.js), never to the pgEnv's column; every other key is the origin's. The echoed row
-// carries the site's grants.
-async function writeSource(router, env, sourceId, updates) {
-  if (isDmsEnv(env) || !Object.prototype.hasOwnProperty.call(updates || {}, 'auth_permissions')) return updateSource(env, sourceId, updates);
-  const { auth_permissions, ...rest } = updates;
-  const app = router.requestApp;
-  if (!app) throw new Error('Not authorized: no site named for the grants of an external source');
-  const grants = await mirror.setGrantsIn(app, env, sourceId, auth_permissions);
-  const rows = Object.keys(rest).length ? await updateSource(env, sourceId, rest) : [{ source_id: +sourceId }];
-  return rows.map(r => (+r.source_id === +sourceId ? { ...r, auth_permissions: grants } : r));
-}
+// A source write. On a pgEnv source `auth_permissions` is the pgEnv's own column, like every other key:
+// one set of grants for every app that uses the pgEnv (dama/pgEnv.js).
+const writeSource = (router, env, sourceId, updates) => updateSource(env, sourceId, updates);
 
 // A view write needs `update-source` on the view's source.
 async function assertViewWrite(router, env, viewId) {
@@ -232,14 +221,6 @@ module.exports = [
 
         for (const env of envs) {
           const rows = await getSourceById(env, ids, attributes);
-          // a pgEnv source's grants are the requesting site's (its mirror row), not the pgEnv's column
-          if (!isDmsEnv(env) && attributes.includes('auth_permissions') && this.requestApp) {
-            for (const r of rows) {
-              const g = await mirror.grantsIn(this.requestApp, env, r.id);
-              if (g !== undefined) r.auth_permissions = g;
-            }
-          }
-
           for (const id of ids) {
             const readable = await canReadSource(this, env, id, 'source');
             const source = readable

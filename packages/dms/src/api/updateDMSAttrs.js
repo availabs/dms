@@ -18,7 +18,9 @@ export 	async function updateDMSAttrs(data, configs, falcor, parentId = null) {
             let id = Number.isFinite(+d?.id) && +d?.id > 0 ? d?.id : false
             let dirty = d?._dirty || false
 
-            for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
+            // `parent_id` comes back with the row's data (the server keeps it there); the claim below is
+            // the only one sent, so a section moved or copied to another parent never carries its old one
+            for(const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty', 'parent_id']) {
                 delete d[key];
             }
             // The row being saved OWNS these children — that is what `dms-format` declares. Say so

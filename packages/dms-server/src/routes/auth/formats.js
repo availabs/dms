@@ -57,7 +57,7 @@ function dmsDb() {
  */
 async function table(db, app) {
   const name = process.env.DMS_DB_ENV || 'dms-sqlite';
-  const splitMode = loadConfig(name).splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const splitMode = loadConfig(name).splitMode;
   return (await ensureFormatsTable(db, app, db.type, splitMode)).fullName;
 }
 

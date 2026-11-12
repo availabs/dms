@@ -55,7 +55,8 @@ const CHILD_REFS = {
  * each stubbed path is given a module that exports `default` plus every name any format asks of it.
  */
 const KEEP = /\.(format|domain|childRefs)(\.js)?$|deriveAuth(Vocabulary|Rules)(\.js)?$|declarations(\.js)?$/
-const STUB_NAMES = ['lazyComponent', 'listPatternTypes', 'registerFormats']
+// every NAME a format imports from a stubbed module must be listed (esbuild resolves imports by name)
+const STUB_NAMES = ['lazyComponent', 'listPatternTypes', 'registerFormats', 'TenantList']
 
 const stubPlugin = {
     name: 'permissions-only',

@@ -47,19 +47,13 @@ async function run() {
     };
     const edit = (id, data, type) => graph.callAsync(['dms', 'data', 'edit'], [APP, id, data, type]);
 
-    // The site row also creates the app's table, so the columns can be added before anything that
-    // reads them. `parent_id` is not in create_dms.sql — it arrives via migrate-row-auth.js
-    // --add-columns, which is what this reproduces.
+    // `parent_id` is a key of `data` (routes/dms/parentId.js): the app's table is exactly what a new
+    // app gets, with no extra column and no migration.
     await create('prod:site', { name: 'prod' });
-    const T = resolveTable(APP, '', 'sqlite', 'per-app');
-    for (const col of ['auth TEXT', 'parent_id BIGINT']) {
-        try { await db.promise(`ALTER TABLE ${T.fullName} ADD COLUMN ${col}`); }
-        catch (e) { if (!/duplicate column/i.test(e.message)) console.log('[alter]', e.message); }
-    }
-    require('../src/routes/dms/rowAuthCaps')._resetCaps();
+    const T = resolveTable(APP, '', db.type, 'per-app');
 
     const parentOf = async (id) =>
-        String((await db.promise(`SELECT parent_id FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.parent_id ?? '');
+        String((await db.promise(`SELECT ${require('../src/db/query-utils').jsonExtract('data', 'parent_id', db.type)} AS parent_id FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.parent_id ?? '');
 
     // The declaration the server reads — on the pattern row, because dms-server cannot read formats.
     await create('prod|widgets:pattern', { pattern_type: 'page', childRefs: CHILD_REFS });
@@ -120,6 +114,36 @@ async function run() {
     await create('plain|page', { title: 'P', sections: [{ id: p1, ref: `${APP}+plain|component` }] });
     await t('no declaration, no stamp — the structural rule alone never guesses', async () =>
         assert.strictEqual(await parentOf(p1), ''));
+
+    section('7. `data.parent_id` is a protected key — a create claims it, an edit cannot change it');
+    const claimed = await create('widgets|component', { title: 'claims A', parent_id: pageA });
+    await t('a create\'s claim that passes the check is stored in data', async () =>
+        assert.strictEqual(await parentOf(claimed), pageA));
+    const otherPage = await create('other|page', { title: 'in another pattern' });
+    const bad = await create('widgets|component', { title: 'claims a page elsewhere', parent_id: otherPage });
+    await t('a claim outside the row\'s container is dropped, and the row is still written', async () =>
+        assert.strictEqual(await parentOf(bad), ''));
+    const ghost = await create('widgets|component', { title: 'claims nothing real', parent_id: 999999999 });
+    await t('a claim naming no row is dropped', async () => assert.strictEqual(await parentOf(ghost), ''));
+
+    await edit(claimed, { title: 'renamed', parent_id: pageB }, 'widgets|component');
+    await t('an edit carrying parent_id leaves the stored value alone…', async () =>
+        assert.strictEqual(await parentOf(claimed), pageA));
+    await t('…and the rest of the edit is written', async () => {
+        const [row] = await db.promise(`SELECT ${require('../src/db/query-utils').jsonExtract('data', 'title', db.type)} AS title FROM ${T.fullName} WHERE id = $1`, [claimed]);
+        assert.strictEqual(row.title, 'renamed');
+    });
+    await edit(bad, { parent_id: pageA }, 'widgets|component');
+    await t('an edit cannot ADD one either', async () => assert.strictEqual(await parentOf(bad), ''));
+    await edit(claimed, { title: 'again' }, 'widgets|component');
+    await t('an edit that does not mention it keeps it (the edit merges)', async () =>
+        assert.strictEqual(await parentOf(claimed), pageA));
+    await t('mass edit refuses the key', async () => {
+        await assert.rejects(
+            graph.callAsync(['dms', 'data', 'massedit'], [APP, 'widgets|component', 'parent_id', [{ invalidValue: null, validValue: String(pageB) }]]),
+            /parent_id/);
+        assert.strictEqual(await parentOf(claimed), pageA);
+    });
 
     console.log(`\n${pass} passed, ${fail} failed\n`);
     process.exit(fail ? 1 : 0);

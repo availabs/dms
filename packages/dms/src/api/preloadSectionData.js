@@ -3,22 +3,14 @@ import { dmsDataLoader } from './index.js'
 import { migrateToV2 } from '../patterns/page/components/sections/components/dataWrapper/migrateToV2.js'
 import { getData } from '../patterns/page/components/sections/components/dataWrapper/getData'
 
-// Per-component config needed by getData, keyed by element-type.
-// Only types that use dataWrapper and are worth pre-loading.
-const COMPONENT_PRELOAD_CONFIG = {
-    'Spreadsheet': { fullDataLoad: false, keepOriginalValues: true },
-    'Card':        { fullDataLoad: false, keepOriginalValues: true },
-    'Graph':       { fullDataLoad: true,  keepOriginalValues: false },
-}
-
-const PRELOADABLE_TYPES = new Set(Object.keys(COMPONENT_PRELOAD_CONFIG))
-
-/**
- * Check if a section's element-type supports data pre-loading.
- */
-export function isPreloadableType(elementType) {
-    return PRELOADABLE_TYPES.has(elementType)
-}
+// Which sections preload, and how, is read off each section's COMPONENT — the registry entry its
+// element-type resolves to (the caller passes the registry; api/ doesn't import patterns):
+//   preloadData                       opt-in: preload this component's rows before first render
+//   fullDataLoad, keepOriginalValues  the getData flags the component itself loads with
+//   type                              the stable component id migrateToV2 keys shape migrations on
+// No element-type names here (the core never knows types): a legacy alias such as "AVL Graph", or a
+// theme component that sets preloadData, works without a library change.
+// See planning/tasks/current/preload-section-data-from-registry.md.
 
 // ---------------------------------------------------------------------------
 // Page filter resolution helpers
@@ -96,7 +88,9 @@ function injectPageFilters(node, filterMap) {
  *
  * @param {Object} falcor - Falcor client instance
  * @param {string} elementData - Raw JSON string from section element['element-data']
- * @param {string} elementType - Section element['element-type'] (e.g., 'Spreadsheet')
+ * @param {string} elementType - Section element['element-type'] (e.g., 'Spreadsheet'), for logs
+ * @param {Object} component - The registry entry the element-type resolves to (its preloadData,
+ *        fullDataLoad, keepOriginalValues and type are read)
  * @param {Object|null} pageFilterMap - Optional {searchKey: values[]} map for page filter injection
  * @param {string} [sectionId] - Falcor cache-key discriminator (the section's own id/trackingId) —
  *        prevents sibling sections with matching filter/groupBy from colliding on the same Falcor
@@ -104,15 +98,14 @@ function injectPageFilters(node, filterMap) {
  * @returns {string|null} Updated element-data JSON string with pre-loaded data,
  *          or null if pre-loading was skipped
  */
-export async function preloadSectionData(falcor, elementData, elementType, pageFilterMap = null, sectionId = null) {
-    if (!elementData || !isPreloadableType(elementType)) return null
+export async function preloadSectionData(falcor, elementData, elementType, component, pageFilterMap = null, sectionId = null) {
+    if (!elementData || !component?.preloadData) return null
 
-    // Parse and migrate state (handles v0/v1/v2 formats). Graph.migrate.js's
-    // reshape is gated on compType ('avlGraph'), not the element-type string —
-    // both "Graph" and "AVL Graph" resolve to graph_new (see ComponentRegistry/
-    // index.jsx), so map either one through here too.
-    const compType = (elementType === 'Graph' || elementType === 'AVL Graph') ? 'avlGraph' : undefined
-    const state = migrateToV2(elementData, undefined, undefined, compType)
+    // Parse and migrate state (handles v0/v1/v2 formats). Shape migrations are gated on the
+    // component's `type` (graph_new's 'avlGraph', whichever registry key — "Graph" or "AVL Graph" —
+    // resolved it), as the dataWrapper passes it. The name is not passed: preload never ran the
+    // name-gated migrations, and the dataWrapper still runs them at render.
+    const state = migrateToV2(elementData, undefined, undefined, component.type)
     if (!state?.externalSource?.source_id && !state?.externalSource?.isDms) return null
 
     // Respect the "Always Fetch Data" toggle (display.readyToLoad).
@@ -134,7 +127,8 @@ export async function preloadSectionData(falcor, elementData, elementType, pageF
     // Create a minimal apiLoad shim
     const apiLoad = (config, path) => dmsDataLoader(falcor, config, path || '/')
 
-    const { fullDataLoad, keepOriginalValues } = COMPONENT_PRELOAD_CONFIG[elementType]
+    const fullDataLoad = !!component.fullDataLoad
+    const keepOriginalValues = !!component.keepOriginalValues
 
     try {
         const t0 = import.meta.env.DEV ? performance.now() : 0
@@ -173,11 +167,11 @@ export async function preloadSectionData(falcor, elementData, elementType, pageF
 /**
  * Pre-load sections from a single sections array.
  */
-async function preloadSectionsArray(falcor, sections, filterMap, label) {
+async function preloadSectionsArray(falcor, sections, filterMap, label, components) {
     if (!Array.isArray(sections) || !sections.length) return null
 
     const preloadable = sections.filter(
-        s => isPreloadableType(s?.element?.['element-type'])
+        s => components[s?.element?.['element-type']]?.preloadData
     )
     if (!preloadable.length) return null
 
@@ -191,9 +185,10 @@ async function preloadSectionsArray(falcor, sections, filterMap, label) {
         sections.map(async (section) => {
             const elementType = section?.element?.['element-type']
             const elementData = section?.element?.['element-data']
-            if (!isPreloadableType(elementType) || !elementData) return section
+            const component = components[elementType]
+            if (!component?.preloadData || !elementData) return section
 
-            const preloaded = await preloadSectionData(falcor, elementData, elementType, filterMap, section.trackingId || section.id)
+            const preloaded = await preloadSectionData(falcor, elementData, elementType, component, filterMap, section.trackingId || section.id)
             if (!preloaded) return section
 
             return {
@@ -234,8 +229,10 @@ export function pageSectionTypes(pageItem) {
 /**
  * Pre-load dataWrapper data for all eligible sections on a page.
  * Called from the page pattern's preload hook in dmsPageFactory's loader.
+ * `components` is the section-component registry ({ [element-type]: entry }, theme registrations
+ * included); a section preloads when its entry sets `preloadData`.
  */
-export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '') {
+export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '', components = {}) {
     const pageItem = findPageItem(data, slug)
     if (!pageItem) return data
 
@@ -245,8 +242,8 @@ export async function preloadPageSections(falcor, data, requestUrl, patternFilte
     const label = pageItem.title || 'page'
 
     const [updatedSections, updatedDraftSections] = await Promise.all([
-        preloadSectionsArray(falcor, pageItem.sections, filterMap, label),
-        preloadSectionsArray(falcor, pageItem.draft_sections, filterMap, `${label} (draft)`),
+        preloadSectionsArray(falcor, pageItem.sections, filterMap, label, components),
+        preloadSectionsArray(falcor, pageItem.draft_sections, filterMap, `${label} (draft)`, components),
     ])
 
     if (!updatedSections && !updatedDraftSections) return data

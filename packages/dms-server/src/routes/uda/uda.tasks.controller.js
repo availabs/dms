@@ -265,7 +265,7 @@ async function deleteInternalSource(env, sourceId) {
   const db = resolveDb(env);
   const dbEnvName = process.env.DMS_DB_ENV || 'dms-sqlite';
   const config = loadConfig(dbEnvName);
-  const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const splitMode = config.splitMode;
 
   const mainTbl = await dmsMainTable(db, app, splitMode);
 

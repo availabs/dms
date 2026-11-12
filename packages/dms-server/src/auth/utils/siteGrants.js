@@ -13,8 +13,9 @@
  *   only that entry changes. Grants that aren't a well-formed `{ groups, users }` of arrays are never
  *   rewritten: a row naming the user / group in such grants, or under a key its kind doesn't read, is
  *   returned in `skipped` with the reason.
- * - A pgEnv's sources are rows of the site too (their MIRRORS, dama/mirror.js), holding the site's own
- *   grants over them: stripped like any other row. Nothing is listed or written in the pgEnv.
+ * - A pgEnv's sources are NOT rows of the site (dama/pgEnv.js): their grants are the pgEnv's own
+ *   `auth_permissions` column, shared by every app on it. Nothing is listed or written in the pgEnv, so
+ *   a grant there naming the user / group stays until it is removed on the source.
  */
 
 const { getKind } = require('../../db/type-utils');

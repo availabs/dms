@@ -535,7 +535,9 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 						const d = { ...dU };
 						const childId = d.id || false;
 						const dirty = d._dirty || false;
-						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty']) {
+						// `parent_id` comes back with the row's data (the server keeps it there); the claim below is
+						// the only one sent, so a section moved or copied to another parent never carries its old one
+						for (const key of ['id', 'ref', 'created_at', 'updated_at', 'created_by', 'updated_by', '_dirty', 'parent_id']) {
 							delete d[key];
 						}
 						// The row being saved OWNS these children — that is what `dms-format` declares.

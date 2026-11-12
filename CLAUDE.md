@@ -193,7 +193,7 @@ Current debt, so this reads as a standard and not an aspiration:
 | Location | Violation |
 |---|---|
 | `render/spa/utils/index.js` | seven `pattern_type === 'admin' / 'auth' / 'datasets'` checks in the router |
-| `dms-server/routes/auth/owners.js` | `parentOf` prefers, among same-named patterns, the one that is not `admin` / `auth` (a tie-break by name until every page carries `parent_id`); `patternRow` / `requirePatternAction` skip the `admin` / `auth` rows by name |
+| `dms-server/routes/auth/owners.js` | `parentOf` prefers, among same-named patterns, the one that is not `admin` / `auth` (a tie-break by name until every page carries `data.parent_id`); `patternRow` / `requirePatternAction` skip the `admin` / `auth` rows by name |
 | `dms-server/routes/auth/rules.js` | the built-in copy of the formats' rules, read for a kind the site's `formats` rows and the row's stamp both say nothing about — deleted once every site's declarations are registered (`format-declarations-server-side.md`, Phase 4) |
 | `dms-server/auth/utils/permissions.js` | the auth-row handlers judge with their own `can()` over the named auth row rather than through `authorize` |
 
@@ -203,7 +203,7 @@ Authorization is where this matters most, because getting it wrong is silent. Th
 (`dms-server/src/routes/auth/judge.js`) is an interpreter over each row kind's rule, authored in the
 formats (`rules`) beside the `permissionDomain` and stamped on the pattern / site row; which rows'
 grants govern a row is a position on its ancestry (`owners.js`: `self`, `parent`, `ancestor:<kind>`,
-`site`), walked over `parent_id` and the type path. A pattern type with new verbs or new rules deploys
+`site`), walked over `data.parent_id` and the type path. A pattern type with new verbs or new rules deploys
 with no server change. **The default must be inheritance, never permission.** A kind with no rule is
 refused on write unless signed in, and a kind with no `read` op is open on read — both written in
 `rules.js`, never a `case` in code.
@@ -216,7 +216,9 @@ How patterns, formats and rows fit together so that the auth layer stays one wal
 1. **A row's parent is named by its type path, or by a reference from a parent inside that path's
    container.** `chenango|page` belongs to the pattern `chenango` by path. A component belongs to the
    page whose `sections` lists it, by reference: a `dms-format` attribute on the parent, stamped as
-   `parent_id` when the parent is saved. Two ways to say "belongs to", both first-class. When both
+   `data.parent_id` when the parent is saved (a protected key of `data`: a create's claim is
+   checked before it is stored, and no edit can change it; there is no `parent_id` column and no
+   `auth` column). Two ways to say "belongs to", both first-class. When both
    apply, the reference is the nearer and wins; a reference to a row outside the container is refused
    (`routes/dms/parentId.js`).
 2. **A rule's owner positions are resolved by walking those parents.** `self`, `parent`,
@@ -231,7 +233,7 @@ Two kinds of knowledge get hardcoded in auth, and each already has a data home:
 
 | Hardcoded | Belongs in |
 |---|---|
-| *"a page's grants merge with its pattern's"* — relationships between rows | the row's **parentage** (`parent_id`, falling back to the type path), reconstructed by walking it |
+| *"a page's grants merge with its pattern's"* — relationships between rows | the row's **parentage** (`data.parent_id`, falling back to the type path), reconstructed by walking it |
 | *"changing `authPermissions` needs `edit-page-permissions`"* — which verb governs which field | the pattern's **format**, beside the `permissionDomain` that already declares its vocabulary |
 
 Formats are rows in the server's `formats` table, one per site and format key (`app` = the site,

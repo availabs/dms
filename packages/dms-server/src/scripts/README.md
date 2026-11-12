@@ -205,3 +205,70 @@ The extracted images must be served by your web server at the configured `--url-
 - **dms-server**: Add `express.static()` middleware for the output directory
 - **Netlify/static deploys**: Copy extracted files into the build output
 - **Development**: Symlink or copy into Vite's `public/` directory
+
+## setup-app.js
+
+Bring one app's `data_items` to the shape the auth layer reads. Dry run by default.
+
+```bash
+node src/scripts/setup-app.js --db <config> --app <app>                 # report only
+node src/scripts/setup-app.js --db <config> --app <app> --apply
+node src/scripts/setup-app.js --db <config> --app <app> --apply --add-uniqueness-guard [kind|all]
+```
+
+1. **The retired `parent_id` and `auth` columns** (added per app by the old `migrate-row-auth.js`): what
+   only the column holds is moved into `data` (`data.parent_id`; grants where `data` names no one; `view`;
+   the vocabulary / childRefs stamp), the move is verified, and the columns are dropped. A row it cannot
+   move by rule is listed and keeps the `auth` column (exit code 2).
+2. **Stored `data.parent_id` values** are held to the check a create's claim gets
+   (`routes/dms/parentId.js`); `--apply` removes the ones that fail.
+3. **The uniqueness guard** (opt-in): one row per `(app, type)` for each container kind (`pattern`,
+   `source`, `view`, `dmsenv`, `site`). Never added over duplicates; they are listed.
+
+Idempotent. Quiesce writes for `--apply` on a live app. Tests: `tests/test-setup-app.js` (SQLite, and
+Postgres through `tests/postgres-docker.js run tests/test-setup-app.js`).
+
+## attach-pgenv.js
+
+Make sure an app has its one `:dmsenv` row for a pgEnv (`{site}|{name}:dmsenv` with `data.pgEnv`). Dry
+run by default.
+
+```bash
+node src/scripts/attach-pgenv.js --db <config> --app <app> --pg-env <name> [--apply]
+```
+
+The row carries the site's env-level grants and is what `create-source` is asked of. Without it the auth
+layer refuses the pgEnv's sources for that site under `enforce` (`not attached`). The pgEnv's sources and
+views are read from the pgEnv and get no rows (`dama/pgEnv.js`). The row is found, adopted from a
+`:dmsenv` row of the same name, or created under the site row. Idempotent.
+
+## retire-pgenv-mirror.js
+
+Delete the rows the pgEnv mirror (2026-11-05 to 2026-11-12, `dama/mirror.js`, deleted) left in an app.
+Dry run by default.
+
+```bash
+node src/scripts/retire-pgenv-mirror.js --db <config> --app <app> [--pg-env <name>]
+node src/scripts/retire-pgenv-mirror.js --db <config> --app <app> --apply [--grants mirror|pgenv]
+```
+
+1. **Grants that differ** between a mirror row and the pgEnv's `auth_permissions` column are listed.
+   `--apply` refuses while any differ until `--grants` says which side is right: `mirror` writes the
+   mirror's to the column, `pgenv` keeps the column. With `mirror`, a source another app's mirror also
+   holds different grants for stops the run (exit code 2).
+2. **The app is dropped from the pgEnv's `settings.mirror_apps`** first, so a server still running the
+   mirror hooks stops re-creating rows.
+3. **The mirror rows are deleted by id** in one transaction, each with a `D` change_log entry: every
+   `:source` / `:view` row carrying `data.pgEnv` and the pgEnv's own id. Not through the controller's
+   delete, whose cascade finds a source's views by slug and would take a same-named internal source's
+   views and data tables. The `:dmsenv` row is kept.
+
+Run it only where every server on the database runs code that no longer reads mirrors, or is at
+`DMS_AUTH_MODE=log`. Idempotent. Tests: `tests/test-pgenv-auth.js` (SQLite, and Postgres with
+`DAMA_TEST_DB=dama-postgres-test node tests/postgres-docker.js run tests/test-pgenv-auth.js`).
+
+## migrate-row-auth.js (retired)
+
+Refuses to run since 2026-11-10: it filled the `parent_id` and `auth` columns, which the server no
+longer reads. Use `setup-app.js`. Its parentage backfill and `--verify-parents` are not ported; the
+code is kept for that port.

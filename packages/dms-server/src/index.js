@@ -369,10 +369,17 @@ async function setupAndListen() {
     const pgEnvStr = process.env.DMS_PG_ENVS || process.env.VITE_DMS_PG_ENVS || '';
     const pgEnvs = pgEnvStr.split(',').filter(Boolean);
 
+    // Where a production build lives: DMS_DIST_DIR (absolute, or relative to the project root; default
+    // dist), holding client/ and server/entry-ssr.js as `vite build` writes them. A local production run
+    // can keep its build in dist-ssr/, away from the dist/ the Netlify scripts upload (deploy/build_ssr.mjs
+    // builds into the same setting). Dev mode (NODE_ENV not production) ignores it and serves from src/.
+    const root = path.resolve(__dirname, '../../../../..');
+    const distDir = path.resolve(root, process.env.DMS_DIST_DIR || 'dist');
     await mountSSR(app, {
-      root: path.resolve(__dirname, '../../../../..'),
+      root,
       serverEntry: '/src/entry-ssr.jsx',
-      clientDir: path.resolve(__dirname, '../../../../../dist/client'),
+      clientDir: path.join(distDir, 'client'),
+      serverBundle: path.join(distDir, 'server', 'entry-ssr.js'),
       handlerConfig: {
         apiHost: `http://localhost:${PORT}`,
         siteConfig: {
@@ -394,7 +401,11 @@ async function setupAndListen() {
 
   const server = app.listen(PORT, () => {
     console.log(`DMS Server running on port ${PORT}`);
-    console.log(`  Split mode: ${process.env.DMS_SPLIT_MODE || 'legacy (default)'} (env fallback; may vary per database config)`);
+    try {
+      console.log(`  Split mode: ${loadConfig(syncDbEnv).splitMode} (${syncDbEnv}; per-app unless the config or DMS_SPLIT_MODE says legacy)`);
+    } catch (err) {
+      console.log(`  Split mode: unknown (${syncDbEnv}: ${err.message})`);
+    }
     const envEntries = Object.entries(process.env)
       .filter(([key]) => key.startsWith('DMS'));
 

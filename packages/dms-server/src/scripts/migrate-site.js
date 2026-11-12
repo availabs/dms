@@ -112,7 +112,7 @@ function createDb(configName) {
 }
 
 function getTable(config, app) {
-  const splitMode = config.splitMode || 'legacy';
+  const splitMode = config.splitMode;
   if (app && splitMode === 'per-app') {
     const resolved = resolveTable(app, '', config.type, splitMode);
     return resolved.fullName;
@@ -516,7 +516,7 @@ async function runMigration(sourceDb, targetDb, sourceConfig, targetConfig, opts
   const srcTable = getTable(sourceConfig);
   const tgtMainTable = getTable(targetConfig, app);
   const tgtDbType = targetDb.type;
-  const tgtSplitMode = targetConfig.splitMode || 'legacy';
+  const tgtSplitMode = targetConfig.splitMode;
 
   const pendingWrites = []; // { table, rows, splitInfo? }
   const maxIdTracker = { value: 0 }; // tracks max ID across ALL writes (including streamed)
