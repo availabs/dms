@@ -63,8 +63,9 @@ if (subject.error && !fresh) subject = await owners.snapshotFor({ …, fresh: tr
    already running awaits that load instead of starting another.
 3. **Judge a listing against one snapshot.** `readableSources` loads (or refreshes) once, then judges
    every id against it, so a listing can't multiply reloads regardless of 1–2.
-4. **Data (hub, owner):** run `reconcile-pgenv-mirror.js` for the hub tenants, so their external
-   sources have mirror rows and are judged, not missed. Separate from the code fix: 1–3 must hold
+4. **Data (hub, owner):** ~~run `reconcile-pgenv-mirror.js`~~ (the mirror is gone, 2026-11-12): attach each
+   tenant to its pgEnvs (`attach-pgenv.js`) and delete the mirror rows a copy brought in
+   (`retire-pgenv-mirror.js --grants pgenv`); hub runbook step 6c. Separate from the code fix: 1–3 must hold
    without it.
 
 Writes keep `fresh` (`op !== 'read'`): they are judged on what is stored now, and they're rare.
@@ -77,10 +78,12 @@ Writes keep `fresh` (`op !== 'read'`): they are judged on what is stored now, an
   (`TTL_MS`). `authorize` retries a read miss with `'recent'`, so every miss in a 3 s window, and every
   concurrent miss, shares one load; a miss on a load that recent is final (deny, as before). A row
   stored before that load started is found. Writes still load every time. A failed load only drops
-  its own cache entry. `snapshotLoads()` exported for tests. No negative cache needed.
-- [x] **3:** covered by 1–2 (a listing of N unknown ids costs ≤ 1 load); `readableSources` unchanged.
-- [ ] **4 (hub data, owner):** `reconcile-pgenv-mirror.js` for the hub tenants. **Owner 2026-11-11:** part of the next re-copy on mercury; runbook step 6c in `planning/shared/tasks/completed/tenant-hub-server.md`, with the new `--no-register` (skips the one write to the pgEnv, `settings.mirror_apps`, so production's DAMA and DMS are untouched). Rig dry run: ~29,300 rows per tenant; apply time and snapshot size not yet measured. Still worth it: with
-  no mirror rows every external source is a miss, so the snapshot still reloads up to once per 3 s
+  its own cache entry. `snapshotLoads()` exported for tests. No negative cache- [ ] **4 (hub data, owner):** superseded 2026-11-12 by the mirror's removal (master,
+  `pgenv-auth-without-mirror-rows.md`): no mirror rows to make. A pgEnv source is now judged from the pgEnv
+  (cached catalog), so it is no longer a miss once the tenant is attached. For the hub: `attach-pgenv.js` per
+  tenant and pgEnv, and `retire-pgenv-mirror.js --grants pgenv` for the mirror rows the 11-09 copy brought
+  into `dms_mny` from production; runbook step 6c (rewritten), done with the tenant-domains deploy.
+nce per 3 s
   per app while a page lists sources, and the reads are judged as misses (denied under `enforce`).
 - [x] Test `tests/test-auth-snapshot-reload.js` (`npm run test:auth-snapshot-reload`, local sqlite
   `cli-test`): 6/6. Against the old retry it fails: 38 reloads for 38 misses, 31 loads for 30
