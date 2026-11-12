@@ -19,6 +19,7 @@ import { createSSRMiddleware } from './middleware.mjs'
  * @param {string} config.serverEntry - Server entry path (e.g., '/src/entry-ssr.jsx')
  * @param {string} config.clientDir - Built client assets directory (prod)
  * @param {object} config.handlerConfig - Config passed to createHandler (apiHost, siteConfig, etc.)
+ * @returns {Promise<{ invalidateRoutes: Function }>} drops the handler's per-host route cache (a no-op in dev)
  */
 export async function mountSSR(app, config) {
   const {
@@ -96,6 +97,8 @@ export async function mountSSR(app, config) {
     })
 
     console.log('[SSR] Dev mode — Vite middleware + SSR enabled')
+    // a fresh handler per request: nothing cached to invalidate
+    return { invalidateRoutes() {} }
   } else {
     // --- Production mode: pre-built bundles ---
     const express = (await import('express')).default
@@ -124,5 +127,6 @@ export async function mountSSR(app, config) {
     }))
 
     console.log('[SSR] Production mode — serving pre-built bundles')
+    return { invalidateRoutes: () => cachedHandler.invalidateRoutes() }
   }
 }

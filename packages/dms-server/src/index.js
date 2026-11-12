@@ -382,7 +382,7 @@ async function setupAndListen() {
     const pgEnvStr = process.env.DMS_PG_ENVS || process.env.VITE_DMS_PG_ENVS || '';
     const pgEnvs = pgEnvStr.split(',').filter(Boolean);
 
-    await mountSSR(app, {
+    const ssr = await mountSSR(app, {
       root: path.resolve(__dirname, '../../../../..'),
       serverEntry: '/src/entry-ssr.jsx',
       clientDir: path.resolve(__dirname, '../../../../../dist/client'),
@@ -399,6 +399,11 @@ async function setupAndListen() {
         rootDomain: process.env.DMS_ROOT_DOMAIN || process.env.VITE_DMS_ROOT_DOMAIN || '',
       },
     });
+    // The hub: a tenant or domain change (alias verified / removed, primary moved, tenant added) changes
+    // what a host renders, so the SSR handler's per-host route cache starts over (tenant-external-domains.md).
+    if (ssr && ssr.invalidateRoutes) {
+      require('./routes/domains/store').onChange(() => ssr.invalidateRoutes());
+    }
   }
 
   // 404 catch-all — must be last middleware (after SSR if enabled)

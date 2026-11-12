@@ -26,6 +26,7 @@
  */
 
 import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import * as esbuild from 'esbuild'
 
@@ -52,22 +53,46 @@ const CHILD_REFS = {
  *
  * The stub is generated per IMPORTER, not per module, because an ES module's exports are static:
  * esbuild resolves `import { lazyComponent } from '…'` by name, so a Proxy cannot stand in. Instead
- * each stubbed path is given a module that exports `default` plus every name any format asks of it.
+ * each stubbed (importer, path) pair is given a module that exports `default` plus every name that importer
+ * asks of it (read from its import statement).
  */
 const KEEP = /\.(format|domain|childRefs)(\.js)?$|deriveAuth(Vocabulary|Rules)(\.js)?$|declarations(\.js)?$/
-const STUB_NAMES = ['lazyComponent', 'listPatternTypes', 'registerFormats']
+// The stubs with a value of their own: `lazyComponent` yields a component (a function, dropped by plainData),
+// the list stubs yield []. Any other name an importer asks for (a component, a helper) is the noop.
+const STUB_VALUES = { lazyComponent: '() => noop', listPatternTypes: '() => []', registerFormats: '() => []' }
+
+// The names `importer` imports from `spec`: `import D, { a, b as c } from 'spec'` → ['a', 'b'].
+function importedNames(importer, spec) {
+    let src = ''
+    try { src = readFileSync(importer, 'utf8') } catch { return [] }
+    const esc = spec.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const names = new Set()
+    for (const m of src.matchAll(new RegExp(`import\\s+(?:[\\w$]+\\s*,\\s*)?\\{([^}]*)\\}\\s*from\\s*['"]${esc}['"]`, 'g'))) {
+        for (const part of m[1].split(',')) {
+            const name = part.trim().split(/\s+as\s+/)[0].trim()
+            if (/^[\w$]+$/.test(name)) names.add(name)
+        }
+    }
+    return [...names]
+}
 
 const stubPlugin = {
     name: 'permissions-only',
     setup(build) {
+        // one stub per (importer, specifier): its exports are exactly the names that importer asks for
         build.onResolve({ filter: /.*/ }, (args) =>
-            (args.kind === 'entry-point' || KEEP.test(args.path)) ? null : { path: args.path, namespace: 'stub' })
-        // `lazyComponent` yields a component (a function, dropped by plainData), the list stubs yield []
-        build.onLoad({ filter: /.*/, namespace: 'stub' }, () => ({
-            contents: 'const noop = () => undefined;\nexport default noop;\n'
-                + STUB_NAMES.map(n => `export const ${n} = () => ${n === 'lazyComponent' ? 'noop' : '[]'};`).join('\n'),
-            loader: 'js',
-        }))
+            (args.kind === 'entry-point' || KEEP.test(args.path)) ? null
+                : { path: `${args.importer}::${args.path}`, namespace: 'stub', pluginData: { importer: args.importer, spec: args.path } })
+        build.onLoad({ filter: /.*/, namespace: 'stub' }, (args) => {
+            const { importer, spec } = args.pluginData || {}
+            const names = new Set([...Object.keys(STUB_VALUES), ...importedNames(importer, spec)])
+            names.delete('default')
+            return {
+                contents: 'const noop = () => undefined;\nexport default noop;\n'
+                    + [...names].map(n => `export const ${n} = ${STUB_VALUES[n] || 'noop'};`).join('\n'),
+                loader: 'js',
+            }
+        })
     },
 }
 

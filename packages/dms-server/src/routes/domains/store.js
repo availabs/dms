@@ -63,10 +63,35 @@ function aliasMapOf(rows) {
   return { aliases, primary };
 }
 
+// What a host resolves to depends on: the tenants' subdomains, their verified aliases, their primaries.
+// When that changes, listeners hear it (index.js: the SSR handler drops its per-host route cache, which
+// otherwise keeps an alias host's "not set up" page, or a removed alias's site, until a restart).
+let signature = null;
+const listeners = new Set();
+function signatureOf(rows, map) {
+  const subs = rows.map(r => `${r.data.subdomain || ''}`.toLowerCase()).sort();
+  return JSON.stringify([subs, [...map.aliases].sort(), [...map.primary].sort()]);
+}
+/** Call `fn()` whenever the host → tenant mapping changes (including the first load). Returns an unsubscribe. */
+function onChange(fn) {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
 async function refresh() {
   if (!inflight) {
     inflight = load()
-      .then(rows => { cache = { at: Date.now(), rows }; setDomainAliasMap(aliasMapOf(rows)); return rows; })
+      .then(rows => {
+        const map = aliasMapOf(rows);
+        cache = { at: Date.now(), rows };
+        setDomainAliasMap(map);
+        const sig = signatureOf(rows, map);
+        if (sig !== signature) {
+          signature = sig;
+          for (const fn of listeners) { try { fn(); } catch (e) { console.warn('[domains] change listener failed:', e.message); } }
+        }
+        return rows;
+      })
       .finally(() => { inflight = null; });
   }
   return inflight;
@@ -98,4 +123,4 @@ function start() {
   timer.unref();
 }
 
-module.exports = { tenants, tenantBySubdomain, refresh, writeTenant, start, aliasMapOf, hubApp, VERIFIED };
+module.exports = { tenants, tenantBySubdomain, refresh, writeTenant, start, onChange, aliasMapOf, hubApp, VERIFIED };

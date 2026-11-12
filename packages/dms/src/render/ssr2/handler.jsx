@@ -70,6 +70,8 @@ export function createSSRHandler({
   // Cache per-host — different subdomains produce different route sets
   // (pattern2routes filters by subdomain).
   const routeCache = new Map()
+  // bumped by invalidateRoutes, so a build that started before it does not store stale routes
+  let generation = 0
 
   async function buildRoutes(host) {
     const falcor = falcorGraph(apiHost)
@@ -121,10 +123,11 @@ export function createSSRHandler({
   async function ensureRoutes(host) {
     let entry = routeCache.get(host)
     if (!entry) {
+      const gen = generation
       const { routes, siteData, themeFontsHtml } = await buildRoutes(host)
       const handler = createStaticHandler(routes)
       entry = { routes, handler, siteData, themeFontsHtml }
-      routeCache.set(host, entry)
+      if (gen === generation) routeCache.set(host, entry)
     }
     return entry
   }
@@ -192,9 +195,11 @@ export function createSSRHandler({
   }
 
   /**
-   * Clear cached routes. Call after admin changes.
+   * Clear cached routes. Called by dms-server when the hub's tenants or domain aliases change
+   * (routes/domains/store.js onChange); also the hook for other admin changes.
    */
   function invalidateRoutes() {
+    generation++
     routeCache.clear()
   }
 

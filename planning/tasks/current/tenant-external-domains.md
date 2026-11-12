@@ -355,9 +355,31 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
     14,013 sources resolve to their own row. `authorize` read of hazmit_dama view 13633 (source 12891, not
     public) for anonymous and a `mny Public` member: deny; with the pre-fix `owners.js`: ALLOW for both.
 - [ ] Mockups: mirror what was built (records name/value layout, the tenant overview's partial port).
-- [ ] Not built yet: SSR handler cache vs alias changes (per-host cache keeps an old map until it
-  expires); a verified alias whose DNS later
-  moves away stays verified (only shown); formats not re-registered on the rig.
+- [x] **SSR route cache vs domain changes (2026-11-11).** The production SSR handler (`render/ssr2/handler.jsx`)
+  cached each host's routes until a restart (its `invalidateRoutes` had no caller), so on the live hub an alias
+  host first hit before verification kept "not set up", and a removed alias kept serving. Now
+  `routes/domains/store.js` `onChange(fn)` fires when the host → tenant mapping changes (tenant subdomains,
+  verified aliases, primaries; signature compared on every refresh: at once after a `/domains` write in the
+  same process, else within the 30 s reload), `mountSSR` returns `{ invalidateRoutes }` (a no-op in dev, where
+  every request builds a fresh handler), and `index.js` connects the two. The handler bumps a generation so a
+  build started before an invalidation is not stored. Checked on the rig: a production-mode harness
+  (`scratchpad/tenant-hub/ssrharness.mjs`, the same wiring as index.js, the SSR bundle built into
+  `ssrbuild/`): `ssrcheck.test` cached "not set up" (9 ms repeats) → verified → next request after the notice
+  renders MitigateNY, `albany.ssrcheck.test` the Albany plan → removed → notice at +18 s → "not set up" again.
+  Other admin changes (a pattern added, a theme edited) still wait for a restart, as before.
+- [x] **Formats registered on the rig (2026-11-11):** `register-formats.js --db hub-local-dms --app hub|mny|tny
+  --extra src/patterns/{qa,mapeditor,chat}/*.format.js --apply`: 23 rows each (including `admin+tenant` with
+  `aliases` / `primary`, `admin+site` with `manage-domains`); a second run: 23 current, 0 to write. First the
+  emitter had to be fixed: `emit-formats.mjs`'s stub exported a fixed name list, and `admin.format.js` has
+  imported `TenantList` since the Tenants tab (`afdb01a6`), so the emitter failed for every site (also the
+  `declarations.test.js` "emitter prints the same rows" failure). The stub now exports the names each
+  importer asks for (read from its import statement). After registering: `/domains` permissions unchanged
+  (mny-domains 200 mny / 403 tny, member 403, staff 200), 10 pages load, both card click-throughs pass. NOT
+  registered on the live hub or any production site: that is the per-site registration step in Alex's
+  [format-declarations-server-side.md](./format-declarations-server-side.md) (not this task's); tell Alex
+  about the emitter fix, since `emit-formats.mjs` is that task's script.
+- [ ] Not built yet: a verified alias whose DNS later
+  moves away stays verified (only shown).
 
 ## Testing checklist
 
