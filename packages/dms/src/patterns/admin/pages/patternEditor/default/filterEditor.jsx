@@ -6,6 +6,7 @@ import { filterEditorTheme } from './filterEditor.theme';
 import { parseIfJSON } from '../../../utils';
 import { getInstance } from '../../../../../utils/type-utils';
 import { authedFetch } from '../../../../../utils/authedFetch';
+import { getRegisteredComponents } from '../../../../page/components/sections/componentRegistry';
 
 // Normalise raw filters value (flat array or subdomain-keyed object) → subdomain-keyed object
 function normaliseFilters(raw) {
@@ -115,9 +116,15 @@ export const PatternFilterEditor = ({ value = {}, onChange, falcor, ...rest }) =
         const dmsServerPath = `${API_HOST}/dama-admin`;
         setSyncState(prev => ({ ...prev, [subdomain]: { syncing: true, progress: 0, message: null, isError: false } }));
         try {
+            // How each section type's component loads its rows, from the components themselves (theme
+            // registrations included): the server recomputes a Graph's stored rows in full only if told
+            // (src/dms/planning/tasks/current/pattern-filter-sync-full-data-load.md)
+            const sectionLoad = Object.fromEntries(Object.entries(getRegisteredComponents())
+                .filter(([, comp]) => comp?.fullDataLoad || comp?.keepOriginalValues)
+                .map(([type, comp]) => [type, { fullDataLoad: !!comp.fullDataLoad, keepOriginalValues: !!comp.keepOriginalValues }]));
             const res = await authedFetch(`${dmsServerPath}/dms/${app}+${patternInstance}/sync-filters`, {
                 method: 'POST',
-                body: JSON.stringify({ patternId: value.id, filterGroupKey: subdomain }),
+                body: JSON.stringify({ patternId: value.id, filterGroupKey: subdomain, sectionLoad }),
                 headers: { 'Content-Type': 'application/json' },
                 user,
             });

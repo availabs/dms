@@ -174,7 +174,7 @@ statement is in `CLAUDE.md`, "Ownership and grants"):
 
 1. **A row's parent is its type path's container, or a row inside that container that lists it.** A
    `dms-format` attribute on the parent (`sections`, `sources`, `views`, `patterns`) is the reference;
-   saving the parent stamps `parent_id` on the children it names. Declare one for every child kind your
+   saving the parent stamps `data.parent_id` on the children it names. Declare one for every child kind your
    pattern stores, and never point a reference outside the container.
 2. **A rule's owners are ancestors.** `owner`, `escape`, `ifOwnerBlank` and every requirement name
    `self`, `parent`, `ancestor:<kind>` or `site`. Registration refuses anything else

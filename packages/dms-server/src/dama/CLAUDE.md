@@ -211,7 +211,7 @@ Passed to every `routes` registration:
 | `authorizePublish(req, res, sourceId)` | `→ Promise<caller \| null>` | For a route that creates a source or adds a version: no `sourceId` → `create-source` on the named datasets pattern; a `sourceId` → `create-view` or `update-source` on it. `caller.id` is the owner (null for an anonymous call `log` let through). Follows `DMS_AUTH_MODE` as for a route that was open (`requireCan({ open: true })`). |
 | `authorizeSourceWrite(req, res, {sourceId, viewId}, perms)` | `→ Promise<caller \| null>` | `perms` on an existing source, or on the view's own source when `viewId` is given. With neither, only `enforce` refuses. Same mode rules. |
 | `requireUser(req, res)` | `→ user \| null` | Answers 401 and returns null when nobody is signed in. |
-| `requireCan(req, res, { source \| view \| env \| pattern, verb, fields?, app?, open? })` | `→ Promise<user \| null>` | Answers 401/403 unless the user may do `verb` (one verb or any of a list) to the subject: a source or view by id on `req.params.pgEnv` (or `env`) — judged on its MIRROR row in the site the request names (`?dms_app=` / `X-DMS-App`; `dama/mirror.js`), the env itself (`env: true` — `create-source` is asked of the site's `:dmsenv` row for the pgEnv), or a pattern row (`pattern: { app, id }`). One guard for every subject; `routes/auth/index.js`. |
+| `requireCan(req, res, { source \| view \| env \| pattern, verb, fields?, app?, open? })` | `→ Promise<user \| null>` | Answers 401/403 unless the user may do `verb` (one verb or any of a list) to the subject: a source or view by id on `req.params.pgEnv` (or `env`) — judged on the pgEnv's own row, under the `:dmsenv` row of the site the request names (`?dms_app=` / `X-DMS-App`; `dama/pgEnv.js`), the env itself (`env: true` — `create-source` is asked of the site's `:dmsenv` row for the pgEnv), or a pattern row (`pattern: { app, id }`). One guard for every subject; `routes/auth/index.js`. |
 | `authorizeViewAction(req, res, viewId, perms, bodySourceId)` | `→ Promise<{user, sourceId} \| null>` | Same, judged on the source the **view** belongs to (not the body's `source_id`); for routes that act on a view's files (downloads, PM tiles). |
 | `requestUserId(req)` | `→ id \| null` | The caller's id, from the token. Use it instead of a body `user_id`. |
 | `holdsSourcePermission(req, sourceId, perms)` | `→ Promise<boolean>` | Whether the caller holds one of `perms` on the source, **without answering the request**: for what a reply carries (a secret only an editor sees). Judged as reads are (`DMS_AUTH_MODE`). |
@@ -244,28 +244,27 @@ Reads of a source (the catalog, source and view rows, data rows, color domains, 
 (`dmsEnv.format.js` `rules.source.ops.read`): a source whose own grants name no one is readable by
 anyone (a source is narrowed only by something on the source — `auth: { view: false }` narrows it to its
 own grantees); otherwise `view-source`, or any source permission that implies reading it, on the
-source's effective grants: its own, spread over its env's. An external source is judged on its MIRROR
-ROW — a DMS row of the site the request names (`dms_app=<app>`, added to every request by
-`tagFalcorRequests`), parented to that site's `:dmsenv` row for the pgEnv (`dama/mirror.js`, kept equal
-to `data_manager` by hooks on create / update / delete and by `scripts/reconcile-pgenv-mirror.js`, which
-also creates the env row). A request naming no site is REFUSED (`no site named`): grants over a pgEnv's
-sources are per site. `${app} Admin` of the requesting site always reads. A datasets pattern lends nothing
-of its own: its grants were swept onto the env row it points at (`scripts/sweep-datasets-grants.js`, rule 2).
+source's effective grants: its own, spread over its env's. An external source is judged FROM THE PGENV:
+its own grants are `data_manager.sources.auth_permissions`, and the grants above it are the `:dmsenv` row
+of the site the request names (`dms_app=<app>`, added to every request by `tagFalcorRequests`) whose
+`data.pgEnv` is the pgEnv. The auth layer builds the source's (or view's) row in memory, parented to that
+env row (`routes/auth/owners.js snapshotFor`, `dama/pgEnv.js`); nothing is stored in DMS for a pgEnv's
+sources or views. A request naming no site is REFUSED (`no site named`), and so is one from a site with
+no env row for the pgEnv (`not attached`; `scripts/attach-pgenv.js` creates the row). `${app} Admin` of
+the requesting site always reads. A datasets pattern lends nothing of its own: its grants were swept onto
+the env row it points at (`scripts/sweep-datasets-grants.js`, rule 2).
 
-**The mirror is the auth subject and the record for GRANTS; `data_manager` stays the record for the rest.**
-A source's `auth_permissions` are seeded from the pgEnv's column when its mirror is created and are the
-site's own from then on: `uda.sources.update` and the `sources.byId` set write the key to the site's mirror
-row (`dama/mirror.js setGrantsIn`) and never to the column; `sources.byId` reads it from the mirror
-(`grantsIn`). Per site: two sites over one pgEnv may grant differently. `createDamaSource`, `createDamaView`,
-`updateSource` (name, type, categories, description), `updateView` (`version`), `deleteDamaSource` and
-`deleteDamaView` mirror into every app in the pgEnv's `settings.mirror_apps`; a plugin that writes
-`data_manager` by direct SQL bypasses them — run the reconcile after. A site starts mirroring a pgEnv by
-running the reconcile once (`--apply` registers it).
+**A pgEnv source's grants are the pgEnv's, shared by every app on it** (owner, 2026-11-12). `uda.sources.update`
+and the `sources.byId` set write `auth_permissions` to the column like any other key, and the write drops
+the auth layer's cache of that pgEnv, so it is read at once on the same server (another server reads it
+within 30 s). A plugin that writes `data_manager` by direct SQL needs nothing after it. From 2026-11-05 to
+2026-11-12 every source and view was instead mirrored as a DMS row per site (`dama/mirror.js`, deleted):
+`scripts/retire-pgenv-mirror.js` removes the rows that left behind
+(`planning/tasks/current/pgenv-auth-without-mirror-rows.md`).
 
-**The catalog lists the mirrors.** `uda[app+<pattern>].sources` (`getSiteSources`) returns the pattern's env
-sources plus the site's mirrors of its pgEnvs, with each pgEnv's hidden types / categories applied; the
-client's datasets list reads one env for both (a mirror row carries `pgEnv` + `source_id` and links to the
-external source page) and drops a pgEnv from its external datasources once the site mirrors it.
+**The catalog.** `uda[app+<pattern>].sources` (`getSiteSources`) returns the pattern's internal sources;
+a pgEnv's sources are listed from the pgEnv (`uda[<pgEnv>].sources`), which the client's datasets list
+reads beside the internal env.
 
 - `log` (default): nothing refused; each read `enforce` would refuse is logged once per user / source / kind
   per ten minutes as `[auth] would-deny read …`. Secret keys in `statistics` (`*_secret`, `*_token`) are
@@ -276,7 +275,7 @@ external source page) and drops a pgEnv from its external datasources once the s
 
 **New sources are private by default** (creator `*`, `public: []`), so a public page charting one goes blank
 under `enforce` unless the source grants `public: ['view-source']`. Read a site's would-deny log before
-switching it to `enforce`. Grants are cached per env for 30 s.
+switching it to `enforce`. Grants are cached per app and per pgEnv for 30 s.
 
 **Vector tiles are exempt from `enforce`**: they stay at `log` (`mode: 'log'` in `tiles.rest.js`), so would-denies
 still log as kind `read tiles` but no tile is refused. MapLibre fetches tiles without the token, so enforcing would

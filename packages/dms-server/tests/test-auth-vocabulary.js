@@ -39,22 +39,16 @@ const VOCAB = {
 };
 
 section('vocabularyOf — the row carries the declaration');
-t('from the auth column, beside the grants', () =>
-    assert.deepStrictEqual(vocabularyOf({ auth: { groups: { A: ['x'] }, vocabulary: VOCAB } }), VOCAB));
-t('…and the auth column wins over data', () =>
-    assert.deepStrictEqual(vocabularyOf({ auth: { vocabulary: VOCAB }, data: { authVocabulary: { self: [] } } }), VOCAB));
-t('from a SUBDOMAIN-KEYED auth column — read before the subdomain pick drops siblings', () =>
-    assert.deepStrictEqual(vocabularyOf({ auth: { '*': { groups: {} }, sub: { groups: {} }, vocabulary: VOCAB } }), VOCAB));
-t('from data.authVocabulary on an unmigrated row', () =>
+t('from data.authVocabulary, the stamp a create leaves', () =>
     assert.deepStrictEqual(vocabularyOf({ data: { authVocabulary: VOCAB } }), VOCAB));
-t('from a JSON string auth column (sqlite returns text)', () =>
-    assert.deepStrictEqual(vocabularyOf({ auth: JSON.stringify({ vocabulary: VOCAB }) }), VOCAB));
 t('from data as a JSON string', () =>
     assert.deepStrictEqual(vocabularyOf({ data: JSON.stringify({ authVocabulary: VOCAB }) }), VOCAB));
+t('an `auth` column is not read — it is retired (new-app-auth-setup-and-db-constraints.md, A1b)', () =>
+    assert.strictEqual(vocabularyOf({ auth: { groups: { A: ['x'] }, vocabulary: VOCAB }, data: {} }), null));
 t('a row that declares nothing', () => assert.strictEqual(vocabularyOf({ id: 1, type: 'x|page' }), null));
 t('garbage is null, never an error', () => {
-    assert.strictEqual(vocabularyOf({ auth: 'not json' }), null);
-    assert.strictEqual(vocabularyOf({ auth: { vocabulary: [1, 2] } }), null);
+    assert.strictEqual(vocabularyOf({ data: 'not json' }), null);
+    assert.strictEqual(vocabularyOf({ data: { authVocabulary: [1, 2] } }), null);
     assert.strictEqual(vocabularyOf(null), null);
 });
 // `rawAuthOf` stripping `vocabulary` out of the `auth` column, and a vocabulary-only row still
@@ -103,44 +97,6 @@ t('publicReadOf reads the declaration off the row', () => {
     assert.strictEqual(publicReadOf({ data: { authVocabulary: { ...VOCAB, publicRead: true } } }), true);
     assert.strictEqual(publicReadOf({ data: { authVocabulary: VOCAB } }), false);
     assert.strictEqual(publicReadOf({ data: { authVocabulary: { ...VOCAB, publicRead: 'yes' } } }), false);
-});
-
-section('the capability probe, against a REAL sqlite database');
-t('a migrated sqlite table reports its columns — and the projection carries the vocabulary in `auth`', async () => {
-    // Regression. The probe used to issue a bare `PRAGMA table_info(...)`, which the sqlite adapter
-    // dispatches with `.run()` rather than `.all()` and so returns NOTHING — every sqlite app read
-    // as unmigrated, the projection never engaged, and a stamped vocabulary was only ever found via
-    // the `data` fallback. A mocked probe cannot catch that; only a real database can.
-    const os = require('os'), path = require('path'), fs = require('fs');
-    const { SqliteAdapter } = require('../src/db/adapters/sqlite');
-    const { rowAuthCaps, authColumns, _resetCaps } = require('../src/routes/dms/rowAuthCaps');
-    const file = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'row-auth-')), 'probe.sqlite');
-    const db = new SqliteAdapter({ type: 'sqlite', role: 'dms', filename: file });
-    try {
-        await db.promise(`CREATE TABLE probe_items (id INTEGER PRIMARY KEY, type TEXT, data TEXT)`);
-        _resetCaps();
-        assert.deepStrictEqual(await rowAuthCaps(db, 'main', 'probe_items', 'sqlite'),
-            { auth: false, parentId: false });
-
-        await db.promise(`ALTER TABLE probe_items ADD COLUMN auth TEXT`);
-        await db.promise(`ALTER TABLE probe_items ADD COLUMN parent_id BIGINT`);
-        _resetCaps();
-        const caps = await rowAuthCaps(db, 'main', 'probe_items', 'sqlite');
-        assert.deepStrictEqual(caps, { auth: true, parentId: true });
-
-        // …and the projection it yields carries the vocabulary without an extra column,
-        // because it lives inside `auth`
-        await db.promise(`INSERT INTO probe_items (type, auth) VALUES ($1, $2)`,
-            ['prod|w:pattern', JSON.stringify({ groups: {}, vocabulary: VOCAB })]);
-        const cols = authColumns(caps, 'sqlite');
-        assert.ok(!cols.some(c => /auth_vocabulary/.test(c)), 'no separate vocabulary column');
-        const rows = await db.promise(`SELECT ${cols.join(', ')} FROM probe_items`);
-        assert.ok(!('data' in rows[0]), 'a migrated projection must not select data');
-        assert.deepStrictEqual(vocabularyOf(rows[0]), VOCAB);
-    } finally {
-        await db.end();
-        fs.rmSync(path.dirname(file), { recursive: true, force: true });
-    }
 });
 
 (async () => {

@@ -49,7 +49,7 @@ async function main() {
 
   const db = getDb(o.db); await awaitReady();
   const config = loadConfig(o.db);
-  const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const splitMode = config.splitMode;
   const t = resolveTable(o.app, '', db.type, splitMode);
   const T = db.type === 'postgres' ? `"${t.schema}"."${t.table}"` : `"${t.table}"`;
   const qualify = (name) => db.type === 'postgres' ? `"${t.schema}"."${name}"` : `"${name}"`;

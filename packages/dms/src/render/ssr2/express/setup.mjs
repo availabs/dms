@@ -17,7 +17,9 @@ import { createSSRMiddleware } from './middleware.mjs'
  * @param {object} config
  * @param {string} config.root - Project root (where index.html lives)
  * @param {string} config.serverEntry - Server entry path (e.g., '/src/entry-ssr.jsx')
- * @param {string} config.clientDir - Built client assets directory (prod)
+ * @param {string} [config.clientDir] - Built client assets directory (prod); default <root>/dist/client
+ * @param {string} [config.serverBundle] - Built server entry (prod); default <root>/dist/server/entry-ssr.js.
+ *   dms-server derives both from DMS_DIST_DIR so a build can live outside dist/.
  * @param {object} config.handlerConfig - Config passed to createHandler (apiHost, siteConfig, etc.)
  * @returns {Promise<{ invalidateRoutes: Function }>} drops the handler's per-host route cache (a no-op in dev)
  */
@@ -25,7 +27,8 @@ export async function mountSSR(app, config) {
   const {
     root,
     serverEntry = '/src/entry-ssr.jsx',
-    clientDir,
+    clientDir = path.resolve(root, 'dist/client'),
+    serverBundle = path.resolve(root, 'dist/server/entry-ssr.js'),
     handlerConfig = {},
   } = config
 
@@ -112,11 +115,7 @@ export async function mountSSR(app, config) {
     const templatePath = path.resolve(clientDir, 'index.html')
     cachedTemplate = await fs.readFile(templatePath, 'utf-8')
 
-    const serverBundlePath = path.resolve(
-      root,
-      'dist/server/entry-ssr.js'
-    )
-    const mod = await import(serverBundlePath)
+    const mod = await import(serverBundle)
     const createHandler = mod.default || mod.createHandler
     cachedHandler = createHandler(handlerConfig)
 
@@ -126,7 +125,7 @@ export async function mountSSR(app, config) {
       getTemplate: () => cachedTemplate,
     }))
 
-    console.log('[SSR] Production mode — serving pre-built bundles')
+    console.log(`[SSR] Production mode — client ${clientDir}, server ${serverBundle}`)
     return { invalidateRoutes: () => cachedHandler.invalidateRoutes() }
   }
 }

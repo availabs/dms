@@ -127,7 +127,7 @@ async function migrate(opts) {
   const { db, config } = createDb(opts.source);
   const dbType = db.type;
   const isPg = dbType === 'postgres';
-  const splitMode = config.splitMode || 'legacy';
+  const splitMode = config.splitMode;
 
   console.log(`Database: ${opts.source} (${dbType})`);
   console.log(`Split mode: ${splitMode}`);

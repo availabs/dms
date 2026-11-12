@@ -466,7 +466,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         if (args.length >= 3) {
           // New format: [app, id, data] or [app, id, data, type]
           // When type is provided, the controller resolves the split table for dataset rows.
-          const [app, id, data, type] = args;
+          const [app, id, rawData, type] = args;
+          // `parent_id` is not a client's to edit (routes/dms/parentId.js): out before the guard judges the patch
+          const data = controller.withoutParentId(rawData);
           const rows = await judgedWrite(app, id, type, async (stored, expect) => {
             // only what the guard judged is written (the selected implementation's planEdit); nothing changed → no write
             const toWrite = await assertDataWrite(this, 'edit', app, stored, data, { skipNoChange: true });
@@ -476,7 +478,8 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
           return await dataByIdResponse(rows, [id], DATA_ATTRIBUTES, app);
         }
         // Legacy format: [id, data]
-        const [id, data] = args;
+        const [id, rawData] = args;
+        const data = controller.withoutParentId(rawData);
         const rows = await judgedWrite(null, id, null, async (stored, expect) => {
           const toWrite = await assertDataWrite(this, 'edit', stored.app, stored, data, { skipNoChange: true });
           if (toWrite === NO_CHANGE) return controller.getDataById([id], DATA_ATTRIBUTES);

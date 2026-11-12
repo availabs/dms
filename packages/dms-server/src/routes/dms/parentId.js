@@ -36,13 +36,42 @@
  * It never throws
  *
  * A parent that does not exist, or fails the check, is DROPPED with a warning — the row is still
- * written, with no `parent_id`. `parent_id` carries no foreign key for the same reason: an
+ * written, with no `parent_id`. Nothing in the database enforces it for the same reason: an
  * inconsistency in parentage must not turn into a failed write. The resolver already truncates a
  * chain it cannot follow (measured: 243 dangling ids on the migration clone), and a short chain is
  * safe in a way a 500 is not.
  */
 
 const { getParent, getInstance, getKind } = require('#db/type-utils.js');
+const { jsonExtract, jsonMerge, typeCast } = require('#db/query-utils.js');
+
+/*
+ * ---------------------------------------------------------------------------
+ * Where it is stored: `data.parent_id`, a number. There is no `parent_id` column (owner, 2026-11-10;
+ * planning/tasks/current/new-app-auth-setup-and-db-constraints.md, A1): a column needed a migration
+ * per app and a capability probe on every path, and a new app never had one, so its claims were
+ * thrown away.
+ *
+ * Because it is a key of `data`, a client could otherwise write it. It is a PROTECTED key:
+ *   - a create's claim goes through `takeParentId` + `validateParentId`, and only a claim that
+ *     passes is written back (`withParentId`);
+ *   - every edit has the key removed from its patch (`takeParentId`; the edit merges, so the stored
+ *     value survives);
+ *   - the only other writer is `stampChildren`, from the parent's own save.
+ * `owners.js parentOf` follows it to a container row, so an unchecked value would let a row choose
+ * whose grants judge it.
+ */
+
+/** `data->>'parent_id'` as text, in either dialect (SQLite's json_extract returns the number). */
+const PARENT_ID_SQL = (dbType) => typeCast(jsonExtract('data', 'parent_id', dbType), 'TEXT', dbType);
+
+/** `data` with a validated parent id stored on it (or unchanged when there is none). */
+function withParentId(data, parentId) {
+  if (parentId === null || parentId === undefined || parentId === '') return data;
+  const obj = typeof data === 'string' ? safeJson(data) : data;
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return data;
+  return { ...obj, parent_id: Number(parentId) };
+}
 
 /**
  * May a row of `childType` name a row of `parentType` as its parent?
@@ -72,10 +101,10 @@ function isPlausibleParent(childType, parentType, ownerKind = null) {
 }
 
 /**
- * Pull a client-supplied `parent_id` out of a create payload.
+ * Pull a client-supplied `parent_id` out of a payload: a create's claim, or an edit's patch.
  *
- * Returns `{ data, claimed }` — `data` with the key removed (it belongs in the column, not in the
- * jsonb, where it would become a second copy to drift), and the claimed id as a string, or null.
+ * Returns `{ data, claimed }` — `data` with the key removed (a create writes it back only after
+ * `validateParentId`, an edit never does), and the claimed id as a string, or null.
  */
 function takeParentId(data) {
   if (!data) return { data, claimed: null };
@@ -89,7 +118,22 @@ function takeParentId(data) {
   return { data: rest, claimed: /^[0-9]+$/.test(s) ? s : null };
 }
 
-const safeJson = (v) => { try { return JSON.parse(v); } catch { return null; } };
+function safeJson(v) { try { return JSON.parse(v); } catch { return null; } }
+
+/**
+ * An EDIT's patch with `parent_id` removed. A patch that does not carry the key is returned exactly
+ * as it came — a JSON string stays a string, so ids past double precision elsewhere in it are not
+ * re-parsed (dataAuth.js compares them as text).
+ */
+function stripParentId(data) {
+  if (!data) return data;
+  if (typeof data === 'string' && !data.includes('parent_id')) return data;
+  const obj = typeof data === 'string' ? safeJson(data) : data;
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj) || !('parent_id' in obj)) return data;
+  const rest = { ...obj };
+  delete rest.parent_id;
+  return rest;
+}
 
 /**
  * The predicate for "a row of kind `childKind` inside container `container`" — the bound every
@@ -230,7 +274,7 @@ function declaredChildKinds(byOwnerKind) {
 /**
  * Plan the repair for children that TWO owners name.
  *
- * `parent_id` is one column and the data says two parents, so the column cannot express it. The
+ * `parent_id` is one value and the data says two parents, so it cannot express it. The
  * repair is to make the data true: the lowest-id owner keeps the original row, every other owner
  * gets its own copy, and that owner's reference arrays are repointed at the copy. The pages render
  * exactly what they rendered before, and the copies can now diverge the way whoever duplicated the
@@ -326,7 +370,7 @@ function repointRefs(value, swaps) {
  * ---------------------------------------------------------------------------
  * What it does NOT do
  *
- * It never CLEARS a `parent_id`. A child dropped from the array keeps its parent: clearing would
+ * It never CLEARS a `data.parent_id`. A child dropped from the array keeps its parent: clearing would
  * need the previous array to diff against, and a save that momentarily omits a section would
  * orphan it. Removal belongs to `--verify-parents` ("named by nobody") and the migration's orphan
  * sweep.
@@ -354,14 +398,15 @@ async function stampChildren(tx, { table, app, id, type, data, childRefs }) {
     const childTypes = childTypeParams(container, childKind);
     for (let i = 0; i < ids.length; i += 500) {
       const chunk = ids.slice(i, i + 500);
-      const ph = chunk.map((_, j) => `$${j + 3}`).join(',');
+      const ph = chunk.map((_, j) => `$${j + 4}`).join(',');
+      // `data.parent_id`, merged in; rows that already say so are left alone (no write, no churn).
       const rows = await tx.promise(
-        `UPDATE ${table} SET parent_id = $1
+        `UPDATE ${table} SET data = ${jsonMerge('data', '$1', tx.type)}
           WHERE app = $2 AND id IN (${ph})
-            AND ${CHILD_TYPE_SQL(chunk.length + 3, chunk.length + 4)}
-            AND (parent_id IS NULL OR parent_id <> $1)
+            AND ${CHILD_TYPE_SQL(chunk.length + 4, chunk.length + 5)}
+            AND (${PARENT_ID_SQL(tx.type)} IS NULL OR ${PARENT_ID_SQL(tx.type)} <> $3)
           RETURNING id`,
-        [id, app, ...chunk, ...childTypes]);
+        [JSON.stringify({ parent_id: Number(id) }), app, String(id), ...chunk, ...childTypes]);
       stamped += (rows && rows.length) || 0;
     }
   }
@@ -416,10 +461,10 @@ function planRemovedChildren(before, after, { type, childRefs }) {
  * `parent_id` can be trusted to mean containment rather than "the last page that happened to
  * mention this row".
  *
- * **`parent_id = <owner>` is the safety bound**, exactly as the exact-type predicate is
+ * **`data.parent_id = <owner>` is the safety bound**, exactly as the exact-type predicate is
  * `stampChildren`'s. A row this owner is not the recorded parent of is never deleted, even when its
  * id appears in the removed set — which is what makes the sweep safe on data where two pages still
- * share a row, and on an unmigrated row (`parent_id IS NULL`), which it simply never matches.
+ * share a row, and on a row with no `parent_id`, which it simply never matches.
  *
  * `mode`: `off` does nothing, `log` reports what it WOULD delete without deleting, `delete` deletes.
  * Default `log`, because this is the only irreversible thing parentage does.
@@ -435,9 +480,9 @@ async function sweepRemovedChildren(tx, { table, app, id, type, removed, mode = 
     for (let i = 0; i < ids.length; i += 500) {
       const chunk = ids.slice(i, i + 500);
       const ph = chunk.map((_, j) => `$${j + 3}`).join(',');
-      const where = `WHERE app = $1 AND parent_id = $2 AND id IN (${ph})`
+      const where = `WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND id IN (${ph})`
         + ` AND ${CHILD_TYPE_SQL(chunk.length + 3, chunk.length + 4)}`;
-      const params = [app, id, ...chunk, ...childTypes];
+      const params = [app, String(id), ...chunk, ...childTypes];
       const rows = mode === 'delete'
         ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id`, params)
         : await tx.promise(`SELECT id FROM ${table} ${where}`, params);
@@ -469,13 +514,13 @@ async function sweepAllChildren(tx, { table, app, id, type, childRefs, mode = 'l
 
   const kinds = [...new Set(Object.values(attrs))];
   if (!kinds.length) return out;
-  const parts = [], params = [app, id];
+  const parts = [], params = [app, String(id)];
   for (const k of kinds) {
     const [exact, like] = childTypeParams(container, k);
     parts.push(CHILD_TYPE_SQL(params.length + 1, params.length + 2));
     params.push(exact, like);
   }
-  const where = `WHERE app = $1 AND parent_id = $2 AND (${parts.join(' OR ')})`;
+  const where = `WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND (${parts.join(' OR ')})`;
   const rows = mode === 'delete'
     ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id`, params)
     : await tx.promise(`SELECT id FROM ${table} ${where}`, params);
@@ -484,5 +529,5 @@ async function sweepAllChildren(tx, { table, app, id, type, childRefs, mode = 'l
   return out;
 }
 
-module.exports = { planRemovedChildren, sweepRemovedChildren, sweepAllChildren, childTypeParams, isPlausibleParent, takeParentId, validateParentId, refIdsOf, mergeChildRefs,
+module.exports = { PARENT_ID_SQL, withParentId, stripParentId, planRemovedChildren, sweepRemovedChildren, sweepAllChildren, childTypeParams, isPlausibleParent, takeParentId, validateParentId, refIdsOf, mergeChildRefs,
   declaredChildKinds, planDuplication, repointRefs, stampChildren };

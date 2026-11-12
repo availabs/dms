@@ -121,3 +121,13 @@ Writes keep `fresh` (`op !== 'read'`): they are judged on what is stored now, an
       between pages
 - [x] Tests run against a test config only (never plain `npm test` in dms-server: test-sqlite.js
       reaches production)
+
+## Merged with the mirror removal (2026-11-12)
+
+Master's `pgenv-auth-without-mirror-rows.md` (no mirror rows; a pgEnv's sources are read from the pgEnv
+through a cached catalog, `owners.js` `pgEnvCatalog`) met this task's `cached(key, load, maxAge)` in the
+merge into `tenant-domains`. Master's call passed `false` (its `cached` took a `fresh` flag); under
+`maxAge` that never hits, so every read reloaded the pgEnv's whole sources + views tables. Fixed to
+`TTL_MS`. The regression test now reads a real local DAMA db (`dama-sqlite-test`) instead of mirror
+rows of an unconfigured pgEnv, and counts pgEnv catalog loads too; with `false` back it fails
+(38 / 31 / 51 loads), with `TTL_MS` 6/6.

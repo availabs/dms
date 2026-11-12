@@ -72,6 +72,12 @@ export default {
   useDataSource: true,            // component receives data via the dataWrapper
   useDataWrapper: true,           // component is wrapped by the dataWrapper (most are)
   useGetDataOnPageChange: true,   // refetch on page-state changes
+  fullDataLoad: false,            // true = load ALL rows, not one page (Graph). Also read by the page
+                                  //   preload and by pattern-filter-sync's stored-rows recompute
+  keepOriginalValues: false,      // pass keepOriginalValues to getData (Card, Spreadsheet)
+  preloadData: false,             // true = the page loader fetches this section's rows before first
+                                  //   render (api/preloadSectionData.js); opt-in, Card/Spreadsheet/Graph
+                                  //   set it. Not `preload`, which is the code-split chunk loader
   useInfiniteScroll: false,
   showPagination: true,
   themeKey: 'foo',                // points at theme.foo for getComponentTheme lookups

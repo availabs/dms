@@ -3,7 +3,7 @@
  * OWNERS — which row's grants, rules and vocabulary govern a row. One loader, one walk.
  *
  * Every question a rule can ask ("the site's grants", "my parent's", "the nearest pattern's") is a
- * position on the row's ancestry, and ancestry is data: `parent_id` where it is stamped, the type
+ * position on the row's ancestry, and ancestry is data: `data.parent_id` where it is stamped, the type
  * path (`{parent}:{instance}|{kind}`) where it is not. So the whole folder needs one snapshot of an
  * app's container rows — site, patterns, envs, sources, views, themes, tenants: every row whose
  * type names an instance — and one function that walks it.
@@ -19,23 +19,24 @@
  * A row created before the registration carries a copy of the same declaration (`data.authRules`,
  * `data.authVocabulary`), read only when the table says nothing about its kind.
  *
- * An EXTERNAL source (a pgEnv's `data_manager.sources` row) lives in another database, so it is
- * MIRRORED as a DMS row of each site that uses the pgEnv, parented to that site's `:dmsenv` row for it
- * (dama/mirror.js; `scripts/reconcile-pgenv-mirror.js`). The snapshot indexes the mirrors by
- * `(pgEnv, source_id)` / `(pgEnv, view_id)`, so an address naming a pgEnv finds a row like any other.
+ * An EXTERNAL source (a pgEnv's `data_manager.sources` row) lives in another database and is NOT a DMS
+ * row. `snapshotFor` builds one in memory for it (`externalRow`): its grants are the pgEnv's own
+ * `auth_permissions` column, its parent the requesting site's `:dmsenv` row for the pgEnv, a view's
+ * parent its source. Everything past `snapshotFor` reads it as it reads a stored row. (Until
+ * 2026-11-12 each one was mirrored as a stored row per site; see dama/pgEnv.js.)
  *
  * Snapshots are cached for `TTL_MS` per app; a write path asks for `fresh`, a read that missed for
  * `'recent'` (see appSnapshot).
  */
 const { getDb, loadConfig } = require('../../db');
-const { resolveTable } = require('../../db/table-resolver');
-const { rowAuthCaps } = require('../dms/rowAuthCaps');
+const { resolveSplitMode } = require('../../db/table-resolver');
 const { dmsMainTable } = require('../uda/utils');
 const { getKind, getParent, getInstance } = require('#db/type-utils.js');
 const { parseJson, resolveAuthPermissions, scopeOf, hasGrants, mergeAuthPermissions } = require('./grants');
 const { vocabularyOf, fieldMaps } = require('./vocabulary');
 const { formatsFor } = require('./formats');
 const RULES = require('./rules');
+const { sourcesTable, viewsTable } = require('../../dama/pgEnv');
 
 const TTL_MS = 30 * 1000;
 const MISS_REFRESH_MS = 3 * 1000;
@@ -44,8 +45,8 @@ const isDmsEnv = (env) => typeof env === 'string' && env.includes('+');
 function dmsDb() {
   const dbEnv = process.env.DMS_DB_ENV || 'dms-sqlite';
   let splitMode;
-  try { splitMode = loadConfig(dbEnv).splitMode; } catch { /* default below */ }
-  return { db: getDb(dbEnv), splitMode: splitMode || process.env.DMS_SPLIT_MODE || 'legacy' };
+  try { splitMode = loadConfig(dbEnv).splitMode; } catch { splitMode = resolveSplitMode(); /* env or per-app */ }
+  return { db: getDb(dbEnv), splitMode };
 }
 
 // ---- rows ---------------------------------------------------------------------------------------
@@ -55,8 +56,7 @@ function wrap(r, app) {
   const type = r.type || '';
   return {
     id: r.id, app, type, kind: getKind(type), instance: getInstance(type), parentKey: getParent(type),
-    parent_id: r.parent_id ?? null, parent: r.parent || null,
-    auth: parseJson(r.auth), data: parseJson(r.data) || {},
+    parent: r.parent || null, data: parseJson(r.data) || {},
   };
 }
 
@@ -66,18 +66,9 @@ function wrap(r, app) {
  */
 function grantsOf(row, scope, subdomain = '') {
   if (!row) return null;
-  const col = row.auth && typeof row.auth === 'object' && !Array.isArray(row.auth) ? row.auth : null;
-  // `data` first: it is where every client write lands, and nothing mirrors it into the column yet.
-  // The column holds migrated grants for rows whose data names no one (the site row, after the sweep).
+  // `data` is where every write lands: `authPermissions` on DMS rows, `auth_permissions` on sources.
   const stored = row.data.authPermissions !== undefined ? row.data.authPermissions : row.data.auth_permissions;
-  let g = scopeOf(resolveAuthPermissions(stored, subdomain), scope);
-  if (!(g.groups || g.users) && col) {
-    const { vocabulary, childRefs, view, ...rest } = col;
-    g = scopeOf(resolveAuthPermissions(rest, subdomain), scope);
-  }
-  const { view: dv, ...rest } = g;
-  const view = col && col.view !== undefined ? col.view : dv;
-  return view === undefined ? rest : { ...rest, view };
+  return scopeOf(resolveAuthPermissions(stored, subdomain), scope);
 }
 
 // ---- snapshots ----------------------------------------------------------------------------------
@@ -99,12 +90,9 @@ function cached(key, load, maxAge) {
 }
 
 function index(app, rows, formats = null) {
-  const snap = { app, rows, formats, byId: new Map(), byInstance: new Map(), external: new Map(), site: null };
+  const snap = { app, rows, formats, byId: new Map(), byInstance: new Map(), site: null };
   for (const r of rows) {
     snap.byId.set(String(r.id), r);
-    // a mirror of a pgEnv's source / view, addressable by the pgEnv's own ids
-    if (r.data.pgEnv && r.kind === 'source' && r.data.source_id != null) snap.external.set(`s:${r.data.pgEnv}:${r.data.source_id}`, r);
-    if (r.data.pgEnv && r.kind === 'view' && r.data.view_id != null) snap.external.set(`v:${r.data.pgEnv}:${r.data.view_id}`, r);
     if (r.instance) {
       if (!snap.byInstance.has(r.instance)) snap.byInstance.set(r.instance, []);
       snap.byInstance.get(r.instance).push(r);
@@ -120,10 +108,7 @@ async function loadApp(app, fresh = false) {
   const { db, splitMode } = dmsDb();
   const formats = await formatsFor(app, { fresh });
   const tbl = await dmsMainTable(db, app, splitMode);
-  let caps = {};
-  try { const t = resolveTable(app, '', db.type, splitMode); caps = await rowAuthCaps(db, t.schema, t.table, db.type); } catch { /* no columns */ }
-  const cols = ['id', 'type', caps.parentId ? 'parent_id' : 'NULL AS parent_id', caps.auth ? 'auth' : 'NULL AS auth', 'data'].join(', ');
-  const { rows } = await db.query(`SELECT ${cols} FROM ${tbl} WHERE app = $1 AND type LIKE '%:%'`, [app]);
+  const { rows } = await db.query(`SELECT id, type, data FROM ${tbl} WHERE app = $1 AND type LIKE '%:%'`, [app]);
   return index(app, rows.map(r => wrap(r, app)), formats);
 }
 
@@ -138,8 +123,74 @@ function appSnapshot(app, { fresh = false } = {}) {
   return cached(`app|${app}`, () => loadApp(app, !!fresh), maxAge);
 }
 
-/** Forget every cached snapshot (tests; a grant write may call it too). */
+/** Forget every cached snapshot, app and pgEnv (tests; a grant write may call it too). */
 function clearSnapshots() { cache.clear(); }
+
+// ---- a pgEnv's sources and views ----------------------------------------------------------------
+//
+// They are rows of ANOTHER database, so they are not in an app's snapshot. What the walk needs of them
+// is small: a source's grants, and which source a view belongs to. One bulk read per pgEnv, cached like
+// an app snapshot, answers a listing judged id by id; a `fresh` question (every write) asks the pgEnv
+// for that one subject and never reloads the lot.
+
+/** `{ sources: Map(source_id → grants), views: Map(view_id → source_id) }` of a pgEnv. */
+async function loadPgEnv(env) {
+  const db = getDb(env);
+  const { rows: s } = await db.query(`SELECT source_id, auth_permissions FROM ${sourcesTable(db)}`);
+  const { rows: v } = await db.query(`SELECT view_id, source_id FROM ${viewsTable(db)}`);
+  return {
+    sources: new Map(s.map(r => [+r.source_id, parseJson(r.auth_permissions)])),
+    views: new Map(v.map(r => [+r.view_id, +r.source_id])),
+  };
+}
+
+const pgEnvCatalog = (env) => cached(`pgenv|${env}`, () => loadPgEnv(env), TTL_MS);
+
+/** Forget what is cached of one pgEnv (a grant write to one of its sources). */
+function clearPgEnv(env) { cache.delete(`pgenv|${env}`); }
+
+/**
+ * A pgEnv's source, or the source of one of its views, as stored now: `{ sourceId, grants }`, or null
+ * when the pgEnv has no such row. `fresh` reads that one subject from the pgEnv and updates the cache.
+ */
+async function pgEnvSubject(env, want, id, fresh) {
+  if (!fresh) {
+    const cat = await pgEnvCatalog(env);
+    const sourceId = want === 'source' ? id : cat.views.get(id);
+    return sourceId != null && cat.sources.has(sourceId) ? { sourceId, grants: cat.sources.get(sourceId) } : null;
+  }
+  const db = getDb(env);
+  let sourceId = id;
+  if (want === 'view') {
+    const { rows } = await db.query(`SELECT source_id FROM ${viewsTable(db)} WHERE view_id = $1`, [id]);
+    if (!rows[0]) return null;
+    sourceId = +rows[0].source_id;
+  }
+  const { rows } = await db.query(`SELECT auth_permissions FROM ${sourcesTable(db)} WHERE source_id = $1`, [sourceId]);
+  if (!rows[0]) return null;
+  const grants = parseJson(rows[0].auth_permissions);
+  const hit = cache.get(`pgenv|${env}`);
+  if (hit) hit.promise.then((cat) => { cat.sources.set(sourceId, grants); if (want === 'view') cat.views.set(id, sourceId); }).catch(() => {});
+  return { sourceId, grants };
+}
+
+/**
+ * The row the walk reads for a pgEnv's source or view. It is stored nowhere: built from the pgEnv's own
+ * row and parented to the site's `:dmsenv` row for the pgEnv, so the kind's rule, the env's grants and
+ * its vocabulary apply to it exactly as they do to an internal source (`parentOf` reads `parent` first).
+ */
+function externalRow(app, envRow, env, want, id, { sourceId, grants }) {
+  const data = { pgEnv: env, source_id: sourceId, auth_permissions: grants && typeof grants === 'object' ? grants : {} };
+  const source = {
+    id: null, app, type: `${envRow.instance}|s${sourceId}:source`, kind: 'source', instance: `s${sourceId}`,
+    parentKey: envRow.instance, parent: envRow, data,
+  };
+  if (want === 'source') return source;
+  return {
+    id: null, app, type: `s${sourceId}|v${id}:view`, kind: 'view', instance: `v${id}`,
+    parentKey: source.instance, parent: source, data: { pgEnv: env, view_id: id, source_id: sourceId },
+  };
+}
 
 // ---- the subject --------------------------------------------------------------------------------
 
@@ -154,8 +205,8 @@ function clearSnapshots() { cache.clear(); }
  *                                   `data.pgEnv` names it (what `create-source` is asked of)
  *     { app, patternId }            a pattern row by id
  *
- * `app` is a LOCATOR for an external env: it selects which site's mirror rows (and so whose env row,
- * grants and vocabulary) answer for the pgEnv, and confers nothing itself.
+ * `app` is a LOCATOR for an external env: it selects which site's env row (and so whose env-level
+ * grants and vocabulary) sits above the pgEnv's sources, and confers nothing itself.
  */
 async function snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh = false }) {
   if (row) {
@@ -173,12 +224,15 @@ async function snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh =
       const r = snap.byId.get(String(id));
       return r && r.kind === want ? { snap, row: r } : { error: `${want} ${env}/${id} not found` };
     }
-    // Grants over a pgEnv's sources are per site, so a request that names no site (`dms_app`) has
-    // nothing to be judged in: refused, never answered from some other site's mirror.
+    // A pgEnv's source: its own grants are the pgEnv's (shared by every app on it), the grants above
+    // it are the requesting site's env row's. So a request that names no site (`dms_app`) has nothing
+    // to be judged in: refused, never answered from some other site's env row.
     if (!app) return { error: 'no site named' };
     const snap = await appSnapshot(app, { fresh });
-    const r = snap.external.get(`${want[0]}:${env}:${id}`);
-    return r ? { snap, row: r } : { error: `${want} ${env}/${id} has no mirror row in ${app} (reconcile-pgenv-mirror.js)` };
+    const envRow = snap.rows.find(x => x.kind === 'dmsenv' && x.data.pgEnv === env) || null;
+    if (!envRow) return { error: `pgEnv ${env} is not attached to ${app} (no :dmsenv row names it; attach-pgenv.js)` };
+    const subject = await pgEnvSubject(env, want, id, fresh);
+    return subject ? { snap, row: externalRow(app, envRow, env, want, id, subject) } : { error: `${want} ${env}/${id} not found` };
   }
   if (env !== undefined) {
     if (isDmsEnv(env)) {
@@ -209,7 +263,7 @@ async function snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh =
 // ---- the walk -----------------------------------------------------------------------------------
 
 /**
- * The row above `row`: `parent` when the loader linked it, `parent_id` when it is stamped and known,
+ * The row above `row`: `parent` when the loader linked it, `data.parent_id` when it is stamped and known,
  * else the container the type path names. The path names a parent by instance only; when several
  * rows share that instance (two patterns slugged alike, a legacy case) the first row of another kind
  * wins — the walk guesses nothing by type (rule 2). Stamping `parent_id`, which the client does for
@@ -219,14 +273,8 @@ async function snapshotFor({ row, env, sourceId, viewId, app, patternId, fresh =
 function parentOf(snap, row) {
   if (!row) return null;
   if (row.parent) return row.parent;
-  if (row.parent_id != null && snap.byId.has(String(row.parent_id))) return snap.byId.get(String(row.parent_id));
-  // A pgEnv mirror's view names its source by SLUG in its type, and source names repeat (hazmit_dama:
-  // 13,552 sources, 834 slugs), so the type path picks the wrong source for most views. The mirror's own
-  // identity, `(pgEnv, source_id)`, names it exactly; used until `parent_id` is stamped on the row.
-  if (row.data.pgEnv && row.data.view_id != null && row.data.source_id != null) {
-    const src = snap.external.get(`s:${row.data.pgEnv}:${row.data.source_id}`);
-    if (src) return src;
-  }
+  const pid = row.data && row.data.parent_id;
+  if (pid != null && snap.byId.has(String(pid))) return snap.byId.get(String(pid));
   if (!row.parentKey) return row.kind === 'site' ? null : snap.site;
   return (snap.byInstance.get(row.parentKey) || []).find(r => r !== row && r.kind !== row.kind) || null;
 }
@@ -326,7 +374,7 @@ function mapsFor(snap, row) {
   return { maps: null, scope: 'flat', publicRead: false };
 }
 
-/** The source a view belongs to (its parent), by the id its env knows it by (a pgEnv's `source_id` for a mirror), or null. */
+/** The source a view belongs to (its parent), by the id its env knows it by (a pgEnv's `source_id`), or null. */
 async function sourceOfView(env, viewId, app = null) {
   const { snap, row, error } = await snapshotFor({ env, viewId, app });
   if (error) return null;
@@ -335,6 +383,6 @@ async function sourceOfView(env, viewId, app = null) {
 }
 
 module.exports = {
-  snapshotFor, appSnapshot, clearSnapshots, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
+  snapshotFor, appSnapshot, clearSnapshots, clearPgEnv, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
   parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS,
 };

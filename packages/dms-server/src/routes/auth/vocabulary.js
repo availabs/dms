@@ -6,9 +6,8 @@
  * The server cannot read the client's registry, so a pattern type declares these in its formats
  * (`permissionDomain`, `childRefs`, `publicRead`), registration derives them, and they reach the
  * server as the site's `formats` rows (./formats.js, read first by owners.js and dms.controller.js)
- * or, for rows created before the registration, as the STAMP this file reads: the `auth` column
- * (`auth.vocabulary`, `auth.childRefs`) when the table has one, else `data.authVocabulary` /
- * `data.childRefs`. Nothing here knows a verb, a kind or a pattern by name.
+ * or, for rows created before the registration, as the STAMP this file reads: `data.authVocabulary`
+ * / `data.childRefs`. Nothing here knows a verb, a kind or a pattern by name.
  *
  * Declared shape (packages/dms/src/patterns/authVocabulary.js):
  *
@@ -25,21 +24,16 @@ const { parseJson } = require('./grants');
 
 const SCOPES = ['self', 'descendants'];
 
-/** One of the declaration keys off a row: the `auth` column first, `data` as the fallback. */
-function declared(row, authKey, dataKey) {
+/** One of the declaration keys off a row's `data` (the stamp its create left). */
+function declared(row, dataKey) {
   if (!row) return null;
-  const auth = parseJson(row.auth);
-  let v = auth && typeof auth === 'object' && !Array.isArray(auth) ? auth[authKey] : null;
-  if (v == null) {
-    const data = parseJson(row.data);
-    v = data && data[dataKey];
-  }
-  v = parseJson(v);
+  const data = parseJson(row.data);
+  const v = parseJson(data && data[dataKey]);
   return v && typeof v === 'object' && !Array.isArray(v) ? v : null;
 }
 
-const vocabularyOf = (row) => declared(row, 'vocabulary', 'authVocabulary');
-const childRefsOf = (row) => declared(row, 'childRefs', 'childRefs');
+const vocabularyOf = (row) => declared(row, 'authVocabulary');
+const childRefsOf = (row) => declared(row, 'childRefs');
 const publicReadOf = (row) => { const v = vocabularyOf(row); return !!(v && v.publicRead === true); };
 
 /**

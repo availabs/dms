@@ -59,9 +59,6 @@ async function main() {
   const dms = getDb(DMS_DB);
   await awaitReady(dms);
   const tbl = await dmsMainTable(dms, APP, 'per-app');
-  for (const col of [`auth ${dms.type === 'postgres' ? 'jsonb' : 'TEXT'}`, 'parent_id INTEGER']) {
-    try { await dms.query(`ALTER TABLE ${tbl} ADD COLUMN ${col}`); } catch { /* already there */ }
-  }
   const ctrl = createController(DMS_DB);
   const insert = async (type, data) => (await ctrl.createData([APP, type, data], null))[0];
   const site = await insert('prod:site', { site_name: 'prod', authPermissions: { groups: { Owners: ['*'], Editors: ['view-pattern-list'], Themers: ['manage-themes'] }, users: {} } });

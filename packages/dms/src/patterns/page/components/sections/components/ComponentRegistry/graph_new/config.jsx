@@ -184,6 +184,9 @@ const graphConfig = {
 
     useDataSource: true,
     useDataWrapper: true,
+    // The page loader preloads this section's rows before first render (api/preloadSectionData.js reads
+    // this flag with fullDataLoad / keepOriginalValues; opt-in, so not every dataWrapper component fetches at load).
+    preloadData: true,
     supportsTemplates: true,
     fullDataLoad: true,
     useGetDataOnPageChange: false,

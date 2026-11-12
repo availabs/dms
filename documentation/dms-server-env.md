@@ -17,7 +17,7 @@ point at before starting a server or a script with defaults; on some machines th
 | `DMS_DB_ENV` | `dms-sqlite` | DMS database config (a file in `src/db/configs/`, without `.config.json`). |
 | `DMS_AUTH_DB_ENV` | `auth-sqlite` | Auth database config. |
 | `DAMA_DB_ENV` | — | An extra DAMA pgEnv to initialise at boot, besides those the configs declare. |
-| `DMS_SPLIT_MODE` | `legacy` | `legacy` or `per-app` table layout, when the config sets no `splitMode` (see `../packages/dms-server/CLAUDE.md`). |
+| `DMS_SPLIT_MODE` | `per-app` | `legacy` or `per-app` table layout, when the config sets no `splitMode`. A legacy-layout database must say `legacy` here or in its config; since 2026-11-10 nothing infers it (see `../packages/dms-server/CLAUDE.md`). |
 | `DMS_LOG_REQUESTS` | `0` | `1` writes every Falcor request to `logs/requests-<ts>.jsonl` (replay with `tests/replay.js`). |
 | `NODE_ENV` | — | `development` lets two-part hosts (`x.localhost`) carry a subdomain. |
 | `DMS_EXIT_ON_UNCAUGHT` | unset | `1` exits on an uncaught exception instead of logging and staying up (`utils/process-safety.js`). |
@@ -48,7 +48,7 @@ they refuse everything but what the blank-row rule alone refuses. Background:
 |---|---|---|
 | `DMS_AUTH_MODE` | `log` | `log` allows, and records every would-deny in the console and the access log; `enforce` refuses. One mode for EVERY guard — `dms.data.*` writes, dataset source routes, dataset reads, the auth row, uploads and datatype routes. Move to `enforce` only once the access-log page is clean for the site. |
 | `DMS_SYNC_AUTH` | unset | `1` requires a signed-in user on the sync endpoints (`/sync/*`). |
-| `DMS_CHILD_SWEEP_MODE` | `log` | Deleting child rows a page / pattern no longer lists: `off`, `log` (report only), `delete`. Flip to `delete` only after `migrate-row-auth.js --verify-parents` reports zero shared children. |
+| `DMS_CHILD_SWEEP_MODE` | `log` | Deleting child rows a page / pattern no longer lists: `off`, `log` (report only), `delete`. Flip to `delete` only once no child row is listed by two owners. The check that reported this (`migrate-row-auth.js --verify-parents`) was retired with the `parent_id` column on 2026-11-10 and is not yet ported to `data.parent_id` (`planning/tasks/current/new-app-auth-setup-and-db-constraints.md`). |
 
 ### Auth levels
 
@@ -91,6 +91,7 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | Variable | Fallback | What it does |
 |---|---|---|
 | `DMS_SSR` | — | `1` enables SSR. |
+| `DMS_DIST_DIR` | `dist` | Production SSR only (`NODE_ENV=production`): the folder holding the build, `client/` and `server/entry-ssr.js`, absolute or relative to the project root. dms-template's `deploy/build_ssr.mjs` builds into the same setting, so a local production run can use `dist-ssr` and leave `dist/` (what the Netlify scripts upload) alone. Dev mode serves from `src/` and ignores it. |
 | `DMS_APP` / `DMS_TYPE` | `VITE_DMS_APP` / `VITE_DMS_TYPE` | Site to render. |
 | `DMS_BASE_URL` | `VITE_DMS_BASE_URL`, then `/list` | Admin base path. |
 | `DMS_AUTH_PATH` | `VITE_DMS_AUTH_PATH`, then `/auth` | Auth base path. |
@@ -116,6 +117,8 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | `DAMA_TASK_POLL_INTERVAL` | `5000` | DAMA task-queue poll, ms. |
 | `DMS_TASK_POLL_INTERVAL` | `DAMA_TASK_POLL_INTERVAL`, then `5000` | DMS task-queue poll, ms. |
 | `DAMA_SCHEDULE_SWEEP_INTERVAL` | `30000` | Schedule sweep, ms. |
+| `DMS_ANALYTICS_IGNORE_IP` | — | Site analytics (dms-template `data-types/analytics`): IPs or IPv4 CIDRs whose events are dropped, comma-separated, e.g. the lab's own network. `IGNORE_IP` (avail-falcor's name) is read when unset. |
+| `DMS_ANALYTICS_RATE_PER_MIN` | `120` | Site analytics: events accepted per IP per view per minute; the rest are dropped. |
 
 **Set by the server, never by hand:** `DAMA_TASK_ID`, `DAMA_PG_ENV`, `DAMA_WORKER_PATH` (DAMA worker
 processes) and `DMS_TASK_ID`, `DMS_WORKER_PATH` (DMS worker processes). The task runner passes them to the

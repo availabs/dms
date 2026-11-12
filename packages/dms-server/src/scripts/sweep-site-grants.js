@@ -57,13 +57,9 @@ function union(list) {
   return out;
 }
 
-/** The site row's own grants as `grantsOf` reads them: `data` first, the `auth` column when data names no one. */
+/** The site row's own grants as `grantsOf` reads them: `data.authPermissions`. */
 function siteOwn(site) {
-  const data = parse(site.data) || {};
-  const fromData = resolveAuthPermissions(data.authPermissions, '') || {};
-  if (Object.keys(fromData.groups || {}).length || Object.keys(fromData.users || {}).length) return fromData;
-  const { vocabulary, childRefs, view, ...col } = parse(site.auth) || {};
-  return resolveAuthPermissions(col, '') || {};
+  return resolveAuthPermissions((parse(site.data) || {}).authPermissions, '') || {};
 }
 
 async function main() {
@@ -77,7 +73,6 @@ async function main() {
   console.log(`\nsite sweep — ${o.verify ? 'VERIFY' : o.apply ? 'APPLY' : 'DRY RUN'}`);
   console.log(`  db=${o.db}  app=${o.app}\n`);
 
-  // `auth` is a migrated column some tables lack: select everything and read it when present.
   const patterns = await q(`SELECT * FROM ${T} WHERE app = $1 AND type LIKE '%:pattern'`, [o.app]);
   const ptOf = (r) => (parse(r.data) || {}).pattern_type;
   const grantsOfPattern = (r) => resolveAuthPermissions((parse(r.data) || {}).authPermissions, '') || {};

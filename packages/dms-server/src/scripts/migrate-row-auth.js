@@ -2,6 +2,21 @@
 'use strict';
 
 /**
+ * RETIRED 2026-11-10 — this script refuses to run. It filled the `auth` and `parent_id` COLUMNS,
+ * and the server reads neither any more: parentage is `data.parent_id`, grants are
+ * `data.authPermissions` (planning/tasks/current/new-app-auth-setup-and-db-constraints.md, A1/A1b).
+ *
+ *   - An app this script already migrated: `setup-app.js` moves what the columns hold into `data`
+ *     and drops them.
+ *   - The uniqueness guard (`--add-uniqueness-guard`) is `setup-app.js --add-uniqueness-guard`.
+ *   - NOT PORTED: the parentage backfill from the declared reference arrays (passes 3 and 4), its
+ *     repair of rows two owners name and rows no owner names, and `--verify-parents`. A row gets
+ *     `data.parent_id` when it is created with a claim or when its parent is next saved
+ *     (routes/dms/parentId.js); a bulk backfill for rows neither has touched would be a port of
+ *     those passes onto the `data` key. The code below is kept for that port and is unreachable.
+ *
+ * What it was:
+ *
  * Row-auth migration: fill the `auth` and `parent_id` columns.
  *
  * Design: planning/tasks/current/server-side-auth-general.md (hub).
@@ -110,7 +125,6 @@ const MAX_DEPTH = 16;
 const { isPlausibleParent, refIdsOf, mergeChildRefs, declaredChildKinds,
         planDuplication, repointRefs } = require('../routes/dms/parentId');
 const { resolveAuthPermissions } = require('../routes/auth/grants');
-const { authColumns } = require('../routes/dms/rowAuthCaps');
 
 function parseArgs() {
   const a = process.argv.slice(2);
@@ -160,6 +174,12 @@ const canonical = (v) => {
 let verifyDrift = 0;
 
 async function main() {
+  console.error('migrate-row-auth.js is retired: the server no longer reads the `auth` / `parent_id` columns.');
+  console.error('  an app it migrated      node src/scripts/setup-app.js --db <config> --app <app> [--apply]');
+  console.error('  the uniqueness guard    node src/scripts/setup-app.js --db <config> --app <app> --apply --add-uniqueness-guard [kind|all]');
+  console.error('  the parentage backfill  not ported; see this file\'s header');
+  process.exit(1);
+  // eslint-disable-next-line no-unreachable
   const opts = parseArgs();
   const config = loadConfig(opts.db);
   const db = config.type === 'postgres' ? new PostgresAdapter(config) : new SqliteAdapter(config);

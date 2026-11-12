@@ -20,7 +20,6 @@
  */
 
 const { getDb, getChDb } = require('../db');
-const mirror = require('./mirror');
 const { parseDependencies, outputsOf } = require('./lineage');
 const { readAuthority } = require('../routes/uda/authority');
 
@@ -230,7 +229,6 @@ async function deleteDamaView(pgEnv, viewIds, { drop = true, cascade = false, db
   const plan = await planDelete(db, ids, { cascade });
   if (authorize) await authorize([...new Set(plan.rows.map(r => +r.source_id))]);
   const { extra, ...result } = await executeDelete(pgEnv, db, plan, { drop });
-  await mirror.unmirrorViews(pgEnv, result.deleted_views);
   return result;
 }
 
@@ -255,7 +253,6 @@ async function deleteDamaSource(pgEnv, sourceId, { cascade = false, db = getDb(p
       return { deletedTasks, deletedSource };
     },
   });
-  await mirror.unmirrorSource(pgEnv, id);
   return { source_id: id, deleted_source: extra.deletedSource > 0, deleted_tasks: extra.deletedTasks, ...result };
 }
 

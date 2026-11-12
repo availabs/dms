@@ -1,6 +1,6 @@
 # Mirror every pgEnv into DMS: an env row per pgEnv, a row per source and view
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — the reconcile run on every site (one per site per pgEnv) · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** dropped — superseded by [pgenv-auth-without-mirror-rows.md](./pgenv-auth-without-mirror-rows.md): the mirror was reversed on 2026-11-12; not moved: until `retire-pgenv-mirror.js` has run on `mitigat-ny-prod` · **Created by:** amuro@albany.edu · **Edited by:** ssangdod@albany.edu
 
 ## Objective
 

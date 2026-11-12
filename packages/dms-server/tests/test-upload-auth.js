@@ -23,7 +23,7 @@ const FILES_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'upload-auth-files-'));
 process.env.DAMA_SERVER_FILESTORAGE_PATH = FILES_DIR; // local storage writes land here, removed at the end
 const assert = require('assert');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const syncMirror = require('./mirror-sync');
+const attachPgEnv = require('./attach-pgenv');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -163,7 +163,7 @@ async function run() {
         [`uplauth_${Date.now()}`, JSON.stringify({ groups: { Versioners: ['create-view'] }, users: {} })])).rows[0].source_id;
     const sourceCount = async () => +(await dama.query(`SELECT COUNT(*) AS n FROM ${srcTbl}`)).rows[0].n;
     const createdExt = [];
-    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
+    await attachPgEnv(APP, DAMA_DB);   // the site's env row for the pgEnv (dama/pgEnv.js)
 
     // ---- a staged CSV upload owned by `loader`
     const csvDir = fs.mkdtempSync(path.join(os.tmpdir(), 'upload-auth-csv-'));
@@ -411,7 +411,7 @@ async function run() {
     const viewB = (await dama.query(`INSERT INTO ${viewTbl} (source_id, metadata) VALUES ($1, $2) RETURNING view_id`,
         [extB, JSON.stringify({ download: { csv: 'x' } })])).rows[0].view_id;
     const viewA = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [extA])).rows[0].view_id;
-    await syncMirror(APP, DAMA_DB);
+    await attachPgEnv(APP, DAMA_DB);
     const CREATE_DL = 'POST /dama-admin/:pgEnv/gis-dataset/create-download';
     const DELETE_DL = 'DELETE /dama-admin/:pgEnv/gis-dataset/delete-download';
     const PMTILES = 'POST /cache-pmtiles';
@@ -488,8 +488,9 @@ async function run() {
     const extP = (await dama.query(`INSERT INTO ${srcTbl} (name, auth_permissions) VALUES ($1, $2) RETURNING source_id`,
         [`uplauth_p_${Date.now()}`, JSON.stringify({ groups: { public: ['download-source'] }, users: {} })])).rows[0].source_id;
     createdExt.push(extP);
-    // the site's grants over extB live on its mirror row (dama/mirror.js setGrantsIn), not in the pgEnv
-    await require('../src/dama/mirror').setGrantsIn(APP, DAMA_DB, extB, { groups: { Downloaders: ['manage-downloads', 'download-source'] }, users: {} });
+    // extB's grants are the pgEnv's column; written by direct SQL here, so the auth snapshots are dropped
+    await dama.query(`UPDATE ${srcTbl} SET auth_permissions = $1 WHERE source_id = $2`, [JSON.stringify({ groups: { Downloaders: ['manage-downloads', 'download-source'] }, users: {} }), extB]);
+    require('../src/routes/auth').clearSnapshots();
     const keyB = `${DAMA_DB}/s_${extB}/roads_s${extB}_v${viewB}_CSV.zip`;
     const keyB2 = `${DAMA_DB}/s_${extB}/roads_s${extB}_v${viewB}_GPKG.zip`;
     await storage.write(keyB, 'zip-bytes-B');
@@ -497,7 +498,7 @@ async function run() {
     const setDownloads = async (view, map) => dama.query(`UPDATE ${viewTbl} SET metadata = $1 WHERE view_id = $2`, [JSON.stringify({ download: map }), view]);
     await setDownloads(viewB, { CSV: storage.getUrl(keyB), GPKG: storage.getUrl(keyB2), GeoJSON: 'https://elsewhere.example/x.zip' });
     const viewP = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [extP])).rows[0].view_id;
-    await syncMirror(APP, DAMA_DB);
+    await attachPgEnv(APP, DAMA_DB);
     const keyP = `${DAMA_DB}/s_${extP}/open_CSV.zip`;
     await storage.write(keyP, 'zip-bytes-P');
     await setDownloads(viewP, { CSV: `$HOST${storage.getUrl(keyP)}` });

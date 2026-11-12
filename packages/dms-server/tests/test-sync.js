@@ -420,6 +420,35 @@ async function testPushDelete() {
   console.log('  \u2713 push delete works\n');
 }
 
+// `data.parent_id` is a protected key (routes/dms/parentId.js): a pushed create's claim is checked
+// before it is stored, and a pushed edit can neither change nor erase it.
+async function testPushParentIdIsProtected() {
+  console.log('--- Test: push — parent_id is checked on create, untouchable on edit ---');
+  const parse = (d) => (typeof d === 'string' ? JSON.parse(d) : d);
+  const push = (action, item) => httpPost('/sync/push', { action, item: { app: TEST_APP, ...item } });
+
+  const page = (await push('I', { type: 'ppid|page', data: { title: 'P' } })).body.item.id;
+  const other = (await push('I', { type: 'elsewhere|page', data: { title: 'Q' } })).body.item.id;
+
+  const ok = (await push('I', { type: 'ppid|component', data: { title: 'c', parent_id: page } })).body.item;
+  assert(parse(ok.data).parent_id === +page, `a valid claim is stored as a number (got ${JSON.stringify(parse(ok.data).parent_id)})`);
+
+  const bad = (await push('I', { type: 'ppid|component', data: { title: 'c2', parent_id: other } })).body.item;
+  assert(parse(bad.data).parent_id === undefined, 'a claim outside the container is dropped');
+
+  const edited = (await push('U', { id: ok.id, type: 'ppid|component', data: { title: 'c!', parent_id: other } })).body.item;
+  assert(parse(edited.data).parent_id === +page, 'an edit cannot change it');
+  assert(parse(edited.data).title === 'c!', 'the rest of the edit lands');
+
+  // an I onto an existing id REPLACES the row's data: the stored parent survives that too
+  const replaced = (await push('I', { id: ok.id, type: 'ppid|component', data: { title: 'replaced' } })).body.item;
+  assert(parse(replaced.data).parent_id === +page, 'a replacing insert keeps the stored parent');
+  assert(parse(replaced.data).title === 'replaced', 'and replaces the rest');
+
+  createdIds.push(page, other, ok.id, bad.id);
+  console.log('  \u2713 parent_id is protected through /sync/push\n');
+}
+
 async function testBootstrapRequiresApp() {
   console.log('--- Test: bootstrap requires app param ---');
 
@@ -1033,6 +1062,7 @@ const tests = [
   testPushCreate,
   testPushUpdate,
   testPushDelete,
+  testPushParentIdIsProtected,
   testBootstrapRequiresApp,
   testDeltaRequiresApp,
   testWebSocketBroadcast,

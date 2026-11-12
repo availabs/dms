@@ -64,16 +64,16 @@ Config files live in `src/db/configs/`. The SQLite adapter automatically convert
 
 The `splitMode` setting controls how DMS tables are organized:
 
-- **`legacy`** — All apps share a single `data_items` table (default if unset)
-- **`per-app`** — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL), and its own `formats` table beside it (`formats__${app}` / `dms_${app}.formats`, created on first use by `db/table-resolver.js ensureFormatsTable`)
+- **`per-app`** (the default) — Each app gets its own table/schema (`data_items__${app}` for SQLite, `dms_${app}.data_items` for PostgreSQL), and its own `formats` table beside it (`formats__${app}` / `dms_${app}.formats`, created on first use by `db/table-resolver.js ensureFormatsTable`)
+- **`legacy`** — All apps share a single `data_items` table. A database in this layout **must say so** with `"splitMode": "legacy"` in its config (or `DMS_SPLIT_MODE=legacy` when the config is silent); nothing infers it. Since 2026-11-10 (`planning/tasks/current/split-mode-per-app-default.md`): a silent config used to mean legacy, and against a per-app database that read the empty shared table and showed every site as brand new, with no error.
 
-Split mode is resolved per-database via the priority chain:
+Split mode is resolved ONCE, by `loadConfig` (`db/config.js`), which stamps the result on the config it returns:
 
 ```
-options.splitMode (test override) > config.splitMode > process.env.DMS_SPLIT_MODE > 'legacy'
+config.splitMode > process.env.DMS_SPLIT_MODE > 'per-app'      (db/table-resolver.js resolveSplitMode)
 ```
 
-Add `"splitMode": "per-app"` to database config JSON files. New databases should use per-app mode; legacy mode is for backward compatibility with existing databases that haven't been migrated. All test configs use `"splitMode": "per-app"` — tests use the app-namespaced route (`dms.data[app].byId[ids][attrs]`) and 3-arg edit format (`[app, id, data]`).
+Any other value throws at config load, like a missing `type` or `role`. Every reader takes `config.splitMode` from the loaded config and never re-derives it; `createController`'s `options.splitMode` is a test override on top. All test configs are per-app — tests use the app-namespaced route (`dms.data[app].byId[ids][attrs]`) and 3-arg edit format (`[app, id, data]`); `migrate-test-src` is the one legacy config, the source that `test-migrate-site` migrates. The startup log prints the resolved mode of `DMS_DB_ENV`'s config.
 
 ### Data Model
 All content is stored in `data_items` with a flexible `data` JSON column. The `app` + `type` pair acts as a composite namespace key (concatenated as `app+type` in queries).
@@ -178,7 +178,7 @@ Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are requir
 | `database` | postgres only | string | Postgres database name. |
 | `host`, `port`, `user`, `password` | postgres | | Standard `pg` client options. |
 | `filename` | sqlite only | path | Resolved relative to `src/db/configs/` if not absolute. |
-| `splitMode` | optional | `"legacy"` \| `"per-app"` | Per-config override of the global `DMS_SPLIT_MODE`. Only meaningful for `role: "dms"`. |
+| `splitMode` | optional | `"legacy"` \| `"per-app"` | Table layout; `per-app` when neither the config nor `DMS_SPLIT_MODE` says otherwise. A legacy-layout database must set `"legacy"`. Only meaningful for `role: "dms"`. |
 | `clickhouse` | optional, dama | `{ host, port, user, password, database }` | Auxiliary read storage for large views. See "ClickHouse auxiliary storage" below. |
 | `readOnly` | optional, postgres dama-only | `true` \| `false` | The server reads this DAMA database but never changes it: no init or migrations, no task recovery, polling or schedule sweep, and every connection made from the config (pool, `getClient`, a worker's `getPostgresCredentials` client) starts read-only (`default_transaction_read_only=on`). For a second server, such as a preview stack, reading a shared DAMA database. A read-only database user is still the real guard. Test: `npm run test:pg:dama-readonly`. |
 

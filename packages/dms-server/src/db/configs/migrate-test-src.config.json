@@ -1,5 +1,6 @@
 {
   "type": "sqlite",
   "role": "dms",
-  "filename": "../data/migrate-test-src.sqlite"
+  "filename": "../data/migrate-test-src.sqlite",
+  "splitMode": "legacy"
 }

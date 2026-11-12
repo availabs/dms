@@ -57,7 +57,7 @@ function addToGrants(grants) {
   return [out, n];
 }
 
-/** Walk a whole `auth` column or `data.authPermissions` object. Returns [obj, n]. */
+/** Walk a whole `data.authPermissions` object. Returns [obj, n]. */
 function addToContainer(container) {
   if (!container || typeof container !== 'object' || Array.isArray(container)) return [container, 0];
   // A flat, unscoped object: the grants are right here.
@@ -89,7 +89,7 @@ async function main() {
 
   const db = getDb(o.db); await awaitReady();
   const config = loadConfig(o.db);
-  const splitMode = config.splitMode || process.env.DMS_SPLIT_MODE || 'legacy';
+  const splitMode = config.splitMode;
   const t = resolveTable(o.app, '', db.type, splitMode);
   const T = db.type === 'postgres' ? `"${t.schema}"."${t.table}"` : `"${t.table}"`;
 
@@ -97,24 +97,20 @@ async function main() {
   console.log(`  db=${o.db}  app=${o.app}  table=${T}\n`);
 
   const { rows } = await db.query(
-    `SELECT id, data->>'pattern_type' AS pattern_type, auth, data->'authPermissions' AS ap
+    `SELECT id, data->>'pattern_type' AS pattern_type, data->'authPermissions' AS ap
        FROM ${T} WHERE app = $1 AND type LIKE '%:pattern'`, [o.app]);
 
   let touchedRows = 0, grantsAdded = 0;
   const byType = new Map();
   for (const r of rows) {
-    const [nextAuth, nAuth] = addToContainer(typeof r.auth === 'string' ? parseMaybe(r.auth).value : r.auth);
     const [nextAp, nAp] = addToContainer(typeof r.ap === 'string' ? parseMaybe(r.ap).value : r.ap);
-    if (!nAuth && !nAp) continue;
-    touchedRows++; grantsAdded += nAuth + nAp;
+    if (!nAp) continue;
+    touchedRows++; grantsAdded += nAp;
     byType.set(r.pattern_type || '(none)', (byType.get(r.pattern_type || '(none)') || 0) + 1);
     if (o.apply) {
-      if (nAuth) await db.query(`UPDATE ${T} SET auth = $2 WHERE id = $1`, [r.id, JSON.stringify(nextAuth)]);
-      if (nAp) {
-        await db.query(
-          `UPDATE ${T} SET data = jsonb_set(data, '{authPermissions}', $2::jsonb) WHERE id = $1`,
-          [r.id, JSON.stringify(nextAp)]);
-      }
+      await db.query(
+        `UPDATE ${T} SET data = jsonb_set(data, '{authPermissions}', $2::jsonb) WHERE id = $1`,
+        [r.id, JSON.stringify(nextAp)]);
     }
   }
 

@@ -12,7 +12,7 @@ import UI from "../../ui";
 import { ThemeContext, getPatternTheme, getComponentTheme } from "../../ui/useTheme.js";
 import { MountContext } from "../../ui/mountContext.js";
 import { registerWidget } from "../../ui/widgets";
-import { registerComponents, preloadSectionComponents } from './components/sections/componentRegistry';
+import { registerComponents, preloadSectionComponents, getRegisteredComponents } from './components/sections/componentRegistry';
 import { registerSectionMenuExtensions } from './components/sections/sectionMenuExtensions';
 import { registerSectionHeaderExtensions } from './components/sections/sectionHeaderExtensions';
 import { registerColumnType } from "../../ui/columnTypes";
@@ -158,7 +158,8 @@ const pagesConfig = ({
       const raw = params?.['*'] || '';
       const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
       preloadSectionComponents(pageSectionTypes(findPageItem(data, slug)));
-      return preloadEnabled ? preloadPageSections(falcor, data, request.url, patternFilters, slug) : data;
+      // the registry tells the preload which section types fetch before render (preloadData) and how
+      return preloadEnabled ? preloadPageSections(falcor, data, request.url, patternFilters, slug, getRegisteredComponents()) : data;
     },
     baseUrl,
     API_HOST,

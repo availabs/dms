@@ -1,4 +1,5 @@
 const { readFileSync } = require("fs");
+const { resolveSplitMode } = require("./table-resolver.js");
 const { join } = require("path");
 
 const configDir = join(__dirname, "./configs");
@@ -30,6 +31,10 @@ const configDir = join(__dirname, "./configs");
  * database but never changes it. No schema init or migrations run on it, no task
  * polling or schedule sweep starts for it, and its connections refuse writes.
  *
+ * `splitMode` is resolved here, once, for every config returned: the file's value, else
+ * DMS_SPLIT_MODE, else "per-app" (db/table-resolver.js resolveSplitMode). A legacy-layout
+ * database must say "splitMode": "legacy". Any other value throws at load.
+ *
  * `type` and `role` are both REQUIRED. There is no inference, no legacy
  * fallback, no default — a missing or invalid field throws at load time.
  * This is intentional: an omitted `type` used to silently route the
@@ -54,6 +59,9 @@ function loadConfig(envName) {
         `Config "${envName}" is missing "role" — set "role": "dms" | "auth" | "dama" (or an array of those)`
       );
     }
+
+    // Table layout, resolved once so every reader sees the same answer: config > DMS_SPLIT_MODE > per-app.
+    config.splitMode = resolveSplitMode(config, envName);
 
     if (config.readOnly !== undefined && typeof config.readOnly !== "boolean") {
       throw new Error(`Config "${envName}": "readOnly" must be true or false`);
@@ -138,6 +146,7 @@ function isReadOnly(envName) {
 
 module.exports = {
   loadConfig,
+  resolveSplitMode,
   configDir,
   findConfigsByRole,
   isReadOnly

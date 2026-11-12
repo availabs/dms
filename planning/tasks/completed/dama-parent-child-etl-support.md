@@ -1,6 +1,6 @@
 # DaMa / datasets — parent → child ETL support for multi-source data types
 
-**Initiatives:** [mny_fusion_data_update](../../../../../planning/initiatives/mny_fusion_data_update.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** built · **Release:** deploy — dms-server + frontend (needs the `dms-server-real-transactions.md` deploy; same deploy as authoritative views), then the TransportNY theme sync · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [mny_fusion_data_update](../../../../../planning/initiatives/mny_fusion_data_update.md) (primary), [dms_datasets_manager](../../../../../planning/initiatives/dms_datasets_manager.md) · **Status:** done · **Created by:** amuro@albany.edu · **Edited by:** amuro@albany.edu
 
 **Project:** DMS library · **Topic:** dms-server / dama + patterns/datasets · **Started:** 2026-10-02
 
@@ -239,3 +239,7 @@ Server first, then client, each phase ticked here as it lands.
   the caller's whole transaction. Note: `data_manager.sources.name` is not unique (a plain index;
   hazmit_dama has 8,674 rows sharing one name), so that retry only fires on envs with a UNIQUE index.
   Verified by the Fusion integration test on Docker Postgres + `npm test`.
+- 2026-11-10 — **Closed (owner)** with `mny_fusion_data_update`. The server half is live: `uda[hazmit_dama].views.byId[15115].lineage`
+  on `dmsserver.availabs.org` returns the view's inputs (checked read-only). Not confirmed from here: the frontend deploy and
+  the TransportNY theme sync. Left open, not pursued: G6, G8, G9 (should), G10–G12 (could), `work_zone` opting into
+  `outputs`, and the `work_zone` post-deploy run check. · amuro@albany.edu

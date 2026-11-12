@@ -16,7 +16,7 @@ const querySets = require('./query_sets');
 const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
-const mirror = require('../../dama/mirror');
+const { clearPgEnv } = require('../auth/owners');
 const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
 const { getViewLineage, getSourceLineage } = require('../../dama/lineage');
 const { ensureSourceRules } = require('../../dama/rules');
@@ -159,9 +159,6 @@ function hiddenSourceClause(types, cats, dbType) {
   return { where: parts.length ? `WHERE ${parts.join(' AND ')}` : '', params };
 }
 
-/** A pgEnv's hidden source types and category heads, for the mirrors listed in a site's catalog. */
-const hiddenOf = async (pgEnv) => ({ types: await getHiddenSourceTypes(pgEnv), cats: await getHiddenCategories(pgEnv) });
-
 async function getSourcesLength(env, { includeHidden = false } = {}) {
   const { isDms, db, app, splitMode } = await getEssentials({ env });
 
@@ -171,7 +168,7 @@ async function getSourcesLength(env, { includeHidden = false } = {}) {
     const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return 0;
 
-    const sources = await getSiteSources({ db, app, pattern_ids, splitMode, hiddenFor: includeHidden ? null : hiddenOf });
+    const sources = await getSiteSources({ db, app, pattern_ids, splitMode });
     return sources.length;
   }
 
@@ -195,7 +192,7 @@ async function getSourceIdsByIndex(env, indices, { includeHidden = false } = {})
     const pattern_ids = await getSitePatterns({ db, app, env, splitMode });
     if (!pattern_ids.length) return [];
 
-    const sources = await getSiteSources({ db, app, pattern_ids, splitMode, hiddenFor: includeHidden ? null : hiddenOf });
+    const sources = await getSiteSources({ db, app, pattern_ids, splitMode });
     if (!sources.length) return [];
 
     return sources
@@ -501,8 +498,8 @@ async function updateSource(env, sourceId, updates) {
     `UPDATE ${tbl} SET ${setClauses} WHERE source_id = $${values.length + 1} RETURNING *`,
     [...values, sourceId]
   );
-  // the mirror rows (dama/mirror.js) follow the keys they carry
-  if (rows[0] && Object.keys(updates).some(k => mirror.MIRRORED_SOURCE_KEYS.includes(k))) await mirror.afterWrite(db, () => mirror.mirrorSource(env, rows[0]));
+  // a source's grants are read by the auth layer from a per-pgEnv cache: a changed grant is read at once
+  if (Object.prototype.hasOwnProperty.call(updates, 'auth_permissions')) clearPgEnv(env);
   return rows;
 }
 
@@ -681,7 +678,6 @@ async function updateView(env, viewId, updates) {
     `UPDATE ${tbl} SET ${setClauses} WHERE view_id = $${values.length + 1} RETURNING *`,
     [...values, viewId]
   );
-  if (rows[0] && Object.keys(updates).some(k => mirror.MIRRORED_VIEW_KEYS.includes(k))) await mirror.afterWrite(db, () => mirror.mirrorView(env, rows[0]));
   return rows;
 }
 
@@ -749,7 +745,6 @@ async function createSourceView(env, { source_id, version, copy_from_view_id, us
   const label = (version == null || String(version).trim() === '') ? String(view.view_id) : String(version).trim();
   await db.query(`UPDATE data_manager.views SET version = $1 WHERE view_id = $2`, [label, view.view_id]);
   view.version = label;
-  await mirror.afterWrite(db, () => mirror.mirrorView(env, view));
 
   try {
     const { rowsCopied } = await cloneViewTable(db, {

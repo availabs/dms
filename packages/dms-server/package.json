@@ -7,8 +7,9 @@
   "scripts": {
     "start": "node --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
     "dev": "nodemon --ignore var/ --ignore '*.sqlite' --max-http-header-size=1048576 --env-file-if-exists=../../../../.env --env-file-if-exists=.env src/index.js",
-    "test": "node tests/test-sqlite.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-schema-drift.js && node tests/test-stream-json.js && node tests/test-falcor-response-limit.js && node tests/test-transaction-guard.js && node tests/test-transactions.js && node tests/test-change-history.js && node tests/test-sites.js && node tests/test-duplicate-refs.js && node tests/test-auth-vocabulary.js && node tests/test-parent-id.js && DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-parent-stamp.js && DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-child-sweep.js && DMS_TEST_DB=cli-test node tests/test-formats.js",
+    "test": "node tests/test-sqlite.js && node tests/test-split-mode.js && node tests/test-controller.js && node tests/test-graph.js && node tests/test-workflow.js && node tests/test-delete-cascade.js && node tests/test-pattern-filter-sync-load.js && node tests/test-schema-drift.js && node tests/test-stream-json.js && node tests/test-falcor-response-limit.js && node tests/test-transaction-guard.js && node tests/test-transactions.js && node tests/test-change-history.js && node tests/test-sites.js && node tests/test-duplicate-refs.js && node tests/test-auth-vocabulary.js && node tests/test-parent-id.js && DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-parent-stamp.js && DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-child-sweep.js && DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-setup-app.js && DMS_TEST_DB=cli-test node tests/test-formats.js",
     "test:delete-cascade": "node tests/test-delete-cascade.js",
+    "test:pattern-filter-sync": "node tests/test-pattern-filter-sync-load.js",
     "test:transactions": "node tests/test-transactions.js",
     "test:change-history": "node tests/test-change-history.js",
     "test:transaction-guard": "node tests/test-transaction-guard.js",
@@ -25,6 +26,7 @@
     "test:auth": "node tests/test-auth.js",
     "test:source-auth": "node tests/test-source-auth.js",
     "test:data-auth": "node tests/test-data-auth.js",
+    "test:pgenv-auth": "DMS_TEST_DB=cli-test node tests/test-pgenv-auth.js",
     "test:access-log": "node tests/test-access-log.js",
     "test:formats": "DMS_TEST_DB=cli-test node tests/test-formats.js",
     "test:pg:start": "node tests/postgres-docker.js start",

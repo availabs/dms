@@ -12,7 +12,7 @@
  * - Decision 3: one filter group per run (filterGroupKey, default '*')
  *
  *   POST /dama-admin/dms/:appType/sync-filters     (:appType = "<app>+<patternInstance>")
- *   body: { patternId, filterGroupKey? = '*', scope?, clearKeys?, dropRequestCache? }
+ *   body: { patternId, filterGroupKey? = '*', scope?, clearKeys?, dropRequestCache?, sectionLoad? }
  *   → { task_id }
  *
  * Full-coverage options (all default to the v1 behaviour — see
@@ -35,6 +35,15 @@
  *                     `legacyStateToBuildInput` reads — deleting it strips the section's filters
  *                     and it starts returning unfiltered rows. Those are patched by
  *                     filter-leaf-walk instead.
+ *
+ *   sectionLoad       { [element-type]: { fullDataLoad?, keepOriginalValues? } }: how each section type's
+ *                     component loads its rows, as the CLIENT's component registry declares it (a
+ *                     component config's `fullDataLoad` / `keepOriginalValues`, e.g. graph_new's
+ *                     `fullDataLoad: true`). Tier 2 passes the section's entry to getData, so a Graph
+ *                     stores ALL its rows instead of the first page of 25. Sent as data because the
+ *                     server can't know types (theme-registered components set these flags too). Absent
+ *                     → every section loads one page, the pre-2026-11-10 behaviour.
+ *                     See src/dms/planning/tasks/current/pattern-filter-sync-full-data-load.md.
  *
  * patternId is required in the body (not derivable from :appType alone) because the
  * pattern ROW's type string is site-qualified (`{site}|{instance}:pattern`) while
@@ -81,7 +90,7 @@ function createPatternFilterSyncHandler(controller) {
   registerHandler('dms/pattern_filter_sync', async (ctx) => {
     const {
       app, patternInstance, patternId, filterGroupKey = '*', userId,
-      scope = 'draft', clearKeys = [], dropRequestCache = false, concurrency = 10,
+      scope = 'draft', clearKeys = [], dropRequestCache = false, concurrency = 10, sectionLoad = null,
     } = ctx.task.descriptor;
     const REF_KEYS = scope === 'both' ? ['draft_sections', 'sections']
       : scope === 'published' ? ['sections']
@@ -102,6 +111,9 @@ function createPatternFilterSyncHandler(controller) {
     const keyCount = Object.keys(searchKeyMap).length;
     console.log(`${tag} group "${filterGroupKey}": ${keyCount} filter key(s) — ${Object.keys(searchKeyMap).join(', ')}`);
     console.log(`${tag} scope=${scope} (${REF_KEYS.join('+')}) clearKeys=[${clearKeys.join(', ')}] dropRequestCache=${dropRequestCache}`);
+    console.log(sectionLoad
+      ? `${tag} sectionLoad: ${Object.entries(sectionLoad).map(([t, f]) => `${t}{${Object.keys(f).filter(k => f[k]).join(',')}}`).join(' ')}`
+      : `${tag} no sectionLoad: every section's Tier-2 recompute loads one page (a full-load component such as a Graph keeps its first page only)`);
     await ctx.dispatchEvent('log', `Group "${filterGroupKey}": ${keyCount} filter key(s)`, searchKeyMap);
     // clearKeys alone is enough work to justify a run even with an empty group.
     if (!keyCount && !clearKeys.length) {
@@ -120,17 +132,20 @@ function createPatternFilterSyncHandler(controller) {
     // including it unconditionally would defeat the cache for everything.
     // The PROMISE is cached, not the result, so concurrent duplicates share one in-flight fetch.
     const tier2Cache = new Map();
-    const tier2Key = (state, sectionId) => {
+    // The load flags are part of the key: one query loaded in full and as one page are different results.
+    const tier2Key = (state, sectionId, load) => {
       const { data, ...rest } = state;
       const usesSelf = JSON.stringify(rest).includes('$self');
       return crypto.createHash('sha1')
-        .update(JSON.stringify(rest) + (usesSelf ? `|${sectionId}` : ''))
+        .update(JSON.stringify(rest) + (usesSelf ? `|${sectionId}` : '') + `|full=${!!load.fullDataLoad}|orig=${!!load.keepOriginalValues}`)
         .digest('hex');
     };
-    const cachedGetData = (state, sectionId) => {
-      const key = tier2Key(state, sectionId);
+    let fullLoads = 0;
+    const cachedGetData = (state, sectionId, load) => {
+      const key = tier2Key(state, sectionId, load);
       if (!tier2Cache.has(key)) {
-        tier2Cache.set(key, getData({ state, currentPage: 0, sectionId }));
+        if (load.fullDataLoad) fullLoads++;
+        tier2Cache.set(key, getData({ state, currentPage: 0, sectionId, fullDataLoad: !!load.fullDataLoad, keepOriginalValues: !!load.keepOriginalValues }));
       } else {
         tier2Hits++;
       }
@@ -198,7 +213,9 @@ function createPatternFilterSyncHandler(controller) {
       if (patched && (patchedElementData.externalSource || patchedElementData.sourceInfo)) {
         const hadRows = Array.isArray(patchedElementData.data) ? patchedElementData.data.length : 0;
         try {
-          const result = await cachedGetData(patchedElementData, secRow.id);
+          // the section's component load flags, as the client's registry declares them (sectionLoad)
+          const load = (sectionLoad && sectionLoad[element['element-type']]) || {};
+          const result = await cachedGetData(patchedElementData, secRow.id, load);
           patchedElementData.data = result.data;
           // getData does NOT throw when it rejects a section: a column set that fails its
           // grouped/fn validity rule, or a failed fetch, comes back as `{data: [], invalidState}`.
@@ -300,12 +317,12 @@ function createPatternFilterSyncHandler(controller) {
 
     console.log(`${tag} done — ${pages.length} pages scanned, ${pagesPatched} patched, ${sectionsPatched} sections patched, ${memosDropped} request memo(s) dropped, ${sectionsSkipped} sections skipped, ${warnings} warning(s)`);
     return { pagesScanned: pages.length, pagesPatched, sectionsPatched, sectionsSkipped, memosDropped,
-             tier2Queries: tier2Cache.size, tier2CacheHits: tier2Hits, warnings, sectionsEmptied, scope, clearKeys, dropRequestCache, concurrency };
+             tier2Queries: tier2Cache.size, tier2CacheHits: tier2Hits, fullLoads, warnings, sectionsEmptied, scope, clearKeys, dropRequestCache, concurrency };
   });
 
   return async function syncFilters(req, res) {
     const [app, patternInstance] = (req.params.appType || '').split('+');
-    const { filterGroupKey = '*', patternId, scope = 'draft', clearKeys = [], dropRequestCache = false, concurrency } = req.body || {};
+    const { filterGroupKey = '*', patternId, scope = 'draft', clearKeys = [], dropRequestCache = false, concurrency, sectionLoad } = req.body || {};
     const userId = requestUserId(req);
 
     if (!app || !patternInstance || !patternId) {
@@ -315,6 +332,20 @@ function createPatternFilterSyncHandler(controller) {
     try {
       if (!['draft', 'published', 'both'].includes(scope)) {
         return res.status(400).json({ err: `scope must be 'draft', 'published' or 'both' (got ${scope})` });
+      }
+      // sectionLoad: { [element-type]: { fullDataLoad?, keepOriginalValues? } } — booleans only, nothing else kept
+      let load = null;
+      if (sectionLoad != null) {
+        if (typeof sectionLoad !== 'object' || Array.isArray(sectionLoad)) {
+          return res.status(400).json({ err: 'sectionLoad must be an object keyed by element-type' });
+        }
+        load = {};
+        for (const [type, flags] of Object.entries(sectionLoad)) {
+          if (!flags || typeof flags !== 'object' || Array.isArray(flags)) {
+            return res.status(400).json({ err: `sectionLoad["${type}"] must be an object` });
+          }
+          load[type] = { fullDataLoad: flags.fullDataLoad === true, keepOriginalValues: flags.keepOriginalValues === true };
+        }
       }
       const taskId = await queueTask({
         workerPath: 'dms/pattern_filter_sync',
@@ -326,6 +357,7 @@ function createPatternFilterSyncHandler(controller) {
         scope,
         clearKeys: Array.isArray(clearKeys) ? clearKeys : [],
         dropRequestCache: !!dropRequestCache,
+        sectionLoad: load,
         ...(Number.isFinite(+concurrency) && +concurrency > 0 ? { concurrency: Math.min(+concurrency, 50) } : {}),
       });
       return res.json({ task_id: taskId });

@@ -93,13 +93,32 @@ t('a failing lookup is dropped, not thrown', quiet(async () => assert.strictEqua
     await validateParentId('5', { app: 'a', type: 'chenango|component',
         loadType: async () => { throw new Error('db down'); } }), null)));
 
+section('stripParentId / withParentId — the key is protected');
+t('an edit patch loses the key and keeps the rest', () =>
+    assert.deepStrictEqual(require('../src/routes/dms/parentId').stripParentId({ title: 'x', parent_id: 9 }), { title: 'x' }));
+t('a patch without the key comes back untouched — same object, a string stays a string', () => {
+    const { stripParentId } = require('../src/routes/dms/parentId');
+    const obj = { title: 'x' };
+    assert.strictEqual(stripParentId(obj), obj);
+    const text = '{"sections":[{"id":12345678901234567890}]}';
+    assert.strictEqual(stripParentId(text), text, 'not re-parsed: ids past double precision survive');
+});
+t('a string patch carrying the key is parsed and stripped', () =>
+    assert.deepStrictEqual(require('../src/routes/dms/parentId').stripParentId('{"title":"x","parent_id":"9"}'), { title: 'x' }));
+t('withParentId stores a NUMBER, and nothing when the claim was dropped', () => {
+    const { withParentId } = require('../src/routes/dms/parentId');
+    assert.deepStrictEqual(withParentId({ title: 'x' }, '42'), { title: 'x', parent_id: 42 });
+    const obj = { title: 'x' };
+    assert.strictEqual(withParentId(obj, null), obj);
+});
+
 section('childRefsOf — the declaration reaches the server by the same chain as the vocabulary');
-t('from the auth column', () =>
-    assert.deepStrictEqual(childRefsOf({ auth: { childRefs: CHILD_REFS } }), CHILD_REFS));
-t('from data on an unmigrated row', () =>
+t('from the stamp in data', () =>
     assert.deepStrictEqual(childRefsOf({ data: { childRefs: CHILD_REFS } }), CHILD_REFS));
+t('an `auth` column is not read — it is retired', () =>
+    assert.strictEqual(childRefsOf({ auth: { childRefs: CHILD_REFS }, data: {} }), null));
 t('absent is null, and the structural rule stands alone', () =>
-    assert.strictEqual(childRefsOf({ auth: { groups: {} } }), null));
+    assert.strictEqual(childRefsOf({ data: { authPermissions: { groups: {} } } }), null));
 
 section('refIdsOf — reading a declared reference array');
 t('the production encoding: objects carrying id and ref', () =>
@@ -268,7 +287,7 @@ t('a JSON string parses', () =>
 section('stampChildren — the parent names its children (the inverse of the check)');
 // A recording executor: these cases are about WHICH statement is issued, which is where the
 // security bound lives. The round trip is covered end to end in test-parent-stamp.js.
-const recorder = () => { const q = []; return { q, promise: async (sql, params) => (q.push({ sql, params }), []) }; };
+const recorder = () => { const q = []; return { q, type: 'sqlite', promise: async (sql, params) => (q.push({ sql, params }), []) }; };
 const stamp = async (over = {}) => {
     const tx = recorder();
     const n = await stampChildren(tx, {
@@ -293,15 +312,17 @@ t('one statement per NAMED attribute', async () => {
 // `sections`, handing it that page's grants — that is still impossible.
 t('the predicate pins container AND kind, in both type shapes', async () => {
     const { tx } = await stamp();
-    assert.ok(/type = \$5 OR type LIKE \$6 ESCAPE/.test(tx.q[0].sql), tx.q[0].sql);  // $3,$4 are ids
+    assert.ok(/type = \$6 OR type LIKE \$7 ESCAPE/.test(tx.q[0].sql), tx.q[0].sql);  // $4,$5 are ids
     assert.deepStrictEqual(tx.q[0].params.slice(-2), ['chenango|component', 'chenango|%:component']);
     assert.ok(!/LIKE '%/.test(tx.q[0].sql), 'the only wildcard is the instance segment');
-    assert.deepStrictEqual(tx.q[0].params.slice(0, 4), ['100', 'a', '1', '2']);
+    // the merged-in value, the app, the owner as text (for the "already says so" guard), then the ids
+    assert.deepStrictEqual(tx.q[0].params.slice(0, 5), ['{"parent_id":100}', 'a', '100', '1', '2']);
+    assert.ok(/SET data = json_patch\(COALESCE\(data, '\{\}'\), \$1\)/.test(tx.q[0].sql), 'written into data, merged');
 });
 t('it never clears — only rows whose parent differs are touched', async () => {
     const { tx } = await stamp();
-    assert.ok(/parent_id IS NULL OR parent_id <> \$1/.test(tx.q[0].sql), tx.q[0].sql);
-    assert.ok(!/SET parent_id = NULL/.test(tx.q[0].sql));
+    assert.ok(/'\$\.parent_id'\) AS TEXT\) IS NULL OR CAST\(json_extract\(data, '\$\.parent_id'\) AS TEXT\) <> \$3/.test(tx.q[0].sql), tx.q[0].sql);
+    assert.ok(!/json_remove/.test(tx.q[0].sql));
 });
 t('an attribute absent from the patch is not touched', async () => {
     const { tx } = await stamp({ data: { title: 'renamed' } });
@@ -326,17 +347,17 @@ t('a root row (no container) is skipped', async () => {
 });
 t('junk ids are dropped and duplicates collapse', async () => {
     const { tx } = await stamp({ data: { sections: [{ id: '1' }, { id: '1' }, { id: 'x' }, null] } });
-    assert.deepStrictEqual(tx.q[0].params.slice(2, -2), ['1']);
+    assert.deepStrictEqual(tx.q[0].params.slice(3, -2), ['1']);
 });
 t('a JSON-string payload parses', async () => {
     const { tx } = await stamp({ data: JSON.stringify({ sections: [{ id: '7' }] }) });
-    assert.deepStrictEqual(tx.q[0].params.slice(2, -2), ['7']);
+    assert.deepStrictEqual(tx.q[0].params.slice(3, -2), ['7']);
 });
 t('over 500 children chunks, so no statement grows unbounded', async () => {
     const many = Array.from({ length: 1201 }, (_, i) => ({ id: String(i + 1) }));
     const { tx } = await stamp({ data: { sections: many } });
     assert.strictEqual(tx.q.length, 3);
-    assert.strictEqual(tx.q[0].params.length, 504, '100, app, 500 ids, 2 type params');
+    assert.strictEqual(tx.q[0].params.length, 505, 'value, app, owner, 500 ids, 2 type params');
 });
 
 section('planRemovedChildren — a DIFFERENCE, never "nothing names it"');
@@ -402,9 +423,9 @@ t('off mode issues nothing at all', async () => {
     assert.strictEqual(tx.q.length, 0);
     assert.strictEqual(res.swept, 0);
 });
-t('parent_id = the owner is in the predicate — the safety bound', async () => {
+t('data.parent_id = the owner is in the predicate — the safety bound', async () => {
     const { tx } = await sweep();
-    assert.ok(/parent_id = \$2/.test(tx.q[0].sql), tx.q[0].sql);
+    assert.ok(/json_extract\(data, '\$\.parent_id'\) AS TEXT\) = \$2/.test(tx.q[0].sql), tx.q[0].sql);
     assert.strictEqual(tx.q[0].params[1], '100');
 });
 t('the predicate pins container AND kind, in both type shapes', async () => {
@@ -439,7 +460,7 @@ const sweepAll = async (over = {}) => {
 t('one statement, bounded by parent_id and the DECLARED child types', async () => {
     const { tx } = await sweepAll();
     assert.strictEqual(tx.q.length, 1);
-    assert.ok(/parent_id = \$2/.test(tx.q[0].sql));
+    assert.ok(/json_extract\(data, '\$\.parent_id'\) AS TEXT\) = \$2/.test(tx.q[0].sql));
     assert.deepStrictEqual(tx.q[0].params.slice(2).sort(),
         ['chenango|%:component', 'chenango|%:page-edit', 'chenango|component', 'chenango|page-edit']);
 });

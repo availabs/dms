@@ -16,7 +16,7 @@ process.env.DMS_DB_ENV = DMS_DB; // the resolver reads the datasets pattern from
 const assert = require('assert');
 const express = require('express');
 const { dmsMainTable } = require('../src/routes/uda/utils');
-const syncMirror = require('./mirror-sync');
+const attachPgEnv = require('./attach-pgenv');
 
 let pass = 0, fail = 0;
 const t = async (name, fn) => {
@@ -64,7 +64,7 @@ async function run() {
     const srcA = await mkSource({ groups: { Loaders: ['update-source'] }, users: {} });
     const srcB = await mkSource({ groups: { public: [] }, users: { 999999: ['*'] } }); // someone else's (no grants set would be open)
     const viewA = (await dama.query(`INSERT INTO ${viewTbl} (source_id) VALUES ($1) RETURNING view_id`, [srcA])).rows[0].view_id;
-    await syncMirror(APP, DAMA_DB);   // the pgEnv's rows as rows of this site (dama/mirror.js)
+    await attachPgEnv(APP, DAMA_DB);   // the site's env row for the pgEnv (dama/pgEnv.js)
 
     // ---- a plugin with each kind of route
     const { registerDatatype, mountDatatypeRoutes } = require('../src/dama/datatypes');

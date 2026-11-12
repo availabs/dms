@@ -14,7 +14,7 @@
  *
  * THE RULE. A set DIFFERENCE between the owner's arrays before and after the write, never "rows
  * nothing names" — children are created BEFORE their parent's array is written, so sweeping
- * unreferenced rows would delete sections as they are typed. Bounded by `parent_id = <owner>` and
+ * unreferenced rows would delete sections as they are typed. Bounded by `data.parent_id = <owner>` and
  * the exact declared child type.
  *
  * Goes through the real Falcor routes on a disposable per-app sqlite table: the rule is unit-tested
@@ -54,17 +54,12 @@ async function run() {
     const edit = (id, data, type) => graph.callAsync(['dms', 'data', 'edit'], [APP, id, data, type]);
 
     await create('prod:site', { name: 'prod' });
-    const T = resolveTable(APP, '', 'sqlite', 'per-app');
-    for (const col of ['auth TEXT', 'parent_id BIGINT']) {
-        try { await db.promise(`ALTER TABLE ${T.fullName} ADD COLUMN ${col}`); }
-        catch (e) { if (!/duplicate column/i.test(e.message)) console.log('[alter]', e.message); }
-    }
-    require('../src/routes/dms/rowAuthCaps')._resetCaps();
+    const T = resolveTable(APP, '', db.type, 'per-app');
 
     const alive = async (id) =>
         (await db.promise(`SELECT id FROM ${T.fullName} WHERE id = $1`, [id])).length === 1;
     const parentOf = async (id) =>
-        String((await db.promise(`SELECT parent_id FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.parent_id ?? '');
+        String((await db.promise(`SELECT ${require('../src/db/query-utils').jsonExtract('data', 'parent_id', db.type)} AS parent_id FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.parent_id ?? '');
 
     await create('prod|widgets:pattern', { pattern_type: 'page', childRefs: CHILD_REFS });
     await create('prod|other:pattern',   { pattern_type: 'page', childRefs: CHILD_REFS });
@@ -174,14 +169,15 @@ async function run() {
     {
         const old = await create('widgets|component', { title: 'published before the migration' });
         const page = await create('widgets|page', { title: 'H', sections: [ref(old)] });
-        // A row that predates `--add-columns`: it exists, a page lists it, and nothing has stamped
-        // it. Adding the column alone produces exactly this state for every row already in the
-        // table.
-        await db.promise(`UPDATE ${T.fullName} SET parent_id = NULL WHERE id = $1`, [old]);
+        // A row that predates parentage: it exists, a page lists it, and nothing has stamped it.
+        // Every row written before `data.parent_id` existed is in exactly this state.
+        await db.promise(db.type === 'postgres'
+            ? `UPDATE ${T.fullName} SET data = data - 'parent_id' WHERE id = $1`
+            : `UPDATE ${T.fullName} SET data = json_remove(data, '$.parent_id') WHERE id = $1`, [old]);
 
         const fresh = await create('widgets|component', { title: 'published after' });
         await edit(page, { sections: [ref(fresh)] }, 'widgets|page');
-        await t('a dropped row with parent_id NULL is NOT swept — `parent_id = owner` never matches',
+        await t('a dropped row with no parent_id is NOT swept — `parent_id = owner` never matches',
             async () => assert.strictEqual(await alive(old), true));
         await t('…while the row that replaced it is stamped, so the NEXT drop does sweep it',
             async () => assert.strictEqual(await parentOf(fresh), page));
@@ -208,7 +204,7 @@ async function run() {
         process.env.DMS_CHILD_SWEEP_MODE = 'delete';
     }
 
-    section('7. an unmigrated table sweeps nothing');
+    section('7. a brand-new app needs no migration: its plain table stamps and sweeps');
     {
         const APP2 = `childsweep_nocols_${Date.now()}`;
         const g2 = createTestGraph(DMS_DB, { user: { ...admin, groups: [`${APP2} Admin`] } });
@@ -218,12 +214,12 @@ async function run() {
         };
         await mk('prod:site', { name: 'prod' });
         await mk('prod|widgets:pattern', { pattern_type: 'page', childRefs: CHILD_REFS });
-        const T2 = resolveTable(APP2, '', 'sqlite', 'per-app');
-        const c = await mk('widgets|component', { title: 'no columns here' });
+        const T2 = resolveTable(APP2, '', db.type, 'per-app');
+        const c = await mk('widgets|component', { title: 'a new app' });
         const page = await mk('widgets|page', { title: 'G', draft_sections: [{ id: c, ref: `${APP2}+widgets|component` }] });
         await g2.callAsync(['dms', 'data', 'edit'], [APP2, page, { draft_sections: [] }, 'widgets|page']);
-        await t('no parent_id column, no sweep', async () =>
-            assert.strictEqual((await db.promise(`SELECT id FROM ${T2.fullName} WHERE id = $1`, [c])).length, 1));
+        await t('the dropped section is swept on a table nobody migrated', async () =>
+            assert.strictEqual((await db.promise(`SELECT id FROM ${T2.fullName} WHERE id = $1`, [c])).length, 0));
     }
 
     console.log(`\n${pass} passed, ${fail} failed\n`);
