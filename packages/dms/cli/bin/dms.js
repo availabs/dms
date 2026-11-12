@@ -13,6 +13,7 @@ import * as page from '../src/commands/page.js';
 import * as section from '../src/commands/section.js';
 import * as dataset from '../src/commands/dataset.js';
 import * as formats from '../src/commands/formats.js';
+import * as stack from '../src/commands/stack.js';
 
 const program = new Command();
 
@@ -175,6 +176,25 @@ formatsCmd
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app']);
     await formats.diff(file, config, getOutputOptions(cmd));
+  });
+
+// ============================================================================
+// PREVIEW STACKS
+// ============================================================================
+
+const stackCmd = program
+  .command('stack')
+  .description('Preview stacks (dms-template deploy/stacks.mjs): compare a stack with production; see docs/README.md "Stack"');
+
+stackCmd
+  .command('diff')
+  .description('Read-only: what a stack changed since its copy, and which of those rows production changed after it (exit 3 on any conflict)')
+  .requiredOption('--stack <url>', "the stack's API address, e.g. https://preview3.weatherenterprise.com")
+  .option('--since <time>', "the copy time (ISO); default: the stack's /_stack.json")
+  .action(async (options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app']);
+    await stack.diff(config, { ...getOutputOptions(cmd), stack: options.stack, since: options.since });
   });
 
 // ============================================================================

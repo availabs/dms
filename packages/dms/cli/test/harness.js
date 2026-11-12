@@ -6,7 +6,7 @@
  */
 
 import { execSync, spawn } from 'child_process';
-import { existsSync, unlinkSync } from 'fs';
+import { existsSync, unlinkSync, copyFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join, resolve } from 'path';
 
@@ -24,9 +24,13 @@ const SERVER_DIR = process.env.DMS_TEST_SERVER_DIR
   : resolve(__dirname, '..', '..', '..', 'dms-server');
 const SERVER_ENTRY = join(SERVER_DIR, 'src', 'index.js');
 const SQLITE_PATH = join(SERVER_DIR, 'src', 'db', 'data', 'cli-test.sqlite');
+// `stack diff`'s tests: a copy of the test database served as a preview stack (config cli-test-stack).
+const STACK_SQLITE_PATH = join(SERVER_DIR, 'src', 'db', 'data', 'cli-test-stack.sqlite');
 
 const PORT = process.env.DMS_TEST_PORT || 3456;
 const HOST = `http://localhost:${PORT}`;
+const STACK_PORT = Number(PORT) + 1;
+const STACK_HOST = `http://localhost:${STACK_PORT}`;
 const APP = 'cli-test';
 const TYPE = 'cli-test-site';
 
@@ -38,10 +42,11 @@ let testName = '';
 /**
  * Start the dms-server as a subprocess
  */
-export async function startServer() {
-  // Delete old SQLite database for a clean start
-  if (existsSync(SQLITE_PATH)) {
-    unlinkSync(SQLITE_PATH);
+export async function startServer({ port = PORT, dbEnv = 'cli-test', sqlitePath = SQLITE_PATH, fresh = true } = {}) {
+  const host = `http://localhost:${port}`;
+  // Delete old SQLite database for a clean start (a restart over a kept database passes fresh: false)
+  if (fresh && existsSync(sqlitePath)) {
+    unlinkSync(sqlitePath);
     console.log('  Deleted old test database');
   }
 
@@ -49,11 +54,11 @@ export async function startServer() {
     cwd: SERVER_DIR,
     env: {
       ...process.env,
-      DMS_DB_ENV: 'cli-test',
-      // Point auth at the same SQLite file — the cli-test config carries
+      DMS_DB_ENV: dbEnv,
+      // Point auth at the same SQLite file — the cli-test configs carry
       // role: ["dms", "auth"] so initAuth runs there too.
-      DMS_AUTH_DB_ENV: 'cli-test',
-      PORT: String(PORT),
+      DMS_AUTH_DB_ENV: dbEnv,
+      PORT: String(port),
     },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -67,9 +72,9 @@ export async function startServer() {
   const maxAttempts = 30;
   for (let i = 0; i < maxAttempts; i++) {
     try {
-      const res = await fetch(`${HOST}/`);
+      const res = await fetch(`${host}/`);
       if (res.ok) {
-        console.log(`  Server ready on port ${PORT}`);
+        console.log(`  Server ready on port ${port}`);
         return server;
       }
     } catch {
@@ -119,14 +124,30 @@ export function stopServer(server) {
 }
 
 /**
+ * Copy the (stopped) test database as a preview stack's: the file and its WAL, with the change log emptied, as a
+ * real stack's seeding leaves it (dms-template deploy/stacks.mjs skips that table's data). Returns the copy time.
+ */
+export function copyAsStack() {
+  for (const ext of ['', '-wal', '-shm']) {
+    if (existsSync(STACK_SQLITE_PATH + ext)) unlinkSync(STACK_SQLITE_PATH + ext);
+    if (existsSync(SQLITE_PATH + ext)) copyFileSync(SQLITE_PATH + ext, STACK_SQLITE_PATH + ext);
+  }
+  const copiedAt = new Date().toISOString();
+  const js = "const D=require('better-sqlite3');const d=new D(process.argv[1]);d.exec('DELETE FROM change_log');d.pragma('wal_checkpoint(TRUNCATE)');d.close()";
+  execSync(`node -e "${js}" ${STACK_SQLITE_PATH}`, { cwd: SERVER_DIR, stdio: ['ignore', 'pipe', 'pipe'] });
+  console.log(`  Copied the test database as a stack at ${copiedAt}`);
+  return copiedAt;
+}
+
+/**
  * Run the CLI with given args, return parsed output
  *
  * @param {string} args - CLI arguments (without the 'dms' prefix)
- * @param {Object} opts - { stdin, expectError }
+ * @param {Object} opts - { stdin, expectError, host (default: the test server) }
  * @returns {{ stdout: string, stderr: string, exitCode: number, json: any }}
  */
 export function runCli(args, opts = {}) {
-  const baseArgs = `--host ${HOST} --app ${APP} --type ${TYPE}${AUTH_TOKEN ? ` --auth-token ${AUTH_TOKEN}` : ''}`;
+  const baseArgs = `--host ${opts.host || HOST} --app ${APP} --type ${TYPE}${AUTH_TOKEN ? ` --auth-token ${AUTH_TOKEN}` : ''}`;
   const cmd = `node ${CLI_BIN} ${baseArgs} ${args}`;
 
   try {
@@ -252,9 +273,9 @@ export function summary() {
   return failed > 0 ? 1 : 0;
 }
 
-export { HOST };
+export { HOST, STACK_HOST, STACK_PORT, STACK_SQLITE_PATH };
 
 export default {
-  startServer, stopServer, authenticate, runCli, seed, describe, describeAsync, test,
+  startServer, stopServer, authenticate, runCli, seed, copyAsStack, describe, describeAsync, test,
   assert, assertEqual, assertIncludes, pass, summary,
 };

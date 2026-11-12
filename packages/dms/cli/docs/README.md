@@ -264,6 +264,48 @@ dms formats diff formats.json
 dms formats list [--format summary]
 ```
 
+### Stack
+
+A preview stack (dms-template `deploy/stacks.mjs`) is a whole copy of production's DMS data on its own server.
+`stack diff` lists what a stack changed since its copy and, for each of those rows, whether production changed it
+too after the copy. **It only reads, on both sides.** It's the first half of carrying a stack's content to production
+(dms-template `planning/shared/tasks/current/stack-content-promotion.md`).
+
+```bash
+# Production is the usual host (--host / DMS_HOST / .dmsrc); --stack is the stack's API address
+dms stack diff --stack https://preview3.weatherenterprise.com --format summary
+dms stack diff --stack https://preview3.weatherenterprise.com --output diff.json
+dms stack diff --stack <url> --since 2026-11-09T23:50:03Z      # a stack deployed before 2026-11-12
+```
+
+**What it reads:**
+- **The stack's changes:** its change feed (`/sync/delta`). A stack's change log starts empty at the copy, so the
+  feed lists exactly the rows changed there: pages, sections, themes, patterns. Dataset rows aren't in it.
+- **The copy time:**
+  - `--since`, if given;
+  - otherwise the stack's `/_stack.json`, written by `stacks.mjs` with each new database. It tries the stack's
+    address, then `www.` in front of it. The time is the content backup's dump start, from its archive header, or,
+    when that's missing, the backup names less 10 minutes.
+  - With neither, it refuses (exit 1).
+- **Production:** each changed row's `type` and `updated_at`.
+
+**What each row is labelled:**
+
+| Result | Meaning |
+|---|---|
+| `new` | Created in the stack. A promotion creates it with a production id. A note says when that id is already another row in production |
+| `change` | Changed in the stack; production hasn't touched it since the copy. For a page, `fields` lists the changed draft-side fields, settings, and published-side fields (never promoted) |
+| `delete` | Deleted in the stack; production hasn't touched it since the copy |
+| `conflict` | Production changed it after the copy, deleted it, or holds a different row under that id. A promotion refuses while there is any |
+| `skip` | Not carried: created and deleted in the stack, or a section copy that publishing in the stack made (production makes its own) |
+
+A note also marks a row pointing at a file on the stack's own storage, which a promotion can't carry.
+
+**Exit codes:**
+- **3:** there is at least one conflict. Every row is still checked and every conflict listed first.
+- **0:** none.
+- **1:** an error.
+
 ## Output Formats
 
 ### JSON (default)

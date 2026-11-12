@@ -9,7 +9,7 @@
  */
 
 import {
-  startServer, stopServer, authenticate, runCli, seed, HOST,
+  startServer, stopServer, authenticate, runCli, seed, copyAsStack, HOST, STACK_HOST, STACK_PORT, STACK_SQLITE_PATH,
   describe, describeAsync, test, assert, assertEqual, assertIncludes, pass, summary,
 } from './harness.js';
 import { joinRoom, peekRoom, seedRoom } from './room-client.js';
@@ -17,6 +17,7 @@ import { joinRoom, peekRoom, seedRoom } from './room-client.js';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 let server;
+let stackServer;
 let manifest;
 
 async function run() {
@@ -352,14 +353,75 @@ async function run() {
     if (assert(/failed|not found/i.test(chk.stdout + chk.stderr), 'reports failure') && ok) pass();
   });
 
+  // ================================================================
+  // PHASE 5 — stack diff: a copy of this database served as a preview stack
+  // ================================================================
+
+  await describeAsync('Phase 5 — stack diff', async () => {
+    const about = manifest.pages.find((p) => p.title === 'About').id;  // changed in the stack only
+    const home = manifest.pages.find((p) => p.title === 'Home').id;    // changed in the stack, then in production
+    const sectionType = runCli(`raw get ${manifest.sections[0].id}`).json.type;
+    // A section that exists at the copy, for the stack to delete.
+    const doomed = runCli(`raw create ${manifest.app} "${sectionType}" --data '{"title":"Deleted in the stack"}'`).json.id;
+
+    stopServer(server);
+    await sleep(500);
+    const copiedAt = copyAsStack();
+    server = await startServer({ fresh: false });
+    stackServer = await startServer({ port: STACK_PORT, dbEnv: 'cli-test-stack', sqlitePath: STACK_SQLITE_PATH, fresh: false });
+    const inStack = { host: STACK_HOST };
+
+    runCli(`raw update ${about} --set description='edited in the stack'`, inStack);
+    runCli(`raw update ${home} --set description='edited in the stack'`, inStack);
+    const created = runCli(`raw create ${manifest.app} "${sectionType}" --data '{"title":"New in the stack"}'`, inStack).json.id;
+    runCli(`raw delete ${manifest.app} "${sectionType}" ${doomed}`, inStack);
+    const diffArgs = `stack diff --stack ${STACK_HOST} --since ${copiedAt}`;
+    const byId = (rows) => Object.fromEntries(rows.map((r) => [String(r.id), r]));
+
+    test('before any production edit: new, change, delete; no conflict; exit 0');
+    let r = runCli(diffArgs);
+    let rows = byId(r.json?.rows || []);
+    let ok = assertEqual(r.exitCode, 0, 'exit code');
+    ok = assertEqual(rows[String(about)]?.result, 'change', 'About: change') && ok;
+    ok = assert(rows[String(about)]?.fields?.settings?.includes('description'), 'About: description listed as a changed setting') && ok;
+    ok = assertEqual(rows[String(home)]?.result, 'change', 'Home: change') && ok;
+    ok = assertEqual(rows[String(created)]?.result, 'new', 'new section: new') && ok;
+    ok = assertEqual(rows[String(doomed)]?.result, 'delete', 'deleted section: delete') && ok;
+    ok = assertEqual(r.json?.conflicts, 0, 'no conflicts') && ok;
+    if (ok) pass();
+
+    test('a production edit after the copy is a conflict; every row is still listed; exit 3');
+    await sleep(1100); // SQLite stamps updated_at to the second
+    runCli(`raw update ${home} --set description='edited in production'`);
+    r = runCli(diffArgs, { expectError: true });
+    let report = null;
+    try { report = JSON.parse(r.stdout); } catch {}
+    rows = byId(report?.rows || []);
+    ok = assertEqual(r.exitCode, 3, 'exit code');
+    ok = assertEqual(rows[String(home)]?.result, 'conflict', 'Home: conflict') && ok;
+    ok = assert(/after the copy/.test(rows[String(home)]?.reason || ''), 'Home: reason names the production change') && ok;
+    ok = assertEqual(rows[String(about)]?.result, 'change', 'About: still a change') && ok;
+    ok = assertEqual(rows[String(created)]?.result, 'new', 'new section: still listed') && ok;
+    ok = assertEqual(rows[String(doomed)]?.result, 'delete', 'deleted section: still listed') && ok;
+    ok = assertEqual(report?.conflicts, 1, 'one conflict') && ok;
+    if (ok) pass();
+
+    test('no copy time (no --since, no /_stack.json): refuses with exit 1');
+    r = runCli(`stack diff --stack ${STACK_HOST}`, { expectError: true });
+    ok = assertEqual(r.exitCode, 1, 'exit code');
+    if (assert(/_stack\.json/.test(r.stdout + r.stderr), 'says how to give the copy time') && ok) pass();
+  });
+
   const exitCode = summary();
 
+  stopServer(stackServer);
   stopServer(server);
   process.exit(exitCode);
 }
 
 run().catch((err) => {
   console.error('\nTest runner error:', err);
+  if (stackServer) stopServer(stackServer);
   if (server) stopServer(server);
   process.exit(1);
 });
