@@ -1,6 +1,6 @@
 # Tenants on their own domains, with their pattern subdomains
 
-**Initiatives:** [plat_tenant_hub](../../../../../planning/initiatives/plat_tenant_hub.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [plat_tenant_hub](../../../../../planning/initiatives/plat_tenant_hub.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** ssangdod@albany.edu
 
 **Topic:** dms-manager / multi-tenant · **Started:** 2026-11-06 · **Branch:** `tenant-domains` (dms and dms-template)
 
@@ -182,10 +182,28 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
   over; re-run changes 0. Report `scratchpad/tenant-hub/report-unrewrite-apply.json`. **Mount check**
   (`mountsForSubdomain` over each tenant's linked patterns): the tenant root's mounts before (rewrite +
   label reading) and after (reversed + rooted reading) are identical (mny 13, tny 17); after, 66 nested mny
-  hosts and 7 tny ones each serve their pattern plus the `*` ones. **Live hub: not done** (owner; with
-  the code, databases backed up).
+  hosts and 7 tny ones each serve their pattern plus the `*` ones. **Live hub: done 2026-11-12** (owner, with
+  the code, databases backed up): mny 6 / 80 (the datasets test pattern had been removed since the rig
+  copy); tny's counts weren't recorded (a dry run now should change 0).
   - Still to do on the script: default the copy script's `rootSubdomainRewrite` off for future copies.
-- [ ] 6. Infrastructure (DNS hook, records, certificate, targets.json) — not started.
+- [ ] **6. Infrastructure — code done 2026-11-12 (template master, uncommitted), issuing on mercury is the owner's:**
+  - **DNS: nothing to do.** The `*.availabs.com` A record answers any depth: `albany.mny.availabs.com`,
+    `x.tny.availabs.com` resolve to mercury, nginx's `*.availabs.com` server name already sends them to the
+    hub, and over https (certificate not checked) `albany.mny.availabs.com` answers 200. Only the certificate
+    is missing (it has `availabs.com`, `*.availabs.com`).
+  - `deploy/sites_https.mjs`: an own server may add `*.<label>.<domain>` hosts; they go on its certificate
+    (`dms-server-hub`). nginx serves the names the certificate covers over https and the rest plain, so
+    adding a wildcard never takes https off `availabs.com` while the reissue is pending. Checked: with the old
+    targets the generated nginx file is byte-identical; with the new ones only the hub's two `server_name`
+    lines change; simulated old certificate → the two new wildcards get a plain block, the rest unchanged.
+  - `deploy/acme_namecheap_dns.mjs`: a wildcard's zone is its last two labels (it already wrote
+    `_acme-challenge.mny` into availabs.com because of host order; now independent of it). Old vs new
+    code: same zone and record for every current site's names.
+  - `deploy/targets.json`: hub hosts += `*.mny.availabs.com`, `*.tny.availabs.com`; env +=
+    `VITE_DMS_ROOT_DOMAIN`. A new tenant needs its `*.<tenant>.availabs.com` host and a reissue.
+  - **On mercury (owner):** `git pull`; `node deploy/sites_https.mjs` (dry run: only the hub certificate
+    changes); `sudo node deploy/sites_https.mjs --staging`; then `--apply` (the timer would do it within a
+    minute anyway once pulled); check `https://albany.mny.availabs.com/` has no certificate warning.
 - [x] **Live check on the local rig (2026-11-10)**, server `DMS_ROOT_DOMAIN=localhost` (added to
   `server.env`), Vite :5562 and the owner's `.env` with `VITE_DMS_ROOT_DOMAIN=localhost`:
   - `mny.localhost` home, `/playground`; `albany.mny.localhost` (Albany County plan), `allegany.mny` `/` and
@@ -397,5 +415,5 @@ project, **domains**, pattern subdomains, danger zone) and `admin-tenants.html` 
 - [ ] Login on `<sub>.mny.<root>` uses project `mny`
 - [ ] Server grants: a per-subdomain grant on a nested host applies, and only there
 - [ ] SSR resolves the same tenant and pattern subdomain as the client for every host form
-- [ ] DNS hook: plan for every existing site unchanged; `*.mny.availabs.com` issues (staging first)
+- [ ] DNS hook: plan for every existing site unchanged (checked locally 2026-11-12); `*.mny.availabs.com` issues (staging first)
 - [ ] Phase B: tenant reachable at its external domain; `<sub>.<external>` serves that pattern
