@@ -14,7 +14,7 @@
 const DMS_DB = process.env.DMS_TEST_DB || 'cli-test';
 process.env.DMS_DB_ENV = DMS_DB;
 const assert = require('assert');
-const { resolveTable } = require('../src/db/table-resolver');
+const { resolveTable, buildCreateTableSQL, ensureSequence, getSequenceName, shapeChecks } = require('../src/db/table-resolver');
 const { setupApp, planAuthMove } = require('../src/scripts/setup-app');
 
 let pass = 0, fail = 0;
@@ -90,6 +90,17 @@ async function run() {
     const dataOf = async (id) => { const d = (await db.promise(`SELECT data FROM ${T.fullName} WHERE id = $1`, [id]))[0].data; return typeof d === 'string' ? JSON.parse(d) : d; };
     const colsOf = () => colsOfTable(T);
     const run1 = (over = {}) => setupApp(db, { app: APP, splitMode: 'per-app', log: quiet, ...over });
+
+    // An app's table as it was made before the shape checks (2026-11-12): created here, ahead of the
+    // controller's first write, whose CREATE TABLE IF NOT EXISTS then finds it.
+    const oldShapeTable = async (app) => {
+        const tbl = resolveTable(app, '', db.type, 'per-app');
+        await ensureSequence(db, app, db.type, 'per-app');
+        const ddl = buildCreateTableSQL(tbl.schema, tbl.table, db.type, getSequenceName(app, db.type, 'per-app'));
+        if (pg) await db.query(ddl);
+        else for (const stmt of ddl.split(';').filter(s => s.trim())) await db.query(stmt + ';');
+        return tbl;
+    };
 
     const site = await ins('prod:site', { site_name: 'prod' });
     const docs = await ins('prod|docs:pattern', { pattern_type: 'page', authPermissions: { groups: { Editors: ['edit-page'] }, users: {} } });
@@ -183,7 +194,7 @@ async function run() {
     section('a row that cannot be moved by rule keeps the auth column');
     {
         const APP2 = `setupapp_blocked_${Date.now()}`;
-        const T2 = resolveTable(APP2, '', db.type, 'per-app');
+        const T2 = await oldShapeTable(APP2);
         const s2 = String((await ctl.createData([APP2, 'env|dams:source', { name: 'dams' }], null))[0].id);
         await db.promise(`ALTER TABLE ${T2.fullName} ADD COLUMN ${AUTH_COL}`);
         // grants stored as a JSON STRING, the shape old client code wrote
@@ -212,6 +223,105 @@ async function run() {
         await assert.rejects(db.promise(`INSERT INTO ${T.fullName}(id, app, type, data) VALUES ($1, $2, $3, '{}')`, [+ghost + 100001, APP, 'prod|docs:pattern']), /UNIQUE|unique|duplicate key/);
     });
     await t('…and says so on the next run', async () => assert.strictEqual((await run1()).guard.pattern, 'guarded'));
+
+    section('values stored as text become JSON; the shape checks');
+    {
+        const APP3 = `setupapp_text_${Date.now()}`;
+        const T3 = await oldShapeTable(APP3);
+        const ctl3 = require('../src/routes/dms/dms.controller').createController(DMS_DB);
+        const mk = async (type, data) => String((await ctl3.createData([APP3, type, data], null))[0].id);
+        const data3 = async (id) => { const d = (await db.promise(`SELECT data FROM ${T3.fullName} WHERE id = $1`, [id]))[0].data; return typeof d === 'string' ? JSON.parse(d) : d; };
+        // what the old client and old server left behind, written past the server
+        const setText = (id, key, text) => db.promise(pg
+            ? `UPDATE ${T3.fullName} SET data = jsonb_set(data, '{${key}}', to_jsonb($1::text)) WHERE id = $2`
+            : `UPDATE ${T3.fullName} SET data = json_set(data, '$.${key}', $1) WHERE id = $2`, [text, id]);
+        const setJson = (id, key, json) => db.promise(pg
+            ? `UPDATE ${T3.fullName} SET data = jsonb_set(data, '{${key}}', $1::jsonb) WHERE id = $2`
+            : `UPDATE ${T3.fullName} SET data = json_set(data, '$.${key}', json($1)) WHERE id = $2`, [json, id]);
+        const GRANT = { groups: { Editors: ['edit-page'] }, users: { 7: ['*'] } };
+        const pat = await mk('prod|docs:pattern', { pattern_type: 'page' });
+        const pg1 = await mk('docs|page', { title: 'string grants' });
+        const pg2 = await mk('docs|page', { title: 'same string' });
+        const pg3 = await mk('docs|page', { title: 'empty string' });
+        const pg4 = await mk('docs|page', { title: 'array' });
+        const pg5 = await mk('docs|page', { title: 'object already', authPermissions: GRANT });
+        const srcRow = await mk('env|roads:source', { name: 'roads' });
+        const comp = await mk('docs|component', { title: 'string parent' });
+        await setText(pat, 'authPermissions', JSON.stringify({ '*': GRANT }));
+        await setText(pg1, 'authPermissions', JSON.stringify(GRANT));
+        await setText(pg2, 'authPermissions', JSON.stringify(GRANT));
+        await setText(pg3, 'authPermissions', '');
+        await setJson(pg4, 'authPermissions', '[]');
+        await setText(srcRow, 'auth_permissions', JSON.stringify({ users: { 1: ['*'] } }));
+        await setText(comp, 'parent_id', pg1);
+
+        const dry = await setupApp(db, { app: APP3, splitMode: 'per-app', checks: true, log: quiet });
+        await t('a dry run counts them and writes nothing', async () => {
+            assert.deepStrictEqual(dry.text, { grants: 5, grantsToNull: 1, grantsNotObject: 1, parentIds: 1 });
+            assert.strictEqual(typeof (await data3(pg1)).authPermissions, 'string');
+            assert.ok(/violate/.test(dry.checks.grant_shape), dry.checks.grant_shape);
+            assert.ok(/violate/.test(dry.checks.parent_id_shape), dry.checks.parent_id_shape);
+        });
+        const done = await setupApp(db, { app: APP3, splitMode: 'per-app', apply: true, checks: true, log: quiet });
+        await t('apply stores the object each string held', async () => {
+            assert.deepStrictEqual((await data3(pg1)).authPermissions, GRANT);
+            assert.deepStrictEqual((await data3(pg2)).authPermissions, GRANT);
+            assert.deepStrictEqual((await data3(pat)).authPermissions, { '*': GRANT });
+            assert.deepStrictEqual((await data3(srcRow)).auth_permissions, { users: { 1: ['*'] } });
+            assert.deepStrictEqual((await data3(pg5)).authPermissions, GRANT);
+        });
+        await t('…a value that named no grants is null, as it was read', async () => {
+            assert.strictEqual((await data3(pg3)).authPermissions, null);
+            assert.strictEqual((await data3(pg4)).authPermissions, null);
+        });
+        await t('…and a parent_id of digits is the number', async () => assert.strictEqual((await data3(comp)).parent_id, +pg1));
+        await t('the checks are added to an existing Postgres table; SQLite says it cannot', async () => {
+            for (const c of shapeChecks(db.type)) {
+                if (pg) assert.strictEqual(done.checks[c.name], 'added', `${c.name}: ${done.checks[c.name]}`);
+                else assert.ok(/cannot be added to an existing SQLite table/.test(done.checks[c.name]), done.checks[c.name]);
+            }
+        });
+        await t('a second run has nothing to rewrite', async () => {
+            const r = await setupApp(db, { app: APP3, splitMode: 'per-app', apply: true, checks: true, log: quiet });
+            assert.deepStrictEqual(r.text, { grants: 0, grantsToNull: 0, grantsNotObject: 0, parentIds: 0 });
+            if (pg) assert.strictEqual(r.checks.grant_shape, 'in place');
+        });
+
+        // a NEW app's table carries the checks from creation, on both dialects
+        const APP4 = `setupapp_new_${Date.now()}`;
+        const T4 = resolveTable(APP4, '', db.type, 'per-app');
+        const ctl4 = require('../src/routes/dms/dms.controller').createController(DMS_DB);
+        const row4 = async (id) => { const d = (await db.promise(`SELECT data FROM ${T4.fullName} WHERE id = $1`, [id]))[0].data; return typeof d === 'string' ? JSON.parse(d) : d; };
+        const p4 = String((await ctl4.createData([APP4, 'docs|page', { title: 'sent as a string', authPermissions: JSON.stringify(GRANT) }], null))[0].id);
+        await t('a new app: a create that sends grants as a JSON string stores the object', async () => {
+            assert.deepStrictEqual((await row4(p4)).authPermissions, GRANT);
+        });
+        await t('…and so does an edit', async () => {
+            await ctl4.setDataById(p4, { authPermissions: JSON.stringify({ groups: { Other: ['x'] }, users: {} }) }, null, APP4, 'docs|page');
+            assert.deepStrictEqual((await row4(p4)).authPermissions, { groups: { Other: ['x'] }, users: {} });
+        });
+        await t('…its table reports the checks in place', async () => {
+            const r = await setupApp(db, { app: APP4, splitMode: 'per-app', log: quiet });
+            for (const c of shapeChecks(db.type)) assert.strictEqual(r.checks[c.name], 'in place', c.name);
+        });
+        const REFUSED = /CHECK constraint|violates check constraint/;
+        await t('the database refuses grants written as a string past the server', async () => {
+            await assert.rejects(db.promise(pg
+                ? `UPDATE ${T4.fullName} SET data = jsonb_set(data, '{authPermissions}', to_jsonb($1::text)) WHERE id = $2`
+                : `UPDATE ${T4.fullName} SET data = json_set(data, '$.authPermissions', $1) WHERE id = $2`, [JSON.stringify(GRANT), p4]), REFUSED);
+            await assert.rejects(db.promise(pg
+                ? `UPDATE ${T4.fullName} SET data = jsonb_set(data, '{auth_permissions}', to_jsonb($1::text)) WHERE id = $2`
+                : `UPDATE ${T4.fullName} SET data = json_set(data, '$.auth_permissions', $1) WHERE id = $2`, ['{}', p4]), REFUSED);
+        });
+        await t('…a parent_id that is not a number', async () => {
+            await assert.rejects(db.promise(pg
+                ? `UPDATE ${T4.fullName} SET data = jsonb_set(data, '{parent_id}', to_jsonb($1::text)) WHERE id = $2`
+                : `UPDATE ${T4.fullName} SET data = json_set(data, '$.parent_id', $1) WHERE id = $2`, ['12', p4]), REFUSED);
+        });
+        await t('…and a data value that is not an object', async () => {
+            await assert.rejects(db.promise(`UPDATE ${T4.fullName} SET data = $1 WHERE id = $2`, ['[1,2]', p4]), REFUSED);
+        });
+    }
 
     section('an app with no table');
     await t('nothing to set up, nothing created', async () => {

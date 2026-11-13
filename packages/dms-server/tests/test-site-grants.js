@@ -98,8 +98,9 @@ async function main() {
     assert.strictEqual(written.length, 4);
     assert.strictEqual(skipped.length, 2);
     const p = await rowData(pattern);
-    assert.strictEqual(typeof p.authPermissions, 'string', 'a string stays a string');
-    assert.deepStrictEqual(JSON.parse(p.authPermissions), { groups: { Editors: ['edit-page'], Keep: ['x'] }, users: { 8: ['edit-page'] } });
+    // sent as a JSON string, stored as the object it holds (routes/auth/grants.js normaliseGrants)
+    assert.strictEqual(typeof p.authPermissions, 'object', 'grants are stored as an object');
+    assert.deepStrictEqual(p.authPermissions, { groups: { Editors: ['edit-page'], Keep: ['x'] }, users: { 8: ['edit-page'] } });
     assert.deepStrictEqual((await rowData(page)).authPermissions, { groups: { Editors: ['edit-page'] }, users: { 9: ['edit-page'] } });
     const sub = (await rowData(subPage)).authPermissions;
     assert.deepStrictEqual(sub['*'], { users: {} });
@@ -116,7 +117,7 @@ async function main() {
   await t('strips a group by name; other groups and users stay', async () => {
     const { written } = await sg.stripSiteGrants(APP, ED, { id: 1 });
     assert.deepStrictEqual(written.map(w => w.id).sort((a, b) => a - b), [pattern, page, source].sort((a, b) => a - b));
-    assert.deepStrictEqual(JSON.parse((await rowData(pattern)).authPermissions).groups, { Keep: ['x'] });
+    assert.deepStrictEqual((await rowData(pattern)).authPermissions.groups, { Keep: ['x'] });
     assert.deepStrictEqual((await rowData(page)).authPermissions, { groups: {}, users: { 9: ['edit-page'] } });
     assert.deepStrictEqual((await rowData(source)).auth_permissions.groups, {});
   });

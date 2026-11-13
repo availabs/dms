@@ -155,6 +155,13 @@ function typeCast(expression, targetType, dbType) {
  * PostgreSQL: COALESCE(data, '{}') || $1
  * SQLite: json_patch(COALESCE(data, '{}'), $1)
  *
+ * The two differ for a key whose value is an object: `||` REPLACES the key, json_patch merges into
+ * what is stored and keeps the members the patch leaves out. For grants (`authPermissions`,
+ * `auth_permissions`: routes/auth/grants.js GRANT_KEYS) that would mean a grantee removed in the
+ * editor is still there after the save, so on SQLite a grant key the patch carries as an object is
+ * dropped from the stored value first and the patch's object lands whole, as on Postgres. (Until
+ * 2026-11-12 the editors sent grants as a JSON string, which json_patch replaces whole.)
+ *
  * @param {string} column - JSON column
  * @param {string} paramRef - Parameter reference ($1 or ?)
  * @param {string} dbType - "postgres" or "sqlite"
@@ -164,7 +171,8 @@ function jsonMerge(column, paramRef, dbType) {
   if (dbType === "postgres") {
     return `COALESCE(${column}, '{}') || ${paramRef}`;
   } else {
-    return `json_patch(COALESCE(${column}, '{}'), ${paramRef})`;
+    const dropIfObject = (key) => `CASE WHEN json_type(${paramRef}, '$.${key}') = 'object' THEN '$.${key}' ELSE '$.__no_such_key__' END`;
+    return `json_patch(json_remove(COALESCE(${column}, '{}'), ${dropIfObject('authPermissions')}, ${dropIfObject('auth_permissions')}), ${paramRef})`;
   }
 }
 

@@ -152,7 +152,7 @@ export async function createCorePatterns(falcor, { app, siteInstance, siteId, ad
     name: 'Auth',
     base_url: 'auth',
     ...(subdomain ? { subdomain } : {}),
-    authPermissions: JSON.stringify({ groups: { [adminGroup]: ['*'], public: [] }, users: {} }),
+    authPermissions: { groups: { [adminGroup]: ['*'], public: [] }, users: {} },
   })]);
   const authId = createdId(authRes);
   if (!authId) throw new Error('Failed to create auth pattern');
@@ -328,7 +328,7 @@ export async function provisionTemplatePatterns(falcor, { app, siteInstance, sel
       pattern_type: patternSpec.pattern_type,
       name: patternSpec.name,
       base_url: patternSpec.base_url,
-      authPermissions: JSON.stringify({ groups: { [adminGroup]: ['*'], public: [] }, users: {} }),
+      authPermissions: { groups: { [adminGroup]: ['*'], public: [] }, users: {} },
       ...(subdomain ? { subdomain } : {}),
     })]);
     const templatePatternId = Object.keys(templatePatternRes?.json?.dms?.data?.byId || {})

@@ -231,6 +231,42 @@ function resolveTable(app, type, dbType, splitMode = DEFAULT_SPLIT_MODE, sourceI
 }
 
 /**
+ * THE SHAPE CHECKS — what the database itself refuses in an app's main `data_items` table, so a
+ * write that bypasses the server (a script, psql, a future code path) cannot store a value the
+ * auth layer would misread (planning/tasks/current/new-app-auth-setup-and-db-constraints.md, B7):
+ *
+ *   data_is_object    `data` is a JSON object
+ *   grant_shape       `data.authPermissions` / `data.auth_permissions` are absent, null or a JSON
+ *                     OBJECT — never a JSON string of one (routes/auth/grants.js storedGrants is
+ *                     what every server write path stores)
+ *   parent_id_shape   `data.parent_id` is absent, null or a number
+ *
+ * A new app's table is created with them (ensureTable `{ checks: true }`, passed by the server's
+ * main-table paths). An existing Postgres table gets
+ * them from `scripts/setup-app.js --add-shape-checks` once nothing violates them; SQLite cannot
+ * add a constraint to an existing table. Dataset-row tables (`data_items__…`) carry none: their
+ * columns are the dataset's own.
+ *
+ * @returns {{ name: string, expr: string }[]}
+ */
+function shapeChecks(dbType) {
+  if (dbType === 'postgres') {
+    const absentOr = (key, types) => `COALESCE(jsonb_typeof(data->'${key}'), 'null') IN (${types})`;
+    return [
+      { name: 'data_is_object', expr: `jsonb_typeof(data) = 'object'` },
+      { name: 'grant_shape', expr: `${absentOr('authPermissions', `'object', 'null'`)} AND ${absentOr('auth_permissions', `'object', 'null'`)}` },
+      { name: 'parent_id_shape', expr: absentOr('parent_id', `'number', 'null'`) },
+    ];
+  }
+  const absentOr = (key, types) => `COALESCE(json_type(data, '$.${key}'), 'null') IN (${types})`;
+  return [
+    { name: 'data_is_object', expr: `json_valid(data) AND json_type(data) = 'object'` },
+    { name: 'grant_shape', expr: `${absentOr('authPermissions', `'object', 'null'`)} AND ${absentOr('auth_permissions', `'object', 'null'`)}` },
+    { name: 'parent_id_shape', expr: absentOr('parent_id', `'integer', 'real', 'null'`) },
+  ];
+}
+
+/**
  * Build the CREATE TABLE DDL for a split/per-app table.
  * Mirrors the data_items schema exactly.
  *
@@ -240,8 +276,15 @@ function resolveTable(app, type, dbType, splitMode = DEFAULT_SPLIT_MODE, sourceI
  * @param {string} seqName - PostgreSQL sequence name to use for DEFAULT
  * @returns {string} SQL DDL
  */
-function buildCreateTableSQL(schema, table, dbType, seqName) {
+function buildCreateTableSQL(schema, table, dbType, seqName, { checks: withChecks = false } = {}) {
   const fullName = dbType === 'postgres' ? `${schema}.${table}` : table;
+  // `checks: true` is passed for an app's MAIN table when the SERVER creates it (ensureTable): it is
+  // made with the shape checks. A dataset-row table has none, and neither has a table a script
+  // makes to copy rows into (copy-db, migrate-site), whose rows may predate the stored shape;
+  // `setup-app.js --add-shape-checks` adds them there once the rows are converted.
+  const checks = withChecks
+    ? shapeChecks(dbType).map(c => `,\n        CONSTRAINT ${c.name} CHECK (${c.expr})`).join('')
+    : '';
 
   if (dbType === 'postgres') {
     // PostgreSQL identifiers are capped at 63 chars. Table names, constraint
@@ -285,7 +328,7 @@ function buildCreateTableSQL(schema, table, dbType, seqName) {
         created_at timestamp with time zone DEFAULT now(),
         created_by integer,
         updated_at timestamp with time zone DEFAULT now(),
-        updated_by integer
+        updated_by integer${checks}
       );
       CREATE INDEX IF NOT EXISTS ${idxName}
         ON ${fqn} (app, type);${trgmIndexSQL}
@@ -302,7 +345,7 @@ function buildCreateTableSQL(schema, table, dbType, seqName) {
       created_at TEXT DEFAULT (datetime('now')),
       created_by INTEGER,
       updated_at TEXT DEFAULT (datetime('now')),
-      updated_by INTEGER
+      updated_by INTEGER${checks}
     );
     CREATE INDEX IF NOT EXISTS idx_${table}_app_type
       ON ${table} (app, type);
@@ -467,7 +510,7 @@ async function ensureSequence(db, app, dbType, splitMode) {
  * @param {string} dbType
  * @param {string} seqName - Sequence name for PostgreSQL DEFAULT
  */
-async function ensureTable(db, schema, table, dbType, seqName) {
+async function ensureTable(db, schema, table, dbType, seqName, { checks = false } = {}) {
   // Don't auto-create the base data_items in the shared 'dms' schema —
   // that's handled by schema init. Per-app schemas need their own data_items.
   if (table === 'data_items' && schema === 'dms') return;
@@ -475,7 +518,7 @@ async function ensureTable(db, schema, table, dbType, seqName) {
   const cacheKey = `${schema}.${table}`;
   if (_tableCache.has(cacheKey)) return;
 
-  const ddl = buildCreateTableSQL(schema, table, dbType, seqName);
+  const ddl = buildCreateTableSQL(schema, table, dbType, seqName, { checks });
 
   if (dbType === 'sqlite') {
     // SQLite can't run multiple statements in one query; split on semicolons
@@ -548,6 +591,7 @@ module.exports = {
   ensureTable,
   allocateId,
   buildCreateTableSQL,
+  shapeChecks,
   clearCaches,
   forgetTable,
   // Expose for testing

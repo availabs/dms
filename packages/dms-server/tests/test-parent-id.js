@@ -317,12 +317,13 @@ t('the predicate pins container AND kind, in both type shapes', async () => {
     assert.ok(!/LIKE '%/.test(tx.q[0].sql), 'the only wildcard is the instance segment');
     // the merged-in value, the app, the owner as text (for the "already says so" guard), then the ids
     assert.deepStrictEqual(tx.q[0].params.slice(0, 5), ['{"parent_id":100}', 'a', '100', '1', '2']);
-    assert.ok(/SET data = json_patch\(COALESCE\(data, '\{\}'\), \$1\)/.test(tx.q[0].sql), 'written into data, merged');
+    // merged in (db/query-utils.js jsonMerge: on SQLite a grant key in the patch is replaced whole; this patch has none)
+    assert.ok(/SET data = json_patch\(json_remove\(COALESCE\(data, '\{\}'\), .*\), \$1\)/.test(tx.q[0].sql), 'written into data, merged');
 });
 t('it never clears — only rows whose parent differs are touched', async () => {
     const { tx } = await stamp();
     assert.ok(/'\$\.parent_id'\) AS TEXT\) IS NULL OR CAST\(json_extract\(data, '\$\.parent_id'\) AS TEXT\) <> \$3/.test(tx.q[0].sql), tx.q[0].sql);
-    assert.ok(!/json_remove/.test(tx.q[0].sql));
+    assert.ok(!/parent_id'?\s*\)?\s*$/m.test(tx.q[0].sql.split('WHERE')[0]) && !/json_remove\([^)]*parent_id/.test(tx.q[0].sql), 'parent_id is never removed');
 });
 t('an attribute absent from the patch is not touched', async () => {
     const { tx } = await stamp({ data: { title: 'renamed' } });

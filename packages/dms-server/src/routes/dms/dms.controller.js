@@ -16,7 +16,7 @@ const {
   currentTimestamp,
   QueryBuilder
 } = require('#db/query-utils.js');
-const { resolveAuthPermissions } = require('../auth/grants');
+const { resolveAuthPermissions, normaliseGrants, GRANT_KEYS } = require('../auth/grants');
 const {
   isSplitType,
   changeLogData,
@@ -348,7 +348,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     // ensureTable() no-ops for the shared dms.data_items (legacy mode).
     const seqName = getSequenceName(app, dbType, splitMode);
     await ensureSequence(q, app, dbType, splitMode);
-    await ensureTable(q, resolved.schema, resolved.table, dbType, seqName);
+    await ensureTable(q, resolved.schema, resolved.table, dbType, seqName, { checks: true });   // a new app's table gets the shape checks
     return resolved.fullName;
   }
 
@@ -430,7 +430,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     const resolved = await resolve(app, type);
     const seqName = getSequenceName(app, dbType, splitMode);
     await ensureSequence(dms_db, app, dbType, splitMode);
-    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName, { checks: !isSplitType(type) });
     return resolved;
   }
 
@@ -442,7 +442,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     const resolved = await resolve(app, type);
     const seqName = getSequenceName(app, dbType, splitMode);
     await ensureSequence(dms_db, app, dbType, splitMode);
-    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName, { checks: !isSplitType(type) });
     return resolved;
   }
 
@@ -1271,7 +1271,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       if (type && app) {
         const resolved = await resolve(app, type);
         const seqName = getSequenceName(app, dbType, splitMode);
-        await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+        await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName, { checks: !isSplitType(type) });
         table = resolved.fullName;
         history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
         // the history table's DDL runs here, outside the transaction (see mainTable)
@@ -1282,6 +1282,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const userId = get(user, "id", null);
       // `parent_id` is not a client's to edit (routes/dms/parentId.js); the merge below keeps the stored one
       data = withoutParentId(data);
+      // grants are stored as an object, whatever form the client sent (routes/auth/grants.js)
+      data = normaliseGrants(data, type || '');
 
       // The legacy 2-arg edit route passes neither app nor type, and the stamp is keyed on the
       // row's own kind — so read them here, outside the transaction, on that path only.
@@ -1348,6 +1350,9 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       if(!sanitizedName) return;
       // protected: only a create's checked claim and the parent's own save set it (routes/dms/parentId.js)
       if (/\bparent_id\b/.test(String(column))) throw new Error('parent_id cannot be mass-edited');
+      // a mass edit writes its value as text; grants are an object (routes/auth/grants.js), and are
+      // set through the permission editors. A dataset's own column of that name is its own business.
+      if (!isSplitType(type) && GRANT_KEYS.includes(sanitizedName)) throw new Error(`${sanitizedName} cannot be mass-edited`);
 
       const { fullName } = await ensureForWrite(app, type);
 
@@ -1501,7 +1506,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
       // `parent_id` — the client states it, the server validates it, and a claim that passes is
       // stored as `data.parent_id`. One that fails is dropped, never thrown.
-      const rowData = await claimParentId(app, type, data, resolved.fullName);
+      const rowData = normaliseGrants(await claimParentId(app, type, data, resolved.fullName), type);
 
       // A tracked dataset's new row also writes its change history, as an edit does (setDataById).
       // The history table's DDL runs here, outside the transaction.
@@ -1583,6 +1588,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     ownerKindForType,
     claimParentId,
     withoutParentId,
+    normaliseGrants,
     stampDeclaredChildren,
     sweepDeclaredChildren,
     sweepChildrenOfDeleted,
@@ -1721,7 +1727,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       // Determine which table the row is in based on the new type.
       // For dataset rows the valid and invalid types resolve to the same split table.
       const resolved = await ensureForWrite(app, newType);
-      data = withoutParentId(data);
+      data = normaliseGrants(withoutParentId(data), newType);
       const sql = `
         UPDATE ${resolved.fullName}
         SET type = $1,

@@ -70,9 +70,9 @@ function readGrants(raw) {
  * The grant value without `who`'s entry, in the representation it was stored in. Null when nothing
  * names `who`; throws for malformed grants (callers check with readGrants first).
  *
- * `mergePatch`: the value to hand setDataById on SQLite, whose json_patch merges nested objects and
- * keeps keys a patch leaves out (only `null` deletes); Postgres' `||` replaces the top-level key, so it
- * gets the whole new value. A string value is replaced whole on both.
+ * `mergePatch`: a JSON merge patch (only the removed entry, as `null`) instead of the whole new value.
+ * Not used by the sweep since 2026-11-12: `jsonMerge` replaces a grant key whole on both dialects, so
+ * it hands setDataById the whole value. Kept for a caller that merges by json_patch itself.
  */
 function stripEntry(raw, who, { mergePatch = false } = {}) {
   const g = readGrants(raw);
@@ -149,7 +149,7 @@ function createSiteGrants({ getController }) {
   async function listSiteGrants(app, who) {
     const ctrl = getController();
     const rows = await ctrl.getRowsWithGrants(app);
-    const opts = { mergePatch: ctrl.dbType === 'sqlite' };
+    const opts = { mergePatch: false };   // a grant key is replaced whole on both dialects (db/query-utils.js jsonMerge)
     const grants = [];
     const skipped = [];
     for (const r of rows) {
@@ -163,7 +163,7 @@ function createSiteGrants({ getController }) {
   /** Strip `who` from every row of `app` that names them. Returns `{ written, skipped }`. */
   async function stripSiteGrants(app, who, actor, reqMeta = null) {
     const ctrl = getController();
-    const opts = { mergePatch: ctrl.dbType === 'sqlite' };
+    const opts = { mergePatch: false };   // a grant key is replaced whole on both dialects (db/query-utils.js jsonMerge)
     const { grants, skipped } = await listSiteGrants(app, who);
     const written = [];
     for (const g of grants) {

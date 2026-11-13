@@ -17,6 +17,7 @@ const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 const { clearPgEnv } = require('../auth/owners');
+const { normaliseGrants } = require('../auth/grants');
 const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
 const { getViewLineage, getSourceLineage } = require('../../dama/lineage');
 const { ensureSourceRules } = require('../../dama/rules');
@@ -486,7 +487,7 @@ async function updateSource(env, sourceId, updates) {
     const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `UPDATE ${tbl} SET data = ${jsonMerge('data', '$1', db.type)} WHERE id = $2 RETURNING *`,
-      [JSON.stringify(patch), sourceId]
+      [JSON.stringify(normaliseGrants(patch)), sourceId]
     );
     return rows;
   }
@@ -666,7 +667,7 @@ async function updateView(env, viewId, updates) {
     const tbl = await dmsMainTable(db, app, splitMode);
     const { rows } = await db.query(
       `UPDATE ${tbl} SET data = ${jsonMerge('data', '$1', db.type)} WHERE id = $2 RETURNING *`,
-      [JSON.stringify(patch), viewId]
+      [JSON.stringify(normaliseGrants(patch)), viewId]
     );
     return rows;
   }

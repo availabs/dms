@@ -272,3 +272,31 @@ Run it only where every server on the database runs code that no longer reads mi
 Refuses to run since 2026-11-10: it filled the `parent_id` and `auth` columns, which the server no
 longer reads. Use `setup-app.js`. Its parentage backfill and `--verify-parents` are not ported; the
 code is kept for that port.
+
+## audit-db-invariants.js
+
+Read-only counts, per app, of the rows that would violate each database constraint proposed in
+`planning/tasks/current/new-app-auth-setup-and-db-constraints.md` (Part B): duplicated container types,
+`data.parent_id` that names no row or the row itself, rows of another app in a per-app table, grants or
+`parent_id` stored in the wrong JSON type, bare types, env rows per pgEnv, what the connecting role may do
+to `formats` and `change_log`, and (with `--auth-db`) the auth tables' foreign keys and orphan links.
+Every statement is a SELECT. Postgres and SQLite.
+
+    node src/scripts/audit-db-invariants.js --db <dms config> --app <app> [--app <app>]… [--auth-db <auth config>] [--json]
+
+## setup-app.js: values stored as text, and the shape checks (2026-11-12)
+
+Two more steps in `setup-app.js`, both a report until `--apply`:
+
+- **Values stored as text** (always): grants stored as a JSON string of the object are rewritten as the
+  object; a value that names no grants becomes null; a `parent_id` of digits becomes the number.
+- **Shape checks** (`--add-shape-checks`): the three CHECK constraints of `db/table-resolver.js shapeChecks`
+  (`data_is_object`, `grant_shape`, `parent_id_shape`), each added only when no row violates it. Postgres
+  only for an existing table; a new app's table is created with them.
+
+      node src/scripts/setup-app.js --db <dms config> --app <app>                              # report
+      node src/scripts/setup-app.js --db <dms config> --app <app> --apply                      # rewrite
+      node src/scripts/setup-app.js --db <dms config> --app <app> --apply --add-shape-checks   # then the checks
+
+Add the checks only after every server writing to the database runs the code that stores grants as objects
+(`routes/auth/grants.js normaliseGrants`); an older server's permission saves would be refused.

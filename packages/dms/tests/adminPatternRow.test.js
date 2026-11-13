@@ -210,7 +210,7 @@ describe("createCorePatterns", () => {
     expect(refs.map(r => r.ref)).toEqual([`${APP}+prod|auth:pattern`, `${APP}+prod|admin:pattern`]);
     expect(sitePatternIds(db)).toEqual(refs.map(r => r.id));
     expect(db[refs[1].id]).toMatchObject({ type: "prod|admin:pattern", data: { pattern_type: "admin", base_url: "list" } });
-    expect(JSON.parse(db[refs[0].id].data.authPermissions).groups["proj Admin"]).toEqual(["*"]);
+    expect(db[refs[0].id].data.authPermissions.groups["proj Admin"]).toEqual(["*"]);
   });
 
   it("tenant: both rows land in the tenant's app with the tenant subdomain", async () => {

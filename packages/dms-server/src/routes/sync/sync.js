@@ -201,7 +201,7 @@ function createSyncRoutes(dbName) {
     // ensureTable() no-ops for the shared dms.data_items (legacy mode)
     const seqName = getSequenceName(app, dbType, splitMode);
     await ensureSequence(dms_db, app, dbType, splitMode);
-    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName);
+    await ensureTable(dms_db, resolved.schema, resolved.table, dbType, seqName, { checks: true });
     return resolved.fullName;
   }
 
@@ -560,6 +560,8 @@ function createSyncRoutes(dbName) {
           }
         }
         else if (op === 'create') item.data = await controller.claimParentId(item.app, item.type, item.data, pushTable);
+        // grants are stored as an object, whatever form the client sent (routes/auth/grants.js)
+        if (op !== 'delete') item.data = controller.normaliseGrants(item.data, item.type);
         // What gets written: for an edit, only the keys the guard judged (dataAuth.js planEdit). An I
         // onto an existing row replaces its whole data, so keys it leaves out are judged as removed.
         let writeData = item.data;

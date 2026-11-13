@@ -1,6 +1,43 @@
 # pgEnv auth without mirror rows: external sources and views are judged from the pgEnv itself
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit — then deploy (the mirror rows on `dms-mercury-3` are already deleted) · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** committed (`878ecc2e`, on `master`) — deploy together with the reload-on-miss fix, and attach every app to its pgEnvs first (see "Current state") · **Created by:** amuro@albany.edu · **Edited by:** —
+
+## Current state — 2026-11-13 (read this first)
+
+| Piece | State |
+|---|---|
+| Code (all four phases) | Built, tested, **committed** `878ecc2e` (2026-11-12), on `master` and pushed |
+| Mirror rows on `dms-mercury-3` | Deleted 2026-11-12: 27,590 rows of `mitigat-ny-prod` / `hazmit_dama`, pgEnv side kept. Counted again: zero left; both env rows kept |
+| Mirror rows on the hub db (`hub-dms`) | None (audit 2026-11-12). `mny` and `tny` each have env rows for `hazmit_dama` and `npmrds2`; `hub` and `fusion` have none attached |
+| Reload-on-miss fix ([auth-snapshot-reload-on-miss.md](./auth-snapshot-reload-on-miss.md)) | Merged into `master` with `tenant-domains`. Needed with this task: see the incident below |
+| Other DMS databases | Not checked for mirror rows |
+| Apps on `dms-mercury-3` other than `mitigat-ny-prod` and `rowauth-test` | Not attached (`attach-pgenv.js` not run). Their external reads miss until they are |
+| pgEnv cache load under real traffic | Not measured |
+| Browser check (datasets list, source page, permissions editor; `log` and `enforce`) | Not done |
+| `pgenv-mirror-into-dms.md`, `prune-unlisted-views-deletes-mirror-rows.md` | Marked dropped, still in `current/` |
+
+**Production incident, 2026-11-12 (reported by the owner).** After the mirror rows were deleted, production
+slowed to a stop: reads missed on every request. Cause, from the code: on `master` at that time a read whose
+subject was missing retried with `fresh: true`, and each retry reloaded the whole app snapshot. With the
+mirror rows gone, every external source read is a miss for a server still running the mirror code, and for a
+server running this task's code on an app with no `:dmsenv` row for the pgEnv. Which of the two production
+was running was not established. An earlier note in this session said old code would only log
+would-deny lines after the delete; that left out the reload each miss costs.
+
+What holds it now:
+- The reload-on-miss fix caps reloads at one per 3 s per app (`MISS_REFRESH_MS`) and shares in-flight
+  loads. Its merge also fixed this task's `pgEnvCatalog` call, which under the new `cached(key, load,
+  maxAge)` signature never hit the cache; it now passes `TTL_MS`.
+- The fix limits the cost of a miss. It does not make the read succeed: an app with no env row for a pgEnv
+  still misses (logged under `log`, refused under `enforce`) until `attach-pgenv.js` is run for that app
+  and pgEnv.
+
+**Order for any server:** deploy code that has both this task and the reload-on-miss fix; attach each app to
+its pgEnvs; only then remove mirror rows (`retire-pgenv-mirror.js`). On `dms-mercury-3` the rows are already
+gone, so the first two are what is left.
+
+**Waiting on the owner:** the deploy; `attach-pgenv.js` for the remaining production apps; the unchecked
+items in the phases below.
 
 ## Objective
 
@@ -188,7 +225,8 @@ databases not checked):
 - [x] Owner chose the pgEnv side for source 14301. Run 2026-11-12 with `--apply --grants pgenv`: 27,590 rows
       deleted, 0 grants copied, `mitigat-ny-prod` removed from `hazmit_dama`'s `mirror_apps` (now empty).
 - [x] Counted again on `dms-mercury-3`: zero source / view rows carrying `pgEnv`; both env rows kept.
-- [ ] Check the other DMS databases the same way.
+- [x] Hub db (`hub-dms`, apps `hub`, `mny`, `tny`, `fusion`), 2026-11-12, read-only: zero mirror rows.
+- [ ] Check the remaining DMS databases the same way.
 
 ### Phase 2 — auth reads the pgEnv
 - [x] `owners.js`: the pgEnv cache; `snapshotFor`'s pgEnv branch builds source / view rows in memory;
@@ -227,7 +265,8 @@ databases not checked):
 
 ## Built — 2026-11-12
 
-Nothing committed. `retire-pgenv-mirror.js` has been run only as a dry run.
+Committed later the same day (`878ecc2e`). `retire-pgenv-mirror.js` was run as a dry run, then with
+`--apply --grants pgenv` on `mitigat-ny-prod` at the owner's request (Phase 1).
 
 **What changed**
 - `routes/auth/owners.js`: `snapshotFor`'s pgEnv branch finds the site's env row, reads the subject from
@@ -265,6 +304,11 @@ Nothing committed. `retire-pgenv-mirror.js` has been run only as a dry run.
 
 ## Progress
 
+- 2026-11-13: doc brought up to date: "Current state" added, with the production incident of 2026-11-12, the
+  reload-on-miss fix now on `master`, and what is still unattached and unverified. No code change.
+- 2026-11-12 (after the delete): owner reported production stalled on cache misses and moved to branch
+  `tenant-domains` for the reload-on-miss fix. Hub db audited read-only: no mirror rows; `mny` and `tny`
+  attached to `hazmit_dama` and `npmrds2`.
 - 2026-11-12: `retire-pgenv-mirror.js --apply --grants pgenv` run on `mitigat-ny-prod` at the owner's request; verified zero mirror rows left.
 - 2026-11-12: built (all four phases' code); dry run on `mitigat-ny-prod`. The `--apply` run is the owner's.
 - 2026-11-12: phases reordered on the owner's instruction: removing the existing mirror rows is Phase 1.

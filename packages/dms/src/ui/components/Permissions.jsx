@@ -59,7 +59,8 @@ export default function Permissions ({
             newAuth.users[user.id] = ['*'];
         }
         setTmpValue(newAuth)
-        onChange(JSON.stringify(newAuth))
+        // an object, not a JSON string: grants are stored as JSON (dms-server routes/auth/grants.js storedGrants)
+        onChange(newAuth)
     }
 
     const inheritedUsers = inheritedParsedValue?.users || {};

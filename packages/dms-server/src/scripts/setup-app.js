@@ -6,6 +6,7 @@
  *     node setup-app.js --db <dms config> --app <app>                         dry run: a report, no writes
  *     node setup-app.js --db <dms config> --app <app> --apply                 do the column step
  *     node setup-app.js --db <dms config> --app <app> --apply --add-uniqueness-guard [kind|all]
+ *     node setup-app.js --db <dms config> --app <app> --apply --add-shape-checks
  *
  * Task: planning/tasks/current/new-app-auth-setup-and-db-constraints.md (A1, A1b, A2).
  *
@@ -35,9 +36,22 @@
  *    isPlausibleParent`): the parent exists, in this app, and is the row's container or a sibling
  *    kind under it. `--apply` removes the ones that fail.
  *
- * 3. THE UNIQUENESS GUARD (opt-in, `--add-uniqueness-guard`): one row per `(app, type)` for each
+ * 3. VALUES STORED AS TEXT. Grants (`data.authPermissions`, `data.auth_permissions`) were written as a
+ *    JSON string of the object by the permissions editor and by provisioning until 2026-11-12; the
+ *    server now stores an object on every write (routes/auth/grants.js). `--apply` rewrites the stored
+ *    strings as the object they hold. A value that names no grants ('' , an array, text that is not
+ *    JSON) becomes null, which is how it was already read. A `data.parent_id` stored as a string of
+ *    digits becomes the number. Nothing a reader sees changes.
+ *
+ * 4. THE UNIQUENESS GUARD (opt-in, `--add-uniqueness-guard`): one row per `(app, type)` for each
  *    container kind, so an instance name resolves to one owner. Never added while duplicates exist;
  *    they are listed.
+ *
+ * 5. THE SHAPE CHECKS (opt-in, `--add-shape-checks`; db/table-resolver.js shapeChecks): CHECK
+ *    constraints on the app's table for the three shapes above. Each is added only when no row
+ *    violates it. Postgres only for an existing table (SQLite cannot add a constraint to one); a new
+ *    app's table is created with them on both. ADD THEM ONLY AFTER every server writing to the
+ *    database runs the code that stores grants as objects, or its writes will be refused.
  *
  * It also reports how many `formats` rows the app has, because the stamp in `data` is read only for
  * a kind `formats` does not declare.
@@ -48,7 +62,8 @@
 const { loadConfig } = require('../db/config');
 const { PostgresAdapter } = require('../db/adapters/postgres');
 const { SqliteAdapter } = require('../db/adapters/sqlite');
-const { resolveTable, resolveFormatsTable } = require('../db/table-resolver');
+const { resolveTable, resolveFormatsTable, shapeChecks } = require('../db/table-resolver');
+const { GRANT_KEYS, storedGrants } = require('../routes/auth/grants');
 const { getKind } = require('../db/type-utils.js');
 const { isPlausibleParent } = require('../routes/dms/parentId');
 
@@ -67,11 +82,12 @@ const canonical = (v) => {
 const names = (g) => isObj(g) && (g.groups !== undefined || g.users !== undefined);
 
 function parseArgs(argv) {
-  const o = { apply: false, guard: null };
+  const o = { apply: false, guard: null, checks: false };
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === '--db') o.db = argv[++i];
     else if (argv[i] === '--app') o.app = argv[++i];
     else if (argv[i] === '--apply') o.apply = true;
+    else if (argv[i] === '--add-shape-checks') o.checks = true;
     else if (argv[i] === '--add-uniqueness-guard') o.guard = argv[i + 1] && !argv[i + 1].startsWith('--') ? argv[++i] : 'all';
     else { console.error(`Unknown argument: ${argv[i]}`); process.exit(1); }
   }
@@ -123,13 +139,14 @@ function planAuthMove(row) {
   return { patch: Object.keys(patch).length ? patch : null, dead, blocked };
 }
 
-async function setupApp(db, { app, splitMode, apply = false, guard = null, log = console.log }) {
+async function setupApp(db, { app, splitMode, apply = false, guard = null, checks = false, log = console.log }) {
   const pg = db.type === 'postgres';
   const q = (sql, v) => db.promise(sql, v).then(r => r.rows ?? r);
   const t = resolveTable(app, '', db.type, splitMode);
   const T = pg ? `"${t.schema}"."${t.table}"` : `"${t.table}"`;
   const J = (key) => (pg ? `data->>'${key}'` : `CAST(json_extract(data, '$.${key}') AS TEXT)`);
-  const report = { columns: {}, parentIdMoved: 0, authMoved: 0, authDead: 0, authBlocked: [], invalidParents: [], dropped: [], guard: {}, formats: null };
+  const report = { columns: {}, parentIdMoved: 0, authMoved: 0, authDead: 0, authBlocked: [], invalidParents: [], dropped: [], guard: {}, formats: null,
+    text: { grants: 0, grantsToNull: 0, grantsNotObject: 0, parentIds: 0 }, checks: {} };
 
   const exists = pg
     ? (await q(`SELECT 1 FROM information_schema.tables WHERE table_schema = $1 AND table_name = $2`, [t.schema, t.table])).length > 0
@@ -262,8 +279,54 @@ async function setupApp(db, { app, splitMode, apply = false, guard = null, log =
     log(`    removed from ${ids.length} row(s)`);
   }
 
-  // ---- 3. the uniqueness guard
-  log(`\n3.  one row per (app, type) for each container kind`);
+  // ---- 3. values stored as text: grants as a JSON string of the object, parent_id as a string of digits
+  log(`\n3.  values stored as text`);
+  const TYPE_OF = (key) => (pg ? `jsonb_typeof(data->'${key}')` : `json_type(data, '$.${key}')`);
+  const TEXT = pg ? 'string' : 'text';
+  for (const key of GRANT_KEYS) {
+    // few distinct values hold most rows (one string is on 79,537 components of one app), so the
+    // rewrite is one UPDATE per distinct value, parsed here by the function the write path uses
+    const values = await q(`SELECT ${J(key)} AS v, count(*) AS n FROM ${T} WHERE app = $1 AND ${TYPE_OF(key)} = '${TEXT}' GROUP BY 1 ORDER BY 2 DESC`, [app]);
+    const strings = values.reduce((s, x) => s + +x.n, 0);
+    const toNull = values.filter(x => storedGrants(x.v) === null);
+    // not a string, an object or null: an array (the format's old `default: []`), a number, a boolean
+    const other = +(await q(`SELECT count(*) AS n FROM ${T} WHERE app = $1 AND ${TYPE_OF(key)} NOT IN ('${TEXT}', 'object', 'null')`, [app]))[0].n;
+    report.text.grants += strings;
+    report.text.grantsToNull += toNull.reduce((s, x) => s + +x.n, 0);
+    report.text.grantsNotObject += other;
+    log(`    data.${key.padEnd(17)} JSON strings: ${strings}${strings ? `   (${values.length} distinct value(s); ${toNull.reduce((s, x) => s + +x.n, 0)} row(s) name no grants and become null)` : ''}${other ? `   other non-objects: ${other} (become null)` : ''}`);
+    for (const x of toNull.slice(0, 5)) log(`       → null  ×${x.n}  ${JSON.stringify(String(x.v).slice(0, 60))}`);
+    if (!apply) continue;
+    for (const x of values) {
+      const next = JSON.stringify(storedGrants(x.v));
+      await q(pg
+        ? `UPDATE ${T} SET data = jsonb_set(data, '{${key}}', $1::jsonb) WHERE app = $2 AND ${TYPE_OF(key)} = 'string' AND ${J(key)} = $3`
+        : `UPDATE ${T} SET data = json_set(data, '$.${key}', json($1)) WHERE app = $2 AND ${TYPE_OF(key)} = 'text' AND ${J(key)} = $3`,
+        [next, app, x.v]);
+    }
+    if (other) {
+      await q(pg
+        ? `UPDATE ${T} SET data = jsonb_set(data, '{${key}}', 'null'::jsonb) WHERE app = $1 AND ${TYPE_OF(key)} NOT IN ('string', 'object', 'null')`
+        : `UPDATE ${T} SET data = json_set(data, '$.${key}', json('null')) WHERE app = $1 AND ${TYPE_OF(key)} NOT IN ('text', 'object', 'null')`, [app]);
+    }
+    const left = +(await q(`SELECT count(*) AS n FROM ${T} WHERE app = $1 AND ${TYPE_OF(key)} NOT IN ('object', 'null')`, [app]))[0].n;
+    if (left) throw new Error(`${left} row(s) still hold data.${key} as something other than an object`);
+    if (strings || other) log(`       rewritten: ${strings + other} row(s)`);
+  }
+  {
+    const DIGITS = pg ? `data->>'parent_id' ~ '^[0-9]+$'` : `(${J('parent_id')} GLOB '[0-9]*' AND ${J('parent_id')} NOT GLOB '*[^0-9]*')`;
+    report.text.parentIds = +(await q(`SELECT count(*) AS n FROM ${T} WHERE app = $1 AND ${TYPE_OF('parent_id')} = '${TEXT}' AND ${DIGITS}`, [app]))[0].n;
+    log(`    data.parent_id         strings of digits: ${report.text.parentIds}`);
+    if (apply && report.text.parentIds) {
+      await q(pg
+        ? `UPDATE ${T} SET data = jsonb_set(data, '{parent_id}', to_jsonb((data->>'parent_id')::bigint)) WHERE app = $1 AND ${TYPE_OF('parent_id')} = 'string' AND ${DIGITS}`
+        : `UPDATE ${T} SET data = json_set(data, '$.parent_id', CAST(json_extract(data, '$.parent_id') AS INTEGER)) WHERE app = $1 AND ${TYPE_OF('parent_id')} = 'text' AND ${DIGITS}`, [app]);
+      log(`       rewritten: ${report.text.parentIds} row(s)`);
+    }
+  }
+
+  // ---- 4. the uniqueness guard
+  log(`\n4.  one row per (app, type) for each container kind`);
   for (const kind of CONTAINER_KINDS) {
     const clashes = await q(
       `SELECT type, count(*) AS n, min(id) AS a, max(id) AS b FROM ${T} WHERE app = $1 AND type LIKE $2
@@ -284,6 +347,29 @@ async function setupApp(db, { app, splitMode, apply = false, guard = null, log =
     for (const c of clashes.slice(0, 5)) log(`       ${c.type}  ×${c.n}   (ids include ${c.a}, ${c.b})`);
   }
 
+  // ---- 5. the shape checks. A constraint is the TABLE's, so violations are counted over all of it
+  // (under legacy split mode the table is shared).
+  log(`\n5.  shape checks on ${T}`);
+  for (const c of shapeChecks(db.type)) {
+    const has = pg
+      ? (await q(`SELECT 1 FROM pg_constraint c JOIN pg_class k ON k.oid = c.conrelid JOIN pg_namespace n ON n.oid = k.relnamespace
+                   WHERE n.nspname = $1 AND k.relname = $2 AND c.conname = $3`, [t.schema, t.table, c.name])).length > 0
+      : (await q(`SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = $1 AND sql LIKE $2`, [t.table, `%CONSTRAINT ${c.name} %`])).length > 0;
+    const bad = has ? 0 : +(await q(`SELECT count(*) AS n FROM ${T} WHERE NOT (${c.expr})`))[0].n;
+    let state = has ? 'in place' : bad ? `${bad} row(s) violate it` : 'no violations, not added';
+    if (!has && checks && !pg) state += ' — cannot be added to an existing SQLite table (a new app\'s table is created with it)';
+    else if (!has && checks && bad) state += apply ? ' — NOT added' : ' (step 3 rewrites what it can; added on --apply only if none are left)';
+    else if (!has && checks && !apply) state += ' (would be added)';
+    else if (!has && checks && apply) {
+      // NOT VALID then VALIDATE: the scan holds a lock that lets reads and writes through
+      await q(`ALTER TABLE ${T} ADD CONSTRAINT ${c.name} CHECK (${c.expr}) NOT VALID`);
+      await q(`ALTER TABLE ${T} VALIDATE CONSTRAINT ${c.name}`);
+      state = 'added';
+    }
+    report.checks[c.name] = state;
+    log(`    ${c.name.padEnd(16)} ${state}`);
+  }
+
   // ---- the app's registered declarations
   const f = resolveFormatsTable(app, db.type, splitMode);
   const hasFormats = pg
@@ -302,7 +388,7 @@ async function main() {
   const db = config.type === 'postgres' ? new PostgresAdapter(config) : new SqliteAdapter(config);
   console.log(`\nsetup-app — ${o.apply ? 'APPLY' : 'DRY RUN'}\n  db=${o.db}  app=${o.app}  split mode=${config.splitMode}\n`);
   try {
-    const r = await setupApp(db, { app: o.app, splitMode: config.splitMode, apply: o.apply, guard: o.guard });
+    const r = await setupApp(db, { app: o.app, splitMode: config.splitMode, apply: o.apply, guard: o.guard, checks: o.checks });
     if (!o.apply) console.log('\nDRY RUN — nothing was written. Re-run with --apply.');
     await db.end();
     process.exit(r.authBlocked.length ? 2 : 0);

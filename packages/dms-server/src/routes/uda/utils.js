@@ -15,7 +15,7 @@ async function dmsMainTable(db, app, splitMode) {
   const { fullName, schema, table } = resolveTable(app, 'pattern', db.type, splitMode);
   // ensureTable() no-ops for the shared dms.data_items (legacy mode)
   await ensureSequence(db, app, db.type, splitMode);
-  await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode));
+  await ensureTable(db, schema, table, db.type, getSequenceName(app, db.type, splitMode), { checks: true });
   return fullName;
 }
 

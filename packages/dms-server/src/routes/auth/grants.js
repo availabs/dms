@@ -91,7 +91,46 @@ function unionAuthPermissions(list) {
   return out;
 }
 
+/** The keys of a row's `data` that hold grants: `authPermissions` on DMS rows, `auth_permissions` on sources. */
+const GRANT_KEYS = ['authPermissions', 'auth_permissions'];
+
+/**
+ * One grants value in its STORED form: a JSON object, or null. A JSON string of an object (what the
+ * permissions editor sent until 2026-11-12, and what an old client bundle still sends) is parsed.
+ * Anything that names no grants — '', an array, a string that is not JSON — becomes null, which is
+ * how every reader already treated it. The database holds each app's table to this
+ * (`grant_shape` check, db/table-resolver.js SHAPE_CHECKS).
+ */
+function storedGrants(v) {
+  const parsed = typeof v === 'string' ? parseJson(v) : v;
+  return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : null;
+}
+
+/**
+ * A write's payload (a create's data or an edit's patch) with its grant keys in the stored form.
+ * A payload that carries neither key, or carries them as objects already, is returned exactly as it
+ * came — a JSON string stays a string, so ids past double precision elsewhere in it are not
+ * re-parsed (as routes/dms/parentId.js stripParentId). Dataset rows (`…:data`) are not touched: a
+ * dataset may have a column of its own by either name.
+ */
+function normaliseGrants(data, type = '') {
+  if (!data || (typeof type === 'string' && type.endsWith(':data'))) return data;
+  if (typeof data === 'string' && !GRANT_KEYS.some(k => data.includes(k))) return data;
+  const obj = typeof data === 'string' ? parseJson(data) : data;
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return data;
+  let out = null;
+  for (const k of GRANT_KEYS) {
+    if (!(k in obj)) continue;
+    const v = obj[k];
+    if (v === null || (typeof v === 'object' && !Array.isArray(v))) continue;
+    out = out || { ...obj };
+    out[k] = storedGrants(v);
+  }
+  return out || data;
+}
+
 module.exports = {
+  GRANT_KEYS, storedGrants, normaliseGrants,
   parseJson, asList, resolveAuthPermissions, scopeOf, hasGrants, holds, isAppAdmin,
   mergeAuthPermissions, unionAuthPermissions,
 };
