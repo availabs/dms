@@ -6,8 +6,7 @@ import DefaultMenu from "./components/menu"
 import authFormat from "./auth.format.js";
 import { lazyComponent } from "../../utils/lazyComponent";
 import { useAuth } from "./context";
-import { siteCan, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
-import { getRootDomain } from "../../utils/hostResolver";
+import { siteCan, VIEW_PATTERN_LIST, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 import { setAuthRequestScope } from "./api";
 import OpenAuthWarning from "./components/OpenAuthWarning";
@@ -246,6 +245,12 @@ const manageAuthConfig = ({
     // sidenav (patterns/admin/siteConfig.jsx getMenuItems): every entry reads the
     // site row's grants; auth-users / auth-groups are site verbs (rule 3).
     const buildMenuItems = (user) => [
+        // Only on the root domain of a multi-tenant site (admin pages/tenants.jsx); first, above Sites.
+        ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
+            name: 'Tenants',
+            path: `${adminPath}/tenants`,
+            icon: 'Globe'
+        }] : []),
         ...(siteCan(user, app, adminAuthPermissions, VIEW_PATTERN_LIST) ? [{
             name: 'Sites',
             path: `${adminPath}`,
@@ -255,22 +260,12 @@ const manageAuthConfig = ({
         //     name: 'Datasets',
         //     path: `${adminPath}/datasets`
         // },
-        ...(siteCan(user, app, adminAuthPermissions, MANAGE_THEMES) ? [{
-            name: 'Themes',
-            path: `${adminPath}/themes`,
-            icon: 'Fill'
-        }] : []),
-        // Only on the root domain of a multi-tenant site (admin pages/tenants.jsx).
-        ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, adminAuthPermissions, MANAGE_TENANTS) ? [{
-            name: 'Tenants',
-            path: `${adminPath}/tenants`,
-            icon: 'Globe'
-        }] : []),
-        // A tenant's own domains, on a tenant host of the hub (admin pages/siteDomains.jsx).
-        ...(isMultiTenant && tenantSubdomain && getRootDomain() && siteCan(user, app, adminAuthPermissions, MANAGE_DOMAINS) ? [{
-            name: 'Domains',
-            path: `${adminPath}/domains`,
-            icon: 'Globe'
+        // No Themes entry: the themes list is deprecated; its route stays (2026-11-13).
+        // This site's settings on a hub: a tenant's on its host, the hub's own on the root (admin pages/siteSettings.jsx).
+        ...(isMultiTenant && siteCan(user, app, adminAuthPermissions, tenantSubdomain ? MANAGE_DOMAINS : MANAGE_TENANTS) ? [{
+            name: 'Settings',
+            path: `${adminPath}/settings`,
+            icon: 'Settings'
         }] : []),
         // {
         //     name: 'Team',

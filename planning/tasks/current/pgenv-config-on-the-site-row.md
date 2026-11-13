@@ -1,11 +1,12 @@
 # pgEnv configuration on the site: a site's pgEnvs are its `:dmsenv` rows, not `VITE_DMS_PG_ENVS`
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** amuro@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing · **Created by:** amuro@albany.edu · **Edited by:** —
 
 ## Current state — 2026-11-13 (read this first)
 
-**Nothing in this task's phases is built.** `VITE_DMS_PG_ENVS` still decides which pgEnvs the client and SSR
-use. Status stays `next`.
+**Built 2026-11-13, uncommitted, not yet seen in a browser:** attach from the hub's tenant settings page
+(see "Built — 2026-11-13"). Nothing else in the phases is built. `VITE_DMS_PG_ENVS` still decides which
+pgEnvs the client and SSR use.
 
 What changed under it on 2026-11-12: the mirror this task was written on was removed
 ([pgenv-auth-without-mirror-rows.md](./pgenv-auth-without-mirror-rows.md), committed `878ecc2e`). A site's
@@ -17,8 +18,8 @@ What changed under it on 2026-11-12: the mirror this task was written on was rem
 | The env row as the record (Design 1) | Exists. `dama/pgEnv.js ensureEnvRow` creates it; `envRowOf` reads it; auth refuses an external read for an app with no env row for that pgEnv |
 | Attach by script | Exists: `scripts/attach-pgenv.js --db <config> --app <app> --pg-env <name>` (from the mirror removal). No route, no detach |
 | Client and SSR read the rows (Phase 1) | Not built |
-| Attach / detach route, list of available pgEnvs (Phase 2) | Not built |
-| Admin UI (Phase 3) | Not built |
+| Attach route and list of available pgEnvs (Phase 2) | Built for hub tenants, uncommitted: `GET /tenants/:tenant/pgenvs`, `POST …/attach`, `…/detach/plan`, `…/detach`. Attach writes no `dms_envs` ref |
+| Admin UI (Phase 3) | Built, uncommitted: a "data environments" card on `/list/tenants/:tenantId` (hub root, `manage-tenants`). Not checked in a browser. A single-site (non-hub) admin has no page for it |
 | Retire the variable (Phase 4) | Not started |
 | Open decisions (who may attach, default pgEnv, visibility of the list) | All open |
 
@@ -124,8 +125,8 @@ attached to; who can attach is the open decision.
 
 Rewritten 2026-11-13 for the mirror's removal. None started.
 
-### Phase 0 — attach what production already uses (script only, owner)
-- [ ] Per DMS database, per app, per pgEnv the app's site is built with: `attach-pgenv.js` (dry, then
+### Phase 0 — attach what production already uses (script only, owner) — done on `dms-mercury-3` 2026-11-13
+- [x] Per DMS database, per app, per pgEnv the app's site is built with: `attach-pgenv.js` (dry, then
       apply). Done: `mitigat-ny-prod` and `rowauth-test` on `dms-mercury-3`; `mny` and `tny` on the hub db.
       Source for the list: the 7 targets in `dms-template/deploy/targets.json` that set `VITE_DMS_PG_ENVS`.
 
@@ -139,12 +140,13 @@ Rewritten 2026-11-13 for the mirror's removal. None started.
 ### Phase 2 — attach and detach on the server
 - [ ] `attachPgEnv` / `detachPgEnv` over `ensureEnvRow`; route, guard per the decision; `attach-pgenv.js`
       calls the same function and gains `--detach`.
-- [ ] `GET` of the server's available pgEnvs for the caller allowed to attach.
+- [x] `GET` of the server's available pgEnvs for the caller allowed to attach (hub tenants, 2026-11-13).
 - [ ] Tests on the SQLite dama harness: attach creates the env row and the `dms_envs` ref; re-attach is a
       no-op; detach removes both; an external read is refused before attach and judged after it.
 
 ### Phase 3 — admin UI
-- [ ] "Data environments" in site settings: list, add, remove with confirmation.
+- [ ] "Data environments" in site settings: list, add, remove with confirmation. List and add built on the
+      hub's tenant settings page, 2026-11-13; remove not built.
 
 ### Phase 4 — retire the variable (after every site is attached)
 - [ ] Per site: confirm its env rows match its `VITE_DMS_PG_ENVS`, then drop the variable from its target in
@@ -153,6 +155,95 @@ Rewritten 2026-11-13 for the mirror's removal. None started.
 - [ ] Delete the prop and both env variables; update `.env.example`, `README.md`, `deploy/stacks.mjs`
       (preview stacks attach by script instead), `dms-server-env.md`, and the skills that mention the
       variable.
+
+## Attached on `dms-mercury-3` — 2026-11-13 (Phase 0)
+
+Read-only survey first: 130 app schemas, about 30 with a site row. Each app's build variable
+(`deploy/targets.json`) was compared with the pgEnv names its stored rows reference (text matches for
+`env` / `pgEnv` keys, so drafts and old sections count). The owner approved the list, with one change:
+`npmrdsv5` does not get `hazmit_dama`, although 266 of its rows reference it.
+
+`attach-pgenv.js --db dms-mercury-3 … --apply`, dry run first, one env row created each; read back after:
+
+| App | pgEnv | Env row |
+|---|---|---|
+| `npmrdsv5` | `npmrds2` | `dev2\|npmrds2:dmsenv` |
+| `dms-site` | `hazmit_dama` | `prod\|hazmit_dama:dmsenv` |
+| `landbank` | `landbank_dama` | `dev2\|landbank_dama:dmsenv` (under `dev2:site` #10, with `--site dev2`) |
+| `wcdb` | `wcdb-dama` | `prod\|wcdb_dama:dmsenv` |
+| `avail` | `hazmit_dama` | `site\|hazmit_dama:dmsenv` |
+| `qa_test` | `npmrds2` | `qa_test\|npmrds2:dmsenv` |
+| `shaun-test-app` | `hazmit_dama` | `test\|hazmit_dama:dmsenv` |
+
+`mitigat-ny-prod` already had `hazmit_dama`. Left unattached: apps that reference only their own datasets.
+
+- `attach-pgenv.js` gained `--site <instance>` (`ensureEnvRow({ site })`) for an app with several site rows;
+  `landbank` has `home:site` and `dev2:site`.
+- Not checked: that the production server has a database config for each of these names (`landbank_dama`
+  has none locally); which code and `DMS_AUTH_MODE` production runs; `mitigat-ny-prod` for other pgEnvs
+  (not scanned, 465k rows); any effect in a browser.
+- `npmrdsv5` sections that read `hazmit_dama` sources stay unattached by decision: logged under `log`,
+  refused under `enforce`.
+- No schema for `rowauth-test` was found on `dms-mercury-3`.
+
+## Built — 2026-11-13 (attach from the tenant settings page)
+
+Owner, 2026-11-13: attaching needs a user interface; the hub's tenant page (`/list/tenants/:tenantId`)
+becomes the tenant's settings page and carries it; start on `hub-dms`, not `dms-mercury-3`. Later the page
+may get pluggable sub pages like the pattern editor's.
+
+- **Server** (`routes/tenants/pgEnvs.js`, routes in `routes/tenants/index.js`, multi-tenant servers only):
+  `GET /tenants/:tenant/pgenvs` returns `{ attached, available }`; `POST /tenants/:tenant/pgenvs/attach
+  { pgEnv }` runs `ensureEnvRow` for the tenant's app, as the caller, then clears the auth snapshots.
+  `available` is the server's db configs with the `dama` role; a name outside it is refused.
+- **Who may attach:** hub staff (`manage-tenants` on the hub's site row), the same gate as the page. This
+  takes option (a) of "Who may attach a pgEnv" for the hub; the owner has not confirmed it as the rule.
+- **Client:** `components/pgEnvsCard.jsx` (+ theme, `theme.admin.pgEnvsCard`), stacked under the domains
+  card on `pages/tenantOverview.jsx`; the header counts attached pgEnvs.
+- `dama/pgEnv.js`: `envRowsOf(app)`; `ensureEnvRow` takes the `user` the write is logged as.
+- **Tests:** `test-pgenv-auth.js` 26 pass (5 new: nothing attached, unknown pgEnv refused, attach then
+  judged at once, repeat is a no-op, no site row refused); `npm test` green. SQLite only.
+
+**Later the same day (owner): the tenant's settings live on its own host.**
+- `/list/settings` on a tenant host (`pages/siteSettings.jsx`, moved from `pages/siteDomains.jsx`) holds
+  both cards; `/list/domains` still opens it. Gate: `manage-domains` on the tenant's site, as before. The
+  domains card shows only on a hub with a root domain. Sidebar and user-menu entry renamed Settings.
+- A cog beside the site name on the tenant's `/list` links to it; the Tenants list has a pencil per row
+  to the hub's page for the tenant (`/list/tenants/:tenantId`), which keeps both cards.
+- `GET /tenants/:tenant/pgenvs` is also open to the tenant's own admins (`manage-domains`), read-only:
+  they get `attached`, an empty `available` and `canAttach: false`, so the server's database names stay
+  with hub staff. Attach is still hub staff only.
+
+**Detach (owner, same day: `mny` on the hub wants `hazmit_dama` only, and the UI had no remove).**
+- `POST /tenants/:tenant/pgenvs/detach/plan { pgEnv }` (read-only) and `POST …/detach { pgEnv }`, hub staff
+  only, no preview flag (dms-server's rule for destructive routes). The plan names the env row, who holds
+  grants on it, and what blocks it.
+- Detach deletes the env row through the controller (change log as any delete) and drops its ref from the
+  site row's `dms_envs` when listed. Refused (409) while the row has internal sources under it or a pattern's
+  `dmsEnvId` points at it. The pgEnv's own sources and grants are not touched.
+- Card: a trash button per attached pgEnv for hub staff; it loads the plan and confirms in place.
+- Plan on `hub-dms` for `mny`, read-only, 2026-11-13: `npmrds2` (row 2930012) has no grants, no patterns,
+  no sources, not blocked. `hazmit_dama` (row 2902392) holds grants for group AVAIL and one user.
+- Not checked by the plan: whether any `mny` page section reads an `npmrds2` source. Those reads are refused
+  (or logged, under `log`) once it is detached.
+- Tests: `test-pgenv-auth.js` 30 pass (4 new: plan, the two refusals, delete with site ref swept and the
+  pgEnv untouched, re-attach).
+
+**The hub's own site (owner, same day: the hub has pages of its own and needs the setting too).**
+- The four routes also exist as `/hub/pgenvs…`, for the hub's app (`DMS_APP`); hub staff only.
+- `/list/settings` opens on the hub's root too, for `manage-tenants`: the data environments card alone (the
+  hub is not a tenant, so no domains card). The cog on `/list` and the Settings menu entry follow.
+- `hub-dms` today: the `hub` app has no pgEnv attached.
+- A single-site (non-multi-tenant) server still has no routes and no page for this.
+
+**Not done**
+- Not exercised over HTTP or in a browser: the local hub server (`npm run hub`) was running the old code
+  and was not restarted.
+- Nothing attached on any database through it. `hub-dms` today: `mny` and `tny` have `hazmit_dama` and
+  `npmrds2`; `fusion` has none.
+- The `dms_envs` ref on the site row (Design 3, step 4). The existing pgEnv env rows on `mny` and `tny` are
+  not in their site rows' `dms_envs` either; what the client does with such a ref is not checked.
+- Sub pages for the tenant settings page.
 
 ## Related
 
@@ -171,3 +262,10 @@ Rewritten 2026-11-13 for the mirror's removal. None started.
 - 2026-11-12: the mirror was removed; attach is now one env row. `attach-pgenv.js` exists from that work.
 - 2026-11-13: doc brought up to date: "Current state" added; Design 3 and the phases rewritten for the
   one-row attach; Phase 0 (attach what production uses, by script) added. Nothing built in this task.
+- 2026-11-13 (later): attach built for hub tenants: routes, the data environments card on the tenant
+  settings page, tests. Uncommitted; not run against `hub-dms` or seen in a browser. Status → doing.
+- 2026-11-13 (later still): tenant settings moved onto the tenant's host at `/list/settings`; cog and
+  pencil links; the read route opened to tenant admins. Uncommitted, not seen in a browser.
+- 2026-11-13 (detach): plan and detach routes, the remove control on the card, tests. Not run on `hub-dms`.
+- 2026-11-13 (hub site): `/hub/pgenvs` routes; `/list/settings`, cog and menu entry on the hub's root.
+- 2026-11-13 (production): Phase 0 run on `dms-mercury-3` at the owner's request: seven apps attached.

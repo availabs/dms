@@ -71,7 +71,7 @@ export function TenantList({
 					<div>
 						{d.row.isRoot
 							? <span className={t.tenantName}>{d.row.name || d.row.subdomain}</span>
-							// the tenant's overview (pages/tenantOverview.jsx): its domains
+							// the tenant's settings (pages/tenantOverview.jsx)
 							: <Link to={`${baseUrl}/tenants/${d.row.id}`} className={t.tenantNameLink}>{d.row.name || d.row.subdomain}</Link>}
 						{d.row.isRoot && <span className={t.rootPill}>root</span>}
 					</div>
@@ -101,9 +101,14 @@ export function TenantList({
 			name: 'actions', display_name: ' ', show: true, type: 'ui',
 			Comp: (d) => d.row.isRoot ? null : (
 				<div className={t.cellActions}>
+					{/* the tenant's settings (pages/tenantOverview.jsx), as the pattern list's pencil (pages/editSite.jsx) */}
+					<Link to={`${baseUrl}/tenants/${d.row.id}`} className={t.editLink} title='Edit tenant' aria-label='Edit tenant'>
+						<Icon icon='PencilEditSquare' className={t.iconSm} />
+					</Link>
 					<Button
 						activeStyle='iconRowDanger'
 						title='Delete tenant'
+						aria-label='Delete tenant'
 						onClick={() => setDeletingItem(d.row)}
 					>
 						<Icon icon='TrashCan' className={t.iconSm} />

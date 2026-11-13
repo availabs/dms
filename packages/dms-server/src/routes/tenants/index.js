@@ -6,9 +6,21 @@
  *     POST /tenants/:tenant/delete/plan              read-only: what a delete would remove
  *     POST /tenants/:tenant/delete  { confirm }      back up, then delete; `confirm` must be the subdomain
  *
+ * The pgEnvs a tenant is attached to (pgenv-config-on-the-site-row.md; the work itself is ./pgEnvs.js):
+ *
+ *     GET  /tenants/:tenant/pgenvs                   attached pgEnvs; for hub staff also the ones this server
+ *                                                    can attach. Open to the tenant's own admins too
+ *                                                    (`manage-domains` on the TENANT's site row), read-only
+ *     POST /tenants/:tenant/pgenvs/attach { pgEnv }  create (or adopt) the tenant's env row for the pgEnv
+ *     POST /tenants/:tenant/pgenvs/detach/plan { pgEnv }   read-only: what a detach would delete
+ *     POST /tenants/:tenant/pgenvs/detach { pgEnv }  delete the tenant's env row for the pgEnv
+ *
+ * The same four under `/hub/pgenvs` are the hub's own site (it has pages and patterns of its own).
+ *
  * `:tenant` is the tenant's subdomain. Who may: hub staff (`manage-tenants` on the hub's site row),
  * judged here whatever DMS_AUTH_MODE says. Per dms-server's rule for destructive routes, the delete takes
- * no preview flag: the preview is its own read-only route. One delete runs at a time.
+ * no preview flag: the preview is its own read-only route. One delete runs at a time. Attaching a pgEnv
+ * shows the tenant another database's catalog, so it is hub staff's too.
  *
  * Mounted on a multi-tenant server only.
  */
@@ -18,6 +30,7 @@ const domains = require('../domains/store');
 const fs = require('fs');
 const { deleteTenant, planTenantDelete, authRows, backupRoot } = require('./delete');
 const { getDb } = require('../../db');
+const pgEnvs = require('./pgEnvs');
 
 const hubApp = () => process.env.DMS_APP || process.env.VITE_DMS_APP || '';
 const hubType = () => process.env.DMS_TYPE || process.env.VITE_DMS_TYPE || '';
@@ -27,7 +40,7 @@ async function staff(req, res) {
   const user = requireUser(req, res);
   if (!user) return null;
   if (!(await siteCan(hubApp(), user, ['manage-tenants']))) {
-    res.status(403).json({ error: 'Not authorized: deleting a tenant needs manage-tenants on the hub' });
+    res.status(403).json({ error: 'Not authorized: needs manage-tenants on the hub' });
     return null;
   }
   return user;
@@ -36,6 +49,14 @@ async function staff(req, res) {
 const fail = (res, e) => res.status(e.status || 500).json({ error: e.message });
 
 let running = null;
+
+/** The app the request is about: the tenant's (`:tenant`), or the hub's own when the route names none. Null after answering 404. */
+async function siteAppOf(req, res) {
+  if (req.params.tenant === undefined) return hubApp();
+  const row = await domains.tenantBySubdomain(req.params.tenant, { fresh: true });
+  if (!row || !row.data.app) { res.status(404).json({ error: `no tenant "${req.params.tenant}"` }); return null; }
+  return row.data.app;
+}
 
 function registerTenantRoutes(app) {
   if (!multiTenant()) return;
@@ -47,6 +68,66 @@ function registerTenantRoutes(app) {
     console.log(`[tenants] delete backups → ${dir}${process.env.DMS_TENANT_BACKUP_DIR ? '' : ' (default; set DMS_TENANT_BACKUP_DIR to a mounted folder)'}`);
   } catch (e) {
     console.warn(`[tenants] cannot write delete backups to ${dir} (${e.code || e.message}): tenant deletes will refuse until it can`);
+  }
+
+  // The same four routes for a tenant (`/tenants/:tenant/pgenvs`) and for the hub's own site (`/hub/pgenvs`).
+  for (const base of ['/tenants/:tenant/pgenvs', '/hub/pgenvs']) {
+    app.get(base, async (req, res) => {
+      try {
+        const user = requireUser(req, res);
+        if (!user) return;
+        const site = await siteAppOf(req, res);
+        if (!site) return;
+        const isStaff = await siteCan(hubApp(), user, ['manage-tenants']);
+        if (!isStaff && !(await siteCan(site, user, ['manage-domains']))) {
+          return res.status(403).json({ error: 'Not authorized: needs manage-domains on this site' });
+        }
+        const { attached, available } = await pgEnvs.describe(site);
+        // The list of what could be attached names the server's databases: hub staff's only.
+        res.json({ attached, available: isStaff ? available : [], canAttach: isStaff });
+      } catch (e) { fail(res, e); }
+    });
+
+    app.post(`${base}/attach`, async (req, res) => {
+      try {
+        const user = await staff(req, res);
+        if (!user) return;
+        const site = await siteAppOf(req, res);
+        if (!site) return;
+        const pgEnv = req.body && req.body.pgEnv;
+        const result = await pgEnvs.attach({ app: site, pgEnv, user });
+        console.log(`[tenants] pgEnv ${pgEnv} ${result.already ? 'already attached to' : 'attached to'} ${site} by ${user.email}`);
+        res.json({ ...(await pgEnvs.describe(site)), canAttach: true, result });
+      } catch (e) {
+        console.warn(`[tenants] attach pgEnv to ${req.params.tenant || 'the hub'} failed: ${e.message}`);
+        fail(res, e);
+      }
+    });
+
+    app.post(`${base}/detach/plan`, async (req, res) => {
+      try {
+        if (!(await staff(req, res))) return;
+        const site = await siteAppOf(req, res);
+        if (!site) return;
+        const { sites, ...plan } = await pgEnvs.planDetach({ app: site, pgEnv: req.body && req.body.pgEnv });
+        res.json(plan);
+      } catch (e) { fail(res, e); }
+    });
+
+    app.post(`${base}/detach`, async (req, res) => {
+      try {
+        const user = await staff(req, res);
+        if (!user) return;
+        const site = await siteAppOf(req, res);
+        if (!site) return;
+        const plan = await pgEnvs.detach({ app: site, pgEnv: req.body && req.body.pgEnv, user });
+        console.log(`[tenants] pgEnv ${plan.pgEnv} detached from ${site} (env row #${plan.row.id}) by ${user.email}`);
+        res.json({ ...(await pgEnvs.describe(site)), canAttach: true, result: plan });
+      } catch (e) {
+        console.warn(`[tenants] detach pgEnv from ${req.params.tenant || 'the hub'} failed: ${e.message}`);
+        fail(res, e);
+      }
+    });
   }
 
   app.post('/tenants/:tenant/delete/plan', async (req, res) => {

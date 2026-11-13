@@ -6,6 +6,7 @@ import { patternPickerTheme } from './components/AddPatternPicker.theme'
 import { createSiteTheme } from './pages/createSite.theme'
 import { editSiteTheme } from './pages/editSite.theme'
 import { domainsCardTheme } from './components/domainsCard.theme'
+import { pgEnvsCardTheme } from './components/pgEnvsCard.theme'
 import { patternEditorTheme } from './pages/patternEditor/patternEditor.theme'
 import { settingsEditorTheme } from './pages/patternEditor/default/settings.theme'
 import { filterEditorTheme } from './pages/patternEditor/default/filterEditor.theme'
@@ -44,6 +45,7 @@ export default {
     createSite: createSiteTheme,
     editSite: editSiteTheme,
     domainsCard: domainsCardTheme,
+    pgEnvsCard: pgEnvsCardTheme,
     patternEditor: patternEditorTheme,
     settingsEditor: settingsEditorTheme,
     filterEditor: filterEditorTheme,

@@ -7,7 +7,7 @@ import { Link, useLocation, useNavigate, useNavigation, useRevalidator } from 'r
 import { nameToSlug, getInstance, nextAvailableCopyName } from '../../../utils/type-utils';
 import { backfillAdminPattern } from '../../../utils/tenantProvisioning';
 import { parseIfJSON, saveSiteRefList } from '../utils';
-import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN } from '../../../utils/adminPermissions';
+import { siteCan, patternActions, VIEW_PATTERN_LIST, CREATE_PATTERN, MANAGE_DOMAINS, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { AddPatternPicker } from '../components/AddPatternPicker'
 import { getPatternType, listPatternTypes, stampPatternRow } from '../../registry'
@@ -155,7 +155,7 @@ function PatternList({
 	 siteId,
 	 ...rest
 }) {
-	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user, authPermissions} = React.useContext(AdminContext);
+	const {app, type: siteType, API_HOST, baseUrl, isMultiTenant, user, authPermissions, subdomain, tenantSubdomain = subdomain} = React.useContext(AdminContext);
 	const {UI, theme} = React.useContext(ThemeContext)
 	const t = { ...editSiteTheme, ...(theme?.admin?.editSite || {}) }
 	const { falcor } = useFalcor();
@@ -474,11 +474,22 @@ function PatternList({
 	const SORT_CYCLE = { name: 'type', type: 'subdomain', subdomain: 'base_url', base_url: 'name' };
 	const SORT_LABEL = { name: 'name', type: 'type', subdomain: 'subdomain', base_url: 'base url' };
 
+	// On a hub: this site's settings page (pages/siteSettings.jsx), for who may open it: a tenant's
+	// admins on its host, hub staff on the root.
+	const hasSettings = Boolean(isMultiTenant) && siteCan(user, app, authPermissions, tenantSubdomain ? MANAGE_DOMAINS : MANAGE_TENANTS);
+
 	return (
 			<div className={t.wrapper}>
 				<div className={t.identityWrapper}>
 					<div className='min-w-0'>
-						<div className={t.identityTitle}>{siteName || app}</div>
+						<div className={t.identityTitleRow}>
+							<div className={t.identityTitle}>{siteName || app}</div>
+							{hasSettings && (
+								<Link to={`${baseUrl}/settings`} className={t.editLink} title='Settings' aria-label='Settings'>
+									<Icon icon='Settings' className={t.iconSm} />
+								</Link>
+							)}
+						</div>
 						<p className={t.identitySubtitle}>{window.location.host}</p>
 					</div>
 					<span className='flex-1' />

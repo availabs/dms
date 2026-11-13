@@ -302,6 +302,11 @@ Found 2026-10-22 (permissions live pass, `scratchpad/verify/authcheck/flow-pagee
   (2026-08-31, mitigat-ny-prod).
 - **Edit URL puts `edit` first**: `/edit/<slug>`, not `<slug>/edit`. The wrong
   shape silently falls back to the site's default/index page.
+- **On the multi-tenant hub (SSR dev, `npm run hub`), a direct load of an edit URL bounces to `/`,
+  even with a valid seeded token.** The server render has no session, so the edit route redirects
+  before the client reads `userToken` from localStorage. Load `/` first, then navigate in-app (click
+  the TopNav edit link, `a[href="/edit/"]`); the client-side navigation keeps `/edit/`. The pattern's
+  root page edits at `/edit/`, not `/edit/<its slug>`. Found 2026-11-13 on `weatheranalytics.localhost:5555`.
 - **A bare pattern URL (`/<pattern>` or `/<pattern>/edit`, no slug) breaks when several top-level
   pages share `index '0'`.** Nothing keeps `index` unique: `dms page create` defaults to `'0'` (filed as
   `cli-page-create-default-index.md`). The root page is resolved TWICE, independently (traced 2026-09-24):

@@ -11,6 +11,7 @@ export const editSiteTheme = {
     wrapper: 'flex flex-col w-full',
     // TenantList (components/tenantList.jsx), on its own page (/list/tenants) since 2026-11-09.
     tenantPageWrapper: 'flex flex-col w-full',
+    tenantSettingsStack: 'flex flex-col gap-4',
     header: 'w-full flex items-center justify-between border-b-2 border-[var(--t-cobalt)] pb-2',
     headerTitle: 'text-2xl font-semibold text-[var(--t-ink)]',
     searchBar: 'w-full flex',
@@ -20,6 +21,7 @@ export const editSiteTheme = {
     identityWrapper: 'flex flex-wrap items-center gap-x-5 gap-y-3 pb-3 mb-3 border-b border-[var(--t-rule)]',
     identityTitle: 't-displayMD text-[var(--t-ink)]',
     identitySubtitle: 't-metaSM text-[var(--t-pencil)] mt-1',
+    identityTitleRow: 'flex items-center gap-2',
     statsStrip: 'flex items-stretch divide-x divide-[var(--t-rule)] border border-[var(--t-rule)] rounded-lg bg-[var(--t-panel)] overflow-hidden',
     statItem: 'px-4 py-2',
     statValue: 'text-xl font-semibold tracking-[-0.015em] tabular-nums leading-none text-[var(--t-ink)]',

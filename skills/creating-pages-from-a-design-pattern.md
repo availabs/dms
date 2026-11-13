@@ -740,6 +740,10 @@ the recent Tessera work shipped.
 | **`button(linkText, path, styleName, keepSearchParams)`** | `{ type: 'button', linkText, path, style, keepSearchParams }` | Inline `ButtonNode` whose `style` matches one of the brand's `theme.button.styles[].name` entries (Tessera: `'default'` \| `'plain'` \| `'active'` \| `'danger'`). The node renders via `UI.Button` from `ThemeContext` — view-mode click uses `useNavigate()` for internal paths and `window.open(_, '_blank')` for external URLs. |
 | **`layout(templateColumns, columns)`** | `{ type: 'layout-container', templateColumns, children: [layout-items] }` | A column layout (Lexical's LayoutContainerNode). `templateColumns` is a Tailwind grid-cols class string (e.g. `'grid-cols-1 md:grid-cols-2'` or the tighter `'grid-cols-1 md:grid-cols-[max-content_max-content_1fr]'` for side-by-side CTAs). `columns` is a 2D array — outer = one entry per column, inner = the lexical nodes in that column. The helper wraps each column array in a LayoutItem. |
 
+> **A `button` node with empty `linkText` renders the word "submit"**, and its `icon` alone doesn't
+> make an icon-only button. For icon rows (social links), give each button a text label. Found
+> 2026-11-13 on the Weather & Climate Analytics footer.
+
 ### 5.6.5 Side-by-side content: section grid vs. Lexical layout-container
 
 For "two things next to each other," DMS gives you two

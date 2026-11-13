@@ -12,12 +12,11 @@ import ErrorPage from "./components/errorPage.jsx";
 import DefaultMenu from "./components/menu";
 
 import adminFormat, { pattern, themeFormat } from "./admin.format.js";
-import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_THEMES, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
+import { siteCan, patternCan, tabPermission, VIEW_PATTERN_LIST, MANAGE_TENANTS, MANAGE_DOMAINS, AUTH_USERS, AUTH_GROUPS, EDIT_PATTERN } from "../../utils/adminPermissions";
 import { adminNavOptions } from "../../utils/userMenus";
 
 import { lazyComponent } from "../../utils/lazyComponent";
 import { getPatternType } from "../registry";
-import { getRootDomain } from "../../utils/hostResolver";
 
 // Code-split: the admin pattern is mounted on every site (pattern2routes
 // always adds it), so its pages must not ride in the eager bundle. See
@@ -27,7 +26,7 @@ const NewSite = lazyComponent('admin/NewSite', () => import("./pages/createSite"
 const ThemeList = lazyComponent('admin/ThemeList', () => import("./pages/themes/list"));
 const TenantsPage = lazyComponent('admin/TenantsPage', () => import("./pages/tenants"));
 const TenantOverviewPage = lazyComponent('admin/TenantOverviewPage', () => import("./pages/tenantOverview"));
-const SiteDomainsPage = lazyComponent('admin/SiteDomainsPage', () => import("./pages/siteDomains"));
+const SiteSettingsPage = lazyComponent('admin/SiteSettingsPage', () => import("./pages/siteSettings"));
 const ThemeEdit = lazyComponent('admin/ThemeEdit', () => import("./pages/themes/editTheme"));
 const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages/patternEditor"));
 //import ThemeManager from './pages/themeManager/index.jsx'
@@ -36,7 +35,7 @@ const PatternEditor = lazyComponent('admin/PatternEditor', () => import("./pages
 // header band. Not the shared Layout's own TopNav — that's gated by a single
 // GLOBAL layout.options.topNav.size, so enabling it here would turn it on
 // for every page in the app, not just the admin pattern's own pages.
-const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants', domains: 'domains' };
+const PAGE_LABELS = { '': 'overview', create: 'new site', themes: 'themes', theme: 'theme', tenants: 'tenants', settings: 'settings', domains: 'settings' };
 const AdminBreadcrumb = ({ theme, baseUrl }) => {
   const location = useLocation();
   const { UI: contextUI } = React.useContext(ThemeContext) || {};
@@ -245,16 +244,17 @@ const adminConfig = ({
             path: "tenants/:tenantId",
             action: "edit",
           },
-          {
+          // A tenant's own settings, on its host: domains and data environments; manage-domains
+          // (pages/siteSettings.jsx). Reads and writes go to dms-server's /domains and /tenants routes.
+          // `domains` is the page's old path (it held the domains card alone until 2026-11-13).
+          ...["settings", "domains"].map(path => ({
             type: (props) => (
-              // A tenant's own domains, on its host (design_system_v6/pages/admin-site-domains.html);
-              // manage-domains (pages/siteDomains.jsx). Reads and writes go to dms-server's /domains.
               <SectionGroup card={false} padding="p-0" maxWidth="max-w-5xl">
-                <SiteDomainsPage {...props} />
+                <SiteSettingsPage {...props} />
               </SectionGroup>
             ),
-            path: "domains",
-          },
+            path,
+          })),
           {
             type: (props) => (
               <SectionGroup maxWidth="w-full" padding="p-0">
@@ -427,6 +427,12 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
   // menu when reached via the auth pattern, kept in sync here so the sidenav
   // looks identical regardless of which pattern's wrapper mounted it.
   let menuItems = [
+    // Only on the root domain of a multi-tenant site (pages/tenants.jsx); first, above Sites.
+    ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, authPermissions, MANAGE_TENANTS) ? [{
+      name: "Tenants",
+      path: `${baseUrl}/tenants`,
+      icon: 'Globe',
+    }] : []),
     ...(siteCan(user, app, authPermissions, VIEW_PATTERN_LIST) ? [{
       name: "Sites",
       path: `${baseUrl}`,
@@ -436,22 +442,12 @@ const getMenuItems = (baseUrl, authPath, user, { app, authPermissions, isMultiTe
     //     name: 'Datasets',
     //     path: `${baseUrl}/datasets`
     // },
-    ...(siteCan(user, app, authPermissions, MANAGE_THEMES) ? [{
-      name: "Themes",
-      path: `${baseUrl}/themes`,
-      icon: 'Fill',
-    }] : []),
-    // Only on the root domain of a multi-tenant site (pages/tenants.jsx).
-    ...(isMultiTenant && !tenantSubdomain && siteCan(user, app, authPermissions, MANAGE_TENANTS) ? [{
-      name: "Tenants",
-      path: `${baseUrl}/tenants`,
-      icon: 'Globe',
-    }] : []),
-    // A tenant's own domains: on a tenant host of the hub (a root domain set), pages/siteDomains.jsx.
-    ...(isMultiTenant && tenantSubdomain && getRootDomain() && siteCan(user, app, authPermissions, MANAGE_DOMAINS) ? [{
-      name: "Domains",
-      path: `${baseUrl}/domains`,
-      icon: 'Globe',
+    // No Themes entry: the themes list (`${baseUrl}/themes`) is deprecated; its route stays (2026-11-13).
+    // This site's settings on a hub (a tenant's on its host, the hub's own on the root): pages/siteSettings.jsx.
+    ...(isMultiTenant && siteCan(user, app, authPermissions, tenantSubdomain ? MANAGE_DOMAINS : MANAGE_TENANTS) ? [{
+      name: "Settings",
+      path: `${baseUrl}/settings`,
+      icon: 'Settings',
     }] : []),
   ];
 

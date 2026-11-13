@@ -5,12 +5,17 @@ import { ThemeContext } from '../../../ui/useTheme';
 import { siteCan, MANAGE_TENANTS } from '../../../utils/adminPermissions';
 import { editSiteTheme } from './editSite.theme'
 import { DomainsCard } from '../components/domainsCard'
+import { PgEnvsCard } from '../components/pgEnvsCard'
 
 // /list/tenants/:tenantId on the platform root of the tenant hub
 // (design_system_v6/pages/admin-tenant-overview.html): one tenant, opened from its name on the
-// Tenants page. Loads the site row ("edit", as TenantsPage) for its `tenants` list. So far: the
-// header and the domains card (components/domainsCard.jsx). Still to port from the mockup: name
-// editing, the pattern-subdomains card, the danger zone (tenant-external-domains.md, Phase B).
+// Tenants page. Loads the site row ("edit", as TenantsPage) for its `tenants` list. It is the
+// tenant's settings page: the header, then one card per setting, stacked: domains
+// (components/domainsCard.jsx) and data environments, the pgEnvs the tenant is attached to
+// (components/pgEnvsCard.jsx; pgenv-config-on-the-site-row.md). One page for now; when the cards
+// outgrow it, they become sub pages as the pattern editor's tabs are (patternEditor/index.jsx).
+// Still to port from the mockup: name editing, the pattern-subdomains card, the danger zone
+// (tenant-external-domains.md, Phase B).
 // `params` comes from the DMS manager's own path match (dms-manager), not react-router's useParams.
 export default function TenantOverviewPage({ item = {}, dataItems, params = {} }) {
 	const { baseUrl, authPath, app, user, authPermissions, isMultiTenant, subdomain, tenantSubdomain = subdomain } = React.useContext(AdminContext) || {}
@@ -20,6 +25,7 @@ export default function TenantOverviewPage({ item = {}, dataItems, params = {} }
 	const { state: navState } = useNavigation()
 	const { tenantId } = params
 	const [info, setInfo] = React.useState(null)
+	const [pgEnvs, setPgEnvs] = React.useState(null)
 
 	if (!item.id && dataItems?.length > 0) item = dataItems[0]
 
@@ -64,9 +70,16 @@ export default function TenantOverviewPage({ item = {}, dataItems, params = {} }
 						<p className={t.statValue}>{info ? (info.aliases || []).length + 1 : '–'}</p>
 						<p className={t.statLabel}>domains</p>
 					</div>
+					<div className={t.statItem}>
+						<p className={t.statValue}>{pgEnvs ? (pgEnvs.attached || []).length : '–'}</p>
+						<p className={t.statLabel}>pgEnvs</p>
+					</div>
 				</div>
 			</div>
-			<DomainsCard tenant={tenant.subdomain} onChange={setInfo} />
+			<div className={t.tenantSettingsStack}>
+				<DomainsCard tenant={tenant.subdomain} onChange={setInfo} />
+				<PgEnvsCard tenant={tenant.subdomain} onChange={setPgEnvs} />
+			</div>
 		</div>
 	)
 }

@@ -3,7 +3,7 @@
 /**
  * ATTACH A PGENV TO A SITE — make sure the app has its one `:dmsenv` row for the pgEnv.
  *
- *     node attach-pgenv.js --db <dms config> --app <app> --pg-env <name> [--apply]
+ *     node attach-pgenv.js --db <dms config> --app <app> --pg-env <name> [--site <instance>] [--apply]
  *
  * A site keeps ONE row per pgEnv it uses: `{site}|{name}:dmsenv` with `data.pgEnv`. It carries the
  * site's env-level grants and vocabulary and is what `create-source` is asked of; without it the auth
@@ -11,7 +11,7 @@
  * The pgEnv's sources and views are read from the pgEnv itself and get no rows (dama/pgEnv.js).
  *
  * The row is found, adopted from a `:dmsenv` row of the same name that predates `data.pgEnv`, or
- * created under the site row. Dry run by default. Idempotent.
+ * created under the site row (`--site` names it when the app has several). Dry run by default. Idempotent.
  *
  * Tasks: planning/tasks/current/pgenv-auth-without-mirror-rows.md; the editor-side attach is
  * planning/tasks/current/pgenv-config-on-the-site-row.md.
@@ -22,6 +22,7 @@ function parseArgs() {
     if (a[i] === '--db') o.db = a[++i];
     else if (a[i] === '--app') o.app = a[++i];
     else if (a[i] === '--pg-env') o.pgEnv = a[++i];
+    else if (a[i] === '--site') o.site = a[++i];
     else if (a[i] === '--apply') o.apply = true;
     else { console.error(`Unknown argument: ${a[i]}`); process.exit(1); }
   }
@@ -36,7 +37,7 @@ async function main() {
   getDb(o.db); await awaitReady();
   const { ensureEnvRow } = require('../dama/pgEnv');
   console.log(`\nattach pgEnv — ${o.apply ? 'APPLY' : 'DRY RUN'}\n  db=${o.db}  app=${o.app}  pgEnv=${o.pgEnv}`);
-  const r = await ensureEnvRow({ app: o.app, pgEnv: o.pgEnv, apply: o.apply, log: (l) => console.log(l) });
+  const r = await ensureEnvRow({ app: o.app, pgEnv: o.pgEnv, site: o.site || '', apply: o.apply, log: (l) => console.log(l) });
   console.log(`  env row: ${r.id ? `#${r.id} (already attached)` : r.create ? `${r.create} ${o.apply ? 'created' : 'to create'}` : `#${r.adopt} ${o.apply ? 'adopted' : 'to adopt'}`}`);
   if (!o.apply && !r.id) console.log('\nDRY RUN — nothing was written. Re-run with --apply.');
   process.exit(0);

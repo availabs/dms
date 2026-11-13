@@ -133,6 +133,81 @@ async function run() {
         assert.strictEqual(row.data.pgEnv, DAMA_DB);
     });
 
+    // ---- 1b. the hub's attach (routes/tenants/pgEnvs.js) ---------------------------------------
+    const tenantPgEnvs = require('../src/routes/tenants/pgEnvs');
+    const FRESH = `pgenvauth_fresh_${stamp}`;                       // a tenant nobody attached
+    await insert(FRESH, 'site:site', { site_name: 'z' });
+    AUTH.clearSnapshots();
+    console.log('\nattach: a tenant is attached to a pgEnv by its one env row');
+    await t('a tenant with no env row lists nothing attached, and the server\'s pgEnvs as available', async () => {
+        const d = await tenantPgEnvs.describe(FRESH);
+        assert.deepStrictEqual(d.attached, []);
+        assert.ok(d.available.includes(DAMA_DB));
+    });
+    await t('a pgEnv the server has no config for is refused, and nothing is written', async () => {
+        await assert.rejects(tenantPgEnvs.attach({ app: FRESH, pgEnv: 'no_such_pgenv' }), e => e.status === 400);
+        await assert.rejects(tenantPgEnvs.attach({ app: FRESH, pgEnv: '' }), e => e.status === 400);
+        assert.deepStrictEqual((await tenantPgEnvs.describe(FRESH)).attached, []);
+    });
+    await t('attach creates the env row, and the pgEnv\'s sources are judged for the tenant at once', async () => {
+        assert.match((await can({ sourceId: open }, viewer, 'read', FRESH)).reason, /not attached/);
+        const r = await tenantPgEnvs.attach({ app: FRESH, pgEnv: DAMA_DB, user: editor });
+        assert.strictEqual(r.created, true);
+        const d = await tenantPgEnvs.describe(FRESH);
+        assert.deepStrictEqual(d.attached.map(a => a.pgEnv), [DAMA_DB]);
+        assert.match(d.attached[0].type, /^site\|.+:dmsenv$/);
+        assert.strictEqual((await can({ sourceId: open }, viewer, 'read', FRESH)).allow, true);
+    });
+    await t('attaching again is a no-op', async () => {
+        const r = await tenantPgEnvs.attach({ app: FRESH, pgEnv: DAMA_DB });
+        assert.strictEqual(r.already, true);
+        assert.strictEqual((await tenantPgEnvs.describe(FRESH)).attached.length, 1);
+    });
+    await t('an app with no site row is refused', async () => {
+        await assert.rejects(tenantPgEnvs.attach({ app: `pgenvauth_nosite_${stamp}`, pgEnv: DAMA_DB }), e => e.status === 409);
+    });
+
+    await t('a detach plan names the env row and who holds grants on it, and writes nothing', async () => {
+        const row = (await tenantPgEnvs.describe(FRESH)).attached[0];
+        await controller.setDataById(row.id, { authPermissions: { groups: { EnvReaders: ['view-source'], public: [] }, users: {} } }, null, FRESH, row.type);
+        const plan = await tenantPgEnvs.planDetach({ app: FRESH, pgEnv: DAMA_DB });
+        assert.strictEqual(plan.row.id, row.id);
+        assert.deepStrictEqual(plan.grants, { groups: ['EnvReaders'], users: 0 });
+        assert.strictEqual(plan.blocked, '');
+        assert.strictEqual((await tenantPgEnvs.describe(FRESH)).attached.length, 1);
+        await assert.rejects(tenantPgEnvs.planDetach({ app: FRESH, pgEnv: 'no_such_pgenv' }), e => e.status === 404);
+    });
+    await t('detach is refused while a pattern points at the env row or a source sits under it', async () => {
+        const row = (await tenantPgEnvs.describe(FRESH)).attached[0];
+        const pat = await insert(FRESH, 'site|data:pattern', { name: 'Data', pattern_type: 'datasets', dmsEnvId: row.id });
+        await assert.rejects(tenantPgEnvs.detach({ app: FRESH, pgEnv: DAMA_DB }), e => e.status === 409 && /Data/.test(e.message));
+        await controller.deleteData(FRESH, 'site|data:pattern', [pat], null);
+        const src = await insert(FRESH, `${row.type.split('|')[1].split(':')[0]}|mine:source`, { name: 'mine' });
+        await assert.rejects(tenantPgEnvs.detach({ app: FRESH, pgEnv: DAMA_DB }), e => e.status === 409 && /1 internal source/.test(e.message));
+        await controller.deleteData(FRESH, `${row.type.split('|')[1].split(':')[0]}|mine:source`, [src], null);
+        assert.strictEqual((await tenantPgEnvs.describe(FRESH)).attached.length, 1);
+    });
+    await t('detach deletes the env row and its ref on the site row; the pgEnv\'s sources are refused again; the site row stays', async () => {
+        const row = (await tenantPgEnvs.describe(FRESH)).attached[0];
+        const tbl = require('../src/db/table-resolver').resolveTable(FRESH, '', dms.type, splitMode).fullName;
+        const site = (await dms.query(`SELECT id FROM ${tbl} WHERE app = $1 AND type = 'site:site'`, [FRESH])).rows[0];
+        await controller.setDataById(site.id, { dms_envs: [{ ref: `${FRESH}+dmsenv`, id: row.id }, { ref: `${FRESH}+dmsenv`, id: 999999 }] }, null, FRESH, 'site:site');
+        const srcBefore = (await dama.query(`SELECT count(*) AS n FROM ${srcTbl}`)).rows[0].n;
+        await tenantPgEnvs.detach({ app: FRESH, pgEnv: DAMA_DB, user: editor });
+        assert.deepStrictEqual((await tenantPgEnvs.describe(FRESH)).attached, []);
+        assert.match((await can({ sourceId: open }, viewer, 'read', FRESH)).reason, /not attached/);
+        const after = (await dms.query(`SELECT type, data FROM ${tbl} WHERE app = $1`, [FRESH])).rows;
+        assert.deepStrictEqual(after.map(r => r.type), ['site:site']);
+        const d = typeof after[0].data === 'string' ? JSON.parse(after[0].data) : after[0].data;
+        assert.deepStrictEqual(d.dms_envs.map(e => +e.id), [999999]);
+        assert.strictEqual((await dama.query(`SELECT count(*) AS n FROM ${srcTbl}`)).rows[0].n, srcBefore, 'the pgEnv is not touched');
+        await assert.rejects(tenantPgEnvs.detach({ app: FRESH, pgEnv: DAMA_DB }), e => e.status === 404);
+    });
+    await t('a detached pgEnv can be attached again', async () => {
+        assert.strictEqual((await tenantPgEnvs.attach({ app: FRESH, pgEnv: DAMA_DB })).created, true);
+        assert.strictEqual((await can({ sourceId: open }, viewer, 'read', FRESH)).allow, true);
+    });
+
     // ---- 2. retiring the mirror --------------------------------------------------------------
     console.log('\nretire-pgenv-mirror.js');
     const R = `pgenvretire_${stamp}`;
