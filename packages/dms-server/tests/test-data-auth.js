@@ -471,6 +471,19 @@ async function run() {
         assert((await dataOf(docsPage2)).data, 'refused delete left the page');
         await allowed(call(editor, ['dms', 'data', 'delete'], [APP, 'docs|page', docsPage2]));
     }));
+    // safe-delete-removes-rows.md, F3: the client sends a page and its descendant pages in ONE delete; a
+    // descendant this user may not delete refuses the whole call, and nothing is deleted
+    await t('a page-subtree delete is all or nothing: one refused child page refuses it', () => withMode('enforce', async () => {
+        const root = await insert('docs|page', { title: 'Root' });
+        const child = await insert('docs|page', { title: 'Child', parent: String(root) });
+        const locked = await insert('docs|page', { title: 'Locked', parent: String(child) });
+        await withMode('log', () => edit(admin, locked, { authPermissions: { groups: { Editors: [] } } }));
+        await refused(call(editor, ['dms', 'data', 'delete'], [APP, 'docs|page', root, child, locked]));
+        for (const id of [root, child, locked]) assert((await dataOf(id)).data, `refused subtree delete left page ${id}`);
+        await withMode('log', () => edit(admin, locked, { authPermissions: null }));
+        await allowed(call(editor, ['dms', 'data', 'delete'], [APP, 'docs|page', root, child, locked]));
+        for (const id of [root, child, locked]) assert(!(await dataOf(id)).data, `subtree delete removed page ${id}`);
+    }));
     await t('${app} Admin passes everything', () => withMode('enforce', async () => {
         // the same grants written back plus one (SQLite merges nested objects, Postgres replaces them:
         // an empty `groups` would leave the pattern without grants on Postgres only)

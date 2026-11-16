@@ -463,6 +463,20 @@ export async function dmsDataEditor (falcor, config, data={}, requestType, /*pat
 			return { response: 'Item created.', id: newId };
 		}
 
+		// A delete that takes other rows of the same type with it (`delete_with`: a page's descendant pages,
+		// listed by the caller, who showed them in its warning; `[]` for none, which still asks for this
+		// server-judged path instead of sync's optimistic local delete). ONE `dms.data.delete` call: the server judges
+		// every id before deleting any, and deletes them in one transaction, so a single refused row refuses
+		// the whole delete and nothing is left half done. Never through sync, whose deletes go one row at a
+		// time and are judged only after the local copy is gone; a synced tab drops the rows when the
+		// server's `D` changes arrive (safe-delete-removes-rows.md, F3).
+		if (requestType === 'delete' && id && Array.isArray(row.delete_with)) {
+			const ids = [...new Set([id, ...row.delete_with].filter(i => i !== undefined && i !== null && i !== '').map(String))];
+			await falcor.call(["dms", "data", "delete"], [app, type, ...ids]);
+			await falcor.invalidate(['dms', 'data', `${ app }+${ type }`, 'length' ]);
+			return { response: `Deleted ${ids.length} items`, ids };
+		}
+
 		const attributeKeys = Object.keys(row)
 			.filter(k => !['id', 'updated_at', 'created_at'].includes(k))
 

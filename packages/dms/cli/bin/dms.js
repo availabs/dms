@@ -336,8 +336,9 @@ pageCmd
 
 pageCmd
   .command('delete <id-or-slug>')
-  .description('Delete a page')
+  .description('Delete a page and its child pages (recursively). Prints the plan unless --yes')
   .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
+  .option('--yes', 'Apply the delete; without it, only the list of pages that would go is printed')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);

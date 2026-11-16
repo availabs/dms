@@ -132,8 +132,11 @@ dms page update <id-or-slug> --data -    # read from stdin
 dms page publish <id-or-slug>
 dms page unpublish <id-or-slug>
 
-# Delete a page
+# Delete a page and its child pages (recursively). Without --yes it only prints
+# every page that would go, with its section count; --yes deletes them all in one call
+# (all or nothing: one page you may not delete refuses the whole delete)
 dms page delete <id-or-slug>
+dms page delete <id-or-slug> --yes
 
 # Check / repair a page's live-edit room against its draft_sections
 dms page sync-room <id-or-slug> --check   # report only; exits 1 if "stale"

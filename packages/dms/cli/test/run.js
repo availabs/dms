@@ -149,7 +149,7 @@ async function run() {
     const unpubResult = runCli(`page unpublish ${testPageId}`);
     assertIncludes(unpubResult.json.message, 'unpublished', 'unpublish message');
 
-    const delResult = runCli(`page delete ${testPageId}`);
+    const delResult = runCli(`page delete ${testPageId} --yes`);
     assertIncludes(delResult.json.message, 'deleted', 'delete message');
     pass();
   });

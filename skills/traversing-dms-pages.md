@@ -273,6 +273,13 @@ Found 2026-10-22 (permissions live pass, `scratchpad/verify/authcheck/flow-pagee
   It enables when `published === 'draft'` or `has_changes` is set.
 - `+ page` (Pages pane) opens the template picker: cards are `div`s (click the card text, e.g. "Blank…") and the
   confirm is a **span** "Create Page", not a button.
+- Page delete (2026-11-16, `scratchpad/verify/safedel/pane*.mjs` / `admin.mjs`): in the v6 Pages pane, a row is the
+  parent of `a:text-is("<title>")`; hover it, click its last `span` (the ⋯ menu), then the last exact-text `Delete`.
+  The confirm is `[role=dialog]` with a `Delete` button (disabled when a listed page is blocked). In the admin
+  Pages tab (`/list/manage_pattern/<patternId>/pages`) rows are NOT `tr`s: take the text node's nearest ancestor
+  holding `button[aria-label="More actions"]`. Both send ONE `dms.data.delete` `/graph` call with every id.
+  On a rig without the `test_dama` container (:5499) every revalidation logs an unhandled rejection
+  `Array(2)` (`uda … sources length` ECONNREFUSED): environmental, not the delete.
 - With sync on, the editor's writes go through `POST /sync/push` (`{action, item: {app, type, id, data}}`, `data`
   a JSON **string**), not `/graph` calls; capture both. Publish sends a `|page-edit` history create, component
   creates, then the page update.

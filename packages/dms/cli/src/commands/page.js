@@ -15,6 +15,7 @@ import {
 } from '../utils/data.js';
 import { pageTypeFor, componentTypeFor, patternInstance } from '../utils/types.js';
 import { pathToFileURL } from 'url';
+import { descendantsOf } from '../../../src/utils/descendants.js';
 import { loadDatasetRows } from '../../../src/api/datasetRows.js';
 import { output, outputError } from '../utils/output.js';
 import { afterDraftSectionsWrite, syncPageRoom } from '../utils/room-sync.js';
@@ -394,7 +395,10 @@ export async function unpublish(idOrSlug, config, options = {}) {
 }
 
 /**
- * Delete a page.
+ * Delete a page and its child pages, recursively (safe-delete-removes-rows.md, F3), as the editor's Pages pane
+ * and the admin Pages tab do. Without `--yes` it only prints the plan: every page that would go, with its
+ * section count. With `--yes` the page and its descendants go in ONE `dms.data.delete`, which the server
+ * judges row by row and applies all or nothing.
  */
 export async function remove(idOrSlug, config, options = {}) {
   try {
@@ -404,9 +408,30 @@ export async function remove(idOrSlug, config, options = {}) {
     const pageAppType = `${config.app}+${pageType}`;
 
     const id = await resolveIdOrSlug(falcor, pageAppType, idOrSlug);
-    await falcor.call(['dms', 'data', 'delete'], [config.app, pageType, id]);
+    const { items } = await fetchAll(falcor, pageAppType, ['id', 'data'], { limit: 1000000 });
+    const pages = items.map((p) => ({ ...parseData(p.data), id: p.id }));
+    const root = pages.find((p) => String(p.id) === String(id)) || { id };
+    const sectionCount = (p) => new Set([...(Array.isArray(p.draft_sections) ? p.draft_sections : []),
+      ...(Array.isArray(p.sections) ? p.sections : [])].map((r) => String(r?.id ?? r))).size;
+    const plan = [{ row: root, depth: 0 }, ...descendantsOf(id, pages, 'parent')].map(({ row, depth }) => ({
+      id: row.id, title: row.title || '(untitled)', depth, sections: sectionCount(row),
+    }));
 
-    output({ id, message: 'Page deleted' }, options);
+    if (!options.yes) {
+      output({
+        id,
+        willDelete: plan,
+        message: `Dry run: ${plan.length} page${plan.length === 1 ? '' : 's'} would be deleted`
+          + `${plan.length > 1 ? ` (this page and ${plan.length - 1} descendant${plan.length === 2 ? '' : 's'})` : ''}.`
+          + ' Re-run with --yes to delete.',
+      }, options);
+      return;
+    }
+
+    const ids = plan.map((p) => p.id);
+    await falcor.call(['dms', 'data', 'delete'], [config.app, pageType, ...ids]);
+
+    output({ id, deleted: plan, message: ids.length === 1 ? 'Page deleted' : `${ids.length} pages deleted (the page and its descendants)` }, options);
   } catch (error) {
     outputError(error);
   }

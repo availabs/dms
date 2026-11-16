@@ -192,7 +192,8 @@ Without `--page`, the section is deleted but the page still has a dangling refer
 ### Delete a page
 
 ```bash
-dms page delete getting-started
+dms page delete getting-started         # prints the page and its child pages that would go
+dms page delete getting-started --yes   # deletes them
 ```
 
 ## Datasets
