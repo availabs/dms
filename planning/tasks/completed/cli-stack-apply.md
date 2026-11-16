@@ -1,18 +1,20 @@
 # `dms stack apply`: write a preview stack's changes to production, as drafts
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) (primary) · **Status:** built · **Release:** commit — the CLI runs from the checkout, so no deploy · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) (primary) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Project:** dms library (CLI) · **Started:** 2026-11-16 · Design and decisions:
 [stack-content-promotion.md](../../../../../planning/shared/tasks/current/stack-content-promotion.md), section 2.
 The first half is [cli-stack-diff.md](./cli-stack-diff.md).
 
-## Start here (2026-11-16)
+## Summary (done 2026-11-16)
 
-- **Built, tested on two local SQLite servers (CLI suite 37/37), and run once on a real stack** (qa_test, preview1,
-  2026-11-16: Progress).
-- **Done on the first run:** the owner published; the runbook's content-fix section is rewritten around `apply`.
-- **Left:** commit. One thing not yet seen on Postgres: a removed key written as `null`.
-- Nothing is committed. No server code changed, and no new routes.
+- **Built, tested and used once for real.** CLI suite 37/37 on two local SQLite servers. First real run: qa_test,
+  preview1 to production, 3 draft writes on AlphaPage › NEW PAGE 2, published by the owner (Progress).
+- **Committed by the owner, 2026-11-16.** The CLI runs from the checkout, so there's no deploy.
+- **How to use it:** the CLI's `docs/README.md` "Stack", and the agent runbook
+  (`dms-template/src/patterns/qa/skills/agent-ticket-run.md`, "Content fixes").
+- **One thing not yet seen on Postgres:** a key removed in the stack, which `apply` writes as `null`. It passes on
+  SQLite. Watch for it on the first promotion that removes a key.
 
 ## Objective
 

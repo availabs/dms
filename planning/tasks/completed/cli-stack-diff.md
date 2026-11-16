@@ -1,15 +1,16 @@
 # `dms stack diff`: what a preview stack changed, and whether production changed since the copy
 
-**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) (primary) · **Status:** built · **Release:** deploy — a `git pull` on mercury, so stacks serve `/_stack.json` (the CLI needs nothing more) · **Created by:** rdubowsky@albany.edu · **Edited by:** —
+**Initiatives:** [plat_qa_automation](../../../../../planning/initiatives/plat_qa_automation.md) (primary) · **Status:** done · **Created by:** rdubowsky@albany.edu · **Edited by:** —
 
 **Project:** dms library (CLI) · **Started:** 2026-11-12 · Design and decisions:
 [stack-content-promotion.md](../../../../../planning/shared/tasks/current/stack-content-promotion.md), section 2.
 
-## Start here (2026-11-12)
+## Summary (done 2026-11-16)
 
-- **Building (owner's go, 2026-11-12).** His answers to the picks are under "Picks (answered)".
-- The four "Checks before building" in the promotion doc have been run: results below.
-- Read only on both sides. This is the first half of promotion; `dms stack apply` comes after.
+- **Built 2026-11-12, in use since.** It was the conflict check for ticket #107's promotion, and it is the input of
+  [`dms stack apply`](./cli-stack-apply.md).
+- Read only on both sides. Design and decisions: the promotion doc, section 2. The owner's picks are under
+  "Picks (answered)".
 
 ## Objective
 
@@ -133,9 +134,8 @@ That answers "has production changed?" before a CLI script runs in production. I
 - [x] **Docs:** the CLI's `docs/README.md` "Stack"; its `CLAUDE.md` file map; dms-template `deploy/README.md`.
 - [x] **Live check on preview3** (read only, production through the local server, `--since 2026-11-09T23:50:03Z`):
   1 row, `CHANGE page 2511590 Home — draft: draft_section_groups` (ticket #106's test groups), no conflict, exit 0.
-- [ ] **On mercury:** `git pull`, so the next `--preview` and tonight's 02:00 warm-up write `snapshots`, `seed.json` and
-  `/_stack.json`. Then check that a `--reseed` of a stack serves `/_stack.json` with "the content backup's archive
-  header" as its source.
+- [x] **On mercury** (seen 2026-11-13 and 2026-11-16): a reseeded preview1 serves `/_stack.json` on its `www.` host,
+  with "the content backup's archive header" as the copy time's source.
 
 ## Files
 
@@ -151,19 +151,10 @@ No server code, no new routes (owner, 2026-11-09).
 
 ## Testing checklist
 
-- [ ] **CLI integration test** (SQLite):
-  - seed;
-  - copy the database file and start a second server on it as the "stack";
-  - in the stack: edit one page's draft, create a section, delete a section;
-  - in "production", after the copy: edit a different page, and also the page the stack edited;
-  - then `stack diff --since <copy time>` reports new, change, delete and one conflict, and exits 3.
-- [ ] **No conflicts:** the same without the production edit to that page exits 0.
-- [ ] **Live, read only:** `dms stack diff --stack https://preview3.weatherenterprise.com` with production read
-      through the local server.
-  - Expect page 2511590 as a **change**.
-  - It's a conflict only if someone edited the County Template home in production after 2026-11-10 00:05 UTC. That's
-    the real check working.
-- [ ] `stacks.mjs` writes `_stack.json` on the next `--preview`, and it is served at `https://www.previewN.<domain>/_stack.json`.
+- [x] **CLI integration test** (SQLite, two servers): new, change, delete and one conflict, exit 3. Phase 5.
+- [x] **No conflicts:** the same before the production edit exits 0. Phase 5.
+- [x] **Live, read only:** preview3 (2026-11-12), then preview1 for #107 and for the first `apply` run.
+- [x] `stacks.mjs` writes `_stack.json`, served at `https://www.previewN.<domain>/_stack.json` (preview1, 2026-11-16).
 
 ## Picks (answered by the owner, 2026-11-12)
 
