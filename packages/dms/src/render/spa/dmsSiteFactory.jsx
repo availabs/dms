@@ -23,6 +23,24 @@ if (typeof window !== 'undefined' && !window.__dmsSSRData) applySavedColorScheme
 
 // Stable reference for the default empty routes array — avoids re-creating the
 // router on every DmsSite render when no extra routes are passed as a prop.
+// The master site's dmsConfig with every app reference swapped to a tenant's app. Used by the
+// tenant load below, and by DmsSite's first render on a tenant host (which otherwise builds its
+// routes for the MASTER app until that load lands).
+function tenantScopedConfig(dmsConfig, tenantApp) {
+    const tenantDmsConfig = cloneDeep(dmsConfig);
+    tenantDmsConfig.app = tenantApp;
+    tenantDmsConfig.format = { ...tenantDmsConfig.format, app: tenantApp };
+    if (Array.isArray(tenantDmsConfig.format.registerFormats)) {
+        tenantDmsConfig.format.registerFormats.forEach(rf => { rf.app = tenantApp; });
+    }
+    if (Array.isArray(tenantDmsConfig.format.attributes)) {
+        tenantDmsConfig.format.attributes.forEach(attr => {
+            if (attr.format) attr.format = `${tenantApp}+${attr.format.split('+')[1]}`;
+        });
+    }
+    return tenantDmsConfig;
+}
+
 const EMPTY_ROUTES = [];
 
 const DMS_SYNC_ENABLED = typeof import.meta !== 'undefined'
@@ -65,14 +83,23 @@ export function DmsSite (config) {
     let CurrentProjectName = onAliasHost ? (aliasProject || dmsConfig.app)
         : tenantSubdomain || (PROJECT_NAME ? PROJECT_NAME : dmsConfig.app)
 
-    const routeProps = {
-        dmsConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
-        authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
-        damaDataTypes, host, isMultiTenant
-    }
     // In multi-tenant+subdomain mode the master-app cache belongs to a different
     // site; skip it to avoid briefly rendering the platform admin routes.
     const isTenantSubdomain = isMultiTenant && (onAliasHost || Boolean(getTenantSubdomain(host)));
+    // The routes of the first render are built from `defaultData` (the server's render of THIS
+    // host), so on a tenant host they must carry the tenant's app, as the load below gives them.
+    // With the master's, the admin judged `<app> Admin` against the hub's name until that load
+    // landed, and sent a tenant admin whose site row grants nothing by group away from /list.
+    const firstRenderApp = isTenantSubdomain ? defaultData?.[0]?.app : null;
+    const firstRenderConfig = React.useMemo(
+        () => (firstRenderApp && firstRenderApp !== dmsConfig.app ? tenantScopedConfig(dmsConfig, firstRenderApp) : dmsConfig),
+        [dmsConfig, firstRenderApp]
+    );
+    const routeProps = {
+        dmsConfig: firstRenderConfig, adminPath, authPath, themes, falcor, API_HOST, DAMA_HOST,
+        authWrapper, pgEnvs, damaBaseUrl, PROJECT_NAME: CurrentProjectName,
+        damaDataTypes, host, isMultiTenant
+    }
     const localStorePatterns = isTenantSubdomain
         ? null
         : parseIfJSON(localStorage.getItem(dmsConfig.app+'-'+dmsConfig.type), null)
@@ -128,7 +155,7 @@ export function DmsSite (config) {
         if (!cached?.length) return;
         let isStale = false;
         (async () => {
-            const resolvedThemes = await resolveThemes(themes, cached, { falcor, app: dmsConfig?.app });
+            const resolvedThemes = await resolveThemes(themes, cached, { falcor, app: firstRenderConfig?.app });
             if (isStale || routesFinalizedRef.current) return;
             // `themes` (still the raw lazy loader here) doubles as adminThemesLoader
             // so the admin pattern-theme-picker (themeEditor.jsx) can fetch the full
@@ -155,6 +182,8 @@ export function DmsSite (config) {
             let fetchedSiteData = null;
             const routes = await dmsSiteFactory({
                 ...routeProps,
+                // the MASTER config: the load finds the tenant from the master site's rows
+                dmsConfig,
                 onResolvedSiteData: (resolvedApp, resolvedType, resolvedData) => {
                     fetchedSiteData = resolvedData;
                     routeProps.onResolvedSiteData?.(resolvedApp, resolvedType, resolvedData);
@@ -474,17 +503,7 @@ export default async function dmsSiteFactory(config) {
 
     // Step 3 — build a tenant-scoped config: swap every app reference to tenant.app
     const tenantApp = matchedTenant.app;
-    const tenantDmsConfig = cloneDeep(dmsConfig);
-    tenantDmsConfig.app = tenantApp;
-    tenantDmsConfig.format = { ...tenantDmsConfig.format, app: tenantApp };
-    if (Array.isArray(tenantDmsConfig.format.registerFormats)) {
-        tenantDmsConfig.format.registerFormats.forEach(rf => { rf.app = tenantApp; });
-    }
-    if (Array.isArray(tenantDmsConfig.format.attributes)) {
-        tenantDmsConfig.format.attributes.forEach(attr => {
-            if (attr.format) attr.format = `${tenantApp}+${attr.format.split('+')[1]}`;
-        });
-    }
+    const tenantDmsConfig = tenantScopedConfig(dmsConfig, tenantApp);
 
     let tenantDmsConfigUpdated = cloneDeep(tenantDmsConfig);
     tenantDmsConfigUpdated.registerFormats = updateRegisteredFormats(tenantDmsConfigUpdated.registerFormats, tenantApp, siteInstance)
