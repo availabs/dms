@@ -3,10 +3,11 @@ import { htmlConfig } from './htmlConfig';
 import PlaygroundNodes from './nodes/PlaygroundNodes';
 import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '../theme';
 
-export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
-  const resolvedFlatTheme = flatTheme || defaultLexicalTheme.styles[0];
-  const nestedLexicalTheme = buildLexicalInternalTheme(resolvedFlatTheme);
-  if (icons) {
+// nestedTheme: an already-built nested theme (the live editor's, with brandTextStyles and
+// Icons), used as is. html: an export config other than the default (viewHtmlConfig.js).
+export const createHeadlessEditor = ({ namespace, flatTheme, icons, nestedTheme, html }) => {
+  const nestedLexicalTheme = nestedTheme || buildLexicalInternalTheme(flatTheme || defaultLexicalTheme.styles[0]);
+  if (icons && !nestedTheme) {
     nestedLexicalTheme.Icons = icons;
   }
   return _createHeadlessEditor({
@@ -16,6 +17,6 @@ export const createHeadlessEditor = ({ namespace, flatTheme, icons }) => {
     onError: e => {
       console.error(e);
     },
-    html: htmlConfig,
+    html: html || htmlConfig,
   });
 };

@@ -41,7 +41,7 @@ import { usePageActionsContext } from "../context/usePageActionsContext";
  * legacy name so the migration path is discoverable in devtools.
  */
 const _warnedLegacyStyles = typeof Set !== 'undefined' ? new Set<string>() : null;
-function resolveButtonStyleName(
+export function resolveButtonStyleName(
   themeButton: { styles?: Array<{ name?: string }> } | undefined,
   storedStyle: string | undefined,
 ): string {

@@ -1,5 +1,6 @@
 import { $generateHtmlFromNodes } from '@lexical/html';
 import { createHeadlessEditor } from './editor/createHeadlessEditor';
+import { buildViewHtmlConfig } from './editor/viewHtmlConfig';
 
 // Check if we're in a browser environment
 const isBrowser = typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -85,11 +86,25 @@ function setupDomForSSR() {
   };
 }
 
-export function getHtmlSync(serializedEditorState: string, flatTheme?: object, icons?: object): string {
+/**
+ * opts.nestedTheme: the live editor's nested theme, so the HTML carries the same classes.
+ * opts.dmsTheme: the full DMS theme; exports decorators (buttons) styled as the live view
+ * renders them (viewHtmlConfig.js) instead of the plain round-trip markup.
+ */
+export function getHtmlSync(
+  serializedEditorState: string,
+  flatTheme?: object,
+  icons?: object,
+  opts: { nestedTheme?: object; dmsTheme?: object } = {},
+): string {
   if (!serializedEditorState) return '';
 
   try {
-    const editor = createHeadlessEditor({ namespace: 'html-renderer', flatTheme, icons });
+    const editor = createHeadlessEditor({
+      namespace: 'html-renderer', flatTheme, icons,
+      nestedTheme: opts.nestedTheme,
+      html: opts.dmsTheme ? buildViewHtmlConfig(opts.dmsTheme) : undefined,
+    });
     const editorState = editor.parseEditorState(serializedEditorState);
     editor.setEditorState(editorState);
 
