@@ -181,8 +181,9 @@ dms section update <section-id> --set element-type=Card
 dms section delete <section-id> [--page <page-id-or-slug>]
 ```
 
-**Always pass `--pattern <name>` explicitly on a multi-pattern site.** Without it, `section
-create`/`update`/`delete` resolve the page's pattern via `findPatternByKind(..., 'page')`, which
+**Always pass `--pattern <name>` explicitly on a multi-pattern site** to `section list`/`create`/`delete`.
+(`section update` writes by section id, so it has no `--pattern` option and refuses one.) Without it,
+`section list`/`create`/`delete` resolve the page's pattern via `findPatternByKind(..., 'page')`, which
 silently picks WHATEVER page-kind pattern comes first for the app — not necessarily the one the
 page id/slug you gave actually belongs to. On a site with several page patterns (dev/sandbox
 patterns included), this can create/attach a section under the wrong pattern's type string (e.g.
