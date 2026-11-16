@@ -5,6 +5,7 @@ import {createRequest, getIdPath} from './createRequest.js'
 import processNewData from "./proecessNewData.js";
 import updateDMSAttrs from "./updateDMSAttrs.js";
 import { isSplitType } from "../utils/type-utils.js";
+import { authedFetch } from "../utils/authedFetch.js";
 // import * as DmsManagerUtils from '../dms-manager/_utils.js'
 // const { getActiveConfig } = DmsManagerUtils
 //console.log('hola')
@@ -950,3 +951,41 @@ const api = {
 }
 
 export default api
+
+/**
+ * Deleting a pattern or a theme with what it owns (dms-server routes/dms/ownerDeleteHttp.js;
+ * safe-delete-removes-rows.md F4 / F5). `kind` is 'patterns' or 'themes'.
+ *
+ * dmsOwnerDeletePlan: the read-only plan (what goes, what is kept, what blocks it). Throws with the
+ * server's message; a server without the route answers 404 and the caller shows "can't preview".
+ */
+export async function dmsOwnerDeletePlan({ API_HOST = '', user, app, kind, id }) {
+	const res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/${kind}/${encodeURIComponent(id)}/delete/plan`,
+		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+	const body = await res.json().catch(() => ({}));
+	if (res.status === 404 && !body.error) throw new Error("This server can't preview this delete (it has no delete plan route yet). Nothing was deleted.");
+	if (!res.ok) throw new Error(body.error || `Can't preview this delete (${res.status})`);
+	return body;
+}
+
+/**
+ * Apply it: the server backs up, re-checks the plan's `expect` inside its transaction and refuses when it
+ * changed. `rows` (`{ id, type }`: the deleted row and the site rows that listed it) leave Falcor's cache, by id
+ * and by their type's lists, as an edit's do.
+ */
+export async function dmsOwnerDelete(falcor, { API_HOST = '', user, app, kind, id, expect = {}, rows = [] }) {
+	const res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/${kind}/${encodeURIComponent(id)}/delete`,
+		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expect }) });
+	const body = await res.json().catch(() => ({}));
+	if (!res.ok) throw new Error(body.error || `Delete failed (${res.status})`);
+	if (falcor) {
+		for (const r of rows) {
+			await falcor.invalidate(['dms', 'data', app, 'byId', String(r.id)]);
+			await falcor.invalidate(['dms', 'data', 'byId', String(r.id)]);
+		}
+		for (const type of new Set(rows.map(r => r.type).filter(Boolean))) {
+			await falcor.invalidate(['dms', 'data', `${app}+${type}`]);
+		}
+	}
+	return body;
+}

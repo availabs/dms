@@ -10,6 +10,7 @@ import { AddPatternPicker } from './AddPatternPicker'
 import { getPatternType, stampPatternRow } from '../../registry'
 import { authedFetch } from '../../../utils/authedFetch'
 import { newPatternSubdomain } from '../../../utils/hostResolver';
+import { OwnerDeleteDialog } from './ownerDeleteDialog';
 
 const parseIfJSON = strValue => {
     if (typeof strValue !== 'string' && Array.isArray(strValue)) return strValue;
@@ -191,6 +192,7 @@ function PatternEdit({
 	const [search, setSearch] = useState('');
 	const [addingNew, setAddingNew] = useState(false);
 	const [editingItem, setEditingItem] = useState(undefined);
+	const [deletingItem, setDeletingItem] = useState(undefined);
 	const [isDuplicating, setIsDuplicating] = useState(false);
 	const [duplicateProgress, setDuplicateProgress] = useState(0);
 	const siteInstance = getInstance(siteType) || siteType;
@@ -461,18 +463,25 @@ function PatternEdit({
 							<Button
 								activeStyle='smallDanger'
 								type={'plain'}
-								title={'remove item'}
+								title={'delete pattern'}
 								onClick={() => {
-									const newData = value.filter((v, i) => v.id !== editingItem.id);
-									onChange(newData)
-									onSubmit(newData)
+									setDeletingItem(editingItem)
 									setEditingItem(undefined)
 								}}
-							> remove
+							> delete
 							</Button>
 						</div>
 					</div>
 				</Modal>
+				{/* deleting a pattern deletes what it owns, from the server's plan (safe-delete-removes-rows.md F4) */}
+				{deletingItem && (
+					<OwnerDeleteDialog
+						kind="patterns"
+						row={deletingItem}
+						onClose={() => setDeletingItem(undefined)}
+						onDeleted={(r) => onChange(value.filter(v => v.id !== r.id))}
+					/>
+				)}
 			</div>
 	)
 }

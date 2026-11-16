@@ -796,9 +796,21 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     return kind === 'source' || kind === 'view';
   }
 
+  // Deleting a pattern or a theme with what it owns (ownerDelete.js; safe-delete-removes-rows.md F4 / F5)
+  const ownerDelete = require('./ownerDelete').createOwnerDelete({
+    dms_db, dbType, splitMode, mainTable, appendChangeLog, removeIdFromRefArrays, cascadeSourceDelete, escapeLike, resolveTable,
+    afterDelete: () => { _tagsCache.clear(); _changeHistoryCache.clear(); _childRefsCache.clear(); },
+  });
+
   return {
     // Expose for testing/inspection
     dbType,
+
+    planPatternDelete: ownerDelete.planPatternDelete,
+    deletePattern: ownerDelete.deletePattern,
+    planThemeDelete: ownerDelete.planThemeDelete,
+    deleteTheme: ownerDelete.deleteTheme,
+    rowForDelete: ownerDelete.rowById,
     dbName,
     splitMode,
 

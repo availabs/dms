@@ -11,8 +11,9 @@ import {deleteModalTheme} from "./DeleteModal.theme";
 // `items`: everything the delete takes with it, `[{ id, label, detail?, blocked?, reason? }]`, listed under the
 // prompt with `itemsTitle` above. Any `blocked` item disables Delete; `blockedNote` (or a default naming the
 // blocked items) says why. `onDelete` may return a promise: Delete shows "Deleting..." until it settles, and a
-// rejection is shown in the dialog instead of being lost (safe-delete-removes-rows.md, F3).
-export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, activeStyle, modalStyle, items, itemsTitle, blockedNote})  {
+// rejection is shown in the dialog instead of being lost (safe-delete-removes-rows.md, F3). `notes`: lines under the
+// list (e.g. what is kept); `disabled` holds Delete (a plan still loading); `error` shows a caller's error (a failed plan).
+export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, activeStyle, modalStyle, items, itemsTitle, blockedNote, disabled, notes, error: errorProp})  {
     const cancelButtonRef = useRef(null)
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState(null)
@@ -69,7 +70,8 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, a
                             {blockedNote || `Can't delete: ${blocked.map(i => i.label).join(', ')} ${blocked.length > 1 ? 'are' : 'is'} blocking it.`}
                         </p>
                     ) : null}
-                    {error ? <p className={t.error}>{error}</p> : null}
+                    {(notes || []).filter(Boolean).map((n, i) => <p key={i} className={t.note}>{n}</p>)}
+                    {error || errorProp ? <p className={t.error}>{error || errorProp}</p> : null}
                 </div>
             </div>
             <div className={t.actions}>
@@ -82,7 +84,7 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, a
                 </Button>
                 <Button
                     activeStyle={t.deleteButtonStyle}
-                    disabled={loading || blocked.length > 0}
+                    disabled={loading || disabled || blocked.length > 0}
                     onClick={runDelete}
                 >
                     Delet{loading ? 'ing...' : 'e'}

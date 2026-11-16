@@ -380,6 +380,9 @@ export function DeleteTenantModal({ tenant, onClose, onDeleted }) {
 					<ul className={t.deletePlanList}>
 						<li className={t.deletePlanItem}>its site and data{plan.schema ? `: schema ${plan.schema}, ${plan.tables} tables` : ' (no schema found)'}</li>
 						<li className={t.deletePlanItem}>its domain aliases and its row on this hub</li>
+						{plan.files > 0 && (
+							<li className={t.deletePlanItem}>{plan.files} uploaded file{plan.files === 1 ? '' : 's'} (copied into the backup, then removed from storage)</li>
+						)}
 						<li className={t.deletePlanItem}>
 							login project {plan.tenant.app}{plan.auth.groups.length ? `, groups ${plan.auth.groups.join(', ')}` : ''}
 							{plan.auth.memberships ? ` (${plan.auth.memberships} memberships; the user accounts stay)` : ''}

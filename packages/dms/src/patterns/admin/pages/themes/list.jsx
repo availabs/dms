@@ -6,6 +6,7 @@ import { cloneDeep } from 'lodash-es';
 import { nameToSlug } from '../../../../utils/type-utils';
 import { themeListTheme } from './list.theme';
 import { siteCan, MANAGE_THEMES } from '../../../../utils/adminPermissions';
+import { OwnerDeleteDialog } from '../../components/ownerDeleteDialog';
 
 function ThemeList ({
    item={},
@@ -25,6 +26,7 @@ function ThemeList ({
 	const [addingNew, setAddingNew] = useState(false);
 	const [newItem, setNewItem] = useState({});
 	const [editingItem, setEditingItem] = useState();
+	const [deletingTheme, setDeletingTheme] = useState();
 	const [search, setSearch] = useState('');
 	const gridRef = useRef(null);
 	const {Modal, Input, Button, Table, Icon} = UI;
@@ -207,17 +209,28 @@ function ThemeList ({
 						<Button
 							activeStyle='smallDanger'
 							type={'plain'}
-							title={'remove item'}
+							title={'delete theme'}
 							onClick={() => {
-								const newData = item.theme_refs.filter((v, i) => v.theme_id !== editingItem.theme_id);
-								onSubmit(newData)
+								// a saved theme row is deleted on the server, refused while a pattern uses it
+								// (safe-delete-removes-rows.md F5); one never saved (no id) only leaves the list
+								if (editingItem?.id) {
+									setDeletingTheme(editingItem)
+								} else {
+									const newData = item.theme_refs.filter((v, i) => v.theme_id !== editingItem.theme_id);
+									onSubmit(newData)
+								}
 								setEditingItem(undefined)
 							}}
-						> remove
+						> delete
 						</Button>
 					</div>
 				</div>
 			</Modal>
+			{deletingTheme && (
+				<OwnerDeleteDialog kind="themes" row={deletingTheme} onClose={() => setDeletingTheme(undefined)}
+					// the server removed the ref; this page keeps its own copy of the site row, so drop it here too (no save)
+					onDeleted={(r) => updateAttribute?.('theme_refs', (item.theme_refs || []).filter(v => String(v.id) !== String(r.id)))} />
+			)}
 			{/* Debug: <pre>{JSON.stringify(item.theme_refs, null, 3)}</pre> */}
 		</div>
 	)

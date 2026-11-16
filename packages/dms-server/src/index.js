@@ -155,6 +155,10 @@ require('./routes/domains').registerDomainRoutes(app);
 // Deleting a tenant of the hub, with a backup first (routes/tenants; tenant-subdomain-uniqueness.md)
 require('./routes/tenants').registerTenantRoutes(app);
 
+// Deleting a pattern or a theme with what it owns, plan first, backup first (routes/dms/ownerDeleteHttp.js;
+// safe-delete-removes-rows.md)
+require('./routes/dms/ownerDeleteHttp').registerOwnerDeleteRoutes(app);
+
 // Upload routes — DAMA-compatible file upload endpoints (after JWT so uploads are authenticated)
 registerUploadRoutes(app);
 

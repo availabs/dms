@@ -29,10 +29,11 @@ export const deleteModalTheme = {
       list: 'mt-1 max-h-56 overflow-y-auto rounded border border-[var(--t-rule)] bg-[var(--t-well)] divide-y divide-[var(--t-rule)]',
       listItem: 'flex items-baseline justify-between gap-3 px-2.5 py-1.5 t-proseSM text-[var(--t-ink)]',
       listItemBlocked: 'flex items-baseline justify-between gap-3 px-2.5 py-1.5 t-proseSM text-[var(--t-brick)] bg-[var(--t-brick-soft)]',
-      listItemLabel: 'min-w-0 truncate',
+      listItemLabel: 'min-w-0 break-words',
       listItemDetail: 'flex-none t-metaSM text-[var(--t-graphite)]',
       listItemReason: 'flex-none t-metaSM',
       blockedNote: 'mt-3 t-proseSM text-[var(--t-brick)]',
+      note: 'mt-2 t-proseSM text-[var(--t-graphite)]',
       error: 'mt-3 t-proseSM text-[var(--t-brick)]',
     }
   ]
