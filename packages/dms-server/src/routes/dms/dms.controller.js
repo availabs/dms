@@ -31,6 +31,7 @@ const {
 } = require('#db/table-resolver.js');
 const { parseSplitDataType, getKind, getInstance, getParent } = require('#db/type-utils.js');
 const { logEntry } = require('../../middleware/request-logger');
+const { ownedFileUrl, removeStoredFile } = require('./storedFiles');
 const { parseJson, parseChangeHistory, historyText, historyStamp, withinBurst, historyVia } = require('./changeHistory');
 
 const DATA_ATTRIBUTES = [
@@ -306,7 +307,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * transaction so it commits with the row. Never throws, for the same reason the stamp does not:
    * a page save must not fail over parentage.
    */
-  async function sweepDeclaredChildren(tx, { table, app, id, type, before, after, childRefs }) {
+  async function sweepDeclaredChildren(tx, { table, app, id, type, before, after, childRefs, userId = null, reqMeta = null }) {
     const mode = childSweepMode();
     if (!childRefs || mode === 'off') return 0;
     try {
@@ -314,6 +315,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const removed = planRemovedChildren(before, after, { type, childRefs });
       if (!removed.length) return 0;
       const res = await sweepRemovedChildren(tx, { table, app, id, type, removed, mode });
+      if (mode === 'delete') await logSweptRows(tx, app, res.rows, userId, reqMeta);
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'swept' : 'would sweep'} ${res.swept} `
           + `child row(s) dropped by ${app}/${id} (${type})`);
@@ -325,12 +327,23 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     }
   }
 
+  /**
+   * One `D` change_log entry per row the sweep deleted, so sync clients (IndexedDB) and WebSocket
+   * subscribers drop them too. Without it a swept section stayed in every local-first store.
+   */
+  async function logSweptRows(tx, app, rows, userId, reqMeta) {
+    for (const r of (rows || [])) {
+      await appendChangeLog(tx, r.id, app, r.type, 'D', null, userId, reqMeta);
+    }
+  }
+
   /** The same, for an owner row that is itself being deleted: everything it parents goes. */
-  async function sweepChildrenOfDeleted(tx, { table, app, id, type, childRefs }) {
+  async function sweepChildrenOfDeleted(tx, { table, app, id, type, childRefs, userId = null, reqMeta = null }) {
     const mode = childSweepMode();
     if (!childRefs || mode === 'off') return 0;
     try {
       const res = await require('./parentId').sweepAllChildren(tx, { table, app, id, type, childRefs, mode });
+      if (mode === 'delete') await logSweptRows(tx, app, res.rows, userId, reqMeta);
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'deleted' : 'would delete'} ${res.swept} `
           + `child row(s) of deleted ${app}/${id} (${type})`);
@@ -655,18 +668,34 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
     if (instance) {
       const views = await tx.promise(
-        `SELECT id, type FROM ${table} WHERE app = $1 AND type LIKE $2 ESCAPE '\\';`,
+        `SELECT id, type, data FROM ${table} WHERE app = $1 AND type LIKE $2 ESCAPE '\\';`,
         [row.app, `${escapeLike(instance)}|%:view`]
       );
       for (const view of views) {
         await dropViewDataTable(tx, row.app, instance, view.id, row.id);
         await tx.promise(`DELETE FROM ${table} WHERE id = $1;`, [view.id]);
         await appendChangeLog(tx, view.id, row.app, view.type, 'D', null, userId, reqMeta);
+        await releaseOwnedFile(tx, table, { ...view, app: row.app }, view.data);
       }
       _sourceIdCache.delete(`${row.app}:${instance}`);
     }
 
     await removeIdFromRefArrays(tx, row.app, 'sources', ['dmsenv', 'pattern'], row.id, userId, reqMeta);
+    await deleteSourceTasks(tx, row.app, row.id);
+  }
+
+  /**
+   * A deleted source's publish tasks (`dms.tasks`; `task_events` go with them by FK). The table is
+   * made by initDmsTasks, which can fail on its own without failing the server; checked from the
+   * catalog first, because a statement that fails inside a Postgres transaction aborts it.
+   */
+  async function deleteSourceTasks(tx, app, sourceId) {
+    const [exists] = dbType === 'postgres'
+      ? await tx.promise(`SELECT 1 AS ok WHERE to_regclass('dms.tasks') IS NOT NULL;`)
+      : await tx.promise(`SELECT 1 AS ok FROM sqlite_master WHERE type = 'table' AND name = 'dms_tasks';`);
+    if (!exists) return;
+    const tasks = dbType === 'postgres' ? 'dms.tasks' : 'dms_tasks';
+    await tx.promise(`DELETE FROM ${tasks} WHERE app = $1 AND source_id = $2;`, [app, sourceId]);
   }
 
   /**
@@ -680,6 +709,26 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       await dropViewDataTable(tx, row.app, sourceInstance, row.id, sourceId);
     }
     await removeIdFromRefArrays(tx, row.app, 'views', ['source'], row.id, userId, reqMeta);
+    if (row.data !== undefined) await releaseOwnedFile(tx, await mainTable(row.app, tx), row, row.data);
+  }
+
+  /**
+   * The file a deleted row was uploaded with (`data.file.dl_url`) leaves storage with it, after the
+   * transaction commits (F7: it used to stay downloadable at its url). Kept when any other row in
+   * the app still names the same url: a duplicated view shares its original's file.
+   */
+  async function releaseOwnedFile(tx, table, row, data) {
+    const url = ownedFileUrl(data);
+    if (!url) return;
+    const [other] = await tx.promise(
+      `SELECT id FROM ${table} WHERE app = $1 AND id <> $2 AND CAST(data AS TEXT) LIKE $3 ESCAPE '\\' LIMIT 1;`,
+      [row.app, row.id, `%${escapeLike(url)}%`]
+    );
+    if (other) {
+      console.log(`[stored-files] kept ${url}: row ${other.id} still names it (deleted ${row.app}/${row.id})`);
+      return;
+    }
+    tx.afterCommit(() => removeStoredFile(url, `${row.app}/${row.type}#${row.id}`));
   }
 
   /**
@@ -1327,7 +1376,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           // that names no child attribute leaves those arrays untouched and removes nothing.
           await sweepDeclaredChildren(tx, {
             table, app: item.app, id: item.id, type: item.type,
-            before: current?.data, after: item.data, childRefs,
+            before: current?.data, after: item.data, childRefs, userId, reqMeta,
           });
           await appendChangeLog(tx, item.id, item.app, item.type, 'U', item.data, userId, reqMeta);
           if (history) {
@@ -1601,6 +1650,20 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       return removed;
     },
 
+    /**
+     * For a source row that is already gone (deleted by hand, or by an older server): vacate the
+     * `{ref, id}` entries dmsEnv and pattern rows still hold for it, and its tasks, with change_log
+     * entries for the parents it rewrites. What deleteData's cascade does for a source it deletes.
+     */
+    removeSourceRefs: async (app, sourceId, user, reqMeta = null) => {
+      await mainTable(app);
+      const userId = get(user, "id", null);
+      await dms_db.withTransaction(async (tx) => {
+        await removeIdFromRefArrays(tx, app, 'sources', ['dmsenv', 'pattern'], sourceId, userId, reqMeta);
+        await deleteSourceTasks(tx, app, sourceId);
+      });
+    },
+
     deleteData: async (app, type, ids, user, reqMeta = null) => {
       const resolved = await ensureForRead(app, type);
       const userId = get(user, "id", null);
@@ -1630,20 +1693,21 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // actual type string; the `type` argument only resolves the table and
         // often doesn't match it (clients pass e.g. 'datasets_env|source').
         const doomed = await tx.promise(
-          `SELECT id, app, type FROM ${resolved.fullName} WHERE ${arrayResult.sql};`,
+          `SELECT id, app, type, CASE WHEN type LIKE '%:view' THEN data ELSE NULL END AS data
+           FROM ${resolved.fullName} WHERE ${arrayResult.sql};`,
           arrayResult.values
         );
-        const doomedTypes = new Map(doomed.map(r => [String(r.id), r.type]));
-
         const sql = `
           DELETE FROM ${resolved.fullName}
           WHERE ${arrayResult.sql};
         `;
         const result = await tx.promise(sql, arrayResult.values);
 
-        // Log each deleted ID under the row's real type when we have it
-        for (const id of ids) {
-          await appendChangeLog(tx, id, app, doomedTypes.get(String(id)) || type, 'D', null, userId, reqMeta);
+        // One `D` per row actually deleted, under its stored app and type. Never one per id the
+        // caller passed: an id that wasn't in this table (a wrong `type` resolves the wrong table)
+        // was not deleted, and a `D` for it made sync clients drop a row that still exists.
+        for (const row of doomed) {
+          await appendChangeLog(tx, row.id, row.app, row.type, 'D', null, userId, reqMeta);
         }
 
         // Deleting a source or view must also delete its dependents and vacate
@@ -1657,7 +1721,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
           // behind as an unreachable row.
           await sweepChildrenOfDeleted(tx, {
             table: resolved.fullName, app: row.app, id: row.id, type: row.type,
-            childRefs: childPlans.get(row.type),
+            childRefs: childPlans.get(row.type), userId, reqMeta,
           });
         }
 

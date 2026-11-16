@@ -1,6 +1,6 @@
 # Delete means delete: every user-facing delete removes its rows, safely
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** doing · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 **Project:** DMS library (`src/dms` submodule) · **Topic:** dms-server, patterns/page, patterns/admin, patterns/datasets, cli
 
@@ -72,12 +72,14 @@ type (src/dms/CLAUDE.md, "DMS interprets data").
 
 - [x] **Internal dmsEnv (owner, 2026-11-13):** a datasets pattern's dmsEnv (its DMS sources, views and split tables) is deleted with the pattern **only if no other pattern points at it**. In that case the warning lists the dmsEnv and everything in it under "will be deleted". If any other pattern on any site in the app references it, it is **kept** and listed under "kept", naming the patterns that still use it. A pgEnv is never deleted either way.
 
-**Phase 1: make the cascade trustworthy (server)**
-- [ ] F12: write `D` change_log entries only for the ids actually deleted (the `doomed` snapshot). Resolve the table from the stored row, not the caller's `type`.
-- [ ] F9: the sweep writes a `D` change_log entry (and broadcasts) for every row it deletes.
-- [ ] F6: `deleteInternalSource` calls the controller's cascade (or `deleteData`). It finds views by type path as well as by `data.views`, clears pattern `data.sources` refs and `_sourceIdCache`, and writes change_log. Add the `dms.tasks` delete to `cascadeSourceDelete`.
-- [ ] F7: the shared source/view cascade removes the storage folder (after commit, like the page hook). The tenant delete does the same for its app.
-- [ ] Tests on the sqlite rig for each item. Never plain `npm test` in dms-server, because it hits prod.
+**Phase 1: make the cascade trustworthy (server). BUILT 2026-11-13, uncommitted**
+- [x] F12: `deleteData` writes one `D` per row in the `doomed` snapshot, under the row's stored app and type, never per id passed. *Deviation:* the table is still resolved from the caller's `type`; a wrong `type` now deletes nothing and logs nothing (pinned by the test). Resolving the table from the row would need an id→table lookup across split tables; not worth it.
+- [x] F9: `sweepRemovedChildren` / `sweepAllChildren` (`parentId.js`) return the deleted rows with their types; the controller's `sweepDeclaredChildren` / `sweepChildrenOfDeleted` write a `D` (broadcast after commit) for each in `delete` mode. `userId` / `reqMeta` threaded through `setDataById`, `deleteData` and `/sync/push` (`pushMeta`).
+- [x] F6: `deleteInternalSource` (`uda.tasks.controller.js`) now calls `deleteData` on the **served** controller (`require('../dms/dms.route').controller`, so its `_sourceIdCache` is cleared and its change_log broadcasts). Views are found by type path (the cascade) and by `data.views` (strays under another path are passed in the same call; their split tables, keyed by this source, are dropped first). The pattern refs, `dms.tasks` (now in `cascadeSourceDelete` via `deleteSourceTasks`, catalog-checked) and change_log all come from the cascade. A missing source still gets its refs + tasks cleaned, through the new controller `removeSourceRefs`. The route passes `this.user` / `this.reqMeta`.
+- [x] F7: new `routes/dms/storedFiles.js`. A deleted view's own file (`data.file.dl_url`, read from the row, not a naming convention, since an upload can name its `directory`) is removed after commit, unless another row in the app still names the url (duplicated views). Urls outside this server's storage are left alone. *Deviation:* per file, not the per-source folder (an empty folder can remain). Tenant delete: the plan lists the app's stored files (`files` count on `/tenants/:t/delete/plan`), the backup copies them to `<backup>/files/`, and they are removed after the schema drop (`deleted.files` / `filesNotRemoved`). Tenant part is Postgres-only and **not run** (no test DB here).
+- [x] Tests: `tests/test-safe-delete.js` (17, sqlite rig; `npm run test:safe-delete`, added to `npm test`). Also green on the rig: test-transactions 21, test-delete-cascade 16, test-child-sweep 21, test-parent-stamp 17, test-sync 107. Not yet run on Postgres.
+- [ ] Postgres run of test-safe-delete + test-transactions (needs the docker container or a test app).
+- [ ] Client follow-up: the tenant delete dialog can show the plan's `files` count (Phase 2's "every warning shows everything").
 
 **Phase 2: owners declare their children**
 - [ ] `childRefs` for the site row (`theme_refs`; `patterns` and `dms_envs` only behind Phase 0's pattern decision) and for the pattern row (pages by type path, dmsEnv refs).

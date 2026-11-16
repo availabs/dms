@@ -470,7 +470,7 @@ function planRemovedChildren(before, after, { type, childRefs }) {
  * Default `log`, because this is the only irreversible thing parentage does.
  */
 async function sweepRemovedChildren(tx, { table, app, id, type, removed, mode = 'log' }) {
-  const out = { swept: 0, ids: [] };
+  const out = { swept: 0, ids: [], rows: [] };
   if (mode === 'off' || !removed || !removed.length || !id) return out;
   const container = getParent(type);
   if (!container) return out;
@@ -484,9 +484,9 @@ async function sweepRemovedChildren(tx, { table, app, id, type, removed, mode = 
         + ` AND ${CHILD_TYPE_SQL(chunk.length + 3, chunk.length + 4)}`;
       const params = [app, String(id), ...chunk, ...childTypes];
       const rows = mode === 'delete'
-        ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id`, params)
-        : await tx.promise(`SELECT id FROM ${table} ${where}`, params);
-      for (const r of (rows || [])) out.ids.push(String(r.id));
+        ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id, type`, params)
+        : await tx.promise(`SELECT id, type FROM ${table} ${where}`, params);
+      for (const r of (rows || [])) { out.ids.push(String(r.id)); out.rows.push({ id: r.id, type: r.type }); }
     }
   }
   out.swept = out.ids.length;
@@ -505,7 +505,7 @@ async function sweepRemovedChildren(tx, { table, app, id, type, removed, mode = 
  * DECLARES as a child. A row that merely sits under the same container is not swept.
  */
 async function sweepAllChildren(tx, { table, app, id, type, childRefs, mode = 'log' }) {
-  const out = { swept: 0, ids: [] };
+  const out = { swept: 0, ids: [], rows: [] };
   if (mode === 'off' || !id) return out;
   const attrs = childRefs && childRefs[getKind(type)];
   if (!attrs) return out;
@@ -522,9 +522,9 @@ async function sweepAllChildren(tx, { table, app, id, type, childRefs, mode = 'l
   }
   const where = `WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND (${parts.join(' OR ')})`;
   const rows = mode === 'delete'
-    ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id`, params)
-    : await tx.promise(`SELECT id FROM ${table} ${where}`, params);
-  for (const r of (rows || [])) out.ids.push(String(r.id));
+    ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id, type`, params)
+    : await tx.promise(`SELECT id, type FROM ${table} ${where}`, params);
+  for (const r of (rows || [])) { out.ids.push(String(r.id)); out.rows.push({ id: r.id, type: r.type }); }
   out.swept = out.ids.length;
   return out;
 }

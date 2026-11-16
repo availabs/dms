@@ -15,6 +15,9 @@
  *            old members to a new tenant of the same name) with their memberships; the project's
  *            group_requests (signup_requests), user_preferences and messages_new rows
  *
+ *   files    the files its rows were uploaded with (`data.file.dl_url`, internal-source views), from
+ *            this server's file storage
+ *
  * Kept: user accounts (an email can belong to other sites), `dms.access_log` and `dms.tasks` (audit and
  * job history), `logins`, and `dms.yjs_states`: it is keyed by item id alone, and per-app sequences give
  * every app the same ids, so a tenant's ids also name other apps' items (a known collision in the sync
@@ -26,6 +29,7 @@
  *               stops here: nothing is deleted without a backup.
  *   2. auth db  one transaction
  *   3. dms db   one transaction: the shared rows, then DROP SCHEMA dms_<app> CASCADE
+ *   3b. files   the stored files (copied into the backup in step 1, under files/), after the commit
  *   4. hub      the ref leaves the site's `tenants` list and the tenant row is deleted, through the DMS
  *               controller (change_log + broadcast). Last, so the tenant stays listed (and can be deleted
  *               again) until everything else is gone.
@@ -93,10 +97,16 @@ async function planTenantDelete({ hubApp, hubType, subdomain }) {
 
   const tables = (await db.query(
     `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 ORDER BY table_name`, [schema])).rows.map(r => r.table_name);
+  // The files the app's rows were uploaded with: backed up in step 1, removed after step 3.
+  const storedFiles = tables.includes('data_items')
+    ? (await db.query(
+      `SELECT id, type, data->'file'->>'dl_url' AS url FROM ${schema}.data_items WHERE data->'file'->>'dl_url' IS NOT NULL ORDER BY id`))
+      .rows.map(r => ({ id: +r.id, type: r.type, url: r.url }))
+    : [];
   const ids = new Set(rows.map(r => r.id));
   const tenantsAfter = (Array.isArray(siteData.tenants) ? siteData.tenants : []).filter(t => !ids.has(+(t && t.id)));
   return {
-    sub, app, schema, schemaSql: schema, schemaExists: tables.length > 0, tables,
+    sub, app, schema, schemaSql: schema, schemaExists: tables.length > 0, tables, storedFiles,
     hub: { app: hubApp, table: hubTbl, siteId: +site.id, tenantRows: rows, tenantsAfter, linked: tenantsAfter.length !== (siteData.tenants || []).length },
   };
 }
@@ -166,16 +176,52 @@ async function backup(plan, auth, { by }) {
   } finally {
     client.release();
   }
+  const storedFiles = await backupStoredFiles(plan, dir);
   const manifest = {
     what: 'tenant delete backup (dms-server routes/tenants/delete.js). Restore by hand: CREATE SCHEMA, the tables (columns below), COPY FROM each .copy.gz (text format); auth rows below.',
     created_at: new Date().toISOString(), by,
     tenant: { subdomain: plan.sub, app: plan.app, schema: plan.schema },
     hub: { app: plan.hub.app, siteId: plan.hub.siteId, tenantRows: plan.hub.tenantRows, linked: plan.hub.linked },
     tables: files,
+    storedFiles,
     auth,
   };
   fs.writeFileSync(path.join(dir, 'manifest.json'), JSON.stringify(manifest, null, 2));
-  return { dir, files };
+  return { dir, files, storedFiles };
+}
+
+/**
+ * Copy each stored file into `<backup>/files/<its storage path>`. A file already missing from
+ * storage is noted, not fatal; any other read or write failure throws, so nothing is deleted.
+ */
+async function backupStoredFiles(plan, dir) {
+  const out = [];
+  if (!plan.storedFiles.length) return out;
+  const { storedFilePath, getStorage } = require('../dms/storedFiles');
+  const storage = getStorage();
+  for (const f of plan.storedFiles) {
+    const rel = storedFilePath(f.url, storage);
+    if (!rel) { out.push({ ...f, path: null, backedUp: false, note: 'not in this server\'s storage; left alone' }); continue; }
+    if (!(await storage.exists(rel))) { out.push({ ...f, path: rel, backedUp: false, note: 'already missing from storage' }); continue; }
+    const target = path.join(dir, 'files', rel);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    const body = await storage.read(rel);
+    if (Buffer.isBuffer(body) || typeof body === 'string') fs.writeFileSync(target, body);
+    else await pipeline(body, fs.createWriteStream(target));
+    out.push({ ...f, path: rel, backedUp: true });
+  }
+  return out;
+}
+
+/** Step 3b: the backed-up files leave storage. Failures are reported, never thrown (the rows are gone). */
+async function deleteStoredFiles(storedFiles) {
+  const { storage, removed, failed } = { storage: require('../dms/storedFiles').getStorage(), removed: [], failed: [] };
+  for (const f of storedFiles.filter(f => f.backedUp)) {
+    try { await storage.remove(f.path); removed.push(f.path); }
+    catch (e) { failed.push({ path: f.path, error: e.message }); }
+  }
+  if (failed.length) console.warn(`[tenant-delete] ${failed.length} stored file(s) not removed`, failed);
+  return { removed, failed };
 }
 
 /** Step 2. */
@@ -234,9 +280,10 @@ async function deleteTenant({ hubApp, hubType, subdomain, user }) {
   const plan = await planTenantDelete({ hubApp, hubType, subdomain });
   const adb = authDb();
   const auth = await authRows(adb, plan.app);
-  const { dir, files } = await backup(plan, auth, { by: user && user.email });
+  const { dir, files, storedFiles } = await backup(plan, auth, { by: user && user.email });
   await deleteAuth(adb, plan.app, auth);
   await deleteDmsData(plan);
+  const fileResult = await deleteStoredFiles(storedFiles);
   await deleteHubRows(plan, user);
   forgetApp();
   return {
@@ -250,6 +297,8 @@ async function deleteTenant({ hubApp, hubType, subdomain, user }) {
       memberships: auth.users_in_groups.length,
       project: !!auth.project,
       tenantRows: plan.hub.tenantRows.map(r => r.id),
+      files: fileResult.removed.length,
+      filesNotRemoved: fileResult.failed,
     },
   };
 }

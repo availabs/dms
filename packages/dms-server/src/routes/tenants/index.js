@@ -139,6 +139,7 @@ function registerTenantRoutes(app) {
         tenant: { subdomain: plan.sub, app: plan.app, linked: plan.hub.linked, rows: plan.hub.tenantRows.map(r => r.id) },
         schema: plan.schemaExists ? plan.schema : null,
         tables: plan.tables.length,
+        files: plan.storedFiles.length,
         auth: {
           project: !!auth.project,
           groups: auth.doomedGroups,
