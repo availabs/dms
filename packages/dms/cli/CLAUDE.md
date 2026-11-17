@@ -58,6 +58,10 @@ Config is resolved from three sources (highest priority first):
 2. Environment variables (`DMS_HOST`, `DMS_APP`, `DMS_TYPE`, `DMS_AUTH_TOKEN`)
 3. `.dmsrc` file (JSON, searched upward from cwd)
 
+A `.dmsrc` can also name a host app's page-publish hook (`pagePublishHook`) and its own command
+modules (`commands`, loaded at the end of `bin/dms.js`; docs/README.md "App commands"). A client's
+`via` ('cli' unless set) is sent as `X-DMS-Via`, which marks its writes in a dataset's change history.
+
 ### Falcor Client
 
 `client.js` is a standalone HTTP client that speaks the Falcor JSON Graph protocol over `POST /graph`. It maintains an internal cache and supports `get()`, `call()`, `getCache()`, and `invalidate()`. No browser dependencies.

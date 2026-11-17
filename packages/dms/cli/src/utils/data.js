@@ -262,7 +262,7 @@ export async function findPatternByKind(falcor, config, kinds) {
  * Convenience: build a Falcor client from CLI config.
  */
 export function makeClient(config) {
-  return createFalcorClient(config.host, config.authToken);
+  return createFalcorClient(config.host, config.authToken, { via: config.via || 'cli' });
 }
 
 /**

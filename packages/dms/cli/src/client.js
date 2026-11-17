@@ -67,9 +67,11 @@ function mergeIntoCache(cache, graph) {
  *
  * @param {string} host - API host URL (e.g., 'http://localhost:4444')
  * @param {string} [authToken] - Optional auth token
+ * @param {Object} [options]
+ * @param {string} [options.via='cli'] - How writes are marked in change history: 'cli' or 'agent'
  * @returns {Object} - Falcor-compatible client with get(), call(), getCache(), invalidate()
  */
-export function createFalcorClient(host, authToken) {
+export function createFalcorClient(host, authToken, { via = 'cli' } = {}) {
   // Internal cache to store fetched data
   let cache = {};
 
@@ -81,8 +83,9 @@ export function createFalcorClient(host, authToken) {
 
     const headers = {
       'Content-Type': 'application/x-www-form-urlencoded',
-      // marks this client's writes as 'cli' in a dataset's change history
-      'X-DMS-Via': 'cli',
+      // how this client's writes are marked in a dataset's change history: 'cli' unless the
+      // config's `via` says otherwise (e.g. 'agent', set by a host app's commands)
+      'X-DMS-Via': via,
     };
 
     if (authToken) {

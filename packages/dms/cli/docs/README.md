@@ -61,6 +61,8 @@ Create a `.dmsrc` file in your project directory (searched up from cwd):
 | `type` | `--type` | `DMS_TYPE` | Site type identifier (e.g., `pattern-admin`) |
 | `authToken` | `--auth-token` | `DMS_AUTH_TOKEN` | Auth token (optional, for protected operations) |
 | `pagePublishHook` | — | `DMS_PAGE_PUBLISH_HOOK` | Optional. A host app's module that `page publish` runs after publishing (a `.dmsrc` path is relative to that file, an env path to the cwd). Its default export gets `{ falcor, config, pattern, page, helpers }`, and the object it returns is added to the output. E.g. dms-template's `src/patterns/qa/cli/onPagePublish.js`. |
+| `commands` | — | — | Optional, `.dmsrc` only. A host app's own command modules, each path relative to the `.dmsrc` (see [App commands](#app-commands)). E.g. dms-template's `src/patterns/qa/cli/commands.js`, which adds `dms qa`. |
+| `via` | — | — | Optional. How writes are marked in a dataset's change history: `cli` (the default) or `agent`. Sent as the `X-DMS-Via` header. App commands set it, e.g. `dms qa … --via agent`. |
 
 The `host` field is required for all commands. The `app` and `type` fields are required for content-aware commands (site, pattern, page, section, dataset) but not for raw commands.
 
@@ -344,6 +346,25 @@ Before each write to an existing row it reads the row's `updated_at` again and s
 writes already made stay, and each step in the output says `done` or not.
 
 After a promotion the same stack diffs as conflicts, because production's rows are now newer than the copy.
+
+### App commands
+
+A host app can add its own command groups, so a pattern type that lives in the app ships its
+commands and the CLI holds none of its code. List the modules in the app's `.dmsrc`:
+
+```json
+{ "commands": ["src/patterns/qa/cli/commands.js"] }
+```
+
+Each module's default export is called before the command line is parsed, as
+`register({ program, helpers })`. `program` is the CLI's commander program, and `helpers` are the
+CLI's own: `getConfig`, `getOutputOptions`, `validateConfig`, `makeClient`, `resolvePattern`,
+`parseData`, `fetchById`, `loadDatasetRows`, `output` and `outputError`. A module that fails to load
+is reported on stderr and skipped, and the CLI's own commands still run.
+
+The connection settings stay the CLI's own (flags, `DMS_*` variables, `.dmsrc`). dms-template's
+`.dmsrc` adds `dms qa` (installs, tickets, ticket, set, comment): see `dms qa --help` and
+dms-template's `src/patterns/qa/skills/agent-ticket-run.md`.
 
 ## Output Formats
 

@@ -5,6 +5,9 @@ pattern types. Added 2026-10-08 (`planning/tasks/current/pluggable-patterns-mape
 the admin, publish, CLI and server hooks came with the qa move, 2026-10-14
 (`planning/tasks/completed/pluggable-patterns-qa-extraction.md`).
 
+Every extension point, pattern types' and the rest (themes, server plugins, the CLI), is listed in
+[extension-points.md](./extension-points.md).
+
 ## The model
 
 Every pattern type, built-in or app-supplied, is one **definition** in a module-level registry
@@ -149,6 +152,10 @@ documented resolution so the behaviour is predictable, not a licence to rely on 
   patternInstance, loadDatasetRows } }`, and the object it returns is added to the command's output. It
   runs in plain Node, so it can't import the library entry; it imports only plain-ESM files of its own
   pattern, and takes everything else from `helpers`.
+- **The CLI's app commands:** modules listed in the host app's `.dmsrc` `commands` (each relative to that
+  file). Each default export is called as `register({ program, helpers })` before the command line is
+  parsed and adds a command group, e.g. `dms qa`. Same rule: plain Node, everything else from `helpers`
+  (the CLI's `docs/README.md`, "App commands").
 - **dms-server's no-access stub:** a pattern row a user can't read comes back as routing info only. It
   also carries the row's **`public`** settings, whatever the type: what the type chooses to show
   everyone, signed out included. dms-server has no type-specific code. The type writes `public` from
@@ -247,8 +254,10 @@ An app pattern imports library code **only through the two entries**, never by d
 - `admin.editorTabs`: the lazy Configure tab (`admin/configureTab.jsx`), styled under
   `admin.qaConfigure`.
 - `onPagePublish` (`publish.js`): adds a published page to the installs that cover its pattern.
-  - `qa/cli/onPagePublish.js` is the same for `dms page publish`
-    (`DMS_PAGE_PUBLISH_HOOK=src/patterns/qa/cli/onPagePublish.js`).
+  - `qa/cli/onPagePublish.js` is the same for `dms page publish` (dms-template's root `.dmsrc`
+    `pagePublishHook`).
+- `qa/cli/commands.js`: the `dms qa` commands (installs, tickets, ticket, set, comment), loaded by the CLI
+  from the root `.dmsrc` `commands`.
 - `public.qaIntake` (`intake.js`): what the Report an issue widget needs to file from a page an
   ungranted user can see. It's written with every change to the install's datasets or fields.
 - The Report an issue nav widget: `registerWidget('ReportIssue', …)` in `siteConfig.jsx`, themed at
