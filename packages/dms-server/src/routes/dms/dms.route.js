@@ -562,7 +562,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         for (const row of await storedRows(app, ids, type)) {
           await assertDataWrite(this, 'delete', app, row, null);
         }
-        return controller.deleteData(app, type, ids, this.user, this.reqMeta).then((rows) => [
+        return controller.deleteData(app, type, ids, this.user, this.reqMeta, { changeHistory: true }).then((rows) => [
           // Invalidate both old and new paths
           ...ids.flatMap((id) => ([
             { path: ["dms", "data", "byId", id], invalidated: true },

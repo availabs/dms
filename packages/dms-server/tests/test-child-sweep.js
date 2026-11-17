@@ -249,6 +249,47 @@ async function run() {
             assert.strictEqual(await alive(h), true));
     }
 
+    section('9. a sweep that fails halfway: the save commits, the sweep\'s own deletes are undone');
+    {
+        // On Postgres a failed statement aborts the transaction, so catching the sweep's error alone
+        // would still fail the save's COMMIT; on SQLite the delete before the failure would stay.
+        const parentIdMod = require('../src/routes/dms/parentId');
+        const failingAfterDelete = (real) => async (tx, args) => {
+            const ids = args.removed ? args.removed.flatMap((g) => g.ids.map(String)) : null;
+            await tx.promise(`DELETE FROM ${args.table} WHERE app = $1 AND ${ids ? `id IN (${ids.map((_, i) => `$${i + 2}`).join(',')})` : `CAST(data->>'parent_id' AS TEXT) = $2`}`,
+                ids ? [args.app, ...ids] : [args.app, String(args.id)]);
+            await tx.promise('SELECT * FROM no_such_table_for_this_test');
+            return real(tx, args);
+        };
+        const titleOf = async (id) => (await db.promise(`SELECT ${require('../src/db/query-utils').jsonExtract('data', 'title', db.type)} AS title FROM ${T.fullName} WHERE id = $1`, [id]))[0]?.title;
+
+        const c = await create('widgets|component', { title: 'survives a failed sweep' });
+        const page = await create('widgets|page', { title: 'before', draft_sections: [ref(c)] });
+        const realRemoved = parentIdMod.sweepRemovedChildren;
+        parentIdMod.sweepRemovedChildren = failingAfterDelete(realRemoved);
+        let err = null;
+        try { await edit(page, { title: 'after', draft_sections: [] }, 'widgets|page'); } catch (e) { err = e; }
+        finally { parentIdMod.sweepRemovedChildren = realRemoved; }
+        await t('the edit still commits', async () => {
+            assert.strictEqual(err, null, err && err.message);
+            assert.strictEqual(await titleOf(page), 'after');
+        });
+        await t('the row the sweep deleted before failing is back', async () => assert.strictEqual(await alive(c), true));
+
+        const c2 = await create('widgets|component', { title: 'survives a failed delete sweep' });
+        const doomed = await create('widgets|page', { title: 'doomed', draft_sections: [ref(c2)] });
+        const realAll = parentIdMod.sweepAllChildren;
+        parentIdMod.sweepAllChildren = failingAfterDelete(realAll);
+        err = null;
+        try { await graph.callAsync(['dms', 'data', 'delete'], [APP, 'widgets|page', doomed]); } catch (e) { err = e; }
+        finally { parentIdMod.sweepAllChildren = realAll; }
+        await t('the page delete still commits', async () => {
+            assert.strictEqual(err, null, err && err.message);
+            assert.strictEqual(await alive(doomed), false);
+        });
+        await t('…and its section the failed sweep had deleted is back', async () => assert.strictEqual(await alive(c2), true));
+    }
+
     section('7. a brand-new app needs no migration: its plain table stamps and sweeps');
     {
         const APP2 = `childsweep_nocols_${Date.now()}`;

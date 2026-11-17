@@ -270,10 +270,30 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * from `childStampPlan`, called before the transaction opened. Never throws: a page save does not
    * fail over parentage.
    */
+  /**
+   * Run `fn` under a savepoint of the caller's transaction, so a failure inside it undoes only its own
+   * statements. The stamp and the sweep promise not to fail a save, and catching their error is not
+   * enough on Postgres: a failed statement aborts the whole transaction, and the save's own COMMIT
+   * then fails. On SQLite it keeps a sweep that fails halfway from leaving half its deletes.
+   */
+  async function inSavepoint(tx, name, fn) {
+    await tx.promise(`SAVEPOINT ${name}`);
+    try {
+      const out = await fn();
+      await tx.promise(`RELEASE SAVEPOINT ${name}`);
+      return out;
+    } catch (e) {
+      await tx.promise(`ROLLBACK TO SAVEPOINT ${name}`);
+      await tx.promise(`RELEASE SAVEPOINT ${name}`);
+      throw e;
+    }
+  }
+
   async function stampDeclaredChildren(tx, { table, app, id, type, data, childRefs }) {
     if (!childRefs) return 0;
     try {
-      return await require('./parentId').stampChildren(tx, { table, app, id, type, data, childRefs });
+      return await inSavepoint(tx, 'dms_parent_stamp', () =>
+        require('./parentId').stampChildren(tx, { table, app, id, type, data, childRefs }));
     } catch (e) {
       console.warn(`[parent-id] stamping children of ${app}/${id} (${type}) failed: ${e.message}`);
       return 0;
@@ -301,8 +321,8 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
   /**
    * Delete the children a write dropped (routes/dms/parentId.js). Runs inside the caller's
-   * transaction so it commits with the row. Never throws, for the same reason the stamp does not:
-   * a page save must not fail over parentage.
+   * transaction so it commits with the row, under its own savepoint (`inSavepoint`). Never throws,
+   * for the same reason the stamp does not: a page save must not fail over parentage.
    */
   async function sweepDeclaredChildren(tx, { table, app, id, type, before, after, childRefs, userId = null, reqMeta = null }) {
     const mode = childSweepMode();
@@ -311,8 +331,12 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const { planRemovedChildren, sweepRemovedChildren } = require('./parentId');
       const removed = planRemovedChildren(before, after, { type, childRefs });
       if (!removed.length) return 0;
-      const res = await sweepRemovedChildren(tx, { table, app, id, type, removed, childRefs, mode });
-      if (mode === 'delete') await logSweptRows(tx, app, res.rows, userId, reqMeta);
+      // The deletes and their `D` entries land together or not at all.
+      const res = await inSavepoint(tx, 'dms_child_sweep', async () => {
+        const r = await sweepRemovedChildren(tx, { table, app, id, type, removed, childRefs, mode });
+        if (mode === 'delete') await logSweptRows(tx, app, r.rows, userId, reqMeta);
+        return r;
+      });
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'swept' : 'would sweep'} ${res.swept} `
           + `child row(s) dropped by ${app}/${id} (${type})`);
@@ -342,8 +366,11 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     const mode = childSweepMode();
     if (!childRefs || mode === 'off') return 0;
     try {
-      const res = await require('./parentId').sweepAllChildren(tx, { table, app, id, type, childRefs, mode });
-      if (mode === 'delete') await logSweptRows(tx, app, res.rows, userId, reqMeta);
+      const res = await inSavepoint(tx, 'dms_child_sweep', async () => {
+        const r = await require('./parentId').sweepAllChildren(tx, { table, app, id, type, childRefs, mode });
+        if (mode === 'delete') await logSweptRows(tx, app, r.rows, userId, reqMeta);
+        return r;
+      });
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'deleted' : 'would delete'} ${res.swept} `
           + `child row(s) of deleted ${app}/${id} (${type})`);
@@ -540,8 +567,10 @@ function createController(dbName = 'dms-sqlite', options = {}) {
    * row from '', marked `op: 'create'` (an edit's rows are `op: 'edit'`); an edit from an empty value
    * also has an empty old value, so `op` is how a reader tells them apart. A new row has no earlier
    * history to merge into, so the burst lookup is skipped.
+   * `deleted`: the row was just deleted (`after` is empty). The mirror of `created`: each tracked column
+   * that had a value gets a row to '', marked `op: 'delete'`, and nothing merges.
    */
-  async function writeChangeHistory(tx, { spec, target, app, rowId, before, after, patch, user, reqMeta, created = false }) {
+  async function writeChangeHistory(tx, { spec, target, app, rowId, before, after, patch, user, reqMeta, created = false, deleted = false }) {
     const userId = get(user, 'id', null);
     const clock = new Date();
     const at = historyStamp(clock);
@@ -550,7 +579,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const newValue = historyText(after?.[field]);
       if (oldValue === newValue) continue;
 
-      if (!created && userId != null && spec.merges(field)) {
+      if (!created && !deleted && userId != null && spec.merges(field)) {
         // Only the history's newest 200 rows are searched: a burst is recent by definition, and
         // this keeps a typed save's cost flat however long the history grows.
         const [last] = await tx.promise(`
@@ -583,7 +612,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
       const data = {
         row_id: +rowId, source_id: spec.sourceId, field, old_value: oldValue, new_value: newValue,
-        user_id: userId, user_email: get(user, 'email', null), at, via: historyVia(reqMeta), op: created ? 'create' : 'edit',
+        user_id: userId, user_email: get(user, 'email', null), at, via: historyVia(reqMeta), op: created ? 'create' : deleted ? 'delete' : 'edit',
       };
       // Same insert as createData: SQLite split tables take an allocated id, Postgres a default.
       const [inserted] = dbType === 'sqlite'
@@ -1679,9 +1708,14 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       });
     },
 
-    deleteData: async (app, type, ids, user, reqMeta = null) => {
+    // `changeHistory: true`: as setDataById. A deleted row of a tracked dataset gets its tracked
+    // values recorded with `op: 'delete'`. Only the Falcor delete route asks for it.
+    deleteData: async (app, type, ids, user, reqMeta = null, { changeHistory = false } = {}) => {
       const resolved = await ensureForRead(app, type);
       const userId = get(user, "id", null);
+      const history = changeHistory && isSplitType(type) ? await loadChangeHistory(app, type) : null;
+      // the history table's DDL runs here, outside the transaction (see mainTable)
+      const historyTarget = history ? await ensureForWrite(app, history.targetType) : null;
       // The cascades below resolve the app's main table inside the transaction; ensure it (DDL)
       // out here so that is a cache hit.
       await mainTable(app);
@@ -1709,6 +1743,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // often doesn't match it (clients pass e.g. 'datasets_env|source').
         const doomed = await tx.promise(
           `SELECT id, app, type, CASE WHEN type LIKE '%:view' THEN data ELSE NULL END AS data
+                  ${history ? ', data AS history_data' : ''}
            FROM ${resolved.fullName} WHERE ${arrayResult.sql};`,
           arrayResult.values
         );
@@ -1723,6 +1758,17 @@ function createController(dbName = 'dms-sqlite', options = {}) {
         // was not deleted, and a `D` for it made sync clients drop a row that still exists.
         for (const row of doomed) {
           await appendChangeLog(tx, row.id, row.app, row.type, 'D', null, userId, reqMeta);
+        }
+
+        // The tracked dataset's history, in the same transaction as the delete.
+        if (history) {
+          for (const row of doomed) {
+            const before = parseJson(row.history_data) || {};
+            await writeChangeHistory(tx, {
+              spec: history, target: historyTarget, app, rowId: row.id,
+              before, after: {}, patch: before, user, reqMeta, deleted: true,
+            });
+          }
         }
 
         // Deleting a source or view must also delete its dependents and vacate
