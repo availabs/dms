@@ -3,7 +3,7 @@
 **Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** done · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 Split out of [safe-delete-removes-rows.md](./safe-delete-removes-rows.md) (2026-11-17). A data change on
-prod; the code fix that stops new sharing is [pattern-duplicate-shares-sections.md](../current/pattern-duplicate-shares-sections.md).
+prod; the code fix that stops new sharing is [pattern-duplicate-shares-sections.md](./pattern-duplicate-shares-sections.md).
 
 ## Why
 

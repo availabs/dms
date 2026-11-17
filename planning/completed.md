@@ -82,6 +82,7 @@
 
 ## dms-server
 
+- [pattern-duplicate-shares-sections.md](./tasks/completed/pattern-duplicate-shares-sections.md) - Pattern Duplicate gives every page of the copy its own section rows (one copy per page and section; another pattern's sections are copied into the new one), so a duplicate no longer shares rows the child sweep could delete; test-pattern-duplicate 8 (2026-11-17)
 - [safe-delete-removes-rows.md](./tasks/completed/safe-delete-removes-rows.md) - Delete means delete: every user-facing delete removes its rows and children, with one change_log `D` each (F12/F9), the child sweep on by default and kept while another page lists the row, page subtree delete, pattern/theme delete with plan route + backup, internal source cascade + stored files, change history records deletes; shared sections copied apart on prod (mitigat-ny-prod, npmrdsv5); test-delete-surfaces on SQLite + Postgres; F14 and restore moved to their own tasks (2026-11-17)
 - [auth-rules-stamp-backfill.md](./tasks/completed/auth-rules-stamp-backfill.md) - Dropped, superseded: a change to a format's rules reaches existing rows by registering the declarations in the server's `formats` table with `scripts/register-formats.js` (`format-declarations-server-side.md`), not by re-stamping rows; `stamp-auth-rules.js` and the fingerprint test deleted (2026-11-06)
 

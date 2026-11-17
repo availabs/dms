@@ -5,7 +5,7 @@
  * its copy in the duplicate (every county pattern copied from the County Template has the same 6
  * draft sections shared between Lightning, Wind and Tornado), and a page listing another pattern's
  * section kept the reference, so the copy and the source shared that row. Task:
- * planning/tasks/current/pattern-duplicate-shares-sections.md.
+ * planning/tasks/completed/pattern-duplicate-shares-sections.md.
  *
  * Runs the real duplicate on a disposable app.
  * Run: DMS_TEST_DB=cli-test DMS_DB_ENV=cli-test node tests/test-pattern-duplicate.js
