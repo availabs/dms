@@ -61,7 +61,7 @@ CLI can sync a page's live-edit room afterwards (`afterDraftSectionsWrite`, Bug 
         differ), are in the page's pattern and parented to it; sections 368,265 → 368,593, change_log
         328 `I` + 64 `U` and no `D` (no original deleted); 2 pages had stored rooms, both synced.
 - [~] Page `history` rows (4 shared as single refs): **nothing to do** (checked 2026-11-17). All 4 are named by pages of `shmpcopy` (no pattern row, out of scope), and none of the 4 rows exists any more.
-- [ ] Other prod apps: run the dry run on each (as an admin) once a copy of them is available.
+- [x] Other prod apps (audited 2026-11-17 on `prod_check_1117`): none has shared sections or cross-pattern refs. Only mitigat-ny-prod (322 shared ids in 60 live patterns as of 11-17) and npmrdsv5 (1 shared, 27 cross-pattern) need the command.
 - [ ] **Prod:** dry-run output to the owner, then `--apply` on the owner's word, per app.
 
 ## Files
