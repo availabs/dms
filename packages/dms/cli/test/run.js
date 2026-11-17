@@ -13,6 +13,9 @@ import {
   describe, describeAsync, test, assert, assertEqual, assertIncludes, pass, summary,
 } from './harness.js';
 import { joinRoom, peekRoom, seedRoom } from './room-client.js';
+import { existsSync, unlinkSync } from 'fs';
+import { tmpdir } from 'os';
+import { join } from 'path';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -440,6 +443,115 @@ async function run() {
     r = runCli(`stack diff --stack ${STACK_HOST}`, { expectError: true });
     ok = assertEqual(r.exitCode, 1, 'exit code');
     if (assert(/_stack\.json/.test(r.stdout + r.stderr), 'says how to give the copy time') && ok) pass();
+  });
+
+  // ================================================================
+  // PHASE 6 — stack apply
+  // ================================================================
+
+  await describeAsync('Phase 6 — stack apply', async () => {
+    const home = manifest.pages.find((p) => p.title === 'Home').id;
+    const edited = manifest.sections[0].id;                              // retitled in the stack
+    const homeRow = runCli(`raw get ${home}`).json;
+    const pageType = homeRow.type;
+    const sectionType = runCli(`raw get ${edited}`).json.type;
+    const ref = (id) => ({ id: String(id), ref: `${manifest.app}+${sectionType}` });
+    const data = (id, opts) => { const d = runCli(`raw get ${id}`, opts).json?.data; return typeof d === 'string' ? JSON.parse(d) : d; };
+    // Rows that exist at the copy: one for the stack to delete, one to lose a key.
+    const doomed = runCli(`raw create ${manifest.app} "${sectionType}" --data '{"title":"Deleted in the stack (apply)"}'`).json.id;
+    const trimmed = runCli(`raw create ${manifest.app} "${sectionType}" --data '{"title":"Loses a key","temp_note":"gone in the stack"}'`).json.id;
+    const homeBefore = data(home);
+    const titleBefore = data(edited).title;
+
+    stopServer(stackServer);
+    stopServer(server);
+    await sleep(1100); // SQLite stamps updated_at to the second: the copy time must be later than every row's
+    const copiedAt = copyAsStack();
+    server = await startServer({ fresh: false });
+    stackServer = await startServer({ port: STACK_PORT, dbEnv: 'cli-test-stack', sqlitePath: STACK_SQLITE_PATH, fresh: false });
+    const inStack = { host: STACK_HOST };
+    // Production moves on: its next id is no longer the stack's, as on a real site.
+    runCli(`raw create ${manifest.app} test-temp --data '{"note":"made in production after the copy"}'`);
+
+    // The stack's work: a new section on Home, a retitled section, a new page with its own section, a deleted
+    // section, a removed key, then Home published (which makes published copies there).
+    const added = runCli(`raw create ${manifest.app} "${sectionType}" --data '{"title":"Added in the stack"}'`, inStack).json.id;
+    const homeDraft = [...homeBefore.draft_sections, ref(added)];
+    runCli(`raw update ${home} --data '${JSON.stringify({ draft_sections: homeDraft, has_changes: true })}'`, inStack);
+    runCli(`raw update ${edited} --data '{"title":"Retitled in the stack"}'`, inStack);
+    const pageSection = runCli(`raw create ${manifest.app} "${sectionType}" --data '{"title":"On the new page"}'`, inStack).json.id;
+    const newPage = runCli(`raw create ${manifest.app} "${pageType}" --data '${JSON.stringify({
+      title: 'Made in the stack', url_slug: 'made_in_the_stack', index: 99, published: 'draft', draft_sections: [ref(pageSection)],
+    })}'`, inStack).json.id;
+    runCli(`raw delete ${manifest.app} "${sectionType}" ${doomed}`, inStack);
+    runCli(`raw update ${trimmed} --data '{"temp_note":null}'`, inStack); // SQLite's merge drops a key sent as null
+    runCli(`page publish ${home}`, inStack);
+
+    const file = join(tmpdir(), `dms-cli-stack-diff-${process.pid}.json`);
+    const diffArgs = `--output ${file} stack diff --stack ${STACK_HOST} --since ${copiedAt}`;
+    runCli(diffArgs);
+
+    test('dry run: lists the writes in order and writes nothing');
+    let r = runCli(`stack apply ${file} --site https://site.example/`);
+    let steps = r.json?.steps || [];
+    const stepOf = (stackId) => steps.find((x) => String(x.stack_id) === String(stackId));
+    let ok = assertEqual(r.json?.applied, false, 'not applied');
+    ok = assertEqual(stepOf(added)?.op, 'create', 'new section: create') && ok;
+    ok = assertEqual(stepOf(newPage)?.op, 'create', 'new page: create') && ok;
+    ok = assert(steps.indexOf(stepOf(pageSection)) < steps.indexOf(stepOf(newPage)), 'the new page comes after its section') && ok;
+    ok = assertEqual(stepOf(edited)?.op, 'edit', 'retitled section: edit') && ok;
+    ok = assertEqual(JSON.stringify(stepOf(home)?.fields?.sort()), JSON.stringify(['draft_sections', 'has_changes']), 'Home: only its draft side') && ok;
+    ok = assertEqual(JSON.stringify(stepOf(trimmed)?.removed), JSON.stringify(['temp_note']), 'removed key listed') && ok;
+    ok = assertEqual(stepOf(doomed)?.op, 'delete', 'deleted section: delete') && ok;
+    ok = assert(steps.indexOf(stepOf(doomed)) > steps.indexOf(stepOf(home)), 'deletes come last') && ok;
+    ok = assertEqual((r.json?.skipped || []).length, homeBefore.draft_sections.length + 1, 'the stack\'s published copies are skipped') && ok;
+    ok = assert(/^https:\/\/site\.example\/(.+\/)?edit\//.test(r.json?.publish?.find((p) => String(p.id) === String(home))?.url || ''), 'Home\'s edit address is on --site') && ok;
+    ok = assertEqual(JSON.stringify(data(home)), JSON.stringify(homeBefore), 'production\'s Home is untouched') && ok;
+    if (ok) pass();
+
+    test('a different host than the diff\'s production: refuses, exit 1');
+    r = runCli(`stack apply ${file} --apply`, { host: STACK_HOST, expectError: true });
+    ok = assertEqual(r.exitCode, 1, 'exit code');
+    if (assert(/diff was made against/.test(r.stderr), 'says which host the diff is for') && ok) pass();
+
+    test('the stack changed after the diff: refuses, exit 1, nothing written');
+    runCli(`raw update ${edited} --data '{"title":"Retitled twice in the stack"}'`, inStack);
+    r = runCli(`stack apply ${file} --apply`, { expectError: true });
+    ok = assertEqual(r.exitCode, 1, 'exit code');
+    ok = assert(/changed after the diff file was written/.test(r.stdout), 'says the stack changed') && ok;
+    if (assertEqual(data(edited).title, titleBefore, 'production\'s section is untouched') && ok) pass();
+
+    test('--apply: production gets the rows, pages as drafts, with production ids');
+    runCli(diffArgs);
+    r = runCli(`stack apply ${file} --apply`);
+    steps = r.json?.steps || [];
+    const ids = r.json?.ids || {};
+    const homeAfter = data(home);
+    const newSectionId = ids[String(added)];
+    ok = assertEqual(r.json?.applied, true, 'applied');
+    ok = assert(steps.length > 0 && steps.every((x) => x.done), 'every write done') && ok;
+    ok = assert(newSectionId && String(newSectionId) !== String(added), 'the new section has a production id of its own') && ok;
+    ok = assertEqual(data(newSectionId)?.title, 'Added in the stack', 'the new section\'s data') && ok;
+    ok = assertEqual(JSON.stringify(homeAfter.draft_sections.map((x) => String(x.id))),
+      JSON.stringify([...homeBefore.draft_sections.map((x) => String(x.id)), String(newSectionId)]), 'Home\'s draft lists the production id') && ok;
+    ok = assertEqual(JSON.stringify(homeAfter.sections), JSON.stringify(homeBefore.sections), 'Home\'s published sections are unchanged') && ok;
+    ok = assertEqual(homeAfter.has_changes, true, 'Home has changes to publish') && ok;
+    ok = assertEqual(data(edited).title, 'Retitled twice in the stack', 'the retitled section') && ok;
+    ok = assert(!('temp_note' in data(trimmed)) || data(trimmed).temp_note === null, 'the removed key is gone') && ok;
+    const pageAfter = data(ids[String(newPage)]);
+    ok = assertEqual(pageAfter?.published, 'draft', 'the new page is a draft') && ok;
+    ok = assertEqual(String(pageAfter?.draft_sections?.[0]?.id), String(ids[String(pageSection)]), 'the new page lists its section\'s production id') && ok;
+    const gone = runCli(`raw get ${doomed}`, { expectError: true });
+    ok = assert(gone.exitCode !== 0, 'the deleted section is gone') && ok;
+    ok = assertEqual((r.json?.publish || []).map((p) => String(p.id)).sort().join(','), [String(home), String(ids[String(newPage)])].sort().join(','), 'lists the pages to publish') && ok;
+    if (ok) pass();
+
+    test('the same file again: production has changed since the copy, so it refuses, exit 3');
+    await sleep(1100);
+    r = runCli(`stack apply ${file} --apply`, { expectError: true });
+    ok = assertEqual(r.exitCode, 3, 'exit code');
+    if (assert(/conflict/.test(r.stdout), 'lists the conflicts') && ok) pass();
+    if (existsSync(file)) unlinkSync(file);
   });
 
   const exitCode = summary();

@@ -21,6 +21,7 @@ import { lexicalTheme as defaultLexicalTheme, buildLexicalInternalTheme } from '
 // Import ThemeContext from separate file to avoid circular dependency with defaultTheme
 import { ThemeContext } from '../../../themeContext';
 import { PageActionsContext } from './context/PageActionsContext';
+import { getHtmlSync } from '../ssr';
 
 function isLexicalJSON(str) {
     try {
@@ -98,6 +99,40 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
 
   // For collab first-time bootstrap: if Yjs doc is empty, seed it with existing content
   const collabInitialState = isCollab && isLexicalJSON(value) ? value : undefined;
+
+  // View mode renders static HTML first, then the live editor. Lexical fills its DOM
+  // from the client, so the live editor alone server-renders an empty content-editable:
+  // on the server this HTML is the content; in the browser the server's HTML is kept
+  // through hydration (React never patches dangerouslySetInnerHTML), and the layout
+  // effect swaps in the live editor before the next paint, which owns button actions and
+  // collapsibles. See planning/tasks/current/ssr-lexical-view-html.md.
+  const staticFirst = !editable && !isCollab;
+  const [live, setLive] = React.useState(!staticFirst);
+  React.useLayoutEffect(() => { if (!live) setLive(true); }, [live]);
+
+  if (!live) {
+    const html = import.meta.env?.SSR && isLexicalJSON(value)
+      ? getHtmlSync(value, undefined, undefined, { nestedTheme: nestedLexicalTheme, dmsTheme: theme })
+      : '';
+    return (
+      <div className={`${nestedLexicalTheme.editorShell} ${showBorder ? 'border rounded-md' : ''}`}>
+        <div className={nestedLexicalTheme.editorViewContainer || 'view-container'} style={{backgroundColor: bgColor}}>
+          <div className={nestedLexicalTheme.viewScroller || 'view-scroller'}>
+            <div className={nestedLexicalTheme.editor?.base || 'editor'}>
+              <div
+                className={nestedLexicalTheme.contentEditable}
+                contentEditable={false}
+                role="textbox"
+                aria-readonly={true}
+                suppressHydrationWarning
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const inner = (
     <LexicalComposer key={isCollab ? `collab-${collabId}` : id} initialConfig={initialConfig}>

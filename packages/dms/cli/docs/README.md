@@ -185,8 +185,9 @@ dms section update <section-id> --set element-type=Card
 dms section delete <section-id> [--page <page-id-or-slug>]
 ```
 
-**Always pass `--pattern <name>` explicitly on a multi-pattern site.** Without it, `section
-create`/`update`/`delete` resolve the page's pattern via `findPatternByKind(..., 'page')`, which
+**Always pass `--pattern <name>` explicitly on a multi-pattern site** to `section list`/`create`/`delete`.
+(`section update` writes by section id, so it has no `--pattern` option and refuses one.) Without it,
+`section list`/`create`/`delete` resolve the page's pattern via `findPatternByKind(..., 'page')`, which
 silently picks WHATEVER page-kind pattern comes first for the app — not necessarily the one the
 page id/slug you gave actually belongs to. On a site with several page patterns (dev/sandbox
 patterns included), this can create/attach a section under the wrong pattern's type string (e.g.
@@ -272,7 +273,7 @@ dms formats list [--format summary]
 
 A preview stack (dms-template `deploy/stacks.mjs`) is a whole copy of production's DMS data on its own server.
 `stack diff` lists what a stack changed since its copy and, for each of those rows, whether production changed it
-too after the copy. **It only reads, on both sides.** It's the first half of carrying a stack's content to production
+too after the copy. **It only reads, on both sides.** `stack apply` then writes those rows to production
 (dms-template `planning/shared/tasks/current/stack-content-promotion.md`).
 
 ```bash
@@ -309,6 +310,44 @@ A note also marks a row pointing at a file on the stack's own storage, which a p
 - **3:** there is at least one conflict. Every row is still checked and every conflict listed first.
 - **0:** none.
 - **1:** an error.
+
+#### `stack apply`
+
+`stack apply` writes a saved diff's rows to production. **It's a dry run unless given `--apply`.**
+
+```bash
+dms stack diff --stack https://preview3.weatherenterprise.com --output diff.json   # review this
+dms stack apply diff.json --format summary       # the plan: nothing written
+dms stack apply diff.json --apply --site https://www.example.org   # write it; --site makes the publish links full addresses
+```
+
+**It runs the diff again first** and refuses unless the result is the file's:
+- `--host` and `--app` must be the file's `production` and `app`;
+- any conflict refuses the whole promotion (exit 3), with every conflict listed;
+- the stack must be at the file's revision. If it changed after the diff, run the diff again and review it;
+- every row must be a page, section, theme, pattern or the site row. Dataset settings aren't carried;
+- no row may point at a file on the stack's own storage.
+
+It reads the rows' data from the stack, so **the stack has to exist when it runs**.
+
+**What it writes, in order:**
+1. **New rows**, sections before the pages that list them. Each gets production's own id, and the ids in a page's
+   `draft_sections` (any `{id, ref}`) and a page's `parent` are swapped to match.
+2. **Changed sections, themes, patterns and the site row:** the top-level keys that differ. A key the stack removed
+   is written as `null`.
+3. **Changed pages, draft side only.** `sections`, `section_groups`, `dataSources` and `published` are never
+   written. A new page is created with `published: 'draft'`. `has_changes` is set, and the page's live room is put
+   in step.
+4. **Deleted rows.**
+
+**It never publishes.** The output lists each page to publish with its edit address
+(`<base_url>/edit/<url_slug>`), where a person clicks Publish. With `--site <the production site's address>` that's
+a full address; without it, a path. The addresses need the site's type (`--type` / `DMS_TYPE`).
+
+Before each write to an existing row it reads the row's `updated_at` again and stops (exit 3) if it changed. The
+writes already made stay, and each step in the output says `done` or not.
+
+After a promotion the same stack diffs as conflicts, because production's rows are now newer than the copy.
 
 ## Output Formats
 

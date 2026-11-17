@@ -184,7 +184,7 @@ formatsCmd
 
 const stackCmd = program
   .command('stack')
-  .description('Preview stacks (dms-template deploy/stacks.mjs): compare a stack with production; see docs/README.md "Stack"');
+  .description('Preview stacks (dms-template deploy/stacks.mjs): compare a stack with production, and carry its changes there; see docs/README.md "Stack"');
 
 stackCmd
   .command('diff')
@@ -195,6 +195,17 @@ stackCmd
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app']);
     await stack.diff(config, { ...getOutputOptions(cmd), stack: options.stack, since: options.since });
+  });
+
+stackCmd
+  .command('apply <diff-file>')
+  .description("Write a saved `stack diff` to production as drafts: a dry run unless --apply. Refuses on any conflict (exit 3) or if the stack changed since the diff")
+  .option('--apply', 'write to production (without it, only the plan is printed)')
+  .option('--site <url>', "the production site's address, e.g. https://www.example.org: the output then gives each page's full edit address to publish from")
+  .action(async (file, options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app']);
+    await stack.apply(file, config, { ...getOutputOptions(cmd), apply: !!options.apply, site: options.site });
   });
 
 // ============================================================================

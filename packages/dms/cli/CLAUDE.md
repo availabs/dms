@@ -27,7 +27,7 @@ cli/
 │   │   ├── section.js      # Section list/show/dump/create/update/delete
 │   │   ├── dataset.js      # Dataset list/show/views/dump/query
 │   │   ├── formats.js      # Format declarations on the server, read-only: list/diff (docs/README.md "Formats")
-│   │   └── stack.js        # Preview stacks, read-only: diff a stack against production (docs/README.md "Stack")
+│   │   └── stack.js        # Preview stacks: diff a stack against production (read-only), apply the diff there (docs/README.md "Stack")
 │   ├── formatters/
 │   │   ├── json.js         # JSON output (pretty/compact)
 │   │   ├── summary.js      # Human-readable summary lines
@@ -37,7 +37,7 @@ cli/
 │       ├── output.js       # Output routing (stdout/file, format dispatch)
 │       └── room-sync.js    # Syncs a page's live-edit Yjs room after draft_sections writes (WebSocket)
 ├── test/
-│   ├── run.js              # Integration test runner (32 tests; Phase 5 runs a second server as a stack)
+│   ├── run.js              # Integration test runner (37 tests; Phases 5 and 6 run a second server as a stack)
 │   ├── room-client.js      # Browser stand-in for a page's live-edit room (tests)
 │   ├── harness.js          # Test harness (server lifecycle, CLI runner, assertions)
 │   ├── seed.js             # Seed script (populates test DB via Falcor HTTP)

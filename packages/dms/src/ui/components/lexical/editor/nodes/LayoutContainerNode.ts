@@ -11,6 +11,7 @@ import type {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
+  LexicalEditor,
   LexicalNode,
   LexicalUpdateJSON,
   NodeKey,
@@ -68,10 +69,14 @@ export class LayoutContainerNode extends ElementNode {
     return dom;
   }
 
-  exportDOM(): DOMExportOutput {
-    const element = document.createElement('div');
-    // Include grid base classes + the template columns class
-    element.className = `grid gap-[10px] ${this.__templateColumns}`;
+  exportDOM(editor: LexicalEditor): DOMExportOutput {
+    // The same classes the live editor renders (template columns + the theme's
+    // layoutContainer), so exported and server-rendered HTML lay out like the page.
+    // Without a theme class, fall back to a plain grid.
+    const element = this.createDOM(editor._config);
+    if (typeof editor._config.theme.layoutContainer !== 'string') {
+      addClassNamesToElement(element, 'grid gap-[10px]');
+    }
     element.setAttribute('data-lexical-layout-container', 'true');
     return {element};
   }
