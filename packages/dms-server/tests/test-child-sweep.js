@@ -35,7 +35,7 @@ const t = async (name, fn) => {
 };
 const section = (name) => console.log(`\n${name}`);
 
-const CHILD_REFS = { page: { sections: 'component', draft_sections: 'component' } };
+const CHILD_REFS = { page: { sections: 'component', draft_sections: 'component', history: 'page-edit' } };
 
 async function run() {
     const { getDb, awaitReady } = require('../src/db');
@@ -113,31 +113,23 @@ async function run() {
         const pageA = await create('widgets|page', { title: 'A', draft_sections: [ref(mine)] });
         const pageB = await create('widgets|page', { title: 'B', draft_sections: [ref(theirs)] });
 
-        // THE ONE DANGEROUS INTERACTION, pinned here rather than left to be discovered.
-        //
-        // `stampChildren` RE-HOMES a row that already belongs to someone else — its predicate is
-        // `parent_id IS NULL OR parent_id <> $1`, deliberately, because re-asserting from the
-        // owner's own array on every save is what keeps the column honest and lets a save repair
-        // drift. In healthy data nothing exercises that branch: there is no cross-page section
-        // move, and paste/duplicate/template all mint new rows.
-        //
-        // It fires on exactly one shape — a component listed by TWO pages — which is corrupt data,
-        // and is what `--verify-parents` reports as "named by 2+ owners" and the migration repairs
-        // by duplicating the row. Whichever page saves last takes ownership, and then THAT page
-        // dropping the section deletes a row the other page still lists.
-        //
-        // So `DMS_CHILD_SWEEP_MODE=delete` is gated on `--verify-parents` reporting zero
-        // multi-owner rows for the app, the same way `DMS_AUTH_MODE=enforce` is gated on
-        // coverage. `log` does not have this exposure, which is why it is the default.
+        // A row listed by TWO pages: `stampChildren` RE-HOMES it to whichever page saved last (its
+        // predicate is `parent_id IS NULL OR parent_id <> $1`, on purpose: re-asserting from the owner's
+        // own array repairs drift). So `parent_id` alone would let that page delete a row the other page
+        // still shows. Real on prod: 767 mitigat-ny-prod sections are listed by 2-4 pages (audit
+        // 2026-11-16). The sweep checks the lists first and keeps any row another page still lists.
         await edit(pageA, { draft_sections: [ref(mine), ref(theirs), ref(unstamped)] }, 'widgets|page');
         await t('a page that lists another page\'s row TAKES it — drift repair, by design', async () =>
             assert.strictEqual(await parentOf(theirs), pageA));
         await edit(pageA, { draft_sections: [] }, 'widgets|page');
-        await t('…so dropping it deletes it, which is why delete mode needs a clean verify',
-            async () => assert.strictEqual(await alive(theirs), false));
-        await t('its own child goes too', async () => assert.strictEqual(await alive(mine), false));
+        await t('…but dropping it does NOT delete it: page B still lists it',
+            async () => assert.strictEqual(await alive(theirs), true));
+        await t('its own child goes', async () => assert.strictEqual(await alive(mine), false));
         await t('and one it claimed from nobody', async () =>
             assert.strictEqual(await alive(unstamped), false));
+        await edit(pageB, { draft_sections: [] }, 'widgets|page');
+        await t('B then drops it too: B isn\'t its recorded parent, so it stays (an orphan, never a wrong delete)',
+            async () => assert.strictEqual(await alive(theirs), true));
 
         const stranger = await create('other|component', { title: 'another pattern' });
         const pageC = await create('widgets|page', { title: 'C', draft_sections: [{ id: stranger, ref: `${APP}+other|component` }] });
@@ -187,8 +179,22 @@ async function run() {
         await t('…which it does', async () => assert.strictEqual(await alive(fresh), false));
     }
 
-    section('6. mode — log is the default and deletes nothing');
+    section('6. mode — delete is the default; log and off delete nothing');
     {
+        delete process.env.DMS_CHILD_SWEEP_MODE;
+        const d = await create('widgets|component', { title: 'default mode' });
+        const pd = await create('widgets|page', { title: 'D', draft_sections: [ref(d)] });
+        await edit(pd, { draft_sections: [] }, 'widgets|page');
+        await t('unset means delete: the dropped row goes', async () =>
+            assert.strictEqual(await alive(d), false));
+
+        process.env.DMS_CHILD_SWEEP_MODE = 'sweep-it';
+        const u = await create('widgets|component', { title: 'unknown mode' });
+        await edit(pd, { draft_sections: [ref(u)] }, 'widgets|page');
+        await edit(pd, { draft_sections: [] }, 'widgets|page');
+        await t('an unknown value reads as log and deletes nothing', async () =>
+            assert.strictEqual(await alive(u), true));
+
         process.env.DMS_CHILD_SWEEP_MODE = 'log';
         const a = await create('widgets|component', { title: 'log mode' });
         const page = await create('widgets|page', { title: 'F', draft_sections: [ref(a)] });
@@ -202,6 +208,45 @@ async function run() {
         await edit(page, { draft_sections: [] }, 'widgets|page');
         await t('off mode too', async () => assert.strictEqual(await alive(b), true));
         process.env.DMS_CHILD_SWEEP_MODE = 'delete';
+    }
+
+    section('8. listed elsewhere: published and draft lists, another pattern, a deleted owner');
+    {
+        const shared = await create('widgets|component', { title: 'shared by Lightning and Wind' });
+        const wind = await create('widgets|page', { title: 'Wind', sections: [ref(shared)] });
+        const lightning = await create('widgets|page', { title: 'Lightning', draft_sections: [ref(shared)] });
+        await t('the last page to save owns it', async () => assert.strictEqual(await parentOf(shared), lightning));
+        await edit(lightning, { draft_sections: [] }, 'widgets|page');
+        await t('the owner drops it from draft_sections; Wind\'s published list still names it: kept',
+            async () => assert.strictEqual(await alive(shared), true));
+
+        const copied = await create('widgets|component', { title: 'kept by a copied pattern' });
+        const own = await create('widgets|page', { title: 'own', draft_sections: [ref(copied)] });
+        await create('other|page', { title: 'copy', draft_sections: [ref(copied)] });
+        await t('a page of another pattern does not take it (outside its container)', async () =>
+            assert.strictEqual(await parentOf(copied), own));
+        await edit(own, { draft_sections: [] }, 'widgets|page');
+        await t('dropped by its own page while another pattern\'s page lists it: kept',
+            async () => assert.strictEqual(await alive(copied), true));
+
+        const s1 = await create('widgets|component', { title: 'only mine' });
+        const s2 = await create('widgets|component', { title: 'mine, also on a sibling' });
+        await create('widgets|page', { title: 'sibling', draft_sections: [ref(s2)] });
+        const doomed = await create('widgets|page', { title: 'doomed', draft_sections: [ref(s1)], sections: [ref(s2)] }); // saved last: takes s2
+        await t('s2 is the doomed page\'s', async () => assert.strictEqual(await parentOf(s2), doomed));
+        await graph.callAsync(['dms', 'data', 'delete'], [APP, 'widgets|page', doomed]);
+        await t('deleting the page deletes the section only it listed', async () => assert.strictEqual(await alive(s1), false));
+        await t('…and keeps the one the sibling still lists', async () => assert.strictEqual(await alive(s2), true));
+
+        // `history` holds ONE ref ({id, ref}), not a list; on mitigat-ny-prod 4 history rows are named by 2–3 pages each.
+        const h = await create('widgets|page-edit', { entries: [] });
+        const href = { id: h, ref: `${APP}+widgets|page-edit` };
+        await create('widgets|page', { title: 'keeps the history', history: href });
+        const histOwner = await create('widgets|page', { title: 'owns the history', history: href }); // saved last: takes h
+        await t('a single-ref attribute stamps too', async () => assert.strictEqual(await parentOf(h), histOwner));
+        await graph.callAsync(['dms', 'data', 'delete'], [APP, 'widgets|page', histOwner]);
+        await t('deleting its owner keeps a history row another page names as a single ref', async () =>
+            assert.strictEqual(await alive(h), true));
     }
 
     section('7. a brand-new app needs no migration: its plain table stamps and sweeps');

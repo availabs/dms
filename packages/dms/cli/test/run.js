@@ -194,6 +194,36 @@ async function run() {
     const delResult = runCli(`section delete ${newSecId} --page ${homeSlug}`);
     assertIncludes(delResult.json.message, 'deleted', 'delete message');
     pass();
+
+    test('section delete without --page clears sections and draft_sections of every page, in any pattern (F10)');
+    {
+      const sec = runCli(`section create ${homeSlug} --element-type lexical --title 'F10 section'`).json.id;
+      const homeId = runCli(`page show ${homeSlug}`).json.id;
+      // Publishing copies sections to new rows, so name the row in `sections` directly: a page whose
+      // published and draft lists share a row (older pages, raw writes) is the case F10 is about.
+      const home = runCli(`raw get ${homeId}`).json.data || {};
+      const stub = (home.draft_sections || []).find((s) => String(s.id) === String(sec));
+      runCli(`raw update ${homeId} --data '${JSON.stringify({ sections: [...(home.sections || []), stub] })}'`);
+      // ...and a page of ANOTHER pattern lists it too (a copied pattern's page kept the source's rows).
+      const authPattern = manifest.patterns.find((p) => p.pattern_type === 'auth');
+      const otherPage = runCli(`raw create ${manifest.app} "${authPattern.instance}|page" --data '${JSON.stringify({ title: 'F10 other pattern', draft_sections: [stub] })}'`).json.id;
+      const listsOf = (pageId = homeId) => {
+        const d = runCli(`raw get ${pageId}`).json.data || {};
+        const ids = (k) => (d[k] || []).map((s) => String(typeof s === 'object' ? s.id : s));
+        return { sections: ids('sections'), draft_sections: ids('draft_sections') };
+      };
+      let ok = assert(listsOf().sections.includes(String(sec)), 'published page lists the section before');
+      const del = runCli(`section delete ${sec}`);
+      ok = assertEqual(del.json?.pages?.length, 2, 'two pages edited') && ok;
+      ok = assertEqual((del.json?.pages || []).map((p) => String(p.id)).sort().join(','), [String(homeId), String(otherPage)].sort().join(','), 'the home page and the other pattern\'s page') && ok;
+      ok = assert(!listsOf(otherPage).draft_sections.includes(String(sec)), 'gone from the other pattern\'s page') && ok;
+      const after = listsOf();
+      ok = assert(!after.sections.includes(String(sec)), 'gone from sections') && ok;
+      ok = assert(!after.draft_sections.includes(String(sec)), 'gone from draft_sections') && ok;
+      const row = runCli(`raw get ${sec}`, { expectError: true });
+      ok = assert(!row.json?.type, 'the section row is deleted') && ok;
+      if (ok) pass();
+    }
   });
 
   // ================================================================

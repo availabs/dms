@@ -409,9 +409,9 @@ sectionCmd
 
 sectionCmd
   .command('delete <section-id>')
-  .description('Delete a section')
+  .description('Delete a section; its id leaves sections and draft_sections of every page that lists it first')
   .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
-  .option('--page <id-or-slug>', 'Also remove section ref from this page')
+  .option('--page <id-or-slug>', 'Only edit this page (default: every page of the site that lists it, in any pattern)')
   .action(async (sectionId, options, cmd) => {
     const config = getConfig(cmd);
     if (options.page) {

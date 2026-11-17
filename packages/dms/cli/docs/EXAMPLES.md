@@ -184,10 +184,15 @@ dms page publish new-feature
 ### Delete a section and clean up the page reference
 
 ```bash
-dms section delete 20 --page home
+dms section delete 20             # every page of the site that lists it
+dms section delete 20 --page home # only this page
 ```
 
-Without `--page`, the section is deleted but the page still has a dangling reference. Use `--page` to remove it from the page's `draft_sections` array.
+The section's id leaves both the published `sections` and `draft_sections` before the row is deleted, so
+the published page doesn't keep a reference to a missing row. The output's `pages` lists each page edited
+and which of the two lists changed. Without `--page`, the pages are found by reading every page of the
+site's patterns: a section can be listed by several pages, including pages of another pattern
+(a copied pattern whose pages kept the source pattern's rows).
 
 ### Delete a page
 

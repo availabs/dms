@@ -180,7 +180,8 @@ dms section update <section-id> --data ./section.json
 dms section update <section-id> --data -    # read from stdin
 dms section update <section-id> --set element-type=Card
 
-# Delete a section (optionally remove ref from page)
+# Delete a section. Its id first leaves `sections` and `draft_sections` of every page of the site
+# that lists it, in any pattern (output: `pages`), or only of --page's page
 dms section delete <section-id> [--page <page-id-or-slug>]
 ```
 

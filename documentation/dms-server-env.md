@@ -48,7 +48,7 @@ they refuse everything but what the blank-row rule alone refuses. Background:
 |---|---|---|
 | `DMS_AUTH_MODE` | `log` | `log` allows, and records every would-deny in the console and the access log; `enforce` refuses. One mode for EVERY guard — `dms.data.*` writes, dataset source routes, dataset reads, the auth row, uploads and datatype routes. Move to `enforce` only once the access-log page is clean for the site. |
 | `DMS_SYNC_AUTH` | unset | `1` requires a signed-in user on the sync endpoints (`/sync/*`). |
-| `DMS_CHILD_SWEEP_MODE` | `log` | Deleting child rows a page / pattern no longer lists: `off`, `log` (report only), `delete`. Flip to `delete` only once no child row is listed by two owners. The check that reported this (`migrate-row-auth.js --verify-parents`) was retired with the `parent_id` column on 2026-11-10 and is not yet ported to `data.parent_id` (`planning/tasks/current/new-app-auth-setup-and-db-constraints.md`). |
+| `DMS_CHILD_SWEEP_MODE` | `delete` | Deleting child rows a page / pattern no longer lists, or whose owner is deleted: `delete` (default since 2026-11-16), `log` (report only), `off`. A row is deleted only when its `data.parent_id` names the page that dropped it (or was deleted) and no other row in the app still lists it in a declared list (`sections`, `draft_sections`, …), in any pattern. Orphans left before the switch are not cleaned up. |
 
 ### Auth levels
 

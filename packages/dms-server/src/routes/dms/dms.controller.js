@@ -281,24 +281,21 @@ function createController(dbName = 'dms-sqlite', options = {}) {
   }
 
   /**
-   * `DMS_CHILD_SWEEP_MODE`: `off` | `log` | `delete`, default **`log`**.
+   * `DMS_CHILD_SWEEP_MODE`: `off` | `log` | `delete`, default **`delete`** (owner, 2026-11-16; it was
+   * `log` until then, and orphans left behind before that are not cleaned up).
    *
-   * Deleting a child is the only irreversible thing parentage does, so it ships the way row auth
-   * itself did — reporting first. `log` runs the same SELECT the DELETE would have run and prints
-   * what it would have removed; nothing else about the write changes. An unknown value reads as
-   * `log`.
+   * Deleting a child is the only irreversible thing parentage does. `log` runs the same SELECT the
+   * DELETE would have run and prints what it would have removed; nothing else about the write
+   * changes. Set `log` or `off` on a server to stop sweeping. An unknown value reads as `log`.
    *
-   * **`delete` is gated on `migrate-row-auth.js --verify-parents` reporting ZERO rows "named by 2+
-   * owners" for the app**, the same way `DMS_AUTH_MODE=enforce` is gated on coverage. The
-   * reason is `stampChildren`: it re-homes a child whose `parent_id` points elsewhere, on purpose,
-   * because re-asserting from the owner's own array is what repairs drift. On healthy data nothing
-   * exercises that — there is no cross-page section move, and paste/duplicate/template all mint new
-   * rows. On a component listed by TWO pages it means the last page to save owns it, and that page
-   * dropping the section would delete a row the other page still shows. The migration repairs those
-   * rows by duplicating them; verify first, then flip. (`tests/test-child-sweep.js` pins this.)
+   * `delete` was once gated on `migrate-row-auth.js --verify-parents` reporting no row "named by 2+
+   * owners", because `stampChildren` re-homes a shared row to the last page that saved it and the sweep
+   * trusted `parent_id` alone. The sweep now also checks every page's lists in the app and keeps a row
+   * another row still lists (`parentId.js listedElsewhere`; 767 such rows on mitigat-ny-prod, audit
+   * 2026-11-16), so a shared row is never deleted from under a page. `tests/test-child-sweep.js` pins it.
    */
   function childSweepMode() {
-    const m = String(process.env.DMS_CHILD_SWEEP_MODE || 'log').toLowerCase();
+    const m = String(process.env.DMS_CHILD_SWEEP_MODE || 'delete').toLowerCase();
     return (m === 'off' || m === 'delete') ? m : 'log';
   }
 
@@ -314,11 +311,14 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       const { planRemovedChildren, sweepRemovedChildren } = require('./parentId');
       const removed = planRemovedChildren(before, after, { type, childRefs });
       if (!removed.length) return 0;
-      const res = await sweepRemovedChildren(tx, { table, app, id, type, removed, mode });
+      const res = await sweepRemovedChildren(tx, { table, app, id, type, removed, childRefs, mode });
       if (mode === 'delete') await logSweptRows(tx, app, res.rows, userId, reqMeta);
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'swept' : 'would sweep'} ${res.swept} `
           + `child row(s) dropped by ${app}/${id} (${type})`);
+      }
+      if (res.kept && res.kept.length) {
+        console.log(`[parent-id] kept ${res.kept.length} row(s) dropped by ${app}/${id} (${type}): still listed by another row (${res.kept.slice(0, 20).join(', ')})`);
       }
       return res.swept;
     } catch (e) {
@@ -337,7 +337,7 @@ function createController(dbName = 'dms-sqlite', options = {}) {
     }
   }
 
-  /** The same, for an owner row that is itself being deleted: everything it parents goes. */
+  /** The same, for an owner row that is itself being deleted: everything it parents goes, except a row another row still lists. */
   async function sweepChildrenOfDeleted(tx, { table, app, id, type, childRefs, userId = null, reqMeta = null }) {
     const mode = childSweepMode();
     if (!childRefs || mode === 'off') return 0;
@@ -347,6 +347,9 @@ function createController(dbName = 'dms-sqlite', options = {}) {
       if (res.swept) {
         console.log(`[parent-id] ${mode === 'delete' ? 'deleted' : 'would delete'} ${res.swept} `
           + `child row(s) of deleted ${app}/${id} (${type})`);
+      }
+      if (res.kept && res.kept.length) {
+        console.log(`[parent-id] kept ${res.kept.length} child row(s) of deleted ${app}/${id} (${type}): still listed by another row (${res.kept.slice(0, 20).join(', ')})`);
       }
       return res.swept;
     } catch (e) {
