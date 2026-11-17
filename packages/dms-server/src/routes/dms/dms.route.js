@@ -7,6 +7,22 @@ const { getKind, getParent, isSplitType } = require('#db/type-utils.js');
 
 // Every decision on this route comes from `routes/auth`: `authorize` for reads, `assertDataWrite` for writes.
 const { assertDataWrite, authorize, applyMode, NO_CHANGE } = require('../auth');
+const { AUTH_DATA_KEYS } = require('../auth/owners');
+const { parseJson } = require('../auth/grants');
+
+// What a by-id read fetches: the requested attributes, plus what the auth check judges a row by. With
+// `data` requested the check reads it; otherwise only the auth keys of `data`, never the whole column.
+const AUTH_DATA_ATTS = AUTH_DATA_KEYS.map(k => `data ->> '${k}'`);
+const readAtts = (atts) => [...new Set([...atts, 'type', ...(atts.includes('data') ? [] : AUTH_DATA_ATTS)])];
+
+// The row the auth check judges: the stored row's columns and the auth keys of its `data`, never the
+// reply's projection (where `data ->> 'parent'` arrives as a top-level `parent`).
+function authSubject(row, app) {
+  const data = row.data !== undefined
+    ? row.data
+    : Object.fromEntries(AUTH_DATA_KEYS.filter(k => row[k] != null).map(k => [k, parseJson(row[k]) ?? row[k]]));
+  return { id: row.id, app: row.app || app, type: row.type, data };
+}
 
 /*
  Controller Settings
@@ -59,7 +75,7 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
 
       if (user !== undefined && row.type) {
         const kind = getKind(row.type);
-        const d = await authorize({ row, verb: 'read', user, subdomain, app: app || row.app });
+        const d = await authorize({ row: authSubject(row, app), verb: 'read', user, subdomain, app: app || row.app });
         // DMS reads were enforced before the mode existed, and stay so
         const blocked = !applyMode(d, { guard: 'read', kind: `read ${kind}`, target: `${idStr} ${row.type}`, user, app: app || row.app || '', mode: 'enforce' });
 
@@ -434,10 +450,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [, , , ids, atts] = pathSet;
         const user = this.user;
         const subdomain = this.subdomain;
-        // The auth check keys off row.type — always fetch it. A `data`-only
+        // The auth check keys off row.type and the auth keys of data — always fetch them. A `data`-only
         // request otherwise skips the check and leaks restricted rows.
-        const fetchAtts = atts.includes('type') ? atts : [...atts, 'type'];
-        const rows = await controller.getDataById(ids, fetchAtts);
+        const rows = await controller.getDataById(ids, readAtts(atts));
         return await dataByIdResponse(rows, ids, atts, null, user, subdomain);
       },
     },
@@ -448,9 +463,9 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
         const [, , apps, , ids, atts] = pathSet;
         const user = this.user;
         const subdomain = this.subdomain;
-        // The auth check keys off row.type — always fetch it. A `data`-only
+        // The auth check keys off row.type and the auth keys of data — always fetch them. A `data`-only
         // request otherwise skips the check and leaks restricted rows.
-        const fetchAtts = atts.includes('type') ? atts : [...atts, 'type'];
+        const fetchAtts = readAtts(atts);
         const results = await Promise.all(
           apps.map(app =>
             controller.getDataById(ids.filter(i => i !== 'no-access'), fetchAtts, app)

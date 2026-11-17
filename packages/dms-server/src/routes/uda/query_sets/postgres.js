@@ -554,8 +554,10 @@ async function resolvePrimaryKey(db, schema, table) {
 
 // A map popup (or the datasets map page) holds the id a vector tile gave the feature, and
 // tiles.rest.js always emits ogc_fid as that id (ST_AsMVT(…, 'ogc_fid')). So dataById looks rows
-// up by: an explicit metadata `isIndex` column when the source declares one, else ogc_fid when the
-// table has it, else the row key. For almost every DAMA table ogc_fid IS the primary key and
+// up by: an explicit metadata `isFeatureId` column when the source declares one, else ogc_fid when
+// the table has it, else the row key. (Until 2026-11-17 the explicit column was the first `isIndex`
+// one; an index flag no longer moves the feature id. The only sources that had one, npmrds2 2135 and
+// 2356, flagged ogc_fid, which the fallback gives anyway.) For almost every DAMA table ogc_fid IS the primary key and
 // nothing changes; it matters when the PK was moved to another column (Actions Cleaned 12453 →
 // action_id, 2026-09-29).
 async function resolveFeatureIdColumn(db, schema, table, storedIdx = null) {
@@ -604,7 +606,7 @@ async function detectRealPrimaryKey(db, schema, table) {
 }
 
 async function dataById(ctx, ids, attributes) {
-  const { db, table_schema, table_name, isDms, idxColumn } = ctx;
+  const { db, table_schema, table_name, isDms, featureIdColumn } = ctx;
 
   const sanitizedAttrs = sanitizeName(attributes).filter((f) => f);
   if (!sanitizedAttrs.length) return [];
@@ -613,7 +615,7 @@ async function dataById(ctx, ids, attributes) {
   // is a data field name (inside the JSONB 'data' column) and should not override it.
   const idxCol = isDms
     ? await resolvePrimaryKey(db, table_schema, table_name)
-    : await resolveFeatureIdColumn(db, table_schema, table_name, idxColumn);
+    : await resolveFeatureIdColumn(db, table_schema, table_name, featureIdColumn);
   const sql = `SELECT ${idxCol} AS id, ${sanitizedAttrs.map((c) => quoteAlias(c)).join(', ')} FROM ${table_schema}.${table_name} WHERE ${idxCol} = ANY($1)`;
   const { rows } = await db.query(sql, [ids.map((id) => +id)]);
   return rows;

@@ -51,12 +51,24 @@ function dmsDb() {
 
 // ---- rows ---------------------------------------------------------------------------------------
 
-/** A database row in the shape the walk reads: parsed, with its kind and the parent its type names. */
+/**
+ * The keys the walk reads off a row's `data`: its own grants, its stamped ancestry, a stamped vocabulary.
+ * A caller judging a row it read field by field fetches these (not the whole column) and hands them over
+ * as the row's `data` (dms.route.js `dataByIdResponse`).
+ */
+const AUTH_DATA_KEYS = ['authPermissions', 'auth_permissions', 'parent_id', 'authVocabulary'];
+
+/**
+ * A database row in the shape the walk reads: parsed, with its kind and the parent its type names.
+ * `parent` (the row above, already loaded) is never taken from the row handed in: a database row never
+ * carries one, and a top-level `parent` there is a projected data field (a page's nav `data.parent`), not
+ * a position on the walk. Only `externalRow` links one.
+ */
 function wrap(r, app) {
   const type = r.type || '';
   return {
     id: r.id, app, type, kind: getKind(type), instance: getInstance(type), parentKey: getParent(type),
-    parent: r.parent || null, data: parseJson(r.data) || {},
+    parent: null, data: parseJson(r.data) || {},
   };
 }
 
@@ -384,5 +396,5 @@ async function sourceOfView(env, viewId, app = null) {
 
 module.exports = {
   snapshotFor, appSnapshot, clearSnapshots, clearPgEnv, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
-  parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS,
+  parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS, AUTH_DATA_KEYS,
 };

@@ -142,6 +142,9 @@ export const VerticalMenu = ({ menuItems = [], activeStyle }) => {
   			className={item.className}
   			onClick={item.onClick}
         activeStyle={activeStyle}
+        // `item.active`: the caller knows the item is current when its path alone can't say
+        // (chat's Home is current on every channel, not only at the install's root)
+        active={!!item.active}
   			subMenuActivate={theme?.sideNav?.subMenuActivate}
   			subMenus={item?.subMenus || []}
   		/>
@@ -285,7 +288,7 @@ export const SideNavItem = ({
 							}
 
 							<div
-								className='pr-2'
+								className={theme?.indicatorWrapper ?? 'pr-2'}
 								onClick={() => {
 									if (subMenuActivate === 'onClick') {
 										//console.log('click ', to )

@@ -34,7 +34,10 @@ function isLexicalJSON(str) {
 
 
 
-export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo, onSetPageParam }) {
+// `plugins`: extra Lexical plugins (React elements) a caller renders inside this editor's
+// LexicalComposer, so they can use `useLexicalComposerContext`. The library knows nothing about
+// them; the chat pattern's @-mention typeahead is the first caller.
+export default function Lexicals ({value, hideControls, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo, onSetPageParam, plugins = null }) {
   // Get theme from ThemeContext if not passed as prop
   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
   const theme = themeProp || contextTheme;
@@ -124,6 +127,9 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
                 contentEditable={false}
                 role="textbox"
                 aria-readonly={true}
+                // what Lexical sets on the live root: without break-word a long word sets the
+                // column's min width, and a card in a grid row comes out wider than live
+                style={{ userSelect: 'text', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
                 suppressHydrationWarning
                 dangerouslySetInnerHTML={{ __html: html }}
               />
@@ -165,6 +171,7 @@ export default function Lexicals ({value, hideControls, showBorder, onChange, bg
           />
         )}
       </div>
+      {plugins}
     </LexicalComposer>
   );
 

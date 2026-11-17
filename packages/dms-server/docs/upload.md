@@ -168,6 +168,27 @@ Re-validates all dataset rows against the current column rules (required fields,
 
 **Response:** `{ "data": "N rows updated." }`
 
+### `POST /dms-admin/:app/file_upload`
+
+A file as a DMS-internal source (`src/dama/upload/file-upload-dms-route.js`): one source row
+(`{owner_instance}|{slug}:source`, `data.type: 'file_upload'`) listed on the owner env, one view row
+per file holding `file: { file_name, file_type, dl_url, description }`, and the bytes written through
+the storage service. Images are capped at 1400px and re-encoded as AVIF. Needs `create-source` on the
+env for a new source, `create-view` on the source for a new file on it.
+
+**Request:** `multipart/form-data` with `owner_id`, `owner_instance`, `owner_ref`, `source_name`
+(new source, 4+ characters, unique on the env, else 409) or `source_id` (new version), `file_name`,
+`file_type`, `directory`, `description`, `categories` (JSON), `file`, and optionally:
+
+- `metadata` — a JSON object merged onto a NEW source's data (ignored when appending to `source_id`).
+  The keys the route owns or that decide access are refused with 400: `name`, `type`, `views`,
+  `categories`, `description`, `config`, `auth_permissions`, `authPermissions`, `sources`,
+  `dmsEnvId`. Used by the chat pattern to record the install and channel a file was posted to
+  (`chat: {…}`).
+
+**Response:** `{ ok, app, source_id, view_id, dl_url }`. Local storage serves `dl_url`
+(`/files/...`) with no access check.
+
 ## In-Memory Store
 
 Upload state is stored in memory (not persisted to database). Each entry tracks:

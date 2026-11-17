@@ -17,7 +17,7 @@
  *
  *   node src/scripts/migrate-auth-grants.js --dms-db=<config> --auth-db=<config> [--app=<app>] [--json=<file>]
  *
- * <config> is a file in src/db/configs without `.config.json`. Both are required: the default names point at
+ * <config> is a db config name: `<config>.config.json` in DMS_DB_CONFIG_DIRS or src/db/configs. Both are required: the default names point at
  * production on some machines. Both sessions are read-only (default_transaction_read_only) and a write probe
  * must be refused before anything is read.
  *
@@ -161,7 +161,7 @@ function permsForLevel(level) {
 }
 
 async function readOnlyClient(configName) {
-  const c = require(path.join(__dirname, '..', 'db', 'configs', `${configName}.config.json`));
+  const c = require('../db/config.js').loadConfig(configName);
   if (c.type && c.type !== 'postgres') throw new Error(`${configName}: only postgres configs are supported`);
   const cl = new Client({
     host: c.host, port: c.port, database: c.database, user: c.user, password: c.password,

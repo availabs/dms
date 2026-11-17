@@ -25,6 +25,8 @@ const LINK_INLINE = `inline cursor-pointer text-inherit [font:inherit] p-0 hover
 const SMALL_WARN = `${BTN} h-6 px-2.5 t-metaXS border-[var(--t-amber)] bg-[var(--t-panel)] text-[var(--t-amber)] hover:bg-[var(--t-amber-soft)]`;
 const ICON_TOOL = `${BTN} size-8 border-[var(--t-rule)] bg-[var(--t-panel)] text-[var(--t-graphite)] hover:text-[var(--t-ink)] hover:border-[var(--t-rule-strong)]`;
 const ICON_ROW = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-ink)] hover:bg-[var(--t-well)]`;
+// an icon row button that is switched on (a format bar's Bold while the selection is bold)
+const ICON_ROW_ON = `${BTN} size-7 border-transparent bg-[var(--t-well)] text-[var(--t-ink)] hover:bg-[var(--t-rule)]`;
 const ICON_ROW_DANGER = `${BTN} size-7 border-transparent text-[var(--t-pencil)] hover:text-[var(--t-brick)] hover:bg-[var(--t-brick-soft)]`;
 const LINK_META = `${LINK} t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-ink)]`;
 const LINK_META_DANGER = `${LINK} t-metaXS text-[var(--t-pencil)] hover:text-[var(--t-brick)]`;
@@ -174,6 +176,7 @@ export const buttonTheme = {
     { name: 'iconTool',       button: ICON_TOOL },
     { name: 'iconRow',        button: ICON_ROW },
     { name: 'iconRowDanger',  button: ICON_ROW_DANGER },
+    { name: 'iconRowOn',      button: ICON_ROW_ON },
     { name: 'linkMeta',       button: LINK_META },
     { name: 'linkMetaDanger', button: LINK_META_DANGER },
     { name: 'linkProse',      button: LINK_PROSE },

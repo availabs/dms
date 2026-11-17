@@ -21,12 +21,12 @@ src/
   sites/index.js              # Site hosting: serves each site's built client files by Host, from <checkout>-sites
   db/
     index.js                  # Connection management, table initialization
-    config.js                 # Config loader (JSON files from db/configs/)
+    config.js                 # Config loader (JSON files from DMS_DB_CONFIG_DIRS, then db/configs/)
     query-utils.js            # Cross-database SQL translation functions
     adapters/
       postgres.js             # PostgreSQL adapter (pg library)
       sqlite.js               # SQLite adapter (better-sqlite3)
-    configs/                  # Database config JSON files
+    configs/                  # Built-in database config folder (always searched, last)
     sql/                      # Schema init scripts (*.sql and *.sqlite.sql)
     data/                     # SQLite database files (gitignored)
   routes/
@@ -58,7 +58,7 @@ const controller = createController('dms-postgres');  // or 'dms-sqlite'
 const defaultController = require('./dms.controller');
 ```
 
-Config files live in `src/db/configs/`. The SQLite adapter automatically converts `$N` parameters to `?` placeholders and handles JSON serialization/deserialization.
+Config files live in `src/db/configs/` or a folder named in `DMS_DB_CONFIG_DIRS` (see "Database Configs"). The SQLite adapter automatically converts `$N` parameters to `?` placeholders and handles JSON serialization/deserialization.
 
 ### Split Mode
 
@@ -159,7 +159,19 @@ there (and to dms-template's `.env.example` if an operator would set it) in the 
 
 ## Database Configs
 
-Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are required** — there is no inference, no legacy fallback, no default. A missing or invalid field throws at config load time. This is intentional: an omitted `type` used to silently route a config into the wrong role (or no role), leaving the caller staring at "relation X does not exist" errors.
+Configs are JSON files named `<name>.config.json`, looked up by name in these folders, in order
+(`src/db/config.js configDirs` / `resolveConfigPath`):
+
+1. each folder in **`DMS_DB_CONFIG_DIRS`** (colon-separated; relative entries resolve against the working
+   directory), so an app keeps its configs in its own repo — dms-template uses its root `db-configs/`;
+2. the built-in `src/db/configs/`, always, last.
+
+A name in two folders throws (from `loadConfig`, and from `findConfigsByRole` at startup), so a stale copy can't
+silently decide which database a name opens. A folder in `DMS_DB_CONFIG_DIRS` that doesn't exist throws too.
+Scripts take the same lookup: `loadConfig(name)` / `resolveConfigPath(name)`, never a path built by hand; both
+accept `{ dirs }` in place of the env variable.
+
+**Both `type` and `role` are required** — there is no inference, no legacy fallback, no default. A missing or invalid field throws at config load time. This is intentional: an omitted `type` used to silently route a config into the wrong role (or no role), leaving the caller staring at "relation X does not exist" errors.
 
 ```json
 // SQLite
@@ -177,7 +189,7 @@ Configs are JSON files in `src/db/configs/`. **Both `type` and `role` are requir
 | `role` | yes | `"dms"` \| `"auth"` \| `"dama"`, or an array of these | Determines which schema init scripts run on first connection (`initDms`, `initAuth`, `initDama` + `initDamaTasks`). A pgEnv with `role: "dama"` gets `data_manager.{sources,views,...}` created on first `getDb()` call. Multi-role configs (e.g. `["dms", "auth"]`) run the matching init sequences in order. |
 | `database` | postgres only | string | Postgres database name. |
 | `host`, `port`, `user`, `password` | postgres | | Standard `pg` client options. |
-| `filename` | sqlite only | path | Resolved relative to `src/db/configs/` if not absolute. |
+| `filename` | sqlite only | path | Resolved relative to the folder the config was found in, if not absolute. |
 | `splitMode` | optional | `"legacy"` \| `"per-app"` | Table layout; `per-app` when neither the config nor `DMS_SPLIT_MODE` says otherwise. A legacy-layout database must set `"legacy"`. Only meaningful for `role: "dms"`. |
 | `clickhouse` | optional, dama | `{ host, port, user, password, database }` | Auxiliary read storage for large views. See "ClickHouse auxiliary storage" below. |
 | `readOnly` | optional, postgres dama-only | `true` \| `false` | The server reads this DAMA database but never changes it: no init or migrations, no task recovery, polling or schedule sweep, and every connection made from the config (pool, `getClient`, a worker's `getPostgresCredentials` client) starts read-only (`default_transaction_read_only=on`). For a second server, such as a preview stack, reading a shared DAMA database. A read-only database user is still the real guard. Test: `npm run test:pg:dama-readonly`. |
@@ -315,7 +327,7 @@ deprecated:
 
 ### File handling
 
-`*.config.json` files in `src/db/configs/` are gitignored (see `configs/.gitignore`) since they often contain real credentials; only `*.example.config.json` and `*-test*.config.json` are tracked. Copy an example and rename when setting up a new environment.
+`*.config.json` files in `src/db/configs/` (and dms-template's `db-configs/`) are gitignored (see `configs/.gitignore`) since they often contain real credentials; only `*.example.config.json` and `*-test*.config.json` are tracked. Copy an example and rename when setting up a new environment.
 
 ### ClickHouse auxiliary storage (DAMA only)
 

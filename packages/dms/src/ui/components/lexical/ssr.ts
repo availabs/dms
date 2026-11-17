@@ -88,8 +88,9 @@ function setupDomForSSR() {
 
 /**
  * opts.nestedTheme: the live editor's nested theme, so the HTML carries the same classes.
- * opts.dmsTheme: the full DMS theme; exports decorators (buttons) styled as the live view
- * renders them (viewHtmlConfig.js) instead of the plain round-trip markup.
+ * opts.dmsTheme: the full DMS theme, for buttons.
+ * Either option switches to the view export (viewHtmlConfig.js): markup matching the live
+ * editor rather than the plain round-trip export.
  */
 export function getHtmlSync(
   serializedEditorState: string,
@@ -103,7 +104,7 @@ export function getHtmlSync(
     const editor = createHeadlessEditor({
       namespace: 'html-renderer', flatTheme, icons,
       nestedTheme: opts.nestedTheme,
-      html: opts.dmsTheme ? buildViewHtmlConfig(opts.dmsTheme) : undefined,
+      html: opts.nestedTheme || opts.dmsTheme ? buildViewHtmlConfig(opts.dmsTheme) : undefined,
     });
     const editorState = editor.parseEditorState(serializedEditorState);
     editor.setEditorState(editorState);

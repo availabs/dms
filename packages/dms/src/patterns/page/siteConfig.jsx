@@ -156,10 +156,14 @@ const pagesConfig = ({
     // bundle-split-initial-graph.md for the chunks themselves).
     preload: async (falcor, data, request, params) => {
       const raw = params?.['*'] || '';
-      const slug = raw.startsWith('edit/') ? raw.slice('edit/'.length) : raw;
+      const isEdit = raw.startsWith('edit/');
+      const slug = isEdit ? raw.slice('edit/'.length) : raw;
       preloadSectionComponents(pageSectionTypes(findPageItem(data, slug)));
-      // the registry tells the preload which section types fetch before render (preloadData) and how
-      return preloadEnabled ? preloadPageSections(falcor, data, request.url, patternFilters, slug, getRegisteredComponents()) : data;
+      // the registry tells the preload which section types fetch before render (preloadData) and how;
+      // draft sections only show in the editor
+      return preloadEnabled
+        ? preloadPageSections(falcor, data, request.url, patternFilters, slug, getRegisteredComponents(), { drafts: isEdit })
+        : data;
     },
     baseUrl,
     API_HOST,

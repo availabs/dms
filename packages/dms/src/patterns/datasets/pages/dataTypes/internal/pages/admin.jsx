@@ -180,6 +180,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params }) => {
                     <div className={t.adminSidebar}>
                         <div className={t.sidebarActionsPanel}>
                             {canUpdate && <Button activeStyle='actionFull'>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/metadata`}>Advanced Metadata</Link></Button>}
+                            {canUpdate && <Button activeStyle='actionFull'>{t.actionIconIndexes && <Icon icon={t.actionIconIndexes} className={t.actionIcon}/>}<Link to={`${pageBaseUrl}/${id}/indexes`}>Indexes</Link></Button>}
                             {can(['create-view']) && <AddViewBtn source={source} setSource={setSource}/>}
                             <DeleteDmsSourceBtn source={source} baseUrl={baseUrl}/>
                         </div>

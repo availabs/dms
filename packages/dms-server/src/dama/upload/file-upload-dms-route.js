@@ -31,6 +31,25 @@ const EFFICIENT_FORMATS = ['.avif', '.heif', '.heic'];
 const MAX_IMAGE_DIM = 1400;
 const MIN_SOURCE_NAME_LENGTH = 4;
 
+// `metadata`: extra keys a caller writes onto a NEW source's data (the chat pattern records which
+// install and channel a file was posted to). The keys the route owns, and the ones that decide
+// access, are refused rather than overwritten.
+const RESERVED_METADATA_KEYS = new Set([
+  'name', 'type', 'views', 'categories', 'description', 'config',
+  'auth_permissions', 'authPermissions', 'sources', 'dmsEnvId',
+]);
+
+/** The `metadata` field as an object, or a `{ error }`. Absent → `{}`. */
+function parseMetadata(raw) {
+  if (raw == null || raw === '') return {};
+  let value;
+  try { value = JSON.parse(raw); } catch (e) { return { error: 'metadata must be a JSON object' }; }
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return { error: 'metadata must be a JSON object' };
+  const bad = Object.keys(value).filter(k => RESERVED_METADATA_KEYS.has(k));
+  if (bad.length) return { error: `metadata may not set ${bad.join(', ')}` };
+  return { value };
+}
+
 function firstId(rows) {
   return rows?.[0]?.id != null ? +rows[0].id : null;
 }
@@ -93,7 +112,14 @@ function createFileUploadDmsHandler(controller) {
           source_id: existingSourceIdRaw,
           source_name,
           file_name, file_type, directory, description, categories,
+          metadata: metadataRaw,
         } = fields;
+
+        const metadata = parseMetadata(metadataRaw);
+        if (metadata.error) {
+          try { fs.unlinkSync(savedFilePath); } catch (e) {}
+          return res.status(400).json({ ok: false, error: metadata.error });
+        }
 
         const existingSourceId = existingSourceIdRaw ? +existingSourceIdRaw : null;
 
@@ -196,6 +222,7 @@ function createFileUploadDmsHandler(controller) {
           }
 
           const sourceData = {
+            ...metadata.value,
             name: source_name.trim(),
             type: 'file_upload',
           };
@@ -312,4 +339,4 @@ function createFileUploadDmsHandler(controller) {
   };
 }
 
-module.exports = { createFileUploadDmsHandler };
+module.exports = { createFileUploadDmsHandler, parseMetadata };

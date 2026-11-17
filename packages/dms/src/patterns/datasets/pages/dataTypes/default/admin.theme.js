@@ -39,6 +39,7 @@ export const adminTheme = {
     actionIconAdd: 'Add',
     actionIconDelete: 'TrashCan',
     actionIconRules: 'Sliders',
+    actionIconIndexes: '',
 
     // AddViewBtn (DMS) modal — addVersionTitle '' → the bare input + add button (pre-v6 markup)
     addVersionBody: 'text-left',

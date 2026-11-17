@@ -140,6 +140,9 @@
 
 ## dms-server
 
+- [ ] [Database configs outside the submodule: `DMS_DB_CONFIG_DIRS`](./tasks/current/db-config-dirs.md) — filed and built 2026-11-17. dms-server searches `DMS_DB_CONFIG_DIRS` folders, then its built-in `src/db/configs`; a name in two folders throws. dms-template keeps its configs in root `db-configs/` (env files, Dockerfiles, deploy.sh, preview stacks, scripts updated). Uncommitted; needs a dms-server redeploy.
+- [ ] DMS file upload: `metadata` field for a new source (chat records install and channel), and a `Paperclip` icon — built, awaiting a live check ([task](tasks/current/chat-upload-metadata-field.md))
+- [ ] [Auth: a field-level read judges the reply's projection, not the stored row](./tasks/current/auth-field-read-row-shape.md) — filed 2026-11-17 on the hub: logged out, only the 7 top-level `MitigateNY_2025` pages were readable. A field read's `data ->> 'parent'` landed in the auth walk's `parent` slot and crashed `authorize` (denied), and field reads never saw a row's own grants. Fix: `wrap()` ignores caller `parent`; the gate judges `id/app/type` + the auth keys of `data` only.
 - [ ] [Delete means delete: every user-facing delete removes its rows, safely](./tasks/current/safe-delete-removes-rows.md) — filed 2026-11-12 from a code audit: 19 delete paths leave rows, refs, files or sync state behind (pattern delete only unlinks; Publish/Discard orphan ~218k sections on mitigat-ny-prod; uploaded files stay downloadable; the child sweep is `log` by default and writes no change_log). One server cascade with plan route + backup + change_log, driven by format `childRefs`. Owner decisions recorded 2026-11-13 (hard delete, child pages cascade, full plan in every warning, pattern delete keeps pgEnv data, delete column stays metadata-only).
 - [ ] [SSR build folder from the environment: `DMS_DIST_DIR`](./tasks/current/ssr-build-dir-env.md) — filed and built 2026-11-10. Production SSR read `dist/client` and `dist/server/entry-ssr.js` from two hard-coded paths, so a local production build had to share `dist/` with the folder seven Netlify scripts upload unbuilt. `mountSSR` takes `serverBundle`; dms-server derives both paths from `DMS_DIST_DIR` (default `dist`); dms-template's `deploy/build_ssr.mjs` builds into the same setting (`npm run build:hub`).
 - [ ] [Split mode: per-app is the default, legacy must be configured](./tasks/current/split-mode-per-app-default.md) — filed 2026-11-10 after the local hub server read the empty legacy `dms.data_items` (its config omitted `splitMode`) and showed the hub as a new site. `loadConfig` resolves config → `DMS_SPLIT_MODE` → `per-app` once and rejects other values; the fourteen hand-written chains read `config.splitMode`; a legacy database must say `"splitMode": "legacy"`. **Deploy note:** check each live container's dms configs first.
@@ -230,11 +233,13 @@
       (docs/golden-path) remain.**
       Task: [datatype-download-scheduling.md](./tasks/current/datatype-download-scheduling.md)
 
-- [ ] **Composite / covering filter indexes (`setIndexColumn`)** — `uda.sources.setIndex` + the
-      column `isIndex` toggle only create single-column indexes; insufficient for filtered-distinct
-      filter loads (e.g. tsmo incidents Region filter needed `(state, region_name, nysdot_sub_category)`
-      + a vacuum: 17s → 131ms). Extend to author-toggleable composite/covering/partial indexes so the
-      speedup is first-class, not a manual DDL. Includes the visibility-map/vacuum caveat.
+- [ ] **Source indexes an author manages: composite, covering, partial and expression** — DOING
+      2026-11-17. `uda.sources.setIndex` + the column `isIndex` toggle only create single-column indexes;
+      insufficient for filtered-distinct filter loads (tsmo incidents Region filter needed
+      `(state, region_name, nysdot_sub_category)` + a vacuum: 17s → 131ms) and for filters on a calculated
+      column (MitigateNY risk profiles: 7.5 s full scans of a 43 GB table per query). Adds expression indexes,
+      a gate on the DDL route, background builds, an Indexes panel, and separates the index flag from the
+      feature id it doubles as today.
       Task: [setindex-composite-covering-indexes.md](./tasks/current/setindex-composite-covering-indexes.md)
 
 - [x] Search tags query performance — `getTags()` takes 4+ minutes due to `json_each` cartesian product, `CAST(id AS TEXT)` join, no caching; fix with direct section query + server-side cache
@@ -284,6 +289,7 @@
 
 ## ui
 
+- [ ] [LexicalEdit: a `plugins` slot for caller-supplied Lexical plugins](./tasks/current/lexical-edit-plugins-slot.md) — built 2026-11-17 for chat's @-mention typeahead
 - [x] [The Lexical editor's text box has no accessible name](./tasks/current/lexical-editor-aria-label.md): BUILT 2026-11-09, an `ariaLabel` prop on `Editor` → `aria-label` on the content-editable; the chat composer passes its placeholder.
 - [x] [`PLAYGROUND_TRANSFORMERS` throws on import: `TWEET` listed but not defined](./tasks/current/markdown-transformers-tweet-reference.md): BUILT 2026-11-09, one commented line; found by the chat Slack importer, the module's first importer.
 - [x] [BarGraph Scale Filter: log-spaced stops, value labels, design pass](./tasks/completed/bargraph-scale-filter-log-stops.md): DONE 2026-10-06. Max plus three log-spaced stops (1/2/5 × 10ⁿ) between the tallest and the smallest positive bar, each labelled with the value it crops to. On the county template that gives Max $332M · $20M · $2M · $100K, where it used to be 75/50/5%. Charts under a 10× spread get no control. Bars over a Domain Max are clipped with a torn edge. Styled by new optional `scaleFilter*` avlGraph tokens; untokened themes keep the old grey control, and the legacy `scaleWrapper`/`scaleItem` copies stay unread. The `mny` theme uses mockup direction A (`src/themes/mny/design/pages/lhmp/scale-filter.html`). 35 new tests.

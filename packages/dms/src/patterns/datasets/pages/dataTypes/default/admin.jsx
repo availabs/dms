@@ -264,6 +264,7 @@ const Admin = ({ apiUpdate, apiLoad, format, source, setSource, params, isDms })
                         <div className={t.sidebarActionsPanel}>
                             {/* navigate from the button: a <Link> inside a native <button> only takes clicks on its text */}
                             {canUpdate && <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/metadata`)}>{t.actionIconMetadata && <Icon icon={t.actionIconMetadata} className={t.actionIcon}/>}Advanced Metadata</Button>}
+                            {canUpdate && <Button activeStyle='actionFull' onClick={() => navigate(`${pageBaseUrl}/${id}/indexes`)}>{t.actionIconIndexes && <Icon icon={t.actionIconIndexes} className={t.actionIcon}/>}Indexes</Button>}
                             {
                                 isDms ? (
                                     <>

@@ -30,6 +30,7 @@ const {
   deleteExternalRow
 } = require("./uda.controller");
 const { listSourceRules, setSourceRule, backfillSourceRule } = require("../../dama/rules");
+const { listSourceIndexes, createSourceIndex, dropSourceIndex } = require("./source_indexes");
 const { assertCan, canRead, readableSources, sourceOfView, authMode } = require('../auth');
 const { redactSourceRow } = require('./sourceRedaction');
 
@@ -78,6 +79,18 @@ async function assertRuleWrite(router, env, sourceId) {
   } catch (err) {
     if (/^Not authorized/.test(err.message)) {
       throw new Error(`You don't have permission to change this source (update-source on source ${sourceId}).`);
+    }
+    throw err;
+  }
+}
+
+// Creating or dropping an index needs `update-source`, always enforced (see sources.createIndex).
+async function assertIndexWrite(router, env, sourceId) {
+  try {
+    await assertCan(router, { env, source: sourceId, verb: 'update-source', mode: 'enforce' });
+  } catch (err) {
+    if (/^Not authorized/.test(err.message)) {
+      throw new Error(`You don't have permission to change this source's indexes (update-source on source ${sourceId}).`);
     }
     throw err;
   }
@@ -328,6 +341,30 @@ module.exports = [
         return result;
       } catch (err) {
         console.error('[uda] sources.byId.rulesInfo error:', err.message);
+        throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.byId.indexesInfo ---------------------------------
+  // The source's indexes (source_indexes.js, setindex-composite-covering-indexes.md): the ones DMS
+  // manages with their state per table (ready / building / failed / missing / dropping), and the ones
+  // made outside DMS. Fetch it in its own request: an older server reads it as a column and fails the batch.
+  {
+    route: `uda[{keys:envs}].sources.byId[{integers:ids}].indexesInfo`,
+    get: async function(pathSet) {
+      try {
+        const { envs, ids } = pathSet;
+        const result = [];
+        for (const env of envs) {
+          for (const id of ids) {
+            const info = await canReadSource(this, env, id, 'source') ? await listSourceIndexes(env, id) : null;
+            result.push({ path: ["uda", env, "sources", "byId", id, "indexesInfo"], value: $atom(info) });
+          }
+        }
+        return result;
+      } catch (err) {
+        console.error('[uda] sources.byId.indexesInfo error:', err.message);
         throw err;
       }
     },
@@ -679,7 +716,9 @@ module.exports = [
 
   // --------------------------------- sources.setIndex (call) ---------------------------------
   // Args: [env, sourceId, columnName, enable, pattern?]
-  // Toggles isIndex on the named column. enable=true creates the DB index, enable=false drops it.
+  // Toggles isIndex on the named column. enable=true builds the column's index, enable=false drops it,
+  // on every table behind the source — in the background on Postgres (source_indexes.js); the
+  // Indexes page (indexesInfo) shows its state. The flag is only an index, never the feature id.
   // Needs `update-source`. A trailing `pattern` argument is still accepted (old clients send one) and
   // ignored: the env row of the site the request names (`dms_app`) lends to an external source.
   {
@@ -720,6 +759,58 @@ module.exports = [
       } catch (err) {
         console.error('[uda] sources.setPrimaryKey error:', err.message);
         throw err;
+      }
+    },
+  },
+
+  // --------------------------------- sources.createIndex / dropIndex (call) ---------------------------------
+  // createIndex args: [env, sourceId, spec, pattern?]   spec: { columns, include?, where?, label? } or
+  //                                                    { expression, where?, label? } (source_indexes.js)
+  // dropIndex   args: [env, sourceId, key, pattern?]    key: a managed index's key from indexesInfo
+  // Validate, record and build (or forget and drop) an index on every table behind the source. The
+  // build runs in the background on Postgres; indexesInfo reports its state. Creating a spec that is
+  // already managed rebuilds it (a failed build is dropped first).
+  //
+  // An expression or condition is author-written SQL that runs as DDL, so these are gated on
+  // `update-source` under `enforce` whatever DMS_AUTH_MODE says: a site still on `log` can't let a
+  // signed-in stranger through here. The outcome comes back as a value at
+  // sources.byId[id].indexesCall ({ ok, error }), like setRule: a thrown message reaches the page
+  // as "[object Object]" through the falcor HTTP client.
+  {
+    route: `uda.sources.createIndex`,
+    call: async function(callPath, args) {
+      const [env, sourceId, spec, pattern] = args;
+      const resultPath = ["uda", env, "sources", "byId", +sourceId, "indexesCall"];
+      try {
+        await assertIndexWrite(this, env, sourceId);
+        const info = await createSourceIndex(env, +sourceId, spec, this.user);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId, "indexesInfo"], value: $atom(info) },
+          { path: resultPath, value: $atom({ ok: true }) },
+          { path: ["uda", env, "sources", "byId", +sourceId, "metadata"], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.createIndex error:', err.message);
+        return [{ path: resultPath, value: $atom({ ok: false, error: err.message }) }];
+      }
+    },
+  },
+  {
+    route: `uda.sources.dropIndex`,
+    call: async function(callPath, args) {
+      const [env, sourceId, key, pattern] = args;
+      const resultPath = ["uda", env, "sources", "byId", +sourceId, "indexesCall"];
+      try {
+        await assertIndexWrite(this, env, sourceId);
+        const info = await dropSourceIndex(env, +sourceId, key);
+        return [
+          { path: ["uda", env, "sources", "byId", +sourceId, "indexesInfo"], value: $atom(info) },
+          { path: resultPath, value: $atom({ ok: true }) },
+          { path: ["uda", env, "sources", "byId", +sourceId, "metadata"], invalidated: true },
+        ];
+      } catch (err) {
+        console.error('[uda] sources.dropIndex error:', err.message);
+        return [{ path: resultPath, value: $atom({ ok: false, error: err.message }) }];
       }
     },
   },
