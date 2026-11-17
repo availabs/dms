@@ -1,6 +1,6 @@
 # Give every page its own copy of the sections it shares
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:decision · **Release:** commit; prod apply on the owner's word · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:dependency · **Release:** npmrdsv5 apply (needs a token) · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 Split out of [safe-delete-removes-rows.md](./safe-delete-removes-rows.md) (2026-11-17). A data change on
 prod; the code fix that stops new sharing is [pattern-duplicate-shares-sections.md](./pattern-duplicate-shares-sections.md).
@@ -62,7 +62,8 @@ CLI can sync a page's live-edit room afterwards (`afterDraftSectionsWrite`, Bug 
         328 `I` + 64 `U` and no `D` (no original deleted); 2 pages had stored rooms, both synced.
 - [~] Page `history` rows (4 shared as single refs): **nothing to do** (checked 2026-11-17). All 4 are named by pages of `shmpcopy` (no pattern row, out of scope), and none of the 4 rows exists any more.
 - [x] Other prod apps (audited 2026-11-17 on `prod_check_1117`): none has shared sections or cross-pattern refs. Only mitigat-ny-prod (322 shared ids in 60 live patterns as of 11-17) and npmrdsv5 (1 shared, 27 cross-pattern) need the command.
-- [ ] **Prod:** dry-run output to the owner, then `--apply` on the owner's word, per app.
+- [x] **Prod mitigat-ny-prod: APPLIED 2026-11-17** (owner's word, after the dry run). Dry run: 3,397 pages read, nothing unreadable, 323 copies on 63 pages in 60 patterns (52 patterns × 6: the County Template set; Sullivan 3 pages/3, Schenectady Draft V2 2/2, Admin, Playground, Chemung2025, Suffolk template, Delaware Draft, Westchester 1 each). Apply: 9 min, exit 0; room sync 61 `no_room`, 2 `repaired`. Backup and output: dms-template `scratchpad/mitigat-ny-prod-prod/unshare-sections-{backup,apply}-2026-11-17.json` (the apply output maps each page's old → new ids). Check: a fresh dry run plans 0; 5 random copies have the original's content, the page's pattern and `parent_id`, the page lists the copy and not the original, the original still exists.
+- [ ] **Prod npmrdsv5** (12 copies on 2 pages, 11 of them `sandbox2` borrowing `sandbox` rows): needs an npmrdsv5 admin token.
 
 ## Files
 
