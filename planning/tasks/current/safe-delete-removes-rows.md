@@ -139,13 +139,13 @@ Split out sub-tasks if any phase grows past a session or two. Phases 1 and 2 are
 ## Testing checklist
 
 - [ ] Each fixed surface: after a delete, no row of that kind or its children remains (sqlite rig + Postgres test DB), and change_log has exactly one `D` per deleted row.
-- [ ] A sync client (IndexedDB) and a WebSocket room drop the deleted rows without a reload.
+- [x] A sync client (IndexedDB) and a WebSocket room drop the deleted rows without a reload. (2026-11-17, rig :3458 + Vite :5197 with `VITE_DMS_SYNC=1`, formats registered on the rig; dms-template `scratchpad/srv3458/flows/sweep-live.mjs`, 12/12.) Two browser contexts, one viewing and one editing the page: another client drops a section → the sweep deletes the row and it leaves both tabs' IndexedDB without a reload, the other section stays, the open editor's room is `in_sync`; another client deletes the page → the page, its child page and both remaining sections leave both tabs' IndexedDB.
 - [ ] A plan route is read-only: run it against a server without the route and get a 404, not a delete.
 - [x] A page delete removes its whole subtree of child pages; the warning listed exactly those pages. (2026-11-16, :3458 rig: page editor, admin tab, CLI)
 - [x] A pattern delete leaves every pgEnv-linked source/view/table untouched, and its warning listed them as kept. (test-owner-delete)
 - [x] A dmsEnv shared with another pattern is kept, and the warning names the other pattern. An unshared dmsEnv is deleted with its sources, views, split tables and files, and the warning listed it. (test-owner-delete + rig)
 - [x] If another pattern starts referencing the dmsEnv between the plan and the delete, the delete is refused. (test-owner-delete race test)
 - [x] A refused delete (dependents) leaves everything untouched. (theme in use, same-name pattern, stale plan, stranger)
-- [ ] Uploaded files return 404 at their `dl_url` after their source is deleted.
+- [x] Uploaded files return 404 at their `dl_url` after their source is deleted. (2026-11-17, rig; `scratchpad/srv3458/flows/upload-delete-404.mjs`, 6/6: an internal CSV through `/dms-admin/<app>/file_upload`, served 200; deleted with `uda.sources.delete` as the datasets UI does; then 404, source and view rows gone.)
 - [ ] Backups are written before every cascade and can be restored. (Written: pattern, theme, tenant; tested. Restore: its own task, [delete-backup-restore.md](./delete-backup-restore.md).)
 - [ ] Prod checks are read-only audits only (PGOPTIONS `default_transaction_read_only=on`).
