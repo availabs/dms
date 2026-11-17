@@ -19,6 +19,26 @@ through `useLexicalComposerContext`.
 Chat's first use (`src/patterns/chat/components/MentionsPlugin.jsx`) stores a mention as an ordinary
 link to `#mention:<id>`, so no node type was added to the library.
 
+### Follow-up, 2026-11-17 (chat's composer format bar)
+
+- `editor/index.tsx` + `editor.tsx`: `Lexicals` now passes `placeholder`, `ariaLabel` (Editor took
+  them all along; the wrapper dropped them) and the new `placeholderClassName` to the editor; new
+  `hideFloatingToolbar` and `hideFloatingLinkEditor` (default `false`) leave out the selection format
+  popup and the link popup, for a caller with its own format bar. A lexical column whose caller
+  passes `placeholder` now shows it.
+- `lexical/theme.js`: `linkEditor_base` gets `empty:border-0 empty:shadow-none`. The link editor
+  follows the caret on every line and is filled only on a link; the default theme's border (added
+  with the v6 restyle) drew it as a 400px line under the line being typed, in every editor.
+- `ui/icons`: `Bold`, `Italic`, `Underline`, `Strikethrough`, `ListBullet`, `ListNumbered`, `Quote`,
+  `Code`, `CodeBlock`, `TextFormat` (Aa), `At`, in the T6 stroke.
+- `Button.theme.jsx`: `iconRowOn`, an icon-row button switched on.
+- `SideNav.jsx` / `SideNav.theme.jsx` (same day, chat's site nav): `VerticalMenu` passes a nav
+  item's `active`; the caret's wrapper is the theme key `indicatorWrapper` (was a literal `pr-2`,
+  which pushed icon-rail glyphs off centre); the icon rail draws 44px tiles with 24px glyphs.
+  The logo row is wrapped in the new key `topMenuWrapper` (default `contents`, so no change); the
+  icon rail uses it to show the mark alone, centred, with the site title hidden. The rail's
+  `logoWrapper` was never read by SideNav.
+
 ## Testing
 
 - [x] On the hub: the chat composer's `@` list opens, picks with the keyboard, and inserts the link;

@@ -80,7 +80,8 @@ const DesktopSidebar = ({
       <div className={`${theme?.layoutContainer1}`}>
     		<div className={`${theme?.layoutContainer2}`}>
      			<div className={`${theme?.sidenavWrapper}`}>
-        		{topMenu}
+        		{/* `topMenuWrapper`: a style's hold on the logo row (the Logo widget draws its own band) */}
+        		<div className={theme?.topMenuWrapper || 'contents'}>{topMenu}</div>
     				<nav className={`${theme?.itemsWrapper}`}>
      					{mainMenu}
     				</nav>

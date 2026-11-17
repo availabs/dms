@@ -234,7 +234,10 @@ const sideNavTheme = {
       // Logo renders <Link><img|mark/>{title && <div/>}</Link> — hide only the TITLE (the second
       // div, present only when the theme sets one) and cap the mark, so a wordmark doesn't try to
       // fit in 56px. The mockups keep the mark alone at the top of the rail.
-      logoWrapper: 'flex items-center justify-center h-14 w-full flex-none border-b border-[var(--t-rule)] [&_a>div+div]:hidden [&_img]:size-6 [&_a]:justify-center',
+      // The logo row: the mark alone, centred; the site's title ("Admin", a brand name) has no room
+      // in 56px. The Logo widget draws its own band (Logo.theme.js), so this reaches into it:
+      // `a > div + div` is the title. `contents` keeps the wrapper out of the column's layout.
+      topMenuWrapper: 'contents [&_a]:justify-center [&_a]:px-0 [&_a]:w-full [&_a>div+div]:hidden [&_img]:size-6 [&_img]:object-contain',
       itemsWrapper: 'flex-1 w-full overflow-y-auto overflow-x-hidden py-4 flex flex-col items-center gap-1',
       menuItemWrapper: 'flex flex-col',
       // a 44px tile with a 24px glyph: the rail's items are the only labels it has, so they are
