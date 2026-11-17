@@ -2,7 +2,7 @@
 
 **Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** blocked:decision · **Later** (owner, 2026-11-17: for the future) · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
-Split out of [safe-delete-removes-rows.md](./safe-delete-removes-rows.md) (2026-11-16). Deletes are real
+Split out of [safe-delete-removes-rows.md](../completed/safe-delete-removes-rows.md) (2026-11-16). Deletes are real
 now: a page takes its child pages, a pattern its pages and unshared data environment, a tenant its whole
 schema, and the child sweep (`DMS_CHILD_SWEEP_MODE=delete`, the default since 2026-11-16) removes
 sections a page drops. Every delete above writes a backup, but nothing reads one back. Today a restore is

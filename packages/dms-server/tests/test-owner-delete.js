@@ -1,5 +1,5 @@
 /**
- * Deleting a pattern or a theme with what it owns — Phase 2 of planning/tasks/current/safe-delete-removes-rows.md
+ * Deleting a pattern or a theme with what it owns — Phase 2 of planning/tasks/completed/safe-delete-removes-rows.md
  * (F4 / F5), through the REST routes (routes/dms/ownerDeleteHttp.js) on an in-process Express app.
  *
  *   pattern  its rows by type path go (not a same-named source's views), its ref leaves the site, a backup is

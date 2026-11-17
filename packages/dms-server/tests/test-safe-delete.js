@@ -1,5 +1,5 @@
 /**
- * Delete means delete — Phase 1 of planning/tasks/current/safe-delete-removes-rows.md.
+ * Delete means delete — Phase 1 of planning/tasks/completed/safe-delete-removes-rows.md.
  *
  *   F12  dms.data.delete writes one change_log `D` per row it ACTUALLY deleted, under the stored
  *        app/type. It used to write one per id the caller passed, so an id that resolved to the

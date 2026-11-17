@@ -2,7 +2,7 @@
 
 **Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
-Split out of [safe-delete-removes-rows.md](./safe-delete-removes-rows.md) (2026-11-17).
+Split out of [safe-delete-removes-rows.md](../completed/safe-delete-removes-rows.md) (2026-11-17).
 
 ## Problem
 
@@ -41,7 +41,7 @@ shares in `mitigateny_county_template_suffolk_copy_copy` are case 2.
 ## Not this task
 
 Copying the sections that are already shared on prod, and keeping the sweep's listed-elsewhere check.
-Both stay in [safe-delete-removes-rows.md](./safe-delete-removes-rows.md).
+Both stay in [safe-delete-removes-rows.md](../completed/safe-delete-removes-rows.md).
 
 ## Files
 
