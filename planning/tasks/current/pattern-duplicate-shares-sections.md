@@ -1,6 +1,6 @@
 # Pattern Duplicate copies shared sections as shared
 
-**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** next · **Created by:** ssangdod@albany.edu · **Edited by:** —
+**Initiatives:** [dms_data_safety](../../../../../planning/initiatives/dms_data_safety.md) · **Status:** built · **Release:** commit · **Created by:** ssangdod@albany.edu · **Edited by:** —
 
 Split out of [safe-delete-removes-rows.md](./safe-delete-removes-rows.md) (2026-11-17).
 
@@ -22,18 +22,21 @@ Measured on the prod copy (`prod_check_1111`, 2026-11-11 data): MitigateNY_Count
 has the same 6, under new ids: 60 live patterns, 327 shared section ids. The 25 cross-pattern
 shares in `mitigateny_county_template_suffolk_copy_copy` are case 2.
 
-## Fix
+## Fix (BUILT 2026-11-17)
 
-- [ ] Give every (page, section) occurrence its own copy: clone a section once per page that lists it,
-      not once per section. The duplicate's pages then share nothing, whatever the source looks like.
-- [ ] Case 2, **decision needed (owner):** copy a foreign section into the new pattern for each page
-      that lists it, or leave the reference. There is no cross-pattern rendering relationship in DMS
-      (owner, 2026-10-28), which argues for copying.
-- [ ] The duplicate stamps `parent_id` on each copy (the page that lists it), so the sweep can act on
-      them from the start.
-- [ ] Tests: a source with two pages sharing a section, and a page listing another pattern's section;
-      the duplicate has no id listed by two pages, renders the same content, and leaves the source as
-      it was.
+- [x] One copy per (page, section): `duplicatePatternContent` builds the list of (page, section id)
+      pairs from every page's `sections` / `draft_sections` and copies each pair's row once. One page
+      listing a row in both its lists keeps one copy for both.
+- [x] Case 2, **decided (owner, 2026-11-17): copy it.** A section of another pattern is read by id
+      (`getDataById`) and copied into the new pattern, with a ref to the new pattern. An entry naming
+      no row, or a row that isn't a component, keeps its id and ref.
+- [x] The copies drop the source's `data.parent` / `data.parent_id`; the page patch stamps each copy to
+      the page that lists it (when the new pattern's childRefs are known, as on a site with registered
+      formats).
+- [x] `tests/test-pattern-duplicate.js` (8, SQLite + Postgres, in `npm test`): Lightning/Wind sharing,
+      one page's two lists, another pattern's section, an entry naming no row, a section no page lists,
+      the stamp, the source untouched. The old duplicate fails 5 of them. `test-duplicate-refs` (4) green.
+      The result gains `foreignCopied`.
 
 ## Not this task
 

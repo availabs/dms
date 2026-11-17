@@ -229,6 +229,56 @@ async function run() {
     }
   });
 
+  describe('Phase 2b — site unshare-sections', () => {
+    test('site unshare-sections gives a page its own copy of a shared section, and of another pattern\'s section; a dry run first');
+    {
+      const homeSlug = 'home';
+      const homeId = String(runCli(`page show ${homeSlug}`).json.id);
+      const homeType = runCli(`raw get ${homeId}`).json.type;
+      const inst = homeType.split('|')[0];
+      const s1 = String(runCli(`section create ${homeSlug} --element-type lexical --title 'shared one'`).json.id);
+      const s2 = String(runCli(`section create ${homeSlug} --element-type lexical --title 'borrowed one'`).json.id);
+      const stub = (id, i = inst) => ({ id: Number(id), ref: `${manifest.app}+${i}|component` });
+      // a sibling page of the same pattern that shares s1 (higher id: home keeps the row)...
+      const sibling = String(runCli(`raw create ${manifest.app} "${inst}|page" --data '${JSON.stringify({ title: 'unshare sibling', draft_sections: [stub(s1)] })}'`).json.id);
+      // ...and a page of another pattern that borrows s2
+      const authPattern = manifest.patterns.find((p) => p.pattern_type === 'auth');
+      const borrower = String(runCli(`raw create ${manifest.app} "${authPattern.instance}|page" --data '${JSON.stringify({ title: 'unshare borrower', draft_sections: [stub(s2)] })}'`).json.id);
+      const draftOf = (id) => (runCli(`raw get ${id}`).json.data?.draft_sections || []);
+
+      const dry = runCli('site unshare-sections');
+      let ok = assertEqual(dry.json?.apply, false, 'dry run by default');
+      ok = assert((dry.json?.shared || 0) >= 1 && (dry.json?.other_pattern || 0) >= 1, 'plans a shared and an other-pattern copy') && ok;
+      ok = assertEqual(String(draftOf(sibling)[0]?.id), s1, 'the dry run wrote nothing') && ok;
+
+      const backup = join(tmpdir(), `dms-unshare-test-${Date.now()}.json`);
+      const run = runCli(`site unshare-sections --apply --backup ${backup}`);
+      ok = assert(existsSync(backup), 'backup written before the writes') && ok;
+
+      const [sib] = draftOf(sibling);
+      ok = assert(String(sib?.id) !== s1, 'the sibling points at its own copy') && ok;
+      const sibRow = runCli(`raw get ${sib?.id}`).json;
+      ok = assertEqual(sibRow?.type, `${inst}|component`, 'copy in the sibling\'s pattern') && ok;
+      ok = assertEqual(String(sibRow?.data?.parent_id ?? ''), sibling, 'the copy belongs to the sibling') && ok;
+      ok = assertEqual(sibRow?.data?.title, 'shared one', 'same content') && ok;
+
+      const [bor] = draftOf(borrower);
+      const borRow = runCli(`raw get ${bor?.id}`).json;
+      ok = assert(String(bor?.id) !== s2, 'the borrower points at its own copy') && ok;
+      ok = assertEqual(borRow?.type, `${authPattern.instance}|component`, 'copy in the borrower\'s pattern') && ok;
+      ok = assertEqual(bor?.ref, `${manifest.app}+${authPattern.instance}|component`, 'ref names the borrower\'s pattern') && ok;
+
+      const home = draftOf(homeId).map((e) => String(e.id));
+      ok = assert(home.includes(s1) && home.includes(s2), 'the keeper still lists the originals') && ok;
+      ok = assert(runCli(`raw get ${s1}`).json?.type && runCli(`raw get ${s2}`).json?.type, 'the originals still exist') && ok;
+
+      const again = runCli('site unshare-sections');
+      ok = assertEqual(again.json?.copies, 0, 'nothing left to copy') && ok;
+      try { unlinkSync(backup); } catch {}
+      if (ok) pass();
+    }
+  });
+
   // ================================================================
   // PHASE 3 — Datasets (dmsEnv-driven)
   // ================================================================

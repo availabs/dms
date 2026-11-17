@@ -127,7 +127,7 @@ type (src/dms/CLAUDE.md, "DMS interprets data").
 
 **Phase 4: the rest**
 - [x] F10 (2026-11-16): the CLI `section delete` removes the id from both `sections` and `draft_sections`, of `--page`'s page or, without it, of every page of the section's pattern that lists it (output `pages`: each page and which lists changed); then deletes the row unless the sweep already did. Docs README / EXAMPLES; CLI test "section delete without --page …" (33/33 against a sqlite-only server copy).
-- [ ] F8: a referenced-uploads GC: find `file_upload` sources no section or row references, plan, then delete them with their files.
+- [~] F8: **dropped** (owner, 2026-11-17: not worrying about cleaning up unreferenced uploads).
 - [~] F16 (chat): moved to the chat pattern's own task, [chat-pattern-implementation.md](../../../../../planning/tessera/tasks/current/chat-pattern-implementation.md) (owner, 2026-11-17: it's being worked on, so no clash).
 - [x] F17 (confirmed by the owner, BUILT 2026-11-17): a delete of a tracked dataset's row is recorded in its change history like a create in reverse: one row per tracked column that had a value, `new_value` `''`, `op: 'delete'`, in the delete's transaction. `deleteData(…, { changeHistory: true })`, asked by the Falcor delete route only (as edit/create); `/sync/push` writes no history for deletes, as for edits. The history dataset's Action options gain `delete` (new history datasets; older ones store the value all the same). The QA feed inner-joins tickets, so a deleted ticket's rows never show there. `test-change-history` (24, SQLite + Postgres; fails with the route not asking).
 - [~] F18: **not an issue** (owner, 2026-11-17): a deleted user's or group's grants don't stay behind.

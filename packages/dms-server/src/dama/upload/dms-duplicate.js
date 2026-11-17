@@ -1,9 +1,9 @@
 /**
  * Pattern duplicate handler (new type model).
  *
- * Deep-clones a page pattern's CONTENT: every `<oldInstance>|page` row + every
- * `<oldInstance>|component` row, re-created under `<newInstance>`, remapping the
- * page↔section cross-references. The pattern ROW itself is created by the client
+ * Deep-clones a page pattern's CONTENT: every `<oldInstance>|page` row, and one copy of each
+ * section per page that lists it (another pattern's sections included), re-created under
+ * `<newInstance>`, remapping the page↔section cross-references. The pattern ROW itself is created by the client
  * (`patternList.jsx` calls `addNewValue` after this), so we don't touch it here.
  *
  * The operation is handed off to the DMS task queue so the HTTP request returns
@@ -20,7 +20,7 @@
  *   not via an embedded array on the pattern.
  * - `history` is not cloned (its refs would dangle); the copy starts with fresh history.
  */
-const { buildType } = require('../../db/type-utils');
+const { buildType, getKind } = require('../../db/type-utils');
 const { registerHandler, queueTask } = require('../../dms/tasks');
 const { requestUserId } = require('../../routes/auth/requestUser');
 
@@ -84,72 +84,99 @@ async function duplicatePatternContent(controller, descriptor, { report = async 
       await ctx.updateProgress(pageI / pages.length * 0.3);
     }
 
-    // 2) clone components in parallel batches — each component is independent.
+    // 2) copy the sections: ONE COPY PER (page, section), so the duplicate's pages share nothing.
     //
-    // Only LIVE components are copied. A component is live iff a page OF THIS PATTERN lists its id
-    // in `sections` / `draft_sections` — there is no cross-pattern rendering relationship in DMS
-    // (owner, 2026-10-28), so a component no page of its own pattern lists renders nowhere.
+    // A copy per section id (as until 2026-11-17) kept the source's sharing: two pages listing one
+    // row both got the same clone. That is how every county pattern copied from the County Template
+    // inherited its 6 sections shared between Lightning, Wind and Tornado, and two pages sharing a
+    // row means editing it on one page changes the other. One page listing a row in both its lists
+    // keeps one copy for both.
     //
-    // Measured on `mitigat-ny-prod`'s `admin` pattern: of 2,252 components, 1,048 were listed by no
-    // page anywhere in the app and another 34 only by a page of ANOTHER pattern through a ref that
-    // does not resolve. Copying them forward is what made duplicates grow without bound — the
-    // `undefined_copy` → `undefined_copy_copy` chain dragged ~3,700 components (~177 MB) per
-    // generation until a Falcor response passed V8's string limit (see nameToSlug's docstring and
-    // planning/tasks/current/falcor-response-string-limit-crash.md).
-    const liveCompIds = new Set();
+    // Only LIVE sections are copied: one a page of this pattern lists in `sections` /
+    // `draft_sections`. Measured on `mitigat-ny-prod`'s `admin` pattern: of 2,252 components, 1,048
+    // were listed by no page anywhere in the app. Copying them forward is what made duplicates grow
+    // without bound — the `undefined_copy` → `undefined_copy_copy` chain dragged ~3,700 components
+    // (~177 MB) per generation until a Falcor response passed V8's string limit (see nameToSlug's
+    // docstring and planning/tasks/current/falcor-response-string-limit-crash.md).
+    //
+    // A page listing a section of ANOTHER pattern gets its own copy in the new pattern (owner,
+    // 2026-11-17): sections don't render across patterns by design, and keeping the reference made
+    // the duplicate's page and the source's page share the row. An entry naming no row, or a row
+    // that isn't a component, keeps its id and ref.
+    const allComps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
+    const nonEmpty = allComps.filter(c => Object.keys(asObj(c.data)).length > 0);
+    const sourceById = new Map(nonEmpty.map(c => [String(c.id), c]));
+
+    const wanted = new Map();          // `${pageId}:${sectionId}` -> { pageId, sectionId }
+    const foreignIds = new Set();
     for (const p of pages) {
       const d = asObj(p.data);
       for (const key of ['sections', 'draft_sections']) {
         for (const e of (Array.isArray(d[key]) ? d[key] : [])) {
-          if (e && e.id != null) liveCompIds.add(String(e.id));
+          if (!e || e.id == null) continue;
+          const sectionId = String(e.id);
+          wanted.set(`${p.id}:${sectionId}`, { pageId: String(p.id), sectionId });
+          if (!sourceById.has(sectionId)) foreignIds.add(sectionId);
         }
       }
     }
-    const allComps = await controller.getRowsByTypes(app, [buildType({ parent: oldInstance, kind: 'component' })]);
-    const nonEmpty = allComps.filter(c => Object.keys(asObj(c.data)).length > 0);
-    const comps = nonEmpty.filter(c => liveCompIds.has(String(c.id)));
+    if (foreignIds.size) {
+      const rows = await controller.getDataById([...foreignIds], ['id', 'type', 'data'], app);
+      for (const r of rows || []) {
+        if (getKind(r.type) === 'component' && Object.keys(asObj(r.data)).length > 0) sourceById.set(String(r.id), r);
+      }
+    }
+    const copies = [...wanted.values()].filter(w => sourceById.has(w.sectionId));
+    const usedOwn = new Set(copies.map(w => w.sectionId).filter(id => !foreignIds.has(id)));
+    const foreignCopied = copies.filter(w => foreignIds.has(w.sectionId)).length;
     const skippedComps = allComps.length - nonEmpty.length;
-    const skippedDead = nonEmpty.length - comps.length;
+    const skippedDead = nonEmpty.length - usedOwn.size;
     if (skippedComps) console.log(`${tag} skipped ${skippedComps} empty/ghost component row(s)`);
     if (skippedDead) console.log(`${tag} skipped ${skippedDead} component(s) no page of this pattern lists`);
+    if (foreignCopied) console.log(`${tag} copying ${foreignCopied} section(s) of another pattern into ${newInstance}`);
+
     const newCompType = buildType({ parent: newInstance, kind: 'component' });
-    const secIdMap = {};
+    const copyIdMap = {};              // `${pageId}:${sectionId}` -> new id
     const COMP_BATCH = 50;
     let compDone = 0;
-    for (let i = 0; i < comps.length; i += COMP_BATCH) {
-      await Promise.all(comps.slice(i, i + COMP_BATCH).map(async (c) => {
-        const data = asObj(c.data);
+    for (let i = 0; i < copies.length; i += COMP_BATCH) {
+      await Promise.all(copies.slice(i, i + COMP_BATCH).map(async (w) => {
+        const data = asObj(sourceById.get(w.sectionId).data);
         delete data.history;
-        // No `parent` to carry or rebuild: a component's containment is `parent_id`, and step 3
-        // below sets it for free — patching each cloned page's section list through `setDataById`
-        // makes `stampChildren` stamp every component that list names. Until 2026-10-29 this
-        // rebuilt `data.parent` from the page that actually listed the component, because copying
-        // the stored pointer corrupted 1,081 of 2,248 cloned components the one time it was tried.
+        // Containment is `parent_id`, set in step 3: patching each cloned page's section list
+        // through `setDataById` makes `stampChildren` stamp every copy it names. The source row's
+        // own `parent_id` names a page of the source pattern; don't carry it.
         delete data.parent;
+        delete data.parent_id;
         const [nc] = await controller.createData([newApp, newCompType, data], user);
-        secIdMap[String(c.id)] = nc.id;
+        copyIdMap[`${w.pageId}:${w.sectionId}`] = nc.id;
         await controller.setDataById(nc.id, { id: nc.id }, user, newApp);
         const done = ++compDone;
-        console.log(`${tag} component ${done}/${comps.length}`);
+        console.log(`${tag} component ${done}/${copies.length}`);
       }));
-      await ctx.updateProgress(0.3 + compDone / comps.length * 0.6);
+      await ctx.updateProgress(0.3 + compDone / Math.max(copies.length, 1) * 0.6);
     }
 
-    // 3) fix up cloned pages: section lists → new section ids/refs, page-tree parent, id mirror
+    // 3) fix up cloned pages: section lists → this page's copies, page-tree parent, id mirror
     await Promise.all(pages.map(async (p) => {
       const newPageId = pageIdMap[String(p.id)];
       const d = asObj(p.data);
+      const pageMap = {};
+      for (const [k, newId] of Object.entries(copyIdMap)) {
+        const [pageId, sectionId] = k.split(':');
+        if (pageId === String(p.id)) pageMap[sectionId] = newId;
+      }
       const patch = {
         id: newPageId,
-        sections: remapSectionRefs(d.sections, secIdMap, newApp, newInstance),
-        draft_sections: remapSectionRefs(d.draft_sections, secIdMap, newApp, newInstance),
+        sections: remapSectionRefs(d.sections, pageMap, newApp, newInstance),
+        draft_sections: remapSectionRefs(d.draft_sections, pageMap, newApp, newInstance),
       };
       if (d.parent && pageIdMap[String(d.parent)]) patch.parent = pageIdMap[String(d.parent)];
       await controller.setDataById(newPageId, patch, user, newApp);
     }));
 
-    console.log(`${tag} done — ${pages.length} pages, ${comps.length} components`);
-    return { newInstance, pages: pages.length, components: comps.length,
+    console.log(`${tag} done — ${pages.length} pages, ${copies.length} components`);
+    return { newInstance, pages: pages.length, components: copies.length, foreignCopied,
              skippedEmpty: skippedComps, skippedUnreferenced: skippedDead };
   }
 }

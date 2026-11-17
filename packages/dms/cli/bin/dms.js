@@ -152,6 +152,18 @@ siteCmd
     await site.tree(config, getOutputOptions(cmd));
   });
 
+siteCmd
+  .command('unshare-sections')
+  .description('Give every page its own copy of the sections it shares with another page, or borrows from another pattern. A dry run unless --apply')
+  .option('--apply', 'Write the copies and repoint the pages (without it, only the plan is printed)')
+  .option('--pattern <name-or-instance>', 'Only edit pages of this pattern')
+  .option('--backup <file>', "Where to save the changed pages' lists first (default: ./dms-unshare-sections-<app>-<time>.json)")
+  .action(async (options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app', 'type']);
+    await site.unshareSections(config, { ...getOutputOptions(cmd), apply: options.apply, pattern: options.pattern, backup: options.backup });
+  });
+
 // ============================================================================
 // FORMAT DECLARATIONS
 // ============================================================================

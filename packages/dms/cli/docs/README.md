@@ -91,7 +91,22 @@ dms site patterns
 
 # Show full site hierarchy: patterns -> pages -> sections, datasets
 dms site tree
+
+# Give every page its own copy of a section it shares with another page, or borrows from another
+# pattern. Prints the plan unless --apply; --pattern limits the edits to one pattern's pages
+dms site unshare-sections
+dms site unshare-sections --apply [--pattern <name>] [--backup <file>]
 ```
+
+`unshare-sections` reads every page of every pattern in the site's list. A section listed by two or
+more pages stays with the lowest-id page of its own pattern; every other page gets a copy (same
+`data`, `trackingId` included, in that page's pattern, `parent_id` = the page) and its list entry is
+repointed, in both lists if the page lists the row in both. A page listing another pattern's section
+always gets its own copy. Before writing, the changed pages' two lists are saved to `--backup`
+(default `./dms-unshare-sections-<app>-<time>.json`); restore one with `dms raw update <id> --data`.
+Writes go through the server, and each page whose `draft_sections` changed has its live-edit room
+synced. **Run it as a user who can read every page**: rows it can't read are reported as
+`unreadable`, and `--apply` refuses while there are any.
 
 ### Pattern
 
