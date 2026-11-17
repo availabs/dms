@@ -60,7 +60,7 @@ CLI can sync a page's live-edit room afterwards (`afterDraftSectionsWrite`, Bug 
         live patterns; 328/328 copies have the original's data (only `parent`, `parent_id`, `id`
         differ), are in the page's pattern and parented to it; sections 368,265 → 368,593, change_log
         328 `I` + 64 `U` and no `D` (no original deleted); 2 pages had stored rooms, both synced.
-- [ ] Page `history` rows (4 shared as single refs): not handled; check which patterns they're in.
+- [~] Page `history` rows (4 shared as single refs): **nothing to do** (checked 2026-11-17). All 4 are named by pages of `shmpcopy` (no pattern row, out of scope), and none of the 4 rows exists any more.
 - [ ] Other prod apps: run the dry run on each (as an admin) once a copy of them is available.
 - [ ] **Prod:** dry-run output to the owner, then `--apply` on the owner's word, per app.
 
