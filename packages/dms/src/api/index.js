@@ -963,7 +963,7 @@ export async function dmsOwnerDeletePlan({ API_HOST = '', user, app, kind, id })
 	const res = await authedFetch(`${API_HOST}/dms/${encodeURIComponent(app)}/${kind}/${encodeURIComponent(id)}/delete/plan`,
 		{ user, method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
 	const body = await res.json().catch(() => ({}));
-	if (res.status === 404 && !body.error) throw new Error("This server can't preview this delete (it has no delete plan route yet). Nothing was deleted.");
+	if (res.status === 404 && !body.error) throw new Error("Server can't preview deletes yet. Nothing was deleted.");
 	if (!res.ok) throw new Error(body.error || `Can't preview this delete (${res.status})`);
 	return body;
 }

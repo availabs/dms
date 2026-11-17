@@ -89,7 +89,7 @@ export function OwnerDeleteDialog({ kind, row, onClose, onDeleted }) {
             open={true}
             setOpen={() => onClose()}
             title={`Delete ${kind === 'patterns' ? 'pattern' : 'theme'} ${name}`}
-            prompt={view ? view.prompt : (error ? '' : 'Checking what this deletes…')}
+            prompt={view ? view.prompt : (error ? null : 'Checking what this deletes…')}
             items={view?.items}
             itemsTitle="What will be deleted"
             blockedNote={view?.blockedNote}

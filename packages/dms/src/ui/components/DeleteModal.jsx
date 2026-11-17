@@ -13,6 +13,7 @@ import {deleteModalTheme} from "./DeleteModal.theme";
 // blocked items) says why. `onDelete` may return a promise: Delete shows "Deleting..." until it settles, and a
 // rejection is shown in the dialog instead of being lost (safe-delete-removes-rows.md, F3). `notes`: lines under the
 // list (e.g. what is kept); `disabled` holds Delete (a plan still loading); `error` shows a caller's error (a failed plan).
+// `prompt={null}` leaves out the prompt line; an empty or missing prompt shows the default.
 export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, activeStyle, modalStyle, items, itemsTitle, blockedNote, disabled, notes, error: errorProp})  {
     const cancelButtonRef = useRef(null)
     const [loading, setLoading] = useState(false)
@@ -46,10 +47,11 @@ export function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, a
                     <h3 className={t.title}>
                         {title || `Delete ${item.title || ''} ${item.id}`}
                     </h3>
-                    <p className={t.body}>
+                    {/* prompt={null} hides the line (a dialog with nothing true to say there, e.g. a failed plan) */}
+                    {prompt === null ? null : <p className={t.body}>
                         {prompt || `Are you sure you want to delete this page? All of the page data will be permanently removed
               from our servers forever. This action cannot be undone.`}
-                    </p>
+                    </p>}
                     {items?.length ? (
                         <>
                             {itemsTitle ? <div className={t.listTitle}>{itemsTitle}</div> : null}
