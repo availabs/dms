@@ -401,23 +401,62 @@ t('JSON-string states parse', () =>
         [{ childKind: 'component', ids: ['1'] }]));
 
 section('sweepRemovedChildren — the statement it builds');
-const sweep = async (over = {}) => {
-    const tx = recorder();
+// A recorder that answers like a database: the candidate SELECT finds the ids it was asked for, the
+// listed-elsewhere check finds `elsewhere`, a DELETE returns what it was given.
+const dbLike = (elsewhere = []) => {
+    const q = [];
+    return { q, type: 'sqlite', promise: async (sql, params) => {
+        q.push({ sql, params });
+        const s = sql.trim();
+        if (/^SELECT id, type FROM T/.test(s)) return params.filter((p) => /^[0-9]+$/.test(p) && p !== '100').map((id) => ({ id, type: 'chenango|component' }));
+        if (/^SELECT DISTINCT x\.cid/.test(s)) return elsewhere.filter((id) => params.includes(id)).map((cid) => ({ cid }));
+        if (/^DELETE FROM T/.test(s)) return params.slice(2).map((id) => ({ id, type: 'chenango|component' }));
+        return [];
+    } };
+};
+const sweep = async (over = {}, tx = recorder()) => {
     const res = await sweepRemovedChildren(tx, {
         table: 'T', app: 'myapp', id: '100', type: 'chenango|page',
-        removed: [{ childKind: 'component', ids: ['1', '2'] }], mode: 'delete', ...over,
+        removed: [{ childKind: 'component', ids: ['1', '2'] }], childRefs: CHILD_REFS, mode: 'delete', ...over,
     });
     return { tx, res };
 };
-t('delete mode issues a DELETE', async () => {
-    const { tx } = await sweep();
-    assert.ok(/^DELETE FROM T/.test(tx.q[0].sql.trim()));
+t('delete mode: candidates, then the listed-elsewhere check, then a DELETE of what no other row lists', async () => {
+    const { tx, res } = await sweep({}, dbLike());
+    assert.ok(/^SELECT id, type FROM T/.test(tx.q[0].sql.trim()), tx.q[0].sql);
+    assert.ok(/^SELECT DISTINCT x\.cid/.test(tx.q[1].sql.trim()), tx.q[1].sql);
+    const del = tx.q.find((x) => /^DELETE FROM T/.test(x.sql.trim()));
+    assert.ok(del, 'a DELETE');
+    assert.deepStrictEqual(del.params.slice(2), ['1', '2']);
+    assert.deepStrictEqual(res.ids, ['1', '2']);
+});
+t('a row another page still lists is kept, not deleted', async () => {
+    const { tx, res } = await sweep({}, dbLike(['2']));
+    const del = tx.q.find((x) => /^DELETE FROM T/.test(x.sql.trim()));
+    assert.deepStrictEqual(del.params.slice(2), ['1']);
+    assert.deepStrictEqual(res.kept, ['2']);
+});
+t('the check reads every declared list of every owner kind, app-wide (not the container), minus the owner', async () => {
+    const { tx } = await sweep({}, dbLike());
+    const checks = tx.q.filter((x) => /^SELECT DISTINCT x\.cid/.test(x.sql.trim()));
+    assert.strictEqual(checks.length, 2, 'sections and draft_sections');
+    assert.ok(/\$\.sections/.test(checks[0].sql) && /\$\.draft_sections/.test(checks[1].sql));
+    assert.deepStrictEqual(checks[0].params.slice(0, 4), ['myapp', '100', '%|page', '%:page']);
+    assert.ok(!/chenango/.test(checks[0].params.join(' ')), 'no container bound');
+});
+t('with no declaration to check against, nothing is deleted', async () => {
+    const { tx, res } = await sweep({ childRefs: null }, dbLike());
+    assert.ok(!tx.q.some((x) => /DELETE/.test(x.sql)));
+    assert.deepStrictEqual(res.kept, ['1', '2']);
+});
+t('an attribute name unfit for SQL: nothing is deleted', async () => {
+    const { tx } = await sweep({ childRefs: { page: { "x') OR 1=1 --": 'component' } } }, dbLike());
+    assert.ok(!tx.q.some((x) => /DELETE/.test(x.sql)));
 });
 t('log mode issues a SELECT and deletes nothing', async () => {
     const { tx } = await sweep({ mode: 'log' });
-    assert.strictEqual(tx.q.length, 1);
-    assert.ok(/^SELECT id FROM T/.test(tx.q[0].sql.trim()), tx.q[0].sql);
-    assert.ok(!/DELETE/.test(tx.q[0].sql));
+    assert.ok(!tx.q.some((x) => /DELETE/.test(x.sql)));
+    assert.ok(/^SELECT id, type FROM T/.test(tx.q[0].sql.trim()), tx.q[0].sql);
 });
 t('off mode issues nothing at all', async () => {
     const { tx, res } = await sweep({ mode: 'off' });
@@ -471,7 +510,7 @@ t('it does not need the owner\'s arrays — a row the arrays lost is still swept
 });
 t('log mode selects', async () => {
     const { tx } = await sweepAll({ mode: 'log' });
-    assert.ok(/^SELECT id FROM T/.test(tx.q[0].sql.trim()));
+    assert.ok(/^SELECT id, type FROM T/.test(tx.q[0].sql.trim()));
 });
 t('off mode issues nothing', async () => {
     const { tx } = await sweepAll({ mode: 'off' });

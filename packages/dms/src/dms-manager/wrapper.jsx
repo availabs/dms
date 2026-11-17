@@ -74,14 +74,17 @@ export default function EditWrapper({ Component, format, options, params, user, 
 		const dataSnapshot = data.id === item.id ? structuredClone(data) : null
 
 		let resData = null
-		if(mode === 'ssr'){
-			let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
-  		resData = await res.json()
-    } else {
-			resData = await dmsDataEditor(falcor, config, data, requestType);
-    }
-
-		setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
+		try {
+			if(mode === 'ssr'){
+				let res =  await fetch(`/dms_api`, { method:"POST", body: json2DmsForm(data,requestType,config,newPath) })
+				resData = await res.json()
+			} else {
+				resData = await dmsDataEditor(falcor, config, data, requestType);
+			}
+		} finally {
+			// a refused write (e.g. a delete the server judged) must not leave the page marked busy forever
+			setBusy((prevState) => { return {...prevState, updating: prevState.updating-1 }})
+		}
 
 		// Dataset row edits (externalSource with view_id) are managed by the
 		// dataWrapper's local state — skip revalidate to avoid re-running the

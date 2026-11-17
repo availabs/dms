@@ -33,6 +33,21 @@ delete's backup, and the delete no longer touches `yjs_states`.
 - Not affected: `change_log` and the sync delta/bootstrap routes, which filter by `app` and `item_id`
   (`routes/sync/sync.js` :468).
 
+## Owner, 2026-11-16: per-app state, thought through first
+
+Deleting `yjs_states` with a deleted row (safe-delete-removes-rows.md F14) waits for this task. Ideally the
+Yjs state is **per app**. That needs thinking through before building, because an app is not fixed: moving
+a tenant from one hub to another, or copying a site (`deploy/tenant_hub_copy.mjs`, `db-copy`), changes its
+`app`, and the ids it brings can clash with ids already in the target. Questions to answer before the fix
+below:
+- What happens to a row's room and stored state when its `app` changes (rename, tenant move, copy)? Is the
+  state carried over, re-keyed, or dropped and re-seeded from the row (it is a cache of `draft_sections`,
+  if step 2's claim holds)?
+- If ids clash in the target after a move, which row keeps the id, and what re-keys the other row's
+  state and its refs?
+- Is `(app, item_id)` enough, or should the room key be something that survives a move (the row's
+  `trackingId`, or a uuid stamped once)?
+
 ## Proposed fix
 
 1. **Key by `(app, itemId)`.** The client puts `app` on every room message (the provider knows the page's

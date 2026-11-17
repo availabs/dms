@@ -103,7 +103,11 @@ async function run() {
             'setDataById merges, so stamping from the merged row would drag c1 back to A'));
 
     section('5. Removal is NOT a clear — that is the reconciler\'s job');
+    // The stamp alone: with the sweep on (the default) the dropped row would be deleted instead.
+    const sweepWas = process.env.DMS_CHILD_SWEEP_MODE;
+    process.env.DMS_CHILD_SWEEP_MODE = 'log';
     await edit(pageA, { sections: [ref(c2)] }, 'widgets|page');
+    if (sweepWas === undefined) delete process.env.DMS_CHILD_SWEEP_MODE; else process.env.DMS_CHILD_SWEEP_MODE = sweepWas;
     await t('a section dropped from the array keeps its parent', async () =>
         assert.strictEqual(await parentOf(c3), pageA,
             'clearing would need the previous array, and a momentary omission would orphan it'));

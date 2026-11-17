@@ -457,36 +457,98 @@ function planRemovedChildren(before, after, { type, childRefs }) {
 }
 
 /**
- * Delete the children a write dropped — the counterpart of `stampChildren`, and the reason
- * `parent_id` can be trusted to mean containment rather than "the last page that happened to
- * mention this row".
- *
- * **`data.parent_id = <owner>` is the safety bound**, exactly as the exact-type predicate is
- * `stampChildren`'s. A row this owner is not the recorded parent of is never deleted, even when its
- * id appears in the removed set — which is what makes the sweep safe on data where two pages still
- * share a row, and on a row with no `parent_id`, which it simply never matches.
- *
- * `mode`: `off` does nothing, `log` reports what it WOULD delete without deleting, `delete` deletes.
- * Default `log`, because this is the only irreversible thing parentage does.
+ * The (owner kind, attribute) pairs that can list a row of `childKind`, from the pattern's declaration:
+ * for the page pattern, `component` is listed by a page's `sections` and `draft_sections`.
  */
-async function sweepRemovedChildren(tx, { table, app, id, type, removed, mode = 'log' }) {
-  const out = { swept: 0, ids: [] };
-  if (mode === 'off' || !removed || !removed.length || !id) return out;
-  const container = getParent(type);
-  if (!container) return out;
+function listersOf(childRefs, childKind) {
+  const out = [];
+  for (const [ownerKind, attrs] of Object.entries(childRefs || {})) {
+    for (const [attribute, kind] of Object.entries(attrs || {})) if (kind === childKind) out.push({ ownerKind, attribute });
+  }
+  return out;
+}
 
-  for (const { childKind, ids } of removed) {
-    const childTypes = childTypeParams(container, childKind);
-    for (let i = 0; i < ids.length; i += 500) {
-      const chunk = ids.slice(i, i + 500);
+const SAFE_ATTRIBUTE = /^[A-Za-z_][A-Za-z0-9_]*$/;
+
+/**
+ * Of `ids`, the ones some OTHER row of the app still lists: a row of an owner kind (any pattern, any
+ * container: a copied pattern's pages can list the source pattern's rows) whose declared attribute
+ * names the id. The lists are the truth about who uses a row; `parent_id` only says who saved it last
+ * (safe-delete-removes-rows.md, audit 2026-11-16: 767 mitigat-ny-prod sections are listed by 2–4
+ * pages). Returns null when it can't tell (no declaration, or an attribute name it won't put in SQL):
+ * the caller then deletes nothing.
+ */
+// An attribute may hold a list of refs or ONE ref (`refIdsOf`): a page's `history` is usually a single
+// `{id, ref}`, and on mitigat-ny-prod 4 history rows are each named by 2–3 pages that way (2026-11-17).
+// Both shapes are read here, or a single shared ref would not count as listed elsewhere.
+async function listedElsewhere(tx, { table, app, ownerId, childKind, childRefs, ids }) {
+  const listers = listersOf(childRefs, childKind);
+  if (!listers.length || listers.some((l) => !SAFE_ATTRIBUTE.test(l.attribute))) return null;
+  const found = new Set();
+  for (const { ownerKind, attribute } of listers) {
+    const params = [app, String(ownerId), `%|${likeEscape(ownerKind)}`, `%:${likeEscape(ownerKind)}`, ...ids.map(String)];
+    const ph = ids.map((_, j) => `$${j + 5}`).join(',');
+    const sql = tx.type === 'postgres'
+      ? `SELECT DISTINCT x.cid FROM (
+           SELECT CASE WHEN jsonb_typeof(e) = 'object' THEN e->>'id' ELSE e #>> '{}' END AS cid
+           FROM ${table} o
+           CROSS JOIN LATERAL jsonb_array_elements(
+             CASE jsonb_typeof(o.data->'${attribute}')
+               WHEN 'array' THEN o.data->'${attribute}'
+               WHEN 'object' THEN jsonb_build_array(o.data->'${attribute}')
+               WHEN 'string' THEN jsonb_build_array(o.data->'${attribute}')
+               WHEN 'number' THEN jsonb_build_array(o.data->'${attribute}')
+               ELSE '[]'::jsonb END) e
+           WHERE o.app = $1 AND CAST(o.id AS TEXT) <> $2 AND (o.type LIKE $3 ESCAPE '\\' OR o.type LIKE $4 ESCAPE '\\')
+         ) x WHERE x.cid IN (${ph})`
+      : `SELECT DISTINCT x.cid FROM (
+           SELECT CAST(CASE WHEN e.type = 'object' THEN json_extract(e.value, '$.id') ELSE e.value END AS TEXT) AS cid
+           FROM ${table} o,
+             json_each(CASE json_type(o.data, '$.${attribute}')
+               WHEN 'array' THEN json_extract(o.data, '$.${attribute}')
+               WHEN 'object' THEN json_array(json(json_extract(o.data, '$.${attribute}')))
+               WHEN 'text' THEN json_array(json_extract(o.data, '$.${attribute}'))
+               WHEN 'integer' THEN json_array(json_extract(o.data, '$.${attribute}'))
+               ELSE '[]' END) e
+           WHERE o.app = $1 AND CAST(o.id AS TEXT) <> $2 AND (o.type LIKE $3 ESCAPE '\\' OR o.type LIKE $4 ESCAPE '\\')
+         ) x WHERE x.cid IN (${ph})`;
+    for (const r of (await tx.promise(sql, params)) || []) found.add(String(r.cid));
+  }
+  return found;
+}
+
+/**
+ * The shared tail of both sweeps: of the candidate rows (already bounded by `parent_id` and type), keep
+ * every one another row still lists, delete (or, in `log`, report) the rest.
+ */
+async function sweepCandidates(tx, { table, app, ownerId, candidates, childRefs, mode, out }) {
+  const byKind = new Map();
+  for (const r of candidates) {
+    const k = getKind(r.type);
+    if (!byKind.has(k)) byKind.set(k, []);
+    byKind.get(k).push(r);
+  }
+  const doomed = [];
+  for (const [childKind, rows] of byKind) {
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500);
+      const elsewhere = await listedElsewhere(tx, { table, app, ownerId, childKind, childRefs, ids: chunk.map((r) => String(r.id)) });
+      for (const r of chunk) {
+        if (!elsewhere || elsewhere.has(String(r.id))) out.kept.push(String(r.id));
+        else doomed.push(r);
+      }
+    }
+  }
+  for (let i = 0; i < doomed.length; i += 500) {
+    const chunk = doomed.slice(i, i + 500);
+    if (mode === 'delete') {
       const ph = chunk.map((_, j) => `$${j + 3}`).join(',');
-      const where = `WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND id IN (${ph})`
-        + ` AND ${CHILD_TYPE_SQL(chunk.length + 3, chunk.length + 4)}`;
-      const params = [app, String(id), ...chunk, ...childTypes];
-      const rows = mode === 'delete'
-        ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id`, params)
-        : await tx.promise(`SELECT id FROM ${table} ${where}`, params);
-      for (const r of (rows || [])) out.ids.push(String(r.id));
+      const rows = await tx.promise(
+        `DELETE FROM ${table} WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND id IN (${ph}) RETURNING id, type`,
+        [app, String(ownerId), ...chunk.map((r) => r.id)]);
+      for (const r of (rows || [])) { out.ids.push(String(r.id)); out.rows.push({ id: r.id, type: r.type }); }
+    } else {
+      for (const r of chunk) { out.ids.push(String(r.id)); out.rows.push({ id: r.id, type: r.type }); }
     }
   }
   out.swept = out.ids.length;
@@ -494,18 +556,46 @@ async function sweepRemovedChildren(tx, { table, app, id, type, removed, mode = 
 }
 
 /**
- * Every child of an owner that is itself being DELETED.
+ * Delete the children a write dropped — the counterpart of `stampChildren`.
  *
- * No removed-set subtlety here and no need for the owner's arrays: when the owner goes, every row
- * it is the recorded parent of goes with it, including ones its arrays had already lost track of.
- * There is no race to lose — a child written concurrently for a page being deleted is garbage by
- * the time it lands either way.
+ * Bounded three ways. **`data.parent_id = <owner>`**: a row this owner is not the recorded parent of is
+ * never deleted, even when its id appears in the removed set, and a row with no `parent_id` is never
+ * matched. The child's type sits in the owner's container. And **no other row still lists it**
+ * (`listedElsewhere`): `parent_id` is whichever page saved a shared row last, so it alone would delete a
+ * row another page still shows.
  *
- * Still bounded the same two ways: `parent_id = <owner>`, and a type this owner's pattern actually
- * DECLARES as a child. A row that merely sits under the same container is not swept.
+ * `mode`: `off` does nothing, `log` reports what it WOULD delete without deleting, `delete` deletes.
+ * A caller that passes no mode gets `log`; the server passes its own (`childSweepMode`, default `delete`).
+ * Returns `{ swept, ids, rows, kept }`; `kept` = candidates another row still lists.
+ */
+async function sweepRemovedChildren(tx, { table, app, id, type, removed, childRefs, mode = 'log' }) {
+  const out = { swept: 0, ids: [], rows: [], kept: [] };
+  if (mode === 'off' || !removed || !removed.length || !id) return out;
+  const container = getParent(type);
+  if (!container) return out;
+
+  const candidates = [];
+  for (const { childKind, ids } of removed) {
+    const childTypes = childTypeParams(container, childKind);
+    for (let i = 0; i < ids.length; i += 500) {
+      const chunk = ids.slice(i, i + 500);
+      const ph = chunk.map((_, j) => `$${j + 3}`).join(',');
+      const where = `WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND id IN (${ph})`
+        + ` AND ${CHILD_TYPE_SQL(chunk.length + 3, chunk.length + 4)}`;
+      candidates.push(...((await tx.promise(`SELECT id, type FROM ${table} ${where}`, [app, String(id), ...chunk, ...childTypes])) || []));
+    }
+  }
+  if (!candidates.length) return out;
+  return sweepCandidates(tx, { table, app, ownerId: id, candidates, childRefs, mode, out });
+}
+
+/**
+ * Every child of an owner that is itself being DELETED: every row it is the recorded parent of, of a
+ * type its pattern DECLARES as a child, including ones its arrays had already lost track of; except,
+ * as above, a row another row still lists. A row that merely sits under the same container is not swept.
  */
 async function sweepAllChildren(tx, { table, app, id, type, childRefs, mode = 'log' }) {
-  const out = { swept: 0, ids: [] };
+  const out = { swept: 0, ids: [], rows: [], kept: [] };
   if (mode === 'off' || !id) return out;
   const attrs = childRefs && childRefs[getKind(type)];
   if (!attrs) return out;
@@ -520,14 +610,11 @@ async function sweepAllChildren(tx, { table, app, id, type, childRefs, mode = 'l
     parts.push(CHILD_TYPE_SQL(params.length + 1, params.length + 2));
     params.push(exact, like);
   }
-  const where = `WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND (${parts.join(' OR ')})`;
-  const rows = mode === 'delete'
-    ? await tx.promise(`DELETE FROM ${table} ${where} RETURNING id`, params)
-    : await tx.promise(`SELECT id FROM ${table} ${where}`, params);
-  for (const r of (rows || [])) out.ids.push(String(r.id));
-  out.swept = out.ids.length;
-  return out;
+  const candidates = (await tx.promise(
+    `SELECT id, type FROM ${table} WHERE app = $1 AND ${PARENT_ID_SQL(tx.type)} = $2 AND (${parts.join(' OR ')})`, params)) || [];
+  if (!candidates.length) return out;
+  return sweepCandidates(tx, { table, app, ownerId: id, candidates, childRefs, mode, out });
 }
 
-module.exports = { PARENT_ID_SQL, withParentId, stripParentId, planRemovedChildren, sweepRemovedChildren, sweepAllChildren, childTypeParams, isPlausibleParent, takeParentId, validateParentId, refIdsOf, mergeChildRefs,
+module.exports = { PARENT_ID_SQL, withParentId, stripParentId, planRemovedChildren, sweepRemovedChildren, sweepAllChildren, listedElsewhere, childTypeParams, isPlausibleParent, takeParentId, validateParentId, refIdsOf, mergeChildRefs,
   declaredChildKinds, planDuplication, repointRefs, stampChildren };

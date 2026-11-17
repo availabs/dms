@@ -527,6 +527,8 @@ function createSyncRoutes(dbName) {
 
       const { user = null } = req.availAuthContext || {};
       const userId = user?.id || null;
+      // who/where, for the change_log rows the controller writes on this push's behalf (cascade, sweep)
+      const pushMeta = { ip: req.clientIp || null, userAgent: req.headers['user-agent'] || null, authState: userId ? 'authenticated' : 'sync' };
 
       if (action !== 'I' && action !== 'U' && action !== 'D') {
         return res.status(400).json({ error: `Unknown action: ${action}` });
@@ -646,7 +648,7 @@ function createSyncRoutes(dbName) {
               if (!resultItem) return { notFound: true };
               await controller.sweepDeclaredChildren(tx, {
                 table: pushTable, app: resultItem.app, id: resultItem.id, type: resultItem.type,
-                before: pre?.data, after: resultItem.data, childRefs,
+                before: pre?.data, after: resultItem.data, childRefs, userId, reqMeta: pushMeta,
               });
 
             } else {
@@ -658,12 +660,12 @@ function createSyncRoutes(dbName) {
               resultItem = { id: item.id, app: item.app, type: stored?.type || item.type };
               // what dms.data.delete cascades (a view's table and its ref on the source, a source's
               // views, the page delete hook): without it a delete through sync left them behind
-              if (stored) await controller.cascadeDeletedRow(tx, stored, userId, { ip: req.clientIp || null, userAgent: req.headers['user-agent'] || null, authState: userId ? 'authenticated' : 'sync' });
+              if (stored) await controller.cascadeDeletedRow(tx, stored, userId, pushMeta);
               // …and the children the deleted owner parented, which the cascade above cannot know
               // about without the library knowing what a page is. Same declaration the stamp reads.
               await controller.sweepChildrenOfDeleted(tx, {
                 table: pushTable, app: resultItem.app, id: resultItem.id,
-                type: resultItem.type, childRefs,
+                type: resultItem.type, childRefs, userId, reqMeta: pushMeta,
               });
             }
 
