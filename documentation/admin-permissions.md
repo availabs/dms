@@ -121,6 +121,80 @@ aren't offered are kept and can still be removed.
   holding `view-page`, `edit-pattern`, `edit-pattern-permissions` or `delete-pattern` (otherwise the
   `no-access` stub). **Page rows** stay `view-page`-only, so admin permissions never expose page
   content. Auth and admin pattern rows are never stubbed: don't store secrets on them.
-- **Sync does no per-row permission filtering.** `/sync/bootstrap` and `/sync/delta` return every row
-  in scope to any client (or any logged-in client with `DMS_SYNC_AUTH=1`). With sync on, the read
-  gate above is not a security boundary.
+- **Sync does no per-row permission filtering, except for `reach`.** `/sync/bootstrap` and
+  `/sync/delta` return every row in scope to any client (or any logged-in client with
+  `DMS_SYNC_AUTH=1`). With sync on, the read gate above is not a security boundary — for every row
+  but a reach-limited one (below), which sync judges like a Falcor read and the live socket sends as a
+  notification only.
+
+## Reach: what reaches a row without naming anyone on it
+
+Two things reach a row without naming anyone on it: **inheritance** (a rule's owner positions spread
+the grants of the rows above: the pattern's over a page's, the env's over a source's, the site's `*`
+escape) and **the admin shortcut** (`${app} Admin` is allowed everything before any rule is read). A
+row can switch either off with `reach`, inside its own grants value (`authPermissions` on DMS rows,
+`auth_permissions` on sources). Task: `planning/tasks/current/auth-reach.md`.
+
+```js
+auth_permissions: {
+  users: { "12": ["view-source", "edit-source-data"] }, groups: {},
+  reach: { inherit: false, override: false },
+}
+```
+
+| Switch | Absent | `false` |
+|---|---|---|
+| `inherit` | grants of the rows above apply | only this row's own grants apply, to it and everything under it |
+| `override` | `${app} Admin` is allowed everything | the shortcut doesn't apply to this row or anything under it: admins need a grant like anyone |
+
+| Access editor preset | `inherit` | `override` | Use |
+|---|---|---|---|
+| Normal | on | on | every row without a `reach` |
+| Only people named here | off | on | a private draft page; a PII dataset in a shared env. Admins can still recover it |
+| Hidden from site admins | on | off | a team's env every source inherits from, kept from IT staff |
+| Private | off | off | chat DMs: exactly the people named, nobody else, ever |
+
+- **Found by walking up.** The effective reach of a row is read along the walk its owner positions
+  take (`owners.js reachFor`): `inherit: false` on the row or an ancestor cuts every owner position above
+  that row; `override: false` on the row or any ancestor removes the shortcut. The core reads data; it
+  names no kind.
+- **No `reach` = before.** Nothing changes for a row with no reach on itself or above it.
+  `view: false`, the older source-only spelling, is read as `inherit: false`.
+- **A limited reach is never "blank".** A row that grants nothing is readable by anyone (the blank-row
+  rule); a row under a limited reach that grants nothing is readable by no one, and a pattern's
+  `publicRead` doesn't open it.
+- **Enforced under every mode.** A decision about a reach-limited row bites under `DMS_AUTH_MODE=log`
+  too, and over a surface's own `mode: 'log'` (vector tiles of such a source need a signed-in request).
+- **Changing it is a grants edit**, judged by the row's grants-edit rule. Once `override: false` is
+  stored, the admin shortcut doesn't help that edit either: only someone the row names can undo it.
+- **A save that leaves `reach` out keeps the stored one** (`grants.js carryReach`), so an older client
+  rebuilding `{ groups, users }` can't drop it. To clear it, send `reach: {}`.
+- **Guard rail.** `override: false` is refused on the site row and pattern rows (their rules say
+  `adminAlways: true`): it would lock the site's admins out of the site. The Access editor offers
+  only `inherit` on a pattern, nothing on the site row, and nothing on a section (a section's reads
+  are open on the server, so `reach` couldn't make one private).
+- **Capability.** A server that predates `reach` ignores it, so a private row would be readable there
+  (it fails open). The Falcor path `dms.capabilities` answers `{ reach: true }` on a server that
+  enforces it; an older one answers an empty atom. The client reads it once at boot
+  (`api/index.js loadServerCapabilities` → `utils/serverCapabilities.js`) and `UI.Permissions` shows
+  the presets only when it is true (prop `reachSupported` overrides; `reachSwitches` limits which
+  switches a row may set).
+- **Not covered.** Files stored by the upload routes are served from `/files/…` by path, unjudged; a
+  row's Yjs collaboration room (`/sync/subscribe` `join-room`) is not judged either; and a page's
+  sections are not under the page on the server's walk (a section row's walk goes to the pattern), so
+  a page's reach does not reach its sections. Task for the first: `planning/tasks/current/gated-file-downloads.md`.
+
+## Who a row's grants name: `GET /dms/:app/rows/:id/grantees`
+
+The auth API's user and group lists are for people who manage users (`auth-users`). A reader
+sometimes needs a narrower answer: who else does this row let in? (Chat's New message dialog: the
+people the chat pattern is granted to.) `GET /dms/:app/rows/:id/grantees` answers
+`{ users: [{ id, email }] }`: the users the row's own grants name (the entry for the request's
+subdomain, both buckets of a scoped grant), directly or as members of a group granted any verb there.
+
+- **Who may ask:** anyone who may read the row (`authorize(read)`, enforced under every mode, so a
+  reach-limited row answers only its own grantees). Signed out: 401; not a reader: 403.
+- **What it leaves out:** `public` (everyone), grants lent from rows above (only the row's own), every
+  other user field. The auth table has no name besides the email.
+- Generic: it names no kind or pattern. `dms-server/src/routes/auth/grantees.js`; test
+  `tests/test-grantees.js`.

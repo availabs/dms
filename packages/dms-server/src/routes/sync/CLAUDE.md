@@ -107,6 +107,12 @@ Index: `idx_change_log_app_rev` on `(app, revision)`.
 
 Set `DMS_SYNC_AUTH=1` to require JWT authentication on all sync endpoints. Checks `req.availAuthContext.user` (populated by upstream auth middleware). Returns 401 if missing.
 
+No other read is judged here, **except for rows whose `reach` is limited** (`reach: { inherit: false }` or `{ override: false }` on the row or a row above it; `routes/auth` `reachLimited` / `reachableRows`, task `planning/tasks/current/auth-reach.md`):
+
+- `/sync/bootstrap` and `/sync/delta` drop the items such a row would refuse the caller (judged like a Falcor read, enforced under every mode). A delta's change is judged on the row's grants and parent as they are NOW (`withoutUnreachable`), so a row made private later stops handing out older versions.
+- `notifyChange` (ws.js) sends such a row's change as a notification only — `item` without `data`, with `dataOmitted: true, reachLimited: true` — because the socket knows no user. The client refetches through `/sync/delta`. Broadcasts go through a per-app promise chain, so the async check never reorders an app's messages.
+- Not covered: the Yjs collab rooms (`join-room`) are not judged.
+
 ## Compaction
 
 `startCompaction(db, dbType)` runs periodic cleanup of old change_log entries:

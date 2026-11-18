@@ -116,7 +116,9 @@ async function main() {
     console.log('\n  ✗ the site row holds per-subdomain grants in data.authPermissions; merge by hand.');
     await db.end(); process.exit(1);
   }
-  const merged = { groups: { ...(have.groups || {}) }, users: { ...(have.users || {}) } };
+  // `reach` / `view` name no one and are kept as stored (routes/auth/grants.js reachOf)
+  const keep = Object.fromEntries(['reach', 'view'].filter(k => stored && stored[k] !== undefined).map(k => [k, stored[k]]));
+  const merged = { groups: { ...(have.groups || {}) }, users: { ...(have.users || {}) }, ...keep };
   for (const a of adds) merged[a.bucket][a.who] = a.perms;
   const set = config.type === 'postgres'
     ? `data = jsonb_set(COALESCE(data, '{}'::jsonb), '{authPermissions}', $2::jsonb)`

@@ -30,7 +30,10 @@ const seen = new Map();
  */
 function applyMode(decision, ctx) {
   if (decision && decision.allow) return true;
-  let mode = ctx.mode === 'log' || ctx.mode === 'enforce' ? ctx.mode : authMode();
+  // A row whose `reach` is limited (authorize marks the decision) asked to be private: its refusals
+  // bite under every mode, and over a surface's own `mode: 'log'` (tiles) too (auth-reach.md).
+  let mode = decision && decision.reachLimited ? 'enforce'
+    : ctx.mode === 'log' || ctx.mode === 'enforce' ? ctx.mode : authMode();
   const reason = (decision && decision.reason) || 'refused';
   const { guard = 'data', kind = '', target = '', perms = [], user = null, app = '' } = ctx;
   const outcome = mode === 'log' ? 'would-deny' : 'refused';

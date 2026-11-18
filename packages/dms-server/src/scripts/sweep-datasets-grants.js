@@ -138,7 +138,9 @@ async function main() {
       console.log(`\n  ✗ env #${env.id} holds per-subdomain grants in data.authPermissions; merge by hand.`);
       await db.end(); process.exit(1);
     }
-    const cur = merged.get(env.id) || union([resolveAuthPermissions(envData.authPermissions, '') || {}]);
+    // the env's `reach` / `view` name no one and are kept as stored (routes/auth/grants.js reachOf)
+    const keep = Object.fromEntries(['reach', 'view'].filter(k => stored && stored[k] !== undefined).map(k => [k, stored[k]]));
+    const cur = merged.get(env.id) || { ...union([resolveAuthPermissions(envData.authPermissions, '') || {}]), ...keep };
     for (const a of adds) cur[a.bucket][a.who] = [...new Set([...(cur[a.bucket][a.who] || []), ...a.perms])];
     merged.set(env.id, cur);
   }

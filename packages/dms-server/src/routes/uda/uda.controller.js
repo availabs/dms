@@ -17,7 +17,7 @@ const { getSettings } = require('./uda.tasks.controller');
 const { translatePgToSqlite, detectRealPrimaryKey, resolvePrimaryKey } = require('./query_sets/postgres');
 const { createDamaView, cloneViewTable } = require('../../dama/upload/metadata');
 const { clearPgEnv } = require('../auth/owners');
-const { normaliseGrants } = require('../auth/grants');
+const { normaliseGrants, carryReach } = require('../auth/grants');
 const { parseJsonish, readAuthority, applySet, applyClear } = require('./authority');
 const { getViewLineage, getSourceLineage } = require('../../dama/lineage');
 const { ensureSourceRules } = require('../../dama/rules');
@@ -478,6 +478,18 @@ async function updateSource(env, sourceId, updates) {
     });
     if (!Object.keys(rest).length) return rows;
     updates = rest;
+  }
+
+  // a grants write that leaves `reach` out keeps the stored one (routes/auth/grants.js carryReach)
+  if (Object.prototype.hasOwnProperty.call(updates, 'auth_permissions') && updates.auth_permissions != null) {
+    const { rows: was } = isDms
+      ? await db.query(`SELECT data FROM ${await dmsMainTable(db, app, splitMode)} WHERE id = $1`, [sourceId])
+      : await db.query(`SELECT auth_permissions FROM ${db.type === 'postgres' ? 'data_manager.sources' : 'sources'} WHERE source_id = $1`, [sourceId]);
+    const stored = was[0] ? (isDms ? (parseJsonish(was[0].data) || {}).auth_permissions : was[0].auth_permissions) : null;
+    const next = carryReach(stored, updates.auth_permissions);
+    if (next !== updates.auth_permissions) {
+      updates = { ...updates, auth_permissions: typeof updates.auth_permissions === 'string' ? JSON.stringify(next) : next };
+    }
   }
 
   if (isDms) {

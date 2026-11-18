@@ -6,6 +6,7 @@ import processNewData from "./proecessNewData.js";
 import updateDMSAttrs from "./updateDMSAttrs.js";
 import { isSplitType } from "../utils/type-utils.js";
 import { authedFetch } from "../utils/authedFetch.js";
+import { getServerCapabilities, setServerCapabilities } from "../utils/serverCapabilities.js";
 // import * as DmsManagerUtils from '../dms-manager/_utils.js'
 // const { getActiveConfig } = DmsManagerUtils
 //console.log('hola')
@@ -942,6 +943,26 @@ export async function loadItemFresh(falcor, app, id, attrs = ['id', 'type', 'dat
   if (!row?.type) return null;
   const data = typeof row.data === 'string' ? JSON.parse(row.data) : row.data;
   return { ...row, data };
+}
+
+/**
+ * Read what the server supports (`dms.capabilities`, dms-server dms.route.js) into the store
+ * components read (utils/serverCapabilities.js). Once per falcor model; an older server answers
+ * nothing, and a failed read leaves every flag absent — the safe reading.
+ */
+const capabilityLoads = new WeakMap();
+export function loadServerCapabilities(falcor) {
+  if (!falcor?.get) return Promise.resolve(getServerCapabilities());
+  if (capabilityLoads.has(falcor)) return capabilityLoads.get(falcor);
+  const load = falcor.get(['dms', 'capabilities'])
+    .then((res) => {
+      const value = get(res, ['json', 'dms', 'capabilities']);
+      setServerCapabilities(value && typeof value === 'object' ? value : {});
+      return getServerCapabilities();
+    })
+    .catch(() => getServerCapabilities());
+  capabilityLoads.set(falcor, load);
+  return load;
 }
 
 const api = {

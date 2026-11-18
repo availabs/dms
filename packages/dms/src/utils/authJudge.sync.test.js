@@ -30,7 +30,7 @@ function definition(src, name) {
 }
 
 const SHARED = {
-  grants: ['parseJson', 'asList', 'resolveAuthPermissions', 'scopeOf', 'hasGrants', 'holds', 'isAppAdmin', 'mergeAuthPermissions'],
+  grants: ['parseJson', 'asList', 'resolveAuthPermissions', 'scopeOf', 'hasGrants', 'holds', 'reachOf', 'isAppAdmin', 'mergeAuthPermissions'],
   vocabulary: ['SCOPES', 'fieldMaps', 'verbsForFields'],
   judge: ['allow', 'deny', 'list', 'STRUCTURAL', 'one', 'req', 'key', 'satisfied', 'blankSwap', 'editRequirements', 'judge'],
 };

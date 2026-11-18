@@ -48,6 +48,10 @@ export const pillTheme = {
         { name: 'count',         wrapper: 'inline-flex items-center h-[18px] px-1.5 rounded-full border border-[var(--t-rule)] t-metaXS text-[var(--t-pencil)]' },
         { name: 'tag',           wrapper: 'inline-flex items-center gap-1 h-6 px-1.5 rounded bg-[var(--t-well)] t-proseXS text-[var(--t-ink)]' },
         { name: 'tag_sub',       wrapper: 'inline-flex items-center gap-1 h-6 px-1.5 rounded border border-[var(--t-rule)] t-proseXS text-[var(--t-graphite)]' },
+        // a count on a soft fill, sans and tabular (`c-pill`, the chat type token in defaultTheme.js):
+        // unread (cobalt) and something addressed to the reader (brick) — the chat rail's, 2026-11-18
+        { name: 'chatUnread',    wrapper: 'inline-flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full c-pill bg-[var(--t-cobalt-soft)] text-[var(--t-cobalt)]' },
+        { name: 'chatMention',   wrapper: 'inline-flex items-center justify-center h-[18px] min-w-[18px] px-1.5 rounded-full c-pill bg-[var(--t-brick-soft)] text-[var(--t-brick)]' },
     ],
 };
 

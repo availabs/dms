@@ -175,6 +175,8 @@ export const pattern = {
   rules: {
     pattern: {
       owner: 'self',
+      // `reach.override: false` is refused on a pattern row: it would lock the site's admins out
+      adminAlways: true,
       escape: { owner: 'site', perms: ['*'] },   // site * may do anything to any pattern
       // a pattern with no grants is open to whoever may see the pattern list (the site's own admin and
       // auth rows included: their site-level grants live on the site row, so they are blank)
@@ -313,6 +315,8 @@ const patternAdminFormat = {
   rules: {
     site: {
       owner: 'site',
+      // `reach.override: false` is refused on the site row: it would lock the site's admins out
+      adminAlways: true,
       ops: {
         create: ['*'],
         delete: ['*'],

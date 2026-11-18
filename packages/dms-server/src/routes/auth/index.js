@@ -35,7 +35,8 @@
  */
 const { isEqual } = require('lodash');
 const { getKind, isSplitType } = require('#db/type-utils.js');
-const { parseJson, holds, hasGrants, isAppAdmin, resolveAuthPermissions } = require('./grants');
+const { parseJson, holds, hasGrants, isAppAdmin, resolveAuthPermissions, reachOf, carryReach, storedGrants, GRANT_KEYS } = require('./grants');
+const RULES = require('./rules');
 const owners = require('./owners');
 const { appSnapshot, grantsAt, ruleFor, mapsFor, sourceOfView, clearSnapshots, isDmsEnv } = owners;
 const { judge, ownersIn, STRUCTURAL } = require('./judge');
@@ -77,8 +78,26 @@ function planEdit(row, patch, { replace = false } = {}) {
 const allow = (reason) => ({ allow: true, reason });
 const deny  = (reason) => ({ allow: false, reason });
 
-// `view: false` beside blank grants means "no one", not "everyone".
-const isBlank = (ap) => ap != null && !hasGrants(ap) && ap.view !== false;
+// A limited `reach` (or the older `view: false`) beside blank grants means "no one", not "everyone".
+const isBlank = (ap) => { if (ap == null || hasGrants(ap)) return false; const r = reachOf(ap); return r.inherit && r.override; };
+
+/**
+ * The guard rail on `reach.override: false`: refused on a row whose kind's rule says `adminAlways`
+ * (the site and pattern rows: sealing one would lock the site's admins out of the site). Read from
+ * the rule the row is judged by, and from the built-in copy, so a site whose `formats` rows were
+ * registered before the flag existed is still guarded. Only a write that SETS it is refused.
+ */
+function sealRefused(snap, r, op, row, patch, keys) {
+  if (op !== 'create' && op !== 'edit') return null;
+  const incoming = parseJson(patch) || (op === 'create' ? parseJson(row && row.data) : null) || {};
+  const sealing = GRANT_KEYS.some(k => (op === 'create' || keys.includes(k)) && !reachOf(storedGrants(incoming[k])).override);
+  if (!sealing) return null;
+  let declared = null;
+  try { declared = ruleFor(snap, r).rule; } catch { /* a malformed stamp: the built-in copy still answers */ }
+  const builtIn = RULES[r.kind] || null;
+  if (!((declared && declared.adminAlways) || (builtIn && builtIn.adminAlways))) return null;
+  return deny(`reach.override: false is refused on a ${r.kind} row: it would lock the site's admins out`);
+}
 
 /**
  * Writing a row's stamped auth rules is an escalation (whoever rewrites them can grant themselves
@@ -115,22 +134,32 @@ async function authorize({ row, env, sourceId, viewId, patternId, verb = 'read',
   const write = plan ? plan.write : patch;
 
   const siteApp = snap.app || app || null;
-  if (isAppAdmin(user, siteApp)) return { ...allow(`${siteApp} Admin`), write };
+  // `reach` along the walk (owners.js reachFor). No reach anywhere above → `open`, today's path exactly.
+  let reach;
+  try { reach = owners.reachFor(snap, r, { op, subdomain }); } catch (e) { return deny(`lookup failed: ${e.message}`); }
+  // a decision about a reach-limited row is enforced whatever DMS_AUTH_MODE says (report.js applyMode)
+  const mark = (d) => (reach.limited ? { ...d, reachLimited: true } : d);
+
+  const sealed = sealRefused(snap, r, op, row, patch, keys);
+  if (sealed) return mark(sealed);
+  // `<app> Admin` is allowed everything, unless the row or one above it says `reach.override: false`
+  if (isAppAdmin(user, siteApp) && reach.override) return mark({ ...allow(`${siteApp} Admin`), write });
 
   try {
     const fixed = rulesWrite(snap, r, op, keys, user, subdomain);
-    if (fixed) return fixed;
+    if (fixed) return mark(fixed);
     const { rule } = ruleFor(snap, r);
     const grants = {};
-    if (rule) for (const owner of ownersIn(rule)) grants[Array.isArray(owner) ? owner.join('+') : owner] = grantsAt(snap, r, owner, { op, subdomain });
+    if (rule) for (const owner of ownersIn(rule)) grants[Array.isArray(owner) ? owner.join('+') : owner] = grantsAt(snap, r, owner, { op, subdomain, reach });
     const { maps, scope, publicRead } = mapsFor(snap, r);
+    // a public-read declaration does not open a row whose reach is limited: it is judged on its grants
     const d = judge(rule, { user, grants, holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)), isBlank }, {
       op: Array.isArray(op) ? op : op, keys, patch: parseJson(patch) || {}, split: isSplitType(r.type),
-      row: op === 'create' ? parseJson(patch) || {} : r.data, maps, scope, publicRead,
+      row: op === 'create' ? parseJson(patch) || {} : r.data, maps, scope, publicRead: publicRead && !reach.limited,
     });
-    return d.allow ? { ...d, write } : d;
+    return mark(d.allow ? { ...d, write } : d);
   } catch (e) {
-    return deny(`lookup failed: ${e.message}`);
+    return mark(deny(`lookup failed: ${e.message}`));
   }
 }
 
@@ -157,6 +186,26 @@ function reportCtx({ row, env, sourceId, viewId, patternId, app, verb, user }, s
 }
 
 /**
+ * An edit's patch with each grants value it carries given the stored row's `reach` back when the
+ * value leaves `reach` out (grants.js carryReach): a writer rebuilding `{ groups, users }` from scratch
+ * keeps the row's reach. A patch naming no grants key is returned exactly as it came.
+ */
+function withStoredReach(row, patch) {
+  const stored = parseJson(row && row.data);
+  if (!stored || !patch || !GRANT_KEYS.some(k => stored[k] != null)) return patch;
+  if (typeof patch === 'string' && !GRANT_KEYS.some(k => patch.includes(k))) return patch;
+  const p = parseJson(patch);
+  if (!p || typeof p !== 'object' || Array.isArray(p)) return patch;
+  let out = null;
+  for (const k of GRANT_KEYS) {
+    if (!(k in p)) continue;
+    const next = carryReach(stored[k], p[k]);
+    if (next !== p[k]) { out = out || { ...p }; out[k] = next; }
+  }
+  return out || patch;
+}
+
+/**
  * The DMS write guard: judges `op` on `row` and returns the data to write — or `NO_CHANGE` when a
  * save of a stored row changes nothing (`skipNoChange`), which is then never judged. Throws on a
  * refusal under `enforce`: 403 for a signed-in user, 401 for an anonymous one (REST callers read
@@ -165,6 +214,7 @@ function reportCtx({ row, env, sourceId, viewId, patternId, app, verb, user }, s
 async function assertDataWrite(router, op, app, row, patch, { replace = false, skipNoChange = false, mode } = {}) {
   const user = (router && router.user) || null;
   const subdomain = (router && router.subdomain) || '';
+  if (op === 'edit') patch = withStoredReach(row, patch);
   if (skipNoChange && op === 'edit' && parseJson(row && row.data) && planEdit(row, patch, { replace }).keys.length === 0) return NO_CHANGE;
   const d = await authorize({ row, verb: op, patch, replace, user, app, subdomain, fresh: true });
   if (applyMode(d, { ...reportCtx({ row, app, verb: op, user }, { kind: getKind(row.type || '') }), mode })) {
@@ -184,7 +234,7 @@ async function assertDataWrite(router, op, app, row, patch, { replace = false, s
  */
 async function requireCan(req, res, { source, view, pattern, row, verb, fields, env, app, open = false, mode } = {}) {
   const user = open ? requireUserOrOpen(req, res) : requireUser(req, res);
-  if (!user || user === ANON_CALLER) return user;
+  if (!user) return user;
   const site = app || requestApp(req) || null;
   const pgEnv = env === true ? (req.params.pgEnv || req.params.env) : env || req.params.pgEnv || req.params.env;
   const address = row ? { row, app: site }
@@ -193,6 +243,15 @@ async function requireCan(req, res, { source, view, pattern, row, verb, fields, 
     : pattern ? { app: pattern.app || site, patternId: pattern.patternId ?? pattern.id }
     : pgEnv !== undefined ? { env: pgEnv, app: site }
     : null;
+  if (user === ANON_CALLER) {
+    // `log` let an anonymous caller through an open route; a reach-limited subject still refuses one
+    if (!address) return user;
+    const d = await authorize({ ...address, verb, fields, user: null, subdomain: req.headers ? getSubdomain(req) : '' });
+    if (d.allow || !d.reachLimited) return user;
+    applyMode(d, { ...reportCtx({ ...address, verb, user: null }), mode });
+    res.status(401).json({ error: 'Sign in to do this' });
+    return null;
+  }
   if (!address) {
     res.status(403).json({ error: `requires ${[].concat(verb).join(' or ')}: nothing to judge it on` });
     return null;
@@ -220,11 +279,47 @@ async function assertCan(router, { env, source, view, pattern, row, verb, fields
   throw new Error(`Not authorized: ${d.reason} on ${subjectLabel(address)}`);
 }
 
-/** Site-level `perms` for `user` on `app` (`<app> Admin` always). */
+/**
+ * Site-level `perms` for `user` on `app` (`<app> Admin` always). The subject is the site row's own
+ * verbs (themes, tenants, domains), never a content row, and a site row cannot refuse the override
+ * (`adminAlways`), so `reach` has nothing to say here.
+ */
 async function siteCan(app, user, perms, subdomain = '') {
   if (isAppAdmin(user, app)) return true;
   const snap = await appSnapshot(app);
   return holds(user, grantsAt(snap, snap.site, 'site', { subdomain }), perms);
+}
+
+/**
+ * Whether a DMS row's `reach` is limited (on itself or a row above it). `row`: `{ id, app, type, data }`.
+ * Cheap: one cached snapshot, one walk. Readers that hand out rows without judging them (sync, the
+ * live socket) ask this first and judge only the rows it names.
+ */
+async function reachLimited(row, { app, subdomain = '' } = {}) {
+  const a = app || (row && row.app);
+  if (!row || !row.type || !a) return false;
+  const snap = await appSnapshot(a);
+  const known = row.id != null ? snap.byId.get(String(row.id)) : null;
+  // the row as handed over carries its own (possibly newer) data; the snapshot gives its place on the walk
+  const r = known ? { ...known, data: parseJson(row.data) || known.data } : owners.wrap(row, a);
+  try { return owners.reachFor(snap, r, { subdomain }).limited; } catch { return true; }
+}
+
+/**
+ * The items of a bulk read (sync bootstrap / delta) this user may have, in order. The sync routes
+ * judge no reads (`DMS_SYNC_AUTH` asks only for a session), and an item whose row has no `reach` on
+ * itself or above passes exactly as before. A reach-limited one is judged as a Falcor read of it is,
+ * enforced. `rowOf(item)` → `{ id, app, type, data }`; an item with no data (a delete) passes.
+ */
+async function reachableRows(items, { app, user = null, subdomain = '', rowOf = (x) => x } = {}) {
+  const out = [];
+  for (const item of items) {
+    const row = rowOf(item);
+    if (!row || row.data == null || !(await reachLimited(row, { app, subdomain }))) { out.push(item); continue; }
+    const d = await authorize({ row: { ...row, data: parseJson(row.data) }, verb: 'read', user, app, subdomain });
+    if (applyMode(d, { guard: 'read', kind: `read ${getKind(row.type)}`, target: `${row.id} ${row.type}`, user, app, dedupe: true })) out.push(item);
+  }
+  return out;
 }
 
 /** The `:dmsenv` row an env address names (see owners.js `snapshotFor`), or null. */
@@ -258,6 +353,6 @@ async function readableSources({ env, sourceIds, user, app, subdomain = '', kind
 
 module.exports = {
   authorize, planEdit, applyMode, refuse, assertDataWrite, requireCan, assertCan, canRead, readableSources,
-  siteCan, patternRow, envRowFor, sourceOfView, clearSnapshots,
+  siteCan, patternRow, envRowFor, sourceOfView, clearSnapshots, reachLimited, reachableRows,
   authMode, NO_CHANGE, isAppAdmin, holds, hasGrants, resolveAuthPermissions,
 };

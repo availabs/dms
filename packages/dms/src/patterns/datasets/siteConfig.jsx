@@ -4,7 +4,8 @@ import datasetsFormat from "./datasets.format";
 import { DatasetsContext } from "./context";
 import { ThemeContext, getPatternTheme } from "../../ui/useTheme";
 import { initializePatternFormat } from "../../dms-manager/_utils";
-import { isUserAuthed, mergeAuthPermissions, resolveSubdomainAuthPermissions } from "../../utils/auth";
+import { isUserAuthed, mergeAuthPermissions, resolveSubdomainAuthPermissions, hasAuthGrants } from "../../utils/auth";
+import { reachOf } from "../../utils/authJudge";
 import { isAppAdmin } from "../../utils/adminPermissions";
 import UI from "../../ui"
 
@@ -115,10 +116,19 @@ const datasetsConfig = ({
                           }),
                           // The env's grants (what every source beneath it is judged against, rule 3)
                           // joined with the pattern's own, with an optional per-SOURCE override merged on
-                          // top. Same rule as the server: no permission set → open, `${app} Admin` passes.
-                          isUserAuthed: (reqPermissions, customAuthPermissions) =>
-                            isAppAdmin(user, app) ||
-                            isUserAuthed({ user, authPermissions: mergeAuthPermissions(unionGrants(authPermissions, envAuthPermissions), customAuthPermissions), reqPermissions }),
+                          // top. Same rule as the server: no permission set → open, `${app} Admin` passes —
+                          // unless a `reach` on the source or the env turns that off: `override: false` drops
+                          // the admin shortcut, `inherit: false` on the source leaves its own grants alone,
+                          // and a limited reach naming no one is closed, not open (dms-server routes/auth).
+                          isUserAuthed: (reqPermissions, customAuthPermissions) => {
+                            const own = resolveSubdomainAuthPermissions(customAuthPermissions || {}, '');
+                            const ownReach = reachOf(own), envReach = reachOf(envAuthPermissions);
+                            if (isAppAdmin(user, app) && ownReach.override && envReach.override) return true;
+                            const grants = ownReach.inherit ? mergeAuthPermissions(unionGrants(authPermissions, envAuthPermissions), own) : own;
+                            const limited = !ownReach.inherit || !ownReach.override || !envReach.inherit || !envReach.override;
+                            if (limited && reqPermissions?.length && !hasAuthGrants(grants)) return false;
+                            return isUserAuthed({ user, authPermissions: grants, reqPermissions });
+                          },
                       }}>
                           <ThemeContext.Provider value={{ theme, UI }}>
                               {props.children}

@@ -149,6 +149,10 @@ registerAccessLogRoutes(app, { authDbEnv });
 // Format declarations — what scripts/register-formats.js registered for a site, read-only (routes/auth/formats.js)
 require('./routes/auth/formats').registerFormatRoutes(app);
 
+// Who a row's own grants name (users, and the members of the groups named), for anyone who may read
+// the row: GET /dms/:app/rows/:id/grantees (routes/auth/grantees.js)
+require('./routes/auth/grantees').registerGranteeRoutes(app, { authDbEnv });
+
 // Tenant domain aliases — the hub only (routes/domains; tenant-external-domains.md, Phase B)
 require('./routes/domains').registerDomainRoutes(app);
 

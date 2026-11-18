@@ -12,6 +12,9 @@ const { parseJson } = require('../auth/grants');
 
 // What a by-id read fetches: the requested attributes, plus what the auth check judges a row by. With
 // `data` requested the check reads it; otherwise only the auth keys of `data`, never the whole column.
+// `dms.capabilities`: features a client may only offer when the server it talks to has them.
+const SERVER_CAPABILITIES = Object.freeze({ reach: true });
+
 const AUTH_DATA_ATTS = AUTH_DATA_KEYS.map(k => `data ->> '${k}'`);
 const readAtts = (atts) => [...new Set([...atts, 'type', ...(atts.includes('data') ? [] : AUTH_DATA_ATTS)])];
 
@@ -175,6 +178,16 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   };
 
   return [
+    {
+      // What this server supports that a client must not assume of an older one: `{ [feature]: true }`.
+      // A server without the route answers an empty atom, so a client reads every flag as absent.
+      // `reach`: `reach: { inherit, override }` in a row's grants is enforced (routes/auth, auth-reach.md);
+      // a client offers the switches only when this says so, since an older server ignores them (fails open).
+      route: "dms.capabilities",
+      get: function() {
+        return [{ path: ["dms", "capabilities"], value: $atom(SERVER_CAPABILITIES) }];
+      },
+    },
     {
       route: "dms.format[{keys:appKeys}]['app','type','attributes']",
       get: function(pathSet) {

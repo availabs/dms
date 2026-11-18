@@ -62,6 +62,35 @@ function holds(user, ap, perms) {
   return held.some(p => p === '*' || want.includes(p));
 }
 
+/**
+ * What reaches a row without naming anyone on it, read from one grants value:
+ *
+ *     reach: { inherit: false }    only this row's own grants apply, to it and everything under it
+ *     reach: { override: false }   the `<app> Admin` shortcut does not apply to it or anything under it
+ *
+ * Both default to on (`true`); only an explicit `false` turns one off. `view: false`, the older
+ * source-only spelling, is read as `inherit: false`, forever (planning/tasks/current/auth-reach.md).
+ * `reach` and `view` sit beside `groups` / `users` and are neither: every loop over a grants
+ * object's principals reads `groups` and `users` by name.
+ */
+function reachOf(ap) {
+  const r = ap && typeof ap === 'object' && ap.reach && typeof ap.reach === 'object' ? ap.reach : {};
+  return { inherit: !(r.inherit === false || (ap && ap.view === false)), override: r.override !== false };
+}
+
+/**
+ * An edit's grants value with the stored `reach` carried over when the edit leaves the key out
+ * entirely: a writer that rebuilds `{ groups, users }` from scratch (an older client) cannot drop a
+ * row's reach by accident. To clear it, a writer sends `reach: {}` (or `null`). Returns `next`
+ * unchanged when there is nothing to carry.
+ */
+function carryReach(stored, next) {
+  const s = storedGrants(stored);
+  const n = typeof next === 'string' ? storedGrants(next) : next;
+  if (!s || s.reach === undefined || !n || typeof n !== 'object' || Array.isArray(n) || 'reach' in n) return next;
+  return { ...n, reach: s.reach };
+}
+
 /** Mirrors utils/adminPermissions.js isAppAdmin: membership of the group named `<app> Admin`. */
 const isAppAdmin = (user, app) => !!app && ((user && user.groups) || []).some(g => g === `${app} Admin`);
 
@@ -130,7 +159,7 @@ function normaliseGrants(data, type = '') {
 }
 
 module.exports = {
-  GRANT_KEYS, storedGrants, normaliseGrants,
+  GRANT_KEYS, storedGrants, normaliseGrants, reachOf, carryReach,
   parseJson, asList, resolveAuthPermissions, scopeOf, hasGrants, holds, isAppAdmin,
   mergeAuthPermissions, unionAuthPermissions,
 };

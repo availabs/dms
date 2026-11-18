@@ -6,7 +6,7 @@ import { AdminContext } from "../../../context";
 import { ThemeContext } from "../../../../../ui/useTheme";
 import { permissionsEditorTheme } from './permissionsEditor.theme';
 import { parseIfJSON } from '../../../utils';
-import { hasAuthGrants } from '../../../../../utils/auth.js';
+import { hasAuthGrants, GRANT_META_KEYS } from '../../../../../utils/auth.js';
 import { siteCan, isAppAdmin } from '../../../../../utils/adminPermissions';
 import { patternPermissionOptions } from '../../../../registry';
 import { loadSiteData } from './settings';
@@ -111,7 +111,7 @@ export const PatternPermissionsEditor = ({
             </div>
 
             <div className={t.wrapper}>
-            {Object.entries(tmpAuthPermissions).map(([subdomain, perms]) => (
+            {Object.entries(tmpAuthPermissions).filter(([subdomain]) => !GRANT_META_KEYS.includes(subdomain)).map(([subdomain, perms]) => (
                 <div key={`${subdomain}-${resetKey}`} className={t.subdomainSection}>
                     <div className={t.subdomainHeader}>
                         <span className={t.subdomainBadge}>
@@ -139,6 +139,8 @@ export const PatternPermissionsEditor = ({
                             defaultPermission={defaultPermission}
                             heading={isAdminPattern ? 'on this site' : 'on this pattern'}
                             inheritedFrom={isAdminPattern ? undefined : 'the site'}
+                            // the server refuses `reach.override: false` on site and pattern rows; nothing sits above the site
+                            reachSwitches={isAdminPattern ? [] : ['inherit']}
                         />
                     </div>
                 </div>

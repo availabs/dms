@@ -13,6 +13,7 @@
  *     ruleFor(snap, row)         → the kind's rule      declared in `formats` (formats.js), else the
  *                                                       stamp on the nearest ancestor, else built in
  *     mapsFor(snap, row)         → { maps, scope, publicRead }
+ *     reachFor(snap, row)        → { inherit, override, cut, limited }   `reach` along the same walk
  *
  * A row kind's rule and vocabulary are what the site's client DECLARED for it: the `formats` table
  * (formats.js, registered by scripts/register-formats.js), loaded with the snapshot as `snap.formats`.
@@ -32,7 +33,7 @@ const { getDb, loadConfig } = require('../../db');
 const { resolveSplitMode } = require('../../db/table-resolver');
 const { dmsMainTable } = require('../uda/utils');
 const { getKind, getParent, getInstance } = require('#db/type-utils.js');
-const { parseJson, resolveAuthPermissions, scopeOf, hasGrants, mergeAuthPermissions } = require('./grants');
+const { parseJson, resolveAuthPermissions, scopeOf, hasGrants, mergeAuthPermissions, reachOf } = require('./grants');
 const { vocabularyOf, fieldMaps } = require('./vocabulary');
 const { formatsFor } = require('./formats');
 const RULES = require('./rules');
@@ -73,8 +74,8 @@ function wrap(r, app) {
 }
 
 /**
- * A row's OWN grants for one scope, resolved for the subdomain. `view: false` (a source narrowing
- * itself to its own grantees) rides out beside the grants.
+ * A row's OWN grants for one scope, resolved for the subdomain. `reach` (and the older `view: false`)
+ * rides out beside the grants; the walk reads it with `rowReach` / `reachFor`.
  */
 function grantsOf(row, scope, subdomain = '') {
   if (!row) return null;
@@ -311,30 +312,81 @@ const LEGACY_POSITIONS = {
   'source-by-slug': ['ancestor:dmsenv', 'ancestor:source'],
 };
 
+// ---- reach --------------------------------------------------------------------------------------
+//
+// `reach` (grants.js reachOf) is data on a row: `inherit: false` cuts every owner position above the
+// row, `override: false` turns off the `<app> Admin` shortcut. Both apply to the row and everything
+// under it, so a row's EFFECTIVE reach is read along the same walk its owner positions take. Nothing
+// here names a kind: a row is "above the cut" by its place on the walk, not by what it is.
+
+const OPEN_REACH = Object.freeze({ inherit: true, override: true });
+
+/** One row's own reach: from its stored grants, wherever in that value it is written (top level, a subdomain's entry, a scope). */
+function rowReach(row, subdomain = '') {
+  if (!row || !row.data) return OPEN_REACH;
+  const stored = parseJson(row.data.authPermissions !== undefined ? row.data.authPermissions : row.data.auth_permissions);
+  if (!stored || typeof stored !== 'object') return OPEN_REACH;
+  const resolved = resolveAuthPermissions(stored, subdomain);
+  const all = [stored, resolved, resolved && resolved.self, resolved && resolved.descendants].map(reachOf);
+  return { inherit: all.every(r => r.inherit), override: all.every(r => r.override) };
+}
+
+/**
+ * The effective reach of `row`: `{ inherit, override, cut, limited }`. `cut` is the nearest row on the
+ * walk (the row itself first) with `inherit: false`, or null; `override` is false when the row or any
+ * row above it says so. A row being created is judged in its parent, so its own payload is not read
+ * (`op: 'create'`). `limited`: either switch is off — the decision is then enforced whatever
+ * `DMS_AUTH_MODE` says (report.js).
+ */
+function reachFor(snap, row, { op = 'read', subdomain = '' } = {}) {
+  let cut = null, override = true;
+  const chain = op === 'create' ? [...ancestors(snap, row)] : [row, ...ancestors(snap, row)];
+  for (const r of chain) {
+    const x = rowReach(r, subdomain);
+    if (!x.override) override = false;
+    if (!x.inherit && !cut) cut = r;
+  }
+  return { inherit: !cut, override, cut, limited: !!cut || !override };
+}
+
+/** The grants of one position (or a spread list), with every row above `above` (the cut's ancestors) holding nothing. */
+function positionGrants(snap, row, position, { op, subdomain, above }) {
+  const pos = LEGACY_POSITIONS[position] || position;
+  if (Array.isArray(pos)) {
+    const parts = pos.map(p => positionGrants(snap, row, p, { op, subdomain, above }));
+    if (parts.every(p => p == null)) return null;
+    return parts.reduce((acc, p) => (p == null ? acc : mergeAuthPermissions(acc || {}, p)), null);
+  }
+  const cut = (r) => above && r && above.has(r);
+  if (pos === 'self') return op === 'create' ? { groups: {}, users: {} } : grantsOf(row, 'self', subdomain);
+  if (pos === 'parent') { const p = parentOf(snap, row); return cut(p) ? null : grantsOf(p, 'descendants', subdomain); }
+  if (pos === 'site') return cut(snap.site) ? null : siteGrants(snap, subdomain);
+  if (pos.startsWith('ancestor:')) {
+    const kind = pos.slice('ancestor:'.length);
+    for (const a of ancestors(snap, row)) if (a.kind === kind) return cut(a) ? null : grantsOf(a, 'descendants', subdomain);
+    return null;
+  }
+  return null;
+}
+
 /**
  * The grants at `position` relative to `row`, or null when nothing is there (an owner that cannot
  * be found holds nothing: the judge fails closed). A list of positions is spread in order, later
  * entries replacing earlier ones per principal — a page's own grants over its pattern's.
+ *
+ * Under an `inherit: false` row (the row itself or one above it) every position above that row
+ * holds nothing. This generalises the source-only `view: false` branch that stood here before
+ * (2026-11-18, auth-reach.md). Under any limited reach, what is returned carries the effective
+ * `reach`, so the judge never reads it as blank ("granting nothing ⇒ readable by anyone"): a row
+ * that limits what reaches it is judged on its grants, and one naming no one is readable by no one.
  */
-function grantsAt(snap, row, position, { op = 'edit', subdomain = '' } = {}) {
-  const pos = LEGACY_POSITIONS[position] || position;
-  if (Array.isArray(pos)) {
-    const parts = pos.map(p => grantsAt(snap, row, p, { op, subdomain }));
-    if (parts.every(p => p == null)) return null;
-    // `view: false` on a row means "my own grantees only": that part alone, nothing lent to it
-    const narrowed = parts.filter(p => p && p.view === false).pop();
-    if (narrowed) return narrowed;
-    return parts.reduce((acc, p) => (p == null ? acc : mergeAuthPermissions(acc || {}, p)), null);
-  }
-  if (pos === 'self') return op === 'create' ? { groups: {}, users: {} } : grantsOf(row, 'self', subdomain);
-  if (pos === 'parent') return grantsOf(parentOf(snap, row), 'descendants', subdomain);
-  if (pos === 'site') return siteGrants(snap, subdomain);
-  if (pos.startsWith('ancestor:')) {
-    const kind = pos.slice('ancestor:'.length);
-    for (const a of ancestors(snap, row)) if (a.kind === kind) return grantsOf(a, 'descendants', subdomain);
-    return null;
-  }
-  return null;
+function grantsAt(snap, row, position, { op = 'edit', subdomain = '', reach = null } = {}) {
+  const r = reach || reachFor(snap, row, { op, subdomain });
+  const above = r.cut ? new Set(ancestors(snap, r.cut)) : null;
+  const g = positionGrants(snap, row, position, { op, subdomain, above });
+  if (!g || !r.limited) return g;
+  const own = g.reach && typeof g.reach === 'object' ? g.reach : {};
+  return { ...g, reach: { ...own, ...(r.cut ? { inherit: false } : {}), ...(r.override ? {} : { override: false }) } };
 }
 
 /**
@@ -396,5 +448,6 @@ async function sourceOfView(env, viewId, app = null) {
 
 module.exports = {
   snapshotFor, appSnapshot, clearSnapshots, clearPgEnv, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
+  reachFor, rowReach, wrap,
   parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS, AUTH_DATA_KEYS,
 };

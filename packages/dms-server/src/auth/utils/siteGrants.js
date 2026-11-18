@@ -33,11 +33,15 @@ const isPlainObject = (v) => v !== null && typeof v === 'object' && !Array.isArr
 /** `who` as `[map, key]`: `{ users: 7 }` → `['users', '7']`. */
 const whoEntry = (who) => (who.users != null ? ['users', String(who.users)] : ['groups', String(who.groups)]);
 
-/** A plain grant: an object with only `groups` / `users`, each a map of arrays of strings. */
+/**
+ * A plain grant: an object of `groups` / `users`, each a map of arrays of strings — beside which may
+ * sit `reach` (an object) and `view` (a boolean), which name no one (routes/auth/grants.js reachOf).
+ */
 function isWellFormedGrant(ap) {
   if (!isPlainObject(ap)) return false;
-  return Object.entries(ap).every(([k, m]) => ['groups', 'users'].includes(k) && isPlainObject(m)
-    && Object.values(m).every(perms => Array.isArray(perms) && perms.every(p => typeof p === 'string')));
+  return Object.entries(ap).every(([k, m]) => (k === 'reach' ? isPlainObject(m) : k === 'view' ? typeof m === 'boolean'
+    : ['groups', 'users'].includes(k) && isPlainObject(m)
+      && Object.values(m).every(perms => Array.isArray(perms) && perms.every(p => typeof p === 'string'))));
 }
 
 /**
@@ -54,6 +58,7 @@ function readGrants(raw) {
   if (parsed['*'] !== undefined) {
     const entries = {};
     for (const [sub, ap] of Object.entries(parsed)) {
+      if (sub === 'reach' || sub === 'view') continue;   // names no one, not a subdomain (stripEntry keeps it)
       const v = parseJson(ap);
       if (v === undefined) return { malformed: `subdomain ${sub}: not valid JSON` };
       if (v == null || (Array.isArray(v) && v.length === 0)) { entries[sub] = {}; continue; }
@@ -94,6 +99,7 @@ function stripEntry(raw, who, { mergePatch = false } = {}) {
   if (g.subdomains) {
     next = {};
     for (const [sub, stored] of Object.entries(parsed)) {
+      if (!(sub in g.entries)) { if (!asPatch) next[sub] = stored; continue; }
       const r = stripOne(stored, g.entries[sub]);
       changed = changed || r.changed;
       if (r.changed) next[sub] = r.value;

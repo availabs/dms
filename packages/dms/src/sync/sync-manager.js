@@ -706,6 +706,16 @@ export function connectWS() {
           return;
         }
 
+        // A row whose `reach` is limited arrives as a notification only (dms-server ws.js
+        // stripReachLimited): the socket cannot judge who may see it. Fetch it through the judged
+        // delta, which hands it over only if this user may read it. The scoped watermarks that
+        // delta reads are not the one advanced here.
+        if (msg.item?.dataOmitted && (msg.action === 'I' || msg.action === 'U')) {
+          await setLastRevision(msg.revision);
+          revalidateNow().catch(err => console.warn('[sync] revalidate after a reach-limited change failed:', err));
+          return;
+        }
+
         if (msg.action === 'I' || msg.action === 'U') {
           const remoteData = typeof msg.item.data === 'string'
             ? JSON.parse(msg.item.data) : msg.item.data;

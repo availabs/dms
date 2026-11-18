@@ -576,7 +576,46 @@ function isSkeletonType(itemType) {
   return kind === 'pattern' || kind === 'site';
 }
 
+/**
+ * A change to a row whose `reach` is limited (routes/auth reachLimited) goes out as a notification
+ * only: the socket knows no user, so it cannot judge who may see the row. `dataOmitted` and
+ * `reachLimited` say so; a client refetches through the judged paths (`/sync/delta`, Falcor). An
+ * older client skips the message (it has no data to merge) and picks the change up on its next delta.
+ * Every other message is returned as it came.
+ */
+async function stripReachLimited(app, msg) {
+  const item = msg && msg.item;
+  if (!item || item.data == null || isSplitType(item.type || '')) return msg;
+  let limited = false;
+  try {
+    const { reachLimited } = require('../auth');
+    limited = await reachLimited({ id: item.id, app: item.app || app, type: item.type, data: item.data }, { app: item.app || app });
+  } catch (e) {
+    console.error('[ws] reach check failed, sending a notification only:', e.message);
+    limited = true;
+  }
+  if (!limited) return msg;
+  const out = { ...item, dataOmitted: true, reachLimited: true };
+  delete out.data;
+  return { ...msg, item: out };
+}
+
+// One chain per app, so the reach check (async: it may load the app's auth snapshot) never reorders
+// an app's broadcasts.
+const sendChains = new Map();
+
 function notifyChange(app, msg) {
+  if (!appSubscribers.get(app)) return;
+  const prev = sendChains.get(app) || Promise.resolve();
+  const next = prev
+    .then(() => stripReachLimited(app, msg))
+    .then((out) => broadcastChange(app, out))
+    .catch((e) => console.error('[ws] broadcast failed:', e.message));
+  sendChains.set(app, next);
+  next.then(() => { if (sendChains.get(app) === next) sendChains.delete(app); });
+}
+
+function broadcastChange(app, msg) {
   const subs = appSubscribers.get(app);
   if (!subs) return;
   // Strip BEFORE serializing: JSON.stringify runs once, unconditionally, ahead
@@ -642,4 +681,5 @@ module.exports = {
   getWSS,
   // Exposed for testing
   stripSplitRowData,
+  stripReachLimited,
 };

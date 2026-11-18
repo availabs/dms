@@ -2,6 +2,8 @@ import React, {useContext, useEffect, useState} from "react";
 import {ThemeContext, getComponentTheme} from "../useTheme";
 import {cloneDeep} from "lodash-es";
 import {permissionsTheme as defaultPermissionsTheme} from "./Permissions.theme";
+import {reachOf} from "../../utils/authJudge";
+import {useServerCapabilities} from "../../utils/serverCapabilities";
 
 const parseIfJSON = strValue => {
     try {
@@ -10,6 +12,15 @@ const parseIfJSON = strValue => {
         return strValue
     }
 }
+
+// The four `reach` presets (dms-server routes/auth; planning/tasks/current/auth-reach.md). The raw
+// switches stay in the data: `reach: { inherit: false }` / `{ override: false }`, both on when absent.
+const REACH_PRESETS = [
+    {key: 'normal',  label: 'Normal',                  inherit: true,  override: true},
+    {key: 'named',   label: 'Only people named here',  inherit: false, override: true},
+    {key: 'hidden',  label: 'Hidden from site admins', inherit: true,  override: false},
+    {key: 'private', label: 'Private',                 inherit: false, override: false},
+]
 
 const defaultPermissionsDomain = [
     {label: '*', value: '*'},
@@ -25,6 +36,11 @@ export default function Permissions ({
     heading = 'Access',            // label above the grants
     inheritedFrom = 'the parent',  // "Inherited from {inheritedFrom}"
     summary = null,                // node rendered first (the page pane's "who can do what")
+    // `reach` switches this row may set: both by default; a pattern row passes ['inherit'] (the server
+    // refuses `override: false` there), a site row []. Shown only when the server supports `reach`
+    // (utils/serverCapabilities.js); `reachSupported` overrides that reading.
+    reachSwitches = ['inherit', 'override'],
+    reachSupported,
 }) {
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
     const permissionsTheme = { ...defaultPermissionsTheme, ...getComponentTheme(themeFromContext, 'permissions') };
@@ -62,6 +78,23 @@ export default function Permissions ({
         // an object, not a JSON string: grants are stored as JSON (dms-server routes/auth/grants.js storedGrants)
         onChange(newAuth)
     }
+
+    // ---- reach: what reaches this row without naming anyone on it
+    const capabilities = useServerCapabilities();
+    const canSetReach = (reachSupported ?? capabilities.reach === true) && reachSwitches.length > 0;
+    const reach = reachOf(tmpValue && typeof tmpValue === 'object' ? tmpValue : null);
+    const presets = REACH_PRESETS.filter(p => (p.inherit || reachSwitches.includes('inherit')) && (p.override || reachSwitches.includes('override')));
+    const activePreset = REACH_PRESETS.find(p => p.inherit === reach.inherit && p.override === reach.override);
+    const setReach = ({inherit = reach.inherit, override = reach.override}) => {
+        const newAuth = Object.assign({users: {}, groups: {}}, cloneDeep(tmpValue));
+        // `view: false` is the older spelling of `inherit: false`: one switch, so it goes with it
+        if (inherit) delete newAuth.view;
+        const next = {...(inherit ? {} : {inherit: false}), ...(override ? {} : {override: false})};
+        // an empty object, not a missing key, once a reach was stored: the server keeps a stored
+        // reach that a save leaves out (grants.js carryReach), so clearing it must be said
+        if (Object.keys(next).length || 'reach' in newAuth) newAuth.reach = next;
+        applyChanges(newAuth);
+    };
 
     const inheritedUsers = inheritedParsedValue?.users || {};
     const inheritedGroups = inheritedParsedValue?.groups || {};
@@ -158,6 +191,35 @@ export default function Permissions ({
                     />
                 </div>
             </div>
+
+            {canSetReach &&
+                <div className={permissionsTheme.reachWrapper}>
+                    <div className={permissionsTheme.reachPresets} role="radiogroup" aria-label="Visibility">
+                        {presets.map(p => (
+                            <Button key={p.key}
+                                    activeStyle={activePreset?.key === p.key ? permissionsTheme.reachPresetActiveStyle : permissionsTheme.reachPresetStyle}
+                                    role="radio" aria-checked={activePreset?.key === p.key}
+                                    onClick={() => setReach(p)}>
+                                {p.label}
+                            </Button>
+                        ))}
+                    </div>
+                    <div className={permissionsTheme.reachSwitches}>
+                        {reachSwitches.includes('inherit') &&
+                            <div className={permissionsTheme.reachSwitchRow}>
+                                <UI.Switch size='small' enabled={reach.inherit} setEnabled={v => setReach({inherit: v})} label='Use access from above' />
+                                <span className={permissionsTheme.reachSwitchLabel}>Use access from above</span>
+                            </div>}
+                        {reachSwitches.includes('override') &&
+                            <div className={permissionsTheme.reachSwitchRow}>
+                                <UI.Switch size='small' enabled={reach.override} setEnabled={v => setReach({override: v})} label='Let site admins in' />
+                                <span className={permissionsTheme.reachSwitchLabel}>Let site admins in</span>
+                            </div>}
+                    </div>
+                    {!reach.override &&
+                        <div className={permissionsTheme.reachWarning} role="note">Site admins can't open or recover this.</div>}
+                </div>
+            }
 
             <div className={permissionsTheme.grantList}>
                 {!ownGroups.length && !ownUsers.length &&

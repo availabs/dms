@@ -52,6 +52,11 @@ function holds(user, ap, perms) {
   return held.some(p => p === '*' || want.includes(p));
 }
 
+function reachOf(ap) {
+  const r = ap && typeof ap === 'object' && ap.reach && typeof ap.reach === 'object' ? ap.reach : {};
+  return { inherit: !(r.inherit === false || (ap && ap.view === false)), override: r.override !== false };
+}
+
 const isAppAdmin = (user, app) => !!app && ((user && user.groups) || []).some(g => g === `${app} Admin`);
 
 function mergeAuthPermissions(base = {}, override) {
@@ -230,11 +235,12 @@ export function judgeEnv(user, grants) {
   return {
     user, grants,
     holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)),
-    isBlank: (ap) => ap != null && !hasGrants(ap) && ap.view !== false,
+    // a limited `reach` (or the older `view: false`) beside blank grants means "no one" (dms-server routes/auth/index.js isBlank)
+    isBlank: (ap) => { if (ap == null || hasGrants(ap)) return false; const r = reachOf(ap); return r.inherit && r.override; },
   };
 }
 
 export {
-  parseJson, asList, resolveAuthPermissions, scopeOf, hasGrants, holds, isAppAdmin, mergeAuthPermissions,
+  parseJson, asList, resolveAuthPermissions, scopeOf, hasGrants, holds, reachOf, isAppAdmin, mergeAuthPermissions,
   fieldMaps, verbsForFields, judge, STRUCTURAL,
 };
