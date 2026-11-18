@@ -230,6 +230,31 @@ async function testCreate() {
   pass('changeHistory is off by default; the routes (and callers that ask) write it');
 }
 
+async function testDelete() {
+  console.log('\n--- A tracked delete records its values to empty ---');
+  const id = await createItem(tickets.dataType, { title: 'T9', status: 'Triage', assignee: 'Bo' });
+  const before = (await historyRows(history)).length;
+  await graph.callAsync(['dms', 'data', 'delete'], [TEST_APP, tickets.dataType, id]);
+  const rows = (await historyRows(history)).slice(before);
+  assert(rows.length === 2 && rows.map((r) => r.field).sort().join() === 'assignee,status',
+    `status + assignee rows (untracked title skipped), got ${rows.map((r) => r.field).join()}`);
+  for (const h of rows) {
+    assert(+h.row_id === id && h.new_value === '' && h.op === 'delete', `${h.field}: to empty, op delete (got ${h.op})`);
+    assert(+h.user_id === USER.id && h.via === 'ui', 'who and via');
+  }
+  assert(rows.find((r) => r.field === 'status').old_value === 'Triage'
+    && rows.find((r) => r.field === 'assignee').old_value === 'Bo', 'old values are the deleted row\'s');
+  pass("delete: one row per tracked column with a value, new value empty, op 'delete'");
+
+  // Off unless the caller asks, as for edits: a direct controller delete writes none.
+  const controller = createController(DB_NAME, { splitMode: SPLIT_MODE });
+  const id2 = await createItem(tickets.dataType, { title: 'T10', status: 'Triage' });
+  const n = (await historyRows(history)).length;
+  await controller.deleteData(TEST_APP, tickets.dataType, [id2], USER, null);
+  assert((await historyRows(history)).length === n, 'a direct controller delete without the flag → no row');
+  pass('changeHistory on delete is off by default; the route asks');
+}
+
 async function testTypingBursts() {
   console.log('\n--- Typed columns merge their burst ---');
   const id = await createItem(tickets.dataType, { title: 'T2', status: 'Triage', assignee: '' });
@@ -370,6 +395,7 @@ async function run() {
   await setup();
   await testTrackedEdit();
   await testCreate();
+  await testDelete();
   await testTypingBursts();
   await testVia();
   await testAllColumns();

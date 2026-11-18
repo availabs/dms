@@ -23,6 +23,18 @@ export const deleteModalTheme = {
       // project theme's own cancelButton / deleteButton is lifted (src/themes/_legacy/ui.js liftPatternRoles)
       cancelButtonStyle: 'modalCancel',
       deleteButtonStyle: 'modalDelete',
+      // `items`: everything the delete takes with it, listed under the prompt (safe-delete-removes-rows.md:
+      // every delete warning shows everything that will be deleted). A blocked item names why.
+      listTitle: 'mt-3 t-metaSM text-[var(--t-graphite)]',
+      list: 'mt-1 max-h-56 overflow-y-auto rounded border border-[var(--t-rule)] bg-[var(--t-well)] divide-y divide-[var(--t-rule)]',
+      listItem: 'flex items-baseline justify-between gap-3 px-2.5 py-1.5 t-proseSM text-[var(--t-ink)]',
+      listItemBlocked: 'flex items-baseline justify-between gap-3 px-2.5 py-1.5 t-proseSM text-[var(--t-brick)] bg-[var(--t-brick-soft)]',
+      listItemLabel: 'min-w-0 break-words',
+      listItemDetail: 'flex-none t-metaSM text-[var(--t-graphite)]',
+      listItemReason: 'flex-none t-metaSM',
+      blockedNote: 'mt-3 t-proseSM text-[var(--t-brick)]',
+      note: 'mt-2 t-proseSM text-[var(--t-graphite)]',
+      error: 'mt-3 t-proseSM text-[var(--t-brick)]',
     }
   ]
 }
@@ -32,5 +44,10 @@ export const docs = {
     prompt: 'Prompt',
     open: true,
     setOpen: () => {},
-    onDelete: () => {}
+    onDelete: () => {},
+    items: [
+        { id: 1, label: 'Parent page', detail: '4 sections' },
+        { id: 2, label: '— Child page', detail: '2 sections' },
+        { id: 3, label: '— Locked child', blocked: true, reason: 'no permission' },
+    ],
 }

@@ -296,6 +296,10 @@ change_history: {
   tells a create from an edit. Rows written before `op` existed have none: read them as edits. (Example: the
   QA pattern's Recent activity shows a ticket's create as one "Filed" row and hides the create's other
   fields.)
+- **Deletes** (since 2026-11-17): the Falcor delete route records a deleted row the same way, one row per
+  tracked column that had a value, with `new_value` `''` and `op: 'delete'`. A history dataset made before
+  then lists only `create` and `edit` as the Action column's options; its `delete` rows are stored all the
+  same. `/sync/push` deletes, like its edits, write no history.
 - **⚠ Reading `op` in a section:** test `op = 'edit'` (and `op is null`), not `= 'create'`. The UDA query
   layer drops any SELECT expression that contains the word "create" as a whole word (`sanitizeName` in
   dms-server `routes/uda/utils.js`), and the column comes back empty with no error. Filters aren't affected.

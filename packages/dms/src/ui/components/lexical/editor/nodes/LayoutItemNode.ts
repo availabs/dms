@@ -11,6 +11,7 @@ import type {
   DOMConversionOutput,
   DOMExportOutput,
   EditorConfig,
+  LexicalEditor,
   LexicalNode,
   SerializedElementNode
 } from 'lexical';
@@ -45,7 +46,7 @@ export class LayoutItemNode extends ElementNode {
     const dom = document.createElement('div');
     dom.setAttribute('data-lexical-layout-item', 'true');
     if (typeof config.theme.layoutItem === 'string') {
-      addClassNamesToElement(dom, `${config.theme.layoutItem} ${editor?._editable && config.theme.layoutItemEditable}`);
+      addClassNamesToElement(dom, config.theme.layoutItem, editor?._editable ? config.theme.layoutItemEditable : undefined);
 
     }
     return dom;
@@ -55,11 +56,17 @@ export class LayoutItemNode extends ElementNode {
     return false;
   }
 
-  exportDOM(): DOMExportOutput {
+  exportDOM(editor: LexicalEditor): DOMExportOutput {
+    // The theme's class, as the live (read-only) editor renders it, so exported and
+    // server-rendered HTML lay out like the page; without one, the classes that keep
+    // the item inside its grid track (min-w-0 prevents content overflow).
     const element = document.createElement('div');
-    // Include essential layout classes (min-w-0 prevents content overflow in grid)
-    element.className = 'min-w-0 max-w-full';
+    const themeClass = editor?._config?.theme?.layoutItem;
+    element.className = typeof themeClass === 'string' ? themeClass : 'min-w-0 max-w-full';
     element.setAttribute('data-lexical-layout-item', 'true');
+    // the alignment Lexical's reconciler sets on the live element
+    const format = this.getFormatType();
+    if (format) element.style.textAlign = format;
     return {element};
   }
 

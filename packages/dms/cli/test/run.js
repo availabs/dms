@@ -152,7 +152,7 @@ async function run() {
     const unpubResult = runCli(`page unpublish ${testPageId}`);
     assertIncludes(unpubResult.json.message, 'unpublished', 'unpublish message');
 
-    const delResult = runCli(`page delete ${testPageId}`);
+    const delResult = runCli(`page delete ${testPageId} --yes`);
     assertIncludes(delResult.json.message, 'deleted', 'delete message');
     pass();
   });
@@ -197,6 +197,86 @@ async function run() {
     const delResult = runCli(`section delete ${newSecId} --page ${homeSlug}`);
     assertIncludes(delResult.json.message, 'deleted', 'delete message');
     pass();
+
+    test('section delete without --page clears sections and draft_sections of every page, in any pattern (F10)');
+    {
+      const sec = runCli(`section create ${homeSlug} --element-type lexical --title 'F10 section'`).json.id;
+      const homeId = runCli(`page show ${homeSlug}`).json.id;
+      // Publishing copies sections to new rows, so name the row in `sections` directly: a page whose
+      // published and draft lists share a row (older pages, raw writes) is the case F10 is about.
+      const home = runCli(`raw get ${homeId}`).json.data || {};
+      const stub = (home.draft_sections || []).find((s) => String(s.id) === String(sec));
+      runCli(`raw update ${homeId} --data '${JSON.stringify({ sections: [...(home.sections || []), stub] })}'`);
+      // ...and a page of ANOTHER pattern lists it too (a copied pattern's page kept the source's rows).
+      const authPattern = manifest.patterns.find((p) => p.pattern_type === 'auth');
+      const otherPage = runCli(`raw create ${manifest.app} "${authPattern.instance}|page" --data '${JSON.stringify({ title: 'F10 other pattern', draft_sections: [stub] })}'`).json.id;
+      const listsOf = (pageId = homeId) => {
+        const d = runCli(`raw get ${pageId}`).json.data || {};
+        const ids = (k) => (d[k] || []).map((s) => String(typeof s === 'object' ? s.id : s));
+        return { sections: ids('sections'), draft_sections: ids('draft_sections') };
+      };
+      let ok = assert(listsOf().sections.includes(String(sec)), 'published page lists the section before');
+      const del = runCli(`section delete ${sec}`);
+      ok = assertEqual(del.json?.pages?.length, 2, 'two pages edited') && ok;
+      ok = assertEqual((del.json?.pages || []).map((p) => String(p.id)).sort().join(','), [String(homeId), String(otherPage)].sort().join(','), 'the home page and the other pattern\'s page') && ok;
+      ok = assert(!listsOf(otherPage).draft_sections.includes(String(sec)), 'gone from the other pattern\'s page') && ok;
+      const after = listsOf();
+      ok = assert(!after.sections.includes(String(sec)), 'gone from sections') && ok;
+      ok = assert(!after.draft_sections.includes(String(sec)), 'gone from draft_sections') && ok;
+      const row = runCli(`raw get ${sec}`, { expectError: true });
+      ok = assert(!row.json?.type, 'the section row is deleted') && ok;
+      if (ok) pass();
+    }
+  });
+
+  describe('Phase 2b — site unshare-sections', () => {
+    test('site unshare-sections gives a page its own copy of a shared section, and of another pattern\'s section; a dry run first');
+    {
+      const homeSlug = 'home';
+      const homeId = String(runCli(`page show ${homeSlug}`).json.id);
+      const homeType = runCli(`raw get ${homeId}`).json.type;
+      const inst = homeType.split('|')[0];
+      const s1 = String(runCli(`section create ${homeSlug} --element-type lexical --title 'shared one'`).json.id);
+      const s2 = String(runCli(`section create ${homeSlug} --element-type lexical --title 'borrowed one'`).json.id);
+      const stub = (id, i = inst) => ({ id: Number(id), ref: `${manifest.app}+${i}|component` });
+      // a sibling page of the same pattern that shares s1 (higher id: home keeps the row)...
+      const sibling = String(runCli(`raw create ${manifest.app} "${inst}|page" --data '${JSON.stringify({ title: 'unshare sibling', draft_sections: [stub(s1)] })}'`).json.id);
+      // ...and a page of another pattern that borrows s2
+      const authPattern = manifest.patterns.find((p) => p.pattern_type === 'auth');
+      const borrower = String(runCli(`raw create ${manifest.app} "${authPattern.instance}|page" --data '${JSON.stringify({ title: 'unshare borrower', draft_sections: [stub(s2)] })}'`).json.id);
+      const draftOf = (id) => (runCli(`raw get ${id}`).json.data?.draft_sections || []);
+
+      const dry = runCli('site unshare-sections');
+      let ok = assertEqual(dry.json?.apply, false, 'dry run by default');
+      ok = assert((dry.json?.shared || 0) >= 1 && (dry.json?.other_pattern || 0) >= 1, 'plans a shared and an other-pattern copy') && ok;
+      ok = assertEqual(String(draftOf(sibling)[0]?.id), s1, 'the dry run wrote nothing') && ok;
+
+      const backup = join(tmpdir(), `dms-unshare-test-${Date.now()}.json`);
+      const run = runCli(`site unshare-sections --apply --backup ${backup}`);
+      ok = assert(existsSync(backup), 'backup written before the writes') && ok;
+
+      const [sib] = draftOf(sibling);
+      ok = assert(String(sib?.id) !== s1, 'the sibling points at its own copy') && ok;
+      const sibRow = runCli(`raw get ${sib?.id}`).json;
+      ok = assertEqual(sibRow?.type, `${inst}|component`, 'copy in the sibling\'s pattern') && ok;
+      ok = assertEqual(String(sibRow?.data?.parent_id ?? ''), sibling, 'the copy belongs to the sibling') && ok;
+      ok = assertEqual(sibRow?.data?.title, 'shared one', 'same content') && ok;
+
+      const [bor] = draftOf(borrower);
+      const borRow = runCli(`raw get ${bor?.id}`).json;
+      ok = assert(String(bor?.id) !== s2, 'the borrower points at its own copy') && ok;
+      ok = assertEqual(borRow?.type, `${authPattern.instance}|component`, 'copy in the borrower\'s pattern') && ok;
+      ok = assertEqual(bor?.ref, `${manifest.app}+${authPattern.instance}|component`, 'ref names the borrower\'s pattern') && ok;
+
+      const home = draftOf(homeId).map((e) => String(e.id));
+      ok = assert(home.includes(s1) && home.includes(s2), 'the keeper still lists the originals') && ok;
+      ok = assert(runCli(`raw get ${s1}`).json?.type && runCli(`raw get ${s2}`).json?.type, 'the originals still exist') && ok;
+
+      const again = runCli('site unshare-sections');
+      ok = assertEqual(again.json?.copies, 0, 'nothing left to copy') && ok;
+      try { unlinkSync(backup); } catch {}
+      if (ok) pass();
+    }
   });
 
   // ================================================================

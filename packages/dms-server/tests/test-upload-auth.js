@@ -349,6 +349,22 @@ async function run() {
             assert(/not the env/.test(res.body.error), res.body.error);
         });
     });
+    await t('metadata: written onto the new source; route-owned and access keys refused', async () => {
+        await withMode('enforce', async () => {
+            const chat = { pattern_id: 7, channel_slug: 'general', message_id: null };
+            let res = await hit(DMS_KEY, { user: loader, params: { app: APP }, query: PATTERN_Q, form: dmsForm({ metadata: JSON.stringify({ chat }) }) });
+            assert.strictEqual(status(res), 200, JSON.stringify(res.body));
+            const { rows } = await dms.query(`SELECT data FROM ${tbl} WHERE id = $1`, [res.body.source_id]);
+            const data = typeof rows[0].data === 'string' ? JSON.parse(rows[0].data) : rows[0].data;
+            assert.deepStrictEqual(data.chat, chat);
+            assert.strictEqual(data.type, 'file_upload');
+            for (const bad of [{ auth_permissions: { users: { 1: ['*'] } } }, { type: 'x' }, { views: [] }, [1], 'not json']) {
+                res = await hit(DMS_KEY, { user: loader, params: { app: APP }, query: PATTERN_Q,
+                    form: dmsForm({ metadata: typeof bad === 'string' ? bad : JSON.stringify(bad) }) });
+                assert.strictEqual(status(res), 400, `${JSON.stringify(bad)} → ${JSON.stringify(res.body)}`);
+            }
+        });
+    });
     await t('enforce: a new file on an existing internal source needs create-view on it', async () => {
         await withMode('enforce', async () => {
             assert.strictEqual(status(await hit(DMS_KEY, { user: stranger, params: { app: APP }, form: dmsForm({ source_id: intSrc }) })), 403);

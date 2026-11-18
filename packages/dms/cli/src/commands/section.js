@@ -8,7 +8,7 @@
 
 import { merge, cloneDeep } from 'lodash-es';
 import {
-  makeClient, fetchById, fetchByIds, resolveIdOrSlug,
+  makeClient, fetchAll, fetchById, fetchByIds, resolveIdOrSlug,
   resolvePattern, findPatternByKind,
   parseData, parseSetPairs, readFileOrJson,
 } from '../utils/data.js';
@@ -250,47 +250,76 @@ export async function update(sectionId, config, options = {}) {
 /**
  * Delete a section.
  *
- * If `--page <id|slug>` is given, also remove the section ref from
- * the page's draft_sections.
+ * The section's id leaves BOTH of a page's lists, `sections` (published) and `draft_sections`, before the
+ * row is deleted, so no page is left pointing at a missing row (safe-delete-removes-rows.md F10). With
+ * `--page <id|slug>` that one page is edited; without it, every page of the site that lists it, in any
+ * pattern (a section can be listed by several pages, and by pages of another pattern).
+ * The server's child sweep may already delete the row when its page drops it; the delete then finds
+ * nothing left to do.
  */
+const sectionIdOf = (s) => parseInt(typeof s === 'object' && s !== null ? s.id : s, 10);
+
 export async function remove(sectionId, config, options = {}) {
   try {
     const falcor = makeClient(config);
     const numId = parseInt(sectionId, 10);
-    let roomSync;
 
+    const section = await fetchById(falcor, config.app, numId, ['id', 'app', 'type']);
+    if (!section?.type) {
+      outputError(`Section not found: ${sectionId}`);
+      return;
+    }
+
+    let pages;
     if (options.page) {
       const pattern = await resolvePagePattern(falcor, config, options.pattern);
       const pageAppType = `${config.app}+${pageTypeFor(pattern)}`;
-      const sectionType = componentTypeFor(pattern);
-
       const pageId = await resolveIdOrSlug(falcor, pageAppType, options.page);
-      const page = await fetchById(falcor, config.app, pageId, ['id', 'data']);
-      const pageData = parseData(page.data);
-
-      const draftSections = (pageData.draft_sections || []).filter((s) => {
-        const sid = typeof s === 'object' ? s.id : s;
-        return parseInt(sid, 10) !== numId;
-      });
-
-      await falcor.call(['dms', 'data', 'edit'], [config.app, pageId, {
-        draft_sections: draftSections,
-        has_changes: true,
-      }]);
-
-      await falcor.call(['dms', 'data', 'delete'], [config.app, sectionType, numId]);
-      roomSync = await afterDraftSectionsWrite(config, pageId);
+      pages = [await fetchById(falcor, config.app, pageId, ['id', 'data'])];
     } else {
-      // No page context — read the section's own type/app to issue delete.
-      const section = await fetchById(falcor, config.app, numId, ['id', 'app', 'type']);
-      if (!section) {
-        outputError(`Section not found: ${sectionId}`);
-        return;
+      // Every pattern of the site, not only the section's own: a copied pattern's pages can list the
+      // source pattern's rows (seen on mitigat-ny-prod, 2026-11-16 audit). A pattern with no pages
+      // costs one length read.
+      pages = [];
+      const pageTypes = new Set((await resolvePattern(falcor, config)).map((p) => pageTypeFor(p)));
+      for (const pageType of pageTypes) {
+        const { items } = await fetchAll(falcor, `${config.app}+${pageType}`, ['id', 'data'], { limit: 100000 });
+        pages.push(...items);
       }
-      await falcor.call(['dms', 'data', 'delete'], [section.app, section.type, numId]);
     }
 
-    output({ id: numId, message: 'Section deleted', ...(roomSync && { room_sync: roomSync }) }, options);
+    const edited = [];
+    for (const page of pages) {
+      const d = parseData(page.data);
+      const patch = {};
+      for (const key of ['sections', 'draft_sections']) {
+        const list = Array.isArray(d[key]) ? d[key] : [];
+        const kept = list.filter((s) => sectionIdOf(s) !== numId);
+        if (kept.length !== list.length) patch[key] = kept;
+      }
+      if (!Object.keys(patch).length) continue;
+      if (patch.draft_sections) patch.has_changes = true;
+      await falcor.call(['dms', 'data', 'edit'], [config.app, page.id, patch]);
+      edited.push({ id: page.id, lists: Object.keys(patch).filter((k) => k !== 'has_changes') });
+    }
+
+    // A fresh client: the edit above may have swept the row, and this one's cache still holds it.
+    const still = await fetchById(makeClient(config), config.app, numId, ['id', 'type']);
+    if (still?.type) await falcor.call(['dms', 'data', 'delete'], [section.app, section.type, numId]);
+
+    const roomSync = [];
+    for (const e of edited) {
+      if (!e.lists.includes('draft_sections')) continue;
+      const r = await afterDraftSectionsWrite(config, e.id);
+      if (r) roomSync.push(r);
+    }
+
+    output({
+      id: numId,
+      message: 'Section deleted',
+      pages: edited,
+      ...(roomSync.length && { room_sync: roomSync.length === 1 ? roomSync[0] : roomSync }),
+    }, options);
   } catch (error) {
     outputError(error);
   }

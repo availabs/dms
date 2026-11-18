@@ -9,6 +9,8 @@ import { pagesEditorTheme } from './pagesEditor.theme';
 import { enrichSection, loadPageHistory, loadSectionsByRefs } from './pagesEditor.utils';
 import { AdminContext } from '../../../context';
 import { appendHistoryEntry } from '../../../../utils';
+import { descendantsOf } from '../../../../../utils/descendants';
+import { isUserAuthed, mergeAuthPermissions, resolveSubdomainAuthPermissions } from '../../../../../utils/auth';
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -564,7 +566,7 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     const navigate = useNavigate();
     const [searchParams, setSearchParams] = useSearchParams();
     const { UI, theme: themeFromContext = {} } = useContext(ThemeContext) || {};
-    const { user } = useContext(AdminContext) || {};
+    const { user, subdomain } = useContext(AdminContext) || {};
     const t = { ...pagesEditorTheme, ...(getComponentTheme(themeFromContext, 'admin.pagesEditor')) };
 
     // Ensure the Table inside this editor uses the default table theme (which has
@@ -904,19 +906,52 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
     }, [apiUpdate, falcor, value.app, patternInstance, pages, loadAll, user]);
 
     // ── delete page ───────────────────────────────────────────────────────────
-    const deletePage = useCallback(async (page) => {
+    // Deleting a page deletes its child pages, recursively (owner, 2026-11-13; safe-delete-removes-rows.md, F3).
+    // The plan lists the page and every descendant (by `parent`) with its section count; a page this user may
+    // not delete (`edit-page` on the pattern's grants merged with the page's own) blocks the whole delete.
+    const deletePlan = useMemo(() => {
+        if (!deletingPage) return null;
+        const patternAuth = resolveSubdomainAuthPermissions(value.authPermissions, subdomain || '');
+        const pageAuth = (raw) => {
+            if (raw && typeof raw === 'object') return raw;
+            try { return raw ? JSON.parse(raw) : undefined; } catch { return undefined; }
+        };
+        const sectionCount = p => new Set([...(Array.isArray(p.draft_sections) ? p.draft_sections : []), ...(Array.isArray(p.sections) ? p.sections : [])]
+            .map(r => String(r?.id ?? r))).size;
+        const rows = [{ row: deletingPage, depth: 0 }, ...descendantsOf(deletingPage.id, pages, 'parent')];
+        const items = rows.map(({ row, depth }) => {
+            const canDelete = isUserAuthed({
+                user,
+                authPermissions: mergeAuthPermissions(patternAuth, pageAuth(row.authPermissions)),
+                reqPermissions: ['edit-page'],
+            });
+            const n = sectionCount(row);
+            return {
+                id: row.id,
+                label: `${depth ? '— '.repeat(depth) : ''}${row.title || `Page ${row.id}`}`,
+                detail: `${n} section${n === 1 ? '' : 's'}`,
+                blocked: !canDelete,
+                reason: canDelete ? undefined : 'no permission to delete',
+            };
+        });
+        return { items, descendantIds: rows.slice(1).map(({ row }) => row.id) };
+    }, [deletingPage, pages, value.authPermissions, subdomain, user]);
+
+    const deletePage = useCallback(async (page, descendantIds = []) => {
         if (!page?.id) return;
+        // one call for the page and its descendants: the server judges every id and deletes all or nothing
         await apiUpdate({
-            data: { id: page.id },
+            data: { id: page.id, delete_with: descendantIds },
             config: {
                 format: { app: value.app, type: `${patternInstance}|page`, attributes: [] },
             },
             requestType: 'delete'
         });
-        setPages(prev => prev.filter(p => String(p.id) !== String(page.id)));
+        const doomed = new Set([page.id, ...descendantIds].map(String));
+        setPages(prev => prev.filter(p => !doomed.has(String(p.id))));
         setSectionsByPageId(prev => {
             const next = { ...prev };
-            delete next[String(page.id)];
+            for (const id of doomed) delete next[id];
             return next;
         });
         setDeletingPage(null);
@@ -1460,41 +1495,25 @@ export function PatternPagesEditor({ value = {}, apiLoad, apiUpdate, falcor }) {
                 );
             })()}
 
-            {/* delete confirmation modal */}
-            {UI?.Modal && deletingPage && (() => {
-                const childCount = pages.filter(p => String(p.parent) === String(deletingPage.id)).length;
+            {/* delete confirmation: the page and every descendant page, each with its section count */}
+            {UI?.DeleteModal && deletingPage && deletePlan && (() => {
+                const children = deletePlan.items.length - 1;
+                const blockedItems = deletePlan.items.filter(i => i.blocked);
                 return (
-                    <UI.Modal
+                    <UI.DeleteModal
                         open={true}
                         setOpen={(open) => { if (!open) setDeletingPage(null); }}
-                    >
-                        <div className={t.deleteModal}>
-                            <div className={t.deleteModalTitle}>Delete Page</div>
-                            <div className={t.deleteModalDesc}>
-                                Delete <span className={t.deleteModalHighlight}>{deletingPage.title || '(untitled)'}</span>?
-                            </div>
-                            {childCount > 0 ? (
-                                <>
-                                    <div className={t.deleteModalWarn}>
-                                        This page has {childCount} child page{childCount > 1 ? 's' : ''}. Remove or reparent them before deleting.
-                                    </div>
-                                    <div className={t.deleteModalFooter}>
-                                        <UI.Button activeStyle="action" onClick={() => setDeletingPage(null)}>Cancel</UI.Button>
-                                    </div>
-                                </>
-                            ) : (
-                                <>
-                                    <div className={t.deleteModalInfo}>
-                                        This cannot be undone. The page and its sections will be permanently removed.
-                                    </div>
-                                    <div className={t.deleteModalFooter}>
-                                        <UI.Button activeStyle="action" onClick={() => setDeletingPage(null)}>Cancel</UI.Button>
-                                        <UI.Button activeStyle="dangerSolid" onClick={() => deletePage(deletingPage)}>Delete</UI.Button>
-                                    </div>
-                                </>
-                            )}
-                        </div>
-                    </UI.Modal>
+                        title={`Delete ${deletingPage.title || '(untitled)'}`}
+                        prompt={children
+                            ? `This page has ${children} child page${children === 1 ? '' : 's'}. ${children === 1 ? 'It is' : 'They are'} deleted with it, with all their sections and history. This cannot be undone.`
+                            : 'This cannot be undone. The page and its sections will be permanently removed.'}
+                        items={children || blockedItems.length ? deletePlan.items : undefined}
+                        itemsTitle="Pages that will be deleted"
+                        blockedNote={blockedItems.length
+                            ? `Can't delete: you don't have permission to delete ${blockedItems.map(i => `"${i.label.replace(/^(— )+/, '')}"`).join(', ')}. Nothing will be deleted.`
+                            : undefined}
+                        onDelete={() => deletePage(deletingPage, deletePlan.descendantIds)}
+                    />
                 );
             })()}
         </div>

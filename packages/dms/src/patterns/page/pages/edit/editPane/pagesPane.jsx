@@ -8,6 +8,7 @@ import {ThemeContext, getComponentTheme} from "../../../../../ui/useTheme";
 import { editPaneTheme } from "./editPane.theme";
 import { editPanesTheme } from "./editPanes.theme";
 import PageTemplatePicker from '../../../components/PageTemplatePicker';
+import { descendantsOf } from '../../../../../utils/descendants';
 
 
 function AddPageButton ({ t }) {
@@ -134,7 +135,6 @@ function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick,
     const { UI } = React.useContext(ThemeContext);
     const { Icon, NavigableMenu, Button } = UI;
     const { pathname = '/edit' } = useLocation();
-    const submit = useSubmit()
     const [showDelete, setShowDelete] = React.useState(false)
     const [showRename, setShowRename] = React.useState(false)
     const [duplicating, setDuplicating] = React.useState(false);
@@ -173,15 +173,9 @@ function PageRowV3 ({activeItem, item: node, dataItems, handleCollapseIconClick,
             <DeleteModal
               t={t}
               item={item}
+              activeItem={activeItem}
               open={showDelete}
               setOpen={() => setShowDelete(!showDelete)}
-              onDelete={() => {
-                async function deleteItem () {
-                    await submit(json2DmsForm(item,'delete'), { method: "post", action: pathname })
-                    setShowDelete(!showDelete)
-                }
-                deleteItem()
-              }}
             />
             <RenameModal
               t={t}
@@ -202,7 +196,6 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
     const { Icon, NavigableMenu, Button } = UI;
     const { apiUpdate } =  React.useContext(PageContext) || {}
     const { pathname = '/edit' } = useLocation();
-    const submit = useSubmit()
     const [showDelete, setShowDelete] = React.useState(false)
     const [showRename, setShowRename] = React.useState(false)
     const [duplicating, setDuplicating] = React.useState(false);
@@ -284,15 +277,9 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
             </div>*/}
             <DeleteModal
               item={item}
+              activeItem={activeItem}
               open={showDelete}
               setOpen={() => setShowDelete(!showDelete)}
-              onDelete={() => {
-                async function deleteItem () {
-                    await submit(json2DmsForm(item,'delete'), { method: "post", action: pathname })
-                    setShowDelete(!showDelete)
-                }
-                deleteItem()
-              }}
             />
 
             <RenameModal
@@ -307,23 +294,78 @@ function DraggableNavItem ({activeItem, item, dataItems, handleCollapseIconClick
 
 }
 
-function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, t})  {
+// Deleting a page deletes its child pages, recursively (owner, 2026-11-13). The warning lists the page and every
+// descendant with its section count, from ALL the pattern's page rows (`allDataItems`, not the nav's `dataItems`,
+// which hides pages this user can't view). A page this user may not delete (`edit-page`) is marked and blocks
+// the whole delete. The ids go to the server in one `dms.data.delete` (`delete_with`), which judges each again
+// and deletes all or nothing (safe-delete-removes-rows.md, F3).
+function pageDeletePlan (item, pages, isUserAuthed) {
+  const sectionCount = p => new Set([...(Array.isArray(p.draft_sections) ? p.draft_sections : []), ...(Array.isArray(p.sections) ? p.sections : [])]
+      .map(r => String(r?.id ?? r))).size;
+  const rows = [{ row: item, depth: 0 }, ...descendantsOf(item.id, pages, 'parent')];
+  const items = rows.map(({ row, depth }) => {
+    const n = sectionCount(row);
+    const canDelete = isUserAuthed ? isUserAuthed(['edit-page'], getPageAuthPermissions(row.authPermissions)) : true;
+    return {
+      id: row.id,
+      label: `${depth ? `${'— '.repeat(depth)}` : ''}${row.title || `Page ${row.id}`}`,
+      detail: `${n} section${n === 1 ? '' : 's'}`,
+      blocked: !canDelete,
+      reason: canDelete ? undefined : 'no permission to delete',
+    };
+  });
+  return { items, descendantIds: rows.slice(1).map(({ row }) => row.id) };
+}
+
+function DeleteModal ({title, prompt, item={}, activeItem, open, setOpen, t})  {
   const cancelButtonRef = useRef(null);
   const { UI } = React.useContext(ThemeContext) || {};
+  const { isUserAuthed, baseUrl } = React.useContext(CMSContext) || {};
+  const { allDataItems, dataItems, apiUpdate } = React.useContext(PageContext) || {};
+  const { pathname = '/edit' } = useLocation();
   const {Button, Dialog, Input, FieldLabel} = UI;
   const [loading, setLoading] = useState(false);
 
-  // v3 Pages pane (default theme): the shared UI.DeleteModal (Cancel action + solid brick Delete).
-  // The pre-v3 pane (project themes) keeps the markup below unchanged.
-  if (t) {
+  const plan = React.useMemo(
+    () => open ? pageDeletePlan(item, allDataItems?.length ? allDataItems : (dataItems || []), isUserAuthed) : { items: [], descendantIds: [] },
+    [open, item, allDataItems, dataItems, isUserAuthed]
+  );
+  const blocked = plan.items.some(i => i.blocked);
+
+  const onDelete = async () => {
+    const doomed = [item.id, ...plan.descendantIds].map(String);
+    // the open page going with it → back to the pattern's edit root instead of a page that is gone
+    const leaving = activeItem?.id !== undefined && doomed.includes(String(activeItem.id));
+    await apiUpdate({
+      // always `delete_with` (even empty): judged by the server before anything is removed, so a refusal shows here
+      data: { id: item.id, delete_with: plan.descendantIds },
+      requestType: 'delete',
+      newPath: leaving ? `${baseUrl}/edit` : pathname,
+    });
+    setOpen();
+  };
+
+  const children = plan.items.length - 1;
+  const defaultPrompt = children
+    ? `This page has ${children} child page${children === 1 ? '' : 's'}. ${children === 1 ? 'It is' : 'They are'} deleted with it, with all their sections and history. This cannot be undone.`
+    : 'All of the page data will be permanently removed. This cannot be undone.';
+
+  // v3 Pages pane (default theme), and any page with child pages or a block: the shared UI.DeleteModal, which
+  // lists what goes. The pre-v3 pane (project themes) keeps the markup below for a lone deletable page.
+  if (t || children || blocked) {
     const { DeleteModal: SharedDeleteModal } = UI;
     return (
       <SharedDeleteModal
         title={title || `Delete ${item.title || 'this page'}`}
-        prompt={prompt || 'All of the page data will be permanently removed. This cannot be undone.'}
+        prompt={prompt || defaultPrompt}
         open={open}
         setOpen={() => setOpen()}
         onDelete={onDelete}
+        items={children || blocked ? plan.items : undefined}
+        itemsTitle='Pages that will be deleted'
+        blockedNote={blocked
+          ? `Can't delete: you don't have permission to delete ${plan.items.filter(i => i.blocked).map(i => `"${i.label.replace(/^(— )+/, '')}"`).join(', ')}. Nothing will be deleted.`
+          : undefined}
       />
     );
   }
@@ -354,7 +396,7 @@ function DeleteModal ({title, prompt, item={}, open, setOpen, onDelete, t})  {
         <Button
           activeStyle='dangerSolid'
           disabled={loading}
-          onClick={onDelete}
+          onClick={async () => { setLoading(true); try { await onDelete() } finally { setLoading(false) } }}
         >
           Delet{loading ? 'ing...' : 'e'}
         </Button>

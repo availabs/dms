@@ -21,7 +21,7 @@ cli/
 │   ├── config.js           # Config resolution (.dmsrc > env vars > CLI flags)
 │   ├── commands/
 │   │   ├── raw.js          # Low-level CRUD (get/list/create/update/delete)
-│   │   ├── site.js         # Site show/patterns/tree
+│   │   ├── site.js         # Site show/patterns/tree/unshare-sections
 │   │   ├── pattern.js      # Pattern list/show/dump
 │   │   ├── page.js         # Page list/show/dump/create/update/publish/unpublish/delete
 │   │   ├── section.js      # Section list/show/dump/create/update/delete
@@ -37,7 +37,7 @@ cli/
 │       ├── output.js       # Output routing (stdout/file, format dispatch)
 │       └── room-sync.js    # Syncs a page's live-edit Yjs room after draft_sections writes (WebSocket)
 ├── test/
-│   ├── run.js              # Integration test runner (37 tests; Phases 5 and 6 run a second server as a stack)
+│   ├── run.js              # Integration test runner (39 tests; Phases 5 and 6 run a second server as a stack)
 │   ├── room-client.js      # Browser stand-in for a page's live-edit room (tests)
 │   ├── harness.js          # Test harness (server lifecycle, CLI runner, assertions)
 │   ├── seed.js             # Seed script (populates test DB via Falcor HTTP)
@@ -125,7 +125,7 @@ Pages resolve by `url_slug`, datasets resolve by `name`. Numeric strings are tre
 
 | Group | Commands |
 |-------|----------|
-| `site` | `show`, `patterns`, `tree` |
+| `site` | `show`, `patterns`, `tree`, `unshare-sections` (a dry run unless `--apply`) |
 | `pattern` | `list`, `show`, `dump` |
 | `page` | `list`, `show`, `dump`, `create`, `update`, `publish`, `unpublish`, `delete` |
 | `section` | `list`, `show`, `dump`, `create`, `update`, `delete` |

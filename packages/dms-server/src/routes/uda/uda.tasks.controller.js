@@ -236,23 +236,25 @@ async function setSettings(env, value) {
  * rows in the per-view split tables — there's no metadata-only deletion to
  * leave anything around for "recovery".
  *
- * Steps (DDL outside transaction, data deletes inside):
- *   1. Load source row, extract slug + view IDs from data.views
- *   2. Resolve view types so we know each view's slug for the split-table name
- *   3. DROP TABLE IF EXISTS for each view's split table (collect warnings,
- *      do not abort)
- *   4. Find owning dmsEnv rows whose data.sources contains this source_id and
- *      strip the ref (in transaction)
- *   5. DELETE the view rows (in transaction)
- *   6. DELETE the source row (in transaction)
- *   7. DELETE dms.tasks rows for (app, source_id); task_events cascade via FK
- *      (in transaction)
+ * The delete itself is the DMS controller's `deleteData`, so a source deleted from the datasets
+ * page cascades exactly like one deleted through `dms.data.delete` or `/sync/push`: its views (by
+ * type path), their split tables, the `{ref, id}` entries in dmsEnv AND pattern `data.sources`,
+ * its `dms.tasks` rows, the controller's source-id cache, and a change_log `D` / `U` for every row
+ * it deletes or rewrites, so sync clients and WebSocket rooms drop the source too. This function
+ * used to do its own DELETEs and wrote no change_log, so the source stayed in every local store.
+ *
+ * Handled here only:
+ *   - views the source lists in `data.views` but whose type sits under another path: deleted in
+ *     the same call, their split tables dropped first (DDL stays outside the transaction);
+ *   - a source row that is already gone: its refs and tasks are still cleaned up, so stale refs
+ *     left by hand-deletions can be repaired by visiting the missing source's admin page.
  *
  * @param {string} env - DMS env (`app+instance`)
  * @param {number|string} sourceId
+ * @param {Object} [opts] - { user, reqMeta } of the caller, for change_log
  * @returns {Promise<Object>} summary of what was removed
  */
-async function deleteInternalSource(env, sourceId) {
+async function deleteInternalSource(env, sourceId, opts = {}) {
   const [app] = env.split('+');
   if (!app) {
     throw new Error(`Invalid DMS env: "${env}" — expected "app+instance"`);
@@ -261,6 +263,10 @@ async function deleteInternalSource(env, sourceId) {
   if (!Number.isFinite(sourceId)) {
     throw new Error(`Invalid sourceId: ${sourceId}`);
   }
+  const { user = null, reqMeta = null } = opts;
+  // The instance every Falcor route is served from: its cache is the one to clear, and its
+  // change_log writes are the ones wired to the WebSocket broadcast (see dms.route.js).
+  const controller = require('../dms/dms.route').controller;
 
   const db = resolveDb(env);
   const dbEnvName = process.env.DMS_DB_ENV || 'dms-sqlite';
@@ -268,163 +274,83 @@ async function deleteInternalSource(env, sourceId) {
   const splitMode = config.splitMode;
 
   const mainTbl = await dmsMainTable(db, app, splitMode);
-
   const warnings = [];
   const dropped_tables = [];
-  const dmsEnvs_updated = [];
 
-  // 1. Load source row. If missing, we still do a best-effort cleanup of
-  // dmsEnv refs + dms.tasks — that path exists so stale refs left behind by
-  // pre-existing hand-deletions can be repaired by visiting the missing
-  // source's admin page.
   const { rows: srcRows } = await db.query(
     `SELECT id, type, data FROM ${mainTbl} WHERE id = $1 AND app = $2`,
     [sourceId, app]
   );
-
-  const sourceExists = !!srcRows[0];
   const source = srcRows[0] || null;
   const sourceSlug = source ? getInstance(source.type) : null;
-  const sourceData = source
-    ? (typeof source.data === 'string' ? JSON.parse(source.data) : (source.data || {}))
-    : {};
-  const viewRefs = Array.isArray(sourceData.views) ? sourceData.views : [];
-  const viewIds = viewRefs.map(v => +v.id).filter(Number.isFinite);
-
-  if (!sourceExists) {
-    warnings.push(`source row id=${sourceId} not found; proceeding with dmsEnv + task cleanup only`);
-  } else if (!sourceSlug) {
+  if (source && !sourceSlug) {
     throw new Error(`Cannot derive source slug from type "${source.type}" (id=${sourceId})`);
   }
 
-  // 2. Resolve view types
-  let viewTypes = []; // [{id, type, slug}]
-  if (viewIds.length) {
-    const { rows: viewRows } = await db.query(
-      `SELECT id, type FROM ${mainTbl} WHERE id = ANY($1::INT[]) AND app = $2`,
-      [viewIds, app]
+  let deletedTasks = 0;
+  try {
+    const { rows } = await db.query(
+      `SELECT COUNT(*) AS n FROM ${taskTable(db.type, env)} WHERE app = $1 AND source_id = $2`,
+      [app, sourceId]
     );
-    viewTypes = viewRows.map(r => ({
-      id: +r.id,
-      type: r.type,
-      slug: getInstance(r.type) || `v${r.id}`,
-    }));
+    deletedTasks = +(rows[0]?.n || 0);
+  } catch { /* no tasks table: nothing to count */ }
+
+  if (!source) {
+    warnings.push(`source row id=${sourceId} not found; cleaned up dmsEnv/pattern refs and tasks only`);
+    await controller.removeSourceRefs(app, sourceId, user, reqMeta);
+    console.log(`[uda.sources.delete] DMS source ${app} id=${sourceId} missing — refs and ${deletedTasks} task(s) cleaned up`);
+    return {
+      source_id: sourceId, app, source_slug: null, deleted_source: false,
+      deleted_views: [], deleted_view_count: 0, deleted_tasks: deletedTasks, dropped_tables, warnings,
+    };
   }
 
-  // 3. DROP per-view split tables (DDL — outside transaction, collect warnings)
-  for (const v of viewTypes) {
-    const dataType = `${sourceSlug}|${v.id}:data`;
-    const resolved = resolveTable(app, dataType, db.type, splitMode, sourceId);
-    const fqn = db.type === 'postgres'
-      ? `"${resolved.schema}"."${resolved.table}"`
-      : `"${resolved.table}"`;
+  // Every view this delete takes: the ones under the source's type path (the cascade finds those
+  // itself) and the ones `data.views` lists, wherever their type points.
+  const sourceData = typeof source.data === 'string' ? JSON.parse(source.data) : (source.data || {});
+  const listedIds = (Array.isArray(sourceData.views) ? sourceData.views : [])
+    .map(v => +(v?.id ?? v)).filter(Number.isFinite);
+  const { rows: viewRows } = await db.query(
+    `SELECT id, type FROM ${mainTbl} WHERE app = $1 AND type LIKE '%:view'`,
+    [app]
+  );
+  const prefix = `${sourceSlug}|`;
+  const views = viewRows
+    .map(r => ({ id: +r.id, type: r.type, underSource: r.type.startsWith(prefix) }))
+    .filter(v => v.underSource || listedIds.includes(v.id));
+
+  // A listed view under another path: its split table is keyed by THIS source's slug and id (that
+  // is how the datasets page wrote it), which the controller's view cascade can't know.
+  for (const v of views) {
+    const resolved = resolveTable(app, `${sourceSlug}|${v.id}:data`, db.type, splitMode, sourceId);
+    if (!resolved.table.startsWith('data_items__')) continue;
+    if (v.underSource) { dropped_tables.push(`${resolved.schema}.${resolved.table}`); continue; }
     try {
-      await db.query(`DROP TABLE IF EXISTS ${fqn}`);
+      await db.query(`DROP TABLE IF EXISTS ${resolved.fullName}`);
       dropped_tables.push(`${resolved.schema}.${resolved.table}`);
     } catch (err) {
       warnings.push(`failed to drop ${resolved.schema}.${resolved.table}: ${err.message}`);
     }
   }
 
-  // 4. Find owning dmsEnv rows. There may be more than one (the membership
-  //    bug we're tracking separately can leave a source's ref in multiple
-  //    dmsEnvs); cleaning all of them up is the correct behavior here.
-  //
-  // `data.sources[].id` is stored inconsistently across frontend paths:
-  // CreatePage / internal_table sourceCreate write `+id` (JSON number),
-  // older migrations and CLI seed paths write strings. Postgres JSONB `@>`
-  // is strictly type-equal — `{"id": 123}` does NOT contain `{"id": "123"}`
-  // — so a containment match on either shape silently misses the other,
-  // which is what left the dmsEnv refs orphaned when sources were deleted.
-  // Use a jsonb_array_elements walk + `->>` text extract + cast to int so
-  // the comparison normalizes both shapes through the same code path the
-  // SQLite branch uses below.
-  let dmsEnvSql, dmsEnvParams;
-  if (db.type === 'postgres') {
-    dmsEnvSql = `
-      SELECT id, data FROM ${mainTbl}
-      WHERE app = $1
-        AND type LIKE '%:dmsenv'
-        AND EXISTS (
-          SELECT 1 FROM jsonb_array_elements(COALESCE(data->'sources', '[]'::jsonb)) s
-          WHERE (s->>'id')::int = $2
-        )
-    `;
-    dmsEnvParams = [app, sourceId];
-  } else {
-    // SQLite: walk the sources array
-    dmsEnvSql = `
-      SELECT id, data FROM ${mainTbl}
-      WHERE app = $1
-        AND type LIKE '%:dmsenv'
-        AND EXISTS (
-          SELECT 1 FROM json_each(data, '$.sources')
-          WHERE CAST(json_extract(value, '$.id') AS INTEGER) = $2
-        )
-    `;
-    dmsEnvParams = [app, sourceId];
-  }
-  const { rows: dmsEnvRows } = await db.query(dmsEnvSql, dmsEnvParams);
-
-  // 5-7. Data deletes inside a transaction
-  const { deletedViewCount, deletedSource, deletedTasks } = await db.withTransaction(async (tx) => {
-    for (const envRow of dmsEnvRows) {
-      const data = typeof envRow.data === 'string' ? JSON.parse(envRow.data) : (envRow.data || {});
-      const before = (data.sources || []).length;
-      const newSources = (data.sources || []).filter(s => +s.id !== sourceId);
-      const removed = before - newSources.length;
-      if (removed > 0) {
-        const newData = { ...data, sources: newSources };
-        await tx.query(
-          `UPDATE ${mainTbl} SET data = $1 WHERE id = $2 AND app = $3`,
-          [JSON.stringify(newData), envRow.id, app]
-        );
-      }
-      dmsEnvs_updated.push({ id: +envRow.id, removed_ref_count: removed });
-    }
-
-    let deletedViewCount = 0;
-    if (viewIds.length) {
-      const r = await tx.query(
-        `DELETE FROM ${mainTbl} WHERE id = ANY($1::INT[]) AND app = $2`,
-        [viewIds, app]
-      );
-      deletedViewCount = r.rowCount ?? r.rows?.length ?? 0;
-    }
-
-    const srcDel = await tx.query(
-      `DELETE FROM ${mainTbl} WHERE id = $1 AND app = $2`,
-      [sourceId, app]
-    );
-    const deletedSource = (srcDel.rowCount ?? srcDel.rows?.length ?? 0) > 0;
-
-    // dms.tasks lives in the same DMS db. task_events cascades via FK.
-    const taskTableName = tx.type === 'postgres' ? 'dms.tasks' : 'dms_tasks';
-    const tasksDel = await tx.query(
-      `DELETE FROM ${taskTableName} WHERE app = $1 AND source_id = $2`,
-      [app, sourceId]
-    );
-    const deletedTasks = tasksDel.rowCount ?? tasksDel.rows?.length ?? 0;
-
-    return { deletedViewCount, deletedSource, deletedTasks };
-  });
+  const strays = views.filter(v => !v.underSource).map(v => v.id);
+  await controller.deleteData(app, source.type, [sourceId, ...strays], user, reqMeta);
 
   console.log(
-    `[uda.sources.delete] DMS source ${app}+${sourceSlug} id=${sourceId} cleaned up — ` +
-    `views=${deletedViewCount}, tables=${dropped_tables.length}, ` +
-    `dmsEnvs=${dmsEnvs_updated.length}, tasks=${deletedTasks}, warnings=${warnings.length}`
+    `[uda.sources.delete] DMS source ${app}+${sourceSlug} id=${sourceId} deleted — ` +
+    `views=${views.length}, tables=${dropped_tables.length}, tasks=${deletedTasks}, warnings=${warnings.length}`
   );
 
   return {
     source_id: sourceId,
     app,
     source_slug: sourceSlug,
-    deleted_source: deletedSource,
-    deleted_views: viewIds,
-    deleted_view_count: deletedViewCount,
+    deleted_source: true,
+    deleted_views: views.map(v => v.id),
+    deleted_view_count: views.length,
     deleted_tasks: deletedTasks,
     dropped_tables,
-    dmsEnvs_updated,
     warnings,
   };
 }
@@ -447,7 +373,7 @@ async function deleteInternalSource(env, sourceId) {
 async function softDeleteSource(env, sourceId, opts = {}) {
   if (isDmsEnv(env)) {
     if (opts.authorize) await opts.authorize([+sourceId]);
-    return deleteInternalSource(env, sourceId);
+    return deleteInternalSource(env, sourceId, { user: opts.user, reqMeta: opts.reqMeta });
   }
   const { deleteDamaSource } = require('../../dama/delete');
   return deleteDamaSource(env, sourceId, { ...opts, db: resolveDb(env) });

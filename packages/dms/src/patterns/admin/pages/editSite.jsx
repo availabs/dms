@@ -14,6 +14,7 @@ import { getPatternType, listPatternTypes, stampPatternRow } from '../../registr
 import { authedFetch } from '../../../utils/authedFetch'
 import { newPatternSubdomain, resolveHost } from '../../../utils/hostResolver';
 import { getBaseHost } from '../../../utils/subdomainPath';
+import { OwnerDeleteDialog } from '../components/ownerDeleteDialog';
 
 // The subdomain new rows on this host are stamped with: the tenant's label on a
 // legacy multi-tenant host, '' on the tenant hub (utils/hostResolver.js).
@@ -643,14 +644,12 @@ function PatternList({
 							<Button
 								activeStyle='smallDanger'
 								type={'plain'}
-								title={'remove item'}
+								title={'delete pattern'}
 								onClick={() => {
-									const newData = value.filter((v, i) => v.id !== editingItem.id);
-									onChange(newData)
-									onSubmit(newData)
+									setDeletingItem(editingItem)
 									setEditingItem(undefined)
 								}}
-							> remove
+							> delete
 							</Button>
 						</div>
 					</div>
@@ -666,36 +665,15 @@ function PatternList({
 					/>
 				</Modal>
 
-				<Modal open={Boolean(deletingItem)} setOpen={setDeletingItem}>
-					<div className={t.deleteModal}>
-						<div className={t.deleteModalTitle}>Delete Pattern</div>
-						<div className={t.deleteModalDesc}>
-							Are you sure you want to delete <span className={t.deleteModalHighlight}>{deletingItem?.name}</span>?
-							This will remove the pattern from the site. This action cannot be undone.
-						</div>
-						<div className={t.deleteModalFooter}>
-							<Button
-								type='plain'
-								activeStyle='action'
-								onClick={() => setDeletingItem(undefined)}
-							>
-								Cancel
-							</Button>
-							<Button
-								type='plain'
-								activeStyle='dangerSolid'
-								onClick={() => {
-									const newData = value.filter(v => v.id !== deletingItem.id);
-									onChange(newData);
-									onSubmit(newData);
-									setDeletingItem(undefined);
-								}}
-							>
-								Delete
-							</Button>
-						</div>
-					</div>
-				</Modal>
+				{/* deleting a pattern deletes what it owns, from the server's plan (safe-delete-removes-rows.md F4) */}
+				{deletingItem && (
+					<OwnerDeleteDialog
+						kind="patterns"
+						row={deletingItem}
+						onClose={() => setDeletingItem(undefined)}
+						onDeleted={(r) => onChange(value.filter(v => v.id !== r.id))}
+					/>
+				)}
 			</div>
 	)
 }

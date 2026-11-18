@@ -135,7 +135,7 @@ export async function preloadSectionData(falcor, elementData, elementType, compo
         const { length, data } = await getData({ state, apiLoad, fullDataLoad, keepOriginalValues, sectionId })
         if (import.meta.env.DEV) {
             const ms = (performance.now() - t0).toFixed(0)
-            console.log(`[preload] ${elementType} — ${ms}ms, ${data?.length ?? 0} rows (${length} total)`)
+            console.log(`[preload] ${elementType}${sectionId ? ` ${sectionId}` : ''} — ${ms}ms, ${data?.length ?? 0} rows (${length} total)`)
         }
 
         // Return v2-format state with pre-loaded data embedded.
@@ -165,9 +165,26 @@ export async function preloadSectionData(falcor, elementData, elementType, compo
 // ---------------------------------------------------------------------------
 
 /**
+ * How long the page waits for a section's preload. A section still loading after this renders
+ * without preloaded rows, exactly as with preload_data off (its saved rows, then its own fetch),
+ * and the page doesn't wait for it: one slow query (an aggregate over a multi-million-row view
+ * took 20-28 s on MitigateNY's risk profiles) otherwise holds the whole page past the server's
+ * 30 s request timeout and the visitor gets an empty response.
+ */
+export const PRELOAD_BUDGET_MS = 5000;
+
+const OVER_BUDGET = Symbol('over budget');
+
+function withinBudget(promise, ms) {
+    let timer;
+    const deadline = new Promise(resolve => { timer = setTimeout(() => resolve(OVER_BUDGET), ms); });
+    return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
+}
+
+/**
  * Pre-load sections from a single sections array.
  */
-async function preloadSectionsArray(falcor, sections, filterMap, label, components) {
+async function preloadSectionsArray(falcor, sections, filterMap, label, components, budgetMs = PRELOAD_BUDGET_MS) {
     if (!Array.isArray(sections) || !sections.length) return null
 
     const preloadable = sections.filter(
@@ -188,7 +205,15 @@ async function preloadSectionsArray(falcor, sections, filterMap, label, componen
             const component = components[elementType]
             if (!component?.preloadData || !elementData) return section
 
-            const preloaded = await preloadSectionData(falcor, elementData, elementType, component, filterMap, section.trackingId || section.id)
+            const sectionId = section.trackingId || section.id
+            const preloaded = await withinBudget(
+                preloadSectionData(falcor, elementData, elementType, component, filterMap, sectionId),
+                budgetMs,
+            )
+            if (preloaded === OVER_BUDGET) {
+                console.warn(`[preload] ${label}: ${elementType} ${sectionId || ''} over ${budgetMs}ms, left to the section's own fetch`)
+                return section
+            }
             if (!preloaded) return section
 
             return {
@@ -231,8 +256,11 @@ export function pageSectionTypes(pageItem) {
  * Called from the page pattern's preload hook in dmsPageFactory's loader.
  * `components` is the section-component registry ({ [element-type]: entry }, theme registrations
  * included); a section preloads when its entry sets `preloadData`.
+ * `opts.drafts`: also preload `draft_sections` — only the editor shows them, so the view route
+ * passes false. `opts.budgetMs`: how long to wait for any one section (PRELOAD_BUDGET_MS).
  */
-export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '', components = {}) {
+export async function preloadPageSections(falcor, data, requestUrl, patternFilters = [], slug = '', components = {}, opts = {}) {
+    const { drafts = true, budgetMs = PRELOAD_BUDGET_MS } = opts
     const pageItem = findPageItem(data, slug)
     if (!pageItem) return data
 
@@ -242,8 +270,8 @@ export async function preloadPageSections(falcor, data, requestUrl, patternFilte
     const label = pageItem.title || 'page'
 
     const [updatedSections, updatedDraftSections] = await Promise.all([
-        preloadSectionsArray(falcor, pageItem.sections, filterMap, label, components),
-        preloadSectionsArray(falcor, pageItem.draft_sections, filterMap, `${label} (draft)`, components),
+        preloadSectionsArray(falcor, pageItem.sections, filterMap, label, components, budgetMs),
+        drafts ? preloadSectionsArray(falcor, pageItem.draft_sections, filterMap, `${label} (draft)`, components, budgetMs) : null,
     ])
 
     if (!updatedSections && !updatedDraftSections) return data

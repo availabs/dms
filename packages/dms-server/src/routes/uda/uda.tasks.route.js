@@ -291,7 +291,7 @@ module.exports = [
       const [env, sourceId, opts = {}] = args;
       try {
         const authorize = deleteAuthorizer(env, this);
-        const result = await softDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
+        const result = await softDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize, user: this.user, reqMeta: this.reqMeta });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
           { path: ["uda", env, "sources", "delete"], value: $atom(result) },
@@ -311,7 +311,7 @@ module.exports = [
       const [env, sourceId, opts = {}] = args;
       try {
         const authorize = deleteAuthorizer(env, this);
-        const result = await hardDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize });
+        const result = await hardDeleteSource(env, sourceId, { cascade: !!opts?.cascade, authorize, user: this.user, reqMeta: this.reqMeta });
         return [
           { path: ["uda", env, "sources", "byId", sourceId], invalidated: true },
           { path: ["uda", env, "sources", "hardDelete"], value: $atom(result) },

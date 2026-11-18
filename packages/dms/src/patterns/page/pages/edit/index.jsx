@@ -347,6 +347,9 @@ function PageEdit ({format, item, dataItems: allDataItems, updateAttribute, attr
 			setActionParam,
 			clearActionParam,
 			dataItems,
+			// every page row the loader returned, including ones `dataItems` hides from this user: a page
+			// delete lists (and is blocked by) descendants the user can't see (safe-delete-removes-rows.md)
+			allDataItems,
 			apiLoad, apiUpdate,
 			updateAttribute,
 			editPane, setEditPane,

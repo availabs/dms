@@ -14,7 +14,8 @@ point at before starting a server or a script with defaults; on some machines th
 | Variable | Default | What it does |
 |---|---|---|
 | `PORT` | `3001` | HTTP port. |
-| `DMS_DB_ENV` | `dms-sqlite` | DMS database config (a file in `src/db/configs/`, without `.config.json`). |
+| `DMS_DB_CONFIG_DIRS` | — | Extra folders of database configs (`<name>.config.json`), colon-separated, searched in order before the built-in `src/db/configs/`, which is always searched last. Relative entries resolve against the working directory. A folder that doesn't exist, or a name found in two folders, throws. dms-template sets it to its root `db-configs/` (`src/db/config.js configDirs`). |
+| `DMS_DB_ENV` | `dms-sqlite` | DMS database config: a config name, without `.config.json`, found in `DMS_DB_CONFIG_DIRS` or `src/db/configs/`. |
 | `DMS_AUTH_DB_ENV` | `auth-sqlite` | Auth database config. |
 | `DAMA_DB_ENV` | — | An extra DAMA pgEnv to initialise at boot, besides those the configs declare. |
 | `DMS_SPLIT_MODE` | `per-app` | `legacy` or `per-app` table layout, when the config sets no `splitMode`. A legacy-layout database must say `legacy` here or in its config; since 2026-11-10 nothing infers it (see `../packages/dms-server/CLAUDE.md`). |
@@ -48,7 +49,7 @@ they refuse everything but what the blank-row rule alone refuses. Background:
 |---|---|---|
 | `DMS_AUTH_MODE` | `log` | `log` allows, and records every would-deny in the console and the access log; `enforce` refuses. One mode for EVERY guard — `dms.data.*` writes, dataset source routes, dataset reads, the auth row, uploads and datatype routes. Move to `enforce` only once the access-log page is clean for the site. |
 | `DMS_SYNC_AUTH` | unset | `1` requires a signed-in user on the sync endpoints (`/sync/*`). |
-| `DMS_CHILD_SWEEP_MODE` | `log` | Deleting child rows a page / pattern no longer lists: `off`, `log` (report only), `delete`. Flip to `delete` only once no child row is listed by two owners. The check that reported this (`migrate-row-auth.js --verify-parents`) was retired with the `parent_id` column on 2026-11-10 and is not yet ported to `data.parent_id` (`planning/tasks/current/new-app-auth-setup-and-db-constraints.md`). |
+| `DMS_CHILD_SWEEP_MODE` | `delete` | Deleting child rows a page / pattern no longer lists, or whose owner is deleted: `delete` (default since 2026-11-16), `log` (report only), `off`. A row is deleted only when its `data.parent_id` names the page that dropped it (or was deleted) and no other row in the app still lists it in a declared list (`sections`, `draft_sections`, …), in any pattern. Orphans left before the switch are not cleaned up. |
 
 ### Auth levels
 
@@ -102,6 +103,7 @@ no flag: the rules interpreter (`judge.js`) is the only judge.
 | `DMS_DOMAIN_TARGET_IPS` | — | Tenant hub: comma list of the IPs a domain alias must point at (its A record, and `*.<alias>`). Unset: the root domain's own A records. |
 | `DMS_DOMAIN_DNS_SERVERS` | — | Tenant hub: comma list of DNS servers (`ip` or `ip:port`) the alias checks query instead of the system resolvers. For a test DNS server on a rig; leave unset in production. |
 | `DMS_TENANT_BACKUP_DIR` | `<dms-server>/var/tenant-backups` | Tenant hub: where `POST /tenants/:tenant/delete` writes the deleted tenant's backup (one folder per delete: gzipped COPY files + `manifest.json`). On a server in a container, point it at a mounted volume. |
+| `DMS_DELETE_BACKUP_DIR` | `<dms-server>/var/delete-backups` | Where `POST /dms/:app/patterns/:id/delete` and `POST /dms/:app/themes/:id/delete` write their backup before deleting (one gzipped JSON per delete: the plan, every main-table row removed and a deleted dmsEnv's split tables). A delete that can't write it deletes nothing. On a server in a container, point it at a mounted volume. |
 
 ## Datasets (DAMA), uploads and tasks
 

@@ -156,6 +156,18 @@ siteCmd
     await site.tree(config, getOutputOptions(cmd));
   });
 
+siteCmd
+  .command('unshare-sections')
+  .description('Give every page its own copy of the sections it shares with another page, or borrows from another pattern. A dry run unless --apply')
+  .option('--apply', 'Write the copies and repoint the pages (without it, only the plan is printed)')
+  .option('--pattern <name-or-instance>', 'Only edit pages of this pattern')
+  .option('--backup <file>', "Where to save the changed pages' lists first (default: ./dms-unshare-sections-<app>-<time>.json)")
+  .action(async (options, cmd) => {
+    const config = getConfig(cmd);
+    validateConfig(config, ['host', 'app', 'type']);
+    await site.unshareSections(config, { ...getOutputOptions(cmd), apply: options.apply, pattern: options.pattern, backup: options.backup });
+  });
+
 // ============================================================================
 // FORMAT DECLARATIONS
 // ============================================================================
@@ -351,8 +363,9 @@ pageCmd
 
 pageCmd
   .command('delete <id-or-slug>')
-  .description('Delete a page')
+  .description('Delete a page and its child pages (recursively). Prints the plan unless --yes')
   .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
+  .option('--yes', 'Apply the delete; without it, only the list of pages that would go is printed')
   .action(async (idOrSlug, options, cmd) => {
     const config = getConfig(cmd);
     validateConfig(config, ['host', 'app', 'type']);
@@ -423,9 +436,9 @@ sectionCmd
 
 sectionCmd
   .command('delete <section-id>')
-  .description('Delete a section')
+  .description('Delete a section; its id leaves sections and draft_sections of every page that lists it first')
   .option('--pattern <name-or-id>', 'Use a specific pattern for type resolution')
-  .option('--page <id-or-slug>', 'Also remove section ref from this page')
+  .option('--page <id-or-slug>', 'Only edit this page (default: every page of the site that lists it, in any pattern)')
   .action(async (sectionId, options, cmd) => {
     const config = getConfig(cmd);
     if (options.page) {

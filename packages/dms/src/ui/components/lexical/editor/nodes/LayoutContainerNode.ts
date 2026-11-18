@@ -78,6 +78,8 @@ export class LayoutContainerNode extends ElementNode {
       addClassNamesToElement(element, 'grid gap-[10px]');
     }
     element.setAttribute('data-lexical-layout-container', 'true');
+    const format = this.getFormatType();
+    if (format) element.style.textAlign = format;
     return {element};
   }
 

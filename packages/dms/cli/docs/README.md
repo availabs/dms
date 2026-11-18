@@ -93,7 +93,22 @@ dms site patterns
 
 # Show full site hierarchy: patterns -> pages -> sections, datasets
 dms site tree
+
+# Give every page its own copy of a section it shares with another page, or borrows from another
+# pattern. Prints the plan unless --apply; --pattern limits the edits to one pattern's pages
+dms site unshare-sections
+dms site unshare-sections --apply [--pattern <name>] [--backup <file>]
 ```
+
+`unshare-sections` reads every page of every pattern in the site's list. A section listed by two or
+more pages stays with the lowest-id page of its own pattern; every other page gets a copy (same
+`data`, `trackingId` included, in that page's pattern, `parent_id` = the page) and its list entry is
+repointed, in both lists if the page lists the row in both. A page listing another pattern's section
+always gets its own copy. Before writing, the changed pages' two lists are saved to `--backup`
+(default `./dms-unshare-sections-<app>-<time>.json`); restore one with `dms raw update <id> --data`.
+Writes go through the server, and each page whose `draft_sections` changed has its live-edit room
+synced. **Run it as a user who can read every page**: rows it can't read are reported as
+`unreadable`, and `--apply` refuses while there are any.
 
 ### Pattern
 
@@ -134,8 +149,11 @@ dms page update <id-or-slug> --data -    # read from stdin
 dms page publish <id-or-slug>
 dms page unpublish <id-or-slug>
 
-# Delete a page
+# Delete a page and its child pages (recursively). Without --yes it only prints
+# every page that would go, with its section count; --yes deletes them all in one call
+# (all or nothing: one page you may not delete refuses the whole delete)
 dms page delete <id-or-slug>
+dms page delete <id-or-slug> --yes
 
 # Check / repair a page's live-edit room against its draft_sections
 dms page sync-room <id-or-slug> --check   # report only; exits 1 if "stale"
@@ -179,7 +197,8 @@ dms section update <section-id> --data ./section.json
 dms section update <section-id> --data -    # read from stdin
 dms section update <section-id> --set element-type=Card
 
-# Delete a section (optionally remove ref from page)
+# Delete a section. Its id first leaves `sections` and `draft_sections` of every page of the site
+# that lists it, in any pattern (output: `pages`), or only of --page's page
 dms section delete <section-id> [--page <page-id-or-slug>]
 ```
 

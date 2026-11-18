@@ -25,8 +25,9 @@ export const CHANGE_HISTORY_COLUMNS = [
   column('user_email', 'User email'),
   column('at', 'At'),
   column('via', 'Via', 'select', { options: ['ui', 'cli', 'agent'].map(option) }),
-  // 'create' for a new row's values (old value ''), else 'edit'; rows written before it existed are edits
-  column('op', 'Action', 'select', { options: ['create', 'edit'].map(option) }),
+  // 'create' for a new row's values (old value ''), 'delete' for a deleted row's (new value ''), else
+  // 'edit'; rows written before it existed are edits
+  column('op', 'Action', 'select', { options: ['create', 'edit', 'delete'].map(option) }),
 ]
 
 // Source rows keep `config` (and settings) as JSON strings or objects.

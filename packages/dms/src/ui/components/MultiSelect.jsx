@@ -258,6 +258,11 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
     // options: ['1', 's', 't'] || [{label: '1', value: '1'}, {label: 's', value: '2'}, {label: 't', value: '3'}]
     const [searchKeyword, setSearchKeyword] = useState('');
     const [menuStyle, setMenuStyle] = useState(null);
+    // The compact menu is portaled to document.body, which the server renderer can't do (SSR defines a
+    // fake `document`, so a typeof check doesn't catch it). Portal only once mounted: the server and the
+    // first client render both leave it out, so hydration matches.
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => { setMounted(true); }, []);
     const searchTimerRef = useRef(null);
     const inputRef = useRef(null);
     const menuRef = useRef(null);
@@ -413,8 +418,8 @@ export const MultiSelectEdit = ({value = [], loading, onChange, className, place
                 // ancestor stacking contexts / transforms (e.g., the settings
                 // drawer's `transform` breaks `position: fixed` for descendants).
                 // Tabular/expanded modes render inline below the trigger.
-                if (isTabular || isExpanded || typeof document === 'undefined') return menuJsx;
-                return createPortal(menuJsx, document.body);
+                if (isTabular || isExpanded) return menuJsx;
+                return mounted ? createPortal(menuJsx, document.body) : null;
             })()}
         </div>
     )

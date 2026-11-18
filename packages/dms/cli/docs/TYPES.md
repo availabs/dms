@@ -115,7 +115,7 @@ dms page create --title "Title" --slug slug
 dms page update <id|slug> --set field=value
 dms page publish <id|slug>
 dms page unpublish <id|slug>
-dms page delete <id|slug>
+dms page delete <id|slug> [--yes]   # with its child pages; dry run without --yes
 ```
 
 ### Section (Component)

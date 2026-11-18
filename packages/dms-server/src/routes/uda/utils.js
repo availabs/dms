@@ -201,21 +201,21 @@ async function getEssentials({ env, view_id, options = {} }) {
       await ensureTable(db, table_schema, table_name, db.type, seqName);
     }
     // DMS content never lives on ClickHouse — dbType is always pg for DMS mode.
-    const idxColumn = dmsAttributes?.find(a => a.isIndex)?.name || null;
-    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, idxColumn, splitMode, dbType: 'pg' };
+    // DMS rows are always looked up by the split table's `id` (dataById), so no feature id column.
+    return { isDms, db, app, type, table_schema, table_name, dmsAttributes, featureIdColumn: null, splitMode, dbType: 'pg' };
   }
 
   // DAMA mode — view may point at a ClickHouse-backed table via a
   // `clickhouse.<schema>` prefix in data_manager.views.table_schema. When it
   // does, swap in the CH adapter and strip the prefix before returning.
-  let { table_schema, table_name, idxColumn = null } = await getDataTableFromViewId({ db, view_id });
+  let { table_schema, table_name, featureIdColumn = null } = await getDataTableFromViewId({ db, view_id });
   let dbType = 'pg';
   if (typeof table_schema === 'string' && table_schema.startsWith('clickhouse.')) {
     dbType = 'ch';
     table_schema = table_schema.replace(/^clickhouse\./, '');
     db = getChDb(env);
   }
-  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, idxColumn, dbType };
+  return { isDms, db, app: null, type: null, table_schema, table_name, dmsAttributes: undefined, featureIdColumn, dbType };
 }
 
 /**
@@ -238,9 +238,12 @@ async function getDataTableFromViewId({ db, view_id }) {
 
   const raw = rows[0].metadata;
   const metadata = typeof raw === 'string' ? JSON.parse(raw) : (raw || {});
-  const idxColumn = (metadata.columns || []).find(c => c.isIndex)?.name || null;
+  // The column a map feature's id refers to, when the source names one explicitly (`isFeatureId`).
+  // Not `isIndex`: that flag only asks for an index, and indexing a filter column must not change
+  // which column identifies features (setindex-composite-covering-indexes.md).
+  const featureIdColumn = (metadata.columns || []).find(c => c.isFeatureId)?.name || null;
 
-  return { table_schema: rows[0].table_schema, table_name: rows[0].table_name, idxColumn };
+  return { table_schema: rows[0].table_schema, table_name: rows[0].table_name, featureIdColumn };
 }
 
 // ============================================= DMS Source/View Helpers =============================================

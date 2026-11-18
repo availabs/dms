@@ -10,10 +10,11 @@
  *     enabled: false,                   // optional: switched off, target and columns kept
  *   }
  *
- * setDataById and createData (dms.controller.js) write one history row per changed tracked column,
- * inside the write's transaction, when the caller passes `{ changeHistory: true }`. Only the Falcor
- * dms.data.edit / dms.data.create routes do; other server-side callers write none. `op` is 'create'
- * for a create's rows (old value '') and 'edit' otherwise.
+ * setDataById, createData and deleteData (dms.controller.js) write one history row per changed tracked
+ * column, inside the write's transaction, when the caller passes `{ changeHistory: true }`. Only the
+ * Falcor dms.data.edit / create / delete routes do; other server-side callers (and /sync/push) write
+ * none. `op` is 'create' for a create's rows (old value ''), 'delete' for a deleted row's values (new
+ * value '') and 'edit' otherwise.
  *   { row_id, source_id, field, old_value, new_value, user_id, user_email, at, via, op }
  *
  * This module is the pure part: reading the setting and the source's columns, deciding which
