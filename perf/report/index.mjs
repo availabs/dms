@@ -313,14 +313,16 @@ function comparison(base, cand, cmp) {
     const labels = J.base.map((s) => (s.step === 0 ? 'landing' : `click ${s.step}`));
     const syncDiffers = cmp.modeDiffers.includes('sync');
     const d0 = (J.cand[0].complete?.median ?? 0) - (J.base[0].complete?.median ?? 0);
+    const clicksMoved = { faster: 0, slower: 0, same: 0, missing: 0 };
+    J.steps.slice(1).forEach((v) => { clicksMoved[v.verdict]++; });
     const clickGain = medianOf(J.base.slice(1).map((s, i) => (J.cand[i + 1].complete?.median ?? 0) - (s.complete?.median ?? 0)));
     journey = `<section id="journey"><div class="wrap">
       <h2>${syncDiffers ? "Sync's trade: the first load against every later one" : "One visitor's session, before and after"}</h2>
       <p class="lede">The same route in both runs: a cold landing, then ${J.base.length - 1} in-app clicks. The chart adds up the wait for Complete. ${syncDiffers ? 'Sync pays for a bootstrap on the landing so later pages read from the browser; where the lines cross is how many pages a visitor must open before that has paid off.' : ''}</p>
       <div class="tiles">
-        <div class="tile"><span class="k">Landing</span><span class="v ${d0 < -50 ? 'faster' : d0 > 50 ? 'slower' : ''}">${sign(d0, fmtMs)}</span><span class="d">${fmtMs(J.base[0].complete?.median)} → ${fmtMs(J.cand[0].complete?.median)}; idle ${fmtMs(J.base[0].idle?.median)} → ${fmtMs(J.cand[0].idle?.median)}</span></div>
-        <div class="tile"><span class="k">Median click</span><span class="v ${clickGain < -50 ? 'faster' : clickGain > 50 ? 'slower' : ''}">${sign(clickGain, fmtMs)}</span><span class="d">per later page</span></div>
-        <div class="tile"><span class="k">Break-even</span><span class="v">${J.crossing != null ? `click ${J.crossing}` : 'never'}</span><span class="d">${J.crossing != null ? 'the cumulative lines cross here' : 'the lines do not cross on this route'}</span></div>
+        <div class="tile"><span class="k">Landing</span><span class="v ${cls(J.steps[0]?.verdict)}">${sign(d0, fmtMs)}</span><span class="d">${fmtMs(J.base[0].complete?.median)} → ${fmtMs(J.cand[0].complete?.median)}; idle ${fmtMs(J.base[0].idle?.median)} → ${fmtMs(J.cand[0].idle?.median)}</span></div>
+        <div class="tile"><span class="k">Median click</span><span class="v ${clicksMoved.faster > clicksMoved.slower ? 'faster' : clicksMoved.slower > clicksMoved.faster ? 'slower' : 'same'}">${sign(clickGain, fmtMs)}</span><span class="d">per later page · ${clicksMoved.faster} faster, ${clicksMoved.slower} slower, ${clicksMoved.same} no change</span></div>
+        <div class="tile"><span class="k">Break-even</span><span class="v">${J.crossing != null ? `click ${J.crossing}` : 'never'}</span><span class="d">${J.crossing != null ? 'the cumulative lines cross here' : 'the lines do not cross on this route'}. Grey numbers are within the noise.</span></div>
       </div>
       ${lineChart([{ name: cmp.base.label, values: J.base.map((s) => s.cumulative?.median ?? null), tips: J.base.map((s) => s.path) }, { name: cmp.cand.label, values: J.cand.map((s) => s.cumulative?.median ?? null), tips: J.cand.map((s) => s.path) }], { xLabels: labels, title: 'Cumulative wait across the journey, both runs' })}
       <div class="tbl-wrap"><table><thead><tr><th>Step</th><th>Page</th><th class="num">${esc(cmp.base.label)}: complete</th><th class="num">${esc(cmp.cand.label)}: complete</th><th class="num">${esc(cmp.base.label)}: cumulative</th><th class="num">${esc(cmp.cand.label)}: cumulative</th><th class="num">Data requests</th></tr></thead><tbody>${J.base.map((s, i) =>

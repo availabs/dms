@@ -300,10 +300,20 @@ percentile, by site and page. That is the check that a lab win reached users, an
 
 ## Phases
 
-1. **Runner and report.** Run config, mode detection, page list with `--sample`, cold / warm / click /
-   journey, milestones from standard browser APIs plus the loading contract, sizes, requests, duplicates,
-   errors; repetitions with min / max / average / median; saved JSON and the HTML report. First against a
-   local production build of MitigateNY on the hub.
+1. **Runner and report. BUILT 2026-11-18** (`src/dms/perf/`, hooked into the CLI by dms-template's `.dmsrc`).
+   - [x] Run config (file, then flags), `--sample`, `--pages`, `--pages-from`
+   - [x] Page list from the CLI's data helpers; home page alias (a link to the pattern's base URL)
+   - [x] Mode detection: server-rendered or SPA, sync, the pattern's preload, signed in, dev or production build
+   - [x] Cold, warm, click and journey (first visit and return visit) visits; repetitions
+   - [x] Complete and Idle, standard paint entries, soft-navigation paints for clicks, layout shift, blocking time
+   - [x] Bytes by kind, hydration data size, data requests, duplicate requests, console / hydration errors
+   - [x] Click checks: stale content (URL changed, page didn't), a full document load, no link, scripted click
+   - [x] A hard time limit on every browser step (a run stalled for 20 min without one)
+   - [x] Saved `run.json` + `visits.jsonl`; `aggregate`; `compare` with the noise rule and the journey crossing
+   - [x] HTML report for a run and for a comparison; `dms perf run / report / compare`
+   - [x] Unit tests (`node --test src/dms/perf/perf.test.mjs`, 6 pass); eslint clean
+   - [ ] **A run against a production build.** Both test runs were against the hub's dev server
+   - [ ] A full-pattern run (all 159 pages × 5): not run yet; on the dev server it would take many hours
 2. **Marks, `Server-Timing`, contract coverage** in DMS; the report gains Readable, Usable and server phases.
 3. **Profiles and compare.** Signed in, phone; `compare` over any saved runs with the noise rule; the sync
    break-even view; A/B interleaving.
@@ -315,6 +325,27 @@ percentile, by site and page. That is the check that a lab win reached users, an
 7. **Field vitals** through the tracker.
 
 Phase 1 is enough to baseline before the RSC work; phases 2–3 are what its spike needs.
+
+## First runs (2026-11-18, the hub's DEV server: tool check only, not a baseline)
+
+Two runs of the same 3 pages (`--sample 3 --runs 2 --journey-steps 4`), 42 visits each, no failed visits,
+~14 min each. Runs: `scratchpad/mny-test/perf/2026-11-18-1508-hub-dev-a` and `…-1523-hub-dev-b`.
+
+- Median page: Complete 14.0 s cold, 16.5 s warm, 5.5 s after a click; Idle 21.7 s cold.
+- A warm load transfers 5.4 MB against 12.6 MB cold but fetches nearly all the data again (4.35 of 4.40 MB).
+- Journey: landing Complete 5.9 s, Idle 19.1 s; clicks ~0.4–1.1 s with 2–3 data requests; the return visit's
+  landing has no background tail (Idle = Complete 5.3 s) and three of four clicks send no data request.
+  ~32 MB kept in the browser.
+- Duplicate data requests on every load (11 on Home, 28 on Ice Storm).
+- Buildings never went idle inside 60 s on a cold load.
+- **Comparing the two runs of unchanged code:** 8 of 9 page-visits "no change"; one warm load read as slower
+  (5.28 → 5.72 s) because with 2 repetitions a page's spread is almost nothing. The journey's landing differed
+  by 1.56 s between the runs (one outlier) and is correctly shown as within the noise. Two repetitions are too
+  few; the default stays 5.
+
+Known limits found: the soft-navigation "main content" time is only there for a real click (not one made
+from script on a hidden menu link); a dev server's hot reload reloads measured pages if the repo is edited
+during a run.
 
 ## Decided (owner, 2026-11-18)
 
@@ -334,12 +365,14 @@ Phase 1 is enough to baseline before the RSC work; phases 2–3 are what its spi
 
 ## Testing checklist
 
-- [ ] Two runs of unchanged code compare as "no change" on every page (the noise rule holds)
+- [ ] Two runs of unchanged code compare as "no change" on every page (the noise rule holds). Tried with 2
+      repetitions on the dev server: 8 of 9; to repeat with 5 on a production build
 - [ ] A known change shows up: the BILD index on the lightning risk profile; hydration payload on / off
 - [ ] "Complete" agrees with the eye on a text page, a table page, a map page and a risk profile
 - [ ] Click navigation measured on Chrome 151+; the fallback (URL change → Complete) on older
-- [ ] Warm visit really is warm: cached JS, cached pattern list, IndexedDB kept
-- [ ] Mode detection is right on an SPA build, an SSR build and a sync build
+- [x] Warm visit really is warm: JS 7.3 MB → 0.3 MB on the second load; IndexedDB kept (the return journey)
+- [ ] Mode detection is right on an SPA build, an SSR build and a sync build (right on the hub: SSR, sync on,
+      preload on, dev build; SPA and non-sync builds not tried)
 - [ ] The journey on a sync build and a non-sync build of the same site: first-load cost, per-click gain and
       break-even are all reported
 - [ ] `--sample` picks the same pages for the same pattern and N; `--pages-from` reuses a run's list

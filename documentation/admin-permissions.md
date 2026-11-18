@@ -184,6 +184,33 @@ auth_permissions: {
   sections are not under the page on the server's walk (a section row's walk goes to the pattern), so
   a page's reach does not reach its sections. Task for the first: `planning/tasks/current/gated-file-downloads.md`.
 
+## The row's creator, and rule variants
+
+Two additions to the rule language (`dms-server/src/routes/auth/judge.js`, client copy
+`utils/authJudge.js`; `planning/tasks/current/auth-rule-creator.md`):
+
+- **`{ perms, creator: true }`** — the verb, held by the row's **creator**: its `created_by` column,
+  which the server writes from the verified user on create and no client can set (a `created_by` key in
+  a payload is just data). On a create the caller is the creator. Usable wherever a requirement is
+  (`byKey`, `default`, an op, inside `anyOf`). A refusal reads `missing <verb> as the row's creator`.
+  Split rows are judged without their data, so the write guard reads their `created_by` from the split
+  table (`dms.controller.js getSplitRowCreators`); main-table rows carry it from `getRowsForWrite`.
+- **`fieldsFrom: 'rule'`** on an edit spec — its `byKey` / `default` decide every key, ahead of the
+  governing vocabulary's field claims. Needed under an env: its `descendants` vocabulary gives
+  `update-source` the `'*'` claim (declared for sources), which would otherwise answer for a data row's
+  every key.
+- **Rule variants.** A kind's rule is global per site, so a rule for SOME rows of a kind is declared as
+  a variant: `rules: { '<kind>@<name>': rule }` in a format (chat: `'data@chat_message'`). A variant is
+  no kind's rule by itself. A row names the variant for the rows of a kind beneath it —
+  `data.ruleVariants: { data: 'chat_message' }` on chat's env row — and `owners.js ruleFor` takes the
+  nearest ANCESTOR naming one the site's `formats` declare; a name not declared (not registered yet) is
+  passed over, so the kind's own rule answers. Only registered declarations are chosen this way (never a
+  stamp or the built-in copy).
+  - **Changing `ruleVariants`** on a stored row takes site `*` (or `<app> Admin`), as `authRules` does
+    (`index.js rulesWrite`): whoever could change it could pick a weaker rule for the rows beneath. A
+    create may set it (nothing is beneath a new row).
+  - **Rows under no variant are judged exactly as before**: every dataset row keeps the shared `data` rule.
+
 ## Who a row's grants name: `GET /dms/:app/rows/:id/grantees`
 
 The auth API's user and group lists are for people who manage users (`auth-users`). A reader

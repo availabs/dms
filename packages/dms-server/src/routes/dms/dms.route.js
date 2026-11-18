@@ -155,7 +155,11 @@ function createRoutes(controller = createController(process.env.DMS_DB_ENV || 'd
   // (every row in it is that type); anything else is read from the app's main table, never trusting
   // the type the client names.
   const storedRows = async (app, ids, type) => {
-    if (type && isSplitType(type)) return ids.map(id => ({ id, type, data: null }));
+    if (type && isSplitType(type)) {
+      // judged without its data, but with its server-stamped creator (a rule may ask for it)
+      const made = new Map((await controller.getSplitRowCreators(app, type, ids)).map(r => [String(r.id), r.created_by]));
+      return ids.map(id => ({ id, type, data: null, created_by: made.has(String(id)) ? made.get(String(id)) : null }));
+    }
     const rows = await controller.getRowsForWrite(ids, app);
     return ids.map(id => rows.find(r => String(r.id) === String(id)) || { id, type: '', data: null, missing: true });
   };

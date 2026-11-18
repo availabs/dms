@@ -52,7 +52,9 @@ export function collector() {
   });
   observe('interaction-contentful-paint', (e) => {
     const nav = P.softNavs[P.softNavs.length - 1];
-    if (nav) nav.lcp = e.startTime;
+    // the entry starts at the interaction; when it painted is in its paint fields
+    const painted = e.renderTime || e.paintTime || e.presentationTime || e.loadTime || null;
+    if (nav && painted && painted > nav.start) nav.lcp = painted;
   });
 
   // requests the page makes itself

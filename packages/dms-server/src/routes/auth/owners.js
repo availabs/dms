@@ -10,7 +10,8 @@
  *
  *     snapshotFor(address)       → { snap, row }       the subject, with the rows above it loaded
  *     grantsAt(snap, row, pos)   → grants | null        pos: self | parent | ancestor:<kind> | site
- *     ruleFor(snap, row)         → the kind's rule      declared in `formats` (formats.js), else the
+ *     ruleFor(snap, row)         → the kind's rule      a variant an ancestor names (`ruleVariants`), else
+ *                                                       declared in `formats` (formats.js), else the
  *                                                       stamp on the nearest ancestor, else built in
  *     mapsFor(snap, row)         → { maps, scope, publicRead }
  *     reachFor(snap, row)        → { inherit, override, cut, limited }   `reach` along the same walk
@@ -390,12 +391,38 @@ function grantsAt(snap, row, position, { op = 'edit', subdomain = '', reach = nu
 }
 
 /**
- * The rule for `row`'s kind: the site's declaration (`formats`), else the stamp on the nearest
- * ancestor that carries one (`data.authRules`), else the built-in copy. Never read from the row
- * itself: its data is the caller's.
+ * A NAMED VARIANT of a kind's rule, chosen for the rows beneath a container. A format may declare,
+ * beside a kind's rule (`rules: { data: … }`), a variant of it under `<kind>@<name>`
+ * (`rules: { 'data@author_only': … }`); it is no kind's rule by itself. A row names the variant
+ * that governs the rows of a kind beneath it — `data.ruleVariants: { data: 'author_only' }` — and
+ * the nearest ancestor naming one the site's `formats` declare wins. A name the formats don't declare
+ * (not registered yet) is passed over, so the kind's own rule answers: today's behaviour.
+ *
+ * Only DECLARED rules are chosen this way (never a stamp, never the built-in copy), and only from an
+ * ancestor, never the row itself. Changing `ruleVariants` on a stored row is checked like `authRules`
+ * (index.js `rulesWrite`): site `*`. Nothing here names a kind or a variant.
+ */
+function variantFor(snap, row) {
+  const rules = snap.formats && snap.formats.rules;
+  if (!rules || !row.kind) return null;
+  for (const a of ancestors(snap, row)) {
+    const named = a.data && a.data.ruleVariants && typeof a.data.ruleVariants === 'object' ? a.data.ruleVariants[row.kind] : null;
+    if (typeof named !== 'string' || !named) continue;
+    const rule = rules[`${row.kind}@${named}`];
+    if (rule && typeof rule === 'object' && rule.ops) return { name: named, rule, on: a };
+  }
+  return null;
+}
+
+/**
+ * The rule for `row`'s kind: a variant an ancestor names (`variantFor`), else the site's declaration
+ * (`formats`), else the stamp on the nearest ancestor that carries one (`data.authRules`), else the
+ * built-in copy. Never read from the row itself: its data is the caller's.
  */
 function ruleFor(snap, row) {
   const kind = row.kind;
+  const variant = variantFor(snap, row);
+  if (variant) return { rule: variant.rule, from: 'formats', variant: variant.name };
   const declared = snap.formats && snap.formats.rules[kind];
   if (declared) return { rule: declared, from: 'formats' };
   const stampedOn = (r) => (r && r.data.authRules && typeof r.data.authRules === 'object' && r.data.authRules[kind]) || null;
@@ -448,6 +475,6 @@ async function sourceOfView(env, viewId, app = null) {
 
 module.exports = {
   snapshotFor, appSnapshot, clearSnapshots, clearPgEnv, snapshotLoads: () => loads, grantsAt, grantsOf, ruleFor, mapsFor,
-  reachFor, rowReach, wrap,
+  reachFor, rowReach, wrap, variantFor,
   parentOf, ancestors, sourceOfView, isDmsEnv, dmsDb, LEGACY_POSITIONS, AUTH_DATA_KEYS,
 };

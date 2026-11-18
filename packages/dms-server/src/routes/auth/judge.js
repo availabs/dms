@@ -17,9 +17,15 @@
  *
  * A requirement is `[verbs]` (on the rule's owner), `{ owner, perms }`, `{ blank: owner }` (satisfied
  * when that owner grants nothing: how a rule says "a row with no grants is readable") or
- * `{ anyOf: [ … ] }`.
+ * `{ anyOf: [ … ] }`. `{ perms, creator: true }` also asks that the caller be the ROW'S CREATOR
+ * (its server-stamped `created_by`; on a create, the caller is): "the author's own row".
  *
- * `env`: `{ user, grants: { [owner]: grants | null }, holds(grants, perms), isBlank(grants) }`.
+ * An edit spec's `fieldsFrom: 'rule'` says its `byKey` / `default` decide every key, ahead of any
+ * vocabulary's field claims (a rule written for one kind of row whose governing vocabulary was
+ * declared for another).
+ *
+ * `env`: `{ user, grants: { [owner]: grants | null }, holds(grants, perms), isBlank(grants), creator }`
+ * (`creator`: the caller created the row being judged).
  *
  * Reads: `publicRead` passes; a kind with no `read` op is open; otherwise the `read` requirement.
  * Writes: a named verb or `*` on the owner's grants, explicitly; nothing is open by absence.
@@ -34,7 +40,9 @@ const STRUCTURAL = ['read', 'create', 'edit', 'delete'];
 
 // A requirement is { owner, perms } or { anyOf: [ … ] }. Normalise the shorthands a rule may use.
 const one = (c, defaultOwner) =>
-  c.blank !== undefined ? { blank: c.blank === true ? defaultOwner : c.blank } : { owner: c.owner || defaultOwner, perms: list(c.perms) };
+  c.blank !== undefined ? { blank: c.blank === true ? defaultOwner : c.blank }
+    : c.creator === true ? { owner: c.owner || defaultOwner, perms: list(c.perms), creator: true }
+    : { owner: c.owner || defaultOwner, perms: list(c.perms) };
 const req = (clause, defaultOwner) =>
   Array.isArray(clause) || typeof clause === 'string'
     ? [{ owner: defaultOwner, perms: list(clause) }]
@@ -47,7 +55,7 @@ const key = (owner) => (Array.isArray(owner) ? owner.join('+') : owner);
 const satisfied = (env, r) =>
   r.anyOf ? r.anyOf.some(alt => satisfied(env, alt))
     : r.blank !== undefined ? env.isBlank(env.grants[key(r.blank)])
-    : env.holds(env.grants[key(r.owner)], r.perms);
+    : env.holds(env.grants[key(r.owner)], r.perms) && (r.creator !== true || env.creator === true);
 
 // `ifOwnerBlank`: a signed-in user's requirements on a blank owner are checked as this clause instead.
 function blankSwap(rule, env, row) {
@@ -67,7 +75,7 @@ function editRequirements(spec, defaultOwner, { keys, patch, maps, scope }) {
   if (Array.isArray(spec)) return req(spec, defaultOwner);
   const out = [];
   let rest = keys;
-  if (maps) {
+  if (maps && spec.fieldsFrom !== 'rule') {
     const { groups, covered } = verbsForFields(keys, maps, patch, scope);
     out.push(...groups.map(perms => ({ owner: defaultOwner, perms })));
     rest = keys.filter(k => !covered.includes(k));
@@ -106,7 +114,7 @@ function judge(rule, env, { op, keys = [], patch = {}, split = false, row = {}, 
   if (op === 'read' && rule.ops.read === undefined) return allow('read: open');
 
   const swap = blankSwap(rule, env, row);
-  const check = (r) => (swap && !r.anyOf && key(r.owner) === key(rule.owner) ? satisfied(env, swap) : satisfied(env, r));
+  const check = (r) => (swap && !r.anyOf && key(r.owner) === key(rule.owner) ? satisfied(env, r.creator ? { ...swap, creator: true } : swap) : satisfied(env, r));
 
   if (op === 'edit' && keys.length === 0 && rule.noChange) {
     if (check({ owner: rule.owner, perms: list(rule.noChange) })) return allow('no change');
@@ -129,8 +137,10 @@ function judge(rule, env, { op, keys = [], patch = {}, split = false, row = {}, 
       // A write refused on an owner that grants nothing is refused by the blank-row rule alone
       // (owner 2026-10-29: a row with no grants is read-only). `report.js` reads the mark.
       const blank = !swap && !r.anyOf && key(r.owner) === key(rule.owner) && own != null && env.isBlank(own);
+      // a requirement the caller holds the verb for but did not create the row: say so
+      const byCreator = env.creator !== true && (r.anyOf ? r.anyOf.some(a => a.creator === true) : r.creator === true);
       return blank ? deny(`missing ${p.join(' or ')}; blank row (no grants: edits need an explicit grant)`, { blank: true })
-                   : deny(`missing ${p.join(' or ')}`);
+                   : deny(`missing ${p.join(' or ')}${byCreator ? ' as the row\'s creator' : ''}`);
     }
   }
   return allow('granted');

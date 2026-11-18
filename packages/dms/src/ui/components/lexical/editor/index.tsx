@@ -40,9 +40,10 @@ function isLexicalJSON(str) {
 // `placeholder` / `ariaLabel` / `placeholderClassName`: the empty editor's hint, the editable
 // region's accessible name, and where the hint sits (the default is placed for a page section's
 // gutter). Editor took the first two all along; this wrapper dropped them until 2026-11-17.
+// `componentPicker`: { hide, include: [option titles], placement: 'above' } for the `/` menu.
 // `hideFloatingToolbar` / `hideFloatingLinkEditor`: no format popup over a selection, no link
 // popup under a link (a caller with its own format bar, such as chat's composer).
-export default function Lexicals ({value, hideControls, hideFloatingToolbar = false, hideFloatingLinkEditor = false, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo, onSetPageParam, plugins = null, placeholder = '', ariaLabel = '', placeholderClassName }) {
+export default function Lexicals ({value, hideControls, hideFloatingToolbar = false, hideFloatingLinkEditor = false, componentPicker = null, showBorder, onChange, bgColor, editable=false, id, theme: themeProp, styleName, isCollab, collabId, collabUsername, collabCursorColor, fileUploadInfo, onSetPageParam, plugins = null, placeholder = '', ariaLabel = '', placeholderClassName }) {
   // Get theme from ThemeContext if not passed as prop
   const { theme: contextTheme } = React.useContext(ThemeContext) || {};
   const theme = themeProp || contextTheme;
@@ -171,6 +172,7 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
             ariaLabel={ariaLabel}
             placeholderClassName={placeholderClassName}
             hideFloatingToolbar={hideFloatingToolbar}
+            componentPicker={componentPicker}
             hideFloatingLinkEditor={hideFloatingLinkEditor}
             hideControls={hideControls}
             onChange={onChange}
@@ -198,7 +200,7 @@ export default function Lexicals ({value, hideControls, hideFloatingToolbar = fa
   );
 }
 
-function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable, fileUploadInfo, placeholderText, ariaLabel, placeholderClassName, hideFloatingToolbar, hideFloatingLinkEditor }) {
+function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable, fileUploadInfo, placeholderText, ariaLabel, placeholderClassName, hideFloatingToolbar, hideFloatingLinkEditor, componentPicker }) {
     const isFirstRender = React.useRef(true);
     const lastValue = React.useRef();
     const [editor] = useLexicalComposerContext();
@@ -248,7 +250,8 @@ function UpdateEditor({ value, hideControls, onChange, bgColor, theme, editable,
         <>
             <Editor theme={theme} editable={editable} hideControls={hideControls} bgColor={bgColor} fileUploadInfo={ fileUploadInfo }
                     placeholderText={placeholderText} ariaLabel={ariaLabel} placeholderClassName={placeholderClassName}
-                    hideFloatingToolbar={hideFloatingToolbar} hideFloatingLinkEditor={hideFloatingLinkEditor}/>
+                    hideFloatingToolbar={hideFloatingToolbar} hideFloatingLinkEditor={hideFloatingLinkEditor}
+                    componentPicker={componentPicker}/>
             <OnChangePlugin onChange={onChange} />
         </>
     );

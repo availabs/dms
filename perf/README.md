@@ -46,7 +46,8 @@ dms perf report <run dir>
 It uses the system's Chrome through Playwright (`DMS_PERF_CHROME=/path/to/chrome` to name another).
 
 **Measure a production build.** A dev server (Vite) serves unbundled, uncompiled modules; the report marks such
-a run "Dev build". It is fine for trying the tool and useless for judging a change.
+a run "Dev build". It is fine for trying the tool and useless for judging a change. Don't edit files in the repo while a run is
+measuring a dev server: its hot reload reloads the pages being measured.
 
 ## What a run is
 

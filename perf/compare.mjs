@@ -57,7 +57,11 @@ export function compareRuns(base, cand) {
     pagesCompared: new Set(rows.map((r) => r.path)).size,
     summary, rows,
     movers: Object.fromEntries(VISITS.map((v) => [v, { faster: movers(v, 'complete', 'faster'), slower: movers(v, 'complete', 'slower') }])),
-    journey: { sameRoute, base: ja, cand: jb, crossing },
+    journey: {
+      sameRoute, base: ja, cand: jb, crossing,
+      // the same noise rule as a page: is the landing, or a click, really different?
+      steps: sameRoute ? ja.map((s, i) => verdict(s.complete, jb[i].complete)) : [],
+    },
   };
 }
 

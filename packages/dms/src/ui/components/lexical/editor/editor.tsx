@@ -94,6 +94,7 @@ export default function Editor(props): JSX.Element {
         placeholderText = '',
         placeholderClassName,
         hideFloatingToolbar = false,
+        componentPicker = null,
         hideFloatingLinkEditor = false,
         ariaLabel = '',          // the accessible name of the editable region (a screen reader otherwise reads an unnamed text box)
         editable = true,
@@ -158,7 +159,11 @@ export default function Editor(props): JSX.Element {
                 <DragDropPaste fileUploadInfo={ fileUploadInfo }/>
                 {/*<AutoFocusPlugin />*/}
                 <ClearEditorPlugin/>
-                <ComponentPickerPlugin fileUploadInfo={ fileUploadInfo }/>
+                {componentPicker?.hide ? null : (
+                    <ComponentPickerPlugin fileUploadInfo={ fileUploadInfo }
+                                           include={componentPicker?.include || null}
+                                           placement={componentPicker?.placement || 'below'}/>
+                )}
                 <EmojiPickerPlugin />
                 {/*<AutoEmbedPlugin/>*/}
                 <KeywordsPlugin/>

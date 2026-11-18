@@ -1313,13 +1313,29 @@ function createController(dbName = 'dms-sqlite', options = {}) {
 
     // Rows as a write's permission check needs them: parsed data plus the stored text (the
     // optimistic check in assertRowUnchanged compares that). Main table only.
+    // `created_by` rides along: a rule may ask for the row's creator (judge.js `creator: true`).
     getRowsForWrite: async (ids, app = null) => {
       const table = app ? await mainTable(app) : tableName('data_items');
       const arrayResult = buildArrayComparison('id', ids, dbType);
       return dms_db.promise(
-        `SELECT id, app, type, data, CAST(data AS TEXT) AS data_text FROM ${table} WHERE ${arrayResult.sql}`,
+        `SELECT id, app, type, data, CAST(data AS TEXT) AS data_text, created_by FROM ${table} WHERE ${arrayResult.sql}`,
         arrayResult.values
       );
+    },
+
+    // Who created each of these split rows: `[{ id, created_by }]`, read from the type's own table
+    // (none when it does not exist yet). The write guard judges a split row without its data, but a
+    // rule may still ask for its creator (judge.js `creator: true`).
+    getSplitRowCreators: async (app, type, ids) => {
+      if (!ids.length) return [];
+      try {
+        const resolved = await ensureForRead(app, type);
+        const arrayResult = buildArrayComparison('id', ids, dbType);
+        return await dms_db.promise(`SELECT id, created_by FROM ${resolved.fullName} WHERE ${arrayResult.sql}`, arrayResult.values);
+      } catch (e) {
+        if (/no such table|does not exist/i.test(e.message)) return [];
+        throw e;
+      }
     },
 
     getDataById: async (ids, attributes=["id", "data", "updated_at", "created_at"], app = null) => {

@@ -102,13 +102,16 @@ function sealRefused(snap, r, op, row, patch, keys) {
 /**
  * Writing a row's stamped auth rules is an escalation (whoever rewrites them can grant themselves
  * anything they govern), so it is checked in code, never by a rule: site `*`, or on a pattern row
- * `edit-pattern-permissions` held on the pattern itself.
+ * `edit-pattern-permissions` held on the pattern itself. `ruleVariants` (which declared variant of a
+ * kind's rule governs the rows beneath this one, owners.js `variantFor`) is the same escalation and
+ * the same check. A create may set either: nothing is beneath a new row yet.
  */
+const RULE_KEYS = ['authRules', 'ruleVariants'];
 function rulesWrite(snap, row, op, keys, user, subdomain) {
-  if (op !== 'edit' || !keys.includes('authRules')) return null;
+  if (op !== 'edit' || !keys.some(k => RULE_KEYS.includes(k))) return null;
   if (holds(user, grantsAt(snap, row, 'site', { subdomain }), ['*'])) return null;
   if (row.kind === 'pattern' && holds(user, grantsAt(snap, row, 'self', { subdomain }), ['edit-pattern-permissions'])) return null;
-  return deny(`${row.kind} authRules: ${row.kind === 'pattern' ? 'missing edit-pattern-permissions' : 'missing site *'}`);
+  return deny(`${row.kind} ${keys.filter(k => RULE_KEYS.includes(k)).join(', ')}: ${row.kind === 'pattern' ? 'missing edit-pattern-permissions' : 'missing site *'}`);
 }
 
 /**
@@ -152,8 +155,12 @@ async function authorize({ row, env, sourceId, viewId, patternId, verb = 'read',
     const grants = {};
     if (rule) for (const owner of ownersIn(rule)) grants[Array.isArray(owner) ? owner.join('+') : owner] = grantsAt(snap, r, owner, { op, subdomain, reach });
     const { maps, scope, publicRead } = mapsFor(snap, r);
+    // `creator`: the caller made this row — its server-stamped `created_by` (dms.controller.js, from the
+    // verified user; no client sets it) is theirs. On a create the caller is about to be.
+    const creator = !!(user && user.id != null)
+      && (op === 'create' || (row && row.created_by != null && String(row.created_by) === String(user.id)));
     // a public-read declaration does not open a row whose reach is limited: it is judged on its grants
-    const d = judge(rule, { user, grants, holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)), isBlank }, {
+    const d = judge(rule, { user, grants, holds: (ap, perms) => (ap == null ? false : holds(user, ap, perms)), isBlank, creator }, {
       op: Array.isArray(op) ? op : op, keys, patch: parseJson(patch) || {}, split: isSplitType(r.type),
       row: op === 'create' ? parseJson(patch) || {} : r.data, maps, scope, publicRead: publicRead && !reach.limited,
     });

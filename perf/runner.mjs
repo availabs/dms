@@ -43,7 +43,7 @@ function networkLog(page) {
     entries.push(entry);
     pending.push((async () => {
       try {
-        const [sizes, resp] = await Promise.all([req.sizes(), req.response()]);
+        const [sizes, resp] = await within(Promise.all([req.sizes(), req.response()]), 3000, [{}, null]);
         entry.bytes = (sizes.responseBodySize || 0) + (sizes.responseHeadersSize || 0);
         entry.status = resp ? resp.status() : null;
       } catch { /* the page went away */ }
@@ -57,7 +57,7 @@ function networkLog(page) {
   return {
     reset() { entries = []; pending = []; errors = { console: [], page: [], failed: [] }; },
     async summary() {
-      await Promise.all(pending);
+      await within(Promise.all(pending), 5000, null);
       const bytes = { doc: 0, js: 0, css: 0, img: 0, font: 0, data: 0, other: 0, total: 0 };
       const seen = new Map();
       let data = 0, bad = 0;
@@ -72,7 +72,7 @@ function networkLog(page) {
       return {
         bytes,
         requests: { total: entries.length, data, duplicates: dups.reduce((a, [, n]) => a + n - 1, 0), failed: errors.failed.length + bad },
-        duplicateRequests: dups.slice(0, 5).map(([k, n]) => `${n}× ${k.slice(0, 160)}`),
+        duplicateRequests: dups.slice(0, 5).map(([k, n]) => `${n}× ${readable(k).slice(0, 220)}`),
         errors: { console: errors.console.length, page: errors.page.length, hydration, samples: errors.page.concat(errors.console).slice(0, 3) },
       };
     },
@@ -90,6 +90,15 @@ async function inPage(page, fn, arg) {
   }
 }
 const waitComplete = (page, opts) => inPage(page, (o) => window.__dmsPerf.waitComplete(o), opts);
+/** `promise`, or `fallback` after `ms`: nothing the browser does may hold a run up forever. */
+const within = (promise, ms, fallback) => {
+  let timer;
+  return Promise.race([
+    Promise.resolve(promise).finally(() => clearTimeout(timer)),
+    new Promise((resolve, reject) => { timer = setTimeout(() => (fallback instanceof Error ? reject(fallback) : resolve(fallback)), ms); }),
+  ]);
+};
+const readable = (url) => { try { return decodeURIComponent(url); } catch { return url; } };
 const round = (v) => (typeof v === 'number' ? Math.round(v * 10) / 10 : v);
 
 /** A document load: cold or warm, depending on what the context already holds. */
@@ -98,12 +107,22 @@ async function loadVisit(ctx, cfg, url) {
   const net = networkLog(page);
   const out = { ms: {}, status: null };
   try {
+    await within(measureLoad(page, net, cfg, url, out), cfg.timeoutMs + 30000, new Error(`no result ${Math.round(cfg.timeoutMs / 1000) + 30} s after starting the load`));
+  } catch (e) {
+    out.error = String(e.message || e).split('\n')[0].slice(0, 300);
+    Object.assign(out, await net.summary().catch(() => ({})));
+  }
+  return { page, net, out };
+}
+
+async function measureLoad(page, net, cfg, url, out) {
+  {
     const resp = await page.goto(url, { waitUntil: 'commit', timeout: cfg.timeoutMs });
     out.status = resp ? resp.status() : null;
     const done = await waitComplete(page, { quietMs: cfg.quietMs, timeoutMs: cfg.timeoutMs });
     const m = await inPage(page, () => window.__dmsPerf.read());
     let html = '';
-    try { html = resp ? await resp.text() : ''; } catch { /* body gone after a redirect */ }
+    try { html = resp ? await within(resp.text(), 5000, '') : ''; } catch { /* body gone after a redirect */ }
     const doc = detectFromHtml(html);
     Object.assign(out, await net.summary());
     out.ms = { ttfb: round(m.ttfb), fcp: round(m.fcp), lcp: round(m.lcp?.time ?? null), domContentLoaded: round(m.domContentLoaded), load: round(m.load), complete: round(done.complete), idle: round(done.idle) };
@@ -115,11 +134,6 @@ async function loadVisit(ctx, cfg, url) {
     out.serverTiming = m.serverTiming; out.marks = m.marks; out.loadingSeen = m.loadingSeen; out.heap = m.heap;
     out.finalPath = norm(new URL(page.url()).pathname);
     out.mode = { ...doc, ...(await inPage(page, detectInPage)) };
-    return { page, net, out };
-  } catch (e) {
-    out.error = String(e.message || e).split('\n')[0].slice(0, 300);
-    Object.assign(out, await net.summary().catch(() => ({})));
-    return { page, net, out };
   }
 }
 
@@ -154,6 +168,14 @@ const pageText = () => (document.querySelector('main') || document.body).innerTe
 
 /** An in-app navigation: click the link to `targetPath` on a page that is already complete. */
 async function clickVisit(page, net, cfg, targetPaths) {
+  try {
+    return await within(measureClick(page, net, cfg, targetPaths), cfg.timeoutMs + 45000, new Error(`no result ${Math.round(cfg.timeoutMs / 1000) + 45} s after the click`));
+  } catch (e) {
+    return { ms: {}, error: String(e.message || e).split('\n')[0].slice(0, 300) };
+  }
+}
+
+async function measureClick(page, net, cfg, targetPaths) {
   const out = { ms: {} };
   const link = await inPage(page, findLink, targetPaths);
   if (!link) { out.noLink = true; return out; }
@@ -232,9 +254,16 @@ export async function runPerf(cfg, site, log = () => {}) {
     counts: { visits: 0, errors: 0 },
   };
   const saveRun = () => fs.writeFileSync(path.join(outDir, 'run.json'), JSON.stringify(run, null, 1));
+  // a target that stops answering (restarted, or down) must end the run, not fill it with failures
+  let failedInARow = 0;
   const record = (v) => {
     run.counts.visits++; if (v.error) run.counts.errors++;
     fs.appendFileSync(visitsFile, JSON.stringify(v) + '\n');
+    if (v.visit === 'cold' || v.visit === 'warm') failedInARow = v.error ? failedInARow + 1 : 0;
+    if (failedInARow >= 6) {
+      run.aborted = `stopped after ${failedInARow} page loads in a row failed: ${v.error}`;
+      throw new Error(`${cfg.target} stopped answering (${failedInARow} page loads in a row failed: ${v.error}). The run is incomplete; its folder is ${outDir}`);
+    }
   };
   const newContext = () => browser.newContext({ viewport: cfg.viewport }).then(async (ctx) => { await ctx.addInitScript(collector); return ctx; });
 
@@ -265,13 +294,13 @@ export async function runPerf(cfg, site, log = () => {}) {
               const cold = await loadVisit(ctx, cfg, urlOf(p));
               if (!run.mode && cold.out.mode) { run.mode = { ...cold.out.mode, preload: pattern.preload_data }; saveRun(); }
               if (cfg.visits.includes('cold')) record({ ...base, visit: 'cold', ...cold.out, mode: undefined });
-              await cold.page.close();
+              await within(cold.page.close(), 5000, null);
               if (cfg.visits.includes('warm')) {
                 const warm = await loadVisit(ctx, cfg, urlOf(p));
                 record({ ...base, visit: 'warm', ...warm.out, mode: undefined });
-                await warm.page.close();
+                await within(warm.page.close(), 5000, null);
               }
-            } finally { await ctx.close(); }
+            } finally { await within(ctx.close(), 10000, null); }
           }
 
           if (cfg.visits.includes('click')) {
@@ -285,9 +314,9 @@ export async function runPerf(cfg, site, log = () => {}) {
               const ctx = await newContext();
               try {
                 const src = await loadVisit(ctx, cfg, urlOf(from));
-                if (src.out.error) { await src.page.close(); continue; }
+                if (src.out.error) { await within(src.page.close(), 5000, null); continue; }
                 const out = await clickVisit(src.page, src.net, cfg, pathsOf(p));
-                await src.page.close();
+                await within(src.page.close(), 5000, null);
                 if (out.noLink) continue;
                 linkSource.set(p.path, from);
                 record({ ...base, visit: 'click', from: from.path, ...out });
@@ -295,7 +324,7 @@ export async function runPerf(cfg, site, log = () => {}) {
               } catch (e) {
                 record({ ...base, visit: 'click', from: from.path, error: String(e.message || e).split('\n')[0].slice(0, 300) });
                 done = true; break;
-              } finally { await ctx.close(); }
+              } finally { await within(ctx.close(), 10000, null); }
             }
             if (!done) { linkSource.set(p.path, null); if (rep === 1) record({ ...base, visit: 'click', noLink: true }); }
           }
@@ -312,7 +341,7 @@ export async function runPerf(cfg, site, log = () => {}) {
               const land = await loadVisit(ctx, cfg, urlOf(home));
               let cumulative = land.out.ms.complete ?? 0, cumulativeIdle = land.out.ms.idle ?? 0;
               record({ profile, rep, visit: 'journey', pass, step: 0, page: home.slug, path: home.path, ...land.out, mode: undefined, cumulative: round(cumulative), cumulativeIdle: round(cumulativeIdle) });
-              if (land.out.error) { await land.page.close(); break; }
+              if (land.out.error) { await within(land.page.close(), 5000, null); break; }
               // the route: fixed after the first journey, so every repetition and every later run walks it
               const building = !run.journey;
               const route = building ? [] : run.journey;
@@ -334,18 +363,18 @@ export async function runPerf(cfg, site, log = () => {}) {
               if (building) { run.journey = route; saveRun(); }
               const storage = await inPage(land.page, () => navigator.storage?.estimate?.().then((e) => e.usage ?? null).catch(() => null)).catch(() => null);
               record({ profile, rep, visit: 'journey-end', pass, storageBytes: storage });
-              await land.page.close();
+              await within(land.page.close(), 5000, null);
             }
           } catch (e) {
             record({ profile, rep, visit: 'journey', error: String(e.message || e).split('\n')[0].slice(0, 300) });
-          } finally { await ctx.close(); }
+          } finally { await within(ctx.close(), 10000, null); }
         }
       }
     }
   } finally {
     run.finished = new Date().toISOString();
     saveRun();
-    await browser.close();
+    await within(browser.close(), 15000, null);
   }
   return { outDir, run };
 }

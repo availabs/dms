@@ -39,6 +39,16 @@ link to `#mention:<id>`, so no node type was added to the library.
   icon rail uses it to show the mark alone, centred, with the site title hidden. The rail's
   `logoWrapper` was never read by SideNav.
 
+### Follow-up, 2026-11-18 (the `/` menu in chat's composer)
+
+- `ComponentPickerPlugin`: optional `include` (option titles to offer; the dynamic table sizes are left
+  out too) and `placement: 'above'` (theme key `typeaheadPopover_above` → `typeaheadPopover.above`), for
+  an editor at the bottom of the screen. The menu carries `data-lexical-typeahead` while open, so a
+  caller's own key handling can step aside. `Lexicals` / `editor.tsx` take `componentPicker:
+  { hide, include, placement }`. Every existing caller is unchanged (defaults: all options, below).
+- Fixed for every editor: the menu's `<ul>` had no class, so `typeaheadPopover_ul_base`
+  (`max-h-[200px] overflow-y-scroll`) never applied and a long menu ran off the screen.
+
 ## Testing
 
 - [x] On the hub: the chat composer's `@` list opens, picks with the keyboard, and inserts the link;
