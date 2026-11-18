@@ -49,6 +49,8 @@ function loadFileConfig() {
     const config = JSON.parse(content);
     // a relative hook path is relative to the .dmsrc itself
     if (config.pagePublishHook) config.pagePublishHook = resolve(dirname(configPath), config.pagePublishHook);
+    // the host app's own commands (bin/dms.js loads them), each relative to the .dmsrc itself
+    if (config.commands) config.commands = [].concat(config.commands).map((p) => resolve(dirname(configPath), p));
     return config;
   } catch (e) {
     console.error(`Warning: Failed to parse ${configPath}: ${e.message}`);

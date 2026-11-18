@@ -176,6 +176,7 @@ For a type that has more to do than route and render. All of these are optional,
 | Its own Pattern Editor tab | `admin.editorTabs: [{ name, path, icon, component }]`; make the component lazy |
 | React to a page being published (editor Publish) | `onPagePublish({ page, pattern, sitePatterns, type, app, baseUrl, apiLoad, apiUpdate })` |
 | The same for `dms page publish` | a plain-ESM module named by `DMS_PAGE_PUBLISH_HOOK` / `.dmsrc` `pagePublishHook` |
+| Its own `dms` commands | a plain-ESM module listed in the app's `.dmsrc` `commands`; its default export gets `{ program, helpers }` (CLI docs/README.md "App commands") |
 | Show part of its settings to users not granted on the row | write it to the row's `public` key; dms-server's no-access stub carries `public` |
 | A nav widget a theme can place | `registerWidget(name, { label, component })` from the library entry |
 
